@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,13 @@ export const ExerciseCard = ({
   const [sets, setSets] = useState<SetData[]>(
     savedSets || Array(setCount).fill(null).map(() => ({ reps: 0, weight: 0, completed: false }))
   );
+
+  // Sync savedSets from localStorage when they become available
+  useEffect(() => {
+    if (savedSets && savedSets.length > 0) {
+      setSets(savedSets);
+    }
+  }, [savedSets]);
 
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight', value: number) => {
     const newSets = sets.map((set, i) =>

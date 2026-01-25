@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Calendar, Ruler, Trophy, X } from 'lucide-react';
+import { Home, Calendar, CalendarDays, Ruler, Trophy, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -10,7 +10,8 @@ interface AppNavigationProps {
 
 const navItems = [
   { to: '/', icon: Home, label: 'Dashboard' },
-  { to: '/plan', icon: Calendar, label: 'Plan treningowy' },
+  { to: '/day', icon: CalendarDays, label: 'Plan dnia' },
+  { to: '/plan', icon: Calendar, label: 'Plan tygodniowy' },
   { to: '/measurements', icon: Ruler, label: 'Pomiary' },
   { to: '/achievements', icon: Trophy, label: 'Osiągnięcia' },
 ];
