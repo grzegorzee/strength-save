@@ -13,14 +13,62 @@ export interface Exercise {
 export interface TrainingDay {
   id: string;
   dayName: string;
+  weekday: 'monday' | 'wednesday' | 'friday';
   focus: string;
   exercises: Exercise[];
 }
+
+// Helper to generate 12 weeks of training dates
+export const getTrainingSchedule = (startDate: Date = new Date()): { date: Date; dayId: string }[] => {
+  const schedule: { date: Date; dayId: string }[] = [];
+  const start = new Date(startDate);
+  
+  // Find the next Monday from start date
+  const dayOfWeek = start.getDay();
+  const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
+  start.setDate(start.getDate() + daysUntilMonday);
+  start.setHours(0, 0, 0, 0);
+  
+  // Generate 12 weeks
+  for (let week = 0; week < 12; week++) {
+    const monday = new Date(start);
+    monday.setDate(start.getDate() + week * 7);
+    
+    const wednesday = new Date(monday);
+    wednesday.setDate(monday.getDate() + 2);
+    
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    
+    schedule.push({ date: monday, dayId: 'day-1' });
+    schedule.push({ date: wednesday, dayId: 'day-2' });
+    schedule.push({ date: friday, dayId: 'day-3' });
+  }
+  
+  return schedule;
+};
+
+export const getTodaysTraining = (): TrainingDay | null => {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  
+  // Monday = 1, Wednesday = 3, Friday = 5
+  if (dayOfWeek === 1) return trainingPlan.find(d => d.weekday === 'monday') || null;
+  if (dayOfWeek === 3) return trainingPlan.find(d => d.weekday === 'wednesday') || null;
+  if (dayOfWeek === 5) return trainingPlan.find(d => d.weekday === 'friday') || null;
+  
+  return null;
+};
+
+export const getTrainingDates = (): Date[] => {
+  return getTrainingSchedule().map(s => s.date);
+};
 
 export const trainingPlan: TrainingDay[] = [
   {
     id: "day-1",
     dayName: "Poniedziałek",
+    weekday: "monday",
     focus: "Klatka / Przysiad / Środek Pleców",
     exercises: [
       {
@@ -29,12 +77,16 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "Ustawienie (Test Telefonu)",
-            content: "Połóż telefon płasko na mostku. Jeśli spada na twarz = Twój mostek jest stromy, daj ławkę wyżej."
+            title: "🎯 Test Telefonu",
+            content: "Połóż telefon na mostku. Jeśli leży płasko = skos minimalny (1. dziurka). Jeśli spada = wyższy skos (2. dziurka)."
           },
           {
-            title: "Wykonanie (Kształt Strzały)",
-            content: "Nie prowadź łokci szeroko (kształt litery T). Zbliż je lekko do tułowia (kształt strzały / A)."
+            title: "💪 Ruch (Kształt Strzały)",
+            content: "Łokcie prowadź węziej ('w strzałę'), nie szeroko w literę T."
+          },
+          {
+            title: "⚡ Ciężar",
+            content: "Taki, by ostatnie powtórzenie było walką, ale techniczną (1-2 ruchy zapasu)."
           }
         ]
       },
@@ -44,27 +96,31 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "Budowa ciała",
-            content: "Masz długie kości udowe? Pochylisz się mocniej w przód. Podłóż małe talerze pod pięty."
+            title: "📐 Rozstaw stóp",
+            content: "Podskocz i wyląduj – tak ustaw stopy."
           },
           {
-            title: "Rozstaw stóp",
-            content: "Podskocz w miejscu i wyląduj stabilnie. To jest Twój naturalny rozstaw stóp do przysiadu."
+            title: "🦵 Tip dla długich ud",
+            content: "Jeśli masz długie uda i lecisz do przodu, podłóż małe talerzyki pod pięty."
+          },
+          {
+            title: "⏱️ Przerwa",
+            content: "2-3 minuty między seriami."
           }
         ]
       },
       {
         id: "ex-1-3",
-        name: "Wiosłowanie hantlami na ławce",
+        name: "Wiosłowanie hantlami na ławce (przodem)",
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "Ustawienie",
-            content: "Ławka pod kątem 30-45 stopni. Kładziesz się klatką na oparciu. To eliminuje bujanie tułowiem."
+            title: "📍 Ustawienie",
+            content: "Klatka leży na ławce (30-45°). Eliminuje to bujanie."
           },
           {
-            title: "Ruch (Góra Pleców)",
-            content: "Prowadź łokcie szeroko. W górnej fazie ściągaj łopatki do siebie."
+            title: "💪 Ruch (Góra Pleców)",
+            content: "Łokcie prowadź szeroko (60°). Na górze mocno ściągnij łopatki ('zgnieć orzech')."
           }
         ]
       },
@@ -74,12 +130,16 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 8-12",
         instructions: [
           {
-            title: "Dlaczego siedząc?",
-            content: "Rozciąga mięśnie dwugłowe uda mocniej niż wersja leżąca."
+            title: "🎯 Dlaczego siedząc?",
+            content: "Wersja siedząca daje lepsze przyrosty niż leżąca."
           },
           {
-            title: "Wskazówka Pro",
-            content: "Pochyl tułów lekko do przodu - zwiększa napięcie tylnej taśmy."
+            title: "💡 Tip Pro",
+            content: "Podczas ruchu pochyl tułów do przodu (w stronę kolan) – to mocniej rozciąga mięsień."
+          },
+          {
+            title: "⏱️ Przerwa",
+            content: "60-90 sekund między seriami."
           }
         ]
       },
@@ -91,8 +151,12 @@ export const trainingPlan: TrainingDay[] = [
         supersetGroup: "5",
         instructions: [
           {
-            title: "Superseria: Biceps + Triceps",
-            content: "Łokcie muszą zostać za linią tułowia. Rozciągnij biceps na dole."
+            title: "🔄 SUPERSERIA: Biceps + Triceps",
+            content: "Robisz oba ćwiczenia ciągiem bez przerwy. Dopiero po zrobieniu B odpoczywasz."
+          },
+          {
+            title: "📍 Ustawienie",
+            content: "Leżąc na ławce skośnej. Łokcie muszą zostać za linią tułowia dla maksymalnego rozciągnięcia bicepsa."
           }
         ]
       },
@@ -104,8 +168,12 @@ export const trainingPlan: TrainingDay[] = [
         supersetGroup: "5",
         instructions: [
           {
-            title: "Triceps",
-            content: "Łokcie przy uszach. Opuszczaj ciężar głęboko za głowę."
+            title: "🔄 SUPERSERIA",
+            content: "Kontynuuj od razu po bicepsie."
+          },
+          {
+            title: "💪 Triceps",
+            content: "Hantel lub linka. Łokcie przy uszach, opuszczaj głęboko za kark."
           }
         ]
       }
@@ -114,7 +182,8 @@ export const trainingPlan: TrainingDay[] = [
   {
     id: "day-2",
     dayName: "Środa",
-    focus: "Szerokie Plecy / Tył Uda",
+    weekday: "wednesday",
+    focus: "Szerokie Plecy / Tył Uda / Klatka Płasko",
     exercises: [
       {
         id: "ex-2-1",
@@ -122,11 +191,11 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "Stabilność",
-            content: "Ściągnij łopatki pod siebie (retrakcja). Stopy wbij w ziemię."
+            title: "📍 Stabilizacja",
+            content: "Ściągnij łopatki pod siebie (retrakcja). Stopy wbij w ziemię. Lekki mostek jest konieczny dla zdrowia barków."
           },
           {
-            title: "Tor ruchu",
+            title: "💪 Ruch",
             content: "Opuszczaj sztangę na linię sutków lub nieco poniżej."
           }
         ]
@@ -137,12 +206,16 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "Ruch Zawiasowy",
-            content: "Wyobraź sobie, że zamykasz drzwi od samochodu pośladkami. Kolana lekko ugięte."
+            title: "🎯 Ruch zawiasowy",
+            content: "Wyobraź sobie, że zamykasz drzwi pośladkami. Kolana lekko ugięte, ale zablokowane."
           },
           {
-            title: "Zakres ruchu",
-            content: "Opuszczaj ciężar tylko do momentu, w którym biodra przestają się cofać."
+            title: "📏 Zakres",
+            content: "Zatrzymaj się, gdy biodra przestaną się cofać (zwykle połowa piszczeli)."
+          },
+          {
+            title: "⏱️ Przerwa",
+            content: "2-3 minuty między seriami."
           }
         ]
       },
@@ -152,12 +225,12 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 8-10",
         instructions: [
           {
-            title: "Dłonie jako Haki",
-            content: "Wyobraź sobie, że dłonie to haki, a ciągniesz łokciami."
+            title: "🖐️ Chwyt",
+            content: "Dłonie jak haki (nie ściskaj mocno)."
           },
           {
-            title: "Celowanie",
-            content: "Ciągnij drążek do górnej części klatki (obojczyków)."
+            title: "🎯 Cel",
+            content: "Ciągnij łokciami w dół, celując drążkiem w górną część klatki/obojczyki. Nie garb się."
           }
         ]
       },
@@ -167,38 +240,46 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 10/noga",
         instructions: [
           {
-            title: "Focus na Pośladki",
-            content: "Pochyl tułów lekko do przodu - mocniej angażuje pośladek."
+            title: "🍑 Focus na pośladki",
+            content: "Podczas kroku pochyl tułów lekko do przodu ('zawiśnij' nad nogą)."
           },
           {
-            title: "Bezpieczeństwo",
-            content: "Kolano tylnej nogi zatrzymuj centymetr nad ziemią."
+            title: "💡 Tip",
+            content: "Kolano tylnej nogi zatrzymuj 1 cm nad ziemią."
           }
         ]
       },
       {
         id: "ex-2-5a",
-        name: "Wznosy bokiem leżąc na ławce (Y-Raise)",
+        name: "Wznosy bokiem leżąc (Y-Raise)",
         sets: "3 x 10-15",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
           {
-            title: "Superseria: Barki + Brzuch",
-            content: "Wnoś hantle szeroko, tworząc kształt litery Y."
+            title: "🔄 SUPERSERIA: Barki + Brzuch",
+            content: "Robisz oba ćwiczenia ciągiem bez przerwy."
+          },
+          {
+            title: "💪 Wykonanie",
+            content: "Leżąc na ławce skośnej na plecach. Wnoś hantle szeroko w kształt litery Y. Nie szarp."
           }
         ]
       },
       {
         id: "ex-2-5b",
-        name: "Dead Bug (Robak)",
+        name: "Dead Bug (Robak - Brzuch)",
         sets: "3 x MAX",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
           {
-            title: "Brzuch",
-            content: "Dociśnij lędźwie do maty. Opuszczaj na przemian rękę i nogę."
+            title: "🔄 SUPERSERIA",
+            content: "Kontynuuj od razu po barkach."
+          },
+          {
+            title: "🎯 Kluczowe",
+            content: "Leżąc na macie. Lędźwie muszą być wklejone w podłogę. Opuszczaj rękę i nogę na przemian powoli."
           }
         ]
       }
@@ -207,6 +288,7 @@ export const trainingPlan: TrainingDay[] = [
   {
     id: "day-3",
     dayName: "Piątek",
+    weekday: "friday",
     focus: "Barki / Jednonóż / Detale",
     exercises: [
       {
@@ -215,12 +297,16 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "Kąt ławki",
-            content: "Nie ustawiaj oparcia pionowo. Obniż o jeden ząbek (ok. 75-80 stopni)."
+            title: "📍 Ustawienie",
+            content: "Ławka nie pionowo! Obniż oparcie o jeden ząbek (75-80°)."
           },
           {
-            title: "Pozycja łokci",
-            content: "Łokcie lekko wysunięte przed ciało, nie idealnie na boki."
+            title: "💪 Ruch",
+            content: "Łokcie lekko wysunięte przed ciało (nie idealnie na boki)."
+          },
+          {
+            title: "⏱️ Przerwa",
+            content: "2-3 minuty między seriami."
           }
         ]
       },
@@ -230,12 +316,12 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 6-8",
         instructions: [
           {
-            title: "Ruch Zamiatanie",
-            content: "Ciągnij hantel po łuku w stronę biodra."
+            title: "🎯 Ruch 'Zamiatanie'",
+            content: "Ciągnij hantel po łuku w stronę biodra ('chowaj do kieszeni'), a nie pionowo do pachy."
           },
           {
-            title: "Izolacja",
-            content: "Nie skręcaj tułowia! Barki równolegle do podłogi."
+            title: "💡 Tip",
+            content: "Nie skręcaj tułowia. Barki równolegle do podłogi."
           }
         ]
       },
@@ -245,56 +331,76 @@ export const trainingPlan: TrainingDay[] = [
         sets: "3 x 8-10",
         instructions: [
           {
-            title: "Spięcie",
-            content: "Napnij pośladki na górze ruchu."
+            title: "💪 Spięcie",
+            content: "Na górze ściskaj pośladki, jakbyś trzymał między nimi banknot 100 zł."
           },
           {
-            title: "Stabilność",
+            title: "👤 Głowa",
+            content: "Broda przyklejona do klatki (patrz przed siebie), chroni to lędźwie."
+          },
+          {
+            title: "📍 Stabilność",
             content: "Plecy oparte o ławkę na wysokości łopatek."
           }
         ]
       },
       {
         id: "ex-3-4",
-        name: "Bułgarskie wspięcia",
-        sets: "3 x 8/noga",
+        name: "Wyprosty nóg na maszynie",
+        sets: "3 x 10-15",
         instructions: [
           {
-            title: "Ustawienie",
-            content: "Tylna noga na ławce, przednia stabilnie na podłodze."
+            title: "📍 Ustawienie",
+            content: "Jeśli maszyna pozwala, odchyl oparcie mocno do tyłu (pozycja półleżąca). To lepiej angażuje prosty uda."
           },
           {
-            title: "Focus",
-            content: "Utrzymuj tułów pionowo przez cały ruch."
+            title: "⏱️ Przerwa",
+            content: "60-90 sekund między seriami."
           }
         ]
       },
       {
         id: "ex-3-5a",
-        name: "Wznosy bokiem (Standing)",
-        sets: "3 x 12-15",
+        name: "Odwrotne rozpiętki (Tył barku)",
+        sets: "3 x 10-15",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
           {
-            title: "Superseria: Barki + Łydki",
-            content: "Kontrolowany ruch, bez rozpędu."
+            title: "🔄 SUPERSERIA: Barki + Łydki",
+            content: "Robisz oba ćwiczenia ciągiem bez przerwy."
+          },
+          {
+            title: "📍 Ustawienie",
+            content: "Leżąc brzuchem na ławce skośnej. Podłóż bluzę pod klatkę. Ręce szeroko."
           }
         ]
       },
       {
         id: "ex-3-5b",
-        name: "Wspięcia na palce (stojąc)",
-        sets: "3 x 15-20",
+        name: "Wspięcia na palce (Nogi proste)",
+        sets: "3 x 10-15",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
           {
-            title: "Łydki",
-            content: "Pełen zakres ruchu - od rozciągnięcia do maksymalnego napięcia."
+            title: "🔄 SUPERSERIA",
+            content: "Kontynuuj od razu po barkach."
+          },
+          {
+            title: "🦵 Łydki",
+            content: "Stojąc lub na suwnicy. Kolana proste. Długa pauza (2 sekundy) w dolnym rozciągnięciu!"
           }
         ]
       }
     ]
   }
 ];
+
+// General training rules
+export const trainingRules = {
+  weight: "Ciężar: Taki, by ostatnie powtórzenie było walką, ale techniczną (1-2 ruchy zapasu).",
+  restMain: "Przerwy główne ćwiczenia: 2–3 minuty.",
+  restIsolation: "Przerwy izolacje: 60–90 sekund.",
+  supersets: "Superserie: Ostatnie dwa ćwiczenia (A i B) robisz ciągiem bez przerwy. Dopiero po zrobieniu B odpoczywasz."
+};
