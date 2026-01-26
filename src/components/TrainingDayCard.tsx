@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Dumbbell, ChevronRight, CheckCircle } from 'lucide-react';
 import { TrainingDay } from '@/data/trainingPlan';
-import { WorkoutSession } from '@/hooks/useWorkoutProgress';
+import { WorkoutSession } from '@/hooks/useFirebaseWorkouts';
 import { cn } from '@/lib/utils';
 
 interface TrainingDayCardProps {

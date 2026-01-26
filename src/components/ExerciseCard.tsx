@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronUp, Check, Info } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
-import { SetData } from '@/hooks/useWorkoutProgress';
+import { SetData } from '@/hooks/useFirebaseWorkouts';
 import { cn } from '@/lib/utils';
 
 interface ExerciseCardProps {
