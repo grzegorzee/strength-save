@@ -5,11 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Dumbbell, Play, Moon, Sun, CheckCircle } from 'lucide-react';
 import { getTodaysTraining, trainingRules } from '@/data/trainingPlan';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 
 const DayPlan = () => {
   const navigate = useNavigate();
-  const { getTodaysWorkout } = useWorkoutProgress();
+  const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts();
   const todaysTraining = getTodaysTraining();
   const today = new Date();
   const dayName = today.toLocaleDateString('pl-PL', { weekday: 'long' });
@@ -27,6 +27,14 @@ const DayPlan = () => {
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór';
   const GreetingIcon = hour < 18 ? Sun : Moon;
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+      </div>
+    );
+  }
 
   // Show rest day view if no training today OR if today's workout is completed
   if (!todaysTraining || isWorkoutCompleted) {

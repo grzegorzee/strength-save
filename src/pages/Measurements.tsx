@@ -1,18 +1,19 @@
 import { MeasurementsForm } from '@/components/MeasurementsForm';
+import { DataManagement } from '@/components/DataManagement';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 const Measurements = () => {
-  const { measurements, addMeasurement, getLatestMeasurement } = useWorkoutProgress();
+  const { measurements, addMeasurement, getLatestMeasurement, exportData, importData } = useFirebaseWorkouts();
   const { toast } = useToast();
   
   const latestMeasurement = getLatestMeasurement();
 
-  const handleSave = (measurement: Parameters<typeof addMeasurement>[0]) => {
-    addMeasurement(measurement);
+  const handleSave = async (measurement: Parameters<typeof addMeasurement>[0]) => {
+    await addMeasurement(measurement);
     toast({
       title: "Pomiary zapisane!",
       description: `Dane z dnia ${measurement.date} zostały zapisane.`,
@@ -42,6 +43,9 @@ const Measurements = () => {
         latestMeasurement={latestMeasurement}
         onSave={handleSave}
       />
+
+      {/* Data Management */}
+      <DataManagement onExport={exportData} onImport={importData} />
 
       {/* History */}
       {measurements.length > 0 && (

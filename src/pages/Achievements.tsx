@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/StatsCard';
-import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { Trophy, Dumbbell, Target, Calendar, TrendingUp, ChevronRight } from 'lucide-react';
 import { trainingPlan } from '@/data/trainingPlan';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -16,7 +16,7 @@ interface ExerciseRecord {
 }
 
 const Achievements = () => {
-  const { workouts, getTotalWeight, getCompletedWorkoutsCount } = useWorkoutProgress();
+  const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts();
   const [selectedExercise, setSelectedExercise] = useState<ExerciseRecord | null>(null);
 
   const totalWeight = getTotalWeight();
@@ -117,6 +117,14 @@ const Achievements = () => {
     return Array.from(grouped.entries())
       .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime());
   };
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

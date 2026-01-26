@@ -3,7 +3,7 @@ import { Dumbbell, Weight, Trophy, Target } from 'lucide-react';
 import { StatsCard } from '@/components/StatsCard';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { trainingPlan } from '@/data/trainingPlan';
-import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -13,7 +13,7 @@ const Dashboard = () => {
     getCompletedWorkoutsCount,
     getLatestMeasurement,
     isLoaded 
-  } = useWorkoutProgress();
+  } = useFirebaseWorkouts();
 
   const latestMeasurement = getLatestMeasurement();
   const totalWeight = getTotalWeight();
