@@ -2,12 +2,14 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Dumbbell, Play, Moon, Sun } from 'lucide-react';
+import { Calendar, Dumbbell, Play, Moon, Sun, CheckCircle } from 'lucide-react';
 import { getTodaysTraining, trainingRules } from '@/data/trainingPlan';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
 
 const DayPlan = () => {
   const navigate = useNavigate();
+  const { getTodaysWorkout } = useWorkoutProgress();
   const todaysTraining = getTodaysTraining();
   const today = new Date();
   const dayName = today.toLocaleDateString('pl-PL', { weekday: 'long' });
@@ -17,19 +19,28 @@ const DayPlan = () => {
     year: 'numeric' 
   });
 
+  // Check if today's workout is already completed
+  const todaysWorkout = todaysTraining ? getTodaysWorkout(todaysTraining.id) : null;
+  const isWorkoutCompleted = todaysWorkout?.completed === true;
+
   // Determine greeting based on time
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór';
   const GreetingIcon = hour < 18 ? Sun : Moon;
 
-  if (!todaysTraining) {
+  // Show rest day view if no training today OR if today's workout is completed
+  if (!todaysTraining || isWorkoutCompleted) {
     return (
       <div className="space-y-6">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-muted-foreground" />
+              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${isWorkoutCompleted ? 'bg-fitness-success' : 'bg-muted'}`}>
+                {isWorkoutCompleted ? (
+                  <CheckCircle className="h-6 w-6 text-white" />
+                ) : (
+                  <Calendar className="h-6 w-6 text-muted-foreground" />
+                )}
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
@@ -44,27 +55,36 @@ const DayPlan = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center py-8">
-              <div className="h-20 w-20 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-                <span className="text-4xl">🧘</span>
+              <div className={`h-20 w-20 rounded-full mx-auto mb-4 flex items-center justify-center ${isWorkoutCompleted ? 'bg-fitness-success/20' : 'bg-muted'}`}>
+                <span className="text-4xl">{isWorkoutCompleted ? '💪' : '🧘'}</span>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Dzisiaj wolne!</h3>
+              <h3 className="text-xl font-semibold mb-2">
+                {isWorkoutCompleted ? 'Trening ukończony!' : 'Dzisiaj wolne!'}
+              </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Dziś jest dzień regeneracji. Możesz odpocząć, zrobić lekki stretching lub spacer.
+                {isWorkoutCompleted 
+                  ? `Świetna robota! Ukończyłeś trening "${todaysTraining?.focus}". Teraz czas na regenerację.`
+                  : 'Dziś jest dzień regeneracji. Możesz odpocząć, zrobić lekki stretching lub spacer.'
+                }
               </p>
             </div>
             
             <div className="grid gap-3 sm:grid-cols-2">
               <Card className="bg-muted/30">
                 <CardContent className="p-4">
-                  <h4 className="font-medium text-sm mb-1">Następny trening</h4>
+                  <h4 className="font-medium text-sm mb-1">
+                    {isWorkoutCompleted ? 'Statystyki treningu' : 'Następny trening'}
+                  </h4>
                   <p className="text-muted-foreground text-sm">
-                    {today.getDay() === 0 || today.getDay() === 6 
-                      ? 'Poniedziałek - Klatka / Przysiad / Środek Pleców'
-                      : today.getDay() === 2 
-                        ? 'Środa - Szerokie Plecy / Tył Uda'
-                        : today.getDay() === 4
-                          ? 'Piątek - Barki / Jednonóż / Detale'
-                          : 'Sprawdź plan tygodniowy'
+                    {isWorkoutCompleted 
+                      ? `${todaysWorkout?.exercises.length || 0} ćwiczeń wykonanych`
+                      : today.getDay() === 0 || today.getDay() === 6 
+                        ? 'Poniedziałek - Klatka / Przysiad / Środek Pleców'
+                        : today.getDay() === 2 
+                          ? 'Środa - Szerokie Plecy / Tył Uda'
+                          : today.getDay() === 4
+                            ? 'Piątek - Barki / Jednonóż / Detale'
+                            : 'Sprawdź plan tygodniowy'
                     }
                   </p>
                 </CardContent>
@@ -73,11 +93,24 @@ const DayPlan = () => {
                 <CardContent className="p-4">
                   <h4 className="font-medium text-sm mb-1">Tip dnia</h4>
                   <p className="text-muted-foreground text-sm">
-                    Pamiętaj o nawodnieniu i 7-8h snu dla optymalnej regeneracji.
+                    {isWorkoutCompleted 
+                      ? 'Białko w ciągu 2h po treningu wspiera regenerację mięśni.'
+                      : 'Pamiętaj o nawodnieniu i 7-8h snu dla optymalnej regeneracji.'
+                    }
                   </p>
                 </CardContent>
               </Card>
             </div>
+
+            {isWorkoutCompleted && (
+              <Button 
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate(`/workout/${todaysTraining?.id}`)}
+              >
+                Zobacz szczegóły treningu
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -91,7 +124,7 @@ const DayPlan = () => {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white">
+              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-primary-foreground">
                 <Dumbbell className="h-7 w-7" />
               </div>
               <div>
