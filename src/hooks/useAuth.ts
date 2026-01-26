@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { User, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 
 // TWÓJ EMAIL - tylko ten email może się zalogować
@@ -30,6 +30,8 @@ export const useAuth = () => {
   const signInWithGoogle = async () => {
     try {
       setError(null);
+      // Ustaw persystencję na localStorage - przetrwa zamknięcie przeglądarki/PWA
+      await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, googleProvider);
 
       if (result.user.email !== ALLOWED_EMAIL) {
