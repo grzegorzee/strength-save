@@ -18,13 +18,13 @@ export const Layout = () => {
   const title = pageTitles[location.pathname] || 'FitTracker';
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
+    <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
       <AppNavigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      
-      <div className="flex-1 flex flex-col min-w-0">
+
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         <AppHeader title={title} onMenuClick={() => setSidebarOpen(true)} />
-        
-        <main className="flex-1 p-4 md:p-6">
+
+        <main className="flex-1 p-5 md:p-6 overflow-x-hidden">
           <div className="max-w-4xl mx-auto">
             <Outlet />
           </div>

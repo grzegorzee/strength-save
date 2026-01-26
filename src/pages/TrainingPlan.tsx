@@ -3,16 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
 import { trainingPlan, getTrainingSchedule, trainingRules } from '@/data/trainingPlan';
-import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { useState, useMemo } from 'react';
 import { pl } from 'date-fns/locale';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { Info, CalendarDays, CheckCircle, Dumbbell } from 'lucide-react';
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
-  const { getLatestWorkout, workouts } = useWorkoutProgress();
+  const { getLatestWorkout, workouts } = useFirebaseWorkouts();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   // Get dates with completed workouts
@@ -27,14 +27,44 @@ const TrainingPlan = () => {
   // Calculate week number and dates
   const today = new Date();
   const startDate = schedule[0]?.date || today;
-  const weekNumber = Math.floor((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-  const currentWeek = Math.max(1, Math.min(12, weekNumber));
 
-  // Get current week's dates
-  const currentWeekStart = new Date(startDate);
-  currentWeekStart.setDate(startDate.getDate() + (currentWeek - 1) * 7);
-  const currentWeekEnd = new Date(currentWeekStart);
-  currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
+  // Calculate week for TODAY (actual progress)
+  const todayWeekNumber = Math.floor((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  const actualCurrentWeek = Math.max(1, Math.min(12, todayWeekNumber));
+
+  // Calculate week for SELECTED DATE (for display)
+  const selectedOrToday = selectedDate || today;
+  const selectedWeekNumber = Math.floor((selectedOrToday.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  const displayWeek = Math.max(1, Math.min(12, selectedWeekNumber));
+
+  // Get selected week's dates
+  const selectedWeekStart = new Date(startDate);
+  selectedWeekStart.setDate(startDate.getDate() + (displayWeek - 1) * 7);
+  const selectedWeekEnd = new Date(selectedWeekStart);
+  selectedWeekEnd.setDate(selectedWeekStart.getDate() + 6);
+
+  // Get training dates for selected week
+  const selectedWeekTrainingDates = useMemo(() => {
+    const weekStart = new Date(selectedWeekStart);
+    const weekEnd = new Date(selectedWeekEnd);
+    return schedule.filter(s =>
+      s.date >= weekStart && s.date <= weekEnd
+    );
+  }, [selectedWeekStart.getTime(), selectedWeekEnd.getTime(), schedule]);
+
+  // Funkcja pomocnicza do formatowania daty lokalnej (bez problemu ze strefą czasową)
+  const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Get workouts for selected week
+  const getWorkoutForDate = (date: Date) => {
+    const dateStr = formatLocalDate(date);
+    return workouts.find(w => w.date === dateStr);
+  };
 
   return (
     <div className="space-y-6">
@@ -47,7 +77,10 @@ const TrainingPlan = () => {
               <CardDescription>12-tygodniowy program: Poniedziałek, Środa, Piątek</CardDescription>
             </div>
             <Badge className="bg-primary text-primary-foreground py-2 px-4 text-sm">
-              Tydzień {currentWeek} z 12
+              Tydzień {displayWeek} z 12
+              {displayWeek !== actualCurrentWeek && (
+                <span className="ml-1 opacity-70">(aktualny: {actualCurrentWeek})</span>
+              )}
             </Badge>
           </div>
         </CardHeader>
@@ -65,26 +98,48 @@ const TrainingPlan = () => {
             <div className="space-y-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="py-2 px-4 text-sm">
-                  {currentWeekStart.toLocaleDateString('pl-PL', { 
-                    day: '2-digit', 
+                  {selectedWeekStart.toLocaleDateString('pl-PL', {
+                    day: '2-digit',
                     month: '2-digit'
-                  })} - {currentWeekEnd.toLocaleDateString('pl-PL', { 
-                    day: '2-digit', 
-                    month: '2-digit', 
-                    year: 'numeric' 
+                  })} - {selectedWeekEnd.toLocaleDateString('pl-PL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
                   })}
                 </Badge>
+                {displayWeek !== actualCurrentWeek && (
+                  <button
+                    onClick={() => setSelectedDate(new Date())}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    ← Wróć do bieżącego tygodnia
+                  </button>
+                )}
               </div>
 
               <div className="space-y-3">
-                {trainingPlan.map((day) => (
-                  <TrainingDayCard
-                    key={day.id}
-                    day={day}
-                    latestWorkout={getLatestWorkout(day.id)}
-                    onClick={() => navigate(`/workout/${day.id}`)}
-                  />
-                ))}
+                {selectedWeekTrainingDates.map((scheduleItem) => {
+                  const dayPlan = trainingPlan.find(d => d.id === scheduleItem.dayId);
+                  if (!dayPlan) return null;
+
+                  const workoutForDate = getWorkoutForDate(scheduleItem.date);
+                  const dateStr = scheduleItem.date.toLocaleDateString('pl-PL', {
+                    day: 'numeric',
+                    month: 'short'
+                  });
+
+                  return (
+                    <div key={`${scheduleItem.dayId}-${scheduleItem.date.toISOString()}`}>
+                      <p className="text-xs text-muted-foreground mb-1 ml-1">{dateStr}</p>
+                      <TrainingDayCard
+                        day={dayPlan}
+                        latestWorkout={workoutForDate}
+                        trainingDate={scheduleItem.date}
+                        onClick={() => navigate(`/workout/${dayPlan.id}`)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Progress Summary */}
@@ -92,7 +147,7 @@ const TrainingPlan = () => {
                 <CardContent className="p-4">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold text-primary">{currentWeek}</p>
+                      <p className="text-2xl font-bold text-primary">{actualCurrentWeek}</p>
                       <p className="text-xs text-muted-foreground">Aktualny tydzień</p>
                     </div>
                     <div>
@@ -103,7 +158,7 @@ const TrainingPlan = () => {
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-primary">
-                        {12 - currentWeek}
+                        {Math.max(0, 12 - actualCurrentWeek)}
                       </p>
                       <p className="text-xs text-muted-foreground">Tygodni pozostało</p>
                     </div>
@@ -146,6 +201,62 @@ const TrainingPlan = () => {
                   <span className="text-muted-foreground">Zaplanowane treningi</span>
                 </div>
               </div>
+
+              {/* Selected date info */}
+              {selectedDate && (() => {
+                const selectedDateStr = selectedDate.toISOString().split('T')[0];
+                const scheduleEntry = schedule.find(s =>
+                  s.date.toISOString().split('T')[0] === selectedDateStr
+                );
+
+                if (!scheduleEntry) return null;
+
+                const dayPlan = trainingPlan.find(d => d.id === scheduleEntry.dayId);
+                const workoutForDate = workouts.find(w => w.date === selectedDateStr);
+
+                return (
+                  <Card className="mt-4">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CalendarDays className="h-4 w-4 text-primary" />
+                        <span className="font-medium text-sm">
+                          {selectedDate.toLocaleDateString('pl-PL', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long'
+                          })}
+                        </span>
+                      </div>
+                      {dayPlan && (
+                        <>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            {dayPlan.dayName}: {dayPlan.focus}
+                          </p>
+                          <div className="flex items-center gap-2 mb-3">
+                            {workoutForDate?.completed ? (
+                              <Badge className="bg-fitness-success text-white">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Ukończony
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">
+                                <Dumbbell className="h-3 w-3 mr-1" />
+                                Zaplanowany
+                              </Badge>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => navigate(`/workout/${scheduleEntry.dayId}`)}
+                            className="text-sm text-primary hover:underline"
+                          >
+                            Przejdź do treningu →
+                          </button>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </div>
           </div>
         </CardContent>

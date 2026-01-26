@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +24,7 @@ const WorkoutDay = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [exerciseSets, setExerciseSets] = useState<Record<string, SetData[]>>({});
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const day = trainingPlan.find(d => d.id === dayId);
   
@@ -82,8 +83,16 @@ const WorkoutDay = () => {
 
   const isWorkoutStarted = sessionId !== null;
 
-  // Workout completed view
-  if (isCompleted) {
+  const handleFinishEditing = () => {
+    setIsEditing(false);
+    toast({
+      title: "Zmiany zapisane!",
+      description: "Dane treningu zostały zaktualizowane.",
+    });
+  };
+
+  // Workout completed view (with optional edit mode)
+  if (isCompleted && !isEditing) {
     return (
       <div className="space-y-6">
         {/* Header */}
@@ -91,10 +100,14 @@ const WorkoutDay = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold">{day.dayName}</h1>
             <p className="text-muted-foreground">{day.focus}</p>
           </div>
+          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Pencil className="h-4 w-4 mr-2" />
+            Edytuj
+          </Button>
         </div>
 
         {/* Completed Status */}
@@ -116,7 +129,7 @@ const WorkoutDay = () => {
               </div>
               <div className="text-center p-4 bg-background rounded-lg">
                 <p className="text-2xl font-bold">
-                  {Object.values(exerciseSets).reduce((total, sets) => 
+                  {Object.values(exerciseSets).reduce((total, sets) =>
                     total + sets.filter(s => s.completed).length, 0
                   )}
                 </p>
@@ -136,7 +149,7 @@ const WorkoutDay = () => {
             const sets = exerciseSets[exercise.id] || [];
             const completedSets = sets.filter(s => s.completed);
             const totalWeight = completedSets.reduce((sum, s) => sum + (s.reps * s.weight), 0);
-            
+
             return (
               <Card key={exercise.id} className="bg-muted/30">
                 <CardContent className="py-3">
@@ -150,7 +163,7 @@ const WorkoutDay = () => {
                     <div className="flex items-center gap-4 text-sm">
                       <span>{completedSets.length}/{sets.length} serii</span>
                       {totalWeight > 0 && (
-                        <Badge variant="outline">{totalWeight} kg</Badge>
+                        <Badge className="bg-fitness-success text-white">{totalWeight} kg</Badge>
                       )}
                     </div>
                   </div>
@@ -160,12 +173,54 @@ const WorkoutDay = () => {
           })}
         </div>
 
-        <Button 
+        <Button
           variant="outline"
           className="w-full"
           onClick={() => navigate('/')}
         >
           Wróć do dashboardu
+        </Button>
+      </div>
+    );
+  }
+
+  // Edit mode for completed workout
+  if (isCompleted && isEditing) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setIsEditing(false)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">{day.dayName}</h1>
+            <p className="text-muted-foreground">Tryb edycji</p>
+          </div>
+        </div>
+
+        {/* Exercises - editable */}
+        <div className="space-y-4">
+          {day.exercises.map((exercise, index) => (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={exercise}
+              index={index + 1}
+              savedSets={exerciseSets[exercise.id]}
+              onSetsChange={(sets) => handleSetsChange(exercise.id, sets)}
+              isEditable={true}
+            />
+          ))}
+        </div>
+
+        {/* Finish editing button */}
+        <Button
+          size="lg"
+          className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
+          onClick={handleFinishEditing}
+        >
+          <Check className="h-5 w-5 mr-2" />
+          Zapisz zmiany
         </Button>
       </div>
     );

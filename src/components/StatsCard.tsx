@@ -33,24 +33,24 @@ export const StatsCard = ({
 
   return (
     <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-start gap-4">
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
           <div className={cn(
-            "h-12 w-12 rounded-xl flex items-center justify-center shrink-0",
+            "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
             iconColors[variant]
           )}>
-            <Icon className="h-6 w-6" />
+            <Icon className="h-5 w-5" />
           </div>
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground truncate">{title}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted-foreground leading-tight">{title}</p>
             <p className={cn(
-              "text-2xl font-bold",
+              "text-xl font-bold leading-tight",
               valueColors[variant]
             )}>
               {value}
             </p>
             {subtitle && (
-              <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{subtitle}</p>
             )}
           </div>
         </div>

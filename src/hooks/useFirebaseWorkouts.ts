@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
   deleteDoc,
   onSnapshot,
   query,
@@ -124,24 +125,31 @@ export const useFirebaseWorkouts = () => {
     sets: SetData[],
     notes?: string
   ) => {
-    const workout = workouts.find(w => w.id === sessionId);
-    if (!workout) return;
-
-    const existingIndex = workout.exercises.findIndex(e => e.exerciseId === exerciseId);
-    const newExercise: ExerciseProgress = { exerciseId, sets, notes };
-    
-    const newExercises = existingIndex >= 0
-      ? workout.exercises.map((e, i) => i === existingIndex ? newExercise : e)
-      : [...workout.exercises, newExercise];
+    if (!sessionId) return;
 
     try {
-      await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), {
-        exercises: newExercises
-      });
+      // Pobierz aktualny dokument z Firebase (nie z lokalnego state!)
+      const workoutRef = doc(db, WORKOUTS_COLLECTION, sessionId);
+      const workoutSnap = await getDoc(workoutRef);
+
+      if (!workoutSnap.exists()) {
+        console.error('Workout not found in Firebase:', sessionId);
+        return;
+      }
+
+      const workout = workoutSnap.data() as WorkoutSession;
+      const newExercise: ExerciseProgress = { exerciseId, sets, notes };
+
+      const existingIndex = workout.exercises.findIndex(e => e.exerciseId === exerciseId);
+      const newExercises = existingIndex >= 0
+        ? workout.exercises.map((e, i) => i === existingIndex ? newExercise : e)
+        : [...workout.exercises, newExercise];
+
+      await updateDoc(workoutRef, { exercises: newExercises });
     } catch (err) {
       console.error('Error updating exercise:', err);
     }
-  }, [workouts]);
+  }, []); // Brak dependency na workouts!
 
   const completeWorkout = useCallback(async (sessionId: string) => {
     try {
