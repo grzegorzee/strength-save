@@ -17,6 +17,7 @@ export interface SetData {
   reps: number;
   weight: number;
   completed: boolean;
+  isWarmup?: boolean;
 }
 
 export interface ExerciseProgress {
@@ -155,6 +156,7 @@ export const useFirebaseWorkouts = () => {
         reps: set.reps ?? 0,
         weight: set.weight ?? 0,
         completed: set.completed ?? false,
+        ...(set.isWarmup && { isWarmup: true }),
       }));
 
       // Firebase doesn't accept undefined values - only include notes if defined
@@ -174,6 +176,7 @@ export const useFirebaseWorkouts = () => {
           reps: s.reps ?? 0,
           weight: s.weight ?? 0,
           completed: s.completed ?? false,
+          ...(s.isWarmup && { isWarmup: true }),
         })),
         ...(ex.notes !== undefined && { notes: ex.notes }),
       }));

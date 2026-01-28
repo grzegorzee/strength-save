@@ -24,6 +24,7 @@ const WorkoutDay = () => {
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [exerciseSets, setExerciseSets] = useState<Record<string, SetData[]>>({});
+  const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
   const [isCompleted, setIsCompleted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,22 +43,26 @@ const WorkoutDay = () => {
 
     // Only reload if workout changed or we don't have data yet
     if (todaysWorkout && todaysWorkout.id !== lastLoadedWorkoutId.current) {
-      console.log('Loading workout from Firebase:', todaysWorkout.id, todaysWorkout);
       lastLoadedWorkoutId.current = todaysWorkout.id;
       setSessionId(todaysWorkout.id);
       setIsCompleted(todaysWorkout.completed);
 
       // Load exercises from Firebase
       const sets: Record<string, SetData[]> = {};
+      const notes: Record<string, string> = {};
       todaysWorkout.exercises.forEach(ex => {
         sets[ex.exerciseId] = ex.sets.map(s => ({
           reps: s.reps ?? 0,
           weight: s.weight ?? 0,
           completed: s.completed ?? false,
+          ...(s.isWarmup && { isWarmup: true }),
         }));
+        if (ex.notes) {
+          notes[ex.exerciseId] = ex.notes;
+        }
       });
       setExerciseSets(sets);
-      console.log('Loaded exerciseSets:', sets);
+      setExerciseNotes(notes);
     }
   }, [isLoaded, dayId, workouts, getTodaysWorkout]);
 
@@ -124,25 +129,33 @@ const WorkoutDay = () => {
   };
 
   // Handler for EDIT MODE - only local state, no Firebase saves
-  const handleSetsChangeLocal = useCallback((exerciseId: string, sets: SetData[]) => {
+  const handleSetsChangeLocal = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = sets.map(s => ({
       reps: s.reps ?? 0,
       weight: s.weight ?? 0,
       completed: s.completed ?? false,
+      ...(s.isWarmup && { isWarmup: true }),
     }));
     setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
+    if (notes !== undefined) {
+      setExerciseNotes(prev => ({ ...prev, [exerciseId]: notes }));
+    }
   }, []);
 
   // Handler for ACTIVE WORKOUT - auto-saves to Firebase
-  const handleSetsChange = useCallback(async (exerciseId: string, sets: SetData[]) => {
+  const handleSetsChange = useCallback(async (exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = sets.map(s => ({
       reps: s.reps ?? 0,
       weight: s.weight ?? 0,
       completed: s.completed ?? false,
+      ...(s.isWarmup && { isWarmup: true }),
     }));
 
     // Update local state immediately
     setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
+    if (notes !== undefined) {
+      setExerciseNotes(prev => ({ ...prev, [exerciseId]: notes }));
+    }
     setSaveError(null);
 
     if (!sessionId) {
@@ -156,9 +169,11 @@ const WorkoutDay = () => {
       clearTimeout(existingTimeout);
     }
 
+    const currentNotes = notes !== undefined ? notes : exerciseNotes[exerciseId];
+
     const timeout = setTimeout(async () => {
       setIsSaving(true);
-      const result = await updateExerciseProgress(sessionId, exerciseId, sanitizedSets);
+      const result = await updateExerciseProgress(sessionId, exerciseId, sanitizedSets, currentNotes);
 
       if (!result.success) {
         setSaveError(result.error || 'Błąd zapisu');
@@ -174,7 +189,7 @@ const WorkoutDay = () => {
     }, 300);
 
     pendingSaves.current.set(exerciseId, timeout);
-  }, [sessionId, updateExerciseProgress, toast]);
+  }, [sessionId, updateExerciseProgress, toast, exerciseNotes]);
 
   const handleCompleteWorkout = async () => {
     if (!sessionId) return;
@@ -220,10 +235,11 @@ const WorkoutDay = () => {
     setIsSaving(true);
     setSaveError(null);
 
-    // Save ALL exercises to Firebase at once
+    // Save ALL exercises to Firebase at once (with notes)
     let hasError = false;
     for (const [exerciseId, sets] of Object.entries(exerciseSets)) {
-      const result = await updateExerciseProgress(sessionId, exerciseId, sets);
+      const notes = exerciseNotes[exerciseId];
+      const result = await updateExerciseProgress(sessionId, exerciseId, sets, notes);
       if (!result.success) {
         hasError = true;
         setSaveError(result.error || 'Błąd zapisu');
@@ -389,7 +405,8 @@ const WorkoutDay = () => {
               exercise={exercise}
               index={index + 1}
               savedSets={exerciseSets[exercise.id]}
-              onSetsChange={(sets) => handleSetsChangeLocal(exercise.id, sets)}
+              savedNotes={exerciseNotes[exercise.id]}
+              onSetsChange={(sets, notes) => handleSetsChangeLocal(exercise.id, sets, notes)}
               isEditable={true}
             />
           ))}
@@ -443,7 +460,8 @@ const WorkoutDay = () => {
             exercise={exercise}
             index={index + 1}
             savedSets={exerciseSets[exercise.id]}
-            onSetsChange={(sets) => handleSetsChange(exercise.id, sets)}
+            savedNotes={exerciseNotes[exercise.id]}
+            onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
             isEditable={isWorkoutStarted && !isCompleted}
           />
         ))}

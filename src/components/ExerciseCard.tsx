@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronUp, Check, Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, Check, Info, Flame, StickyNote } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import { SetData } from '@/hooks/useFirebaseWorkouts';
 import { cn } from '@/lib/utils';
@@ -12,7 +13,8 @@ interface ExerciseCardProps {
   exercise: Exercise;
   index: number;
   savedSets?: SetData[];
-  onSetsChange?: (sets: SetData[]) => void;
+  savedNotes?: string;
+  onSetsChange?: (sets: SetData[], notes?: string) => void;
   isEditable?: boolean;
 }
 
@@ -21,32 +23,50 @@ const parseSetCount = (setsStr: string): number => {
   return match ? parseInt(match[1], 10) : 3;
 };
 
-// Helper to create clean set data (no undefined values)
-const createEmptySets = (count: number): SetData[] =>
-  Array(count).fill(null).map(() => ({ reps: 0, weight: 0, completed: false }));
+// Helper to create clean set data with warmup (no undefined values)
+const createEmptySets = (count: number): SetData[] => {
+  const sets: SetData[] = [
+    { reps: 0, weight: 0, completed: false, isWarmup: true }, // Warmup set
+  ];
+  for (let i = 0; i < count; i++) {
+    sets.push({ reps: 0, weight: 0, completed: false });
+  }
+  return sets;
+};
 
 // Helper to sanitize sets from Firebase (may contain undefined)
 const sanitizeSets = (sets: SetData[] | undefined, expectedCount: number): SetData[] => {
   if (!sets || sets.length === 0) {
     return createEmptySets(expectedCount);
   }
-  return sets.map(set => ({
+  // Check if warmup exists, if not add it
+  const hasWarmup = sets.some(s => s.isWarmup);
+  const sanitized = sets.map(set => ({
     reps: set?.reps ?? 0,
     weight: set?.weight ?? 0,
     completed: set?.completed ?? false,
+    ...(set?.isWarmup && { isWarmup: true }),
   }));
+
+  if (!hasWarmup) {
+    return [{ reps: 0, weight: 0, completed: false, isWarmup: true }, ...sanitized];
+  }
+  return sanitized;
 };
 
 export const ExerciseCard = ({
   exercise,
   index,
   savedSets,
+  savedNotes,
   onSetsChange,
   isEditable = true,
 }: ExerciseCardProps) => {
   const setCount = parseSetCount(exercise.sets);
   const [expanded, setExpanded] = useState(false);
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
+  const [notes, setNotes] = useState(savedNotes || '');
+  const [showNotes, setShowNotes] = useState(!!savedNotes);
 
   // Track if user has made any local changes to prevent overwriting
   const hasLocalChanges = useRef(false);
@@ -54,38 +74,46 @@ export const ExerciseCard = ({
 
   // Sync savedSets ONLY on initial load, not when user is editing
   useEffect(() => {
-    // Only sync if:
-    // 1. We have savedSets with data
-    // 2. This is the first time we're loading (not initialized yet)
-    // 3. OR user hasn't made local changes yet
     if (savedSets && savedSets.length > 0) {
       if (!isInitialized.current || !hasLocalChanges.current) {
         setSets(sanitizeSets(savedSets, setCount));
         isInitialized.current = true;
       }
     }
-  }, [savedSets, setCount]);
+    if (savedNotes !== undefined && !hasLocalChanges.current) {
+      setNotes(savedNotes);
+      if (savedNotes) setShowNotes(true);
+    }
+  }, [savedSets, savedNotes, setCount]);
 
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight', value: number) => {
-    hasLocalChanges.current = true; // Mark that user has made changes
+    hasLocalChanges.current = true;
     const newSets = sets.map((set, i) =>
       i === setIndex ? { ...set, [field]: value } : set
     );
     setSets(newSets);
-    onSetsChange?.(newSets);
+    onSetsChange?.(newSets, notes);
   };
 
   const handleSetComplete = (setIndex: number) => {
-    hasLocalChanges.current = true; // Mark that user has made changes
+    hasLocalChanges.current = true;
     const newSets = sets.map((set, i) =>
       i === setIndex ? { ...set, completed: !set.completed } : set
     );
     setSets(newSets);
-    onSetsChange?.(newSets);
+    onSetsChange?.(newSets, notes);
   };
 
-  const completedSets = sets.filter(s => s.completed).length;
-  const allCompleted = completedSets === sets.length;
+  const handleNotesChange = (value: string) => {
+    hasLocalChanges.current = true;
+    setNotes(value);
+    onSetsChange?.(sets, value);
+  };
+
+  // Count only non-warmup sets
+  const workingSets = sets.filter(s => !s.isWarmup);
+  const completedSets = workingSets.filter(s => s.completed).length;
+  const allCompleted = workingSets.length > 0 && completedSets === workingSets.length;
   const exerciseLabel = exercise.isSuperset
     ? `${index}${exercise.id.endsWith('a') ? 'a' : 'b'}`
     : `${index}`;
@@ -116,7 +144,7 @@ export const ExerciseCard = ({
                 </Badge>
                 {completedSets > 0 && (
                   <span className="text-sm text-muted-foreground">
-                    {completedSets}/{sets.length} serii
+                    {completedSets}/{workingSets.length} serii
                   </span>
                 )}
               </div>
@@ -156,45 +184,84 @@ export const ExerciseCard = ({
               <span>Ciężar (kg)</span>
               <span className="w-10"></span>
             </div>
-            {sets.map((set, i) => (
-              <div 
-                key={i} 
-                className={cn(
-                  "grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center p-2 rounded-lg transition-colors",
-                  set.completed ? "bg-fitness-success/10" : "bg-muted/30"
-                )}
-              >
-                <span className="w-12 text-sm font-medium text-center">{i + 1}</span>
-                <Input
-                  type="number"
-                  min={0}
-                  value={set.reps || ''}
-                  onChange={(e) => handleSetChange(i, 'reps', parseInt(e.target.value) || 0)}
-                  placeholder="0"
-                  className="h-9"
-                />
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  value={set.weight || ''}
-                  onChange={(e) => handleSetChange(i, 'weight', parseFloat(e.target.value) || 0)}
-                  placeholder="0"
-                  className="h-9"
-                />
-                <Button
-                  variant={set.completed ? "default" : "outline"}
-                  size="icon"
+            {sets.map((set, i) => {
+              const isWarmup = set.isWarmup;
+              const workingSetIndex = isWarmup ? 0 : sets.slice(0, i).filter(s => !s.isWarmup).length + 1;
+
+              return (
+                <div
+                  key={i}
                   className={cn(
-                    "h-9 w-10",
-                    set.completed && "bg-fitness-success hover:bg-fitness-success/90"
+                    "grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center p-2 rounded-lg transition-colors",
+                    isWarmup
+                      ? "bg-orange-500/10 border border-orange-500/30"
+                      : set.completed
+                        ? "bg-fitness-success/10"
+                        : "bg-muted/30"
                   )}
-                  onClick={() => handleSetComplete(i)}
                 >
-                  <Check className="h-4 w-4" />
+                  <span className={cn(
+                    "w-12 text-sm font-medium text-center flex items-center justify-center gap-1",
+                    isWarmup && "text-orange-500"
+                  )}>
+                    {isWarmup ? <Flame className="h-4 w-4" /> : workingSetIndex}
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={set.reps || ''}
+                    onChange={(e) => handleSetChange(i, 'reps', parseInt(e.target.value) || 0)}
+                    placeholder={isWarmup ? "rozgrzewka" : "0"}
+                    className={cn("h-9", isWarmup && "border-orange-500/30")}
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={set.weight || ''}
+                    onChange={(e) => handleSetChange(i, 'weight', parseFloat(e.target.value) || 0)}
+                    placeholder={isWarmup ? "kg" : "0"}
+                    className={cn("h-9", isWarmup && "border-orange-500/30")}
+                  />
+                  <Button
+                    variant={set.completed ? "default" : "outline"}
+                    size="icon"
+                    className={cn(
+                      "h-9 w-10",
+                      isWarmup && set.completed && "bg-orange-500 hover:bg-orange-500/90",
+                      !isWarmup && set.completed && "bg-fitness-success hover:bg-fitness-success/90"
+                    )}
+                    onClick={() => handleSetComplete(i)}
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
+
+            {/* Notes toggle and input */}
+            <div className="pt-2">
+              {!showNotes ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => setShowNotes(true)}
+                >
+                  <StickyNote className="h-4 w-4 mr-2" />
+                  Dodaj notatkę
                 </Button>
-              </div>
-            ))}
+              ) : (
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Notatki do ćwiczenia (np. odczucia, uwagi techniczne)..."
+                    value={notes}
+                    onChange={(e) => handleNotesChange(e.target.value)}
+                    className="min-h-[60px] text-sm"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
