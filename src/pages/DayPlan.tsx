@@ -111,10 +111,10 @@ const DayPlan = () => {
             </div>
 
             {isWorkoutCompleted && (
-              <Button 
+              <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate(`/workout/${todaysTraining?.id}`)}
+                onClick={() => navigate(`/workout/${todaysTraining?.id}?date=${today.toISOString().split('T')[0]}`)}
               >
                 Zobacz szczegóły treningu
               </Button>
@@ -200,10 +200,10 @@ const DayPlan = () => {
           </div>
 
           {/* Start Workout Button */}
-          <Button 
-            size="lg" 
+          <Button
+            size="lg"
             className="w-full py-6 text-lg"
-            onClick={() => navigate(`/workout/${todaysTraining.id}`)}
+            onClick={() => navigate(`/workout/${todaysTraining.id}?date=${today.toISOString().split('T')[0]}`)}
           >
             <Play className="h-5 w-5 mr-2" />
             Rozpocznij trening

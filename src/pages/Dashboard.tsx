@@ -63,14 +63,18 @@ const Dashboard = () => {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Plan tygodnia</h2>
         <div className="grid gap-4">
-          {trainingPlan.map((day) => (
-            <TrainingDayCard
-              key={day.id}
-              day={day}
-              latestWorkout={getLatestWorkout(day.id)}
-              onClick={() => navigate(`/workout/${day.id}`)}
-            />
-          ))}
+          {trainingPlan.map((day) => {
+            const latestWorkout = getLatestWorkout(day.id);
+            const dateParam = latestWorkout?.date || new Date().toISOString().split('T')[0];
+            return (
+              <TrainingDayCard
+                key={day.id}
+                day={day}
+                latestWorkout={latestWorkout}
+                onClick={() => navigate(`/workout/${day.id}?date=${dateParam}`)}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
