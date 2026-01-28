@@ -7,13 +7,23 @@ import { useToast } from '@/hooks/use-toast';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 const Measurements = () => {
-  const { measurements, addMeasurement, getLatestMeasurement, exportData, importData } = useFirebaseWorkouts();
+  const { measurements, addMeasurement, getLatestMeasurement, exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts();
   const { toast } = useToast();
   
   const latestMeasurement = getLatestMeasurement();
 
   const handleSave = async (measurement: Parameters<typeof addMeasurement>[0]) => {
-    await addMeasurement(measurement);
+    const result = await addMeasurement(measurement);
+
+    if (result.error || !result.measurement) {
+      toast({
+        title: "Błąd zapisu!",
+        description: result.error || "Nie udało się zapisać pomiarów. Sprawdź połączenie z internetem.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: "Pomiary zapisane!",
       description: `Dane z dnia ${measurement.date} zostały zapisane.`,
@@ -45,7 +55,7 @@ const Measurements = () => {
       />
 
       {/* Data Management */}
-      <DataManagement onExport={exportData} onImport={importData} />
+      <DataManagement onExport={exportData} onImport={importData} onCleanup={cleanupEmptyWorkouts} />
 
       {/* History */}
       {measurements.length > 0 && (

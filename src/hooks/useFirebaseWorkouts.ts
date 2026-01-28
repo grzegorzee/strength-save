@@ -100,11 +100,20 @@ export const useFirebaseWorkouts = () => {
     return () => unsubscribe();
   }, []);
 
-  const createWorkoutSession = useCallback(async (dayId: string): Promise<{ session: WorkoutSession | null; error?: string }> => {
+  const createWorkoutSession = useCallback(async (dayId: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }> => {
+    const today = new Date().toISOString().split('T')[0];
+
+    // Check if workout for today already exists (prevent duplicates)
+    const existingWorkout = workouts.find(w => w.dayId === dayId && w.date === today);
+    if (existingWorkout) {
+      console.log('Workout already exists for today, returning existing:', existingWorkout.id);
+      return { session: existingWorkout, existing: true };
+    }
+
     const session: WorkoutSession = {
       id: `workout-${Date.now()}`,
       dayId,
-      date: new Date().toISOString().split('T')[0],
+      date: today,
       exercises: [],
       completed: false,
     };
@@ -117,7 +126,7 @@ export const useFirebaseWorkouts = () => {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       return { session: null, error: errorMessage };
     }
-  }, []);
+  }, [workouts]);
 
   const updateExerciseProgress = useCallback(async (
     sessionId: string,
@@ -177,7 +186,29 @@ export const useFirebaseWorkouts = () => {
 
   const getTodaysWorkout = useCallback((dayId: string) => {
     const today = new Date().toISOString().split('T')[0];
-    return workouts.find(w => w.dayId === dayId && w.date === today);
+    const todaysWorkouts = workouts.filter(w => w.dayId === dayId && w.date === today);
+
+    if (todaysWorkouts.length === 0) return undefined;
+    if (todaysWorkouts.length === 1) return todaysWorkouts[0];
+
+    // If multiple workouts exist for today, prefer:
+    // 1. One with exercises (has data)
+    // 2. One that is completed
+    // 3. The newest one (by ID timestamp)
+    return todaysWorkouts.sort((a, b) => {
+      // Prefer workout with exercises
+      const aHasExercises = a.exercises.length > 0;
+      const bHasExercises = b.exercises.length > 0;
+      if (aHasExercises && !bHasExercises) return -1;
+      if (!aHasExercises && bHasExercises) return 1;
+
+      // Prefer completed workout
+      if (a.completed && !b.completed) return -1;
+      if (!a.completed && b.completed) return 1;
+
+      // Prefer newer (higher timestamp in ID)
+      return b.id.localeCompare(a.id);
+    })[0];
   }, [workouts]);
 
   const getLatestWorkout = useCallback((dayId: string) => {
@@ -185,19 +216,20 @@ export const useFirebaseWorkouts = () => {
     return dayWorkouts[0];
   }, [getWorkoutsByDay]);
 
-  const addMeasurement = useCallback(async (measurement: Omit<BodyMeasurement, 'id'>) => {
+  const addMeasurement = useCallback(async (measurement: Omit<BodyMeasurement, 'id'>): Promise<{ measurement: BodyMeasurement | null; error?: string }> => {
     const newMeasurement: BodyMeasurement = {
       ...measurement,
       id: `measurement-${Date.now()}`,
     };
-    
+
     try {
       await setDoc(doc(db, MEASUREMENTS_COLLECTION, newMeasurement.id), newMeasurement);
+      return { measurement: newMeasurement };
     } catch (err) {
       console.error('Error adding measurement:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { measurement: null, error: errorMessage };
     }
-    
-    return newMeasurement;
   }, []);
 
   const getLatestMeasurement = useCallback(() => {
@@ -252,6 +284,63 @@ export const useFirebaseWorkouts = () => {
     }
   }, []);
 
+  // Delete a specific workout (for cleanup)
+  const deleteWorkout = useCallback(async (workoutId: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await deleteDoc(doc(db, WORKOUTS_COLLECTION, workoutId));
+      return { success: true };
+    } catch (err) {
+      console.error('Error deleting workout:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
+  // Cleanup empty/duplicate workouts
+  const cleanupEmptyWorkouts = useCallback(async (): Promise<{ deleted: number; error?: string }> => {
+    try {
+      // Group workouts by date+dayId
+      const grouped = new Map<string, WorkoutSession[]>();
+      workouts.forEach(w => {
+        const key = `${w.date}-${w.dayId}`;
+        const existing = grouped.get(key) || [];
+        existing.push(w);
+        grouped.set(key, existing);
+      });
+
+      let deleted = 0;
+
+      for (const [key, group] of grouped) {
+        if (group.length <= 1) continue;
+
+        // Sort: prefer workouts with exercises, then completed, then newest
+        const sorted = [...group].sort((a, b) => {
+          const aHasExercises = a.exercises.length > 0;
+          const bHasExercises = b.exercises.length > 0;
+          if (aHasExercises && !bHasExercises) return -1;
+          if (!aHasExercises && bHasExercises) return 1;
+          if (a.completed && !b.completed) return -1;
+          if (!a.completed && b.completed) return 1;
+          return b.id.localeCompare(a.id);
+        });
+
+        // Keep the best one, delete the rest
+        const toDelete = sorted.slice(1);
+        for (const workout of toDelete) {
+          await deleteDoc(doc(db, WORKOUTS_COLLECTION, workout.id));
+          deleted++;
+          console.log(`Deleted duplicate workout: ${workout.id}`);
+        }
+      }
+
+      return { deleted };
+    } catch (err) {
+      console.error('Error cleaning up workouts:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { deleted: 0, error: errorMessage };
+    }
+  }, [workouts]);
+
   return {
     workouts,
     measurements,
@@ -269,5 +358,7 @@ export const useFirebaseWorkouts = () => {
     getCompletedWorkoutsCount,
     exportData,
     importData,
+    deleteWorkout,
+    cleanupEmptyWorkouts,
   };
 };
