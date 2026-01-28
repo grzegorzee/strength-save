@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,14 +34,26 @@ export const ExerciseCard = ({
     savedSets || Array(setCount).fill(null).map(() => ({ reps: 0, weight: 0, completed: false }))
   );
 
-  // Sync savedSets from localStorage when they become available
+  // Track if user has made any local changes to prevent overwriting
+  const hasLocalChanges = useRef(false);
+  const isInitialized = useRef(false);
+
+  // Sync savedSets ONLY on initial load, not when user is editing
   useEffect(() => {
+    // Only sync if:
+    // 1. We have savedSets with data
+    // 2. This is the first time we're loading (not initialized yet)
+    // 3. OR user hasn't made local changes yet
     if (savedSets && savedSets.length > 0) {
-      setSets(savedSets);
+      if (!isInitialized.current || !hasLocalChanges.current) {
+        setSets(savedSets);
+        isInitialized.current = true;
+      }
     }
   }, [savedSets]);
 
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight', value: number) => {
+    hasLocalChanges.current = true; // Mark that user has made changes
     const newSets = sets.map((set, i) =>
       i === setIndex ? { ...set, [field]: value } : set
     );
@@ -50,6 +62,7 @@ export const ExerciseCard = ({
   };
 
   const handleSetComplete = (setIndex: number) => {
+    hasLocalChanges.current = true; // Mark that user has made changes
     const newSets = sets.map((set, i) =>
       i === setIndex ? { ...set, completed: !set.completed } : set
     );

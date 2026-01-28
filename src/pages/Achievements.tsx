@@ -80,7 +80,7 @@ const Achievements = () => {
 
   const exerciseRecords = getAllExerciseRecords();
 
-  // Calculate training streak
+  // Calculate training streak - counts consecutive training DAYS (Mon/Wed/Fri) with completed workouts
   const getTrainingStreak = () => {
     const completedDates = workouts
       .filter(w => w.completed)
@@ -89,18 +89,47 @@ const Achievements = () => {
 
     if (completedDates.length === 0) return 0;
 
-    let streak = 0;
-    const today = new Date().toISOString().split('T')[0];
-    let checkDate = new Date(today);
+    // Helper: check if a date is a training day (Monday=1, Wednesday=3, Friday=5)
+    const isTrainingDay = (date: Date): boolean => {
+      const day = date.getDay();
+      return day === 1 || day === 3 || day === 5;
+    };
 
-    for (let i = 0; i < 30; i++) {
+    // Helper: get previous training day
+    const getPreviousTrainingDay = (date: Date): Date => {
+      const prev = new Date(date);
+      do {
+        prev.setDate(prev.getDate() - 1);
+      } while (!isTrainingDay(prev));
+      return prev;
+    };
+
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find the most recent training day (could be today or in the past)
+    let checkDate = new Date(today);
+    if (!isTrainingDay(checkDate)) {
+      checkDate = getPreviousTrainingDay(checkDate);
+    }
+
+    // Count consecutive training days with completed workouts
+    for (let i = 0; i < 20; i++) { // Max 20 training days (~7 weeks)
       const dateStr = checkDate.toISOString().split('T')[0];
+
       if (completedDates.includes(dateStr)) {
         streak++;
-      } else if (i > 0) {
+        checkDate = getPreviousTrainingDay(checkDate);
+      } else {
+        // If today is a training day and not completed yet, don't break - check previous
+        const todayStr = today.toISOString().split('T')[0];
+        if (i === 0 && dateStr === todayStr) {
+          checkDate = getPreviousTrainingDay(checkDate);
+          continue;
+        }
         break;
       }
-      checkDate.setDate(checkDate.getDate() - 1);
     }
 
     return streak;

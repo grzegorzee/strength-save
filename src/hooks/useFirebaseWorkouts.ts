@@ -100,7 +100,7 @@ export const useFirebaseWorkouts = () => {
     return () => unsubscribe();
   }, []);
 
-  const createWorkoutSession = useCallback(async (dayId: string): Promise<WorkoutSession> => {
+  const createWorkoutSession = useCallback(async (dayId: string): Promise<{ session: WorkoutSession | null; error?: string }> => {
     const session: WorkoutSession = {
       id: `workout-${Date.now()}`,
       dayId,
@@ -108,15 +108,15 @@ export const useFirebaseWorkouts = () => {
       exercises: [],
       completed: false,
     };
-    
+
     try {
       await setDoc(doc(db, WORKOUTS_COLLECTION, session.id), session);
+      return { session };
     } catch (err) {
       console.error('Error creating workout:', err);
-      throw err;
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { session: null, error: errorMessage };
     }
-    
-    return session;
   }, []);
 
   const updateExerciseProgress = useCallback(async (
@@ -124,8 +124,10 @@ export const useFirebaseWorkouts = () => {
     exerciseId: string,
     sets: SetData[],
     notes?: string
-  ) => {
-    if (!sessionId) return;
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!sessionId) {
+      return { success: false, error: 'Brak ID sesji treningowej' };
+    }
 
     try {
       // Pobierz aktualny dokument z Firebase (nie z lokalnego state!)
@@ -134,7 +136,7 @@ export const useFirebaseWorkouts = () => {
 
       if (!workoutSnap.exists()) {
         console.error('Workout not found in Firebase:', sessionId);
-        return;
+        return { success: false, error: 'Nie znaleziono treningu w bazie danych' };
       }
 
       const workout = workoutSnap.data() as WorkoutSession;
@@ -146,18 +148,24 @@ export const useFirebaseWorkouts = () => {
         : [...workout.exercises, newExercise];
 
       await updateDoc(workoutRef, { exercises: newExercises });
+      return { success: true };
     } catch (err) {
       console.error('Error updating exercise:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd zapisu';
+      return { success: false, error: errorMessage };
     }
-  }, []); // Brak dependency na workouts!
+  }, []);
 
-  const completeWorkout = useCallback(async (sessionId: string) => {
+  const completeWorkout = useCallback(async (sessionId: string): Promise<{ success: boolean; error?: string }> => {
     try {
       await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), {
         completed: true
       });
+      return { success: true };
     } catch (err) {
       console.error('Error completing workout:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { success: false, error: errorMessage };
     }
   }, []);
 
