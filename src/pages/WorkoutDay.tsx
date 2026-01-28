@@ -38,7 +38,9 @@ const WorkoutDay = () => {
   useEffect(() => {
     if (isLoaded && dayId && !isInitialized.current) {
       const todaysWorkout = getTodaysWorkout(dayId);
+      console.log('WorkoutDay useEffect: todaysWorkout =', todaysWorkout);
       if (todaysWorkout) {
+        console.log('WorkoutDay useEffect: Setting sessionId to', todaysWorkout.id);
         setSessionId(todaysWorkout.id);
         setIsCompleted(todaysWorkout.completed);
         const sets: Record<string, SetData[]> = {};
@@ -46,6 +48,9 @@ const WorkoutDay = () => {
           sets[ex.exerciseId] = ex.sets;
         });
         setExerciseSets(sets);
+        console.log('WorkoutDay useEffect: Loaded exercises:', sets);
+      } else {
+        console.log('WorkoutDay useEffect: No workout found for today');
       }
       isInitialized.current = true;
     }
@@ -114,7 +119,18 @@ const WorkoutDay = () => {
     setExerciseSets(prev => ({ ...prev, [exerciseId]: sets }));
     setSaveError(null);
 
-    if (!sessionId) return;
+    if (!sessionId) {
+      console.error('handleSetsChange: sessionId is null! Cannot save to Firebase.');
+      setSaveError('Brak ID sesji - dane nie zostaną zapisane');
+      toast({
+        title: "Błąd!",
+        description: "Brak ID sesji treningowej. Odśwież stronę.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log(`handleSetsChange: Saving exercise ${exerciseId} to session ${sessionId}`);
 
     // Debounce Firebase saves to prevent race conditions
     const existingTimeout = pendingSaves.current.get(exerciseId);
@@ -124,8 +140,11 @@ const WorkoutDay = () => {
 
     const timeout = setTimeout(async () => {
       setIsSaving(true);
+      console.log(`handleSetsChange: Executing Firebase save for ${exerciseId}`);
 
       const result = await updateExerciseProgress(sessionId, exerciseId, sets);
+
+      console.log(`handleSetsChange: Result for ${exerciseId}:`, result);
 
       if (!result.success) {
         setSaveError(result.error || 'Błąd zapisu');
@@ -187,15 +206,29 @@ const WorkoutDay = () => {
     // Wait for any pending saves
     if (pendingSaves.current.size > 0) {
       setIsSaving(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      toast({
+        title: "Zapisywanie...",
+        description: "Czekam na zakończenie zapisu danych.",
+      });
+      await new Promise(resolve => setTimeout(resolve, 1500));
       setIsSaving(false);
     }
 
+    // Check if there was an error during saving
+    if (saveError) {
+      toast({
+        title: "Uwaga!",
+        description: `Niektóre dane mogły się nie zapisać: ${saveError}`,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Zmiany zapisane!",
+        description: "Dane treningu zostały zaktualizowane.",
+      });
+    }
+
     setIsEditing(false);
-    toast({
-      title: "Zmiany zapisane!",
-      description: "Dane treningu zostały zaktualizowane.",
-    });
   };
 
   // Error banner component
