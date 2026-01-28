@@ -255,6 +255,10 @@ const WorkoutDay = () => {
     (total, sets) => total + sets.filter(s => s.completed).length,
     0
   );
+  const totalRepsCount = Object.values(exerciseSets).reduce(
+    (total, sets) => total + sets.filter(s => s.completed).reduce((sum, s) => sum + s.reps, 0),
+    0
+  );
 
   const ErrorBanner = () => saveError ? (
     <Card className="border-destructive bg-destructive/10">
@@ -305,14 +309,18 @@ const WorkoutDay = () => {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">Świetna robota!</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-background rounded-lg">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 bg-background rounded-lg">
                 <p className="text-2xl font-bold">{exerciseCount}</p>
-                <p className="text-sm text-muted-foreground">Ćwiczeń wykonanych</p>
+                <p className="text-xs text-muted-foreground">Ćwiczeń</p>
               </div>
-              <div className="text-center p-4 bg-background rounded-lg">
+              <div className="text-center p-3 bg-background rounded-lg">
                 <p className="text-2xl font-bold">{completedSetsCount}</p>
-                <p className="text-sm text-muted-foreground">Serii ukończonych</p>
+                <p className="text-xs text-muted-foreground">Serii</p>
+              </div>
+              <div className="text-center p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold">{totalRepsCount}</p>
+                <p className="text-xs text-muted-foreground">Powtórzeń</p>
               </div>
             </div>
           </CardContent>
