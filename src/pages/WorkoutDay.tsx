@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ const WorkoutDay = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
+    workouts,
     getTodaysWorkout,
     createWorkoutSession,
     updateExerciseProgress,
@@ -28,38 +29,37 @@ const WorkoutDay = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Track if initial data has been loaded to prevent race conditions
-  const isInitialized = useRef(false);
   const pendingSaves = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const lastLoadedWorkoutId = useRef<string | null>(null);
 
   const day = trainingPlan.find(d => d.id === dayId);
 
-  // Load initial data ONLY ONCE when component mounts
+  // Load data from Firebase - update when workouts change
   useEffect(() => {
-    if (isLoaded && dayId && !isInitialized.current) {
-      const todaysWorkout = getTodaysWorkout(dayId);
-      console.log('WorkoutDay useEffect: todaysWorkout =', todaysWorkout);
-      if (todaysWorkout) {
-        console.log('WorkoutDay useEffect: Setting sessionId to', todaysWorkout.id);
-        setSessionId(todaysWorkout.id);
-        setIsCompleted(todaysWorkout.completed);
-        const sets: Record<string, SetData[]> = {};
-        todaysWorkout.exercises.forEach(ex => {
-          sets[ex.exerciseId] = ex.sets;
-        });
-        setExerciseSets(sets);
-        console.log('WorkoutDay useEffect: Loaded exercises:', sets);
-      } else {
-        console.log('WorkoutDay useEffect: No workout found for today');
-      }
-      isInitialized.current = true;
-    }
-  }, [isLoaded, dayId, getTodaysWorkout]);
+    if (!isLoaded || !dayId) return;
 
-  // Reset initialization flag when dayId changes
-  useEffect(() => {
-    isInitialized.current = false;
-  }, [dayId]);
+    const todaysWorkout = getTodaysWorkout(dayId);
+
+    // Only reload if workout changed or we don't have data yet
+    if (todaysWorkout && todaysWorkout.id !== lastLoadedWorkoutId.current) {
+      console.log('Loading workout from Firebase:', todaysWorkout.id, todaysWorkout);
+      lastLoadedWorkoutId.current = todaysWorkout.id;
+      setSessionId(todaysWorkout.id);
+      setIsCompleted(todaysWorkout.completed);
+
+      // Load exercises from Firebase
+      const sets: Record<string, SetData[]> = {};
+      todaysWorkout.exercises.forEach(ex => {
+        sets[ex.exerciseId] = ex.sets.map(s => ({
+          reps: s.reps ?? 0,
+          weight: s.weight ?? 0,
+          completed: s.completed ?? false,
+        }));
+      });
+      setExerciseSets(sets);
+      console.log('Loaded exerciseSets:', sets);
+    }
+  }, [isLoaded, dayId, workouts, getTodaysWorkout]);
 
   // Cleanup pending saves on unmount
   useEffect(() => {
@@ -90,23 +90,32 @@ const WorkoutDay = () => {
         setSaveError(result.error || 'Nie udało się utworzyć treningu');
         toast({
           title: "Błąd!",
-          description: result.error || 'Nie udało się rozpocząć treningu. Sprawdź połączenie z internetem.',
+          description: result.error || 'Nie udało się rozpocząć treningu.',
           variant: "destructive",
         });
         return;
       }
 
       setSessionId(result.session.id);
-      toast({
-        title: "Trening rozpoczęty!",
-        description: `${day.dayName} - ${day.focus}`,
-      });
+      lastLoadedWorkoutId.current = result.session.id;
+
+      if (result.existing) {
+        toast({
+          title: "Kontynuujesz trening",
+          description: "Wczytano istniejący trening z dzisiaj.",
+        });
+      } else {
+        toast({
+          title: "Trening rozpoczęty!",
+          description: `${day.dayName} - ${day.focus}`,
+        });
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       setSaveError(errorMessage);
       toast({
         title: "Błąd!",
-        description: 'Nie udało się rozpocząć treningu. Sprawdź połączenie z internetem.',
+        description: 'Nie udało się rozpocząć treningu.',
         variant: "destructive",
       });
     } finally {
@@ -115,24 +124,35 @@ const WorkoutDay = () => {
   };
 
   const handleSetsChange = useCallback(async (exerciseId: string, sets: SetData[]) => {
-    // Always update local state immediately for responsive UI
-    setExerciseSets(prev => ({ ...prev, [exerciseId]: sets }));
+    // Sanitize sets to ensure no undefined values
+    const sanitizedSets = sets.map(s => ({
+      reps: s.reps ?? 0,
+      weight: s.weight ?? 0,
+      completed: s.completed ?? false,
+    }));
+
+    console.log(`handleSetsChange called for ${exerciseId}:`, sanitizedSets);
+
+    // Always update local state immediately
+    setExerciseSets(prev => {
+      const updated = { ...prev, [exerciseId]: sanitizedSets };
+      console.log('Updated exerciseSets:', updated);
+      return updated;
+    });
     setSaveError(null);
 
     if (!sessionId) {
-      console.error('handleSetsChange: sessionId is null! Cannot save to Firebase.');
-      setSaveError('Brak ID sesji - dane nie zostaną zapisane');
+      console.error('handleSetsChange: No sessionId!');
+      setSaveError('Brak sesji - odśwież stronę');
       toast({
         title: "Błąd!",
-        description: "Brak ID sesji treningowej. Odśwież stronę.",
+        description: "Brak sesji treningowej. Odśwież stronę.",
         variant: "destructive",
       });
       return;
     }
 
-    console.log(`handleSetsChange: Saving exercise ${exerciseId} to session ${sessionId}`);
-
-    // Debounce Firebase saves to prevent race conditions
+    // Debounce Firebase saves
     const existingTimeout = pendingSaves.current.get(exerciseId);
     if (existingTimeout) {
       clearTimeout(existingTimeout);
@@ -140,24 +160,23 @@ const WorkoutDay = () => {
 
     const timeout = setTimeout(async () => {
       setIsSaving(true);
-      console.log(`handleSetsChange: Executing Firebase save for ${exerciseId}`);
+      console.log(`Saving to Firebase: ${exerciseId}`, sanitizedSets);
 
-      const result = await updateExerciseProgress(sessionId, exerciseId, sets);
-
-      console.log(`handleSetsChange: Result for ${exerciseId}:`, result);
+      const result = await updateExerciseProgress(sessionId, exerciseId, sanitizedSets);
+      console.log(`Firebase save result for ${exerciseId}:`, result);
 
       if (!result.success) {
         setSaveError(result.error || 'Błąd zapisu');
         toast({
           title: "Błąd zapisu!",
-          description: `Nie udało się zapisać ćwiczenia. ${result.error || 'Sprawdź połączenie.'}`,
+          description: result.error || 'Sprawdź połączenie.',
           variant: "destructive",
         });
       }
 
       setIsSaving(false);
       pendingSaves.current.delete(exerciseId);
-    }, 500); // 500ms debounce
+    }, 300);
 
     pendingSaves.current.set(exerciseId, timeout);
   }, [sessionId, updateExerciseProgress, toast]);
@@ -165,27 +184,20 @@ const WorkoutDay = () => {
   const handleCompleteWorkout = async () => {
     if (!sessionId) return;
 
-    // Wait for any pending saves to complete
+    // Wait for pending saves
     if (pendingSaves.current.size > 0) {
-      toast({
-        title: "Poczekaj...",
-        description: "Trwa zapisywanie ostatnich zmian.",
-      });
-
-      // Wait a bit for pending saves
+      toast({ title: "Poczekaj...", description: "Zapisywanie danych." });
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     setIsSaving(true);
-    setSaveError(null);
-
     const result = await completeWorkout(sessionId);
 
     if (!result.success) {
-      setSaveError(result.error || 'Błąd zakończenia treningu');
+      setSaveError(result.error || 'Błąd');
       toast({
         title: "Błąd!",
-        description: `Nie udało się zakończyć treningu. ${result.error || 'Sprawdź połączenie.'}`,
+        description: result.error || 'Nie udało się zakończyć treningu.',
         variant: "destructive",
       });
       setIsSaving(false);
@@ -196,68 +208,67 @@ const WorkoutDay = () => {
     setIsSaving(false);
     toast({
       title: "Trening zakończony!",
-      description: "Świetna robota! Dane zostały zapisane.",
+      description: "Świetna robota!",
     });
   };
 
-  const isWorkoutStarted = sessionId !== null;
-
   const handleFinishEditing = async () => {
-    // Wait for any pending saves
+    // Wait for pending saves
     if (pendingSaves.current.size > 0) {
       setIsSaving(true);
-      toast({
-        title: "Zapisywanie...",
-        description: "Czekam na zakończenie zapisu danych.",
-      });
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 800));
       setIsSaving(false);
     }
 
-    // Check if there was an error during saving
     if (saveError) {
       toast({
         title: "Uwaga!",
-        description: `Niektóre dane mogły się nie zapisać: ${saveError}`,
+        description: `Mogły wystąpić błędy: ${saveError}`,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Zmiany zapisane!",
-        description: "Dane treningu zostały zaktualizowane.",
+        title: "Zapisano!",
+        description: "Dane zostały zaktualizowane.",
       });
     }
 
     setIsEditing(false);
   };
 
-  // Error banner component
+  const isWorkoutStarted = sessionId !== null;
+
+  // Calculate stats from exerciseSets
+  const exerciseCount = Object.keys(exerciseSets).length;
+  const completedSetsCount = Object.values(exerciseSets).reduce(
+    (total, sets) => total + sets.filter(s => s.completed).length,
+    0
+  );
+
   const ErrorBanner = () => saveError ? (
     <Card className="border-destructive bg-destructive/10">
       <CardContent className="py-3">
         <div className="flex items-center gap-2 text-destructive">
           <AlertCircle className="h-5 w-5" />
-          <span className="text-sm font-medium">{saveError}</span>
+          <span className="text-sm">{saveError}</span>
         </div>
       </CardContent>
     </Card>
   ) : null;
 
-  // Saving indicator component
   const SavingIndicator = () => isSaving ? (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full flex items-center gap-2 shadow-lg z-50">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full flex items-center gap-2 shadow-lg z-50">
       <Loader2 className="h-4 w-4 animate-spin" />
       <span className="text-sm">Zapisywanie...</span>
     </div>
   ) : null;
 
-  // Workout completed view (with optional edit mode)
+  // COMPLETED VIEW (not editing)
   if (isCompleted && !isEditing) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 pb-20">
         <SavingIndicator />
 
-        {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
@@ -274,7 +285,6 @@ const WorkoutDay = () => {
 
         <ErrorBanner />
 
-        {/* Completed Status */}
         <Card className="border-fitness-success bg-fitness-success/10">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-fitness-success">
@@ -283,36 +293,29 @@ const WorkoutDay = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground mb-4">
-              Świetna robota! Oto podsumowanie Twojego treningu:
-            </p>
+            <p className="text-muted-foreground mb-4">Świetna robota!</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-4 bg-background rounded-lg">
-                <p className="text-2xl font-bold">{Object.keys(exerciseSets).length}</p>
+                <p className="text-2xl font-bold">{exerciseCount}</p>
                 <p className="text-sm text-muted-foreground">Ćwiczeń wykonanych</p>
               </div>
               <div className="text-center p-4 bg-background rounded-lg">
-                <p className="text-2xl font-bold">
-                  {Object.values(exerciseSets).reduce((total, sets) =>
-                    total + sets.filter(s => s.completed).length, 0
-                  )}
-                </p>
+                <p className="text-2xl font-bold">{completedSetsCount}</p>
                 <p className="text-sm text-muted-foreground">Serii ukończonych</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Review exercises */}
         <div className="space-y-2">
           <h3 className="font-semibold flex items-center gap-2">
             <Eye className="h-4 w-4" />
-            Podsumowanie ćwiczeń
+            Podsumowanie
           </h3>
           {day.exercises.map((exercise, index) => {
             const sets = exerciseSets[exercise.id] || [];
-            const completedSets = sets.filter(s => s.completed);
-            const totalWeight = completedSets.reduce((sum, s) => sum + (s.reps * s.weight), 0);
+            const completed = sets.filter(s => s.completed);
+            const totalWeight = completed.reduce((sum, s) => sum + (s.reps * s.weight), 0);
 
             return (
               <Card key={exercise.id} className="bg-muted/30">
@@ -325,7 +328,7 @@ const WorkoutDay = () => {
                       <span className="font-medium">{exercise.name}</span>
                     </div>
                     <div className="flex items-center gap-4 text-sm">
-                      <span>{completedSets.length}/{sets.length} serii</span>
+                      <span>{completed.length}/{sets.length} serii</span>
                       {totalWeight > 0 && (
                         <Badge className="bg-fitness-success text-white">{totalWeight} kg</Badge>
                       )}
@@ -337,24 +340,19 @@ const WorkoutDay = () => {
           })}
         </div>
 
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => navigate('/')}
-        >
+        <Button variant="outline" className="w-full" onClick={() => navigate('/')}>
           Wróć do dashboardu
         </Button>
       </div>
     );
   }
 
-  // Edit mode for completed workout
+  // EDIT MODE
   if (isCompleted && isEditing) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 pb-24">
         <SavingIndicator />
 
-        {/* Header */}
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => setIsEditing(false)}>
             <ArrowLeft className="h-5 w-5" />
@@ -367,7 +365,6 @@ const WorkoutDay = () => {
 
         <ErrorBanner />
 
-        {/* Exercises - editable */}
         <div className="space-y-4">
           {day.exercises.map((exercise, index) => (
             <ExerciseCard
@@ -381,29 +378,26 @@ const WorkoutDay = () => {
           ))}
         </div>
 
-        {/* Finish editing button */}
-        <Button
-          size="lg"
-          className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
-          onClick={handleFinishEditing}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-          ) : (
-            <Check className="h-5 w-5 mr-2" />
-          )}
-          Zapisz zmiany
-        </Button>
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
+          <Button
+            size="lg"
+            className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
+            onClick={handleFinishEditing}
+            disabled={isSaving}
+          >
+            {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
+            Zapisz zmiany
+          </Button>
+        </div>
       </div>
     );
   }
 
+  // ACTIVE WORKOUT VIEW
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <SavingIndicator />
 
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
@@ -416,7 +410,6 @@ const WorkoutDay = () => {
 
       <ErrorBanner />
 
-      {/* Start Workout Button */}
       {!isWorkoutStarted && (
         <Button
           size="lg"
@@ -424,16 +417,11 @@ const WorkoutDay = () => {
           onClick={handleStartWorkout}
           disabled={isSaving}
         >
-          {isSaving ? (
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-          ) : (
-            <Play className="h-5 w-5 mr-2" />
-          )}
+          {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Play className="h-5 w-5 mr-2" />}
           Rozpocznij trening
         </Button>
       )}
 
-      {/* Exercises */}
       <div className="space-y-4">
         {day.exercises.map((exercise, index) => (
           <ExerciseCard
@@ -447,21 +435,18 @@ const WorkoutDay = () => {
         ))}
       </div>
 
-      {/* Complete Workout Button */}
       {isWorkoutStarted && !isCompleted && (
-        <Button
-          size="lg"
-          className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
-          onClick={handleCompleteWorkout}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-          ) : (
-            <Check className="h-5 w-5 mr-2" />
-          )}
-          Zakończ trening
-        </Button>
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
+          <Button
+            size="lg"
+            className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
+            onClick={handleCompleteWorkout}
+            disabled={isSaving}
+          >
+            {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
+            Zakończ trening
+          </Button>
+        </div>
       )}
     </div>
   );
