@@ -149,17 +149,36 @@ export const useFirebaseWorkouts = () => {
       }
 
       const workout = workoutSnap.data() as WorkoutSession;
+
+      // Sanitize sets - Firebase doesn't accept undefined values
+      const sanitizedSets = sets.map(set => ({
+        reps: set.reps ?? 0,
+        weight: set.weight ?? 0,
+        completed: set.completed ?? false,
+      }));
+
       // Firebase doesn't accept undefined values - only include notes if defined
       const newExercise: ExerciseProgress = notes !== undefined
-        ? { exerciseId, sets, notes }
-        : { exerciseId, sets };
+        ? { exerciseId, sets: sanitizedSets, notes }
+        : { exerciseId, sets: sanitizedSets };
 
       const existingIndex = workout.exercises.findIndex(e => e.exerciseId === exerciseId);
       const newExercises = existingIndex >= 0
         ? workout.exercises.map((e, i) => i === existingIndex ? newExercise : e)
         : [...workout.exercises, newExercise];
 
-      await updateDoc(workoutRef, { exercises: newExercises });
+      // Sanitize entire exercises array to remove any undefined
+      const cleanExercises = newExercises.map(ex => ({
+        exerciseId: ex.exerciseId,
+        sets: ex.sets.map(s => ({
+          reps: s.reps ?? 0,
+          weight: s.weight ?? 0,
+          completed: s.completed ?? false,
+        })),
+        ...(ex.notes !== undefined && { notes: ex.notes }),
+      }));
+
+      await updateDoc(workoutRef, { exercises: cleanExercises });
       return { success: true };
     } catch (err) {
       console.error('Error updating exercise:', err);
