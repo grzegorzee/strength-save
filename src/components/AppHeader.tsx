@@ -29,10 +29,7 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <div>
-            <h1 className="text-xl font-bold text-foreground">{title}</h1>
-            <p className="text-[10px] text-muted-foreground">v2.1.0</p>
-          </div>
+          <h1 className="text-xl font-bold text-foreground">{title}</h1>
         </div>
 
         <DropdownMenu>

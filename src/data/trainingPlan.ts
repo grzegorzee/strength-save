@@ -22,11 +22,12 @@ export interface TrainingDay {
 export const getTrainingSchedule = (startDate: Date = new Date()): { date: Date; dayId: string }[] => {
   const schedule: { date: Date; dayId: string }[] = [];
   const start = new Date(startDate);
-  
-  // Find the next Monday from start date
+
+  // Find the current week's Monday (go back to Monday if we're past it)
   const dayOfWeek = start.getDay();
-  const daysUntilMonday = dayOfWeek === 0 ? 1 : dayOfWeek === 1 ? 0 : 8 - dayOfWeek;
-  start.setDate(start.getDate() + daysUntilMonday);
+  // Sunday=0 -> go back 6 days, Monday=1 -> 0 days, Tuesday=2 -> 1 day, etc.
+  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  start.setDate(start.getDate() - daysSinceMonday);
   start.setHours(0, 0, 0, 0);
   
   // Generate 12 weeks

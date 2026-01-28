@@ -350,7 +350,7 @@ const WorkoutDay = () => {
   // EDIT MODE
   if (isCompleted && isEditing) {
     return (
-      <div className="space-y-6 pb-24">
+      <div className="space-y-6 pb-6">
         <SavingIndicator />
 
         <div className="flex items-center gap-4">
@@ -378,17 +378,14 @@ const WorkoutDay = () => {
           ))}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
-          <Button
-            size="lg"
-            className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
-            onClick={handleFinishEditing}
-            disabled={isSaving}
-          >
-            {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
-            Zapisz zmiany
-          </Button>
-        </div>
+        <Button
+          className="bg-fitness-success hover:bg-fitness-success/90"
+          onClick={handleFinishEditing}
+          disabled={isSaving}
+        >
+          {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+          Zapisz zmiany
+        </Button>
       </div>
     );
   }
