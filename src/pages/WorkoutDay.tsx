@@ -97,6 +97,18 @@ const WorkoutDay = () => {
     );
   }
 
+  // DEBUG - temporary
+  const matchingWorkouts = workouts.filter(w => w.dayId === dayId);
+  const debugInfo = {
+    targetDate,
+    dayId,
+    isViewingPastWorkout,
+    sessionId,
+    isCompleted,
+    workoutsForThisDay: matchingWorkouts.map(w => ({ id: w.id, date: w.date, completed: w.completed })),
+  };
+  console.log('WorkoutDay DEBUG:', debugInfo);
+
   const handleStartWorkout = async () => {
     // Don't allow starting workout for past dates
     if (isViewingPastWorkout) {
@@ -463,6 +475,14 @@ const WorkoutDay = () => {
       </div>
 
       <ErrorBanner />
+
+      {/* DEBUG - temporary */}
+      <Card className="bg-yellow-100 border-yellow-400">
+        <CardContent className="py-2 text-xs">
+          <p><strong>DEBUG:</strong> targetDate={targetDate} | today={today} | isPast={String(isViewingPastWorkout)} | sessionId={sessionId || 'null'}</p>
+          <p>Workouts dla {dayId}: {matchingWorkouts.map(w => `${w.date}(${w.completed ? '✓' : '○'})`).join(', ') || 'brak'}</p>
+        </CardContent>
+      </Card>
 
       {/* Past date without workout - show message */}
       {!isWorkoutStarted && isViewingPastWorkout && (
