@@ -128,6 +128,7 @@ const TrainingPlan = () => {
                     month: 'short'
                   });
 
+                  const trainingDateStr = formatLocalDate(scheduleItem.date);
                   return (
                     <div key={`${scheduleItem.dayId}-${scheduleItem.date.toISOString()}`}>
                       <p className="text-xs text-muted-foreground mb-1 ml-1">{dateStr}</p>
@@ -135,7 +136,7 @@ const TrainingPlan = () => {
                         day={dayPlan}
                         latestWorkout={workoutForDate}
                         trainingDate={scheduleItem.date}
-                        onClick={() => navigate(`/workout/${dayPlan.id}`)}
+                        onClick={() => navigate(`/workout/${dayPlan.id}?date=${trainingDateStr}`)}
                       />
                     </div>
                   );
@@ -246,7 +247,7 @@ const TrainingPlan = () => {
                             )}
                           </div>
                           <button
-                            onClick={() => navigate(`/workout/${scheduleEntry.dayId}`)}
+                            onClick={() => navigate(`/workout/${scheduleEntry.dayId}?date=${selectedDateStr}`)}
                             className="text-sm text-primary hover:underline"
                           >
                             Przejdź do treningu →

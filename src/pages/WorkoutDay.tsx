@@ -1,5 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,16 +11,21 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
     workouts,
-    getTodaysWorkout,
     createWorkoutSession,
     updateExerciseProgress,
     completeWorkout,
     isLoaded
   } = useFirebaseWorkouts();
+
+  // Get date from URL or use today
+  const today = new Date().toISOString().split('T')[0];
+  const targetDate = searchParams.get('date') || today;
+  const isViewingPastWorkout = targetDate !== today;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [exerciseSets, setExerciseSets] = useState<Record<string, SetData[]>>({});
@@ -35,22 +40,23 @@ const WorkoutDay = () => {
 
   const day = trainingPlan.find(d => d.id === dayId);
 
-  // Load data from Firebase - update when workouts change
+  // Load data from Firebase - find workout for specific date
   useEffect(() => {
     if (!isLoaded || !dayId) return;
 
-    const todaysWorkout = getTodaysWorkout(dayId);
+    // Find workout for this day and date
+    const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === targetDate);
 
     // Only reload if workout changed or we don't have data yet
-    if (todaysWorkout && todaysWorkout.id !== lastLoadedWorkoutId.current) {
-      lastLoadedWorkoutId.current = todaysWorkout.id;
-      setSessionId(todaysWorkout.id);
-      setIsCompleted(todaysWorkout.completed);
+    if (workoutForDate && workoutForDate.id !== lastLoadedWorkoutId.current) {
+      lastLoadedWorkoutId.current = workoutForDate.id;
+      setSessionId(workoutForDate.id);
+      setIsCompleted(workoutForDate.completed);
 
       // Load exercises from Firebase
       const sets: Record<string, SetData[]> = {};
       const notes: Record<string, string> = {};
-      todaysWorkout.exercises.forEach(ex => {
+      workoutForDate.exercises.forEach(ex => {
         sets[ex.exerciseId] = ex.sets.map(s => ({
           reps: s.reps ?? 0,
           weight: s.weight ?? 0,
@@ -63,8 +69,15 @@ const WorkoutDay = () => {
       });
       setExerciseSets(sets);
       setExerciseNotes(notes);
+    } else if (!workoutForDate && lastLoadedWorkoutId.current !== 'none') {
+      // No workout found - reset state
+      lastLoadedWorkoutId.current = 'none';
+      setSessionId(null);
+      setIsCompleted(false);
+      setExerciseSets({});
+      setExerciseNotes({});
     }
-  }, [isLoaded, dayId, workouts, getTodaysWorkout]);
+  }, [isLoaded, dayId, workouts, targetDate]);
 
   // Cleanup pending saves on unmount
   useEffect(() => {
@@ -85,11 +98,21 @@ const WorkoutDay = () => {
   }
 
   const handleStartWorkout = async () => {
+    // Don't allow starting workout for past dates
+    if (isViewingPastWorkout) {
+      toast({
+        title: "Nie można rozpocząć",
+        description: "Nie można rozpocząć treningu dla przeszłej daty.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
     setSaveError(null);
 
     try {
-      const result = await createWorkoutSession(day.id);
+      const result = await createWorkoutSession(day.id, targetDate);
 
       if (result.error || !result.session) {
         setSaveError(result.error || 'Nie udało się utworzyć treningu');
@@ -107,7 +130,7 @@ const WorkoutDay = () => {
       if (result.existing) {
         toast({
           title: "Kontynuujesz trening",
-          description: "Wczytano istniejący trening z dzisiaj.",
+          description: "Wczytano istniejący trening.",
         });
       } else {
         toast({
@@ -441,7 +464,20 @@ const WorkoutDay = () => {
 
       <ErrorBanner />
 
-      {!isWorkoutStarted && (
+      {/* Past date without workout - show message */}
+      {!isWorkoutStarted && isViewingPastWorkout && (
+        <Card className="bg-muted/30">
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground">Brak zapisanego treningu dla tej daty</p>
+            <Button variant="link" onClick={() => navigate('/plan')} className="mt-2">
+              Wróć do planu
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Today without workout - show start button */}
+      {!isWorkoutStarted && !isViewingPastWorkout && (
         <Button
           size="lg"
           className="w-full py-6 text-lg"

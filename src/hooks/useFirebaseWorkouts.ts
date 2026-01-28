@@ -101,20 +101,19 @@ export const useFirebaseWorkouts = () => {
     return () => unsubscribe();
   }, []);
 
-  const createWorkoutSession = useCallback(async (dayId: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }> => {
-    const today = new Date().toISOString().split('T')[0];
+  const createWorkoutSession = useCallback(async (dayId: string, date?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }> => {
+    const workoutDate = date || new Date().toISOString().split('T')[0];
 
-    // Check if workout for today already exists (prevent duplicates)
-    const existingWorkout = workouts.find(w => w.dayId === dayId && w.date === today);
+    // Check if workout for this date already exists (prevent duplicates)
+    const existingWorkout = workouts.find(w => w.dayId === dayId && w.date === workoutDate);
     if (existingWorkout) {
-      console.log('Workout already exists for today, returning existing:', existingWorkout.id);
       return { session: existingWorkout, existing: true };
     }
 
     const session: WorkoutSession = {
       id: `workout-${Date.now()}`,
       dayId,
-      date: today,
+      date: workoutDate,
       exercises: [],
       completed: false,
     };
