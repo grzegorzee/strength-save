@@ -123,32 +123,30 @@ const WorkoutDay = () => {
     }
   };
 
+  // Handler for EDIT MODE - only local state, no Firebase saves
+  const handleSetsChangeLocal = useCallback((exerciseId: string, sets: SetData[]) => {
+    const sanitizedSets = sets.map(s => ({
+      reps: s.reps ?? 0,
+      weight: s.weight ?? 0,
+      completed: s.completed ?? false,
+    }));
+    setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
+  }, []);
+
+  // Handler for ACTIVE WORKOUT - auto-saves to Firebase
   const handleSetsChange = useCallback(async (exerciseId: string, sets: SetData[]) => {
-    // Sanitize sets to ensure no undefined values
     const sanitizedSets = sets.map(s => ({
       reps: s.reps ?? 0,
       weight: s.weight ?? 0,
       completed: s.completed ?? false,
     }));
 
-    console.log(`handleSetsChange called for ${exerciseId}:`, sanitizedSets);
-
-    // Always update local state immediately
-    setExerciseSets(prev => {
-      const updated = { ...prev, [exerciseId]: sanitizedSets };
-      console.log('Updated exerciseSets:', updated);
-      return updated;
-    });
+    // Update local state immediately
+    setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
     setSaveError(null);
 
     if (!sessionId) {
-      console.error('handleSetsChange: No sessionId!');
       setSaveError('Brak sesji - odśwież stronę');
-      toast({
-        title: "Błąd!",
-        description: "Brak sesji treningowej. Odśwież stronę.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -160,10 +158,7 @@ const WorkoutDay = () => {
 
     const timeout = setTimeout(async () => {
       setIsSaving(true);
-      console.log(`Saving to Firebase: ${exerciseId}`, sanitizedSets);
-
       const result = await updateExerciseProgress(sessionId, exerciseId, sanitizedSets);
-      console.log(`Firebase save result for ${exerciseId}:`, result);
 
       if (!result.success) {
         setSaveError(result.error || 'Błąd zapisu');
@@ -213,27 +208,43 @@ const WorkoutDay = () => {
   };
 
   const handleFinishEditing = async () => {
-    // Wait for pending saves
-    if (pendingSaves.current.size > 0) {
-      setIsSaving(true);
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setIsSaving(false);
+    if (!sessionId) {
+      toast({
+        title: "Błąd!",
+        description: "Brak sesji treningowej.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    if (saveError) {
+    setIsSaving(true);
+    setSaveError(null);
+
+    // Save ALL exercises to Firebase at once
+    let hasError = false;
+    for (const [exerciseId, sets] of Object.entries(exerciseSets)) {
+      const result = await updateExerciseProgress(sessionId, exerciseId, sets);
+      if (!result.success) {
+        hasError = true;
+        setSaveError(result.error || 'Błąd zapisu');
+      }
+    }
+
+    setIsSaving(false);
+
+    if (hasError) {
       toast({
-        title: "Uwaga!",
-        description: `Mogły wystąpić błędy: ${saveError}`,
+        title: "Błąd!",
+        description: "Nie udało się zapisać wszystkich zmian.",
         variant: "destructive",
       });
     } else {
       toast({
         title: "Zapisano!",
-        description: "Dane zostały zaktualizowane.",
+        description: "Zmiany zostały zapisane.",
       });
+      setIsEditing(false);
     }
-
-    setIsEditing(false);
   };
 
   const isWorkoutStarted = sessionId !== null;
@@ -351,8 +362,6 @@ const WorkoutDay = () => {
   if (isCompleted && isEditing) {
     return (
       <div className="space-y-6 pb-6">
-        <SavingIndicator />
-
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => setIsEditing(false)}>
             <ArrowLeft className="h-5 w-5" />
@@ -372,7 +381,7 @@ const WorkoutDay = () => {
               exercise={exercise}
               index={index + 1}
               savedSets={exerciseSets[exercise.id]}
-              onSetsChange={(sets) => handleSetsChange(exercise.id, sets)}
+              onSetsChange={(sets) => handleSetsChangeLocal(exercise.id, sets)}
               isEditable={true}
             />
           ))}
