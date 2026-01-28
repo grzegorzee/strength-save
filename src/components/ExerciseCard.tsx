@@ -21,6 +21,22 @@ const parseSetCount = (setsStr: string): number => {
   return match ? parseInt(match[1], 10) : 3;
 };
 
+// Helper to create clean set data (no undefined values)
+const createEmptySets = (count: number): SetData[] =>
+  Array(count).fill(null).map(() => ({ reps: 0, weight: 0, completed: false }));
+
+// Helper to sanitize sets from Firebase (may contain undefined)
+const sanitizeSets = (sets: SetData[] | undefined, expectedCount: number): SetData[] => {
+  if (!sets || sets.length === 0) {
+    return createEmptySets(expectedCount);
+  }
+  return sets.map(set => ({
+    reps: set?.reps ?? 0,
+    weight: set?.weight ?? 0,
+    completed: set?.completed ?? false,
+  }));
+};
+
 export const ExerciseCard = ({
   exercise,
   index,
@@ -30,9 +46,7 @@ export const ExerciseCard = ({
 }: ExerciseCardProps) => {
   const setCount = parseSetCount(exercise.sets);
   const [expanded, setExpanded] = useState(false);
-  const [sets, setSets] = useState<SetData[]>(
-    savedSets || Array(setCount).fill(null).map(() => ({ reps: 0, weight: 0, completed: false }))
-  );
+  const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
 
   // Track if user has made any local changes to prevent overwriting
   const hasLocalChanges = useRef(false);
@@ -46,11 +60,11 @@ export const ExerciseCard = ({
     // 3. OR user hasn't made local changes yet
     if (savedSets && savedSets.length > 0) {
       if (!isInitialized.current || !hasLocalChanges.current) {
-        setSets(savedSets);
+        setSets(sanitizeSets(savedSets, setCount));
         isInitialized.current = true;
       }
     }
-  }, [savedSets]);
+  }, [savedSets, setCount]);
 
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight', value: number) => {
     hasLocalChanges.current = true; // Mark that user has made changes
