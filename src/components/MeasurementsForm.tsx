@@ -68,7 +68,17 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
           </div>
           <div>
             <CardTitle>Pomiary ciała</CardTitle>
-            <CardDescription>Uzupełnij pola pomiarowe</CardDescription>
+            <CardDescription>
+              {latestMeasurement ? (
+                <>Ostatni pomiar: {new Date(latestMeasurement.date).toLocaleDateString('pl-PL', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })}</>
+              ) : (
+                'Brak zapisanych pomiarów'
+              )}
+            </CardDescription>
           </div>
         </div>
       </CardHeader>
