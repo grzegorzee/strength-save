@@ -149,7 +149,10 @@ export const useFirebaseWorkouts = () => {
       }
 
       const workout = workoutSnap.data() as WorkoutSession;
-      const newExercise: ExerciseProgress = { exerciseId, sets, notes };
+      // Firebase doesn't accept undefined values - only include notes if defined
+      const newExercise: ExerciseProgress = notes !== undefined
+        ? { exerciseId, sets, notes }
+        : { exerciseId, sets };
 
       const existingIndex = workout.exercises.findIndex(e => e.exerciseId === exerciseId);
       const newExercises = existingIndex >= 0
