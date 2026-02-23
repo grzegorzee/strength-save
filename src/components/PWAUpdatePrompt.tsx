@@ -20,7 +20,7 @@ export const PWAUpdatePrompt = () => {
         <Button
           size="sm"
           variant="secondary"
-          onClick={() => updateServiceWorker(true)}
+          onClick={() => updateServiceWorker(true).then(() => window.location.reload())}
         >
           Aktualizuj
         </Button>
