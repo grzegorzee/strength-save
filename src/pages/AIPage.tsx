@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,14 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Sparkles, RefreshCw, AlertCircle, Loader2, Brain, ArrowRightLeft, FileText, Dumbbell, ChevronRight, Send, MessageCircle } from 'lucide-react';
+import { Sparkles, RefreshCw, AlertCircle, Loader2, Brain, ArrowRightLeft, FileText, Dumbbell, ChevronRight, Send, MessageCircle, Trash2 } from 'lucide-react';
 import { useAICoach } from '@/hooks/useAICoach';
 import { useAISwap } from '@/hooks/useAISwap';
 import { useAISummary } from '@/hooks/useAISummary';
 import { useAIPlan } from '@/hooks/useAIPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import type { CoachInsight } from '@/lib/ai-coach';
-import { callOpenAI } from '@/lib/ai-coach';
+import { callOpenAI, prepareCoachData } from '@/lib/ai-coach';
 import { cn } from '@/lib/utils';
 
 // --- Shared components ---
@@ -492,32 +493,92 @@ const PlanTab = () => {
 // TAB: AI Chat
 // ============================
 
-const CHAT_SYSTEM_PROMPT = `Jesteś osobistym trenerem siłowym i doradcą fitness. Odpowiadaj po polsku, krótko i konkretnie.
-Masz wiedzę o treningu siłowym, diecie, regeneracji i suplementacji.
-Bądź bezpośredni, używaj danych i konkretnych porad. Nie lej wody.
-Formatuj odpowiedzi czytelnie — używaj punktów, nagłówków i emoji gdzie pasują.`;
+const CHAT_CACHE_KEY = 'fittracker-ai-chat';
+const CHAT_MAX_MESSAGES = 50;
 
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  timestamp: number;
+}
+
+function loadChatHistory(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_CACHE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function saveChatHistory(messages: ChatMessage[]) {
+  const trimmed = messages.slice(-CHAT_MAX_MESSAGES);
+  localStorage.setItem(CHAT_CACHE_KEY, JSON.stringify(trimmed));
 }
 
 const ChatTab = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts();
+  const { plan, isLoaded: planLoaded } = useTrainingPlan();
+
+  const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isReady = workoutsLoaded && planLoaded;
+
+  // Build system prompt with user's training data
+  const systemPrompt = useMemo(() => {
+    if (!isReady) return '';
+
+    const data = prepareCoachData(workouts, measurements, plan);
+
+    return `Jesteś osobistym trenerem siłowym i doradcą fitness. Masz dostęp do PEŁNYCH danych treningowych użytkownika.
+Odpowiadaj po polsku, krótko i konkretnie. Bądź bezpośredni. Nie lej wody.
+
+DANE UŻYTKOWNIKA:
+- Ukończone treningi łącznie: ${data.stats.completedTotal}
+- Seria (streak): ${data.stats.streak} treningów z rzędu
+- Średnio ${data.stats.avgWorkoutsPerWeek} treningów/tydzień
+${data.bodyWeight.length > 0 ? `- Ostatnia waga: ${data.bodyWeight[data.bodyWeight.length - 1].weight} kg (${data.bodyWeight[data.bodyWeight.length - 1].date})` : ''}
+
+PLAN TRENINGOWY (3 dni/tydzień):
+${data.trainingPlan.map(day =>
+  `${day.dayName}: ${day.exercises.map(ex => `${ex.name} (${ex.sets})`).join(', ')}`
+).join('\n')}
+
+OSTATNIE TRENINGI (max 8 tygodni):
+${data.recentWorkouts.length > 0 ? data.recentWorkouts.slice(-6).map(w =>
+  `${w.date} (${w.dayId}): ${w.exercises.map(ex =>
+    `${ex.name}: ${ex.sets.map(s => `${s.reps}×${s.weight}kg`).join(', ')}`
+  ).join(' | ')}`
+).join('\n') : 'Brak danych'}
+
+ZASADY:
+- Gdy pytanie dotyczy danych użytkownika — korzystaj z powyższych danych, podawaj konkretne liczby
+- Gdy pytanie ogólne (dieta, technika, regeneracja) — odpowiadaj z wiedzą ekspercką
+- Nie wymyślaj danych których nie masz
+- Formatuj czytelnie — używaj punktów i emoji gdzie pasują`;
+  }, [isReady, workouts, measurements, plan]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Persist messages
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveChatHistory(messages);
+    }
+  }, [messages]);
+
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || !isReady) return;
 
-    const userMessage: ChatMessage = { role: 'user', content: text };
+    const userMessage: ChatMessage = { role: 'user', content: text, timestamp: Date.now() };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
@@ -525,20 +586,27 @@ const ChatTab = () => {
 
     try {
       const apiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-        { role: 'system', content: CHAT_SYSTEM_PROMPT },
-        ...newMessages.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        { role: 'system', content: systemPrompt },
+        ...newMessages.slice(-20).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
       ];
       const response = await callOpenAI(apiMessages);
-      setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+      const assistantMessage: ChatMessage = { role: 'assistant', content: response, timestamp: Date.now() };
+      setMessages(prev => [...prev, assistantMessage]);
     } catch (err) {
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: `❌ ${err instanceof Error ? err.message : 'Nieznany błąd'}`,
+        timestamp: Date.now(),
       }]);
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
     }
+  };
+
+  const handleClearHistory = () => {
+    setMessages([]);
+    localStorage.removeItem(CHAT_CACHE_KEY);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -548,8 +616,23 @@ const ChatTab = () => {
     }
   };
 
+  if (!isReady) {
+    return <LoadingCard text="Ładuję dane treningowe..." />;
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)]">
+      {/* Header */}
+      {messages.length > 0 && (
+        <div className="flex items-center justify-between pb-3">
+          <p className="text-xs text-muted-foreground">{messages.length} wiadomości</p>
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1" onClick={handleClearHistory}>
+            <Trash2 className="h-3 w-3" />
+            Wyczyść
+          </Button>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-3 pb-4">
         {messages.length === 0 && (
@@ -559,8 +642,21 @@ const ChatTab = () => {
                 <MessageCircle className="h-10 w-10 text-muted-foreground/50" />
                 <p className="font-medium text-sm">AI Chat Treningowy</p>
                 <p className="text-sm text-muted-foreground">
-                  Zapytaj o cokolwiek — trening, dietę, regenerację, suplementację.
+                  Znam Twój plan, historię treningów i pomiary. Zapytaj o cokolwiek.
                 </p>
+                <div className="flex flex-wrap gap-2 mt-2 justify-center">
+                  {['Jak idą moje postępy?', 'Co poprawić w technice?', 'Ile białka jeść?'].map(q => (
+                    <Button
+                      key={q}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => { setInput(q); inputRef.current?.focus(); }}
+                    >
+                      {q}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
