@@ -6,6 +6,7 @@ export interface Exercise {
     title: string;
     content: string;
   }[];
+  videoUrl?: string;
   isSuperset?: boolean;
   supersetGroup?: string;
 }
@@ -76,6 +77,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-1-1",
         name: "Wyciskanie hantli (Lekki skos)",
         sets: "3 x 6-8",
+        videoUrl: "https://www.youtube.com/watch?v=-iWjdKWNpNg",
         instructions: [
           {
             title: "🎯 Test Telefonu",
@@ -95,6 +97,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-1-2",
         name: "Przysiad ze sztangą (High Bar)",
         sets: "3 x 6-8",
+        videoUrl: "https://www.youtube.com/watch?v=bEv6CCg2BC8",
         instructions: [
           {
             title: "📐 Rozstaw stóp",
@@ -114,6 +117,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-1-3",
         name: "Wiosłowanie hantlami na ławce (przodem)",
         sets: "3 x 6-8",
+        videoUrl: "https://www.youtube.com/watch?v=axoeDmW0oAY",
         instructions: [
           {
             title: "📍 Ustawienie",
@@ -129,6 +133,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-1-4",
         name: "Uginanie nóg na maszynie (Siedząc)",
         sets: "3 x 8-12",
+        videoUrl: "https://www.youtube.com/watch?v=oFxEDkppbSQ",
         instructions: [
           {
             title: "🎯 Dlaczego siedząc?",
@@ -148,6 +153,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-1-5a",
         name: "Uginanie hantli z supinacją (Ławka skośna)",
         sets: "3 x 10-12",
+        videoUrl: "https://www.youtube.com/watch?v=i1YgFZB6alI",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
@@ -165,6 +171,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-1-5b",
         name: "Wyprosty francuskie zza głowy",
         sets: "3 x 10-12",
+        videoUrl: "https://www.youtube.com/watch?v=popGXI-qs98",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
@@ -190,6 +197,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-2-1",
         name: "Wyciskanie sztangi/hantli (Płasko)",
         sets: "3 x 6-8",
+        videoUrl: "https://www.youtube.com/watch?v=vcBig73ojpE",
         instructions: [
           {
             title: "📍 Stabilizacja",
@@ -205,6 +213,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-2-2",
         name: "Martwy Ciąg Rumuński (RDL)",
         sets: "3 x 6-8",
+        videoUrl: "https://www.youtube.com/watch?v=_oyxCn2iSjU",
         instructions: [
           {
             title: "🎯 Ruch zawiasowy",
@@ -224,6 +233,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-2-3",
         name: "Ściąganie drążka (Szeroki nachwyt)",
         sets: "3 x 8-10",
+        videoUrl: "https://www.youtube.com/watch?v=O94yEoGXtBY",
         instructions: [
           {
             title: "🖐️ Chwyt",
@@ -239,6 +249,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-2-4",
         name: "Wykroki chodzone",
         sets: "3 x 10/noga",
+        videoUrl: "https://www.youtube.com/watch?v=_DLIS8SySzs",
         instructions: [
           {
             title: "🍑 Focus na pośladki",
@@ -254,6 +265,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-2-5a",
         name: "Wznosy bokiem leżąc (Y-Raise)",
         sets: "3 x 10-15",
+        videoUrl: "https://www.youtube.com/watch?v=U7Pdw5wFGh0",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
@@ -271,6 +283,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-2-5b",
         name: "Dead Bug (Robak - Brzuch)",
         sets: "3 x MAX",
+        videoUrl: "https://www.youtube.com/watch?v=I9x8KzS_jKw",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
@@ -296,6 +309,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-3-1",
         name: "Wyciskanie hantli nad głowę (Siedząc)",
         sets: "3 x 6-8",
+        videoUrl: "https://www.youtube.com/watch?v=qEwKCR5JCog",
         instructions: [
           {
             title: "📍 Ustawienie",
@@ -315,6 +329,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-3-2",
         name: "Wiosłowanie hantlem jednorącz (Laty)",
         sets: "3 x 6-8",
+        videoUrl: "https://www.youtube.com/watch?v=EEFHHOCfHgw",
         instructions: [
           {
             title: "🎯 Ruch 'Zamiatanie'",
@@ -330,6 +345,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-3-3",
         name: "Hip Thrust (Wypychanie bioder)",
         sets: "3 x 8-10",
+        videoUrl: "https://www.youtube.com/watch?v=xDmFkJxPzeM",
         instructions: [
           {
             title: "💪 Spięcie",
@@ -349,6 +365,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-3-4",
         name: "Wyprosty nóg na maszynie",
         sets: "3 x 10-15",
+        videoUrl: "https://www.youtube.com/watch?v=ljO4jkwv8wQ",
         instructions: [
           {
             title: "📍 Ustawienie",
@@ -364,6 +381,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-3-5a",
         name: "Odwrotne rozpiętki (Tył barku)",
         sets: "3 x 10-15",
+        videoUrl: "https://www.youtube.com/watch?v=lPt0GqwaqEw",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [
@@ -381,6 +399,7 @@ export const trainingPlan: TrainingDay[] = [
         id: "ex-3-5b",
         name: "Wspięcia na palce (Nogi proste)",
         sets: "3 x 10-15",
+        videoUrl: "https://www.youtube.com/watch?v=21inrjhoFkQ",
         isSuperset: true,
         supersetGroup: "5",
         instructions: [

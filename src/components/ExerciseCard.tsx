@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, ChevronUp, Check, Info, Flame, StickyNote } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ChevronDown, ChevronUp, Check, Info, Flame, StickyNote, Play } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const ExerciseCardInner = ({
 }: ExerciseCardProps) => {
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [expanded, setExpanded] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
   const [notes, setNotes] = useState(savedNotes || '');
   const [showNotes, setShowNotes] = useState(!!savedNotes);
@@ -96,6 +98,12 @@ const ExerciseCardInner = ({
     const prevWorking = previousSets.filter(s => !s.isWarmup);
     return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset);
   }, [previousSets, exercise.sets, index, exercise.isSuperset]);
+
+  // Extract YouTube video ID for embed
+  const getYouTubeEmbedUrl = (url: string): string | null => {
+    const match = url.match(/(?:v=|\/)([\w-]{11})(?:\?|&|$)/);
+    return match ? `https://www.youtube.com/embed/${match[1]}?rel=0&modestbranding=1` : null;
+  };
 
   // Previous workout hint for each set
   const getPreviousHint = (setIndex: number): string | null => {
@@ -164,18 +172,56 @@ const ExerciseCardInner = ({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {expanded && exercise.instructions.length > 0 && (
-          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-            {exercise.instructions.map((inst, i) => (
-              <div key={i} className="flex gap-2">
-                <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-primary">{inst.title}</p>
-                  <p className="text-sm text-muted-foreground">{inst.content}</p>
-                </div>
+        {expanded && (
+          <div className="space-y-3">
+            {exercise.instructions.length > 0 && (
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                {exercise.instructions.map((inst, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-primary">{inst.title}</p>
+                      <p className="text-sm text-muted-foreground">{inst.content}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+
+            {exercise.videoUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 text-primary border-primary/30"
+                onClick={() => setShowVideo(true)}
+              >
+                <Play className="h-4 w-4" />
+                Obejrzyj wideo
+              </Button>
+            )}
           </div>
+        )}
+
+        {/* Video Dialog */}
+        {exercise.videoUrl && (
+          <Dialog open={showVideo} onOpenChange={setShowVideo}>
+            <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6">
+              <DialogHeader>
+                <DialogTitle className="text-sm pr-6">{exercise.name}</DialogTitle>
+              </DialogHeader>
+              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                {showVideo && (
+                  <iframe
+                    className="absolute inset-0 w-full h-full rounded-lg"
+                    src={getYouTubeEmbedUrl(exercise.videoUrl) || ''}
+                    title={exercise.name}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         )}
 
         {isEditable && (
