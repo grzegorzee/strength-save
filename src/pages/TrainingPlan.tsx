@@ -1,18 +1,21 @@
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
-import { trainingPlan, getTrainingSchedule, trainingRules } from '@/data/trainingPlan';
+import { getTrainingSchedule, trainingRules } from '@/data/trainingPlan';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { useState, useMemo } from 'react';
 import { pl } from 'date-fns/locale';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, CalendarDays, CheckCircle, Dumbbell } from 'lucide-react';
+import { Info, CalendarDays, CheckCircle, Dumbbell, Settings } from 'lucide-react';
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts();
+  const { plan: trainingPlan } = useTrainingPlan();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   // Get dates with completed workouts
@@ -76,12 +79,18 @@ const TrainingPlan = () => {
               <CardTitle>Plan treningowy</CardTitle>
               <CardDescription>12-tygodniowy program: Poniedziałek, Środa, Piątek</CardDescription>
             </div>
-            <Badge className="bg-primary text-primary-foreground py-2 px-4 text-sm">
-              Tydzień {displayWeek} z 12
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate('/plan/edit')}>
+                <Settings className="h-4 w-4 mr-1" />
+                Edytuj
+              </Button>
+              <Badge className="bg-primary text-primary-foreground py-2 px-4 text-sm">
+                Tydzień {displayWeek} z 12
               {displayWeek !== actualCurrentWeek && (
                 <span className="ml-1 opacity-70">(aktualny: {actualCurrentWeek})</span>
               )}
             </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

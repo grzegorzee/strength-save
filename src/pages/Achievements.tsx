@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
-import { Trophy, Dumbbell, Target, TrendingUp, ChevronRight } from 'lucide-react';
-import { trainingPlan } from '@/data/trainingPlan';
+import { Trophy, Dumbbell, Target, TrendingUp, ChevronRight, Zap } from 'lucide-react';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { calculate1RM, getExerciseBest1RM } from '@/lib/pr-utils';
 
 interface ExerciseRecord {
   exerciseId: string;
@@ -17,6 +18,7 @@ interface ExerciseRecord {
 
 const Achievements = () => {
   const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts();
+  const { plan: trainingPlan } = useTrainingPlan();
   const [selectedExercise, setSelectedExercise] = useState<ExerciseRecord | null>(null);
 
   const totalWeight = getTotalWeight();
@@ -188,6 +190,56 @@ const Achievements = () => {
               Brak wyników do wyświetlenia. Ukończ pierwszy trening!
             </p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Estimated 1RM Records */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            Rekordy osobiste (szacowane 1RM)
+          </CardTitle>
+          <CardDescription>Formuła Epley: ciężar × (1 + powtórzenia / 30)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const allExercises = trainingPlan.flatMap(d => d.exercises);
+            const records = allExercises
+              .map(ex => ({ ...getExerciseBest1RM(workouts, ex.id), name: ex.name }))
+              .filter(r => r.best1RM > 0)
+              .sort((a, b) => b.best1RM - a.best1RM);
+
+            if (records.length === 0) {
+              return (
+                <p className="text-center text-muted-foreground py-8">
+                  Ukończ pierwszy trening, aby zobaczyć szacowane 1RM
+                </p>
+              );
+            }
+
+            return (
+              <div className="space-y-2">
+                {records.map(record => (
+                  <div
+                    key={record.exerciseId}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{record.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {record.best1RMWeight}kg × {record.best1RMReps} rep
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0 ml-3">
+                      <p className="text-lg font-bold text-primary">{record.best1RM} kg</p>
+                      <p className="text-xs text-muted-foreground">est. 1RM</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
 

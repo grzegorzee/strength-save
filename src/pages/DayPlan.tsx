@@ -3,14 +3,25 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Dumbbell, Play, Moon, Sun, CheckCircle } from 'lucide-react';
-import { getTodaysTraining, trainingRules } from '@/data/trainingPlan';
+import { trainingRules } from '@/data/trainingPlan';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 
 const DayPlan = () => {
   const navigate = useNavigate();
   const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts();
-  const todaysTraining = getTodaysTraining();
+  const { plan: trainingPlan } = useTrainingPlan();
+
+  // Determine today's training from dynamic plan
+  const dayOfWeek = new Date().getDay();
+  const todaysTraining = dayOfWeek === 1
+    ? trainingPlan.find(d => d.weekday === 'monday') || null
+    : dayOfWeek === 3
+    ? trainingPlan.find(d => d.weekday === 'wednesday') || null
+    : dayOfWeek === 5
+    ? trainingPlan.find(d => d.weekday === 'friday') || null
+    : null;
   const today = new Date();
   const dayName = today.toLocaleDateString('pl-PL', { weekday: 'long' });
   const dateStr = today.toLocaleDateString('pl-PL', { 

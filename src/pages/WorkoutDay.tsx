@@ -1,13 +1,18 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExerciseCard } from '@/components/ExerciseCard';
-import { trainingPlan } from '@/data/trainingPlan';
-import { useFirebaseWorkouts, SetData } from '@/hooks/useFirebaseWorkouts';
+import { RestTimer } from '@/components/RestTimer';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { cn } from '@/lib/utils';
+import { detectNewPRs } from '@/lib/pr-utils';
+import { getRestDuration } from '@/lib/exercise-utils';
 
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
@@ -21,8 +26,8 @@ const WorkoutDay = () => {
     completeWorkout,
     isLoaded
   } = useFirebaseWorkouts();
+  const { plan: trainingPlan } = useTrainingPlan();
 
-  // Get date from URL or use today
   const today = new Date().toISOString().split('T')[0];
   const targetDate = searchParams.get('date') || today;
   const isViewingPastWorkout = targetDate !== today;
@@ -32,28 +37,40 @@ const WorkoutDay = () => {
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
   const [isCompleted, setIsCompleted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isExplicitSaving, setIsExplicitSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  const [showRestTimer, setShowRestTimer] = useState(false);
+  const [restTimerDuration, setRestTimerDuration] = useState(90);
+  const [restTimerLabel, setRestTimerLabel] = useState<string | undefined>();
+  const [restTimerKey, setRestTimerKey] = useState(0);
 
   const pendingSaves = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const lastLoadedWorkoutId = useRef<string | null>(null);
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
   const day = trainingPlan.find(d => d.id === dayId);
 
-  // Load data from Firebase - find workout for specific date
+  // Find previous workout for this day (for weight hints)
+  const previousWorkout = workouts.find(w =>
+    w.dayId === dayId &&
+    w.date !== targetDate &&
+    w.completed &&
+    w.exercises.length > 0
+  );
+
+  // Load data from Firebase
   useEffect(() => {
     if (!isLoaded || !dayId) return;
 
-    // Find workout for this day and date
     const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === targetDate);
 
-    // Only reload if workout changed or we don't have data yet
     if (workoutForDate && workoutForDate.id !== lastLoadedWorkoutId.current) {
       lastLoadedWorkoutId.current = workoutForDate.id;
       setSessionId(workoutForDate.id);
       setIsCompleted(workoutForDate.completed);
 
-      // Load exercises from Firebase
       const sets: Record<string, SetData[]> = {};
       const notes: Record<string, string> = {};
       workoutForDate.exercises.forEach(ex => {
@@ -70,7 +87,6 @@ const WorkoutDay = () => {
       setExerciseSets(sets);
       setExerciseNotes(notes);
     } else if (!workoutForDate && lastLoadedWorkoutId.current !== 'none') {
-      // No workout found - reset state
       lastLoadedWorkoutId.current = 'none';
       setSessionId(null);
       setIsCompleted(false);
@@ -83,6 +99,7 @@ const WorkoutDay = () => {
   useEffect(() => {
     return () => {
       pendingSaves.current.forEach(timeout => clearTimeout(timeout));
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
   }, []);
 
@@ -97,9 +114,7 @@ const WorkoutDay = () => {
     );
   }
 
-
   const handleStartWorkout = async () => {
-    // Don't allow starting workout for past dates
     if (isViewingPastWorkout) {
       toast({
         title: "Nie można rozpocząć",
@@ -109,7 +124,7 @@ const WorkoutDay = () => {
       return;
     }
 
-    setIsSaving(true);
+    setIsExplicitSaving(true);
     setSaveError(null);
 
     try {
@@ -148,7 +163,7 @@ const WorkoutDay = () => {
         variant: "destructive",
       });
     } finally {
-      setIsSaving(false);
+      setIsExplicitSaving(false);
     }
   };
 
@@ -166,8 +181,8 @@ const WorkoutDay = () => {
     }
   }, []);
 
-  // Handler for ACTIVE WORKOUT - auto-saves to Firebase
-  const handleSetsChange = useCallback(async (exerciseId: string, sets: SetData[], notes?: string) => {
+  // Handler for ACTIVE WORKOUT - auto-saves to Firebase (no re-renders from saving state)
+  const handleSetsChange = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = sets.map(s => ({
       reps: s.reps ?? 0,
       weight: s.weight ?? 0,
@@ -175,7 +190,7 @@ const WorkoutDay = () => {
       ...(s.isWarmup && { isWarmup: true }),
     }));
 
-    // Update local state immediately
+    // Update local state immediately (this is the only re-render)
     setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
     if (notes !== undefined) {
       setExerciseNotes(prev => ({ ...prev, [exerciseId]: notes }));
@@ -193,27 +208,29 @@ const WorkoutDay = () => {
       clearTimeout(existingTimeout);
     }
 
-    const currentNotes = notes !== undefined ? notes : exerciseNotes[exerciseId];
+    const currentNotes = notes !== undefined ? notes : exerciseNotes[exerciseId] || '';
 
     const timeout = setTimeout(async () => {
-      setIsSaving(true);
+      // Use subtle status indicator (no state-driven re-render)
+      setAutoSaveStatus('saving');
+
       const result = await updateExerciseProgress(sessionId, exerciseId, sanitizedSets, currentNotes);
 
       if (!result.success) {
+        setAutoSaveStatus('error');
         setSaveError(result.error || 'Błąd zapisu');
-        toast({
-          title: "Błąd zapisu!",
-          description: result.error || 'Sprawdź połączenie.',
-          variant: "destructive",
-        });
+      } else {
+        setAutoSaveStatus('saved');
+        // Reset to idle after a moment
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = setTimeout(() => setAutoSaveStatus('idle'), 2000);
       }
 
-      setIsSaving(false);
       pendingSaves.current.delete(exerciseId);
-    }, 300);
+    }, 500);
 
     pendingSaves.current.set(exerciseId, timeout);
-  }, [sessionId, updateExerciseProgress, toast, exerciseNotes]);
+  }, [sessionId, updateExerciseProgress, exerciseNotes]);
 
   const handleCompleteWorkout = async () => {
     if (!sessionId) return;
@@ -224,7 +241,7 @@ const WorkoutDay = () => {
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
-    setIsSaving(true);
+    setIsExplicitSaving(true);
     const result = await completeWorkout(sessionId);
 
     if (!result.success) {
@@ -234,16 +251,42 @@ const WorkoutDay = () => {
         description: result.error || 'Nie udało się zakończyć treningu.',
         variant: "destructive",
       });
-      setIsSaving(false);
+      setIsExplicitSaving(false);
       return;
     }
 
     setIsCompleted(true);
-    setIsSaving(false);
-    toast({
-      title: "Trening zakończony!",
-      description: "Świetna robota!",
-    });
+    setIsExplicitSaving(false);
+    setShowCompleteConfirm(false);
+
+    // Detect new PRs
+    const currentWorkoutData = workouts.find(w => w.id === sessionId);
+    if (currentWorkoutData && day) {
+      const previousWorkoutsForPR = workouts.filter(w => w.id !== sessionId && w.completed);
+      const exerciseNames = new Map(day.exercises.map(e => [e.id, e.name]));
+      const newPRs = detectNewPRs(
+        { ...currentWorkoutData, exercises: Object.entries(exerciseSets).map(([id, sets]) => ({ exerciseId: id, sets })) },
+        previousWorkoutsForPR,
+        exerciseNames,
+      );
+      if (newPRs.length > 0) {
+        const prNames = newPRs.map(pr => pr.exerciseName).join(', ');
+        toast({
+          title: `🏆 Nowy rekord! (${newPRs.length})`,
+          description: prNames,
+        });
+      } else {
+        toast({
+          title: "Trening zakończony!",
+          description: "Świetna robota!",
+        });
+      }
+    } else {
+      toast({
+        title: "Trening zakończony!",
+        description: "Świetna robota!",
+      });
+    }
   };
 
   const handleFinishEditing = async () => {
@@ -256,10 +299,9 @@ const WorkoutDay = () => {
       return;
     }
 
-    setIsSaving(true);
+    setIsExplicitSaving(true);
     setSaveError(null);
 
-    // Save ALL exercises to Firebase at once (with notes)
     let hasError = false;
     for (const [exerciseId, sets] of Object.entries(exerciseSets)) {
       const notes = exerciseNotes[exerciseId];
@@ -270,7 +312,7 @@ const WorkoutDay = () => {
       }
     }
 
-    setIsSaving(false);
+    setIsExplicitSaving(false);
 
     if (hasError) {
       toast({
@@ -285,6 +327,13 @@ const WorkoutDay = () => {
       });
       setIsEditing(false);
     }
+  };
+
+  // Get previous sets for a specific exercise
+  const getPreviousSets = (exerciseId: string): SetData[] | undefined => {
+    if (!previousWorkout) return undefined;
+    const ex = previousWorkout.exercises.find(e => e.exerciseId === exerciseId);
+    return ex?.sets;
   };
 
   const isWorkoutStarted = sessionId !== null;
@@ -311,19 +360,27 @@ const WorkoutDay = () => {
     </Card>
   ) : null;
 
-  const SavingIndicator = () => isSaving ? (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-2 rounded-full flex items-center gap-2 shadow-lg z-50">
-      <Loader2 className="h-4 w-4 animate-spin" />
-      <span className="text-sm">Zapisywanie...</span>
-    </div>
-  ) : null;
+  // Subtle auto-save indicator (no layout shift)
+  const AutoSaveIndicator = () => {
+    if (autoSaveStatus === 'idle') return null;
+    return (
+      <div className={cn(
+        "fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300",
+        autoSaveStatus === 'saving' && "bg-muted text-muted-foreground opacity-70",
+        autoSaveStatus === 'saved' && "bg-fitness-success/20 text-fitness-success opacity-70",
+        autoSaveStatus === 'error' && "bg-destructive/20 text-destructive",
+      )}>
+        {autoSaveStatus === 'saving' && <><Cloud className="h-3 w-3 animate-pulse" /> Zapisuję...</>}
+        {autoSaveStatus === 'saved' && <><Cloud className="h-3 w-3" /> Zapisano</>}
+        {autoSaveStatus === 'error' && <><CloudOff className="h-3 w-3" /> Błąd zapisu</>}
+      </div>
+    );
+  };
 
   // COMPLETED VIEW (not editing)
   if (isCompleted && !isEditing) {
     return (
       <div className="space-y-6 pb-20">
-        <SavingIndicator />
-
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
@@ -439,9 +496,9 @@ const WorkoutDay = () => {
         <Button
           className="bg-fitness-success hover:bg-fitness-success/90"
           onClick={handleFinishEditing}
-          disabled={isSaving}
+          disabled={isExplicitSaving}
         >
-          {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+          {isExplicitSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
           Zapisz zmiany
         </Button>
       </div>
@@ -451,7 +508,7 @@ const WorkoutDay = () => {
   // ACTIVE WORKOUT VIEW
   return (
     <div className="space-y-6 pb-24">
-      <SavingIndicator />
+      <AutoSaveIndicator />
 
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -465,7 +522,7 @@ const WorkoutDay = () => {
 
       <ErrorBanner />
 
-      {/* Past date without workout - show message */}
+      {/* Past date without workout */}
       {!isWorkoutStarted && isViewingPastWorkout && (
         <Card className="bg-muted/30">
           <CardContent className="py-8 text-center">
@@ -483,9 +540,9 @@ const WorkoutDay = () => {
           size="lg"
           className="w-full py-6 text-lg"
           onClick={handleStartWorkout}
-          disabled={isSaving}
+          disabled={isExplicitSaving}
         >
-          {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Play className="h-5 w-5 mr-2" />}
+          {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Play className="h-5 w-5 mr-2" />}
           Rozpocznij trening
         </Button>
       )}
@@ -498,23 +555,78 @@ const WorkoutDay = () => {
             index={index + 1}
             savedSets={exerciseSets[exercise.id]}
             savedNotes={exerciseNotes[exercise.id]}
+            previousSets={getPreviousSets(exercise.id)}
             onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
+            onSetCompleted={() => {
+              if (!isWorkoutStarted || isCompleted) return;
+              const duration = getRestDuration({
+                exerciseIndex: index,
+                isSuperset: !!exercise.isSuperset,
+                isFirstInSuperset: !!exercise.isSuperset && exercise.id.endsWith('a'),
+              });
+              setRestTimerDuration(duration);
+              setRestTimerLabel(exercise.name);
+              setRestTimerKey(k => k + 1);
+              setShowRestTimer(true);
+            }}
             isEditable={isWorkoutStarted && !isCompleted}
           />
         ))}
       </div>
 
+      {/* Rest Timer */}
+      {showRestTimer && (
+        <RestTimer
+          key={`timer-${restTimerKey}`}
+          defaultSeconds={restTimerDuration}
+          exerciseLabel={restTimerLabel}
+          onClose={() => setShowRestTimer(false)}
+        />
+      )}
+
       {isWorkoutStarted && !isCompleted && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
-          <Button
-            size="lg"
-            className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
-            onClick={handleCompleteWorkout}
-            disabled={isSaving}
-          >
-            {isSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
-            Zakończ trening
-          </Button>
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t z-40">
+          {showCompleteConfirm ? (
+            <div className="flex gap-2">
+              <Button
+                size="lg"
+                variant="outline"
+                className="flex-1 py-6"
+                onClick={() => setShowCompleteConfirm(false)}
+              >
+                Anuluj
+              </Button>
+              <Button
+                size="lg"
+                className="flex-1 py-6 bg-fitness-success hover:bg-fitness-success/90"
+                onClick={handleCompleteWorkout}
+                disabled={isExplicitSaving}
+              >
+                {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
+                Tak, zakończ
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                size="lg"
+                variant="outline"
+                className="py-6"
+                onClick={() => setShowRestTimer(prev => !prev)}
+              >
+                <Timer className="h-5 w-5" />
+              </Button>
+              <Button
+                size="lg"
+                className="flex-1 py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
+                onClick={() => setShowCompleteConfirm(true)}
+                disabled={isExplicitSaving}
+              >
+                <Check className="h-5 w-5 mr-2" />
+                Zakończ trening
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

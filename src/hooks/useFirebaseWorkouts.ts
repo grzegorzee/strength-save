@@ -12,42 +12,9 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
 
-export interface SetData {
-  reps: number;
-  weight: number;
-  completed: boolean;
-  isWarmup?: boolean;
-}
-
-export interface ExerciseProgress {
-  exerciseId: string;
-  sets: SetData[];
-  notes?: string;
-}
-
-export interface WorkoutSession {
-  id: string;
-  dayId: string;
-  date: string;
-  exercises: ExerciseProgress[];
-  completed: boolean;
-}
-
-export interface BodyMeasurement {
-  id: string;
-  date: string;
-  weight?: number;
-  armLeft?: number;
-  armRight?: number;
-  chest?: number;
-  waist?: number;
-  hips?: number;
-  thighLeft?: number;
-  thighRight?: number;
-  calfLeft?: number;
-  calfRight?: number;
-}
+export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
 const WORKOUTS_COLLECTION = 'workouts';
 const MEASUREMENTS_COLLECTION = 'measurements';
@@ -353,7 +320,7 @@ export const useFirebaseWorkouts = () => {
         for (const workout of toDelete) {
           await deleteDoc(doc(db, WORKOUTS_COLLECTION, workout.id));
           deleted++;
-          console.log(`Deleted duplicate workout: ${workout.id}`);
+          // duplicate deleted
         }
       }
 

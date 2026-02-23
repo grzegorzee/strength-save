@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { User, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 
-// TWÓJ EMAIL - tylko ten email może się zalogować
-const ALLOWED_EMAIL = "g.jasionowicz@gmail.com";
+const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || "";
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -41,9 +40,10 @@ export const useAuth = () => {
       }
 
       return true;
-    } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message || "Błąd logowania");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Błąd logowania';
+      console.error('Login error:', errorMessage);
+      setError(errorMessage);
       return false;
     }
   };
@@ -51,8 +51,8 @@ export const useAuth = () => {
   const logout = async () => {
     try {
       await signOut(auth);
-    } catch (err: any) {
-      console.error('Logout error:', err);
+    } catch (err) {
+      console.error('Logout error:', err instanceof Error ? err.message : err);
     }
   };
 

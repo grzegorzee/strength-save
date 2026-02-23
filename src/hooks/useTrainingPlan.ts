@@ -1,0 +1,167 @@
+import { useState, useEffect, useCallback } from 'react';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';
+
+const PLAN_DOC_ID = 'current';
+const PLAN_COLLECTION = 'training_plans';
+
+export const useTrainingPlan = () => {
+  const [plan, setPlan] = useState<TrainingDay[]>(defaultPlan);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [isCustom, setIsCustom] = useState(false);
+
+  // Subscribe to plan document
+  useEffect(() => {
+    const docRef = doc(db, PLAN_COLLECTION, PLAN_DOC_ID);
+
+    const unsubscribe = onSnapshot(docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data.days && Array.isArray(data.days)) {
+            setPlan(data.days as TrainingDay[]);
+            setIsCustom(true);
+          }
+        } else {
+          // No custom plan, use default
+          setPlan(defaultPlan);
+          setIsCustom(false);
+        }
+        setIsLoaded(true);
+      },
+      (err) => {
+        console.error('Error fetching training plan:', err);
+        setPlan(defaultPlan);
+        setIsLoaded(true);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const savePlan = useCallback(async (newPlan: TrainingDay[]): Promise<{ success: boolean; error?: string }> => {
+    try {
+      await setDoc(doc(db, PLAN_COLLECTION, PLAN_DOC_ID), {
+        days: newPlan,
+        updatedAt: new Date().toISOString(),
+      });
+      return { success: true };
+    } catch (err) {
+      console.error('Error saving training plan:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
+  const swapExercise = useCallback(async (
+    dayId: string,
+    exerciseId: string,
+    newName: string,
+    newSets?: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    const newPlan = plan.map(day => {
+      if (day.id !== dayId) return day;
+      return {
+        ...day,
+        exercises: day.exercises.map(ex => {
+          if (ex.id !== exerciseId) return ex;
+          return {
+            ...ex,
+            name: newName,
+            ...(newSets && { sets: newSets }),
+            instructions: [], // clear instructions for swapped exercise
+          };
+        }),
+      };
+    });
+    return savePlan(newPlan);
+  }, [plan, savePlan]);
+
+  const updateExerciseSets = useCallback(async (
+    dayId: string,
+    exerciseId: string,
+    newSets: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    const newPlan = plan.map(day => {
+      if (day.id !== dayId) return day;
+      return {
+        ...day,
+        exercises: day.exercises.map(ex =>
+          ex.id === exerciseId ? { ...ex, sets: newSets } : ex,
+        ),
+      };
+    });
+    return savePlan(newPlan);
+  }, [plan, savePlan]);
+
+  const removeExercise = useCallback(async (
+    dayId: string,
+    exerciseId: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    const newPlan = plan.map(day => {
+      if (day.id !== dayId) return day;
+      return {
+        ...day,
+        exercises: day.exercises.filter(ex => ex.id !== exerciseId),
+      };
+    });
+    return savePlan(newPlan);
+  }, [plan, savePlan]);
+
+  const addExercise = useCallback(async (
+    dayId: string,
+    exercise: Exercise,
+  ): Promise<{ success: boolean; error?: string }> => {
+    const newPlan = plan.map(day => {
+      if (day.id !== dayId) return day;
+      return {
+        ...day,
+        exercises: [...day.exercises, exercise],
+      };
+    });
+    return savePlan(newPlan);
+  }, [plan, savePlan]);
+
+  const moveExercise = useCallback(async (
+    dayId: string,
+    exerciseId: string,
+    direction: 'up' | 'down',
+  ): Promise<{ success: boolean; error?: string }> => {
+    const newPlan = plan.map(day => {
+      if (day.id !== dayId) return day;
+      const exercises = [...day.exercises];
+      const idx = exercises.findIndex(e => e.id === exerciseId);
+      if (idx < 0) return day;
+
+      const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (newIdx < 0 || newIdx >= exercises.length) return day;
+
+      [exercises[idx], exercises[newIdx]] = [exercises[newIdx], exercises[idx]];
+      return { ...day, exercises };
+    });
+    return savePlan(newPlan);
+  }, [plan, savePlan]);
+
+  const resetToDefault = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    return savePlan(defaultPlan);
+  }, [savePlan]);
+
+  return {
+    plan,
+    isLoaded,
+    isCustom,
+    savePlan,
+    swapExercise,
+    updateExerciseSets,
+    removeExercise,
+    addExercise,
+    moveExercise,
+    resetToDefault,
+  };
+};

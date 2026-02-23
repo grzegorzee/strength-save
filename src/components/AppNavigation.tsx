@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Calendar, CalendarDays, Ruler, Trophy, X } from 'lucide-react';
+import { Home, Calendar, CalendarDays, Ruler, Trophy, TrendingUp, BarChart3, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +12,8 @@ const navItems = [
   { to: '/', icon: Home, label: 'Dashboard' },
   { to: '/day', icon: CalendarDays, label: 'Plan dnia' },
   { to: '/plan', icon: Calendar, label: 'Plan tygodniowy' },
+  { to: '/progress', icon: TrendingUp, label: 'Postępy' },
+  { to: '/summary', icon: BarChart3, label: 'Podsumowanie' },
   { to: '/measurements', icon: Ruler, label: 'Pomiary' },
   { to: '/achievements', icon: Trophy, label: 'Osiągnięcia' },
 ];
@@ -66,7 +68,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                 Plan Treningowy 2026
               </p>
               <p className="text-[10px] text-muted-foreground/50 mt-2">
-                Wersja: v3.0.0
+                Wersja: v3.2.0
               </p>
             </div>
           </div>

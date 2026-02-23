@@ -9,6 +9,8 @@ const pageTitles: Record<string, string> = {
   '/day': 'Plan dnia',
   '/measurements': 'Pomiary',
   '/achievements': 'Osiągnięcia',
+  '/summary': 'Podsumowanie',
+  '/plan/edit': 'Edycja planu',
 };
 
 export const Layout = () => {
