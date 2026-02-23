@@ -153,7 +153,6 @@ async function callOpenAI(
     body: JSON.stringify({
       model: 'gpt-5-mini',
       messages,
-      temperature: 0.7,
       max_completion_tokens: 4000,
     }),
   });
