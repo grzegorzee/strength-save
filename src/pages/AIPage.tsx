@@ -497,12 +497,12 @@ const VALID_TABS: AITab[] = ['coach', 'swap', 'summary', 'plan'];
 const AIPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') as AITab | null;
-  const defaultTab: AITab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'coach';
+  const currentTab: AITab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'coach';
 
   return (
     <div className="space-y-4">
       <Tabs
-        defaultValue={defaultTab}
+        value={currentTab}
         onValueChange={(value) => setSearchParams({ tab: value })}
       >
         <TabsList className="w-full">
