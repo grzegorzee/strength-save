@@ -16,6 +16,7 @@ import Progress from "./pages/Progress";
 import Summary from "./pages/Summary";
 import PlanEditor from "./pages/PlanEditor";
 import StatsDetail from "./pages/StatsDetail";
+import AIPage from "./pages/AIPage";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { useAuth } from "./hooks/useAuth";
@@ -52,6 +53,7 @@ const AuthenticatedApp = () => {
           <Route path="/summary" element={<Summary />} />
           <Route path="/plan/edit" element={<PlanEditor />} />
           <Route path="/stats" element={<StatsDetail />} />
+          <Route path="/ai" element={<AIPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -12,6 +12,7 @@ const pageTitles: Record<string, string> = {
   '/summary': 'Podsumowanie',
   '/plan/edit': 'Edycja planu',
   '/stats': 'Statystyki',
+  '/ai': 'FitTracker AI',
 };
 
 export const Layout = () => {
