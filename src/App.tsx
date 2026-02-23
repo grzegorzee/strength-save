@@ -20,6 +20,7 @@ import AIPage from "./pages/AIPage";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import { useAuth } from "./hooks/useAuth";
+import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <PWAUpdatePrompt />
           <AuthenticatedApp />
         </TooltipProvider>
       </QueryClientProvider>
