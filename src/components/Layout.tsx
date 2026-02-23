@@ -11,6 +11,7 @@ const pageTitles: Record<string, string> = {
   '/achievements': 'Osiągnięcia',
   '/summary': 'Podsumowanie',
   '/plan/edit': 'Edycja planu',
+  '/stats': 'Statystyki',
 };
 
 export const Layout = () => {

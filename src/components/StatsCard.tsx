@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, ChevronRight } from 'lucide-react';
 
 interface StatsCardProps {
   title: string;
@@ -8,14 +8,16 @@ interface StatsCardProps {
   subtitle?: string;
   icon: LucideIcon;
   variant?: 'default' | 'primary' | 'success' | 'warning';
+  onClick?: () => void;
 }
 
-export const StatsCard = ({ 
-  title, 
-  value, 
-  subtitle, 
+export const StatsCard = ({
+  title,
+  value,
+  subtitle,
   icon: Icon,
-  variant = 'default' 
+  variant = 'default',
+  onClick,
 }: StatsCardProps) => {
   const iconColors = {
     default: 'bg-secondary text-secondary-foreground',
@@ -32,7 +34,12 @@ export const StatsCard = ({
   };
 
   return (
-    <Card>
+    <Card
+      className={cn(
+        onClick && 'cursor-pointer hover:bg-muted/50 transition-colors'
+      )}
+      onClick={onClick}
+    >
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <div className={cn(
@@ -53,6 +60,9 @@ export const StatsCard = ({
               <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{subtitle}</p>
             )}
           </div>
+          {onClick && (
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+          )}
         </div>
       </CardContent>
     </Card>

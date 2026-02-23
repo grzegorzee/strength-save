@@ -85,6 +85,49 @@ export const calculateStreak = (workouts: WorkoutSession[]): number => {
   return streak;
 };
 
+export const calculateLongestStreak = (workouts: WorkoutSession[]): number => {
+  const completedWorkouts = workouts.filter(w => w.completed);
+  if (completedWorkouts.length === 0) return 0;
+
+  // Build a set of week-start dates that have ≥2 completed workouts
+  const weekCounts = new Map<string, number>();
+  completedWorkouts.forEach(w => {
+    const d = new Date(w.date);
+    const { start } = getWeekBounds(d);
+    const key = start.toISOString().split('T')[0];
+    weekCounts.set(key, (weekCounts.get(key) || 0) + 1);
+  });
+
+  // Only keep weeks with ≥2 workouts
+  const qualifyingWeeks = new Set<string>();
+  weekCounts.forEach((count, key) => {
+    if (count >= 2) qualifyingWeeks.add(key);
+  });
+
+  if (qualifyingWeeks.size === 0) return 0;
+
+  // Sort weeks ascending
+  const sortedWeeks = Array.from(qualifyingWeeks).sort();
+
+  let longest = 1;
+  let current = 1;
+
+  for (let i = 1; i < sortedWeeks.length; i++) {
+    const prev = new Date(sortedWeeks[i - 1]);
+    const curr = new Date(sortedWeeks[i]);
+    const diffDays = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (Math.abs(diffDays - 7) < 1) {
+      current++;
+      longest = Math.max(longest, current);
+    } else {
+      current = 1;
+    }
+  }
+
+  return longest;
+};
+
 export const filterWorkoutsByPeriod = (
   workouts: WorkoutSession[],
   bounds: { start: Date; end: Date },

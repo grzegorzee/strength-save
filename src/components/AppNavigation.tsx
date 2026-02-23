@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Calendar, CalendarDays, Ruler, Trophy, TrendingUp, BarChart3, X } from 'lucide-react';
+import { Home, Calendar, CalendarDays, Ruler, Trophy, TrendingUp, BarChart3, PieChart, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/', icon: Home, label: 'Dashboard' },
   { to: '/day', icon: CalendarDays, label: 'Plan dnia' },
   { to: '/plan', icon: Calendar, label: 'Plan tygodniowy' },
+  { to: '/stats', icon: PieChart, label: 'Statystyki' },
   { to: '/progress', icon: TrendingUp, label: 'Postępy' },
   { to: '/summary', icon: BarChart3, label: 'Podsumowanie' },
   { to: '/measurements', icon: Ruler, label: 'Pomiary' },

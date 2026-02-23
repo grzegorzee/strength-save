@@ -119,6 +119,7 @@ const Dashboard = () => {
           value={completedWorkouts}
           icon={Trophy}
           variant="success"
+          onClick={() => navigate('/stats?tab=workouts')}
         />
         <StatsCard
           title="Tonaż całkowity"
@@ -126,12 +127,14 @@ const Dashboard = () => {
           subtitle="Suma podniesionych kg"
           icon={Dumbbell}
           variant="primary"
+          onClick={() => navigate('/stats?tab=tonnage')}
         />
         <StatsCard
           title="Aktualna waga"
           value={latestMeasurement?.weight ? `${latestMeasurement.weight} kg` : '--'}
           icon={Weight}
           variant="default"
+          onClick={() => navigate('/stats?tab=weight')}
         />
         <StatsCard
           title="Seria treningowa"
@@ -139,6 +142,7 @@ const Dashboard = () => {
           subtitle={streak > 0 ? 'Nie przerywaj!' : 'Zacznij serię'}
           icon={Flame}
           variant="warning"
+          onClick={() => navigate('/stats?tab=streak')}
         />
       </div>
 
