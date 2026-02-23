@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Calendar, CalendarDays, Ruler, Trophy, TrendingUp, BarChart3, PieChart, Sparkles, ChevronDown, Brain, ArrowRightLeft, FileText, Dumbbell, X } from 'lucide-react';
+import { Home, Calendar, CalendarDays, Ruler, Trophy, TrendingUp, BarChart3, PieChart, Sparkles, ChevronDown, Brain, ArrowRightLeft, FileText, Dumbbell, MessageCircle, X, Library } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/', icon: Home, label: 'Dashboard' },
   { to: '/day', icon: CalendarDays, label: 'Plan dnia' },
   { to: '/plan', icon: Calendar, label: 'Plan tygodniowy' },
+  { to: '/exercises', icon: Library, label: 'Ćwiczenia' },
   { to: '/stats', icon: PieChart, label: 'Statystyki' },
 ];
 
@@ -21,6 +22,7 @@ const aiSubItems = [
   { tab: 'swap', icon: ArrowRightLeft, label: 'AI Zamiennik' },
   { tab: 'summary', icon: FileText, label: 'AI Podsumowanie' },
   { tab: 'plan', icon: Dumbbell, label: 'AI Plan' },
+  { tab: 'chat', icon: MessageCircle, label: 'AI Chat' },
 ];
 
 const navItemsAfterAI = [
