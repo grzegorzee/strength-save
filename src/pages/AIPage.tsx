@@ -1,53 +1,26 @@
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Sparkles, RefreshCw, AlertCircle, Loader2, Brain, ArrowRightLeft, FileText, Dumbbell, ChevronRight } from 'lucide-react';
 import { useAICoach } from '@/hooks/useAICoach';
+import { useAISwap } from '@/hooks/useAISwap';
+import { useAISummary } from '@/hooks/useAISummary';
+import { useAIPlan } from '@/hooks/useAIPlan';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import type { CoachInsight } from '@/lib/ai-coach';
 import { cn } from '@/lib/utils';
 
-// --- Insight card config ---
-
-const insightConfig: Record<CoachInsight['type'], { emoji: string; color: string; bgColor: string }> = {
-  plateau: { emoji: '🔴', color: 'text-red-600', bgColor: 'bg-red-50 border-red-200' },
-  warning: { emoji: '🔴', color: 'text-red-600', bgColor: 'bg-red-50 border-red-200' },
-  progress: { emoji: '🟢', color: 'text-green-600', bgColor: 'bg-green-50 border-green-200' },
-  suggestion: { emoji: '🟡', color: 'text-amber-600', bgColor: 'bg-amber-50 border-amber-200' },
-  consistency: { emoji: '🟡', color: 'text-amber-600', bgColor: 'bg-amber-50 border-amber-200' },
-};
-
-const InsightCard = ({ insight }: { insight: CoachInsight }) => {
-  const config = insightConfig[insight.type];
-
-  return (
-    <Card className={cn('border', config.bgColor)}>
-      <CardContent className="pt-4 pb-4">
-        <div className="flex items-start gap-3">
-          <span className="text-xl mt-0.5">{config.emoji}</span>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={cn('font-semibold text-sm', config.color)}>
-                {insight.title}
-              </h3>
-              {insight.exerciseId && (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                  {insight.exerciseId}
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              {insight.message}
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-// --- Time ago helper ---
+// --- Shared components ---
 
 function timeAgo(timestamp: number): string {
   const diff = Date.now() - timestamp;
@@ -60,103 +33,116 @@ function timeAgo(timestamp: number): string {
   return `${days}d temu`;
 }
 
-// --- Coach Tab ---
+const ErrorCard = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
+  <Card className="border-red-200 bg-red-50">
+    <CardContent className="pt-4 pb-4">
+      <div className="flex items-start gap-3">
+        <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+        <div>
+          <p className="font-medium text-sm text-red-700">Błąd analizy</p>
+          <p className="text-sm text-red-600 mt-1">{error}</p>
+          <Button size="sm" variant="outline" className="mt-3" onClick={onRetry}>
+            Spróbuj ponownie
+          </Button>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const LoadingCard = ({ text }: { text: string }) => (
+  <Card>
+    <CardContent className="py-12">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">{text}</p>
+      </div>
+    </CardContent>
+  </Card>
+);
+
+// --- Insight Card (Coach) ---
+
+const insightConfig: Record<CoachInsight['type'], { emoji: string; color: string; bgColor: string }> = {
+  plateau: { emoji: '🔴', color: 'text-red-600', bgColor: 'bg-red-50 border-red-200' },
+  warning: { emoji: '🔴', color: 'text-red-600', bgColor: 'bg-red-50 border-red-200' },
+  progress: { emoji: '🟢', color: 'text-green-600', bgColor: 'bg-green-50 border-green-200' },
+  suggestion: { emoji: '🟡', color: 'text-amber-600', bgColor: 'bg-amber-50 border-amber-200' },
+  consistency: { emoji: '🟡', color: 'text-amber-600', bgColor: 'bg-amber-50 border-amber-200' },
+};
+
+const InsightCard = ({ insight }: { insight: CoachInsight }) => {
+  const config = insightConfig[insight.type];
+  return (
+    <Card className={cn('border', config.bgColor)}>
+      <CardContent className="pt-4 pb-4">
+        <div className="flex items-start gap-3">
+          <span className="text-xl mt-0.5">{config.emoji}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className={cn('font-semibold text-sm', config.color)}>{insight.title}</h3>
+              {insight.exerciseId && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">{insight.exerciseId}</Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{insight.message}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ============================
+// TAB: AI Coach
+// ============================
 
 const CoachTab = () => {
   const { insights, isLoading, error, analyze, lastAnalyzedAt, isReady, hasCache } = useAICoach();
-
   const hasInsights = insights.length > 0;
   const showInitial = !hasInsights && !isLoading && !error;
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <Card>
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
+              <Brain className="h-5 w-5 text-primary" />
               <div>
                 <h2 className="font-semibold text-sm">AI Coach</h2>
                 {lastAnalyzedAt && (
                   <p className="text-[11px] text-muted-foreground">
-                    Ostatnia analiza: {timeAgo(lastAnalyzedAt)}
-                    {hasCache && ' (cache)'}
+                    Ostatnia analiza: {timeAgo(lastAnalyzedAt)}{hasCache && ' (cache)'}
                   </p>
                 )}
               </div>
             </div>
-            <Button
-              size="sm"
-              variant={showInitial ? 'default' : 'outline'}
-              onClick={() => analyze(true)}
-              disabled={isLoading || !isReady}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-1" />
-              )}
+            <Button size="sm" variant={showInitial ? 'default' : 'outline'} onClick={() => analyze(true)} disabled={isLoading || !isReady}>
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
               {showInitial ? 'Rozpocznij analizę' : 'Analizuj ponownie'}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Loading state */}
-      {isLoading && (
-        <Card>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Analizuję Twoje treningi...</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {isLoading && <LoadingCard text="Analizuję Twoje treningi..." />}
+      {error && <ErrorCard error={error} onRetry={() => analyze(true)} />}
 
-      {/* Error state */}
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
-              <div>
-                <p className="font-medium text-sm text-red-700">Błąd analizy</p>
-                <p className="text-sm text-red-600 mt-1">{error}</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3"
-                  onClick={() => analyze(true)}
-                >
-                  Spróbuj ponownie
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Initial state */}
       {showInitial && !isLoading && (
         <Card>
           <CardContent className="py-12">
             <div className="flex flex-col items-center gap-3 text-center">
-              <Sparkles className="h-10 w-10 text-muted-foreground/50" />
-              <div>
-                <p className="font-medium text-sm">Gotowy do analizy</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Kliknij "Rozpocznij analizę" — AI przeanalizuje Twoje treningi
-                  z ostatnich 8 tygodni i da konkretne sugestie.
-                </p>
-              </div>
+              <Brain className="h-10 w-10 text-muted-foreground/50" />
+              <p className="font-medium text-sm">Gotowy do analizy</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                AI przeanalizuje Twoje treningi z ostatnich 8 tygodni i da konkretne sugestie.
+              </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Insights list */}
       {hasInsights && !isLoading && (
         <div className="space-y-3">
           {insights.map((insight, i) => (
@@ -168,10 +154,345 @@ const CoachTab = () => {
   );
 };
 
-// --- Main AI Page ---
+// ============================
+// TAB: AI Zamiennik
+// ============================
 
-type AITab = 'coach';
-const VALID_TABS: AITab[] = ['coach'];
+const SwapTab = () => {
+  const { plan } = useTrainingPlan();
+  const { result, isLoading, error, findSwap, reset } = useAISwap();
+  const [selectedExercise, setSelectedExercise] = useState('');
+  const [reason, setReason] = useState('');
+
+  const allExercises = plan.flatMap(day =>
+    day.exercises.map(ex => ({ id: ex.id, name: ex.name, day: day.dayName }))
+  );
+
+  const handleSubmit = () => {
+    if (!selectedExercise) return;
+    const exercise = allExercises.find(e => e.id === selectedExercise);
+    if (exercise) findSwap(exercise.name, reason);
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-2 mb-4">
+            <ArrowRightLeft className="h-5 w-5 text-primary" />
+            <h2 className="font-semibold text-sm">AI Zamiennik</h2>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Którego ćwiczenia nie możesz zrobić?
+              </label>
+              <Select value={selectedExercise} onValueChange={(v) => { setSelectedExercise(v); reset(); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz ćwiczenie..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {allExercises.map(ex => (
+                    <SelectItem key={ex.id} value={ex.id}>
+                      {ex.name} <span className="text-muted-foreground">({ex.day})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Powód (opcjonalnie)
+              </label>
+              <input
+                type="text"
+                value={reason}
+                onChange={e => setReason(e.target.value)}
+                placeholder="np. brak sprzętu, kontuzja barku..."
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+
+            <Button onClick={handleSubmit} disabled={!selectedExercise || isLoading} className="w-full">
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ArrowRightLeft className="h-4 w-4 mr-1" />}
+              Znajdź zamiennik
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading && <LoadingCard text="Szukam zamienników..." />}
+      {error && <ErrorCard error={error} onRetry={handleSubmit} />}
+
+      {result && !isLoading && (
+        <div className="space-y-3">
+          {result.alternatives.map((alt, i) => (
+            <Card key={i} className="border-blue-100 bg-blue-50/50">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-sm">{alt.name}</h3>
+                      <Badge variant="outline" className="text-[10px]">{alt.setsScheme}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{alt.reason}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {!result && !isLoading && !error && (
+        <Card>
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <ArrowRightLeft className="h-10 w-10 text-muted-foreground/50" />
+              <p className="font-medium text-sm">Znajdź zamiennik ćwiczenia</p>
+              <p className="text-sm text-muted-foreground">
+                Wybierz ćwiczenie, którego nie możesz wykonać — AI zaproponuje 3 alternatywy.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ============================
+// TAB: AI Podsumowanie
+// ============================
+
+const SummaryTab = () => {
+  const { summary, isLoading, error, analyze, lastWorkout, completedWorkouts } = useAISummary();
+  const [selectedWorkout, setSelectedWorkout] = useState('');
+
+  const handleAnalyze = () => {
+    analyze(selectedWorkout || undefined);
+  };
+
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  const recentWorkouts = completedWorkouts.slice(0, 10);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center gap-2 mb-4">
+            <FileText className="h-5 w-5 text-primary" />
+            <h2 className="font-semibold text-sm">AI Podsumowanie</h2>
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                Który trening podsumować?
+              </label>
+              <Select value={selectedWorkout} onValueChange={setSelectedWorkout}>
+                <SelectTrigger>
+                  <SelectValue placeholder={lastWorkout ? `Ostatni: ${formatDate(lastWorkout.date)}` : 'Brak treningów'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {recentWorkouts.map(w => (
+                    <SelectItem key={w.id} value={w.id}>
+                      {formatDate(w.date)} — {w.dayId.replace('day-', 'Dzień ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button onClick={handleAnalyze} disabled={!lastWorkout || isLoading} className="w-full">
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <FileText className="h-4 w-4 mr-1" />}
+              Podsumuj trening
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading && <LoadingCard text="Generuję podsumowanie..." />}
+      {error && <ErrorCard error={error} onRetry={handleAnalyze} />}
+
+      {summary && !isLoading && (
+        <div className="space-y-3">
+          {/* Headline */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="pt-4 pb-4">
+              <p className="font-semibold text-sm text-primary">{summary.headline}</p>
+            </CardContent>
+          </Card>
+
+          {/* Highlights */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <h3 className="font-semibold text-xs text-muted-foreground mb-2">WYRÓŻNIENIA</h3>
+              <div className="space-y-2">
+                {summary.highlights.map((h, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <ChevronRight className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <p className="text-sm">{h}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Comparison */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <h3 className="font-semibold text-xs text-muted-foreground mb-2">PORÓWNANIE</h3>
+              <p className="text-sm">{summary.comparison}</p>
+            </CardContent>
+          </Card>
+
+          {/* Motivation */}
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="pt-4 pb-4">
+              <p className="text-sm font-medium text-green-700">💪 {summary.motivation}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!summary && !isLoading && !error && (
+        <Card>
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <FileText className="h-10 w-10 text-muted-foreground/50" />
+              <p className="font-medium text-sm">Podsumuj swój trening</p>
+              <p className="text-sm text-muted-foreground">
+                AI wygeneruje podsumowanie z wyróżnieniami, porównaniem i motywacją.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ============================
+// TAB: AI Plan
+// ============================
+
+const PlanTab = () => {
+  const { suggestion, isLoading, error, analyze, lastAnalyzedAt, isReady } = useAIPlan();
+  const hasSuggestion = !!suggestion;
+  const showInitial = !hasSuggestion && !isLoading && !error;
+
+  const actionLabels: Record<string, { label: string; color: string }> = {
+    add: { label: 'DODAJ', color: 'bg-green-100 text-green-700' },
+    remove: { label: 'USUŃ', color: 'bg-red-100 text-red-700' },
+    swap: { label: 'ZAMIEŃ', color: 'bg-blue-100 text-blue-700' },
+    modify: { label: 'MODYFIKUJ', color: 'bg-amber-100 text-amber-700' },
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Dumbbell className="h-5 w-5 text-primary" />
+              <div>
+                <h2 className="font-semibold text-sm">AI Plan</h2>
+                {lastAnalyzedAt && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Ostatnia analiza: {timeAgo(lastAnalyzedAt)}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button size="sm" variant={showInitial ? 'default' : 'outline'} onClick={() => analyze(true)} disabled={isLoading || !isReady}>
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+              {showInitial ? 'Analizuj plan' : 'Analizuj ponownie'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading && <LoadingCard text="Analizuję Twój plan treningowy..." />}
+      {error && <ErrorCard error={error} onRetry={() => analyze(true)} />}
+
+      {hasSuggestion && !isLoading && (
+        <div className="space-y-3">
+          {/* Overview */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="pt-4 pb-4">
+              <h3 className="font-semibold text-xs text-muted-foreground mb-2">OCENA PLANU</h3>
+              <p className="text-sm">{suggestion.overview}</p>
+            </CardContent>
+          </Card>
+
+          {/* Changes */}
+          {suggestion.changes.length > 0 && (
+            <div className="space-y-2">
+              {suggestion.changes.map((change, i) => {
+                const action = actionLabels[change.action] || actionLabels.modify;
+                return (
+                  <Card key={i}>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="flex items-start gap-3">
+                        <Badge className={cn('text-[10px] shrink-0', action.color)}>
+                          {action.label}
+                        </Badge>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-semibold text-sm">{change.exercise}</h3>
+                            <span className="text-[10px] text-muted-foreground">{change.dayName}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">{change.detail}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Reasoning */}
+          <Card>
+            <CardContent className="pt-4 pb-4">
+              <h3 className="font-semibold text-xs text-muted-foreground mb-2">UZASADNIENIE</h3>
+              <p className="text-sm">{suggestion.reasoning}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showInitial && !isLoading && (
+        <Card>
+          <CardContent className="py-12">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <Dumbbell className="h-10 w-10 text-muted-foreground/50" />
+              <p className="font-medium text-sm">Optymalizuj swój plan</p>
+              <p className="text-sm text-muted-foreground">
+                AI przeanalizuje Twój plan i historię treningów, a potem zasugeruje konkretne zmiany.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+// ============================
+// MAIN PAGE
+// ============================
+
+type AITab = 'coach' | 'swap' | 'summary' | 'plan';
+const VALID_TABS: AITab[] = ['coach', 'swap', 'summary', 'plan'];
 
 const AIPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -185,15 +506,28 @@ const AIPage = () => {
         onValueChange={(value) => setSearchParams({ tab: value })}
       >
         <TabsList className="w-full">
-          <TabsTrigger value="coach" className="flex-1 text-xs">
-            <Sparkles className="h-3.5 w-3.5 mr-1" />
-            AI Coach
+          <TabsTrigger value="coach" className="flex-1 text-xs gap-1">
+            <Brain className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Coach</span>
+          </TabsTrigger>
+          <TabsTrigger value="swap" className="flex-1 text-xs gap-1">
+            <ArrowRightLeft className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Zamiennik</span>
+          </TabsTrigger>
+          <TabsTrigger value="summary" className="flex-1 text-xs gap-1">
+            <FileText className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Podsum.</span>
+          </TabsTrigger>
+          <TabsTrigger value="plan" className="flex-1 text-xs gap-1">
+            <Dumbbell className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Plan</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="coach">
-          <CoachTab />
-        </TabsContent>
+        <TabsContent value="coach"><CoachTab /></TabsContent>
+        <TabsContent value="swap"><SwapTab /></TabsContent>
+        <TabsContent value="summary"><SummaryTab /></TabsContent>
+        <TabsContent value="plan"><PlanTab /></TabsContent>
       </Tabs>
     </div>
   );
