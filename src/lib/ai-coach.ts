@@ -136,8 +136,8 @@ export function prepareCoachData(
 
 // --- OpenAI API call ---
 
-async function callOpenAI(
-  messages: { role: 'system' | 'user'; content: string }[],
+export async function callOpenAI(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
 ): Promise<string> {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
   if (!apiKey) {
