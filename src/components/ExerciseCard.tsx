@@ -160,14 +160,25 @@ const ExerciseCardInner = ({
               </div>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setExpanded(!expanded)}
-            className="shrink-0"
-          >
-            {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </Button>
+          <div className="flex items-center gap-1 shrink-0">
+            {exercise.videoUrl && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowVideo(true)}
+                className="text-primary"
+              >
+                <Play className="h-5 w-5" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
