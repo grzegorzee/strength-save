@@ -208,14 +208,19 @@ export const useFirebaseWorkouts = () => {
   }, [getWorkoutsByDay]);
 
   const addMeasurement = useCallback(async (measurement: Omit<BodyMeasurement, 'id'>): Promise<{ measurement: BodyMeasurement | null; error?: string }> => {
-    const newMeasurement: BodyMeasurement = {
-      ...measurement,
-      id: `measurement-${Date.now()}`,
-    };
+    const id = `measurement-${Date.now()}`;
+
+    // Sanitize: remove undefined values (Firebase doesn't accept them)
+    const sanitized: Record<string, string | number> = { id, date: measurement.date };
+    for (const [key, value] of Object.entries(measurement)) {
+      if (value !== undefined && key !== 'id') {
+        sanitized[key] = value;
+      }
+    }
 
     try {
-      await setDoc(doc(db, MEASUREMENTS_COLLECTION, newMeasurement.id), newMeasurement);
-      return { measurement: newMeasurement };
+      await setDoc(doc(db, MEASUREMENTS_COLLECTION, id), sanitized);
+      return { measurement: { ...sanitized } as unknown as BodyMeasurement };
     } catch (err) {
       console.error('Error adding measurement:', err);
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
