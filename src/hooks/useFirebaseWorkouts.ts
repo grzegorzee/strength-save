@@ -169,6 +169,18 @@ export const useFirebaseWorkouts = () => {
     }
   }, []);
 
+  const updateWorkoutNotes = useCallback(async (sessionId: string, notes: string): Promise<{ success: boolean; error?: string }> => {
+    if (!sessionId) return { success: false, error: 'Brak ID sesji' };
+    try {
+      await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), { notes });
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating workout notes:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
   const getWorkoutsByDay = useCallback((dayId: string) => {
     return workouts.filter(w => w.dayId === dayId).sort((a, b) => 
       new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -352,6 +364,7 @@ export const useFirebaseWorkouts = () => {
     getLatestMeasurement,
     getTotalWeight,
     getCompletedWorkoutsCount,
+    updateWorkoutNotes,
     exportData,
     importData,
     deleteWorkout,

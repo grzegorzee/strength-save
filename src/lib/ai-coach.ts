@@ -22,6 +22,7 @@ interface CoachData {
     date: string;
     dayId: string;
     exercises: { name: string; sets: { reps: number; weight: number }[] }[];
+    notes?: string;
   }[];
   bodyWeight: { date: string; weight: number }[];
   stats: {
@@ -93,6 +94,7 @@ export function prepareCoachData(
         .filter(s => s.completed && !s.isWarmup)
         .map(s => ({ reps: s.reps, weight: s.weight })),
     })),
+    ...(w.notes && { notes: w.notes }),
   }));
 
   // Body weight from measurements

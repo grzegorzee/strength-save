@@ -19,6 +19,7 @@ export interface WorkoutSession {
   date: string;
   exercises: ExerciseProgress[];
   completed: boolean;
+  notes?: string;
 }
 
 export interface BodyMeasurement {

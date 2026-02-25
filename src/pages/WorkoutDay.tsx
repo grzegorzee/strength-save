@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ const WorkoutDay = () => {
     workouts,
     createWorkoutSession,
     updateExerciseProgress,
+    updateWorkoutNotes,
     completeWorkout,
     isLoaded
   } = useFirebaseWorkouts();
@@ -36,6 +37,7 @@ const WorkoutDay = () => {
   const [exerciseSets, setExerciseSets] = useState<Record<string, SetData[]>>({});
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
   const [isCompleted, setIsCompleted] = useState(false);
+  const [dayNotes, setDayNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isExplicitSaving, setIsExplicitSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -47,6 +49,7 @@ const WorkoutDay = () => {
   const [restTimerKey, setRestTimerKey] = useState(0);
 
   const pendingSaves = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const pendingNoteSave = useRef<NodeJS.Timeout | null>(null);
   const lastLoadedWorkoutId = useRef<string | null>(null);
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -86,12 +89,14 @@ const WorkoutDay = () => {
       });
       setExerciseSets(sets);
       setExerciseNotes(notes);
+      setDayNotes(workoutForDate.notes || '');
     } else if (!workoutForDate && lastLoadedWorkoutId.current !== 'none') {
       lastLoadedWorkoutId.current = 'none';
       setSessionId(null);
       setIsCompleted(false);
       setExerciseSets({});
       setExerciseNotes({});
+      setDayNotes('');
     }
   }, [isLoaded, dayId, workouts, targetDate]);
 
@@ -100,6 +105,7 @@ const WorkoutDay = () => {
     return () => {
       pendingSaves.current.forEach(timeout => clearTimeout(timeout));
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      if (pendingNoteSave.current) clearTimeout(pendingNoteSave.current);
     };
   }, []);
 
@@ -232,6 +238,24 @@ const WorkoutDay = () => {
     pendingSaves.current.set(exerciseId, timeout);
   }, [sessionId, updateExerciseProgress, exerciseNotes]);
 
+  const handleDayNotesChange = useCallback((value: string) => {
+    setDayNotes(value);
+    if (!sessionId) return;
+
+    if (pendingNoteSave.current) clearTimeout(pendingNoteSave.current);
+    pendingNoteSave.current = setTimeout(async () => {
+      setAutoSaveStatus('saving');
+      const result = await updateWorkoutNotes(sessionId, value);
+      if (result.success) {
+        setAutoSaveStatus('saved');
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = setTimeout(() => setAutoSaveStatus('idle'), 2000);
+      } else {
+        setAutoSaveStatus('error');
+      }
+    }, 500);
+  }, [sessionId, updateWorkoutNotes]);
+
   const handleCompleteWorkout = async () => {
     if (!sessionId) return;
 
@@ -303,6 +327,14 @@ const WorkoutDay = () => {
     setSaveError(null);
 
     let hasError = false;
+
+    // Save day notes
+    const notesResult = await updateWorkoutNotes(sessionId, dayNotes);
+    if (!notesResult.success) {
+      hasError = true;
+      setSaveError(notesResult.error || 'Błąd zapisu notatki');
+    }
+
     for (const [exerciseId, sets] of Object.entries(exerciseSets)) {
       const notes = exerciseNotes[exerciseId];
       const result = await updateExerciseProgress(sessionId, exerciseId, sets, notes);
@@ -423,6 +455,17 @@ const WorkoutDay = () => {
           </CardContent>
         </Card>
 
+        {dayNotes && (
+          <Card className="bg-muted/30">
+            <CardContent className="py-3">
+              <div className="flex items-start gap-2">
+                <StickyNote className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{dayNotes}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="space-y-2">
           <h3 className="font-semibold flex items-center gap-2">
             <Eye className="h-4 w-4" />
@@ -491,6 +534,19 @@ const WorkoutDay = () => {
               isEditable={true}
             />
           ))}
+        </div>
+
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <StickyNote className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">Notatka do treningu</span>
+          </div>
+          <textarea
+            value={dayNotes}
+            onChange={e => setDayNotes(e.target.value)}
+            placeholder="Jak się czujesz? Coś do zapamiętania? (opcjonalne)"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
         </div>
 
         <Button
@@ -573,6 +629,22 @@ const WorkoutDay = () => {
           />
         ))}
       </div>
+
+      {/* Day notes - at the end of workout */}
+      {isWorkoutStarted && !isCompleted && (
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <StickyNote className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">Notatka do treningu</span>
+          </div>
+          <textarea
+            value={dayNotes}
+            onChange={e => handleDayNotesChange(e.target.value)}
+            placeholder="Jak się czujesz? Coś do zapamiętania? (opcjonalne)"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+      )}
 
       {/* Rest Timer */}
       {showRestTimer && (

@@ -550,11 +550,12 @@ ${data.trainingPlan.map(day =>
 ).join('\n')}
 
 OSTATNIE TRENINGI (max 8 tygodni):
-${data.recentWorkouts.length > 0 ? data.recentWorkouts.slice(-6).map(w =>
-  `${w.date} (${w.dayId}): ${w.exercises.map(ex =>
+${data.recentWorkouts.length > 0 ? data.recentWorkouts.slice(-6).map(w => {
+  const notePart = w.notes ? ` [Notatka: ${w.notes}]` : '';
+  return `${w.date} (${w.dayId}): ${w.exercises.map(ex =>
     `${ex.name}: ${ex.sets.map(s => `${s.reps}×${s.weight}kg`).join(', ')}`
-  ).join(' | ')}`
-).join('\n') : 'Brak danych'}
+  ).join(' | ')}${notePart}`;
+}).join('\n') : 'Brak danych'}
 
 ZASADY:
 - Gdy pytanie dotyczy danych użytkownika — korzystaj z powyższych danych, podawaj konkretne liczby

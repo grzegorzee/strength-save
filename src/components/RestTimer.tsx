@@ -11,6 +11,29 @@ interface RestTimerProps {
 
 const PRESETS = [60, 90, 120, 180];
 
+function playBeep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.value = 0.3;
+    osc.start();
+    // Three short beeps
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.setValueAtTime(0, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.25);
+    gain.gain.setValueAtTime(0, ctx.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.5);
+    gain.gain.setValueAtTime(0, ctx.currentTime + 0.65);
+    osc.stop(ctx.currentTime + 0.7);
+  } catch {
+    // Audio not available
+  }
+}
+
 export const RestTimer = ({ defaultSeconds = 90, exerciseLabel, onClose }: RestTimerProps) => {
   const [totalSeconds, setTotalSeconds] = useState(defaultSeconds);
   const [secondsLeft, setSecondsLeft] = useState(defaultSeconds);
@@ -31,8 +54,9 @@ export const RestTimer = ({ defaultSeconds = 90, exerciseLabel, onClose }: RestT
           if (prev <= 1) {
             clearTimer();
             setIsRunning(false);
-            // Vibrate if available
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            // Vibrate + beep
+            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+            playBeep();
             return 0;
           }
           return prev - 1;
