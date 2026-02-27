@@ -1,18 +1,20 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExerciseCard } from '@/components/ExerciseCard';
+import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
 import { RestTimer } from '@/components/RestTimer';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
-import type { SetData } from '@/types';
+import type { SetData, ExerciseReplacement } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { detectNewPRs } from '@/lib/pr-utils';
-import { getRestDuration } from '@/lib/exercise-utils';
+import { getRestDuration, getExerciseCategory } from '@/lib/exercise-utils';
+import type { Exercise } from '@/data/trainingPlan';
 
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
@@ -25,6 +27,7 @@ const WorkoutDay = () => {
     updateExerciseProgress,
     updateWorkoutNotes,
     completeWorkout,
+    swapExerciseInWorkout,
     isLoaded
   } = useFirebaseWorkouts();
   const { plan: trainingPlan } = useTrainingPlan();
@@ -47,6 +50,8 @@ const WorkoutDay = () => {
   const [restTimerDuration, setRestTimerDuration] = useState(90);
   const [restTimerLabel, setRestTimerLabel] = useState<string | undefined>();
   const [restTimerKey, setRestTimerKey] = useState(0);
+  const [exerciseReplacements, setExerciseReplacements] = useState<Record<string, ExerciseReplacement>>({});
+  const [swappingExerciseId, setSwappingExerciseId] = useState<string | null>(null);
 
   const pendingSaves = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const pendingNoteSave = useRef<NodeJS.Timeout | null>(null);
@@ -90,6 +95,7 @@ const WorkoutDay = () => {
       setExerciseSets(sets);
       setExerciseNotes(notes);
       setDayNotes(workoutForDate.notes || '');
+      setExerciseReplacements(workoutForDate.exerciseReplacements || {});
     } else if (!workoutForDate && lastLoadedWorkoutId.current !== 'none') {
       lastLoadedWorkoutId.current = 'none';
       setSessionId(null);
@@ -97,6 +103,7 @@ const WorkoutDay = () => {
       setExerciseSets({});
       setExerciseNotes({});
       setDayNotes('');
+      setExerciseReplacements({});
     }
   }, [isLoaded, dayId, workouts, targetDate]);
 
@@ -255,6 +262,64 @@ const WorkoutDay = () => {
       }
     }, 500);
   }, [sessionId, updateWorkoutNotes]);
+
+  const handleSwapExercise = useCallback(async (originalExerciseId: string, replacement: ExerciseReplacement) => {
+    if (!sessionId) return;
+
+    setAutoSaveStatus('saving');
+    const result = await swapExerciseInWorkout(sessionId, originalExerciseId, replacement);
+
+    if (result.success) {
+      setExerciseReplacements(prev => ({ ...prev, [originalExerciseId]: replacement }));
+      setExerciseSets(prev => {
+        const next = { ...prev };
+        delete next[originalExerciseId];
+        return next;
+      });
+      setAutoSaveStatus('saved');
+      if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => setAutoSaveStatus('idle'), 2000);
+      toast({
+        title: "Ćwiczenie zamienione",
+        description: replacement.name,
+      });
+    } else {
+      setAutoSaveStatus('error');
+      toast({
+        title: "Błąd zamiany",
+        description: result.error || 'Nie udało się zamienić ćwiczenia',
+        variant: "destructive",
+      });
+    }
+  }, [sessionId, swapExerciseInWorkout, toast]);
+
+  const getEffectiveExercise = useCallback((exercise: Exercise): Exercise => {
+    const replacement = exerciseReplacements[exercise.id];
+    if (!replacement) return exercise;
+    return {
+      ...exercise,
+      name: replacement.name,
+      sets: replacement.sets,
+      videoUrl: replacement.videoUrl,
+      instructions: [],
+    };
+  }, [exerciseReplacements]);
+
+  const swappingExercise = useMemo(() => {
+    if (!swappingExerciseId || !day) return null;
+    const original = day.exercises.find(e => e.id === swappingExerciseId);
+    if (!original) return null;
+    const effective = getEffectiveExercise(original);
+    return { original, effective };
+  }, [swappingExerciseId, day, getEffectiveExercise]);
+
+  const usedExerciseNames = useMemo(() => {
+    if (!day) return [];
+    return day.exercises.map(e => {
+      const replacement = exerciseReplacements[e.id];
+      return replacement ? replacement.name : e.name;
+    });
+  }, [day, exerciseReplacements]);
 
   const handleCompleteWorkout = async () => {
     if (!sessionId) return;
@@ -472,6 +537,8 @@ const WorkoutDay = () => {
             Podsumowanie
           </h3>
           {day.exercises.map((exercise, index) => {
+            const effective = getEffectiveExercise(exercise);
+            const isSwapped = !!exerciseReplacements[exercise.id];
             const sets = exerciseSets[exercise.id] || [];
             const completed = sets.filter(s => s.completed);
             const totalWeight = completed.reduce((sum, s) => sum + (s.reps * s.weight), 0);
@@ -484,7 +551,15 @@ const WorkoutDay = () => {
                       <Badge variant="secondary" className="h-8 w-8 rounded-lg flex items-center justify-center">
                         {index + 1}
                       </Badge>
-                      <span className="font-medium">{exercise.name}</span>
+                      <div>
+                        <span className="font-medium">{effective.name}</span>
+                        {isSwapped && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <ArrowLeftRight className="h-3 w-3" />
+                            <span>za: {exercise.name}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-4 text-sm">
                       <span>{completed.length}/{sets.length} serii</span>
@@ -523,17 +598,20 @@ const WorkoutDay = () => {
         <ErrorBanner />
 
         <div className="space-y-4">
-          {day.exercises.map((exercise, index) => (
-            <ExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              index={index + 1}
-              savedSets={exerciseSets[exercise.id]}
-              savedNotes={exerciseNotes[exercise.id]}
-              onSetsChange={(sets, notes) => handleSetsChangeLocal(exercise.id, sets, notes)}
-              isEditable={true}
-            />
-          ))}
+          {day.exercises.map((exercise, index) => {
+            const effective = getEffectiveExercise(exercise);
+            return (
+              <ExerciseCard
+                key={exercise.id}
+                exercise={effective}
+                index={index + 1}
+                savedSets={exerciseSets[exercise.id]}
+                savedNotes={exerciseNotes[exercise.id]}
+                onSetsChange={(sets, notes) => handleSetsChangeLocal(exercise.id, sets, notes)}
+                isEditable={true}
+              />
+            );
+          })}
         </div>
 
         <div>
@@ -604,30 +682,34 @@ const WorkoutDay = () => {
       )}
 
       <div className="space-y-4">
-        {day.exercises.map((exercise, index) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            index={index + 1}
-            savedSets={exerciseSets[exercise.id]}
-            savedNotes={exerciseNotes[exercise.id]}
-            previousSets={getPreviousSets(exercise.id)}
-            onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
-            onSetCompleted={() => {
-              if (!isWorkoutStarted || isCompleted) return;
-              const duration = getRestDuration({
-                exerciseIndex: index,
-                isSuperset: !!exercise.isSuperset,
-                isFirstInSuperset: !!exercise.isSuperset && exercise.id.endsWith('a'),
-              });
-              setRestTimerDuration(duration);
-              setRestTimerLabel(exercise.name);
-              setRestTimerKey(k => k + 1);
-              setShowRestTimer(true);
-            }}
-            isEditable={isWorkoutStarted && !isCompleted}
-          />
-        ))}
+        {day.exercises.map((exercise, index) => {
+          const effective = getEffectiveExercise(exercise);
+          return (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={effective}
+              index={index + 1}
+              savedSets={exerciseSets[exercise.id]}
+              savedNotes={exerciseNotes[exercise.id]}
+              previousSets={getPreviousSets(exercise.id)}
+              onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
+              onSetCompleted={() => {
+                if (!isWorkoutStarted || isCompleted) return;
+                const duration = getRestDuration({
+                  exerciseIndex: index,
+                  isSuperset: !!exercise.isSuperset,
+                  isFirstInSuperset: !!exercise.isSuperset && exercise.id.endsWith('a'),
+                });
+                setRestTimerDuration(duration);
+                setRestTimerLabel(effective.name);
+                setRestTimerKey(k => k + 1);
+                setShowRestTimer(true);
+              }}
+              isEditable={isWorkoutStarted && !isCompleted}
+              onSwapExercise={() => setSwappingExerciseId(exercise.id)}
+            />
+          );
+        })}
       </div>
 
       {/* Day notes - at the end of workout */}
@@ -655,6 +737,22 @@ const WorkoutDay = () => {
           onClose={() => setShowRestTimer(false)}
         />
       )}
+
+      {/* Exercise Swap Dialog */}
+      <ExerciseSwapDialog
+        open={swappingExerciseId !== null}
+        onOpenChange={(open) => { if (!open) setSwappingExerciseId(null); }}
+        category={swappingExercise ? getExerciseCategory(swappingExercise.effective.name) || getExerciseCategory(swappingExercise.original.name) : null}
+        currentExerciseName={swappingExercise?.effective.name || ''}
+        usedExerciseNames={usedExerciseNames}
+        originalSets={swappingExercise?.original.sets || '3 x 8'}
+        onSwap={(replacement) => {
+          if (swappingExerciseId) {
+            handleSwapExercise(swappingExerciseId, replacement);
+          }
+          setSwappingExerciseId(null);
+        }}
+      />
 
       {isWorkoutStarted && !isCompleted && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t z-40">

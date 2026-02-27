@@ -1,4 +1,5 @@
 import type { SetData } from '@/types';
+import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 
 // --- Rep Range Parsing ---
 
@@ -98,6 +99,11 @@ export const createEmptySets = (count: number): SetData[] => {
     sets.push({ reps: 0, weight: 0, completed: false });
   }
   return sets;
+};
+
+export const getExerciseCategory = (exerciseName: string): LibraryExercise['category'] | null => {
+  const found = exerciseLibrary.find(e => e.name === exerciseName);
+  return found?.category ?? null;
 };
 
 export const sanitizeSets = (sets: SetData[] | undefined, expectedCount: number): SetData[] => {

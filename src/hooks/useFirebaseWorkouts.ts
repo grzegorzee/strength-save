@@ -12,9 +12,9 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
+import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement, ExerciseReplacement } from '@/types';
 
-export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
+export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement, ExerciseReplacement };
 
 const WORKOUTS_COLLECTION = 'workouts';
 const MEASUREMENTS_COLLECTION = 'measurements';
@@ -349,6 +349,50 @@ export const useFirebaseWorkouts = () => {
     }
   }, [workouts]);
 
+  const swapExerciseInWorkout = useCallback(async (
+    sessionId: string,
+    originalExerciseId: string,
+    replacement: ExerciseReplacement,
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!sessionId) {
+      return { success: false, error: 'Brak ID sesji treningowej' };
+    }
+
+    try {
+      const workoutRef = doc(db, WORKOUTS_COLLECTION, sessionId);
+      const workoutSnap = await getDoc(workoutRef);
+
+      if (!workoutSnap.exists()) {
+        return { success: false, error: 'Nie znaleziono treningu w bazie danych' };
+      }
+
+      const workout = workoutSnap.data() as WorkoutSession;
+
+      // Sanitize replacement - remove undefined values for Firebase
+      const sanitizedReplacement: Record<string, string> = {
+        name: replacement.name,
+        sets: replacement.sets,
+      };
+      if (replacement.videoUrl) sanitizedReplacement.videoUrl = replacement.videoUrl;
+      if (replacement.category) sanitizedReplacement.category = replacement.category;
+
+      const exerciseReplacements = {
+        ...(workout.exerciseReplacements || {}),
+        [originalExerciseId]: sanitizedReplacement,
+      };
+
+      // Reset sets for the swapped exercise
+      const exercises = workout.exercises.filter(e => e.exerciseId !== originalExerciseId);
+
+      await updateDoc(workoutRef, { exerciseReplacements, exercises });
+      return { success: true };
+    } catch (err) {
+      console.error('Error swapping exercise:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
   return {
     workouts,
     measurements,
@@ -369,5 +413,6 @@ export const useFirebaseWorkouts = () => {
     importData,
     deleteWorkout,
     cleanupEmptyWorkouts,
+    swapExerciseInWorkout,
   };
 };
