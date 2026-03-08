@@ -82,7 +82,20 @@ export const stravaCallback = onCall(async (request) => {
       tokenData.athlete
         ? `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`.trim()
         : null,
+    stravaLastSync: null, // Force full lookback on new connection
   });
+
+  // Delete existing strava_activities for clean reconnect
+  const existingActivities = await db
+    .collection("strava_activities")
+    .where("userId", "==", userId)
+    .get();
+  if (!existingActivities.empty) {
+    const deleteBatch = db.batch();
+    existingActivities.docs.forEach((d) => deleteBatch.delete(d.ref));
+    await deleteBatch.commit();
+    logger.info(`Deleted ${existingActivities.size} old activities for ${userId}`);
+  }
 
   const result = await syncUserActivities(userId, tokenData.access_token);
 
@@ -156,9 +169,16 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
   const userDoc = await db.doc(`users/${userId}`).get();
   const userData = userDoc.data();
   const lastSync = userData?.stravaLastSync;
-  const after = lastSync
+
+  // Calculate 'after' timestamp
+  const now = Math.floor(Date.now() / 1000);
+  const afterFromLastSync = lastSync
     ? Math.floor(new Date(lastSync).getTime() / 1000)
-    : Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
+    : now - 365 * 24 * 60 * 60;
+
+  // Enforce minimum 7-day lookback — prevents "0 days" when lastSync is very recent
+  const minLookback = now - 7 * 24 * 60 * 60;
+  const after = Math.min(afterFromLastSync, minLookback);
 
   logger.info(`Syncing for ${userId}, after: ${new Date(after * 1000).toISOString()}`);
 

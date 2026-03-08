@@ -15,6 +15,10 @@ const Settings = () => {
 
   const handleSync = async () => {
     const result = await syncActivities();
+    if (!result.ok) {
+      toast({ title: 'Błąd synchronizacji', description: result.message, variant: 'destructive' });
+      return;
+    }
     if (result.synced > 0) {
       toast({ title: 'Zsynchronizowano!', description: `${result.synced} nowych aktywności (${result.totalFetched} znalezionych w Strava).` });
     } else if (result.totalFetched > 0) {

@@ -12,6 +12,7 @@ const StravaCallback = () => {
   const { uid } = useCurrentUser();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const [syncedCount, setSyncedCount] = useState(0);
 
   useEffect(() => {
     const code = searchParams.get('code');
@@ -33,11 +34,13 @@ const StravaCallback = () => {
       try {
         const functions = getFunctions();
         const callback = httpsCallable(functions, 'stravaCallback');
-        await callback({ code, userId: uid });
+        const result = await callback({ code, userId: uid });
+        const data = result.data as { synced?: number };
+        setSyncedCount(data.synced || 0);
         setStatus('success');
 
-        // Auto-redirect after 2s
-        setTimeout(() => navigate('/settings'), 2000);
+        // Auto-redirect after 3s
+        setTimeout(() => navigate('/settings'), 3000);
       } catch (err) {
         setStatus('error');
         setErrorMessage(err instanceof Error ? err.message : 'Błąd wymiany kodu');
@@ -64,7 +67,11 @@ const StravaCallback = () => {
               <>
                 <CheckCircle className="h-12 w-12 text-green-500" />
                 <p className="font-medium">Połączono ze Stravą!</p>
-                <p className="text-sm text-muted-foreground">Przekierowuję do ustawień...</p>
+                <p className="text-sm text-muted-foreground">
+                  {syncedCount > 0
+                    ? `Zsynchronizowano ${syncedCount} aktywności. Przekierowuję...`
+                    : 'Przekierowuję do ustawień...'}
+                </p>
               </>
             )}
 

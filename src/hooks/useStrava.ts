@@ -42,6 +42,10 @@ export const useStrava = (userId: string) => {
       },
       (err) => {
         console.error('Error fetching Strava activities:', err);
+        // Missing Firestore composite index is the most common cause
+        if (err.code === 'failed-precondition') {
+          setError('Brak indeksu Firestore — sprawdź konsolę Firebase.');
+        }
       }
     );
 
@@ -81,12 +85,10 @@ export const useStrava = (userId: string) => {
     }
   }, [userId]);
 
-  const syncActivities = useCallback(async (): Promise<{
-    synced: number;
-    totalFetched: number;
-    alreadyExisted: number;
-    lookbackDays: number;
-  }> => {
+  const syncActivities = useCallback(async (): Promise<
+    | { ok: true; synced: number; totalFetched: number; alreadyExisted: number; lookbackDays: number }
+    | { ok: false; message: string }
+  > => {
     setError(null);
     setIsSyncing(true);
     try {
@@ -99,11 +101,11 @@ export const useStrava = (userId: string) => {
         alreadyExisted: number;
         lookbackDays: number;
       };
-      return data;
+      return { ok: true, ...data };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Błąd synchronizacji';
       setError(message);
-      return { synced: 0, totalFetched: 0, alreadyExisted: 0, lookbackDays: 0 };
+      return { ok: false, message };
     } finally {
       setIsSyncing(false);
     }

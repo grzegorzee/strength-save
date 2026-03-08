@@ -162,9 +162,13 @@ npm run dev
 
 ### Deploy na GitHub Pages
 
+🔴 **OBOWIĄZKOWE po każdej zmianie kodu!** Sam `git push` na `main` NIE aktualizuje strony live. ZAWSZE po commitcie musisz też:
+
 ```bash
 npm run deploy
 ```
+
+To buduje `dist/` i pushuje na branch `gh-pages` → GitHub Pages serwuje nową wersję.
 
 ### Testy
 
@@ -280,3 +284,4 @@ Projekt jest w: /Users/grzegorzjasionowicz/Documents/Baza Wiedzy/FIRMA/projekty/
 - Plan expiration: `currentWeek > planDurationWeeks` → banner + /new-plan
 - Onboarding: nowi użytkownicy → wizard → AI plan → review → Dashboard
 - Istniejący użytkownicy: auto-detect (mają workouty) → skip onboarding
+- 🔴 **DEPLOY:** `git push` ≠ deploy! Po KAŻDEJ zmianie kodu → `npm run deploy` (gh-pages branch)
