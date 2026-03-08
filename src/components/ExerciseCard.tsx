@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChevronDown, ChevronUp, Check, Info, Flame, StickyNote, Play, ArrowLeftRight } from 'lucide-react';
+import { ChevronDown, ChevronUp, Check, Info, Flame, StickyNote, Play } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,6 @@ interface ExerciseCardProps {
   onSetsChange?: (sets: SetData[], notes?: string) => void;
   onSetCompleted?: (setIndex: number) => void;
   isEditable?: boolean;
-  onSwapExercise?: () => void;
 }
 
 const ExerciseCardInner = ({
@@ -32,7 +31,6 @@ const ExerciseCardInner = ({
   onSetsChange,
   onSetCompleted,
   isEditable = true,
-  onSwapExercise,
 }: ExerciseCardProps) => {
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [expanded, setExpanded] = useState(false);
@@ -163,16 +161,6 @@ const ExerciseCardInner = ({
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            {isEditable && onSwapExercise && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onSwapExercise}
-                className="text-muted-foreground hover:text-primary"
-              >
-                <ArrowLeftRight className="h-5 w-5" />
-              </Button>
-            )}
             {exercise.videoUrl && (
               <Button
                 variant="ghost"

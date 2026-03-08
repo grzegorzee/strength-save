@@ -6,6 +6,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { getTrainingSchedule, trainingRules } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useStrava } from '@/hooks/useStrava';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { useState, useMemo } from 'react';
 import { pl } from 'date-fns/locale';
@@ -14,14 +16,22 @@ import { Info, CalendarDays, CheckCircle, Dumbbell, Settings } from 'lucide-reac
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
-  const { getLatestWorkout, workouts } = useFirebaseWorkouts();
-  const { plan: trainingPlan } = useTrainingPlan();
+  const { uid } = useCurrentUser();
+  const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
+  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { activities: stravaActivities } = useStrava(uid);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   // Get dates with completed workouts
   const completedDates = workouts
     .filter(w => w.completed)
     .map(w => new Date(w.date));
+
+  // Get dates with Strava activities
+  const stravaDates = useMemo(() =>
+    stravaActivities.map(a => new Date(a.date)),
+    [stravaActivities]
+  );
 
   // Get all scheduled training dates for 12 weeks
   const schedule = useMemo(() => getTrainingSchedule(), []);
@@ -187,6 +197,7 @@ const TrainingPlan = () => {
                 modifiers={{
                   completed: completedDates,
                   training: trainingDates,
+                  strava: stravaDates,
                 }}
                 modifiersStyles={{
                   completed: {
@@ -196,6 +207,10 @@ const TrainingPlan = () => {
                   },
                   training: {
                     border: '2px solid hsl(var(--primary))',
+                    borderRadius: '50%',
+                  },
+                  strava: {
+                    border: '2px solid #FC4C02',
                     borderRadius: '50%',
                   },
                 }}
@@ -209,6 +224,10 @@ const TrainingPlan = () => {
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 rounded-full border-2 border-primary" />
                   <span className="text-muted-foreground">Zaplanowane treningi</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 rounded-full border-2 border-[#FC4C02]" />
+                  <span className="text-muted-foreground">Strava</span>
                 </div>
               </div>
 

@@ -9,27 +9,34 @@ import {
   deleteDoc,
   onSnapshot,
   query,
-  orderBy
+  orderBy,
+  where
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement, ExerciseReplacement } from '@/types';
+import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
 
-export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement, ExerciseReplacement };
+export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
 const WORKOUTS_COLLECTION = 'workouts';
 const MEASUREMENTS_COLLECTION = 'measurements';
 
-export const useFirebaseWorkouts = () => {
+export const useFirebaseWorkouts = (userId: string) => {
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Subscribe to workouts collection
+  // Subscribe to workouts collection filtered by userId
   useEffect(() => {
-    const workoutsQuery = query(collection(db, WORKOUTS_COLLECTION), orderBy('date', 'desc'));
-    
-    const unsubscribe = onSnapshot(workoutsQuery, 
+    if (!userId) return;
+
+    const workoutsQuery = query(
+      collection(db, WORKOUTS_COLLECTION),
+      where('userId', '==', userId),
+      orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(workoutsQuery,
       (snapshot) => {
         const workoutsData: WorkoutSession[] = [];
         snapshot.forEach((doc) => {
@@ -46,12 +53,18 @@ export const useFirebaseWorkouts = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [userId]);
 
-  // Subscribe to measurements collection
+  // Subscribe to measurements collection filtered by userId
   useEffect(() => {
-    const measurementsQuery = query(collection(db, MEASUREMENTS_COLLECTION), orderBy('date', 'desc'));
-    
+    if (!userId) return;
+
+    const measurementsQuery = query(
+      collection(db, MEASUREMENTS_COLLECTION),
+      where('userId', '==', userId),
+      orderBy('date', 'desc')
+    );
+
     const unsubscribe = onSnapshot(measurementsQuery,
       (snapshot) => {
         const measurementsData: BodyMeasurement[] = [];
@@ -66,7 +79,7 @@ export const useFirebaseWorkouts = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [userId]);
 
   const createWorkoutSession = useCallback(async (dayId: string, date?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }> => {
     const workoutDate = date || new Date().toISOString().split('T')[0];
@@ -79,6 +92,7 @@ export const useFirebaseWorkouts = () => {
 
     const session: WorkoutSession = {
       id: `workout-${Date.now()}`,
+      userId,
       dayId,
       date: workoutDate,
       exercises: [],
@@ -93,7 +107,7 @@ export const useFirebaseWorkouts = () => {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       return { session: null, error: errorMessage };
     }
-  }, [workouts]);
+  }, [workouts, userId]);
 
   const updateExerciseProgress = useCallback(async (
     sessionId: string,
@@ -182,7 +196,7 @@ export const useFirebaseWorkouts = () => {
   }, []);
 
   const getWorkoutsByDay = useCallback((dayId: string) => {
-    return workouts.filter(w => w.dayId === dayId).sort((a, b) => 
+    return workouts.filter(w => w.dayId === dayId).sort((a, b) =>
       new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [workouts]);
@@ -194,22 +208,13 @@ export const useFirebaseWorkouts = () => {
     if (todaysWorkouts.length === 0) return undefined;
     if (todaysWorkouts.length === 1) return todaysWorkouts[0];
 
-    // If multiple workouts exist for today, prefer:
-    // 1. One with exercises (has data)
-    // 2. One that is completed
-    // 3. The newest one (by ID timestamp)
     return todaysWorkouts.sort((a, b) => {
-      // Prefer workout with exercises
       const aHasExercises = a.exercises.length > 0;
       const bHasExercises = b.exercises.length > 0;
       if (aHasExercises && !bHasExercises) return -1;
       if (!aHasExercises && bHasExercises) return 1;
-
-      // Prefer completed workout
       if (a.completed && !b.completed) return -1;
       if (!a.completed && b.completed) return 1;
-
-      // Prefer newer (higher timestamp in ID)
       return b.id.localeCompare(a.id);
     })[0];
   }, [workouts]);
@@ -219,13 +224,13 @@ export const useFirebaseWorkouts = () => {
     return dayWorkouts[0];
   }, [getWorkoutsByDay]);
 
-  const addMeasurement = useCallback(async (measurement: Omit<BodyMeasurement, 'id'>): Promise<{ measurement: BodyMeasurement | null; error?: string }> => {
+  const addMeasurement = useCallback(async (measurement: Omit<BodyMeasurement, 'id' | 'userId'>): Promise<{ measurement: BodyMeasurement | null; error?: string }> => {
     const id = `measurement-${Date.now()}`;
 
     // Sanitize: remove undefined values (Firebase doesn't accept them)
-    const sanitized: Record<string, string | number> = { id, date: measurement.date };
+    const sanitized: Record<string, string | number> = { id, userId, date: measurement.date };
     for (const [key, value] of Object.entries(measurement)) {
-      if (value !== undefined && key !== 'id') {
+      if (value !== undefined && key !== 'id' && key !== 'userId') {
         sanitized[key] = value;
       }
     }
@@ -238,7 +243,7 @@ export const useFirebaseWorkouts = () => {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       return { measurement: null, error: errorMessage };
     }
-  }, []);
+  }, [userId]);
 
   const getLatestMeasurement = useCallback(() => {
     return measurements[0];
@@ -272,25 +277,25 @@ export const useFirebaseWorkouts = () => {
   const importData = useCallback(async (jsonString: string) => {
     try {
       const data = JSON.parse(jsonString);
-      
+
       if (data.workouts && Array.isArray(data.workouts)) {
         for (const workout of data.workouts) {
-          await setDoc(doc(db, WORKOUTS_COLLECTION, workout.id), workout);
+          await setDoc(doc(db, WORKOUTS_COLLECTION, workout.id), { ...workout, userId });
         }
       }
-      
+
       if (data.measurements && Array.isArray(data.measurements)) {
         for (const measurement of data.measurements) {
-          await setDoc(doc(db, MEASUREMENTS_COLLECTION, measurement.id), measurement);
+          await setDoc(doc(db, MEASUREMENTS_COLLECTION, measurement.id), { ...measurement, userId });
         }
       }
-      
+
       return { success: true, message: 'Dane zaimportowane pomyślnie!' };
     } catch (err) {
       console.error('Error importing data:', err);
       return { success: false, message: 'Błąd importu: nieprawidłowy format JSON' };
     }
-  }, []);
+  }, [userId]);
 
   // Delete a specific workout (for cleanup)
   const deleteWorkout = useCallback(async (workoutId: string): Promise<{ success: boolean; error?: string }> => {
@@ -307,7 +312,6 @@ export const useFirebaseWorkouts = () => {
   // Cleanup empty/duplicate workouts
   const cleanupEmptyWorkouts = useCallback(async (): Promise<{ deleted: number; error?: string }> => {
     try {
-      // Group workouts by date+dayId
       const grouped = new Map<string, WorkoutSession[]>();
       workouts.forEach(w => {
         const key = `${w.date}-${w.dayId}`;
@@ -321,7 +325,6 @@ export const useFirebaseWorkouts = () => {
       for (const [key, group] of grouped) {
         if (group.length <= 1) continue;
 
-        // Sort: prefer workouts with exercises, then completed, then newest
         const sorted = [...group].sort((a, b) => {
           const aHasExercises = a.exercises.length > 0;
           const bHasExercises = b.exercises.length > 0;
@@ -332,12 +335,10 @@ export const useFirebaseWorkouts = () => {
           return b.id.localeCompare(a.id);
         });
 
-        // Keep the best one, delete the rest
         const toDelete = sorted.slice(1);
         for (const workout of toDelete) {
           await deleteDoc(doc(db, WORKOUTS_COLLECTION, workout.id));
           deleted++;
-          // duplicate deleted
         }
       }
 
@@ -348,50 +349,6 @@ export const useFirebaseWorkouts = () => {
       return { deleted: 0, error: errorMessage };
     }
   }, [workouts]);
-
-  const swapExerciseInWorkout = useCallback(async (
-    sessionId: string,
-    originalExerciseId: string,
-    replacement: ExerciseReplacement,
-  ): Promise<{ success: boolean; error?: string }> => {
-    if (!sessionId) {
-      return { success: false, error: 'Brak ID sesji treningowej' };
-    }
-
-    try {
-      const workoutRef = doc(db, WORKOUTS_COLLECTION, sessionId);
-      const workoutSnap = await getDoc(workoutRef);
-
-      if (!workoutSnap.exists()) {
-        return { success: false, error: 'Nie znaleziono treningu w bazie danych' };
-      }
-
-      const workout = workoutSnap.data() as WorkoutSession;
-
-      // Sanitize replacement - remove undefined values for Firebase
-      const sanitizedReplacement: Record<string, string> = {
-        name: replacement.name,
-        sets: replacement.sets,
-      };
-      if (replacement.videoUrl) sanitizedReplacement.videoUrl = replacement.videoUrl;
-      if (replacement.category) sanitizedReplacement.category = replacement.category;
-
-      const exerciseReplacements = {
-        ...(workout.exerciseReplacements || {}),
-        [originalExerciseId]: sanitizedReplacement,
-      };
-
-      // Reset sets for the swapped exercise
-      const exercises = workout.exercises.filter(e => e.exerciseId !== originalExerciseId);
-
-      await updateDoc(workoutRef, { exerciseReplacements, exercises });
-      return { success: true };
-    } catch (err) {
-      console.error('Error swapping exercise:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
-      return { success: false, error: errorMessage };
-    }
-  }, []);
 
   return {
     workouts,
@@ -413,6 +370,5 @@ export const useFirebaseWorkouts = () => {
     importData,
     deleteWorkout,
     cleanupEmptyWorkouts,
-    swapExerciseInWorkout,
   };
 };

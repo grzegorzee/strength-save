@@ -18,6 +18,7 @@ import { useAISummary } from '@/hooks/useAISummary';
 import { useAIPlan } from '@/hooks/useAIPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useCurrentUser } from '@/contexts/UserContext';
 import type { CoachInsight } from '@/lib/ai-coach';
 import { callOpenAI, prepareCoachData } from '@/lib/ai-coach';
 import { cn } from '@/lib/utils';
@@ -100,7 +101,8 @@ const InsightCard = ({ insight }: { insight: CoachInsight }) => {
 // ============================
 
 const CoachTab = () => {
-  const { insights, isLoading, error, analyze, lastAnalyzedAt, isReady, hasCache } = useAICoach();
+  const { uid } = useCurrentUser();
+  const { insights, isLoading, error, analyze, lastAnalyzedAt, isReady, hasCache } = useAICoach(uid);
   const hasInsights = insights.length > 0;
   const showInitial = !hasInsights && !isLoading && !error;
 
@@ -161,8 +163,9 @@ const CoachTab = () => {
 // ============================
 
 const SwapTab = () => {
-  const { plan } = useTrainingPlan();
-  const { result, isLoading, error, findSwap, reset } = useAISwap();
+  const { uid } = useCurrentUser();
+  const { plan } = useTrainingPlan(uid);
+  const { result, isLoading, error, findSwap, reset } = useAISwap(uid);
   const [selectedExercise, setSelectedExercise] = useState('');
   const [reason, setReason] = useState('');
 
@@ -273,7 +276,8 @@ const SwapTab = () => {
 // ============================
 
 const SummaryTab = () => {
-  const { summary, isLoading, error, analyze, lastWorkout, completedWorkouts } = useAISummary();
+  const { uid } = useCurrentUser();
+  const { summary, isLoading, error, analyze, lastWorkout, completedWorkouts } = useAISummary(uid);
   const [selectedWorkout, setSelectedWorkout] = useState('');
 
   const handleAnalyze = () => {
@@ -387,7 +391,8 @@ const SummaryTab = () => {
 // ============================
 
 const PlanTab = () => {
-  const { suggestion, isLoading, error, analyze, lastAnalyzedAt, isReady } = useAIPlan();
+  const { uid } = useCurrentUser();
+  const { suggestion, isLoading, error, analyze, lastAnalyzedAt, isReady } = useAIPlan(uid);
   const hasSuggestion = !!suggestion;
   const showInitial = !hasSuggestion && !isLoading && !error;
 
@@ -518,8 +523,9 @@ function saveChatHistory(messages: ChatMessage[]) {
 }
 
 const ChatTab = () => {
-  const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts();
-  const { plan, isLoaded: planLoaded } = useTrainingPlan();
+  const { uid } = useCurrentUser();
+  const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts(uid);
+  const { plan, isLoaded: planLoaded } = useTrainingPlan(uid);
 
   const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
   const [input, setInput] = useState('');

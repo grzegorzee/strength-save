@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { useCurrentUser } from '@/contexts/UserContext';
 import {
   getWeekBounds,
   getMonthBounds,
@@ -18,8 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 type Period = 'week' | 'month';
 
 const Summary = () => {
-  const { workouts, measurements, isLoaded } = useFirebaseWorkouts();
-  const { plan: trainingPlan } = useTrainingPlan();
+  const { uid } = useCurrentUser();
+  const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
+  const { plan: trainingPlan } = useTrainingPlan(uid);
   const { toast } = useToast();
   const [period, setPeriod] = useState<Period>('week');
   const [copied, setCopied] = useState(false);

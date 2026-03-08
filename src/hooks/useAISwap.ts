@@ -2,8 +2,8 @@ import { useState, useCallback } from 'react';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { getSwapSuggestions, type SwapSuggestion } from '@/lib/ai-coach';
 
-export const useAISwap = () => {
-  const { plan } = useTrainingPlan();
+export const useAISwap = (userId: string) => {
+  const { plan } = useTrainingPlan(userId);
 
   const [result, setResult] = useState<SwapSuggestion | null>(null);
   const [isLoading, setIsLoading] = useState(false);

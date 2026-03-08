@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Calendar, CalendarDays, Ruler, Trophy, TrendingUp, BarChart3, PieChart, Sparkles, ChevronDown, Brain, ArrowRightLeft, FileText, Dumbbell, MessageCircle, X, Library } from 'lucide-react';
+import { Home, Calendar, CalendarDays, Ruler, Trophy, TrendingUp, BarChart3, PieChart, Sparkles, ChevronDown, Brain, ArrowRightLeft, FileText, Dumbbell, MessageCircle, X, Library, Shield, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useCurrentUser } from '@/contexts/UserContext';
 
 interface AppNavigationProps {
   isOpen?: boolean;
@@ -50,6 +51,7 @@ const NavItem = ({ to, icon: Icon, label, onClick }: { to: string; icon: React.E
 
 export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
   const location = useLocation();
+  const { isAdmin } = useCurrentUser();
   const isAIPage = location.pathname === '/ai';
   const [aiExpanded, setAIExpanded] = useState(isAIPage);
 
@@ -130,6 +132,14 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
             {navItemsAfterAI.map((item) => (
               <NavItem key={item.to} {...item} onClick={onClose} />
             ))}
+
+            <div className="border-t my-2" />
+            <NavItem to="/settings" icon={Settings} label="Ustawienia" onClick={onClose} />
+
+            {/* Admin section */}
+            {isAdmin && (
+              <NavItem to="/admin" icon={Shield} label="Admin" onClick={onClose} />
+            )}
           </div>
 
           <div className="p-4 border-t">

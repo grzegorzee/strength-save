@@ -3,11 +3,13 @@ import { DataManagement } from '@/components/DataManagement';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 const Measurements = () => {
-  const { measurements, addMeasurement, getLatestMeasurement, exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts();
+  const { uid } = useCurrentUser();
+  const { measurements, addMeasurement, getLatestMeasurement, exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
   
   const latestMeasurement = getLatestMeasurement();

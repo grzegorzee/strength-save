@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
@@ -17,11 +18,13 @@ interface AppHeaderProps {
 
 export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
   const { user, logout } = useAuth();
+  const { profile } = useCurrentUser();
   const { theme, setTheme } = useTheme();
   const { isOnline, pendingOps } = useOnlineStatus();
 
-  const initials = user?.displayName
-    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
+  const displayName = profile?.displayName || user?.displayName || '';
+  const initials = displayName
+    ? displayName.split(' ').map(n => n[0]).join('').toUpperCase()
     : 'GJ';
 
   return (
@@ -69,6 +72,11 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              {displayName && (
+                <div className="px-2 py-1.5 text-sm font-medium border-b mb-1">
+                  {displayName}
+                </div>
+              )}
               <DropdownMenuItem onClick={logout} className="cursor-pointer">
                 <LogOut className="h-4 w-4 mr-2" />
                 Wyloguj się

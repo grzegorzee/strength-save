@@ -18,9 +18,15 @@ import PlanEditor from "./pages/PlanEditor";
 import StatsDetail from "./pages/StatsDetail";
 import AIPage from "./pages/AIPage";
 import ExerciseLibrary from "./pages/ExerciseLibrary";
+import Settings from "./pages/Settings";
+import StravaCallback from "./pages/StravaCallback";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import UserPlanEditor from "./pages/admin/UserPlanEditor";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
+import { AdminRoute } from "./components/AdminRoute";
 import { useAuth } from "./hooks/useAuth";
+import { UserProvider } from "./contexts/UserContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Loader2 } from "lucide-react";
 
@@ -42,25 +48,31 @@ const AuthenticatedApp = () => {
   }
 
   return (
-    <HashRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/day" element={<DayPlan />} />
-          <Route path="/plan" element={<TrainingPlan />} />
-          <Route path="/workout/:dayId" element={<WorkoutDay />} />
-          <Route path="/measurements" element={<Measurements />} />
-          <Route path="/achievements" element={<Achievements />} />
-          <Route path="/progress" element={<Progress />} />
-          <Route path="/summary" element={<Summary />} />
-          <Route path="/plan/edit" element={<PlanEditor />} />
-          <Route path="/stats" element={<StatsDetail />} />
-          <Route path="/ai" element={<AIPage />} />
-          <Route path="/exercises" element={<ExerciseLibrary />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </HashRouter>
+    <UserProvider>
+      <HashRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/day" element={<DayPlan />} />
+            <Route path="/plan" element={<TrainingPlan />} />
+            <Route path="/workout/:dayId" element={<WorkoutDay />} />
+            <Route path="/measurements" element={<Measurements />} />
+            <Route path="/achievements" element={<Achievements />} />
+            <Route path="/progress" element={<Progress />} />
+            <Route path="/summary" element={<Summary />} />
+            <Route path="/plan/edit" element={<PlanEditor />} />
+            <Route path="/stats" element={<StatsDetail />} />
+            <Route path="/ai" element={<AIPage />} />
+            <Route path="/exercises" element={<ExerciseLibrary />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/strava/callback" element={<StravaCallback />} />
+            <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            <Route path="/admin/plans/:userId" element={<AdminRoute><UserPlanEditor /></AdminRoute>} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </HashRouter>
+    </UserProvider>
   );
 };
 

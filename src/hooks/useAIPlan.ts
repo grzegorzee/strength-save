@@ -23,9 +23,9 @@ function loadCache(): CachedPlan | null {
   }
 }
 
-export const useAIPlan = () => {
-  const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts();
-  const { plan, isLoaded: planLoaded } = useTrainingPlan();
+export const useAIPlan = (userId: string) => {
+  const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts(userId);
+  const { plan, isLoaded: planLoaded } = useTrainingPlan(userId);
 
   const cached = loadCache();
 

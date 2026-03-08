@@ -17,6 +17,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { calculateStreak, calculateLongestStreak, getWeekBounds } from '@/lib/summary-utils';
 import type { WorkoutSession } from '@/types';
 import { cn } from '@/lib/utils';
@@ -451,7 +452,8 @@ const StatsDetail = () => {
   const tabParam = searchParams.get('tab') as StatsTab | null;
   const defaultTab: StatsTab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'workouts';
 
-  const { workouts, measurements, isLoaded } = useFirebaseWorkouts();
+  const { uid } = useCurrentUser();
+  const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
 
   if (!isLoaded) {
     return (

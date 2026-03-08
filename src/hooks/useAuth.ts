@@ -2,7 +2,15 @@ import { useState, useEffect } from 'react';
 import { User, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 
-const ALLOWED_EMAIL = import.meta.env.VITE_ALLOWED_EMAIL || "";
+const ALLOWED_EMAILS = (import.meta.env.VITE_ALLOWED_EMAILS || import.meta.env.VITE_ALLOWED_EMAIL || "")
+  .split(',')
+  .map((e: string) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+const isEmailAllowed = (email: string | null): boolean => {
+  if (!email) return false;
+  return ALLOWED_EMAILS.includes(email.toLowerCase());
+};
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -11,8 +19,7 @@ export const useAuth = () => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && user.email !== ALLOWED_EMAIL) {
-        // Użytkownik zalogowany ale nie autoryzowany - wyloguj
+      if (user && !isEmailAllowed(user.email)) {
         signOut(auth);
         setError("Brak dostępu. Tylko autoryzowane konta mogą korzystać z aplikacji.");
         setUser(null);
@@ -29,11 +36,10 @@ export const useAuth = () => {
   const signInWithGoogle = async () => {
     try {
       setError(null);
-      // Ustaw persystencję na localStorage - przetrwa zamknięcie przeglądarki/PWA
       await setPersistence(auth, browserLocalPersistence);
       const result = await signInWithPopup(auth, googleProvider);
 
-      if (result.user.email !== ALLOWED_EMAIL) {
+      if (!isEmailAllowed(result.user.email)) {
         await signOut(auth);
         setError("Brak dostępu. Tylko autoryzowane konta mogą korzystać z aplikacji.");
         return false;
@@ -60,7 +66,7 @@ export const useAuth = () => {
     user,
     loading,
     error,
-    isAuthenticated: !!user && user.email === ALLOWED_EMAIL,
+    isAuthenticated: !!user && isEmailAllowed(user.email),
     signInWithGoogle,
     logout,
   };

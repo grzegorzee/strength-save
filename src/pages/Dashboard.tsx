@@ -8,8 +8,11 @@ import { StatsCard } from '@/components/StatsCard';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useStrava } from '@/hooks/useStrava';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { calculateStreak } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
+import { StravaActivityCard } from '@/components/StravaActivityCard';
 
 const formatLocalDate = (date: Date): string => {
   const year = date.getFullYear();
@@ -42,6 +45,7 @@ const getThisWeekDates = () => {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { uid } = useCurrentUser();
   const {
     workouts,
     getTotalWeight,
@@ -49,8 +53,9 @@ const Dashboard = () => {
     getLatestMeasurement,
     isLoaded,
     error
-  } = useFirebaseWorkouts();
-  const { plan: trainingPlan } = useTrainingPlan();
+  } = useFirebaseWorkouts(uid);
+  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
 
   const latestMeasurement = getLatestMeasurement();
   const totalWeight = getTotalWeight();
@@ -194,6 +199,24 @@ const Dashboard = () => {
               />
             );
           })}
+
+          {/* Strava activities for this week */}
+          {stravaConnection.connected && (() => {
+            const mondayStr = formatLocalDate(thisWeek[0].date);
+            const sundayDate = new Date(thisWeek[0].date);
+            sundayDate.setDate(sundayDate.getDate() + 6);
+            const sundayStr = formatLocalDate(sundayDate);
+
+            const weekActivities = stravaActivities.filter(
+              a => a.date >= mondayStr && a.date <= sundayStr
+            );
+
+            if (weekActivities.length === 0) return null;
+
+            return weekActivities.map(activity => (
+              <StravaActivityCard key={activity.id} activity={activity} />
+            ));
+          })()}
         </div>
       </div>
 

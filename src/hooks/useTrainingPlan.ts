@@ -8,17 +8,18 @@ import {
 import { db } from '@/lib/firebase';
 import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';
 
-const PLAN_DOC_ID = 'current';
 const PLAN_COLLECTION = 'training_plans';
 
-export const useTrainingPlan = () => {
+export const useTrainingPlan = (userId: string) => {
   const [plan, setPlan] = useState<TrainingDay[]>(defaultPlan);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCustom, setIsCustom] = useState(false);
 
-  // Subscribe to plan document
+  // Subscribe to plan document using userId as doc ID
   useEffect(() => {
-    const docRef = doc(db, PLAN_COLLECTION, PLAN_DOC_ID);
+    if (!userId) return;
+
+    const docRef = doc(db, PLAN_COLLECTION, userId);
 
     const unsubscribe = onSnapshot(docRef,
       (snapshot) => {
@@ -43,11 +44,12 @@ export const useTrainingPlan = () => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [userId]);
 
   const savePlan = useCallback(async (newPlan: TrainingDay[]): Promise<{ success: boolean; error?: string }> => {
+    if (!userId) return { success: false, error: 'Brak userId' };
     try {
-      await setDoc(doc(db, PLAN_COLLECTION, PLAN_DOC_ID), {
+      await setDoc(doc(db, PLAN_COLLECTION, userId), {
         days: newPlan,
         updatedAt: new Date().toISOString(),
       });
@@ -57,7 +59,7 @@ export const useTrainingPlan = () => {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       return { success: false, error: errorMessage };
     }
-  }, []);
+  }, [userId]);
 
   const swapExercise = useCallback(async (
     dayId: string,
@@ -75,7 +77,7 @@ export const useTrainingPlan = () => {
             ...ex,
             name: newName,
             ...(newSets && { sets: newSets }),
-            instructions: [], // clear instructions for swapped exercise
+            instructions: [],
           };
         }),
       };

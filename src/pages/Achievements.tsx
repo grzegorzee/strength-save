@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { Trophy, Dumbbell, Target, TrendingUp, ChevronRight, Zap } from 'lucide-react';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -17,8 +18,9 @@ interface ExerciseRecord {
 }
 
 const Achievements = () => {
-  const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts();
-  const { plan: trainingPlan } = useTrainingPlan();
+  const { uid } = useCurrentUser();
+  const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid);
+  const { plan: trainingPlan } = useTrainingPlan(uid);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseRecord | null>(null);
 
   const totalWeight = getTotalWeight();

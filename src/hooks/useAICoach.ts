@@ -29,9 +29,9 @@ function saveCache(insights: CoachInsight[], workoutCount: number) {
   localStorage.setItem(CACHE_KEY, JSON.stringify(data));
 }
 
-export const useAICoach = () => {
-  const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts();
-  const { plan, isLoaded: planLoaded } = useTrainingPlan();
+export const useAICoach = (userId: string) => {
+  const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts(userId);
+  const { plan, isLoaded: planLoaded } = useTrainingPlan(userId);
 
   const cached = loadCache();
   const completedCount = workouts.filter(w => w.completed).length;

@@ -7,11 +7,13 @@ import { trainingRules } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useCurrentUser } from '@/contexts/UserContext';
 
 const DayPlan = () => {
   const navigate = useNavigate();
-  const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts();
-  const { plan: trainingPlan } = useTrainingPlan();
+  const { uid } = useCurrentUser();
+  const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid);
+  const { plan: trainingPlan } = useTrainingPlan(uid);
 
   // Determine today's training from dynamic plan
   const dayOfWeek = new Date().getDay();

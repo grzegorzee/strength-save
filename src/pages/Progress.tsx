@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { TrendingUp, Dumbbell, Scale } from 'lucide-react';
 import { calculate1RM } from '@/lib/pr-utils';
 
@@ -32,8 +33,9 @@ const CHART_COLORS = [
 ];
 
 const Progress = () => {
-  const { workouts, measurements } = useFirebaseWorkouts();
-  const { plan: trainingPlan } = useTrainingPlan();
+  const { uid } = useCurrentUser();
+  const { workouts, measurements } = useFirebaseWorkouts(uid);
+  const { plan: trainingPlan } = useTrainingPlan(uid);
   const [tab, setTab] = useState<ChartTab>('weights');
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [weightMode, setWeightMode] = useState<WeightMode>('max');

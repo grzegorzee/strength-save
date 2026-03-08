@@ -13,25 +13,19 @@ export interface ExerciseProgress {
   notes?: string;
 }
 
-export interface ExerciseReplacement {
-  name: string;
-  sets: string;
-  videoUrl?: string;
-  category?: string;
-}
-
 export interface WorkoutSession {
   id: string;
+  userId: string;
   dayId: string;
   date: string;
   exercises: ExerciseProgress[];
   completed: boolean;
   notes?: string;
-  exerciseReplacements?: Record<string, ExerciseReplacement>;
 }
 
 export interface BodyMeasurement {
   id: string;
+  userId: string;
   date: string;
   weight?: number;
   armLeft?: number;

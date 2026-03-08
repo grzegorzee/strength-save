@@ -3,9 +3,9 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { generateWorkoutSummary, type WorkoutSummaryResult } from '@/lib/ai-coach';
 
-export const useAISummary = () => {
-  const { workouts } = useFirebaseWorkouts();
-  const { plan } = useTrainingPlan();
+export const useAISummary = (userId: string) => {
+  const { workouts } = useFirebaseWorkouts(userId);
+  const { plan } = useTrainingPlan(userId);
 
   const [summary, setSummary] = useState<WorkoutSummaryResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);

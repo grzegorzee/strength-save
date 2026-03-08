@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +14,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
-import { useCurrentUser } from '@/contexts/UserContext';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -29,10 +30,23 @@ import {
   Search,
 } from 'lucide-react';
 
-const PlanEditor = () => {
+const UserPlanEditor = () => {
+  const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { uid } = useCurrentUser();
+  const [userName, setUserName] = useState('');
+
+  // Fetch user name
+  useEffect(() => {
+    if (!userId) return;
+    const unsubscribe = onSnapshot(doc(db, 'users', userId), (snap) => {
+      if (snap.exists()) {
+        setUserName(snap.data().displayName || snap.data().email || userId);
+      }
+    });
+    return () => unsubscribe();
+  }, [userId]);
+
   const {
     plan,
     isLoaded,
@@ -43,7 +57,7 @@ const PlanEditor = () => {
     addExercise,
     moveExercise,
     resetToDefault,
-  } = useTrainingPlan(uid);
+  } = useTrainingPlan(userId || '');
 
   const [swapDialog, setSwapDialog] = useState<{
     dayId: string;
@@ -51,7 +65,7 @@ const PlanEditor = () => {
     exerciseName: string;
   } | null>(null);
 
-  const [addDialog, setAddDialog] = useState<string | null>(null); // dayId
+  const [addDialog, setAddDialog] = useState<string | null>(null);
 
   const [editingSets, setEditingSets] = useState<{
     dayId: string;
@@ -139,91 +153,15 @@ const PlanEditor = () => {
     );
   }
 
-  const ExerciseSwapDialog = () => (
-    <Dialog open={!!swapDialog || !!addDialog} onOpenChange={() => { setSwapDialog(null); setAddDialog(null); setSearchQuery(''); setSelectedCategory('all'); }}>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{swapDialog ? 'Zamień ćwiczenie' : 'Dodaj ćwiczenie'}</DialogTitle>
-          <DialogDescription>
-            {swapDialog
-              ? `Zamieniasz: ${swapDialog.exerciseName}`
-              : 'Wybierz ćwiczenie z biblioteki'}
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Szukaj ćwiczenia..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        {/* Category filter */}
-        <div className="flex flex-wrap gap-1.5">
-          <Badge
-            variant={selectedCategory === 'all' ? 'default' : 'outline'}
-            className="cursor-pointer text-xs"
-            onClick={() => setSelectedCategory('all')}
-          >
-            Wszystkie
-          </Badge>
-          {(Object.entries(categoryLabels) as [LibraryExercise['category'], string][]).map(([key, label]) => (
-            <Badge
-              key={key}
-              variant={selectedCategory === key ? 'default' : 'outline'}
-              className="cursor-pointer text-xs"
-              onClick={() => setSelectedCategory(key)}
-            >
-              {label}
-            </Badge>
-          ))}
-        </div>
-
-        {/* Exercise list */}
-        <div className="space-y-1 max-h-[40vh] overflow-y-auto">
-          {filteredExercises.map((ex, i) => (
-            <button
-              key={i}
-              className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors flex items-center justify-between"
-              onClick={() => {
-                if (swapDialog) {
-                  handleSwap(ex.name);
-                } else if (addDialog) {
-                  handleAdd(addDialog, ex);
-                }
-              }}
-            >
-              <div>
-                <p className="font-medium text-sm">{ex.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {categoryLabels[ex.category]} · {ex.type === 'compound' ? 'Złożone' : 'Izolacja'}
-                </p>
-              </div>
-            </button>
-          ))}
-          {filteredExercises.length === 0 && (
-            <p className="text-center text-muted-foreground py-4 text-sm">
-              Nie znaleziono ćwiczeń
-            </p>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-
   return (
     <div className="space-y-6 pb-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/plan')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Edytuj plan</h1>
+            <h1 className="text-2xl font-bold">Edytuj plan: {userName}</h1>
             {isCustom && (
               <p className="text-xs text-muted-foreground">Plan zmodyfikowany</p>
             )}
@@ -286,38 +224,16 @@ const PlanEditor = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={idx === 0}
-                    onClick={() => handleMove(day.id, exercise.id, 'up')}
-                  >
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={idx === 0} onClick={() => handleMove(day.id, exercise.id, 'up')}>
                     <ArrowUp className="h-3 w-3" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={idx === day.exercises.length - 1}
-                    onClick={() => handleMove(day.id, exercise.id, 'down')}
-                  >
+                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={idx === day.exercises.length - 1} onClick={() => handleMove(day.id, exercise.id, 'down')}>
                     <ArrowDown className="h-3 w-3" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => { setSwapDialog({ dayId: day.id, exerciseId: exercise.id, exerciseName: exercise.name }); setSearchQuery(''); setSelectedCategory('all'); }}
-                  >
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setSwapDialog({ dayId: day.id, exerciseId: exercise.id, exerciseName: exercise.name }); setSearchQuery(''); setSelectedCategory('all'); }}>
                     <Replace className="h-3 w-3" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => handleRemove(day.id, exercise.id, exercise.name)}
-                  >
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleRemove(day.id, exercise.id, exercise.name)}>
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
@@ -327,9 +243,76 @@ const PlanEditor = () => {
         </Card>
       ))}
 
-      <ExerciseSwapDialog />
+      {/* Swap/Add Dialog */}
+      <Dialog open={!!swapDialog || !!addDialog} onOpenChange={() => { setSwapDialog(null); setAddDialog(null); setSearchQuery(''); setSelectedCategory('all'); }}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{swapDialog ? 'Zamień ćwiczenie' : 'Dodaj ćwiczenie'}</DialogTitle>
+            <DialogDescription>
+              {swapDialog
+                ? `Zamieniasz: ${swapDialog.exerciseName}`
+                : 'Wybierz ćwiczenie z biblioteki'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Szukaj ćwiczenia..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            <Badge
+              variant={selectedCategory === 'all' ? 'default' : 'outline'}
+              className="cursor-pointer text-xs"
+              onClick={() => setSelectedCategory('all')}
+            >
+              Wszystkie
+            </Badge>
+            {(Object.entries(categoryLabels) as [LibraryExercise['category'], string][]).map(([key, label]) => (
+              <Badge
+                key={key}
+                variant={selectedCategory === key ? 'default' : 'outline'}
+                className="cursor-pointer text-xs"
+                onClick={() => setSelectedCategory(key)}
+              >
+                {label}
+              </Badge>
+            ))}
+          </div>
+
+          <div className="space-y-1 max-h-[40vh] overflow-y-auto">
+            {filteredExercises.map((ex, i) => (
+              <button
+                key={i}
+                className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors flex items-center justify-between"
+                onClick={() => {
+                  if (swapDialog) handleSwap(ex.name);
+                  else if (addDialog) handleAdd(addDialog, ex);
+                }}
+              >
+                <div>
+                  <p className="font-medium text-sm">{ex.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {categoryLabels[ex.category]} · {ex.type === 'compound' ? 'Złożone' : 'Izolacja'}
+                  </p>
+                </div>
+              </button>
+            ))}
+            {filteredExercises.length === 0 && (
+              <p className="text-center text-muted-foreground py-4 text-sm">
+                Nie znaleziono ćwiczeń
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-export default PlanEditor;
+export default UserPlanEditor;
