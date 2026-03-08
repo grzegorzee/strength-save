@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ChevronRight, ChevronLeft, Dumbbell, Check } from 'lucide-react';
+import { Loader2, ChevronRight, ChevronLeft, Dumbbell, Check, RefreshCw } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
-import { generateTrainingPlan, type OnboardingAnswers } from '@/lib/ai-onboarding';
+import { generateTrainingPlan, type OnboardingAnswers, type GeneratedPlan } from '@/lib/ai-onboarding';
+import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
+import { exerciseLibrary } from '@/data/exerciseLibrary';
+import type { TrainingDay } from '@/data/trainingPlan';
+import type { ExerciseReplacement } from '@/types';
 import { cn } from '@/lib/utils';
 
 const STEPS = [
@@ -59,7 +63,21 @@ const Onboarding = () => {
     injuries: '',
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Review state
+  const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null);
+
+  // Swap dialog state
+  const [swapDialog, setSwapDialog] = useState<{
+    open: boolean;
+    dayId: string;
+    exerciseId: string;
+    exerciseName: string;
+    sets: string;
+    category: typeof exerciseLibrary[0]['category'] | null;
+  }>({ open: false, dayId: '', exerciseId: '', exerciseName: '', sets: '', category: null });
 
   const canNext = () => {
     switch (step) {
@@ -67,7 +85,7 @@ const Onboarding = () => {
       case 1: return answers.experience !== '';
       case 2: return answers.daysPerWeek >= 2;
       case 3: return answers.equipment.length > 0;
-      case 4: return true; // injuries is optional
+      case 4: return true;
       default: return false;
     }
   };
@@ -77,25 +95,79 @@ const Onboarding = () => {
     setError(null);
 
     try {
-      const plan = await generateTrainingPlan(answers);
-      const saveResult = await savePlan(plan);
-
-      if (!saveResult.success) {
-        setError(saveResult.error || 'Nie udało się zapisać planu');
-        setIsGenerating(false);
-        return;
-      }
-
-      // Mark onboarding as completed
-      await updateDoc(doc(db, 'users', uid), {
-        onboardingCompleted: true,
-      });
-
-      // Profile update will trigger re-render via onSnapshot → isNewUser becomes false → app redirects
+      const generated = await generateTrainingPlan(answers);
+      setReviewPlan(generated);
+      setIsGenerating(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się wygenerować planu');
       setIsGenerating(false);
     }
+  };
+
+  const handleApprovePlan = async () => {
+    if (!reviewPlan) return;
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - daysSinceMonday);
+      const startDate = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+
+      const saveResult = await savePlan(reviewPlan.days, {
+        durationWeeks: reviewPlan.planDurationWeeks,
+        startDate,
+      });
+
+      if (!saveResult.success) {
+        setError(saveResult.error || 'Nie udało się zapisać planu');
+        setIsSaving(false);
+        return;
+      }
+
+      await updateDoc(doc(db, 'users', uid), {
+        onboardingCompleted: true,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nie udało się zapisać planu');
+      setIsSaving(false);
+    }
+  };
+
+  const handleSwapExercise = (dayId: string, exerciseId: string, exerciseName: string, sets: string) => {
+    const libExercise = exerciseLibrary.find(e => e.name === exerciseName);
+    setSwapDialog({
+      open: true,
+      dayId,
+      exerciseId,
+      exerciseName,
+      sets,
+      category: libExercise?.category || null,
+    });
+  };
+
+  const handleSwapConfirm = (replacement: ExerciseReplacement) => {
+    if (!reviewPlan) return;
+    const newDays = reviewPlan.days.map(day => {
+      if (day.id !== swapDialog.dayId) return day;
+      return {
+        ...day,
+        exercises: day.exercises.map(ex => {
+          if (ex.id !== swapDialog.exerciseId) return ex;
+          return {
+            ...ex,
+            name: replacement.name,
+            sets: replacement.sets || ex.sets,
+            videoUrl: replacement.videoUrl,
+            instructions: [],
+          };
+        }),
+      };
+    });
+    setReviewPlan({ ...reviewPlan, days: newDays });
   };
 
   const handleNext = () => {
@@ -117,6 +189,11 @@ const Onboarding = () => {
 
   const displayName = profile?.displayName?.split(' ')[0] || 'Trener';
 
+  // Used exercise names for swap dialog filtering
+  const getUsedExerciseNames = (plan: TrainingDay[]) =>
+    plan.flatMap(d => d.exercises.map(e => e.name));
+
+  // Loading state — generating plan
   if (isGenerating) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -143,6 +220,90 @@ const Onboarding = () => {
     );
   }
 
+  // Review state — show generated plan for approval
+  if (reviewPlan) {
+    return (
+      <div className="min-h-screen p-6">
+        <div className="max-w-lg mx-auto space-y-4">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Dumbbell className="h-6 w-6 text-primary" />
+              <span className="font-bold text-lg text-primary">FitTracker</span>
+            </div>
+            <h2 className="text-xl font-bold">Twój plan treningowy</h2>
+            <p className="text-sm text-muted-foreground">
+              {reviewPlan.planDurationWeeks} tygodni • {reviewPlan.days.length} dni/tydzień
+            </p>
+          </div>
+
+          {reviewPlan.days.map(day => (
+            <Card key={day.id}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span>{day.dayName}</span>
+                  <Badge variant="outline" className="text-xs font-normal">{day.focus}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                {day.exercises.map(ex => (
+                  <div key={ex.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <div className="flex-1 min-w-0 mr-2">
+                      <p className="text-sm font-medium truncate">{ex.name}</p>
+                      <p className="text-xs text-muted-foreground">{ex.sets}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs shrink-0"
+                      onClick={() => handleSwapExercise(day.id, ex.id, ex.name, ex.sets)}
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />Zamień
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => { setReviewPlan(null); setStep(STEPS.length - 1); }}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />Wróć
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleApprovePlan}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4 mr-1" />
+              )}
+              Zatwierdzam plan
+            </Button>
+          </div>
+
+          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+        </div>
+
+        <ExerciseSwapDialog
+          open={swapDialog.open}
+          onOpenChange={(open) => setSwapDialog(prev => ({ ...prev, open }))}
+          category={swapDialog.category}
+          currentExerciseName={swapDialog.exerciseName}
+          usedExerciseNames={getUsedExerciseNames(reviewPlan.days)}
+          originalSets={swapDialog.sets}
+          onSwap={handleSwapConfirm}
+        />
+      </div>
+    );
+  }
+
+  // Wizard steps
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
       <Card className="max-w-md w-full">

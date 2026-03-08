@@ -11,42 +11,58 @@ export interface Exercise {
   supersetGroup?: string;
 }
 
+export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
 export interface TrainingDay {
   id: string;
   dayName: string;
-  weekday: 'monday' | 'wednesday' | 'friday';
+  weekday: Weekday;
   focus: string;
   exercises: Exercise[];
 }
 
-// Helper to generate 12 weeks of training dates
-export const getTrainingSchedule = (startDate: Date = new Date()): { date: Date; dayId: string }[] => {
+const weekdayToOffset: Record<Weekday, number> = {
+  monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6,
+};
+
+// Helper to generate N weeks of training dates, dynamically based on plan weekdays
+export const getTrainingSchedule = (
+  startDate: Date = new Date(),
+  weeks: number = 12,
+  days?: TrainingDay[],
+): { date: Date; dayId: string }[] => {
   const schedule: { date: Date; dayId: string }[] = [];
   const start = new Date(startDate);
 
   // Find the current week's Monday (go back to Monday if we're past it)
   const dayOfWeek = start.getDay();
-  // Sunday=0 -> go back 6 days, Monday=1 -> 0 days, Tuesday=2 -> 1 day, etc.
   const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   start.setDate(start.getDate() - daysSinceMonday);
   start.setHours(0, 0, 0, 0);
-  
-  // Generate 12 weeks
-  for (let week = 0; week < 12; week++) {
-    const monday = new Date(start);
-    monday.setDate(start.getDate() + week * 7);
-    
-    const wednesday = new Date(monday);
-    wednesday.setDate(monday.getDate() + 2);
-    
-    const friday = new Date(monday);
-    friday.setDate(monday.getDate() + 4);
-    
-    schedule.push({ date: monday, dayId: 'day-1' });
-    schedule.push({ date: wednesday, dayId: 'day-2' });
-    schedule.push({ date: friday, dayId: 'day-3' });
+
+  // Use plan days or default Mon/Wed/Fri
+  const planDays = days && days.length > 0
+    ? days.map(d => ({ id: d.id, offset: weekdayToOffset[d.weekday] }))
+    : [
+        { id: 'day-1', offset: 0 },  // Monday
+        { id: 'day-2', offset: 2 },  // Wednesday
+        { id: 'day-3', offset: 4 },  // Friday
+      ];
+
+  // Sort by offset so days within a week are in order
+  planDays.sort((a, b) => a.offset - b.offset);
+
+  for (let week = 0; week < weeks; week++) {
+    const weekMonday = new Date(start);
+    weekMonday.setDate(start.getDate() + week * 7);
+
+    for (const { id, offset } of planDays) {
+      const dayDate = new Date(weekMonday);
+      dayDate.setDate(weekMonday.getDate() + offset);
+      schedule.push({ date: dayDate, dayId: id });
+    }
   }
-  
+
   return schedule;
 };
 

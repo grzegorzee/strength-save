@@ -1,5 +1,12 @@
 // Centralne typy danych aplikacji FitTracker
 
+export interface ExerciseReplacement {
+  name: string;
+  sets: string;
+  videoUrl?: string;
+  category?: string;
+}
+
 export interface SetData {
   reps: number;
   weight: number;

@@ -112,7 +112,7 @@ export const stravaSync = onCall(async (request) => {
   }
 
   const synced = await syncUserActivities(userId, accessToken);
-  return { synced };
+  return { synced, success: true };
 });
 
 async function refreshStravaToken(userId: string, refreshToken: string): Promise<string> {
@@ -150,7 +150,9 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
   const lastSync = userData?.stravaLastSync;
   const after = lastSync
     ? Math.floor(new Date(lastSync).getTime() / 1000)
-    : Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60;
+    : Math.floor(Date.now() / 1000) - 365 * 24 * 60 * 60;
+
+  logger.info(`Syncing for ${userId}, after: ${new Date(after * 1000).toISOString()}`);
 
   const response = await fetch(
     `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=100`,
@@ -160,11 +162,13 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
   );
 
   if (!response.ok) {
-    logger.error("Strava activities fetch failed:", await response.text());
+    const errorText = await response.text();
+    logger.error("Strava activities fetch failed:", errorText);
     throw new HttpsError("internal", "Failed to fetch Strava activities");
   }
 
   const activities = await response.json();
+  logger.info(`Fetched ${activities.length} activities from Strava`);
   let synced = 0;
 
   const batch = db.batch();
@@ -211,5 +215,6 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
     stravaLastSync: new Date().toISOString(),
   });
 
+  logger.info(`Synced ${synced} new activities for ${userId}`);
   return synced;
 }

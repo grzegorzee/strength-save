@@ -79,7 +79,7 @@ const Dashboard = () => {
     isLoaded,
     error
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isPlanExpired } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
 
   // AI Coach
@@ -172,6 +172,19 @@ const Dashboard = () => {
         </h1>
         <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
       </div>
+
+      {/* Plan expired banner */}
+      {isPlanExpired && (
+        <Card className="border-primary bg-primary/5">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-sm">Twój plan się zakończył!</p>
+              <p className="text-xs text-muted-foreground">Czas na nowy plan treningowy.</p>
+            </div>
+            <Button size="sm" onClick={() => navigate('/new-plan')}>Nowy plan</Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

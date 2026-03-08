@@ -9,6 +9,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
+import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo } from 'react';
 import { pl } from 'date-fns/locale';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -161,6 +162,24 @@ const TrainingPlan = () => {
                   );
                 })}
               </div>
+
+              {/* Strava activities for selected week */}
+              {(() => {
+                const weekStartStr = formatLocalDate(selectedWeekStart);
+                const weekEndStr = formatLocalDate(selectedWeekEnd);
+                const weekStravaActivities = stravaActivities.filter(
+                  a => a.date >= weekStartStr && a.date <= weekEndStr
+                );
+                if (weekStravaActivities.length === 0) return null;
+                return (
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm text-muted-foreground">Aktywności Strava:</h4>
+                    {weekStravaActivities.map(activity => (
+                      <StravaActivityCard key={activity.id} activity={activity} />
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Progress Summary */}
               <Card className="bg-muted/30">

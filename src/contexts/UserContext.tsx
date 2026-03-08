@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -38,15 +38,36 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     const docRef = doc(db, USERS_COLLECTION, user.uid);
 
-    // Create/update user document on login
+    // Create/update user document on login — auto-detect existing users
     const ensureUserDoc = async () => {
       try {
+        // Check if user has existing workouts (= existing user from before onboarding)
+        const workoutsSnap = await getDocs(
+          query(collection(db, 'workouts'), where('userId', '==', user.uid), limit(1))
+        );
+        const isExistingUser = !workoutsSnap.empty;
+
+        // Check if user already had onboardingCompleted set
+        const userSnap = await getDoc(docRef);
+        const hadOnboarding = userSnap.exists() && userSnap.data()?.onboardingCompleted === true;
+
         await setDoc(docRef, {
           uid: user.uid,
           email: user.email || '',
           displayName: user.displayName || user.email?.split('@')[0] || '',
           lastLogin: new Date().toISOString(),
+          ...(isExistingUser && { onboardingCompleted: true }),
         }, { merge: true });
+
+        // If existing user was NOT previously marked as onboarded, reset plan to default
+        // (v5.0 bug may have overwritten their plan via onboarding)
+        if (isExistingUser && !hadOnboarding) {
+          const { trainingPlan: defaultPlan } = await import('@/data/trainingPlan');
+          await setDoc(doc(db, 'training_plans', user.uid), {
+            days: defaultPlan,
+            updatedAt: new Date().toISOString(),
+          });
+        }
       } catch (err) {
         console.error('Error creating user doc:', err);
       }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   doc,
   getDoc,
@@ -14,6 +14,8 @@ export const useTrainingPlan = (userId: string) => {
   const [plan, setPlan] = useState<TrainingDay[]>(defaultPlan);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCustom, setIsCustom] = useState(false);
+  const [planDurationWeeks, setPlanDurationWeeks] = useState(12);
+  const [planStartDate, setPlanStartDate] = useState<string | null>(null);
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
@@ -29,6 +31,8 @@ export const useTrainingPlan = (userId: string) => {
             setPlan(data.days as TrainingDay[]);
             setIsCustom(true);
           }
+          if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
+          if (data.startDate) setPlanStartDate(data.startDate);
         } else {
           // No custom plan, use default
           setPlan(defaultPlan);
@@ -46,12 +50,28 @@ export const useTrainingPlan = (userId: string) => {
     return () => unsubscribe();
   }, [userId]);
 
-  const savePlan = useCallback(async (newPlan: TrainingDay[]): Promise<{ success: boolean; error?: string }> => {
+  const currentWeek = useMemo(() => {
+    if (!planStartDate) return 1;
+    const start = new Date(planStartDate);
+    const now = new Date();
+    const diffMs = now.getTime() - start.getTime();
+    const week = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
+    return Math.max(1, week);
+  }, [planStartDate]);
+
+  const isPlanExpired = currentWeek > planDurationWeeks;
+
+  const savePlan = useCallback(async (
+    newPlan: TrainingDay[],
+    options?: { durationWeeks?: number; startDate?: string },
+  ): Promise<{ success: boolean; error?: string }> => {
     if (!userId) return { success: false, error: 'Brak userId' };
     try {
       await setDoc(doc(db, PLAN_COLLECTION, userId), {
         days: newPlan,
         updatedAt: new Date().toISOString(),
+        ...(options?.durationWeeks && { durationWeeks: options.durationWeeks }),
+        ...(options?.startDate && { startDate: options.startDate }),
       });
       return { success: true };
     } catch (err) {
@@ -158,6 +178,10 @@ export const useTrainingPlan = (userId: string) => {
     plan,
     isLoaded,
     isCustom,
+    planDurationWeeks,
+    planStartDate,
+    currentWeek,
+    isPlanExpired,
     savePlan,
     swapExercise,
     updateExerciseSets,

@@ -17,6 +17,7 @@ import AIChat from "./pages/AIChat";
 import Onboarding from "./pages/Onboarding";
 import ExerciseLibrary from "./pages/ExerciseLibrary";
 import Settings from "./pages/Settings";
+import NewPlan from "./pages/NewPlan";
 import StravaCallback from "./pages/StravaCallback";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserPlanEditor from "./pages/admin/UserPlanEditor";
@@ -62,6 +63,7 @@ const AppRoutes = () => {
               <Route path="/ai" element={<AIChat />} />
               <Route path="/exercises" element={<ExerciseLibrary />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/new-plan" element={<NewPlan />} />
               <Route path="/strava/callback" element={<StravaCallback />} />
               <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
               <Route path="/admin/plans/:userId" element={<AdminRoute><UserPlanEditor /></AdminRoute>} />

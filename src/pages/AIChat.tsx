@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, MessageCircle, Trash2, FileText, Dumbbell } from 'lucide-react';
+import { Loader2, Send, MessageCircle, Trash2, FileText, Dumbbell, CalendarDays } from 'lucide-react';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { useStrava } from '@/hooks/useStrava';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { callOpenAI, prepareCoachData } from '@/lib/ai-coach';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,7 @@ const AIChat = () => {
   const { uid } = useCurrentUser();
   const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts(uid);
   const { plan, isLoaded: planLoaded } = useTrainingPlan(uid);
+  const { activities: stravaActivities } = useStrava(uid);
 
   const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
   const [input, setInput] = useState('');
@@ -97,6 +99,48 @@ ZASADY:
       saveChatHistory(messages);
     }
   }, [messages]);
+
+  const buildWeekSummaryPrompt = () => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - daysSinceMonday);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const mondayStr = fmt(monday);
+    const sundayStr = fmt(sunday);
+
+    const weekWorkouts = workouts.filter(w => w.completed && w.date >= mondayStr && w.date <= sundayStr);
+    const weekStrava = stravaActivities.filter(a => a.date >= mondayStr && a.date <= sundayStr);
+
+    let prompt = `Podsumuj mój tydzień treningowy (${mondayStr} – ${sundayStr}).\n\n`;
+
+    if (weekWorkouts.length > 0) {
+      prompt += `TRENINGI SIŁOWE (${weekWorkouts.length}):\n`;
+      weekWorkouts.forEach(w => {
+        prompt += `- ${w.date}: ${w.exercises.map(ex =>
+          `${ex.exerciseId}: ${ex.sets.filter(s => s.completed).map(s => `${s.reps}×${s.weight}kg`).join(', ')}`
+        ).join(' | ')}\n`;
+      });
+    } else {
+      prompt += 'TRENINGI SIŁOWE: brak w tym tygodniu\n';
+    }
+
+    if (weekStrava.length > 0) {
+      prompt += `\nAKTYWNOŚCI STRAVA (${weekStrava.length}):\n`;
+      weekStrava.forEach(a => {
+        const dist = a.distance ? `${(a.distance/1000).toFixed(1)}km` : '';
+        const time = a.movingTime ? `${Math.floor(a.movingTime/60)}min` : '';
+        prompt += `- ${a.date}: ${a.type} "${a.name}" ${dist} ${time}\n`;
+      });
+    }
+
+    prompt += '\nDaj podsumowanie: headline, wyróżnienia, porady na następny tydzień, motywację.';
+    return prompt;
+  };
 
   const handleSend = async (text?: string) => {
     const messageText = (text || input).trim();
@@ -208,10 +252,10 @@ ZASADY:
             variant="outline"
             size="sm"
             className="text-xs gap-1"
-            onClick={() => handleSend('Podsumuj mój ostatni trening. Daj headline, wyróżnienia, porównanie z poprzednim i motywację.')}
+            onClick={() => handleSend(buildWeekSummaryPrompt())}
             disabled={isLoading}
           >
-            <FileText className="h-3.5 w-3.5" />Podsumuj trening
+            <CalendarDays className="h-3.5 w-3.5" />Podsumuj tydzień
           </Button>
           <Button
             variant="outline"

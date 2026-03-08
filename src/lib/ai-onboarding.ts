@@ -35,7 +35,12 @@ const weekdayMap: Record<number, { name: string; weekday: string }[]> = {
   ],
 };
 
-export async function generateTrainingPlan(answers: OnboardingAnswers): Promise<TrainingDay[]> {
+export interface GeneratedPlan {
+  days: TrainingDay[];
+  planDurationWeeks: number;
+}
+
+export async function generateTrainingPlan(answers: OnboardingAnswers): Promise<GeneratedPlan> {
   const libraryStr = exerciseLibrary.map(ex =>
     `- ${ex.name} (${ex.category}, ${ex.type})`
   ).join('\n');
@@ -56,21 +61,25 @@ ZASADY:
    - Zaawansowany: 4-5x4-8
 4. Uwzględnij kontuzje/ograniczenia.
 5. Każdy dzień powinien mieć 5-8 ćwiczeń.
-6. Odpowiadaj TYLKO w formacie JSON.
+6. Ustal czas trwania planu (planDurationWeeks): 8-12 tygodni, w zależności od celu i doświadczenia.
+7. Odpowiadaj TYLKO w formacie JSON.
 
-FORMAT ODPOWIEDZI (tablica TrainingDay[]):
-[
-  {
-    "id": "day-1",
-    "dayName": "Poniedziałek",
-    "weekday": "monday",
-    "focus": "Klatka / Triceps",
-    "exercises": [
-      { "id": "ex-1-1", "name": "Wyciskanie sztangi na ławce płaskiej", "sets": "3x8-10" },
-      { "id": "ex-1-2", "name": "...", "sets": "3x10-12" }
-    ]
-  }
-]
+FORMAT ODPOWIEDZI (obiekt z planDurationWeeks i days):
+{
+  "planDurationWeeks": 12,
+  "days": [
+    {
+      "id": "day-1",
+      "dayName": "Poniedziałek",
+      "weekday": "monday",
+      "focus": "Klatka / Triceps",
+      "exercises": [
+        { "id": "ex-1-1", "name": "Wyciskanie sztangi na ławce płaskiej", "sets": "3x8-10" },
+        { "id": "ex-1-2", "name": "...", "sets": "3x10-12" }
+      ]
+    }
+  ]
+}
 
 Dni treningowe do wygenerowania: ${daysInfo.map(d => `${d.name} (${d.weekday})`).join(', ')}
 ID format: day-1, day-2, day-3... ; ćwiczenia: ex-1-1, ex-1-2, ex-2-1...`;
@@ -95,21 +104,28 @@ KONTUZJE/OGRANICZENIA: ${answers.injuries || 'Brak'}`;
       const jsonStr = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(jsonStr);
 
-      if (!Array.isArray(parsed)) throw new Error('Odpowiedź nie jest tablicą');
+      // Support both new format { planDurationWeeks, days: [...] } and legacy [...] format
+      const days: unknown[] = Array.isArray(parsed) ? parsed : parsed.days;
+      const planDurationWeeks: number = !Array.isArray(parsed) && parsed.planDurationWeeks
+        ? Math.min(16, Math.max(4, parsed.planDurationWeeks))
+        : 12;
+
+      if (!Array.isArray(days)) throw new Error('Odpowiedź nie zawiera tablicy dni');
 
       // Validate structure
-      for (const day of parsed) {
-        if (!day.id || !day.dayName || !day.weekday || !day.focus || !Array.isArray(day.exercises)) {
+      for (const day of days) {
+        const d = day as Record<string, unknown>;
+        if (!d.id || !d.dayName || !d.weekday || !d.focus || !Array.isArray(d.exercises)) {
           throw new Error(`Nieprawidłowy format dnia: ${JSON.stringify(day)}`);
         }
-        for (const ex of day.exercises) {
+        for (const ex of d.exercises as Record<string, unknown>[]) {
           if (!ex.id || !ex.name || !ex.sets) {
             throw new Error(`Nieprawidłowy format ćwiczenia: ${JSON.stringify(ex)}`);
           }
         }
       }
 
-      return parsed as TrainingDay[];
+      return { days: days as TrainingDay[], planDurationWeeks };
     } catch (err) {
       lastError = err instanceof Error ? err : new Error('Nieznany błąd');
     }

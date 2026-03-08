@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ import type { WorkoutSession } from '@/types';
 import { cn } from '@/lib/utils';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
-  TrendingUp, TrendingDown, Minus, Scale, RefreshCw, Loader2,
+  TrendingUp, TrendingDown, Minus, Scale, RefreshCw, Loader2, ChevronRight,
 } from 'lucide-react';
 
 type AnalyticsTab = 'summary' | 'charts' | 'measurements' | 'strava';
@@ -103,7 +103,9 @@ const SummaryTab = () => {
   const { uid } = useCurrentUser();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('week');
   const [copied, setCopied] = useState(false);
 
@@ -260,15 +262,22 @@ const SummaryTab = () => {
             {currentWorkouts.map(w => {
               const day = trainingPlan.find(d => d.id === w.dayId);
               return (
-                <div key={w.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <button
+                  key={w.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 w-full text-left hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate(`/workout/${w.dayId}?date=${w.date}`)}
+                >
                   <div>
                     <p className="font-medium text-sm">{day?.dayName || w.dayId}</p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(w.date).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}
                     </p>
                   </div>
-                  <Badge variant="outline" className="text-xs">{w.exercises.length} ćw.</Badge>
-                </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">{w.exercises.length} ćw.</Badge>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </button>
               );
             })}
           </CardContent>
@@ -282,6 +291,28 @@ const SummaryTab = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Strava activities for period */}
+      {stravaConnection.connected && (() => {
+        const startStr = bounds.start.toISOString().split('T')[0];
+        const endStr = bounds.end.toISOString().split('T')[0];
+        const periodStrava = stravaActivities.filter(
+          a => a.date >= startStr && a.date <= endStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit'
+        );
+        if (periodStrava.length === 0) return null;
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Aktywności Strava</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {periodStrava.map(a => (
+                <StravaActivityCard key={a.id} activity={a} />
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 };
