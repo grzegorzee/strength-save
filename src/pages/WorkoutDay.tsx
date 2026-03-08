@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote, ArrowRightLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { RestTimer } from '@/components/RestTimer';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
+import { useAISwap } from '@/hooks/useAISwap';
 import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -49,6 +50,11 @@ const WorkoutDay = () => {
   const [restTimerDuration, setRestTimerDuration] = useState(90);
   const [restTimerLabel, setRestTimerLabel] = useState<string | undefined>();
   const [restTimerKey, setRestTimerKey] = useState(0);
+
+  // AI Swap
+  const { result: swapResult, isLoading: swapLoading, error: swapError, findSwap, reset: resetSwap } = useAISwap(uid);
+  const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
+  const [swapReason, setSwapReason] = useState('');
 
   const pendingSaves = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const pendingNoteSave = useRef<NodeJS.Timeout | null>(null);
@@ -607,28 +613,88 @@ const WorkoutDay = () => {
 
       <div className="space-y-4">
         {day.exercises.map((exercise, index) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            index={index + 1}
-            savedSets={exerciseSets[exercise.id]}
-            savedNotes={exerciseNotes[exercise.id]}
-            previousSets={getPreviousSets(exercise.id)}
-            onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
-            onSetCompleted={() => {
-              if (!isWorkoutStarted || isCompleted) return;
-              const duration = getRestDuration({
-                exerciseIndex: index,
-                isSuperset: !!exercise.isSuperset,
-                isFirstInSuperset: !!exercise.isSuperset && exercise.id.endsWith('a'),
-              });
-              setRestTimerDuration(duration);
-              setRestTimerLabel(exercise.name);
-              setRestTimerKey(k => k + 1);
-              setShowRestTimer(true);
-            }}
-            isEditable={isWorkoutStarted && !isCompleted}
-          />
+          <div key={exercise.id} className="space-y-2">
+            <ExerciseCard
+              exercise={exercise}
+              index={index + 1}
+              savedSets={exerciseSets[exercise.id]}
+              savedNotes={exerciseNotes[exercise.id]}
+              previousSets={getPreviousSets(exercise.id)}
+              onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
+              onSetCompleted={() => {
+                if (!isWorkoutStarted || isCompleted) return;
+                const duration = getRestDuration({
+                  exerciseIndex: index,
+                  isSuperset: !!exercise.isSuperset,
+                  isFirstInSuperset: !!exercise.isSuperset && exercise.id.endsWith('a'),
+                });
+                setRestTimerDuration(duration);
+                setRestTimerLabel(exercise.name);
+                setRestTimerKey(k => k + 1);
+                setShowRestTimer(true);
+              }}
+              isEditable={isWorkoutStarted && !isCompleted}
+            />
+            {/* AI Swap button — only in active workout */}
+            {isWorkoutStarted && !isCompleted && (
+              <div className="flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground gap-1"
+                  onClick={() => {
+                    setSwapExerciseId(exercise.id);
+                    setSwapReason('');
+                    resetSwap();
+                  }}
+                >
+                  <ArrowRightLeft className="h-3.5 w-3.5" />Zamień
+                </Button>
+              </div>
+            )}
+
+            {/* AI Swap dialog */}
+            {swapExerciseId === exercise.id && (
+              <Card className="border-blue-200 bg-blue-50/50">
+                <CardContent className="pt-4 pb-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-sm">Zamień: {exercise.name}</p>
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSwapExerciseId(null)}>Zamknij</Button>
+                  </div>
+                  <input
+                    type="text"
+                    value={swapReason}
+                    onChange={e => setSwapReason(e.target.value)}
+                    placeholder="Powód (opcjonalnie): brak sprzętu, kontuzja..."
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => findSwap(exercise.name, swapReason)}
+                    disabled={swapLoading}
+                    className="w-full"
+                  >
+                    {swapLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ArrowRightLeft className="h-4 w-4 mr-1" />}
+                    Znajdź zamiennik
+                  </Button>
+                  {swapError && <p className="text-sm text-destructive">{swapError}</p>}
+                  {swapResult && !swapLoading && (
+                    <div className="space-y-2">
+                      {swapResult.alternatives.map((alt, i) => (
+                        <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-background">
+                          <span className="font-bold text-sm text-primary">{i + 1}.</span>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{alt.name} <Badge variant="outline" className="text-[10px] ml-1">{alt.setsScheme}</Badge></p>
+                            <p className="text-xs text-muted-foreground">{alt.reason}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         ))}
       </div>
 

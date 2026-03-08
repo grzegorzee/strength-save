@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3 } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Brain, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,10 +9,13 @@ import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
+import { useAICoach } from '@/hooks/useAICoach';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { calculateStreak } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
+import type { CoachInsight } from '@/lib/ai-coach';
+import { cn } from '@/lib/utils';
 
 const formatLocalDate = (date: Date): string => {
   const year = date.getFullYear();
@@ -43,9 +46,31 @@ const getThisWeekDates = () => {
   ];
 };
 
+// AI Insight card (compact)
+const insightConfig: Record<CoachInsight['type'], { emoji: string; bgColor: string }> = {
+  plateau: { emoji: '🔴', bgColor: 'bg-red-50 border-red-200' },
+  warning: { emoji: '🔴', bgColor: 'bg-red-50 border-red-200' },
+  progress: { emoji: '🟢', bgColor: 'bg-green-50 border-green-200' },
+  suggestion: { emoji: '🟡', bgColor: 'bg-amber-50 border-amber-200' },
+  consistency: { emoji: '🟡', bgColor: 'bg-amber-50 border-amber-200' },
+};
+
+const CompactInsightCard = ({ insight }: { insight: CoachInsight }) => {
+  const config = insightConfig[insight.type];
+  return (
+    <div className={cn('flex items-start gap-2 p-3 rounded-lg border text-sm', config.bgColor)}>
+      <span className="mt-0.5">{config.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-xs">{insight.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{insight.message}</p>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
   const {
     workouts,
     getTotalWeight,
@@ -57,13 +82,24 @@ const Dashboard = () => {
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
 
+  // AI Coach
+  const completedCount = useMemo(() => workouts.filter(w => w.completed).length, [workouts]);
+  const showAIInsights = completedCount >= 3;
+  const { insights, analyze, isReady: aiReady, hasCache } = useAICoach(uid);
+  const [aiExpanded, setAIExpanded] = useState(true);
+
+  // Auto-analyze on mount if cache valid
+  useMemo(() => {
+    if (showAIInsights && aiReady && hasCache) {
+      analyze(false);
+    }
+  }, [showAIInsights, aiReady, hasCache]);
+
   const latestMeasurement = getLatestMeasurement();
   const totalWeight = getTotalWeight();
-  const completedWorkouts = getCompletedWorkoutsCount();
 
   const thisWeek = useMemo(() => getThisWeekDates(), []);
 
-  // Streak calculation
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
 
   // Find most recent PR
@@ -88,6 +124,17 @@ const Dashboard = () => {
     }
     return null;
   }, [workouts, trainingPlan]);
+
+  // Greeting
+  const hour = new Date().getHours();
+  const greetingText = hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór';
+  const GreetingIcon = hour < 18 ? Sun : Moon;
+  const displayName = profile?.displayName?.split(' ')[0] || 'Trener';
+  const formattedDate = new Date().toLocaleDateString('pl-PL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
   if (!isLoaded) {
     return (
@@ -117,14 +164,23 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Greeting */}
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <GreetingIcon className="h-6 w-6 text-yellow-500" />
+          {greetingText}, {displayName}!
+        </h1>
+        <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Ukończone treningi"
-          value={completedWorkouts}
+          value={completedCount}
           icon={Trophy}
           variant="success"
-          onClick={() => navigate('/stats?tab=workouts')}
+          onClick={() => navigate('/analytics?tab=charts')}
         />
         <StatsCard
           title="Tonaż całkowity"
@@ -132,14 +188,14 @@ const Dashboard = () => {
           subtitle="Suma podniesionych kg"
           icon={Dumbbell}
           variant="primary"
-          onClick={() => navigate('/stats?tab=tonnage')}
+          onClick={() => navigate('/analytics?tab=charts')}
         />
         <StatsCard
           title="Aktualna waga"
           value={latestMeasurement?.weight ? `${latestMeasurement.weight} kg` : '--'}
           icon={Weight}
           variant="default"
-          onClick={() => navigate('/stats?tab=weight')}
+          onClick={() => navigate('/analytics?tab=charts')}
         />
         <StatsCard
           title="Seria treningowa"
@@ -147,9 +203,40 @@ const Dashboard = () => {
           subtitle={streak > 0 ? 'Nie przerywaj!' : 'Zacznij serię'}
           icon={Flame}
           variant="warning"
-          onClick={() => navigate('/stats?tab=streak')}
+          onClick={() => navigate('/analytics?tab=charts')}
         />
       </div>
+
+      {/* AI Insights */}
+      {showAIInsights && insights.length > 0 && (
+        <div className="space-y-2">
+          <button
+            onClick={() => setAIExpanded(prev => !prev)}
+            className="flex items-center gap-2 w-full text-left"
+          >
+            <Brain className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm flex-1">AI Insights</span>
+            {aiExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </button>
+          {aiExpanded && (
+            <div className="space-y-2">
+              {insights.slice(0, 3).map((insight, i) => (
+                <CompactInsightCard key={`${insight.type}-${i}`} insight={insight} />
+              ))}
+              {insights.length > 3 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground w-full"
+                  onClick={() => navigate('/ai')}
+                >
+                  Więcej insightów w AI Chat
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Latest PR */}
       {latestPR && (
@@ -220,14 +307,14 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Weekly summary link */}
+      {/* Analytics link */}
       <Button
         variant="outline"
         className="w-full py-5"
-        onClick={() => navigate('/summary')}
+        onClick={() => navigate('/analytics')}
       >
         <BarChart3 className="h-4 w-4 mr-2" />
-        Zobacz podsumowanie tygodnia
+        Zobacz analitykę
       </Button>
     </div>
   );

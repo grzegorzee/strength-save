@@ -1,9 +1,7 @@
-import { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Calendar, CalendarDays, Ruler, Trophy, TrendingUp, BarChart3, PieChart, Sparkles, ChevronDown, Brain, ArrowRightLeft, FileText, Dumbbell, MessageCircle, X, Library, Shield, Settings } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+import { Home, Calendar, CalendarDays, Trophy, BarChart3, MessageCircle, X, Library } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useCurrentUser } from '@/contexts/UserContext';
 
 interface AppNavigationProps {
   isOpen?: boolean;
@@ -13,24 +11,11 @@ interface AppNavigationProps {
 const navItems = [
   { to: '/', icon: Home, label: 'Dashboard' },
   { to: '/day', icon: CalendarDays, label: 'Plan dnia' },
-  { to: '/plan', icon: Calendar, label: 'Plan tygodniowy' },
+  { to: '/plan', icon: Calendar, label: 'Plan treningowy' },
   { to: '/exercises', icon: Library, label: 'Ćwiczenia' },
-  { to: '/stats', icon: PieChart, label: 'Statystyki' },
-];
-
-const aiSubItems = [
-  { tab: 'coach', icon: Brain, label: 'AI Coach' },
-  { tab: 'swap', icon: ArrowRightLeft, label: 'AI Zamiennik' },
-  { tab: 'summary', icon: FileText, label: 'AI Podsumowanie' },
-  { tab: 'plan', icon: Dumbbell, label: 'AI Plan' },
-  { tab: 'chat', icon: MessageCircle, label: 'AI Chat' },
-];
-
-const navItemsAfterAI = [
-  { to: '/progress', icon: TrendingUp, label: 'Postępy' },
-  { to: '/summary', icon: BarChart3, label: 'Podsumowanie' },
-  { to: '/measurements', icon: Ruler, label: 'Pomiary' },
+  { to: '/analytics', icon: BarChart3, label: 'Analityka' },
   { to: '/achievements', icon: Trophy, label: 'Osiągnięcia' },
+  { to: '/ai', icon: MessageCircle, label: 'AI Chat' },
 ];
 
 const NavItem = ({ to, icon: Icon, label, onClick }: { to: string; icon: React.ElementType; label: string; onClick?: () => void }) => (
@@ -50,11 +35,6 @@ const NavItem = ({ to, icon: Icon, label, onClick }: { to: string; icon: React.E
 );
 
 export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
-  const location = useLocation();
-  const { isAdmin } = useCurrentUser();
-  const isAIPage = location.pathname === '/ai';
-  const [aiExpanded, setAIExpanded] = useState(isAIPage);
-
   return (
     <>
       {/* Mobile overlay */}
@@ -82,64 +62,6 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
             {navItems.map((item) => (
               <NavItem key={item.to} {...item} onClick={onClose} />
             ))}
-
-            {/* FitTracker AI — expandable */}
-            <button
-              onClick={() => setAIExpanded(prev => !prev)}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-medium w-full text-left",
-                isAIPage
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <Sparkles className="h-5 w-5" />
-              <span className="flex-1">FitTracker AI</span>
-              <ChevronDown className={cn(
-                "h-4 w-4 transition-transform",
-                aiExpanded && "rotate-180"
-              )} />
-            </button>
-
-            {aiExpanded && (
-              <div className="ml-4 space-y-1">
-                {aiSubItems.map((item) => {
-                  const to = `/ai?tab=${item.tab}`;
-                  const searchParams = new URLSearchParams(location.search);
-                  const currentTab = searchParams.get('tab') || 'coach';
-                  const isActive = isAIPage && currentTab === item.tab;
-
-                  return (
-                    <NavLink
-                      key={item.tab}
-                      to={to}
-                      onClick={onClose}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-colors font-medium text-sm",
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.label}
-                    </NavLink>
-                  );
-                })}
-              </div>
-            )}
-
-            {navItemsAfterAI.map((item) => (
-              <NavItem key={item.to} {...item} onClick={onClose} />
-            ))}
-
-            <div className="border-t my-2" />
-            <NavItem to="/settings" icon={Settings} label="Ustawienia" onClick={onClose} />
-
-            {/* Admin section */}
-            {isAdmin && (
-              <NavItem to="/admin" icon={Shield} label="Admin" onClick={onClose} />
-            )}
           </div>
 
           <div className="p-4 border-t">
@@ -149,7 +71,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                 Plan Treningowy 2026
               </p>
               <p className="text-[10px] text-muted-foreground/50 mt-2">
-                Wersja: v3.2.0
+                Wersja: v5.0.0
               </p>
             </div>
           </div>

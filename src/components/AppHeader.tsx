@@ -1,9 +1,11 @@
-import { Menu, LogOut, Moon, Sun, WifiOff } from 'lucide-react';
+import { Menu, LogOut, Moon, Sun, WifiOff, Settings, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,8 +19,9 @@ interface AppHeaderProps {
 }
 
 export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { profile } = useCurrentUser();
+  const { profile, isAdmin } = useCurrentUser();
   const { theme, setTheme } = useTheme();
   const { isOnline, pendingOps } = useOnlineStatus();
 
@@ -71,12 +74,26 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-52">
               {displayName && (
-                <div className="px-2 py-1.5 text-sm font-medium border-b mb-1">
-                  {displayName}
+                <div className="px-2 py-1.5 border-b mb-1">
+                  <p className="text-sm font-medium">{displayName}</p>
+                  {profile?.email && (
+                    <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
+                  )}
                 </div>
               )}
+              <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
+                <Settings className="h-4 w-4 mr-2" />
+                Ustawienia
+              </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem onClick={() => navigate('/admin')} className="cursor-pointer">
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="cursor-pointer">
                 <LogOut className="h-4 w-4 mr-2" />
                 Wyloguj się

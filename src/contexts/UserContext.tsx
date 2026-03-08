@@ -9,12 +9,14 @@ export interface UserProfile {
   displayName: string;
   role: 'admin' | 'user';
   stravaConnected: boolean;
+  onboardingCompleted: boolean;
 }
 
 interface UserContextValue {
   uid: string;
   profile: UserProfile | null;
   isAdmin: boolean;
+  isNewUser: boolean;
   profileLoaded: boolean;
 }
 
@@ -61,6 +63,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           displayName: data.displayName || user.displayName || '',
           role: data.role || 'user',
           stravaConnected: data.stravaConnected || false,
+          onboardingCompleted: data.onboardingCompleted || false,
         });
       } else {
         // Doc not yet created, use auth data
@@ -70,6 +73,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           displayName: user.displayName || '',
           role: 'user',
           stravaConnected: false,
+          onboardingCompleted: false,
         });
       }
       setProfileLoaded(true);
@@ -82,6 +86,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         displayName: user.displayName || '',
         role: 'user',
         stravaConnected: false,
+        onboardingCompleted: false,
       });
       setProfileLoaded(true);
     });
@@ -91,11 +96,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
   if (!user?.uid) return null;
 
+  const isNewUser = profileLoaded && profile !== null && !profile.onboardingCompleted;
+
   return (
     <UserContext.Provider value={{
       uid: user.uid,
       profile,
       isAdmin: profile?.role === 'admin',
+      isNewUser,
       profileLoaded,
     }}>
       {children}

@@ -1,19 +1,35 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Dumbbell, Play, Moon, Sun, CheckCircle } from 'lucide-react';
+import { Calendar, Dumbbell, Play, Moon, Sun, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { trainingRules } from '@/data/trainingPlan';
+import { warmupExercises, getStretchingForFocus } from '@/data/warmupStretching';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { useStrava } from '@/hooks/useStrava';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
+import { StravaActivityCard } from '@/components/StravaActivityCard';
+import { cn } from '@/lib/utils';
+
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const DayPlan = () => {
   const navigate = useNavigate();
   const { uid } = useCurrentUser();
   const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
+
+  const [showWarmup, setShowWarmup] = useState(false);
+  const [showStretching, setShowStretching] = useState(false);
 
   // Determine today's training from dynamic plan
   const dayOfWeek = new Date().getDay();
@@ -26,10 +42,10 @@ const DayPlan = () => {
     : null;
   const today = new Date();
   const dayName = today.toLocaleDateString('pl-PL', { weekday: 'long' });
-  const dateStr = today.toLocaleDateString('pl-PL', { 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric' 
+  const dateStr = today.toLocaleDateString('pl-PL', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
   });
 
   // Check if today's workout is already completed
@@ -40,6 +56,19 @@ const DayPlan = () => {
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór';
   const GreetingIcon = hour < 18 ? Sun : Moon;
+
+  // Today's Strava activities (non-strength)
+  const todayStr = formatLocalDate(today);
+  const todayStravaActivities = stravaConnection.connected
+    ? stravaActivities.filter(a =>
+        a.date === todayStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit'
+      )
+    : [];
+
+  // Stretching exercises for today's focus
+  const stretchingExercises = todaysTraining
+    ? getStretchingForFocus(todaysTraining.focus)
+    : [];
 
   if (!isLoaded) {
     return (
@@ -83,13 +112,23 @@ const DayPlan = () => {
                 {isWorkoutCompleted ? 'Trening ukończony!' : 'Dzisiaj wolne!'}
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
-                {isWorkoutCompleted 
+                {isWorkoutCompleted
                   ? `Świetna robota! Ukończyłeś trening "${todaysTraining?.focus}". Teraz czas na regenerację.`
                   : 'Dziś jest dzień regeneracji. Możesz odpocząć, zrobić lekki stretching lub spacer.'
                 }
               </p>
             </div>
-            
+
+            {/* Today's Strava activities */}
+            {todayStravaActivities.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-medium text-sm text-muted-foreground">Aktywności Strava dzisiaj:</h4>
+                {todayStravaActivities.map(activity => (
+                  <StravaActivityCard key={activity.id} activity={activity} />
+                ))}
+              </div>
+            )}
+
             <div className="grid gap-3 sm:grid-cols-2">
               <Card className="bg-muted/30">
                 <CardContent className="p-4">
@@ -97,11 +136,11 @@ const DayPlan = () => {
                     {isWorkoutCompleted ? 'Statystyki treningu' : 'Następny trening'}
                   </h4>
                   <p className="text-muted-foreground text-sm">
-                    {isWorkoutCompleted 
+                    {isWorkoutCompleted
                       ? `${todaysWorkout?.exercises.length || 0} ćwiczeń wykonanych`
-                      : today.getDay() === 0 || today.getDay() === 6 
+                      : today.getDay() === 0 || today.getDay() === 6
                         ? 'Poniedziałek - Klatka / Przysiad / Środek Pleców'
-                        : today.getDay() === 2 
+                        : today.getDay() === 2
                           ? 'Środa - Szerokie Plecy / Tył Uda'
                           : today.getDay() === 4
                             ? 'Piątek - Barki / Jednonóż / Detale'
@@ -114,7 +153,7 @@ const DayPlan = () => {
                 <CardContent className="p-4">
                   <h4 className="font-medium text-sm mb-1">Tip dnia</h4>
                   <p className="text-muted-foreground text-sm">
-                    {isWorkoutCompleted 
+                    {isWorkoutCompleted
                       ? 'Białko w ciągu 2h po treningu wspiera regenerację mięśni.'
                       : 'Pamiętaj o nawodnieniu i 7-8h snu dla optymalnej regeneracji.'
                     }
@@ -171,6 +210,28 @@ const DayPlan = () => {
             </p>
           </div>
 
+          {/* Warmup section (collapsible) */}
+          <button
+            onClick={() => setShowWarmup(prev => !prev)}
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-orange-500/5 border border-orange-500/20 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🔥</span>
+              <span className="font-medium text-sm">Rozgrzewka (5 min)</span>
+            </div>
+            {showWarmup ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </button>
+          {showWarmup && (
+            <div className="space-y-1 pl-4">
+              {warmupExercises.map((ex, i) => (
+                <div key={i} className="flex items-center justify-between py-1.5 text-sm">
+                  <span>{ex.name}</span>
+                  <span className="text-muted-foreground text-xs">{ex.duration}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Training Rules */}
           <Alert>
             <AlertDescription className="space-y-1 text-sm">
@@ -185,15 +246,15 @@ const DayPlan = () => {
             <h4 className="font-medium text-sm text-muted-foreground">Dzisiejsze ćwiczenia:</h4>
             <div className="space-y-2">
               {todaysTraining.exercises.map((exercise, index) => (
-                <div 
+                <div
                   key={exercise.id}
                   className="flex items-center gap-3 p-3 rounded-lg bg-muted/30"
                 >
-                  <Badge 
-                    variant="secondary" 
+                  <Badge
+                    variant="secondary"
                     className="h-8 w-8 rounded-md flex items-center justify-center font-bold shrink-0"
                   >
-                    {exercise.isSuperset 
+                    {exercise.isSuperset
                       ? `${index + 1}${exercise.id.endsWith('a') ? 'a' : 'b'}`
                       : index + 1
                     }
@@ -211,6 +272,38 @@ const DayPlan = () => {
               ))}
             </div>
           </div>
+
+          {/* Stretching section (collapsible) */}
+          <button
+            onClick={() => setShowStretching(prev => !prev)}
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🧘</span>
+              <span className="font-medium text-sm">Stretching po treningu (5 min)</span>
+            </div>
+            {showStretching ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </button>
+          {showStretching && (
+            <div className="space-y-1 pl-4">
+              {stretchingExercises.map((ex, i) => (
+                <div key={i} className="flex items-center justify-between py-1.5 text-sm">
+                  <span>{ex.name}</span>
+                  <span className="text-muted-foreground text-xs">{ex.duration}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Today's Strava activities */}
+          {todayStravaActivities.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-muted-foreground">Aktywności Strava dzisiaj:</h4>
+              {todayStravaActivities.map(activity => (
+                <StravaActivityCard key={activity.id} activity={activity} />
+              ))}
+            </div>
+          )}
 
           {/* Start Workout Button */}
           <Button
