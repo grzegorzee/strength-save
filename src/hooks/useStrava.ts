@@ -7,8 +7,6 @@ import {
   onSnapshot,
   doc,
   updateDoc,
-  getDocs,
-  deleteDoc,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
@@ -115,6 +113,7 @@ export const useStrava = (userId: string) => {
     setError(null);
     try {
       // Clear all Strava data from user doc (including stravaLastSync!)
+      // strava_activities cleanup happens server-side in stravaCallback on reconnect
       await updateDoc(doc(db, 'users', userId), {
         stravaConnected: false,
         stravaTokens: null,
@@ -122,13 +121,6 @@ export const useStrava = (userId: string) => {
         stravaAthleteName: null,
         stravaLastSync: null,
       });
-
-      // Delete all strava_activities for this user so reconnect gets fresh data
-      const activitiesSnap = await getDocs(
-        query(collection(db, STRAVA_ACTIVITIES_COLLECTION), where('userId', '==', userId))
-      );
-      const deletePromises = activitiesSnap.docs.map(d => deleteDoc(d.ref));
-      await Promise.all(deletePromises);
 
       setConnection({ connected: false });
       setActivities([]);
