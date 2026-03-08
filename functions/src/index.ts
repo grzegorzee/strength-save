@@ -34,6 +34,7 @@ export const stravaAuthUrl = onCall(async (request) => {
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
     `&response_type=code` +
     `&scope=${scope}` +
+    `&approval_prompt=force` +
     `&state=${userId}`;
 
   return { url };
@@ -83,9 +84,9 @@ export const stravaCallback = onCall(async (request) => {
         : null,
   });
 
-  const synced = await syncUserActivities(userId, tokenData.access_token);
+  const result = await syncUserActivities(userId, tokenData.access_token);
 
-  return { success: true, synced };
+  return { success: true, ...result };
 });
 
 /**
@@ -111,8 +112,8 @@ export const stravaSync = onCall(async (request) => {
     accessToken = await refreshStravaToken(userId, userData.stravaTokens.refreshToken);
   }
 
-  const synced = await syncUserActivities(userId, accessToken);
-  return { synced, success: true };
+  const result = await syncUserActivities(userId, accessToken);
+  return { ...result, success: true };
 });
 
 async function refreshStravaToken(userId: string, refreshToken: string): Promise<string> {
@@ -144,7 +145,14 @@ async function refreshStravaToken(userId: string, refreshToken: string): Promise
   return tokenData.access_token;
 }
 
-async function syncUserActivities(userId: string, accessToken: string): Promise<number> {
+interface SyncResult {
+  synced: number;
+  totalFetched: number;
+  alreadyExisted: number;
+  lookbackDays: number;
+}
+
+async function syncUserActivities(userId: string, accessToken: string): Promise<SyncResult> {
   const userDoc = await db.doc(`users/${userId}`).get();
   const userData = userDoc.data();
   const lastSync = userData?.stravaLastSync;
@@ -168,8 +176,11 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
   }
 
   const activities = await response.json();
-  logger.info(`Fetched ${activities.length} activities from Strava`);
+  const lookbackDays = Math.round((Date.now() / 1000 - after) / (24 * 60 * 60));
+  logger.info(`Fetched ${activities.length} activities from Strava (lookback: ${lookbackDays} days)`);
+
   let synced = 0;
+  let alreadyExisted = 0;
 
   const batch = db.batch();
 
@@ -181,7 +192,10 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
       .limit(1)
       .get();
 
-    if (!existing.empty) continue;
+    if (!existing.empty) {
+      alreadyExisted++;
+      continue;
+    }
 
     const activityDate = new Date(activity.start_date_local);
     const dateStr = activityDate.toISOString().split("T")[0];
@@ -215,6 +229,6 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
     stravaLastSync: new Date().toISOString(),
   });
 
-  logger.info(`Synced ${synced} new activities for ${userId}`);
-  return synced;
+  logger.info(`Synced ${synced} new, ${alreadyExisted} already existed, ${activities.length} total for ${userId}`);
+  return { synced, totalFetched: activities.length, alreadyExisted, lookbackDays };
 }

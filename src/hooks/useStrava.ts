@@ -7,6 +7,8 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  getDocs,
+  deleteDoc,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
@@ -79,19 +81,29 @@ export const useStrava = (userId: string) => {
     }
   }, [userId]);
 
-  const syncActivities = useCallback(async () => {
+  const syncActivities = useCallback(async (): Promise<{
+    synced: number;
+    totalFetched: number;
+    alreadyExisted: number;
+    lookbackDays: number;
+  }> => {
     setError(null);
     setIsSyncing(true);
     try {
       const functions = getFunctions();
       const sync = httpsCallable(functions, 'stravaSync');
       const result = await sync({ userId });
-      const data = result.data as { synced: number };
-      return data.synced;
+      const data = result.data as {
+        synced: number;
+        totalFetched: number;
+        alreadyExisted: number;
+        lookbackDays: number;
+      };
+      return data;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Błąd synchronizacji';
       setError(message);
-      return 0;
+      return { synced: 0, totalFetched: 0, alreadyExisted: 0, lookbackDays: 0 };
     } finally {
       setIsSyncing(false);
     }
@@ -100,13 +112,24 @@ export const useStrava = (userId: string) => {
   const disconnectStrava = useCallback(async () => {
     setError(null);
     try {
+      // Clear all Strava data from user doc (including stravaLastSync!)
       await updateDoc(doc(db, 'users', userId), {
         stravaConnected: false,
         stravaTokens: null,
         stravaAthleteId: null,
         stravaAthleteName: null,
+        stravaLastSync: null,
       });
+
+      // Delete all strava_activities for this user so reconnect gets fresh data
+      const activitiesSnap = await getDocs(
+        query(collection(db, STRAVA_ACTIVITIES_COLLECTION), where('userId', '==', userId))
+      );
+      const deletePromises = activitiesSnap.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
+
       setConnection({ connected: false });
+      setActivities([]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Błąd rozłączenia';
       setError(message);

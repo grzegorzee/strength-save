@@ -14,11 +14,13 @@ const Settings = () => {
   const { toast } = useToast();
 
   const handleSync = async () => {
-    const synced = await syncActivities();
-    if (synced > 0) {
-      toast({ title: 'Zsynchronizowano!', description: `${synced} nowych aktywności.` });
+    const result = await syncActivities();
+    if (result.synced > 0) {
+      toast({ title: 'Zsynchronizowano!', description: `${result.synced} nowych aktywności (${result.totalFetched} znalezionych w Strava).` });
+    } else if (result.totalFetched > 0) {
+      toast({ title: 'Brak nowych aktywności', description: `${result.totalFetched} aktywności ze Strava, wszystkie już zsynchronizowane.` });
     } else {
-      toast({ title: 'Brak nowych aktywności', description: 'Wszystko jest aktualne.' });
+      toast({ title: 'Brak aktywności', description: `Strava nie zwróciła aktywności (lookback: ${result.lookbackDays} dni).` });
     }
   };
 
