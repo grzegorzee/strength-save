@@ -24,6 +24,7 @@ export const stravaAuthUrl = onCall(async (request) => {
 
   const { clientId, redirectUri } = getStravaConfig();
   if (!clientId) {
+    logger.error("[Strava] client_id not configured");
     throw new HttpsError("failed-precondition", "Strava client_id not configured");
   }
 
@@ -37,6 +38,7 @@ export const stravaAuthUrl = onCall(async (request) => {
     `&approval_prompt=force` +
     `&state=${userId}`;
 
+  logger.info(`[Strava] Auth URL generated for ${userId}, redirect: ${redirectUri}`);
   return { url };
 });
 
@@ -49,6 +51,7 @@ export const stravaCallback = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "code and userId are required");
   }
 
+  logger.info(`[Strava] Callback: exchanging code for ${userId}`);
   const { clientId, clientSecret } = getStravaConfig();
 
   const response = await fetch("https://www.strava.com/oauth/token", {
@@ -64,11 +67,15 @@ export const stravaCallback = onCall(async (request) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    logger.error("Strava token exchange failed:", errorText);
+    logger.error(`[Strava] Token exchange failed (${response.status}):`, errorText);
     throw new HttpsError("internal", "Failed to exchange code for tokens");
   }
 
   const tokenData = await response.json();
+  const athleteName = tokenData.athlete
+    ? `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`.trim()
+    : "unknown";
+  logger.info(`[Strava] Token OK for athlete: ${athleteName} (id: ${tokenData.athlete?.id})`);
 
   await db.doc(`users/${userId}`).update({
     stravaConnected: true,
@@ -78,12 +85,10 @@ export const stravaCallback = onCall(async (request) => {
       expiresAt: tokenData.expires_at,
     },
     stravaAthleteId: tokenData.athlete?.id || null,
-    stravaAthleteName:
-      tokenData.athlete
-        ? `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`.trim()
-        : null,
+    stravaAthleteName: athleteName !== "unknown" ? athleteName : null,
     stravaLastSync: null, // Force full lookback on new connection
   });
+  logger.info(`[Strava] User doc updated, stravaLastSync reset to null`);
 
   // Delete existing strava_activities for clean reconnect
   const existingActivities = await db
@@ -94,10 +99,12 @@ export const stravaCallback = onCall(async (request) => {
     const deleteBatch = db.batch();
     existingActivities.docs.forEach((d) => deleteBatch.delete(d.ref));
     await deleteBatch.commit();
-    logger.info(`Deleted ${existingActivities.size} old activities for ${userId}`);
+    logger.info(`[Strava] Deleted ${existingActivities.size} old activities for clean reconnect`);
   }
 
+  logger.info(`[Strava] Starting initial sync for ${userId}...`);
   const result = await syncUserActivities(userId, tokenData.access_token);
+  logger.info(`[Strava] Callback complete: synced=${result.synced}, total=${result.totalFetched}`);
 
   return { success: true, ...result };
 });
@@ -111,10 +118,12 @@ export const stravaSync = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "userId is required");
   }
 
+  logger.info(`[Strava] Manual sync requested for ${userId}`);
   const userDoc = await db.doc(`users/${userId}`).get();
   const userData = userDoc.data();
 
   if (!userData?.stravaConnected || !userData?.stravaTokens) {
+    logger.error(`[Strava] Not connected: stravaConnected=${userData?.stravaConnected}, hasTokens=${!!userData?.stravaTokens}`);
     throw new HttpsError("failed-precondition", "Strava not connected");
   }
 
@@ -122,10 +131,12 @@ export const stravaSync = onCall(async (request) => {
   const now = Math.floor(Date.now() / 1000);
 
   if (userData.stravaTokens.expiresAt <= now) {
+    logger.info(`[Strava] Token expired (${userData.stravaTokens.expiresAt} <= ${now}), refreshing...`);
     accessToken = await refreshStravaToken(userId, userData.stravaTokens.refreshToken);
   }
 
   const result = await syncUserActivities(userId, accessToken);
+  logger.info(`[Strava] Manual sync complete: synced=${result.synced}, total=${result.totalFetched}, lookback=${result.lookbackDays}d`);
   return { ...result, success: true };
 });
 
@@ -144,10 +155,13 @@ async function refreshStravaToken(userId: string, refreshToken: string): Promise
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    logger.error(`[Strava] Token refresh failed (${response.status}):`, errorText);
     throw new HttpsError("internal", "Failed to refresh Strava token");
   }
 
   const tokenData = await response.json();
+  logger.info(`[Strava] Token refreshed, new expiresAt: ${tokenData.expires_at}`);
 
   await db.doc(`users/${userId}`).update({
     "stravaTokens.accessToken": tokenData.access_token,
@@ -180,24 +194,24 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
   const minLookback = now - 7 * 24 * 60 * 60;
   const after = Math.min(afterFromLastSync, minLookback);
 
-  logger.info(`Syncing for ${userId}, after: ${new Date(after * 1000).toISOString()}`);
+  logger.info(`[Strava] syncUserActivities: lastSync=${lastSync || "null"}, after=${new Date(after * 1000).toISOString()}`);
 
-  const response = await fetch(
-    `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=100`,
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
-  );
+  const apiUrl = `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=100`;
+  logger.info(`[Strava] API call: ${apiUrl}`);
+
+  const response = await fetch(apiUrl, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
 
   if (!response.ok) {
     const errorText = await response.text();
-    logger.error("Strava activities fetch failed:", errorText);
-    throw new HttpsError("internal", "Failed to fetch Strava activities");
+    logger.error(`[Strava] API failed (${response.status}):`, errorText);
+    throw new HttpsError("internal", `Strava API error ${response.status}: ${errorText.substring(0, 200)}`);
   }
 
   const activities = await response.json();
   const lookbackDays = Math.round((Date.now() / 1000 - after) / (24 * 60 * 60));
-  logger.info(`Fetched ${activities.length} activities from Strava (lookback: ${lookbackDays} days)`);
+  logger.info(`[Strava] API returned ${activities.length} activities (lookback: ${lookbackDays} days)`);
 
   let synced = 0;
   let alreadyExisted = 0;
@@ -249,6 +263,6 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
     stravaLastSync: new Date().toISOString(),
   });
 
-  logger.info(`Synced ${synced} new, ${alreadyExisted} already existed, ${activities.length} total for ${userId}`);
+  logger.info(`[Strava] Result: ${synced} new, ${alreadyExisted} already existed, ${activities.length} total for ${userId}`);
   return { synced, totalFetched: activities.length, alreadyExisted, lookbackDays };
 }

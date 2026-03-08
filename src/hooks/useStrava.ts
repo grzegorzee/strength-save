@@ -36,11 +36,11 @@ export const useStrava = (userId: string) => {
         snapshot.forEach((doc) => {
           data.push({ id: doc.id, ...doc.data() } as StravaActivity);
         });
+        console.log(`[Strava] Activities loaded: ${data.length}`);
         setActivities(data);
       },
       (err) => {
-        console.error('Error fetching Strava activities:', err);
-        // Missing Firestore composite index is the most common cause
+        console.error('[Strava] Activities query failed:', err.code, err.message);
         if (err.code === 'failed-precondition') {
           setError('Brak indeksu Firestore — sprawdź konsolę Firebase.');
         }
@@ -57,12 +57,14 @@ export const useStrava = (userId: string) => {
     const unsubscribe = onSnapshot(doc(db, 'users', userId), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
-        setConnection({
+        const conn = {
           connected: data.stravaConnected || false,
           athleteId: data.stravaAthleteId,
           athleteName: data.stravaAthleteName,
           lastSync: data.stravaLastSync,
-        });
+        };
+        console.log('[Strava] Connection status:', conn.connected ? `connected (${conn.athleteName})` : 'disconnected');
+        setConnection(conn);
       }
     });
 
@@ -71,14 +73,17 @@ export const useStrava = (userId: string) => {
 
   const connectStrava = useCallback(async () => {
     setError(null);
+    console.log('[Strava] Requesting auth URL...');
     try {
       const functions = getFunctions();
       const getAuthUrl = httpsCallable(functions, 'stravaAuthUrl');
       const result = await getAuthUrl({ userId });
       const data = result.data as { url: string };
+      console.log('[Strava] Redirecting to Strava OAuth');
       window.location.href = data.url;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Nie udało się połączyć ze Stravą';
+      console.error('[Strava] Connect failed:', message);
       setError(message);
     }
   }, [userId]);
@@ -89,6 +94,7 @@ export const useStrava = (userId: string) => {
   > => {
     setError(null);
     setIsSyncing(true);
+    console.log('[Strava] Manual sync started...');
     try {
       const functions = getFunctions();
       const sync = httpsCallable(functions, 'stravaSync');
@@ -99,9 +105,11 @@ export const useStrava = (userId: string) => {
         alreadyExisted: number;
         lookbackDays: number;
       };
+      console.log(`[Strava] Sync OK: ${data.synced} new, ${data.alreadyExisted} existed, ${data.totalFetched} total (lookback: ${data.lookbackDays}d)`);
       return { ok: true, ...data };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Błąd synchronizacji';
+      console.error('[Strava] Sync failed:', message);
       setError(message);
       return { ok: false, message };
     } finally {
@@ -111,6 +119,7 @@ export const useStrava = (userId: string) => {
 
   const disconnectStrava = useCallback(async () => {
     setError(null);
+    console.log('[Strava] Disconnecting...');
     try {
       // Clear all Strava data from user doc (including stravaLastSync!)
       // strava_activities cleanup happens server-side in stravaCallback on reconnect
@@ -122,10 +131,12 @@ export const useStrava = (userId: string) => {
         stravaLastSync: null,
       });
 
+      console.log('[Strava] Disconnected OK');
       setConnection({ connected: false });
       setActivities([]);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Błąd rozłączenia';
+      console.error('[Strava] Disconnect failed:', message);
       setError(message);
     }
   }, [userId]);

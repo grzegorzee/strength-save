@@ -19,31 +19,37 @@ const StravaCallback = () => {
     const callbackError = searchParams.get('error');
 
     if (callbackError) {
+      console.error('[Strava] OAuth denied:', callbackError);
       setStatus('error');
       setErrorMessage('Autoryzacja została odrzucona.');
       return;
     }
 
     if (!code) {
+      console.error('[Strava] No code in callback URL');
       setStatus('error');
       setErrorMessage('Brak kodu autoryzacji.');
       return;
     }
 
     const exchangeCode = async () => {
+      console.log('[Strava] Exchanging OAuth code for tokens...');
       try {
         const functions = getFunctions();
         const callback = httpsCallable(functions, 'stravaCallback');
         const result = await callback({ code, userId: uid });
-        const data = result.data as { synced?: number };
+        const data = result.data as { synced?: number; totalFetched?: number; lookbackDays?: number };
+        console.log(`[Strava] Callback OK: synced=${data.synced}, fetched=${data.totalFetched}, lookback=${data.lookbackDays}d`);
         setSyncedCount(data.synced || 0);
         setStatus('success');
 
         // Auto-redirect after 3s
         setTimeout(() => navigate('/settings'), 3000);
       } catch (err) {
+        const message = err instanceof Error ? err.message : 'Błąd wymiany kodu';
+        console.error('[Strava] Callback failed:', message);
         setStatus('error');
-        setErrorMessage(err instanceof Error ? err.message : 'Błąd wymiany kodu');
+        setErrorMessage(message);
       }
     };
 
