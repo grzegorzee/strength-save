@@ -3,7 +3,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
   onSnapshot,
   doc,
   setDoc,
@@ -21,6 +20,7 @@ import { getWeekBounds } from '@/lib/summary-utils';
 
 export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
   const [summaries, setSummaries] = useState<WeeklySummary[]>([]);
+  const [summariesLoaded, setSummariesLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoGenRef = useRef(false);
@@ -29,21 +29,24 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
   const { plan: trainingPlan } = useTrainingPlan(userId);
   const { activities: stravaActivities } = useStrava(userId, isAdmin);
 
-  // Listen to summaries
+  // Listen to summaries (no orderBy — avoids composite index requirement)
   useEffect(() => {
     if (!userId) return;
 
     const q = query(
       collection(db, 'weekly_summaries'),
       where('userId', '==', userId),
-      orderBy('weekStart', 'desc'),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as WeeklySummary));
+      const docs = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() } as WeeklySummary))
+        .sort((a, b) => b.weekStart.localeCompare(a.weekStart)); // sort client-side
       setSummaries(docs);
+      setSummariesLoaded(true);
     }, (err) => {
       console.error('Weekly summaries listener error:', err);
+      setSummariesLoaded(true); // unblock even on error
     });
 
     return unsubscribe;
@@ -99,8 +102,7 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
 
   // Auto-generate for last week if missing
   useEffect(() => {
-    if (!workoutsLoaded || !userId || autoGenRef.current || summaries === undefined) return;
-    // Wait until we have the initial summaries snapshot
+    if (!workoutsLoaded || !summariesLoaded || !userId || autoGenRef.current) return;
     if (isGenerating) return;
 
     autoGenRef.current = true;
@@ -118,7 +120,7 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
     if (!hasData) return;
 
     generateSummary(lastWeekDate);
-  }, [workoutsLoaded, userId, summaries, workouts, stravaActivities, trainingPlan]);
+  }, [workoutsLoaded, summariesLoaded, userId, summaries, workouts, stravaActivities, trainingPlan]);
 
   return {
     summaries,
