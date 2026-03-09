@@ -814,40 +814,40 @@ const WeeklyTab = () => {
               <Badge variant="outline" className="text-xs">
                 {new Date(s.weekStart).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })} - {new Date(s.weekEnd).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' })}
               </Badge>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {new Date(s.generatedAt).toLocaleDateString('pl-PL')}
               </span>
             </div>
 
             {/* Mini stats */}
-            <div className="grid grid-cols-4 gap-2 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
               <div className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Dumbbell className="h-3 w-3 text-primary" />
                 </div>
                 <p className="text-sm font-bold">{s.stats.workoutCount}</p>
-                <p className="text-[10px] text-muted-foreground">Treningi</p>
+                <p className="text-xs text-muted-foreground">Treningi</p>
               </div>
               <div className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Trophy className="h-3 w-3 text-primary" />
                 </div>
                 <p className="text-sm font-bold">{(s.stats.tonnageKg / 1000).toFixed(1)}t</p>
-                <p className="text-[10px] text-muted-foreground">Tonaż</p>
+                <p className="text-xs text-muted-foreground">Tonaż</p>
               </div>
               <div className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Route className="h-3 w-3 text-orange-500" />
                 </div>
                 <p className="text-sm font-bold">{s.stats.runKm} km</p>
-                <p className="text-[10px] text-muted-foreground">Bieg</p>
+                <p className="text-xs text-muted-foreground">Bieg</p>
               </div>
               <div className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Flame className="h-3 w-3 text-amber-500" />
                 </div>
                 <p className="text-sm font-bold">{s.stats.prs.length}</p>
-                <p className="text-[10px] text-muted-foreground">PRy</p>
+                <p className="text-xs text-muted-foreground">PRy</p>
               </div>
             </div>
 
@@ -887,12 +887,12 @@ const Analytics = () => {
   return (
     <div className="space-y-4">
       <Tabs value={currentTab} onValueChange={(value) => setSearchParams({ tab: value })}>
-        <TabsList className="w-full">
-          <TabsTrigger value="summary" className="flex-1 text-xs">Podsumowanie</TabsTrigger>
-          <TabsTrigger value="charts" className="flex-1 text-xs">Wykresy</TabsTrigger>
-          <TabsTrigger value="measurements" className="flex-1 text-xs">Pomiary</TabsTrigger>
-          {isAdmin && <TabsTrigger value="strava" className="flex-1 text-xs">Strava</TabsTrigger>}
-          <TabsTrigger value="weekly" className="flex-1 text-xs">Tygodnie</TabsTrigger>
+        <TabsList className="w-full overflow-x-auto">
+          <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">Podsum.</TabsTrigger>
+          <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">Wykresy</TabsTrigger>
+          <TabsTrigger value="measurements" className="flex-1 text-xs min-w-0">Pomiary</TabsTrigger>
+          {isAdmin && <TabsTrigger value="strava" className="flex-1 text-xs min-w-0">Strava</TabsTrigger>}
+          <TabsTrigger value="weekly" className="flex-1 text-xs min-w-0">Tygodnie</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary"><SummaryTab /></TabsContent>

@@ -80,10 +80,12 @@ const TrainingPlan = () => {
     return workouts.find(w => w.date === dateStr);
   };
 
-  // Day of week name
+  // Day of week name — short for mobile, long for desktop
   const getDayOfWeekName = (dateStr: string) => {
     const d = new Date(dateStr);
-    return d.toLocaleDateString('pl-PL', { weekday: 'long' });
+    const long = d.toLocaleDateString('pl-PL', { weekday: 'long' });
+    const short = d.toLocaleDateString('pl-PL', { weekday: 'short' });
+    return { long, short };
   };
 
   return (
@@ -183,7 +185,7 @@ const TrainingPlan = () => {
                         <div key={`training-${item.scheduleItem.dayId}-${item.dateStr}`}>
                           <div className="flex items-center justify-between mb-1 ml-1">
                             <p className="text-xs text-muted-foreground">
-                              <span className="capitalize">{getDayOfWeekName(item.dateStr)}</span>, {dateStr}
+                              <span className="capitalize"><span className="sm:hidden">{getDayOfWeekName(item.dateStr).short}</span><span className="hidden sm:inline">{getDayOfWeekName(item.dateStr).long}</span></span>, {dateStr}
                             </p>
                             <Button
                               variant="ghost"
@@ -215,7 +217,7 @@ const TrainingPlan = () => {
                     return (
                       <div key={`strava-${item.activity.id}`}>
                         <p className="text-xs text-muted-foreground mb-1 ml-1">
-                          <span className="capitalize">{getDayOfWeekName(item.dateStr)}</span>, {straveDateLabel}
+                          <span className="capitalize"><span className="sm:hidden">{getDayOfWeekName(item.dateStr).short}</span><span className="hidden sm:inline">{getDayOfWeekName(item.dateStr).long}</span></span>, {straveDateLabel}
                         </p>
                         <StravaActivityCard activity={item.activity} />
                       </div>
