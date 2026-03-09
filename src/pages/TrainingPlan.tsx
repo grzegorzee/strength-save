@@ -14,6 +14,7 @@ import { useState, useMemo } from 'react';
 import { pl } from 'date-fns/locale';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, CalendarDays, CheckCircle, Dumbbell, Settings, Pencil } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
@@ -79,6 +80,12 @@ const TrainingPlan = () => {
     return workouts.find(w => w.date === dateStr);
   };
 
+  // Day of week name
+  const getDayOfWeekName = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('pl-PL', { weekday: 'long' });
+  };
+
   return (
     <div className="space-y-6">
       {/* Week Info */}
@@ -112,7 +119,7 @@ const TrainingPlan = () => {
             </AlertDescription>
           </Alert>
 
-          <div className="grid lg:grid-cols-[1fr_300px] gap-6">
+          <div className="grid lg:grid-cols-[1fr_320px] gap-6">
             {/* Training Days List */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 flex-wrap">
@@ -175,7 +182,9 @@ const TrainingPlan = () => {
                       return (
                         <div key={`training-${item.scheduleItem.dayId}-${item.dateStr}`}>
                           <div className="flex items-center justify-between mb-1 ml-1">
-                            <p className="text-xs text-muted-foreground">{dateStr}</p>
+                            <p className="text-xs text-muted-foreground">
+                              <span className="capitalize">{getDayOfWeekName(item.dateStr)}</span>, {dateStr}
+                            </p>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -196,8 +205,20 @@ const TrainingPlan = () => {
                       );
                     }
 
+                    // Strava activity with date label
+                    const stravaDate = new Date(item.dateStr);
+                    const straveDateLabel = stravaDate.toLocaleDateString('pl-PL', {
+                      day: 'numeric',
+                      month: 'short'
+                    });
+
                     return (
-                      <StravaActivityCard key={`strava-${item.activity.id}`} activity={item.activity} />
+                      <div key={`strava-${item.activity.id}`}>
+                        <p className="text-xs text-muted-foreground mb-1 ml-1">
+                          <span className="capitalize">{getDayOfWeekName(item.dateStr)}</span>, {straveDateLabel}
+                        </p>
+                        <StravaActivityCard activity={item.activity} />
+                      </div>
                     );
                   });
                 })()}
@@ -228,68 +249,69 @@ const TrainingPlan = () => {
               </Card>
             </div>
 
-            {/* Calendar */}
-            <div className="hidden lg:block">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                locale={pl}
-                modifiers={{
-                  completed: completedDates,
-                  training: trainingDates,
-                  strava: stravaDates,
-                }}
-                modifiersStyles={{
-                  completed: {
-                    backgroundColor: 'hsl(var(--fitness-success))',
-                    color: 'white',
-                    borderRadius: '50%',
-                  },
-                  training: {
-                    border: '2px solid hsl(var(--primary))',
-                    borderRadius: '50%',
-                  },
-                  strava: {
-                    border: '2px solid #FC4C02',
-                    borderRadius: '50%',
-                  },
-                }}
-                className="rounded-xl border p-3"
-              />
-              <div className="mt-3 space-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 rounded-full bg-fitness-success" />
-                  <span className="text-muted-foreground">Ukończone treningi</span>
+            {/* Calendar — redesigned */}
+            <div className="hidden lg:block space-y-4">
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    locale={pl}
+                    modifiers={{
+                      completed: completedDates,
+                      training: trainingDates,
+                      strava: stravaDates,
+                    }}
+                    modifiersClassNames={{
+                      completed: 'calendar-completed',
+                      training: 'calendar-training',
+                      strava: 'calendar-strava',
+                    }}
+                    className="p-4 w-full [&_.calendar-completed]:bg-emerald-500 [&_.calendar-completed]:text-white [&_.calendar-completed]:font-semibold [&_.calendar-completed]:hover:bg-emerald-600 [&_.calendar-training]:ring-2 [&_.calendar-training]:ring-primary [&_.calendar-training]:ring-inset [&_.calendar-strava]:ring-2 [&_.calendar-strava]:ring-orange-500 [&_.calendar-strava]:ring-inset"
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Legend */}
+              <div className="flex items-center justify-center gap-4 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                  <span className="text-muted-foreground">Ukończone</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 rounded-full border-2 border-primary" />
-                  <span className="text-muted-foreground">Zaplanowane treningi</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-full ring-2 ring-primary ring-inset" />
+                  <span className="text-muted-foreground">Zaplanowane</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-4 w-4 rounded-full border-2 border-[#FC4C02]" />
-                  <span className="text-muted-foreground">Strava</span>
-                </div>
+                {isAdmin && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-3 w-3 rounded-full ring-2 ring-orange-500 ring-inset" />
+                    <span className="text-muted-foreground">Strava</span>
+                  </div>
+                )}
               </div>
 
               {/* Selected date info */}
               {selectedDate && (() => {
-                const selectedDateStr = selectedDate.toISOString().split('T')[0];
+                const selectedDateStr = formatLocalDate(selectedDate);
                 const scheduleEntry = schedule.find(s =>
-                  s.date.toISOString().split('T')[0] === selectedDateStr
+                  formatLocalDate(s.date) === selectedDateStr
                 );
 
-                if (!scheduleEntry) return null;
+                // Check for Strava activity on this date too
+                const stravaOnDate = stravaActivities.filter(a => a.date === selectedDateStr);
 
-                const dayPlan = trainingPlan.find(d => d.id === scheduleEntry.dayId);
+                if (!scheduleEntry && stravaOnDate.length === 0) return null;
+
+                const dayPlan = scheduleEntry ? trainingPlan.find(d => d.id === scheduleEntry.dayId) : null;
                 const workoutForDate = workouts.find(w => w.date === selectedDateStr);
 
                 return (
-                  <Card className="mt-4">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2 mb-2">
+                  <Card>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-center gap-2">
                         <CalendarDays className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-sm">
+                        <span className="font-medium text-sm capitalize">
                           {selectedDate.toLocaleDateString('pl-PL', {
                             weekday: 'long',
                             day: 'numeric',
@@ -297,14 +319,15 @@ const TrainingPlan = () => {
                           })}
                         </span>
                       </div>
+
                       {dayPlan && (
                         <>
-                          <p className="text-sm text-muted-foreground mb-2">
+                          <p className="text-sm text-muted-foreground">
                             {dayPlan.dayName}: {dayPlan.focus}
                           </p>
-                          <div className="flex items-center gap-2 mb-3">
+                          <div className="flex items-center gap-2">
                             {workoutForDate?.completed ? (
-                              <Badge className="bg-fitness-success text-white">
+                              <Badge className="bg-emerald-500 text-white">
                                 <CheckCircle className="h-3 w-3 mr-1" />
                                 Ukończony
                               </Badge>
@@ -316,12 +339,29 @@ const TrainingPlan = () => {
                             )}
                           </div>
                           <button
-                            onClick={() => navigate(`/workout/${scheduleEntry.dayId}?date=${selectedDateStr}`)}
+                            onClick={() => navigate(`/workout/${scheduleEntry!.dayId}?date=${selectedDateStr}`)}
                             className="text-sm text-primary hover:underline"
                           >
                             Przejdź do treningu →
                           </button>
                         </>
+                      )}
+
+                      {stravaOnDate.length > 0 && (
+                        <div className="space-y-2">
+                          {dayPlan && <div className="border-t border-border pt-2" />}
+                          {stravaOnDate.map(a => (
+                            <div key={a.id} className="flex items-center gap-2 text-sm">
+                              <span className="text-orange-500">●</span>
+                              <span className="truncate">{a.name}</span>
+                              {a.distance && (
+                                <span className="text-muted-foreground text-xs shrink-0">
+                                  {(a.distance / 1000).toFixed(1)} km
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </CardContent>
                   </Card>
