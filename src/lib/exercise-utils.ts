@@ -75,12 +75,8 @@ export interface RestContext {
   isFirstInSuperset: boolean;
 }
 
-export const getRestDuration = (ctx: RestContext): number => {
-  if (ctx.isSuperset) {
-    return ctx.isFirstInSuperset ? 15 : 90;
-  }
-  if (ctx.exerciseIndex >= 3) return 75;
-  return 150;
+export const getRestDuration = (_ctx: RestContext): number => {
+  return 30;
 };
 
 // --- Set Count Parsing ---

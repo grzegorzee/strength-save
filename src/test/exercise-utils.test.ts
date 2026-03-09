@@ -236,22 +236,10 @@ describe('getProgressionAdvice', () => {
 // --- getRestDuration tests ---
 
 describe('getRestDuration', () => {
-  it('returns 150s for compound exercises', () => {
-    expect(getRestDuration({ exerciseIndex: 0, isSuperset: false, isFirstInSuperset: false })).toBe(150);
-    expect(getRestDuration({ exerciseIndex: 1, isSuperset: false, isFirstInSuperset: false })).toBe(150);
-    expect(getRestDuration({ exerciseIndex: 2, isSuperset: false, isFirstInSuperset: false })).toBe(150);
-  });
-
-  it('returns 75s for isolation exercises', () => {
-    expect(getRestDuration({ exerciseIndex: 3, isSuperset: false, isFirstInSuperset: false })).toBe(75);
-    expect(getRestDuration({ exerciseIndex: 4, isSuperset: false, isFirstInSuperset: false })).toBe(75);
-  });
-
-  it('returns 15s for first exercise in superset (A→B transition)', () => {
-    expect(getRestDuration({ exerciseIndex: 4, isSuperset: true, isFirstInSuperset: true })).toBe(15);
-  });
-
-  it('returns 90s after completing superset B', () => {
-    expect(getRestDuration({ exerciseIndex: 4, isSuperset: true, isFirstInSuperset: false })).toBe(90);
+  it('always returns 30s default', () => {
+    expect(getRestDuration({ exerciseIndex: 0, isSuperset: false, isFirstInSuperset: false })).toBe(30);
+    expect(getRestDuration({ exerciseIndex: 3, isSuperset: false, isFirstInSuperset: false })).toBe(30);
+    expect(getRestDuration({ exerciseIndex: 4, isSuperset: true, isFirstInSuperset: true })).toBe(30);
+    expect(getRestDuration({ exerciseIndex: 4, isSuperset: true, isFirstInSuperset: false })).toBe(30);
   });
 });

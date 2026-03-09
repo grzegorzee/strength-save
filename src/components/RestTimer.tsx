@@ -9,7 +9,7 @@ interface RestTimerProps {
   onClose: () => void;
 }
 
-const PRESETS = [60, 90, 120, 180];
+const PRESETS = [15, 30, 45, 60, 90, 120];
 
 function playBeep() {
   try {
@@ -34,7 +34,7 @@ function playBeep() {
   }
 }
 
-export const RestTimer = ({ defaultSeconds = 90, exerciseLabel, onClose }: RestTimerProps) => {
+export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestTimerProps) => {
   const [totalSeconds, setTotalSeconds] = useState(defaultSeconds);
   const [secondsLeft, setSecondsLeft] = useState(defaultSeconds);
   const [isRunning, setIsRunning] = useState(true);
@@ -172,7 +172,7 @@ export const RestTimer = ({ defaultSeconds = 90, exerciseLabel, onClose }: RestT
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
-              {s >= 60 ? `${s / 60}m` : `${s}s`}
+              {s >= 60 ? `${s / 60}min` : `${s}s`}
             </button>
           ))}
         </div>

@@ -47,7 +47,7 @@ const WorkoutDay = () => {
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showRestTimer, setShowRestTimer] = useState(false);
-  const [restTimerDuration, setRestTimerDuration] = useState(90);
+  const [restTimerDuration, setRestTimerDuration] = useState(30);
   const [restTimerLabel, setRestTimerLabel] = useState<string | undefined>();
   const [restTimerKey, setRestTimerKey] = useState(0);
 
