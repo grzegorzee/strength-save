@@ -36,6 +36,86 @@ const getYouTubeEmbedUrl = (url: string): string | null => {
   return match ? `https://www.youtube.com/embed/${match[1]}?rel=0&modestbranding=1` : null;
 };
 
+// ExerciseRow extracted to module level to prevent remount on parent re-render
+const ExerciseRow = ({
+  ex,
+  expandedExercise,
+  onToggleExpand,
+  onVideoOpen,
+  showCategoryBadge,
+}: {
+  ex: EnrichedExercise;
+  expandedExercise: string | null;
+  onToggleExpand: (name: string) => void;
+  onVideoOpen: (ex: EnrichedExercise) => void;
+  showCategoryBadge: boolean;
+}) => (
+  <Card key={ex.name} className="hover:border-primary/30 transition-all duration-200">
+    <CardContent className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold">{ex.name}</h3>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge variant="outline" className="text-xs">
+              {ex.type === 'compound' ? 'Wielostawowe' : 'Izolacja'}
+            </Badge>
+            {showCategoryBadge && (
+              <Badge className="text-xs bg-muted text-muted-foreground">
+                {categoryLabels[ex.category]}
+              </Badge>
+            )}
+            {ex.dayName && (
+              <Badge variant="secondary" className="text-xs">
+                {ex.dayName}
+              </Badge>
+            )}
+            {ex.sets && (
+              <Badge variant="outline" className="text-xs font-heading">
+                {ex.sets}
+              </Badge>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {ex.videoUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-primary border-primary/30"
+              onClick={() => onVideoOpen(ex)}
+            >
+              <Play className="h-4 w-4" />
+              <span className="hidden sm:inline">Obejrzyj</span>
+            </Button>
+          )}
+          {ex.instructions && ex.instructions.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onToggleExpand(ex.name)}
+            >
+              {expandedExercise === ex.name
+                ? <ChevronUp className="h-4 w-4" />
+                : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {expandedExercise === ex.name && ex.instructions && (
+        <div className="mt-3 bg-muted/50 rounded-lg p-3 space-y-2">
+          {ex.instructions.map((inst, i) => (
+            <div key={i}>
+              <p className="text-sm font-medium text-primary">{inst.title}</p>
+              <p className="text-sm text-muted-foreground">{inst.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
+
 const ExerciseLibrary = () => {
   const [selectedCategory, setSelectedCategory] = useState<LibraryExercise['category'] | null>(null);
   const [videoExercise, setVideoExercise] = useState<EnrichedExercise | null>(null);
@@ -70,7 +150,6 @@ const ExerciseLibrary = () => {
     return grouped;
   }, [enrichedExercises]);
 
-  // Search filtering
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return null;
     const q = searchQuery.toLowerCase().trim();
@@ -79,100 +158,66 @@ const ExerciseLibrary = () => {
     );
   }, [searchQuery, enrichedExercises]);
 
-  const ExerciseRow = ({ ex }: { ex: EnrichedExercise }) => (
-    <Card key={ex.name} className="hover:border-primary/30 transition-all duration-200">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold">{ex.name}</h3>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <Badge variant="outline" className="text-xs">
-                {ex.type === 'compound' ? 'Wielostawowe' : 'Izolacja'}
-              </Badge>
-              {searchResults && (
-                <Badge className="text-xs bg-muted text-muted-foreground">
-                  {categoryLabels[ex.category]}
-                </Badge>
-              )}
-              {ex.dayName && (
-                <Badge variant="secondary" className="text-xs">
-                  {ex.dayName}
-                </Badge>
-              )}
-              {ex.sets && (
-                <Badge variant="outline" className="text-xs font-heading">
-                  {ex.sets}
-                </Badge>
-              )}
+  const handleToggleExpand = (name: string) => {
+    setExpandedExercise(prev => prev === name ? null : name);
+  };
+
+  // Determine content to show
+  const isSearching = searchResults !== null;
+  const showCategoryList = !isSearching && selectedCategory !== null;
+  const currentExercises = showCategoryList ? (categories[selectedCategory!] || []) : [];
+  const CatIcon = selectedCategory ? categoryIcons[selectedCategory] : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Header — always mounted */}
+      <div>
+        {showCategoryList ? (
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => setSelectedCategory(null)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                {CatIcon && <CatIcon className="h-4 w-4" />}
+              </div>
+              <div>
+                <h1 className="text-xl font-heading font-bold tracking-tight">
+                  {categoryLabels[selectedCategory!]}
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  {currentExercises.length} ćwiczeń
+                </p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {ex.videoUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-primary border-primary/30"
-                onClick={() => setVideoExercise(ex)}
-              >
-                <Play className="h-4 w-4" />
-                <span className="hidden sm:inline">Obejrzyj</span>
-              </Button>
-            )}
-            {ex.instructions && ex.instructions.length > 0 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setExpandedExercise(expandedExercise === ex.name ? null : ex.name)}
-              >
-                {expandedExercise === ex.name
-                  ? <ChevronUp className="h-4 w-4" />
-                  : <ChevronDown className="h-4 w-4" />}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {expandedExercise === ex.name && ex.instructions && (
-          <div className="mt-3 bg-muted/50 rounded-lg p-3 space-y-2">
-            {ex.instructions.map((inst, i) => (
-              <div key={i}>
-                <p className="text-sm font-medium text-primary">{inst.title}</p>
-                <p className="text-sm text-muted-foreground">{inst.content}</p>
-              </div>
-            ))}
+        ) : (
+          <div>
+            <h1 className="text-2xl font-heading font-bold tracking-tight">Biblioteka ćwiczeń</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              {exerciseLibrary.length} ćwiczeń w {categoryOrder.length} kategoriach
+            </p>
           </div>
         )}
-      </CardContent>
-    </Card>
-  );
+      </div>
 
-  // Search bar (always visible)
-  const SearchBar = () => (
-    <div className="relative">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-      <Input
-        placeholder="Szukaj ćwiczenia..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="pl-10"
-      />
-    </div>
-  );
-
-  // If searching — show flat results
-  if (searchResults) {
-    return (
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-heading font-bold tracking-tight">Biblioteka ćwiczeń</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {exerciseLibrary.length} ćwiczeń w {categoryOrder.length} kategoriach
-          </p>
+      {/* Search input — always mounted, never unmounts */}
+      {!showCategoryList && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Szukaj ćwiczenia..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
         </div>
+      )}
 
-        <SearchBar />
-
-        {searchResults.length === 0 ? (
+      {/* Content — conditional */}
+      {isSearching ? (
+        // Search results
+        searchResults.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
             Brak wyników dla "{searchQuery}"
           </p>
@@ -180,49 +225,36 @@ const ExerciseLibrary = () => {
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">{searchResults.length} wyników</p>
             {searchResults.map(ex => (
-              <ExerciseRow key={ex.name} ex={ex} />
+              <ExerciseRow
+                key={ex.name}
+                ex={ex}
+                expandedExercise={expandedExercise}
+                onToggleExpand={handleToggleExpand}
+                onVideoOpen={setVideoExercise}
+                showCategoryBadge
+              />
             ))}
           </div>
-        )}
-
-        <Dialog open={!!videoExercise} onOpenChange={(open) => !open && setVideoExercise(null)}>
-          <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6">
-            <DialogHeader>
-              <DialogTitle className="text-sm pr-6">{videoExercise?.name}</DialogTitle>
-            </DialogHeader>
-            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-              {videoExercise?.videoUrl && (
-                <iframe
-                  className="absolute inset-0 w-full h-full rounded-lg"
-                  src={getYouTubeEmbedUrl(videoExercise.videoUrl) || ''}
-                  title={videoExercise.name}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-    );
-  }
-
-  // Category view or exercise list
-  if (!selectedCategory) {
-    return (
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-heading font-bold tracking-tight">Biblioteka ćwiczeń</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {exerciseLibrary.length} ćwiczeń w {categoryOrder.length} kategoriach
-          </p>
+        )
+      ) : showCategoryList ? (
+        // Exercise list for selected category
+        <div className="space-y-3">
+          {currentExercises.map(ex => (
+            <ExerciseRow
+              key={ex.name}
+              ex={ex}
+              expandedExercise={expandedExercise}
+              onToggleExpand={handleToggleExpand}
+              onVideoOpen={setVideoExercise}
+              showCategoryBadge={false}
+            />
+          ))}
         </div>
-
-        <SearchBar />
-
+      ) : (
+        // Category grid
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {categoryOrder.map(cat => {
-            const CatIcon = categoryIcons[cat];
+            const CatIconItem = categoryIcons[cat];
             return (
               <Card
                 key={cat}
@@ -234,7 +266,7 @@ const ExerciseLibrary = () => {
                     "mx-auto h-12 w-12 rounded-xl flex items-center justify-center mb-2",
                     "bg-primary/10 text-primary"
                   )}>
-                    <CatIcon className="h-6 w-6" />
+                    <CatIconItem className="h-6 w-6" />
                   </div>
                   <h3 className="font-heading font-semibold text-sm">{categoryLabels[cat]}</h3>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -245,40 +277,9 @@ const ExerciseLibrary = () => {
             );
           })}
         </div>
-      </div>
-    );
-  }
+      )}
 
-  const currentExercises = categories[selectedCategory] || [];
-  const CatIcon = categoryIcons[selectedCategory];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => setSelectedCategory(null)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-            <CatIcon className="h-4 w-4" />
-          </div>
-          <div>
-            <h1 className="text-xl font-heading font-bold tracking-tight">
-              {categoryLabels[selectedCategory]}
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              {currentExercises.length} ćwiczeń
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {currentExercises.map(ex => (
-          <ExerciseRow key={ex.name} ex={ex} />
-        ))}
-      </div>
-
+      {/* Video dialog — always mounted */}
       <Dialog open={!!videoExercise} onOpenChange={(open) => !open && setVideoExercise(null)}>
         <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6">
           <DialogHeader>

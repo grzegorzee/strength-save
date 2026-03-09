@@ -14,7 +14,11 @@ import type { StravaActivity, StravaConnection } from '@/types/strava';
 
 const STRAVA_ACTIVITIES_COLLECTION = 'strava_activities';
 
-export const useStrava = (userId: string) => {
+const EMPTY_ACTIVITIES: StravaActivity[] = [];
+const EMPTY_CONNECTION: StravaConnection = { connected: false };
+const noop = async () => ({ ok: false as const, message: 'Strava disabled' });
+
+export const useStrava = (userId: string, enabled: boolean = true) => {
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [connection, setConnection] = useState<StravaConnection>({ connected: false });
   const [isSyncing, setIsSyncing] = useState(false);
@@ -22,7 +26,7 @@ export const useStrava = (userId: string) => {
 
   // Subscribe to Strava activities
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !enabled) return;
 
     const activitiesQuery = query(
       collection(db, STRAVA_ACTIVITIES_COLLECTION),
@@ -52,7 +56,7 @@ export const useStrava = (userId: string) => {
 
   // Subscribe to user's Strava connection status
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !enabled) return;
 
     const unsubscribe = onSnapshot(doc(db, 'users', userId), (snap) => {
       if (snap.exists()) {
@@ -140,6 +144,18 @@ export const useStrava = (userId: string) => {
       setError(message);
     }
   }, [userId]);
+
+  if (!enabled) {
+    return {
+      activities: EMPTY_ACTIVITIES,
+      connection: EMPTY_CONNECTION,
+      isSyncing: false,
+      error: null,
+      connectStrava: noop,
+      syncActivities: noop as () => ReturnType<typeof syncActivities>,
+      disconnectStrava: noop,
+    };
+  }
 
   return {
     activities,

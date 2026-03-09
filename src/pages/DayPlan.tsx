@@ -23,10 +23,10 @@ const formatLocalDate = (date: Date): string => {
 
 const DayPlan = () => {
   const navigate = useNavigate();
-  const { uid } = useCurrentUser();
+  const { uid, isAdmin } = useCurrentUser();
   const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
-  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
+  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, isAdmin);
 
   const [showWarmup, setShowWarmup] = useState(false);
   const [showStretching, setShowStretching] = useState(false);

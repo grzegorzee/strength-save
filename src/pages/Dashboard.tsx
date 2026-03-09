@@ -129,7 +129,7 @@ const DashboardStatCard = ({
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { uid, profile } = useCurrentUser();
+  const { uid, profile, isAdmin } = useCurrentUser();
   const {
     workouts,
     getTotalWeight,
@@ -139,7 +139,7 @@ const Dashboard = () => {
     error
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks } = useTrainingPlan(uid);
-  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
+  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, isAdmin);
 
   // AI Coach
   const completedCount = useMemo(() => workouts.filter(w => w.completed).length, [workouts]);
@@ -435,44 +435,61 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* This week's training */}
+      {/* This week's training — merged timeline */}
       <div className="space-y-3">
         <h2 className="font-heading font-semibold text-base tracking-tight">Plan tygodnia</h2>
         <div className="grid gap-3">
-          {thisWeek.map(({ dayId, date }) => {
-            const day = trainingPlan.find(d => d.id === dayId);
-            if (!day) return null;
+          {(() => {
+            // Build unified timeline: training days + Strava activities
+            type TimelineItem =
+              | { type: 'training'; dayId: string; date: Date; dateStr: string }
+              | { type: 'strava'; activity: typeof stravaActivities[number]; dateStr: string };
 
-            const dateStr = formatLocalDate(date);
-            const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === dateStr);
+            const items: TimelineItem[] = [];
 
-            return (
-              <TrainingDayCard
-                key={dayId}
-                day={day}
-                latestWorkout={workoutForDate}
-                trainingDate={date}
-                onClick={() => navigate(`/workout/${dayId}?date=${dateStr}`)}
-              />
-            );
-          })}
+            // Add training days
+            thisWeek.forEach(({ dayId, date }) => {
+              const day = trainingPlan.find(d => d.id === dayId);
+              if (day) {
+                items.push({ type: 'training', dayId, date, dateStr: formatLocalDate(date) });
+              }
+            });
 
-          {/* Strava activities for this week */}
-          {stravaConnection.connected && (() => {
-            const mondayStr = formatLocalDate(thisWeek[0].date);
-            const sundayDate = new Date(thisWeek[0].date);
-            sundayDate.setDate(sundayDate.getDate() + 6);
-            const sundayStr = formatLocalDate(sundayDate);
+            // Add Strava activities for this week
+            if (stravaConnection.connected) {
+              const mondayStr = formatLocalDate(thisWeek[0].date);
+              const sundayDate = new Date(thisWeek[0].date);
+              sundayDate.setDate(sundayDate.getDate() + 6);
+              const sundayStr = formatLocalDate(sundayDate);
 
-            const weekActivities = stravaActivities.filter(
-              a => a.date >= mondayStr && a.date <= sundayStr
-            );
+              stravaActivities
+                .filter(a => a.date >= mondayStr && a.date <= sundayStr)
+                .forEach(activity => {
+                  items.push({ type: 'strava', activity, dateStr: activity.date });
+                });
+            }
 
-            if (weekActivities.length === 0) return null;
+            // Sort by date string
+            items.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
 
-            return weekActivities.map(activity => (
-              <StravaActivityCard key={activity.id} activity={activity} />
-            ));
+            return items.map((item) => {
+              if (item.type === 'training') {
+                const day = trainingPlan.find(d => d.id === item.dayId)!;
+                const workoutForDate = workouts.find(w => w.dayId === item.dayId && w.date === item.dateStr);
+                return (
+                  <TrainingDayCard
+                    key={`training-${item.dayId}-${item.dateStr}`}
+                    day={day}
+                    latestWorkout={workoutForDate}
+                    trainingDate={item.date}
+                    onClick={() => navigate(`/workout/${item.dayId}?date=${item.dateStr}`)}
+                  />
+                );
+              }
+              return (
+                <StravaActivityCard key={`strava-${item.activity.id}`} activity={item.activity} />
+              );
+            });
           })()}
         </div>
       </div>

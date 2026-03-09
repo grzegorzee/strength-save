@@ -42,9 +42,11 @@ import { cn } from '@/lib/utils';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
   TrendingUp, TrendingDown, Minus, Scale, RefreshCw, Loader2, ChevronRight,
+  Sparkles, Clock, Route,
 } from 'lucide-react';
+import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 
-type AnalyticsTab = 'summary' | 'charts' | 'measurements' | 'strava';
+type AnalyticsTab = 'summary' | 'charts' | 'measurements' | 'strava' | 'weekly';
 
 // ========================
 // Shared utilities
@@ -100,10 +102,10 @@ const formatDateShort = (date: string): string =>
 type Period = 'week' | 'month';
 
 const SummaryTab = () => {
-  const { uid } = useCurrentUser();
+  const { uid, isAdmin } = useCurrentUser();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
-  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
+  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, isAdmin);
   const { toast } = useToast();
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('week');
@@ -704,8 +706,8 @@ const MeasurementsTab = () => {
 // ========================
 
 const StravaTab = () => {
-  const { uid } = useCurrentUser();
-  const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid);
+  const { uid, isAdmin } = useCurrentUser();
+  const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, isAdmin);
 
   // Filter out weight training activities
   const nonStrengthActivities = activities.filter(
@@ -768,13 +770,115 @@ const StravaTab = () => {
 };
 
 // ========================
+// TAB: Podsumowania tygodniowe
+// ========================
+
+const WeeklyTab = () => {
+  const { uid, isAdmin } = useCurrentUser();
+  const { summaries, isGenerating, error, generateSummary } = useWeeklySummary(uid, isAdmin);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-heading font-semibold text-base">Podsumowania tygodniowe</h3>
+        <Button
+          size="sm"
+          onClick={() => generateSummary()}
+          disabled={isGenerating}
+        >
+          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+          Generuj teraz
+        </Button>
+      </div>
+
+      {error && (
+        <Card className="border-destructive">
+          <CardContent className="py-3">
+            <p className="text-sm text-destructive">{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {summaries.length === 0 && !isGenerating && (
+        <Card className="bg-muted/30">
+          <CardContent className="py-8 text-center">
+            <p className="text-muted-foreground">Brak podsumowań. Kliknij "Generuj teraz" aby stworzyć pierwsze.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {summaries.map(s => (
+        <Card key={s.id} className="hover:border-primary/30 transition-all duration-200">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <Badge variant="outline" className="text-xs">
+                {new Date(s.weekStart).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })} - {new Date(s.weekEnd).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(s.generatedAt).toLocaleDateString('pl-PL')}
+              </span>
+            </div>
+
+            {/* Mini stats */}
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              <div className="text-center p-2 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Dumbbell className="h-3 w-3 text-primary" />
+                </div>
+                <p className="text-sm font-bold">{s.stats.workoutCount}</p>
+                <p className="text-[10px] text-muted-foreground">Treningi</p>
+              </div>
+              <div className="text-center p-2 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Trophy className="h-3 w-3 text-primary" />
+                </div>
+                <p className="text-sm font-bold">{(s.stats.tonnageKg / 1000).toFixed(1)}t</p>
+                <p className="text-[10px] text-muted-foreground">Tonaż</p>
+              </div>
+              <div className="text-center p-2 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Route className="h-3 w-3 text-orange-500" />
+                </div>
+                <p className="text-sm font-bold">{s.stats.runKm} km</p>
+                <p className="text-[10px] text-muted-foreground">Bieg</p>
+              </div>
+              <div className="text-center p-2 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Flame className="h-3 w-3 text-amber-500" />
+                </div>
+                <p className="text-sm font-bold">{s.stats.prs.length}</p>
+                <p className="text-[10px] text-muted-foreground">PRy</p>
+              </div>
+            </div>
+
+            {/* AI summary text */}
+            <p className="text-sm text-muted-foreground leading-relaxed">{s.summary}</p>
+
+            {/* PRs badges */}
+            {s.stats.prs.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {s.stats.prs.map((pr, i) => (
+                  <Badge key={i} className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                    {pr.exerciseName} — {pr.newValue} kg
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+// ========================
 // MAIN PAGE
 // ========================
 
 const Analytics = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') as AnalyticsTab | null;
-  const validTabs: AnalyticsTab[] = ['summary', 'charts', 'measurements', 'strava'];
+  const validTabs: AnalyticsTab[] = ['summary', 'charts', 'measurements', 'strava', 'weekly'];
   const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'summary';
 
   return (
@@ -785,12 +889,14 @@ const Analytics = () => {
           <TabsTrigger value="charts" className="flex-1 text-xs">Wykresy</TabsTrigger>
           <TabsTrigger value="measurements" className="flex-1 text-xs">Pomiary</TabsTrigger>
           <TabsTrigger value="strava" className="flex-1 text-xs">Strava</TabsTrigger>
+          <TabsTrigger value="weekly" className="flex-1 text-xs">Tygodnie</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary"><SummaryTab /></TabsContent>
         <TabsContent value="charts"><ChartsTab /></TabsContent>
         <TabsContent value="measurements"><MeasurementsTab /></TabsContent>
         <TabsContent value="strava"><StravaTab /></TabsContent>
+        <TabsContent value="weekly"><WeeklyTab /></TabsContent>
       </Tabs>
     </div>
   );

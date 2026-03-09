@@ -17,10 +17,10 @@ import { Info, CalendarDays, CheckCircle, Dumbbell, Settings, Pencil } from 'luc
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
-  const { uid } = useCurrentUser();
+  const { uid, isAdmin } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
-  const { activities: stravaActivities } = useStrava(uid);
+  const { activities: stravaActivities } = useStrava(uid, isAdmin);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   // Get dates with completed workouts
@@ -136,60 +136,72 @@ const TrainingPlan = () => {
                 )}
               </div>
 
+              {/* Merged timeline: training + Strava */}
               <div className="space-y-3">
-                {selectedWeekTrainingDates.map((scheduleItem) => {
-                  const dayPlan = trainingPlan.find(d => d.id === scheduleItem.dayId);
-                  if (!dayPlan) return null;
+                {(() => {
+                  type TimelineItem =
+                    | { type: 'training'; scheduleItem: typeof selectedWeekTrainingDates[number]; dateStr: string }
+                    | { type: 'strava'; activity: typeof stravaActivities[number]; dateStr: string };
 
-                  const workoutForDate = getWorkoutForDate(scheduleItem.date);
-                  const dateStr = scheduleItem.date.toLocaleDateString('pl-PL', {
-                    day: 'numeric',
-                    month: 'short'
+                  const items: TimelineItem[] = [];
+
+                  selectedWeekTrainingDates.forEach(scheduleItem => {
+                    const dayPlan = trainingPlan.find(d => d.id === scheduleItem.dayId);
+                    if (dayPlan) {
+                      items.push({ type: 'training', scheduleItem, dateStr: formatLocalDate(scheduleItem.date) });
+                    }
                   });
 
-                  const trainingDateStr = formatLocalDate(scheduleItem.date);
-                  return (
-                    <div key={`${scheduleItem.dayId}-${scheduleItem.date.toISOString()}`}>
-                      <div className="flex items-center justify-between mb-1 ml-1">
-                        <p className="text-xs text-muted-foreground">{dateStr}</p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 text-xs text-muted-foreground hover:text-primary gap-1"
-                          onClick={() => navigate('/plan/edit')}
-                        >
-                          <Pencil className="h-3 w-3" />
-                          Edytuj
-                        </Button>
-                      </div>
-                      <TrainingDayCard
-                        day={dayPlan}
-                        latestWorkout={workoutForDate}
-                        trainingDate={scheduleItem.date}
-                        onClick={() => navigate(`/workout/${dayPlan.id}?date=${trainingDateStr}`)}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+                  const weekStartStr = formatLocalDate(selectedWeekStart);
+                  const weekEndStr = formatLocalDate(selectedWeekEnd);
+                  stravaActivities
+                    .filter(a => a.date >= weekStartStr && a.date <= weekEndStr)
+                    .forEach(activity => {
+                      items.push({ type: 'strava', activity, dateStr: activity.date });
+                    });
 
-              {/* Strava activities for selected week */}
-              {(() => {
-                const weekStartStr = formatLocalDate(selectedWeekStart);
-                const weekEndStr = formatLocalDate(selectedWeekEnd);
-                const weekStravaActivities = stravaActivities.filter(
-                  a => a.date >= weekStartStr && a.date <= weekEndStr
-                );
-                if (weekStravaActivities.length === 0) return null;
-                return (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-sm text-muted-foreground">Aktywności Strava:</h4>
-                    {weekStravaActivities.map(activity => (
-                      <StravaActivityCard key={activity.id} activity={activity} />
-                    ))}
-                  </div>
-                );
-              })()}
+                  items.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+
+                  return items.map((item) => {
+                    if (item.type === 'training') {
+                      const dayPlan = trainingPlan.find(d => d.id === item.scheduleItem.dayId)!;
+                      const workoutForDate = getWorkoutForDate(item.scheduleItem.date);
+                      const dateStr = item.scheduleItem.date.toLocaleDateString('pl-PL', {
+                        day: 'numeric',
+                        month: 'short'
+                      });
+                      const trainingDateStr = formatLocalDate(item.scheduleItem.date);
+
+                      return (
+                        <div key={`training-${item.scheduleItem.dayId}-${item.dateStr}`}>
+                          <div className="flex items-center justify-between mb-1 ml-1">
+                            <p className="text-xs text-muted-foreground">{dateStr}</p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs text-muted-foreground hover:text-primary gap-1"
+                              onClick={() => navigate('/plan/edit')}
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Edytuj
+                            </Button>
+                          </div>
+                          <TrainingDayCard
+                            day={dayPlan}
+                            latestWorkout={workoutForDate}
+                            trainingDate={item.scheduleItem.date}
+                            onClick={() => navigate(`/workout/${dayPlan.id}?date=${trainingDateStr}`)}
+                          />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <StravaActivityCard key={`strava-${item.activity.id}`} activity={item.activity} />
+                    );
+                  });
+                })()}
+              </div>
 
               {/* Progress Summary */}
               <Card className="bg-muted/30">

@@ -1,17 +1,38 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Link2, Unlink, RefreshCw, Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Link2, Unlink, RefreshCw, Loader2, Clock } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
 
+const SUMMARY_HOUR_KEY = 'summary-hour';
+
 const Settings = () => {
   const navigate = useNavigate();
-  const { uid, profile } = useCurrentUser();
-  const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid);
+  const { uid, profile, isAdmin } = useCurrentUser();
+  const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, isAdmin);
   const { toast } = useToast();
+
+  const [summaryHour, setSummaryHour] = useState(() => {
+    try {
+      return localStorage.getItem(SUMMARY_HOUR_KEY) || '20';
+    } catch {
+      return '20';
+    }
+  });
+
+  const handleSummaryHourChange = (value: string) => {
+    setSummaryHour(value);
+    try {
+      localStorage.setItem(SUMMARY_HOUR_KEY, value);
+    } catch {
+      // ignore
+    }
+  };
 
   const handleSync = async () => {
     const result = await syncActivities();
@@ -64,6 +85,36 @@ const Settings = () => {
             <Badge variant={profile?.role === 'admin' ? 'default' : 'secondary'}>
               {profile?.role || 'user'}
             </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Weekly summary preference */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            Podsumowanie tygodniowe
+          </CardTitle>
+          <CardDescription>
+            Preferowana godzina generowania podsumowania tygodnia (niedziele)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-sm">Godzina</span>
+            <Select value={summaryHour} onValueChange={handleSummaryHourChange}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 8 }, (_, i) => i + 16).map(h => (
+                  <SelectItem key={h} value={String(h)}>
+                    {String(h).padStart(2, '0')}:00
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

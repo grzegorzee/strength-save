@@ -45,10 +45,10 @@ const LoadingCard = ({ text }: { text: string }) => (
 );
 
 const AIChat = () => {
-  const { uid } = useCurrentUser();
+  const { uid, isAdmin } = useCurrentUser();
   const { workouts, measurements, isLoaded: workoutsLoaded } = useFirebaseWorkouts(uid);
   const { plan, isLoaded: planLoaded } = useTrainingPlan(uid);
-  const { activities: stravaActivities } = useStrava(uid);
+  const { activities: stravaActivities } = useStrava(uid, isAdmin);
 
   const [messages, setMessages] = useState<ChatMessage[]>(loadChatHistory);
   const [input, setInput] = useState('');

@@ -1,15 +1,5 @@
-import { Menu, LogOut, Moon, Sun, WifiOff, Settings, Shield } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Menu, Moon, Sun, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/hooks/useAuth';
-import { useCurrentUser } from '@/contexts/UserContext';
 import { useTheme } from 'next-themes';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
@@ -19,16 +9,8 @@ interface AppHeaderProps {
 }
 
 export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const { profile, isAdmin } = useCurrentUser();
   const { theme, setTheme } = useTheme();
   const { isOnline, pendingOps } = useOnlineStatus();
-
-  const displayName = profile?.displayName || user?.displayName || '';
-  const initials = displayName
-    ? displayName.split(' ').map(n => n[0]).join('').toUpperCase()
-    : 'GJ';
 
   return (
     <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b">
@@ -59,47 +41,6 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
             <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
           </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:opacity-90 transition-opacity">
-                {user?.photoURL ? (
-                  <img
-                    src={user.photoURL}
-                    alt={user.displayName || 'Avatar'}
-                    className="h-10 w-10 rounded-full"
-                  />
-                ) : (
-                  initials
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              {displayName && (
-                <div className="px-2 py-1.5 border-b mb-1">
-                  <p className="text-sm font-medium">{displayName}</p>
-                  {profile?.email && (
-                    <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
-                  )}
-                </div>
-              )}
-              <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
-                <Settings className="h-4 w-4 mr-2" />
-                Ustawienia
-              </DropdownMenuItem>
-              {isAdmin && (
-                <DropdownMenuItem onClick={() => navigate('/admin')} className="cursor-pointer">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Admin
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="cursor-pointer">
-                <LogOut className="h-4 w-4 mr-2" />
-                Wyloguj się
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </header>
