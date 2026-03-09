@@ -49,7 +49,7 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
     return unsubscribe;
   }, [userId]);
 
-  // Generate summary for a given week
+  // Generate summary for a given week (defaults to LAST week, not current)
   const generateSummary = useCallback(async (weekDate?: Date) => {
     if (!userId || isGenerating) return;
 
@@ -57,7 +57,11 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
     setError(null);
 
     try {
-      const targetDate = weekDate || new Date();
+      const targetDate = weekDate || (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 7);
+        return d;
+      })();
       const { stats, weekStart, weekEnd, hasData } = prepareWeeklyData(
         targetDate,
         workouts,

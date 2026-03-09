@@ -53,6 +53,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
   }, [collapsed]);
 
   const displayName = profile?.displayName || 'Trener';
+  const photoURL = profile?.photoURL || '';
   const initials = displayName
     .split(' ')
     .map(n => n[0])
@@ -157,16 +158,20 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                     "flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-muted transition-colors cursor-pointer",
                     collapsed && "md:justify-center md:px-0"
                   )}>
-                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shrink-0">
-                      {initials}
-                    </div>
+                    {photoURL ? (
+                      <img src={photoURL} alt={displayName} className="h-9 w-9 rounded-full shrink-0 object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        {initials}
+                      </div>
+                    )}
                     <div className={cn("flex-1 min-w-0 text-left", collapsed && "md:hidden")}>
                       <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
                       <p className="text-[10px] text-muted-foreground">v{__APP_VERSION__}</p>
                     </div>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="end" className="w-52">
+                <DropdownMenuContent side="top" align="start" className="w-52 mb-2">
                   <div className="px-2 py-1.5 border-b mb-1">
                     <p className="text-sm font-medium">{displayName}</p>
                     {profile?.email && (

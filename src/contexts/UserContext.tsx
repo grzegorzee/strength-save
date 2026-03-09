@@ -7,6 +7,7 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName: string;
+  photoURL: string;
   role: 'admin' | 'user';
   stravaConnected: boolean;
   onboardingCompleted: boolean;
@@ -55,6 +56,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           uid: user.uid,
           email: user.email || '',
           displayName: user.displayName || user.email?.split('@')[0] || '',
+          photoURL: user.photoURL || '',
           lastLogin: new Date().toISOString(),
           ...(isExistingUser && { onboardingCompleted: true }),
         }, { merge: true });
@@ -82,6 +84,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           uid: user.uid,
           email: data.email || user.email || '',
           displayName: data.displayName || user.displayName || '',
+          photoURL: data.photoURL || user.photoURL || '',
           role: data.role || 'user',
           stravaConnected: data.stravaConnected || false,
           onboardingCompleted: data.onboardingCompleted || false,
@@ -92,6 +95,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           uid: user.uid,
           email: user.email || '',
           displayName: user.displayName || '',
+          photoURL: user.photoURL || '',
           role: 'user',
           stravaConnected: false,
           onboardingCompleted: false,
@@ -105,6 +109,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         uid: user.uid,
         email: user.email || '',
         displayName: user.displayName || '',
+        photoURL: user.photoURL || '',
         role: 'user',
         stravaConnected: false,
         onboardingCompleted: false,
