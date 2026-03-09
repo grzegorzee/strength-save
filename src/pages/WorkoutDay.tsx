@@ -698,6 +698,17 @@ const WorkoutDay = () => {
         ))}
       </div>
 
+      {/* Edit plan button */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full text-muted-foreground"
+        onClick={() => navigate('/plan/edit')}
+      >
+        <Pencil className="h-4 w-4 mr-2" />
+        Edytuj plan dnia
+      </Button>
+
       {/* Day notes - at the end of workout */}
       {isWorkoutStarted && !isCompleted && (
         <div>

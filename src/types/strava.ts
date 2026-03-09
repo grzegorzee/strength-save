@@ -12,6 +12,13 @@ export interface StravaActivity {
   maxHeartrate?: number;
   totalElevationGain?: number; // meters
   averageSpeed?: number; // m/s
+  calories?: number;
+  description?: string;
+  sportType?: string;        // more specific than type (e.g. "TrailRun")
+  averageCadence?: number;
+  startDateLocal?: string;   // full ISO datetime in local timezone
+  trainer?: boolean;         // indoor vs outdoor
+  kudosCount?: number;
   stravaUrl: string;
   syncedAt: string;     // ISO timestamp
 }

@@ -20,8 +20,11 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] **M6:** v4.0.0 - Multi-user + Admin Panel + Strava Integration ✅
 - [x] **M7:** v5.0.0 - AI Onboarding + Exercise Library + AI Coach ✅
 - [x] **M8:** v5.1.0 - Plan Management + Strava Views + Bug Fixes ✅
-- [ ] **M9:** PWA offline mode (service worker caching)
-- [ ] **M10:** Export do PDF / raporty tygodniowe
+- [ ] **M9:** Security hardening (OpenAI → Cloud Functions, chat_conversations per-user)
+- [ ] **M10:** PWA offline mode (offline-queue integration z hookami CRUD)
+- [ ] **M11:** Export do PDF / raporty tygodniowe
+- [ ] **M12:** Strava auto-sync (Cloud Function cron)
+- [ ] **M13:** Streaming AI Chat + cost tracking
 
 ---
 
@@ -115,19 +118,66 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 
 ## ZADANIA
 
-### Do zrobienia (backlog)
-- [ ] **PWA offline mode** — cache'owanie ostatnich treningów (service worker)
-- [ ] **Powiadomienia push** — przypomnienie o treningu
-- [ ] **Export do PDF** — raport tygodniowy/miesięczny
-- [ ] **Testy hooka useFirebaseWorkouts** — mockowanie Firebase
-- [ ] **Walidacja danych z Firebase** — sprawdzanie struktury onSnapshot
+### P0 — Krytyczne (bezpieczeństwo, stabilność)
+- [ ] **Przenieść OpenAI calls na Cloud Functions** — klucz API jest eksponowany w bundlu frontendowym
+- [ ] **Per-user isolation na `chat_conversations`** — dodać `userId`, zaktualizować security rules
+- [ ] **Walidacja danych z Firebase** — sprawdzanie struktury w onSnapshot (obrona przed corrupted docs)
 
-### Pomysły na przyszłość
+### P1 — Ważne (UX, funkcjonalność)
+- [ ] **PWA offline mode** — zintegrować `offline-queue.ts` z hookami CRUD (queue operacji gdy offline)
+- [ ] **Testy hooka useFirebaseWorkouts** — mockowanie Firebase, pokrycie edge cases
+- [ ] **Powiadomienia push** — przypomnienie o treningu (FCM)
+- [ ] **Export do PDF** — raport tygodniowy/miesięczny
+- [ ] **Strava auto-sync** — Cloud Function cron (co 6h)
+
+### P2 — Nice to have (ulepszenia)
 - [ ] Personalizacja planu (dodawanie własnych ćwiczeń poza AI)
-- [ ] Strava auto-sync (Cloud Function cron)
 - [ ] Social features (porównywanie z innymi)
-- [ ] Progressive overload suggestions (AI)
+- [ ] Progressive overload suggestions (AI) — automatyczne sugestie progresji
 - [ ] Trening cardio tracking (wbudowany, bez Strava)
+- [ ] Biblioteka ćwiczeń w Firestore (zamiast hardcoded)
+- [ ] Warmup/stretching integration w UI (dane są w `warmupStretching.ts`)
+
+---
+
+## TECH DEBT
+
+| Problem | Plik(i) | Priorytet | Opis |
+|---------|---------|-----------|------|
+| OpenAI key client-side | `ai-coach.ts` | 🔴 P0 | Key eksponowany w bundlu. Przenieść na Cloud Functions. |
+| `chat_conversations` brak userId | `useAIChat.ts`, `firestore.rules` | 🔴 P0 | Legacy collection bez per-user isolation. Każdy user widzi wszystkie rozmowy. |
+| Node 20 w CI vs Node 22 w Functions | `deploy.yml`, `functions/package.json` | 🟡 P1 | CI używa Node 20, Functions wymagają 22. Ujednolicić. |
+| `VITE_ALLOWED_EMAIL` legacy secret | `deploy.yml` | 🟢 P2 | Stary secret (single email) wciąż w CI. Usunąć po weryfikacji. |
+| Exercise library hardcoded | `exerciseLibrary.ts` | 🟢 P2 | 82 ćwiczeń w kodzie, nie w bazie. Dodanie wymaga deploy. |
+| Warmup data unused | `warmupStretching.ts` | 🟢 P2 | Plik z danymi rozgrzewki istnieje, ale nie jest zintegrowany w UI. |
+| Offline queue unused | `offline-queue.ts`, `useOnlineStatus.ts` | 🟡 P1 | Infrastruktura gotowa, brak integracji z hookami CRUD. |
+
+---
+
+## POTENCJALNE ULEPSZENIA (z analizy kodu)
+
+### Architektura
+- **Cloud Functions proxy dla OpenAI** — bezpieczniejsze, rate limiting, logging kosztów
+- **React Query dla AI calls** — cache, retry, deduplication (zamiast ręcznego cache w localStorage)
+- **Firestore sub-collections** — `users/{uid}/workouts` zamiast flat collection z `userId` field (lepsza skalowalność)
+
+### UX
+- **Skeleton loading** — zamiast spinnerów przy ładowaniu treningów
+- **Optimistic updates** — natychmiastowa zmiana UI przed potwierdzeniem Firebase
+- **Onboarding tooltip** — wskazówki dla nowych użytkowników po pierwszym logowaniu
+- **Plan comparison** — porównanie starego i nowego planu przy generowaniu
+
+### AI
+- **Streaming responses** — AI Chat z real-time streaming (zamiast czekania na pełną odpowiedź)
+- **Cost tracking** — logowanie kosztów AI per user (token usage)
+- **Contextual suggestions** — AI proponuje zmiany w trakcie treningu (nie tylko w Coach)
+- **Multi-language prompts** — system prompts jako konfiguracja (nie hardcoded PL)
+
+### Analytics
+- **Tonnage per muscle group** — rozbicie tonaż na grupy mięśniowe
+- **Week-over-week comparison** — porównanie z poprzednim tygodniem
+- **Exercise frequency heatmap** — wizualizacja jak często robisz dane ćwiczenie
+- **Recovery tracking** — RPE (Rate of Perceived Exertion) per set
 
 ---
 

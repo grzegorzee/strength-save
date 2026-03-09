@@ -10,9 +10,9 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v5.1.0) |
+| **Status** | AKTYWNY (v5.2.0) |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-03-08 |
+| **Data aktualizacji** | 2026-03-09 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), + whitelist |
 
 ---
@@ -31,6 +31,7 @@
 | Plik | Opis |
 |------|------|
 | START.md | Ten plik - quick reference |
+| REQUIREMENTS.md | **Wymagania, env vars, instalacja, deploy, troubleshooting** |
 | PLAN.md | Plan, kamienie milowe, zadania |
 | DECYZJE.md | Log decyzji projektowych |
 | DOCUMENTATION.md | **Pełna dokumentacja techniczna systemu** |
@@ -44,7 +45,11 @@
 | src/hooks/useTrainingPlan.ts | Plan treningowy per-user (duration, expiration) |
 | src/hooks/useStrava.ts | Integracja Strava (activities, sync) |
 | src/hooks/useAICoach.ts | AI Coach (insights, cache 24h) |
+| src/hooks/useAIChat.ts | Chat z AI trenerem (Firestore conversations) |
+| src/hooks/useAISwap.ts | Zamiana ćwiczeń przez AI (3 alternatywy) |
+| src/hooks/useOnlineStatus.ts | Detekcja online/offline + pending ops |
 | src/hooks/useAuth.ts | Autentykacja Google OAuth + whitelist |
+| src/hooks/use-mobile.tsx | Detekcja urządzenia mobilnego |
 
 ### Kod źródłowy - Strony
 | Plik | Opis |
@@ -56,6 +61,7 @@
 | src/pages/Onboarding.tsx | Wizard 5 kroków → AI generuje plan → review + swap |
 | src/pages/NewPlan.tsx | Generowanie nowego planu po wygaśnięciu |
 | src/pages/AIChat.tsx | Chat z AI coachem + "Podsumuj tydzień" z Strava |
+| src/pages/DayPlan.tsx | Plan na dzisiaj (co dziś?) |
 | src/pages/Settings.tsx | Ustawienia konta, Strava connect/sync |
 | src/pages/Achievements.tsx | Osiągnięcia i rekordy osobiste |
 | src/pages/PlanEditor.tsx | Edytor planu treningowego |
@@ -64,9 +70,11 @@
 | Plik | Opis |
 |------|------|
 | src/data/trainingPlan.ts | Domyślny plan + typy + getTrainingSchedule() |
-| src/data/exerciseLibrary.ts | Biblioteka 60+ ćwiczeń z kategoriami |
+| src/data/exerciseLibrary.ts | Biblioteka 84 ćwiczeń z kategoriami |
 | src/lib/ai-onboarding.ts | Generowanie planu AI (OpenAI) |
-| src/lib/ai-coach.ts | AI Coach: analiza treningów, callOpenAI() |
+| src/lib/ai-coach.ts | AI Coach: analiza treningów, callOpenAI() (gpt-5-mini) |
+| src/lib/ai-chat.ts | sendChatMessage() — chat z kontekstem treningowym |
+| src/lib/offline-queue.ts | Kolejka operacji offline (localStorage) |
 | src/lib/pr-utils.ts | Detekcja rekordów osobistych |
 | src/lib/summary-utils.ts | Streak, bounds tygodnia |
 | src/lib/exercise-utils.ts | parseSetCount, createEmptySets, sanitizeSets |
@@ -273,15 +281,71 @@ Projekt jest w: /Users/grzegorzjasionowicz/Documents/Baza Wiedzy/FIRMA/projekty/
 
 ---
 
+## ZMIENNE ŚRODOWISKOWE (skrócone)
+
+```bash
+# .env (frontend)
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=fittracker-workouts.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=fittracker-workouts
+VITE_FIREBASE_STORAGE_BUCKET=fittracker-workouts.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+VITE_ALLOWED_EMAILS=email1@gmail.com,email2@gmail.com
+VITE_OPENAI_API_KEY=sk-proj-...
+
+# functions/.env (Cloud Functions)
+STRAVA_CLIENT_ID=209317
+STRAVA_CLIENT_SECRET=...
+STRAVA_REDIRECT_URI=https://grzegorzee.github.io/strength-save/strava-callback.html
+```
+
+**Pełna dokumentacja zmiennych:** → `REQUIREMENTS.md`
+
+---
+
+## CI/CD
+
+**GitHub Actions** (`.github/workflows/deploy.yml`):
+- **Trigger:** Push na `main` lub manual dispatch
+- **Pipeline:** Checkout → Node 20 → `npm ci` → `npm run build` (z secrets) → Deploy to Pages
+- **Secrets:** 9 zmiennych w GitHub Settings → Secrets and variables → Actions
+
+**Ręczny deploy:**
+```bash
+npm run deploy    # gh-pages -d dist
+```
+
+---
+
+## MODEL AI
+
+| Parametr | Wartość |
+|----------|---------|
+| **Model** | `gpt-5-mini` (OpenAI) |
+| **Pricing** | $0.25 / 1M input, $2.00 / 1M output |
+| **Context** | 400K tokens |
+| **Centralna funkcja** | `callOpenAI()` w `src/lib/ai-coach.ts` |
+
+**Funkcje AI:**
+1. **Plan generation** (`ai-onboarding.ts`) — generowanie planu treningowego z onboardingu
+2. **AI Coach** (`ai-coach.ts`) — analiza treningów, plateau detection, insights
+3. **AI Chat** (`ai-chat.ts`) — rozmowa z trenerem z kontekstem treningowym
+4. **Exercise swap** (`ai-coach.ts` → `getSwapSuggestions`) — 3 alternatywy dla ćwiczenia
+5. **Workout summary** (`ai-coach.ts` → `generateWorkoutSummary`) — podsumowanie treningu
+
+---
+
 ## NOTATKI
 
 - Whitelist auth: multi-email (`VITE_ALLOWED_EMAILS` comma-separated)
 - HashRouter zamiast BrowserRouter (GitHub Pages)
 - Firebase nie akceptuje `undefined` - dane muszą być sanityzowane
 - Debounce 500ms przy auto-save w aktywnym treningu
-- OpenAI API key w `VITE_OPENAI_API_KEY`
-- Strava client credentials w Firebase Cloud Functions config
+- OpenAI API key w `VITE_OPENAI_API_KEY` (client-side!)
+- Strava client credentials w Firebase Cloud Functions (`functions/.env`)
 - Plan expiration: `currentWeek > planDurationWeeks` → banner + /new-plan
 - Onboarding: nowi użytkownicy → wizard → AI plan → review → Dashboard
 - Istniejący użytkownicy: auto-detect (mają workouty) → skip onboarding
+- `chat_conversations` — legacy collection bez per-user isolation (do naprawy)
 - 🔴 **DEPLOY:** `git push` ≠ deploy! Po KAŻDEJ zmianie kodu → `npm run deploy` (gh-pages branch)

@@ -248,6 +248,13 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
       maxHeartrate: activity.max_heartrate || null,
       totalElevationGain: activity.total_elevation_gain || null,
       averageSpeed: activity.average_speed || null,
+      calories: activity.calories || null,
+      description: activity.description || null,
+      sportType: activity.sport_type || null,
+      averageCadence: activity.average_cadence || null,
+      startDateLocal: activity.start_date_local || null,
+      trainer: activity.trainer ?? null,
+      kudosCount: activity.kudos_count || null,
       stravaUrl: `https://www.strava.com/activities/${activity.id}`,
       syncedAt: new Date().toISOString(),
     });

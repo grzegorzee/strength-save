@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ChevronRight } from 'lucide-react';
 import type { StravaActivity } from '@/types/strava';
+import { StravaActivityDetail } from '@/components/StravaActivityDetail';
 
 const activityIcons: Record<string, string> = {
   Run: '🏃',
@@ -40,32 +43,56 @@ const formatPace = (speedMs?: number, type?: string): string => {
   return `${(speedMs * 3.6).toFixed(1)} km/h`;
 };
 
+const formatShortDate = (activity: StravaActivity): string => {
+  const dateSource = activity.startDateLocal || activity.date;
+  const date = new Date(dateSource);
+  return date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+};
+
 export const StravaActivityCard = ({ activity }: { activity: StravaActivity }) => {
+  const [detailOpen, setDetailOpen] = useState(false);
   const icon = activityIcons[activity.type] || '🏅';
+  const shortDate = formatShortDate(activity);
 
   return (
-    <Card className="bg-orange-500/5 border-orange-500/20">
-      <CardContent className="py-3">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-lg">
-            {icon}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-medium text-sm truncate">{activity.name}</p>
-              <Badge variant="outline" className="text-[10px] shrink-0 border-orange-500/30 text-orange-600">
-                Strava
-              </Badge>
+    <>
+      <Card
+        className="bg-orange-500/5 border-orange-500/20 cursor-pointer hover:bg-orange-500/10 transition-colors"
+        onClick={() => setDetailOpen(true)}
+      >
+        <CardContent className="py-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-lg">
+              {icon}
             </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-              {activity.distance && <span>{formatDistance(activity.distance)}</span>}
-              {activity.movingTime && <span>{formatDuration(activity.movingTime)}</span>}
-              {activity.averageSpeed && <span>{formatPace(activity.averageSpeed, activity.type)}</span>}
-              {activity.averageHeartrate && <span>❤️ {Math.round(activity.averageHeartrate)}</span>}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-sm truncate">{activity.name}</p>
+                <span className="text-xs text-muted-foreground shrink-0">{shortDate}</span>
+                <Badge variant="outline" className="text-[10px] shrink-0 border-orange-500/30 text-orange-600">
+                  Strava
+                </Badge>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                {activity.distance && <span>{formatDistance(activity.distance)}</span>}
+                {activity.movingTime && <span>{formatDuration(activity.movingTime)}</span>}
+                {activity.averageSpeed && <span>{formatPace(activity.averageSpeed, activity.type)}</span>}
+                {activity.totalElevationGain != null && activity.totalElevationGain > 0 && (
+                  <span>↗ {Math.round(activity.totalElevationGain)}m</span>
+                )}
+                {activity.averageHeartrate && <span>❤️ {Math.round(activity.averageHeartrate)}</span>}
+              </div>
             </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <StravaActivityDetail
+        activity={activity}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
+    </>
   );
 };

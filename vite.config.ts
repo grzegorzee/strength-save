@@ -2,10 +2,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
+import { version } from "./package.json";
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
   base: '/strength-save/',
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   server: {
     host: "::",
     port: 8080,

@@ -75,6 +75,8 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: 'Ab Rollout', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=ikkOq5mHaho' },
   { name: 'Unoszenie nóg w zwisie', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=Pr1ieGZ5atk' },
   { name: 'Skręty rosyjskie', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=wkD8rjkodUI' },
+  { name: 'Modlitewnik (Cable Crunch)', category: 'core', type: 'isolation' },
+  { name: 'Reverse Crunch na ławce', category: 'core', type: 'isolation' },
 
   // Calves
   { name: 'Wspięcia na palce (Nogi proste)', category: 'calves', type: 'isolation' },

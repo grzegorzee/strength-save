@@ -71,7 +71,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                 Plan Treningowy 2026
               </p>
               <p className="text-[10px] text-muted-foreground/50 mt-2">
-                Wersja: v5.0.0
+                Wersja: v{__APP_VERSION__}
               </p>
             </div>
           </div>

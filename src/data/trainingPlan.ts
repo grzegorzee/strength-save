@@ -200,6 +200,21 @@ export const trainingPlan: TrainingDay[] = [
             content: "Hantel lub linka. Łokcie przy uszach, opuszczaj głęboko za kark."
           }
         ]
+      },
+      {
+        id: "ex-1-7",
+        name: "Modlitewnik (Cable Crunch)",
+        sets: "3 x 10-12",
+        instructions: [
+          {
+            title: "📍 Ustawienie",
+            content: "Klęknij przed wyciągiem górnym. Trzymaj linkę za głową."
+          },
+          {
+            title: "💪 Ruch",
+            content: "Zginaj tułów w stronę kolan, napinając brzuch. Kontrolowany powrót."
+          }
+        ]
       }
     ]
   },
@@ -310,6 +325,21 @@ export const trainingPlan: TrainingDay[] = [
           {
             title: "🎯 Kluczowe",
             content: "Leżąc na macie. Lędźwie muszą być wklejone w podłogę. Opuszczaj rękę i nogę na przemian powoli."
+          }
+        ]
+      },
+      {
+        id: "ex-2-7",
+        name: "Reverse Crunch na ławce",
+        sets: "3 x 12-15",
+        instructions: [
+          {
+            title: "📍 Ustawienie",
+            content: "Leżąc na ławce płaskiej, chwyć krawędź ławki za głową."
+          },
+          {
+            title: "💪 Ruch",
+            content: "Podciągaj kolana do klatki, unosząc miednicę. Kontrolowany powrót, nie kładź stóp na ziemi."
           }
         ]
       }
@@ -426,6 +456,21 @@ export const trainingPlan: TrainingDay[] = [
           {
             title: "🦵 Łydki",
             content: "Stojąc lub na suwnicy. Kolana proste. Długa pauza (2 sekundy) w dolnym rozciągnięciu!"
+          }
+        ]
+      },
+      {
+        id: "ex-3-7",
+        name: "Modlitewnik (Cable Crunch)",
+        sets: "3 x 10-12",
+        instructions: [
+          {
+            title: "📍 Ustawienie",
+            content: "Klęknij przed wyciągiem górnym. Trzymaj linkę za głową."
+          },
+          {
+            title: "💪 Ruch",
+            content: "Zginaj tułów w stronę kolan, napinając brzuch. Kontrolowany powrót."
           }
         ]
       }

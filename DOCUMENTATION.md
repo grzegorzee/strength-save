@@ -1,4 +1,4 @@
-# FitTracker - Dokumentacja Systemu v5.1.0
+# FitTracker - Dokumentacja Systemu v5.2.0
 
 ## Spis treści
 1. [Architektura](#architektura)
@@ -10,11 +10,17 @@
 7. [Przepływ danych](#przepływ-danych)
 8. [Firebase](#firebase)
 9. [AI Integration](#ai-integration)
-10. [Strava Integration](#strava-integration)
-11. [Onboarding i Plan Management](#onboarding-i-plan-management)
-12. [Funkcjonalności](#funkcjonalności)
-13. [Deployment](#deployment)
-14. [Changelog](#changelog)
+10. [AI Chat System](#ai-chat-system)
+11. [AI Models](#ai-models)
+12. [Exercise Progression](#exercise-progression)
+13. [Strava Integration](#strava-integration)
+14. [Onboarding i Plan Management](#onboarding-i-plan-management)
+15. [Offline Support](#offline-support)
+16. [Funkcjonalności](#funkcjonalności)
+17. [CI/CD Pipeline](#cicd-pipeline)
+18. [Deployment](#deployment)
+19. [Known Issues / Gotchas](#known-issues--gotchas)
+20. [Changelog](#changelog)
 
 ---
 
@@ -106,11 +112,14 @@ src/
 │   ├── TrainingDayCard.tsx    # Karta dnia treningowego (Dashboard)
 │   ├── MeasurementsForm.tsx   # Formularz pomiarów ciała (10 pól)
 │   ├── RestTimer.tsx          # Timer odpoczynku (circular progress, presets)
-│   └── ui/                    # Komponenty shadcn/ui (~30 komponentów)
+│   ├── DataManagement.tsx     # Export/import JSON (Settings)
+│   ├── TypingIndicator.tsx    # Animacja "pisze..." w AI Chat
+│   ├── NavLink.tsx            # Link nawigacji z aktywnym stanem
+│   └── ui/                    # Komponenty shadcn/ui (~60 komponentów)
 │
 ├── pages/
 │   ├── Dashboard.tsx          # Strona główna: greeting, stats, AI insights, plan tygodnia, Strava, PR
-│   ├── DayPlan.tsx            # Plan na dzisiaj
+│   ├── DayPlan.tsx            # Plan na dzisiaj (week schedule view)
 │   ├── TrainingPlan.tsx       # Kalendarz + plan tygodniowy + Strava activities
 │   ├── WorkoutDay.tsx         # Aktywny trening / ukończony / edycja (3 tryby)
 │   ├── Analytics.tsx          # 4 taby: Podsumowanie, Wykresy, Pomiary, Rekordy
@@ -133,7 +142,11 @@ src/
 │   ├── useTrainingPlan.ts     # Plan per-user (duration, expiration, CRUD exercises)
 │   ├── useStrava.ts           # Strava: connect, sync, disconnect, activities
 │   ├── useAICoach.ts          # AI insights z cache 24h
+│   ├── useAIChat.ts           # Chat z AI trenerem (Firestore conversations)
+│   ├── useAISwap.ts           # Zamiana ćwiczeń przez AI (3 alternatywy)
+│   ├── useOnlineStatus.ts     # Online/offline detection + pending ops queue
 │   ├── useAuth.ts             # Google OAuth + multi-email whitelist
+│   ├── use-mobile.tsx         # Detekcja urządzenia mobilnego (media query)
 │   └── use-toast.ts           # Toast hook (shadcn)
 │
 ├── types/
@@ -142,15 +155,18 @@ src/
 │
 ├── data/
 │   ├── trainingPlan.ts        # Domyślny plan 3x/tyg + typy + getTrainingSchedule()
-│   └── exerciseLibrary.ts     # 60+ ćwiczeń z kategoriami i video URL
+│   ├── exerciseLibrary.ts     # 84 ćwiczeń z kategoriami i video URL
+│   └── warmupStretching.ts    # Rozgrzewka i stretching (nie zintegrowane w UI)
 │
 └── lib/
     ├── firebase.ts            # Konfiguracja Firebase (env variables)
     ├── ai-onboarding.ts       # generateTrainingPlan() — OpenAI
-    ├── ai-coach.ts            # callOpenAI(), prepareCoachData(), analyzeWithAI()
-    ├── pr-utils.ts            # detectNewPRs() — detekcja rekordów osobistych
-    ├── summary-utils.ts       # calculateStreak(), getWeekBounds()
-    ├── exercise-utils.ts      # parseSetCount(), createEmptySets(), sanitizeSets()
+    ├── ai-coach.ts            # callOpenAI(), prepareCoachData(), analyzeWithAI(), getSwapSuggestions()
+    ├── ai-chat.ts             # sendChatMessage() — chat z kontekstem treningowym
+    ├── pr-utils.ts            # detectNewPRs(), calculate1RM() (Epley formula)
+    ├── summary-utils.ts       # calculateStreak(), calculateTonnage(), getWeekBounds()
+    ├── exercise-utils.ts      # parseRepRange(), getProgressionAdvice(), getRestDuration(), sanitizeSets()
+    ├── offline-queue.ts       # Kolejka operacji offline (localStorage)
     └── utils.ts               # cn() (clsx + tailwind-merge)
 
 functions/                     # Firebase Cloud Functions (Strava OAuth)
@@ -597,6 +613,62 @@ AI Coach z cache 24h (localStorage).
 }
 ```
 
+### useAIChat(userId)
+Chat z AI trenerem — rozmowy przechowywane w Firestore `chat_conversations`.
+
+```typescript
+{
+  conversations: ChatConversation[];
+  activeConversation: ChatConversation | null;
+  activeConversationId: string | null;
+  isTyping: boolean;                     // AI generuje odpowiedź
+  error: string | null;
+
+  createConversation()                   // Nowy wątek
+  deleteConversation(id)                 // Usuń wątek
+  sendMessage(text)                      // Wyślij (auto-creates conv if none)
+  setActiveConversation(id)              // Przełącz aktywną rozmowę
+}
+```
+
+**Przepływ:**
+1. User pisze wiadomość → `sendMessage(text)`
+2. Jeśli brak aktywnej rozmowy → auto `createConversation()`
+3. User message zapisany do Firestore natychmiast
+4. `sendChatMessage()` → `callOpenAI()` z pełnym kontekstem treningowym
+5. Assistant message dołączony i zapisany do Firestore
+6. Tytuł rozmowy = pierwsze 50 znaków pierwszej wiadomości
+
+**Uwaga:** Kolekcja `chat_conversations` jest **legacy** — brak `userId` na dokumentach, brak per-user isolation w security rules. Każdy zalogowany user widzi wszystkie rozmowy.
+
+### useAISwap(userId)
+Znajdowanie alternatyw dla ćwiczenia przez AI.
+
+```typescript
+{
+  result: SwapSuggestion | null;   // { original, alternatives[] }
+  isLoading: boolean;
+  error: string | null;
+  findSwap(exerciseName, reason)   // Zwraca 3 alternatywy
+  reset()                          // Czyści wynik
+}
+```
+
+Wewnętrznie wywołuje `getSwapSuggestions()` z `ai-coach.ts`, przekazując aktualny plan treningowy.
+
+### useOnlineStatus()
+Detekcja online/offline z integracją offline queue.
+
+```typescript
+{
+  isOnline: boolean;               // navigator.onLine + event listeners
+  pendingOps: number;              // Liczba operacji w offline queue
+  refreshPendingOps()              // Ręczne odświeżenie licznika
+}
+```
+
+Polling co 2 sekundy sprawdza rozmiar `offlineQueue`.
+
 ---
 
 ## Przepływ danych
@@ -734,23 +806,80 @@ fittracker-workouts (project)
 │   ├── startDate: string (YYYY-MM-DD)
 │   └── updatedAt: string (ISO)
 │
-└── strava_activities/{auto-id}  # Aktywności Strava
-    ├── userId, stravaId, name, type, date
-    ├── distance?, movingTime?, elapsedTime?
-    ├── averageHeartrate?, maxHeartrate?
-    ├── totalElevationGain?, averageSpeed?
-    └── stravaUrl, syncedAt
+├── strava_activities/{auto-id}  # Aktywności Strava
+│   ├── userId, stravaId, name, type, date
+│   ├── distance?, movingTime?, elapsedTime?
+│   ├── averageHeartrate?, maxHeartrate?
+│   ├── totalElevationGain?, averageSpeed?
+│   └── stravaUrl, syncedAt
+│
+└── chat_conversations/{convId}  # Rozmowy AI Chat (legacy)
+    ├── id, title
+    ├── createdAt, updatedAt (ISO)
+    └── messages: [{ role, content, timestamp }]
 ```
+
+**⚠️ `chat_conversations`:** Legacy collection — brak pola `userId`, brak per-user isolation. Dostęp: dowolny zalogowany user (read/write).
 
 ### Composite Indexes (wymagane)
 - `workouts`: userId ASC + date DESC
 - `measurements`: userId ASC + date DESC
 - `strava_activities`: userId ASC + date DESC
 
-### Security Rules
-- Użytkownicy czytają/piszą tylko swoje dane (`request.auth.uid == resource.data.userId`)
-- Admin ma read all
-- Training plans: owner może read/write swój plan
+### Security Rules (`firestore.rules`)
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+      allow create: if request.auth.uid == userId;
+      allow read, write: if isAdmin();
+    }
+
+    match /workouts/{workoutId} {
+      allow read: if resource.data.userId == request.auth.uid;
+      allow create: if request.resource.data.userId == request.auth.uid;
+      allow update, delete: if resource.data.userId == request.auth.uid;
+      allow read: if isAdmin();
+    }
+
+    match /measurements/{measurementId} {
+      // Identyczne reguły jak workouts (per-user isolation)
+    }
+
+    match /training_plans/{planUserId} {
+      allow read, write: if request.auth.uid == planUserId;
+      allow read, write: if isAdmin();
+    }
+
+    match /strava_activities/{activityId} {
+      allow read: if resource.data.userId == request.auth.uid;
+      allow write: if false;  // Tylko Cloud Functions
+      allow read: if isAdmin();
+    }
+
+    match /chat_conversations/{convId} {
+      allow read, write: if request.auth != null;  // Legacy: brak per-user isolation
+    }
+  }
+}
+```
+
+**Kluczowe zasady:**
+- Per-user isolation: `userId == request.auth.uid` na workouts, measurements, strava_activities
+- Admin: `role == 'admin'` → read/write all (z wyjątkiem strava_activities write)
+- Users nie mogą zmieniać swojego `role` (zabezpieczenie przed eskalacją)
+- Strava activities: write disabled (tylko Cloud Functions mają dostęp via admin SDK)
+- Chat conversations: **brak per-user isolation** (legacy — do naprawy)
 
 ### Sanityzacja danych
 Firebase nie akceptuje `undefined`. Dane muszą być sanityzowane:
@@ -787,6 +916,159 @@ Klucz w `VITE_OPENAI_API_KEY`. Wywołanie przez `callOpenAI()` w `src/lib/ai-coa
 - Interaktywny chat z AI trenerem
 - Quick actions: "Podsumuj tydzień" — zawiera treningi + aktywności Strava
 - `buildWeekSummaryPrompt()` — buduje prompt z danymi tygodnia
+
+---
+
+## AI Chat System
+
+### Architektura
+
+```
+AIChat.tsx (UI)
+  ↓
+useAIChat(userId) (hook)
+  ↓ sendMessage()
+ai-chat.ts → sendChatMessage()
+  ↓
+  ├── prepareCoachData() — kontekst treningowy
+  ├── history[] — dotychczasowe wiadomości
+  └── callOpenAI() — gpt-5-mini
+  ↓
+Firestore: chat_conversations/{convId}
+```
+
+### Typy
+
+```typescript
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;           // ISO
+}
+
+interface ChatConversation {
+  id: string;                  // "chat-{timestamp}"
+  title: string;               // Pierwsze 50 znaków pierwszej wiadomości
+  createdAt: string;           // ISO
+  updatedAt: string;           // ISO
+  messages: ChatMessage[];
+}
+```
+
+### Przepływ sendMessage()
+
+1. User wpisuje tekst → `sendMessage(text)`
+2. Jeśli brak aktywnej rozmowy → `createConversation()` (auto)
+3. User message zapisany do Firestore natychmiast (optimistic update)
+4. `sendChatMessage(history, workouts, measurements, plan)`:
+   - Buduje system prompt z `CHAT_SYSTEM_PROMPT` + dane treningowe (JSON)
+   - Dodaje pełną historię rozmowy
+   - `callOpenAI()` → odpowiedź w plain text
+5. Assistant message dołączony → zapis do Firestore
+6. Real-time `onSnapshot()` → UI aktualizuje się automatycznie
+
+### Quick Actions
+
+`AIChat.tsx` oferuje szybkie akcje:
+- **"Podsumuj tydzień"** — `buildWeekSummaryPrompt()` zbiera treningi + Strava z bieżącego tygodnia
+
+---
+
+## AI Models
+
+### Aktualny model: `gpt-5-mini`
+
+| Parametr | Wartość |
+|----------|---------|
+| Model | `gpt-5-mini` |
+| Provider | OpenAI |
+| Context window | 400K tokens |
+| Input pricing | $0.25 / 1M tokens |
+| Output pricing | $2.00 / 1M tokens |
+| Endpoint | `https://api.openai.com/v1/chat/completions` |
+| Konfiguracja | `src/lib/ai-coach.ts:156` — hardcoded w `callOpenAI()` |
+
+### Centralna funkcja: `callOpenAI()`
+
+```typescript
+// src/lib/ai-coach.ts
+export async function callOpenAI(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+): Promise<string> {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({ model: 'gpt-5-mini', messages }),
+  });
+  // ... parse response
+}
+```
+
+Wszystkie AI features korzystają z tej jednej funkcji.
+
+### Funkcje AI i ich pliki
+
+| Funkcja | Plik | Wywołanie |
+|---------|------|-----------|
+| Plan generation | `ai-onboarding.ts` | `generateTrainingPlan(answers)` |
+| Coach analysis | `ai-coach.ts` | `analyzeWithAI(data)` → `CoachInsight[]` |
+| Exercise swap | `ai-coach.ts` | `getSwapSuggestions(exercise, reason, plan)` |
+| Workout summary | `ai-coach.ts` | `generateWorkoutSummary(workout, prev, plan)` |
+| Plan suggestions | `ai-coach.ts` | `suggestPlanChanges(data)` |
+| Chat | `ai-chat.ts` | `sendChatMessage(history, workouts, measurements, plan)` |
+
+### Zmiana modelu
+
+Żeby zmienić model AI, wystarczy zmienić string `'gpt-5-mini'` w `callOpenAI()` na inny model. Kompatybilne modele (OpenAI API format):
+- OpenAI: `gpt-4o`, `gpt-4o-mini`, `o3-mini`
+- Inne providery (wymagają zmiany endpoint): Claude, Gemini, DeepSeek
+
+---
+
+## Exercise Progression
+
+### parseRepRange() — parsowanie schematów serii
+
+```typescript
+// "3 x 6-8" → { min: 6, max: 8 }
+// "3 x 10"  → { min: 10, max: 10, isFixed: true }
+// "3 x MAX" → { min: 0, max: 0, isMax: true }
+```
+
+Plik: `src/lib/exercise-utils.ts`
+
+### getProgressionAdvice() — podpowiedź progresji
+
+Logika oparta na pozycji ćwiczenia w dniu treningowym:
+
+| Pozycja | Typ | Increment |
+|---------|-----|-----------|
+| Index 0-2 | Compound | **+2.5 kg** |
+| Index 3+ lub superset | Isolation | **+1 kg** |
+
+**Reguły:**
+- Wszystkie serie ≥ max repsów → `↑ +2.5kg` (lub `+1kg` dla izolacji)
+- Jakakolwiek seria < min repsów → `Utrzymaj ciężar`
+- Pomiędzy → `Powtórz`
+- `isMax` (np. "3 x MAX") → brak podpowiedzi
+
+### getRestDuration() — czas odpoczynku
+
+| Kontekst | Czas |
+|----------|------|
+| Superset (pierwszy w parze) | **15 sekund** |
+| Superset (drugi w parze) | **90 sekund** |
+| Compound (index < 3) | **150 sekund** (2.5 min) |
+| Isolation (index ≥ 3) | **75 sekund** (1.25 min) |
+
+### PR Detection — `pr-utils.ts`
+
+- `calculate1RM(weight, reps)` — wzór Epley: `weight × (1 + reps/30)`
+- `getExerciseBest1RM(workouts, exerciseId)` — najlepszy ciężar + najlepszy estimated 1RM
+- `detectNewPRs(current, previous, exerciseNames)` → `PRComparison[]` z typami: Weight PR, 1RM PR, lub oba
 
 ---
 
@@ -847,6 +1129,48 @@ Frontend                    Cloud Functions              Strava API
 - `getTrainingSchedule()` akceptuje `weeks` i `days` parametry
 - Mapowanie weekday → offset (monday=0, tuesday=1, ...)
 - Plany 2-5 dni/tydzień z automatycznym mapowaniem
+
+---
+
+## Offline Support
+
+### Architektura
+
+Projekt ma wbudowaną infrastrukturę offline, choć nie jest jeszcze w pełni zintegrowana z UI:
+
+**1. PWA Service Worker (Workbox)**
+- Konfiguracja w `vite.config.ts` via `vite-plugin-pwa`
+- Strategia: **network-first** dla Firestore API (tryb online preferowany, offline z cache)
+- Cache: Globalne assety (`**/*.{js,css,html,ico,png,svg,woff,woff2}`)
+- Czas życia cache: 24h
+- Navigation fallback denylist: `/strava-callback.html` (OAuth musi iść online)
+
+**2. Offline Queue (`src/lib/offline-queue.ts`)**
+
+```typescript
+interface QueuedOperation {
+  id: string;
+  type: 'updateExercise' | 'completeWorkout' | 'createWorkout';
+  payload: Record<string, unknown>;
+  timestamp: number;
+}
+```
+
+API:
+- `offlineQueue.add(op)` — dodaje operację do localStorage queue
+- `offlineQueue.getAll()` — pobiera wszystkie oczekujące operacje
+- `offlineQueue.remove(id)` — usuwa operację po wykonaniu
+- `offlineQueue.clear()` — czyści kolejkę
+- `offlineQueue.size()` — liczba oczekujących operacji
+
+Storage: `localStorage` → klucz `fittracker_offline_queue`
+
+**3. useOnlineStatus() hook**
+- Nasłuchuje `online`/`offline` eventów przeglądarki
+- Polluje `offlineQueue.size()` co 2 sekundy
+- Zwraca `{ isOnline, pendingOps, refreshPendingOps }`
+
+**Status:** Infrastruktura gotowa, brak pełnej integracji w hookach CRUD (operacje nie są automatycznie queue'owane gdy offline).
 
 ---
 
@@ -929,6 +1253,64 @@ Frontend                    Cloud Functions              Strava API
 
 ---
 
+## CI/CD Pipeline
+
+### GitHub Actions (`.github/workflows/deploy.yml`)
+
+**Trigger:** Push na branch `main` lub manual `workflow_dispatch`
+
+**Pipeline:**
+```
+Push to main
+  ↓
+GitHub Actions (ubuntu-latest)
+  ↓
+1. actions/checkout@v4
+  ↓
+2. actions/setup-node@v4 (Node 20 + npm cache)
+  ↓
+3. npm ci
+  ↓
+4. npm run build
+   └── Env vars z GitHub Secrets:
+       VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN,
+       VITE_FIREBASE_PROJECT_ID, VITE_FIREBASE_STORAGE_BUCKET,
+       VITE_FIREBASE_MESSAGING_SENDER_ID, VITE_FIREBASE_APP_ID,
+       VITE_ALLOWED_EMAIL (legacy), VITE_ALLOWED_EMAILS,
+       VITE_OPENAI_API_KEY
+  ↓
+5. actions/configure-pages@v4
+  ↓
+6. actions/upload-pages-artifact@v3 (path: dist)
+  ↓
+7. actions/deploy-pages@v4 → GitHub Pages
+```
+
+**Permissions:** `contents: read`, `pages: write`, `id-token: write`
+
+**Concurrency:** Grupa `pages`, cancel-in-progress: `true`
+
+**Environment:** `production`
+
+### Cloud Functions deploy (ręczny)
+
+Cloud Functions nie mają CI/CD pipeline — deploy jest ręczny:
+
+```bash
+cd functions
+npm run build         # TypeScript → lib/
+firebase deploy --only functions
+```
+
+### Firestore deploy (ręczny)
+
+```bash
+firebase deploy --only firestore:rules
+firebase deploy --only firestore:indexes
+```
+
+---
+
 ## Deployment
 
 ### GitHub Pages
@@ -1007,6 +1389,37 @@ gh-pages                      — Deploy
 vite-plugin-pwa               — PWA support
 jsdom                         — Test environment
 ```
+
+---
+
+## Known Issues / Gotchas
+
+### 1. `chat_conversations` — brak per-user isolation
+Kolekcja `chat_conversations` jest **legacy** — nie ma pola `userId` na dokumentach. Security rules pozwalają każdemu zalogowanemu userowi czytać/pisać wszystkie rozmowy. **Do naprawy:** dodać `userId` i zaktualizować rules.
+
+### 2. OpenAI API key client-side
+`VITE_OPENAI_API_KEY` jest eksponowany w bundlu frontendowym (Vite). Każdy kto zna URL aplikacji może wyciągnąć key z kodu. **Mitigation:** Email whitelist ogranicza dostęp do aplikacji. **Docelowo:** Przenieść wywołania AI na Cloud Functions.
+
+### 3. Firebase `undefined` values
+Firebase Firestore nie akceptuje `undefined`. Wszystkie dane muszą być sanityzowane przed zapisem. Funkcja `sanitizeSets()` w `exercise-utils.ts` zajmuje się tym dla serii treningowych. Nowe pola muszą używać `?? defaultValue`.
+
+### 4. HashRouter a deep links
+HashRouter (wymagany dla GitHub Pages) powoduje, że URL-e mają `#` — np. `.../#/workout/day-1`. To uniemożliwia standardowe deep linking i SEO. OAuth redirect Strava wymaga workaround via `strava-callback.html` (bridge).
+
+### 5. Plan duration — brak auto-reset
+Gdy plan wygaśnie (`isPlanExpired = true`), użytkownik widzi banner na Dashboard, ale stary plan nadal jest wyświetlany. Nie ma automatycznego reset — user musi sam wejść na `/new-plan` i wygenerować nowy plan.
+
+### 6. Offline queue — brak pełnej integracji
+`offline-queue.ts` i `useOnlineStatus` są zaimplementowane, ale hooki CRUD (`useFirebaseWorkouts`, `useTrainingPlan`) nie korzystają z queue. Operacje offline po prostu failują z Firebase error.
+
+### 7. AI Coach — minimum 6 treningów
+`analyzeWithAI()` wymaga minimum 6 ukończonych treningów (2-3 tygodnie), żeby dać sensowne insights. Nowi użytkownicy widzą pusty AI Coach na Dashboard.
+
+### 8. Exercise library — 84 ćwiczeń (hardcoded)
+Biblioteka ćwiczeń jest w `exerciseLibrary.ts` — nie w bazie danych. Dodanie nowego ćwiczenia wymaga zmiany kodu i deploy. AI onboarding próbuje użyć nazw z biblioteki, ale może wymyślić własne jeśli nie znajdzie dopasowania.
+
+### 9. GitHub Actions Node 20 vs Functions Node 22
+CI/CD pipeline używa Node 20 (wystarczające dla Vite build). Cloud Functions wymagają Node 22 — ale są deployowane ręcznie, nie przez CI.
 
 ---
 
