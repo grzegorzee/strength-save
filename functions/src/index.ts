@@ -140,6 +140,71 @@ export const stravaSync = onCall(async (request) => {
   return { ...result, success: true };
 });
 
+/**
+ * Generate weekly summary text via OpenAI (server-side, key never exposed)
+ */
+export const generateWeeklySummary = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const { stats } = request.data;
+  if (!stats) {
+    throw new HttpsError("invalid-argument", "stats is required");
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    logger.error("[WeeklySummary] OPENAI_API_KEY not configured in functions/.env");
+    throw new HttpsError("failed-precondition", "OpenAI API key not configured");
+  }
+
+  const prompt = `Jesteś trenerem personalnym. Napisz KRÓTKIE (max 150 słów) motywujące podsumowanie tygodnia treningowego po polsku.
+
+Dane z tygodnia:
+- Treningi siłowe: ${stats.workoutCount}
+- Tonaż: ${stats.tonnageKg} kg
+- Bieganie: ${stats.runKm} km
+- Łączny czas aktywności: ~${stats.totalTimeMinutes} min
+- Nowe rekordy: ${stats.prs?.length > 0 ? stats.prs.map((p: {exerciseName: string; newValue: number}) => `${p.exerciseName} (${p.newValue} kg)`).join(", ") : "brak"}
+
+Zasady:
+- Bądź konkretny, używaj liczb
+- Pochwal za dobre rzeczy, delikatnie motywuj do poprawy jeśli trzeba
+- Nie używaj emoji
+- Max 150 słów
+- Nie pisz "Oto podsumowanie" ani podobnych wstępów — zacznij od sedna`;
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "Jesteś osobistym trenerem. Odpowiadaj po polsku, zwięźle i konkretnie." },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 500,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
+    logger.error(`[WeeklySummary] OpenAI API error: ${errorMessage}`);
+    throw new HttpsError("internal", `OpenAI API error: ${errorMessage}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content || "";
+  logger.info(`[WeeklySummary] Generated summary (${text.length} chars) for ${request.auth.uid}`);
+
+  return { text };
+});
+
 async function refreshStravaToken(userId: string, refreshToken: string): Promise<string> {
   const { clientId, clientSecret } = getStravaConfig();
 

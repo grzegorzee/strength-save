@@ -2,8 +2,9 @@ import type { WorkoutSession } from '@/types';
 import type { StravaActivity } from '@/types/strava';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { getWeekBounds, calculateTonnage, filterWorkoutsByPeriod } from '@/lib/summary-utils';
-import { detectNewPRs, type PRComparison } from '@/lib/pr-utils';
-import { callOpenAI } from '@/lib/ai-coach';
+import { detectNewPRs } from '@/lib/pr-utils';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 
 // --- Types ---
 
@@ -71,29 +72,10 @@ export function prepareWeeklyData(
   return { stats, weekStart, weekEnd, hasData };
 }
 
-// --- Generate summary text via AI ---
+// --- Generate summary text via Cloud Function (OpenAI key stays server-side) ---
 
 export async function generateWeeklySummaryText(stats: WeeklySummaryStats): Promise<string> {
-  const prompt = `Jesteś trenerem personalnym. Napisz KRÓTKIE (max 150 słów) motywujące podsumowanie tygodnia treningowego po polsku.
-
-Dane z tygodnia:
-- Treningi siłowe: ${stats.workoutCount}
-- Tonaż: ${stats.tonnageKg} kg
-- Bieganie: ${stats.runKm} km
-- Łączny czas aktywności: ~${stats.totalTimeMinutes} min
-- Nowe rekordy: ${stats.prs.length > 0 ? stats.prs.map(p => `${p.exerciseName} (${p.newValue} kg)`).join(', ') : 'brak'}
-
-Zasady:
-- Bądź konkretny, używaj liczb
-- Pochwal za dobre rzeczy, delikatnie motywuj do poprawy jeśli trzeba
-- Nie używaj emoji
-- Max 150 słów
-- Nie pisz "Oto podsumowanie" ani podobnych wstępów — zacznij od sedna`;
-
-  const text = await callOpenAI([
-    { role: 'system', content: 'Jesteś osobistym trenerem. Odpowiadaj po polsku, zwięźle i konkretnie.' },
-    { role: 'user', content: prompt },
-  ]);
-
-  return text;
+  const fn = httpsCallable<{ stats: WeeklySummaryStats }, { text: string }>(functions, 'generateWeeklySummary');
+  const result = await fn({ stats });
+  return result.data.text;
 }
