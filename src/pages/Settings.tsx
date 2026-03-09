@@ -119,8 +119,8 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Strava integration */}
-      <Card>
+      {/* Strava integration — admin only */}
+      {isAdmin && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#FC4C02">
@@ -172,7 +172,7 @@ const Settings = () => {
             <p className="text-sm text-destructive">{error}</p>
           )}
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   );
 };

@@ -877,8 +877,11 @@ const WeeklyTab = () => {
 
 const Analytics = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isAdmin } = useCurrentUser();
   const tabParam = searchParams.get('tab') as AnalyticsTab | null;
-  const validTabs: AnalyticsTab[] = ['summary', 'charts', 'measurements', 'strava', 'weekly'];
+  const validTabs: AnalyticsTab[] = isAdmin
+    ? ['summary', 'charts', 'measurements', 'strava', 'weekly']
+    : ['summary', 'charts', 'measurements', 'weekly'];
   const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'summary';
 
   return (
@@ -888,14 +891,14 @@ const Analytics = () => {
           <TabsTrigger value="summary" className="flex-1 text-xs">Podsumowanie</TabsTrigger>
           <TabsTrigger value="charts" className="flex-1 text-xs">Wykresy</TabsTrigger>
           <TabsTrigger value="measurements" className="flex-1 text-xs">Pomiary</TabsTrigger>
-          <TabsTrigger value="strava" className="flex-1 text-xs">Strava</TabsTrigger>
+          {isAdmin && <TabsTrigger value="strava" className="flex-1 text-xs">Strava</TabsTrigger>}
           <TabsTrigger value="weekly" className="flex-1 text-xs">Tygodnie</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary"><SummaryTab /></TabsContent>
         <TabsContent value="charts"><ChartsTab /></TabsContent>
         <TabsContent value="measurements"><MeasurementsTab /></TabsContent>
-        <TabsContent value="strava"><StravaTab /></TabsContent>
+        {isAdmin && <TabsContent value="strava"><StravaTab /></TabsContent>}
         <TabsContent value="weekly"><WeeklyTab /></TabsContent>
       </Tabs>
     </div>
