@@ -218,6 +218,55 @@ Zasady:
   },
 );
 
+/**
+ * Generic OpenAI proxy — all frontend AI calls go through here (key stays server-side)
+ */
+export const proxyOpenAI = onCall(
+  { secrets: [openaiApiKey] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in");
+    }
+
+    const { messages, model, maxTokens } = request.data;
+    if (!messages || !Array.isArray(messages)) {
+      throw new HttpsError("invalid-argument", "messages array is required");
+    }
+
+    const apiKey = openaiApiKey.value();
+    if (!apiKey || apiKey === "PLACEHOLDER") {
+      logger.error("[ProxyOpenAI] openai-api-key not configured");
+      throw new HttpsError("failed-precondition", "OpenAI API key not configured");
+    }
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: model || "gpt-5-mini",
+        messages,
+        max_completion_tokens: maxTokens || 4000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
+      logger.error(`[ProxyOpenAI] OpenAI error: ${errorMessage}`);
+      throw new HttpsError("internal", `OpenAI API error: ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || "";
+    logger.info(`[ProxyOpenAI] OK (${text.length} chars) for ${request.auth.uid}`);
+
+    return { text };
+  },
+);
+
 // --- Helper functions ---
 
 async function refreshStravaToken(userId: string, refreshToken: string): Promise<string> {

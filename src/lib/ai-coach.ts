@@ -1,6 +1,8 @@
 import type { WorkoutSession, BodyMeasurement } from '@/types';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { calculateStreak, getWeekBounds } from '@/lib/summary-utils';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 
 // --- Types ---
 
@@ -136,37 +138,18 @@ export function prepareCoachData(
   };
 }
 
-// --- OpenAI API call ---
+// --- OpenAI API call (via Cloud Function — key stays server-side) ---
 
 export async function callOpenAI(
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
 ): Promise<string> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Brak klucza API OpenAI. Ustaw VITE_OPENAI_API_KEY w .env');
-  }
+  const fn = httpsCallable<
+    { messages: typeof messages; model?: string; maxTokens?: number },
+    { text: string }
+  >(functions, 'proxyOpenAI');
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-5-mini',
-      messages,
-      max_completion_tokens: 4000,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
-    throw new Error(`Błąd OpenAI API: ${errorMessage}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0]?.message?.content || '[]';
+  const result = await fn({ messages });
+  return result.data.text || '[]';
 }
 
 // --- Swap types ---
