@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 
@@ -6,160 +7,171 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
-// Environment variables from functions/.env file
-const getStravaConfig = () => ({
-  clientId: process.env.STRAVA_CLIENT_ID || "",
-  clientSecret: process.env.STRAVA_CLIENT_SECRET || "",
-  redirectUri: process.env.STRAVA_REDIRECT_URI || "",
-});
+// --- Secrets from Google Cloud Secret Manager ---
+const stravaClientId = defineSecret("strava-client-id");
+const stravaClientSecret = defineSecret("strava-client-secret");
+const stravaRedirectUri = defineSecret("strava-redirect-uri");
+const openaiApiKey = defineSecret("openai-api-key");
 
 /**
  * Generate Strava OAuth authorization URL
  */
-export const stravaAuthUrl = onCall(async (request) => {
-  const { userId } = request.data;
-  if (!userId) {
-    throw new HttpsError("invalid-argument", "userId is required");
-  }
+export const stravaAuthUrl = onCall(
+  { secrets: [stravaClientId, stravaRedirectUri] },
+  async (request) => {
+    const { userId } = request.data;
+    if (!userId) {
+      throw new HttpsError("invalid-argument", "userId is required");
+    }
 
-  const { clientId, redirectUri } = getStravaConfig();
-  if (!clientId) {
-    logger.error("[Strava] client_id not configured");
-    throw new HttpsError("failed-precondition", "Strava client_id not configured");
-  }
+    const clientId = stravaClientId.value();
+    const redirectUri = stravaRedirectUri.value();
 
-  const scope = "read,activity:read_all";
-  const url =
-    `https://www.strava.com/oauth/authorize` +
-    `?client_id=${clientId}` +
-    `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&response_type=code` +
-    `&scope=${scope}` +
-    `&approval_prompt=force` +
-    `&state=${userId}`;
+    if (!clientId) {
+      logger.error("[Strava] client_id not configured");
+      throw new HttpsError("failed-precondition", "Strava client_id not configured");
+    }
 
-  logger.info(`[Strava] Auth URL generated for ${userId}, redirect: ${redirectUri}`);
-  return { url };
-});
+    const scope = "read,activity:read_all";
+    const url =
+      `https://www.strava.com/oauth/authorize` +
+      `?client_id=${clientId}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=code` +
+      `&scope=${scope}` +
+      `&approval_prompt=force` +
+      `&state=${userId}`;
+
+    logger.info(`[Strava] Auth URL generated for ${userId}, redirect: ${redirectUri}`);
+    return { url };
+  },
+);
 
 /**
  * Exchange OAuth code for tokens and save to Firestore
  */
-export const stravaCallback = onCall(async (request) => {
-  const { code, userId } = request.data;
-  if (!code || !userId) {
-    throw new HttpsError("invalid-argument", "code and userId are required");
-  }
+export const stravaCallback = onCall(
+  { secrets: [stravaClientId, stravaClientSecret] },
+  async (request) => {
+    const { code, userId } = request.data;
+    if (!code || !userId) {
+      throw new HttpsError("invalid-argument", "code and userId are required");
+    }
 
-  logger.info(`[Strava] Callback: exchanging code for ${userId}`);
-  const { clientId, clientSecret } = getStravaConfig();
+    logger.info(`[Strava] Callback: exchanging code for ${userId}`);
 
-  const response = await fetch("https://www.strava.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      grant_type: "authorization_code",
-    }),
-  });
+    const response = await fetch("https://www.strava.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: stravaClientId.value(),
+        client_secret: stravaClientSecret.value(),
+        code,
+        grant_type: "authorization_code",
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error(`[Strava] Token exchange failed (${response.status}):`, errorText);
-    throw new HttpsError("internal", "Failed to exchange code for tokens");
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error(`[Strava] Token exchange failed (${response.status}):`, errorText);
+      throw new HttpsError("internal", "Failed to exchange code for tokens");
+    }
 
-  const tokenData = await response.json();
-  const athleteName = tokenData.athlete
-    ? `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`.trim()
-    : "unknown";
-  logger.info(`[Strava] Token OK for athlete: ${athleteName} (id: ${tokenData.athlete?.id})`);
+    const tokenData = await response.json();
+    const athleteName = tokenData.athlete
+      ? `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`.trim()
+      : "unknown";
+    logger.info(`[Strava] Token OK for athlete: ${athleteName} (id: ${tokenData.athlete?.id})`);
 
-  await db.doc(`users/${userId}`).update({
-    stravaConnected: true,
-    stravaTokens: {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresAt: tokenData.expires_at,
-    },
-    stravaAthleteId: tokenData.athlete?.id || null,
-    stravaAthleteName: athleteName !== "unknown" ? athleteName : null,
-    stravaLastSync: null, // Force full lookback on new connection
-  });
-  logger.info(`[Strava] User doc updated, stravaLastSync reset to null`);
+    await db.doc(`users/${userId}`).update({
+      stravaConnected: true,
+      stravaTokens: {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresAt: tokenData.expires_at,
+      },
+      stravaAthleteId: tokenData.athlete?.id || null,
+      stravaAthleteName: athleteName !== "unknown" ? athleteName : null,
+      stravaLastSync: null,
+    });
+    logger.info(`[Strava] User doc updated, stravaLastSync reset to null`);
 
-  // Delete existing strava_activities for clean reconnect
-  const existingActivities = await db
-    .collection("strava_activities")
-    .where("userId", "==", userId)
-    .get();
-  if (!existingActivities.empty) {
-    const deleteBatch = db.batch();
-    existingActivities.docs.forEach((d) => deleteBatch.delete(d.ref));
-    await deleteBatch.commit();
-    logger.info(`[Strava] Deleted ${existingActivities.size} old activities for clean reconnect`);
-  }
+    // Delete existing strava_activities for clean reconnect
+    const existingActivities = await db
+      .collection("strava_activities")
+      .where("userId", "==", userId)
+      .get();
+    if (!existingActivities.empty) {
+      const deleteBatch = db.batch();
+      existingActivities.docs.forEach((d) => deleteBatch.delete(d.ref));
+      await deleteBatch.commit();
+      logger.info(`[Strava] Deleted ${existingActivities.size} old activities for clean reconnect`);
+    }
 
-  logger.info(`[Strava] Starting initial sync for ${userId}...`);
-  const result = await syncUserActivities(userId, tokenData.access_token);
-  logger.info(`[Strava] Callback complete: synced=${result.synced}, total=${result.totalFetched}`);
+    logger.info(`[Strava] Starting initial sync for ${userId}...`);
+    const result = await syncUserActivities(userId, tokenData.access_token);
+    logger.info(`[Strava] Callback complete: synced=${result.synced}, total=${result.totalFetched}`);
 
-  return { success: true, ...result };
-});
+    return { success: true, ...result };
+  },
+);
 
 /**
  * Manual sync of Strava activities
  */
-export const stravaSync = onCall(async (request) => {
-  const { userId } = request.data;
-  if (!userId) {
-    throw new HttpsError("invalid-argument", "userId is required");
-  }
+export const stravaSync = onCall(
+  { secrets: [stravaClientId, stravaClientSecret] },
+  async (request) => {
+    const { userId } = request.data;
+    if (!userId) {
+      throw new HttpsError("invalid-argument", "userId is required");
+    }
 
-  logger.info(`[Strava] Manual sync requested for ${userId}`);
-  const userDoc = await db.doc(`users/${userId}`).get();
-  const userData = userDoc.data();
+    logger.info(`[Strava] Manual sync requested for ${userId}`);
+    const userDoc = await db.doc(`users/${userId}`).get();
+    const userData = userDoc.data();
 
-  if (!userData?.stravaConnected || !userData?.stravaTokens) {
-    logger.error(`[Strava] Not connected: stravaConnected=${userData?.stravaConnected}, hasTokens=${!!userData?.stravaTokens}`);
-    throw new HttpsError("failed-precondition", "Strava not connected");
-  }
+    if (!userData?.stravaConnected || !userData?.stravaTokens) {
+      logger.error(`[Strava] Not connected: stravaConnected=${userData?.stravaConnected}, hasTokens=${!!userData?.stravaTokens}`);
+      throw new HttpsError("failed-precondition", "Strava not connected");
+    }
 
-  let accessToken = userData.stravaTokens.accessToken;
-  const now = Math.floor(Date.now() / 1000);
+    let accessToken = userData.stravaTokens.accessToken;
+    const now = Math.floor(Date.now() / 1000);
 
-  if (userData.stravaTokens.expiresAt <= now) {
-    logger.info(`[Strava] Token expired (${userData.stravaTokens.expiresAt} <= ${now}), refreshing...`);
-    accessToken = await refreshStravaToken(userId, userData.stravaTokens.refreshToken);
-  }
+    if (userData.stravaTokens.expiresAt <= now) {
+      logger.info(`[Strava] Token expired (${userData.stravaTokens.expiresAt} <= ${now}), refreshing...`);
+      accessToken = await refreshStravaToken(userId, userData.stravaTokens.refreshToken);
+    }
 
-  const result = await syncUserActivities(userId, accessToken);
-  logger.info(`[Strava] Manual sync complete: synced=${result.synced}, total=${result.totalFetched}, lookback=${result.lookbackDays}d`);
-  return { ...result, success: true };
-});
+    const result = await syncUserActivities(userId, accessToken);
+    logger.info(`[Strava] Manual sync complete: synced=${result.synced}, total=${result.totalFetched}, lookback=${result.lookbackDays}d`);
+    return { ...result, success: true };
+  },
+);
 
 /**
- * Generate weekly summary text via OpenAI (server-side, key never exposed)
+ * Generate weekly summary text via OpenAI (key from Secret Manager)
  */
-export const generateWeeklySummary = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Must be logged in");
-  }
+export const generateWeeklySummary = onCall(
+  { secrets: [openaiApiKey] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in");
+    }
 
-  const { stats } = request.data;
-  if (!stats) {
-    throw new HttpsError("invalid-argument", "stats is required");
-  }
+    const { stats } = request.data;
+    if (!stats) {
+      throw new HttpsError("invalid-argument", "stats is required");
+    }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    logger.error("[WeeklySummary] OPENAI_API_KEY not configured in functions/.env");
-    throw new HttpsError("failed-precondition", "OpenAI API key not configured");
-  }
+    const apiKey = openaiApiKey.value();
+    if (!apiKey || apiKey === "PLACEHOLDER") {
+      logger.error("[WeeklySummary] openai-api-key not configured in Secret Manager");
+      throw new HttpsError("failed-precondition", "OpenAI API key not configured. Dodaj klucz w Google Cloud Console → Secret Manager → openai-api-key");
+    }
 
-  const prompt = `Jesteś trenerem personalnym. Napisz KRÓTKIE (max 150 słów) motywujące podsumowanie tygodnia treningowego po polsku.
+    const prompt = `Jesteś trenerem personalnym. Napisz KRÓTKIE (max 150 słów) motywujące podsumowanie tygodnia treningowego po polsku.
 
 Dane z tygodnia:
 - Treningi siłowe: ${stats.workoutCount}
@@ -175,45 +187,46 @@ Zasady:
 - Max 150 słów
 - Nie pisz "Oto podsumowanie" ani podobnych wstępów — zacznij od sedna`;
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "Jesteś osobistym trenerem. Odpowiadaj po polsku, zwięźle i konkretnie." },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 500,
-    }),
-  });
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "Jesteś osobistym trenerem. Odpowiadaj po polsku, zwięźle i konkretnie." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 500,
+      }),
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
-    logger.error(`[WeeklySummary] OpenAI API error: ${errorMessage}`);
-    throw new HttpsError("internal", `OpenAI API error: ${errorMessage}`);
-  }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
+      logger.error(`[WeeklySummary] OpenAI API error: ${errorMessage}`);
+      throw new HttpsError("internal", `OpenAI API error: ${errorMessage}`);
+    }
 
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content || "";
-  logger.info(`[WeeklySummary] Generated summary (${text.length} chars) for ${request.auth.uid}`);
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || "";
+    logger.info(`[WeeklySummary] Generated summary (${text.length} chars) for ${request.auth.uid}`);
 
-  return { text };
-});
+    return { text };
+  },
+);
+
+// --- Helper functions ---
 
 async function refreshStravaToken(userId: string, refreshToken: string): Promise<string> {
-  const { clientId, clientSecret } = getStravaConfig();
-
   const response = await fetch("https://www.strava.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
+      client_id: stravaClientId.value(),
+      client_secret: stravaClientSecret.value(),
       grant_type: "refresh_token",
       refresh_token: refreshToken,
     }),
@@ -249,13 +262,11 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
   const userData = userDoc.data();
   const lastSync = userData?.stravaLastSync;
 
-  // Calculate 'after' timestamp
   const now = Math.floor(Date.now() / 1000);
   const afterFromLastSync = lastSync
     ? Math.floor(new Date(lastSync).getTime() / 1000)
     : now - 365 * 24 * 60 * 60;
 
-  // Enforce minimum 7-day lookback — prevents "0 days" when lastSync is very recent
   const minLookback = now - 7 * 24 * 60 * 60;
   const after = Math.min(afterFromLastSync, minLookback);
 
