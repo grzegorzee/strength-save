@@ -52,7 +52,7 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01]",
+        "cursor-pointer transition-all duration-200 hover:border-primary/30 hover:shadow-md",
         getCardStyle()
       )}
       onClick={onClick}
@@ -78,7 +78,7 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
               )}
             </div>
             <div>
-              <CardTitle className="text-lg">{day.dayName}</CardTitle>
+              <CardTitle className="text-lg font-heading tracking-tight">{day.dayName}</CardTitle>
               <p className="text-sm text-muted-foreground">{day.focus}</p>
             </div>
           </div>

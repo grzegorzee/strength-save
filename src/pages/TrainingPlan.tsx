@@ -13,13 +13,13 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo } from 'react';
 import { pl } from 'date-fns/locale';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, CalendarDays, CheckCircle, Dumbbell, Settings } from 'lucide-react';
+import { Info, CalendarDays, CheckCircle, Dumbbell, Settings, Pencil } from 'lucide-react';
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
   const { uid } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
   const { activities: stravaActivities } = useStrava(uid);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
@@ -38,18 +38,17 @@ const TrainingPlan = () => {
   const schedule = useMemo(() => getTrainingSchedule(), []);
   const trainingDates = useMemo(() => schedule.map(s => s.date), [schedule]);
 
-  // Calculate week number and dates
+  // Use planStartDate from hook (Firebase) if available, fallback to schedule
   const today = new Date();
-  const startDate = schedule[0]?.date || today;
+  const startDate = planStartDate ? new Date(planStartDate) : (schedule[0]?.date || today);
 
-  // Calculate week for TODAY (actual progress)
-  const todayWeekNumber = Math.floor((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-  const actualCurrentWeek = Math.max(1, Math.min(12, todayWeekNumber));
+  // Use currentWeek from hook (calculated from planStartDate)
+  const actualCurrentWeek = Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek));
 
   // Calculate week for SELECTED DATE (for display)
   const selectedOrToday = selectedDate || today;
   const selectedWeekNumber = Math.floor((selectedOrToday.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-  const displayWeek = Math.max(1, Math.min(12, selectedWeekNumber));
+  const displayWeek = Math.max(1, Math.min(planDurationWeeks, selectedWeekNumber));
 
   // Get selected week's dates
   const selectedWeekStart = new Date(startDate);
@@ -87,8 +86,8 @@ const TrainingPlan = () => {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <CardTitle>Plan treningowy</CardTitle>
-              <CardDescription>12-tygodniowy program: Poniedziałek, Środa, Piątek</CardDescription>
+              <CardTitle className="font-heading tracking-tight">Plan treningowy</CardTitle>
+              <CardDescription>{planDurationWeeks}-tygodniowy program: Poniedziałek, Środa, Piątek</CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => navigate('/plan/edit')}>
@@ -96,7 +95,7 @@ const TrainingPlan = () => {
                 Edytuj
               </Button>
               <Badge className="bg-primary text-primary-foreground py-2 px-4 text-sm">
-                Tydzień {displayWeek} z 12
+                Tydzień {displayWeek} z {planDurationWeeks}
               {displayWeek !== actualCurrentWeek && (
                 <span className="ml-1 opacity-70">(aktualny: {actualCurrentWeek})</span>
               )}
@@ -151,7 +150,18 @@ const TrainingPlan = () => {
                   const trainingDateStr = formatLocalDate(scheduleItem.date);
                   return (
                     <div key={`${scheduleItem.dayId}-${scheduleItem.date.toISOString()}`}>
-                      <p className="text-xs text-muted-foreground mb-1 ml-1">{dateStr}</p>
+                      <div className="flex items-center justify-between mb-1 ml-1">
+                        <p className="text-xs text-muted-foreground">{dateStr}</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 text-xs text-muted-foreground hover:text-primary gap-1"
+                          onClick={() => navigate('/plan/edit')}
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edytuj
+                        </Button>
+                      </div>
                       <TrainingDayCard
                         day={dayPlan}
                         latestWorkout={workoutForDate}
@@ -186,18 +196,18 @@ const TrainingPlan = () => {
                 <CardContent className="p-4">
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
-                      <p className="text-2xl font-bold text-primary">{actualCurrentWeek}</p>
+                      <p className="text-2xl font-heading font-bold text-primary">{actualCurrentWeek}</p>
                       <p className="text-xs text-muted-foreground">Aktualny tydzień</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-primary">
+                      <p className="text-2xl font-heading font-bold text-primary">
                         {workouts.filter(w => w.completed).length}
                       </p>
                       <p className="text-xs text-muted-foreground">Ukończone treningi</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-primary">
-                        {Math.max(0, 12 - actualCurrentWeek)}
+                      <p className="text-2xl font-heading font-bold text-primary">
+                        {Math.max(0, planDurationWeeks - actualCurrentWeek)}
                       </p>
                       <p className="text-xs text-muted-foreground">Tygodni pozostało</p>
                     </div>

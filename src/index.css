@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
 */
 
@@ -17,7 +17,7 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 199 89% 48%;
+    --primary: 234 89% 74%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 60% 25%;
@@ -26,7 +26,7 @@ All colors MUST be HSL.
     --muted: 210 20% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 199 89% 48%;
+    --accent: 263 70% 71%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -34,68 +34,68 @@ All colors MUST be HSL.
 
     --border: 214 32% 91%;
     --input: 214 32% 91%;
-    --ring: 199 89% 48%;
+    --ring: 234 89% 74%;
 
     --radius: 0.75rem;
 
     /* Fitness app custom colors */
     --fitness-cyan: 199 89% 48%;
     --fitness-navy: 220 60% 25%;
-    --fitness-success: 142 71% 45%;
+    --fitness-success: 160 84% 39%;
     --fitness-warning: 38 92% 50%;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 60% 25%;
-    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary: 234 89% 74%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 20% 96%;
     --sidebar-accent-foreground: 220 60% 25%;
     --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-ring: 234 89% 74%;
   }
 
   .dark {
-    --background: 222 47% 8%;
+    --background: 240 20% 6%;
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 11%;
+    --card: 240 18% 10%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 11%;
+    --popover: 240 18% 10%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 199 89% 48%;
+    --primary: 234 89% 74%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 60% 35%;
+    --secondary: 240 15% 15%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 240 12% 14%;
+    --muted-foreground: 215 20% 55%;
 
-    --accent: 199 89% 48%;
+    --accent: 263 70% 71%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 199 89% 48%;
+    --border: 240 12% 16%;
+    --input: 240 12% 16%;
+    --ring: 234 89% 74%;
 
     --fitness-cyan: 199 89% 48%;
     --fitness-navy: 220 60% 45%;
-    --fitness-success: 142 71% 45%;
+    --fitness-success: 160 84% 39%;
     --fitness-warning: 38 92% 50%;
 
-    --sidebar-background: 222 47% 11%;
+    --sidebar-background: 240 18% 8%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary: 234 89% 74%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent: 240 12% 14%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-border: 240 12% 16%;
+    --sidebar-ring: 234 89% 74%;
   }
 }
 
@@ -110,9 +110,8 @@ All colors MUST be HSL.
     max-width: 100vw;
   }
 
-  /* Lepsze czcionki na mobile */
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

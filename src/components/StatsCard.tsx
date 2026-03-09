@@ -36,7 +36,7 @@ export const StatsCard = ({
   return (
     <Card
       className={cn(
-        onClick && 'cursor-pointer hover:bg-muted/50 transition-colors'
+        onClick && 'cursor-pointer hover:border-primary/30 transition-all duration-200'
       )}
       onClick={onClick}
     >
@@ -51,7 +51,7 @@ export const StatsCard = ({
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted-foreground leading-tight">{title}</p>
             <p className={cn(
-              "text-xl font-bold leading-tight",
+              "text-xl font-heading font-bold leading-tight tracking-tight",
               valueColors[variant]
             )}>
               {value}

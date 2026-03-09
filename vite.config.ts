@@ -20,14 +20,14 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'StrengthSave - Tracker Treningowy',
         short_name: 'StrengthSave',
         description: 'Aplikacja do śledzenia treningów siłowych i postępów',
-        theme_color: '#1a1a2e',
-        background_color: '#ffffff',
+        theme_color: '#0a0a1a',
+        background_color: '#0a0a1a',
         display: 'standalone',
         scope: '/strength-save/',
         start_url: '/strength-save/',

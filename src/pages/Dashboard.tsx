@@ -1,11 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Brain, ChevronDown, ChevronUp, Sun, Moon } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Brain, ChevronDown, ChevronUp, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { StatsCard } from '@/components/StatsCard';
-import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
@@ -13,6 +10,7 @@ import { useAICoach } from '@/hooks/useAICoach';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { calculateStreak } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
+import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import type { CoachInsight } from '@/lib/ai-coach';
 import { cn } from '@/lib/utils';
@@ -46,20 +44,43 @@ const getThisWeekDates = () => {
   ];
 };
 
-// AI Insight card (compact)
-const insightConfig: Record<CoachInsight['type'], { emoji: string; bgColor: string }> = {
-  plateau: { emoji: '🔴', bgColor: 'bg-red-50 border-red-200' },
-  warning: { emoji: '🔴', bgColor: 'bg-red-50 border-red-200' },
-  progress: { emoji: '🟢', bgColor: 'bg-green-50 border-green-200' },
-  suggestion: { emoji: '🟡', bgColor: 'bg-amber-50 border-amber-200' },
-  consistency: { emoji: '🟡', bgColor: 'bg-amber-50 border-amber-200' },
+// Trend component
+const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
+  if (value === null || value === 0) {
+    return (
+      <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+        <Minus className="h-3 w-3" /> stabilnie
+      </span>
+    );
+  }
+  if (value > 0) {
+    return (
+      <span className="flex items-center gap-0.5 text-[11px] text-emerald-500">
+        <TrendingUp className="h-3 w-3" /> +{value}{suffix}
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-0.5 text-[11px] text-red-400">
+      <TrendingDown className="h-3 w-3" /> {value}{suffix}
+    </span>
+  );
+};
+
+// AI Insight card (dark-first)
+const insightConfig: Record<CoachInsight['type'], { icon: string; borderColor: string }> = {
+  plateau: { icon: '🔴', borderColor: 'border-red-500/30' },
+  warning: { icon: '🔴', borderColor: 'border-red-500/30' },
+  progress: { icon: '🟢', borderColor: 'border-emerald-500/30' },
+  suggestion: { icon: '🟡', borderColor: 'border-amber-500/30' },
+  consistency: { icon: '🟡', borderColor: 'border-amber-500/30' },
 };
 
 const CompactInsightCard = ({ insight }: { insight: CoachInsight }) => {
   const config = insightConfig[insight.type];
   return (
-    <div className={cn('flex items-start gap-2 p-3 rounded-lg border text-sm', config.bgColor)}>
-      <span className="mt-0.5">{config.emoji}</span>
+    <div className={cn('flex items-start gap-2 p-3 rounded-lg border bg-card text-sm', config.borderColor)}>
+      <span className="mt-0.5">{config.icon}</span>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-xs">{insight.title}</p>
         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{insight.message}</p>
@@ -67,6 +88,44 @@ const CompactInsightCard = ({ insight }: { insight: CoachInsight }) => {
     </div>
   );
 };
+
+// Stats Card (inline, premium)
+const DashboardStatCard = ({
+  title,
+  value,
+  icon: Icon,
+  trend,
+  trendSuffix = '',
+  iconColor,
+  onClick,
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  trend: number | null;
+  trendSuffix?: string;
+  iconColor: string;
+  onClick?: () => void;
+}) => (
+  <Card
+    className={cn(
+      "hover:border-primary/30 transition-all duration-200",
+      onClick && 'cursor-pointer'
+    )}
+    onClick={onClick}
+  >
+    <CardContent className="p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", iconColor)}>
+          <Icon className="h-4 w-4" />
+        </div>
+        <span className="text-xs text-muted-foreground">{title}</span>
+      </div>
+      <p className="text-2xl font-heading font-bold tracking-tight">{value}</p>
+      <TrendIndicator value={trend} suffix={trendSuffix} />
+    </CardContent>
+  </Card>
+);
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -79,7 +138,7 @@ const Dashboard = () => {
     isLoaded,
     error
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, isPlanExpired } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid);
 
   // AI Coach
@@ -101,6 +160,39 @@ const Dashboard = () => {
   const thisWeek = useMemo(() => getThisWeekDates(), []);
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
+
+  // Calculate trends (last 4 weeks vs previous 4 weeks)
+  const trends = useMemo(() => {
+    const now = new Date();
+    const fourWeeksAgo = new Date(now);
+    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+    const eightWeeksAgo = new Date(now);
+    eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
+
+    const recentWorkouts = workouts.filter(w => w.completed && new Date(w.date) >= fourWeeksAgo);
+    const olderWorkouts = workouts.filter(w => w.completed && new Date(w.date) >= eightWeeksAgo && new Date(w.date) < fourWeeksAgo);
+
+    const recentCount = recentWorkouts.length;
+    const olderCount = olderWorkouts.length;
+
+    const recentTonnage = recentWorkouts.reduce((sum, w) => {
+      return sum + Object.values(w.exercises || {}).reduce((exSum, ex) => {
+        return exSum + (ex.sets || []).reduce((setSum, s) => setSum + ((s.weight || 0) * (s.reps || 0)), 0);
+      }, 0);
+    }, 0);
+    const olderTonnage = olderWorkouts.reduce((sum, w) => {
+      return sum + Object.values(w.exercises || {}).reduce((exSum, ex) => {
+        return exSum + (ex.sets || []).reduce((setSum, s) => setSum + ((s.weight || 0) * (s.reps || 0)), 0);
+      }, 0);
+    }, 0);
+
+    return {
+      workouts: olderCount > 0 ? recentCount - olderCount : null,
+      tonnage: olderTonnage > 0 ? Math.round((recentTonnage - olderTonnage) / 1000 * 10) / 10 : null,
+      weight: null as number | null,
+      streak: streak > 0 ? streak : null,
+    };
+  }, [workouts, streak]);
 
   // Find most recent PR
   const latestPR = useMemo(() => {
@@ -136,6 +228,12 @@ const Dashboard = () => {
     month: 'long',
   });
 
+  // Plan progress
+  const planProgress = Math.min(100, Math.round((currentWeek / planDurationWeeks) * 100));
+
+  // Day focus descriptions
+  const dayColors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500'];
+
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -166,7 +264,7 @@ const Dashboard = () => {
     <div className="space-y-6">
       {/* Greeting */}
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+        <h1 className="text-2xl font-heading font-bold flex items-center gap-2 tracking-tight">
           <GreetingIcon className="h-6 w-6 text-yellow-500" />
           {greetingText}, {displayName}!
         </h1>
@@ -175,7 +273,7 @@ const Dashboard = () => {
 
       {/* Plan expired banner */}
       {isPlanExpired && (
-        <Card className="border-primary bg-primary/5">
+        <Card className="border-primary/40 bg-primary/5">
           <CardContent className="py-4 flex items-center justify-between">
             <div>
               <p className="font-semibold text-sm">Twój plan się zakończył!</p>
@@ -186,41 +284,100 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Ukończone treningi"
+      {/* Stats - 4 columns */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <DashboardStatCard
+          title="Treningi"
           value={completedCount}
           icon={Trophy}
-          variant="success"
+          trend={trends.workouts}
+          iconColor="bg-emerald-500/15 text-emerald-500"
           onClick={() => navigate('/analytics?tab=charts')}
         />
-        <StatsCard
-          title="Tonaż całkowity"
+        <DashboardStatCard
+          title="Tonaż"
           value={`${(totalWeight / 1000).toFixed(1)}t`}
-          subtitle="Suma podniesionych kg"
           icon={Dumbbell}
-          variant="primary"
+          trend={trends.tonnage}
+          trendSuffix="t"
+          iconColor="bg-primary/15 text-primary"
           onClick={() => navigate('/analytics?tab=charts')}
         />
-        <StatsCard
-          title="Aktualna waga"
+        <DashboardStatCard
+          title="Waga"
           value={latestMeasurement?.weight ? `${latestMeasurement.weight} kg` : '--'}
           icon={Weight}
-          variant="default"
+          trend={trends.weight}
+          trendSuffix=" kg"
+          iconColor="bg-muted text-muted-foreground"
           onClick={() => navigate('/analytics?tab=charts')}
         />
-        <StatsCard
-          title="Seria treningowa"
+        <DashboardStatCard
+          title="Streak"
           value={`${streak} tyg.`}
-          subtitle={streak > 0 ? 'Nie przerywaj!' : 'Zacznij serię'}
           icon={Flame}
-          variant="warning"
+          trend={trends.streak}
+          trendSuffix=" tyg."
+          iconColor="bg-amber-500/15 text-amber-500"
           onClick={() => navigate('/analytics?tab=charts')}
         />
       </div>
 
-      {/* AI Insights */}
+      {/* Your Plan Card */}
+      {!isPlanExpired && trainingPlan.length > 0 && (
+        <Card className="hover:border-primary/30 transition-all duration-200">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                <h2 className="font-heading font-semibold text-base">Twój Plan Treningowy</h2>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground h-7 gap-1"
+                onClick={() => navigate('/plan/edit')}
+              >
+                <Pencil className="h-3 w-3" />
+                Edytuj
+              </Button>
+            </div>
+
+            {/* Plan meta */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 flex-wrap">
+              <span>{trainingPlan.length}x/tydzień</span>
+              <span>·</span>
+              <span>Tydzień {Math.min(currentWeek, planDurationWeeks)} z {planDurationWeeks}</span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mb-4">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
+                  style={{ width: `${planProgress}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">{planProgress}% ukończone</p>
+            </div>
+
+            {/* Days overview */}
+            <div className="space-y-2">
+              {trainingPlan.map((day, i) => (
+                <div key={day.id} className="flex items-center gap-3">
+                  <div className={cn("h-2 w-2 rounded-full shrink-0", dayColors[i % dayColors.length])} />
+                  <span className="text-sm">
+                    <span className="font-medium">{day.dayName}:</span>{' '}
+                    <span className="text-muted-foreground">{day.focus}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* AI Insights (max 2) */}
       {showAIInsights && insights.length > 0 && (
         <div className="space-y-2">
           <button
@@ -228,22 +385,22 @@ const Dashboard = () => {
             className="flex items-center gap-2 w-full text-left"
           >
             <Brain className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-sm flex-1">AI Insights</span>
+            <span className="font-heading font-semibold text-sm flex-1">AI Insights</span>
             {aiExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
           </button>
           {aiExpanded && (
             <div className="space-y-2">
-              {insights.slice(0, 3).map((insight, i) => (
+              {insights.slice(0, 2).map((insight, i) => (
                 <CompactInsightCard key={`${insight.type}-${i}`} insight={insight} />
               ))}
-              {insights.length > 3 && (
+              {insights.length > 2 && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="text-xs text-muted-foreground w-full"
                   onClick={() => navigate('/ai')}
                 >
-                  Więcej insightów w AI Chat
+                  Zobacz więcej w AI Coach
                 </Button>
               )}
             </div>
@@ -254,19 +411,19 @@ const Dashboard = () => {
       {/* Latest PR */}
       {latestPR && (
         <Card
-          className="cursor-pointer hover:bg-muted/30 transition-colors border-yellow-500/30 bg-yellow-500/5"
+          className="cursor-pointer hover:border-amber-500/40 transition-all duration-200 border-amber-500/20"
           onClick={() => navigate('/achievements')}
         >
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                  <span className="text-lg">🏆</span>
+                <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <Trophy className="h-5 w-5 text-amber-500" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">Ostatni rekord</p>
                   <p className="text-xs text-muted-foreground">
-                    {latestPR.exerciseName} — <span className="font-semibold text-foreground">{latestPR.value} kg</span>
+                    {latestPR.exerciseName} — <span className="font-heading font-semibold text-foreground">{latestPR.value} kg</span>
                     {' '}
                     <span className="text-muted-foreground">({formatPRDate(latestPR.date)})</span>
                   </p>
@@ -279,9 +436,9 @@ const Dashboard = () => {
       )}
 
       {/* This week's training */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Plan tygodnia</h2>
-        <div className="grid gap-4">
+      <div className="space-y-3">
+        <h2 className="font-heading font-semibold text-base tracking-tight">Plan tygodnia</h2>
+        <div className="grid gap-3">
           {thisWeek.map(({ dayId, date }) => {
             const day = trainingPlan.find(d => d.id === dayId);
             if (!day) return null;
@@ -323,7 +480,7 @@ const Dashboard = () => {
       {/* Analytics link */}
       <Button
         variant="outline"
-        className="w-full py-5"
+        className="w-full py-5 hover:border-primary/30 transition-all duration-200"
         onClick={() => navigate('/analytics')}
       >
         <BarChart3 className="h-4 w-4 mr-2" />

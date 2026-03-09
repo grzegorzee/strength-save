@@ -39,7 +39,7 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <h1 className="text-xl font-bold text-foreground">{title}</h1>
+          <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">{title}</h1>
         </div>
 
         <div className="flex items-center gap-2">
