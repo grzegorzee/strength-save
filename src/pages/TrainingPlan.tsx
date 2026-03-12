@@ -169,24 +169,30 @@ const TrainingPlan = () => {
                       items.push({ type: 'strava', activity, dateStr: activity.date });
                     });
 
+                  // Group items by date
                   items.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
 
-                  return items.map((item) => {
-                    if (item.type === 'training') {
-                      const dayPlan = trainingPlan.find(d => d.id === item.scheduleItem.dayId)!;
-                      const workoutForDate = getWorkoutForDate(item.scheduleItem.date);
-                      const dateStr = item.scheduleItem.date.toLocaleDateString('pl-PL', {
-                        day: 'numeric',
-                        month: 'short'
-                      });
-                      const trainingDateStr = formatLocalDate(item.scheduleItem.date);
+                  const groupedByDate = new Map<string, TimelineItem[]>();
+                  items.forEach(item => {
+                    const existing = groupedByDate.get(item.dateStr) || [];
+                    existing.push(item);
+                    groupedByDate.set(item.dateStr, existing);
+                  });
 
-                      return (
-                        <div key={`training-${item.scheduleItem.dayId}-${item.dateStr}`}>
-                          <div className="flex items-center justify-between mb-1 ml-1">
-                            <p className="text-xs text-muted-foreground">
-                              <span className="capitalize"><span className="sm:hidden">{getDayOfWeekName(item.dateStr).short}</span><span className="hidden sm:inline">{getDayOfWeekName(item.dateStr).long}</span></span>, {dateStr}
-                            </p>
+                  return Array.from(groupedByDate.entries()).map(([dateStr, dayItems]) => {
+                    const dateObj = new Date(dateStr);
+                    const dateLabel = dateObj.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+                    const dayName = getDayOfWeekName(dateStr);
+                    const trainingItem = dayItems.find(i => i.type === 'training') as Extract<TimelineItem, { type: 'training' }> | undefined;
+                    const stravaItems = dayItems.filter(i => i.type === 'strava') as Extract<TimelineItem, { type: 'strava' }>[];
+
+                    return (
+                      <div key={dateStr}>
+                        <div className="flex items-center justify-between mb-1 ml-1">
+                          <p className="text-xs text-muted-foreground">
+                            <span className="capitalize"><span className="sm:hidden">{dayName.short}</span><span className="hidden sm:inline">{dayName.long}</span></span>, {dateLabel}
+                          </p>
+                          {trainingItem && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -196,30 +202,42 @@ const TrainingPlan = () => {
                               <Pencil className="h-3 w-3" />
                               Edytuj
                             </Button>
-                          </div>
-                          <TrainingDayCard
-                            day={dayPlan}
-                            latestWorkout={workoutForDate}
-                            trainingDate={item.scheduleItem.date}
-                            onClick={() => navigate(`/workout/${dayPlan.id}?date=${trainingDateStr}`)}
-                          />
+                          )}
                         </div>
-                      );
-                    }
 
-                    // Strava activity with date label
-                    const stravaDate = new Date(item.dateStr);
-                    const straveDateLabel = stravaDate.toLocaleDateString('pl-PL', {
-                      day: 'numeric',
-                      month: 'short'
-                    });
+                        {/* Strava activities — compact inline */}
+                        {stravaItems.map(({ activity }) => (
+                          <div
+                            key={`strava-${activity.id}`}
+                            className="flex items-center gap-2 px-3 py-1.5 mb-1 rounded-md bg-orange-500/5 border border-orange-500/15 text-xs cursor-pointer hover:bg-orange-500/10 transition-colors"
+                            onClick={() => {
+                              // Find the full StravaActivityCard to open detail — just navigate to strava URL
+                              if (activity.stravaUrl) window.open(activity.stravaUrl, '_blank');
+                            }}
+                          >
+                            <span>{activity.type === 'Run' ? '🏃' : activity.type === 'Ride' ? '🚴' : activity.type === 'Swim' ? '🏊' : activity.type === 'Walk' ? '🚶' : activity.type === 'WeightTraining' ? '🏋️' : '🏅'}</span>
+                            <span className="font-medium truncate">{activity.name}</span>
+                            {activity.distance ? <span className="text-muted-foreground shrink-0">{(activity.distance / 1000).toFixed(1)}km</span> : null}
+                            {activity.movingTime ? <span className="text-muted-foreground shrink-0">{Math.floor(activity.movingTime / 60)}m</span> : null}
+                            {activity.averageHeartrate ? <span className="text-muted-foreground shrink-0">❤️{Math.round(activity.averageHeartrate)}</span> : null}
+                            <Badge variant="outline" className="text-[9px] ml-auto shrink-0 border-orange-500/30 text-orange-600 px-1 py-0">Strava</Badge>
+                          </div>
+                        ))}
 
-                    return (
-                      <div key={`strava-${item.activity.id}`}>
-                        <p className="text-xs text-muted-foreground mb-1 ml-1">
-                          <span className="capitalize"><span className="sm:hidden">{getDayOfWeekName(item.dateStr).short}</span><span className="hidden sm:inline">{getDayOfWeekName(item.dateStr).long}</span></span>, {straveDateLabel}
-                        </p>
-                        <StravaActivityCard activity={item.activity} />
+                        {/* Training card */}
+                        {trainingItem && (() => {
+                          const dayPlan = trainingPlan.find(d => d.id === trainingItem.scheduleItem.dayId)!;
+                          const workoutForDate = getWorkoutForDate(trainingItem.scheduleItem.date);
+                          const trainingDateStr = formatLocalDate(trainingItem.scheduleItem.date);
+                          return (
+                            <TrainingDayCard
+                              day={dayPlan}
+                              latestWorkout={workoutForDate}
+                              trainingDate={trainingItem.scheduleItem.date}
+                              onClick={() => navigate(`/workout/${dayPlan.id}?date=${trainingDateStr}`)}
+                            />
+                          );
+                        })()}
                       </div>
                     );
                   });
