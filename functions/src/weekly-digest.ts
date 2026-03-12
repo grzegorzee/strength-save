@@ -2,10 +2,9 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import sgMail from "@sendgrid/mail";
+import { Resend } from "resend";
 
-const sendgridApiKey = defineSecret("sendgrid-api-key");
-const digestRecipientEmail = defineSecret("digest-recipient-email");
+const resendApiKey = defineSecret("resend-api-key");
 
 interface WorkoutDoc {
   userId: string;
@@ -39,21 +38,30 @@ export const weeklyDigest = onSchedule(
     schedule: "every monday 08:00",
     timeZone: "Europe/Warsaw",
     timeoutSeconds: 120,
-    secrets: [sendgridApiKey, digestRecipientEmail],
+    secrets: [resendApiKey],
   },
   async () => {
     const db = admin.firestore();
     logger.info("[WeeklyDigest] Starting...");
 
-    const apiKey = sendgridApiKey.value();
-    const recipientEmail = digestRecipientEmail.value();
-
-    if (!apiKey || !recipientEmail) {
-      logger.error("[WeeklyDigest] Missing secrets: sendgrid-api-key or digest-recipient-email");
+    const apiKey = resendApiKey.value();
+    if (!apiKey) {
+      logger.error("[WeeklyDigest] Missing secret: resend-api-key");
       return;
     }
 
-    sgMail.setApiKey(apiKey);
+    const resend = new Resend(apiKey);
+
+    // Get all user emails from Firebase Auth
+    const listResult = await admin.auth().listUsers(100);
+    const userEmails = listResult.users
+      .filter(u => u.email)
+      .map(u => ({ uid: u.uid, email: u.email! }));
+
+    if (userEmails.length === 0) {
+      logger.info("[WeeklyDigest] No users with email found, skipping.");
+      return;
+    }
 
     // Get last Monday-Sunday range
     const now = new Date();
@@ -72,54 +80,63 @@ export const weeklyDigest = onSchedule(
 
     logger.info(`[WeeklyDigest] Period: ${startStr} - ${endStr}`);
 
-    // Query workouts
-    const workoutsSnap = await db
-      .collection("workouts")
-      .where("completed", "==", true)
-      .where("date", ">=", startStr)
-      .where("date", "<=", endStr)
-      .get();
+    for (const user of userEmails) {
+      try {
+        // Query workouts for this user
+        const workoutsSnap = await db
+          .collection("workouts")
+          .where("userId", "==", user.uid)
+          .where("completed", "==", true)
+          .where("date", ">=", startStr)
+          .where("date", "<=", endStr)
+          .get();
 
-    const workouts = workoutsSnap.docs.map(d => d.data() as WorkoutDoc);
-    const sessionCount = workouts.length;
+        const workouts = workoutsSnap.docs.map(d => d.data() as WorkoutDoc);
+        const sessionCount = workouts.length;
 
-    // Calculate tonnage
-    const tonnage = workouts.reduce((total, w) =>
-      total + w.exercises.reduce((exTotal, ex) =>
-        exTotal + ex.sets
-          .filter(s => s.completed && !s.isWarmup)
-          .reduce((s, set) => s + set.reps * set.weight, 0),
-      0),
-    0);
+        if (sessionCount === 0) {
+          logger.info(`[WeeklyDigest] No workouts for ${user.email}, skipping.`);
+          continue;
+        }
 
-    // Query strava activities
-    const stravaSnap = await db
-      .collection("strava_activities")
-      .where("date", ">=", startStr)
-      .where("date", "<=", endStr)
-      .get();
+        // Calculate tonnage
+        const tonnage = workouts.reduce((total, w) =>
+          total + w.exercises.reduce((exTotal, ex) =>
+            exTotal + ex.sets
+              .filter(s => s.completed && !s.isWarmup)
+              .reduce((s, set) => s + set.reps * set.weight, 0),
+          0),
+        0);
 
-    const stravaActivities = stravaSnap.docs.map(d => d.data() as StravaDoc);
-    const runs = stravaActivities.filter(a => a.type === "Run");
-    const totalRunKm = Math.round(
-      runs.reduce((sum, a) => sum + ((a.distance || 0) / 1000), 0) * 10
-    ) / 10;
+        // Query strava activities for this user
+        const stravaSnap = await db
+          .collection("strava_activities")
+          .where("userId", "==", user.uid)
+          .where("date", ">=", startStr)
+          .where("date", "<=", endStr)
+          .get();
 
-    // Best run (fastest pace)
-    const bestRun = runs
-      .filter(a => a.averageSpeed && a.averageSpeed > 0)
-      .sort((a, b) => (b.averageSpeed || 0) - (a.averageSpeed || 0))[0];
+        const stravaActivities = stravaSnap.docs.map(d => d.data() as StravaDoc);
+        const runs = stravaActivities.filter(a => a.type === "Run");
+        const totalRunKm = Math.round(
+          runs.reduce((sum, a) => sum + ((a.distance || 0) / 1000), 0) * 10
+        ) / 10;
 
-    // Longest run
-    const longestRun = runs
-      .filter(a => a.distance && a.distance > 0)
-      .sort((a, b) => (b.distance || 0) - (a.distance || 0))[0];
+        // Best run (fastest pace)
+        const bestRun = runs
+          .filter(a => a.averageSpeed && a.averageSpeed > 0)
+          .sort((a, b) => (b.averageSpeed || 0) - (a.averageSpeed || 0))[0];
 
-    const dateRange = `${lastMonday.toLocaleDateString("pl-PL", { day: "numeric", month: "long" })} - ${lastSunday.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" })}`;
+        // Longest run
+        const longestRun = runs
+          .filter(a => a.distance && a.distance > 0)
+          .sort((a, b) => (b.distance || 0) - (a.distance || 0))[0];
 
-    const subject = `💪 Tydzień ${startStr}: ${sessionCount} treningów, ${(tonnage / 1000).toFixed(1)}t tonażu${totalRunKm > 0 ? `, ${totalRunKm}km biegu` : ""}`;
+        const dateRange = `${lastMonday.toLocaleDateString("pl-PL", { day: "numeric", month: "long" })} - ${lastSunday.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" })}`;
 
-    const html = `
+        const subject = `💪 Tydzień ${startStr}: ${sessionCount} treningów, ${(tonnage / 1000).toFixed(1)}t tonażu${totalRunKm > 0 ? `, ${totalRunKm}km biegu` : ""}`;
+
+        const html = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
@@ -179,16 +196,18 @@ export const weeklyDigest = onSchedule(
 </body>
 </html>`;
 
-    try {
-      await sgMail.send({
-        to: recipientEmail,
-        from: recipientEmail,
-        subject,
-        html,
-      });
-      logger.info(`[WeeklyDigest] Email sent to ${recipientEmail}`);
-    } catch (error) {
-      logger.error("[WeeklyDigest] Failed to send email:", error);
+        await resend.emails.send({
+          from: "Strength Save <onboarding@resend.dev>",
+          to: user.email,
+          subject,
+          html,
+        });
+        logger.info(`[WeeklyDigest] Email sent to ${user.email}`);
+      } catch (error) {
+        logger.error(`[WeeklyDigest] Failed for ${user.email}:`, error);
+      }
     }
+
+    logger.info("[WeeklyDigest] Done.");
   },
 );
