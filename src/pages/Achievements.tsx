@@ -7,7 +7,9 @@ import { Trophy, Dumbbell, Target, TrendingUp, ChevronRight, Zap } from 'lucide-
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { calculate1RM, getExerciseBest1RM } from '@/lib/pr-utils';
+import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 
 interface ExerciseRecord {
   exerciseId: string;
@@ -22,6 +24,7 @@ const Achievements = () => {
   const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseRecord | null>(null);
+  const [progressionExercise, setProgressionExercise] = useState<{ id: string; name: string } | null>(null);
 
   const totalWeight = getTotalWeight();
   const completedWorkouts = getCompletedWorkoutsCount();
@@ -233,9 +236,19 @@ const Achievements = () => {
                         {record.best1RMWeight}kg × {record.best1RMReps} rep
                       </p>
                     </div>
-                    <div className="text-right shrink-0 ml-3">
-                      <p className="text-lg font-bold text-primary">{record.best1RM} kg</p>
-                      <p className="text-xs text-muted-foreground">est. 1RM</p>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary">{record.best1RM} kg</p>
+                        <p className="text-xs text-muted-foreground">est. 1RM</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setProgressionExercise({ id: record.exerciseId, name: record.name })}
+                      >
+                        <TrendingUp className="h-4 w-4 text-primary" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -244,6 +257,16 @@ const Achievements = () => {
           })()}
         </CardContent>
       </Card>
+
+      {/* Exercise Progression Dialog */}
+      {progressionExercise && (
+        <ExerciseProgressionDialog
+          exerciseId={progressionExercise.id}
+          exerciseName={progressionExercise.name}
+          open={!!progressionExercise}
+          onOpenChange={(open) => { if (!open) setProgressionExercise(null); }}
+        />
+      )}
 
       {/* Exercise History Dialog */}
       <Dialog open={!!selectedExercise} onOpenChange={() => setSelectedExercise(null)}>

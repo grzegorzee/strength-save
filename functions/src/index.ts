@@ -6,6 +6,9 @@ import * as admin from "firebase-admin";
 
 admin.initializeApp();
 
+// Re-export weekly digest
+export { weeklyDigest } from "./weekly-digest";
+
 const db = admin.firestore();
 
 // --- Secrets from Google Cloud Secret Manager ---

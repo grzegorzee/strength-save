@@ -18,7 +18,7 @@ interface ExerciseCardProps {
   savedNotes?: string;
   previousSets?: SetData[];
   onSetsChange?: (sets: SetData[], notes?: string) => void;
-  onSetCompleted?: (setIndex: number) => void;
+  onSetCompleted?: (lastWeight?: number) => void;
   isEditable?: boolean;
 }
 
@@ -74,7 +74,7 @@ const ExerciseCardInner = ({
     onSetsChange?.(newSets, notes);
     // Trigger smart timer callback when marking as completed (not uncompleting)
     if (!wasCompleted) {
-      onSetCompleted?.(setIndex);
+      onSetCompleted?.(newSets[setIndex]?.weight);
     }
   };
 

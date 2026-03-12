@@ -1,5 +1,8 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote, ArrowRightLeft } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote, ArrowRightLeft, Flame, Share2 } from 'lucide-react';
+import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
+import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
+import { calculateStreak } from '@/lib/summary-utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +16,8 @@ import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { detectNewPRs } from '@/lib/pr-utils';
-import { getRestDuration } from '@/lib/exercise-utils';
+import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
+import { getRestDuration, lookupExerciseType } from '@/lib/exercise-utils';
 
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
@@ -50,6 +53,8 @@ const WorkoutDay = () => {
   const [restTimerDuration, setRestTimerDuration] = useState(30);
   const [restTimerLabel, setRestTimerLabel] = useState<string | undefined>();
   const [restTimerKey, setRestTimerKey] = useState(0);
+  const [showWarmup, setShowWarmup] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   // AI Swap
   const { result: swapResult, isLoading: swapLoading, error: swapError, findSwap, reset: resetSwap } = useAISwap(uid);
@@ -507,9 +512,36 @@ const WorkoutDay = () => {
           })}
         </div>
 
-        <Button variant="outline" className="w-full" onClick={() => navigate('/')}>
-          Wróć do dashboardu
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => setShowShare(true)}>
+            <Share2 className="h-4 w-4 mr-2" />
+            Udostępnij
+          </Button>
+          <Button variant="outline" className="flex-1" onClick={() => navigate('/')}>
+            Wróć do dashboardu
+          </Button>
+        </div>
+
+        <ShareWorkoutDialog
+          data={{
+            dayName: day.dayName,
+            date: targetDate,
+            exercises: day.exercises.map(ex => {
+              const sets = exerciseSets[ex.id] || [];
+              const completed = sets.filter(s => s.completed && !s.isWarmup);
+              const maxW = completed.length > 0 ? Math.max(...completed.map(s => s.weight)) : 0;
+              return { name: ex.name, sets: maxW > 0 ? `${completed.length}x ${maxW}kg` : `${completed.length} serii` };
+            }),
+            tonnage: Object.values(exerciseSets).reduce(
+              (t, sets) => t + sets.filter(s => s.completed && !s.isWarmup).reduce((s, set) => s + set.reps * set.weight, 0), 0
+            ),
+            duration: '',
+            prs: [],
+            streak: calculateStreak(workouts),
+          }}
+          open={showShare}
+          onOpenChange={setShowShare}
+        />
       </div>
     );
   }
@@ -578,13 +610,26 @@ const WorkoutDay = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">{day.dayName}</h1>
           <p className="text-muted-foreground">{day.focus}</p>
         </div>
+        {isWorkoutStarted && !isCompleted && (
+          <Button variant="outline" size="sm" onClick={() => setShowWarmup(true)}>
+            <Flame className="h-4 w-4 mr-1 text-orange-500" />
+            Rozgrzewka
+          </Button>
+        )}
       </div>
 
       <ErrorBanner />
+
+      {/* Warmup dialog */}
+      <WarmupRoutineDialog
+        focus={day.focus}
+        open={showWarmup}
+        onOpenChange={setShowWarmup}
+      />
 
       {/* Past date without workout */}
       {!isWorkoutStarted && isViewingPastWorkout && (
@@ -621,12 +666,17 @@ const WorkoutDay = () => {
               savedNotes={exerciseNotes[exercise.id]}
               previousSets={getPreviousSets(exercise.id)}
               onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
-              onSetCompleted={() => {
+              onSetCompleted={(lastWeight?: number) => {
                 if (!isWorkoutStarted || isCompleted) return;
+                const exerciseType = lookupExerciseType(exercise.name);
+                const best = getExerciseBest1RM(workouts, exercise.id);
                 const duration = getRestDuration({
                   exerciseIndex: index,
                   isSuperset: !!exercise.isSuperset,
                   isFirstInSuperset: !!exercise.isSuperset && exercise.id.endsWith('a'),
+                  exerciseType,
+                  weight: lastWeight,
+                  estimated1RM: best.best1RM > 0 ? best.best1RM : undefined,
                 });
                 setRestTimerDuration(duration);
                 setRestTimerLabel(exercise.name);

@@ -7,6 +7,7 @@ import {
   getProgressionAdvice,
   isIsolationExercise,
   getRestDuration,
+  lookupExerciseType,
 } from '@/lib/exercise-utils';
 
 describe('parseSetCount', () => {
@@ -236,10 +237,47 @@ describe('getProgressionAdvice', () => {
 // --- getRestDuration tests ---
 
 describe('getRestDuration', () => {
-  it('always returns 30s default', () => {
-    expect(getRestDuration({ exerciseIndex: 0, isSuperset: false, isFirstInSuperset: false })).toBe(30);
-    expect(getRestDuration({ exerciseIndex: 3, isSuperset: false, isFirstInSuperset: false })).toBe(30);
-    expect(getRestDuration({ exerciseIndex: 4, isSuperset: true, isFirstInSuperset: true })).toBe(30);
-    expect(getRestDuration({ exerciseIndex: 4, isSuperset: true, isFirstInSuperset: false })).toBe(30);
+  it('superset first → 15s', () => {
+    expect(getRestDuration({ exerciseIndex: 0, isSuperset: true, isFirstInSuperset: true })).toBe(15);
+  });
+
+  it('superset non-first → 60s', () => {
+    expect(getRestDuration({ exerciseIndex: 0, isSuperset: true, isFirstInSuperset: false })).toBe(60);
+  });
+
+  it('compound default → 90s', () => {
+    expect(getRestDuration({ exerciseIndex: 0, isSuperset: false, isFirstInSuperset: false, exerciseType: 'compound' })).toBe(90);
+  });
+
+  it('isolation default → 60s', () => {
+    expect(getRestDuration({ exerciseIndex: 3, isSuperset: false, isFirstInSuperset: false, exerciseType: 'isolation' })).toBe(60);
+  });
+
+  it('compound + >80% 1RM → 120s', () => {
+    expect(getRestDuration({ exerciseIndex: 0, isSuperset: false, isFirstInSuperset: false, exerciseType: 'compound', weight: 85, estimated1RM: 100 })).toBe(120);
+  });
+
+  it('compound + >90% 1RM → 150s', () => {
+    expect(getRestDuration({ exerciseIndex: 0, isSuperset: false, isFirstInSuperset: false, exerciseType: 'compound', weight: 95, estimated1RM: 100 })).toBe(150);
+  });
+
+  it('no exerciseType defaults to compound (90s base)', () => {
+    expect(getRestDuration({ exerciseIndex: 0, isSuperset: false, isFirstInSuperset: false })).toBe(90);
+  });
+});
+
+// --- lookupExerciseType tests ---
+
+describe('lookupExerciseType', () => {
+  it('known compound exercise → compound', () => {
+    expect(lookupExerciseType('Wyciskanie sztangi na ławce płaskiej')).toBe('compound');
+  });
+
+  it('known isolation exercise → isolation', () => {
+    expect(lookupExerciseType('Rozpiętki hantlami')).toBe('isolation');
+  });
+
+  it('unknown exercise → compound (default)', () => {
+    expect(lookupExerciseType('Nieznane Ćwiczenie XYZ')).toBe('compound');
   });
 });

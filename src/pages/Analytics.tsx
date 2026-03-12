@@ -32,18 +32,18 @@ import {
   calculateTonnage,
   filterWorkoutsByPeriod,
 } from '@/lib/summary-utils';
-import { calculateZoneDistribution, getHRZoneConfig } from '@/lib/hr-zones';
-import { HR_ZONES, type HRZone } from '@/types/strava';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { calculate1RM } from '@/lib/pr-utils';
 import { MeasurementsForm } from '@/components/MeasurementsForm';
 import { DataManagement } from '@/components/DataManagement';
-import { StravaActivityCard } from '@/components/StravaActivityCard';
+import { StravaTab } from '@/components/strava/StravaTab';
+import { TrainingHeatmap } from '@/components/TrainingHeatmap';
 import type { WorkoutSession } from '@/types';
 import { cn } from '@/lib/utils';
+import { tooltipStyle, CHART_COLORS } from '@/lib/chart-config';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
-  TrendingUp, TrendingDown, Minus, Scale, RefreshCw, Loader2, ChevronRight,
+  TrendingUp, TrendingDown, Minus, Scale, Loader2, ChevronRight,
   Sparkles, Clock, Route,
 } from 'lucide-react';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
@@ -53,13 +53,6 @@ type AnalyticsTab = 'summary' | 'charts' | 'measurements' | 'strava' | 'weekly';
 // ========================
 // Shared utilities
 // ========================
-
-const tooltipStyle = {
-  backgroundColor: 'hsl(var(--card))',
-  border: '1px solid hsl(var(--border))',
-  borderRadius: '8px',
-  fontSize: '12px',
-};
 
 const StatSummary = ({ items }: { items: { label: string; value: string | number }[] }) => (
   <div className="grid grid-cols-3 gap-3 mt-4">
@@ -71,17 +64,6 @@ const StatSummary = ({ items }: { items: { label: string; value: string | number
     ))}
   </div>
 );
-
-const CHART_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  '#f97316',
-  '#06b6d4',
-  '#8b5cf6',
-];
 
 const workoutTonnage = (workout: WorkoutSession): number =>
   workout.exercises.reduce((sum, ex) =>
@@ -317,6 +299,9 @@ const SummaryTab = () => {
           </Card>
         );
       })()}
+
+      {/* Training Heatmap */}
+      <TrainingHeatmap workouts={workouts} stravaActivities={stravaActivities} />
     </div>
   );
 };
@@ -698,203 +683,6 @@ const MeasurementsTab = () => {
             </div>
           </CardContent>
         </Card>
-      )}
-    </div>
-  );
-};
-
-// ========================
-// TAB: Strava
-// ========================
-
-const StravaTab = () => {
-  const { uid, isAdmin } = useCurrentUser();
-  const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, isAdmin);
-
-  // Filter out weight training activities
-  const nonStrengthActivities = useMemo(
-    () => activities.filter(a => a.type !== 'WeightTraining' && a.type !== 'Crossfit'),
-    [activities]
-  );
-
-  // Summary stats
-  const summaryStats = useMemo(() => {
-    if (nonStrengthActivities.length === 0) return null;
-    const totalDistance = nonStrengthActivities.reduce((sum, a) => sum + (a.distance || 0), 0) / 1000;
-    const totalTime = nonStrengthActivities.reduce((sum, a) => sum + (a.movingTime || 0), 0);
-    const activitiesWithPace = nonStrengthActivities.filter(a => a.averageSpeed && (a.type === 'Run' || a.type === 'Walk' || a.type === 'Hike'));
-    const avgPace = activitiesWithPace.length > 0
-      ? activitiesWithPace.reduce((sum, a) => sum + (1000 / a.averageSpeed!), 0) / activitiesWithPace.length
-      : null;
-    const activitiesWithHR = nonStrengthActivities.filter(a => a.averageHeartrate);
-    const avgHR = activitiesWithHR.length > 0
-      ? Math.round(activitiesWithHR.reduce((sum, a) => sum + a.averageHeartrate!, 0) / activitiesWithHR.length)
-      : null;
-    return { totalDistance, totalTime, avgPace, avgHR };
-  }, [nonStrengthActivities]);
-
-  // Km per week chart data (12 weeks)
-  const weeklyKmData = useMemo(() => {
-    const now = new Date();
-    const weeks: { label: string; km: number }[] = [];
-    for (let i = 11; i >= 0; i--) {
-      const weekDate = new Date(now);
-      weekDate.setDate(now.getDate() - i * 7);
-      const { start, end } = getWeekBounds(weekDate);
-      const startStr = start.toISOString().split('T')[0];
-      const endStr = end.toISOString().split('T')[0];
-      const km = nonStrengthActivities
-        .filter(a => a.date >= startStr && a.date <= endStr)
-        .reduce((sum, a) => sum + (a.distance || 0), 0) / 1000;
-      weeks.push({
-        label: getWeekLabel(11 - i, 12),
-        km: Math.round(km * 10) / 10,
-      });
-    }
-    return weeks;
-  }, [nonStrengthActivities]);
-
-  // HR zone distribution
-  const zoneDistribution = useMemo(() => {
-    if (!connection.estimatedMaxHR) return null;
-    return calculateZoneDistribution(nonStrengthActivities, connection.estimatedMaxHR);
-  }, [nonStrengthActivities, connection.estimatedMaxHR]);
-
-  const maxZoneCount = zoneDistribution
-    ? Math.max(...Object.values(zoneDistribution), 1)
-    : 1;
-
-  if (!connection.connected) {
-    return (
-      <Card>
-        <CardContent className="py-12">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center text-2xl">🏃</div>
-            <p className="font-medium text-sm">Połącz ze Stravą</p>
-            <p className="text-sm text-muted-foreground">Synchronizuj aktywności cardio, biegi, rowery i inne ze Stravą.</p>
-            <Button onClick={connectStrava} className="mt-2 bg-orange-500 hover:bg-orange-600">Połącz Stravę</Button>
-            {error && <p className="text-sm text-destructive mt-2">{error}</p>}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const formatPaceValue = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.round(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')} /km`;
-  };
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-sm">Strava połączona</p>
-              {connection.athleteName && <p className="text-xs text-muted-foreground">{connection.athleteName}</p>}
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={syncActivities} disabled={isSyncing}>
-                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                Sync
-              </Button>
-              <Button size="sm" variant="ghost" className="text-destructive" onClick={disconnectStrava}>Rozłącz</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {error && <Card className="border-destructive"><CardContent className="py-3"><p className="text-sm text-destructive">{error}</p></CardContent></Card>}
-
-      {/* Summary stats */}
-      {summaryStats && (
-        <div className="grid grid-cols-2 gap-3">
-          <Card><CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold">{summaryStats.totalDistance.toFixed(1)} km</p>
-            <p className="text-xs text-muted-foreground">Łączny dystans</p>
-          </CardContent></Card>
-          <Card><CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold">{(summaryStats.totalTime / 3600).toFixed(1)} h</p>
-            <p className="text-xs text-muted-foreground">Łączny czas</p>
-          </CardContent></Card>
-          <Card><CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold">{summaryStats.avgPace ? formatPaceValue(summaryStats.avgPace) : '—'}</p>
-            <p className="text-xs text-muted-foreground">Średnie tempo</p>
-          </CardContent></Card>
-          <Card><CardContent className="pt-4 pb-4 text-center">
-            <p className="text-2xl font-bold">{summaryStats.avgHR ? `${summaryStats.avgHR} bpm` : '—'}</p>
-            <p className="text-xs text-muted-foreground">Średnie HR</p>
-          </CardContent></Card>
-        </div>
-      )}
-
-      {/* Km per week chart */}
-      {weeklyKmData.some(w => w.km > 0) && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Route className="h-4 w-4 text-orange-500" />
-              Kilometry / tydzień
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={weeklyKmData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
-                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" km" />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} km`, 'Dystans']} />
-                <Bar dataKey="km" name="km" fill="#f97316" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* HR zone distribution */}
-      {zoneDistribution && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Rozkład stref tętna</CardTitle>
-            <CardDescription className="text-xs">Na podstawie {nonStrengthActivities.filter(a => a.averageHeartrate).length} aktywności z danymi HR</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {HR_ZONES.map((z) => {
-              const count = zoneDistribution[z.zone as HRZone];
-              const widthPercent = (count / maxZoneCount) * 100;
-              return (
-                <div key={z.zone} className="flex items-center gap-2">
-                  <span className="text-xs w-24 shrink-0">Z{z.zone} {z.name}</span>
-                  <div className="flex-1 h-6 bg-muted/30 rounded overflow-hidden">
-                    <div
-                      className={`h-full ${z.color} rounded transition-all duration-300 flex items-center justify-end pr-1`}
-                      style={{ width: `${Math.max(widthPercent, count > 0 ? 8 : 0)}%` }}
-                    >
-                      {count > 0 && <span className="text-[10px] font-bold text-white">{count}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Activity list */}
-      {nonStrengthActivities.length === 0 ? (
-        <Card className="bg-muted/30">
-          <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">Brak aktywności Strava (bez treningów siłowych)</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-2">
-          {nonStrengthActivities.slice(0, 20).map(activity => (
-            <StravaActivityCard key={activity.id} activity={activity} maxHR={connection.estimatedMaxHR} />
-          ))}
-        </div>
       )}
     </div>
   );

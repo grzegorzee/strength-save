@@ -1,4 +1,5 @@
 import type { SetData } from '@/types';
+import { exerciseLibrary } from '@/data/exerciseLibrary';
 
 // --- Rep Range Parsing ---
 
@@ -73,10 +74,29 @@ export interface RestContext {
   exerciseIndex: number;
   isSuperset: boolean;
   isFirstInSuperset: boolean;
+  exerciseType?: 'compound' | 'isolation';
+  weight?: number;
+  estimated1RM?: number;
 }
 
-export const getRestDuration = (_ctx: RestContext): number => {
-  return 30;
+export const getRestDuration = (ctx: RestContext): number => {
+  if (ctx.isSuperset && ctx.isFirstInSuperset) return 15;
+  if (ctx.isSuperset) return 60;
+
+  const base = ctx.exerciseType === 'isolation' ? 60 : 90;
+
+  if (ctx.weight && ctx.estimated1RM && ctx.estimated1RM > 0) {
+    const intensity = ctx.weight / ctx.estimated1RM;
+    if (intensity > 0.9) return base + 60;
+    if (intensity > 0.8) return base + 30;
+  }
+
+  return base;
+};
+
+export const lookupExerciseType = (name: string): 'compound' | 'isolation' => {
+  const found = exerciseLibrary.find(e => e.name === name);
+  return found?.type ?? 'compound';
 };
 
 // --- Set Count Parsing ---
