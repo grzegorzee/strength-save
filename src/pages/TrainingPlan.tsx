@@ -91,28 +91,28 @@ const TrainingPlan = () => {
   return (
     <div className="space-y-6">
       {/* Week Info */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <CardTitle className="font-heading tracking-tight">Plan treningowy</CardTitle>
               <CardDescription>{planDurationWeeks}-tygodniowy program: Poniedziałek, Środa, Piątek</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => navigate('/plan/edit')}>
                 <Settings className="h-4 w-4 mr-1" />
                 Edytuj
               </Button>
-              <Badge className="bg-primary text-primary-foreground py-2 px-4 text-sm">
-                Tydzień {displayWeek} z {planDurationWeeks}
+              <Badge className="bg-primary text-primary-foreground py-1.5 px-3 text-xs sm:text-sm">
+                Tydzień {displayWeek}/{planDurationWeeks}
               {displayWeek !== actualCurrentWeek && (
-                <span className="ml-1 opacity-70">(aktualny: {actualCurrentWeek})</span>
+                <span className="ml-1 opacity-70 hidden sm:inline">(akt: {actualCurrentWeek})</span>
               )}
             </Badge>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           <Alert className="mb-4">
             <Info className="h-4 w-4" />
             <AlertDescription className="text-sm space-y-1">
@@ -123,7 +123,7 @@ const TrainingPlan = () => {
 
           <div className="grid lg:grid-cols-[1fr_320px] gap-6">
             {/* Training Days List */}
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="py-2 px-4 text-sm">
                   {selectedWeekStart.toLocaleDateString('pl-PL', {
@@ -238,19 +238,19 @@ const TrainingPlan = () => {
                   <div className="grid grid-cols-3 gap-4 text-center">
                     <div>
                       <p className="text-2xl font-heading font-bold text-primary">{actualCurrentWeek}</p>
-                      <p className="text-xs text-muted-foreground">Aktualny tydzień</p>
+                      <p className="text-xs text-muted-foreground">Tydzień</p>
                     </div>
                     <div>
                       <p className="text-2xl font-heading font-bold text-primary">
                         {workouts.filter(w => w.completed).length}
                       </p>
-                      <p className="text-xs text-muted-foreground">Ukończone treningi</p>
+                      <p className="text-xs text-muted-foreground">Ukończone</p>
                     </div>
                     <div>
                       <p className="text-2xl font-heading font-bold text-primary">
                         {Math.max(0, planDurationWeeks - actualCurrentWeek)}
                       </p>
-                      <p className="text-xs text-muted-foreground">Tygodni pozostało</p>
+                      <p className="text-xs text-muted-foreground">Pozostało</p>
                     </div>
                   </div>
                 </CardContent>

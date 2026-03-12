@@ -68,10 +68,10 @@ export const StravaActivityCard = ({ activity, maxHR }: StravaActivityCardProps)
   return (
     <>
       <Card
-        className="bg-orange-500/5 border-orange-500/20 cursor-pointer hover:bg-orange-500/10 transition-colors"
+        className="bg-orange-500/5 border-orange-500/20 cursor-pointer hover:bg-orange-500/10 transition-colors overflow-hidden"
         onClick={() => setDetailOpen(true)}
       >
-        <CardContent className="py-3">
+        <CardContent className="py-3 px-3 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-lg">
               {icon}
@@ -84,7 +84,7 @@ export const StravaActivityCard = ({ activity, maxHR }: StravaActivityCardProps)
                   Strava
                 </Badge>
               </div>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+              <div className="flex items-center gap-x-3 gap-y-0.5 flex-wrap text-xs text-muted-foreground mt-0.5">
                 {activity.distance && <span>{formatDistance(activity.distance)}</span>}
                 {activity.movingTime && <span>{formatDuration(activity.movingTime)}</span>}
                 {activity.averageSpeed && <span>{formatPace(activity.averageSpeed, activity.type)}</span>}

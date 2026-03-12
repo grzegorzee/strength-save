@@ -43,12 +43,12 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all duration-200 hover:border-primary/30 hover:shadow-md",
+        "cursor-pointer transition-all duration-200 hover:border-primary/30 hover:shadow-md overflow-hidden",
         getCardStyle()
       )}
       onClick={onClick}
     >
-      <CardContent className="py-3">
+      <CardContent className="py-3 px-3 sm:px-6">
         <div className="flex items-center gap-3">
           <div className={cn(
             "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
