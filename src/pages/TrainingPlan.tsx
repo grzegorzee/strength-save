@@ -205,22 +205,10 @@ const TrainingPlan = () => {
                           )}
                         </div>
 
-                        {/* Strava activities — compact inline */}
+                        {/* Strava activities — full cards (same as DayPlan/Analytics) */}
                         {stravaItems.map(({ activity }) => (
-                          <div
-                            key={`strava-${activity.id}`}
-                            className="flex items-center gap-2 px-3 py-1.5 mb-1 rounded-md bg-orange-500/5 border border-orange-500/15 text-xs cursor-pointer hover:bg-orange-500/10 transition-colors"
-                            onClick={() => {
-                              // Find the full StravaActivityCard to open detail — just navigate to strava URL
-                              if (activity.stravaUrl) window.open(activity.stravaUrl, '_blank');
-                            }}
-                          >
-                            <span>{activity.type === 'Run' ? '🏃' : activity.type === 'Ride' ? '🚴' : activity.type === 'Swim' ? '🏊' : activity.type === 'Walk' ? '🚶' : activity.type === 'WeightTraining' ? '🏋️' : '🏅'}</span>
-                            <span className="font-medium truncate">{activity.name}</span>
-                            {activity.distance ? <span className="text-muted-foreground shrink-0">{(activity.distance / 1000).toFixed(1)}km</span> : null}
-                            {activity.movingTime ? <span className="text-muted-foreground shrink-0">{Math.floor(activity.movingTime / 60)}m</span> : null}
-                            {activity.averageHeartrate ? <span className="text-muted-foreground shrink-0">❤️{Math.round(activity.averageHeartrate)}</span> : null}
-                            <Badge variant="outline" className="text-[9px] ml-auto shrink-0 border-orange-500/30 text-orange-600 px-1 py-0">Strava</Badge>
+                          <div key={`strava-${activity.id}`} className="mb-1">
+                            <StravaActivityCard activity={activity} />
                           </div>
                         ))}
 

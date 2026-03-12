@@ -21,6 +21,7 @@ const LEVEL_COLORS = [
 ] as const;
 
 const MONTHS = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paź', 'Lis', 'Gru'];
+const DAY_LABELS = ['Pn', '', 'Śr', '', 'Pt', '', ''];
 
 export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
   const currentYear = new Date().getFullYear();
@@ -44,9 +45,8 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
     const grid: (typeof heatmapData[number] | null)[][] = [];
     let currentWeek: (typeof heatmapData[number] | null)[] = [];
 
-    // Pad first week with nulls if year doesn't start on Monday
     const firstDay = new Date(selectedYear, 0, 1).getDay();
-    const mondayOffset = firstDay === 0 ? 6 : firstDay - 1; // 0=Mon, 6=Sun
+    const mondayOffset = firstDay === 0 ? 6 : firstDay - 1;
     for (let i = 0; i < mondayOffset; i++) currentWeek.push(null);
 
     heatmapData.forEach(day => {
@@ -65,9 +65,9 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
     return grid;
   }, [heatmapData, selectedYear]);
 
-  // Month labels positions
+  // Month labels — find first week index where each month appears
   const monthLabels = useMemo(() => {
-    const labels: { label: string; col: number }[] = [];
+    const labels: { label: string; weekIdx: number }[] = [];
     let lastMonth = -1;
 
     weeks.forEach((week, weekIdx) => {
@@ -75,7 +75,7 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
       if (firstDay) {
         const month = parseInt(firstDay.date.substring(5, 7)) - 1;
         if (month !== lastMonth) {
-          labels.push({ label: MONTHS[month], col: weekIdx });
+          labels.push({ label: MONTHS[month], weekIdx });
           lastMonth = month;
         }
       }
@@ -85,6 +85,7 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
   }, [weeks]);
 
   const activeDays = heatmapData.filter(d => d.level > 0).length;
+  const totalWeeks = weeks.length;
 
   return (
     <Card>
@@ -113,54 +114,62 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
           </div>
         )}
       </CardHeader>
-      <CardContent>
-        {/* Month labels */}
-        <div className="flex gap-[3px] mb-1 ml-6">
-          {monthLabels.map(({ label, col }) => (
-            <div
-              key={`${label}-${col}`}
-              className="text-[9px] text-muted-foreground absolute"
-              style={{ left: `${col * 15 + 24}px` }}
-            >
-              {label}
-            </div>
-          ))}
-        </div>
+      <CardContent className="px-3 sm:px-6">
+        <div className="overflow-x-auto -mx-1">
+          {/* CSS Grid approach: day labels column + week columns */}
+          <div
+            className="inline-grid gap-[2px] sm:gap-[3px]"
+            style={{
+              gridTemplateColumns: `20px repeat(${totalWeeks}, 1fr)`,
+              gridTemplateRows: `16px repeat(7, 1fr)`,
+              minWidth: `${totalWeeks * 10 + 20}px`,
+            }}
+          >
+            {/* Top-left empty corner */}
+            <div />
 
-        <div className="overflow-x-auto">
-          <div className="flex gap-[3px] relative pt-4">
-            {/* Day labels */}
-            <div className="flex flex-col gap-[3px] shrink-0">
-              {['Pn', '', 'Śr', '', 'Pt', '', ''].map((label, i) => (
-                <div key={i} className="h-3 w-5 flex items-center">
-                  <span className="text-[9px] text-muted-foreground">{label}</span>
+            {/* Month labels row */}
+            {weeks.map((_, weekIdx) => {
+              const monthLabel = monthLabels.find(m => m.weekIdx === weekIdx);
+              return (
+                <div key={`month-${weekIdx}`} className="text-[8px] sm:text-[9px] text-muted-foreground leading-none flex items-end">
+                  {monthLabel?.label || ''}
                 </div>
-              ))}
-            </div>
+              );
+            })}
 
-            {/* Grid */}
-            {weeks.map((week, weekIdx) => (
-              <div key={weekIdx} className="flex flex-col gap-[3px]">
-                {week.map((day, dayIdx) => (
-                  <div
-                    key={dayIdx}
-                    className={cn(
-                      'h-3 w-3 rounded-sm',
-                      day ? LEVEL_COLORS[day.level] : 'bg-transparent',
-                    )}
-                    title={day ? `${new Date(day.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}${day.hasWorkout ? ` — ${(day.strengthTonnage / 1000).toFixed(1)}t tonaż` : ''}${day.hasCardio ? ` — ${day.cardioKm}km` : ''}` : ''}
-                  />
-                ))}
-              </div>
+            {/* Day rows */}
+            {DAY_LABELS.map((label, dayIdx) => (
+              <>
+                {/* Day label */}
+                <div key={`label-${dayIdx}`} className="flex items-center">
+                  <span className="text-[8px] sm:text-[9px] text-muted-foreground">{label}</span>
+                </div>
+
+                {/* Cells for this day across all weeks */}
+                {weeks.map((week, weekIdx) => {
+                  const day = week[dayIdx];
+                  return (
+                    <div
+                      key={`cell-${weekIdx}-${dayIdx}`}
+                      className={cn(
+                        'aspect-square rounded-[2px] sm:rounded-sm min-w-[6px]',
+                        day ? LEVEL_COLORS[day.level] : 'bg-transparent',
+                      )}
+                      title={day ? `${new Date(day.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}${day.hasWorkout ? ` — ${(day.strengthTonnage / 1000).toFixed(1)}t` : ''}${day.hasCardio ? ` — ${day.cardioKm}km` : ''}` : ''}
+                    />
+                  );
+                })}
+              </>
             ))}
           </div>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-2 mt-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-1.5 sm:gap-2 mt-3 text-[10px] text-muted-foreground">
           <span>Mniej</span>
           {LEVEL_COLORS.map((color, i) => (
-            <div key={i} className={cn('h-3 w-3 rounded-sm', color)} />
+            <div key={i} className={cn('h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-[2px] sm:rounded-sm', color)} />
           ))}
           <span>Więcej</span>
         </div>
