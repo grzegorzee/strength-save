@@ -4,7 +4,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
 
-const resendApiKey = defineSecret("resend-api-key");
+const resendApiKey = defineSecret("RESEND_API_KEY");
 
 interface WorkoutDoc {
   userId: string;
