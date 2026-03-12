@@ -140,7 +140,8 @@ const SummaryTab = () => {
     const d = new Date(m.date);
     return d >= bounds.start && d <= bounds.end && m.weight;
   });
-  const latestWeight = periodMeasurements[0]?.weight;
+  const latestMeasurement = periodMeasurements[0] || measurements.find(m => m.weight);
+  const latestWeight = latestMeasurement?.weight;
 
   const handleCopy = async () => {
     const periodLabel = period === 'week' ? 'Tydzień' : 'Miesiąc';
