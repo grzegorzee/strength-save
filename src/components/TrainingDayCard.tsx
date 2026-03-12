@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Dumbbell, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
+import { Dumbbell, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 import { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { cn } from '@/lib/utils';
@@ -8,11 +8,10 @@ import { cn } from '@/lib/utils';
 interface TrainingDayCardProps {
   day: TrainingDay;
   latestWorkout?: WorkoutSession;
-  trainingDate?: Date; // Data zaplanowanego treningu
+  trainingDate?: Date;
   onClick: () => void;
 }
 
-// Funkcja pomocnicza do formatowania daty lokalnej (bez problemu ze strefą czasową)
 const formatLocalDate = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -24,29 +23,21 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
   const todayStr = formatLocalDate(new Date());
   const trainingDateStr = trainingDate ? formatLocalDate(trainingDate) : undefined;
 
-  // Sprawdź status treningu
   const isCompleted = latestWorkout?.completed === true;
   const isCompletedToday = isCompleted && latestWorkout?.date === todayStr;
-
-  // Trening jest "pominięty" TYLKO jeśli:
-  // 1. Data treningu jest WCZEŚNIEJSZA niż dzisiaj (stricte <, nie <=)
-  // 2. I nie ma ukończonego workoutu dla tej daty
-  // Dzisiejszy trening NIGDY nie jest pominięty - masz czas do końca dnia!
   const isPastDate = trainingDateStr && trainingDateStr < todayStr;
   const isMissed = isPastDate && !isCompleted;
 
-  // Określ styl karty
   const getCardStyle = () => {
-    if (isCompleted) return "ring-2 ring-fitness-success bg-fitness-success/5";
-    if (isMissed) return "ring-2 ring-destructive bg-destructive/5";
+    if (isCompleted) return "ring-1 ring-fitness-success/50 bg-fitness-success/5";
+    if (isMissed) return "ring-1 ring-destructive/50 bg-destructive/5";
     return "";
   };
 
-  // Określ styl ikony
   const getIconStyle = () => {
-    if (isCompleted) return "bg-fitness-success text-white";
-    if (isMissed) return "bg-destructive text-white";
-    return "bg-gradient-to-br from-primary to-secondary text-white";
+    if (isCompleted) return "bg-fitness-success/15 text-fitness-success";
+    if (isMissed) return "bg-destructive/15 text-destructive";
+    return "bg-primary/15 text-primary";
   };
 
   return (
@@ -57,57 +48,43 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
       )}
       onClick={onClick}
     >
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "h-14 w-14 rounded-xl flex flex-col items-center justify-center font-bold",
-              getIconStyle()
-            )}>
-              {isCompleted ? (
-                <CheckCircle className="h-6 w-6" />
-              ) : isMissed ? (
-                <XCircle className="h-6 w-6" />
-              ) : (
-                <>
-                  <span className="text-xs uppercase tracking-wide opacity-80">
-                    {day.dayName.slice(0, 3)}
-                  </span>
-                  <Dumbbell className="h-5 w-5" />
-                </>
+      <CardContent className="py-3">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "h-10 w-10 rounded-lg flex items-center justify-center shrink-0",
+            getIconStyle()
+          )}>
+            {isCompleted ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : isMissed ? (
+              <XCircle className="h-5 w-5" />
+            ) : (
+              <Dumbbell className="h-5 w-5" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-sm truncate">{day.dayName}</p>
+              {isCompletedToday && (
+                <Badge className="bg-fitness-success text-white text-[10px] h-5">Dziś</Badge>
+              )}
+              {isCompleted && !isCompletedToday && (
+                <Badge variant="secondary" className="text-fitness-success text-[10px] h-5">Ukończone</Badge>
+              )}
+              {isMissed && (
+                <Badge variant="destructive" className="text-[10px] h-5">Pominięte</Badge>
               )}
             </div>
-            <div>
-              <CardTitle className="text-lg font-heading tracking-tight">{day.dayName}</CardTitle>
-              <p className="text-sm text-muted-foreground">{day.focus}</p>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+              <span>{day.focus}</span>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <Dumbbell className="h-3 w-3" />
+                {day.exercises.length}
+              </span>
             </div>
           </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Dumbbell className="h-3 w-3" />
-              {day.exercises.length} ćwiczeń
-            </Badge>
-            {isCompletedToday && (
-              <Badge className="bg-fitness-success text-white">Ukończone dziś</Badge>
-            )}
-            {isCompleted && !isCompletedToday && (
-              <Badge variant="secondary" className="text-fitness-success">Ukończone</Badge>
-            )}
-            {isMissed && (
-              <Badge variant="destructive">Pominięte</Badge>
-            )}
-          </div>
-          {latestWorkout && isCompleted && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              {new Date(latestWorkout.date).toLocaleDateString('pl-PL')}
-            </div>
-          )}
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
         </div>
       </CardContent>
     </Card>

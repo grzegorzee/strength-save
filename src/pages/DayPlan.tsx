@@ -109,22 +109,29 @@ const DayPlan = () => {
                 <span className="text-4xl">{isWorkoutCompleted ? '💪' : '🧘'}</span>
               </div>
               <h3 className="text-xl font-semibold mb-2">
-                {isWorkoutCompleted ? 'Trening ukończony!' : 'Dzisiaj wolne!'}
+                {isWorkoutCompleted
+                  ? 'Trening ukończony!'
+                  : todayStravaActivities.length > 0
+                    ? 'Dzisiaj bez siłki'
+                    : 'Dzisiaj wolne!'
+                }
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
                 {isWorkoutCompleted
                   ? `Świetna robota! Ukończyłeś trening "${todaysTraining?.focus}". Teraz czas na regenerację.`
-                  : 'Dziś jest dzień regeneracji. Możesz odpocząć, zrobić lekki stretching lub spacer.'
+                  : todayStravaActivities.length > 0
+                    ? 'Brak treningu siłowego, ale masz aktywności cardio.'
+                    : 'Dziś jest dzień regeneracji. Możesz odpocząć, zrobić lekki stretching lub spacer.'
                 }
               </p>
             </div>
 
-            {/* Today's Strava activities */}
+            {/* Today's Strava activities — shown before tips */}
             {todayStravaActivities.length > 0 && (
               <div className="space-y-2">
                 <h4 className="font-medium text-sm text-muted-foreground">Aktywności Strava dzisiaj:</h4>
                 {todayStravaActivities.map(activity => (
-                  <StravaActivityCard key={activity.id} activity={activity} />
+                  <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
                 ))}
               </div>
             )}
@@ -300,7 +307,7 @@ const DayPlan = () => {
             <div className="space-y-2">
               <h4 className="font-medium text-sm text-muted-foreground">Aktywności Strava dzisiaj:</h4>
               {todayStravaActivities.map(activity => (
-                <StravaActivityCard key={activity.id} activity={activity} />
+                <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
               ))}
             </div>
           )}

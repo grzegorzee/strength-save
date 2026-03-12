@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
@@ -312,12 +313,17 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
   const lastSync = userData?.stravaLastSync;
 
   const now = Math.floor(Date.now() / 1000);
-  const afterFromLastSync = lastSync
-    ? Math.floor(new Date(lastSync).getTime() / 1000)
-    : now - 365 * 24 * 60 * 60;
 
-  const minLookback = now - 7 * 24 * 60 * 60;
-  const after = Math.min(afterFromLastSync, minLookback);
+  let after: number;
+  if (!lastSync) {
+    // First connect: only 1 day lookback
+    after = now - 1 * 24 * 60 * 60;
+  } else {
+    // Subsequent syncs: from lastSync with min 7-day lookback
+    const afterFromLastSync = Math.floor(new Date(lastSync).getTime() / 1000);
+    const minLookback = now - 7 * 24 * 60 * 60;
+    after = Math.min(afterFromLastSync, minLookback);
+  }
 
   logger.info(`[Strava] syncUserActivities: lastSync=${lastSync || "null"}, after=${new Date(after * 1000).toISOString()}`);
 
@@ -395,6 +401,75 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
     stravaLastSync: new Date().toISOString(),
   });
 
+  // Auto-update estimatedMaxHR (unless manually overridden)
+  const userDocFresh = await db.doc(`users/${userId}`).get();
+  const userDataFresh = userDocFresh.data();
+  if (!userDataFresh?.maxHRManualOverride) {
+    const allActivities = await db
+      .collection("strava_activities")
+      .where("userId", "==", userId)
+      .get();
+    let maxHR = 0;
+    allActivities.docs.forEach((d) => {
+      const mhr = d.data().maxHeartrate;
+      if (mhr && mhr > maxHR) maxHR = mhr;
+    });
+    if (maxHR > 0) {
+      await db.doc(`users/${userId}`).update({ estimatedMaxHR: maxHR });
+      logger.info(`[Strava] Updated estimatedMaxHR=${maxHR} for ${userId}`);
+    }
+  }
+
   logger.info(`[Strava] Result: ${synced} new, ${alreadyExisted} already existed, ${activities.length} total for ${userId}`);
   return { synced, totalFetched: activities.length, alreadyExisted, lookbackDays };
 }
+
+/**
+ * Scheduled daily Strava sync at 10:00 Warsaw time
+ */
+export const stravaScheduledSync = onSchedule(
+  {
+    schedule: "0 10 * * *",
+    timeZone: "Europe/Warsaw",
+    timeoutSeconds: 300,
+    secrets: [stravaClientId, stravaClientSecret],
+  },
+  async () => {
+    logger.info("[Strava] Scheduled sync starting...");
+
+    const usersSnapshot = await db
+      .collection("users")
+      .where("stravaConnected", "==", true)
+      .get();
+
+    logger.info(`[Strava] Found ${usersSnapshot.size} connected users`);
+
+    for (const userDoc of usersSnapshot.docs) {
+      const userId = userDoc.id;
+      const userData = userDoc.data();
+
+      try {
+        if (!userData.stravaTokens) {
+          logger.warn(`[Strava] Skipping ${userId}: no tokens`);
+          continue;
+        }
+
+        let accessToken = userData.stravaTokens.accessToken;
+        const now = Math.floor(Date.now() / 1000);
+
+        if (userData.stravaTokens.expiresAt <= now) {
+          logger.info(`[Strava] Refreshing token for ${userId}`);
+          accessToken = await refreshStravaToken(userId, userData.stravaTokens.refreshToken);
+        }
+
+        const result = await syncUserActivities(userId, accessToken);
+        logger.info(`[Strava] Scheduled sync OK for ${userId}: synced=${result.synced}`);
+      } catch (error) {
+        logger.error(`[Strava] Scheduled sync FAILED for ${userId}:`, error);
+        // Continue with other users
+      }
+    }
+
+    logger.info("[Strava] Scheduled sync completed");
+  },
+);

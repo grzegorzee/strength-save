@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronRight } from 'lucide-react';
 import type { StravaActivity } from '@/types/strava';
 import { StravaActivityDetail } from '@/components/StravaActivityDetail';
+import { getHRZone, getHRZoneConfig } from '@/lib/hr-zones';
 
 const activityIcons: Record<string, string> = {
   Run: '🏃',
@@ -49,10 +50,20 @@ const formatShortDate = (activity: StravaActivity): string => {
   return date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
 };
 
-export const StravaActivityCard = ({ activity }: { activity: StravaActivity }) => {
+interface StravaActivityCardProps {
+  activity: StravaActivity;
+  maxHR?: number;
+}
+
+export const StravaActivityCard = ({ activity, maxHR }: StravaActivityCardProps) => {
   const [detailOpen, setDetailOpen] = useState(false);
   const icon = activityIcons[activity.type] || '🏅';
   const shortDate = formatShortDate(activity);
+
+  const hrZone = activity.averageHeartrate && maxHR
+    ? getHRZone(activity.averageHeartrate, maxHR)
+    : null;
+  const hrZoneConfig = hrZone ? getHRZoneConfig(hrZone) : null;
 
   return (
     <>
@@ -80,7 +91,16 @@ export const StravaActivityCard = ({ activity }: { activity: StravaActivity }) =
                 {activity.totalElevationGain != null && activity.totalElevationGain > 0 && (
                   <span>↗ {Math.round(activity.totalElevationGain)}m</span>
                 )}
-                {activity.averageHeartrate && <span>❤️ {Math.round(activity.averageHeartrate)}</span>}
+                {activity.averageHeartrate && (
+                  <span className="flex items-center gap-1">
+                    ❤️ {Math.round(activity.averageHeartrate)}
+                    {hrZoneConfig && (
+                      <span className={`inline-flex items-center px-1 rounded text-[10px] font-bold text-white ${hrZoneConfig.color}`}>
+                        Z{hrZone}
+                      </span>
+                    )}
+                  </span>
+                )}
               </div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -92,6 +112,7 @@ export const StravaActivityCard = ({ activity }: { activity: StravaActivity }) =
         activity={activity}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        maxHR={maxHR}
       />
     </>
   );

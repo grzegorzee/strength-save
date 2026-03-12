@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Link2, Unlink, RefreshCw, Loader2, Clock } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 const SUMMARY_HOUR_KEY = 'summary-hour';
 
@@ -31,6 +34,26 @@ const Settings = () => {
       localStorage.setItem(SUMMARY_HOUR_KEY, value);
     } catch {
       // ignore
+    }
+  };
+
+  const [maxHRInput, setMaxHRInput] = useState('');
+  const [maxHRSaving, setMaxHRSaving] = useState(false);
+
+  const handleSaveMaxHR = async () => {
+    const value = parseInt(maxHRInput);
+    if (isNaN(value) || value < 100 || value > 230) {
+      toast({ title: 'Nieprawidłowa wartość', description: 'Max HR musi być między 100 a 230 bpm.', variant: 'destructive' });
+      return;
+    }
+    setMaxHRSaving(true);
+    try {
+      await updateDoc(doc(db, 'users', uid), { estimatedMaxHR: value, maxHRManualOverride: true });
+      toast({ title: 'Zapisano', description: `Max HR ustawione na ${value} bpm.` });
+    } catch {
+      toast({ title: 'Błąd', description: 'Nie udało się zapisać.', variant: 'destructive' });
+    } finally {
+      setMaxHRSaving(false);
     }
   };
 
@@ -159,6 +182,35 @@ const Settings = () => {
                   <Unlink className="h-4 w-4 mr-2" />
                   Rozłącz
                 </Button>
+              </div>
+
+              {/* Max HR setting */}
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-sm font-medium">Max HR</p>
+                    <p className="text-xs text-muted-foreground">
+                      {connection.estimatedMaxHR
+                        ? `${connection.estimatedMaxHR} bpm ${connection.maxHRManualOverride ? '(Ręcznie ustawione)' : '(Automatycznie z danych)'}`
+                        : 'Brak danych — ustaw ręcznie lub zsynchronizuj aktywności z tętnem'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder={connection.estimatedMaxHR?.toString() || '185'}
+                    min={100}
+                    max={230}
+                    value={maxHRInput}
+                    onChange={(e) => setMaxHRInput(e.target.value)}
+                    className="w-24"
+                  />
+                  <Button variant="outline" size="sm" onClick={handleSaveMaxHR} disabled={maxHRSaving || !maxHRInput}>
+                    {maxHRSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Zapisz'}
+                  </Button>
+                </div>
               </div>
             </>
           ) : (

@@ -61,11 +61,13 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     const unsubscribe = onSnapshot(doc(db, 'users', userId), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
-        const conn = {
+        const conn: StravaConnection = {
           connected: data.stravaConnected || false,
           athleteId: data.stravaAthleteId,
           athleteName: data.stravaAthleteName,
           lastSync: data.stravaLastSync,
+          estimatedMaxHR: data.estimatedMaxHR || undefined,
+          maxHRManualOverride: data.maxHRManualOverride || false,
         };
         console.log('[Strava] Connection status:', conn.connected ? `connected (${conn.athleteName})` : 'disconnected');
         setConnection(conn);
@@ -133,6 +135,8 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
         stravaAthleteId: null,
         stravaAthleteName: null,
         stravaLastSync: null,
+        estimatedMaxHR: null,
+        maxHRManualOverride: null,
       });
 
       console.log('[Strava] Disconnected OK');

@@ -8,7 +8,9 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import type { StravaActivity } from '@/types/strava';
+import { HR_ZONES } from '@/types/strava';
 import { ExternalLink } from 'lucide-react';
+import { getHRZone, getHRZoneConfig, getHRPercent } from '@/lib/hr-zones';
 
 const activityIcons: Record<string, string> = {
   Run: '🏃',
@@ -83,9 +85,10 @@ interface StravaActivityDetailProps {
   activity: StravaActivity;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  maxHR?: number;
 }
 
-export const StravaActivityDetail = ({ activity, open, onOpenChange }: StravaActivityDetailProps) => {
+export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: StravaActivityDetailProps) => {
   const icon = activityIcons[activity.type] || '🏅';
   const sportLabel = activity.sportType || activity.type;
   const fullDate = formatFullDate(activity);
@@ -129,6 +132,33 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange }: StravaAct
             <MetricItem key={m.label} label={m.label} value={m.value} />
           ))}
         </div>
+
+        {activity.averageHeartrate && maxHR && (() => {
+          const zone = getHRZone(activity.averageHeartrate!, maxHR);
+          const zoneConfig = getHRZoneConfig(zone);
+          const percent = getHRPercent(activity.averageHeartrate!, maxHR);
+          return (
+            <div className="mb-4">
+              <p className="text-xs text-muted-foreground mb-2">Strefa tętna</p>
+              <div className="flex gap-1 h-8 rounded-lg overflow-hidden mb-2">
+                {HR_ZONES.map((z) => (
+                  <div
+                    key={z.zone}
+                    className={`flex-1 flex items-center justify-center text-[10px] font-bold transition-opacity ${z.color} ${
+                      z.zone === zone ? 'opacity-100 text-white' : 'opacity-25'
+                    }`}
+                  >
+                    Z{z.zone}
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm">
+                Dominująca strefa: <span className="font-semibold">Z{zone} — {zoneConfig.name}</span>{' '}
+                <span className="text-muted-foreground">({percent}% max HR)</span>
+              </p>
+            </div>
+          );
+        })()}
 
         {activity.description && (
           <div className="mb-4">

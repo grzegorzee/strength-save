@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Brain, ChevronDown, ChevronUp, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Brain, ChevronDown, ChevronUp, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -217,6 +217,24 @@ const Dashboard = () => {
     return null;
   }, [workouts, trainingPlan]);
 
+  // Weekly Strava km counter (Mon-Sun)
+  const weeklyKm = useMemo(() => {
+    if (!stravaConnection.connected) return 0;
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - daysSinceMonday);
+    const mondayStr = formatLocalDate(monday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const sundayStr = formatLocalDate(sunday);
+
+    return stravaActivities
+      .filter(a => a.date >= mondayStr && a.date <= sundayStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit')
+      .reduce((sum, a) => sum + (a.distance || 0), 0) / 1000;
+  }, [stravaActivities, stravaConnection.connected]);
+
   // Greeting
   const hour = new Date().getHours();
   const greetingText = hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór';
@@ -322,6 +340,26 @@ const Dashboard = () => {
           onClick={() => navigate('/analytics?tab=charts')}
         />
       </div>
+
+      {/* Weekly km counter (Strava) */}
+      {weeklyKm > 0 && (
+        <Card
+          className="bg-orange-500/5 border-orange-500/20 cursor-pointer hover:bg-orange-500/10 transition-colors"
+          onClick={() => navigate('/analytics?tab=strava')}
+        >
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                <Route className="h-5 w-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-heading font-bold tracking-tight">{weeklyKm.toFixed(1)} km</p>
+                <p className="text-xs text-muted-foreground">Ten tydzień (Strava)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Your Plan Card */}
       {!isPlanExpired && trainingPlan.length > 0 && (
@@ -463,7 +501,7 @@ const Dashboard = () => {
               const sundayStr = formatLocalDate(sundayDate);
 
               stravaActivities
-                .filter(a => a.date >= mondayStr && a.date <= sundayStr)
+                .filter(a => a.date >= mondayStr && a.date <= sundayStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit')
                 .forEach(activity => {
                   items.push({ type: 'strava', activity, dateStr: activity.date });
                 });
@@ -487,7 +525,7 @@ const Dashboard = () => {
                 );
               }
               return (
-                <StravaActivityCard key={`strava-${item.activity.id}`} activity={item.activity} />
+                <StravaActivityCard key={`strava-${item.activity.id}`} activity={item.activity} maxHR={stravaConnection.estimatedMaxHR} />
               );
             });
           })()}
