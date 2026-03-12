@@ -37,6 +37,7 @@ import { calculate1RM } from '@/lib/pr-utils';
 import { MeasurementsForm } from '@/components/MeasurementsForm';
 import { DataManagement } from '@/components/DataManagement';
 import { StravaTab } from '@/components/strava/StravaTab';
+import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { TrainingHeatmap } from '@/components/TrainingHeatmap';
 import type { WorkoutSession } from '@/types';
 import { cn } from '@/lib/utils';
