@@ -20,15 +20,18 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] **M6:** v4.0.0 - Multi-user + Admin Panel + Strava Integration ✅
 - [x] **M7:** v5.0.0 - AI Onboarding + Exercise Library + AI Coach ✅
 - [x] **M8:** v5.1.0 - Plan Management + Strava Views + Bug Fixes ✅
-- [ ] **M9:** Security hardening (OpenAI → Cloud Functions, chat_conversations per-user)
-- [ ] **M10:** PWA offline mode (offline-queue integration z hookami CRUD)
-- [ ] **M11:** Export do PDF / raporty tygodniowe
-- [ ] **M12:** Strava auto-sync (Cloud Function cron)
-- [ ] **M13:** Streaming AI Chat + cost tracking
+- [x] **M9:** v5.2.0 - Strava Deep Integration (9 komponentów, HR zones, pace, elevation) ✅
+- [x] **M10:** v6.1.0 - 8 Feature Pack (Exercise Timeline, Smart Rest, Warmup, Heatmap, Share, Race Predictor, Training Load, Weekly Digest) ✅
+- [x] **M11:** v6.2.0 - Strava Deep Integration v2 (compact timeline, SeasonFilter, Calories, PaceTrend) ✅
+- [x] **M12:** v6.3.0 - Weekly Digest (Resend, per-user auto-detect), bug fixes, doc update ✅
+- [ ] **M13:** Security hardening (OpenAI → Cloud Functions, chat_conversations per-user)
+- [ ] **M14:** PWA offline mode (offline-queue integration z hookami CRUD)
+- [ ] **M15:** Export do PDF / raporty tygodniowe
+- [ ] **M16:** Streaming AI Chat + cost tracking
 
 ---
 
-## FUNKCJONALNOŚCI (v5.1.0)
+## FUNKCJONALNOŚCI (v6.3.0)
 
 ### Core
 - [x] Plan treningowy 2-5x/tydzień (dynamiczne weekdays)
@@ -37,7 +40,8 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] Seria rozgrzewkowa (warmup) - pomarańczowa
 - [x] Notatki do każdego ćwiczenia
 - [x] Instrukcje wykonania ćwiczeń (rozwijane) + video URL
-- [x] Timer odpoczynku (circular progress, presets, wibracja)
+- [x] Smart Rest Timer — compound/isolation + intensywność %1RM
+- [x] Warmup Routine UI — checklist + stretching + 30s timer
 
 ### AI
 - [x] AI-powered onboarding (5 kroków → plan → review)
@@ -56,14 +60,17 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] Auto-detect istniejących użytkowników (skip onboarding)
 - [x] Przywracanie domyślnego planu (fix bug v5.0)
 
-### Strava
+### Strava & Cardio
 - [x] OAuth flow via Cloud Functions
 - [x] Sync aktywności (365 dni lookback przy pierwszym sync)
 - [x] Aktywności Strava w planie tygodnia (Dashboard)
-- [x] Aktywności Strava w kalendarzu (TrainingPlan)
+- [x] Aktywności Strava w kalendarzu (TrainingPlan) — kompaktowe inline
 - [x] Aktywności Strava w podsumowaniu (Analytics)
 - [x] Aktywności Strava w AI podsumowaniu tygodnia
-- [x] StravaActivityCard (ikony, dystans, tempo, tętno)
+- [x] StravaActivityCard (ikony, dystans, tempo, tętno, HR zones)
+- [x] 9 dedykowanych komponentów (Calories, Elevation, HR Zones, Pace, etc.)
+- [x] Race Predictor — 5K/10K/Półmaraton/Maraton (Riegel formula)
+- [x] Training Load — TRIMP/CTL/ATL/TSB (Banister model)
 
 ### Nawigacja i widoki
 - [x] Dashboard (greeting, stats, AI insights, plan tygodnia, Strava, PR)
@@ -76,11 +83,14 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] Klikalne ukończone treningi w Analytics
 
 ### Analytics
-- [x] 4 taby: Podsumowanie, Wykresy, Pomiary, Rekordy
+- [x] 5 tabów: Podsumowanie, Wykresy, Pomiary, Strava, Tygodniowe
 - [x] Progresja ciężarów (wykresy liniowe, filtr per dzień)
 - [x] Pomiary ciała (multi-line chart)
 - [x] Rekordy osobiste (PR detection)
 - [x] Klikalne ukończone treningi → WorkoutDay
+- [x] Exercise Timeline — wykres progresji per ćwiczenie + plateau detection
+- [x] Training Heatmap — GitHub-style grid aktywności (53×7)
+- [x] Share Workout — generowanie PNG obrazu treningu
 
 ### Statystyki
 - [x] Ukończone treningi
@@ -88,6 +98,10 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] Seria treningowa (streak)
 - [x] Aktualna waga
 - [x] Suma powtórzeń w podsumowaniu
+
+### Infrastruktura
+- [x] Weekly Digest Email — Resend, per-user, co poniedziałek 08:00
+- [x] Auto-detect emaili z Firebase Auth
 
 ### Multi-User
 - [x] Multi-email whitelist (`VITE_ALLOWED_EMAILS`)
@@ -109,7 +123,7 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] Sanityzacja danych dla Firebase
 - [x] Import/Export JSON
 - [x] Strict TypeScript
-- [x] 25 testów Vitest
+- [x] ~145 testów Vitest
 - [x] Dark mode
 - [x] PWA (vite-plugin-pwa)
 - [x] Error Boundary
@@ -136,7 +150,7 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [ ] Progressive overload suggestions (AI) — automatyczne sugestie progresji
 - [ ] Trening cardio tracking (wbudowany, bez Strava)
 - [ ] Biblioteka ćwiczeń w Firestore (zamiast hardcoded)
-- [ ] Warmup/stretching integration w UI (dane są w `warmupStretching.ts`)
+- [x] ~~Warmup/stretching integration w UI~~ → DONE v6.1.0 (WarmupRoutineDialog)
 
 ---
 
@@ -149,7 +163,6 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 | Node 20 w CI vs Node 22 w Functions | `deploy.yml`, `functions/package.json` | 🟡 P1 | CI używa Node 20, Functions wymagają 22. Ujednolicić. |
 | `VITE_ALLOWED_EMAIL` legacy secret | `deploy.yml` | 🟢 P2 | Stary secret (single email) wciąż w CI. Usunąć po weryfikacji. |
 | Exercise library hardcoded | `exerciseLibrary.ts` | 🟢 P2 | 82 ćwiczeń w kodzie, nie w bazie. Dodanie wymaga deploy. |
-| Warmup data unused | `warmupStretching.ts` | 🟢 P2 | Plik z danymi rozgrzewki istnieje, ale nie jest zintegrowany w UI. |
 | Offline queue unused | `offline-queue.ts`, `useOnlineStatus.ts` | 🟡 P1 | Infrastruktura gotowa, brak integracji z hookami CRUD. |
 
 ---
@@ -176,8 +189,78 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 ### Analytics
 - **Tonnage per muscle group** — rozbicie tonaż na grupy mięśniowe
 - **Week-over-week comparison** — porównanie z poprzednim tygodniem
-- **Exercise frequency heatmap** — wizualizacja jak często robisz dane ćwiczenie
+- ~~**Exercise frequency heatmap**~~ → DONE v6.1.0 (TrainingHeatmap - GitHub-style grid)
 - **Recovery tracking** — RPE (Rate of Perceived Exertion) per set
+
+---
+
+## ZROBIONE (v6.3.0 - 2026-03-12)
+
+**Weekly Digest (Resend):**
+- [x] Migracja z SendGrid na Resend API
+- [x] Auto-detect emaili użytkowników z Firebase Auth (per-user digest)
+- [x] Secret `RESEND_API_KEY` w GCP Secret Manager
+- [x] Deploy Cloud Functions (7 funkcji)
+
+**Bug fixes:**
+- [x] Brakujący import `StravaActivityCard` w Analytics.tsx
+- [x] Kompaktowe karty Strava w TrainingPlan (mobile-friendly timeline)
+- [x] Bump wersji do 6.3.0 w package.json
+
+**Dokumentacja:**
+- [x] Aktualizacja START.md, DOCUMENTATION.md, PLAN.md, DECYZJE.md
+
+---
+
+## ZROBIONE (v6.1.0 - 2026-03-11)
+
+**Exercise Timeline (A1):**
+- [x] `exercise-progression.ts` — getExerciseHistory, detectPlateau, getProgressionSummary
+- [x] `ExerciseProgressionDialog.tsx` — LineChart (est. 1RM + max weight), stats, plateau alert
+- [x] Integracja w Achievements.tsx (przycisk 📈 przy każdym rekordzie)
+- [x] 8 testów jednostkowych
+
+**Smart Rest Timer (A2):**
+- [x] Rozbudowa `getRestDuration()` — compound 90s, isolation 60s, +30s >80% 1RM, +60s >90% 1RM
+- [x] `lookupExerciseType()` — lookup z exerciseLibrary
+- [x] Integracja w WorkoutDay.tsx (onSetCompleted z weight + exerciseType + estimated1RM)
+- [x] 8 testów jednostkowych
+
+**Warmup Routine UI (A3):**
+- [x] `WarmupRoutineDialog.tsx` — checklist rozgrzewki + stretching (focus-based)
+- [x] Progress bar + 30s countdown timer per ćwiczenie
+- [x] Przycisk "Rozgrzewka" w WorkoutDay header
+
+**Training Heatmap (B1):**
+- [x] `heatmap-utils.ts` — generateHeatmapData, getIntensityLevel (5 poziomów)
+- [x] `TrainingHeatmap.tsx` — GitHub-style grid 53×7, month labels, legend, year selector
+- [x] Integracja w Analytics SummaryTab
+- [x] 8 testów jednostkowych
+
+**Share Workout Summary (B2):**
+- [x] `share-utils.ts` — generateWorkoutImage (html2canvas-pro, 540×960 IG story)
+- [x] `ShareWorkoutDialog.tsx` — preview + Download + Share (navigator.share)
+- [x] Przycisk "Udostępnij" po ukończeniu treningu w WorkoutDay
+- [x] html2canvas-pro dependency
+
+**Race Predictor (C1):**
+- [x] `race-predictor.ts` — predictRaceTime (Riegel), findBestEffort, getRacePredictions
+- [x] `RacePredictor.tsx` — grid 2×2: 5K, 10K, Półmaraton, Maraton
+- [x] Integracja w StravaTab (po CardioPersonalBests)
+- [x] 7 testów jednostkowych
+
+**Training Load (C2):**
+- [x] `training-load.ts` — calculateTRIMP (Banister), computeDailyLoad, computeFitnessFatigue
+- [x] `TrainingLoadChart.tsx` — AreaChart: CTL (blue), ATL (red), TSB (green dashed)
+- [x] Integracja w StravaTab (po CaloriesChart)
+- [x] 7 testów jednostkowych
+
+**Weekly Digest (D1):**
+- [x] `weekly-digest.ts` — Cloud Function onSchedule (Monday 08:00 Warsaw)
+- [x] HTML email: stats grid, Strava highlights, link do app
+- [x] Export w functions/src/index.ts
+
+**Testy:** 145 total (38+ nowych), 0 failures
 
 ---
 
@@ -256,7 +339,7 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 
 - [x] Firebase config do `.env`
 - [x] Strict TypeScript (`strict: true`)
-- [x] 25 testów Vitest
+- [x] ~145 testów Vitest
 - [x] React.memo na ExerciseCard
 - [x] Debounce 500ms
 - [x] Error Boundary
@@ -292,6 +375,15 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 | Plan treningowy | `src/hooks/useTrainingPlan.ts` |
 | AI Coach / generowanie planów | `src/lib/ai-coach.ts` + `src/lib/ai-onboarding.ts` |
 | Strava | `src/hooks/useStrava.ts` + `functions/src/index.ts` |
+| Strava komponenty | `src/components/strava/*.tsx` (9 komponentów) |
+| Strava utils | `src/lib/strava-utils.ts` + `src/lib/chart-config.ts` |
+| Exercise Timeline | `src/lib/exercise-progression.ts` + `ExerciseProgressionDialog.tsx` |
+| Race Predictor | `src/lib/race-predictor.ts` + `RacePredictor.tsx` |
+| Training Load | `src/lib/training-load.ts` + `TrainingLoadChart.tsx` |
+| Heatmap | `src/lib/heatmap-utils.ts` + `TrainingHeatmap.tsx` |
+| Share Workout | `src/lib/share-utils.ts` + `ShareWorkoutDialog.tsx` |
+| Warmup | `src/components/WarmupRoutineDialog.tsx` |
+| Weekly Digest | `functions/src/weekly-digest.ts` |
 | Nawigacja | `src/components/AppNavigation.tsx` |
 | Statystyki | `src/pages/Dashboard.tsx` |
 | Analytics | `src/pages/Analytics.tsx` |

@@ -10,9 +10,9 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v5.2.0) |
+| **Status** | AKTYWNY (v6.3.0) |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-03-09 |
+| **Data aktualizacji** | 2026-03-12 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), + whitelist |
 
 ---
@@ -75,16 +75,43 @@
 | src/lib/ai-coach.ts | AI Coach: analiza treningów, callOpenAI() (gpt-5-mini) |
 | src/lib/ai-chat.ts | sendChatMessage() — chat z kontekstem treningowym |
 | src/lib/offline-queue.ts | Kolejka operacji offline (localStorage) |
-| src/lib/pr-utils.ts | Detekcja rekordów osobistych |
-| src/lib/summary-utils.ts | Streak, bounds tygodnia |
-| src/lib/exercise-utils.ts | parseSetCount, createEmptySets, sanitizeSets |
+| src/lib/pr-utils.ts | Detekcja rekordów osobistych, calculate1RM (Epley) |
+| src/lib/summary-utils.ts | Streak, bounds tygodnia, tonnage |
+| src/lib/exercise-utils.ts | parseRepRange, Smart Rest Timer, lookupExerciseType |
+| src/lib/exercise-progression.ts | Historia ćwiczeń, plateau detection, progression summary |
+| src/lib/heatmap-utils.ts | GitHub-style heatmap data (workouts + Strava) |
+| src/lib/race-predictor.ts | Predykcje wyścigowe (Riegel formula) |
+| src/lib/training-load.ts | TRIMP, CTL/ATL/TSB (Fitness/Fatigue/Form) |
+| src/lib/share-utils.ts | Generowanie obrazu treningu (html2canvas-pro) |
+| src/lib/chart-config.ts | Konfiguracja wykresów (tooltip style, kolory) |
+| src/lib/strava-utils.ts | Formatowanie Strava (pace, distance, seasons, HR zones) |
 | src/types/index.ts | Centralne typy (SetData, WorkoutSession, etc.) |
-| src/types/strava.ts | Typy StravaActivity, StravaConnection |
+| src/types/strava.ts | Typy StravaActivity, StravaConnection, HRZoneConfig |
+
+### Kod źródłowy - Nowe komponenty (v6.x)
+| Plik | Opis |
+|------|------|
+| src/components/ExerciseProgressionDialog.tsx | Wykres progresji ćwiczenia (est. 1RM + max weight) |
+| src/components/WarmupRoutineDialog.tsx | Checklist rozgrzewki + stretching z timerem |
+| src/components/ShareWorkoutDialog.tsx | Udostępnianie/pobieranie obrazu treningu |
+| src/components/TrainingHeatmap.tsx | GitHub-style heatmap aktywności (rok) |
+| src/components/strava/RacePredictor.tsx | Predykcje 5K/10K/Półmaraton/Maraton |
+| src/components/strava/TrainingLoadChart.tsx | Wykres Fitness/Fatigue/Form (CTL/ATL/TSB) |
+| src/components/strava/CaloriesChart.tsx | Wykres kalorii |
+| src/components/strava/CardioPersonalBests.tsx | Rekordy cardio |
+| src/components/strava/ElevationChart.tsx | Wykres przewyższeń |
+| src/components/strava/HRZoneDistribution.tsx | Rozkład stref HR |
+| src/components/strava/MonthlyActivities.tsx | Aktywności miesięczne |
+| src/components/strava/PaceTrendChart.tsx | Trend tempa biegu |
+| src/components/strava/SeasonFilter.tsx | Filtr sezonowy |
+| src/components/strava/StravaSummaryStats.tsx | Statystyki podsumowujące Strava |
+| src/components/strava/WeeklyKmChart.tsx | Tygodniowe kilometry |
 
 ### Firebase Cloud Functions
 | Plik | Opis |
 |------|------|
-| functions/src/index.ts | stravaAuthUrl, stravaCallback, stravaSync |
+| functions/src/index.ts | stravaAuthUrl, stravaCallback, stravaSync, weeklyDigest, proxyOpenAI, generateWeeklySummary, stravaScheduledSync |
+| functions/src/weekly-digest.ts | Weekly Digest Email (Resend, per-user, co poniedziałek 08:00) |
 
 ---
 
@@ -108,7 +135,9 @@
 | Zod | 3.x | Schema validation |
 | Sonner | 1.x | Toast notifications |
 | vite-plugin-pwa | 1.x | Progressive Web App |
-| Vitest | 3.x | Testy jednostkowe |
+| html2canvas-pro | - | Generowanie obrazów z HTML (Share Workout) |
+| Resend | 6.x | Email API (Weekly Digest, Cloud Functions) |
+| Vitest | 3.x | Testy jednostkowe (~145 testów) |
 | gh-pages | 6.x | Deploy na GitHub Pages |
 
 ---
@@ -224,7 +253,7 @@ HashRouter (GitHub Pages)
 
 ---
 
-## KLUCZOWE FUNKCJONALNOŚCI (v5.1.0)
+## KLUCZOWE FUNKCJONALNOŚCI (v6.3.0)
 
 ### Core
 - Plan treningowy 2-5 dni/tydzień (dynamiczne weekdays)
@@ -233,7 +262,8 @@ HashRouter (GitHub Pages)
 - Czas trwania planu (8-16 tygodni) z auto-expiration
 - Banner "Plan się skończył" → generowanie nowego planu
 - Serie rozgrzewkowe (warmup), notatki, instrukcje, superserie
-- Timer odpoczynku z circular progress
+- **Smart Rest Timer** — czas odpoczynku oparty na typie ćwiczenia (compound/isolation) i intensywności (%1RM)
+- **Warmup Routine UI** — interaktywny checklist rozgrzewki + stretching z 30s timerem
 
 ### AI
 - AI Coach: analiza treningów, insights na Dashboard (cache 24h)
@@ -241,13 +271,16 @@ HashRouter (GitHub Pages)
 - AI Quick Action: "Podsumuj tydzień" (treningi + Strava)
 - AI generowanie planów treningowych (onboarding + new plan)
 
-### Strava
+### Strava & Cardio Analytics
 - OAuth flow przez Firebase Cloud Functions
 - Sync aktywności (365 dni lookback przy pierwszym sync)
 - Aktywności Strava w planie tygodnia (Dashboard)
 - Aktywności Strava w kalendarzu (TrainingPlan)
 - Aktywności Strava w podsumowaniu (Analytics)
 - Aktywności Strava w AI podsumowaniu tygodnia
+- **Strava Deep Integration** — 9 dedykowanych komponentów (Calories, Elevation, HR Zones, Pace Trend, Monthly Activities, Weekly Km, Season Filter, Summary Stats, Personal Bests)
+- **Race Predictor** — predykcje czasów na 5K/10K/Półmaraton/Maraton (Riegel formula)
+- **Training Load (TRIMP)** — wykres Fitness/Fatigue/Form (CTL 42d / ATL 7d / TSB)
 
 ### Analytics
 - 4 taby: Podsumowanie, Wykresy, Pomiary, Rekordy
@@ -255,6 +288,12 @@ HashRouter (GitHub Pages)
 - Wykresy progresji ciężarów (recharts)
 - Wykresy pomiarów ciała (multi-line)
 - Rekordy osobiste (PR detection)
+- **Exercise Timeline** — wykres progresji per ćwiczenie (est. 1RM + max weight) z plateau detection
+- **Training Heatmap** — GitHub-style grid aktywności (53×7, kolory emerald, year selector)
+
+### Social & Notifications
+- **Share Workout Summary** — generowanie obrazu podsumowania treningu (html2canvas-pro, 540×960 IG story)
+- **Weekly Digest Email** — co poniedziałek o 8:00 email z podsumowaniem tygodnia (Resend, per-user, auto-detect z Firebase Auth)
 
 ### Multi-User
 - Multi-email whitelist (VITE_ALLOWED_EMAILS)

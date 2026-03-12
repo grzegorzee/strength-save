@@ -1,4 +1,4 @@
-# FitTracker - Dokumentacja Systemu v5.2.0
+# FitTracker - Dokumentacja Systemu v6.3.0
 
 ## Spis treści
 1. [Architektura](#architektura)
@@ -68,7 +68,9 @@
 | UI Kit | shadcn/ui | - | Radix UI primitives + Tailwind |
 | Backend | Firebase Firestore | 12.x | Baza NoSQL, real-time subscriptions |
 | Auth | Firebase Authentication | 12.x | Google OAuth + multi-email whitelist |
-| Functions | Firebase Cloud Functions | - | Strava OAuth (Node.js) |
+| Functions | Firebase Cloud Functions | v2 | Strava OAuth, Weekly Digest, OpenAI proxy (Node.js 22) |
+| Email | Resend | 6.x | Weekly Digest (Cloud Functions) |
+| Image Gen | html2canvas-pro | - | Share Workout PNG |
 | Routing | React Router DOM | 6.x | HashRouter (GitHub Pages) |
 | Wykresy | Recharts | 2.x | Liniowe, słupkowe, multi-line |
 | AI | OpenAI API | - | Generowanie planów + AI Coach |
@@ -115,6 +117,23 @@ src/
 │   ├── DataManagement.tsx     # Export/import JSON (Settings)
 │   ├── TypingIndicator.tsx    # Animacja "pisze..." w AI Chat
 │   ├── NavLink.tsx            # Link nawigacji z aktywnym stanem
+│   ├── ExerciseProgressionDialog.tsx  # Wykres progresji ćwiczenia (est. 1RM + max weight + plateau)
+│   ├── WarmupRoutineDialog.tsx  # Checklist rozgrzewki + stretching z 30s timerem
+│   ├── ShareWorkoutDialog.tsx   # Udostępnianie/pobieranie obrazu treningu (PNG)
+│   ├── TrainingHeatmap.tsx      # GitHub-style heatmap aktywności (53×7 grid, year selector)
+│   ├── strava/
+│   │   ├── StravaTab.tsx          # Główny tab Strava w Analytics
+│   │   ├── RacePredictor.tsx      # Predykcje 5K/10K/Półmaraton/Maraton (Riegel)
+│   │   ├── TrainingLoadChart.tsx  # Fitness/Fatigue/Form (CTL/ATL/TSB)
+│   │   ├── CaloriesChart.tsx      # Wykres kalorii
+│   │   ├── CardioPersonalBests.tsx # Rekordy cardio
+│   │   ├── ElevationChart.tsx     # Wykres przewyższeń
+│   │   ├── HRZoneDistribution.tsx # Rozkład stref HR
+│   │   ├── MonthlyActivities.tsx  # Aktywności miesięczne
+│   │   ├── PaceTrendChart.tsx     # Trend tempa biegu
+│   │   ├── SeasonFilter.tsx       # Filtr sezonowy (Badge row)
+│   │   ├── StravaSummaryStats.tsx # Statystyki podsumowujące
+│   │   └── WeeklyKmChart.tsx      # Tygodniowe kilometry
 │   └── ui/                    # Komponenty shadcn/ui (~60 komponentów)
 │
 ├── pages/
@@ -156,7 +175,7 @@ src/
 ├── data/
 │   ├── trainingPlan.ts        # Domyślny plan 3x/tyg + typy + getTrainingSchedule()
 │   ├── exerciseLibrary.ts     # 84 ćwiczeń z kategoriami i video URL
-│   └── warmupStretching.ts    # Rozgrzewka i stretching (nie zintegrowane w UI)
+│   └── warmupStretching.ts    # Rozgrzewka i stretching (zintegrowane w WarmupRoutineDialog)
 │
 └── lib/
     ├── firebase.ts            # Konfiguracja Firebase (env variables)
@@ -165,14 +184,23 @@ src/
     ├── ai-chat.ts             # sendChatMessage() — chat z kontekstem treningowym
     ├── pr-utils.ts            # detectNewPRs(), calculate1RM() (Epley formula)
     ├── summary-utils.ts       # calculateStreak(), calculateTonnage(), getWeekBounds()
-    ├── exercise-utils.ts      # parseRepRange(), getProgressionAdvice(), getRestDuration(), sanitizeSets()
+    ├── exercise-utils.ts      # parseRepRange(), getProgressionAdvice(), Smart Rest Timer, lookupExerciseType()
+    ├── exercise-progression.ts # getExerciseHistory(), detectPlateau(), getProgressionSummary()
+    ├── heatmap-utils.ts       # generateHeatmapData(), getIntensityLevel() (GitHub-style)
+    ├── race-predictor.ts      # predictRaceTime() (Riegel), findBestEffort(), getRacePredictions()
+    ├── training-load.ts       # calculateTRIMP() (Banister), computeDailyLoad(), computeFitnessFatigue()
+    ├── share-utils.ts         # generateWorkoutImage() (html2canvas-pro, 540×960 PNG)
+    ├── chart-config.ts        # tooltipStyle, CHART_COLORS (shared chart config)
+    ├── strava-utils.ts        # formatDurationShort, isPaceActivity, filterByYear, compute* (Strava helpers)
     ├── offline-queue.ts       # Kolejka operacji offline (localStorage)
     └── utils.ts               # cn() (clsx + tailwind-merge)
 
-functions/                     # Firebase Cloud Functions (Strava OAuth)
-├── package.json
+functions/                     # Firebase Cloud Functions
+├── package.json               # resend, firebase-admin, firebase-functions
 ├── tsconfig.json
-└── src/index.ts               # stravaAuthUrl, stravaCallback, stravaSync
+└── src/
+    ├── index.ts               # stravaAuthUrl, stravaCallback, stravaSync, proxyOpenAI, generateWeeklySummary, stravaScheduledSync, weeklyDigest
+    └── weekly-digest.ts       # Weekly Digest Email (Resend, per-user, Monday 08:00 Warsaw)
 
 scripts/
 └── migrate-to-multiuser.mjs   # Migracja danych do multi-user (dodanie userId)
@@ -1055,14 +1083,120 @@ Logika oparta na pozycji ćwiczenia w dniu treningowym:
 - Pomiędzy → `Powtórz`
 - `isMax` (np. "3 x MAX") → brak podpowiedzi
 
-### getRestDuration() — czas odpoczynku
+### getRestDuration() — Smart Rest Timer (v6.1.0)
+
+Czas odpoczynku oparty na typie ćwiczenia i intensywności (% estimated 1RM).
 
 | Kontekst | Czas |
 |----------|------|
 | Superset (pierwszy w parze) | **15 sekund** |
-| Superset (drugi w parze) | **90 sekund** |
-| Compound (index < 3) | **150 sekund** (2.5 min) |
-| Isolation (index ≥ 3) | **75 sekund** (1.25 min) |
+| Superset (drugi w parze) | **60 sekund** |
+| Compound (base) | **90 sekund** |
+| Isolation (base) | **60 sekund** |
+| Compound/Isolation + >80% 1RM | base + **30 sekund** |
+| Compound/Isolation + >90% 1RM | base + **60 sekund** |
+
+**Nowe pola w RestContext:**
+```typescript
+interface RestContext {
+  exerciseIndex: number;
+  isSuperset: boolean;
+  isFirstInSuperset: boolean;
+  exerciseType?: 'compound' | 'isolation';  // z lookupExerciseType()
+  weight?: number;                          // ostatni ciężar
+  estimated1RM?: number;                    // z getExerciseBest1RM()
+}
+```
+
+### lookupExerciseType() — typ ćwiczenia
+
+Lookup compound/isolation z `exerciseLibrary.ts`. Fallback: `'compound'`.
+
+### Exercise Timeline (v6.1.0)
+
+**Plik:** `src/lib/exercise-progression.ts`
+
+| Funkcja | Input | Output |
+|---------|-------|--------|
+| `getExerciseHistory(workouts, exerciseId)` | `WorkoutSession[], string` | `ExerciseHistoryPoint[]` (date, maxWeight, bestReps, estimated1RM, totalVolume) |
+| `detectPlateau(history, minSessions?)` | `ExerciseHistoryPoint[], number=4` | `{isPlateau, sessionsSinceProgress, lastProgressDate}` |
+| `getProgressionSummary(history)` | `ExerciseHistoryPoint[]` | `{startWeight, currentWeight, change, changePercent, totalSessions}` |
+
+**UI:** `ExerciseProgressionDialog.tsx` — LineChart (est. 1RM + max weight), stats row, plateau alert, recent sessions table. Dostępny z Achievements.tsx (przycisk 📈).
+
+### Training Heatmap (v6.1.0)
+
+**Plik:** `src/lib/heatmap-utils.ts`
+
+| Funkcja | Input | Output |
+|---------|-------|--------|
+| `generateHeatmapData(workouts, stravaActivities, year)` | arrays + number | `HeatmapDay[]` (365/366 dni) |
+| `getIntensityLevel(day, avgTonnage)` | `HeatmapDay, number` | `0\|1\|2\|3\|4` |
+
+**Poziomy:** 0=brak, 1=cardio only, 2=workout only, 3=oba, 4=intensywny (>1.5× avg tonnage)
+
+**UI:** `TrainingHeatmap.tsx` — grid 53×7 (emerald colors), month labels, year selector. W Analytics SummaryTab.
+
+### Race Predictor (v6.1.0)
+
+**Plik:** `src/lib/race-predictor.ts`
+
+**Riegel formula:** `T2 = T1 × (D2/D1)^1.06`
+
+| Funkcja | Input | Output |
+|---------|-------|--------|
+| `predictRaceTime(knownDist, knownTime, targetDist)` | `number×3` | `number` (seconds) |
+| `findBestEffort(activities, minDist, maxDist)` | `StravaActivity[], number, number` | `StravaActivity \| null` |
+| `getRacePredictions(activities)` | `StravaActivity[]` | `RacePrediction[]` (5K, 10K, HM, Marathon) |
+
+**UI:** `RacePredictor.tsx` — Card z grid 2×2. W StravaTab po CardioPersonalBests.
+
+### Training Load / TRIMP (v6.1.0)
+
+**Plik:** `src/lib/training-load.ts`
+
+**TRIMP (Banister):** `duration_min × HRr × 0.64 × e^(1.92 × HRr)` where `HRr = (avgHR - restHR) / (maxHR - restHR)`
+
+| Funkcja | Input | Output |
+|---------|-------|--------|
+| `calculateTRIMP(avgHR, duration, restHR, maxHR)` | `number×4` | `number` |
+| `computeDailyLoad(activities, restHR, maxHR)` | `StravaActivity[], number, number` | `DailyLoad[]` |
+| `computeFitnessFatigue(dailyLoad, days?)` | `DailyLoad[], number=90` | `FitnessFatiguePoint[]` (CTL/ATL/TSB) |
+
+- **CTL (Fitness):** 42-day exponential weighted moving average
+- **ATL (Fatigue):** 7-day EWMA
+- **TSB (Form):** CTL - ATL (positive = fresh, negative = tired)
+
+**UI:** `TrainingLoadChart.tsx` — AreaChart: CTL (blue), ATL (red), TSB (green dashed). W StravaTab po CaloriesChart. Return null jeśli <7 HR activities.
+
+### Share Workout (v6.1.0)
+
+**Plik:** `src/lib/share-utils.ts`
+
+```typescript
+interface ShareData {
+  dayName: string; date: string;
+  exercises: {name: string; sets: string}[];
+  tonnage: number; duration: string;
+  prs: string[]; streak: number;
+}
+export async function generateWorkoutImage(data: ShareData): Promise<Blob>
+```
+
+Renderuje hidden div → `html2canvas-pro` → canvas → PNG blob (540×960, scale: 2). Ciemny gradient, stats grid, lista ćwiczeń. Dane escapowane via `escapeHtml()`.
+
+**UI:** `ShareWorkoutDialog.tsx` — preview + Download (`<a download>`) + Share (`navigator.share`). Przycisk w WorkoutDay po ukończeniu treningu.
+
+### Weekly Digest Email (v6.1.0 → v6.3.0)
+
+**Plik:** `functions/src/weekly-digest.ts`
+
+- Cloud Function `onSchedule("every monday 08:00", timeZone: "Europe/Warsaw")`
+- Secret: `RESEND_API_KEY` (GCP Secret Manager)
+- Auto-detect emaili z Firebase Auth (`listUsers()`)
+- Per-user query: workouts + strava_activities z last Monday-Sunday
+- HTML email: stats grid (treningi, tonaż, km, biegi), highlights (najszybszy/najdłuższy bieg), link do app
+- From: `Strength Save <onboarding@resend.dev>` (zmienić po dodaniu domeny w Resend)
 
 ### PR Detection — `pr-utils.ts`
 
@@ -1199,12 +1333,13 @@ Storage: `localStorage` → klucz `fittracker_offline_queue`
 - Bez auto-save (lokalny state)
 - Przycisk "Zapisz zmiany" zapisuje wszystko
 
-### 5. Timer odpoczynku
+### 5. Smart Rest Timer (v6.1.0)
 - Circular progress ring
-- Presety: 60s, 90s, 120s, 180s
-- Pauza, reset
-- Wibracja po zakończeniu
-- Dostępny w dolnym pasku aktywnego treningu
+- Czas oparty na typie ćwiczenia (compound/isolation) i intensywności (%1RM)
+- Compound: 90s base, Isolation: 60s base
+- +30s >80% 1RM, +60s >90% 1RM
+- Superset: 15s (pierwszy) / 60s (drugi)
+- Pauza, reset, wibracja po zakończeniu
 
 ### 6. Pomiary ciała
 - 10 pól pomiarowych
@@ -1230,22 +1365,54 @@ Storage: `localStorage` → klucz `fittracker_offline_queue`
 - New Plan: cel + dni → AI plan → review → save
 - ExerciseSwapDialog: zamiana ćwiczenia na alternatywę
 
-### 10. Strava
+### 10. Strava & Cardio Analytics
 - OAuth via Cloud Functions
 - Sync aktywności (365 dni lookback)
 - Wyświetlanie na Dashboard, TrainingPlan, Analytics, AI Chat
+- 9 dedykowanych komponentów (Calories, Elevation, HR Zones, Pace, Monthly, etc.)
+- Race Predictor (5K/10K/HM/Marathon — Riegel formula)
+- Training Load (TRIMP/CTL/ATL/TSB — Banister model)
 
-### 11. Multi-User
+### 11. Exercise Timeline (v6.1.0)
+- Wykres progresji per ćwiczenie (est. 1RM + max weight)
+- Plateau detection (brak progresu w N sesjach)
+- Progression summary (start → current, zmiana %)
+- Dostępny z Achievements (przycisk 📈)
+
+### 12. Training Heatmap (v6.1.0)
+- GitHub-style grid 53×7 (workouts + Strava)
+- 5 poziomów intensywności (emerald colors)
+- Month labels, year selector, legend
+- W Analytics SummaryTab
+
+### 13. Share Workout (v6.1.0)
+- Generowanie PNG obrazu treningu (540×960 IG story)
+- html2canvas-pro, ciemny gradient design
+- Download + Share (navigator.share)
+- Przycisk po ukończeniu treningu
+
+### 14. Warmup Routine (v6.1.0)
+- Checklist rozgrzewki (5 items) + stretching (6 items, focus-based)
+- Progress bar + 30s countdown timer
+- Przycisk w WorkoutDay header
+
+### 15. Weekly Digest Email (v6.3.0)
+- Cloud Function co poniedziałek o 8:00 (Europe/Warsaw)
+- Per-user email z auto-detect z Firebase Auth
+- Stats: treningi, tonaż, km, biegi + Strava highlights
+- Resend API
+
+### 16. Multi-User
 - Multi-email whitelist
 - Per-user data isolation
 - Admin panel (zarządzanie planami)
 
-### 12. Dark Mode
+### 17. Dark Mode
 - ThemeProvider (next-themes)
 - Toggle Sun/Moon w AppHeader
 - CSS variables w index.css
 
-### 13. PWA
+### 18. PWA
 - vite-plugin-pwa
 - Service worker
 - Manifest z ikonami
@@ -1424,6 +1591,41 @@ CI/CD pipeline używa Node 20 (wystarczające dla Vite build). Cloud Functions w
 ---
 
 ## Changelog
+
+### v6.3.0 (2026-03-12) — Weekly Digest (Resend) + Bug Fixes
+
+- Migracja Weekly Digest z SendGrid na Resend API
+- Auto-detect emaili z Firebase Auth (per-user digest)
+- Fix: brakujący import StravaActivityCard w Analytics
+- Fix: kompaktowe karty Strava w TrainingPlan (mobile)
+- Bump wersji, aktualizacja dokumentacji
+
+### v6.1.0 (2026-03-11) — 8 Feature Pack
+
+**Treningowe:**
+- Exercise Timeline — wykres progresji per ćwiczenie + plateau detection
+- Smart Rest Timer — czas odpoczynku oparty na typie ćwiczenia i intensywności %1RM
+- Warmup Routine UI — checklist rozgrzewki + stretching z 30s timerem
+
+**Wizualne:**
+- Training Heatmap — GitHub-style grid aktywności (53×7, 5 poziomów)
+- Share Workout Summary — generowanie PNG obrazu treningu (html2canvas-pro)
+
+**Strava/Cardio:**
+- Race Predictor — predykcje 5K/10K/HM/Marathon (Riegel formula)
+- Training Load — TRIMP/CTL/ATL/TSB (Banister model, Fitness/Fatigue/Form chart)
+
+**Infrastruktura:**
+- Weekly Digest Email — Cloud Function, co poniedziałek o 8:00
+
+**Testy:** 145 total (38+ nowych)
+
+### v5.2.0 (2026-03-09) — Strava Deep Integration
+
+- 9 dedykowanych komponentów Strava (Calories, Elevation, HR Zones, Pace, Monthly, Weekly Km, etc.)
+- SeasonFilter, StravaSummaryStats, CardioPersonalBests
+- StravaTab jako osobny tab w Analytics
+- chart-config.ts, strava-utils.ts (shared helpers)
 
 ### v5.1.0 (2026-03-08) — AI Onboarding + Plan Management + Strava Views
 
