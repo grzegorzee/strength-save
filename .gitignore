@@ -21,3 +21,11 @@ dist/
 
 # Functions compiled output
 functions/lib/
+
+# Project docs (internal, not for GitHub)
+DECYZJE.md
+DOCUMENTATION.md
+PLAN.md
+REQUIREMENTS.md
+START.md
+plan-2026_-wersja-polska-detaliczna.html
