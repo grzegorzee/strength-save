@@ -1,38 +1,78 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Users, Settings, Dumbbell } from 'lucide-react';
-import type { UserProfile } from '@/contexts/UserContext';
+import { Switch } from '@/components/ui/switch';
+import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
+const AVAILABLE_FEATURES = [
+  { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą' },
+] as const;
+
+type FeatureKey = typeof AVAILABLE_FEATURES[number]['key'];
+
+interface AdminUser {
+  uid: string;
+  email: string;
+  displayName: string;
+  role: string;
+  stravaConnected: boolean;
+  features: Record<string, boolean>;
+  onboardingCompleted: boolean;
+  lastLogin?: string;
+}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const { toast } = useToast();
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [expandedUid, setExpandedUid] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, 'users'),
       (snapshot) => {
-        const usersData: UserProfile[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          usersData.push({
-            uid: doc.id,
-            email: data.email || '',
-            displayName: data.displayName || '',
-            role: data.role || 'user',
-            stravaConnected: data.stravaConnected || false,
+        const data: AdminUser[] = [];
+        snapshot.forEach((d) => {
+          const u = d.data();
+          data.push({
+            uid: d.id,
+            email: u.email || '',
+            displayName: u.displayName || '',
+            role: u.role || 'user',
+            stravaConnected: u.stravaConnected || false,
+            features: u.features || {},
+            onboardingCompleted: u.onboardingCompleted || false,
+            lastLogin: u.lastLogin,
           });
         });
-        setUsers(usersData);
+        data.sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1));
+        setUsers(data);
       },
     );
-
     return () => unsubscribe();
   }, []);
+
+  const toggleFeature = async (uid: string, feature: FeatureKey, enabled: boolean) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), { [`features.${feature}`]: enabled });
+      setUsers(prev => prev.map(u =>
+        u.uid === uid ? { ...u, features: { ...u.features, [feature]: enabled } } : u
+      ));
+      const userName = users.find(u => u.uid === uid)?.displayName || uid;
+      toast({ title: enabled ? 'Włączono' : 'Wyłączono', description: `${feature} — ${userName}` });
+    } catch {
+      toast({ title: 'Błąd', description: 'Nie udało się zapisać.', variant: 'destructive' });
+    }
+  };
+
+  const getInitials = (name: string) =>
+    name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
 
   return (
     <div className="space-y-6">
@@ -42,49 +82,93 @@ const AdminDashboard = () => {
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Panel admina</h1>
-          <p className="text-muted-foreground text-sm">Zarządzaj użytkownikami i planami</p>
+          <p className="text-muted-foreground text-sm">Zarządzaj użytkownikami i funkcjami</p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-5 w-5" />
             Użytkownicy ({users.length})
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {users.map((user) => (
-            <div
-              key={user.uid}
-              className="flex items-center justify-between p-4 rounded-lg bg-muted/30"
-            >
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                  {user.displayName
-                    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase()
-                    : '?'}
-                </div>
-                <div>
-                  <p className="font-medium">{user.displayName || 'Bez nazwy'}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                  {user.role}
-                </Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate(`/admin/plans/${user.uid}`)}
+        <CardContent className="p-0">
+          {users.map((user) => {
+            const isExpanded = expandedUid === user.uid;
+            return (
+              <div key={user.uid} className="border-t first:border-t-0">
+                {/* User row — clickable */}
+                <button
+                  onClick={() => setExpandedUid(isExpanded ? null : user.uid)}
+                  className="w-full flex items-center gap-3 p-4 text-left hover:bg-muted/30 transition-colors"
                 >
-                  <Dumbbell className="h-4 w-4 mr-1" />
-                  Plan
-                </Button>
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                    {getInitials(user.displayName)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm truncate">{user.displayName || 'Bez nazwy'}</p>
+                      <Badge
+                        variant={user.role === 'admin' ? 'default' : 'secondary'}
+                        className="text-[10px] h-5 shrink-0"
+                      >
+                        {user.role}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                  </div>
+                  {isExpanded
+                    ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                    : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                  }
+                </button>
+
+                {/* Expanded panel */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 space-y-4">
+                    {/* Feature flags */}
+                    <div className="rounded-lg bg-muted/20 p-3 space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Funkcje</p>
+                      {AVAILABLE_FEATURES.map(feat => (
+                        <div key={feat.key} className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{feat.label}</p>
+                            <p className="text-xs text-muted-foreground">{feat.description}</p>
+                          </div>
+                          <Switch
+                            checked={user.features[feat.key] ?? user.role === 'admin'}
+                            onCheckedChange={(checked) => toggleFeature(user.uid, feat.key, checked)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/admin/plans/${user.uid}`)}
+                      >
+                        <Dumbbell className="h-4 w-4 mr-1.5" />
+                        Edytuj plan
+                      </Button>
+                    </div>
+
+                    {/* Info */}
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      {user.lastLogin && (
+                        <p>Ostatnie logowanie: {new Date(user.lastLogin).toLocaleString('pl-PL')}</p>
+                      )}
+                      <p>Onboarding: {user.onboardingCompleted ? 'ukończony' : 'nie ukończony'}</p>
+                      <p>Strava: {user.stravaConnected ? 'połączona' : 'niepołączona'}</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {users.length === 0 && (
             <p className="text-center text-muted-foreground py-8">
