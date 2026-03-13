@@ -389,11 +389,12 @@ export const streamOpenAI = onRequest(
       return;
     }
 
-    // Set SSE headers
+    // Set SSE headers and flush immediately to establish connection
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
 
     // Read OpenAI stream using Web Streams API (Node 22 fetch returns ReadableStream, not Node Readable)
     let buffer = "";
