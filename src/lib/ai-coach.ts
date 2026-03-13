@@ -2,7 +2,7 @@ import type { WorkoutSession, BodyMeasurement } from '@/types';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { calculateStreak, getWeekBounds } from '@/lib/summary-utils';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { functions, auth } from '@/lib/firebase';
 
 // --- Types ---
 
@@ -150,6 +150,123 @@ export async function callOpenAI(
 
   const result = await fn({ messages });
   return result.data.text || '[]';
+}
+
+// --- Streaming OpenAI call (SSE) ---
+
+const STREAM_URL = 'https://us-central1-fittracker-workouts.cloudfunctions.net/streamOpenAI';
+
+export interface StreamCallbacks {
+  onChunk: (text: string) => void;
+  onError: (error: string) => void;
+  onDone: () => void;
+}
+
+export async function callOpenAIStream(
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
+  callbacks: StreamCallbacks,
+): Promise<AbortController> {
+  const controller = new AbortController();
+
+  const user = auth.currentUser;
+  if (!user) {
+    callbacks.onError('Musisz być zalogowany');
+    callbacks.onDone();
+    return controller;
+  }
+
+  const token = await user.getIdToken();
+
+  let response: Response;
+  try {
+    response = await fetch(STREAM_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ messages }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if ((err as Error).name !== 'AbortError') {
+      callbacks.onError('Błąd połączenia z serwerem');
+    }
+    callbacks.onDone();
+    return controller;
+  }
+
+  // Non-200: parse JSON error body
+  if (!response.ok) {
+    try {
+      const errBody = await response.json();
+      const errMsg = errBody.error || `HTTP ${response.status}`;
+      if (typeof errMsg === 'string' && errMsg.startsWith('LIMIT_EXCEEDED')) {
+        callbacks.onError(errMsg);
+      } else {
+        callbacks.onError(errMsg);
+      }
+    } catch {
+      callbacks.onError(`HTTP ${response.status}`);
+    }
+    callbacks.onDone();
+    return controller;
+  }
+
+  // Stream SSE
+  const reader = response.body?.getReader();
+  if (!reader) {
+    callbacks.onError('Brak streamu w odpowiedzi');
+    callbacks.onDone();
+    return controller;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  const processStream = async () => {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+
+          const data = trimmed.slice(6);
+          if (data === '[DONE]') {
+            callbacks.onDone();
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.content) {
+              callbacks.onChunk(parsed.content);
+            }
+            if (parsed.error) {
+              callbacks.onError(parsed.error);
+            }
+          } catch {
+            // Skip malformed JSON
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        callbacks.onError('Stream przerwany');
+      }
+    }
+    callbacks.onDone();
+  };
+
+  processStream();
+  return controller;
 }
 
 // --- Swap types ---

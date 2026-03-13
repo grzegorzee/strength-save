@@ -1,4 +1,4 @@
-# FitTracker - Dokumentacja Systemu v6.3.0
+# FitTracker - Dokumentacja Systemu v6.4.0
 
 ## Spis treści
 1. [Architektura](#architektura)
@@ -161,7 +161,8 @@ src/
 │   ├── useTrainingPlan.ts     # Plan per-user (duration, expiration, CRUD exercises)
 │   ├── useStrava.ts           # Strava: connect, sync, disconnect, activities
 │   ├── useAICoach.ts          # AI insights z cache 24h
-│   ├── useAIChat.ts           # Chat z AI trenerem (Firestore conversations)
+│   ├── useAIChat.ts           # Chat z AI trenerem (streaming SSE + Firestore chat_messages)
+│   ├── useChatMessages.ts     # Real-time chat messages z Firestore (onSnapshot)
 │   ├── useAISwap.ts           # Zamiana ćwiczeń przez AI (3 alternatywy)
 │   ├── useOnlineStatus.ts     # Online/offline detection + pending ops queue
 │   ├── useAuth.ts             # Google OAuth + multi-email whitelist
@@ -199,7 +200,8 @@ functions/                     # Firebase Cloud Functions
 ├── package.json               # resend, firebase-admin, firebase-functions
 ├── tsconfig.json
 └── src/
-    ├── index.ts               # stravaAuthUrl, stravaCallback, stravaSync, proxyOpenAI, generateWeeklySummary, stravaScheduledSync, weeklyDigest
+    ├── index.ts               # stravaAuthUrl, stravaCallback, stravaSync, proxyOpenAI, streamOpenAI, generateWeeklySummary, stravaScheduledSync, weeklyDigest
+    ├── ai-usage.ts            # checkUsageLimit(), recordUsage(), pricing map ($5/user/month)
     └── weekly-digest.ts       # Weekly Digest Email (Resend, per-user, Monday 08:00 Warsaw)
 
 scripts/
@@ -642,32 +644,49 @@ AI Coach z cache 24h (localStorage).
 ```
 
 ### useAIChat(userId)
-Chat z AI trenerem — rozmowy przechowywane w Firestore `chat_conversations`.
+Chat z AI trenerem — streaming responses via SSE, per-user persistence w Firestore `chat_messages`.
 
 ```typescript
 {
-  conversations: ChatConversation[];
-  activeConversation: ChatConversation | null;
-  activeConversationId: string | null;
-  isTyping: boolean;                     // AI generuje odpowiedź
+  messages: ChatMessage[];               // Z useChatMessages (real-time)
+  isStreaming: boolean;                  // AI streamuje odpowiedź
+  streamingContent: string;             // Częściowa odpowiedź (token-by-token)
   error: string | null;
+  usageLimitReached: boolean;           // $5/month limit
 
-  createConversation()                   // Nowy wątek
-  deleteConversation(id)                 // Usuń wątek
-  sendMessage(text)                      // Wyślij (auto-creates conv if none)
-  setActiveConversation(id)              // Przełącz aktywną rozmowę
+  sendMessage(text)                      // Wyślij + streaming response
+  clearChat()                            // Wyczyść historię
 }
 ```
 
 **Przepływ:**
 1. User pisze wiadomość → `sendMessage(text)`
-2. Jeśli brak aktywnej rozmowy → auto `createConversation()`
-3. User message zapisany do Firestore natychmiast
-4. `sendChatMessage()` → `callOpenAI()` z pełnym kontekstem treningowym
-5. Assistant message dołączony i zapisany do Firestore
-6. Tytuł rozmowy = pierwsze 50 znaków pierwszej wiadomości
+2. User message zapisany do Firestore `chat_messages` natychmiast
+3. `callOpenAIStream()` → SSE streaming via Cloud Function `streamOpenAI`
+4. Token-by-token display z cursor animation
+5. Po zakończeniu → assistant message zapisany do Firestore `chat_messages`
+6. Cost tracking: `ai_usage/{userId_YYYY-MM}` aktualizowany po każdym wywołaniu
+7. Limit: $5/user/month — error banner gdy przekroczony
 
-**Uwaga:** Kolekcja `chat_conversations` jest **legacy** — brak `userId` na dokumentach, brak per-user isolation w security rules. Każdy zalogowany user widzi wszystkie rozmowy.
+**Migracja:** Jednorazowa migracja z localStorage na Firestore `chat_messages` przy pierwszym załadowaniu.
+
+**Deprecated:** Kolekcja `chat_conversations` jest **deprecated** — zastąpiona przez `chat_messages` z per-user isolation.
+
+### useChatMessages(userId)
+Real-time chat messages z Firestore `chat_messages` collection.
+
+```typescript
+{
+  messages: ChatMessage[];               // Posortowane chronologicznie
+  isLoading: boolean;
+  addMessage(role, content)              // Dodaj wiadomość do Firestore
+  clearMessages()                        // Usuń wszystkie wiadomości usera
+}
+```
+
+**Implementacja:** `onSnapshot` na `chat_messages` z filtrem `userId` — real-time updates.
+
+**Migracja:** Przy pierwszym załadowaniu sprawdza localStorage i migruje istniejące wiadomości do Firestore (one-time).
 
 ### useAISwap(userId)
 Znajdowanie alternatyw dla ćwiczenia przez AI.
@@ -841,18 +860,34 @@ fittracker-workouts (project)
 │   ├── totalElevationGain?, averageSpeed?
 │   └── stravaUrl, syncedAt
 │
-└── chat_conversations/{convId}  # Rozmowy AI Chat (legacy)
+├── chat_messages/{auto-id}      # Wiadomości AI Chat (per-user)
+│   ├── userId: string
+│   ├── role: "user" | "assistant"
+│   ├── content: string
+│   └── createdAt: Timestamp
+│
+├── ai_usage/{userId_YYYY-MM}   # AI cost tracking (per-user per-month)
+│   ├── userId: string
+│   ├── month: string (YYYY-MM)
+│   ├── promptTokens: number
+│   ├── completionTokens: number
+│   ├── estimatedCostUsd: number
+│   ├── callCount: number
+│   └── updatedAt: Timestamp
+│
+└── chat_conversations/{convId}  # ⚠️ DEPRECATED — zastąpione przez chat_messages
     ├── id, title
     ├── createdAt, updatedAt (ISO)
     └── messages: [{ role, content, timestamp }]
 ```
 
-**⚠️ `chat_conversations`:** Legacy collection — brak pola `userId`, brak per-user isolation. Dostęp: dowolny zalogowany user (read/write).
+**⚠️ `chat_conversations`:** DEPRECATED — zastąpione przez `chat_messages` z per-user isolation. Legacy collection bez pola `userId`.
 
 ### Composite Indexes (wymagane)
 - `workouts`: userId ASC + date DESC
 - `measurements`: userId ASC + date DESC
 - `strava_activities`: userId ASC + date DESC
+- `chat_messages`: userId ASC + createdAt ASC
 
 ### Security Rules (`firestore.rules`)
 
@@ -895,19 +930,34 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
+    match /chat_messages/{messageId} {
+      allow read: if resource.data.userId == request.auth.uid;
+      allow create: if request.resource.data.userId == request.auth.uid;
+      allow delete: if resource.data.userId == request.auth.uid;
+      allow read, write: if isAdmin();
+    }
+
+    match /ai_usage/{usageId} {
+      allow read: if usageId.matches(request.auth.uid + '_.*');
+      allow read: if isAdmin();
+      allow write: if false;  // Tylko Cloud Functions (streamOpenAI)
+    }
+
     match /chat_conversations/{convId} {
-      allow read, write: if request.auth != null;  // Legacy: brak per-user isolation
+      allow read, write: if request.auth != null;  // DEPRECATED: brak per-user isolation
     }
   }
 }
 ```
 
 **Kluczowe zasady:**
-- Per-user isolation: `userId == request.auth.uid` na workouts, measurements, strava_activities
+- Per-user isolation: `userId == request.auth.uid` na workouts, measurements, strava_activities, chat_messages
 - Admin: `role == 'admin'` → read/write all (z wyjątkiem strava_activities write)
 - Users nie mogą zmieniać swojego `role` (zabezpieczenie przed eskalacją)
 - Strava activities: write disabled (tylko Cloud Functions mają dostęp via admin SDK)
-- Chat conversations: **brak per-user isolation** (legacy — do naprawy)
+- AI usage: write disabled dla klientów (tylko Cloud Functions `streamOpenAI` zapisuje via admin SDK)
+- Chat messages: per-user isolation (userId == auth.uid)
+- Chat conversations: **DEPRECATED** — brak per-user isolation (legacy)
 
 ### Sanityzacja danych
 Firebase nie akceptuje `undefined`. Dane muszą być sanityzowane:
@@ -949,20 +999,24 @@ Klucz w `VITE_OPENAI_API_KEY`. Wywołanie przez `callOpenAI()` w `src/lib/ai-coa
 
 ## AI Chat System
 
-### Architektura
+### Architektura (v6.4.0 — Streaming + Per-User)
 
 ```
 AIChat.tsx (UI)
   ↓
 useAIChat(userId) (hook)
   ↓ sendMessage()
-ai-chat.ts → sendChatMessage()
+  ├── useChatMessages(userId) — Firestore real-time (onSnapshot)
+  └── callOpenAIStream() — SSE streaming via Cloud Function
   ↓
-  ├── prepareCoachData() — kontekst treningowy
-  ├── history[] — dotychczasowe wiadomości
-  └── callOpenAI() — gpt-5-mini
+Cloud Function: streamOpenAI (onRequest, Bearer token auth)
+  ├── checkUsageLimit(userId) — $5/user/month
+  ├── OpenAI API (streaming: true)
+  ├── recordUsage(userId, tokens) — ai_usage/{userId_YYYY-MM}
+  └── SSE response (token-by-token)
   ↓
-Firestore: chat_conversations/{convId}
+Firestore: chat_messages/{auto-id} (per-user)
+Firestore: ai_usage/{userId_YYYY-MM} (cost tracking)
 ```
 
 ### Typy
@@ -971,34 +1025,63 @@ Firestore: chat_conversations/{convId}
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
-  timestamp: string;           // ISO
-}
-
-interface ChatConversation {
-  id: string;                  // "chat-{timestamp}"
-  title: string;               // Pierwsze 50 znaków pierwszej wiadomości
-  createdAt: string;           // ISO
-  updatedAt: string;           // ISO
-  messages: ChatMessage[];
+  createdAt: Timestamp;        // Firestore Timestamp
+  userId: string;              // Per-user isolation
 }
 ```
+
+### Streaming SSE
+
+`callOpenAIStream()` w `ai-coach.ts`:
+- Wywołuje Cloud Function `streamOpenAI` via fetch z `Accept: text/event-stream`
+- Autentykacja: Bearer token (Firebase Auth ID token)
+- Parsuje SSE events (`data: {...}`) token-by-token
+- UI wyswietla `streamingContent` z cursor animation (pulsujacy blok)
+- Po `[DONE]` → zapis kompletnej odpowiedzi do Firestore `chat_messages`
+
+### Cloud Function: `streamOpenAI`
+
+- Typ: `onRequest` (nie `onCall` — SSE wymaga raw HTTP response)
+- Auth: Manual verification via `admin.auth().verifyIdToken(bearerToken)`
+- Cost tracking: `ai-usage.ts` — `checkUsageLimit()`, `recordUsage()`, pricing map per model
+- Limit: $5/user/month → 429 status gdy przekroczony
+- CORS: dozwolone origin z Firebase Hosting
 
 ### Przepływ sendMessage()
 
 1. User wpisuje tekst → `sendMessage(text)`
-2. Jeśli brak aktywnej rozmowy → `createConversation()` (auto)
-3. User message zapisany do Firestore natychmiast (optimistic update)
-4. `sendChatMessage(history, workouts, measurements, plan)`:
+2. User message zapisany do Firestore `chat_messages` natychmiast
+3. `callOpenAIStream(history, workouts, measurements, plan)`:
    - Buduje system prompt z `CHAT_SYSTEM_PROMPT` + dane treningowe (JSON)
-   - Dodaje pełną historię rozmowy
-   - `callOpenAI()` → odpowiedź w plain text
-5. Assistant message dołączony → zapis do Firestore
-6. Real-time `onSnapshot()` → UI aktualizuje się automatycznie
+   - Dodaje historię rozmowy (z `useChatMessages`)
+   - SSE streaming via `streamOpenAI` Cloud Function
+4. Token-by-token → `streamingContent` aktualizowany w real-time
+5. Po zakończeniu → assistant message zapisany do Firestore `chat_messages`
+6. `useChatMessages` onSnapshot → UI aktualizuje się automatycznie
+7. Cost tracking: `ai_usage/{userId_YYYY-MM}` zaktualizowany po każdym wywołaniu
+
+### Cost Tracking
+
+| Pole | Opis |
+|------|------|
+| `promptTokens` | Suma tokenów wejsciowych (kumulatywna w miesiacu) |
+| `completionTokens` | Suma tokenow wyjsciowych |
+| `estimatedCostUsd` | Szacowany koszt USD (na podstawie pricing map) |
+| `callCount` | Liczba wywolan AI w miesiacu |
+| Limit | $5/user/month — error banner w UI |
+
+### Migracja z localStorage
+
+Jednorazowa migracja przy pierwszym zaladowaniu `useChatMessages`:
+1. Sprawdza `localStorage` na istnieje wiadomosci chatu
+2. Jesli znalezione → zapisuje do Firestore `chat_messages` z `userId`
+3. Czysci localStorage
+4. Kolejne ladowania → tylko Firestore
 
 ### Quick Actions
 
 `AIChat.tsx` oferuje szybkie akcje:
-- **"Podsumuj tydzień"** — `buildWeekSummaryPrompt()` zbiera treningi + Strava z bieżącego tygodnia
+- **"Podsumuj tydzien"** — `buildWeekSummaryPrompt()` zbiera treningi + Strava z biezacego tygodnia
 
 ---
 
@@ -1235,6 +1318,10 @@ Frontend                    Cloud Functions              Strava API
   - Kolejne synce: od `stravaLastSync`
   - Automatyczny token refresh (jeśli wygasł)
   - Logi: `logger.info()` dla debugowania
+- `streamOpenAI` — SSE streaming OpenAI proxy (`onRequest`, manual auth via Bearer token)
+  - `ai-usage.ts`: `checkUsageLimit()`, `recordUsage()`, pricing map per model
+  - Cost tracking: `ai_usage/{userId_YYYY-MM}` w Firestore
+  - Limit: $5/user/month → HTTP 429 gdy przekroczony
 
 ### OAuth Bridge
 `public/strava-callback.html` — workaround dla HashRouter:
@@ -1591,6 +1678,18 @@ CI/CD pipeline używa Node 20 (wystarczające dla Vite build). Cloud Functions w
 ---
 
 ## Changelog
+
+### v6.4.0 (2026-03-13) — Streaming AI Chat + Cost Tracking + Per-User Chat
+
+- Streaming AI Chat — SSE via Cloud Function `streamOpenAI`, token-by-token display z cursor animation
+- Per-user chat persistence — Firestore `chat_messages` collection (zastępuje localStorage)
+- AI cost tracking — `ai_usage/{userId_YYYY-MM}`, $5/user/month limit z error banner
+- Admin panel: AI usage per user (promptTokens, completionTokens, estimatedCostUsd, callCount)
+- `useChatMessages` hook — Firestore `onSnapshot`, real-time per-user messages
+- `callOpenAIStream()` w `ai-coach.ts` — SSE streaming client
+- `ai-usage.ts` w Cloud Functions — `checkUsageLimit()`, `recordUsage()`, pricing map
+- One-time migration z localStorage do Firestore `chat_messages`
+- `chat_conversations` collection **deprecated** (zastapione przez `chat_messages`)
 
 ### v6.3.0 (2026-03-12) — Weekly Digest (Resend) + Bug Fixes
 

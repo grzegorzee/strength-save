@@ -10,9 +10,9 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.3.0) |
+| **Status** | AKTYWNY (v6.4.0) |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-03-12 |
+| **Data aktualizacji** | 2026-03-13 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), + whitelist |
 
 ---
@@ -45,7 +45,7 @@
 | src/hooks/useTrainingPlan.ts | Plan treningowy per-user (duration, expiration) |
 | src/hooks/useStrava.ts | Integracja Strava (activities, sync) |
 | src/hooks/useAICoach.ts | AI Coach (insights, cache 24h) |
-| src/hooks/useAIChat.ts | Chat z AI trenerem (Firestore conversations) |
+| src/hooks/useChatMessages.ts | **Chat z AI trenerem (Firestore per-user, real-time, migration z localStorage)** |
 | src/hooks/useAISwap.ts | Zamiana ćwiczeń przez AI (3 alternatywy) |
 | src/hooks/useOnlineStatus.ts | Detekcja online/offline + pending ops |
 | src/hooks/useAuth.ts | Autentykacja Google OAuth + whitelist |
@@ -110,7 +110,8 @@
 ### Firebase Cloud Functions
 | Plik | Opis |
 |------|------|
-| functions/src/index.ts | stravaAuthUrl, stravaCallback, stravaSync, weeklyDigest, proxyOpenAI, generateWeeklySummary, stravaScheduledSync |
+| functions/src/index.ts | stravaAuthUrl, stravaCallback, stravaSync, weeklyDigest, proxyOpenAI, generateWeeklySummary, stravaScheduledSync, **streamOpenAI** |
+| functions/src/ai-usage.ts | **AI cost tracking** (checkUsageLimit, recordUsage, $5/user/month) |
 | functions/src/weekly-digest.ts | Weekly Digest Email (Resend, per-user, co poniedziałek 08:00) |
 
 ---
@@ -171,11 +172,23 @@ fittracker-workouts (project)
 │       ├── startDate: string (YYYY-MM-DD)
 │       └── updatedAt: string (ISO)
 │
-└── strava_activities/           # Aktywności Strava (per-user)
-    └── {auto-id}/
-        ├── userId, stravaId, name, type, date
-        ├── distance?, movingTime?, averageSpeed?
-        └── stravaUrl, syncedAt
+├── strava_activities/           # Aktywności Strava (per-user)
+│   └── {auto-id}/
+│       ├── userId, stravaId, name, type, date
+│       ├── distance?, movingTime?, averageSpeed?
+│       └── stravaUrl, syncedAt
+│
+├── chat_messages/              # Chat z AI (per-user, Firestore)
+│   └── {auto-id}/
+│       ├── userId, role ('user'|'assistant'), content
+│       └── createdAt (Timestamp)
+│
+└── ai_usage/                   # AI cost tracking (per-user per-month)
+    └── {userId_YYYY-MM}/
+        ├── userId, month
+        ├── promptTokens, completionTokens
+        ├── estimatedCostUsd, callCount
+        └── updatedAt
 ```
 
 ---
@@ -253,7 +266,7 @@ HashRouter (GitHub Pages)
 
 ---
 
-## KLUCZOWE FUNKCJONALNOŚCI (v6.3.0)
+## KLUCZOWE FUNKCJONALNOŚCI (v6.4.0)
 
 ### Core
 - Plan treningowy 2-5 dni/tydzień (dynamiczne weekdays)
@@ -267,9 +280,10 @@ HashRouter (GitHub Pages)
 
 ### AI
 - AI Coach: analiza treningów, insights na Dashboard (cache 24h)
-- AI Chat: rozmowa z trenerem AI
+- **AI Chat: streaming SSE** (token-by-token, Firestore per-user, $5/month limit)
 - AI Quick Action: "Podsumuj tydzień" (treningi + Strava)
 - AI generowanie planów treningowych (onboarding + new plan)
+- **AI cost tracking** — $5/user/miesiąc limit, admin panel z widokiem per user
 
 ### Strava & Cardio Analytics
 - OAuth flow przez Firebase Cloud Functions
@@ -364,12 +378,14 @@ npm run deploy    # gh-pages -d dist
 | **Model** | `gpt-5-mini` (OpenAI) |
 | **Pricing** | $0.25 / 1M input, $2.00 / 1M output |
 | **Context** | 400K tokens |
-| **Centralna funkcja** | `callOpenAI()` w `src/lib/ai-coach.ts` |
+| **Centralna funkcja** | `callOpenAI()` + `callOpenAIStream()` w `src/lib/ai-coach.ts` |
+| **Cost tracking** | `functions/src/ai-usage.ts` — $5/user/miesiąc limit |
+| **Streaming** | `streamOpenAI` Cloud Function (SSE, onRequest) |
 
 **Funkcje AI:**
 1. **Plan generation** (`ai-onboarding.ts`) — generowanie planu treningowego z onboardingu
 2. **AI Coach** (`ai-coach.ts`) — analiza treningów, plateau detection, insights
-3. **AI Chat** (`ai-chat.ts`) — rozmowa z trenerem z kontekstem treningowym
+3. **AI Chat streaming** (`ai-coach.ts` → `callOpenAIStream`) — SSE, token-by-token, Firestore per-user
 4. **Exercise swap** (`ai-coach.ts` → `getSwapSuggestions`) — 3 alternatywy dla ćwiczenia
 5. **Workout summary** (`ai-coach.ts` → `generateWorkoutSummary`) — podsumowanie treningu
 
@@ -386,5 +402,5 @@ npm run deploy    # gh-pages -d dist
 - Plan expiration: `currentWeek > planDurationWeeks` → banner + /new-plan
 - Onboarding: nowi użytkownicy → wizard → AI plan → review → Dashboard
 - Istniejący użytkownicy: auto-detect (mają workouty) → skip onboarding
-- `chat_conversations` — legacy collection bez per-user isolation (do naprawy)
+- `chat_conversations` — DEPRECATED (zastąpione przez `chat_messages` per-user w v6.4.0)
 - 🔴 **DEPLOY:** `git push` ≠ deploy! Po KAŻDEJ zmianie kodu → `npm run deploy` (gh-pages branch)

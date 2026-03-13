@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -27,11 +27,48 @@ interface AdminUser {
   lastLogin?: string;
 }
 
+interface AIUsageDoc {
+  userId: string;
+  month: string;
+  promptTokens: number;
+  completionTokens: number;
+  estimatedCostUsd: number;
+  callCount: number;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [expandedUid, setExpandedUid] = useState<string | null>(null);
+  const [aiUsage, setAiUsage] = useState<AIUsageDoc[]>([]);
+
+  // Current month key for AI usage query
+  const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+
+  // Subscribe to AI usage for current month
+  useEffect(() => {
+    const q = query(
+      collection(db, 'ai_usage'),
+      where('month', '==', currentMonth),
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data: AIUsageDoc[] = [];
+      snapshot.forEach((d) => {
+        const u = d.data();
+        data.push({
+          userId: u.userId,
+          month: u.month,
+          promptTokens: u.promptTokens || 0,
+          completionTokens: u.completionTokens || 0,
+          estimatedCostUsd: u.estimatedCostUsd || 0,
+          callCount: u.callCount || 0,
+        });
+      });
+      setAiUsage(data);
+    });
+    return () => unsubscribe();
+  }, [currentMonth]);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
@@ -85,6 +122,30 @@ const AdminDashboard = () => {
           <p className="text-muted-foreground text-sm">Zarządzaj użytkownikami i funkcjami</p>
         </div>
       </div>
+
+      {/* AI Cost Summary */}
+      {(() => {
+        const totalCost = aiUsage.reduce((sum, u) => sum + u.estimatedCostUsd, 0);
+        const totalCalls = aiUsage.reduce((sum, u) => sum + u.callCount, 0);
+        const costColor = totalCost < 2 ? 'text-green-600' : totalCost < 4 ? 'text-yellow-600' : 'text-red-600';
+        return totalCalls > 0 ? (
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3">
+                <DollarSign className={cn('h-5 w-5', costColor)} />
+                <div>
+                  <p className={cn('font-semibold text-sm', costColor)}>
+                    AI koszty ({currentMonth}): ${totalCost.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {totalCalls} wywołań, {aiUsage.length} użytkowników
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null;
+      })()}
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
@@ -143,6 +204,26 @@ const AdminDashboard = () => {
                         </div>
                       ))}
                     </div>
+
+                    {/* AI Usage */}
+                    {(() => {
+                      const usage = aiUsage.find(u => u.userId === user.uid);
+                      if (!usage || usage.callCount === 0) return null;
+                      const totalTokens = usage.promptTokens + usage.completionTokens;
+                      const tokenStr = totalTokens >= 1000 ? `${(totalTokens / 1000).toFixed(1)}K` : `${totalTokens}`;
+                      const costColor = usage.estimatedCostUsd < 2 ? 'text-green-600' : usage.estimatedCostUsd < 4 ? 'text-yellow-600' : 'text-red-600';
+                      return (
+                        <div className="rounded-lg bg-muted/20 p-3">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">AI Usage ({currentMonth})</p>
+                          <p className={cn('text-sm font-semibold', costColor)}>
+                            ${usage.estimatedCostUsd.toFixed(2)} / $5.00
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {usage.callCount} wywołań, {tokenStr} tokenów
+                          </p>
+                        </div>
+                      );
+                    })()}
 
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2">

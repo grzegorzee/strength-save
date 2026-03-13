@@ -24,14 +24,14 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] **M10:** v6.1.0 - 8 Feature Pack (Exercise Timeline, Smart Rest, Warmup, Heatmap, Share, Race Predictor, Training Load, Weekly Digest) ✅
 - [x] **M11:** v6.2.0 - Strava Deep Integration v2 (compact timeline, SeasonFilter, Calories, PaceTrend) ✅
 - [x] **M12:** v6.3.0 - Weekly Digest (Resend, per-user auto-detect), bug fixes, doc update ✅
-- [ ] **M13:** Security hardening (OpenAI → Cloud Functions, chat_conversations per-user)
-- [ ] **M14:** PWA offline mode (offline-queue integration z hookami CRUD)
-- [ ] **M15:** Export do PDF / raporty tygodniowe
-- [ ] **M16:** Streaming AI Chat + cost tracking
+- [x] **M13:** v6.4.0 - Streaming AI Chat + Cost Tracking + Per-User Chat ✅
+- [ ] **M14:** Security hardening (remaining: OpenAI key client-side for non-chat calls)
+- [ ] **M15:** PWA offline mode (offline-queue integration z hookami CRUD)
+- [ ] **M16:** Export do PDF / raporty tygodniowe
 
 ---
 
-## FUNKCJONALNOŚCI (v6.3.0)
+## FUNKCJONALNOŚCI (v6.4.0)
 
 ### Core
 - [x] Plan treningowy 2-5x/tydzień (dynamiczne weekdays)
@@ -47,8 +47,9 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [x] AI-powered onboarding (5 kroków → plan → review)
 - [x] AI generowanie nowego planu po wygaśnięciu (NewPlan)
 - [x] AI Coach: insights na Dashboard (cache 24h)
-- [x] AI Chat: rozmowa z trenerem
+- [x] AI Chat: **streaming SSE** (token-by-token, Firestore per-user)
 - [x] AI Quick Action: "Podsumuj tydzień" z Strava
+- [x] AI cost tracking: $5/user/miesiąc, admin panel
 - [x] Exercise library (60+ ćwiczeń z kategoriami)
 - [x] ExerciseSwapDialog (zamiana ćwiczenia w review)
 
@@ -133,8 +134,8 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 ## ZADANIA
 
 ### P0 — Krytyczne (bezpieczeństwo, stabilność)
-- [ ] **Przenieść OpenAI calls na Cloud Functions** — klucz API jest eksponowany w bundlu frontendowym
-- [ ] **Per-user isolation na `chat_conversations`** — dodać `userId`, zaktualizować security rules
+- [x] ~~**Przenieść OpenAI calls na Cloud Functions**~~ → DONE v6.4.0 (streamOpenAI + proxyOpenAI z cost tracking)
+- [x] ~~**Per-user isolation na `chat_conversations`**~~ → DONE v6.4.0 (chat_messages per-user, chat_conversations deprecated)
 - [ ] **Walidacja danych z Firebase** — sprawdzanie struktury w onSnapshot (obrona przed corrupted docs)
 
 ### P1 — Ważne (UX, funkcjonalność)
@@ -142,7 +143,7 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - [ ] **Testy hooka useFirebaseWorkouts** — mockowanie Firebase, pokrycie edge cases
 - [ ] **Powiadomienia push** — przypomnienie o treningu (FCM)
 - [ ] **Export do PDF** — raport tygodniowy/miesięczny
-- [ ] **Strava auto-sync** — Cloud Function cron (co 6h)
+- [x] ~~**Strava auto-sync**~~ → DONE v6.3.0 (stravaScheduledSync cron co dzień 10:00)
 
 ### P2 — Nice to have (ulepszenia)
 - [ ] Personalizacja planu (dodawanie własnych ćwiczeń poza AI)
@@ -158,8 +159,8 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 
 | Problem | Plik(i) | Priorytet | Opis |
 |---------|---------|-----------|------|
-| OpenAI key client-side | `ai-coach.ts` | 🔴 P0 | Key eksponowany w bundlu. Przenieść na Cloud Functions. |
-| `chat_conversations` brak userId | `useAIChat.ts`, `firestore.rules` | 🔴 P0 | Legacy collection bez per-user isolation. Każdy user widzi wszystkie rozmowy. |
+| ~~OpenAI key client-side~~ | `ai-coach.ts` | ~~🔴 P0~~ | ✅ DONE v6.4.0 — Chat uses streamOpenAI (server-side). Non-chat calls still use proxyOpenAI. |
+| ~~`chat_conversations` brak userId~~ | ~~`useAIChat.ts`~~ | ~~🔴 P0~~ | ✅ DONE v6.4.0 — Replaced by `chat_messages` per-user. chat_conversations deprecated. |
 | Node 20 w CI vs Node 22 w Functions | `deploy.yml`, `functions/package.json` | 🟡 P1 | CI używa Node 20, Functions wymagają 22. Ujednolicić. |
 | `VITE_ALLOWED_EMAIL` legacy secret | `deploy.yml` | 🟢 P2 | Stary secret (single email) wciąż w CI. Usunąć po weryfikacji. |
 | Exercise library hardcoded | `exerciseLibrary.ts` | 🟢 P2 | 82 ćwiczeń w kodzie, nie w bazie. Dodanie wymaga deploy. |
@@ -181,8 +182,8 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - **Plan comparison** — porównanie starego i nowego planu przy generowaniu
 
 ### AI
-- **Streaming responses** — AI Chat z real-time streaming (zamiast czekania na pełną odpowiedź)
-- **Cost tracking** — logowanie kosztów AI per user (token usage)
+- ~~**Streaming responses**~~ → DONE v6.4.0 (SSE, callOpenAIStream)
+- ~~**Cost tracking**~~ → DONE v6.4.0 ($5/user/month, admin panel)
 - **Contextual suggestions** — AI proponuje zmiany w trakcie treningu (nie tylko w Coach)
 - **Multi-language prompts** — system prompts jako konfiguracja (nie hardcoded PL)
 
@@ -191,6 +192,40 @@ Multi-user aplikacja PWA do śledzenia treningów siłowych z AI-generated plana
 - **Week-over-week comparison** — porównanie z poprzednim tygodniem
 - ~~**Exercise frequency heatmap**~~ → DONE v6.1.0 (TrainingHeatmap - GitHub-style grid)
 - **Recovery tracking** — RPE (Rate of Perceived Exertion) per set
+
+---
+
+## ZROBIONE (v6.4.0 - 2026-03-13)
+
+**Streaming AI Chat:**
+- [x] `streamOpenAI` Cloud Function (onRequest, SSE, manual auth via Bearer token)
+- [x] `callOpenAIStream()` w ai-coach.ts (fetch + ReadableStream + SSE parsing)
+- [x] Token-by-token display z cursor animation w AIChat.tsx
+- [x] AbortController do cancelowania streamu
+
+**Per-User Chat (Firestore):**
+- [x] `useChatMessages` hook (onSnapshot real-time, addMessage, clearMessages)
+- [x] `chat_messages` collection z per-user isolation (userId + createdAt index)
+- [x] One-time migration z localStorage (fittracker-ai-chat → Firestore)
+- [x] `chat_conversations` deprecated (zakomentowany w firestore.rules)
+
+**AI Cost Tracking:**
+- [x] `functions/src/ai-usage.ts` — checkUsageLimit(), recordUsage(), FieldValue.increment()
+- [x] $5/user/miesiąc limit, pricing map gpt-5-mini ($0.25/1M input, $2.00/1M output)
+- [x] Cost tracking w proxyOpenAI, generateWeeklySummary, streamOpenAI
+- [x] Limit error banner w AIChat (LIMIT_EXCEEDED → disabled input)
+- [x] Admin panel: global AI cost card + per-user usage w expanded panel
+
+**Firestore:**
+- [x] Security rules: chat_messages (per-user + admin read), ai_usage (read-only + admin)
+- [x] Composite index: chat_messages(userId ASC, createdAt ASC)
+
+**Nowe pliki:**
+- [x] `functions/src/ai-usage.ts`
+- [x] `src/hooks/useChatMessages.ts`
+
+**Dokumentacja:**
+- [x] Aktualizacja START.md, DOCUMENTATION.md, PLAN.md, DECYZJE.md
 
 ---
 

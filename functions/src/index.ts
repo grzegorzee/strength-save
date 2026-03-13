@@ -1,8 +1,9 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { checkUsageLimit, recordUsage } from "./ai-usage";
 
 admin.initializeApp();
 
@@ -175,6 +176,17 @@ export const generateWeeklySummary = onCall(
       throw new HttpsError("failed-precondition", "OpenAI API key not configured. Dodaj klucz w Google Cloud Console → Secret Manager → openai-api-key");
     }
 
+    // Cost tracking
+    const userId = request.auth.uid;
+    try {
+      await checkUsageLimit(userId);
+    } catch (limitErr) {
+      if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
+        throw new HttpsError("resource-exhausted", limitErr);
+      }
+      throw limitErr;
+    }
+
     const prompt = `Jesteś trenerem personalnym. Napisz KRÓTKIE (max 150 słów) motywujące podsumowanie tygodnia treningowego po polsku.
 
 Dane z tygodnia:
@@ -216,7 +228,12 @@ Zasady:
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "";
-    logger.info(`[WeeklySummary] Generated summary (${text.length} chars) for ${request.auth.uid}`);
+    logger.info(`[WeeklySummary] Generated summary (${text.length} chars) for ${userId}`);
+
+    // Record usage
+    if (data.usage) {
+      await recordUsage(userId, data.usage.prompt_tokens || 0, data.usage.completion_tokens || 0, "gpt-5-mini");
+    }
 
     return { text };
   },
@@ -243,6 +260,18 @@ export const proxyOpenAI = onCall(
       throw new HttpsError("failed-precondition", "OpenAI API key not configured");
     }
 
+    // Cost tracking
+    const userId = request.auth.uid;
+    const usedModel = model || "gpt-5-mini";
+    try {
+      await checkUsageLimit(userId);
+    } catch (limitErr) {
+      if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
+        throw new HttpsError("resource-exhausted", limitErr);
+      }
+      throw limitErr;
+    }
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -265,9 +294,181 @@ export const proxyOpenAI = onCall(
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || "";
-    logger.info(`[ProxyOpenAI] OK (${text.length} chars) for ${request.auth.uid}`);
+    logger.info(`[ProxyOpenAI] OK (${text.length} chars) for ${userId}`);
+
+    // Record usage
+    if (data.usage) {
+      await recordUsage(userId, data.usage.prompt_tokens || 0, data.usage.completion_tokens || 0, usedModel);
+    }
 
     return { text };
+  },
+);
+
+/**
+ * Streaming OpenAI proxy via SSE (onRequest — not onCall, needed for streaming)
+ * Auth: Authorization: Bearer {Firebase ID token}
+ */
+export const streamOpenAI = onRequest(
+  {
+    secrets: [openaiApiKey],
+    cors: ["https://grzegorzee.github.io", "http://localhost:5173", "http://localhost:4173"],
+    timeoutSeconds: 120,
+    memory: "256MiB",
+  },
+  async (req, res) => {
+    // Only POST
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    // Manual auth via Bearer token
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Missing Authorization header" });
+      return;
+    }
+
+    let userId: string;
+    try {
+      const token = authHeader.split("Bearer ")[1];
+      const decoded = await admin.auth().verifyIdToken(token);
+      userId = decoded.uid;
+    } catch {
+      res.status(401).json({ error: "Invalid token" });
+      return;
+    }
+
+    // Check usage limit
+    try {
+      await checkUsageLimit(userId);
+    } catch (limitErr) {
+      if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
+        res.status(429).json({ error: limitErr });
+        return;
+      }
+      res.status(500).json({ error: "Usage check failed" });
+      return;
+    }
+
+    const { messages, model, maxTokens } = req.body;
+    if (!messages || !Array.isArray(messages)) {
+      res.status(400).json({ error: "messages array is required" });
+      return;
+    }
+
+    const apiKey = openaiApiKey.value();
+    if (!apiKey || apiKey === "PLACEHOLDER") {
+      res.status(500).json({ error: "OpenAI API key not configured" });
+      return;
+    }
+
+    const usedModel = model || "gpt-5-mini";
+
+    // Call OpenAI with streaming
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: usedModel,
+        messages,
+        max_completion_tokens: maxTokens || 4000,
+        stream: true,
+        stream_options: { include_usage: true },
+      }),
+    });
+
+    if (!openaiRes.ok) {
+      const errBody = await openaiRes.text();
+      logger.error(`[StreamOpenAI] OpenAI error ${openaiRes.status}: ${errBody}`);
+      res.status(502).json({ error: `OpenAI API error: ${openaiRes.status}` });
+      return;
+    }
+
+    // Set SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+
+    const reader = openaiRes.body as unknown as NodeJS.ReadableStream;
+    let buffer = "";
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
+
+    reader.on("data", (chunk: Buffer) => {
+      buffer += chunk.toString();
+
+      const lines = buffer.split("\n");
+      // Keep the last incomplete line in buffer
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+        const data = trimmed.slice(6);
+        if (data === "[DONE]") {
+          // Record usage before closing
+          if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
+            recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel).catch(
+              (err) => logger.error("[StreamOpenAI] Failed to record usage:", err),
+            );
+          }
+          res.write("data: [DONE]\n\n");
+          res.end();
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(data);
+
+          // Check for usage in the final chunk
+          if (parsed.usage) {
+            totalPromptTokens = parsed.usage.prompt_tokens || 0;
+            totalCompletionTokens = parsed.usage.completion_tokens || 0;
+          }
+
+          // Forward content delta
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
+        } catch {
+          // Skip malformed JSON
+        }
+      }
+    });
+
+    reader.on("end", () => {
+      // If we still have usage to record
+      if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
+        recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel).catch(
+          (err) => logger.error("[StreamOpenAI] Failed to record usage on end:", err),
+        );
+      }
+      if (!res.writableEnded) {
+        res.write("data: [DONE]\n\n");
+        res.end();
+      }
+    });
+
+    reader.on("error", (err) => {
+      logger.error("[StreamOpenAI] Stream error:", err);
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ error: "Stream error" })}\n\n`);
+        res.end();
+      }
+    });
+
+    // Handle client disconnect
+    req.on("close", () => {
+      logger.info(`[StreamOpenAI] Client disconnected (${userId})`);
+    });
   },
 );
 
