@@ -18,10 +18,10 @@ import { cn } from '@/lib/utils';
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
-  const { uid, isAdmin } = useCurrentUser();
+  const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
-  const { activities: stravaActivities } = useStrava(uid, isAdmin);
+  const { activities: stravaActivities } = useStrava(uid, canUseStrava);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
 
   // Get dates with completed workouts
@@ -291,7 +291,7 @@ const TrainingPlan = () => {
                   <div className="h-3 w-3 rounded-full ring-2 ring-primary ring-inset" />
                   <span className="text-muted-foreground">Zaplanowane</span>
                 </div>
-                {isAdmin && (
+                {canUseStrava && (
                   <div className="flex items-center gap-1.5">
                     <div className="h-3 w-3 rounded-full ring-2 ring-orange-500 ring-inset" />
                     <span className="text-muted-foreground">Strava</span>

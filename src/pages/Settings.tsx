@@ -1,23 +1,136 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Link2, Unlink, RefreshCw, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Link2, Unlink, RefreshCw, Loader2, Clock, Shield, Users } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const SUMMARY_HOUR_KEY = 'summary-hour';
 
+const AVAILABLE_FEATURES = [
+  { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą (aktywności, wykresy, analityka)' },
+] as const;
+
+type FeatureKey = typeof AVAILABLE_FEATURES[number]['key'];
+
+interface UserFeatureRow {
+  uid: string;
+  displayName: string;
+  email: string;
+  role: string;
+  features: Record<string, boolean>;
+}
+
+const FeatureFlagsPanel = () => {
+  const [users, setUsers] = useState<UserFeatureRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const rows: UserFeatureRow[] = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        rows.push({
+          uid: d.id,
+          displayName: data.displayName || data.email || d.id,
+          email: data.email || '',
+          role: data.role || 'user',
+          features: data.features || {},
+        });
+      });
+      rows.sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1));
+      setUsers(rows);
+    } catch (err) {
+      console.error('Failed to load users:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadUsers(); }, [loadUsers]);
+
+  const toggleFeature = async (uid: string, feature: FeatureKey, enabled: boolean) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, { [`features.${feature}`]: enabled });
+      setUsers(prev => prev.map(u =>
+        u.uid === uid ? { ...u, features: { ...u.features, [feature]: enabled } } : u
+      ));
+      toast({ title: enabled ? 'Włączono' : 'Wyłączono', description: `${feature} dla ${users.find(u => u.uid === uid)?.displayName}` });
+    } catch (err) {
+      toast({ title: 'Błąd', description: 'Nie udało się zapisać.', variant: 'destructive' });
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-8 flex justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-primary" />
+          Zarządzanie funkcjami
+        </CardTitle>
+        <CardDescription>
+          Włączaj/wyłączaj funkcje dla poszczególnych użytkowników
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 px-3 sm:px-6">
+        {users.map(user => (
+          <div key={user.uid} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium truncate">{user.displayName}</p>
+                {user.role === 'admin' && (
+                  <Badge variant="default" className="text-[10px] h-5 shrink-0">admin</Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {AVAILABLE_FEATURES.map(feat => (
+                <div key={feat.key} className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground hidden sm:inline">{feat.label}</span>
+                  <Switch
+                    checked={user.features[feat.key] ?? user.role === 'admin'}
+                    onCheckedChange={(checked) => toggleFeature(user.uid, feat.key, checked)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {users.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">Brak użytkowników</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const Settings = () => {
   const navigate = useNavigate();
-  const { uid, profile, isAdmin } = useCurrentUser();
-  const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, isAdmin);
+  const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
+  const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
 
   const [summaryHour, setSummaryHour] = useState(() => {
@@ -142,8 +255,8 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      {/* Strava integration — admin only */}
-      {isAdmin && <Card>
+      {/* Strava integration — feature flag */}
+      {canUseStrava && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#FC4C02">
@@ -225,6 +338,9 @@ const Settings = () => {
           )}
         </CardContent>
       </Card>}
+
+      {/* Feature Flags — admin only */}
+      {isAdmin && <FeatureFlagsPanel />}
     </div>
   );
 };

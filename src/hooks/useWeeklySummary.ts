@@ -18,7 +18,7 @@ import {
 } from '@/lib/weekly-summary';
 import { getWeekBounds } from '@/lib/summary-utils';
 
-export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
+export const useWeeklySummary = (userId: string, stravaEnabled: boolean = false) => {
   const [summaries, setSummaries] = useState<WeeklySummary[]>([]);
   const [summariesLoaded, setSummariesLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -27,7 +27,7 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
 
   const { workouts, isLoaded: workoutsLoaded } = useFirebaseWorkouts(userId);
   const { plan: trainingPlan } = useTrainingPlan(userId);
-  const { activities: stravaActivities, isLoaded: stravaLoaded } = useStrava(userId, isAdmin);
+  const { activities: stravaActivities, isLoaded: stravaLoaded } = useStrava(userId, stravaEnabled);
 
   // Listen to summaries (no orderBy — avoids composite index requirement)
   useEffect(() => {

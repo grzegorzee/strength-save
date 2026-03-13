@@ -87,10 +87,10 @@ const formatDateShort = (date: string): string =>
 type Period = 'week' | 'month';
 
 const SummaryTab = () => {
-  const { uid, isAdmin } = useCurrentUser();
+  const { uid, canUseStrava } = useCurrentUser();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
-  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, isAdmin);
+  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('week');
@@ -695,8 +695,8 @@ const MeasurementsTab = () => {
 // ========================
 
 const WeeklyTab = () => {
-  const { uid, isAdmin } = useCurrentUser();
-  const { summaries, isGenerating, error, generateSummary } = useWeeklySummary(uid, isAdmin);
+  const { uid, canUseStrava } = useCurrentUser();
+  const { summaries, isGenerating, error, generateSummary } = useWeeklySummary(uid, canUseStrava);
 
   return (
     <div className="space-y-4">
@@ -798,9 +798,9 @@ const WeeklyTab = () => {
 
 const Analytics = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAdmin } = useCurrentUser();
+  const { canUseStrava } = useCurrentUser();
   const tabParam = searchParams.get('tab') as AnalyticsTab | null;
-  const validTabs: AnalyticsTab[] = isAdmin
+  const validTabs: AnalyticsTab[] = canUseStrava
     ? ['summary', 'charts', 'measurements', 'strava', 'weekly']
     : ['summary', 'charts', 'measurements', 'weekly'];
   const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'summary';
@@ -812,14 +812,14 @@ const Analytics = () => {
           <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">Podsum.</TabsTrigger>
           <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">Wykresy</TabsTrigger>
           <TabsTrigger value="measurements" className="flex-1 text-xs min-w-0">Pomiary</TabsTrigger>
-          {isAdmin && <TabsTrigger value="strava" className="flex-1 text-xs min-w-0">Strava</TabsTrigger>}
+          {canUseStrava && <TabsTrigger value="strava" className="flex-1 text-xs min-w-0">Strava</TabsTrigger>}
           <TabsTrigger value="weekly" className="flex-1 text-xs min-w-0">Tygodnie</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary"><SummaryTab /></TabsContent>
         <TabsContent value="charts"><ChartsTab /></TabsContent>
         <TabsContent value="measurements"><MeasurementsTab /></TabsContent>
-        {isAdmin && <TabsContent value="strava"><StravaTab /></TabsContent>}
+        {canUseStrava && <TabsContent value="strava"><StravaTab /></TabsContent>}
         <TabsContent value="weekly"><WeeklyTab /></TabsContent>
       </Tabs>
     </div>

@@ -129,7 +129,7 @@ const DashboardStatCard = ({
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { uid, profile, isAdmin } = useCurrentUser();
+  const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
   const {
     workouts,
     getTotalWeight,
@@ -139,7 +139,7 @@ const Dashboard = () => {
     error
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks } = useTrainingPlan(uid);
-  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, isAdmin);
+  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
 
   // AI Coach
   const completedCount = useMemo(() => workouts.filter(w => w.completed).length, [workouts]);

@@ -18,8 +18,8 @@ import { TrainingLoadChart } from './TrainingLoadChart';
 import { MonthlyActivities } from './MonthlyActivities';
 
 export const StravaTab = () => {
-  const { uid, isAdmin } = useCurrentUser();
-  const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, isAdmin);
+  const { uid, canUseStrava } = useCurrentUser();
+  const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const [selectedYear, setSelectedYear] = useState<SeasonYear>(new Date().getFullYear());
 
   const nonStrengthActivities = useMemo(

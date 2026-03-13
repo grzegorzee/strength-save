@@ -11,12 +11,14 @@ export interface UserProfile {
   role: 'admin' | 'user';
   stravaConnected: boolean;
   onboardingCompleted: boolean;
+  features?: Record<string, boolean>;
 }
 
 interface UserContextValue {
   uid: string;
   profile: UserProfile | null;
   isAdmin: boolean;
+  canUseStrava: boolean;
   isNewUser: boolean;
   profileLoaded: boolean;
 }
@@ -88,6 +90,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           role: data.role || 'user',
           stravaConnected: data.stravaConnected || false,
           onboardingCompleted: data.onboardingCompleted || false,
+          features: data.features || undefined,
         });
       } else {
         // Doc not yet created, use auth data
@@ -129,6 +132,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       uid: user.uid,
       profile,
       isAdmin: profile?.role === 'admin',
+      canUseStrava: profile?.features?.strava ?? profile?.role === 'admin',
       isNewUser,
       profileLoaded,
     }}>
