@@ -27,7 +27,7 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
 
   const { workouts, isLoaded: workoutsLoaded } = useFirebaseWorkouts(userId);
   const { plan: trainingPlan } = useTrainingPlan(userId);
-  const { activities: stravaActivities } = useStrava(userId, isAdmin);
+  const { activities: stravaActivities, isLoaded: stravaLoaded } = useStrava(userId, isAdmin);
 
   // Listen to summaries (no orderBy — avoids composite index requirement)
   useEffect(() => {
@@ -102,7 +102,7 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
 
   // Auto-generate for last week if missing
   useEffect(() => {
-    if (!workoutsLoaded || !summariesLoaded || !userId || autoGenRef.current) return;
+    if (!workoutsLoaded || !summariesLoaded || !stravaLoaded || !userId || autoGenRef.current) return;
     if (isGenerating) return;
 
     autoGenRef.current = true;
@@ -120,7 +120,7 @@ export const useWeeklySummary = (userId: string, isAdmin: boolean = false) => {
     if (!hasData) return;
 
     generateSummary(lastWeekDate);
-  }, [workoutsLoaded, summariesLoaded, userId, summaries, workouts, stravaActivities, trainingPlan]);
+  }, [workoutsLoaded, summariesLoaded, stravaLoaded, userId, summaries, workouts, stravaActivities, trainingPlan]);
 
   return {
     summaries,

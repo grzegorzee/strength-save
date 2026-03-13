@@ -704,7 +704,7 @@ const WeeklyTab = () => {
         <h3 className="font-heading font-semibold text-base">Podsumowania tygodniowe</h3>
         <Button
           size="sm"
-          onClick={() => generateSummary()}
+          onClick={() => generateSummary(new Date())}
           disabled={isGenerating}
         >
           {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}

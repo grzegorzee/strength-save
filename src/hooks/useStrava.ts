@@ -20,6 +20,7 @@ const noop = async () => ({ ok: false as const, message: 'Strava disabled' });
 
 export const useStrava = (userId: string, enabled: boolean = true) => {
   const [activities, setActivities] = useState<StravaActivity[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [connection, setConnection] = useState<StravaConnection>({ connected: false });
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
         });
         console.log(`[Strava] Activities loaded: ${data.length}`);
         setActivities(data);
+        setIsLoaded(true);
       },
       (err) => {
         console.error('[Strava] Activities query failed:', err.code, err.message);
@@ -152,6 +154,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
   if (!enabled) {
     return {
       activities: EMPTY_ACTIVITIES,
+      isLoaded: true,
       connection: EMPTY_CONNECTION,
       isSyncing: false,
       error: null,
@@ -163,6 +166,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
 
   return {
     activities,
+    isLoaded,
     connection,
     isSyncing,
     error,
