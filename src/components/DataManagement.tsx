@@ -97,14 +97,14 @@ export const DataManagement = ({ onExport, onImport, onCleanup }: DataManagement
           Eksportuj, importuj lub wyczyść dane treningowe
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex gap-4">
-          <Button onClick={handleExport} variant="outline" className="flex-1">
-            <Download className="h-4 w-4 mr-2" />
+      <CardContent className="space-y-4 px-3 sm:px-6">
+        <div className="grid grid-cols-2 gap-3">
+          <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm">
+            <Download className="h-4 w-4 mr-1.5 shrink-0" />
             Eksportuj JSON
           </Button>
-          <Button onClick={handleImportClick} variant="outline" className="flex-1">
-            <Upload className="h-4 w-4 mr-2" />
+          <Button onClick={handleImportClick} variant="outline" className="w-full text-xs sm:text-sm">
+            <Upload className="h-4 w-4 mr-1.5 shrink-0" />
             Importuj JSON
           </Button>
           <input
