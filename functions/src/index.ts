@@ -395,80 +395,69 @@ export const streamOpenAI = onRequest(
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
 
-    const reader = openaiRes.body as unknown as NodeJS.ReadableStream;
+    // Read OpenAI stream using Web Streams API (Node 22 fetch returns ReadableStream, not Node Readable)
     let buffer = "";
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
+    const decoder = new TextDecoder();
 
-    reader.on("data", (chunk: Buffer) => {
-      buffer += chunk.toString();
+    try {
+      const body = openaiRes.body;
+      if (!body) {
+        res.status(502).json({ error: "No response body from OpenAI" });
+        return;
+      }
 
-      const lines = buffer.split("\n");
-      // Keep the last incomplete line in buffer
-      buffer = lines.pop() || "";
+      for await (const chunk of body) {
+        buffer += decoder.decode(chunk as BufferSource, { stream: true });
 
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
-        const data = trimmed.slice(6);
-        if (data === "[DONE]") {
-          // Record usage before closing
-          if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
-            recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel).catch(
-              (err) => logger.error("[StreamOpenAI] Failed to record usage:", err),
-            );
-          }
-          res.write("data: [DONE]\n\n");
-          res.end();
-          return;
-        }
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith("data: ")) continue;
 
-        try {
-          const parsed = JSON.parse(data);
-
-          // Check for usage in the final chunk
-          if (parsed.usage) {
-            totalPromptTokens = parsed.usage.prompt_tokens || 0;
-            totalCompletionTokens = parsed.usage.completion_tokens || 0;
+          const data = trimmed.slice(6);
+          if (data === "[DONE]") {
+            continue; // Will handle after loop
           }
 
-          // Forward content delta
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) {
-            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          try {
+            const parsed = JSON.parse(data);
+
+            if (parsed.usage) {
+              totalPromptTokens = parsed.usage.prompt_tokens || 0;
+              totalCompletionTokens = parsed.usage.completion_tokens || 0;
+            }
+
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              res.write(`data: ${JSON.stringify({ content })}\n\n`);
+            }
+          } catch {
+            // Skip malformed JSON
           }
-        } catch {
-          // Skip malformed JSON
         }
       }
-    });
-
-    reader.on("end", () => {
-      // If we still have usage to record
-      if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
-        recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel).catch(
-          (err) => logger.error("[StreamOpenAI] Failed to record usage on end:", err),
-        );
-      }
-      if (!res.writableEnded) {
-        res.write("data: [DONE]\n\n");
-        res.end();
-      }
-    });
-
-    reader.on("error", (err) => {
+    } catch (err) {
       logger.error("[StreamOpenAI] Stream error:", err);
       if (!res.writableEnded) {
         res.write(`data: ${JSON.stringify({ error: "Stream error" })}\n\n`);
-        res.end();
       }
-    });
+    }
 
-    // Handle client disconnect
-    req.on("close", () => {
-      logger.info(`[StreamOpenAI] Client disconnected (${userId})`);
-    });
+    // Record usage after stream completes
+    if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
+      recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel).catch(
+        (err) => logger.error("[StreamOpenAI] Failed to record usage:", err),
+      );
+    }
+
+    if (!res.writableEnded) {
+      res.write("data: [DONE]\n\n");
+      res.end();
+    }
   },
 );
 
