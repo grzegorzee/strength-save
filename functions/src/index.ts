@@ -203,7 +203,7 @@ Zasady:
           { role: "system", content: "Jesteś osobistym trenerem. Odpowiadaj po polsku, zwięźle i konkretnie." },
           { role: "user", content: prompt },
         ],
-        max_tokens: 500,
+        max_completion_tokens: 500,
       }),
     });
 
