@@ -1,9 +1,16 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
   onSnapshot,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';
@@ -50,6 +57,51 @@ export const useTrainingPlan = (userId: string) => {
     return () => unsubscribe();
   }, [userId]);
 
+  // Auto-repair: if custom plan exists but startDate is missing, recover it from workout history
+  const repairAttempted = useRef(false);
+  useEffect(() => {
+    if (!isLoaded || !isCustom || planStartDate || !userId || repairAttempted.current) return;
+    repairAttempted.current = true;
+
+    const repair = async () => {
+      try {
+        // Find earliest workout for this user to determine plan start
+        const q = query(
+          collection(db, 'workouts'),
+          where('userId', '==', userId),
+          orderBy('date', 'asc'),
+          limit(1),
+        );
+        const snap = await getDocs(q);
+        let startDateStr: string;
+
+        if (!snap.empty) {
+          const earliest = snap.docs[0].data().date as string; // YYYY-MM-DD
+          const d = new Date(earliest);
+          const dayOfWeek = d.getDay();
+          const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          d.setDate(d.getDate() - daysSinceMonday);
+          startDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        } else {
+          // No workouts found - use current week's Monday
+          const now = new Date();
+          const dayOfWeek = now.getDay();
+          const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          now.setDate(now.getDate() - daysSinceMonday);
+          startDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        }
+
+        console.log('[useTrainingPlan] Auto-repairing missing startDate:', startDateStr);
+        await updateDoc(doc(db, PLAN_COLLECTION, userId), { startDate: startDateStr });
+        setPlanStartDate(startDateStr);
+      } catch (err) {
+        console.error('[useTrainingPlan] Failed to auto-repair startDate:', err);
+      }
+    };
+
+    repair();
+  }, [isLoaded, isCustom, planStartDate, userId]);
+
   const currentWeek = useMemo(() => {
     if (!planStartDate) return 1;
     const start = new Date(planStartDate);
@@ -70,8 +122,10 @@ export const useTrainingPlan = (userId: string) => {
       await setDoc(doc(db, PLAN_COLLECTION, userId), {
         days: newPlan,
         updatedAt: new Date().toISOString(),
-        ...(options?.durationWeeks && { durationWeeks: options.durationWeeks }),
-        ...(options?.startDate && { startDate: options.startDate }),
+        durationWeeks: options?.durationWeeks ?? planDurationWeeks,
+        ...(options?.startDate !== undefined
+          ? { startDate: options.startDate }
+          : planStartDate ? { startDate: planStartDate } : {}),
       });
       return { success: true };
     } catch (err) {
@@ -79,7 +133,7 @@ export const useTrainingPlan = (userId: string) => {
       const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
       return { success: false, error: errorMessage };
     }
-  }, [userId]);
+  }, [userId, planDurationWeeks, planStartDate]);
 
   const swapExercise = useCallback(async (
     dayId: string,
