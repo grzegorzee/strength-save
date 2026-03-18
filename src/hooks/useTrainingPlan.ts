@@ -8,8 +8,6 @@ import {
   collection,
   query,
   where,
-  orderBy,
-  limit,
   getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -66,18 +64,22 @@ export const useTrainingPlan = (userId: string) => {
     const repair = async () => {
       try {
         // Find earliest workout for this user to determine plan start
+        // No orderBy — avoids composite index mismatch (existing index is date DESC)
         const q = query(
           collection(db, 'workouts'),
           where('userId', '==', userId),
-          orderBy('date', 'asc'),
-          limit(1),
         );
         const snap = await getDocs(q);
         let startDateStr: string;
 
         if (!snap.empty) {
-          const earliest = snap.docs[0].data().date as string; // YYYY-MM-DD
-          const d = new Date(earliest);
+          // Find earliest date in JS
+          let earliest: string | null = null;
+          snap.forEach(d => {
+            const date = d.data().date as string;
+            if (!earliest || date < earliest) earliest = date;
+          });
+          const d = new Date(earliest!);
           const dayOfWeek = d.getDay();
           const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
           d.setDate(d.getDate() - daysSinceMonday);
