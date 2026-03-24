@@ -28,6 +28,7 @@ export interface WorkoutSession {
   exercises: ExerciseProgress[];
   completed: boolean;
   notes?: string;
+  cycleId?: string;
 }
 
 export interface BodyMeasurement {

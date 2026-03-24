@@ -86,6 +86,14 @@ service cloud.firestore {
       allow read: if request.auth != null && isAdmin();
     }
 
+    // Plan cycles (training plan history)
+    match /plan_cycles/{cycleId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && isAdmin();
+    }
+
     // AI usage tracking (written only by Cloud Functions)
     match /ai_usage/{docId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;

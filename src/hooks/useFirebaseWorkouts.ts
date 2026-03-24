@@ -81,7 +81,7 @@ export const useFirebaseWorkouts = (userId: string) => {
     return () => unsubscribe();
   }, [userId]);
 
-  const createWorkoutSession = useCallback(async (dayId: string, date?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }> => {
+  const createWorkoutSession = useCallback(async (dayId: string, date?: string, cycleId?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }> => {
     const workoutDate = date || new Date().toISOString().split('T')[0];
 
     // Check if workout for this date already exists (prevent duplicates)
@@ -97,6 +97,7 @@ export const useFirebaseWorkouts = (userId: string) => {
       date: workoutDate,
       exercises: [],
       completed: false,
+      ...(cycleId && { cycleId }),
     };
 
     try {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,7 +7,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Share2 } from 'lucide-react';
+import { Loader2, Download, Share2, Camera, X } from 'lucide-react';
 import { generateWorkoutImage, type ShareData } from '@/lib/share-utils';
 
 interface Props {
@@ -21,6 +21,23 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   const [blob, setBlob] = useState<Blob | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const generate = async (photo?: string | null) => {
+    setIsGenerating(true);
+    setError(null);
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
+    try {
+      const result = await generateWorkoutImage(data, photo || undefined);
+      setBlob(result);
+      setImageUrl(URL.createObjectURL(result));
+    } catch {
+      setError('Nie udało się wygenerować obrazu');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   useEffect(() => {
     if (!open) {
@@ -28,25 +45,31 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
       setImageUrl(null);
       setBlob(null);
       setError(null);
+      setPhotoDataUrl(null);
       return;
     }
 
-    const generate = async () => {
-      setIsGenerating(true);
-      setError(null);
-      try {
-        const result = await generateWorkoutImage(data);
-        setBlob(result);
-        setImageUrl(URL.createObjectURL(result));
-      } catch (e) {
-        setError('Nie udało się wygenerować obrazu');
-      } finally {
-        setIsGenerating(false);
-      }
-    };
-
-    generate();
+    generate(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setPhotoDataUrl(dataUrl);
+      generate(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoDataUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    generate(null);
+  };
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -77,6 +100,39 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
           <DialogDescription>Wygenerowany obraz podsumowania</DialogDescription>
         </DialogHeader>
 
+        {/* Photo toggle */}
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhotoSelect}
+          />
+          {photoDataUrl ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs"
+              onClick={handleRemovePhoto}
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Usuń zdjęcie
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Camera className="h-3.5 w-3.5 mr-1" />
+              Dodaj zdjęcie
+            </Button>
+          )}
+        </div>
+
         {isGenerating && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -85,7 +141,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
 
         {error && <p className="text-sm text-destructive text-center py-4">{error}</p>}
 
-        {imageUrl && (
+        {imageUrl && !isGenerating && (
           <div className="space-y-4">
             <img
               src={imageUrl}

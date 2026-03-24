@@ -7,6 +7,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { generateTrainingPlan, type OnboardingAnswers, type GeneratedPlan } from '@/lib/ai-onboarding';
 import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
@@ -53,6 +54,7 @@ const equipmentOptions = [
 const Onboarding = () => {
   const { uid, profile } = useCurrentUser();
   const { savePlan } = useTrainingPlan(uid);
+  const { createActiveCycle } = usePlanCycles(uid);
 
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<OnboardingAnswers>({
@@ -127,6 +129,9 @@ const Onboarding = () => {
         setIsSaving(false);
         return;
       }
+
+      // Create first active cycle
+      await createActiveCycle(reviewPlan.days, reviewPlan.planDurationWeeks, startDate);
 
       await updateDoc(doc(db, 'users', uid), {
         onboardingCompleted: true,

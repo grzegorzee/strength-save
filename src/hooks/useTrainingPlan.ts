@@ -114,6 +114,7 @@ export const useTrainingPlan = (userId: string) => {
   }, [planStartDate]);
 
   const isPlanExpired = currentWeek > planDurationWeeks;
+  const weeksRemaining = Math.max(0, planDurationWeeks - currentWeek);
 
   const savePlan = useCallback(async (
     newPlan: TrainingDay[],
@@ -238,6 +239,7 @@ export const useTrainingPlan = (userId: string) => {
     planStartDate,
     currentWeek,
     isPlanExpired,
+    weeksRemaining,
     savePlan,
     swapExercise,
     updateExerciseSets,

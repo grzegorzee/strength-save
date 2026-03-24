@@ -13,6 +13,7 @@ const pageTitles: Record<string, string> = {
   '/ai': 'AI Chat',
   '/settings': 'Ustawienia',
   '/admin': 'Panel admina',
+  '/cycles': 'Cykle treningowe',
 };
 
 export const Layout = () => {

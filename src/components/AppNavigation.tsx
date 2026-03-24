@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, CalendarDays, Trophy, BarChart3, MessageCircle, X, Library, ChevronLeft, ChevronRight, LogOut, Settings, Shield } from 'lucide-react';
+import { Home, Calendar, CalendarDays, Trophy, BarChart3, MessageCircle, X, Library, History, ChevronLeft, ChevronRight, LogOut, Settings, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
@@ -26,6 +26,7 @@ const navItems = [
   { to: '/exercises', icon: Library, label: 'Ćwiczenia' },
   { to: '/analytics', icon: BarChart3, label: 'Analityka' },
   { to: '/achievements', icon: Trophy, label: 'Osiągnięcia' },
+  { to: '/cycles', icon: History, label: 'Cykle' },
   { to: '/ai', icon: MessageCircle, label: 'AI Coach' },
 ];
 

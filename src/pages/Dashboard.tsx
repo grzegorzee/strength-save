@@ -138,7 +138,7 @@ const Dashboard = () => {
     isLoaded,
     error
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
 
   // AI Coach
@@ -288,6 +288,23 @@ const Dashboard = () => {
         </h1>
         <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
       </div>
+
+      {/* Plan ending soon banner */}
+      {!isPlanExpired && weeksRemaining <= 2 && weeksRemaining >= 0 && (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div>
+              <p className="font-semibold text-sm text-amber-600 dark:text-amber-400">
+                Twój plan kończy się za {weeksRemaining === 0 ? 'ten tydzień' : `${weeksRemaining} tyg.`}!
+              </p>
+              <p className="text-xs text-muted-foreground">Zaplanuj następny cykl treningowy.</p>
+            </div>
+            <Button size="sm" variant="outline" className="border-amber-500/40 hover:bg-amber-500/10" onClick={() => navigate('/new-plan')}>
+              Zaplanuj nowy
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Plan expired banner */}
       {isPlanExpired && (

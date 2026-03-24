@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,8 @@ import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
-import { generateTrainingPlan, type OnboardingAnswers, type GeneratedPlan } from '@/lib/ai-onboarding';
+import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { generateTrainingPlan, generatePlanFromCycle, type OnboardingAnswers, type GeneratedPlan } from '@/lib/ai-onboarding';
 import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { TrainingDay } from '@/data/trainingPlan';
@@ -21,11 +22,18 @@ const goalOptions = [
   { id: 'health', label: 'Zdrowie' },
 ];
 
+import type { PlanCycle } from '@/types/cycles';
+
 const NewPlan = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromCycleId = searchParams.get('fromCycle');
   const { uid } = useCurrentUser();
-  const { plan: currentPlan, planDurationWeeks, savePlan } = useTrainingPlan(uid);
-  const { getCompletedWorkoutsCount } = useFirebaseWorkouts(uid);
+  const { plan: currentPlan, planDurationWeeks, planStartDate, savePlan } = useTrainingPlan(uid);
+  const { workouts, getCompletedWorkoutsCount } = useFirebaseWorkouts(uid);
+  const { archiveCurrentPlan, createActiveCycle, getCycleById } = usePlanCycles(uid);
+
+  const [sourceCycle, setSourceCycle] = useState<PlanCycle | null>(null);
 
   const [answers, setAnswers] = useState<OnboardingAnswers>({
     goal: 'strength',
@@ -34,6 +42,20 @@ const NewPlan = () => {
     equipment: ['barbell', 'dumbbells', 'machines', 'cable'],
     injuries: '',
   });
+
+  // Load source cycle if fromCycle param is present
+  useEffect(() => {
+    if (!fromCycleId) return;
+    getCycleById(fromCycleId).then(cycle => {
+      if (cycle) {
+        setSourceCycle(cycle);
+        setAnswers(prev => ({
+          ...prev,
+          daysPerWeek: cycle.days.length,
+        }));
+      }
+    });
+  }, [fromCycleId, getCycleById]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +75,9 @@ const NewPlan = () => {
     setIsGenerating(true);
     setError(null);
     try {
-      const generated = await generateTrainingPlan(answers);
+      const generated = sourceCycle
+        ? await generatePlanFromCycle(answers, sourceCycle)
+        : await generateTrainingPlan(answers);
       setReviewPlan(generated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się wygenerować planu');
@@ -67,6 +91,11 @@ const NewPlan = () => {
     setIsSaving(true);
     setError(null);
     try {
+      // Archive current plan before overwriting
+      if (planStartDate && currentPlan.length > 0) {
+        await archiveCurrentPlan(currentPlan, planDurationWeeks, planStartDate, workouts);
+      }
+
       const now = new Date();
       const dayOfWeek = now.getDay();
       const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -83,6 +112,10 @@ const NewPlan = () => {
         setIsSaving(false);
         return;
       }
+
+      // Create active cycle for the new plan
+      await createActiveCycle(reviewPlan.days, reviewPlan.planDurationWeeks, startDate);
+
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Błąd');
@@ -192,23 +225,50 @@ const NewPlan = () => {
         </div>
       </div>
 
+      {/* Source cycle info (when generating from old cycle) */}
+      {sourceCycle && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              Na bazie cyklu
+              <Badge variant="outline" className="text-xs">{sourceCycle.durationWeeks} tyg.</Badge>
+            </CardTitle>
+            <CardDescription>
+              {sourceCycle.stats.totalWorkouts} treningów • {(sourceCycle.stats.totalTonnage / 1000).toFixed(1)}t • {sourceCycle.stats.completionRate}% frekwencja
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {sourceCycle.days.map(day => (
+                <div key={day.id} className="text-sm">
+                  <span className="font-medium">{day.dayName}:</span>{' '}
+                  <span className="text-muted-foreground">{day.focus}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Previous plan summary */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Poprzedni plan</CardTitle>
-          <CardDescription>{planDurationWeeks} tygodni • {currentPlan.length} dni/tydzień</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1">
-            {currentPlan.map(day => (
-              <div key={day.id} className="text-sm">
-                <span className="font-medium">{day.dayName}:</span>{' '}
-                <span className="text-muted-foreground">{day.focus}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {!sourceCycle && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Poprzedni plan</CardTitle>
+            <CardDescription>{planDurationWeeks} tygodni • {currentPlan.length} dni/tydzień</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {currentPlan.map(day => (
+                <div key={day.id} className="text-sm">
+                  <span className="font-medium">{day.dayName}:</span>{' '}
+                  <span className="text-muted-foreground">{day.focus}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* New plan options */}
       <Card>
