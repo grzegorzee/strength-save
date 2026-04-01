@@ -10,9 +10,9 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.5.0) |
+| **Status** | AKTYWNY (v6.6.0) |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-03-24 |
+| **Data aktualizacji** | 2026-04-01 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), + whitelist |
 
 ---
@@ -79,7 +79,7 @@
 | src/lib/offline-queue.ts | Kolejka operacji offline (localStorage) |
 | src/lib/pr-utils.ts | Detekcja rekordów osobistych, calculate1RM (Epley) |
 | src/lib/summary-utils.ts | Streak, bounds tygodnia, tonnage |
-| src/lib/exercise-utils.ts | parseRepRange, Smart Rest Timer, lookupExerciseType |
+| src/lib/exercise-utils.ts | parseRepRange, Smart Rest Timer, lookupExerciseType, **createPrefilledSets** |
 | src/lib/exercise-progression.ts | Historia ćwiczeń, plateau detection, progression summary |
 | src/lib/heatmap-utils.ts | GitHub-style heatmap data (workouts + Strava) |
 | src/lib/race-predictor.ts | Predykcje wyścigowe (Riegel formula) |
@@ -163,7 +163,8 @@ fittracker-workouts (project)
 ├── workouts/                    # Sesje treningowe (per-user)
 │   └── workout-{timestamp}/
 │       ├── id, userId, dayId, date, completed
-│       └── exercises: [{ exerciseId, sets[], notes? }]
+│       ├── exercises: [{ exerciseId, sets[], notes? }]
+│       └── skippedExercises?: string[]
 │
 ├── measurements/                # Pomiary ciała (per-user)
 │   └── measurement-{timestamp}/
@@ -279,7 +280,7 @@ HashRouter (GitHub Pages)
 
 ---
 
-## KLUCZOWE FUNKCJONALNOŚCI (v6.5.0)
+## KLUCZOWE FUNKCJONALNOŚCI (v6.6.0)
 
 ### Core
 - Plan treningowy 2-5 dni/tydzień (dynamiczne weekdays)
@@ -292,6 +293,10 @@ HashRouter (GitHub Pages)
 - Serie rozgrzewkowe (warmup), notatki, instrukcje, superserie
 - **Smart Rest Timer** — czas odpoczynku oparty na typie ćwiczenia (compound/isolation) i intensywności (%1RM)
 - **Warmup Routine UI** — interaktywny checklist rozgrzewki + stretching z 30s timerem
+- **One-Click Start** — auto-start treningu z Dashboard/DayPlan + scroll do pierwszego ćwiczenia
+- **Pre-fill z Progresją** — nowy trening startuje z danymi z poprzedniego + sugerowana progresja ciężaru (+2.5kg compound / +1kg isolation)
+- **Pomiń Ćwiczenie** — pomiń ćwiczenie na dziś (zostaje w planie na przyszłość)
+- **Dodaj/Usuń Serie** — dynamiczne dodawanie i usuwanie serii podczas treningu
 
 ### AI
 - AI Coach: analiza treningów, insights na Dashboard (cache 24h)

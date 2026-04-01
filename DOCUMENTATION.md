@@ -1,4 +1,4 @@
-# FitTracker - Dokumentacja Systemu v6.5.0
+# FitTracker - Dokumentacja Systemu v6.6.0
 
 ## Spis treści
 1. [Architektura](#architektura)
@@ -1738,6 +1738,41 @@ CI/CD pipeline używa Node 20 (wystarczające dla Vite build). Cloud Functions w
 ---
 
 ## Changelog
+
+### v6.6.0 (2026-04-01) — Workout UX: One-Click Start, Pre-fill, Skip, Dynamic Sets
+
+**One-Click Start:**
+- Dashboard/DayPlan → `?autostart=true` w URL nawigacji
+- WorkoutDay auto-startuje sesję i scrolluje do pierwszego ćwiczenia
+- `autostartDone` ref zapobiega podwójnemu odpaleniu, działa z istniejącą sesją (only scroll)
+
+**Pre-fill z Progresją:**
+- Nowa funkcja `createPrefilledSets()` w `exercise-utils.ts`
+- Przy tworzeniu nowej sesji: kopiuje reps/weight z poprzedniego treningu + increment z `getProgressionAdvice()`
+- +2.5kg compound, +1kg isolation (gdy system radzi "Zwiększ"), zaokrąglenie do 0.5kg
+- `completed: false` — user potwierdza każdy set kliknięciem ✓
+
+**Pomiń Ćwiczenie:**
+- `skippedExercises?: string[]` w `WorkoutSession` (optional, backward compatible)
+- `updateSkippedExercises()` w `useFirebaseWorkouts` hook
+- Przycisk "Pomiń" (SkipForward icon) obok "Zamień" w aktywnym treningu
+- Ćwiczenie filtrowane z widoku, badge "Pominięte" w podsumowaniu completed
+
+**Dodaj/Usuń Serie:**
+- `handleAddSet()` / `handleRemoveSet()` w ExerciseCard
+- Przycisk "+" dodaje serię (kopiuje dane z ostatniej), max 10 working sets
+- Ikona kosza (Trash2) na każdym working set, min 1 (nie kasuj ostatniego)
+- Warmup set nie może być usunięty
+- Oba triggery auto-save (500ms debounce)
+
+**Zmienione pliki:**
+- `src/types/index.ts` — +skippedExercises
+- `src/lib/exercise-utils.ts` — +createPrefilledSets()
+- `src/hooks/useFirebaseWorkouts.ts` — +updateSkippedExercises()
+- `src/components/ExerciseCard.tsx` — +/- set buttons
+- `src/pages/WorkoutDay.tsx` — autostart, skip, prefill
+- `src/pages/Dashboard.tsx` — &autostart=true
+- `src/pages/DayPlan.tsx` — &autostart=true
 
 ### v6.5.0 (2026-03-24) — Plan Cycles + Reminders + Share with Photo
 
