@@ -556,8 +556,9 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
       continue;
     }
 
-    const activityDate = new Date(activity.start_date_local);
-    const dateStr = activityDate.toISOString().split("T")[0];
+    const dateStr = activity.start_date_local
+      ? activity.start_date_local.split("T")[0]
+      : new Date(activity.start_date).toISOString().split("T")[0];
 
     const docRef = db.collection("strava_activities").doc();
     batch.set(docRef, {
