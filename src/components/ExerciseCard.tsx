@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChevronDown, ChevronUp, Check, Info, Flame, StickyNote, Play } from 'lucide-react';
+import { ChevronDown, ChevronUp, Check, Info, Flame, StickyNote, Play, Plus, Trash2 } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
@@ -82,6 +82,26 @@ const ExerciseCardInner = ({
     hasLocalChanges.current = true;
     setNotes(value);
     onSetsChange?.(sets, value);
+  };
+
+  const handleAddSet = () => {
+    hasLocalChanges.current = true;
+    const lastWorking = [...sets].reverse().find(s => !s.isWarmup);
+    const newSet: SetData = {
+      reps: lastWorking?.reps ?? 0,
+      weight: lastWorking?.weight ?? 0,
+      completed: false,
+    };
+    const newSets = [...sets, newSet];
+    setSets(newSets);
+    onSetsChange?.(newSets, notes);
+  };
+
+  const handleRemoveSet = (setIndex: number) => {
+    hasLocalChanges.current = true;
+    const newSets = sets.filter((_, idx) => idx !== setIndex);
+    setSets(newSets);
+    onSetsChange?.(newSets, notes);
   };
 
   const workingSets = sets.filter(s => !s.isWarmup);
@@ -283,18 +303,30 @@ const ExerciseCardInner = ({
                       placeholder={isWarmup ? "kg" : "0"}
                       className={cn("h-9", isWarmup && "border-orange-500/30")}
                     />
-                    <Button
-                      variant={set.completed ? "default" : "outline"}
-                      size="icon"
-                      className={cn(
-                        "h-9 w-10",
-                        isWarmup && set.completed && "bg-orange-500 hover:bg-orange-500/90",
-                        !isWarmup && set.completed && "bg-fitness-success hover:bg-fitness-success/90"
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant={set.completed ? "default" : "outline"}
+                        size="icon"
+                        className={cn(
+                          "h-9 w-10",
+                          isWarmup && set.completed && "bg-orange-500 hover:bg-orange-500/90",
+                          !isWarmup && set.completed && "bg-fitness-success hover:bg-fitness-success/90"
+                        )}
+                        onClick={() => handleSetComplete(i)}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      {!isWarmup && workingSets.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleRemoveSet(i)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       )}
-                      onClick={() => handleSetComplete(i)}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
+                    </div>
                   </div>
                   {prevHint && !isWarmup && set.reps === 0 && set.weight === 0 && (
                     <p className="text-xs text-muted-foreground pl-14 pt-0.5">
@@ -304,6 +336,20 @@ const ExerciseCardInner = ({
                 </div>
               );
             })}
+
+            {/* Add set button */}
+            <div className="flex justify-start">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground gap-1 h-7"
+                onClick={handleAddSet}
+                disabled={workingSets.length >= 10}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Dodaj serię
+              </Button>
+            </div>
 
             {/* Notes toggle and input */}
             <div className="pt-2">

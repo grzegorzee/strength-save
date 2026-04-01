@@ -184,6 +184,18 @@ export const useFirebaseWorkouts = (userId: string) => {
     }
   }, []);
 
+  const updateSkippedExercises = useCallback(async (sessionId: string, skippedExercises: string[]): Promise<{ success: boolean; error?: string }> => {
+    if (!sessionId) return { success: false, error: 'Brak ID sesji' };
+    try {
+      await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), { skippedExercises });
+      return { success: true };
+    } catch (err) {
+      console.error('Error updating skipped exercises:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
   const updateWorkoutNotes = useCallback(async (sessionId: string, notes: string): Promise<{ success: boolean; error?: string }> => {
     if (!sessionId) return { success: false, error: 'Brak ID sesji' };
     try {
@@ -367,6 +379,7 @@ export const useFirebaseWorkouts = (userId: string) => {
     getTotalWeight,
     getCompletedWorkoutsCount,
     updateWorkoutNotes,
+    updateSkippedExercises,
     exportData,
     importData,
     deleteWorkout,

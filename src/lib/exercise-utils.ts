@@ -116,6 +116,49 @@ export const createEmptySets = (count: number): SetData[] => {
   return sets;
 };
 
+export const createPrefilledSets = (
+  setCount: number,
+  previousSets: SetData[] | undefined,
+  exerciseIndex: number,
+  setsStr: string,
+  isSuperset?: boolean,
+): SetData[] => {
+  if (!previousSets || previousSets.length === 0) {
+    return createEmptySets(setCount);
+  }
+
+  const repRange = parseRepRange(setsStr);
+  const prevWorking = previousSets.filter(s => !s.isWarmup);
+  const advice = getProgressionAdvice(repRange, prevWorking, exerciseIndex, isSuperset);
+  const increment = advice?.type === 'increase' ? advice.increment : 0;
+
+  // Warmup set from previous
+  const prevWarmup = previousSets.find(s => s.isWarmup);
+  const warmupSet: SetData = {
+    reps: prevWarmup?.reps ?? 0,
+    weight: prevWarmup?.weight ?? 0,
+    completed: false,
+    isWarmup: true,
+  };
+
+  // Working sets with progression
+  const workingSets: SetData[] = [];
+  for (let i = 0; i < setCount; i++) {
+    const prevSet = prevWorking[i] || prevWorking[prevWorking.length - 1];
+    if (prevSet && (prevSet.reps > 0 || prevSet.weight > 0)) {
+      workingSets.push({
+        reps: prevSet.reps,
+        weight: Math.round((prevSet.weight + increment) * 2) / 2, // round to 0.5kg
+        completed: false,
+      });
+    } else {
+      workingSets.push({ reps: 0, weight: 0, completed: false });
+    }
+  }
+
+  return [warmupSet, ...workingSets];
+};
+
 export const sanitizeSets = (sets: SetData[] | undefined, expectedCount: number): SetData[] => {
   if (!sets || sets.length === 0) {
     return createEmptySets(expectedCount);

@@ -537,7 +537,7 @@ const Dashboard = () => {
                     day={day}
                     latestWorkout={workoutForDate}
                     trainingDate={item.date}
-                    onClick={() => navigate(`/workout/${item.dayId}?date=${item.dateStr}`)}
+                    onClick={() => navigate(`/workout/${item.dayId}?date=${item.dateStr}${!workoutForDate?.completed ? '&autostart=true' : ''}`)}
                   />
                 );
               }

@@ -316,7 +316,7 @@ const DayPlan = () => {
           <Button
             size="lg"
             className="w-full py-6 text-lg"
-            onClick={() => navigate(`/workout/${todaysTraining.id}?date=${today.toISOString().split('T')[0]}`)}
+            onClick={() => navigate(`/workout/${todaysTraining.id}?date=${today.toISOString().split('T')[0]}&autostart=true`)}
           >
             <Play className="h-5 w-5 mr-2" />
             Rozpocznij trening

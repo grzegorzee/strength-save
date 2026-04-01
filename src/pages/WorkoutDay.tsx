@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote, ArrowRightLeft, Flame, Share2 } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak } from '@/lib/summary-utils';
@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
-import { getRestDuration, lookupExerciseType } from '@/lib/exercise-utils';
+import { getRestDuration, lookupExerciseType, createPrefilledSets, parseSetCount } from '@/lib/exercise-utils';
 
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
@@ -30,6 +30,7 @@ const WorkoutDay = () => {
     createWorkoutSession,
     updateExerciseProgress,
     updateWorkoutNotes,
+    updateSkippedExercises,
     completeWorkout,
     isLoaded
   } = useFirebaseWorkouts(uid);
@@ -37,6 +38,7 @@ const WorkoutDay = () => {
 
   const today = new Date().toISOString().split('T')[0];
   const targetDate = searchParams.get('date') || today;
+  const autostart = searchParams.get('autostart') === 'true';
   const isViewingPastWorkout = targetDate !== today;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -48,6 +50,7 @@ const WorkoutDay = () => {
   const [isExplicitSaving, setIsExplicitSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [skippedExercises, setSkippedExercises] = useState<string[]>([]);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restTimerDuration, setRestTimerDuration] = useState(30);
@@ -65,6 +68,8 @@ const WorkoutDay = () => {
   const pendingNoteSave = useRef<NodeJS.Timeout | null>(null);
   const lastLoadedWorkoutId = useRef<string | null>(null);
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const firstExerciseRef = useRef<HTMLDivElement>(null);
+  const autostartDone = useRef(false);
 
   const day = trainingPlan.find(d => d.id === dayId);
 
@@ -103,6 +108,7 @@ const WorkoutDay = () => {
       setExerciseSets(sets);
       setExerciseNotes(notes);
       setDayNotes(workoutForDate.notes || '');
+      setSkippedExercises(workoutForDate.skippedExercises || []);
     } else if (!workoutForDate && lastLoadedWorkoutId.current !== 'none') {
       lastLoadedWorkoutId.current = 'none';
       setSessionId(null);
@@ -110,8 +116,33 @@ const WorkoutDay = () => {
       setExerciseSets({});
       setExerciseNotes({});
       setDayNotes('');
+      setSkippedExercises([]);
     }
   }, [isLoaded, dayId, workouts, targetDate]);
+
+  // Autostart workout when navigating with ?autostart=true
+  useEffect(() => {
+    if (!autostart || autostartDone.current || !isLoaded || !day) return;
+    if (isViewingPastWorkout || isCompleted) return;
+
+    autostartDone.current = true;
+
+    if (sessionId) {
+      // Session already exists, just scroll to first exercise
+      setTimeout(() => {
+        firstExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+      return;
+    }
+
+    // Auto-start the workout and scroll
+    handleStartWorkout().then(() => {
+      setTimeout(() => {
+        firstExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autostart, isLoaded, day, isViewingPastWorkout, isCompleted, sessionId]);
 
   // Cleanup pending saves on unmount
   useEffect(() => {
@@ -168,6 +199,22 @@ const WorkoutDay = () => {
           description: "Wczytano istniejący trening.",
         });
       } else {
+        // Pre-fill with progression from previous workout
+        const prefilled: Record<string, SetData[]> = {};
+        day.exercises.forEach((exercise, idx) => {
+          const prevSets = getPreviousSets(exercise.id);
+          const count = parseSetCount(exercise.sets);
+          prefilled[exercise.id] = createPrefilledSets(
+            count, prevSets, idx, exercise.sets, exercise.isSuperset
+          );
+        });
+        setExerciseSets(prefilled);
+
+        // Save pre-filled data to Firebase
+        for (const [exerciseId, sets] of Object.entries(prefilled)) {
+          updateExerciseProgress(result.session.id, exerciseId, sets);
+        }
+
         toast({
           title: "Trening rozpoczęty!",
           description: `${day.dayName} - ${day.focus}`,
@@ -268,6 +315,20 @@ const WorkoutDay = () => {
       }
     }, 500);
   }, [sessionId, updateWorkoutNotes]);
+
+  const handleSkipExercise = useCallback(async (exerciseId: string) => {
+    const newSkipped = [...skippedExercises, exerciseId];
+    setSkippedExercises(newSkipped);
+
+    if (sessionId) {
+      await updateSkippedExercises(sessionId, newSkipped);
+    }
+
+    toast({
+      title: "Ćwiczenie pominięte",
+      description: "Ćwiczenie zostało pominięte na dzisiaj.",
+    });
+  }, [skippedExercises, sessionId, updateSkippedExercises, toast]);
 
   const handleCompleteWorkout = async () => {
     if (!sessionId) return;
@@ -485,12 +546,13 @@ const WorkoutDay = () => {
             Podsumowanie
           </h3>
           {day.exercises.map((exercise, index) => {
+            const isSkipped = skippedExercises.includes(exercise.id);
             const sets = exerciseSets[exercise.id] || [];
             const completed = sets.filter(s => s.completed);
             const totalWeight = completed.reduce((sum, s) => sum + (s.reps * s.weight), 0);
 
             return (
-              <Card key={exercise.id} className="bg-muted/30">
+              <Card key={exercise.id} className={cn("bg-muted/30", isSkipped && "opacity-60")}>
                 <CardContent className="py-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -498,13 +560,18 @@ const WorkoutDay = () => {
                         {index + 1}
                       </Badge>
                       <span className="font-medium">{exercise.name}</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span>{completed.length}/{sets.length} serii</span>
-                      {totalWeight > 0 && (
-                        <Badge className="bg-fitness-success text-white">{totalWeight} kg</Badge>
+                      {isSkipped && (
+                        <Badge variant="outline" className="text-xs">Pominięte</Badge>
                       )}
                     </div>
+                    {!isSkipped && (
+                      <div className="flex items-center gap-4 text-sm">
+                        <span>{completed.length}/{sets.length} serii</span>
+                        {totalWeight > 0 && (
+                          <Badge className="bg-fitness-success text-white">{totalWeight} kg</Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -657,8 +724,8 @@ const WorkoutDay = () => {
       )}
 
       <div className="space-y-4">
-        {day.exercises.map((exercise, index) => (
-          <div key={exercise.id} className="space-y-2">
+        {day.exercises.filter(ex => !(isWorkoutStarted && !isCompleted && skippedExercises.includes(ex.id))).map((exercise, index) => (
+          <div key={exercise.id} ref={index === 0 ? firstExerciseRef : undefined} className="space-y-2">
             <ExerciseCard
               exercise={exercise}
               index={index + 1}
@@ -685,9 +752,17 @@ const WorkoutDay = () => {
               }}
               isEditable={isWorkoutStarted && !isCompleted}
             />
-            {/* AI Swap button — only in active workout */}
+            {/* AI Swap & Skip buttons — only in active workout */}
             {isWorkoutStarted && !isCompleted && (
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground gap-1"
+                  onClick={() => handleSkipExercise(exercise.id)}
+                >
+                  <SkipForward className="h-3.5 w-3.5" />Pomiń
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
