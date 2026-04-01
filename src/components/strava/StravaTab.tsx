@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
-import { filterByYear, getAvailableYears, type SeasonYear } from '@/lib/strava-utils';
+import { filterByMonthYear, getAvailableYears } from '@/lib/strava-utils';
 import { SeasonFilter } from './SeasonFilter';
 import { StravaSummaryStats } from './StravaSummaryStats';
 import { WeeklyKmChart } from './WeeklyKmChart';
@@ -20,7 +20,8 @@ import { MonthlyActivities } from './MonthlyActivities';
 export const StravaTab = () => {
   const { uid, canUseStrava } = useCurrentUser();
   const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
-  const [selectedYear, setSelectedYear] = useState<SeasonYear>(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number | 'all'>(new Date().getMonth() + 1);
 
   const nonStrengthActivities = useMemo(
     () => activities.filter((a) => a.type !== 'WeightTraining' && a.type !== 'Crossfit'),
@@ -33,9 +34,22 @@ export const StravaTab = () => {
   );
 
   const filteredActivities = useMemo(
-    () => filterByYear(nonStrengthActivities, selectedYear),
-    [nonStrengthActivities, selectedYear],
+    () => filterByMonthYear(nonStrengthActivities, selectedYear, selectedMonth),
+    [nonStrengthActivities, selectedYear, selectedMonth],
   );
+
+  // Reference date for charts: end of selected month, or end of year, or today
+  const referenceDate = useMemo(() => {
+    const now = new Date();
+    if (selectedMonth === 'all') {
+      // Entire year — if current year, use today; otherwise end of that year
+      if (selectedYear === now.getFullYear()) return now;
+      return new Date(selectedYear, 11, 31);
+    }
+    // Specific month — if current month+year, use today; otherwise last day of month
+    if (selectedYear === now.getFullYear() && selectedMonth === now.getMonth() + 1) return now;
+    return new Date(selectedYear, selectedMonth, 0); // day 0 of next month = last day of selected month
+  }, [selectedYear, selectedMonth]);
 
   if (!connection.connected) {
     return (
@@ -83,14 +97,14 @@ export const StravaTab = () => {
         </Card>
       )}
 
-      {/* Season filter */}
-      {availableYears.length > 1 && (
-        <SeasonFilter
-          selectedYear={selectedYear}
-          onYearChange={setSelectedYear}
-          availableYears={availableYears}
-        />
-      )}
+      {/* Month/Year filter */}
+      <SeasonFilter
+        selectedYear={selectedYear}
+        selectedMonth={selectedMonth}
+        onYearChange={setSelectedYear}
+        onMonthChange={setSelectedMonth}
+        availableYears={availableYears}
+      />
 
       {/* Stats grid */}
       <StravaSummaryStats activities={filteredActivities} />
@@ -102,10 +116,10 @@ export const StravaTab = () => {
       <RacePredictor activities={filteredActivities} />
 
       {/* Charts */}
-      <WeeklyKmChart activities={filteredActivities} />
-      <PaceTrendChart activities={filteredActivities} />
-      <ElevationChart activities={filteredActivities} />
-      <CaloriesChart activities={filteredActivities} />
+      <WeeklyKmChart activities={filteredActivities} referenceDate={referenceDate} />
+      <PaceTrendChart activities={filteredActivities} referenceDate={referenceDate} />
+      <ElevationChart activities={filteredActivities} referenceDate={referenceDate} />
+      <CaloriesChart activities={filteredActivities} referenceDate={referenceDate} />
 
       {/* Training Load */}
       <TrainingLoadChart

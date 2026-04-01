@@ -10,10 +10,11 @@ import type { StravaActivity } from '@/types/strava';
 
 interface WeeklyKmChartProps {
   activities: StravaActivity[];
+  referenceDate?: Date;
 }
 
-export const WeeklyKmChart = ({ activities }: WeeklyKmChartProps) => {
-  const data = useMemo(() => computeWeeklyKm(activities, 12), [activities]);
+export const WeeklyKmChart = ({ activities, referenceDate }: WeeklyKmChartProps) => {
+  const data = useMemo(() => computeWeeklyKm(activities, 12, referenceDate), [activities, referenceDate]);
 
   if (!data.some((w) => w.km > 0)) return null;
 

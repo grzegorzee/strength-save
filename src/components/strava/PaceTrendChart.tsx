@@ -10,10 +10,11 @@ import type { StravaActivity } from '@/types/strava';
 
 interface PaceTrendChartProps {
   activities: StravaActivity[];
+  referenceDate?: Date;
 }
 
-export const PaceTrendChart = ({ activities }: PaceTrendChartProps) => {
-  const data = useMemo(() => computePaceTrendData(activities, 12), [activities]);
+export const PaceTrendChart = ({ activities, referenceDate }: PaceTrendChartProps) => {
+  const data = useMemo(() => computePaceTrendData(activities, 12, referenceDate), [activities, referenceDate]);
 
   if (!data.some((d) => d.paceSeconds !== null)) return null;
 

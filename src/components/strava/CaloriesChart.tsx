@@ -10,12 +10,13 @@ import type { StravaActivity } from '@/types/strava';
 
 interface CaloriesChartProps {
   activities: StravaActivity[];
+  referenceDate?: Date;
 }
 
-export const CaloriesChart = ({ activities }: CaloriesChartProps) => {
+export const CaloriesChart = ({ activities, referenceDate }: CaloriesChartProps) => {
   const { data, totalSeason } = useMemo(
-    () => computeWeeklyCalories(activities, 12),
-    [activities],
+    () => computeWeeklyCalories(activities, 12, referenceDate),
+    [activities, referenceDate],
   );
 
   if (!data.some((d) => d.calories > 0)) return null;

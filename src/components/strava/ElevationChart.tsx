@@ -10,12 +10,13 @@ import type { StravaActivity } from '@/types/strava';
 
 interface ElevationChartProps {
   activities: StravaActivity[];
+  referenceDate?: Date;
 }
 
-export const ElevationChart = ({ activities }: ElevationChartProps) => {
+export const ElevationChart = ({ activities, referenceDate }: ElevationChartProps) => {
   const { data, totalSeason, trend } = useMemo(
-    () => computeWeeklyElevation(activities, 12),
-    [activities],
+    () => computeWeeklyElevation(activities, 12, referenceDate),
+    [activities, referenceDate],
   );
 
   if (!data.some((d) => d.elevation > 0)) return null;

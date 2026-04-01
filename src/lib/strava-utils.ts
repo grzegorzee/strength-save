@@ -94,6 +94,18 @@ export const filterByYear = (
   });
 };
 
+export const filterByMonthYear = (
+  activities: StravaActivity[],
+  year: number,
+  month: number | 'all',
+): StravaActivity[] => {
+  if (month === 'all') {
+    return activities.filter((a) => parseInt(a.date.substring(0, 4), 10) === year);
+  }
+  const prefix = `${year}-${String(month).padStart(2, '0')}`;
+  return activities.filter((a) => a.date.startsWith(prefix));
+};
+
 export const getAvailableYears = (activities: StravaActivity[]): number[] => {
   const years = new Set<number>();
   for (const a of activities) {
@@ -167,8 +179,9 @@ export const computeSummaryStats = (
 export const computeWeeklyKm = (
   activities: StravaActivity[],
   numWeeks: number = 12,
+  referenceDate?: Date,
 ): WeeklyDataPoint[] => {
-  const now = new Date();
+  const now = referenceDate ?? new Date();
   const weeks: WeeklyDataPoint[] = [];
 
   for (let i = numWeeks - 1; i >= 0; i--) {
@@ -203,8 +216,9 @@ export const computeWeeklyKm = (
 export const computePaceTrendData = (
   activities: StravaActivity[],
   numWeeks: number = 12,
+  referenceDate?: Date,
 ): PaceTrendPoint[] => {
-  const now = new Date();
+  const now = referenceDate ?? new Date();
   const weeks: PaceTrendPoint[] = [];
 
   for (let i = numWeeks - 1; i >= 0; i--) {
@@ -314,8 +328,9 @@ export const computeMonthlySummaries = (
 export const computeWeeklyElevation = (
   activities: StravaActivity[],
   numWeeks: number = 12,
+  referenceDate?: Date,
 ): { data: ElevationDataPoint[]; totalSeason: number; trend: number | null } => {
-  const now = new Date();
+  const now = referenceDate ?? new Date();
   const data: ElevationDataPoint[] = [];
 
   for (let i = numWeeks - 1; i >= 0; i--) {
@@ -361,8 +376,9 @@ export const computeWeeklyElevation = (
 export const computeWeeklyCalories = (
   activities: StravaActivity[],
   numWeeks: number = 12,
+  referenceDate?: Date,
 ): { data: CaloriesDataPoint[]; totalSeason: number } => {
-  const now = new Date();
+  const now = referenceDate ?? new Date();
   const data: CaloriesDataPoint[] = [];
 
   for (let i = numWeeks - 1; i >= 0; i--) {
