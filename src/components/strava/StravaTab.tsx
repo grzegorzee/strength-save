@@ -33,22 +33,27 @@ export const StravaTab = () => {
     [nonStrengthActivities],
   );
 
+  // Activities filtered by month+year — for stats, PRs, monthly list
   const filteredActivities = useMemo(
     () => filterByMonthYear(nonStrengthActivities, selectedYear, selectedMonth),
     [nonStrengthActivities, selectedYear, selectedMonth],
+  );
+
+  // Activities filtered by year only — for charts (charts have their own 12-week window)
+  const yearActivities = useMemo(
+    () => filterByMonthYear(nonStrengthActivities, selectedYear, 'all'),
+    [nonStrengthActivities, selectedYear],
   );
 
   // Reference date for charts: end of selected month, or end of year, or today
   const referenceDate = useMemo(() => {
     const now = new Date();
     if (selectedMonth === 'all') {
-      // Entire year — if current year, use today; otherwise end of that year
       if (selectedYear === now.getFullYear()) return now;
       return new Date(selectedYear, 11, 31);
     }
-    // Specific month — if current month+year, use today; otherwise last day of month
     if (selectedYear === now.getFullYear() && selectedMonth === now.getMonth() + 1) return now;
-    return new Date(selectedYear, selectedMonth, 0); // day 0 of next month = last day of selected month
+    return new Date(selectedYear, selectedMonth, 0);
   }, [selectedYear, selectedMonth]);
 
   if (!connection.connected) {
@@ -115,15 +120,15 @@ export const StravaTab = () => {
       {/* Race Predictor */}
       <RacePredictor activities={filteredActivities} />
 
-      {/* Charts */}
-      <WeeklyKmChart activities={filteredActivities} referenceDate={referenceDate} />
-      <PaceTrendChart activities={filteredActivities} referenceDate={referenceDate} />
-      <ElevationChart activities={filteredActivities} referenceDate={referenceDate} />
-      <CaloriesChart activities={filteredActivities} referenceDate={referenceDate} />
+      {/* Charts — use year activities + referenceDate for 12-week window */}
+      <WeeklyKmChart activities={yearActivities} referenceDate={referenceDate} />
+      <PaceTrendChart activities={yearActivities} referenceDate={referenceDate} />
+      <ElevationChart activities={yearActivities} referenceDate={referenceDate} />
+      <CaloriesChart activities={yearActivities} referenceDate={referenceDate} />
 
       {/* Training Load */}
       <TrainingLoadChart
-        activities={filteredActivities}
+        activities={yearActivities}
         estimatedMaxHR={connection.estimatedMaxHR}
       />
 
