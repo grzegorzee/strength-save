@@ -127,12 +127,12 @@ export const stravaCallback = onCall(
 export const stravaSync = onCall(
   { secrets: [stravaClientId, stravaClientSecret] },
   async (request) => {
-    const { userId } = request.data;
+    const { userId, fullSync } = request.data;
     if (!userId) {
       throw new HttpsError("invalid-argument", "userId is required");
     }
 
-    logger.info(`[Strava] Manual sync requested for ${userId}`);
+    logger.info(`[Strava] Manual sync requested for ${userId}, fullSync=${!!fullSync}`);
     const userDoc = await db.doc(`users/${userId}`).get();
     const userData = userDoc.data();
 
@@ -149,7 +149,7 @@ export const stravaSync = onCall(
       accessToken = await refreshStravaToken(userId, userData.stravaTokens.refreshToken);
     }
 
-    const result = await syncUserActivities(userId, accessToken);
+    const result = await syncUserActivities(userId, accessToken, !!fullSync);
     logger.info(`[Strava] Manual sync complete: synced=${result.synced}, total=${result.totalFetched}, lookback=${result.lookbackDays}d`);
     return { ...result, success: true };
   },
@@ -501,7 +501,7 @@ interface SyncResult {
   lookbackDays: number;
 }
 
-async function syncUserActivities(userId: string, accessToken: string): Promise<SyncResult> {
+async function syncUserActivities(userId: string, accessToken: string, fullSync = false): Promise<SyncResult> {
   const userDoc = await db.doc(`users/${userId}`).get();
   const userData = userDoc.data();
   const lastSync = userData?.stravaLastSync;
@@ -509,34 +509,46 @@ async function syncUserActivities(userId: string, accessToken: string): Promise<
   const now = Math.floor(Date.now() / 1000);
 
   let after: number;
-  if (!lastSync) {
-    // First connect: only 1 day lookback
-    after = now - 1 * 24 * 60 * 60;
+  if (fullSync || !lastSync) {
+    // Full sync or first connect: 365 days lookback
+    after = now - 365 * 24 * 60 * 60;
   } else {
-    // Subsequent syncs: from lastSync with min 7-day lookback
+    // Incremental: from lastSync with min 7-day lookback
     const afterFromLastSync = Math.floor(new Date(lastSync).getTime() / 1000);
     const minLookback = now - 7 * 24 * 60 * 60;
     after = Math.min(afterFromLastSync, minLookback);
   }
 
-  logger.info(`[Strava] syncUserActivities: lastSync=${lastSync || "null"}, after=${new Date(after * 1000).toISOString()}`);
+  logger.info(`[Strava] syncUserActivities: lastSync=${lastSync || "null"}, fullSync=${fullSync}, after=${new Date(after * 1000).toISOString()}`);
 
-  const apiUrl = `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=100`;
-  logger.info(`[Strava] API call: ${apiUrl}`);
+  // Paginated fetch — Strava returns max 100 per page
+  const allActivities: any[] = [];
+  let page = 1;
+  while (true) {
+    const apiUrl = `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=100&page=${page}`;
+    logger.info(`[Strava] API call page ${page}: ${apiUrl}`);
 
-  const response = await fetch(apiUrl, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+    const response = await fetch(apiUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    logger.error(`[Strava] API failed (${response.status}):`, errorText);
-    throw new HttpsError("internal", `Strava API error ${response.status}: ${errorText.substring(0, 200)}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error(`[Strava] API failed (${response.status}):`, errorText);
+      throw new HttpsError("internal", `Strava API error ${response.status}: ${errorText.substring(0, 200)}`);
+    }
+
+    const pageActivities = await response.json();
+    if (!Array.isArray(pageActivities) || pageActivities.length === 0) break;
+
+    allActivities.push(...pageActivities);
+    page++;
+    if (page > 20) break; // safety cap: max 2000 activities
   }
 
-  const activities = await response.json();
+  const activities = allActivities;
   const lookbackDays = Math.round((Date.now() / 1000 - after) / (24 * 60 * 60));
-  logger.info(`[Strava] API returned ${activities.length} activities (lookback: ${lookbackDays} days)`);
+  logger.info(`[Strava] Fetched ${activities.length} activities in ${page - 1} pages (lookback: ${lookbackDays} days)`);
 
   let synced = 0;
   let alreadyExisted = 0;

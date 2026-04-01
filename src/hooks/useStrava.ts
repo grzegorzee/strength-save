@@ -96,17 +96,17 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     }
   }, [userId]);
 
-  const syncActivities = useCallback(async (): Promise<
+  const syncActivities = useCallback(async (fullSync = false): Promise<
     | { ok: true; synced: number; totalFetched: number; alreadyExisted: number; lookbackDays: number }
     | { ok: false; message: string }
   > => {
     setError(null);
     setIsSyncing(true);
-    console.log('[Strava] Manual sync started...');
+    console.log(`[Strava] Manual sync started (fullSync=${fullSync})...`);
     try {
       const functions = getFunctions();
       const sync = httpsCallable(functions, 'stravaSync');
-      const result = await sync({ userId });
+      const result = await sync({ userId, fullSync });
       const data = result.data as {
         synced: number;
         totalFetched: number;
