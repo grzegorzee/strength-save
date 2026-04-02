@@ -265,9 +265,18 @@ export const proxyOpenAI = onCall(
       throw new HttpsError("failed-precondition", "OpenAI API key not configured");
     }
 
-    // Cost tracking
+    // Enforce allowed models and token cap
+    const ALLOWED_MODELS = ["gpt-5-mini", "gpt-4.1-mini"];
+    const MAX_TOKENS_CAP = 4000;
+    const MAX_MESSAGES = 50;
+
     const userId = request.auth.uid;
-    const usedModel = model || "gpt-5-mini";
+    const usedModel = ALLOWED_MODELS.includes(model) ? model : "gpt-5-mini";
+    const cappedTokens = Math.min(Math.max(1, maxTokens || MAX_TOKENS_CAP), MAX_TOKENS_CAP);
+
+    if (messages.length > MAX_MESSAGES) {
+      throw new HttpsError("invalid-argument", `Too many messages (max ${MAX_MESSAGES})`);
+    }
     try {
       await checkUsageLimit(userId);
     } catch (limitErr) {
@@ -284,9 +293,9 @@ export const proxyOpenAI = onCall(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: model || "gpt-5-mini",
-        messages,
-        max_completion_tokens: maxTokens || 4000,
+        model: usedModel,
+        messages: messages.slice(-MAX_MESSAGES),
+        max_completion_tokens: cappedTokens,
       }),
     });
 
@@ -369,7 +378,13 @@ export const streamOpenAI = onRequest(
       return;
     }
 
-    const usedModel = model || "gpt-5-mini";
+    // Enforce allowed models, token cap, message limit
+    const ALLOWED_MODELS = ["gpt-5-mini", "gpt-4.1-mini"];
+    const MAX_TOKENS_CAP = 4000;
+    const MAX_MESSAGES = 50;
+    const usedModel = ALLOWED_MODELS.includes(model) ? model : "gpt-5-mini";
+    const cappedTokens = Math.min(Math.max(1, maxTokens || MAX_TOKENS_CAP), MAX_TOKENS_CAP);
+    const safeMessages = messages.slice(-MAX_MESSAGES);
 
     // Call OpenAI with streaming
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -380,8 +395,8 @@ export const streamOpenAI = onRequest(
       },
       body: JSON.stringify({
         model: usedModel,
-        messages,
-        max_completion_tokens: maxTokens || 4000,
+        messages: safeMessages,
+        max_completion_tokens: cappedTokens,
         stream: true,
         stream_options: { include_usage: true },
       }),

@@ -21,6 +21,14 @@ export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 const WORKOUTS_COLLECTION = 'workouts';
 const MEASUREMENTS_COLLECTION = 'measurements';
 
+// Sanitize and clamp set values to valid ranges
+const clampSet = (set: Partial<SetData>): SetData => ({
+  reps: Math.max(0, Math.min(999, Math.round(Number(set.reps) || 0))),
+  weight: Math.max(0, Math.min(999, Math.round((Number(set.weight) || 0) * 2) / 2)),
+  completed: !!set.completed,
+  ...(set.isWarmup && { isWarmup: true }),
+});
+
 export const useFirebaseWorkouts = (userId: string) => {
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
@@ -133,13 +141,8 @@ export const useFirebaseWorkouts = (userId: string) => {
 
       const workout = workoutSnap.data() as WorkoutSession;
 
-      // Sanitize sets - Firebase doesn't accept undefined values
-      const sanitizedSets = sets.map(set => ({
-        reps: set.reps ?? 0,
-        weight: set.weight ?? 0,
-        completed: set.completed ?? false,
-        ...(set.isWarmup && { isWarmup: true }),
-      }));
+      // Sanitize and clamp sets
+      const sanitizedSets = sets.map(clampSet);
 
       // Firebase doesn't accept undefined values - only include notes if defined
       const newExercise: ExerciseProgress = notes !== undefined
@@ -151,16 +154,11 @@ export const useFirebaseWorkouts = (userId: string) => {
         ? workout.exercises.map((e, i) => i === existingIndex ? newExercise : e)
         : [...workout.exercises, newExercise];
 
-      // Sanitize entire exercises array to remove any undefined
+      // Sanitize and clamp entire exercises array
       const cleanExercises = newExercises.map(ex => ({
         exerciseId: ex.exerciseId,
-        sets: ex.sets.map(s => ({
-          reps: s.reps ?? 0,
-          weight: s.weight ?? 0,
-          completed: s.completed ?? false,
-          ...(s.isWarmup && { isWarmup: true }),
-        })),
-        ...(ex.notes !== undefined && { notes: ex.notes }),
+        sets: ex.sets.map(clampSet),
+        ...(ex.notes !== undefined && { notes: String(ex.notes).slice(0, 2000) }),
       }));
 
       await updateDoc(workoutRef, { exercises: cleanExercises });
@@ -287,24 +285,67 @@ export const useFirebaseWorkouts = (userId: string) => {
     return JSON.stringify(data, null, 2);
   }, [workouts, measurements]);
 
-  // Import data from JSON
+  // Import data from JSON (with schema validation)
   const importData = useCallback(async (jsonString: string) => {
     try {
       const data = JSON.parse(jsonString);
+      let imported = 0;
 
       if (data.workouts && Array.isArray(data.workouts)) {
+        if (data.workouts.length > 500) {
+          return { success: false, message: 'Zbyt dużo treningów (max 500)' };
+        }
         for (const workout of data.workouts) {
-          await setDoc(doc(db, WORKOUTS_COLLECTION, workout.id), { ...workout, userId });
+          if (!workout.id || typeof workout.id !== 'string') continue;
+          if (!workout.date || typeof workout.date !== 'string') continue;
+          // Whitelist only known fields
+          const safe: Record<string, unknown> = {
+            id: String(workout.id).slice(0, 100),
+            userId,
+            dayId: String(workout.dayId || '').slice(0, 50),
+            date: String(workout.date).slice(0, 10),
+            completed: !!workout.completed,
+            ...(workout.notes && { notes: String(workout.notes).slice(0, 5000) }),
+            ...(Array.isArray(workout.skippedExercises) && { skippedExercises: workout.skippedExercises.filter((s: unknown) => typeof s === 'string').slice(0, 50) }),
+          };
+          if (Array.isArray(workout.exercises)) {
+            safe.exercises = workout.exercises.slice(0, 50).map((ex: { exerciseId?: string; sets?: unknown[]; notes?: string }) => ({
+              exerciseId: String(ex.exerciseId || '').slice(0, 100),
+              sets: Array.isArray(ex.sets) ? ex.sets.slice(0, 20).map(clampSet) : [],
+              ...(ex.notes && { notes: String(ex.notes).slice(0, 2000) }),
+            }));
+          } else {
+            safe.exercises = [];
+          }
+          await setDoc(doc(db, WORKOUTS_COLLECTION, safe.id as string), safe);
+          imported++;
         }
       }
 
       if (data.measurements && Array.isArray(data.measurements)) {
-        for (const measurement of data.measurements) {
-          await setDoc(doc(db, MEASUREMENTS_COLLECTION, measurement.id), { ...measurement, userId });
+        if (data.measurements.length > 500) {
+          return { success: false, message: 'Zbyt dużo pomiarów (max 500)' };
+        }
+        for (const m of data.measurements) {
+          if (!m.id || typeof m.id !== 'string') continue;
+          if (!m.date || typeof m.date !== 'string') continue;
+          const safe: Record<string, string | number> = {
+            id: String(m.id).slice(0, 100),
+            userId,
+            date: String(m.date).slice(0, 10),
+          };
+          const numFields = ['weight', 'armLeft', 'armRight', 'chest', 'waist', 'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight'];
+          for (const field of numFields) {
+            if (m[field] !== undefined && typeof m[field] === 'number') {
+              safe[field] = Math.max(0, Math.min(999, m[field]));
+            }
+          }
+          await setDoc(doc(db, MEASUREMENTS_COLLECTION, safe.id as string), safe);
+          imported++;
         }
       }
 
-      return { success: true, message: 'Dane zaimportowane pomyślnie!' };
+      return { success: true, message: `Zaimportowano ${imported} rekordów.` };
     } catch (err) {
       console.error('Error importing data:', err);
       return { success: false, message: 'Błąd importu: nieprawidłowy format JSON' };
@@ -377,17 +418,12 @@ export const useFirebaseWorkouts = (userId: string) => {
 
       const cleanExercises = exercises.map(ex => ({
         exerciseId: ex.exerciseId,
-        sets: ex.sets.map(s => ({
-          reps: s.reps ?? 0,
-          weight: s.weight ?? 0,
-          completed: s.completed ?? false,
-          ...(s.isWarmup && { isWarmup: true }),
-        })),
-        ...(ex.notes !== undefined && ex.notes !== '' && { notes: ex.notes }),
+        sets: ex.sets.map(clampSet),
+        ...(ex.notes !== undefined && ex.notes !== '' && { notes: String(ex.notes).slice(0, 2000) }),
       }));
 
       const updateData: Record<string, unknown> = { exercises: cleanExercises };
-      if (options?.notes !== undefined) updateData.notes = options.notes;
+      if (options?.notes !== undefined) updateData.notes = String(options.notes).slice(0, 5000);
       if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
       if (options?.completed) updateData.completed = true;
 
