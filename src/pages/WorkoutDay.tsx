@@ -13,6 +13,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAISwap } from '@/hooks/useAISwap';
 import type { SetData } from '@/types';
+import type { WorkoutDraft } from '@/lib/workout-draft';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
@@ -66,9 +67,21 @@ const WorkoutDay = () => {
 
   const lastLoadedWorkoutId = useRef<string | null>(null);
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  const draftSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const firstExerciseRef = useRef<HTMLDivElement>(null);
   const autostartDone = useRef(false);
   const draftRecoveryDone = useRef(false);
+
+  // Refs that mirror state for stable callback identity
+  const exerciseSetsRef = useRef(exerciseSets);
+  const exerciseNotesRef = useRef(exerciseNotes);
+  const dayNotesRef = useRef(dayNotes);
+  const skippedExercisesRef = useRef(skippedExercises);
+
+  useEffect(() => { exerciseSetsRef.current = exerciseSets; }, [exerciseSets]);
+  useEffect(() => { exerciseNotesRef.current = exerciseNotes; }, [exerciseNotes]);
+  useEffect(() => { dayNotesRef.current = dayNotes; }, [dayNotes]);
+  useEffect(() => { skippedExercisesRef.current = skippedExercises; }, [skippedExercises]);
 
   const day = trainingPlan.find(d => d.id === dayId);
 
@@ -147,6 +160,7 @@ const WorkoutDay = () => {
   useEffect(() => {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
     };
   }, []);
 
@@ -250,7 +264,7 @@ const WorkoutDay = () => {
         });
         setExerciseSets(prefilled);
 
-        // Save draft to localStorage (no Firebase write until workout completion)
+        // Save draft to localStorage immediately (sessionId not yet in state)
         workoutDraft.save({
           sessionId: result.session.id,
           dayId: day.id,
@@ -280,6 +294,32 @@ const WorkoutDay = () => {
     }
   };
 
+  // Debounced draft snapshot — reads from refs, not state
+  const saveDraftSnapshot = (overrides?: Partial<WorkoutDraft>) => {
+    if (!sessionId || !dayId) return;
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    draftSaveTimer.current = setTimeout(() => {
+      workoutDraft.save({
+        sessionId,
+        dayId,
+        date: targetDate,
+        exerciseSets: exerciseSetsRef.current,
+        exerciseNotes: exerciseNotesRef.current,
+        dayNotes: dayNotesRef.current,
+        skippedExercises: skippedExercisesRef.current,
+        savedAt: Date.now(),
+        ...overrides,
+      });
+    }, 300);
+  };
+
+  // Build exercises payload for batchSaveWorkout (reads from refs)
+  const buildExercisesPayload = () => Object.entries(exerciseSetsRef.current).map(([exerciseId, sets]) => ({
+    exerciseId,
+    sets,
+    ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
+  }));
+
   // Handler for EDIT MODE - only local state, no Firebase saves
   const handleSetsChangeLocal = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = sets.map(s => ({
@@ -303,71 +343,37 @@ const WorkoutDay = () => {
       ...(s.isWarmup && { isWarmup: true }),
     }));
 
-    setExerciseSets(prev => {
-      const next = { ...prev, [exerciseId]: sanitizedSets };
-      // Save draft to localStorage
-      if (sessionId && dayId) {
-        workoutDraft.save({
-          sessionId,
-          dayId,
-          date: targetDate,
-          exerciseSets: next,
-          exerciseNotes: notes !== undefined
-            ? { ...exerciseNotes, [exerciseId]: notes }
-            : exerciseNotes,
-          dayNotes,
-          skippedExercises,
-          savedAt: Date.now(),
-        });
-      }
-      return next;
-    });
+    setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
     if (notes !== undefined) {
       setExerciseNotes(prev => ({ ...prev, [exerciseId]: notes }));
     }
+
+    // Debounced draft save (reads from refs after state settles)
+    saveDraftSnapshot(notes !== undefined ? { exerciseNotes: { ...exerciseNotesRef.current, [exerciseId]: notes } } : undefined);
+
     setSaveError(null);
     setAutoSaveStatus('saved');
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => setAutoSaveStatus('idle'), 2000);
-  }, [sessionId, dayId, targetDate, exerciseNotes, dayNotes, skippedExercises]);
+  }, [sessionId, dayId, targetDate]);
 
   const handleDayNotesChange = useCallback((value: string) => {
     setDayNotes(value);
-    if (!sessionId || !dayId) return;
-    workoutDraft.save({
-      sessionId,
-      dayId,
-      date: targetDate,
-      exerciseSets,
-      exerciseNotes,
-      dayNotes: value,
-      skippedExercises,
-      savedAt: Date.now(),
-    });
-  }, [sessionId, dayId, targetDate, exerciseSets, exerciseNotes, skippedExercises]);
+    saveDraftSnapshot({ dayNotes: value });
+  }, [sessionId, dayId, targetDate]);
 
   const handleSkipExercise = useCallback((exerciseId: string) => {
-    const newSkipped = [...skippedExercises, exerciseId];
-    setSkippedExercises(newSkipped);
-
-    if (sessionId && dayId) {
-      workoutDraft.save({
-        sessionId,
-        dayId,
-        date: targetDate,
-        exerciseSets,
-        exerciseNotes,
-        dayNotes,
-        skippedExercises: newSkipped,
-        savedAt: Date.now(),
-      });
-    }
+    setSkippedExercises(prev => {
+      const newSkipped = [...prev, exerciseId];
+      saveDraftSnapshot({ skippedExercises: newSkipped });
+      return newSkipped;
+    });
 
     toast({
       title: "Ćwiczenie pominięte",
       description: "Ćwiczenie zostało pominięte na dzisiaj.",
     });
-  }, [skippedExercises, sessionId, dayId, targetDate, exerciseSets, exerciseNotes, dayNotes, toast]);
+  }, [sessionId, dayId, targetDate, toast]);
 
   const handleCompleteWorkout = async () => {
     if (!sessionId) return;
@@ -376,13 +382,7 @@ const WorkoutDay = () => {
     setSaveError(null);
 
     // Batch save all data + mark as completed in one atomic write
-    const exercises = Object.entries(exerciseSets).map(([exerciseId, sets]) => ({
-      exerciseId,
-      sets,
-      ...(exerciseNotes[exerciseId] && { notes: exerciseNotes[exerciseId] }),
-    }));
-
-    const result = await batchSaveWorkout(sessionId, exercises, {
+    const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
       notes: dayNotes,
       skippedExercises: skippedExercises.length > 0 ? skippedExercises : undefined,
       completed: true,
@@ -451,13 +451,7 @@ const WorkoutDay = () => {
     setIsExplicitSaving(true);
     setSaveError(null);
 
-    const exercises = Object.entries(exerciseSets).map(([exerciseId, sets]) => ({
-      exerciseId,
-      sets,
-      ...(exerciseNotes[exerciseId] && { notes: exerciseNotes[exerciseId] }),
-    }));
-
-    const result = await batchSaveWorkout(sessionId, exercises, {
+    const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
       notes: dayNotes,
       skippedExercises: skippedExercises.length > 0 ? skippedExercises : undefined,
     });

@@ -11,7 +11,6 @@ import {
   query,
   orderBy,
   where,
-  writeBatch
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
@@ -413,7 +412,6 @@ export const useFirebaseWorkouts = (userId: string) => {
     if (!sessionId) return { success: false, error: 'Brak ID sesji' };
 
     try {
-      const batch = writeBatch(db);
       const workoutRef = doc(db, WORKOUTS_COLLECTION, sessionId);
 
       const cleanExercises = exercises.map(ex => ({
@@ -427,8 +425,7 @@ export const useFirebaseWorkouts = (userId: string) => {
       if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
       if (options?.completed) updateData.completed = true;
 
-      batch.update(workoutRef, updateData);
-      await batch.commit();
+      await updateDoc(workoutRef, updateData);
       return { success: true };
     } catch (err) {
       console.error('Error batch saving workout:', err);

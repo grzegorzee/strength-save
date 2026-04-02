@@ -1,10 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { blockFirebase } from './helpers';
 
 test.describe('Navigation', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
-    await page.route('**/identitytoolkit.googleapis.com/**', (route) => route.abort());
-    await page.route('**/securetoken.googleapis.com/**', (route) => route.abort());
+    await blockFirebase(page);
   });
 
   test('sidebar has 6 navigation items (no Plan dnia, no AI Coach)', async ({ page }) => {
@@ -34,9 +33,7 @@ test.describe('Navigation', () => {
 
 test.describe('Dashboard start workout card', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
-    await page.route('**/identitytoolkit.googleapis.com/**', (route) => route.abort());
-    await page.route('**/securetoken.googleapis.com/**', (route) => route.abort());
+    await blockFirebase(page);
   });
 
   test('shows training, rest, or completed card on dashboard', async ({ page }) => {

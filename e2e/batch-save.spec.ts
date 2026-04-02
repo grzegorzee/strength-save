@@ -1,13 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { blockFirebase } from './helpers';
 
 const DRAFT_KEY = 'fittracker_workout_draft';
 
 test.describe('Batch Save Workflow', () => {
   test.beforeEach(async ({ page }) => {
-    // Block Firestore requests to prevent hangs in E2E mode
-    await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
-    await page.route('**/identitytoolkit.googleapis.com/**', (route) => route.abort());
-    await page.route('**/securetoken.googleapis.com/**', (route) => route.abort());
+    await blockFirebase(page);
   });
 
   test('localStorage draft save/load roundtrip works', async ({ page }) => {
@@ -157,10 +155,7 @@ test.describe('Batch Save Workflow', () => {
 
 test.describe('App loads in E2E mode', () => {
   test('loads without crash', async ({ page }) => {
-    // Block Firebase to prevent hanging
-    await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
-    await page.route('**/identitytoolkit.googleapis.com/**', (route) => route.abort());
-    await page.route('**/securetoken.googleapis.com/**', (route) => route.abort());
+    await blockFirebase(page);
 
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');

@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dumbbell, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 import { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
-import { cn } from '@/lib/utils';
+import { cn, formatLocalDate } from '@/lib/utils';
 
 interface TrainingDayCardProps {
   day: TrainingDay;
@@ -11,13 +11,6 @@ interface TrainingDayCardProps {
   trainingDate?: Date;
   onClick: () => void;
 }
-
-const formatLocalDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
 
 export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: TrainingDayCardProps) => {
   const todayStr = formatLocalDate(new Date());

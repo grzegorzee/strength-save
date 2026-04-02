@@ -16,8 +16,8 @@ export interface PlateauResult {
 }
 
 export interface ProgressionSummary {
-  startWeight: number;
-  currentWeight: number;
+  startValue: number;
+  currentValue: number;
   change: number;
   changePercent: number;
   totalSessions: number;
@@ -98,13 +98,13 @@ export const getProgressionSummary = (
   isBodyweight?: boolean,
 ): ProgressionSummary => {
   if (history.length === 0) {
-    return { startWeight: 0, currentWeight: 0, change: 0, changePercent: 0, totalSessions: 0 };
+    return { startValue: 0, currentValue: 0, change: 0, changePercent: 0, totalSessions: 0 };
   }
 
-  const startWeight = isBodyweight ? history[0].bestReps : history[0].maxWeight;
-  const currentWeight = isBodyweight ? history[history.length - 1].bestReps : history[history.length - 1].maxWeight;
-  const change = currentWeight - startWeight;
-  const changePercent = startWeight > 0 ? Math.round((change / startWeight) * 100) : 0;
+  const startValue = isBodyweight ? history[0].bestReps : history[0].maxWeight;
+  const currentValue = isBodyweight ? history[history.length - 1].bestReps : history[history.length - 1].maxWeight;
+  const change = currentValue - startValue;
+  const changePercent = startValue > 0 ? Math.round((change / startValue) * 100) : 0;
 
-  return { startWeight, currentWeight, change, changePercent, totalSessions: history.length };
+  return { startValue, currentValue, change, changePercent, totalSessions: history.length };
 };

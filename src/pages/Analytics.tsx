@@ -40,6 +40,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { TrainingHeatmap } from '@/components/TrainingHeatmap';
 import type { WorkoutSession } from '@/types';
 import { cn } from '@/lib/utils';
+import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { tooltipStyle } from '@/lib/chart-config';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
@@ -444,7 +445,7 @@ const ChartsTab = () => {
             });
           }
         });
-      return { id, name: exerciseNames.get(id) || id, chartData: history, isBodyweight: history.length > 0 && !filteredWorkouts.some(w => w.exercises.find(e => e.exerciseId === id)?.sets.some(s => s.weight > 0 && s.completed && !s.isWarmup)) };
+      return { id, name: exerciseNames.get(id) || id, chartData: history, isBodyweight: isBodyweightExercise(exerciseNames.get(id) || '') };
     }).filter(ex => ex.chartData.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [workouts, selectedDay, weightMode, trainingPlan]);

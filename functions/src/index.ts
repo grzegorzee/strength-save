@@ -18,6 +18,17 @@ const stravaClientSecret = defineSecret("strava-client-secret");
 const stravaRedirectUri = defineSecret("strava-redirect-uri");
 const openaiApiKey = defineSecret("openai-api-key");
 
+// --- OpenAI constants & sanitizer ---
+const ALLOWED_MODELS = ["gpt-5-mini", "gpt-4.1-mini"];
+const MAX_TOKENS_CAP = 4000;
+const MAX_MESSAGES = 50;
+
+const sanitizeOpenAIParams = (model: string | undefined, messages: unknown[], maxTokens: number | undefined) => ({
+  model: ALLOWED_MODELS.includes(model || '') ? model! : 'gpt-5-mini',
+  messages: (messages as unknown[]).slice(-MAX_MESSAGES),
+  maxTokens: Math.min(Math.max(1, maxTokens || MAX_TOKENS_CAP), MAX_TOKENS_CAP),
+});
+
 /**
  * Generate Strava OAuth authorization URL
  */
@@ -265,14 +276,8 @@ export const proxyOpenAI = onCall(
       throw new HttpsError("failed-precondition", "OpenAI API key not configured");
     }
 
-    // Enforce allowed models and token cap
-    const ALLOWED_MODELS = ["gpt-5-mini", "gpt-4.1-mini"];
-    const MAX_TOKENS_CAP = 4000;
-    const MAX_MESSAGES = 50;
-
     const userId = request.auth.uid;
-    const usedModel = ALLOWED_MODELS.includes(model) ? model : "gpt-5-mini";
-    const cappedTokens = Math.min(Math.max(1, maxTokens || MAX_TOKENS_CAP), MAX_TOKENS_CAP);
+    const { model: usedModel, messages: safeMessages, maxTokens: cappedTokens } = sanitizeOpenAIParams(model, messages, maxTokens);
 
     if (messages.length > MAX_MESSAGES) {
       throw new HttpsError("invalid-argument", `Too many messages (max ${MAX_MESSAGES})`);
@@ -294,7 +299,7 @@ export const proxyOpenAI = onCall(
       },
       body: JSON.stringify({
         model: usedModel,
-        messages: messages.slice(-MAX_MESSAGES),
+        messages: safeMessages,
         max_completion_tokens: cappedTokens,
       }),
     });
@@ -379,12 +384,7 @@ export const streamOpenAI = onRequest(
     }
 
     // Enforce allowed models, token cap, message limit
-    const ALLOWED_MODELS = ["gpt-5-mini", "gpt-4.1-mini"];
-    const MAX_TOKENS_CAP = 4000;
-    const MAX_MESSAGES = 50;
-    const usedModel = ALLOWED_MODELS.includes(model) ? model : "gpt-5-mini";
-    const cappedTokens = Math.min(Math.max(1, maxTokens || MAX_TOKENS_CAP), MAX_TOKENS_CAP);
-    const safeMessages = messages.slice(-MAX_MESSAGES);
+    const { model: usedModel, messages: safeMessages, maxTokens: cappedTokens } = sanitizeOpenAIParams(model, messages, maxTokens);
 
     // Call OpenAI with streaming
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {

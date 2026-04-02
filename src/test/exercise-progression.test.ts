@@ -86,8 +86,8 @@ describe('getProgressionSummary', () => {
       { date: '2026-01-08', maxWeight: 50, bestReps: 8, estimated1RM: 60, totalVolume: 400 },
     ];
     const summary = getProgressionSummary(history);
-    expect(summary.startWeight).toBe(40);
-    expect(summary.currentWeight).toBe(50);
+    expect(summary.startValue).toBe(40);
+    expect(summary.currentValue).toBe(50);
     expect(summary.change).toBe(10);
     expect(summary.changePercent).toBe(25);
     expect(summary.totalSessions).toBe(2);

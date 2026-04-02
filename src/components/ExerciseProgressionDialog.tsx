@@ -107,11 +107,11 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center p-3 bg-muted/30 rounded-lg">
-            <p className="text-lg font-bold">{summary.startWeight}</p>
+            <p className="text-lg font-bold">{summary.startValue}</p>
             <p className="text-[10px] text-muted-foreground">Start ({isBodyweight ? 'powt.' : 'kg'})</p>
           </div>
           <div className="text-center p-3 bg-muted/30 rounded-lg">
-            <p className="text-lg font-bold">{summary.currentWeight}</p>
+            <p className="text-lg font-bold">{summary.currentValue}</p>
             <p className="text-[10px] text-muted-foreground">Teraz ({isBodyweight ? 'powt.' : 'kg'})</p>
           </div>
           <div className="text-center p-3 bg-muted/30 rounded-lg">

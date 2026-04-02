@@ -14,7 +14,7 @@ import { useState, useMemo } from 'react';
 import { pl } from 'date-fns/locale';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, CalendarDays, CheckCircle, Dumbbell, Settings, Pencil } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatLocalDate } from '@/lib/utils';
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
@@ -65,14 +65,6 @@ const TrainingPlan = () => {
       s.date >= weekStart && s.date <= weekEnd
     );
   }, [selectedWeekStart.getTime(), selectedWeekEnd.getTime(), schedule]);
-
-  // Funkcja pomocnicza do formatowania daty lokalnej (bez problemu ze strefą czasową)
-  const formatLocalDate = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
   // Get workouts for selected week
   const getWorkoutForDate = (date: Date) => {

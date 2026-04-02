@@ -1,17 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
-
-const blockFirebase = async (page: Page) => {
-  await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
-  await page.route('**/identitytoolkit.googleapis.com/**', (route) => route.abort());
-  await page.route('**/securetoken.googleapis.com/**', (route) => route.abort());
-  await page.route('**/googleapis.com/identitytoolkit/**', (route) => route.abort());
-};
-
-const navigateAndWait = async (page: Page, path: string) => {
-  await page.goto(`/#${path}`);
-  await page.waitForLoadState('domcontentloaded');
-  await page.waitForTimeout(1500);
-};
+import { test, expect } from '@playwright/test';
+import { blockFirebase, navigateAndWait } from './helpers';
 
 // =====================================================
 // EDGE CASES & BOUNDARY CONDITIONS
