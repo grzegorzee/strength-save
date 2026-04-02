@@ -803,18 +803,45 @@ Polling co 2 sekundy sprawdza rozmiar `offlineQueue`.
 8. useEffect → ustawia sessionId
 ```
 
-### Auto-save (aktywny trening)
+### Batch Save (aktywny trening) — v6.7.0
+
+Od v6.7.0 dane treningu NIE są zapisywane do Firebase w trakcie ćwiczeń. Zamiast tego:
+
 ```
 1. User zmienia reps/weight/completed w ExerciseCard
    │
-2. onSetsChange(sets, notes)
+2. handleSetsChange():
+   ├── Natychmiastowy update lokalnego state (React)
+   └── Zapis do localStorage (workout draft) — synchroniczny, szybki
+       Klucz: "fittracker_workout_draft"
    │
-3. handleSetsChange():
-   ├── Natychmiastowy update lokalnego state
-   └── Debounce 500ms → updateExerciseProgress(sessionId, exerciseId, sets, notes)
+3. User klika "Zakończ trening":
+   └── batchSaveWorkout(sessionId, exercises, { notes, skippedExercises, completed: true })
        │
-       └── Firebase updateDoc()
+       └── Firebase writeBatch() — atomiczny zapis WSZYSTKIEGO naraz
+   │
+4. Po sukcesie: workoutDraft.clear() — czyści localStorage
 ```
+
+**Bezpieczeństwo danych:**
+- `localStorage` backup na każdej zmianie (siatka bezpieczeństwa)
+- Odzyskiwanie draftu po reload/crash (`useEffect` w WorkoutDay)
+- `beforeunload` warning gdy zamykasz z niezapisanymi danymi
+- Toast "Odzyskano niezapisany trening" gdy draft wczytany
+
+**Moduł:** `src/lib/workout-draft.ts`
+```typescript
+interface WorkoutDraft {
+  sessionId: string; dayId: string; date: string;
+  exerciseSets: Record<string, SetData[]>;
+  exerciseNotes: Record<string, string>;
+  dayNotes: string; skippedExercises: string[];
+  savedAt: number; // timestamp
+}
+workoutDraft.save(draft) / .load() / .clear() / .exists()
+```
+
+**Hook:** `useFirebaseWorkouts.batchSaveWorkout()` — Firestore `writeBatch` dla atomiczności
 
 ### Tryb edycji (po ukończeniu)
 ```
@@ -1254,6 +1281,24 @@ interface RestContext {
 ### lookupExerciseType() — typ ćwiczenia
 
 Lookup compound/isolation z `exerciseLibrary.ts`. Fallback: `'compound'`.
+
+### Bodyweight Exercises (v6.7.0)
+
+Ćwiczenia bez obciążenia (Dead Bug, Plank, Pompki, Reverse Crunch, Glute Bridge, Skręty rosyjskie, Unoszenie nóg w zwisie).
+
+**Flag:** `isBodyweight?: boolean` w `LibraryExercise` (`exerciseLibrary.ts`)
+
+**Lookup:** `isBodyweightExercise(name: string): boolean` (`exercise-utils.ts`)
+
+**UI:** ExerciseCard ukrywa kolumnę "Ciężar (kg)" gdy `isBodyweight=true`. Grid zmienia się z 4-kolumnowego na 3-kolumnowy. Weight auto-ustawiony na 0.
+
+**Progresja:** `getProgressionAdvice()` z `isBodyweight=true` → sugeruje "↑ +powt." zamiast "+2.5kg". `createPrefilledSets()` zawsze `weight: 0`.
+
+**PR Detection:** `getExerciseBestReps()` + `detectNewPRs()` z `bodyweightExerciseIds` → PR na podstawie max reps (typ `'reps'`).
+
+**Analytics:** `getExerciseHistory(workouts, id, isBodyweight)` — nie filtruje `weight > 0`, oś Y = reps. `ExerciseProgressionDialog` z `isBodyweight` prop.
+
+**Progresja per-exercise (Analytics):** Grid osobnych wykresów per ćwiczenie (v6.7.0). Każde ćwiczenie ma własną skalę Y — rozwiązuje problem nakładania się 30kg obok 150kg.
 
 ### Exercise Timeline (v6.1.0)
 
@@ -1737,7 +1782,75 @@ CI/CD pipeline używa Node 20 (wystarczające dla Vite build). Cloud Functions w
 
 ---
 
+## E2E Testing (v6.7.0)
+
+**Framework:** Playwright (`@playwright/test`)
+
+**Konfiguracja:** `playwright.config.ts`
+- Browser: Chromium (headless)
+- Base URL: `http://localhost:8080/strength-save/`
+- Viewport: 390x844 (mobile)
+- webServer: auto-start `npm run dev` z `VITE_E2E_MODE=true`
+
+**E2E Mode:** `VITE_E2E_MODE=true` (Vite env variable)
+- `useAuth.ts` → bypass Firebase Auth, mock user `{uid: 'e2e-test-user'}`
+- `UserContext.tsx` → skip Firestore, mock profile `{role: 'admin', onboardingCompleted: true}`
+- Firebase requests blokowane w testach przez `page.route()`
+
+**Testy:** `e2e/`
+- `batch-save.spec.ts` — localStorage draft roundtrip, persistence po reload, corrupt data, bodyweight weight=0
+- `ui-improvements.spec.ts` — nawigacja 6 elementów, Dashboard karta treningu/wolnego/ukończonego
+
+**Komendy:**
+```bash
+npm run e2e          # run all E2E tests
+npm run e2e:ui       # interactive mode
+npx playwright test --reporter=list  # verbose output
+```
+
+---
+
 ## Changelog
+
+### v6.7.0 (2026-04-02) — Bodyweight, Batch Save, Dashboard Start, Analytics Split
+
+**Bodyweight Exercises:**
+- `isBodyweight` flag w `exerciseLibrary.ts` — 8 ćwiczeń (Dead Bug, Plank, Pompki, Glute Bridge, itd.)
+- ExerciseCard ukrywa pole kg, grid 3-kolumnowy
+- PR detection na reps (`getExerciseBestReps`), progresja "+powt." zamiast "+kg"
+- Analytics/wykresy z osią Y = reps dla bodyweight
+
+**Batch Save:**
+- Dane treningu zapisywane do Firebase TYLKO przy "Zakończ trening" (nie per-keystroke)
+- localStorage draft jako backup (`workout-draft.ts`)
+- `batchSaveWorkout()` z Firestore `writeBatch` (atomiczny zapis)
+- Draft recovery po reload/crash, `beforeunload` warning
+
+**Dashboard "Rozpocznij trening":**
+- Karta na górze Dashboard z 3 stanami: training/completed/rest
+- Szybki start: klik → WorkoutDay z autostart
+- Link "Szczegóły" → /day (Plan dnia)
+
+**Nawigacja:**
+- Usunięto "Plan dnia" i "AI Coach" z sidebar (8→6 zakładek)
+- Trasy `/day` i `/ai` dostępne przez URL
+
+**Analytics — per-exercise charts:**
+- Progresja: grid osobnych wykresów per ćwiczenie (zamiast jednego overlapping)
+- Każde ćwiczenie ma własną skalę Y
+- Bodyweight: oś Y = reps, label "powt."
+
+**Achievements — daty PR:**
+- `bestDate` w `ExerciseBest` interface
+- Wyświetlenie daty obok każdego PR (np. "80kg × 5 rep · 15 mar")
+
+**Cycles — aktualny plan:**
+- Karta "Aktualny plan" na górze Cycles page
+- Progress bar, tydzień X z Y, lista dni treningowych
+
+**E2E Testing:**
+- Playwright setup z `VITE_E2E_MODE`
+- 7 testów (batch save + UI improvements)
 
 ### v6.6.0 (2026-04-01) — Workout UX: One-Click Start, Pre-fill, Skip, Dynamic Sets
 

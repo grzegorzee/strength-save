@@ -29,23 +29,30 @@ interface Props {
   exerciseName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isBodyweight?: boolean;
 }
 
-export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOpenChange }: Props) => {
+export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOpenChange, isBodyweight = false }: Props) => {
   const { uid } = useCurrentUser();
   const { workouts } = useFirebaseWorkouts(uid);
 
-  const history = useMemo(() => getExerciseHistory(workouts, exerciseId), [workouts, exerciseId]);
-  const plateau = useMemo(() => detectPlateau(history), [history]);
-  const summary = useMemo(() => getProgressionSummary(history), [history]);
+  const history = useMemo(() => getExerciseHistory(workouts, exerciseId, isBodyweight), [workouts, exerciseId, isBodyweight]);
+  const plateau = useMemo(() => detectPlateau(history, 4, isBodyweight), [history, isBodyweight]);
+  const summary = useMemo(() => getProgressionSummary(history, isBodyweight), [history, isBodyweight]);
 
   const chartData = useMemo(() =>
-    history.map(h => ({
-      date: new Date(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
-      '1RM': h.estimated1RM,
-      'Max kg': h.maxWeight,
-    })),
-  [history]);
+    isBodyweight
+      ? history.map(h => ({
+          date: new Date(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+          'Max powt.': h.bestReps,
+          'Łączne powt.': h.totalVolume,
+        }))
+      : history.map(h => ({
+          date: new Date(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+          '1RM': h.estimated1RM,
+          'Max kg': h.maxWeight,
+        })),
+  [history, isBodyweight]);
 
   const recentSessions = useMemo(() => history.slice(-5).reverse(), [history]);
 
@@ -70,7 +77,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
             <TrendingUp className="h-5 w-5 text-primary" />
             {exerciseName}
           </DialogTitle>
-          <DialogDescription>Progresja ciężarów i est. 1RM</DialogDescription>
+          <DialogDescription>{isBodyweight ? 'Progresja powtórzeń' : 'Progresja ciężarów i est. 1RM'}</DialogDescription>
         </DialogHeader>
 
         {/* Chart */}
@@ -79,11 +86,20 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-              <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" unit=" kg" />
+              <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" unit={isBodyweight ? " powt." : " kg"} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: '11px' }} />
-              <Line type="monotone" dataKey="1RM" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="Max kg" stroke="hsl(var(--chart-2))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} />
+              {isBodyweight ? (
+                <>
+                  <Line type="monotone" dataKey="Max powt." stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="Łączne powt." stroke="hsl(var(--chart-2))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} />
+                </>
+              ) : (
+                <>
+                  <Line type="monotone" dataKey="1RM" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="Max kg" stroke="hsl(var(--chart-2))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} />
+                </>
+              )}
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -92,15 +108,15 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center p-3 bg-muted/30 rounded-lg">
             <p className="text-lg font-bold">{summary.startWeight}</p>
-            <p className="text-[10px] text-muted-foreground">Start (kg)</p>
+            <p className="text-[10px] text-muted-foreground">Start ({isBodyweight ? 'powt.' : 'kg'})</p>
           </div>
           <div className="text-center p-3 bg-muted/30 rounded-lg">
             <p className="text-lg font-bold">{summary.currentWeight}</p>
-            <p className="text-[10px] text-muted-foreground">Teraz (kg)</p>
+            <p className="text-[10px] text-muted-foreground">Teraz ({isBodyweight ? 'powt.' : 'kg'})</p>
           </div>
           <div className="text-center p-3 bg-muted/30 rounded-lg">
             <p className="text-lg font-bold">
-              {summary.change >= 0 ? '+' : ''}{summary.change} kg
+              {summary.change >= 0 ? '+' : ''}{summary.change} {isBodyweight ? 'powt.' : 'kg'}
             </p>
             <p className="text-[10px] text-muted-foreground">
               {summary.changePercent >= 0 ? '+' : ''}{summary.changePercent}% / {summary.totalSessions} sesji
@@ -130,9 +146,18 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
                 {new Date(s.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
               </span>
               <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">{s.maxWeight} kg</Badge>
-                <Badge variant="outline" className="text-xs">{s.bestReps} rep</Badge>
-                <span className="text-xs text-muted-foreground">{s.estimated1RM} 1RM</span>
+                {isBodyweight ? (
+                  <>
+                    <Badge variant="secondary" className="text-xs">{s.bestReps} powt.</Badge>
+                    <Badge variant="outline" className="text-xs">{s.totalVolume} łącznie</Badge>
+                  </>
+                ) : (
+                  <>
+                    <Badge variant="secondary" className="text-xs">{s.maxWeight} kg</Badge>
+                    <Badge variant="outline" className="text-xs">{s.bestReps} rep</Badge>
+                    <span className="text-xs text-muted-foreground">{s.estimated1RM} 1RM</span>
+                  </>
+                )}
               </div>
             </div>
           ))}

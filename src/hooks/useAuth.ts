@@ -9,6 +9,7 @@ const ALLOWED_EMAILS = (import.meta.env.VITE_ALLOWED_EMAILS || import.meta.env.V
 
 const isEmailAllowed = (email: string | null): boolean => {
   if (!email) return false;
+  if (import.meta.env.VITE_E2E_MODE === 'true') return true;
   return ALLOWED_EMAILS.includes(email.toLowerCase());
 };
 
@@ -18,6 +19,13 @@ export const useAuth = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // E2E test mode — bypass Firebase auth
+    if (import.meta.env.VITE_E2E_MODE === 'true') {
+      setUser({ uid: 'e2e-test-user', email: 'e2e@test.com', displayName: 'E2E Tester', photoURL: '' } as User);
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user && !isEmailAllowed(user.email)) {
         signOut(auth);

@@ -20,6 +20,7 @@ interface ExerciseCardProps {
   onSetsChange?: (sets: SetData[], notes?: string) => void;
   onSetCompleted?: (lastWeight?: number) => void;
   isEditable?: boolean;
+  isBodyweight?: boolean;
 }
 
 const ExerciseCardInner = ({
@@ -31,6 +32,7 @@ const ExerciseCardInner = ({
   onSetsChange,
   onSetCompleted,
   isEditable = true,
+  isBodyweight = false,
 }: ExerciseCardProps) => {
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [expanded, setExpanded] = useState(false);
@@ -56,9 +58,10 @@ const ExerciseCardInner = ({
   }, [savedSets, savedNotes, setCount]);
 
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight', value: number) => {
+    if (isBodyweight && field === 'weight') return;
     hasLocalChanges.current = true;
     const newSets = sets.map((set, i) =>
-      i === setIndex ? { ...set, [field]: value } : set
+      i === setIndex ? { ...set, [field]: value, ...(isBodyweight && { weight: 0 }) } : set
     );
     setSets(newSets);
     onSetsChange?.(newSets, notes);
@@ -89,7 +92,7 @@ const ExerciseCardInner = ({
     const lastWorking = [...sets].reverse().find(s => !s.isWarmup);
     const newSet: SetData = {
       reps: lastWorking?.reps ?? 0,
-      weight: lastWorking?.weight ?? 0,
+      weight: isBodyweight ? 0 : (lastWorking?.weight ?? 0),
       completed: false,
     };
     const newSets = [...sets, newSet];
@@ -116,8 +119,8 @@ const ExerciseCardInner = ({
     if (!previousSets) return null;
     const repRange = parseRepRange(exercise.sets);
     const prevWorking = previousSets.filter(s => !s.isWarmup);
-    return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset);
-  }, [previousSets, exercise.sets, index, exercise.isSuperset]);
+    return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight);
+  }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight]);
 
   // Extract YouTube video ID for embed
   const getYouTubeEmbedUrl = (url: string): string | null => {
@@ -130,6 +133,7 @@ const ExerciseCardInner = ({
     if (!previousSets || previousSets.length === 0) return null;
     const prevSet = previousSets[setIndex];
     if (!prevSet || (prevSet.weight === 0 && prevSet.reps === 0)) return null;
+    if (isBodyweight) return `${prevSet.reps} powt.`;
     return `${prevSet.reps}×${prevSet.weight}kg`;
   };
 
@@ -257,10 +261,13 @@ const ExerciseCardInner = ({
 
         {isEditable && (
           <div className="space-y-2">
-            <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-2 text-sm font-medium text-muted-foreground px-2">
+            <div className={cn(
+              "grid gap-2 text-sm font-medium text-muted-foreground px-2",
+              isBodyweight ? "grid-cols-[auto_1fr_auto]" : "grid-cols-[auto_1fr_1fr_auto]"
+            )}>
               <span className="w-12">Seria</span>
               <span>Powtórzenia</span>
-              <span>Ciężar (kg)</span>
+              {!isBodyweight && <span>Ciężar (kg)</span>}
               <span className="w-10"></span>
             </div>
             {sets.map((set, i) => {
@@ -272,7 +279,8 @@ const ExerciseCardInner = ({
                 <div key={i}>
                   <div
                     className={cn(
-                      "grid grid-cols-[auto_1fr_1fr_auto] gap-2 items-center p-2 rounded-lg transition-colors",
+                      "grid gap-2 items-center p-2 rounded-lg transition-colors",
+                      isBodyweight ? "grid-cols-[auto_1fr_auto]" : "grid-cols-[auto_1fr_1fr_auto]",
                       isWarmup
                         ? "bg-orange-500/10 border border-orange-500/30"
                         : set.completed
@@ -294,15 +302,17 @@ const ExerciseCardInner = ({
                       placeholder={isWarmup ? "rozgrzewka" : "0"}
                       className={cn("h-9", isWarmup && "border-orange-500/30")}
                     />
-                    <Input
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      value={set.weight || ''}
-                      onChange={(e) => handleSetChange(i, 'weight', parseFloat(e.target.value) || 0)}
-                      placeholder={isWarmup ? "kg" : "0"}
-                      className={cn("h-9", isWarmup && "border-orange-500/30")}
-                    />
+                    {!isBodyweight && (
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={set.weight || ''}
+                        onChange={(e) => handleSetChange(i, 'weight', parseFloat(e.target.value) || 0)}
+                        placeholder={isWarmup ? "kg" : "0"}
+                        className={cn("h-9", isWarmup && "border-orange-500/30")}
+                      />
+                    )}
                     <div className="flex items-center gap-1">
                       <Button
                         variant={set.completed ? "default" : "outline"}
@@ -328,7 +338,7 @@ const ExerciseCardInner = ({
                       )}
                     </div>
                   </div>
-                  {prevHint && !isWarmup && set.reps === 0 && set.weight === 0 && (
+                  {prevHint && !isWarmup && set.reps === 0 && (isBodyweight || set.weight === 0) && (
                     <p className="text-xs text-muted-foreground pl-14 pt-0.5">
                       Poprzednio: {prevHint}
                     </p>

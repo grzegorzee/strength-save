@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { calculate1RM, getExerciseBest1RM } from '@/lib/pr-utils';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
+import { isBodyweightExercise } from '@/lib/exercise-utils';
 
 interface ExerciseRecord {
   exerciseId: string;
@@ -234,6 +235,9 @@ const Achievements = () => {
                       <p className="font-medium text-sm truncate">{record.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {record.best1RMWeight}kg × {record.best1RMReps} rep
+                        {record.bestDate && (
+                          <> · {new Date(record.bestDate).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</>
+                        )}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-3">
@@ -265,6 +269,7 @@ const Achievements = () => {
           exerciseName={progressionExercise.name}
           open={!!progressionExercise}
           onOpenChange={(open) => { if (!open) setProgressionExercise(null); }}
+          isBodyweight={isBodyweightExercise(progressionExercise.name)}
         />
       )}
 

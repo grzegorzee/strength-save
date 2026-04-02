@@ -39,6 +39,21 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // E2E test mode — skip Firestore, use mock profile
+    if (import.meta.env.VITE_E2E_MODE === 'true') {
+      setProfile({
+        uid: user.uid,
+        email: 'e2e@test.com',
+        displayName: 'E2E Tester',
+        photoURL: '',
+        role: 'admin',
+        stravaConnected: false,
+        onboardingCompleted: true,
+      });
+      setProfileLoaded(true);
+      return;
+    }
+
     const docRef = doc(db, USERS_COLLECTION, user.uid);
 
     // Create/update user document on login — auto-detect existing users

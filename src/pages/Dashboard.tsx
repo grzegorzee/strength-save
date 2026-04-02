@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Brain, ChevronDown, ChevronUp, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Brain, ChevronDown, ChevronUp, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -161,6 +161,30 @@ const Dashboard = () => {
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
 
+  // Determine today's training context
+  const todayTraining = useMemo(() => {
+    const todayStr = formatLocalDate(new Date());
+    const todayEntry = thisWeek.find(({ date }) => formatLocalDate(date) === todayStr);
+
+    if (!todayEntry) {
+      const futureEntries = thisWeek
+        .filter(({ date }) => formatLocalDate(date) > todayStr)
+        .sort((a, b) => formatLocalDate(a.date).localeCompare(formatLocalDate(b.date)));
+      const nextEntry = futureEntries[0];
+      const nextDay = nextEntry ? trainingPlan.find(d => d.id === nextEntry.dayId) : null;
+      return { type: 'rest' as const, nextDay };
+    }
+
+    const day = trainingPlan.find(d => d.id === todayEntry.dayId);
+    if (!day) return { type: 'rest' as const, nextDay: null };
+
+    const todayWorkout = workouts.find(w => w.dayId === todayEntry.dayId && w.date === todayStr);
+    if (todayWorkout?.completed) {
+      return { type: 'completed' as const, day, dayId: todayEntry.dayId, dateStr: todayStr };
+    }
+    return { type: 'training' as const, day, dayId: todayEntry.dayId, dateStr: todayStr };
+  }, [thisWeek, trainingPlan, workouts]);
+
   // Calculate trends (last 4 weeks vs previous 4 weeks)
   const trends = useMemo(() => {
     const now = new Date();
@@ -288,6 +312,60 @@ const Dashboard = () => {
         </h1>
         <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
       </div>
+
+      {/* Today's training card */}
+      {todayTraining.type === 'training' && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Dumbbell className="h-5 w-5 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm">{todayTraining.day.dayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{todayTraining.day.focus} · {todayTraining.day.exercises.length} ćwiczeń</p>
+                </div>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button variant="ghost" size="sm" onClick={() => navigate('/day')}>Szczegóły</Button>
+                <Button size="sm" className="gap-1.5" onClick={() => navigate(`/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}>
+                  <Play className="h-3.5 w-3.5" />
+                  Rozpocznij trening
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {todayTraining.type === 'completed' && (
+        <Card className="border-emerald-500/40 bg-emerald-500/5">
+          <CardContent className="py-4 px-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-emerald-500" />
+              <div>
+                <p className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">Trening ukończony!</p>
+                <p className="text-xs text-muted-foreground">{todayTraining.day.dayName}</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}`)}>
+              Zobacz
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {todayTraining.type === 'rest' && (
+        <Card className="bg-muted/30">
+          <CardContent className="py-4 px-5">
+            <p className="text-sm font-medium">Dzisiaj wolne 🧘</p>
+            {todayTraining.nextDay && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Następny trening: {todayTraining.nextDay.dayName} ({todayTraining.nextDay.focus})
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Plan ending soon banner */}
       {!isPlanExpired && weeksRemaining <= 2 && weeksRemaining >= 0 && (

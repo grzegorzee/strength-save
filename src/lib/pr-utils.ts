@@ -13,6 +13,7 @@ export interface ExerciseBest {
   best1RM: number;
   best1RMWeight: number;
   best1RMReps: number;
+  bestDate: string;
 }
 
 export const getExerciseBest1RM = (
@@ -23,6 +24,7 @@ export const getExerciseBest1RM = (
   let best1RM = 0;
   let best1RMWeight = 0;
   let best1RMReps = 0;
+  let bestDate = '';
 
   workouts.forEach(w => {
     w.exercises.forEach(ex => {
@@ -35,18 +37,36 @@ export const getExerciseBest1RM = (
           best1RM = estimated;
           best1RMWeight = set.weight;
           best1RMReps = set.reps;
+          bestDate = w.date;
         }
       });
     });
   });
 
-  return { exerciseId, maxWeight, best1RM, best1RMWeight, best1RMReps };
+  return { exerciseId, maxWeight, best1RM, best1RMWeight, best1RMReps, bestDate };
+};
+
+export const getExerciseBestReps = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+): number => {
+  let maxReps = 0;
+  workouts.forEach(w => {
+    w.exercises.forEach(ex => {
+      if (ex.exerciseId !== exerciseId) return;
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup) return;
+        if (set.reps > maxReps) maxReps = set.reps;
+      });
+    });
+  });
+  return maxReps;
 };
 
 export interface PRComparison {
   exerciseId: string;
   exerciseName: string;
-  type: 'weight' | '1rm' | 'both';
+  type: 'weight' | '1rm' | 'both' | 'reps';
   newValue: number;
   oldValue: number;
 }
@@ -55,13 +75,38 @@ export const detectNewPRs = (
   currentWorkout: WorkoutSession,
   previousWorkouts: WorkoutSession[],
   exerciseNames: Map<string, string>,
+  bodyweightExerciseIds?: Set<string>,
 ): PRComparison[] => {
   const prs: PRComparison[] = [];
 
   currentWorkout.exercises.forEach(ex => {
     const name = exerciseNames.get(ex.exerciseId) || ex.exerciseId;
+    const isBw = bodyweightExerciseIds?.has(ex.exerciseId) ?? false;
 
-    // Get current workout bests
+    if (isBw) {
+      // Bodyweight: PR based on max reps
+      let currentMaxReps = 0;
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup) return;
+        if (set.reps > currentMaxReps) currentMaxReps = set.reps;
+      });
+
+      if (currentMaxReps === 0) return;
+
+      const historicalMaxReps = getExerciseBestReps(previousWorkouts, ex.exerciseId);
+      if (currentMaxReps > historicalMaxReps && historicalMaxReps > 0) {
+        prs.push({
+          exerciseId: ex.exerciseId,
+          exerciseName: name,
+          type: 'reps',
+          newValue: currentMaxReps,
+          oldValue: historicalMaxReps,
+        });
+      }
+      return;
+    }
+
+    // Weighted: PR based on weight / 1RM
     let currentMaxWeight = 0;
     let currentBest1RM = 0;
     ex.sets.forEach(set => {

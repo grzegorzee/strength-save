@@ -3,6 +3,7 @@ export interface LibraryExercise {
   category: 'chest' | 'back' | 'shoulders' | 'legs' | 'arms' | 'core' | 'glutes' | 'calves';
   type: 'compound' | 'isolation';
   videoUrl?: string;
+  isBodyweight?: boolean;
 }
 
 export const exerciseLibrary: LibraryExercise[] = [
@@ -13,7 +14,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: 'Wyciskanie sztangi na skosie', category: 'chest', type: 'compound', videoUrl: 'https://www.youtube.com/watch?v=8RkENeYk2iQ' },
   { name: 'Rozpiętki hantlami', category: 'chest', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=ITQaSEvPKhA' },
   { name: 'Rozpiętki na lince (Crossover)', category: 'chest', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=R-2HZLAlY8w' },
-  { name: 'Pompki', category: 'chest', type: 'compound', videoUrl: 'https://www.youtube.com/watch?v=u5TyFkCeuUk' },
+  { name: 'Pompki', category: 'chest', type: 'compound', videoUrl: 'https://www.youtube.com/watch?v=u5TyFkCeuUk', isBodyweight: true },
   { name: 'Wyciskanie w maszynie', category: 'chest', type: 'compound', videoUrl: 'https://www.youtube.com/watch?v=9ZE-Y9NSScQ' },
 
   // Back
@@ -55,7 +56,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: 'Hip Thrust (Wypychanie bioder)', category: 'glutes', type: 'compound' },
   { name: 'Hip Thrust ze sztangą', category: 'glutes', type: 'compound', videoUrl: 'https://www.youtube.com/watch?v=Zp26q4BY5HE' },
   { name: 'Odwodzenie na lince', category: 'glutes', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=5jJNfIlKTmg' },
-  { name: 'Glute Bridge', category: 'glutes', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=wPM8icPu6H8' },
+  { name: 'Glute Bridge', category: 'glutes', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=wPM8icPu6H8', isBodyweight: true },
 
   // Arms - Biceps
   { name: 'Uginanie hantli z supinacją (Ławka skośna)', category: 'arms', type: 'isolation' },
@@ -70,13 +71,13 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: 'Skull Crushers', category: 'arms', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=kOXVmFFTcio' },
 
   // Core
-  { name: 'Dead Bug (Robak - Brzuch)', category: 'core', type: 'isolation' },
-  { name: 'Plank', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=ASdvN_XEl_c' },
+  { name: 'Dead Bug (Robak - Brzuch)', category: 'core', type: 'isolation', isBodyweight: true },
+  { name: 'Plank', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=ASdvN_XEl_c', isBodyweight: true },
   { name: 'Ab Rollout', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=ikkOq5mHaho' },
-  { name: 'Unoszenie nóg w zwisie', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=Pr1ieGZ5atk' },
-  { name: 'Skręty rosyjskie', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=wkD8rjkodUI' },
+  { name: 'Unoszenie nóg w zwisie', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=Pr1ieGZ5atk', isBodyweight: true },
+  { name: 'Skręty rosyjskie', category: 'core', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=wkD8rjkodUI', isBodyweight: true },
   { name: 'Modlitewnik (Cable Crunch)', category: 'core', type: 'isolation' },
-  { name: 'Reverse Crunch na ławce', category: 'core', type: 'isolation' },
+  { name: 'Reverse Crunch na ławce', category: 'core', type: 'isolation', isBodyweight: true },
 
   // Calves
   { name: 'Wspięcia na palce (Nogi proste)', category: 'calves', type: 'isolation' },

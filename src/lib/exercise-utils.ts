@@ -46,6 +46,7 @@ export const getProgressionAdvice = (
   previousWorkingSets: SetData[],
   exerciseIndex: number,
   isSuperset?: boolean,
+  isBodyweight?: boolean,
 ): ProgressionAdvice | null => {
   if (repRange.isMax) return null;
   if (!previousWorkingSets || previousWorkingSets.length === 0) return null;
@@ -55,6 +56,16 @@ export const getProgressionAdvice = (
 
   const allAtOrAboveMax = completedSets.every(s => s.reps >= repRange.max);
   const anyBelowMin = completedSets.some(s => s.reps < repRange.min);
+
+  if (isBodyweight) {
+    if (allAtOrAboveMax) {
+      return { type: 'increase', label: '↑ +powt.', increment: 0 };
+    }
+    if (anyBelowMin) {
+      return { type: 'maintain', label: 'Utrzymaj powt.', increment: 0 };
+    }
+    return { type: 'repeat', label: 'Powtórz', increment: 0 };
+  }
 
   const isolation = isIsolationExercise(exerciseIndex, isSuperset);
   const increment = isolation ? 1 : 2.5;
@@ -99,6 +110,11 @@ export const lookupExerciseType = (name: string): 'compound' | 'isolation' => {
   return found?.type ?? 'compound';
 };
 
+export const isBodyweightExercise = (name: string): boolean => {
+  const found = exerciseLibrary.find(e => e.name === name);
+  return found?.isBodyweight === true;
+};
+
 // --- Set Count Parsing ---
 
 export const parseSetCount = (setsStr: string): number => {
@@ -122,6 +138,7 @@ export const createPrefilledSets = (
   exerciseIndex: number,
   setsStr: string,
   isSuperset?: boolean,
+  isBodyweight?: boolean,
 ): SetData[] => {
   if (!previousSets || previousSets.length === 0) {
     return createEmptySets(setCount);
@@ -129,14 +146,14 @@ export const createPrefilledSets = (
 
   const repRange = parseRepRange(setsStr);
   const prevWorking = previousSets.filter(s => !s.isWarmup);
-  const advice = getProgressionAdvice(repRange, prevWorking, exerciseIndex, isSuperset);
-  const increment = advice?.type === 'increase' ? advice.increment : 0;
+  const advice = getProgressionAdvice(repRange, prevWorking, exerciseIndex, isSuperset, isBodyweight);
+  const increment = (advice?.type === 'increase' && !isBodyweight) ? advice.increment : 0;
 
   // Warmup set from previous
   const prevWarmup = previousSets.find(s => s.isWarmup);
   const warmupSet: SetData = {
     reps: prevWarmup?.reps ?? 0,
-    weight: prevWarmup?.weight ?? 0,
+    weight: isBodyweight ? 0 : (prevWarmup?.weight ?? 0),
     completed: false,
     isWarmup: true,
   };
@@ -148,7 +165,7 @@ export const createPrefilledSets = (
     if (prevSet && (prevSet.reps > 0 || prevSet.weight > 0)) {
       workingSets.push({
         reps: prevSet.reps,
-        weight: Math.round((prevSet.weight + increment) * 2) / 2, // round to 0.5kg
+        weight: isBodyweight ? 0 : Math.round((prevSet.weight + increment) * 2) / 2,
         completed: false,
       });
     } else {

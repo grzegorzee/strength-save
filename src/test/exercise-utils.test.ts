@@ -8,6 +8,8 @@ import {
   isIsolationExercise,
   getRestDuration,
   lookupExerciseType,
+  isBodyweightExercise,
+  createPrefilledSets,
 } from '@/lib/exercise-utils';
 
 describe('parseSetCount', () => {
@@ -279,5 +281,104 @@ describe('lookupExerciseType', () => {
 
   it('unknown exercise → compound (default)', () => {
     expect(lookupExerciseType('Nieznane Ćwiczenie XYZ')).toBe('compound');
+  });
+});
+
+describe('isBodyweightExercise', () => {
+  it('returns true for Dead Bug', () => {
+    expect(isBodyweightExercise('Dead Bug (Robak - Brzuch)')).toBe(true);
+  });
+
+  it('returns true for Plank', () => {
+    expect(isBodyweightExercise('Plank')).toBe(true);
+  });
+
+  it('returns true for Pompki', () => {
+    expect(isBodyweightExercise('Pompki')).toBe(true);
+  });
+
+  it('returns true for Reverse Crunch na ławce', () => {
+    expect(isBodyweightExercise('Reverse Crunch na ławce')).toBe(true);
+  });
+
+  it('returns false for weighted exercises', () => {
+    expect(isBodyweightExercise('Wyciskanie sztangi na ławce płaskiej')).toBe(false);
+  });
+
+  it('returns false for Podciąganie (can add weight)', () => {
+    expect(isBodyweightExercise('Podciąganie na drążku')).toBe(false);
+  });
+
+  it('returns false for unknown exercise', () => {
+    expect(isBodyweightExercise('Nieznane Ćwiczenie')).toBe(false);
+  });
+});
+
+describe('getProgressionAdvice with bodyweight', () => {
+  it('suggests more reps when all at max (bodyweight)', () => {
+    const advice = getProgressionAdvice(
+      { min: 10, max: 15 },
+      [
+        { reps: 15, weight: 0, completed: true },
+        { reps: 15, weight: 0, completed: true },
+      ],
+      0,
+      false,
+      true,
+    );
+    expect(advice).toEqual({ type: 'increase', label: '↑ +powt.', increment: 0 });
+  });
+
+  it('suggests maintain when below min (bodyweight)', () => {
+    const advice = getProgressionAdvice(
+      { min: 10, max: 15 },
+      [
+        { reps: 8, weight: 0, completed: true },
+        { reps: 10, weight: 0, completed: true },
+      ],
+      0,
+      false,
+      true,
+    );
+    expect(advice).toEqual({ type: 'maintain', label: 'Utrzymaj powt.', increment: 0 });
+  });
+
+  it('suggests repeat when in range (bodyweight)', () => {
+    const advice = getProgressionAdvice(
+      { min: 10, max: 15 },
+      [
+        { reps: 12, weight: 0, completed: true },
+        { reps: 11, weight: 0, completed: true },
+      ],
+      0,
+      false,
+      true,
+    );
+    expect(advice).toEqual({ type: 'repeat', label: 'Powtórz', increment: 0 });
+  });
+});
+
+describe('createPrefilledSets with bodyweight', () => {
+  it('sets weight to 0 for bodyweight exercises', () => {
+    const prev = [
+      { reps: 5, weight: 0, completed: false, isWarmup: true },
+      { reps: 12, weight: 0, completed: true },
+      { reps: 10, weight: 0, completed: true },
+    ];
+    const result = createPrefilledSets(2, prev, 0, '2 x 10-15', false, true);
+    result.forEach(set => {
+      expect(set.weight).toBe(0);
+    });
+  });
+
+  it('does not increment weight for bodyweight', () => {
+    const prev = [
+      { reps: 5, weight: 0, completed: false, isWarmup: true },
+      { reps: 15, weight: 0, completed: true },
+      { reps: 15, weight: 0, completed: true },
+    ];
+    const result = createPrefilledSets(2, prev, 0, '2 x 10-15', false, true);
+    expect(result[1].weight).toBe(0);
+    expect(result[2].weight).toBe(0);
   });
 });

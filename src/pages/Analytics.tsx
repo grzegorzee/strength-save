@@ -400,30 +400,55 @@ const ChartsTab = () => {
     return { days, streak, longestStreak, attendance };
   }, [workouts]);
 
-  // Weight progression data
-  const progressionData = useMemo(() => {
-    const completedWorkouts = workouts.filter(w => w.completed && w.exercises.length > 0).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (completedWorkouts.length === 0) return { chartData: [], exercises: [] };
+  // Per-exercise progression data
+  const perExerciseData = useMemo(() => {
+    const completedWorkouts = workouts.filter(w => w.completed && w.exercises.length > 0);
+    if (completedWorkouts.length === 0) return [];
+
     const exerciseIds = new Set<string>();
-    completedWorkouts.forEach(w => { if (selectedDay !== 'all' && w.dayId !== selectedDay) return; w.exercises.forEach(ex => exerciseIds.add(ex.exerciseId)); });
+    completedWorkouts.forEach(w => {
+      if (selectedDay !== 'all' && w.dayId !== selectedDay) return;
+      w.exercises.forEach(ex => exerciseIds.add(ex.exerciseId));
+    });
+
     const allExercises = trainingPlan.flatMap(d => d.exercises);
     const exerciseNames = new Map<string, string>();
-    allExercises.forEach(ex => { exerciseNames.set(ex.id, ex.name.length > 20 ? ex.name.substring(0, 20) + '…' : ex.name); });
-    const chartData = completedWorkouts.filter(w => selectedDay === 'all' || w.dayId === selectedDay).map(w => {
-      const point: Record<string, string | number> = { date: new Date(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }), fullDate: w.date };
-      w.exercises.forEach(ex => {
-        const workingSets = ex.sets.filter(s => !s.isWarmup && s.completed && s.weight > 0);
-        if (workingSets.length > 0) {
-          point[ex.exerciseId] = weightMode === '1rm'
-            ? Math.max(...workingSets.map(s => calculate1RM(s.weight, s.reps)))
-            : Math.max(...workingSets.map(s => s.weight));
-        }
-      });
-      return point;
-    });
-    const exercises = Array.from(exerciseIds).map(id => ({ id, name: exerciseNames.get(id) || id }));
-    return { chartData, exercises };
-  }, [workouts, selectedDay, weightMode]);
+    allExercises.forEach(ex => exerciseNames.set(ex.id, ex.name));
+
+    const filteredWorkouts = selectedDay === 'all'
+      ? completedWorkouts
+      : completedWorkouts.filter(w => w.dayId === selectedDay);
+
+    return Array.from(exerciseIds).map(id => {
+      const history: { date: string; value: number }[] = [];
+      filteredWorkouts
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .forEach(w => {
+          const ex = w.exercises.find(e => e.exerciseId === id);
+          if (!ex) return;
+          const workingSets = ex.sets.filter(s => !s.isWarmup && s.completed);
+          const weightedSets = workingSets.filter(s => s.weight > 0);
+          if (weightedSets.length > 0) {
+            const value = weightMode === '1rm'
+              ? Math.max(...weightedSets.map(s => calculate1RM(s.weight, s.reps)))
+              : Math.max(...weightedSets.map(s => s.weight));
+            history.push({
+              date: new Date(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+              value,
+            });
+          } else if (workingSets.length > 0) {
+            // Bodyweight exercise — track max reps
+            const maxReps = Math.max(...workingSets.map(s => s.reps));
+            history.push({
+              date: new Date(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+              value: maxReps,
+            });
+          }
+        });
+      return { id, name: exerciseNames.get(id) || id, chartData: history, isBodyweight: history.length > 0 && !filteredWorkouts.some(w => w.exercises.find(e => e.exerciseId === id)?.sets.some(s => s.weight > 0 && s.completed && !s.isWarmup)) };
+    }).filter(ex => ex.chartData.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [workouts, selectedDay, weightMode, trainingPlan]);
 
   const dayLabels = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
   const reorderDay = (jsDay: number) => (jsDay === 0 ? 6 : jsDay - 1);
@@ -569,45 +594,64 @@ const ChartsTab = () => {
         </Card>
       )}
 
-      {/* Weight progression */}
+      {/* Weight progression — per-exercise charts */}
       {subTab === 'progression' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />Progresja ciężarów
-            </CardTitle>
-            <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
-              <div className="flex gap-1.5 flex-wrap">
-                <Badge variant={selectedDay === 'all' ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay('all')}>Wszystkie</Badge>
-                {trainingPlan.map(day => (
-                  <Badge key={day.id} variant={selectedDay === day.id ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay(day.id)}>{day.dayName}</Badge>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                <Badge variant={weightMode === 'max' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setWeightMode('max')}>Max ciężar</Badge>
-                <Badge variant={weightMode === '1rm' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setWeightMode('1rm')}>Est. 1RM</Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {progressionData.chartData.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">Brak ukończonych treningów do wyświetlenia</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={progressionData.chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" kg" />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Legend wrapperStyle={{ fontSize: '11px' }} />
-                  {progressionData.exercises.map((ex, i) => (
-                    <Line key={ex.id} type="monotone" dataKey={ex.id} name={ex.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />Progresja ciężarów
+              </CardTitle>
+              <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
+                <div className="flex gap-1.5 flex-wrap">
+                  <Badge variant={selectedDay === 'all' ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay('all')}>Wszystkie</Badge>
+                  {trainingPlan.map(day => (
+                    <Badge key={day.id} variant={selectedDay === day.id ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay(day.id)}>{day.dayName}</Badge>
                   ))}
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+                </div>
+                <div className="flex gap-1">
+                  <Badge variant={weightMode === 'max' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setWeightMode('max')}>Max ciężar</Badge>
+                  <Badge variant={weightMode === '1rm' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setWeightMode('1rm')}>Est. 1RM</Badge>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {perExerciseData.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Brak ukończonych treningów do wyświetlenia</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {perExerciseData.map(ex => (
+                <Card key={ex.id}>
+                  <CardContent className="pt-4 pb-3 px-4">
+                    <p className="text-sm font-medium mb-2 truncate">{ex.name}</p>
+                    {ex.chartData.length >= 2 ? (
+                      <ResponsiveContainer width="100%" height={150}>
+                        <LineChart data={ex.chartData}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="date" tick={{ fontSize: 9 }} className="fill-muted-foreground" />
+                          <YAxis tick={{ fontSize: 9 }} className="fill-muted-foreground" unit={ex.isBodyweight ? ' rp' : ' kg'} width={45} />
+                          <Tooltip contentStyle={tooltipStyle} />
+                          <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-[150px] flex items-center justify-center text-xs text-muted-foreground">
+                        Potrzeba min. 2 sesji
+                      </div>
+                    )}
+                    <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                      <span>{ex.chartData.length} sesji</span>
+                      {ex.chartData.length > 0 && (
+                        <span>{ex.chartData[ex.chartData.length - 1].value} {ex.isBodyweight ? 'powt.' : 'kg'}</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

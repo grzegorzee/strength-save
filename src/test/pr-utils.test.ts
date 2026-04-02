@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculate1RM, getExerciseBest1RM, detectNewPRs } from '@/lib/pr-utils';
+import { calculate1RM, getExerciseBest1RM, getExerciseBestReps, detectNewPRs } from '@/lib/pr-utils';
 import type { WorkoutSession } from '@/types';
 
 describe('calculate1RM', () => {
@@ -148,6 +148,83 @@ describe('detectNewPRs', () => {
       ],
     };
     const prs = detectNewPRs(current, previousWorkouts, names);
+    expect(prs).toHaveLength(0);
+  });
+});
+
+describe('getExerciseBestReps', () => {
+  const workouts: WorkoutSession[] = [
+    {
+      id: 'w1', userId: 'u1', dayId: 'd1', date: '2024-01-01',
+      completed: true,
+      exercises: [{
+        exerciseId: 'bw-1',
+        sets: [
+          { reps: 12, weight: 0, completed: true },
+          { reps: 10, weight: 0, completed: true },
+          { reps: 8, weight: 0, completed: true, isWarmup: true },
+        ],
+      }],
+    },
+  ];
+
+  it('returns max reps from completed non-warmup sets', () => {
+    expect(getExerciseBestReps(workouts, 'bw-1')).toBe(12);
+  });
+
+  it('returns 0 for unknown exercise', () => {
+    expect(getExerciseBestReps(workouts, 'unknown')).toBe(0);
+  });
+});
+
+describe('detectNewPRs with bodyweight', () => {
+  const previousWorkouts: WorkoutSession[] = [
+    {
+      id: 'prev-bw', userId: 'u1', dayId: 'd1', date: '2024-01-01',
+      completed: true,
+      exercises: [{
+        exerciseId: 'bw-1',
+        sets: [
+          { reps: 12, weight: 0, completed: true },
+          { reps: 10, weight: 0, completed: true },
+        ],
+      }],
+    },
+  ];
+  const names = new Map([['bw-1', 'Dead Bug']]);
+  const bodyweightIds = new Set(['bw-1']);
+
+  it('detects reps PR for bodyweight exercise', () => {
+    const current: WorkoutSession = {
+      id: 'cur-bw', userId: 'u1', dayId: 'd1', date: '2024-01-15',
+      completed: true,
+      exercises: [{
+        exerciseId: 'bw-1',
+        sets: [
+          { reps: 15, weight: 0, completed: true },
+          { reps: 12, weight: 0, completed: true },
+        ],
+      }],
+    };
+    const prs = detectNewPRs(current, previousWorkouts, names, bodyweightIds);
+    expect(prs).toHaveLength(1);
+    expect(prs[0].type).toBe('reps');
+    expect(prs[0].newValue).toBe(15);
+    expect(prs[0].oldValue).toBe(12);
+  });
+
+  it('no PR when reps equal', () => {
+    const current: WorkoutSession = {
+      id: 'cur-bw2', userId: 'u1', dayId: 'd1', date: '2024-01-15',
+      completed: true,
+      exercises: [{
+        exerciseId: 'bw-1',
+        sets: [
+          { reps: 12, weight: 0, completed: true },
+        ],
+      }],
+    };
+    const prs = detectNewPRs(current, previousWorkouts, names, bodyweightIds);
     expect(prs).toHaveLength(0);
   });
 });

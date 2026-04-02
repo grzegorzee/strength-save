@@ -10,7 +10,8 @@ import {
   onSnapshot,
   query,
   orderBy,
-  where
+  where,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
@@ -363,6 +364,43 @@ export const useFirebaseWorkouts = (userId: string) => {
     }
   }, [workouts]);
 
+  const batchSaveWorkout = useCallback(async (
+    sessionId: string,
+    exercises: { exerciseId: string; sets: SetData[]; notes?: string }[],
+    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean }
+  ): Promise<{ success: boolean; error?: string }> => {
+    if (!sessionId) return { success: false, error: 'Brak ID sesji' };
+
+    try {
+      const batch = writeBatch(db);
+      const workoutRef = doc(db, WORKOUTS_COLLECTION, sessionId);
+
+      const cleanExercises = exercises.map(ex => ({
+        exerciseId: ex.exerciseId,
+        sets: ex.sets.map(s => ({
+          reps: s.reps ?? 0,
+          weight: s.weight ?? 0,
+          completed: s.completed ?? false,
+          ...(s.isWarmup && { isWarmup: true }),
+        })),
+        ...(ex.notes !== undefined && ex.notes !== '' && { notes: ex.notes }),
+      }));
+
+      const updateData: Record<string, unknown> = { exercises: cleanExercises };
+      if (options?.notes !== undefined) updateData.notes = options.notes;
+      if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
+      if (options?.completed) updateData.completed = true;
+
+      batch.update(workoutRef, updateData);
+      await batch.commit();
+      return { success: true };
+    } catch (err) {
+      console.error('Error batch saving workout:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd zapisu';
+      return { success: false, error: errorMessage };
+    }
+  }, []);
+
   return {
     workouts,
     measurements,
@@ -371,6 +409,7 @@ export const useFirebaseWorkouts = (userId: string) => {
     createWorkoutSession,
     updateExerciseProgress,
     completeWorkout,
+    batchSaveWorkout,
     getWorkoutsByDay,
     getTodaysWorkout,
     getLatestWorkout,

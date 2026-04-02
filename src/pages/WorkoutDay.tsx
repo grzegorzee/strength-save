@@ -17,7 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
-import { getRestDuration, lookupExerciseType, createPrefilledSets, parseSetCount } from '@/lib/exercise-utils';
+import { getRestDuration, lookupExerciseType, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
+import { workoutDraft } from '@/lib/workout-draft';
 
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
@@ -30,8 +31,7 @@ const WorkoutDay = () => {
     createWorkoutSession,
     updateExerciseProgress,
     updateWorkoutNotes,
-    updateSkippedExercises,
-    completeWorkout,
+    batchSaveWorkout,
     isLoaded
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -64,12 +64,11 @@ const WorkoutDay = () => {
   const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
   const [swapReason, setSwapReason] = useState('');
 
-  const pendingSaves = useRef<Map<string, NodeJS.Timeout>>(new Map());
-  const pendingNoteSave = useRef<NodeJS.Timeout | null>(null);
   const lastLoadedWorkoutId = useRef<string | null>(null);
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const firstExerciseRef = useRef<HTMLDivElement>(null);
   const autostartDone = useRef(false);
+  const draftRecoveryDone = useRef(false);
 
   const day = trainingPlan.find(d => d.id === dayId);
 
@@ -144,14 +143,55 @@ const WorkoutDay = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autostart, isLoaded, day, isViewingPastWorkout, isCompleted, sessionId]);
 
-  // Cleanup pending saves on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      pendingSaves.current.forEach(timeout => clearTimeout(timeout));
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-      if (pendingNoteSave.current) clearTimeout(pendingNoteSave.current);
     };
   }, []);
+
+  // Draft recovery from localStorage
+  useEffect(() => {
+    if (!isLoaded || !dayId || draftRecoveryDone.current) return;
+    draftRecoveryDone.current = true;
+
+    const draft = workoutDraft.load();
+    if (!draft || draft.dayId !== dayId || draft.date !== targetDate) return;
+
+    // Only recover if we have a matching session and the workout is not completed
+    const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === targetDate);
+    if (!workoutForDate || workoutForDate.completed) {
+      workoutDraft.clear();
+      return;
+    }
+
+    if (draft.sessionId === workoutForDate.id) {
+      const draftHasData = Object.keys(draft.exerciseSets).length > 0;
+      const firebaseHasData = workoutForDate.exercises.length > 0;
+
+      if (draftHasData && !firebaseHasData) {
+        setExerciseSets(draft.exerciseSets);
+        setExerciseNotes(draft.exerciseNotes);
+        setDayNotes(draft.dayNotes);
+        setSkippedExercises(draft.skippedExercises);
+        toast({
+          title: "Odzyskano niezapisany trening",
+          description: "Wczytano dane z pamięci urządzenia.",
+        });
+      }
+    }
+  }, [isLoaded, dayId, workouts, targetDate, toast]);
+
+  // Warn before closing with unsaved data
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (sessionId && !isCompleted && Object.keys(exerciseSets).length > 0) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [sessionId, isCompleted, exerciseSets]);
 
   if (!day) {
     return (
@@ -205,15 +245,22 @@ const WorkoutDay = () => {
           const prevSets = getPreviousSets(exercise.id);
           const count = parseSetCount(exercise.sets);
           prefilled[exercise.id] = createPrefilledSets(
-            count, prevSets, idx, exercise.sets, exercise.isSuperset
+            count, prevSets, idx, exercise.sets, exercise.isSuperset, isBodyweightExercise(exercise.name)
           );
         });
         setExerciseSets(prefilled);
 
-        // Save pre-filled data to Firebase
-        for (const [exerciseId, sets] of Object.entries(prefilled)) {
-          updateExerciseProgress(result.session.id, exerciseId, sets);
-        }
+        // Save draft to localStorage (no Firebase write until workout completion)
+        workoutDraft.save({
+          sessionId: result.session.id,
+          dayId: day.id,
+          date: targetDate,
+          exerciseSets: prefilled,
+          exerciseNotes: {},
+          dayNotes: '',
+          skippedExercises: [],
+          savedAt: Date.now(),
+        });
 
         toast({
           title: "Trening rozpoczęty!",
@@ -247,7 +294,7 @@ const WorkoutDay = () => {
     }
   }, []);
 
-  // Handler for ACTIVE WORKOUT - auto-saves to Firebase (no re-renders from saving state)
+  // Handler for ACTIVE WORKOUT - saves to localStorage only (batch save on completion)
   const handleSetsChange = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = sets.map(s => ({
       reps: s.reps ?? 0,
@@ -256,116 +303,120 @@ const WorkoutDay = () => {
       ...(s.isWarmup && { isWarmup: true }),
     }));
 
-    // Update local state immediately (this is the only re-render)
-    setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
+    setExerciseSets(prev => {
+      const next = { ...prev, [exerciseId]: sanitizedSets };
+      // Save draft to localStorage
+      if (sessionId && dayId) {
+        workoutDraft.save({
+          sessionId,
+          dayId,
+          date: targetDate,
+          exerciseSets: next,
+          exerciseNotes: notes !== undefined
+            ? { ...exerciseNotes, [exerciseId]: notes }
+            : exerciseNotes,
+          dayNotes,
+          skippedExercises,
+          savedAt: Date.now(),
+        });
+      }
+      return next;
+    });
     if (notes !== undefined) {
       setExerciseNotes(prev => ({ ...prev, [exerciseId]: notes }));
     }
     setSaveError(null);
-
-    if (!sessionId) {
-      setSaveError('Brak sesji - odśwież stronę');
-      return;
-    }
-
-    // Debounce Firebase saves
-    const existingTimeout = pendingSaves.current.get(exerciseId);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-
-    const currentNotes = notes !== undefined ? notes : exerciseNotes[exerciseId] || '';
-
-    const timeout = setTimeout(async () => {
-      // Use subtle status indicator (no state-driven re-render)
-      setAutoSaveStatus('saving');
-
-      const result = await updateExerciseProgress(sessionId, exerciseId, sanitizedSets, currentNotes);
-
-      if (!result.success) {
-        setAutoSaveStatus('error');
-        setSaveError(result.error || 'Błąd zapisu');
-      } else {
-        setAutoSaveStatus('saved');
-        // Reset to idle after a moment
-        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-        autoSaveTimer.current = setTimeout(() => setAutoSaveStatus('idle'), 2000);
-      }
-
-      pendingSaves.current.delete(exerciseId);
-    }, 500);
-
-    pendingSaves.current.set(exerciseId, timeout);
-  }, [sessionId, updateExerciseProgress, exerciseNotes]);
+    setAutoSaveStatus('saved');
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => setAutoSaveStatus('idle'), 2000);
+  }, [sessionId, dayId, targetDate, exerciseNotes, dayNotes, skippedExercises]);
 
   const handleDayNotesChange = useCallback((value: string) => {
     setDayNotes(value);
-    if (!sessionId) return;
+    if (!sessionId || !dayId) return;
+    workoutDraft.save({
+      sessionId,
+      dayId,
+      date: targetDate,
+      exerciseSets,
+      exerciseNotes,
+      dayNotes: value,
+      skippedExercises,
+      savedAt: Date.now(),
+    });
+  }, [sessionId, dayId, targetDate, exerciseSets, exerciseNotes, skippedExercises]);
 
-    if (pendingNoteSave.current) clearTimeout(pendingNoteSave.current);
-    pendingNoteSave.current = setTimeout(async () => {
-      setAutoSaveStatus('saving');
-      const result = await updateWorkoutNotes(sessionId, value);
-      if (result.success) {
-        setAutoSaveStatus('saved');
-        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-        autoSaveTimer.current = setTimeout(() => setAutoSaveStatus('idle'), 2000);
-      } else {
-        setAutoSaveStatus('error');
-      }
-    }, 500);
-  }, [sessionId, updateWorkoutNotes]);
-
-  const handleSkipExercise = useCallback(async (exerciseId: string) => {
+  const handleSkipExercise = useCallback((exerciseId: string) => {
     const newSkipped = [...skippedExercises, exerciseId];
     setSkippedExercises(newSkipped);
 
-    if (sessionId) {
-      await updateSkippedExercises(sessionId, newSkipped);
+    if (sessionId && dayId) {
+      workoutDraft.save({
+        sessionId,
+        dayId,
+        date: targetDate,
+        exerciseSets,
+        exerciseNotes,
+        dayNotes,
+        skippedExercises: newSkipped,
+        savedAt: Date.now(),
+      });
     }
 
     toast({
       title: "Ćwiczenie pominięte",
       description: "Ćwiczenie zostało pominięte na dzisiaj.",
     });
-  }, [skippedExercises, sessionId, updateSkippedExercises, toast]);
+  }, [skippedExercises, sessionId, dayId, targetDate, exerciseSets, exerciseNotes, dayNotes, toast]);
 
   const handleCompleteWorkout = async () => {
     if (!sessionId) return;
 
-    // Wait for pending saves
-    if (pendingSaves.current.size > 0) {
-      toast({ title: "Poczekaj...", description: "Zapisywanie danych." });
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
     setIsExplicitSaving(true);
-    const result = await completeWorkout(sessionId);
+    setSaveError(null);
+
+    // Batch save all data + mark as completed in one atomic write
+    const exercises = Object.entries(exerciseSets).map(([exerciseId, sets]) => ({
+      exerciseId,
+      sets,
+      ...(exerciseNotes[exerciseId] && { notes: exerciseNotes[exerciseId] }),
+    }));
+
+    const result = await batchSaveWorkout(sessionId, exercises, {
+      notes: dayNotes,
+      skippedExercises: skippedExercises.length > 0 ? skippedExercises : undefined,
+      completed: true,
+    });
 
     if (!result.success) {
-      setSaveError(result.error || 'Błąd');
+      setSaveError(result.error || 'Błąd zapisu');
       toast({
-        title: "Błąd!",
-        description: result.error || 'Nie udało się zakończyć treningu.',
+        title: "Błąd zapisu!",
+        description: "Trening NIE został zapisany. Dane są bezpieczne w pamięci urządzenia. Spróbuj ponownie.",
         variant: "destructive",
       });
       setIsExplicitSaving(false);
       return;
     }
 
+    // Success — clear localStorage draft
+    workoutDraft.clear();
     setIsCompleted(true);
     setIsExplicitSaving(false);
     setShowCompleteConfirm(false);
+    setAutoSaveStatus('idle');
 
     // Detect new PRs
     const currentWorkoutData = workouts.find(w => w.id === sessionId);
     if (currentWorkoutData && day) {
       const previousWorkoutsForPR = workouts.filter(w => w.id !== sessionId && w.completed);
       const exerciseNames = new Map(day.exercises.map(e => [e.id, e.name]));
+      const bodyweightIds = new Set(day.exercises.filter(e => isBodyweightExercise(e.name)).map(e => e.id));
       const newPRs = detectNewPRs(
         { ...currentWorkoutData, exercises: Object.entries(exerciseSets).map(([id, sets]) => ({ exerciseId: id, sets })) },
         previousWorkoutsForPR,
         exerciseNames,
+        bodyweightIds,
       );
       if (newPRs.length > 0) {
         const prNames = newPRs.map(pr => pr.exerciseName).join(', ');
@@ -375,13 +426,13 @@ const WorkoutDay = () => {
         });
       } else {
         toast({
-          title: "Trening zakończony!",
+          title: "Trening zapisany!",
           description: "Świetna robota!",
         });
       }
     } else {
       toast({
-        title: "Trening zakończony!",
+        title: "Trening zapisany!",
         description: "Świetna robota!",
       });
     }
@@ -400,30 +451,24 @@ const WorkoutDay = () => {
     setIsExplicitSaving(true);
     setSaveError(null);
 
-    let hasError = false;
+    const exercises = Object.entries(exerciseSets).map(([exerciseId, sets]) => ({
+      exerciseId,
+      sets,
+      ...(exerciseNotes[exerciseId] && { notes: exerciseNotes[exerciseId] }),
+    }));
 
-    // Save day notes
-    const notesResult = await updateWorkoutNotes(sessionId, dayNotes);
-    if (!notesResult.success) {
-      hasError = true;
-      setSaveError(notesResult.error || 'Błąd zapisu notatki');
-    }
-
-    for (const [exerciseId, sets] of Object.entries(exerciseSets)) {
-      const notes = exerciseNotes[exerciseId];
-      const result = await updateExerciseProgress(sessionId, exerciseId, sets, notes);
-      if (!result.success) {
-        hasError = true;
-        setSaveError(result.error || 'Błąd zapisu');
-      }
-    }
+    const result = await batchSaveWorkout(sessionId, exercises, {
+      notes: dayNotes,
+      skippedExercises: skippedExercises.length > 0 ? skippedExercises : undefined,
+    });
 
     setIsExplicitSaving(false);
 
-    if (hasError) {
+    if (!result.success) {
+      setSaveError(result.error || 'Błąd zapisu');
       toast({
         title: "Błąd!",
-        description: "Nie udało się zapisać wszystkich zmian.",
+        description: "Nie udało się zapisać zmian.",
         variant: "destructive",
       });
     } else {
@@ -472,12 +517,10 @@ const WorkoutDay = () => {
     return (
       <div className={cn(
         "fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300",
-        autoSaveStatus === 'saving' && "bg-muted text-muted-foreground opacity-70",
-        autoSaveStatus === 'saved' && "bg-fitness-success/20 text-fitness-success opacity-70",
+        autoSaveStatus === 'saved' && "bg-muted text-muted-foreground opacity-70",
         autoSaveStatus === 'error' && "bg-destructive/20 text-destructive",
       )}>
-        {autoSaveStatus === 'saving' && <><Cloud className="h-3 w-3 animate-pulse" /> Zapisuję...</>}
-        {autoSaveStatus === 'saved' && <><Cloud className="h-3 w-3" /> Zapisano</>}
+        {autoSaveStatus === 'saved' && <><Cloud className="h-3 w-3" /> Szkic lokalny</>}
         {autoSaveStatus === 'error' && <><CloudOff className="h-3 w-3" /> Błąd zapisu</>}
       </div>
     );
@@ -639,6 +682,7 @@ const WorkoutDay = () => {
               savedNotes={exerciseNotes[exercise.id]}
               onSetsChange={(sets, notes) => handleSetsChangeLocal(exercise.id, sets, notes)}
               isEditable={true}
+              isBodyweight={isBodyweightExercise(exercise.name)}
             />
           ))}
         </div>
@@ -733,6 +777,7 @@ const WorkoutDay = () => {
               savedNotes={exerciseNotes[exercise.id]}
               previousSets={getPreviousSets(exercise.id)}
               onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
+              isBodyweight={isBodyweightExercise(exercise.name)}
               onSetCompleted={(lastWeight?: number) => {
                 if (!isWorkoutStarted || isCompleted) return;
                 const exerciseType = lookupExerciseType(exercise.name);
