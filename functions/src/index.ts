@@ -24,10 +24,10 @@ const openaiApiKey = defineSecret("openai-api-key");
 export const stravaAuthUrl = onCall(
   { secrets: [stravaClientId, stravaRedirectUri] },
   async (request) => {
-    const { userId } = request.data;
-    if (!userId) {
-      throw new HttpsError("invalid-argument", "userId is required");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in");
     }
+    const userId = request.auth.uid;
 
     const clientId = stravaClientId.value();
     const redirectUri = stravaRedirectUri.value();
@@ -58,9 +58,13 @@ export const stravaAuthUrl = onCall(
 export const stravaCallback = onCall(
   { secrets: [stravaClientId, stravaClientSecret] },
   async (request) => {
-    const { code, userId } = request.data;
-    if (!code || !userId) {
-      throw new HttpsError("invalid-argument", "code and userId are required");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in");
+    }
+    const userId = request.auth.uid;
+    const { code } = request.data;
+    if (!code) {
+      throw new HttpsError("invalid-argument", "code is required");
     }
 
     logger.info(`[Strava] Callback: exchanging code for ${userId}`);
@@ -127,10 +131,11 @@ export const stravaCallback = onCall(
 export const stravaSync = onCall(
   { secrets: [stravaClientId, stravaClientSecret] },
   async (request) => {
-    const { userId, fullSync } = request.data;
-    if (!userId) {
-      throw new HttpsError("invalid-argument", "userId is required");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in");
     }
+    const userId = request.auth.uid;
+    const { fullSync } = request.data;
 
     logger.info(`[Strava] Manual sync requested for ${userId}, fullSync=${!!fullSync}`);
     const userDoc = await db.doc(`users/${userId}`).get();

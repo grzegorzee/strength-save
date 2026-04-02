@@ -7,6 +7,7 @@ import {
   onSnapshot,
   query,
   orderBy,
+  where,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -24,9 +25,10 @@ export const useAIChat = (userId: string) => {
   const { workouts, measurements } = useFirebaseWorkouts(userId);
   const { plan } = useTrainingPlan(userId);
 
-  // Subscribe to conversations
+  // Subscribe to conversations (per-user isolation)
   useEffect(() => {
-    const q = query(collection(db, COLLECTION), orderBy('updatedAt', 'desc'));
+    if (!userId) return;
+    const q = query(collection(db, COLLECTION), where('userId', '==', userId), orderBy('updatedAt', 'desc'));
 
     const unsubscribe = onSnapshot(q,
       (snapshot) => {
@@ -42,15 +44,16 @@ export const useAIChat = (userId: string) => {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [userId]);
 
   const activeConversation = conversations.find(c => c.id === activeConversationId) || null;
 
   const createConversation = useCallback(async () => {
     const id = `chat-${Date.now()}`;
     const now = new Date().toISOString();
-    const conv: ChatConversation = {
+    const conv: ChatConversation & { userId: string } = {
       id,
+      userId,
       title: 'Nowa rozmowa',
       createdAt: now,
       updatedAt: now,
@@ -61,7 +64,7 @@ export const useAIChat = (userId: string) => {
     setActiveConversation(id);
     setError(null);
     return id;
-  }, []);
+  }, [userId]);
 
   const deleteConversation = useCallback(async (id: string) => {
     await deleteDoc(doc(db, COLLECTION, id));
@@ -101,6 +104,7 @@ export const useAIChat = (userId: string) => {
     const now = new Date().toISOString();
     await setDoc(doc(db, COLLECTION, convId), {
       id: convId,
+      userId,
       title,
       createdAt: conv?.createdAt || now,
       updatedAt: now,
@@ -125,6 +129,7 @@ export const useAIChat = (userId: string) => {
 
       await setDoc(doc(db, COLLECTION, convId), {
         id: convId,
+        userId,
         title,
         createdAt: conv?.createdAt || now,
         updatedAt: finalNow,
