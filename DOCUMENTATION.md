@@ -1850,7 +1850,28 @@ npx playwright test --reporter=list  # verbose output
 
 **E2E Testing:**
 - Playwright setup z `VITE_E2E_MODE`
-- 7 testów (batch save + UI improvements)
+- 60 testów: smoke (14 stron), nav, features, responsive, error handling, edge cases (XSS, injection, corrupt data, viewport extremes)
+- Shared helpers: `e2e/helpers.ts` (blockFirebase, navigateAndWait, expectPageRendered)
+
+**Security Audit (5 agentów):**
+- CRITICAL fixed: Strava Cloud Functions auth (`request.auth.uid` zamiast `request.data.userId`)
+- CRITICAL fixed: Role escalation blocked (`role: "admin"` na create)
+- HIGH fixed: useAIChat userId filter + chat_conversations rules
+- MEDIUM fixed: Input validation (clampSet 0-999), OpenAI model allowlist, importData schema validation
+- Usunięto `functions/.env` z Strava secret (sekrety z Secret Manager)
+
+**AI Chat/Coach removed:**
+- Usunięto: useAIChat, useAICoach, useChatMessages, AIChat.tsx, ai-chat.ts (-815 linii)
+- Zachowano: ai-coach.ts (callOpenAI, getSwapSuggestions — używane przez AI onboarding i swap)
+
+**Cleanup (/simplify audit):**
+- `formatLocalDate` wyciągnięty do utils.ts (4 duplikaty usunięte)
+- Callback refs w WorkoutDay (handleSetsChange stabilny, memo() działa)
+- saveDraftSnapshot z debounce 300ms (4 inline calls → 1 helper)
+- latestPR skan limitowany do 10 treningów (O(W²) → O(10·W))
+- OpenAI: sanitizeOpenAIParams na module scope (deduplikacja)
+- batchSaveWorkout uproszczony (updateDoc zamiast writeBatch)
+- ProgressionSummary: startWeight/currentWeight → startValue/currentValue
 
 ### v6.6.0 (2026-04-01) — Workout UX: One-Click Start, Pre-fill, Skip, Dynamic Sets
 

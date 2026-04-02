@@ -44,8 +44,6 @@
 | src/hooks/useFirebaseWorkouts.ts | Główny hook Firebase (workouts, measurements) |
 | src/hooks/useTrainingPlan.ts | Plan treningowy per-user (duration, expiration) |
 | src/hooks/useStrava.ts | Integracja Strava (activities, sync) |
-| src/hooks/useAICoach.ts | AI Coach (insights, cache 24h) |
-| src/hooks/useChatMessages.ts | **Chat z AI trenerem (Firestore per-user, real-time, migration z localStorage)** |
 | src/hooks/usePlanCycles.ts | Cykle treningowe (archiwizacja planów, historia, CRUD) |
 | src/hooks/useAISwap.ts | Zamiana ćwiczeń przez AI (3 alternatywy) |
 | src/hooks/useOnlineStatus.ts | Detekcja online/offline + pending ops |
@@ -61,8 +59,7 @@
 | src/pages/Analytics.tsx | Analityka: podsumowanie, **per-exercise progresja**, pomiary, rekordy |
 | src/pages/Onboarding.tsx | Wizard 5 kroków → AI generuje plan → review + swap |
 | src/pages/NewPlan.tsx | Generowanie nowego planu po wygaśnięciu |
-| src/pages/AIChat.tsx | Chat z AI coachem + "Podsumuj tydzień" z Strava |
-| src/pages/DayPlan.tsx | Plan na dzisiaj (co dziś?) |
+| src/pages/DayPlan.tsx | Plan na dzisiaj (co dziś?) — ukryty z nawigacji, dostępny przez URL |
 | src/pages/Settings.tsx | Ustawienia konta, Strava connect/sync |
 | src/pages/Achievements.tsx | Osiągnięcia i rekordy osobiste **(z datami PR)** |
 | src/pages/Cycles.tsx | **Aktualny plan** + historia cykli treningowych |
@@ -74,8 +71,7 @@
 | src/data/trainingPlan.ts | Domyślny plan + typy + getTrainingSchedule() |
 | src/data/exerciseLibrary.ts | Biblioteka 84 ćwiczeń z kategoriami **(+ isBodyweight flag)** |
 | src/lib/ai-onboarding.ts | Generowanie planu AI (OpenAI) |
-| src/lib/ai-coach.ts | AI Coach: analiza treningów, callOpenAI() (gpt-5-mini) |
-| src/lib/ai-chat.ts | sendChatMessage() — chat z kontekstem treningowym |
+| src/lib/ai-coach.ts | callOpenAI(), getSwapSuggestions(), callOpenAIStream() (gpt-5-mini) |
 | src/lib/offline-queue.ts | Kolejka operacji offline (localStorage) |
 | src/lib/pr-utils.ts | Detekcja rekordów osobistych, calculate1RM (Epley) |
 | src/lib/summary-utils.ts | Streak, bounds tygodnia, tonnage |
@@ -86,6 +82,7 @@
 | src/lib/training-load.ts | TRIMP, CTL/ATL/TSB (Fitness/Fatigue/Form) |
 | src/lib/share-utils.ts | Generowanie obrazu treningu (html2canvas-pro) |
 | src/lib/workout-draft.ts | **Batch save: localStorage draft (save/load/clear)** |
+| src/lib/utils.ts | cn(), **formatLocalDate()** — shared utilities |
 | src/lib/chart-config.ts | Konfiguracja wykresów (tooltip style, kolory) |
 | src/lib/strava-utils.ts | Formatowanie Strava (pace, distance, seasons, HR zones) |
 | src/types/index.ts | Centralne typy (SetData, WorkoutSession, etc.) |
