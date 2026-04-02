@@ -10,9 +10,9 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.6.0) |
+| **Status** | AKTYWNY (v6.7.0) |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-04-01 |
+| **Data aktualizacji** | 2026-04-02 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), + whitelist |
 
 ---
@@ -55,36 +55,37 @@
 ### Kod źródłowy - Strony
 | Plik | Opis |
 |------|------|
-| src/pages/Dashboard.tsx | Strona główna, stats, plan tygodnia, Strava, AI insights |
+| src/pages/Dashboard.tsx | Strona główna, **"Rozpocznij trening"**, stats, plan tygodnia, Strava |
 | src/pages/WorkoutDay.tsx | Aktywny trening / widok ukończonego / edycja |
 | src/pages/TrainingPlan.tsx | Kalendarz + plan tygodniowy + Strava |
-| src/pages/Analytics.tsx | Analityka: podsumowanie, wykresy, pomiary, rekordy |
+| src/pages/Analytics.tsx | Analityka: podsumowanie, **per-exercise progresja**, pomiary, rekordy |
 | src/pages/Onboarding.tsx | Wizard 5 kroków → AI generuje plan → review + swap |
 | src/pages/NewPlan.tsx | Generowanie nowego planu po wygaśnięciu |
 | src/pages/AIChat.tsx | Chat z AI coachem + "Podsumuj tydzień" z Strava |
 | src/pages/DayPlan.tsx | Plan na dzisiaj (co dziś?) |
 | src/pages/Settings.tsx | Ustawienia konta, Strava connect/sync |
-| src/pages/Achievements.tsx | Osiągnięcia i rekordy osobiste |
-| src/pages/Cycles.tsx | Historia cykli treningowych |
+| src/pages/Achievements.tsx | Osiągnięcia i rekordy osobiste **(z datami PR)** |
+| src/pages/Cycles.tsx | **Aktualny plan** + historia cykli treningowych |
 | src/pages/PlanEditor.tsx | Edytor planu treningowego |
 
 ### Kod źródłowy - Dane i logika
 | Plik | Opis |
 |------|------|
 | src/data/trainingPlan.ts | Domyślny plan + typy + getTrainingSchedule() |
-| src/data/exerciseLibrary.ts | Biblioteka 84 ćwiczeń z kategoriami |
+| src/data/exerciseLibrary.ts | Biblioteka 84 ćwiczeń z kategoriami **(+ isBodyweight flag)** |
 | src/lib/ai-onboarding.ts | Generowanie planu AI (OpenAI) |
 | src/lib/ai-coach.ts | AI Coach: analiza treningów, callOpenAI() (gpt-5-mini) |
 | src/lib/ai-chat.ts | sendChatMessage() — chat z kontekstem treningowym |
 | src/lib/offline-queue.ts | Kolejka operacji offline (localStorage) |
 | src/lib/pr-utils.ts | Detekcja rekordów osobistych, calculate1RM (Epley) |
 | src/lib/summary-utils.ts | Streak, bounds tygodnia, tonnage |
-| src/lib/exercise-utils.ts | parseRepRange, Smart Rest Timer, lookupExerciseType, **createPrefilledSets** |
+| src/lib/exercise-utils.ts | parseRepRange, Smart Rest Timer, lookupExerciseType, **createPrefilledSets**, **isBodyweightExercise** |
 | src/lib/exercise-progression.ts | Historia ćwiczeń, plateau detection, progression summary |
 | src/lib/heatmap-utils.ts | GitHub-style heatmap data (workouts + Strava) |
 | src/lib/race-predictor.ts | Predykcje wyścigowe (Riegel formula) |
 | src/lib/training-load.ts | TRIMP, CTL/ATL/TSB (Fitness/Fatigue/Form) |
 | src/lib/share-utils.ts | Generowanie obrazu treningu (html2canvas-pro) |
+| src/lib/workout-draft.ts | **Batch save: localStorage draft (save/load/clear)** |
 | src/lib/chart-config.ts | Konfiguracja wykresów (tooltip style, kolory) |
 | src/lib/strava-utils.ts | Formatowanie Strava (pace, distance, seasons, HR zones) |
 | src/types/index.ts | Centralne typy (SetData, WorkoutSession, etc.) |
@@ -143,7 +144,8 @@
 | vite-plugin-pwa | 1.x | Progressive Web App |
 | html2canvas-pro | - | Generowanie obrazów z HTML (Share Workout) |
 | Resend | 6.x | Email API (Weekly Digest, Cloud Functions) |
-| Vitest | 3.x | Testy jednostkowe (~145 testów) |
+| Vitest | 3.x | Testy jednostkowe (167 testów) |
+| Playwright | 1.x | Testy E2E (7 testów, VITE_E2E_MODE) |
 | gh-pages | 6.x | Deploy na GitHub Pages |
 
 ---
