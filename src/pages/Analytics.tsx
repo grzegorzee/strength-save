@@ -17,7 +17,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  Legend,
 } from 'recharts';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -41,7 +40,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { TrainingHeatmap } from '@/components/TrainingHeatmap';
 import type { WorkoutSession } from '@/types';
 import { cn } from '@/lib/utils';
-import { tooltipStyle, CHART_COLORS } from '@/lib/chart-config';
+import { tooltipStyle } from '@/lib/chart-config';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
   TrendingUp, TrendingDown, Minus, Scale, Loader2, ChevronRight,

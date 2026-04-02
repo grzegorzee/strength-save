@@ -37,7 +37,7 @@ const StravaCallback = () => {
       try {
         const functions = getFunctions();
         const callback = httpsCallable(functions, 'stravaCallback');
-        const result = await callback({ code, userId: uid });
+        const result = await callback({ code });
         const data = result.data as { synced?: number; totalFetched?: number; lookbackDays?: number };
         console.log(`[Strava] Callback OK: synced=${data.synced}, fetched=${data.totalFetched}, lookback=${data.lookbackDays}d`);
         setSyncedCount(data.synced || 0);

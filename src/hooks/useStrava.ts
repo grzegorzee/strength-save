@@ -85,7 +85,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     try {
       const functions = getFunctions();
       const getAuthUrl = httpsCallable(functions, 'stravaAuthUrl');
-      const result = await getAuthUrl({ userId });
+      const result = await getAuthUrl({});
       const data = result.data as { url: string };
       console.log('[Strava] Redirecting to Strava OAuth');
       window.location.href = data.url;
@@ -106,7 +106,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     try {
       const functions = getFunctions();
       const sync = httpsCallable(functions, 'stravaSync');
-      const result = await sync({ userId, fullSync });
+      const result = await sync({ fullSync });
       const data = result.data as {
         synced: number;
         totalFetched: number;
