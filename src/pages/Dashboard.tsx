@@ -1,18 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Brain, ChevronDown, ChevronUp, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
-import { useAICoach } from '@/hooks/useAICoach';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { calculateStreak } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
-import type { CoachInsight } from '@/lib/ai-coach';
 import { cn } from '@/lib/utils';
 
 const formatLocalDate = (date: Date): string => {
@@ -64,28 +62,6 @@ const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?:
     <span className="flex items-center gap-0.5 text-[11px] text-red-400">
       <TrendingDown className="h-3 w-3" /> {value}{suffix}
     </span>
-  );
-};
-
-// AI Insight card (dark-first)
-const insightConfig: Record<CoachInsight['type'], { icon: string; borderColor: string }> = {
-  plateau: { icon: '🔴', borderColor: 'border-red-500/30' },
-  warning: { icon: '🔴', borderColor: 'border-red-500/30' },
-  progress: { icon: '🟢', borderColor: 'border-emerald-500/30' },
-  suggestion: { icon: '🟡', borderColor: 'border-amber-500/30' },
-  consistency: { icon: '🟡', borderColor: 'border-amber-500/30' },
-};
-
-const CompactInsightCard = ({ insight }: { insight: CoachInsight }) => {
-  const config = insightConfig[insight.type];
-  return (
-    <div className={cn('flex items-start gap-2 p-3 rounded-lg border bg-card text-sm', config.borderColor)}>
-      <span className="mt-0.5">{config.icon}</span>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-xs">{insight.title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{insight.message}</p>
-      </div>
-    </div>
   );
 };
 
@@ -141,19 +117,7 @@ const Dashboard = () => {
   const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
 
-  // AI Coach
   const completedCount = useMemo(() => workouts.filter(w => w.completed).length, [workouts]);
-  const showAIInsights = completedCount >= 3;
-  const { insights, analyze, isReady: aiReady, hasCache } = useAICoach(uid);
-  const [aiExpanded, setAIExpanded] = useState(true);
-
-  // Auto-analyze on mount if cache valid
-  useMemo(() => {
-    if (showAIInsights && aiReady && hasCache) {
-      analyze(false);
-    }
-  }, [showAIInsights, aiReady, hasCache]);
-
   const latestMeasurement = getLatestMeasurement();
   const totalWeight = getTotalWeight();
 
@@ -508,37 +472,6 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* AI Insights (max 2) */}
-      {showAIInsights && insights.length > 0 && (
-        <div className="space-y-2">
-          <button
-            onClick={() => setAIExpanded(prev => !prev)}
-            className="flex items-center gap-2 w-full text-left"
-          >
-            <Brain className="h-4 w-4 text-primary" />
-            <span className="font-heading font-semibold text-sm flex-1">AI Insights</span>
-            {aiExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-          </button>
-          {aiExpanded && (
-            <div className="space-y-2">
-              {insights.slice(0, 2).map((insight, i) => (
-                <CompactInsightCard key={`${insight.type}-${i}`} insight={insight} />
-              ))}
-              {insights.length > 2 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground w-full"
-                  onClick={() => navigate('/ai')}
-                >
-                  Zobacz więcej w AI Coach
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
       )}
 
       {/* Latest PR */}

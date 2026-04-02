@@ -103,13 +103,6 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Chat conversations (per-user isolation)
-    match /chat_conversations/{convId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow read: if request.auth != null && isAdmin();
-    }
+    // chat_conversations — REMOVED (AI Chat feature removed in v6.7.0)
   }
 }

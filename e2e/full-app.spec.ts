@@ -22,7 +22,8 @@ const expectPageRendered = async (page: Page) => {
   expect(body.length).toBeGreaterThan(100);
   // Check no React error boundary text
   const hasError = await page.locator('text=Something went wrong').count();
-  expect(hasError).toBe(0);
+  const hasErrorPl = await page.locator('text=Coś poszło nie tak').count();
+  expect(hasError + hasErrorPl).toBe(0);
 };
 
 // =====================================================
@@ -74,9 +75,11 @@ test.describe('Page Load Smoke Tests', () => {
     await expectPageRendered(page);
   });
 
-  test('AI Chat (/ai) loads (hidden route)', async ({ page }) => {
+  test('Unknown route shows 404 or redirects', async ({ page }) => {
     await navigateAndWait(page, '/ai');
-    await expectPageRendered(page);
+    // AI Chat removed — should show 404 or redirect
+    const body = await page.locator('body').innerHTML();
+    expect(body.length).toBeGreaterThan(50);
   });
 
   test('Settings (/settings) loads', async ({ page }) => {

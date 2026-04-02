@@ -13,7 +13,6 @@ import WorkoutDay from "./pages/WorkoutDay";
 import Achievements from "./pages/Achievements";
 import PlanEditor from "./pages/PlanEditor";
 import Analytics from "./pages/Analytics";
-import AIChat from "./pages/AIChat";
 import Onboarding from "./pages/Onboarding";
 import ExerciseLibrary from "./pages/ExerciseLibrary";
 import Settings from "./pages/Settings";
@@ -61,7 +60,6 @@ const AppRoutes = () => {
               <Route path="/achievements" element={<Achievements />} />
               <Route path="/plan/edit" element={<PlanEditor />} />
               <Route path="/analytics" element={<Analytics />} />
-              <Route path="/ai" element={<AIChat />} />
               <Route path="/exercises" element={<ExerciseLibrary />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/new-plan" element={<NewPlan />} />

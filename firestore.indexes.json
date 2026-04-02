@@ -40,14 +40,6 @@
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "startDate", "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "chat_conversations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []

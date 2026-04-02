@@ -10,7 +10,6 @@ const pageTitles: Record<string, string> = {
   '/analytics': 'Analityka',
   '/achievements': 'Osiągnięcia',
   '/plan/edit': 'Edycja planu',
-  '/ai': 'AI Chat',
   '/settings': 'Ustawienia',
   '/admin': 'Panel admina',
   '/cycles': 'Cykle treningowe',
