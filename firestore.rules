@@ -34,6 +34,14 @@ service cloud.firestore {
                       'role',
                       'features',
                       'access',
+                      'status',
+                      'auth',
+                      'authProviders',
+                      'verification',
+                      'registration',
+                      'cohorts',
+                      'notifications',
+                      'audit',
                       'stravaTokens',
                       'stravaConnected',
                       'stravaAthleteId',
@@ -44,12 +52,8 @@ service cloud.firestore {
                     ]);
       // Admin can read/write all user profiles
       allow read, write: if request.auth != null && isAdmin();
-      // Allow create for new users (self-registration on first login)
-      // SECURITY: block role escalation — users cannot set role to admin on create
-      allow create: if request.auth != null && request.auth.uid == userId
-                    && (!('role' in request.resource.data.keys()) || request.resource.data.role == 'user')
-                    && !('features' in request.resource.data.keys())
-                    && (!('access' in request.resource.data.keys()) || request.resource.data.access.enabled == false);
+      // Profile creation happens through Cloud Functions
+      allow create: if false;
     }
 
     // Workouts collection
@@ -158,6 +162,26 @@ service cloud.firestore {
     }
 
     match /api_rate_limits/{docId} {
+      allow read, write: if false;
+    }
+
+    match /email_verification_codes/{docId} {
+      allow read, write: if false;
+    }
+
+    match /invites/{inviteId} {
+      allow read, write: if false;
+    }
+
+    match /waitlist_entries/{entryId} {
+      allow read, write: if false;
+    }
+
+    match /auth_audit_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    match /notification_logs/{logId} {
       allow read, write: if false;
     }
 

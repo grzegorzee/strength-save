@@ -6,10 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2, MailPlus, Ticket, ClipboardList, History, Mail, Ban } from 'lucide-react';
 import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  createInvite,
+  listAuthAuditLogs,
+  listInvites,
+  listWaitlistEntries,
+  revokeInvite,
+  updateUserAccess,
+  type AuthAuditLogRecord,
+  type InviteRecord,
+  type WaitlistEntryRecord,
+} from '@/lib/registration-api';
 
 const AVAILABLE_FEATURES = [
   { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą' },
@@ -23,9 +35,14 @@ interface AdminUser {
   displayName: string;
   role: string;
   accessEnabled: boolean;
+  status: 'pending_verification' | 'active' | 'suspended' | 'deleted';
   stravaConnected: boolean;
   features: Record<string, boolean>;
   onboardingCompleted: boolean;
+  primaryProvider: 'google' | 'password';
+  registrationSource: string;
+  emailVerifiedAt: string | null;
+  cohorts: string[];
   lastLogin?: string;
 }
 
@@ -75,6 +92,14 @@ const AdminDashboard = () => {
   const [detailsByUser, setDetailsByUser] = useState<Record<string, AdminUserDetails | null>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
   const [telemetry, setTelemetry] = useState<TelemetryDoc[]>([]);
+  const [invites, setInvites] = useState<InviteRecord[]>([]);
+  const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntryRecord[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuthAuditLogRecord[]>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteNote, setInviteNote] = useState('');
+  const [inviteCohorts, setInviteCohorts] = useState('');
+  const [creatingInvite, setCreatingInvite] = useState(false);
+  const [adminDataLoading, setAdminDataLoading] = useState(false);
 
   // Current month key for AI usage query
   const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -142,10 +167,15 @@ const AdminDashboard = () => {
             displayName: u.displayName || '',
             role: u.role || 'user',
             accessEnabled: u.access?.enabled !== false,
+            status: u.status || 'active',
             stravaConnected: u.stravaConnected || false,
             features: u.features || {},
             onboardingCompleted: u.onboardingCompleted || false,
-            lastLogin: u.lastLogin,
+            primaryProvider: u.auth?.primaryProvider || 'google',
+            registrationSource: u.registration?.source || u.auth?.primaryProvider || 'google',
+            emailVerifiedAt: u.verification?.emailVerifiedAt || null,
+            cohorts: u.cohorts || [],
+            lastLogin: u.registration?.lastLoginAt || u.lastLogin,
           });
         });
         data.sort((a, b) =>
@@ -156,6 +186,30 @@ const AdminDashboard = () => {
       },
     );
     return () => unsubscribe();
+  }, []);
+
+  const loadAdminOpsData = async () => {
+    setAdminDataLoading(true);
+    try {
+      const [inviteRows, waitlistRows, auditRows] = await Promise.all([
+        listInvites(),
+        listWaitlistEntries(),
+        listAuthAuditLogs(),
+      ]);
+      setInvites(inviteRows);
+      setWaitlistEntries(waitlistRows);
+      setAuditLogs(auditRows);
+    } catch (error) {
+      console.error('[AdminDashboard] Failed to load invites/waitlist/audit', error);
+      toast({ title: 'Błąd', description: 'Nie udało się wczytać invite, waitlisty lub audytu.', variant: 'destructive' });
+    } finally {
+      setAdminDataLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadAdminOpsData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleFeature = async (uid: string, feature: FeatureKey, enabled: boolean) => {
@@ -173,7 +227,12 @@ const AdminDashboard = () => {
 
   const toggleAccess = async (uid: string, enabled: boolean) => {
     try {
-      await updateDoc(doc(db, 'users', uid), { access: { enabled } });
+      const currentUser = users.find((user) => user.uid === uid);
+      await updateUserAccess({
+        uid,
+        accessEnabled: enabled,
+        suspended: currentUser?.status === 'suspended',
+      });
       setUsers(prev => prev.map(u =>
         u.uid === uid ? { ...u, accessEnabled: enabled } : u
       ));
@@ -184,6 +243,70 @@ const AdminDashboard = () => {
       });
     } catch {
       toast({ title: 'Błąd', description: 'Nie udało się zmienić dostępu.', variant: 'destructive' });
+    }
+  };
+
+  const toggleSuspended = async (uid: string, suspended: boolean) => {
+    try {
+      const currentUser = users.find((user) => user.uid === uid);
+      await updateUserAccess({
+        uid,
+        accessEnabled: suspended ? false : (currentUser?.accessEnabled ?? true),
+        suspended,
+      });
+      setUsers(prev => prev.map(user => (
+        user.uid === uid
+          ? {
+            ...user,
+            status: suspended ? 'suspended' : 'active',
+            accessEnabled: suspended ? false : user.accessEnabled,
+          }
+          : user
+      )));
+      const userName = users.find(u => u.uid === uid)?.displayName || uid;
+      toast({
+        title: suspended ? 'Konto zawieszone' : 'Konto przywrócone',
+        description: userName,
+      });
+    } catch {
+      toast({ title: 'Błąd', description: 'Nie udało się zmienić statusu konta.', variant: 'destructive' });
+    }
+  };
+
+  const handleCreateInvite = async (waitlistEntryId?: string, waitlistEmail?: string, waitlistEntryNote?: string | null) => {
+    setCreatingInvite(true);
+    try {
+      const result = await createInvite({
+        email: waitlistEmail || inviteEmail || undefined,
+        note: waitlistEntryNote || inviteNote || undefined,
+        cohorts: inviteCohorts.split(',').map((value) => value.trim()).filter(Boolean),
+        waitlistEntryId,
+      });
+      toast({
+        title: 'Invite utworzony',
+        description: result.invite.email
+          ? `Wysłano zaproszenie do ${result.invite.email}.`
+          : `Kod ${result.invite.code} jest gotowy do użycia.`,
+      });
+      setInviteEmail('');
+      setInviteNote('');
+      setInviteCohorts('');
+      await loadAdminOpsData();
+    } catch (error) {
+      console.error('[AdminDashboard] Failed to create invite', error);
+      toast({ title: 'Błąd', description: 'Nie udało się utworzyć invite.', variant: 'destructive' });
+    } finally {
+      setCreatingInvite(false);
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    try {
+      await revokeInvite(inviteId);
+      toast({ title: 'Invite unieważniony', description: inviteId });
+      await loadAdminOpsData();
+    } catch {
+      toast({ title: 'Błąd', description: 'Nie udało się unieważnić invite.', variant: 'destructive' });
     }
   };
 
@@ -327,6 +450,127 @@ const AdminDashboard = () => {
 
       <ApiKeysCard />
 
+      <div className="grid gap-6 xl:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MailPlus className="h-5 w-5" />
+              Invite
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Input
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+              placeholder="Email (opcjonalnie)"
+            />
+            <Input
+              value={inviteCohorts}
+              onChange={(event) => setInviteCohorts(event.target.value)}
+              placeholder="Cohorty, np. beta,launch"
+            />
+            <Input
+              value={inviteNote}
+              onChange={(event) => setInviteNote(event.target.value)}
+              placeholder="Notatka / kontekst invite"
+            />
+            <Button className="w-full" onClick={() => void handleCreateInvite()} disabled={creatingInvite}>
+              {creatingInvite ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+              Utwórz invite
+            </Button>
+            <div className="space-y-2">
+              {invites.slice(0, 6).map((invite) => (
+                <div key={invite.id} className="rounded-lg border p-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{invite.email || invite.code}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {invite.status} · {invite.cohorts.join(', ') || 'brak cohort'}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Badge variant={invite.status === 'active' ? 'default' : 'secondary'}>{invite.status}</Badge>
+                      {invite.status === 'active' && (
+                        <Button variant="outline" size="sm" onClick={() => void handleRevokeInvite(invite.id)}>
+                          Revoke
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {invites.length === 0 && !adminDataLoading && (
+                <p className="text-sm text-muted-foreground">Brak invite.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardList className="h-5 w-5" />
+              Waitlista
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {waitlistEntries.slice(0, 8).map((entry) => (
+              <div key={entry.id} className="rounded-lg border p-3 text-sm space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{entry.email}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {entry.displayName || 'bez nazwy'} · {entry.status}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">{entry.status}</Badge>
+                </div>
+                {entry.note && (
+                  <p className="text-xs text-muted-foreground">{entry.note}</p>
+                )}
+                {entry.status === 'waiting' && (
+                  <Button variant="outline" size="sm" onClick={() => void handleCreateInvite(entry.id, entry.email, entry.note)}>
+                    <Ticket className="h-4 w-4 mr-1.5" />
+                    Zamień na invite
+                  </Button>
+                )}
+              </div>
+            ))}
+            {waitlistEntries.length === 0 && !adminDataLoading && (
+              <p className="text-sm text-muted-foreground">Brak wpisów na waitliście.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-5 w-5" />
+              Audit auth
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {auditLogs.slice(0, 10).map((log) => (
+              <div key={log.id} className="rounded-lg border p-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium">{log.eventType}</p>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(log.createdAt).toLocaleString('pl-PL')}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {log.email || log.uid || 'anonymous'}
+                  {log.actorUid ? ` · actor ${log.actorUid}` : ''}
+                </p>
+              </div>
+            ))}
+            {auditLogs.length === 0 && !adminDataLoading && (
+              <p className="text-sm text-muted-foreground">Brak logów audytowych.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -364,6 +608,12 @@ const AdminDashboard = () => {
                       >
                         {user.accessEnabled ? 'dostęp on' : 'dostęp off'}
                       </Badge>
+                      <Badge
+                        variant={user.status === 'suspended' ? 'destructive' : 'secondary'}
+                        className="text-[10px] h-5 shrink-0"
+                      >
+                        {user.status}
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
@@ -390,7 +640,7 @@ const AdminDashboard = () => {
                               {user.accessEnabled ? 'Dostęp aktywny' : 'Dostęp wyłączony'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Backend egzekwuje ten stan dla danych treningowych i funkcji.
+                              Backend egzekwuje ten stan dla danych treningowych i funkcji. Status konta: {user.status}.
                             </p>
                           </div>
                         </div>
@@ -449,6 +699,13 @@ const AdminDashboard = () => {
                                 {details.activeCycle
                                   ? `Start ${details.activeCycle.startDate} · completion ${details.activeCycle.completionRate}%`
                                   : 'Brak danych'}
+                              </p>
+                            </div>
+                            <div className="rounded-md border bg-background/60 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Rejestracja</p>
+                              <p className="mt-1 font-medium">{user.registrationSource}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Provider: {user.primaryProvider} · {user.emailVerifiedAt ? 'email verified' : 'email not verified'}
                               </p>
                             </div>
                           </div>
@@ -510,6 +767,15 @@ const AdminDashboard = () => {
                         <Dumbbell className="h-4 w-4 mr-1.5" />
                         Edytuj plan
                       </Button>
+                      <Button
+                        variant={user.status === 'suspended' ? 'outline' : 'destructive'}
+                        size="sm"
+                        onClick={() => void toggleSuspended(user.uid, user.status !== 'suspended')}
+                        disabled={user.role === 'admin'}
+                      >
+                        {user.status === 'suspended' ? <ShieldCheck className="h-4 w-4 mr-1.5" /> : <Ban className="h-4 w-4 mr-1.5" />}
+                        {user.status === 'suspended' ? 'Przywróć konto' : 'Zawieś konto'}
+                      </Button>
                     </div>
 
                     {/* Info */}
@@ -519,6 +785,9 @@ const AdminDashboard = () => {
                       )}
                       <p>Onboarding: {user.onboardingCompleted ? 'ukończony' : 'nie ukończony'}</p>
                       <p>Strava: {user.stravaConnected ? 'połączona' : 'niepołączona'}</p>
+                      {user.cohorts.length > 0 && (
+                        <p>Cohorty: {user.cohorts.join(', ')}</p>
+                      )}
                     </div>
                   </div>
                 )}

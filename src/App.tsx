@@ -17,6 +17,7 @@ import { Loader2, ShieldOff } from "lucide-react";
 import { lazyWithRetry } from "./lib/lazy-with-retry";
 import { auth } from "./lib/firebase";
 import { signOut } from "firebase/auth";
+import { EmailVerificationGate } from "./components/EmailVerificationGate";
 
 const queryClient = new QueryClient();
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"), "lazy-retry:dashboard");
@@ -47,9 +48,11 @@ const AppLoader = () => (
 const AccessRestrictedView = ({
   email,
   accessEnabled,
+  suspended,
 }: {
   email: string;
   accessEnabled: boolean;
+  suspended?: boolean;
 }) => (
   <div className="min-h-screen flex items-center justify-center bg-background px-6">
     <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm">
@@ -57,12 +60,18 @@ const AccessRestrictedView = ({
         <ShieldOff className="h-6 w-6" />
       </div>
       <h1 className="text-2xl font-heading font-bold tracking-tight">
-        {accessEnabled ? 'Trwa ładowanie dostępu' : 'Dostęp do aplikacji jest wyłączony'}
+        {suspended
+          ? 'Konto jest zawieszone'
+          : accessEnabled
+            ? 'Trwa ładowanie dostępu'
+            : 'Dostęp do aplikacji jest wyłączony'}
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        {accessEnabled
-          ? 'Spróbuj odświeżyć aplikację za chwilę. Jeśli problem się utrzyma, sprawdź stan konta w panelu admina.'
-          : 'Konto jest zalogowane, ale backend nie pozwala jeszcze korzystać z danych treningowych. Administrator może ponownie włączyć dostęp z panelu admina.'}
+        {suspended
+          ? 'Administrator zawiesił konto. Skontaktuj się z nim, jeśli to niezamierzone.'
+          : accessEnabled
+            ? 'Spróbuj odświeżyć aplikację za chwilę. Jeśli problem się utrzyma, sprawdź stan konta w panelu admina.'
+            : 'Konto jest zalogowane, ale backend nie pozwala jeszcze korzystać z danych treningowych. Administrator może ponownie włączyć dostęp z panelu admina.'}
       </p>
       <p className="mt-4 text-xs text-muted-foreground">
         Konto: {email || 'brak adresu e-mail'}
@@ -80,10 +89,14 @@ const AccessRestrictedView = ({
 );
 
 const AppRoutes = () => {
-  const { isNewUser, profileLoaded, hasAppAccess, profile } = useCurrentUser();
+  const { isNewUser, profileLoaded, hasAppAccess, profile, needsEmailVerification, isSuspended } = useCurrentUser();
 
   if (!profileLoaded) {
     return <AppLoader />;
+  }
+
+  if (needsEmailVerification) {
+    return <EmailVerificationGate email={profile?.email || ''} />;
   }
 
   if (!hasAppAccess) {
@@ -91,6 +104,7 @@ const AppRoutes = () => {
       <AccessRestrictedView
         email={profile?.email || ''}
         accessEnabled={profile?.accessEnabled ?? false}
+        suspended={isSuspended}
       />
     );
   }

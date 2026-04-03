@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { doc, onSnapshot, setDoc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
-import { trainingPlan as defaultTrainingPlan } from '@/data/trainingPlan';
+import { readE2EAuthState } from '@/lib/e2e-auth';
+import { consumePendingInviteCode, readInviteCodeFromLocation, setPendingInviteCode } from '@/lib/pending-invite';
+import { redeemInvite, syncUserProfile, type AppUserProfile } from '@/lib/registration-api';
 
 export interface UserProfile {
   uid: string;
@@ -11,8 +13,13 @@ export interface UserProfile {
   photoURL: string;
   role: 'admin' | 'user';
   accessEnabled: boolean;
+  status: 'pending_verification' | 'active' | 'suspended' | 'deleted';
   stravaConnected: boolean;
   onboardingCompleted: boolean;
+  primaryProvider: 'google' | 'password';
+  registrationSource: string;
+  emailVerifiedAt: string | null;
+  cohorts: string[];
   features?: Record<string, boolean>;
 }
 
@@ -21,6 +28,8 @@ interface UserContextValue {
   profile: UserProfile | null;
   isAdmin: boolean;
   hasAppAccess: boolean;
+  needsEmailVerification: boolean;
+  isSuspended: boolean;
   canUseStrava: boolean;
   isNewUser: boolean;
   profileLoaded: boolean;
@@ -48,15 +57,34 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     // E2E test mode — skip Firestore, use mock profile
     if (import.meta.env.VITE_E2E_MODE === 'true') {
+      const e2eState = readE2EAuthState();
+      const status = e2eState.scenario === 'pending-verification'
+        ? 'pending_verification'
+        : e2eState.scenario === 'suspended'
+          ? 'suspended'
+          : 'active';
+      const role = e2eState.scenario === 'active-admin' ? 'admin' : 'user';
+      const accessEnabled = e2eState.scenario !== 'suspended' && e2eState.scenario !== 'pending-verification';
+      const onboardingCompleted = !['new-user', 'new-invited-user'].includes(e2eState.scenario);
+      const registrationSource = e2eState.scenario === 'new-invited-user'
+        ? 'invite-google'
+        : e2eState.scenario === 'pending-verification'
+          ? 'email'
+          : 'google';
       setProfile({
         uid: userId,
-        email: 'e2e@test.com',
-        displayName: 'E2E Tester',
+        email: e2eState.email || 'e2e@test.com',
+        displayName: e2eState.displayName || 'E2E Tester',
         photoURL: '',
-        role: 'admin',
-        accessEnabled: true,
+        role,
+        accessEnabled,
+        status,
         stravaConnected: false,
-        onboardingCompleted: true,
+        onboardingCompleted,
+        primaryProvider: e2eState.scenario === 'pending-verification' ? 'password' : 'google',
+        registrationSource,
+        emailVerifiedAt: status === 'active' ? new Date().toISOString() : null,
+        cohorts: e2eState.scenario === 'active-admin' ? ['internal'] : [],
       });
       setProfileLoaded(true);
       return;
@@ -64,52 +92,37 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
     const docRef = doc(db, USERS_COLLECTION, userId);
 
-    // Create/update user document on login — auto-detect existing users
+    let cancelled = false;
+
     const ensureUserDoc = async () => {
       try {
-        const userSnap = await getDoc(docRef);
-        const userData = userSnap.exists() ? userSnap.data() : null;
-        const accessEnabled = userData?.access?.enabled !== false;
-        const hadOnboarding = userData?.onboardingCompleted === true;
-
-        await setDoc(docRef, {
-          uid: userId,
-          email: userEmail,
-          displayName: userDisplayName || userEmail.split('@')[0] || '',
-          photoURL: userPhotoUrl,
-          lastLogin: new Date().toISOString(),
-          ...(!userSnap.exists() && { access: { enabled: false } }),
-        }, { merge: true });
-
-        if (!userSnap.exists() || !accessEnabled || hadOnboarding) {
-          return;
+        const inviteFromLocation = readInviteCodeFromLocation();
+        if (inviteFromLocation) {
+          setPendingInviteCode(inviteFromLocation);
         }
-
-        // Existing user migration path: if workouts exist but onboarding flag is missing, restore it.
-        const workoutsSnap = await getDocs(
-          query(collection(db, 'workouts'), where('userId', '==', userId), limit(1))
-        );
-        const isExistingUser = !workoutsSnap.empty;
-
-        // If existing user was NOT previously marked as onboarded, reset plan to default
-        // (v5.0 bug may have overwritten their plan via onboarding)
-        if (isExistingUser) {
-          await setDoc(docRef, { onboardingCompleted: true }, { merge: true });
-          await setDoc(doc(db, 'training_plans', userId), {
-            days: defaultTrainingPlan,
-            updatedAt: new Date().toISOString(),
-          });
+        await syncUserProfile();
+        const pendingInviteCode = consumePendingInviteCode();
+        if (pendingInviteCode) {
+          try {
+            await redeemInvite(pendingInviteCode);
+            await syncUserProfile();
+          } catch (inviteError) {
+            console.error('Failed to redeem invite after login:', inviteError);
+          }
         }
       } catch (err) {
-        console.error('Error creating user doc:', err);
+        console.error('Error syncing user profile:', err);
+        if (!cancelled) {
+          setProfileLoaded(true);
+        }
       }
     };
 
-    ensureUserDoc();
+    void ensureUserDoc();
 
     const unsubscribe = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
-        const data = snapshot.data();
+        const data = snapshot.data() as AppUserProfile;
         setProfile({
           uid: userId,
           email: data.email || userEmail,
@@ -117,8 +130,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           photoURL: data.photoURL || userPhotoUrl,
           role: data.role || 'user',
           accessEnabled: data.access?.enabled !== false,
+          status: data.status || 'active',
           stravaConnected: data.stravaConnected || false,
           onboardingCompleted: data.onboardingCompleted || false,
+          primaryProvider: data.auth?.primaryProvider || 'google',
+          registrationSource: data.registration?.source || data.auth?.primaryProvider || 'google',
+          emailVerifiedAt: data.verification?.emailVerifiedAt || null,
+          cohorts: data.cohorts || [],
           features: data.features || undefined,
         });
       } else {
@@ -130,8 +148,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           photoURL: userPhotoUrl,
           role: 'user',
           accessEnabled: false,
+          status: 'pending_verification',
           stravaConnected: false,
           onboardingCompleted: false,
+          primaryProvider: 'password',
+          registrationSource: 'email',
+          emailVerifiedAt: null,
+          cohorts: [],
         });
       }
       setProfileLoaded(true);
@@ -144,19 +167,32 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         displayName: userDisplayName,
         photoURL: userPhotoUrl,
         role: 'user',
+        accessEnabled: false,
+        status: 'pending_verification',
         stravaConnected: false,
         onboardingCompleted: false,
+        primaryProvider: 'password',
+        registrationSource: 'email',
+        emailVerifiedAt: null,
+        cohorts: [],
       });
       setProfileLoaded(true);
     });
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [userDisplayName, userEmail, userId, userPhotoUrl]);
 
   if (!userId) return null;
 
-  const isNewUser = profileLoaded && profile !== null && !profile.onboardingCompleted;
-  const hasAppAccess = profile?.role === 'admin' || profile?.accessEnabled !== false;
+  const needsEmailVerification = profileLoaded && profile?.status === 'pending_verification';
+  const isSuspended = profileLoaded && profile?.status === 'suspended';
+  const isNewUser = profileLoaded && profile !== null && profile.status === 'active' && !profile.onboardingCompleted;
+  const hasAppAccess = profile?.role === 'admin' || (
+    profile?.status === 'active' && profile?.accessEnabled !== false
+  );
 
   return (
     <UserContext.Provider value={{
@@ -164,6 +200,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       profile,
       isAdmin: profile?.role === 'admin',
       hasAppAccess,
+      needsEmailVerification,
+      isSuspended,
       canUseStrava: hasAppAccess && (profile?.features?.strava ?? profile?.role === 'admin'),
       isNewUser,
       profileLoaded,

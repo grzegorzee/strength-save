@@ -3,6 +3,7 @@ import { Page, expect } from '@playwright/test';
 const WORKOUT_DRAFT_DB_NAME = 'strength-save-db';
 const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
 const WORKOUT_SYNC_QUEUE_KEY_PREFIX = 'fittracker_workout_sync_queue_v1';
+const E2E_AUTH_STATE_KEY = 'fittracker_e2e_auth_state';
 
 export const blockFirebase = async (page: Page) => {
   await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
@@ -112,4 +113,17 @@ export const writeWorkoutSyncQueue = async (page: Page, userId: string, entries:
   await page.evaluate(({ draftUserId, queueEntries, queuePrefix }) => {
     localStorage.setItem(`${queuePrefix}_${draftUserId}`, JSON.stringify(queueEntries));
   }, { draftUserId: userId, queueEntries: entries, queuePrefix: WORKOUT_SYNC_QUEUE_KEY_PREFIX });
+};
+
+export const setE2EAuthScenario = async (
+  page: Page,
+  scenario: 'unauthenticated' | 'pending-verification' | 'suspended' | 'active-user' | 'active-admin' | 'new-user' | 'new-invited-user',
+  overrides?: { email?: string; displayName?: string },
+) => {
+  await page.addInitScript(({ storageKey, authState }) => {
+    window.localStorage.setItem(storageKey, JSON.stringify(authState));
+  }, {
+    storageKey: E2E_AUTH_STATE_KEY,
+    authState: { scenario, ...overrides },
+  });
 };

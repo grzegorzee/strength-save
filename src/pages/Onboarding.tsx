@@ -135,6 +135,10 @@ const Onboarding = () => {
 
       await updateDoc(doc(db, 'users', uid), {
         onboardingCompleted: true,
+        onboarding: {
+          state: 'completed',
+          version: 1,
+        },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się zapisać planu');
@@ -193,6 +197,16 @@ const Onboarding = () => {
   };
 
   const displayName = profile?.displayName?.split(' ')[0] || 'Trener';
+  const onboardingVariant = profile?.registrationSource?.startsWith('invite')
+    ? 'invite'
+    : profile?.primaryProvider === 'password'
+      ? 'email'
+      : 'google';
+  const onboardingIntro = onboardingVariant === 'invite'
+    ? 'Wchodzisz z invite. Odpowiedz na 5 pytań, a AI przygotuje plan i ustawi Ci dobry start.'
+    : onboardingVariant === 'email'
+      ? 'Dzięki za potwierdzenie maila. Odpowiedz na 5 pytań, a AI stworzy Twój plan treningowy.'
+      : 'Odpowiedz na 5 pytań, a AI stworzy Twój plan treningowy.';
 
   // Used exercise names for swap dialog filtering
   const getUsedExerciseNames = (plan: TrainingDay[]) =>
@@ -320,7 +334,7 @@ const Onboarding = () => {
           {step === 0 && (
             <>
               <CardTitle className="text-xl">Cześć, {displayName}!</CardTitle>
-              <CardDescription>Odpowiedz na 5 pytań, a AI stworzy Twój plan treningowy.</CardDescription>
+              <CardDescription>{onboardingIntro}</CardDescription>
             </>
           )}
           {step > 0 && (

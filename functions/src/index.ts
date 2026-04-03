@@ -25,6 +25,19 @@ import {
   verifyApiKey,
   writeApiAuditLog,
 } from "./admin-api";
+export {
+  createInvite,
+  createWaitlistEntry,
+  listAuthAuditLogs,
+  listInvites,
+  listWaitlistEntries,
+  redeemInvite,
+  requestEmailVerificationCode,
+  revokeInvite,
+  syncUserProfile,
+  updateUserAccess,
+  verifyEmailCode,
+} from "./registration";
 
 admin.initializeApp();
 
