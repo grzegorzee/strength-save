@@ -41,7 +41,7 @@ export const ApiKeysCard = () => {
   const [newKeyName, setNewKeyName] = useState("Laptop backup");
   const [revealState, setRevealState] = useState<RevealState>(null);
   const [copiedValue, setCopiedValue] = useState<"key" | "curl" | null>(null);
-  const docsUrl = `${import.meta.env.BASE_URL}api.md`;
+  const docsUrl = new URL(`${import.meta.env.BASE_URL}api.md`, window.location.origin).toString();
 
   const activeKeys = useMemo(() => keys.filter((key) => key.status === "active"), [keys]);
 
@@ -200,11 +200,13 @@ export const ApiKeysCard = () => {
               </Button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <a href={docsUrl} target="_blank" rel="noreferrer">
-                  <ExternalLink className="h-4 w-4 mr-1.5" />
-                  Instrukcja API (.md)
-                </a>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(docsUrl, "_blank", "noopener,noreferrer")}
+              >
+                <ExternalLink className="h-4 w-4 mr-1.5" />
+                Instrukcja API (.md)
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
