@@ -120,7 +120,7 @@ export const useWeeklySummary = (userId: string, stravaEnabled: boolean = false)
     if (!hasData) return;
 
     generateSummary(lastWeekDate);
-  }, [workoutsLoaded, summariesLoaded, stravaLoaded, userId, summaries, workouts, stravaActivities, trainingPlan]);
+  }, [generateSummary, isGenerating, summaries, summariesLoaded, stravaActivities, stravaLoaded, trainingPlan, userId, workouts, workoutsLoaded]);
 
   return {
     summaries,

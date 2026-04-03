@@ -4,6 +4,18 @@ import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 import { version } from "./package.json";
 
+const getNodeModulePackageName = (id: string) => {
+  const [, afterNodeModules] = id.split("node_modules/");
+  if (!afterNodeModules) return "vendor";
+
+  const segments = afterNodeModules.split("/");
+  if (segments[0].startsWith("@")) {
+    return `${segments[0]}-${segments[1] || "pkg"}`.replace("@", "");
+  }
+
+  return segments[0];
+};
+
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
   base: '/strength-save/',
@@ -72,6 +84,25 @@ export default defineConfig(() => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined;
+          }
+
+          if (id.includes("firebase")) return "firebase";
+          if (id.includes("recharts")) return "charts";
+          if (id.includes("@radix-ui")) return "radix";
+          if (id.includes("react-router-dom")) return "router";
+          if (id.includes("react-dom") || id.includes("react")) return "react-vendor";
+          if (id.includes("lucide-react")) return "icons";
+          return `vendor-${getNodeModulePackageName(id)}`;
+        },
+      },
     },
   },
 }));

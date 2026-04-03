@@ -45,15 +45,11 @@ const ExerciseCardInner = ({
   const isInitialized = useRef(false);
 
   useEffect(() => {
-    if (savedSets && savedSets.length > 0) {
-      if (!isInitialized.current || !hasLocalChanges.current) {
-        setSets(sanitizeSets(savedSets, setCount));
-        isInitialized.current = true;
-      }
-    }
-    if (savedNotes !== undefined && !hasLocalChanges.current) {
-      setNotes(savedNotes);
-      if (savedNotes) setShowNotes(true);
+    if (!isInitialized.current || !hasLocalChanges.current) {
+      setSets(sanitizeSets(savedSets, setCount));
+      setNotes(savedNotes || '');
+      setShowNotes(!!savedNotes);
+      isInitialized.current = true;
     }
   }, [savedSets, savedNotes, setCount]);
 

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { blockFirebase, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb } from './helpers';
 
-const USER_ID = 'test-user';
+const E2E_USER_ID = 'e2e-test-user';
 
 test.describe('Batch Save Workflow', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,7 +14,7 @@ test.describe('Batch Save Workflow', () => {
 
     await writeWorkoutDraftDb(page, {
       sessionId: 'roundtrip-test',
-      userId: USER_ID,
+      userId: E2E_USER_ID,
       dayId: 'day-1',
       date: '2024-04-02',
       exerciseSets: { 'ex-1': [{ reps: 10, weight: 50, completed: true }] },
@@ -30,12 +30,12 @@ test.describe('Batch Save Workflow', () => {
       version: 1,
     });
 
-    const loaded = await readWorkoutDraftDb(page, USER_ID);
+    const loaded = await readWorkoutDraftDb(page, E2E_USER_ID);
     expect(loaded).not.toBeNull();
     expect((loaded as { sessionId: string }).sessionId).toBe('roundtrip-test');
 
-    await clearWorkoutDraftDb(page, USER_ID);
-    const cleared = await readWorkoutDraftDb(page, USER_ID);
+    await clearWorkoutDraftDb(page, E2E_USER_ID);
+    const cleared = await readWorkoutDraftDb(page, E2E_USER_ID);
     expect(cleared).toBeNull();
   });
 
@@ -45,7 +45,7 @@ test.describe('Batch Save Workflow', () => {
 
     await writeWorkoutDraftDb(page, {
       sessionId: 'reload-test-123',
-      userId: USER_ID,
+      userId: E2E_USER_ID,
       dayId: 'day-1',
       date: new Date().toISOString().split('T')[0],
       exerciseSets: {
@@ -71,7 +71,7 @@ test.describe('Batch Save Workflow', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
-    const draft = await readWorkoutDraftDb(page, USER_ID) as {
+    const draft = await readWorkoutDraftDb(page, E2E_USER_ID) as {
       sessionId: string;
       exerciseSets: Record<string, Array<{ reps: number; weight: number }>>;
       exerciseNotes: Record<string, string>;
@@ -120,7 +120,7 @@ test.describe('Batch Save Workflow', () => {
 
     await writeWorkoutDraftDb(page, {
       sessionId: 'bw-test',
-      userId: USER_ID,
+      userId: E2E_USER_ID,
       dayId: 'day-3',
       date: '2024-04-02',
       exerciseSets: {
@@ -143,12 +143,47 @@ test.describe('Batch Save Workflow', () => {
       version: 1,
     });
 
-    const loaded = await readWorkoutDraftDb(page, USER_ID) as {
+    const loaded = await readWorkoutDraftDb(page, E2E_USER_ID) as {
       exerciseSets: Record<string, Array<{ weight: number }>>;
     } | null;
 
     expect(loaded?.exerciseSets['dead-bug'].every(set => set.weight === 0)).toBe(true);
     expect(loaded?.exerciseSets['dead-bug']).toHaveLength(4);
+  });
+
+  test('recovered final-sync-pending draft is visible to the user', async ({ page }) => {
+    await page.goto('./#/');
+    await page.waitForLoadState('domcontentloaded');
+
+    const today = new Date().toISOString().split('T')[0];
+    await writeWorkoutDraftDb(page, {
+      sessionId: `workout-${E2E_USER_ID}-day-1-${today}`,
+      userId: E2E_USER_ID,
+      dayId: 'day-1',
+      date: today,
+      exerciseSets: {
+        'ex-1-1': [
+          { reps: 6, weight: 20, completed: true, isWarmup: true },
+          { reps: 6, weight: 30, completed: true },
+        ],
+      },
+      exerciseNotes: {},
+      dayNotes: 'offline finish',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: true,
+      finalSyncPending: true,
+      version: 1,
+    });
+
+    await page.goto('./#/workout/day-1');
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.getByText('Trening zakończony lokalnie')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Synchronizuj teraz' })).toBeVisible();
   });
 });
 
@@ -159,11 +194,9 @@ test.describe('App loads in E2E mode', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    // Wait for React to render something
-    await page.waitForTimeout(2000);
-
-    // The page should have rendered (not be blank)
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(100);
+    const renderedChildren = await page.locator('#root').evaluate((root) =>
+      Array.from(root.children).filter((child) => child.tagName !== 'SCRIPT').length
+    );
+    expect(renderedChildren).toBeGreaterThan(0);
   });
 });

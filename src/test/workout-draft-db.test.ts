@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY } from '@/lib/workout-draft';
+import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY, getScopedWorkoutDraftKey } from '@/lib/workout-draft';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 
 class FakeRequest<T> {
@@ -196,7 +196,7 @@ describe('workoutDraftDb', () => {
     const loaded = await workoutDraftDb.loadActiveDraft('user-1');
 
     expect(loaded?.sessionId).toBe(baseDraft.sessionId);
-    expect(localStorage.getItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY)).not.toBeNull();
+    expect(localStorage.getItem(getScopedWorkoutDraftKey('user-1'))).not.toBeNull();
   });
 });
 

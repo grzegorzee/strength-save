@@ -19,6 +19,9 @@ export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
 const WORKOUTS_COLLECTION = 'workouts';
 const MEASUREMENTS_COLLECTION = 'measurements';
+const buildWorkoutSessionId = (userId: string, dayId: string, workoutDate: string) => (
+  `workout-${userId}-${dayId}-${workoutDate}`
+);
 
 // Sanitize and clamp set values to valid ranges
 const clampSet = (set: Partial<SetData>): SetData => ({
@@ -91,15 +94,16 @@ export const useFirebaseWorkouts = (userId: string) => {
 
   const createWorkoutSession = useCallback(async (dayId: string, date?: string, cycleId?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }> => {
     const workoutDate = date || new Date().toISOString().split('T')[0];
+    const sessionId = buildWorkoutSessionId(userId, dayId, workoutDate);
 
     // Check if workout for this date already exists (prevent duplicates)
-    const existingWorkout = workouts.find(w => w.dayId === dayId && w.date === workoutDate);
+    const existingWorkout = workouts.find(w => w.id === sessionId || (w.dayId === dayId && w.date === workoutDate));
     if (existingWorkout) {
       return { session: existingWorkout, existing: true };
     }
 
     const session: WorkoutSession = {
-      id: `workout-${Date.now()}`,
+      id: sessionId,
       userId,
       dayId,
       date: workoutDate,
@@ -109,7 +113,13 @@ export const useFirebaseWorkouts = (userId: string) => {
     };
 
     try {
-      await setDoc(doc(db, WORKOUTS_COLLECTION, session.id), session);
+      const workoutRef = doc(db, WORKOUTS_COLLECTION, session.id);
+      const existingSnapshot = await getDoc(workoutRef);
+      if (existingSnapshot.exists()) {
+        return { session: { id: existingSnapshot.id, ...existingSnapshot.data() } as WorkoutSession, existing: true };
+      }
+
+      await setDoc(workoutRef, session);
       return { session };
     } catch (err) {
       console.error('Error creating workout:', err);

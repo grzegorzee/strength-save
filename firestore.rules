@@ -7,13 +7,24 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function userIdMatchesAuth() {
+      return request.auth != null && request.resource.data.userId == request.auth.uid;
+    }
+
     // Users collection
     match /users/{userId} {
       // Users can read their own profile
       allow read: if request.auth != null && request.auth.uid == userId;
       // Users can update their own profile (except role)
       allow update: if request.auth != null && request.auth.uid == userId
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                      'role',
+                      'stravaTokens',
+                      'stravaConnected',
+                      'stravaAthleteId',
+                      'stravaAthleteName',
+                      'stravaLastSync'
+                    ]);
       // Admin can read/write all user profiles
       allow read, write: if request.auth != null && isAdmin();
       // Allow create for new users (self-registration on first login)
@@ -27,10 +38,12 @@ service cloud.firestore {
       // Users can only read/write their own workouts (by userId field)
       allow read: if request.auth != null
                   && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
+      allow create: if userIdMatchesAuth();
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid
                     && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null
-                            && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
       // Admin can read all
       allow read: if request.auth != null && isAdmin();
     }
@@ -39,10 +52,12 @@ service cloud.firestore {
     match /measurements/{measurementId} {
       allow read: if request.auth != null
                   && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
+      allow create: if userIdMatchesAuth();
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid
                     && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null
-                            && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.userId == request.auth.uid;
       allow read: if request.auth != null && isAdmin();
     }
 
@@ -91,9 +106,17 @@ service cloud.firestore {
     // Plan cycles (training plan history)
     match /plan_cycles/{cycleId} {
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if userIdMatchesAuth();
+      allow update: if request.auth != null
+                    && resource.data.userId == request.auth.uid
+                    && request.resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow read: if request.auth != null && isAdmin();
+    }
+
+    // Private Strava credentials — Cloud Functions only
+    match /strava_connections/{userId} {
+      allow read, write: if false;
     }
 
     // AI usage tracking (written only by Cloud Functions)

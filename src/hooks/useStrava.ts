@@ -6,7 +6,6 @@ import {
   orderBy,
   onSnapshot,
   doc,
-  updateDoc,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
@@ -27,7 +26,11 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
 
   // Subscribe to Strava activities
   useEffect(() => {
-    if (!userId || !enabled) return;
+    if (!userId || !enabled) {
+      setActivities([]);
+      setIsLoaded(true);
+      return;
+    }
 
     const activitiesQuery = query(
       collection(db, STRAVA_ACTIVITIES_COLLECTION),
@@ -54,11 +57,14 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     );
 
     return () => unsubscribe();
-  }, [userId]);
+  }, [userId, enabled]);
 
   // Subscribe to user's Strava connection status
   useEffect(() => {
-    if (!userId || !enabled) return;
+    if (!userId || !enabled) {
+      setConnection({ connected: false });
+      return;
+    }
 
     const unsubscribe = onSnapshot(doc(db, 'users', userId), (snap) => {
       if (snap.exists()) {
@@ -77,7 +83,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     });
 
     return () => unsubscribe();
-  }, [userId]);
+  }, [userId, enabled]);
 
   const connectStrava = useCallback(async () => {
     setError(null);
@@ -94,7 +100,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
       console.error('[Strava] Connect failed:', message);
       setError(message);
     }
-  }, [userId]);
+  }, []);
 
   const syncActivities = useCallback(async (fullSync = false): Promise<
     | { ok: true; synced: number; totalFetched: number; alreadyExisted: number; lookbackDays: number }
@@ -123,23 +129,15 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     } finally {
       setIsSyncing(false);
     }
-  }, [userId]);
+  }, []);
 
   const disconnectStrava = useCallback(async () => {
     setError(null);
     console.log('[Strava] Disconnecting...');
     try {
-      // Clear all Strava data from user doc (including stravaLastSync!)
-      // strava_activities cleanup happens server-side in stravaCallback on reconnect
-      await updateDoc(doc(db, 'users', userId), {
-        stravaConnected: false,
-        stravaTokens: null,
-        stravaAthleteId: null,
-        stravaAthleteName: null,
-        stravaLastSync: null,
-        estimatedMaxHR: null,
-        maxHRManualOverride: null,
-      });
+      const functions = getFunctions();
+      const disconnect = httpsCallable(functions, 'stravaDisconnect');
+      await disconnect({});
 
       console.log('[Strava] Disconnected OK');
       setConnection({ connected: false });
@@ -149,7 +147,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
       console.error('[Strava] Disconnect failed:', message);
       setError(message);
     }
-  }, [userId]);
+  }, []);
 
   if (!enabled) {
     return {

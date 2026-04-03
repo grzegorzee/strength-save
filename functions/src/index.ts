@@ -11,6 +11,9 @@ admin.initializeApp();
 export { weeklyDigest } from "./weekly-digest";
 
 const db = admin.firestore();
+const USERS_COLLECTION = "users";
+const STRAVA_ACTIVITIES_COLLECTION = "strava_activities";
+const STRAVA_CONNECTIONS_COLLECTION = "strava_connections";
 
 // --- Secrets from Google Cloud Secret Manager ---
 const stravaClientId = defineSecret("strava-client-id");
@@ -28,6 +31,104 @@ const sanitizeOpenAIParams = (model: string | undefined, messages: unknown[], ma
   messages: (messages as unknown[]).slice(-MAX_MESSAGES),
   maxTokens: Math.min(Math.max(1, maxTokens || MAX_TOKENS_CAP), MAX_TOKENS_CAP),
 });
+
+interface StravaTokenPayload {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  athlete?: {
+    id?: number;
+    firstname?: string;
+    lastname?: string;
+  };
+}
+
+interface StravaConnectionDoc {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  athleteId: number | null;
+  athleteName: string | null;
+  updatedAt: string;
+}
+
+interface StravaApiActivity {
+  id: number;
+  name: string;
+  type: string;
+  start_date: string;
+  start_date_local?: string;
+  distance?: number | null;
+  moving_time?: number | null;
+  elapsed_time?: number | null;
+  average_heartrate?: number | null;
+  max_heartrate?: number | null;
+  total_elevation_gain?: number | null;
+  average_speed?: number | null;
+  calories?: number | null;
+  description?: string | null;
+  sport_type?: string | null;
+  average_cadence?: number | null;
+  trainer?: boolean | null;
+  kudos_count?: number | null;
+}
+
+const getUserRef = (userId: string) => db.doc(`${USERS_COLLECTION}/${userId}`);
+const getStravaConnectionRef = (userId: string) => db.doc(`${STRAVA_CONNECTIONS_COLLECTION}/${userId}`);
+
+const buildStravaConnection = (tokenData: StravaTokenPayload, athleteName: string): StravaConnectionDoc => ({
+  accessToken: tokenData.access_token,
+  refreshToken: tokenData.refresh_token,
+  expiresAt: tokenData.expires_at,
+  athleteId: tokenData.athlete?.id || null,
+  athleteName: athleteName !== "unknown" ? athleteName : null,
+  updatedAt: new Date().toISOString(),
+});
+
+const saveStravaConnection = async (userId: string, tokenData: StravaTokenPayload, athleteName: string) => {
+  await getStravaConnectionRef(userId).set(buildStravaConnection(tokenData, athleteName));
+  await getUserRef(userId).set({
+    stravaConnected: true,
+    stravaAthleteId: tokenData.athlete?.id || null,
+    stravaAthleteName: athleteName !== "unknown" ? athleteName : null,
+    stravaLastSync: null,
+    stravaTokens: admin.firestore.FieldValue.delete(),
+  }, { merge: true });
+};
+
+const getStravaConnection = async (userId: string): Promise<StravaConnectionDoc | null> => {
+  const connectionDoc = await getStravaConnectionRef(userId).get();
+  if (connectionDoc.exists) {
+    return connectionDoc.data() as StravaConnectionDoc;
+  }
+
+  const userDoc = await getUserRef(userId).get();
+  const userData = userDoc.data();
+  const legacyTokens = userData?.stravaTokens as
+    | { accessToken?: string; refreshToken?: string; expiresAt?: number }
+    | undefined;
+
+  if (!legacyTokens?.accessToken || !legacyTokens?.refreshToken || !legacyTokens?.expiresAt) {
+    return null;
+  }
+
+  const migratedConnection: StravaConnectionDoc = {
+    accessToken: legacyTokens.accessToken,
+    refreshToken: legacyTokens.refreshToken,
+    expiresAt: legacyTokens.expiresAt,
+    athleteId: userData?.stravaAthleteId || null,
+    athleteName: userData?.stravaAthleteName || null,
+    updatedAt: new Date().toISOString(),
+  };
+
+  await getStravaConnectionRef(userId).set(migratedConnection);
+  await getUserRef(userId).set({
+    stravaTokens: admin.firestore.FieldValue.delete(),
+  }, { merge: true });
+  logger.info(`[Strava] Migrated legacy tokens for ${userId}`);
+
+  return migratedConnection;
+};
 
 /**
  * Generate Strava OAuth authorization URL
@@ -97,28 +198,18 @@ export const stravaCallback = onCall(
       throw new HttpsError("internal", "Failed to exchange code for tokens");
     }
 
-    const tokenData = await response.json();
+    const tokenData = await response.json() as StravaTokenPayload;
     const athleteName = tokenData.athlete
       ? `${tokenData.athlete.firstname} ${tokenData.athlete.lastname}`.trim()
       : "unknown";
     logger.info(`[Strava] Token OK for athlete: ${athleteName} (id: ${tokenData.athlete?.id})`);
 
-    await db.doc(`users/${userId}`).update({
-      stravaConnected: true,
-      stravaTokens: {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token,
-        expiresAt: tokenData.expires_at,
-      },
-      stravaAthleteId: tokenData.athlete?.id || null,
-      stravaAthleteName: athleteName !== "unknown" ? athleteName : null,
-      stravaLastSync: null,
-    });
+    await saveStravaConnection(userId, tokenData, athleteName);
     logger.info(`[Strava] User doc updated, stravaLastSync reset to null`);
 
     // Delete existing strava_activities for clean reconnect
     const existingActivities = await db
-      .collection("strava_activities")
+      .collection(STRAVA_ACTIVITIES_COLLECTION)
       .where("userId", "==", userId)
       .get();
     if (!existingActivities.empty) {
@@ -149,20 +240,21 @@ export const stravaSync = onCall(
     const { fullSync } = request.data;
 
     logger.info(`[Strava] Manual sync requested for ${userId}, fullSync=${!!fullSync}`);
-    const userDoc = await db.doc(`users/${userId}`).get();
+    const userDoc = await getUserRef(userId).get();
     const userData = userDoc.data();
+    const connection = await getStravaConnection(userId);
 
-    if (!userData?.stravaConnected || !userData?.stravaTokens) {
-      logger.error(`[Strava] Not connected: stravaConnected=${userData?.stravaConnected}, hasTokens=${!!userData?.stravaTokens}`);
+    if (!userData?.stravaConnected || !connection) {
+      logger.error(`[Strava] Not connected: stravaConnected=${userData?.stravaConnected}, hasConnection=${!!connection}`);
       throw new HttpsError("failed-precondition", "Strava not connected");
     }
 
-    let accessToken = userData.stravaTokens.accessToken;
+    let accessToken = connection.accessToken;
     const now = Math.floor(Date.now() / 1000);
 
-    if (userData.stravaTokens.expiresAt <= now) {
-      logger.info(`[Strava] Token expired (${userData.stravaTokens.expiresAt} <= ${now}), refreshing...`);
-      accessToken = await refreshStravaToken(userId, userData.stravaTokens.refreshToken);
+    if (connection.expiresAt <= now) {
+      logger.info(`[Strava] Token expired (${connection.expiresAt} <= ${now}), refreshing...`);
+      accessToken = await refreshStravaToken(userId, connection.refreshToken);
     }
 
     const result = await syncUserActivities(userId, accessToken, !!fullSync);
@@ -502,14 +594,15 @@ async function refreshStravaToken(userId: string, refreshToken: string): Promise
     throw new HttpsError("internal", "Failed to refresh Strava token");
   }
 
-  const tokenData = await response.json();
+  const tokenData = await response.json() as StravaTokenPayload;
   logger.info(`[Strava] Token refreshed, new expiresAt: ${tokenData.expires_at}`);
 
-  await db.doc(`users/${userId}`).update({
-    "stravaTokens.accessToken": tokenData.access_token,
-    "stravaTokens.refreshToken": tokenData.refresh_token,
-    "stravaTokens.expiresAt": tokenData.expires_at,
-  });
+  await getStravaConnectionRef(userId).set({
+    accessToken: tokenData.access_token,
+    refreshToken: tokenData.refresh_token,
+    expiresAt: tokenData.expires_at,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
 
   return tokenData.access_token;
 }
@@ -522,7 +615,7 @@ interface SyncResult {
 }
 
 async function syncUserActivities(userId: string, accessToken: string, fullSync = false): Promise<SyncResult> {
-  const userDoc = await db.doc(`users/${userId}`).get();
+  const userDoc = await getUserRef(userId).get();
   const userData = userDoc.data();
   const lastSync = userData?.stravaLastSync;
 
@@ -542,7 +635,7 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
   logger.info(`[Strava] syncUserActivities: lastSync=${lastSync || "null"}, fullSync=${fullSync}, after=${new Date(after * 1000).toISOString()}`);
 
   // Paginated fetch — Strava returns max 100 per page
-  const allActivities: any[] = [];
+  const allActivities: StravaApiActivity[] = [];
   let page = 1;
   while (true) {
     const apiUrl = `https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=100&page=${page}`;
@@ -558,10 +651,10 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
       throw new HttpsError("internal", `Strava API error ${response.status}: ${errorText.substring(0, 200)}`);
     }
 
-    const pageActivities = await response.json();
+    const pageActivities = await response.json() as unknown;
     if (!Array.isArray(pageActivities) || pageActivities.length === 0) break;
 
-    allActivities.push(...pageActivities);
+    allActivities.push(...pageActivities as StravaApiActivity[]);
     page++;
     if (page > 20) break; // safety cap: max 2000 activities
   }
@@ -573,11 +666,18 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
   let synced = 0;
   let alreadyExisted = 0;
 
-  const batch = db.batch();
+  let batch = db.batch();
+  let pendingWrites = 0;
+  const commitBatch = async () => {
+    if (pendingWrites === 0) return;
+    await batch.commit();
+    batch = db.batch();
+    pendingWrites = 0;
+  };
 
   for (const activity of activities) {
     const existing = await db
-      .collection("strava_activities")
+      .collection(STRAVA_ACTIVITIES_COLLECTION)
       .where("stravaId", "==", activity.id)
       .where("userId", "==", userId)
       .limit(1)
@@ -592,7 +692,7 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
       ? activity.start_date_local.split("T")[0]
       : new Date(activity.start_date).toISOString().split("T")[0];
 
-    const docRef = db.collection("strava_activities").doc();
+    const docRef = db.collection(STRAVA_ACTIVITIES_COLLECTION).doc();
     batch.set(docRef, {
       userId,
       stravaId: activity.id,
@@ -618,22 +718,24 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
     });
 
     synced++;
+    pendingWrites++;
+    if (pendingWrites === 450) {
+      await commitBatch();
+    }
   }
 
-  if (synced > 0) {
-    await batch.commit();
-  }
+  await commitBatch();
 
-  await db.doc(`users/${userId}`).update({
+  await getUserRef(userId).set({
     stravaLastSync: new Date().toISOString(),
-  });
+  }, { merge: true });
 
   // Auto-update estimatedMaxHR (unless manually overridden)
-  const userDocFresh = await db.doc(`users/${userId}`).get();
+  const userDocFresh = await getUserRef(userId).get();
   const userDataFresh = userDocFresh.data();
   if (!userDataFresh?.maxHRManualOverride) {
     const allActivities = await db
-      .collection("strava_activities")
+      .collection(STRAVA_ACTIVITIES_COLLECTION)
       .where("userId", "==", userId)
       .get();
     let maxHR = 0;
@@ -642,7 +744,7 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
       if (mhr && mhr > maxHR) maxHR = mhr;
     });
     if (maxHR > 0) {
-      await db.doc(`users/${userId}`).update({ estimatedMaxHR: maxHR });
+      await getUserRef(userId).set({ estimatedMaxHR: maxHR }, { merge: true });
       logger.info(`[Strava] Updated estimatedMaxHR=${maxHR} for ${userId}`);
     }
   }
@@ -665,7 +767,7 @@ export const stravaScheduledSync = onSchedule(
     logger.info("[Strava] Scheduled sync starting...");
 
     const usersSnapshot = await db
-      .collection("users")
+      .collection(USERS_COLLECTION)
       .where("stravaConnected", "==", true)
       .get();
 
@@ -673,20 +775,20 @@ export const stravaScheduledSync = onSchedule(
 
     for (const userDoc of usersSnapshot.docs) {
       const userId = userDoc.id;
-      const userData = userDoc.data();
 
       try {
-        if (!userData.stravaTokens) {
+        const connection = await getStravaConnection(userId);
+        if (!connection) {
           logger.warn(`[Strava] Skipping ${userId}: no tokens`);
           continue;
         }
 
-        let accessToken = userData.stravaTokens.accessToken;
+        let accessToken = connection.accessToken;
         const now = Math.floor(Date.now() / 1000);
 
-        if (userData.stravaTokens.expiresAt <= now) {
+        if (connection.expiresAt <= now) {
           logger.info(`[Strava] Refreshing token for ${userId}`);
-          accessToken = await refreshStravaToken(userId, userData.stravaTokens.refreshToken);
+          accessToken = await refreshStravaToken(userId, connection.refreshToken);
         }
 
         const result = await syncUserActivities(userId, accessToken);
@@ -700,3 +802,22 @@ export const stravaScheduledSync = onSchedule(
     logger.info("[Strava] Scheduled sync completed");
   },
 );
+
+export const stravaDisconnect = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  const userId = request.auth.uid;
+
+  await getStravaConnectionRef(userId).delete().catch(() => undefined);
+  await getUserRef(userId).set({
+    stravaConnected: false,
+    stravaAthleteId: null,
+    stravaAthleteName: null,
+    stravaLastSync: null,
+    estimatedMaxHR: null,
+    maxHRManualOverride: null,
+    stravaTokens: admin.firestore.FieldValue.delete(),
+  }, { merge: true });
+});

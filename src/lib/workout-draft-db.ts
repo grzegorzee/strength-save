@@ -116,7 +116,7 @@ const getIndexedDb = (): IDBFactory | null => {
 };
 
 const withFallbackLoad = (userId: string): ActiveWorkoutDraft | null => {
-  const draft = workoutDraft.load();
+  const draft = workoutDraft.load(userId);
   if (!draft) return null;
 
   return normalizeDraft({
@@ -142,7 +142,7 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     dayNotes: draft.dayNotes,
     skippedExercises: draft.skippedExercises,
     savedAt: draft.updatedAt,
-  });
+  }, draft.userId);
 };
 
 const openDatabase = (): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
@@ -185,7 +185,7 @@ const runWrite = async (value: ActiveWorkoutDraft | null, userId: string): Promi
     if (value) {
       withFallbackSave(value);
     } else {
-      workoutDraft.clear();
+      workoutDraft.clear(userId);
     }
     return;
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -31,7 +31,7 @@ const Achievements = () => {
   const completedWorkouts = getCompletedWorkoutsCount();
 
   // Get all exercise records with history
-  const getAllExerciseRecords = (): ExerciseRecord[] => {
+  const exerciseRecords = useMemo((): ExerciseRecord[] => {
     const exerciseMap = new Map<string, ExerciseRecord>();
 
     // Get all exercises from training plan
@@ -84,9 +84,7 @@ const Achievements = () => {
     return Array.from(exerciseMap.values())
       .filter(r => r.maxWeight > 0)
       .sort((a, b) => b.maxWeight - a.maxWeight);
-  };
-
-  const exerciseRecords = getAllExerciseRecords();
+  }, [trainingPlan, workouts]);
 
   // Group history by date for the dialog
   const getGroupedHistory = (history: { date: string; weight: number; reps: number }[]) => {

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { doc, onSnapshot, setDoc, getDoc, getDocs, collection, query, where, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/hooks/useAuth';
+import { trainingPlan as defaultTrainingPlan } from '@/data/trainingPlan';
 
 export interface UserProfile {
   uid: string;
@@ -31,9 +32,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const userId = user?.uid;
+  const userEmail = user?.email || '';
+  const userDisplayName = user?.displayName || '';
+  const userPhotoUrl = user?.photoURL || '';
 
   useEffect(() => {
-    if (!user?.uid) {
+    if (!userId) {
       setProfile(null);
       setProfileLoaded(false);
       return;
@@ -42,7 +47,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     // E2E test mode — skip Firestore, use mock profile
     if (import.meta.env.VITE_E2E_MODE === 'true') {
       setProfile({
-        uid: user.uid,
+        uid: userId,
         email: 'e2e@test.com',
         displayName: 'E2E Tester',
         photoURL: '',
@@ -54,14 +59,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    const docRef = doc(db, USERS_COLLECTION, user.uid);
+    const docRef = doc(db, USERS_COLLECTION, userId);
 
     // Create/update user document on login — auto-detect existing users
     const ensureUserDoc = async () => {
       try {
         // Check if user has existing workouts (= existing user from before onboarding)
         const workoutsSnap = await getDocs(
-          query(collection(db, 'workouts'), where('userId', '==', user.uid), limit(1))
+          query(collection(db, 'workouts'), where('userId', '==', userId), limit(1))
         );
         const isExistingUser = !workoutsSnap.empty;
 
@@ -70,10 +75,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         const hadOnboarding = userSnap.exists() && userSnap.data()?.onboardingCompleted === true;
 
         await setDoc(docRef, {
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || user.email?.split('@')[0] || '',
-          photoURL: user.photoURL || '',
+          uid: userId,
+          email: userEmail,
+          displayName: userDisplayName || userEmail.split('@')[0] || '',
+          photoURL: userPhotoUrl,
           lastLogin: new Date().toISOString(),
           ...(isExistingUser && { onboardingCompleted: true }),
         }, { merge: true });
@@ -81,9 +86,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         // If existing user was NOT previously marked as onboarded, reset plan to default
         // (v5.0 bug may have overwritten their plan via onboarding)
         if (isExistingUser && !hadOnboarding) {
-          const { trainingPlan: defaultPlan } = await import('@/data/trainingPlan');
-          await setDoc(doc(db, 'training_plans', user.uid), {
-            days: defaultPlan,
+          await setDoc(doc(db, 'training_plans', userId), {
+            days: defaultTrainingPlan,
             updatedAt: new Date().toISOString(),
           });
         }
@@ -98,10 +102,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
         setProfile({
-          uid: user.uid,
-          email: data.email || user.email || '',
-          displayName: data.displayName || user.displayName || '',
-          photoURL: data.photoURL || user.photoURL || '',
+          uid: userId,
+          email: data.email || userEmail,
+          displayName: data.displayName || userDisplayName,
+          photoURL: data.photoURL || userPhotoUrl,
           role: data.role || 'user',
           stravaConnected: data.stravaConnected || false,
           onboardingCompleted: data.onboardingCompleted || false,
@@ -110,10 +114,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       } else {
         // Doc not yet created, use auth data
         setProfile({
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || '',
-          photoURL: user.photoURL || '',
+          uid: userId,
+          email: userEmail,
+          displayName: userDisplayName,
+          photoURL: userPhotoUrl,
           role: 'user',
           stravaConnected: false,
           onboardingCompleted: false,
@@ -124,10 +128,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error fetching user profile:', err);
       // Fallback to auth data
       setProfile({
-        uid: user.uid,
-        email: user.email || '',
-        displayName: user.displayName || '',
-        photoURL: user.photoURL || '',
+        uid: userId,
+        email: userEmail,
+        displayName: userDisplayName,
+        photoURL: userPhotoUrl,
         role: 'user',
         stravaConnected: false,
         onboardingCompleted: false,
@@ -136,15 +140,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => unsubscribe();
-  }, [user?.uid]);
+  }, [userDisplayName, userEmail, userId, userPhotoUrl]);
 
-  if (!user?.uid) return null;
+  if (!userId) return null;
 
   const isNewUser = profileLoaded && profile !== null && !profile.onboardingCompleted;
 
   return (
     <UserContext.Provider value={{
-      uid: user.uid,
+      uid: userId,
       profile,
       isAdmin: profile?.role === 'admin',
       canUseStrava: profile?.features?.strava ?? profile?.role === 'admin',

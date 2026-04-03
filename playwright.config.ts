@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
-  retries: 1,
+  retries: 0,
   use: {
     baseURL: 'http://localhost:8080/strength-save/',
     viewport: { width: 390, height: 844 },

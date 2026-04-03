@@ -40,8 +40,11 @@ const TrainingPlan = () => {
   const trainingDates = useMemo(() => schedule.map(s => s.date), [schedule]);
 
   // Use planStartDate from hook (Firebase) if available, fallback to schedule
-  const today = new Date();
-  const startDate = planStartDate ? new Date(planStartDate) : (schedule[0]?.date || today);
+  const today = useMemo(() => new Date(), []);
+  const startDate = useMemo(
+    () => (planStartDate ? new Date(planStartDate) : (schedule[0]?.date || today)),
+    [planStartDate, schedule, today],
+  );
 
   // Use currentWeek from hook (calculated from planStartDate)
   const actualCurrentWeek = Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek));
@@ -52,19 +55,23 @@ const TrainingPlan = () => {
   const displayWeek = Math.max(1, Math.min(planDurationWeeks, selectedWeekNumber));
 
   // Get selected week's dates
-  const selectedWeekStart = new Date(startDate);
-  selectedWeekStart.setDate(startDate.getDate() + (displayWeek - 1) * 7);
-  const selectedWeekEnd = new Date(selectedWeekStart);
-  selectedWeekEnd.setDate(selectedWeekStart.getDate() + 6);
+  const { selectedWeekStart, selectedWeekEnd } = useMemo(() => {
+    const weekStart = new Date(startDate);
+    weekStart.setDate(startDate.getDate() + (displayWeek - 1) * 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    return { selectedWeekStart: weekStart, selectedWeekEnd: weekEnd };
+  }, [displayWeek, startDate]);
+  const selectedWeekStartMs = selectedWeekStart.getTime();
+  const selectedWeekEndMs = selectedWeekEnd.getTime();
 
   // Get training dates for selected week
   const selectedWeekTrainingDates = useMemo(() => {
-    const weekStart = new Date(selectedWeekStart);
-    const weekEnd = new Date(selectedWeekEnd);
-    return schedule.filter(s =>
-      s.date >= weekStart && s.date <= weekEnd
-    );
-  }, [selectedWeekStart.getTime(), selectedWeekEnd.getTime(), schedule]);
+    return schedule.filter(s => {
+      const dateMs = s.date.getTime();
+      return dateMs >= selectedWeekStartMs && dateMs <= selectedWeekEndMs;
+    });
+  }, [schedule, selectedWeekEndMs, selectedWeekStartMs]);
 
   // Get workouts for selected week
   const getWorkoutForDate = (date: Date) => {

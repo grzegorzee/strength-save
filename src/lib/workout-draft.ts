@@ -1,6 +1,9 @@
 import type { SetData } from '@/types';
 
 export const LOCAL_STORAGE_WORKOUT_DRAFT_KEY = 'fittracker_workout_draft';
+export const getScopedWorkoutDraftKey = (userId?: string) => (
+  userId ? `${LOCAL_STORAGE_WORKOUT_DRAFT_KEY}:${userId}` : LOCAL_STORAGE_WORKOUT_DRAFT_KEY
+);
 
 export interface WorkoutDraft {
   sessionId: string;
@@ -14,39 +17,39 @@ export interface WorkoutDraft {
 }
 
 export const workoutDraft = {
-  save(draft: WorkoutDraft): void {
+  save(draft: WorkoutDraft, userId?: string): void {
     try {
-      localStorage.setItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY, JSON.stringify(draft));
+      localStorage.setItem(getScopedWorkoutDraftKey(userId), JSON.stringify(draft));
     } catch {
       // localStorage full or unavailable — silently fail
     }
   },
 
-  load(): WorkoutDraft | null {
+  load(userId?: string): WorkoutDraft | null {
     try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY);
+      const raw = localStorage.getItem(getScopedWorkoutDraftKey(userId));
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed?.sessionId || !parsed?.exerciseSets) return null;
       return parsed as WorkoutDraft;
     } catch {
       // corrupt data — clear and return null
-      localStorage.removeItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY);
+      localStorage.removeItem(getScopedWorkoutDraftKey(userId));
       return null;
     }
   },
 
-  clear(): void {
+  clear(userId?: string): void {
     try {
-      localStorage.removeItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY);
+      localStorage.removeItem(getScopedWorkoutDraftKey(userId));
     } catch {
       // silently fail
     }
   },
 
-  exists(): boolean {
+  exists(userId?: string): boolean {
     try {
-      return localStorage.getItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY) !== null;
+      return localStorage.getItem(getScopedWorkoutDraftKey(userId)) !== null;
     } catch {
       return false;
     }

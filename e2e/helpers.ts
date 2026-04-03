@@ -11,14 +11,15 @@ export const blockFirebase = async (page: Page) => {
 };
 
 export const navigateAndWait = async (page: Page, path: string) => {
-  await page.goto(`/#${path}`);
+  const normalizedPath = path === '/' ? '/' : path.startsWith('/') ? path : `/${path}`;
+  await page.goto(normalizedPath === '/' ? './#/' : `./#${normalizedPath}`);
   await page.waitForLoadState('domcontentloaded');
-  await page.waitForTimeout(1500);
+  await expect(page.locator('#root')).toBeVisible();
 };
 
 export const expectPageRendered = async (page: Page) => {
-  const body = await page.locator('body').innerHTML();
-  expect(body.length).toBeGreaterThan(100);
+  const rootChildCount = await page.locator('#root > *').count();
+  expect(rootChildCount).toBeGreaterThan(0);
   const hasError = await page.locator('text=Something went wrong').count();
   const hasErrorPl = await page.locator('text=Coś poszło nie tak').count();
   expect(hasError + hasErrorPl).toBe(0);

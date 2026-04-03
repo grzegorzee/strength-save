@@ -96,20 +96,25 @@ const SummaryTab = () => {
   const [period, setPeriod] = useState<Period>('week');
   const [copied, setCopied] = useState(false);
 
-  const now = new Date();
-  const bounds = period === 'week' ? getWeekBounds(now) : getMonthBounds(now);
-  const previousBounds = period === 'week'
-    ? getWeekBounds(new Date(bounds.start.getTime() - 7 * 24 * 60 * 60 * 1000))
-    : getMonthBounds(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const bounds = useMemo(() => {
+    const now = new Date();
+    return period === 'week' ? getWeekBounds(now) : getMonthBounds(now);
+  }, [period]);
+  const previousBounds = useMemo(() => (
+    period === 'week'
+      ? getWeekBounds(new Date(bounds.start.getTime() - 7 * 24 * 60 * 60 * 1000))
+      : getMonthBounds(new Date(bounds.start.getFullYear(), bounds.start.getMonth() - 1, 1))
+  ), [bounds, period]);
+  const boundsStartMs = bounds.start.getTime();
 
   const currentWorkouts = useMemo(
     () => filterWorkoutsByPeriod(workouts, bounds),
-    [workouts, bounds.start.getTime(), bounds.end.getTime()],
+    [bounds, workouts],
   );
 
   const previousWorkouts = useMemo(
     () => filterWorkoutsByPeriod(workouts, previousBounds),
-    [workouts, previousBounds.start.getTime(), previousBounds.end.getTime()],
+    [previousBounds, workouts],
   );
 
   const expectedWorkouts = period === 'week' ? 3 : 12;
@@ -126,7 +131,7 @@ const SummaryTab = () => {
   const periodPRs = useMemo(() => {
     const allNames = new Map(trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name])));
     const allPRs: Array<{ exerciseName: string; type: string }> = [];
-    const historicalWorkouts = workouts.filter(w => w.completed && new Date(w.date) < bounds.start);
+    const historicalWorkouts = workouts.filter(w => w.completed && new Date(w.date).getTime() < boundsStartMs);
 
     currentWorkouts.forEach(cw => {
       const prs = detectNewPRs(cw, historicalWorkouts, allNames);
@@ -134,7 +139,7 @@ const SummaryTab = () => {
     });
 
     return allPRs;
-  }, [currentWorkouts, workouts, bounds.start.getTime()]);
+  }, [boundsStartMs, currentWorkouts, trainingPlan, workouts]);
 
   const periodMeasurements = measurements.filter(m => {
     const d = new Date(m.date);
@@ -688,6 +693,9 @@ const MeasurementsTab = () => {
   };
 
   const weightTrend = getWeightTrend();
+  const recentMeasurements = [...measurements]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -711,10 +719,7 @@ const MeasurementsTab = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {measurements
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, 5)
-                .map((m) => (
+              {recentMeasurements.map((m) => (
                   <div key={m.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <span className="text-sm font-medium">
                       {new Date(m.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}

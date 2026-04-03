@@ -76,7 +76,6 @@ const WorkoutDay = () => {
   const [swapReason, setSwapReason] = useState('');
 
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
-  const draftSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const firstExerciseRef = useRef<HTMLDivElement>(null);
   const autostartDone = useRef(false);
   const draftRecoveryDone = useRef<string | null>(null);
@@ -120,18 +119,22 @@ const WorkoutDay = () => {
   }, []);
 
   const buildDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}): ActiveWorkoutDraft | null => {
-    if (!uid || !sessionId || !dayId) return null;
+    const draftUserId = overrides.userId ?? uid;
+    const draftSessionId = overrides.sessionId ?? sessionId;
+    const draftDayId = overrides.dayId ?? dayId;
+    const draftDate = overrides.date ?? targetDate;
+    if (!draftUserId || !draftSessionId || !draftDayId) return null;
 
     const now = Date.now();
-    const previousDraft = activeDraftRef.current?.sessionId === sessionId
+    const previousDraft = activeDraftRef.current?.sessionId === draftSessionId
       ? activeDraftRef.current
       : null;
 
     return {
-      sessionId,
-      userId: uid,
-      dayId,
-      date: targetDate,
+      sessionId: draftSessionId,
+      userId: draftUserId,
+      dayId: draftDayId,
+      date: draftDate,
       exerciseSets: overrides.exerciseSets ?? exerciseSetsRef.current,
       exerciseNotes: overrides.exerciseNotes ?? exerciseNotesRef.current,
       dayNotes: overrides.dayNotes ?? dayNotesRef.current,
@@ -153,10 +156,9 @@ const WorkoutDay = () => {
     const draft = buildDraftSnapshot(overrides);
     if (!draft) return null;
 
-    setActiveDraft(draft);
-
     try {
       await workoutDraftDb.saveActiveDraft(draft);
+      setActiveDraft(draft);
       setSaveError(null);
       if (options.showStatus) {
         if (draft.finalSyncPending) {
@@ -168,6 +170,7 @@ const WorkoutDay = () => {
     } catch {
       setSaveError('Nie udało się zapisać szkicu lokalnie.');
       setAutoSaveStatus('error');
+      return null;
     }
 
     return draft;
@@ -175,10 +178,7 @@ const WorkoutDay = () => {
 
   const saveDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}) => {
     if (!sessionId || !dayId || !uid) return;
-    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
-    draftSaveTimer.current = setTimeout(() => {
-      void persistDraftSnapshot(overrides, { showStatus: true });
-    }, 300);
+    void persistDraftSnapshot(overrides, { showStatus: true });
   }, [sessionId, dayId, uid, persistDraftSnapshot]);
 
   // Build exercises payload for batchSaveWorkout (reads from refs)
@@ -210,50 +210,68 @@ const WorkoutDay = () => {
       if (!currentDraft?.dirty || !hasCurrentContent) {
         return { success: true, skipped: true };
       }
-      await persistDraftSnapshot({}, { showStatus: false });
+      const persistedDraft = await persistDraftSnapshot({}, { showStatus: false });
+      if (!persistedDraft) {
+        return { success: false, error: 'Nie udało się zapisać szkicu lokalnie przed synchronizacją.' };
+      }
     }
 
     isSyncingRef.current = true;
     setAutoSaveStatus('syncing');
 
-    const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
-      notes: dayNotesRef.current || undefined,
-      skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
-      ...(requiresFinalSync && { completed: true }),
-    });
+    try {
+      const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
+        notes: dayNotesRef.current || undefined,
+        skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
+        ...(requiresFinalSync && { completed: true }),
+      });
 
-    isSyncingRef.current = false;
+      if (!result.success) {
+        const errorMessage = result.error || 'Błąd synchronizacji';
+        setSaveError(errorMessage);
+        setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
+        return { success: false, error: errorMessage };
+      }
 
-    if (!result.success) {
-      const errorMessage = result.error || 'Błąd synchronizacji';
+      const syncedAt = Date.now();
+      setSaveError(null);
+
+      if (requiresFinalSync) {
+        try {
+          await workoutDraftDb.clearActiveDraft(uid);
+        } catch {
+          setSaveError('Trening zapisano w chmurze, ale nie udało się wyczyścić lokalnego szkicu.');
+        }
+        setActiveDraft(null);
+        setIsCompleted(true);
+        completedSessionLockRef.current = sessionId;
+        queueAutoSaveStatus('synced', 'idle', 2200);
+        return { success: true };
+      }
+
+      try {
+        await workoutDraftDb.markDraftSynced(uid, syncedAt);
+      } catch {
+        setSaveError('Dane zapisano w chmurze, ale lokalny status synchronizacji nie został odświeżony.');
+      }
+      setActiveDraft(prev => prev && prev.userId === uid
+        ? {
+          ...prev,
+          dirty: false,
+          lastFirebaseSyncAt: syncedAt,
+        }
+        : prev
+      );
+      queueAutoSaveStatus('synced', 'idle', 2200);
+      return { success: true };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Błąd synchronizacji';
       setSaveError(errorMessage);
       setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
       return { success: false, error: errorMessage };
+    } finally {
+      isSyncingRef.current = false;
     }
-
-    const syncedAt = Date.now();
-    setSaveError(null);
-
-    if (requiresFinalSync) {
-      await workoutDraftDb.clearActiveDraft(uid);
-      setActiveDraft(null);
-      setIsCompleted(true);
-      completedSessionLockRef.current = sessionId;
-      queueAutoSaveStatus('synced', 'idle', 2200);
-      return { success: true };
-    }
-
-    await workoutDraftDb.markDraftSynced(uid, syncedAt);
-    setActiveDraft(prev => prev && prev.userId === uid
-      ? {
-        ...prev,
-        dirty: false,
-        lastFirebaseSyncAt: syncedAt,
-      }
-      : prev
-    );
-    queueAutoSaveStatus('synced', 'idle', 2200);
-    return { success: true };
   }, [uid, sessionId, batchSaveWorkout, buildExercisesPayload, persistDraftSnapshot, queueAutoSaveStatus]);
 
   const applyWorkoutState = useCallback((next: {
@@ -430,7 +448,6 @@ const WorkoutDay = () => {
   useEffect(() => {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
       if (periodicSaveTimer.current) clearInterval(periodicSaveTimer.current);
     };
   }, []);
@@ -456,14 +473,12 @@ const WorkoutDay = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && sessionId) {
-        if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
         void persistDraftSnapshot({}, { showStatus: false });
         void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
       }
     };
     const handlePageHide = () => {
       if (!sessionId) return;
-      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
       void persistDraftSnapshot({}, { showStatus: false });
       void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
     };
@@ -504,18 +519,8 @@ const WorkoutDay = () => {
     return () => window.removeEventListener('beforeunload', handler);
   }, [sessionId, isCompleted]);
 
-  if (!day) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Nie znaleziono dnia treningowego</p>
-        <Button variant="link" onClick={() => navigate('/plan')}>
-          Wróć do planu
-        </Button>
-      </div>
-    );
-  }
-
   const handleStartWorkout = async () => {
+    if (!day || !uid) return;
     if (isViewingPastWorkout) {
       toast({
         title: "Nie można rozpocząć",
@@ -583,9 +588,16 @@ const WorkoutDay = () => {
           version: 1,
         };
 
-        setActiveDraft(initialDraft);
-        await workoutDraftDb.saveActiveDraft(initialDraft);
-        queueAutoSaveStatus('local-saved', 'sync-pending');
+        const savedDraft = await persistDraftSnapshot(initialDraft, { showStatus: true });
+        if (!savedDraft) {
+          setSaveError('Nie udało się zapisać szkicu lokalnie.');
+          toast({
+            title: "Błąd!",
+            description: 'Nie udało się zabezpieczyć treningu lokalnie.',
+            variant: "destructive",
+          });
+          return;
+        }
 
         toast({
           title: "Trening rozpoczęty!",
@@ -687,13 +699,21 @@ const WorkoutDay = () => {
   };
 
   const handleCompleteWorkout = async () => {
-    if (!sessionId || !uid) return;
+    if (!sessionId || !uid || !day) return;
 
     setIsExplicitSaving(true);
     setSaveError(null);
 
-    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
-    await persistDraftSnapshot({}, { showStatus: false });
+    const flushedDraft = await persistDraftSnapshot({}, { showStatus: false });
+    if (!flushedDraft) {
+      setIsExplicitSaving(false);
+      toast({
+        title: "Błąd zapisu lokalnego",
+        description: "Nie udało się bezpiecznie zapisać treningu na urządzeniu.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const result = await syncDraftToFirebase('final');
 
@@ -711,13 +731,19 @@ const WorkoutDay = () => {
         setShowCompleteConfirm(false);
         setAutoSaveStatus('final-sync-pending');
         completedSessionLockRef.current = sessionId;
+        setSaveError(result.error || 'Trening czeka na synchronizację');
+        toast({
+          title: "Trening zapisano lokalnie",
+          description: "Nie ma połączenia z internetem. Synchronizacja ruszy automatycznie po odzyskaniu sieci.",
+        });
+      } else {
+        setSaveError('Nie udało się zapisać treningu ani lokalnie, ani w chmurze.');
+        toast({
+          title: "Błąd zapisu lokalnego",
+          description: "Synchronizacja nie udała się i nie udało się też zachować treningu lokalnie.",
+          variant: "destructive",
+        });
       }
-
-      setSaveError(result.error || 'Trening czeka na synchronizację');
-      toast({
-        title: "Trening zapisano lokalnie",
-        description: "Nie ma połączenia z internetem. Synchronizacja ruszy automatycznie po odzyskaniu sieci.",
-      });
       setIsExplicitSaving(false);
       return;
     }
@@ -801,6 +827,17 @@ const WorkoutDay = () => {
     const ex = previousWorkout.exercises.find(e => e.exerciseId === exerciseId);
     return ex?.sets;
   };
+
+  if (!day) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">Nie znaleziono dnia treningowego</p>
+        <Button variant="link" onClick={() => navigate('/plan')}>
+          Wróć do planu
+        </Button>
+      </div>
+    );
+  }
 
   const isWorkoutStarted = sessionId !== null;
   const isFinalSyncPending = !!currentPageDraft?.finalSyncPending;
