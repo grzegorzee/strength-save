@@ -86,7 +86,8 @@ export default defineConfig(() => ({
           // Keep only the heaviest, low-risk libraries in dedicated chunks.
           // Over-splitting React/Radix internals created circular vendor chunks in production.
           if (id.includes("firebase")) return "firebase";
-          if (id.includes("recharts") || id.includes("/d3-")) return "charts";
+          if (id.includes("recharts")) return "recharts";
+          if (id.includes("/d3-")) return "d3-vendor";
 
           return undefined;
         },
