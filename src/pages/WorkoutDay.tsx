@@ -156,56 +156,111 @@ const WorkoutDay = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autostart, isLoaded, day, isViewingPastWorkout, isCompleted, sessionId]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount — flush draft to Firebase before leaving
   useEffect(() => {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
       if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+      if (periodicSaveTimer.current) clearInterval(periodicSaveTimer.current);
     };
   }, []);
 
-  // Draft recovery from localStorage
+  // Draft recovery from localStorage — runs on every Firebase data load
   useEffect(() => {
-    if (!isLoaded || !dayId || draftRecoveryDone.current) return;
-    draftRecoveryDone.current = true;
+    if (!isLoaded || !dayId) return;
+
+    const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === targetDate);
+    if (!workoutForDate || workoutForDate.completed) return;
+
+    // Only recover if Firebase has NO exercise data but draft does
+    const firebaseHasData = workoutForDate.exercises.length > 0;
+    if (firebaseHasData) return;
 
     const draft = workoutDraft.load();
     if (!draft || draft.dayId !== dayId || draft.date !== targetDate) return;
+    if (draft.sessionId !== workoutForDate.id) return;
 
-    // Only recover if we have a matching session and the workout is not completed
-    const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === targetDate);
-    if (!workoutForDate || workoutForDate.completed) {
-      workoutDraft.clear();
+    const draftHasData = Object.keys(draft.exerciseSets).length > 0 &&
+      Object.values(draft.exerciseSets).some(sets => sets.some(s => s.reps > 0 || s.weight > 0));
+
+    if (draftHasData) {
+      setExerciseSets(draft.exerciseSets);
+      setExerciseNotes(draft.exerciseNotes);
+      setDayNotes(draft.dayNotes);
+      setSkippedExercises(draft.skippedExercises);
+      toast({
+        title: "Odzyskano niezapisany trening",
+        description: "Wczytano dane z pamięci urządzenia.",
+      });
+    }
+  }, [isLoaded, dayId, workouts, targetDate, toast]);
+
+  // Periodic Firebase save every 60s — safety net against data loss
+  const periodicSaveTimer = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (!sessionId || isCompleted) {
+      if (periodicSaveTimer.current) clearInterval(periodicSaveTimer.current);
       return;
     }
 
-    if (draft.sessionId === workoutForDate.id) {
-      const draftHasData = Object.keys(draft.exerciseSets).length > 0;
-      const firebaseHasData = workoutForDate.exercises.length > 0;
+    periodicSaveTimer.current = setInterval(() => {
+      const currentSets = exerciseSetsRef.current;
+      const hasData = Object.keys(currentSets).length > 0 &&
+        Object.values(currentSets).some(sets => sets.some(s => s.reps > 0 || s.weight > 0));
+      if (!hasData) return;
 
-      if (draftHasData && !firebaseHasData) {
-        setExerciseSets(draft.exerciseSets);
-        setExerciseNotes(draft.exerciseNotes);
-        setDayNotes(draft.dayNotes);
-        setSkippedExercises(draft.skippedExercises);
-        toast({
-          title: "Odzyskano niezapisany trening",
-          description: "Wczytano dane z pamięci urządzenia.",
+      const exercises = Object.entries(currentSets).map(([exerciseId, sets]) => ({
+        exerciseId,
+        sets,
+        ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
+      }));
+
+      batchSaveWorkout(sessionId, exercises, {
+        notes: dayNotesRef.current || undefined,
+        skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
+      });
+    }, 60000);
+
+    return () => {
+      if (periodicSaveTimer.current) clearInterval(periodicSaveTimer.current);
+    };
+  }, [sessionId, isCompleted, batchSaveWorkout]);
+
+  // Save to Firebase when app goes to background (phone switch, tab switch)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && sessionId && !isCompleted) {
+        const currentSets = exerciseSetsRef.current;
+        const hasData = Object.keys(currentSets).length > 0 &&
+          Object.values(currentSets).some(sets => sets.some(s => s.reps > 0 || s.weight > 0));
+        if (!hasData) return;
+
+        const exercises = Object.entries(currentSets).map(([exerciseId, sets]) => ({
+          exerciseId,
+          sets,
+          ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
+        }));
+
+        batchSaveWorkout(sessionId, exercises, {
+          notes: dayNotesRef.current || undefined,
+          skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
         });
       }
-    }
-  }, [isLoaded, dayId, workouts, targetDate, toast]);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [sessionId, isCompleted, batchSaveWorkout]);
 
   // Warn before closing with unsaved data
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (sessionId && !isCompleted && Object.keys(exerciseSets).length > 0) {
+      if (sessionId && !isCompleted && Object.keys(exerciseSetsRef.current).length > 0) {
         e.preventDefault();
       }
     };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
-  }, [sessionId, isCompleted, exerciseSets]);
+  }, [sessionId, isCompleted]);
 
   if (!day) {
     return (
