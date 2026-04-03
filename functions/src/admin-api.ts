@@ -2,7 +2,9 @@ import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import * as admin from "firebase-admin";
 import type { Request } from "firebase-functions/v2/https";
 
-const db = admin.firestore();
+function getDb() {
+  return admin.firestore();
+}
 
 export const API_KEYS_COLLECTION = "api_keys";
 export const API_AUDIT_LOGS_COLLECTION = "api_audit_logs";
@@ -202,19 +204,19 @@ export async function createApiKeyForUser(
     rotatedFrom: options.rotatedFrom ?? null,
   };
 
-  await db.collection(API_KEYS_COLLECTION).doc(docId).set(record);
+  await getDb().collection(API_KEYS_COLLECTION).doc(docId).set(record);
   return { record: publicRecord(docId, record), rawKey };
 }
 
 export async function listApiKeysForUser(userId: string): Promise<ApiKeyRecord[]> {
-  const snap = await db.collection(API_KEYS_COLLECTION).where("userId", "==", userId).get();
+  const snap = await getDb().collection(API_KEYS_COLLECTION).where("userId", "==", userId).get();
   return snap.docs
     .map((doc) => publicRecord(doc.id, doc.data() as ApiKeyDoc))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function revokeApiKeyForUser(userId: string, keyId: string): Promise<void> {
-  const docRef = db.collection(API_KEYS_COLLECTION).doc(keyId);
+  const docRef = getDb().collection(API_KEYS_COLLECTION).doc(keyId);
   const snap = await docRef.get();
   if (!snap.exists) {
     throw new Error("Klucz API nie istnieje.");
@@ -235,7 +237,7 @@ export async function revokeApiKeyForUser(userId: string, keyId: string): Promis
 }
 
 export async function getApiKeyRecordForUser(userId: string, keyId: string): Promise<ApiKeyRecord> {
-  const snap = await db.collection(API_KEYS_COLLECTION).doc(keyId).get();
+  const snap = await getDb().collection(API_KEYS_COLLECTION).doc(keyId).get();
   if (!snap.exists) {
     throw new Error("Klucz API nie istnieje.");
   }
@@ -257,7 +259,7 @@ export async function verifyApiKey(rawKey: string, pepper: string): Promise<Veri
   }
 
   const prefix = segments[2];
-  const snap = await db.collection(API_KEYS_COLLECTION).doc(prefix).get();
+  const snap = await getDb().collection(API_KEYS_COLLECTION).doc(prefix).get();
   if (!snap.exists) {
     return null;
   }
@@ -284,7 +286,7 @@ export async function verifyApiKey(rawKey: string, pepper: string): Promise<Veri
 }
 
 export async function markApiKeyUsed(keyId: string): Promise<void> {
-  await db.collection(API_KEYS_COLLECTION).doc(keyId).set(
+  await getDb().collection(API_KEYS_COLLECTION).doc(keyId).set(
     { lastUsedAt: nowIso() },
     { merge: true },
   );
@@ -293,9 +295,9 @@ export async function markApiKeyUsed(keyId: string): Promise<void> {
 export async function checkAndConsumeRateLimit(keyId: string, limit = API_RATE_LIMIT_PER_MINUTE): Promise<void> {
   const bucket = minuteBucket();
   const rateDocId = `${keyId}_${bucket}`;
-  const rateDocRef = db.collection(API_RATE_LIMITS_COLLECTION).doc(rateDocId);
+  const rateDocRef = getDb().collection(API_RATE_LIMITS_COLLECTION).doc(rateDocId);
 
-  await db.runTransaction(async (tx) => {
+  await getDb().runTransaction(async (tx) => {
     const snap = await tx.get(rateDocRef);
     const currentCount = Number(snap.data()?.count || 0);
     if (currentCount >= limit) {
@@ -328,7 +330,7 @@ export async function writeApiAuditLog(input: {
   const ipAddress = extractIpAddress(input.request);
   const userAgent = input.request.get("user-agent") || "unknown";
 
-  await db.collection(API_AUDIT_LOGS_COLLECTION).add({
+  await getDb().collection(API_AUDIT_LOGS_COLLECTION).add({
     keyId: input.keyId,
     userId: input.userId,
     resource: input.resource,
