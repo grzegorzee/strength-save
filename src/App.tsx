@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,25 +12,26 @@ import { useAuth } from "./hooks/useAuth";
 import { UserProvider, useCurrentUser } from "./contexts/UserContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Loader2 } from "lucide-react";
+import { lazyWithRetry } from "./lib/lazy-with-retry";
 
 const queryClient = new QueryClient();
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const DayPlan = lazy(() => import("./pages/DayPlan"));
-const TrainingPlan = lazy(() => import("./pages/TrainingPlan"));
-const WorkoutDay = lazy(() => import("./pages/WorkoutDay"));
-const Achievements = lazy(() => import("./pages/Achievements"));
-const PlanEditor = lazy(() => import("./pages/PlanEditor"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const Onboarding = lazy(() => import("./pages/Onboarding"));
-const ExerciseLibrary = lazy(() => import("./pages/ExerciseLibrary"));
-const Settings = lazy(() => import("./pages/Settings"));
-const NewPlan = lazy(() => import("./pages/NewPlan"));
-const Cycles = lazy(() => import("./pages/Cycles"));
-const StravaCallback = lazy(() => import("./pages/StravaCallback"));
-const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
-const UserPlanEditor = lazy(() => import("./pages/admin/UserPlanEditor"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const Login = lazy(() => import("./pages/Login"));
+const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"), "lazy-retry:dashboard");
+const DayPlan = lazyWithRetry(() => import("./pages/DayPlan"), "lazy-retry:day-plan");
+const TrainingPlan = lazyWithRetry(() => import("./pages/TrainingPlan"), "lazy-retry:training-plan");
+const WorkoutDay = lazyWithRetry(() => import("./pages/WorkoutDay"), "lazy-retry:workout-day");
+const Achievements = lazyWithRetry(() => import("./pages/Achievements"), "lazy-retry:achievements");
+const PlanEditor = lazyWithRetry(() => import("./pages/PlanEditor"), "lazy-retry:plan-editor");
+const Analytics = lazyWithRetry(() => import("./pages/Analytics"), "lazy-retry:analytics");
+const Onboarding = lazyWithRetry(() => import("./pages/Onboarding"), "lazy-retry:onboarding");
+const ExerciseLibrary = lazyWithRetry(() => import("./pages/ExerciseLibrary"), "lazy-retry:exercise-library");
+const Settings = lazyWithRetry(() => import("./pages/Settings"), "lazy-retry:settings");
+const NewPlan = lazyWithRetry(() => import("./pages/NewPlan"), "lazy-retry:new-plan");
+const Cycles = lazyWithRetry(() => import("./pages/Cycles"), "lazy-retry:cycles");
+const StravaCallback = lazyWithRetry(() => import("./pages/StravaCallback"), "lazy-retry:strava-callback");
+const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"), "lazy-retry:admin-dashboard");
+const UserPlanEditor = lazyWithRetry(() => import("./pages/admin/UserPlanEditor"), "lazy-retry:user-plan-editor");
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"), "lazy-retry:not-found");
+const Login = lazyWithRetry(() => import("./pages/Login"), "lazy-retry:login");
 
 const AppLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
