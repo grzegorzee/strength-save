@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Copy, KeyRound, Loader2, RefreshCcw, ShieldCheck, Trash2 } from "lucide-react";
+import { Check, Copy, ExternalLink, KeyRound, Loader2, RefreshCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +41,7 @@ export const ApiKeysCard = () => {
   const [newKeyName, setNewKeyName] = useState("Laptop backup");
   const [revealState, setRevealState] = useState<RevealState>(null);
   const [copiedValue, setCopiedValue] = useState<"key" | "curl" | null>(null);
+  const docsUrl = `${import.meta.env.BASE_URL}api.md`;
 
   const activeKeys = useMemo(() => keys.filter((key) => key.status === "active"), [keys]);
 
@@ -196,6 +197,14 @@ export const ApiKeysCard = () => {
               <Button onClick={handleCreate} disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
                 Generuj klucz
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <a href={docsUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-1.5" />
+                  Instrukcja API (.md)
+                </a>
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">

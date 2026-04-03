@@ -72,7 +72,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
 
       {/* Sidebar */}
       <nav className={cn(
-        "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-300 md:translate-x-0 md:static",
+        "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-300 md:translate-x-0 md:sticky md:top-0 md:h-[100dvh] md:self-start",
         collapsed ? "md:w-16" : "md:w-64",
         "w-64", // mobile always full width
         isOpen ? "translate-x-0" : "-translate-x-full"

@@ -22,13 +22,13 @@ export const Layout = () => {
   const title = pageTitles[location.pathname] || 'FitTracker';
 
   return (
-    <div className="min-h-screen flex w-full bg-background overflow-x-hidden">
+    <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-hidden md:overflow-hidden">
       <AppNavigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden md:h-[100dvh] md:overflow-hidden">
         <AppHeader title={title} onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 p-5 md:p-6 overflow-x-hidden">
+        <main className="flex-1 p-5 md:p-6 overflow-x-hidden md:overflow-y-auto">
           <div className="max-w-4xl mx-auto">
             <Outlet />
           </div>
