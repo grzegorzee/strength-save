@@ -45,6 +45,14 @@ test.describe('Auth and registration flows', () => {
     await expect(page.getByText('Załóż konto przez Google albo email i hasło')).toBeVisible();
   });
 
+  test('authenticated user visiting login is redirected to dashboard', async ({ page }) => {
+    await setE2EAuthScenario(page, 'active-user');
+    await navigateAndWait(page, '/login');
+
+    await expect(page).toHaveURL(/#\/$/);
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  });
+
   test('pending verification user sees email verification gate', async ({ page }) => {
     await setE2EAuthScenario(page, 'pending-verification', { email: 'pending@test.com' });
     await navigateAndWait(page, '/');

@@ -44,6 +44,17 @@ const AuthRedirect = () => {
   return <Navigate to={`/login${location.search || ''}`} replace />;
 };
 
+const AuthenticatedRouteRedirect = ({ isNewUser }: { isNewUser: boolean }) => {
+  const location = useLocation();
+  const isAuthRoute = location.pathname === "/login" || location.pathname === "/register";
+
+  if (!isAuthRoute) {
+    return null;
+  }
+
+  return <Navigate to={isNewUser ? "/onboarding" : "/"} replace />;
+};
+
 const AppLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -116,16 +127,21 @@ const AppRoutes = () => {
 
   return (
     <HashRouter>
+      <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <Suspense fallback={<AppLoader />}>
         <Routes>
           {isNewUser ? (
             <>
+              <Route path="/login" element={<Navigate to="/onboarding" replace />} />
+              <Route path="/register" element={<Navigate to="/onboarding" replace />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="*" element={<Onboarding />} />
             </>
           ) : (
             <>
               <Route element={<Layout />}>
+                <Route path="/login" element={<Navigate to="/" replace />} />
+                <Route path="/register" element={<Navigate to="/" replace />} />
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/day" element={<DayPlan />} />
                 <Route path="/plan" element={<TrainingPlan />} />
