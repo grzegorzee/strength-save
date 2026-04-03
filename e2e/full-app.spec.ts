@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb } from './helpers';
 
 // =====================================================
 // 1. ALL PAGES LOAD WITHOUT CRASHES
@@ -448,36 +448,32 @@ test.describe('LocalStorage', () => {
     }
   });
 
-  test('workout draft localStorage operations work', async ({ page }) => {
+  test('workout draft IndexedDB operations work', async ({ page }) => {
     await navigateAndWait(page, '/');
 
-    const result = await page.evaluate(() => {
-      const KEY = 'fittracker_workout_draft';
-      // Write
-      const draft = {
-        sessionId: 'persistence-test',
-        dayId: 'day-1',
-        date: '2024-04-02',
-        exerciseSets: { 'ex-1': [{ reps: 10, weight: 50, completed: true }] },
-        exerciseNotes: {},
-        dayNotes: '',
-        skippedExercises: [],
-        savedAt: Date.now(),
-      };
-      localStorage.setItem(KEY, JSON.stringify(draft));
-
-      // Read
-      const loaded = JSON.parse(localStorage.getItem(KEY)!);
-      const readOk = loaded.sessionId === 'persistence-test';
-
-      // Clean
-      localStorage.removeItem(KEY);
-      const cleanOk = localStorage.getItem(KEY) === null;
-
-      return { readOk, cleanOk };
+    await writeWorkoutDraftDb(page, {
+      sessionId: 'persistence-test',
+      userId: 'test-user',
+      dayId: 'day-1',
+      date: '2024-04-02',
+      exerciseSets: { 'ex-1': [{ reps: 10, weight: 50, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
     });
 
-    expect(result.readOk).toBe(true);
-    expect(result.cleanOk).toBe(true);
+    const loaded = await readWorkoutDraftDb(page, 'test-user') as { sessionId: string } | null;
+    expect(loaded?.sessionId).toBe('persistence-test');
+
+    await clearWorkoutDraftDb(page, 'test-user');
+    const cleared = await readWorkoutDraftDb(page, 'test-user');
+    expect(cleared).toBeNull();
   });
 });

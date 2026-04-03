@@ -12,7 +12,7 @@
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
 | **Status** | AKTYWNY (v6.7.0) |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-04-02 |
+| **Data aktualizacji** | 2026-04-03 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), + whitelist |
 
 ---
@@ -81,7 +81,8 @@
 | src/lib/race-predictor.ts | Predykcje wyścigowe (Riegel formula) |
 | src/lib/training-load.ts | TRIMP, CTL/ATL/TSB (Fitness/Fatigue/Form) |
 | src/lib/share-utils.ts | Generowanie obrazu treningu (html2canvas-pro) |
-| src/lib/workout-draft.ts | **Batch save: localStorage draft (save/load/clear)** |
+| src/lib/workout-draft-db.ts | **Active workout draft: IndexedDB source of truth + localStorage migration/fallback** |
+| src/lib/workout-draft.ts | Legacy draft migration + awaryjny fallback localStorage |
 | src/lib/utils.ts | cn(), **formatLocalDate()** — shared utilities |
 | src/lib/chart-config.ts | Konfiguracja wykresów (tooltip style, kolory) |
 | src/lib/strava-utils.ts | Formatowanie Strava (pace, distance, seasons, HR zones) |

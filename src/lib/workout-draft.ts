@@ -1,6 +1,6 @@
 import type { SetData } from '@/types';
 
-const DRAFT_KEY = 'fittracker_workout_draft';
+export const LOCAL_STORAGE_WORKOUT_DRAFT_KEY = 'fittracker_workout_draft';
 
 export interface WorkoutDraft {
   sessionId: string;
@@ -16,7 +16,7 @@ export interface WorkoutDraft {
 export const workoutDraft = {
   save(draft: WorkoutDraft): void {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      localStorage.setItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY, JSON.stringify(draft));
     } catch {
       // localStorage full or unavailable — silently fail
     }
@@ -24,21 +24,21 @@ export const workoutDraft = {
 
   load(): WorkoutDraft | null {
     try {
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (!parsed?.sessionId || !parsed?.exerciseSets) return null;
       return parsed as WorkoutDraft;
     } catch {
       // corrupt data — clear and return null
-      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY);
       return null;
     }
   },
 
   clear(): void {
     try {
-      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY);
     } catch {
       // silently fail
     }
@@ -46,7 +46,7 @@ export const workoutDraft = {
 
   exists(): boolean {
     try {
-      return localStorage.getItem(DRAFT_KEY) !== null;
+      return localStorage.getItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY) !== null;
     } catch {
       return false;
     }

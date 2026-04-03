@@ -805,41 +805,35 @@ Polling co 2 sekundy sprawdza rozmiar `offlineQueue`.
 
 ### Batch Save (aktywny trening) — v6.7.0
 
-Od v6.7.0 dane treningu NIE są zapisywane do Firebase w trakcie ćwiczeń. Zamiast tego:
+Od 2026-04-03 aktywny trening działa w modelu local-first:
 
 ```
 1. User zmienia reps/weight/completed w ExerciseCard
    │
 2. handleSetsChange():
    ├── Natychmiastowy update lokalnego state (React)
-   └── Zapis do localStorage (workout draft) — synchroniczny, szybki
-       Klucz: "fittracker_workout_draft"
+   └── Zapis całego draftu do IndexedDB (`workoutDraftDb`) z debounce 300ms
    │
-3. User klika "Zakończ trening":
-   └── batchSaveWorkout(sessionId, exercises, { notes, skippedExercises, completed: true })
-       │
-       └── Firebase writeBatch() — atomiczny zapis WSZYSTKIEGO naraz
+3. Firebase dostaje snapshot TYLKO na checkpointach:
+   ├── `visibilitychange` / `pagehide`
+   ├── timer co 5 minut
+   └── event `online` gdy draft jest dirty
    │
-4. Po sukcesie: workoutDraft.clear() — czyści localStorage
+4. User klika "Zakończ trening":
+   ├── sukces → `batchSaveWorkout(..., { completed: true })` + czyszczenie draftu
+   └── offline / błąd sieci → trening oznaczony lokalnie jako ukończony i czeka na sync
 ```
 
 **Bezpieczeństwo danych:**
-- `localStorage` backup na każdej zmianie (siatka bezpieczeństwa)
-- Odzyskiwanie draftu po reload/crash (`useEffect` w WorkoutDay)
-- `beforeunload` warning gdy zamykasz z niezapisanymi danymi
-- Toast "Odzyskano niezapisany trening" gdy draft wczytany
+- `IndexedDB` jako source of truth aktywnego treningu
+- Migracja starego draftu z `localStorage`
+- Recovery po reload/crash z lokalnego draftu
+- `beforeunload` warning gdy draft ma niesynchronizowane zmiany
+- Offline finish: `completedLocally + finalSyncPending`
 
-**Moduł:** `src/lib/workout-draft.ts`
-```typescript
-interface WorkoutDraft {
-  sessionId: string; dayId: string; date: string;
-  exerciseSets: Record<string, SetData[]>;
-  exerciseNotes: Record<string, string>;
-  dayNotes: string; skippedExercises: string[];
-  savedAt: number; // timestamp
-}
-workoutDraft.save(draft) / .load() / .clear() / .exists()
-```
+**Moduły:**
+- `src/lib/workout-draft-db.ts` — IndexedDB wrapper, migration, sync flags
+- `src/lib/workout-draft.ts` — legacy localStorage migration/fallback
 
 **Hook:** `useFirebaseWorkouts.batchSaveWorkout()` — Firestore `writeBatch` dla atomiczności
 
@@ -1811,6 +1805,15 @@ npx playwright test --reporter=list  # verbose output
 ---
 
 ## Changelog
+
+### 2026-04-03 — Workout draft hardening + offline finish
+
+- Aktywny draft treningu przeniesiony z `localStorage` do `IndexedDB`
+- `WorkoutDay` działa w modelu local-first, Firebase tylko na checkpointach i finish
+- Dodany recovery flow z migracją starego draftu
+- Dodany stan `final-sync-pending` dla zakończonego treningu bez internetu
+- UI pokazuje rozróżnienie: lokalnie zapisane / czeka na synchronizację / zsynchronizowano
+- Testy unit i E2E zaktualizowane pod `IndexedDB`
 
 ### v6.7.0 (2026-04-02) — Bodyweight, Batch Save, Dashboard Start, Analytics Split
 

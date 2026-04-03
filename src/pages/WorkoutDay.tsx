@@ -13,13 +13,23 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAISwap } from '@/hooks/useAISwap';
 import type { SetData } from '@/types';
-import type { WorkoutDraft } from '@/lib/workout-draft';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
 import { getRestDuration, lookupExerciseType, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
-import { workoutDraft } from '@/lib/workout-draft';
+import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+
+const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
+
+type AutoSaveStatus =
+  | 'idle'
+  | 'local-saved'
+  | 'sync-pending'
+  | 'syncing'
+  | 'synced'
+  | 'final-sync-pending'
+  | 'error';
 
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
@@ -30,8 +40,6 @@ const WorkoutDay = () => {
   const {
     workouts,
     createWorkoutSession,
-    updateExerciseProgress,
-    updateWorkoutNotes,
     batchSaveWorkout,
     isLoaded
   } = useFirebaseWorkouts(uid);
@@ -50,8 +58,10 @@ const WorkoutDay = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isExplicitSaving, setIsExplicitSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
   const [skippedExercises, setSkippedExercises] = useState<string[]>([]);
+  const [activeDraft, setActiveDraft] = useState<ActiveWorkoutDraft | null>(null);
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showRestTimer, setShowRestTimer] = useState(false);
   const [restTimerDuration, setRestTimerDuration] = useState(30);
@@ -65,25 +75,31 @@ const WorkoutDay = () => {
   const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
   const [swapReason, setSwapReason] = useState('');
 
-  const lastLoadedWorkoutId = useRef<string | null>(null);
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const draftSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const firstExerciseRef = useRef<HTMLDivElement>(null);
   const autostartDone = useRef(false);
-  const draftRecoveryDone = useRef(false);
+  const draftRecoveryDone = useRef<string | null>(null);
+  const isSyncingRef = useRef(false);
+  const completedSessionLockRef = useRef<string | null>(null);
 
   // Refs that mirror state for stable callback identity
   const exerciseSetsRef = useRef(exerciseSets);
   const exerciseNotesRef = useRef(exerciseNotes);
   const dayNotesRef = useRef(dayNotes);
   const skippedExercisesRef = useRef(skippedExercises);
+  const activeDraftRef = useRef(activeDraft);
 
   useEffect(() => { exerciseSetsRef.current = exerciseSets; }, [exerciseSets]);
   useEffect(() => { exerciseNotesRef.current = exerciseNotes; }, [exerciseNotes]);
   useEffect(() => { dayNotesRef.current = dayNotes; }, [dayNotes]);
   useEffect(() => { skippedExercisesRef.current = skippedExercises; }, [skippedExercises]);
+  useEffect(() => { activeDraftRef.current = activeDraft; }, [activeDraft]);
 
   const day = trainingPlan.find(d => d.id === dayId);
+  const currentPageDraft = activeDraft && activeDraft.dayId === dayId && activeDraft.date === targetDate
+    ? activeDraft
+    : null;
 
   // Find previous workout for this day (for weight hints)
   const previousWorkout = workouts.find(w =>
@@ -93,16 +109,263 @@ const WorkoutDay = () => {
     w.exercises.length > 0
   );
 
-  // Load data from Firebase
+  const queueAutoSaveStatus = useCallback((status: AutoSaveStatus, nextStatus?: AutoSaveStatus, delay = 1600) => {
+    setAutoSaveStatus(status);
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    if (nextStatus) {
+      autoSaveTimer.current = setTimeout(() => {
+        setAutoSaveStatus(current => current === status ? nextStatus : current);
+      }, delay);
+    }
+  }, []);
+
+  const buildDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}): ActiveWorkoutDraft | null => {
+    if (!uid || !sessionId || !dayId) return null;
+
+    const now = Date.now();
+    const previousDraft = activeDraftRef.current?.sessionId === sessionId
+      ? activeDraftRef.current
+      : null;
+
+    return {
+      sessionId,
+      userId: uid,
+      dayId,
+      date: targetDate,
+      exerciseSets: overrides.exerciseSets ?? exerciseSetsRef.current,
+      exerciseNotes: overrides.exerciseNotes ?? exerciseNotesRef.current,
+      dayNotes: overrides.dayNotes ?? dayNotesRef.current,
+      skippedExercises: overrides.skippedExercises ?? skippedExercisesRef.current,
+      startedAt: overrides.startedAt ?? previousDraft?.startedAt ?? now,
+      updatedAt: overrides.updatedAt ?? now,
+      lastFirebaseSyncAt: overrides.lastFirebaseSyncAt ?? previousDraft?.lastFirebaseSyncAt ?? null,
+      dirty: overrides.dirty ?? true,
+      completedLocally: overrides.completedLocally ?? previousDraft?.completedLocally ?? false,
+      finalSyncPending: overrides.finalSyncPending ?? previousDraft?.finalSyncPending ?? false,
+      version: overrides.version ?? ((previousDraft?.version ?? 0) + 1),
+    };
+  }, [uid, sessionId, dayId, targetDate]);
+
+  const persistDraftSnapshot = useCallback(async (
+    overrides: Partial<ActiveWorkoutDraft> = {},
+    options: { showStatus?: boolean } = {}
+  ): Promise<ActiveWorkoutDraft | null> => {
+    const draft = buildDraftSnapshot(overrides);
+    if (!draft) return null;
+
+    setActiveDraft(draft);
+
+    try {
+      await workoutDraftDb.saveActiveDraft(draft);
+      setSaveError(null);
+      if (options.showStatus) {
+        if (draft.finalSyncPending) {
+          setAutoSaveStatus('final-sync-pending');
+        } else {
+          queueAutoSaveStatus('local-saved', 'sync-pending');
+        }
+      }
+    } catch {
+      setSaveError('Nie udało się zapisać szkicu lokalnie.');
+      setAutoSaveStatus('error');
+    }
+
+    return draft;
+  }, [buildDraftSnapshot, queueAutoSaveStatus]);
+
+  const saveDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}) => {
+    if (!sessionId || !dayId || !uid) return;
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    draftSaveTimer.current = setTimeout(() => {
+      void persistDraftSnapshot(overrides, { showStatus: true });
+    }, 300);
+  }, [sessionId, dayId, uid, persistDraftSnapshot]);
+
+  // Build exercises payload for batchSaveWorkout (reads from refs)
+  const buildExercisesPayload = useCallback(() => (
+    Object.entries(exerciseSetsRef.current).map(([exerciseId, sets]) => ({
+      exerciseId,
+      sets,
+      ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
+    }))
+  ), []);
+
+  const syncDraftToFirebase = useCallback(async (mode: 'checkpoint' | 'final'): Promise<{ success: boolean; skipped?: boolean; error?: string }> => {
+    if (!uid || !sessionId || isSyncingRef.current) {
+      return { success: false, skipped: true };
+    }
+
+    const currentDraft = activeDraftRef.current?.sessionId === sessionId
+      ? activeDraftRef.current
+      : null;
+    const hasCurrentContent = hasDraftContent(
+      exerciseSetsRef.current,
+      exerciseNotesRef.current,
+      dayNotesRef.current,
+      skippedExercisesRef.current
+    );
+    const requiresFinalSync = mode === 'final' || !!currentDraft?.finalSyncPending;
+
+    if (!requiresFinalSync) {
+      if (!currentDraft?.dirty || !hasCurrentContent) {
+        return { success: true, skipped: true };
+      }
+      await persistDraftSnapshot({}, { showStatus: false });
+    }
+
+    isSyncingRef.current = true;
+    setAutoSaveStatus('syncing');
+
+    const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
+      notes: dayNotesRef.current || undefined,
+      skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
+      ...(requiresFinalSync && { completed: true }),
+    });
+
+    isSyncingRef.current = false;
+
+    if (!result.success) {
+      const errorMessage = result.error || 'Błąd synchronizacji';
+      setSaveError(errorMessage);
+      setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
+      return { success: false, error: errorMessage };
+    }
+
+    const syncedAt = Date.now();
+    setSaveError(null);
+
+    if (requiresFinalSync) {
+      await workoutDraftDb.clearActiveDraft(uid);
+      setActiveDraft(null);
+      setIsCompleted(true);
+      completedSessionLockRef.current = sessionId;
+      queueAutoSaveStatus('synced', 'idle', 2200);
+      return { success: true };
+    }
+
+    await workoutDraftDb.markDraftSynced(uid, syncedAt);
+    setActiveDraft(prev => prev && prev.userId === uid
+      ? {
+        ...prev,
+        dirty: false,
+        lastFirebaseSyncAt: syncedAt,
+      }
+      : prev
+    );
+    queueAutoSaveStatus('synced', 'idle', 2200);
+    return { success: true };
+  }, [uid, sessionId, batchSaveWorkout, buildExercisesPayload, persistDraftSnapshot, queueAutoSaveStatus]);
+
+  const applyWorkoutState = useCallback((next: {
+    sessionId: string | null;
+    completed: boolean;
+    exerciseSets: Record<string, SetData[]>;
+    exerciseNotes: Record<string, string>;
+    dayNotes: string;
+    skippedExercises: string[];
+  }) => {
+    setSessionId(next.sessionId);
+    setIsCompleted(next.completed);
+    setExerciseSets(next.exerciseSets);
+    setExerciseNotes(next.exerciseNotes);
+    setDayNotes(next.dayNotes);
+    setSkippedExercises(next.skippedExercises);
+  }, []);
+
   useEffect(() => {
-    if (!isLoaded || !dayId) return;
+    let cancelled = false;
+
+    if (!uid) {
+      setActiveDraft(null);
+      setIsDraftLoaded(true);
+      return;
+    }
+
+    setIsDraftLoaded(false);
+
+    const loadDraft = async () => {
+      const draft = await workoutDraftDb.loadActiveDraft(uid);
+      const resolvedDraft = draft ?? await workoutDraftDb.migrateFromLocalStorage(uid);
+      if (!cancelled) {
+        setActiveDraft(resolvedDraft);
+        setIsDraftLoaded(true);
+      }
+    };
+
+    void loadDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uid]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    if (!navigator.storage?.persist) return;
+    void navigator.storage.persist().catch(() => {});
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!isLoaded || !isDraftLoaded || !dayId) return;
 
     const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === targetDate);
+    const draftHasData = currentPageDraft
+      ? hasDraftContent(
+        currentPageDraft.exerciseSets,
+        currentPageDraft.exerciseNotes,
+        currentPageDraft.dayNotes,
+        currentPageDraft.skippedExercises
+      )
+      : false;
 
-    if (workoutForDate && workoutForDate.id !== lastLoadedWorkoutId.current) {
-      lastLoadedWorkoutId.current = workoutForDate.id;
-      setSessionId(workoutForDate.id);
-      setIsCompleted(workoutForDate.completed);
+    if (workoutForDate?.completed && currentPageDraft && !currentPageDraft.finalSyncPending) {
+      void workoutDraftDb.clearActiveDraft(uid);
+      setActiveDraft(null);
+    }
+
+    const shouldUseDraft = (() => {
+      if (!currentPageDraft) return false;
+      if (workoutForDate && currentPageDraft.sessionId !== workoutForDate.id) return false;
+      if (!workoutForDate) return draftHasData || currentPageDraft.finalSyncPending || Object.keys(currentPageDraft.exerciseSets).length > 0;
+      if (workoutForDate.completed && !currentPageDraft.finalSyncPending) return false;
+      if (currentPageDraft.finalSyncPending) return true;
+      if (currentPageDraft.dirty) return true;
+      if (workoutForDate.exercises.length === 0 && draftHasData) return true;
+      if (currentPageDraft.lastFirebaseSyncAt == null) return draftHasData;
+      return currentPageDraft.updatedAt > currentPageDraft.lastFirebaseSyncAt;
+    })();
+
+    if (shouldUseDraft && currentPageDraft) {
+      applyWorkoutState({
+        sessionId: currentPageDraft.sessionId,
+        completed: currentPageDraft.completedLocally || !!workoutForDate?.completed,
+        exerciseSets: currentPageDraft.exerciseSets,
+        exerciseNotes: currentPageDraft.exerciseNotes,
+        dayNotes: currentPageDraft.dayNotes,
+        skippedExercises: currentPageDraft.skippedExercises,
+      });
+
+      if (draftRecoveryDone.current !== currentPageDraft.sessionId && (draftHasData || currentPageDraft.finalSyncPending)) {
+        draftRecoveryDone.current = currentPageDraft.sessionId;
+        toast({
+          title: currentPageDraft.finalSyncPending ? 'Trening czeka na synchronizację' : 'Odzyskano niezapisany trening',
+          description: currentPageDraft.finalSyncPending
+            ? 'Dane zostały zapisane lokalnie. Synchronizacja wróci po połączeniu.'
+            : 'Wczytano dane z pamięci urządzenia.',
+        });
+      }
+
+      setAutoSaveStatus(currentPageDraft.finalSyncPending ? 'final-sync-pending' : (currentPageDraft.dirty ? 'sync-pending' : 'idle'));
+      return;
+    }
+
+    if (workoutForDate) {
+      if (workoutForDate.completed && completedSessionLockRef.current === workoutForDate.id) {
+        completedSessionLockRef.current = null;
+      }
+      if (completedSessionLockRef.current === workoutForDate.id && !workoutForDate.completed) {
+        return;
+      }
 
       const sets: Record<string, SetData[]> = {};
       const notes: Record<string, string> = {};
@@ -117,20 +380,27 @@ const WorkoutDay = () => {
           notes[ex.exerciseId] = ex.notes;
         }
       });
-      setExerciseSets(sets);
-      setExerciseNotes(notes);
-      setDayNotes(workoutForDate.notes || '');
-      setSkippedExercises(workoutForDate.skippedExercises || []);
-    } else if (!workoutForDate && lastLoadedWorkoutId.current !== 'none') {
-      lastLoadedWorkoutId.current = 'none';
-      setSessionId(null);
-      setIsCompleted(false);
-      setExerciseSets({});
-      setExerciseNotes({});
-      setDayNotes('');
-      setSkippedExercises([]);
+
+      applyWorkoutState({
+        sessionId: workoutForDate.id,
+        completed: workoutForDate.completed,
+        exerciseSets: sets,
+        exerciseNotes: notes,
+        dayNotes: workoutForDate.notes || '',
+        skippedExercises: workoutForDate.skippedExercises || [],
+      });
+      return;
     }
-  }, [isLoaded, dayId, workouts, targetDate]);
+
+    applyWorkoutState({
+      sessionId: null,
+      completed: false,
+      exerciseSets: {},
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+    });
+  }, [isLoaded, isDraftLoaded, dayId, workouts, targetDate, currentPageDraft, applyWorkoutState, toast, uid]);
 
   // Autostart workout when navigating with ?autostart=true
   useEffect(() => {
@@ -156,7 +426,7 @@ const WorkoutDay = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autostart, isLoaded, day, isViewingPastWorkout, isCompleted, sessionId]);
 
-  // Cleanup on unmount — flush draft to Firebase before leaving
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -165,96 +435,68 @@ const WorkoutDay = () => {
     };
   }, []);
 
-  // Draft recovery from localStorage — runs on every Firebase data load
-  useEffect(() => {
-    if (!isLoaded || !dayId) return;
-
-    const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === targetDate);
-    if (!workoutForDate || workoutForDate.completed) return;
-
-    // Only recover if Firebase has NO exercise data but draft does
-    const firebaseHasData = workoutForDate.exercises.length > 0;
-    if (firebaseHasData) return;
-
-    const draft = workoutDraft.load();
-    if (!draft || draft.dayId !== dayId || draft.date !== targetDate) return;
-    if (draft.sessionId !== workoutForDate.id) return;
-
-    const draftHasData = Object.keys(draft.exerciseSets).length > 0 &&
-      Object.values(draft.exerciseSets).some(sets => sets.some(s => s.reps > 0 || s.weight > 0));
-
-    if (draftHasData) {
-      setExerciseSets(draft.exerciseSets);
-      setExerciseNotes(draft.exerciseNotes);
-      setDayNotes(draft.dayNotes);
-      setSkippedExercises(draft.skippedExercises);
-      toast({
-        title: "Odzyskano niezapisany trening",
-        description: "Wczytano dane z pamięci urządzenia.",
-      });
-    }
-  }, [isLoaded, dayId, workouts, targetDate, toast]);
-
-  // Periodic Firebase save every 60s — safety net against data loss
+  // Periodic Firebase checkpoint — best effort sync, not source of truth
   const periodicSaveTimer = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
-    if (!sessionId || isCompleted) {
+    if (!sessionId || (!currentPageDraft?.dirty && !currentPageDraft?.finalSyncPending)) {
       if (periodicSaveTimer.current) clearInterval(periodicSaveTimer.current);
       return;
     }
 
     periodicSaveTimer.current = setInterval(() => {
-      const currentSets = exerciseSetsRef.current;
-      const hasData = Object.keys(currentSets).length > 0 &&
-        Object.values(currentSets).some(sets => sets.some(s => s.reps > 0 || s.weight > 0));
-      if (!hasData) return;
-
-      const exercises = Object.entries(currentSets).map(([exerciseId, sets]) => ({
-        exerciseId,
-        sets,
-        ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
-      }));
-
-      batchSaveWorkout(sessionId, exercises, {
-        notes: dayNotesRef.current || undefined,
-        skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
-      });
-    }, 60000);
+      void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
+    }, CHECKPOINT_INTERVAL_MS);
 
     return () => {
       if (periodicSaveTimer.current) clearInterval(periodicSaveTimer.current);
     };
-  }, [sessionId, isCompleted, batchSaveWorkout]);
+  }, [sessionId, currentPageDraft?.dirty, currentPageDraft?.finalSyncPending, syncDraftToFirebase]);
 
-  // Save to Firebase when app goes to background (phone switch, tab switch)
+  // Flush local draft and try best-effort sync when app goes to background
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && sessionId && !isCompleted) {
-        const currentSets = exerciseSetsRef.current;
-        const hasData = Object.keys(currentSets).length > 0 &&
-          Object.values(currentSets).some(sets => sets.some(s => s.reps > 0 || s.weight > 0));
-        if (!hasData) return;
-
-        const exercises = Object.entries(currentSets).map(([exerciseId, sets]) => ({
-          exerciseId,
-          sets,
-          ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
-        }));
-
-        batchSaveWorkout(sessionId, exercises, {
-          notes: dayNotesRef.current || undefined,
-          skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
-        });
+      if (document.visibilityState === 'hidden' && sessionId) {
+        if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+        void persistDraftSnapshot({}, { showStatus: false });
+        void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
       }
     };
+    const handlePageHide = () => {
+      if (!sessionId) return;
+      if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+      void persistDraftSnapshot({}, { showStatus: false });
+      void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [sessionId, isCompleted, batchSaveWorkout]);
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [sessionId, currentPageDraft?.finalSyncPending, persistDraftSnapshot, syncDraftToFirebase]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      const draft = activeDraftRef.current;
+      if (!sessionId || !draft) return;
+      if (draft.finalSyncPending) {
+        void syncDraftToFirebase('final');
+        return;
+      }
+      if (draft.dirty) {
+        void syncDraftToFirebase('checkpoint');
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [sessionId, syncDraftToFirebase]);
 
   // Warn before closing with unsaved data
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (sessionId && !isCompleted && Object.keys(exerciseSetsRef.current).length > 0) {
+      if (sessionId && (activeDraftRef.current?.dirty || activeDraftRef.current?.finalSyncPending)) {
         e.preventDefault();
       }
     };
@@ -300,7 +542,7 @@ const WorkoutDay = () => {
       }
 
       setSessionId(result.session.id);
-      lastLoadedWorkoutId.current = result.session.id;
+      setIsCompleted(false);
 
       if (result.existing) {
         toast({
@@ -318,18 +560,32 @@ const WorkoutDay = () => {
           );
         });
         setExerciseSets(prefilled);
+        setExerciseNotes({});
+        setDayNotes('');
+        setSkippedExercises([]);
 
-        // Save draft to localStorage immediately (sessionId not yet in state)
-        workoutDraft.save({
+        const now = Date.now();
+        const initialDraft: ActiveWorkoutDraft = {
           sessionId: result.session.id,
+          userId: uid,
           dayId: day.id,
           date: targetDate,
           exerciseSets: prefilled,
           exerciseNotes: {},
           dayNotes: '',
           skippedExercises: [],
-          savedAt: Date.now(),
-        });
+          startedAt: now,
+          updatedAt: now,
+          lastFirebaseSyncAt: null,
+          dirty: true,
+          completedLocally: false,
+          finalSyncPending: false,
+          version: 1,
+        };
+
+        setActiveDraft(initialDraft);
+        await workoutDraftDb.saveActiveDraft(initialDraft);
+        queueAutoSaveStatus('local-saved', 'sync-pending');
 
         toast({
           title: "Trening rozpoczęty!",
@@ -349,32 +605,6 @@ const WorkoutDay = () => {
     }
   };
 
-  // Debounced draft snapshot — reads from refs, not state
-  const saveDraftSnapshot = (overrides?: Partial<WorkoutDraft>) => {
-    if (!sessionId || !dayId) return;
-    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
-    draftSaveTimer.current = setTimeout(() => {
-      workoutDraft.save({
-        sessionId,
-        dayId,
-        date: targetDate,
-        exerciseSets: exerciseSetsRef.current,
-        exerciseNotes: exerciseNotesRef.current,
-        dayNotes: dayNotesRef.current,
-        skippedExercises: skippedExercisesRef.current,
-        savedAt: Date.now(),
-        ...overrides,
-      });
-    }, 300);
-  };
-
-  // Build exercises payload for batchSaveWorkout (reads from refs)
-  const buildExercisesPayload = () => Object.entries(exerciseSetsRef.current).map(([exerciseId, sets]) => ({
-    exerciseId,
-    sets,
-    ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
-  }));
-
   // Handler for EDIT MODE - only local state, no Firebase saves
   const handleSetsChangeLocal = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = sets.map(s => ({
@@ -389,7 +619,7 @@ const WorkoutDay = () => {
     }
   }, []);
 
-  // Handler for ACTIVE WORKOUT - saves to localStorage only (batch save on completion)
+  // Handler for ACTIVE WORKOUT - saves locally to IndexedDB, Firebase only on checkpoints/finish
   const handleSetsChange = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = sets.map(s => ({
       reps: s.reps ?? 0,
@@ -397,28 +627,32 @@ const WorkoutDay = () => {
       completed: s.completed ?? false,
       ...(s.isWarmup && { isWarmup: true }),
     }));
+    const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
+    const nextExerciseNotes = notes !== undefined
+      ? { ...exerciseNotesRef.current, [exerciseId]: notes }
+      : exerciseNotesRef.current;
 
-    setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
+    setExerciseSets(nextExerciseSets);
     if (notes !== undefined) {
-      setExerciseNotes(prev => ({ ...prev, [exerciseId]: notes }));
+      setExerciseNotes(nextExerciseNotes);
     }
 
-    // Debounced draft save (reads from refs after state settles)
-    saveDraftSnapshot(notes !== undefined ? { exerciseNotes: { ...exerciseNotesRef.current, [exerciseId]: notes } } : undefined);
+    saveDraftSnapshot({
+      exerciseSets: nextExerciseSets,
+      exerciseNotes: nextExerciseNotes,
+    });
 
     setSaveError(null);
-    setAutoSaveStatus('saved');
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => setAutoSaveStatus('idle'), 2000);
-  }, [sessionId, dayId, targetDate]);
+  }, [saveDraftSnapshot]);
 
   const handleDayNotesChange = useCallback((value: string) => {
     setDayNotes(value);
     saveDraftSnapshot({ dayNotes: value });
-  }, [sessionId, dayId, targetDate]);
+  }, [saveDraftSnapshot]);
 
   const handleSkipExercise = useCallback((exerciseId: string) => {
     setSkippedExercises(prev => {
+      if (prev.includes(exerciseId)) return prev;
       const newSkipped = [...prev, exerciseId];
       saveDraftSnapshot({ skippedExercises: newSkipped });
       return newSkipped;
@@ -428,38 +662,70 @@ const WorkoutDay = () => {
       title: "Ćwiczenie pominięte",
       description: "Ćwiczenie zostało pominięte na dzisiaj.",
     });
-  }, [sessionId, dayId, targetDate, toast]);
+  }, [saveDraftSnapshot, toast]);
+
+  const handleRetrySync = async () => {
+    if (!currentPageDraft?.finalSyncPending) return;
+
+    setIsExplicitSaving(true);
+    const result = await syncDraftToFirebase('final');
+    setIsExplicitSaving(false);
+
+    if (!result.success) {
+      toast({
+        title: "Brak synchronizacji",
+        description: "Trening nadal jest bezpieczny lokalnie. Spróbujemy ponownie po odzyskaniu połączenia.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Synchronizacja zakończona",
+      description: "Trening został zapisany w chmurze.",
+    });
+  };
 
   const handleCompleteWorkout = async () => {
-    if (!sessionId) return;
+    if (!sessionId || !uid) return;
 
     setIsExplicitSaving(true);
     setSaveError(null);
 
-    // Batch save all data + mark as completed in one atomic write
-    const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
-      notes: dayNotes,
-      skippedExercises: skippedExercises.length > 0 ? skippedExercises : undefined,
-      completed: true,
-    });
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    await persistDraftSnapshot({}, { showStatus: false });
+
+    const result = await syncDraftToFirebase('final');
 
     if (!result.success) {
-      setSaveError(result.error || 'Błąd zapisu');
+      const now = Date.now();
+      const pendingDraft = await persistDraftSnapshot({
+        completedLocally: true,
+        finalSyncPending: true,
+        dirty: true,
+        updatedAt: now,
+      }, { showStatus: false });
+
+      if (pendingDraft) {
+        setIsCompleted(true);
+        setShowCompleteConfirm(false);
+        setAutoSaveStatus('final-sync-pending');
+        completedSessionLockRef.current = sessionId;
+      }
+
+      setSaveError(result.error || 'Trening czeka na synchronizację');
       toast({
-        title: "Błąd zapisu!",
-        description: "Trening NIE został zapisany. Dane są bezpieczne w pamięci urządzenia. Spróbuj ponownie.",
-        variant: "destructive",
+        title: "Trening zapisano lokalnie",
+        description: "Nie ma połączenia z internetem. Synchronizacja ruszy automatycznie po odzyskaniu sieci.",
       });
       setIsExplicitSaving(false);
       return;
     }
 
-    // Success — clear localStorage draft
-    workoutDraft.clear();
     setIsCompleted(true);
+    completedSessionLockRef.current = sessionId;
     setIsExplicitSaving(false);
     setShowCompleteConfirm(false);
-    setAutoSaveStatus('idle');
 
     // Detect new PRs
     const currentWorkoutData = workouts.find(w => w.id === sessionId);
@@ -482,13 +748,13 @@ const WorkoutDay = () => {
       } else {
         toast({
           title: "Trening zapisany!",
-          description: "Świetna robota!",
+          description: "Zapisano lokalnie i zsynchronizowano z chmurą.",
         });
       }
     } else {
       toast({
         title: "Trening zapisany!",
-        description: "Świetna robota!",
+        description: "Zapisano lokalnie i zsynchronizowano z chmurą.",
       });
     }
   };
@@ -537,6 +803,7 @@ const WorkoutDay = () => {
   };
 
   const isWorkoutStarted = sessionId !== null;
+  const isFinalSyncPending = !!currentPageDraft?.finalSyncPending;
 
   // Calculate stats from exerciseSets
   const exerciseCount = Object.keys(exerciseSets).length;
@@ -566,10 +833,18 @@ const WorkoutDay = () => {
     return (
       <div className={cn(
         "fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300",
-        autoSaveStatus === 'saved' && "bg-muted text-muted-foreground opacity-70",
+        autoSaveStatus === 'local-saved' && "bg-muted text-muted-foreground opacity-70",
+        autoSaveStatus === 'sync-pending' && "bg-amber-100 text-amber-700",
+        autoSaveStatus === 'syncing' && "bg-primary/10 text-primary",
+        autoSaveStatus === 'synced' && "bg-emerald-100 text-emerald-700",
+        autoSaveStatus === 'final-sync-pending' && "bg-amber-100 text-amber-800",
         autoSaveStatus === 'error' && "bg-destructive/20 text-destructive",
       )}>
-        {autoSaveStatus === 'saved' && <><Cloud className="h-3 w-3" /> Szkic lokalny</>}
+        {autoSaveStatus === 'local-saved' && <><Cloud className="h-3 w-3" /> Zapisano lokalnie</>}
+        {autoSaveStatus === 'sync-pending' && <><CloudOff className="h-3 w-3" /> Czeka na synchronizację</>}
+        {autoSaveStatus === 'syncing' && <><Loader2 className="h-3 w-3 animate-spin" /> Synchronizacja...</>}
+        {autoSaveStatus === 'synced' && <><Cloud className="h-3 w-3" /> Zsynchronizowano</>}
+        {autoSaveStatus === 'final-sync-pending' && <><CloudOff className="h-3 w-3" /> Trening zakończony lokalnie</>}
         {autoSaveStatus === 'error' && <><CloudOff className="h-3 w-3" /> Błąd zapisu</>}
       </div>
     );
@@ -587,23 +862,53 @@ const WorkoutDay = () => {
             <h1 className="text-2xl font-bold">{day.dayName}</h1>
             <p className="text-muted-foreground">{day.focus}</p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
-            <Pencil className="h-4 w-4 mr-2" />
-            Edytuj
-          </Button>
+          {!isFinalSyncPending && (
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edytuj
+            </Button>
+          )}
         </div>
 
         <ErrorBanner />
 
-        <Card className="border-fitness-success bg-fitness-success/10">
+        {isFinalSyncPending && (
+          <Card className="border-amber-300 bg-amber-50">
+            <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium text-amber-900">Trening zakończony lokalnie</p>
+                <p className="text-sm text-amber-800">Dane są bezpieczne na urządzeniu i czekają na zapis w Firebase.</p>
+              </div>
+              <Button
+                variant="outline"
+                className="border-amber-400 text-amber-900 hover:bg-amber-100"
+                onClick={handleRetrySync}
+                disabled={isExplicitSaving}
+              >
+                {isExplicitSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Cloud className="h-4 w-4 mr-2" />}
+                Synchronizuj teraz
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className={cn(
+          "border-fitness-success bg-fitness-success/10",
+          isFinalSyncPending && "border-amber-300 bg-amber-50"
+        )}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-fitness-success">
+            <CardTitle className={cn(
+              "flex items-center gap-2 text-fitness-success",
+              isFinalSyncPending && "text-amber-900"
+            )}>
               <Check className="h-6 w-6" />
-              Trening ukończony!
+              {isFinalSyncPending ? 'Trening ukończony lokalnie' : 'Trening ukończony!'}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground mb-4">Świetna robota!</p>
+            <p className="text-muted-foreground mb-4">
+              {isFinalSyncPending ? 'Czekamy tylko na synchronizację z chmurą.' : 'Świetna robota!'}
+            </p>
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center p-3 bg-background rounded-lg">
                 <p className="text-2xl font-bold">{exerciseCount}</p>

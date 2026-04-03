@@ -1,90 +1,92 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase } from './helpers';
+import { blockFirebase, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb } from './helpers';
 
-const DRAFT_KEY = 'fittracker_workout_draft';
+const USER_ID = 'test-user';
 
 test.describe('Batch Save Workflow', () => {
   test.beforeEach(async ({ page }) => {
     await blockFirebase(page);
   });
 
-  test('localStorage draft save/load roundtrip works', async ({ page }) => {
+  test('IndexedDB draft save/load roundtrip works', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    const result = await page.evaluate(() => {
-      const KEY = 'fittracker_workout_draft';
-
-      const draft = {
-        sessionId: 'roundtrip-test',
-        dayId: 'day-1',
-        date: '2024-04-02',
-        exerciseSets: { 'ex-1': [{ reps: 10, weight: 50, completed: true }] },
-        exerciseNotes: {},
-        dayNotes: 'test',
-        skippedExercises: [],
-        savedAt: Date.now(),
-      };
-      localStorage.setItem(KEY, JSON.stringify(draft));
-
-      const loaded = JSON.parse(localStorage.getItem(KEY)!);
-      const loadedOk = loaded.sessionId === 'roundtrip-test' && loaded.exerciseSets['ex-1'][0].reps === 10;
-
-      localStorage.removeItem(KEY);
-      const clearedOk = localStorage.getItem(KEY) === null;
-
-      return { loadedOk, clearedOk };
+    await writeWorkoutDraftDb(page, {
+      sessionId: 'roundtrip-test',
+      userId: USER_ID,
+      dayId: 'day-1',
+      date: '2024-04-02',
+      exerciseSets: { 'ex-1': [{ reps: 10, weight: 50, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: 'test',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
     });
 
-    expect(result.loadedOk).toBe(true);
-    expect(result.clearedOk).toBe(true);
+    const loaded = await readWorkoutDraftDb(page, USER_ID);
+    expect(loaded).not.toBeNull();
+    expect((loaded as { sessionId: string }).sessionId).toBe('roundtrip-test');
+
+    await clearWorkoutDraftDb(page, USER_ID);
+    const cleared = await readWorkoutDraftDb(page, USER_ID);
+    expect(cleared).toBeNull();
   });
 
   test('draft persists after page reload', async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    // Set a draft in localStorage
-    await page.evaluate(() => {
-      const KEY = 'fittracker_workout_draft';
-      const draft = {
-        sessionId: 'reload-test-123',
-        dayId: 'day-1',
-        date: new Date().toISOString().split('T')[0],
-        exerciseSets: {
-          'ex-1': [
-            { reps: 5, weight: 20, completed: false, isWarmup: true },
-            { reps: 12, weight: 50, completed: true },
-            { reps: 10, weight: 50, completed: true },
-          ],
-        },
-        exerciseNotes: { 'ex-1': 'Felt strong' },
-        dayNotes: 'Good session',
-        skippedExercises: ['ex-3'],
-        savedAt: Date.now(),
-      };
-      localStorage.setItem(KEY, JSON.stringify(draft));
+    await writeWorkoutDraftDb(page, {
+      sessionId: 'reload-test-123',
+      userId: USER_ID,
+      dayId: 'day-1',
+      date: new Date().toISOString().split('T')[0],
+      exerciseSets: {
+        'ex-1': [
+          { reps: 5, weight: 20, completed: false, isWarmup: true },
+          { reps: 12, weight: 50, completed: true },
+          { reps: 10, weight: 50, completed: true },
+        ],
+      },
+      exerciseNotes: { 'ex-1': 'Felt strong' },
+      dayNotes: 'Good session',
+      skippedExercises: ['ex-3'],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
     });
 
     // Reload
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
-    // Verify draft still exists with correct data
-    const draft = await page.evaluate(() => {
-      const KEY = 'fittracker_workout_draft';
-      const raw = localStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : null;
-    });
+    const draft = await readWorkoutDraftDb(page, USER_ID) as {
+      sessionId: string;
+      exerciseSets: Record<string, Array<{ reps: number; weight: number }>>;
+      exerciseNotes: Record<string, string>;
+      dayNotes: string;
+      skippedExercises: string[];
+    } | null;
 
     expect(draft).not.toBeNull();
-    expect(draft.sessionId).toBe('reload-test-123');
-    expect(draft.exerciseSets['ex-1']).toHaveLength(3);
-    expect(draft.exerciseSets['ex-1'][1].reps).toBe(12);
-    expect(draft.exerciseSets['ex-1'][1].weight).toBe(50);
-    expect(draft.exerciseNotes['ex-1']).toBe('Felt strong');
-    expect(draft.dayNotes).toBe('Good session');
-    expect(draft.skippedExercises).toContain('ex-3');
+    expect(draft?.sessionId).toBe('reload-test-123');
+    expect(draft?.exerciseSets['ex-1']).toHaveLength(3);
+    expect(draft?.exerciseSets['ex-1'][1].reps).toBe(12);
+    expect(draft?.exerciseSets['ex-1'][1].weight).toBe(50);
+    expect(draft?.exerciseNotes['ex-1']).toBe('Felt strong');
+    expect(draft?.dayNotes).toBe('Good session');
+    expect(draft?.skippedExercises).toContain('ex-3');
   });
 
   test('corrupt data is handled gracefully', async ({ page }) => {
@@ -116,40 +118,37 @@ test.describe('Batch Save Workflow', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    const result = await page.evaluate(() => {
-      const KEY = 'fittracker_workout_draft';
-
-      // Simulate what happens when entering data for a bodyweight exercise
-      const draft = {
-        sessionId: 'bw-test',
-        dayId: 'day-3',
-        date: '2024-04-02',
-        exerciseSets: {
-          'dead-bug': [
-            { reps: 5, weight: 0, completed: false, isWarmup: true },
-            { reps: 15, weight: 0, completed: true },
-            { reps: 12, weight: 0, completed: true },
-            { reps: 10, weight: 0, completed: true },
-          ],
-        },
-        exerciseNotes: {},
-        dayNotes: '',
-        skippedExercises: [],
-        savedAt: Date.now(),
-      };
-      localStorage.setItem(KEY, JSON.stringify(draft));
-
-      // Verify all weights are 0
-      const loaded = JSON.parse(localStorage.getItem(KEY)!);
-      const allZeroWeight = loaded.exerciseSets['dead-bug'].every(
-        (set: any) => set.weight === 0
-      );
-
-      return { allZeroWeight, setCount: loaded.exerciseSets['dead-bug'].length };
+    await writeWorkoutDraftDb(page, {
+      sessionId: 'bw-test',
+      userId: USER_ID,
+      dayId: 'day-3',
+      date: '2024-04-02',
+      exerciseSets: {
+        'dead-bug': [
+          { reps: 5, weight: 0, completed: false, isWarmup: true },
+          { reps: 15, weight: 0, completed: true },
+          { reps: 12, weight: 0, completed: true },
+          { reps: 10, weight: 0, completed: true },
+        ],
+      },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
     });
 
-    expect(result.allZeroWeight).toBe(true);
-    expect(result.setCount).toBe(4);
+    const loaded = await readWorkoutDraftDb(page, USER_ID) as {
+      exerciseSets: Record<string, Array<{ weight: number }>>;
+    } | null;
+
+    expect(loaded?.exerciseSets['dead-bug'].every(set => set.weight === 0)).toBe(true);
+    expect(loaded?.exerciseSets['dead-bug']).toHaveLength(4);
   });
 });
 
