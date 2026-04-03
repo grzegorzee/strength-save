@@ -39,9 +39,10 @@ import { StravaTab } from '@/components/strava/StravaTab';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { TrainingHeatmap } from '@/components/TrainingHeatmap';
 import type { WorkoutSession } from '@/types';
-import { cn } from '@/lib/utils';
+import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { tooltipStyle } from '@/lib/chart-config';
+import { countScheduledTrainingsInRange, getTrainingDayForDate, startOfLocalDay } from '@/lib/plan-schedule';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
   TrendingUp, TrendingDown, Minus, Scale, Loader2, ChevronRight,
@@ -78,7 +79,7 @@ const getWeekLabel = (weekIndex: number, totalWeeks: number): string => {
 };
 
 const formatDateShort = (date: string): string =>
-  new Date(date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+  parseLocalDate(date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
 
 // ========================
 // TAB: Podsumowanie
@@ -117,7 +118,10 @@ const SummaryTab = () => {
     [previousBounds, workouts],
   );
 
-  const expectedWorkouts = period === 'week' ? 3 : 12;
+  const expectedWorkouts = useMemo(
+    () => countScheduledTrainingsInRange(trainingPlan, bounds.start, bounds.end),
+    [bounds.end, bounds.start, trainingPlan],
+  );
   const frequency = currentWorkouts.length;
 
   const currentTonnage = calculateTonnage(currentWorkouts);
@@ -131,7 +135,7 @@ const SummaryTab = () => {
   const periodPRs = useMemo(() => {
     const allNames = new Map(trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name])));
     const allPRs: Array<{ exerciseName: string; type: string }> = [];
-    const historicalWorkouts = workouts.filter(w => w.completed && new Date(w.date).getTime() < boundsStartMs);
+    const historicalWorkouts = workouts.filter(w => w.completed && parseLocalDate(w.date).getTime() < boundsStartMs);
 
     currentWorkouts.forEach(cw => {
       const prs = detectNewPRs(cw, historicalWorkouts, allNames);
@@ -142,7 +146,7 @@ const SummaryTab = () => {
   }, [boundsStartMs, currentWorkouts, trainingPlan, workouts]);
 
   const periodMeasurements = measurements.filter(m => {
-    const d = new Date(m.date);
+    const d = parseLocalDate(m.date);
     return d >= bounds.start && d <= bounds.end && m.weight;
   });
   const latestMeasurement = periodMeasurements[0] || measurements.find(m => m.weight);
@@ -263,7 +267,7 @@ const SummaryTab = () => {
                   <div>
                     <p className="font-medium text-sm">{day?.dayName || w.dayId}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(w.date).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      {parseLocalDate(w.date).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -287,8 +291,8 @@ const SummaryTab = () => {
 
       {/* Strava activities for period */}
       {stravaConnection.connected && (() => {
-        const startStr = bounds.start.toISOString().split('T')[0];
-        const endStr = bounds.end.toISOString().split('T')[0];
+        const startStr = formatLocalDate(bounds.start);
+        const endStr = formatLocalDate(bounds.end);
         const periodStrava = stravaActivities.filter(
           a => a.date >= startStr && a.date <= endStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit'
         );
@@ -337,7 +341,7 @@ const ChartsTab = () => {
       const weekDate = new Date(now);
       weekDate.setDate(now.getDate() - i * 7);
       const { start, end } = getWeekBounds(weekDate);
-      const count = completed.filter(w => { const d = new Date(w.date); return d >= start && d <= end; }).length;
+      const count = completed.filter(w => { const d = parseLocalDate(w.date); return d >= start && d <= end; }).length;
       weeks.push({ label: getWeekLabel(11 - i, 12), count });
     }
     const totalCompleted = completed.length;
@@ -348,15 +352,15 @@ const ChartsTab = () => {
 
   // Tonnage chart data
   const tonnageData = useMemo(() => {
-    const completed = workouts.filter(w => w.completed).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const completed = workouts.filter(w => w.completed).sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
     const chartData = completed.map(w => ({ date: formatDateShort(w.date), tonnage: Math.round(workoutTonnage(w)) }));
     const totalTonnage = chartData.reduce((s, d) => s + d.tonnage, 0);
     const avgPerWorkout = chartData.length > 0 ? Math.round(totalTonnage / chartData.length) : 0;
     const now = new Date();
     const fourWeeksAgo = new Date(now); fourWeeksAgo.setDate(now.getDate() - 28);
     const eightWeeksAgo = new Date(now); eightWeeksAgo.setDate(now.getDate() - 56);
-    const recent = completed.filter(w => new Date(w.date) >= fourWeeksAgo);
-    const previous = completed.filter(w => { const d = new Date(w.date); return d >= eightWeeksAgo && d < fourWeeksAgo; });
+    const recent = completed.filter(w => parseLocalDate(w.date) >= fourWeeksAgo);
+    const previous = completed.filter(w => { const d = parseLocalDate(w.date); return d >= eightWeeksAgo && d < fourWeeksAgo; });
     const recentTonnage = recent.reduce((s, w) => s + workoutTonnage(w), 0);
     const previousTonnage = previous.reduce((s, w) => s + workoutTonnage(w), 0);
     let trend = '--';
@@ -366,7 +370,7 @@ const ChartsTab = () => {
 
   // Weight chart data
   const weightData = useMemo(() => {
-    const withWeight = measurements.filter(m => m.weight && m.weight > 0).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const withWeight = measurements.filter(m => m.weight && m.weight > 0).sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
     const chartData = withWeight.map(m => ({ date: formatDateShort(m.date), weight: m.weight! }));
     if (chartData.length === 0) return { chartData, current: '--', change: '--', minMax: '--' };
     const current = chartData[chartData.length - 1].weight;
@@ -390,9 +394,10 @@ const ChartsTab = () => {
       for (let day = 0; day < 7; day++) {
         const d = new Date(startDate);
         d.setDate(startDate.getDate() + week * 7 + day);
-        const dateStr = d.toISOString().split('T')[0];
-        const dayOfWeek = d.getDay();
-        const isPlanned = dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5;
+        const localDate = startOfLocalDay(d);
+        const dateStr = formatLocalDate(localDate);
+        const dayOfWeek = localDate.getDay();
+        const isPlanned = getTrainingDayForDate(trainingPlan, localDate) !== null;
         const isFuture = d > now;
         days.push({ date: dateStr, dayOfWeek, weekIndex: week, hasWorkout: !isFuture && completedDates.has(dateStr), isPlanned: !isFuture && isPlanned });
       }
@@ -403,7 +408,7 @@ const ChartsTab = () => {
     const completedCount = days.filter(d => d.hasWorkout).length;
     const attendance = plannedCount > 0 ? Math.round((completedCount / plannedCount) * 100) : 0;
     return { days, streak, longestStreak, attendance };
-  }, [workouts]);
+  }, [trainingPlan, workouts]);
 
   // Per-exercise progression data
   const perExerciseData = useMemo(() => {
@@ -438,14 +443,14 @@ const ChartsTab = () => {
               ? Math.max(...weightedSets.map(s => calculate1RM(s.weight, s.reps)))
               : Math.max(...weightedSets.map(s => s.weight));
             history.push({
-              date: new Date(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+              date: parseLocalDate(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
               value,
             });
           } else if (workingSets.length > 0) {
             // Bodyweight exercise — track max reps
             const maxReps = Math.max(...workingSets.map(s => s.reps));
             history.push({
-              date: new Date(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+              date: parseLocalDate(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
               value: maxReps,
             });
           }
@@ -684,7 +689,7 @@ const MeasurementsTab = () => {
 
   const getWeightTrend = () => {
     if (measurements.length < 2) return null;
-    const sorted = [...measurements].filter(m => m.weight).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const sorted = [...measurements].filter(m => m.weight).sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
     if (sorted.length < 2) return null;
     const diff = (sorted[0].weight || 0) - (sorted[1].weight || 0);
     if (diff > 0) return { direction: 'up' as const, value: diff };
@@ -694,7 +699,7 @@ const MeasurementsTab = () => {
 
   const weightTrend = getWeightTrend();
   const recentMeasurements = [...measurements]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
     .slice(0, 5);
 
   return (
@@ -722,7 +727,7 @@ const MeasurementsTab = () => {
               {recentMeasurements.map((m) => (
                   <div key={m.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <span className="text-sm font-medium">
-                      {new Date(m.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      {parseLocalDate(m.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </span>
                     <div className="flex items-center gap-4 text-sm">
                       {m.weight && <span>Waga: <strong>{m.weight} kg</strong></span>}
@@ -856,6 +861,11 @@ const Analytics = () => {
 
   return (
     <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-heading font-bold tracking-tight">Analityka</h1>
+        <p className="text-sm text-muted-foreground">Podsumowania, wykresy, pomiary i tygodniowe statystyki treningów.</p>
+      </div>
+
       <Tabs value={currentTab} onValueChange={(value) => setSearchParams({ tab: value })}>
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">Podsum.</TabsTrigger>

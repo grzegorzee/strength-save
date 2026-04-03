@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -11,8 +12,11 @@ import { AdminRoute } from "./components/AdminRoute";
 import { useAuth } from "./hooks/useAuth";
 import { UserProvider, useCurrentUser } from "./contexts/UserContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
-import { Loader2 } from "lucide-react";
+import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
+import { Loader2, ShieldOff } from "lucide-react";
 import { lazyWithRetry } from "./lib/lazy-with-retry";
+import { auth } from "./lib/firebase";
+import { signOut } from "firebase/auth";
 
 const queryClient = new QueryClient();
 const Dashboard = lazyWithRetry(() => import("./pages/Dashboard"), "lazy-retry:dashboard");
@@ -27,6 +31,7 @@ const ExerciseLibrary = lazyWithRetry(() => import("./pages/ExerciseLibrary"), "
 const Settings = lazyWithRetry(() => import("./pages/Settings"), "lazy-retry:settings");
 const NewPlan = lazyWithRetry(() => import("./pages/NewPlan"), "lazy-retry:new-plan");
 const Cycles = lazyWithRetry(() => import("./pages/Cycles"), "lazy-retry:cycles");
+const WorkoutHistory = lazyWithRetry(() => import("./pages/WorkoutHistory"), "lazy-retry:history");
 const StravaCallback = lazyWithRetry(() => import("./pages/StravaCallback"), "lazy-retry:strava-callback");
 const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"), "lazy-retry:admin-dashboard");
 const UserPlanEditor = lazyWithRetry(() => import("./pages/admin/UserPlanEditor"), "lazy-retry:user-plan-editor");
@@ -39,11 +44,55 @@ const AppLoader = () => (
   </div>
 );
 
+const AccessRestrictedView = ({
+  email,
+  accessEnabled,
+}: {
+  email: string;
+  accessEnabled: boolean;
+}) => (
+  <div className="min-h-screen flex items-center justify-center bg-background px-6">
+    <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+        <ShieldOff className="h-6 w-6" />
+      </div>
+      <h1 className="text-2xl font-heading font-bold tracking-tight">
+        {accessEnabled ? 'Trwa ładowanie dostępu' : 'Dostęp do aplikacji jest wyłączony'}
+      </h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {accessEnabled
+          ? 'Spróbuj odświeżyć aplikację za chwilę. Jeśli problem się utrzyma, sprawdź stan konta w panelu admina.'
+          : 'Konto jest zalogowane, ale backend nie pozwala jeszcze korzystać z danych treningowych. Administrator może ponownie włączyć dostęp z panelu admina.'}
+      </p>
+      <p className="mt-4 text-xs text-muted-foreground">
+        Konto: {email || 'brak adresu e-mail'}
+      </p>
+      <div className="mt-6 flex gap-2">
+        <Button variant="outline" onClick={() => window.location.reload()}>
+          Odśwież
+        </Button>
+        <Button variant="secondary" onClick={() => void signOut(auth)}>
+          Wyloguj
+        </Button>
+      </div>
+    </div>
+  </div>
+);
+
 const AppRoutes = () => {
-  const { isNewUser, profileLoaded } = useCurrentUser();
+  const { isNewUser, profileLoaded, hasAppAccess, profile } = useCurrentUser();
 
   if (!profileLoaded) {
     return <AppLoader />;
+  }
+
+  if (!hasAppAccess) {
+    return (
+      <AccessRestrictedView
+        email={profile?.email || ''}
+        accessEnabled={profile?.accessEnabled ?? false}
+      />
+    );
   }
 
   return (
@@ -69,6 +118,7 @@ const AppRoutes = () => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/new-plan" element={<NewPlan />} />
                 <Route path="/cycles" element={<Cycles />} />
+                <Route path="/history" element={<WorkoutHistory />} />
                 <Route path="/strava/callback" element={<StravaCallback />} />
                 <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                 <Route path="/admin/plans/:userId" element={<AdminRoute><UserPlanEditor /></AdminRoute>} />
@@ -104,6 +154,7 @@ const AuthenticatedApp = () => {
 
   return (
     <UserProvider>
+      <TelemetryHeartbeat />
       <AppRoutes />
     </UserProvider>
   );

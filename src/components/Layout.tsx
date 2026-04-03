@@ -6,6 +6,7 @@ import { AppNavigation } from './AppNavigation';
 const pageTitles: Record<string, string> = {
   '/': 'Dashboard',
   '/plan': 'Plan treningowy',
+  '/history': 'Historia treningów',
   '/day': 'Plan dnia',
   '/analytics': 'Analityka',
   '/achievements': 'Osiągnięcia',

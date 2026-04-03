@@ -3,6 +3,7 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import { calculateStreak, getWeekBounds } from '@/lib/summary-utils';
 import { httpsCallable } from 'firebase/functions';
 import { functions, auth } from '@/lib/firebase';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 // --- Types ---
 
@@ -84,8 +85,8 @@ export function prepareCoachData(
 
   // Filter completed workouts from last 8 weeks
   const recentCompleted = workouts
-    .filter(w => w.completed && new Date(w.date) >= eightWeeksAgo)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .filter(w => w.completed && parseLocalDate(w.date) >= eightWeeksAgo)
+    .sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
 
   const recentWorkouts = recentCompleted.map(w => ({
     date: w.date,
@@ -101,8 +102,8 @@ export function prepareCoachData(
 
   // Body weight from measurements
   const bodyWeight = measurements
-    .filter(m => m.weight && m.weight > 0 && new Date(m.date) >= eightWeeksAgo)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .filter(m => m.weight && m.weight > 0 && parseLocalDate(m.date) >= eightWeeksAgo)
+    .sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime())
     .map(m => ({ date: m.date, weight: m.weight! }));
 
   // Stats
@@ -112,8 +113,8 @@ export function prepareCoachData(
   // Average workouts per week (last 8 weeks)
   const weeksWithWorkouts = new Set<string>();
   recentCompleted.forEach(w => {
-    const { start } = getWeekBounds(new Date(w.date));
-    weeksWithWorkouts.add(start.toISOString().split('T')[0]);
+    const { start } = getWeekBounds(parseLocalDate(w.date));
+    weeksWithWorkouts.add(formatLocalDate(start));
   });
   const weekCount = Math.max(weeksWithWorkouts.size, 1);
   const avgWorkoutsPerWeek = Math.round((recentCompleted.length / weekCount) * 10) / 10;

@@ -23,6 +23,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { getExerciseHistory, detectPlateau, getProgressionSummary } from '@/lib/exercise-progression';
 import { tooltipStyle } from '@/lib/chart-config';
+import { parseLocalDate } from '@/lib/utils';
 
 interface Props {
   exerciseId: string;
@@ -43,12 +44,12 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const chartData = useMemo(() =>
     isBodyweight
       ? history.map(h => ({
-          date: new Date(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+          date: parseLocalDate(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
           'Max powt.': h.bestReps,
           'Łączne powt.': h.totalVolume,
         }))
       : history.map(h => ({
-          date: new Date(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+          date: parseLocalDate(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
           '1RM': h.estimated1RM,
           'Max kg': h.maxWeight,
         })),
@@ -143,7 +144,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
           {recentSessions.map(s => (
             <div key={s.date} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30">
               <span className="text-sm">
-                {new Date(s.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                {parseLocalDate(s.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
               </span>
               <div className="flex items-center gap-2">
                 {isBodyweight ? (

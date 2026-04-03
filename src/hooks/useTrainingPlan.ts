@@ -12,6 +12,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 
 const PLAN_COLLECTION = 'training_plans';
 
@@ -79,18 +81,10 @@ export const useTrainingPlan = (userId: string) => {
             const date = d.data().date as string;
             if (!earliest || date < earliest) earliest = date;
           });
-          const d = new Date(earliest!);
-          const dayOfWeek = d.getDay();
-          const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-          d.setDate(d.getDate() - daysSinceMonday);
-          startDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          startDateStr = formatLocalDate(getStartOfPlanWeek(parseLocalDate(earliest!)));
         } else {
           // No workouts found - use current week's Monday
-          const now = new Date();
-          const dayOfWeek = now.getDay();
-          const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-          now.setDate(now.getDate() - daysSinceMonday);
-          startDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          startDateStr = formatLocalDate(getStartOfPlanWeek(new Date()));
         }
 
         console.log('[useTrainingPlan] Auto-repairing missing startDate:', startDateStr);
@@ -106,9 +100,9 @@ export const useTrainingPlan = (userId: string) => {
 
   const currentWeek = useMemo(() => {
     if (!planStartDate) return 1;
-    const start = new Date(planStartDate);
+    const start = getStartOfPlanWeek(parseLocalDate(planStartDate));
     const now = new Date();
-    const diffMs = now.getTime() - start.getTime();
+    const diffMs = getStartOfPlanWeek(now).getTime() - start.getTime();
     const week = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
     return Math.max(1, week);
   }, [planStartDate]);

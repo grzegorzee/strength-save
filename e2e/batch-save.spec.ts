@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb } from './helpers';
+import { blockFirebase, clearWorkoutDraftDb, navigateAndWait, readWorkoutDraftDb, writeWorkoutDraftDb, writeWorkoutSyncQueue } from './helpers';
 
 const E2E_USER_ID = 'e2e-test-user';
 
@@ -17,6 +17,9 @@ test.describe('Batch Save Workflow', () => {
       userId: E2E_USER_ID,
       dayId: 'day-1',
       date: '2024-04-02',
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: 'roundtrip-test',
       exerciseSets: { 'ex-1': [{ reps: 10, weight: 50, completed: true }] },
       exerciseNotes: {},
       dayNotes: 'test',
@@ -48,6 +51,9 @@ test.describe('Batch Save Workflow', () => {
       userId: E2E_USER_ID,
       dayId: 'day-1',
       date: new Date().toISOString().split('T')[0],
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: 'reload-test-123',
       exerciseSets: {
         'ex-1': [
           { reps: 5, weight: 20, completed: false, isWarmup: true },
@@ -123,6 +129,9 @@ test.describe('Batch Save Workflow', () => {
       userId: E2E_USER_ID,
       dayId: 'day-3',
       date: '2024-04-02',
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: 'bw-test',
       exerciseSets: {
         'dead-bug': [
           { reps: 5, weight: 0, completed: false, isWarmup: true },
@@ -161,6 +170,9 @@ test.describe('Batch Save Workflow', () => {
       userId: E2E_USER_ID,
       dayId: 'day-1',
       date: today,
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: `workout-${E2E_USER_ID}-day-1-${today}`,
       exerciseSets: {
         'ex-1-1': [
           { reps: 6, weight: 20, completed: true, isWarmup: true },
@@ -184,6 +196,126 @@ test.describe('Batch Save Workflow', () => {
 
     await expect(page.getByText('Trening zakończony lokalnie')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Synchronizuj teraz' })).toBeVisible();
+  });
+
+  test('sync center shows active local draft and quick actions', async ({ page }) => {
+    await navigateAndWait(page, '/settings');
+
+    await writeWorkoutDraftDb(page, {
+      sessionId: 'local-workout-e2e-test-user-day-2-2026-04-03',
+      userId: E2E_USER_ID,
+      dayId: 'day-2',
+      date: '2026-04-03',
+      cycleId: 'cycle-2',
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      exerciseSets: {
+        'ex-2-1': [{ reps: 6, weight: 20, completed: true }],
+      },
+      exerciseNotes: {},
+      dayNotes: 'offline draft',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
+    });
+
+    await writeWorkoutSyncQueue(page, E2E_USER_ID, [{
+      queueId: 'queued-1',
+      sessionId: 'queued-session-1',
+      userId: E2E_USER_ID,
+      dayId: 'day-1',
+      date: '2026-04-03',
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: 'queued-session-1',
+      exerciseSets: {
+        'ex-1-1': [{ reps: 8, weight: 25, completed: true }],
+      },
+      exerciseNotes: {},
+      dayNotes: 'queued draft',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: true,
+      finalSyncPending: true,
+      version: 1,
+      enqueuedAt: Date.now(),
+      retryCount: 0,
+      lastError: null,
+    }]);
+
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.getByRole('heading', { name: 'Sync Center' })).toBeVisible();
+    await expect(page.getByText('2 sesje oczekujące')).toBeVisible();
+    await expect(page.getByText('Tylko lokalnie')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Otwórz trening' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Synchronizuj teraz' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Usuń szkic' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Retry all' })).toBeVisible();
+  });
+
+  test('dashboard highlights offline or pending local workout state', async ({ page }) => {
+    await navigateAndWait(page, '/');
+
+    await writeWorkoutDraftDb(page, {
+      sessionId: 'local-workout-e2e-test-user-day-1-2026-04-03',
+      userId: E2E_USER_ID,
+      dayId: 'day-1',
+      date: '2026-04-03',
+      cycleId: 'cycle-1',
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      exerciseSets: {
+        'ex-1-1': [{ reps: 6, weight: 20, completed: true }],
+      },
+      exerciseNotes: {},
+      dayNotes: 'pending sync',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
+    });
+
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+
+    await expect(page.getByText('Masz trening rozpoczęty offline')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Otwórz Sync Center' })).toBeVisible();
+  });
+
+  test('can start workout offline with provisional session and local-only status', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+
+    await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
+
+    await expect(page.getByText('Trening offline')).toBeVisible();
+
+    const draft = await readWorkoutDraftDb(page, E2E_USER_ID) as {
+      sessionId: string;
+      sessionOrigin: string;
+      remoteSessionId: string | null;
+      cycleId: string | null;
+      exerciseSets: Record<string, Array<unknown>>;
+    } | null;
+
+    expect(draft).not.toBeNull();
+    expect(draft?.sessionId.startsWith('local-workout-')).toBe(true);
+    expect(draft?.sessionOrigin).toBe('provisional');
+    expect(draft?.remoteSessionId).toBeNull();
+    expect(Object.keys(draft?.exerciseSets ?? {}).length).toBeGreaterThan(0);
   });
 });
 

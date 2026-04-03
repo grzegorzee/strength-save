@@ -108,6 +108,11 @@ const Achievements = () => {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-heading font-bold tracking-tight">Osiągnięcia</h1>
+        <p className="text-sm text-muted-foreground">Rekordy, tonaż i progresja ćwiczeń w jednym miejscu.</p>
+      </div>
+
       {/* Main Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatsCard

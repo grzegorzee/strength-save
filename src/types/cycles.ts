@@ -5,6 +5,10 @@ export interface PlanCycleStats {
   totalTonnage: number;
   prs: { exerciseName: string; weight: number; estimated1RM: number }[];
   completionRate: number;
+  expectedWorkouts?: number;
+  missedWorkouts?: number;
+  averageWorkoutsPerWeek?: number;
+  averageTonnagePerWorkout?: number;
 }
 
 export interface PlanCycle {

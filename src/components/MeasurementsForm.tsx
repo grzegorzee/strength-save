@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { BodyMeasurement } from '@/types';
 import { Save, User } from 'lucide-react';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
@@ -32,7 +33,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
-      date: new Date().toISOString().split('T')[0],
+      date: formatLocalDate(new Date()),
       weight: formData.weight ? Number(formData.weight) : undefined,
       armLeft: formData.armLeft ? Number(formData.armLeft) : undefined,
       armRight: formData.armRight ? Number(formData.armRight) : undefined,
@@ -70,7 +71,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
             <CardTitle>Pomiary ciała</CardTitle>
             <CardDescription>
               {latestMeasurement ? (
-                <>Ostatni pomiar: {new Date(latestMeasurement.date).toLocaleDateString('pl-PL', {
+                <>Ostatni pomiar: {parseLocalDate(latestMeasurement.date).toLocaleDateString('pl-PL', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'

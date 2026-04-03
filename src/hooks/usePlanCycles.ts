@@ -4,7 +4,6 @@ import {
   doc,
   addDoc,
   getDoc,
-  getDocs,
   updateDoc,
   query,
   where,
@@ -15,7 +14,8 @@ import { db } from '@/lib/firebase';
 import type { PlanCycle, PlanCycleStats } from '@/types/cycles';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
-import { calculate1RM } from '@/lib/pr-utils';
+import { formatLocalDate } from '@/lib/utils';
+import { computeCycleStats } from '@/lib/cycle-insights';
 
 const CYCLES_COLLECTION = 'plan_cycles';
 
@@ -60,51 +60,8 @@ export const usePlanCycles = (userId: string) => {
     startDate: string,
     endDate: string,
     durationWeeks: number,
-  ): PlanCycleStats => {
-    const cycleWorkouts = workouts.filter(
-      w => w.completed && w.date >= startDate && w.date <= endDate,
-    );
-
-    const totalWorkouts = cycleWorkouts.length;
-
-    const totalTonnage = cycleWorkouts.reduce((sum, w) =>
-      sum + w.exercises.reduce((exSum, ex) =>
-        exSum + ex.sets.reduce((setSum, s) =>
-          setSum + (s.completed ? s.reps * s.weight : 0), 0), 0), 0);
-
-    // Detect PRs per exercise
-    const exerciseBests = new Map<string, { weight: number; estimated1RM: number }>();
-    const exerciseNames = new Map(planDays.flatMap(d => d.exercises.map(e => [e.id, e.name])));
-
-    for (const workout of cycleWorkouts) {
-      for (const ex of workout.exercises) {
-        for (const set of ex.sets) {
-          if (!set.completed || set.isWarmup) continue;
-          const est1RM = calculate1RM(set.weight, set.reps);
-          const current = exerciseBests.get(ex.exerciseId);
-          if (!current || est1RM > current.estimated1RM) {
-            exerciseBests.set(ex.exerciseId, { weight: set.weight, estimated1RM: est1RM });
-          }
-        }
-      }
-    }
-
-    const prs = Array.from(exerciseBests.entries())
-      .map(([exId, data]) => ({
-        exerciseName: exerciseNames.get(exId) || exId,
-        weight: data.weight,
-        estimated1RM: Math.round(data.estimated1RM * 10) / 10,
-      }))
-      .sort((a, b) => b.estimated1RM - a.estimated1RM)
-      .slice(0, 10);
-
-    const expectedWorkouts = planDays.length * durationWeeks;
-    const completionRate = expectedWorkouts > 0
-      ? Math.round((totalWorkouts / expectedWorkouts) * 100)
-      : 0;
-
-    return { totalWorkouts, totalTonnage, prs, completionRate };
-  }, []);
+    cycleId?: string | null,
+  ): PlanCycleStats => computeCycleStats(workouts, planDays, startDate, endDate, durationWeeks, cycleId), []);
 
   const archiveCurrentPlan = useCallback(async (
     planDays: TrainingDay[],
@@ -115,8 +72,21 @@ export const usePlanCycles = (userId: string) => {
     if (!userId) return null;
 
     try {
-      const endDate = new Date().toISOString().split('T')[0];
-      const stats = computeStats(workouts, planDays, startDate, endDate, durationWeeks);
+      const endDate = formatLocalDate(new Date());
+      const activeCycle = getActiveCycle();
+      const stats = computeStats(workouts, planDays, startDate, endDate, durationWeeks, activeCycle?.id);
+
+      if (activeCycle) {
+        await updateDoc(doc(db, CYCLES_COLLECTION, activeCycle.id), {
+          days: planDays,
+          durationWeeks,
+          startDate,
+          endDate,
+          status: 'completed',
+          stats,
+        });
+        return activeCycle.id;
+      }
 
       const cycle: Omit<PlanCycle, 'id'> = {
         userId,
@@ -135,7 +105,7 @@ export const usePlanCycles = (userId: string) => {
       console.error('[usePlanCycles] Archive error:', err);
       return null;
     }
-  }, [userId, computeStats]);
+  }, [userId, computeStats, getActiveCycle]);
 
   const createActiveCycle = useCallback(async (
     planDays: TrainingDay[],
@@ -145,15 +115,6 @@ export const usePlanCycles = (userId: string) => {
     if (!userId) return null;
 
     try {
-      // Mark any existing active cycle as completed
-      const activeCycle = getActiveCycle();
-      if (activeCycle) {
-        await updateDoc(doc(db, CYCLES_COLLECTION, activeCycle.id), {
-          status: 'completed',
-          endDate: new Date().toISOString().split('T')[0],
-        });
-      }
-
       const cycle: Omit<PlanCycle, 'id'> = {
         userId,
         days: planDays,
@@ -171,7 +132,7 @@ export const usePlanCycles = (userId: string) => {
       console.error('[usePlanCycles] Create active cycle error:', err);
       return null;
     }
-  }, [userId, getActiveCycle]);
+  }, [userId]);
 
   const getCycleById = useCallback(async (cycleId: string): Promise<PlanCycle | null> => {
     // First check local state

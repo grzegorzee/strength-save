@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
-import { getTrainingSchedule, trainingRules } from '@/data/trainingPlan';
+import { trainingRules } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
@@ -14,7 +14,8 @@ import { useState, useMemo } from 'react';
 import { pl } from 'date-fns/locale';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info, CalendarDays, CheckCircle, Dumbbell, Settings, Pencil } from 'lucide-react';
-import { cn, formatLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
@@ -27,31 +28,31 @@ const TrainingPlan = () => {
   // Get dates with completed workouts
   const completedDates = workouts
     .filter(w => w.completed)
-    .map(w => new Date(w.date));
+    .map(w => parseLocalDate(w.date));
 
   // Get dates with Strava activities
   const stravaDates = useMemo(() =>
-    stravaActivities.map(a => new Date(a.date)),
+    stravaActivities.map(a => parseLocalDate(a.date)),
     [stravaActivities]
   );
 
-  // Get all scheduled training dates for 12 weeks
-  const schedule = useMemo(() => getTrainingSchedule(), []);
-  const trainingDates = useMemo(() => schedule.map(s => s.date), [schedule]);
-
-  // Use planStartDate from hook (Firebase) if available, fallback to schedule
   const today = useMemo(() => new Date(), []);
   const startDate = useMemo(
-    () => (planStartDate ? new Date(planStartDate) : (schedule[0]?.date || today)),
-    [planStartDate, schedule, today],
+    () => getStartOfPlanWeek(planStartDate ? parseLocalDate(planStartDate) : today),
+    [planStartDate, today],
   );
+  const schedule = useMemo(
+    () => buildTrainingSchedule(trainingPlan, startDate, planDurationWeeks),
+    [trainingPlan, startDate, planDurationWeeks],
+  );
+  const trainingDates = useMemo(() => schedule.map(s => s.date), [schedule]);
 
   // Use currentWeek from hook (calculated from planStartDate)
   const actualCurrentWeek = Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek));
 
   // Calculate week for SELECTED DATE (for display)
   const selectedOrToday = selectedDate || today;
-  const selectedWeekNumber = Math.floor((selectedOrToday.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  const selectedWeekNumber = Math.floor((startOfLocalDay(selectedOrToday).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
   const displayWeek = Math.max(1, Math.min(planDurationWeeks, selectedWeekNumber));
 
   // Get selected week's dates
@@ -81,7 +82,7 @@ const TrainingPlan = () => {
 
   // Day of week name — short for mobile, long for desktop
   const getDayOfWeekName = (dateStr: string) => {
-    const d = new Date(dateStr);
+    const d = parseLocalDate(dateStr);
     const long = d.toLocaleDateString('pl-PL', { weekday: 'long' });
     const short = d.toLocaleDateString('pl-PL', { weekday: 'short' });
     return { long, short };
@@ -95,7 +96,9 @@ const TrainingPlan = () => {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <CardTitle className="font-heading tracking-tight">Plan treningowy</CardTitle>
-              <CardDescription>{planDurationWeeks}-tygodniowy program: Poniedziałek, Środa, Piątek</CardDescription>
+              <CardDescription>
+                {planDurationWeeks}-tygodniowy program: {trainingPlan.map((day) => day.dayName).join(', ')}
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => navigate('/plan/edit')}>
@@ -179,7 +182,7 @@ const TrainingPlan = () => {
                   });
 
                   return Array.from(groupedByDate.entries()).map(([dateStr, dayItems]) => {
-                    const dateObj = new Date(dateStr);
+                    const dateObj = parseLocalDate(dateStr);
                     const dateLabel = dateObj.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
                     const dayName = getDayOfWeekName(dateStr);
                     const trainingItem = dayItems.find(i => i.type === 'training') as Extract<TimelineItem, { type: 'training' }> | undefined;

@@ -17,11 +17,12 @@ export interface WorkoutDraft {
 }
 
 export const workoutDraft = {
-  save(draft: WorkoutDraft, userId?: string): void {
+  save(draft: WorkoutDraft, userId?: string): boolean {
     try {
       localStorage.setItem(getScopedWorkoutDraftKey(userId), JSON.stringify(draft));
+      return true;
     } catch {
-      // localStorage full or unavailable — silently fail
+      return false;
     }
   },
 
@@ -39,11 +40,12 @@ export const workoutDraft = {
     }
   },
 
-  clear(userId?: string): void {
+  clear(userId?: string): boolean {
     try {
       localStorage.removeItem(getScopedWorkoutDraftKey(userId));
+      return true;
     } catch {
-      // silently fail
+      return false;
     }
   },
 

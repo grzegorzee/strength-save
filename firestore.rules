@@ -4,46 +4,65 @@ service cloud.firestore {
 
     // Helper: check if user is admin
     function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return request.auth != null
+             && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function userIdMatchesAuth() {
       return request.auth != null && request.resource.data.userId == request.auth.uid;
     }
 
+    function hasSelfAccess(userId) {
+      return request.auth != null
+             && request.auth.uid == userId
+             && exists(/databases/$(database)/documents/users/$(userId))
+             && (
+               !('access' in get(/databases/$(database)/documents/users/$(userId)).data)
+               || !('enabled' in get(/databases/$(database)/documents/users/$(userId)).data.access)
+               || get(/databases/$(database)/documents/users/$(userId)).data.access.enabled != false
+             );
+    }
+
     // Users collection
     match /users/{userId} {
       // Users can read their own profile
       allow read: if request.auth != null && request.auth.uid == userId;
-      // Users can update their own profile (except role)
+      // Users can update their own profile (except server/admin-controlled fields)
       allow update: if request.auth != null && request.auth.uid == userId
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
                       'role',
+                      'features',
+                      'access',
                       'stravaTokens',
                       'stravaConnected',
                       'stravaAthleteId',
                       'stravaAthleteName',
-                      'stravaLastSync'
+                      'stravaLastSync',
+                      'estimatedMaxHR',
+                      'maxHRManualOverride'
                     ]);
       // Admin can read/write all user profiles
       allow read, write: if request.auth != null && isAdmin();
       // Allow create for new users (self-registration on first login)
       // SECURITY: block role escalation — users cannot set role to admin on create
       allow create: if request.auth != null && request.auth.uid == userId
-                    && (!('role' in request.resource.data.keys()) || request.resource.data.role == 'user');
+                    && (!('role' in request.resource.data.keys()) || request.resource.data.role == 'user')
+                    && !('features' in request.resource.data.keys())
+                    && (!('access' in request.resource.data.keys()) || request.resource.data.access.enabled == false);
     }
 
     // Workouts collection
     match /workouts/{workoutId} {
       // Users can only read/write their own workouts (by userId field)
       allow read: if request.auth != null
-                  && resource.data.userId == request.auth.uid;
-      allow create: if userIdMatchesAuth();
+                  && (isAdmin() || hasSelfAccess(resource.data.userId));
+      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
       allow update: if request.auth != null
-                    && resource.data.userId == request.auth.uid
+                    && hasSelfAccess(resource.data.userId)
                     && request.resource.data.userId == request.auth.uid;
       allow delete: if request.auth != null
-                    && resource.data.userId == request.auth.uid;
+                    && hasSelfAccess(resource.data.userId);
       // Admin can read all
       allow read: if request.auth != null && isAdmin();
     }
@@ -51,22 +70,22 @@ service cloud.firestore {
     // Measurements collection
     match /measurements/{measurementId} {
       allow read: if request.auth != null
-                  && resource.data.userId == request.auth.uid;
-      allow create: if userIdMatchesAuth();
+                  && (isAdmin() || hasSelfAccess(resource.data.userId));
+      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
       allow update: if request.auth != null
-                    && resource.data.userId == request.auth.uid
+                    && hasSelfAccess(resource.data.userId)
                     && request.resource.data.userId == request.auth.uid;
       allow delete: if request.auth != null
-                    && resource.data.userId == request.auth.uid;
+                    && hasSelfAccess(resource.data.userId);
       allow read: if request.auth != null && isAdmin();
     }
 
     // Training plans (doc ID = userId)
     match /training_plans/{planUserId} {
       // Users can read their own plan
-      allow read: if request.auth != null && request.auth.uid == planUserId;
+      allow read: if request.auth != null && (isAdmin() || hasSelfAccess(planUserId));
       // Users can write their own plan
-      allow write: if request.auth != null && request.auth.uid == planUserId;
+      allow write: if request.auth != null && hasSelfAccess(planUserId);
       // Admin can read/write all plans
       allow read, write: if request.auth != null && isAdmin();
     }
@@ -74,7 +93,7 @@ service cloud.firestore {
     // Strava activities (future)
     match /strava_activities/{activityId} {
       allow read: if request.auth != null
-                  && resource.data.userId == request.auth.uid;
+                  && (isAdmin() || hasSelfAccess(resource.data.userId));
       // Only Cloud Functions can write
       allow write: if false;
       allow read: if request.auth != null && isAdmin();
@@ -83,11 +102,12 @@ service cloud.firestore {
     // Weekly summaries
     match /weekly_summaries/{summaryId} {
       allow read: if request.auth != null
-                  && resource.data.userId == request.auth.uid;
+                  && (isAdmin() || hasSelfAccess(resource.data.userId));
       allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid;
+                    && request.resource.data.userId == request.auth.uid
+                    && hasSelfAccess(request.resource.data.userId);
       allow update: if request.auth != null
-                    && resource.data.userId == request.auth.uid
+                    && hasSelfAccess(resource.data.userId)
                     && request.resource.data.userId == request.auth.uid;
       // Admin can read/write all
       allow read, write: if request.auth != null && isAdmin();
@@ -95,9 +115,11 @@ service cloud.firestore {
 
     // Chat messages (per-user, Firestore-persisted)
     match /chat_messages/{messageId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (isAdmin() || hasSelfAccess(resource.data.userId));
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && hasSelfAccess(request.resource.data.userId);
+      allow delete: if request.auth != null && hasSelfAccess(resource.data.userId);
       allow update: if false;
       // Admin can read all
       allow read: if request.auth != null && isAdmin();
@@ -105,12 +127,12 @@ service cloud.firestore {
 
     // Plan cycles (training plan history)
     match /plan_cycles/{cycleId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if userIdMatchesAuth();
+      allow read: if request.auth != null && (isAdmin() || hasSelfAccess(resource.data.userId));
+      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
       allow update: if request.auth != null
-                    && resource.data.userId == request.auth.uid
+                    && hasSelfAccess(resource.data.userId)
                     && request.resource.data.userId == request.auth.uid;
-      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && hasSelfAccess(resource.data.userId);
       allow read: if request.auth != null && isAdmin();
     }
 
@@ -121,7 +143,7 @@ service cloud.firestore {
 
     // AI usage tracking (written only by Cloud Functions)
     match /ai_usage/{docId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (isAdmin() || hasSelfAccess(resource.data.userId));
       allow read: if request.auth != null && isAdmin();
       allow write: if false;
     }
@@ -137,6 +159,19 @@ service cloud.firestore {
 
     match /api_rate_limits/{docId} {
       allow read, write: if false;
+    }
+
+    match /app_telemetry_daily/{docId} {
+      allow read: if request.auth != null
+                  && (isAdmin() || hasSelfAccess(resource.data.userId));
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && hasSelfAccess(request.resource.data.userId);
+      allow update: if request.auth != null
+                    && hasSelfAccess(resource.data.userId)
+                    && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+      allow read: if request.auth != null && isAdmin();
     }
 
     // chat_conversations — REMOVED (AI Chat feature removed in v6.7.0)

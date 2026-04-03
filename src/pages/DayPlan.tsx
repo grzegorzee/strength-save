@@ -13,6 +13,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate } from '@/lib/utils';
+import { getNextScheduledTraining, getScheduledTrainingForDate } from '@/lib/plan-schedule';
 
 const DayPlan = () => {
   const navigate = useNavigate();
@@ -25,15 +26,9 @@ const DayPlan = () => {
   const [showStretching, setShowStretching] = useState(false);
 
   // Determine today's training from dynamic plan
-  const dayOfWeek = new Date().getDay();
-  const todaysTraining = dayOfWeek === 1
-    ? trainingPlan.find(d => d.weekday === 'monday') || null
-    : dayOfWeek === 3
-    ? trainingPlan.find(d => d.weekday === 'wednesday') || null
-    : dayOfWeek === 5
-    ? trainingPlan.find(d => d.weekday === 'friday') || null
-    : null;
   const today = new Date();
+  const todaysTraining = getScheduledTrainingForDate(trainingPlan, today)?.day ?? null;
+  const nextScheduledTraining = getNextScheduledTraining(trainingPlan, today);
   const dayName = today.toLocaleDateString('pl-PL', { weekday: 'long' });
   const dateStr = today.toLocaleDateString('pl-PL', {
     day: 'numeric',
@@ -138,13 +133,9 @@ const DayPlan = () => {
                   <p className="text-muted-foreground text-sm">
                     {isWorkoutCompleted
                       ? `${todaysWorkout?.exercises.length || 0} ćwiczeń wykonanych`
-                      : today.getDay() === 0 || today.getDay() === 6
-                        ? 'Poniedziałek - Klatka / Przysiad / Środek Pleców'
-                        : today.getDay() === 2
-                          ? 'Środa - Szerokie Plecy / Tył Uda'
-                          : today.getDay() === 4
-                            ? 'Piątek - Barki / Jednonóż / Detale'
-                            : 'Sprawdź plan tygodniowy'
+                    : nextScheduledTraining
+                      ? `Następny trening: ${nextScheduledTraining.day.dayName} — ${nextScheduledTraining.day.focus}`
+                      : 'Sprawdź plan tygodniowy'
                     }
                   </p>
                 </CardContent>
@@ -166,7 +157,7 @@ const DayPlan = () => {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => navigate(`/workout/${todaysTraining?.id}?date=${today.toISOString().split('T')[0]}`)}
+                onClick={() => navigate(`/workout/${todaysTraining?.id}?date=${formatLocalDate(today)}`)}
               >
                 Zobacz szczegóły treningu
               </Button>
@@ -309,7 +300,7 @@ const DayPlan = () => {
           <Button
             size="lg"
             className="w-full py-6 text-lg"
-            onClick={() => navigate(`/workout/${todaysTraining.id}?date=${today.toISOString().split('T')[0]}&autostart=true`)}
+            onClick={() => navigate(`/workout/${todaysTraining.id}?date=${formatLocalDate(today)}&autostart=true`)}
           >
             <Play className="h-5 w-5 mr-2" />
             Rozpocznij trening

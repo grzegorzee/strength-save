@@ -25,9 +25,13 @@ test.describe('Page Load Smoke Tests', () => {
   test('Exercise Library (/exercises) loads', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
-    // Should show exercise list or categories
-    const content = await page.textContent('body');
-    expect(content).toBeTruthy();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Biblioteka ćwiczeń' })).toBeVisible();
+  });
+
+  test('Workout History (/history) loads', async ({ page }) => {
+    await navigateAndWait(page, '/history');
+    await expectPageRendered(page);
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Historia treningów' })).toBeVisible();
   });
 
   test('Analytics (/analytics) loads', async ({ page }) => {
@@ -52,19 +56,19 @@ test.describe('Page Load Smoke Tests', () => {
 
   test('Unknown route shows 404 or redirects', async ({ page }) => {
     await navigateAndWait(page, '/ai');
-    // AI Chat removed — should show 404 or redirect
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(50);
+    await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
   });
 
   test('Settings (/settings) loads', async ({ page }) => {
     await navigateAndWait(page, '/settings');
     await expectPageRendered(page);
+    await expect(page.getByText('Backup i przywracanie')).toBeVisible();
   });
 
   test('Workout Day (/workout/day-1) loads', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
+    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
   });
 
   test('Plan Editor (/plan/edit) loads', async ({ page }) => {
@@ -79,13 +83,15 @@ test.describe('Page Load Smoke Tests', () => {
 
   test('404 page for unknown route', async ({ page }) => {
     await navigateAndWait(page, '/nonexistent-route');
-    await expectPageRendered(page);
+    await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Return to Home/i })).toBeVisible();
   });
 
   test('Legacy routes redirect to analytics', async ({ page }) => {
     for (const path of ['/stats', '/summary', '/progress', '/measurements']) {
       await navigateAndWait(page, path);
       await expectPageRendered(page);
+      await expect(page.getByRole('main').getByRole('heading', { name: 'Analityka' })).toBeVisible();
     }
   });
 });
@@ -100,7 +106,7 @@ test.describe('Navigation Flow', () => {
 
   test('can navigate between all main pages', async ({ page }) => {
     // Navigate directly via URL (sidebar may be collapsed on mobile viewport)
-    const mainRoutes = ['/', '/plan', '/exercises', '/analytics', '/achievements', '/cycles'];
+    const mainRoutes = ['/', '/plan', '/history', '/exercises', '/analytics', '/achievements', '/cycles'];
 
     for (const route of mainRoutes) {
       await navigateAndWait(page, route);
@@ -115,7 +121,7 @@ test.describe('Navigation Flow', () => {
     await expectPageRendered(page);
     // Go back
     await page.goBack();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('domcontentloaded');
     await expectPageRendered(page);
   });
 });
@@ -146,8 +152,19 @@ test.describe('Dashboard Features', () => {
     await navigateAndWait(page, '/');
     // E2E mock user is "E2E Tester"
     const greeting = page.locator('h1').first();
-    const text = await greeting.textContent();
-    expect(text).toBeTruthy();
+    await expect(greeting).toBeVisible();
+    await expect(page.getByText('Co dalej z planem?')).toBeVisible();
+  });
+
+  test('settings allow self-service export for regular user flow', async ({ page }) => {
+    await navigateAndWait(page, '/settings');
+    await expectPageRendered(page);
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Eksportuj kopię' }).click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toMatch(/^fittracker-backup-.*\.json$/);
   });
 });
 
@@ -162,19 +179,19 @@ test.describe('Workout Day', () => {
   test('day-1 shows training day name and exercises', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
-    // Should show exercise cards or "Rozpocznij trening" button
-    const body = await page.textContent('body');
-    expect(body!.length).toBeGreaterThan(50);
+    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
   });
 
   test('day-2 loads without error', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-2');
     await expectPageRendered(page);
+    await expect(page.getByText('Środa', { exact: false })).toBeVisible();
   });
 
   test('day-3 loads without error', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-3');
     await expectPageRendered(page);
+    await expect(page.getByText('Piątek', { exact: false })).toBeVisible();
   });
 
   test('invalid day shows error message', async ({ page }) => {
@@ -195,23 +212,16 @@ test.describe('Exercise Library', () => {
   test('shows exercise categories', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
-    // Should have category filters or exercise list
-    const body = await page.textContent('body');
-    // Check for known categories
-    const hasChest = body?.includes('Klatka') || body?.includes('chest');
-    const hasBack = body?.includes('Plecy') || body?.includes('back');
-    expect(hasChest || hasBack || body!.length > 200).toBe(true);
+    await expect(page.getByRole('heading', { name: 'Biblioteka ćwiczeń' })).toBeVisible();
   });
 
   test('exercises are clickable/expandable', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     // Try clicking first exercise card
     const firstCard = page.locator('[class*="card"]').first();
-    if (await firstCard.isVisible()) {
-      await firstCard.click();
-      await page.waitForTimeout(500);
-      await expectPageRendered(page);
-    }
+    await expect(firstCard).toBeVisible();
+    await firstCard.click();
+    await expectPageRendered(page);
   });
 });
 
@@ -228,14 +238,12 @@ test.describe('Analytics Tabs', () => {
     await expectPageRendered(page);
 
     // Check for tab triggers
-    const tabLabels = ['Podsumowanie', 'Wykresy', 'Pomiary'];
+    const tabLabels = ['Podsum.', 'Wykresy', 'Pomiary', 'Tygodnie'];
     for (const label of tabLabels) {
-      const tab = page.locator(`text=${label}`).first();
-      if (await tab.isVisible()) {
-        await tab.click();
-        await page.waitForTimeout(800);
-        await expectPageRendered(page);
-      }
+      const tab = page.getByRole('tab', { name: label });
+      await expect(tab).toBeVisible();
+      await tab.click();
+      await expectPageRendered(page);
     }
   });
 
@@ -243,21 +251,17 @@ test.describe('Analytics Tabs', () => {
     await navigateAndWait(page, '/analytics');
 
     // Click "Wykresy" tab
-    const chartsTab = page.locator('text=Wykresy').first();
-    if (await chartsTab.isVisible()) {
-      await chartsTab.click();
-      await page.waitForTimeout(800);
+    const chartsTab = page.getByRole('tab', { name: 'Wykresy' });
+    await expect(chartsTab).toBeVisible();
+    await chartsTab.click();
 
-      // Try sub-tabs
-      const subTabs = ['Treningi', 'Tonaż', 'Seria', 'Progresja'];
-      for (const label of subTabs) {
-        const subTab = page.locator(`text=${label}`).first();
-        if (await subTab.isVisible()) {
-          await subTab.click();
-          await page.waitForTimeout(500);
-          await expectPageRendered(page);
-        }
-      }
+    // Try sub-tabs
+    const subTabs = ['Treningi', 'Tonaż', 'Waga', 'Seria', 'Progresja'];
+    for (const label of subTabs) {
+      const subTab = page.getByText(label, { exact: true }).first();
+      await expect(subTab).toBeVisible();
+      await subTab.click();
+      await expectPageRendered(page);
     }
   });
 });
@@ -273,9 +277,7 @@ test.describe('Achievements', () => {
   test('loads with sections visible', async ({ page }) => {
     await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
-    // Should have "Rekordy" or "1RM" or exercise sections
-    const body = await page.textContent('body');
-    expect(body!.length).toBeGreaterThan(100);
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Osiągnięcia' })).toBeVisible();
   });
 });
 
@@ -290,16 +292,12 @@ test.describe('Cycles', () => {
   test('shows page title', async ({ page }) => {
     await navigateAndWait(page, '/cycles');
     await expectPageRendered(page);
-    const title = page.locator('role=main >> text=Cykle treningowe').first();
-    await expect(title).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Cykle treningowe' })).toBeVisible();
   });
 
   test('shows active plan card when plan exists', async ({ page }) => {
     await navigateAndWait(page, '/cycles');
-    // In E2E mode with default plan, should show "Aktualny plan" card
-    const planCard = page.locator('text=Aktualny plan');
-    const hasCard = await planCard.count() > 0;
-    // May or may not show depending on plan state — just don't crash
+    await expect(page.getByRole('main').getByText('Aktualny plan')).toBeVisible();
     await expectPageRendered(page);
   });
 });
@@ -315,6 +313,7 @@ test.describe('Settings', () => {
   test('shows user info section', async ({ page }) => {
     await navigateAndWait(page, '/settings');
     await expectPageRendered(page);
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Ustawienia' })).toBeVisible();
   });
 });
 
@@ -329,12 +328,8 @@ test.describe('Bodyweight Exercises', () => {
   test('exercise library includes bodyweight exercises', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
-    // Exercise library may require scrolling or expanding categories
-    // Just verify the page loads and has exercise content
-    const body = await page.textContent('body');
-    // Check for any exercise-related content (categories or exercise names)
-    const hasExercises = body!.includes('Klatka') || body!.includes('Brzuch') || body!.includes('Pompki') || body!.includes('ćwiczeń') || body!.length > 500;
-    expect(hasExercises).toBe(true);
+    await expect(page.getByRole('heading', { name: 'Biblioteka ćwiczeń' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Brzuch' })).toBeVisible();
   });
 });
 
@@ -362,6 +357,7 @@ test.describe('Mobile Responsiveness', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
+    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
   });
 });
 
@@ -424,23 +420,17 @@ test.describe('LocalStorage', () => {
   });
 
   test('sidebar collapse state persists', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
     await navigateAndWait(page, '/');
 
     // Check if collapse button exists and click it
-    const collapseBtn = page.locator('button[aria-label*="ollaps"], button:has(svg)').first();
-    if (await collapseBtn.isVisible()) {
-      // Get initial sidebar state from localStorage
-      const initialState = await page.evaluate(() => localStorage.getItem('sidebar-collapsed'));
+    const collapseBtn = page.locator('nav button.hidden.md\\:flex').first();
+    await expect(collapseBtn).toBeVisible();
 
-      await collapseBtn.click();
-      await page.waitForTimeout(500);
-
-      const newState = await page.evaluate(() => localStorage.getItem('sidebar-collapsed'));
-      // State should have changed
-      if (initialState !== null || newState !== null) {
-        expect(newState).not.toBe(initialState);
-      }
-    }
+    const initialState = await page.evaluate(() => localStorage.getItem('sidebar-collapsed'));
+    await collapseBtn.click();
+    const newState = await page.evaluate(() => localStorage.getItem('sidebar-collapsed'));
+    expect(newState).not.toBe(initialState);
   });
 
   test('workout draft IndexedDB operations work', async ({ page }) => {
@@ -451,6 +441,9 @@ test.describe('LocalStorage', () => {
       userId: 'test-user',
       dayId: 'day-1',
       date: '2024-04-02',
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: 'persistence-test',
       exerciseSets: { 'ex-1': [{ reps: 10, weight: 50, completed: true }] },
       exerciseNotes: {},
       dayNotes: '',

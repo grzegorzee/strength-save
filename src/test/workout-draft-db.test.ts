@@ -11,7 +11,10 @@ class FakeRequest<T> {
 }
 
 class FakeObjectStore {
-  constructor(private readonly data: Map<string, unknown>) {}
+  constructor(
+    private readonly data: Map<string, unknown>,
+    private readonly tx?: FakeTransaction,
+  ) {}
 
   get(key: string) {
     const request = new FakeRequest<unknown>();
@@ -28,6 +31,7 @@ class FakeObjectStore {
       this.data.set(value.userId, JSON.parse(JSON.stringify(value)));
       request.result = value.userId;
       request.onsuccess?.(new Event('success'));
+      this.tx?.complete();
     }, 0);
     return request as unknown as IDBRequest;
   }
@@ -38,18 +42,29 @@ class FakeObjectStore {
       this.data.delete(key);
       request.result = undefined;
       request.onsuccess?.(new Event('success'));
+      this.tx?.complete();
     }, 0);
     return request as unknown as IDBRequest;
   }
 }
 
 class FakeTransaction {
+  public oncomplete: ((event: Event) => void) | null = null;
+  public onerror: ((event: Event) => void) | null = null;
+  public onabort: ((event: Event) => void) | null = null;
+
   constructor(private readonly stores: Map<string, Map<string, unknown>>) {}
 
   objectStore(name: string) {
     const store = this.stores.get(name);
     if (!store) throw new Error(`Missing object store: ${name}`);
-    return new FakeObjectStore(store) as unknown as IDBObjectStore;
+    return new FakeObjectStore(store, this) as unknown as IDBObjectStore;
+  }
+
+  complete() {
+    setTimeout(() => {
+      this.oncomplete?.(new Event('complete'));
+    }, 0);
   }
 }
 
@@ -107,6 +122,9 @@ const baseDraft: ActiveWorkoutDraft = {
   userId: 'user-1',
   dayId: 'day-1',
   date: '2026-04-03',
+  cycleId: 'cycle-1',
+  sessionOrigin: 'remote',
+  remoteSessionId: 'workout-123',
   exerciseSets: {
     'ex-1': [
       { reps: 10, weight: 50, completed: true },
@@ -156,6 +174,22 @@ describe('workoutDraftDb', () => {
     expect(loaded?.completedLocally).toBe(true);
     expect(loaded?.finalSyncPending).toBe(true);
     expect(loaded?.dirty).toBe(true);
+  });
+
+  it('markPromotedToRemote rewrites provisional draft as remote session', async () => {
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: 'local-workout-user-1-day-1-2026-04-03',
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+    });
+
+    await workoutDraftDb.markPromotedToRemote('user-1', 'workout-user-1-day-1-2026-04-03');
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(loaded?.sessionId).toBe('workout-user-1-day-1-2026-04-03');
+    expect(loaded?.sessionOrigin).toBe('remote');
+    expect(loaded?.remoteSessionId).toBe('workout-user-1-day-1-2026-04-03');
   });
 
   it('clearActiveDraft removes stored record', async () => {

@@ -12,6 +12,9 @@ import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { SyncCenterCard } from '@/components/SyncCenterCard';
+import { DataManagement } from '@/components/DataManagement';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 
 const SUMMARY_HOUR_KEY = 'summary-hour';
 
@@ -130,6 +133,7 @@ const FeatureFlagsPanel = () => {
 const Settings = () => {
   const navigate = useNavigate();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
+  const { exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts(uid);
   const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
 
@@ -255,6 +259,17 @@ const Settings = () => {
         </CardContent>
       </Card>
 
+      <DataManagement
+        onExport={exportData}
+        onImport={importData}
+        onCleanup={cleanupEmptyWorkouts}
+        title="Backup i przywracanie"
+        description="Pobierz kopię swoich treningów i pomiarów albo odtwórz dane z pliku JSON."
+        exportLabel="Eksportuj kopię"
+        importLabel="Importuj kopię"
+        cleanupLabel="Wyczyść duplikaty treningów"
+      />
+
       {/* Strava integration — feature flag */}
       {canUseStrava && <Card>
         <CardHeader>
@@ -338,6 +353,9 @@ const Settings = () => {
           )}
         </CardContent>
       </Card>}
+
+      {/* Sync Center */}
+      <SyncCenterCard uid={uid} />
 
       {/* Feature Flags — admin only */}
       {isAdmin && <FeatureFlagsPanel />}

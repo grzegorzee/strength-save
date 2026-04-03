@@ -1,4 +1,5 @@
 import type { StravaActivity } from '@/types/strava';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 export interface DailyLoad {
   date: string;
@@ -62,8 +63,8 @@ export const computeFitnessFatigue = (
 
   // Build a continuous date range
   const sorted = [...dailyLoad].sort((a, b) => a.date.localeCompare(b.date));
-  const firstDate = new Date(sorted[0].date);
-  const lastDate = new Date(sorted[sorted.length - 1].date);
+  const firstDate = parseLocalDate(sorted[0].date);
+  const lastDate = parseLocalDate(sorted[sorted.length - 1].date);
 
   // Extend to `days` before last date if possible
   const startDate = new Date(lastDate);
@@ -87,7 +88,7 @@ export const computeFitnessFatigue = (
 
   const current = new Date(effectiveStart);
   while (current <= lastDate) {
-    const dateStr = current.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(current);
     const dayTrimp = trimpMap.get(dateStr) || 0;
 
     ctl = ctl + ctlDecay * (dayTrimp - ctl);

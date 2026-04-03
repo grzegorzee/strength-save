@@ -12,29 +12,23 @@ test.describe('Edge Cases: URL Manipulation', () => {
 
   test('special chars in URL params do not crash app', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1?date=2026-01-01&test=%3Cscript%3Ealert(1)%3C/script%3E');
-    // Should not crash — React escapes HTML
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(50);
+    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
   });
 
   test('SQL injection attempt in route param is harmless', async ({ page }) => {
     await navigateAndWait(page, "/workout/'; DROP TABLE workouts;--");
-    // Should show "not found" or handle gracefully
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(50);
+    await expect(page.getByRole('heading')).toBeVisible();
   });
 
   test('very long route param does not crash', async ({ page }) => {
     const longParam = 'a'.repeat(5000);
     await navigateAndWait(page, `/workout/${longParam}`);
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(50);
+    await expect(page.getByRole('heading')).toBeVisible();
   });
 
   test('unicode in URL params handled gracefully', async ({ page }) => {
     await navigateAndWait(page, '/workout/dzień-1?date=2026-04-02&note=ąćęłńóśźż');
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(50);
+    await expect(page.getByRole('heading')).toBeVisible();
   });
 });
 
@@ -60,8 +54,7 @@ test.describe('Edge Cases: LocalStorage', () => {
 
     // Navigate to workout — should handle draft save failure gracefully
     await navigateAndWait(page, '/workout/day-1');
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(50);
+    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
 
     // Cleanup
     await page.evaluate(() => {
@@ -78,9 +71,7 @@ test.describe('Edge Cases: LocalStorage', () => {
     });
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(1500);
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(100);
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
     await page.evaluate(() => localStorage.removeItem('fittracker_workout_draft'));
@@ -103,8 +94,7 @@ test.describe('Edge Cases: LocalStorage', () => {
     });
 
     await navigateAndWait(page, '/workout/day-1');
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(50);
+    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
     await page.evaluate(() => localStorage.removeItem('fittracker_workout_draft'));
@@ -120,25 +110,17 @@ test.describe('Edge Cases: Multiple Rapid Actions', () => {
     const routes = ['/', '/plan', '/exercises', '/analytics', '/achievements', '/cycles', '/'];
     for (const route of routes) {
       await page.goto(`/#${route}`);
-      await page.waitForTimeout(300); // Quick navigation, no full wait
+      await page.waitForLoadState('domcontentloaded');
     }
-    // Final page should render
-    await page.waitForTimeout(1500);
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(100);
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   });
 
   test('double-clicking buttons does not cause issues', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
-    // Find any button and double-click it
-    const button = page.locator('button').first();
-    if (await button.isVisible()) {
-      await button.dblclick();
-      await page.waitForTimeout(500);
-      // Page should still be functional
-      const body = await page.locator('body').innerHTML();
-      expect(body.length).toBeGreaterThan(50);
-    }
+    const button = page.getByRole('button', { name: /Rozpocznij trening|Zobacz szczegóły treningu|Wróć do planu/i }).first();
+    await expect(button).toBeVisible();
+    await button.dblclick();
+    await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
   });
 });
 
@@ -150,8 +132,7 @@ test.describe('Edge Cases: Viewport Extremes', () => {
   test('very narrow viewport (320px) does not crash', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 }); // iPhone 5
     await navigateAndWait(page, '/');
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(100);
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
   });
@@ -159,8 +140,7 @@ test.describe('Edge Cases: Viewport Extremes', () => {
   test('very wide viewport (2560px) does not break layout', async ({ page }) => {
     await page.setViewportSize({ width: 2560, height: 1440 }); // QHD
     await navigateAndWait(page, '/');
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(100);
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
   });
@@ -228,7 +208,6 @@ test.describe('Edge Cases: Data Boundaries', () => {
 
   test('empty training plan does not crash cycles page', async ({ page }) => {
     await navigateAndWait(page, '/cycles');
-    const body = await page.locator('body').innerHTML();
-    expect(body.length).toBeGreaterThan(50);
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Cykle treningowe' })).toBeVisible();
   });
 });

@@ -1,4 +1,5 @@
 import html2canvas from 'html2canvas-pro';
+import { parseLocalDate } from '@/lib/utils';
 
 export interface ShareData {
   dayName: string;
@@ -19,7 +20,7 @@ function escapeHtml(text: string): string {
 function buildShareHtml(data: ShareData): string {
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
-    new Date(data.date).toLocaleDateString('pl-PL', {
+    parseLocalDate(data.date).toLocaleDateString('pl-PL', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     })
   );
@@ -96,7 +97,7 @@ function buildShareHtml(data: ShareData): string {
 function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string): string {
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
-    new Date(data.date).toLocaleDateString('pl-PL', {
+    parseLocalDate(data.date).toLocaleDateString('pl-PL', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     })
   );

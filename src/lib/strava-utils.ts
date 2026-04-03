@@ -1,6 +1,7 @@
 import { startOfWeek, format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import type { StravaActivity } from '@/types/strava';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 // ========================
 // Types
@@ -191,8 +192,8 @@ export const computeWeeklyKm = (
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 
-    const startStr = weekStart.toISOString().split('T')[0];
-    const endStr = weekEnd.toISOString().split('T')[0];
+    const startStr = formatLocalDate(weekStart);
+    const endStr = formatLocalDate(weekEnd);
 
     const km =
       activities
@@ -228,8 +229,8 @@ export const computePaceTrendData = (
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 
-    const startStr = weekStart.toISOString().split('T')[0];
-    const endStr = weekEnd.toISOString().split('T')[0];
+    const startStr = formatLocalDate(weekStart);
+    const endStr = formatLocalDate(weekEnd);
 
     const paceActivities = activities.filter(
       (a) =>
@@ -313,7 +314,7 @@ export const computeMonthlySummaries = (
       totalElevation,
       totalCalories,
       activities: acts.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        (a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime(),
       ),
     });
   }
@@ -340,8 +341,8 @@ export const computeWeeklyElevation = (
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 
-    const startStr = weekStart.toISOString().split('T')[0];
-    const endStr = weekEnd.toISOString().split('T')[0];
+    const startStr = formatLocalDate(weekStart);
+    const endStr = formatLocalDate(weekEnd);
 
     const elevation = activities
       .filter((a) => a.date >= startStr && a.date <= endStr)
@@ -388,8 +389,8 @@ export const computeWeeklyCalories = (
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
 
-    const startStr = weekStart.toISOString().split('T')[0];
-    const endStr = weekEnd.toISOString().split('T')[0];
+    const startStr = formatLocalDate(weekStart);
+    const endStr = formatLocalDate(weekEnd);
 
     const calories = activities
       .filter((a) => a.date >= startStr && a.date <= endStr)

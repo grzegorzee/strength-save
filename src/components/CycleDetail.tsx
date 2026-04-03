@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Dumbbell, Trophy, TrendingUp, RefreshCw } from 'lucide-react';
+import { ChevronLeft, Dumbbell, Trophy, TrendingUp, RefreshCw, CalendarX2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,6 +63,20 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
             <span className="text-lg font-bold text-primary">%</span>
             <p className="text-2xl font-bold">{cycle.stats.completionRate}%</p>
             <p className="text-xs text-muted-foreground">Frekwencja</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <CalendarX2 className="h-5 w-5 text-orange-500 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{cycle.stats.missedWorkouts || 0}</p>
+            <p className="text-xs text-muted-foreground">Missed sessions</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <TrendingUp className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{cycle.stats.averageTonnagePerWorkout || 0}</p>
+            <p className="text-xs text-muted-foreground">kg / trening</p>
           </CardContent>
         </Card>
       </div>

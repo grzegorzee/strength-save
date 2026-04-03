@@ -1,5 +1,6 @@
 import type { SetData } from '@/types';
 import { workoutDraft } from '@/lib/workout-draft';
+import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 
 export const WORKOUT_DRAFT_DB_NAME = 'strength-save-db';
 export const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
@@ -11,6 +12,9 @@ export interface ActiveWorkoutDraft {
   userId: string;
   dayId: string;
   date: string;
+  cycleId: string | null;
+  sessionOrigin: 'remote' | 'provisional';
+  remoteSessionId: string | null;
   exerciseSets: Record<string, SetData[]>;
   exerciseNotes: Record<string, string>;
   dayNotes: string;
@@ -82,6 +86,11 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     userId,
     dayId: String(value.dayId),
     date: String(value.date),
+    cycleId: value.cycleId == null ? null : String(value.cycleId),
+    sessionOrigin: value.sessionOrigin === 'provisional' || isProvisionalWorkoutSessionId(String(value.sessionId))
+      ? 'provisional'
+      : 'remote',
+    remoteSessionId: value.remoteSessionId == null ? null : String(value.remoteSessionId),
     exerciseSets: normalizeExerciseSets(value.exerciseSets),
     exerciseNotes: normalizeExerciseNotes(value.exerciseNotes),
     dayNotes: String(value.dayNotes ?? ''),
@@ -122,6 +131,9 @@ const withFallbackLoad = (userId: string): ActiveWorkoutDraft | null => {
   return normalizeDraft({
     ...draft,
     userId,
+    cycleId: null,
+    sessionOrigin: isProvisionalWorkoutSessionId(draft.sessionId) ? 'provisional' : 'remote',
+    remoteSessionId: null,
     startedAt: draft.savedAt,
     updatedAt: draft.savedAt,
     lastFirebaseSyncAt: null,
@@ -133,7 +145,7 @@ const withFallbackLoad = (userId: string): ActiveWorkoutDraft | null => {
 };
 
 const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
-  workoutDraft.save({
+  const saved = workoutDraft.save({
     sessionId: draft.sessionId,
     dayId: draft.dayId,
     date: draft.date,
@@ -143,6 +155,9 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     skippedExercises: draft.skippedExercises,
     savedAt: draft.updatedAt,
   }, draft.userId);
+  if (!saved) {
+    throw new Error('LOCAL_STORAGE_SAVE_FAILED');
+  }
 };
 
 const openDatabase = (): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
@@ -185,7 +200,9 @@ const runWrite = async (value: ActiveWorkoutDraft | null, userId: string): Promi
     if (value) {
       withFallbackSave(value);
     } else {
-      workoutDraft.clear(userId);
+      if (!workoutDraft.clear(userId)) {
+        throw new Error('LOCAL_STORAGE_CLEAR_FAILED');
+      }
     }
     return;
   }
@@ -193,10 +210,15 @@ const runWrite = async (value: ActiveWorkoutDraft | null, userId: string): Promi
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readwrite');
     const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
-    const request = value ? store.put(value) : store.delete(userId);
+    if (value) {
+      store.put(value);
+    } else {
+      store.delete(userId);
+    }
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
   });
 };
 
@@ -249,6 +271,17 @@ export const workoutDraftDb = {
       completedLocally: true,
       finalSyncPending: true,
       dirty: true,
+      updatedAt: Date.now(),
+      version: draft.version + 1,
+    }));
+  },
+
+  async markPromotedToRemote(userId: string, remoteSessionId: string): Promise<void> {
+    await updateDraft(userId, draft => ({
+      ...draft,
+      sessionId: remoteSessionId,
+      sessionOrigin: 'remote',
+      remoteSessionId,
       updatedAt: Date.now(),
       version: draft.version + 1,
     }));

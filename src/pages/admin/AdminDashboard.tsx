@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp, DollarSign } from 'lucide-react';
+import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2 } from 'lucide-react';
 import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -22,10 +22,33 @@ interface AdminUser {
   email: string;
   displayName: string;
   role: string;
+  accessEnabled: boolean;
   stravaConnected: boolean;
   features: Record<string, boolean>;
   onboardingCompleted: boolean;
   lastLogin?: string;
+}
+
+interface AdminUserDetails {
+  plan: {
+    dayCount: number;
+    durationWeeks: number;
+    startDate: string | null;
+  } | null;
+  activeCycle: {
+    id: string;
+    startDate: string;
+    durationWeeks: number;
+    completionRate: number;
+  } | null;
+  recentWorkouts: Array<{
+    id: string;
+    date: string;
+    dayId: string;
+    completed: boolean;
+    exerciseCount: number;
+    cycleId?: string;
+  }>;
 }
 
 interface AIUsageDoc {
@@ -37,12 +60,21 @@ interface AIUsageDoc {
   callCount: number;
 }
 
+interface TelemetryDoc {
+  userId: string;
+  date: string;
+  counters?: Record<string, number>;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [expandedUid, setExpandedUid] = useState<string | null>(null);
   const [aiUsage, setAiUsage] = useState<AIUsageDoc[]>([]);
+  const [detailsByUser, setDetailsByUser] = useState<Record<string, AdminUserDetails | null>>({});
+  const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
+  const [telemetry, setTelemetry] = useState<TelemetryDoc[]>([]);
 
   // Current month key for AI usage query
   const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -72,6 +104,32 @@ const AdminDashboard = () => {
   }, [currentMonth]);
 
   useEffect(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    const dateKey = `${sevenDaysAgo.getFullYear()}-${String(sevenDaysAgo.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgo.getDate()).padStart(2, '0')}`;
+
+    const q = query(
+      collection(db, 'app_telemetry_daily'),
+      where('date', '>=', dateKey),
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const rows: TelemetryDoc[] = [];
+      snapshot.forEach((d) => {
+        const data = d.data();
+        rows.push({
+          userId: data.userId || '',
+          date: data.date || '',
+          counters: data.counters || {},
+        });
+      });
+      setTelemetry(rows);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = onSnapshot(
       collection(db, 'users'),
       (snapshot) => {
@@ -83,13 +141,17 @@ const AdminDashboard = () => {
             email: u.email || '',
             displayName: u.displayName || '',
             role: u.role || 'user',
+            accessEnabled: u.access?.enabled !== false,
             stravaConnected: u.stravaConnected || false,
             features: u.features || {},
             onboardingCompleted: u.onboardingCompleted || false,
             lastLogin: u.lastLogin,
           });
         });
-        data.sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1));
+        data.sort((a, b) =>
+          Number(b.role === 'admin') - Number(a.role === 'admin')
+          || (a.displayName || a.email).localeCompare(b.displayName || b.email, 'pl')
+        );
         setUsers(data);
       },
     );
@@ -108,6 +170,86 @@ const AdminDashboard = () => {
       toast({ title: 'Błąd', description: 'Nie udało się zapisać.', variant: 'destructive' });
     }
   };
+
+  const toggleAccess = async (uid: string, enabled: boolean) => {
+    try {
+      await updateDoc(doc(db, 'users', uid), { access: { enabled } });
+      setUsers(prev => prev.map(u =>
+        u.uid === uid ? { ...u, accessEnabled: enabled } : u
+      ));
+      const userName = users.find(u => u.uid === uid)?.displayName || uid;
+      toast({
+        title: enabled ? 'Dostęp włączony' : 'Dostęp wyłączony',
+        description: `${userName}`,
+      });
+    } catch {
+      toast({ title: 'Błąd', description: 'Nie udało się zmienić dostępu.', variant: 'destructive' });
+    }
+  };
+
+  useEffect(() => {
+    if (!expandedUid || detailsByUser[expandedUid] !== undefined || loadingDetails[expandedUid]) return;
+
+    const loadDetails = async () => {
+      setLoadingDetails(prev => ({ ...prev, [expandedUid]: true }));
+      try {
+        const [planSnap, cyclesSnap, workoutsSnap] = await Promise.all([
+          getDoc(doc(db, 'training_plans', expandedUid)),
+          getDocs(query(collection(db, 'plan_cycles'), where('userId', '==', expandedUid), limit(10))),
+          getDocs(query(collection(db, 'workouts'), where('userId', '==', expandedUid), limit(25))),
+        ]);
+
+        const planData = planSnap.exists()
+          ? {
+            dayCount: Array.isArray(planSnap.data().days) ? planSnap.data().days.length : 0,
+            durationWeeks: Number(planSnap.data().durationWeeks || 0),
+            startDate: typeof planSnap.data().startDate === 'string' ? planSnap.data().startDate : null,
+          }
+          : null;
+
+        const cycles = cyclesSnap.docs
+          .map((cycleDoc) => ({ id: cycleDoc.id, ...cycleDoc.data() }))
+          .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')));
+        const activeCycleDoc = cycles.find((cycle) => cycle.status === 'active') ?? null;
+
+        const recentWorkouts = workoutsSnap.docs
+          .map((workoutDoc) => ({ id: workoutDoc.id, ...workoutDoc.data() }))
+          .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
+          .slice(0, 5)
+          .map((workout) => ({
+            id: workout.id as string,
+            date: String(workout.date || ''),
+            dayId: String(workout.dayId || ''),
+            completed: Boolean(workout.completed),
+            exerciseCount: Array.isArray(workout.exercises) ? workout.exercises.length : 0,
+            ...(typeof workout.cycleId === 'string' ? { cycleId: workout.cycleId } : {}),
+          }));
+
+        setDetailsByUser(prev => ({
+          ...prev,
+          [expandedUid]: {
+            plan: planData,
+            activeCycle: activeCycleDoc
+              ? {
+                id: String(activeCycleDoc.id),
+                startDate: String(activeCycleDoc.startDate || ''),
+                durationWeeks: Number(activeCycleDoc.durationWeeks || 0),
+                completionRate: Number(activeCycleDoc.stats?.completionRate || 0),
+              }
+              : null,
+            recentWorkouts,
+          },
+        }));
+      } catch (error) {
+        console.error('[AdminDashboard] Failed to load user details', error);
+        setDetailsByUser(prev => ({ ...prev, [expandedUid]: null }));
+      } finally {
+        setLoadingDetails(prev => ({ ...prev, [expandedUid]: false }));
+      }
+    };
+
+    void loadDetails();
+  }, [detailsByUser, expandedUid, loadingDetails]);
 
   const getInitials = (name: string) =>
     name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
@@ -148,6 +290,41 @@ const AdminDashboard = () => {
         ) : null;
       })()}
 
+      {telemetry.length > 0 && (() => {
+        const aggregate = telemetry.reduce<Record<string, number>>((acc, doc) => {
+          Object.entries(doc.counters || {}).forEach(([key, value]) => {
+            acc[key] = (acc[key] || 0) + Number(value || 0);
+          });
+          return acc;
+        }, {});
+
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Health telemetry (7 dni)</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Sync failures</p>
+                <p className="mt-1 text-2xl font-bold">{aggregate.sync_failure || 0}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Retry manual</p>
+                <p className="mt-1 text-2xl font-bold">{aggregate.sync_retry_manual || 0}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Draft recovered</p>
+                <p className="mt-1 text-2xl font-bold">{aggregate.draft_recovered || 0}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Offline starts</p>
+                <p className="mt-1 text-2xl font-bold">{aggregate.provisional_session_started || 0}</p>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       <ApiKeysCard />
 
       <Card className="overflow-hidden">
@@ -160,6 +337,8 @@ const AdminDashboard = () => {
         <CardContent className="p-0">
           {users.map((user) => {
             const isExpanded = expandedUid === user.uid;
+            const details = detailsByUser[user.uid];
+            const detailsLoading = !!loadingDetails[user.uid];
             return (
               <div key={user.uid} className="border-t first:border-t-0">
                 {/* User row — clickable */}
@@ -179,6 +358,12 @@ const AdminDashboard = () => {
                       >
                         {user.role}
                       </Badge>
+                      <Badge
+                        variant={user.accessEnabled ? 'outline' : 'destructive'}
+                        className="text-[10px] h-5 shrink-0"
+                      >
+                        {user.accessEnabled ? 'dostęp on' : 'dostęp off'}
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
@@ -191,6 +376,32 @@ const AdminDashboard = () => {
                 {/* Expanded panel */}
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-4">
+                    <div className="rounded-lg bg-muted/20 p-3 space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dostęp</p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-2">
+                          {user.accessEnabled ? (
+                            <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-600" />
+                          ) : (
+                            <ShieldOff className="mt-0.5 h-4 w-4 text-destructive" />
+                          )}
+                          <div>
+                            <p className="text-sm font-medium">
+                              {user.accessEnabled ? 'Dostęp aktywny' : 'Dostęp wyłączony'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Backend egzekwuje ten stan dla danych treningowych i funkcji.
+                            </p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={user.accessEnabled}
+                          onCheckedChange={(checked) => toggleAccess(user.uid, checked)}
+                          disabled={user.role === 'admin'}
+                        />
+                      </div>
+                    </div>
+
                     {/* Feature flags */}
                     <div className="rounded-lg bg-muted/20 p-3 space-y-3">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Funkcje</p>
@@ -203,9 +414,70 @@ const AdminDashboard = () => {
                           <Switch
                             checked={user.features[feat.key] ?? user.role === 'admin'}
                             onCheckedChange={(checked) => toggleFeature(user.uid, feat.key, checked)}
+                            disabled={user.role === 'admin'}
                           />
                         </div>
                       ))}
+                    </div>
+
+                    <div className="rounded-lg bg-muted/20 p-3 space-y-3">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Podgląd użytkownika</p>
+                      {detailsLoading && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Ładowanie szczegółów...
+                        </div>
+                      )}
+                      {!detailsLoading && details && (
+                        <div className="space-y-3 text-sm">
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="rounded-md border bg-background/60 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Plan</p>
+                              <p className="mt-1 font-medium">
+                                {details.plan ? `${details.plan.dayCount} dni / ${details.plan.durationWeeks || '--'} tyg.` : 'Brak planu'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Start: {details.plan?.startDate || 'brak'}
+                              </p>
+                            </div>
+                            <div className="rounded-md border bg-background/60 p-3">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Aktywny cykl</p>
+                              <p className="mt-1 font-medium">
+                                {details.activeCycle ? `${details.activeCycle.durationWeeks} tyg.` : 'Brak aktywnego cyklu'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {details.activeCycle
+                                  ? `Start ${details.activeCycle.startDate} · completion ${details.activeCycle.completionRate}%`
+                                  : 'Brak danych'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Ostatnie treningi</p>
+                            <div className="space-y-2">
+                              {details.recentWorkouts.length > 0 ? details.recentWorkouts.map((workout) => (
+                                <div key={workout.id} className="rounded-md border bg-background/60 p-3">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                      <p className="font-medium">{workout.date}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {workout.dayId} · {workout.exerciseCount} ćwiczeń
+                                        {workout.cycleId ? ` · cycle ${workout.cycleId}` : ' · bez cycleId'}
+                                      </p>
+                                    </div>
+                                    <Badge variant={workout.completed ? 'default' : 'secondary'}>
+                                      {workout.completed ? 'completed' : 'draft'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              )) : (
+                                <p className="text-xs text-muted-foreground">Brak treningów.</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* AI Usage */}

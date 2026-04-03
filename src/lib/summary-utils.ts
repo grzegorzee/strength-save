@@ -1,4 +1,5 @@
 import type { WorkoutSession } from '@/types';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 export const getWeekBounds = (date: Date = new Date()): { start: Date; end: Date } => {
   const d = new Date(date);
@@ -41,9 +42,9 @@ export const calculateStreak = (workouts: WorkoutSession[]): number => {
   // Group by week (week = ISO week starting Monday)
   const weekSet = new Set<string>();
   completedWorkouts.forEach(w => {
-    const d = new Date(w.date);
+    const d = parseLocalDate(w.date);
     const { start } = getWeekBounds(d);
-    weekSet.add(start.toISOString().split('T')[0]);
+    weekSet.add(formatLocalDate(start));
   });
 
   // Sort weeks descending
@@ -58,7 +59,7 @@ export const calculateStreak = (workouts: WorkoutSession[]): number => {
     const weekStart = new Date(weeks[i]);
     const expectedWeekStart = new Date(currentWeekStart);
     expectedWeekStart.setDate(expectedWeekStart.getDate() - i * 7);
-    const expectedStr = expectedWeekStart.toISOString().split('T')[0];
+    const expectedStr = formatLocalDate(expectedWeekStart);
 
     if (weeks[i] !== expectedStr) break;
 
@@ -66,7 +67,7 @@ export const calculateStreak = (workouts: WorkoutSession[]): number => {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     const weekWorkouts = completedWorkouts.filter(w => {
-      const d = new Date(w.date);
+      const d = parseLocalDate(w.date);
       return d >= weekStart && d <= weekEnd;
     });
 
@@ -92,9 +93,9 @@ export const calculateLongestStreak = (workouts: WorkoutSession[]): number => {
   // Build a set of week-start dates that have ≥2 completed workouts
   const weekCounts = new Map<string, number>();
   completedWorkouts.forEach(w => {
-    const d = new Date(w.date);
+    const d = parseLocalDate(w.date);
     const { start } = getWeekBounds(d);
-    const key = start.toISOString().split('T')[0];
+    const key = formatLocalDate(start);
     weekCounts.set(key, (weekCounts.get(key) || 0) + 1);
   });
 
@@ -113,8 +114,8 @@ export const calculateLongestStreak = (workouts: WorkoutSession[]): number => {
   let current = 1;
 
   for (let i = 1; i < sortedWeeks.length; i++) {
-    const prev = new Date(sortedWeeks[i - 1]);
-    const curr = new Date(sortedWeeks[i]);
+    const prev = parseLocalDate(sortedWeeks[i - 1]);
+    const curr = parseLocalDate(sortedWeeks[i]);
     const diffDays = (curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24);
 
     if (Math.abs(diffDays - 7) < 1) {
@@ -133,7 +134,7 @@ export const filterWorkoutsByPeriod = (
   bounds: { start: Date; end: Date },
 ): WorkoutSession[] => {
   return workouts.filter(w => {
-    const d = new Date(w.date);
+    const d = parseLocalDate(w.date);
     return d >= bounds.start && d <= bounds.end && w.completed;
   });
 };

@@ -3,14 +3,29 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Download, Upload, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { formatLocalDate } from '@/lib/utils';
 
 interface DataManagementProps {
   onExport: () => string;
   onImport: (jsonString: string) => Promise<{ success: boolean; message: string }>;
   onCleanup?: () => Promise<{ deleted: number; error?: string }>;
+  title?: string;
+  description?: string;
+  exportLabel?: string;
+  importLabel?: string;
+  cleanupLabel?: string;
 }
 
-export const DataManagement = ({ onExport, onImport, onCleanup }: DataManagementProps) => {
+export const DataManagement = ({
+  onExport,
+  onImport,
+  onCleanup,
+  title = 'Zarządzanie danymi',
+  description = 'Eksportuj, importuj lub wyczyść dane treningowe',
+  exportLabel = 'Eksportuj JSON',
+  importLabel = 'Importuj JSON',
+  cleanupLabel = 'Wyczyść duplikaty i puste treningi',
+}: DataManagementProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
@@ -21,7 +36,7 @@ export const DataManagement = ({ onExport, onImport, onCleanup }: DataManagement
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `fittracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `fittracker-backup-${formatLocalDate(new Date())}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -92,20 +107,18 @@ export const DataManagement = ({ onExport, onImport, onCleanup }: DataManagement
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Zarządzanie danymi</CardTitle>
-        <CardDescription>
-          Eksportuj, importuj lub wyczyść dane treningowe
-        </CardDescription>
+        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 px-3 sm:px-6">
         <div className="grid grid-cols-2 gap-3">
           <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm">
             <Download className="h-4 w-4 mr-1.5 shrink-0" />
-            Eksportuj JSON
+            {exportLabel}
           </Button>
           <Button onClick={handleImportClick} variant="outline" className="w-full text-xs sm:text-sm">
             <Upload className="h-4 w-4 mr-1.5 shrink-0" />
-            Importuj JSON
+            {importLabel}
           </Button>
           <input
             ref={fileInputRef}
@@ -128,7 +141,7 @@ export const DataManagement = ({ onExport, onImport, onCleanup }: DataManagement
             ) : (
               <Trash2 className="h-4 w-4 mr-2" />
             )}
-            Wyczyść duplikaty i puste treningi
+            {cleanupLabel}
           </Button>
         )}
       </CardContent>

@@ -1,39 +1,24 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
+import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { calculateStreak } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
-import { cn, formatLocalDate } from '@/lib/utils';
-
-const getThisWeekDates = () => {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - daysSinceMonday);
-  monday.setHours(0, 0, 0, 0);
-
-  const wednesday = new Date(monday);
-  wednesday.setDate(monday.getDate() + 2);
-
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-
-  return [
-    { dayId: 'day-1', date: monday },
-    { dayId: 'day-2', date: wednesday },
-    { dayId: 'day-3', date: friday },
-  ];
-};
+import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek } from '@/lib/plan-schedule';
+import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+import { workoutSyncQueue } from '@/lib/workout-sync-queue';
+import { buildActiveCyclePreview } from '@/lib/cycle-insights';
+import { buildPlanNextStep } from '@/lib/plan-next-step';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
@@ -109,38 +94,52 @@ const Dashboard = () => {
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
+  const { cycles } = usePlanCycles(uid);
+  const [localDraft, setLocalDraft] = useState<ActiveWorkoutDraft | null>(null);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   const completedCount = useMemo(() => workouts.filter(w => w.completed).length, [workouts]);
   const latestMeasurement = getLatestMeasurement();
   const totalWeight = getTotalWeight();
 
-  const thisWeek = useMemo(() => getThisWeekDates(), []);
+  const today = useMemo(() => new Date(), []);
+  const thisWeek = useMemo(() => getScheduledTrainingWeek(trainingPlan, today), [trainingPlan, today]);
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
+  const activeCycle = useMemo(() => cycles.find(cycle => cycle.status === 'active') ?? null, [cycles]);
+  const previousCompletedCycle = useMemo(() => (
+    cycles
+      .filter(cycle => cycle.status === 'completed')
+      .sort((a, b) => b.endDate.localeCompare(a.endDate))[0] ?? null
+  ), [cycles]);
+  const liveActiveCycle = useMemo(() => buildActiveCyclePreview(activeCycle, workouts, today), [activeCycle, today, workouts]);
+  const planNextStep = useMemo(() => buildPlanNextStep({
+    hasPlan: trainingPlan.length > 0,
+    isPlanExpired,
+    weeksRemaining,
+    currentWeek,
+    planDurationWeeks,
+    activeCycle: liveActiveCycle,
+    previousCompletedCycle,
+    today,
+  }), [currentWeek, isPlanExpired, liveActiveCycle, planDurationWeeks, previousCompletedCycle, today, trainingPlan.length, weeksRemaining]);
 
   // Determine today's training context
   const todayTraining = useMemo(() => {
-    const todayStr = formatLocalDate(new Date());
-    const todayEntry = thisWeek.find(({ date }) => formatLocalDate(date) === todayStr);
+    const todayEntry = getScheduledTrainingForDate(trainingPlan, today);
 
     if (!todayEntry) {
-      const futureEntries = thisWeek
-        .filter(({ date }) => formatLocalDate(date) > todayStr)
-        .sort((a, b) => formatLocalDate(a.date).localeCompare(formatLocalDate(b.date)));
-      const nextEntry = futureEntries[0];
-      const nextDay = nextEntry ? trainingPlan.find(d => d.id === nextEntry.dayId) : null;
-      return { type: 'rest' as const, nextDay };
+      const nextEntry = getNextScheduledTraining(trainingPlan, today);
+      return { type: 'rest' as const, nextDay: nextEntry?.day ?? null };
     }
 
-    const day = trainingPlan.find(d => d.id === todayEntry.dayId);
-    if (!day) return { type: 'rest' as const, nextDay: null };
-
-    const todayWorkout = workouts.find(w => w.dayId === todayEntry.dayId && w.date === todayStr);
+    const day = todayEntry.day;
+    const todayWorkout = workouts.find(w => w.dayId === day.id && w.date === todayEntry.dateKey);
     if (todayWorkout?.completed) {
-      return { type: 'completed' as const, day, dayId: todayEntry.dayId, dateStr: todayStr };
+      return { type: 'completed' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
     }
-    return { type: 'training' as const, day, dayId: todayEntry.dayId, dateStr: todayStr };
-  }, [thisWeek, trainingPlan, workouts]);
+    return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
+  }, [trainingPlan, today, workouts]);
 
   // Calculate trends (last 4 weeks vs previous 4 weeks)
   const trends = useMemo(() => {
@@ -150,8 +149,11 @@ const Dashboard = () => {
     const eightWeeksAgo = new Date(now);
     eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
 
-    const recentWorkouts = workouts.filter(w => w.completed && new Date(w.date) >= fourWeeksAgo);
-    const olderWorkouts = workouts.filter(w => w.completed && new Date(w.date) >= eightWeeksAgo && new Date(w.date) < fourWeeksAgo);
+    const recentWorkouts = workouts.filter(w => w.completed && parseLocalDate(w.date) >= fourWeeksAgo);
+    const olderWorkouts = workouts.filter(w => {
+      const workoutDate = parseLocalDate(w.date);
+      return w.completed && workoutDate >= eightWeeksAgo && workoutDate < fourWeeksAgo;
+    });
 
     const recentCount = recentWorkouts.length;
     const olderCount = olderWorkouts.length;
@@ -180,13 +182,15 @@ const Dashboard = () => {
     const allNames = new Map(trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name])));
     const completedSorted = workouts
       .filter(w => w.completed)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
 
     let checked = 0;
     for (const workout of completedSorted) {
       if (checked >= 10) break;
       checked++;
-      const olderWorkouts = completedSorted.filter(w => w.id !== workout.id && new Date(w.date) < new Date(workout.date));
+      const olderWorkouts = completedSorted.filter(
+        w => w.id !== workout.id && parseLocalDate(w.date) < parseLocalDate(workout.date),
+      );
       if (olderWorkouts.length === 0) continue;
       const prs = detectNewPRs(workout, olderWorkouts, allNames);
       if (prs.length > 0) {
@@ -204,11 +208,7 @@ const Dashboard = () => {
   // Weekly Strava km counter (Mon-Sun)
   const weeklyKm = useMemo(() => {
     if (!stravaConnection.connected) return 0;
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - daysSinceMonday);
+    const monday = getStartOfPlanWeek(today);
     const mondayStr = formatLocalDate(monday);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
@@ -217,7 +217,7 @@ const Dashboard = () => {
     return stravaActivities
       .filter(a => a.date >= mondayStr && a.date <= sundayStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit')
       .reduce((sum, a) => sum + (a.distance || 0), 0) / 1000;
-  }, [stravaActivities, stravaConnection.connected]);
+  }, [stravaActivities, stravaConnection.connected, today]);
 
   // Greeting
   const hour = new Date().getHours();
@@ -233,8 +233,41 @@ const Dashboard = () => {
   // Plan progress
   const planProgress = Math.min(100, Math.round((currentWeek / planDurationWeeks) * 100));
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!uid) return;
+
+    const loadDraft = async () => {
+      const draft = await workoutDraftDb.loadActiveDraft(uid);
+      if (!cancelled) {
+        setLocalDraft(draft);
+        setPendingSyncCount(workoutSyncQueue.pendingCount(uid));
+      }
+    };
+
+    void loadDraft();
+
+    const handleFocus = () => {
+      void loadDraft();
+    };
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleFocus);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleFocus);
+    };
+  }, [uid]);
+
   // Day focus descriptions
   const dayColors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500'];
+  const planNextStepTone = {
+    primary: 'border-primary/40 bg-primary/5',
+    warning: 'border-amber-500/40 bg-amber-500/5',
+    success: 'border-emerald-500/40 bg-emerald-500/5',
+    info: 'border-sky-500/40 bg-sky-500/5',
+  } as const;
 
   if (!isLoaded) {
     return (
@@ -253,7 +286,7 @@ const Dashboard = () => {
   }
 
   const formatPRDate = (dateStr: string) => {
-    const d = new Date(dateStr);
+    const d = parseLocalDate(dateStr);
     const today = new Date();
     const diffDays = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays === 0) return 'dziś';
@@ -272,6 +305,39 @@ const Dashboard = () => {
         </h1>
         <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
       </div>
+
+      {(localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0 ? (
+        <Card className="border-sky-200 bg-sky-50/80">
+          <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <CloudOff className="h-5 w-5 text-sky-700 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-medium text-sky-950">
+                  {localDraft?.finalSyncPending
+                    ? 'Masz trening zakończony lokalnie'
+                    : localDraft?.sessionOrigin === 'provisional'
+                      ? 'Masz trening rozpoczęty offline'
+                      : pendingSyncCount > 0
+                        ? `Masz ${pendingSyncCount} ${pendingSyncCount === 1 ? 'sesję' : 'sesje'} w kolejce synchronizacji`
+                        : 'Masz lokalne zmiany do synchronizacji'}
+                </p>
+                <p className="text-sm text-sky-900/80">
+                  {localDraft?.finalSyncPending
+                    ? 'Dane czekają na finalny zapis w chmurze.'
+                    : localDraft?.sessionOrigin === 'provisional'
+                      ? 'Sesja istnieje tylko na urządzeniu i zostanie utworzona w Firebase po odzyskaniu internetu.'
+                      : pendingSyncCount > 0
+                        ? 'Otwórz Sync Center, aby sprawdzić wszystkie oczekujące treningi i uruchomić retry all.'
+                        : 'Otwórz Sync Center, aby sprawdzić status i wymusić synchronizację.'}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" className="border-sky-300 bg-white hover:bg-sky-100" onClick={() => navigate('/settings')}>
+              Otwórz Sync Center
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Today's training card */}
       {todayTraining.type === 'training' && (
@@ -327,35 +393,36 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Plan ending soon banner */}
-      {!isPlanExpired && weeksRemaining <= 2 && weeksRemaining >= 0 && (
-        <Card className="border-amber-500/40 bg-amber-500/5">
-          <CardContent className="py-4 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-sm text-amber-600 dark:text-amber-400">
-                Twój plan kończy się za {weeksRemaining === 0 ? 'ten tydzień' : `${weeksRemaining} tyg.`}!
+      <Card className={planNextStepTone[planNextStep.tone]}>
+        <CardContent className="p-5 space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Co dalej z planem?
               </p>
-              <p className="text-xs text-muted-foreground">Zaplanuj następny cykl treningowy.</p>
+              <h2 className="text-lg font-semibold tracking-tight">{planNextStep.title}</h2>
+              <p className="text-sm text-muted-foreground">{planNextStep.description}</p>
             </div>
-            <Button size="sm" variant="outline" className="border-amber-500/40 hover:bg-amber-500/10" onClick={() => navigate('/new-plan')}>
-              Zaplanuj nowy
+            <div className="flex flex-wrap gap-2">
+              {planNextStep.badges.map((badge) => (
+                <Badge key={badge} variant="outline" className="bg-white/80">
+                  {badge}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button onClick={() => navigate(planNextStep.primaryPath)}>
+              {planNextStep.primaryLabel}
             </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Plan expired banner */}
-      {isPlanExpired && (
-        <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="py-4 flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-sm">Twój plan się zakończył!</p>
-              <p className="text-xs text-muted-foreground">Czas na nowy plan treningowy.</p>
-            </div>
-            <Button size="sm" onClick={() => navigate('/new-plan')}>Nowy plan</Button>
-          </CardContent>
-        </Card>
-      )}
+            {planNextStep.secondaryPath && planNextStep.secondaryLabel ? (
+              <Button variant="outline" onClick={() => navigate(planNextStep.secondaryPath)}>
+                {planNextStep.secondaryLabel}
+              </Button>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats - 4 columns */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -510,17 +577,15 @@ const Dashboard = () => {
             const items: TimelineItem[] = [];
 
             // Add training days
-            thisWeek.forEach(({ dayId, date }) => {
-              const day = trainingPlan.find(d => d.id === dayId);
-              if (day) {
-                items.push({ type: 'training', dayId, date, dateStr: formatLocalDate(date) });
-              }
+            thisWeek.forEach(({ day, date, dateKey }) => {
+              items.push({ type: 'training', dayId: day.id, date, dateStr: dateKey });
             });
 
             // Add Strava activities for this week
-            if (stravaConnection.connected) {
-              const mondayStr = formatLocalDate(thisWeek[0].date);
-              const sundayDate = new Date(thisWeek[0].date);
+            if (stravaConnection.connected && thisWeek.length > 0) {
+              const mondayDate = getStartOfPlanWeek(today);
+              const mondayStr = formatLocalDate(mondayDate);
+              const sundayDate = new Date(mondayDate);
               sundayDate.setDate(sundayDate.getDate() + 6);
               const sundayStr = formatLocalDate(sundayDate);
 
@@ -536,12 +601,11 @@ const Dashboard = () => {
 
             return items.map((item) => {
               if (item.type === 'training') {
-                const day = trainingPlan.find(d => d.id === item.dayId)!;
                 const workoutForDate = workouts.find(w => w.dayId === item.dayId && w.date === item.dateStr);
                 return (
                   <TrainingDayCard
                     key={`training-${item.dayId}-${item.dateStr}`}
-                    day={day}
+                    day={trainingPlan.find(d => d.id === item.dayId)!}
                     latestWorkout={workoutForDate}
                     trainingDate={item.date}
                     onClick={() => navigate(`/workout/${item.dayId}?date=${item.dateStr}${!workoutForDate?.completed ? '&autostart=true' : ''}`)}

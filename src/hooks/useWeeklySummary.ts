@@ -17,6 +17,7 @@ import {
   type WeeklySummary,
 } from '@/lib/weekly-summary';
 import { getWeekBounds } from '@/lib/summary-utils';
+import { formatLocalDate } from '@/lib/utils';
 
 export const useWeeklySummary = (userId: string, stravaEnabled: boolean = false) => {
   const [summaries, setSummaries] = useState<WeeklySummary[]>([]);
@@ -110,7 +111,7 @@ export const useWeeklySummary = (userId: string, stravaEnabled: boolean = false)
     const lastWeekDate = new Date();
     lastWeekDate.setDate(lastWeekDate.getDate() - 7);
     const { start } = getWeekBounds(lastWeekDate);
-    const lastWeekStart = start.toISOString().split('T')[0];
+    const lastWeekStart = formatLocalDate(start);
 
     const exists = summaries.some(s => s.weekStart === lastWeekStart);
     if (exists) return;

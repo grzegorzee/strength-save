@@ -10,6 +10,7 @@ export interface UserProfile {
   displayName: string;
   photoURL: string;
   role: 'admin' | 'user';
+  accessEnabled: boolean;
   stravaConnected: boolean;
   onboardingCompleted: boolean;
   features?: Record<string, boolean>;
@@ -19,6 +20,7 @@ interface UserContextValue {
   uid: string;
   profile: UserProfile | null;
   isAdmin: boolean;
+  hasAppAccess: boolean;
   canUseStrava: boolean;
   isNewUser: boolean;
   profileLoaded: boolean;
@@ -52,6 +54,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         displayName: 'E2E Tester',
         photoURL: '',
         role: 'admin',
+        accessEnabled: true,
         stravaConnected: false,
         onboardingCompleted: true,
       });
@@ -64,15 +67,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     // Create/update user document on login — auto-detect existing users
     const ensureUserDoc = async () => {
       try {
-        // Check if user has existing workouts (= existing user from before onboarding)
-        const workoutsSnap = await getDocs(
-          query(collection(db, 'workouts'), where('userId', '==', userId), limit(1))
-        );
-        const isExistingUser = !workoutsSnap.empty;
-
-        // Check if user already had onboardingCompleted set
         const userSnap = await getDoc(docRef);
-        const hadOnboarding = userSnap.exists() && userSnap.data()?.onboardingCompleted === true;
+        const userData = userSnap.exists() ? userSnap.data() : null;
+        const accessEnabled = userData?.access?.enabled !== false;
+        const hadOnboarding = userData?.onboardingCompleted === true;
 
         await setDoc(docRef, {
           uid: userId,
@@ -80,12 +78,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           displayName: userDisplayName || userEmail.split('@')[0] || '',
           photoURL: userPhotoUrl,
           lastLogin: new Date().toISOString(),
-          ...(isExistingUser && { onboardingCompleted: true }),
+          ...(!userSnap.exists() && { access: { enabled: false } }),
         }, { merge: true });
+
+        if (!userSnap.exists() || !accessEnabled || hadOnboarding) {
+          return;
+        }
+
+        // Existing user migration path: if workouts exist but onboarding flag is missing, restore it.
+        const workoutsSnap = await getDocs(
+          query(collection(db, 'workouts'), where('userId', '==', userId), limit(1))
+        );
+        const isExistingUser = !workoutsSnap.empty;
 
         // If existing user was NOT previously marked as onboarded, reset plan to default
         // (v5.0 bug may have overwritten their plan via onboarding)
-        if (isExistingUser && !hadOnboarding) {
+        if (isExistingUser) {
+          await setDoc(docRef, { onboardingCompleted: true }, { merge: true });
           await setDoc(doc(db, 'training_plans', userId), {
             days: defaultTrainingPlan,
             updatedAt: new Date().toISOString(),
@@ -107,6 +116,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           displayName: data.displayName || userDisplayName,
           photoURL: data.photoURL || userPhotoUrl,
           role: data.role || 'user',
+          accessEnabled: data.access?.enabled !== false,
           stravaConnected: data.stravaConnected || false,
           onboardingCompleted: data.onboardingCompleted || false,
           features: data.features || undefined,
@@ -119,6 +129,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           displayName: userDisplayName,
           photoURL: userPhotoUrl,
           role: 'user',
+          accessEnabled: false,
           stravaConnected: false,
           onboardingCompleted: false,
         });
@@ -145,13 +156,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   if (!userId) return null;
 
   const isNewUser = profileLoaded && profile !== null && !profile.onboardingCompleted;
+  const hasAppAccess = profile?.role === 'admin' || profile?.accessEnabled !== false;
 
   return (
     <UserContext.Provider value={{
       uid: userId,
       profile,
       isAdmin: profile?.role === 'admin',
-      canUseStrava: profile?.features?.strava ?? profile?.role === 'admin',
+      hasAppAccess,
+      canUseStrava: hasAppAccess && (profile?.features?.strava ?? profile?.role === 'admin'),
       isNewUser,
       profileLoaded,
     }}>

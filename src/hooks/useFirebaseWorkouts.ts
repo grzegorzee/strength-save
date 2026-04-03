@@ -14,14 +14,17 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import {
+  buildWorkoutSessionId,
+  createProvisionalWorkoutSession,
+  isProvisionalWorkoutSessionId,
+} from '@/lib/workout-session';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
 const WORKOUTS_COLLECTION = 'workouts';
 const MEASUREMENTS_COLLECTION = 'measurements';
-const buildWorkoutSessionId = (userId: string, dayId: string, workoutDate: string) => (
-  `workout-${userId}-${dayId}-${workoutDate}`
-);
 
 // Sanitize and clamp set values to valid ranges
 const clampSet = (set: Partial<SetData>): SetData => ({
@@ -92,13 +95,24 @@ export const useFirebaseWorkouts = (userId: string) => {
     return () => unsubscribe();
   }, [userId]);
 
-  const createWorkoutSession = useCallback(async (dayId: string, date?: string, cycleId?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }> => {
-    const workoutDate = date || new Date().toISOString().split('T')[0];
+  const createWorkoutSession = useCallback(async (dayId: string, date?: string, cycleId?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean; provisional?: boolean }> => {
+    const workoutDate = date || formatLocalDate(new Date());
     const sessionId = buildWorkoutSessionId(userId, dayId, workoutDate);
 
     // Check if workout for this date already exists (prevent duplicates)
     const existingWorkout = workouts.find(w => w.id === sessionId || (w.dayId === dayId && w.date === workoutDate));
     if (existingWorkout) {
+      if (cycleId && !existingWorkout.cycleId) {
+        try {
+          await updateDoc(doc(db, WORKOUTS_COLLECTION, existingWorkout.id), { cycleId });
+          return {
+            session: { ...existingWorkout, cycleId },
+            existing: true,
+          };
+        } catch (err) {
+          console.error('Error attaching cycleId to existing workout:', err);
+        }
+      }
       return { session: existingWorkout, existing: true };
     }
 
@@ -127,6 +141,11 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { session: null, error: errorMessage };
     }
   }, [workouts, userId]);
+
+  const createOfflineWorkoutSession = useCallback((dayId: string, date?: string, cycleId?: string): WorkoutSession => {
+    const workoutDate = date || formatLocalDate(new Date());
+    return createProvisionalWorkoutSession(userId, dayId, workoutDate, cycleId);
+  }, [userId]);
 
   const updateExerciseProgress = useCallback(async (
     sessionId: string,
@@ -218,12 +237,12 @@ export const useFirebaseWorkouts = (userId: string) => {
 
   const getWorkoutsByDay = useCallback((dayId: string) => {
     return workouts.filter(w => w.dayId === dayId).sort((a, b) =>
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+      parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime()
     );
   }, [workouts]);
 
   const getTodaysWorkout = useCallback((dayId: string) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalDate(new Date());
     const todaysWorkouts = workouts.filter(w => w.dayId === dayId && w.date === today);
 
     if (todaysWorkouts.length === 0) return undefined;
@@ -450,6 +469,7 @@ export const useFirebaseWorkouts = (userId: string) => {
     isLoaded,
     error,
     createWorkoutSession,
+    createOfflineWorkoutSession,
     updateExerciseProgress,
     completeWorkout,
     batchSaveWorkout,
@@ -466,5 +486,6 @@ export const useFirebaseWorkouts = (userId: string) => {
     importData,
     deleteWorkout,
     cleanupEmptyWorkouts,
+    isProvisionalWorkoutSessionId,
   };
 };

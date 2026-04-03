@@ -2,6 +2,7 @@ import { Page, expect } from '@playwright/test';
 
 const WORKOUT_DRAFT_DB_NAME = 'strength-save-db';
 const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
+const WORKOUT_SYNC_QUEUE_KEY_PREFIX = 'fittracker_workout_sync_queue_v1';
 
 export const blockFirebase = async (page: Page) => {
   await page.route('**/firestore.googleapis.com/**', (route) => route.abort());
@@ -17,9 +18,16 @@ export const navigateAndWait = async (page: Page, path: string) => {
   await expect(page.locator('#root')).toBeVisible();
 };
 
+export const expectHashRoute = async (page: Page, path: string) => {
+  const normalizedPath = path === '/' ? '/' : path.startsWith('/') ? path : `/${path}`;
+  const expected = normalizedPath === '/' ? /\/#\/?$/ : new RegExp(`/#${normalizedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+  await expect(page).toHaveURL(expected);
+};
+
 export const expectPageRendered = async (page: Page) => {
   const rootChildCount = await page.locator('#root > *').count();
   expect(rootChildCount).toBeGreaterThan(0);
+  await expect(page.getByRole('main')).toBeVisible();
   const hasError = await page.locator('text=Something went wrong').count();
   const hasErrorPl = await page.locator('text=Coś poszło nie tak').count();
   expect(hasError + hasErrorPl).toBe(0);
@@ -98,4 +106,10 @@ export const clearWorkoutDraftDb = async (page: Page, userId: string) => {
       request.onerror = () => reject(request.error);
     });
   }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, userId });
+};
+
+export const writeWorkoutSyncQueue = async (page: Page, userId: string, entries: unknown[]) => {
+  await page.evaluate(({ draftUserId, queueEntries, queuePrefix }) => {
+    localStorage.setItem(`${queuePrefix}_${draftUserId}`, JSON.stringify(queueEntries));
+  }, { draftUserId: userId, queueEntries: entries, queuePrefix: WORKOUT_SYNC_QUEUE_KEY_PREFIX });
 };

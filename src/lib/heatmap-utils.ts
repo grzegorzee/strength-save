@@ -1,5 +1,6 @@
 import type { WorkoutSession } from '@/types';
 import type { StravaActivity } from '@/types/strava';
+import { formatLocalDate } from '@/lib/utils';
 
 export interface HeatmapDay {
   date: string;
@@ -46,7 +47,7 @@ export const generateHeatmapData = (
 
   for (let d = 0; d < totalDays; d++) {
     const date = new Date(year, 0, 1 + d);
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(date);
     const strengthTonnage = tonnageMap.get(dateStr) || 0;
     const cardioKm = Math.round((cardioMap.get(dateStr) || 0) * 10) / 10;
     const hasWorkout = strengthTonnage > 0;

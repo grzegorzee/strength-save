@@ -5,6 +5,7 @@ import { getWeekBounds, calculateTonnage, filterWorkoutsByPeriod } from '@/lib/s
 import { detectNewPRs } from '@/lib/pr-utils';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 // --- Types ---
 
@@ -35,8 +36,8 @@ export function prepareWeeklyData(
   trainingPlan: TrainingDay[],
 ): { stats: WeeklySummaryStats; weekStart: string; weekEnd: string; hasData: boolean } {
   const bounds = getWeekBounds(weekDate);
-  const weekStart = bounds.start.toISOString().split('T')[0];
-  const weekEnd = bounds.end.toISOString().split('T')[0];
+  const weekStart = formatLocalDate(bounds.start);
+  const weekEnd = formatLocalDate(bounds.end);
 
   // Strength workouts
   const weekWorkouts = filterWorkoutsByPeriod(workouts, bounds);
@@ -44,7 +45,7 @@ export function prepareWeeklyData(
 
   // PRs
   const allNames = new Map(trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name])));
-  const historicalWorkouts = workouts.filter(w => w.completed && new Date(w.date) < bounds.start);
+  const historicalWorkouts = workouts.filter(w => w.completed && parseLocalDate(w.date) < bounds.start);
   const prs: WeeklySummaryStats['prs'] = [];
   weekWorkouts.forEach(w => {
     const detected = detectNewPRs(w, historicalWorkouts, allNames);

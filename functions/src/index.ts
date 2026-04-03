@@ -123,6 +123,22 @@ async function assertAdmin(userId: string): Promise<void> {
   }
 }
 
+async function assertAppAccess(userId: string): Promise<void> {
+  const userDoc = await getUserRef(userId).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("permission-denied", "User profile missing");
+  }
+
+  const data = userDoc.data();
+  if (data?.role === "admin") {
+    return;
+  }
+
+  if (data?.access?.enabled === false) {
+    throw new HttpsError("permission-denied", "Access disabled by admin");
+  }
+}
+
 async function getWorkoutExport(
   userId: string,
   from: string | null,
@@ -286,6 +302,7 @@ export const stravaAuthUrl = onCall(
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
     const userId = request.auth.uid;
+    await assertAppAccess(userId);
 
     const clientId = stravaClientId.value();
     const redirectUri = stravaRedirectUri.value();
@@ -320,6 +337,7 @@ export const stravaCallback = onCall(
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
     const userId = request.auth.uid;
+    await assertAppAccess(userId);
     const { code } = request.data;
     if (!code) {
       throw new HttpsError("invalid-argument", "code is required");
@@ -383,6 +401,7 @@ export const stravaSync = onCall(
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
     const userId = request.auth.uid;
+    await assertAppAccess(userId);
     const { fullSync } = request.data;
 
     logger.info(`[Strava] Manual sync requested for ${userId}, fullSync=${!!fullSync}`);
@@ -418,6 +437,7 @@ export const generateWeeklySummary = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
+    await assertAppAccess(request.auth.uid);
 
     const { stats } = request.data;
     if (!stats) {
@@ -517,6 +537,7 @@ export const proxyOpenAI = onCall(
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
+    await assertAppAccess(request.auth.uid);
 
     const { messages, model, maxTokens } = request.data;
     if (!messages || !Array.isArray(messages)) {
@@ -623,6 +644,14 @@ export const streamOpenAI = onRequest(
       userId = decoded.uid;
     } catch {
       res.status(401).json({ error: "Invalid token" });
+      return;
+    }
+
+    try {
+      await assertAppAccess(userId);
+    } catch (error) {
+      const message = error instanceof HttpsError ? error.message : "Access denied";
+      res.status(403).json({ error: message });
       return;
     }
 
@@ -1382,6 +1411,7 @@ export const stravaDisconnect = onCall(async (request) => {
   }
 
   const userId = request.auth.uid;
+  await assertAppAccess(userId);
 
   await getStravaConnectionRef(userId).delete().catch(() => undefined);
   await getUserRef(userId).set({
