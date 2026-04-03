@@ -33,11 +33,36 @@ function escapeHtmlStr(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+async function listAllAuthUsers(): Promise<Array<{ uid: string; email: string }>> {
+  const users: Array<{ uid: string; email: string }> = [];
+  let pageToken: string | undefined;
+
+  do {
+    const result = await admin.auth().listUsers(1000, pageToken);
+    users.push(
+      ...result.users
+        .filter(user => user.email)
+        .map(user => ({ uid: user.uid, email: user.email! })),
+    );
+    pageToken = result.pageToken;
+  } while (pageToken);
+
+  return users;
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 export const weeklyDigest = onSchedule(
   {
     schedule: "every monday 08:00",
     timeZone: "Europe/Warsaw",
-    timeoutSeconds: 120,
+    timeoutSeconds: 300,
     secrets: [resendApiKey],
   },
   async () => {
@@ -53,10 +78,7 @@ export const weeklyDigest = onSchedule(
     const resend = new Resend(apiKey);
 
     // Get all user emails from Firebase Auth
-    const listResult = await admin.auth().listUsers(100);
-    const userEmails = listResult.users
-      .filter(u => u.email)
-      .map(u => ({ uid: u.uid, email: u.email! }));
+    const userEmails = await listAllAuthUsers();
 
     if (userEmails.length === 0) {
       logger.info("[WeeklyDigest] No users with email found, skipping.");
@@ -80,7 +102,7 @@ export const weeklyDigest = onSchedule(
 
     logger.info(`[WeeklyDigest] Period: ${startStr} - ${endStr}`);
 
-    for (const user of userEmails) {
+    const processUser = async (user: { uid: string; email: string }) => {
       try {
         // Query workouts for this user
         const workoutsSnap = await db
@@ -96,7 +118,7 @@ export const weeklyDigest = onSchedule(
 
         if (sessionCount === 0) {
           logger.info(`[WeeklyDigest] No workouts for ${user.email}, skipping.`);
-          continue;
+          return;
         }
 
         // Calculate tonnage
@@ -206,6 +228,10 @@ export const weeklyDigest = onSchedule(
       } catch (error) {
         logger.error(`[WeeklyDigest] Failed for ${user.email}:`, error);
       }
+    };
+
+    for (const batch of chunkArray(userEmails, 10)) {
+      await Promise.allSettled(batch.map(processUser));
     }
 
     logger.info("[WeeklyDigest] Done.");

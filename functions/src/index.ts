@@ -3,7 +3,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { checkUsageLimit, recordUsage } from "./ai-usage";
+import { checkUsageLimit, estimateUsageCost, recordUsage, releaseUsageBudget, reserveUsageBudget } from "./ai-usage";
 
 admin.initializeApp();
 
@@ -75,6 +75,9 @@ interface StravaApiActivity {
 
 const getUserRef = (userId: string) => db.doc(`${USERS_COLLECTION}/${userId}`);
 const getStravaConnectionRef = (userId: string) => db.doc(`${STRAVA_CONNECTIONS_COLLECTION}/${userId}`);
+const getStravaActivityRef = (userId: string, activityId: number) => (
+  db.collection(STRAVA_ACTIVITIES_COLLECTION).doc(`strava-${userId}-${activityId}`)
+);
 
 const buildStravaConnection = (tokenData: StravaTokenPayload, athleteName: string): StravaConnectionDoc => ({
   accessToken: tokenData.access_token,
@@ -284,17 +287,6 @@ export const generateWeeklySummary = onCall(
       throw new HttpsError("failed-precondition", "OpenAI API key not configured. Dodaj klucz w Google Cloud Console → Secret Manager → openai-api-key");
     }
 
-    // Cost tracking
-    const userId = request.auth.uid;
-    try {
-      await checkUsageLimit(userId);
-    } catch (limitErr) {
-      if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
-        throw new HttpsError("resource-exhausted", limitErr);
-      }
-      throw limitErr;
-    }
-
     const prompt = `Jesteś trenerem personalnym. Napisz KRÓTKIE (max 150 słów) motywujące podsumowanie tygodnia treningowego po polsku.
 
 Dane z tygodnia:
@@ -311,39 +303,65 @@ Zasady:
 - Max 150 słów
 - Nie pisz "Oto podsumowanie" ani podobnych wstępów — zacznij od sedna`;
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-5-mini",
-        messages: [
-          { role: "system", content: "Jesteś osobistym trenerem. Odpowiadaj po polsku, zwięźle i konkretnie." },
-          { role: "user", content: prompt },
-        ],
-        max_completion_tokens: 500,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
-      logger.error(`[WeeklySummary] OpenAI API error: ${errorMessage}`);
-      throw new HttpsError("internal", `OpenAI API error: ${errorMessage}`);
+    // Cost tracking
+    const userId = request.auth.uid;
+    const summaryMessages = [
+      { role: "system", content: "Jesteś osobistym trenerem. Odpowiadaj po polsku, zwięźle i konkretnie." },
+      { role: "user", content: prompt },
+    ];
+    const reservedCostUsd = estimateUsageCost(summaryMessages, 500, "gpt-5-mini");
+    try {
+      await checkUsageLimit(userId);
+      await reserveUsageBudget(userId, reservedCostUsd);
+    } catch (limitErr) {
+      if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
+        throw new HttpsError("resource-exhausted", limitErr);
+      }
+      throw limitErr;
     }
 
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "";
-    logger.info(`[WeeklySummary] Generated summary (${text.length} chars) for ${userId}`);
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-5-mini",
+          messages: summaryMessages,
+          max_completion_tokens: 500,
+        }),
+      });
 
-    // Record usage
-    if (data.usage) {
-      await recordUsage(userId, data.usage.prompt_tokens || 0, data.usage.completion_tokens || 0, "gpt-5-mini");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
+        logger.error(`[WeeklySummary] OpenAI API error: ${errorMessage}`);
+        throw new HttpsError("internal", `OpenAI API error: ${errorMessage}`);
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || "";
+      logger.info(`[WeeklySummary] Generated summary (${text.length} chars) for ${userId}`);
+
+      if (data.usage) {
+        await recordUsage(
+          userId,
+          data.usage.prompt_tokens || 0,
+          data.usage.completion_tokens || 0,
+          "gpt-5-mini",
+          reservedCostUsd,
+        );
+      } else {
+        await releaseUsageBudget(userId, reservedCostUsd);
+      }
+
+      return { text };
+    } catch (error) {
+      await releaseUsageBudget(userId, reservedCostUsd);
+      throw error;
     }
-
-    return { text };
   },
 );
 
@@ -370,12 +388,14 @@ export const proxyOpenAI = onCall(
 
     const userId = request.auth.uid;
     const { model: usedModel, messages: safeMessages, maxTokens: cappedTokens } = sanitizeOpenAIParams(model, messages, maxTokens);
+    const reservedCostUsd = estimateUsageCost(safeMessages, cappedTokens, usedModel);
 
     if (messages.length > MAX_MESSAGES) {
       throw new HttpsError("invalid-argument", `Too many messages (max ${MAX_MESSAGES})`);
     }
     try {
       await checkUsageLimit(userId);
+      await reserveUsageBudget(userId, reservedCostUsd);
     } catch (limitErr) {
       if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
         throw new HttpsError("resource-exhausted", limitErr);
@@ -383,36 +403,48 @@ export const proxyOpenAI = onCall(
       throw limitErr;
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: usedModel,
-        messages: safeMessages,
-        max_completion_tokens: cappedTokens,
-      }),
-    });
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: usedModel,
+          messages: safeMessages,
+          max_completion_tokens: cappedTokens,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
-      logger.error(`[ProxyOpenAI] OpenAI error: ${errorMessage}`);
-      throw new HttpsError("internal", `OpenAI API error: ${errorMessage}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        const errorMessage = errorData?.error?.message || `HTTP ${response.status}`;
+        logger.error(`[ProxyOpenAI] OpenAI error: ${errorMessage}`);
+        throw new HttpsError("internal", `OpenAI API error: ${errorMessage}`);
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || "";
+      logger.info(`[ProxyOpenAI] OK (${text.length} chars) for ${userId}`);
+
+      if (data.usage) {
+        await recordUsage(
+          userId,
+          data.usage.prompt_tokens || 0,
+          data.usage.completion_tokens || 0,
+          usedModel,
+          reservedCostUsd,
+        );
+      } else {
+        await releaseUsageBudget(userId, reservedCostUsd);
+      }
+
+      return { text };
+    } catch (error) {
+      await releaseUsageBudget(userId, reservedCostUsd);
+      throw error;
     }
-
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "";
-    logger.info(`[ProxyOpenAI] OK (${text.length} chars) for ${userId}`);
-
-    // Record usage
-    if (data.usage) {
-      await recordUsage(userId, data.usage.prompt_tokens || 0, data.usage.completion_tokens || 0, usedModel);
-    }
-
-    return { text };
   },
 );
 
@@ -451,18 +483,6 @@ export const streamOpenAI = onRequest(
       return;
     }
 
-    // Check usage limit
-    try {
-      await checkUsageLimit(userId);
-    } catch (limitErr) {
-      if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
-        res.status(429).json({ error: limitErr });
-        return;
-      }
-      res.status(500).json({ error: "Usage check failed" });
-      return;
-    }
-
     const { messages, model, maxTokens } = req.body;
     if (!messages || !Array.isArray(messages)) {
       res.status(400).json({ error: "messages array is required" });
@@ -477,26 +497,45 @@ export const streamOpenAI = onRequest(
 
     // Enforce allowed models, token cap, message limit
     const { model: usedModel, messages: safeMessages, maxTokens: cappedTokens } = sanitizeOpenAIParams(model, messages, maxTokens);
+    let reservedCostUsd = 0;
+    try {
+      await checkUsageLimit(userId);
+      reservedCostUsd = estimateUsageCost(safeMessages, cappedTokens, usedModel);
+      await reserveUsageBudget(userId, reservedCostUsd);
+    } catch (limitErr) {
+      if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
+        res.status(429).json({ error: limitErr });
+        return;
+      }
+      res.status(500).json({ error: "Usage check failed" });
+      return;
+    }
 
-    // Call OpenAI with streaming
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: usedModel,
-        messages: safeMessages,
-        max_completion_tokens: cappedTokens,
-        stream: true,
-        stream_options: { include_usage: true },
-      }),
-    });
+    let openaiRes: Response;
+    try {
+      openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: usedModel,
+          messages: safeMessages,
+          max_completion_tokens: cappedTokens,
+          stream: true,
+          stream_options: { include_usage: true },
+        }),
+      });
+    } catch (error) {
+      await releaseUsageBudget(userId, reservedCostUsd);
+      throw error;
+    }
 
     if (!openaiRes.ok) {
       const errBody = await openaiRes.text();
       logger.error(`[StreamOpenAI] OpenAI error ${openaiRes.status}: ${errBody}`);
+      await releaseUsageBudget(userId, reservedCostUsd);
       res.status(502).json({ error: `OpenAI API error: ${openaiRes.status}` });
       return;
     }
@@ -514,9 +553,11 @@ export const streamOpenAI = onRequest(
     let totalCompletionTokens = 0;
     const decoder = new TextDecoder();
 
+    let usageRecorded = false;
     try {
       const body = openaiRes.body;
       if (!body) {
+        await releaseUsageBudget(userId, reservedCostUsd);
         res.status(502).json({ error: "No response body from OpenAI" });
         return;
       }
@@ -562,9 +603,16 @@ export const streamOpenAI = onRequest(
 
     // Record usage after stream completes
     if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
-      recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel).catch(
-        (err) => logger.error("[StreamOpenAI] Failed to record usage:", err),
-      );
+      try {
+        await recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel, reservedCostUsd);
+        usageRecorded = true;
+      } catch (err) {
+        logger.error("[StreamOpenAI] Failed to record usage:", err);
+      }
+    }
+
+    if (!usageRecorded) {
+      await releaseUsageBudget(userId, reservedCostUsd);
     }
 
     if (!res.writableEnded) {
@@ -665,6 +713,18 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
 
   let synced = 0;
   let alreadyExisted = 0;
+  const existingActivityIds = new Set<number>();
+  const existingActivitiesSnapshot = await db
+    .collection(STRAVA_ACTIVITIES_COLLECTION)
+    .where("userId", "==", userId)
+    .select("stravaId")
+    .get();
+  existingActivitiesSnapshot.docs.forEach((doc) => {
+    const stravaId = doc.data().stravaId;
+    if (typeof stravaId === "number") {
+      existingActivityIds.add(stravaId);
+    }
+  });
 
   let batch = db.batch();
   let pendingWrites = 0;
@@ -676,14 +736,7 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
   };
 
   for (const activity of activities) {
-    const existing = await db
-      .collection(STRAVA_ACTIVITIES_COLLECTION)
-      .where("stravaId", "==", activity.id)
-      .where("userId", "==", userId)
-      .limit(1)
-      .get();
-
-    if (!existing.empty) {
+    if (existingActivityIds.has(activity.id)) {
       alreadyExisted++;
       continue;
     }
@@ -692,7 +745,7 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
       ? activity.start_date_local.split("T")[0]
       : new Date(activity.start_date).toISOString().split("T")[0];
 
-    const docRef = db.collection(STRAVA_ACTIVITIES_COLLECTION).doc();
+    const docRef = getStravaActivityRef(userId, activity.id);
     batch.set(docRef, {
       userId,
       stravaId: activity.id,
@@ -718,6 +771,7 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
     });
 
     synced++;
+    existingActivityIds.add(activity.id);
     pendingWrites++;
     if (pendingWrites === 450) {
       await commitBatch();
@@ -731,21 +785,13 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
   }, { merge: true });
 
   // Auto-update estimatedMaxHR (unless manually overridden)
-  const userDocFresh = await getUserRef(userId).get();
-  const userDataFresh = userDocFresh.data();
-  if (!userDataFresh?.maxHRManualOverride) {
-    const allActivities = await db
-      .collection(STRAVA_ACTIVITIES_COLLECTION)
-      .where("userId", "==", userId)
-      .get();
-    let maxHR = 0;
-    allActivities.docs.forEach((d) => {
-      const mhr = d.data().maxHeartrate;
-      if (mhr && mhr > maxHR) maxHR = mhr;
-    });
-    if (maxHR > 0) {
-      await getUserRef(userId).set({ estimatedMaxHR: maxHR }, { merge: true });
-      logger.info(`[Strava] Updated estimatedMaxHR=${maxHR} for ${userId}`);
+  if (!userData?.maxHRManualOverride) {
+    const fetchedMaxHR = activities.reduce((max, activity) => (
+      activity.max_heartrate && activity.max_heartrate > max ? activity.max_heartrate : max
+    ), Number(userData?.estimatedMaxHR || 0));
+    if (fetchedMaxHR > Number(userData?.estimatedMaxHR || 0)) {
+      await getUserRef(userId).set({ estimatedMaxHR: fetchedMaxHR }, { merge: true });
+      logger.info(`[Strava] Updated estimatedMaxHR=${fetchedMaxHR} for ${userId}`);
     }
   }
 

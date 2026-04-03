@@ -130,19 +130,16 @@ test.describe('Dashboard Features', () => {
 
   test('shows today training card (training/rest/completed)', async ({ page }) => {
     await navigateAndWait(page, '/');
-
-    const hasTraining = await page.locator('text=Rozpocznij trening').count() > 0;
-    const hasRest = await page.locator('text=Dzisiaj wolne').count() > 0;
-    const hasCompleted = await page.locator('text=Trening ukończony').count() > 0;
-    expect(hasTraining || hasRest || hasCompleted).toBe(true);
+    const dashboardBody = page.locator('body');
+    await expect(dashboardBody).toContainText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony/i);
   });
 
   test('shows stat cards', async ({ page }) => {
     await navigateAndWait(page, '/');
-    // Should have stat cards (Treningi, Tonaż, etc.)
-    const cards = page.locator('[class*="card"]');
-    const count = await cards.count();
-    expect(count).toBeGreaterThan(2);
+    await expect(page.locator('text=Treningi').first()).toBeVisible();
+    await expect(page.locator('text=Tonaż').first()).toBeVisible();
+    await expect(page.locator('text=Waga').first()).toBeVisible();
+    await expect(page.locator('text=Streak').first()).toBeVisible();
   });
 
   test('shows greeting with user name', async ({ page }) => {
@@ -183,9 +180,7 @@ test.describe('Workout Day', () => {
   test('invalid day shows error message', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-999');
     await expectPageRendered(page);
-    // Should show "Nie znaleziono" or similar
-    const body = await page.textContent('body');
-    expect(body).toContain('Nie znaleziono');
+    await expect(page.locator('text=Nie znaleziono dnia treningowego')).toBeVisible();
   });
 });
 
