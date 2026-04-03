@@ -10,10 +10,10 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.7.0) |
+| **Status** | AKTYWNY (v6.8.0) |
 | **Data utworzenia** | Styczeń 2026 |
 | **Data aktualizacji** | 2026-04-03 |
-| **Użytkownicy** | g.jasionowicz@gmail.com (admin), + whitelist |
+| **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |
 
 ---
 
@@ -47,7 +47,7 @@
 | src/hooks/usePlanCycles.ts | Cykle treningowe (archiwizacja planów, historia, CRUD) |
 | src/hooks/useAISwap.ts | Zamiana ćwiczeń przez AI (3 alternatywy) |
 | src/hooks/useOnlineStatus.ts | Detekcja online/offline + pending ops |
-| src/hooks/useAuth.ts | Autentykacja Google OAuth + whitelist |
+| src/hooks/useAuth.ts | Google sign-in, email/password, reset hasła |
 | src/hooks/use-mobile.tsx | Detekcja urządzenia mobilnego |
 
 ### Kod źródłowy - Strony
@@ -83,6 +83,8 @@
 | src/lib/share-utils.ts | Generowanie obrazu treningu (html2canvas-pro) |
 | src/lib/workout-draft-db.ts | **Active workout draft: IndexedDB source of truth + localStorage migration/fallback** |
 | src/lib/workout-draft.ts | Legacy draft migration + awaryjny fallback localStorage |
+| src/lib/registration-api.ts | Callable API: rejestracja, invite, waitlista, auth audit |
+| src/lib/pending-invite.ts | Local pending invite code przed logowaniem / rejestracją |
 | src/lib/utils.ts | cn(), **formatLocalDate()** — shared utilities |
 | src/lib/chart-config.ts | Konfiguracja wykresów (tooltip style, kolory) |
 | src/lib/strava-utils.ts | Formatowanie Strava (pace, distance, seasons, HR zones) |
@@ -100,6 +102,7 @@
 | src/components/strava/RacePredictor.tsx | Predykcje 5K/10K/Półmaraton/Maraton |
 | src/components/CycleCard.tsx | Karta cyklu treningowego (lista) |
 | src/components/CycleDetail.tsx | Szczegóły cyklu (PRy, plan, statystyki) |
+| src/components/EmailVerificationGate.tsx | Ekran wpisania kodu mailowego po rejestracji email |
 | src/components/strava/TrainingLoadChart.tsx | Wykres Fitness/Fatigue/Form (CTL/ATL/TSB) |
 | src/components/strava/CaloriesChart.tsx | Wykres kalorii |
 | src/components/strava/CardioPersonalBests.tsx | Rekordy cardio |
@@ -114,7 +117,8 @@
 ### Firebase Cloud Functions
 | Plik | Opis |
 |------|------|
-| functions/src/index.ts | stravaAuthUrl, stravaCallback, stravaSync, weeklyDigest, proxyOpenAI, generateWeeklySummary, stravaScheduledSync, **streamOpenAI** |
+| functions/src/index.ts | Eksporty Functions: Strava, AI, admin API, registration |
+| functions/src/registration.ts | **syncUserProfile, email verification code, invite, waitlist, auth audit, access toggle** |
 | functions/src/ai-usage.ts | **AI cost tracking** (checkUsageLimit, recordUsage, $5/user/month) |
 | functions/src/weekly-digest.ts | Weekly Digest Email (Resend, per-user, co poniedziałek 08:00) |
 
@@ -141,9 +145,9 @@
 | Sonner | 1.x | Toast notifications |
 | vite-plugin-pwa | 1.x | Progressive Web App |
 | html2canvas-pro | - | Generowanie obrazów z HTML (Share Workout) |
-| Resend | 6.x | Email API (Weekly Digest, Cloud Functions) |
+| Resend | 6.x | Email API (Weekly Digest, verification, invite, access emails) |
 | Vitest | 3.x | Testy jednostkowe (167 testów) |
-| Playwright | 1.x | Testy E2E (7 testów, VITE_E2E_MODE) |
+| Playwright | 1.x | Testy E2E (75 testów, VITE_E2E_MODE) |
 | gh-pages | 6.x | Deploy na GitHub Pages |
 
 ---
@@ -156,9 +160,10 @@ fittracker-workouts (project)
 ├── users/                       # Profile użytkowników
 │   └── {uid}/
 │       ├── email, displayName, role, lastLogin
-│       ├── onboardingCompleted: boolean
-│       ├── stravaConnected, stravaTokens, stravaAthleteId
-│       └── stravaLastSync
+│       ├── access.enabled, status, auth.primaryProvider, authProviders[]
+│       ├── verification.emailVerifiedAt, registration.source, inviteId, waitlistId
+│       ├── onboardingCompleted, onboarding.state, cohorts[]
+│       └── stravaConnected, stravaAthleteId, stravaLastSync
 │
 ├── workouts/                    # Sesje treningowe (per-user)
 │   └── workout-{timestamp}/
@@ -191,10 +196,31 @@ fittracker-workouts (project)
 │       ├── distance?, movingTime?, averageSpeed?
 │       └── stravaUrl, syncedAt
 │
-├── chat_messages/              # Chat z AI (per-user, Firestore)
+├── invites/                    # Invite codes i metadata
 │   └── {auto-id}/
-│       ├── userId, role ('user'|'assistant'), content
-│       └── createdAt (Timestamp)
+│       ├── code, email?, status, expiresAt
+│       ├── cohorts[], featureFlags{}
+│       └── redeemedAt, redeemedBy, waitlistEntryId
+│
+├── waitlist_entries/           # Leady / zgłoszenia przed rejestracją
+│   └── {auto-id}/
+│       ├── email, displayName?, note?, source
+│       └── status, convertedUserId, linkedInviteId
+│
+├── email_verification_codes/   # Hashowane kody mailowe
+│   └── {base64(email)}/
+│       ├── uid, codeHash, expiresAt
+│       └── attempts, status
+│
+├── auth_audit_logs/            # Audit auth/admin
+│   └── {auto-id}/
+│       ├── eventType, uid?, email?, actorUid?
+│       └── createdAt, metadata{}
+│
+├── notification_logs/          # Log wysłanych maili
+│   └── {auto-id}/
+│       ├── type, email, userId?
+│       └── responseId, error?, createdAt
 │
 └── ai_usage/                   # AI cost tracking (per-user per-month)
     └── {userId_YYYY-MM}/
@@ -254,6 +280,8 @@ npm run build:dev   # Development build
 ```
 HashRouter (GitHub Pages)
 │
+├── /login               → Login
+├── /register            → Register
 ├── /                    → Dashboard (stats, plan tygodnia, AI insights, Strava)
 ├── /day                 → DayPlan (co dziś?)
 ├── /plan                → TrainingPlan (kalendarz + Strava)
@@ -262,7 +290,6 @@ HashRouter (GitHub Pages)
 ├── /cycles              → Cycles (historia cykli treningowych)
 ├── /plan/edit           → PlanEditor (edycja planu)
 ├── /analytics           → Analytics (4 taby: summary, charts, measurements, records)
-├── /ai                  → AIChat (chat + quick actions + Strava summary)
 ├── /exercises           → ExerciseLibrary (biblioteka ćwiczeń)
 ├── /settings            → Settings (konto + Strava connect/sync)
 ├── /new-plan            → NewPlan (generowanie nowego planu po wygaśnięciu)
@@ -280,7 +307,7 @@ HashRouter (GitHub Pages)
 
 ---
 
-## KLUCZOWE FUNKCJONALNOŚCI (v6.6.0)
+## KLUCZOWE FUNKCJONALNOŚCI (v6.8.0)
 
 ### Core
 - Plan treningowy 2-5 dni/tydzień (dynamiczne weekdays)
@@ -329,11 +356,14 @@ HashRouter (GitHub Pages)
 - **Share Workout Summary** — generowanie obrazu podsumowania treningu (html2canvas-pro, 540×960 IG story) z opcjonalnym własnym zdjęciem jako tło
 - **Weekly Digest Email** — co poniedziałek o 8:00 email z podsumowaniem tygodnia (Resend, per-user, auto-detect z Firebase Auth)
 
-### Multi-User
-- Multi-email whitelist (VITE_ALLOWED_EMAILS)
-- Per-user training plans, workouts, measurements
-- Admin panel: zarządzanie użytkownikami i planami
-- Izolacja danych (Firestore security rules)
+### Auth, Access, Admin
+- Osobne strony `/login` i `/register`
+- Google sign-in oraz email + hasło + kod mailowy
+- Invite flow z przypięciem cohort i metadata po wejściu
+- Waitlista dla leadów i ręcznej konwersji na invite
+- Access control po stronie backendu (`access.enabled`, `status`)
+- Admin panel: użytkownicy, invite, waitlista, audit auth, access toggle, suspend/restore
+- Izolacja danych i kolekcji auth przez Firestore rules
 
 ---
 
@@ -364,13 +394,14 @@ VITE_FIREBASE_PROJECT_ID=fittracker-workouts
 VITE_FIREBASE_STORAGE_BUCKET=fittracker-workouts.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
-VITE_ALLOWED_EMAILS=email1@gmail.com,email2@gmail.com
 VITE_OPENAI_API_KEY=sk-proj-...
 
 # functions/.env (Cloud Functions)
 STRAVA_CLIENT_ID=209317
 STRAVA_CLIENT_SECRET=...
 STRAVA_REDIRECT_URI=https://grzegorzee.github.io/strength-save/strava-callback.html
+RESEND_API_KEY=re_...
+API_KEY_PEPPER=...
 ```
 
 **Pełna dokumentacja zmiennych:** → `REQUIREMENTS.md`
@@ -413,7 +444,7 @@ npm run deploy    # gh-pages -d dist
 
 ## NOTATKI
 
-- Whitelist auth: multi-email (`VITE_ALLOWED_EMAILS` comma-separated)
+- Auth: Google + email/password + kod mailowy przez Functions + Resend
 - HashRouter zamiast BrowserRouter (GitHub Pages)
 - Firebase nie akceptuje `undefined` - dane muszą być sanityzowane
 - Debounce 500ms przy auto-save w aktywnym treningu

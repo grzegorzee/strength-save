@@ -14,18 +14,35 @@ test.describe('Auth and registration flows', () => {
     await expect(page.getByText('Chcesz trafić na waitlistę lub dostać invite?')).toBeVisible();
   });
 
+  test('register route shows dedicated registration page', async ({ page }) => {
+    await setE2EAuthScenario(page, 'unauthenticated');
+    await navigateAndWait(page, '/register');
+
+    await expect(page.getByText('Załóż konto przez Google albo email i hasło')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Załóż konto i wyślij kod' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Przejdź do logowania' })).toBeVisible();
+  });
+
   test('email registration screen supports waitlist submit flow in E2E mode', async ({ page }) => {
     await setE2EAuthScenario(page, 'unauthenticated');
-    await navigateAndWait(page, '/');
+    await navigateAndWait(page, '/register');
 
     await page.getByRole('tab', { name: 'Email + hasło' }).click();
-    await page.getByRole('button', { name: 'Rejestracja' }).click();
     await page.getByPlaceholder('Email').nth(1).fill('waitlist@test.com');
     await page.getByPlaceholder('Imię / nazwa').fill('Waitlist User');
     await page.getByPlaceholder('Notatka lub kontekst').fill('Proszę o invite do testów');
     await page.getByRole('button', { name: 'Zapisz na waitlistę' }).click();
 
     await expect(page.getByText('Twoje zgłoszenie zostało zapisane.').first()).toBeVisible();
+  });
+
+  test('login route links to register route', async ({ page }) => {
+    await setE2EAuthScenario(page, 'unauthenticated');
+    await navigateAndWait(page, '/login');
+
+    await page.getByRole('link', { name: 'Przejdź do rejestracji' }).click();
+    await expect(page).toHaveURL(/#\/register$/);
+    await expect(page.getByText('Załóż konto przez Google albo email i hasło')).toBeVisible();
   });
 
   test('pending verification user sees email verification gate', async ({ page }) => {

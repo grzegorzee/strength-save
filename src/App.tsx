@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { Layout } from "./components/Layout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -38,6 +38,11 @@ const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"
 const UserPlanEditor = lazyWithRetry(() => import("./pages/admin/UserPlanEditor"), "lazy-retry:user-plan-editor");
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"), "lazy-retry:not-found");
 const Login = lazyWithRetry(() => import("./pages/Login"), "lazy-retry:login");
+
+const AuthRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={`/login${location.search || ''}`} replace />;
+};
 
 const AppLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -160,9 +165,15 @@ const AuthenticatedApp = () => {
 
   if (!isAuthenticated) {
     return (
-      <Suspense fallback={<AppLoader />}>
-        <Login />
-      </Suspense>
+      <HashRouter>
+        <Suspense fallback={<AppLoader />}>
+          <Routes>
+            <Route path="/login" element={<Login mode="login" />} />
+            <Route path="/register" element={<Login mode="register" />} />
+            <Route path="*" element={<AuthRedirect />} />
+          </Routes>
+        </Suspense>
+      </HashRouter>
     );
   }
 

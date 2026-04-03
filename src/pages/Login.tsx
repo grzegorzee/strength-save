@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,11 +11,15 @@ import { createWaitlistEntry } from '@/lib/registration-api';
 import { setPendingInviteCode } from '@/lib/pending-invite';
 import { useToast } from '@/hooks/use-toast';
 
-const Login = () => {
+interface LoginProps {
+  mode?: 'login' | 'register';
+}
+
+const Login = ({ mode = 'login' }: LoginProps) => {
   const { signInWithGoogle, registerWithEmail, loginWithEmail, resetPassword, error, loading } = useAuth();
   const { toast } = useToast();
-  const [authTab, setAuthTab] = useState<'google' | 'email'>('google');
-  const [emailMode, setEmailMode] = useState<'login' | 'register'>('login');
+  const [authTab, setAuthTab] = useState<'google' | 'email'>(mode === 'register' ? 'email' : 'google');
+  const [emailMode, setEmailMode] = useState<'login' | 'register'>(mode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,6 +30,11 @@ const Login = () => {
   const [isWaitlistSubmitting, setIsWaitlistSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAuthTab(mode === 'register' ? 'email' : 'google');
+    setEmailMode(mode);
+  }, [mode]);
 
   useEffect(() => {
     const directSearch = new URLSearchParams(window.location.search);
@@ -40,11 +50,12 @@ const Login = () => {
   }, []);
 
   const activeError = localError || error;
+  const isRegisterMode = emailMode === 'register';
   const canSubmitEmail = useMemo(() => {
     if (!email.trim() || !password.trim()) return false;
-    if (emailMode === 'register' && password !== confirmPassword) return false;
+    if (isRegisterMode && password !== confirmPassword) return false;
     return true;
-  }, [confirmPassword, email, emailMode, password]);
+  }, [confirmPassword, email, isRegisterMode, password]);
 
   const handleGoogleLogin = async () => {
     setLocalError(null);
@@ -58,17 +69,17 @@ const Login = () => {
 
   const handleEmailSubmit = async () => {
     setLocalError(null);
-    if (emailMode === 'register' && password !== confirmPassword) {
+    if (isRegisterMode && password !== confirmPassword) {
       setLocalError('Hasła muszą być identyczne.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const success = emailMode === 'register'
+      const success = isRegisterMode
         ? await registerWithEmail(email, password)
         : await loginWithEmail(email, password);
-      if (success && emailMode === 'register') {
+      if (success && isRegisterMode) {
         toast({
           title: 'Konto utworzone',
           description: 'Zaraz zobaczysz ekran wpisania kodu potwierdzającego wysłanego na email.',
@@ -140,11 +151,13 @@ const Login = () => {
           </div>
           <CardTitle className="text-2xl">FitTracker</CardTitle>
           <CardDescription>
-            Wejdź przez Google albo załóż konto przez email i hasło
+            {isRegisterMode
+              ? 'Załóż konto przez Google albo email i hasło'
+              : 'Zaloguj się przez Google albo email i hasło'}
           </CardDescription>
           {inviteCode && (
             <p className="text-xs text-primary">
-              Wykryto kod zaproszenia: <span className="font-semibold">{inviteCode}</span>. Zostanie przypięty po zalogowaniu.
+              Wykryto kod zaproszenia: <span className="font-semibold">{inviteCode}</span>. Zostanie przypięty po wejściu do aplikacji.
             </p>
           )}
         </CardHeader>
@@ -164,8 +177,8 @@ const Login = () => {
 
             <TabsContent value="google" className="pt-4">
               <Button onClick={handleGoogleLogin} className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <LogIn className="h-5 w-5 mr-2" />}
-                Zaloguj przez Google
+                {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : isRegisterMode ? <UserPlus className="h-5 w-5 mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
+                {isRegisterMode ? 'Załóż konto przez Google' : 'Zaloguj przez Google'}
               </Button>
               <p className="mt-3 text-xs text-center text-muted-foreground">
                 Google daje od razu aktywne konto i uruchamia onboarding przy pierwszym wejściu.
@@ -173,25 +186,6 @@ const Login = () => {
             </TabsContent>
 
             <TabsContent value="email" className="pt-4 space-y-4">
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={emailMode === 'login' ? 'default' : 'outline'}
-                  className="flex-1"
-                  onClick={() => setEmailMode('login')}
-                >
-                  Logowanie
-                </Button>
-                <Button
-                  type="button"
-                  variant={emailMode === 'register' ? 'default' : 'outline'}
-                  className="flex-1"
-                  onClick={() => setEmailMode('register')}
-                >
-                  Rejestracja
-                </Button>
-              </div>
-
               <div className="space-y-3">
                 <Input
                   type="email"
@@ -205,7 +199,7 @@ const Login = () => {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Hasło"
                 />
-                {emailMode === 'register' && (
+                {isRegisterMode && (
                   <Input
                     type="password"
                     value={confirmPassword}
@@ -216,15 +210,33 @@ const Login = () => {
               </div>
 
               <Button className="w-full" onClick={handleEmailSubmit} disabled={!canSubmitEmail || isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : emailMode === 'register' ? <UserPlus className="h-4 w-4 mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-                {emailMode === 'register' ? 'Załóż konto i wyślij kod' : 'Zaloguj przez email'}
+                {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : isRegisterMode ? <UserPlus className="h-4 w-4 mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                {isRegisterMode ? 'Załóż konto i wyślij kod' : 'Zaloguj przez email'}
               </Button>
 
-              <Button type="button" variant="ghost" className="w-full text-xs" onClick={handleResetPassword} disabled={isSubmitting}>
-                Reset hasła
-              </Button>
+              {!isRegisterMode && (
+                <Button type="button" variant="ghost" className="w-full text-xs" onClick={handleResetPassword} disabled={isSubmitting}>
+                  Reset hasła
+                </Button>
+              )}
             </TabsContent>
           </Tabs>
+
+          <div className="rounded-lg border bg-muted/20 p-4 text-sm">
+            <p className="font-medium">
+              {isRegisterMode ? 'Masz już konto?' : 'Nie masz jeszcze konta?'}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              {isRegisterMode
+                ? 'Przejdź do logowania, jeśli konto jest już aktywne.'
+                : 'Przejdź do osobnej strony rejestracji, żeby utworzyć konto.'}
+            </p>
+            <Button asChild variant="outline" className="mt-3 w-full">
+              <Link to={isRegisterMode ? '/login' : '/register'}>
+                {isRegisterMode ? 'Przejdź do logowania' : 'Przejdź do rejestracji'}
+              </Link>
+            </Button>
+          </div>
 
           <div className="rounded-lg border border-dashed p-4 space-y-3">
             <div>

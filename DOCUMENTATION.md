@@ -1,4 +1,4 @@
-# FitTracker - Dokumentacja Systemu v6.6.0
+# FitTracker - Dokumentacja Systemu v6.8.0
 
 ## Spis treści
 1. [Architektura](#architektura)
@@ -33,7 +33,7 @@
 │                                                               │
 │  ┌───────────────────────────────────────────────────────┐   │
 │  │              AuthenticatedApp                          │   │
-│  │         useAuth() — Google OAuth + whitelist            │   │
+│  │         useAuth() — Google, email/password, reset       │   │
 │  └──────────────────┬────────────────────────────────────┘   │
 │                      │                                        │
 │         ┌────────────┴───────────┐                           │
@@ -67,9 +67,9 @@
 | Styling | Tailwind CSS | 3.x | utility-first + custom CSS variables |
 | UI Kit | shadcn/ui | - | Radix UI primitives + Tailwind |
 | Backend | Firebase Firestore | 12.x | Baza NoSQL, real-time subscriptions |
-| Auth | Firebase Authentication | 12.x | Google OAuth + multi-email whitelist |
+| Auth | Firebase Authentication | 12.x | Google sign-in + email/password |
 | Functions | Firebase Cloud Functions | v2 | Strava OAuth, Weekly Digest, OpenAI proxy (Node.js 22) |
-| Email | Resend | 6.x | Weekly Digest (Cloud Functions) |
+| Email | Resend | 6.x | Weekly Digest, verification codes, invites, access emails |
 | Image Gen | html2canvas-pro | - | Share Workout PNG |
 | Routing | React Router DOM | 6.x | HashRouter (GitHub Pages) |
 | Wykresy | Recharts | 2.x | Liniowe, słupkowe, multi-line |
@@ -149,7 +149,7 @@ src/
 │   ├── NewPlan.tsx            # Nowy plan po wygaśnięciu (cel, dni, AI generate, review)
 │   ├── ExerciseLibrary.tsx    # Przeglądarka biblioteki ćwiczeń
 │   ├── Settings.tsx           # Konto + Strava connect/sync/disconnect
-│   ├── Login.tsx              # Ekran logowania (Google OAuth)
+│   ├── Login.tsx              # Wspólny ekran /login i /register
 │   ├── StravaCallback.tsx     # Strava OAuth callback handler
 │   ├── NotFound.tsx           # 404
 │   └── admin/
@@ -165,7 +165,7 @@ src/
 │   ├── useChatMessages.ts     # Real-time chat messages z Firestore (onSnapshot)
 │   ├── useAISwap.ts           # Zamiana ćwiczeń przez AI (3 alternatywy)
 │   ├── useOnlineStatus.ts     # Online/offline detection + pending ops queue
-│   ├── useAuth.ts             # Google OAuth + multi-email whitelist
+│   ├── useAuth.ts             # Google sign-in, email/password, reset hasła
 │   ├── use-mobile.tsx         # Detekcja urządzenia mobilnego (media query)
 │   └── use-toast.ts           # Toast hook (shadcn)
 │
@@ -192,6 +192,8 @@ src/
     ├── training-load.ts       # calculateTRIMP() (Banister), computeDailyLoad(), computeFitnessFatigue()
     ├── share-utils.ts         # generateWorkoutImage() (html2canvas-pro, 540×960 PNG)
     ├── chart-config.ts        # tooltipStyle, CHART_COLORS (shared chart config)
+    ├── registration-api.ts    # Callable auth/invite/waitlist/audit API
+    ├── pending-invite.ts      # Pending invite code przed logowaniem / rejestracją
     ├── strava-utils.ts        # formatDurationShort, isPaceActivity, filterByYear, compute* (Strava helpers)
     ├── offline-queue.ts       # Kolejka operacji offline (localStorage)
     └── utils.ts               # cn() (clsx + tailwind-merge)
@@ -200,7 +202,8 @@ functions/                     # Firebase Cloud Functions
 ├── package.json               # resend, firebase-admin, firebase-functions
 ├── tsconfig.json
 └── src/
-    ├── index.ts               # stravaAuthUrl, stravaCallback, stravaSync, proxyOpenAI, streamOpenAI, generateWeeklySummary, stravaScheduledSync, weeklyDigest
+    ├── index.ts               # eksporty Functions: Strava, AI, admin API, registration
+    ├── registration.ts        # rejestracja, verify code, invites, waitlist, auth audit, access toggle
     ├── ai-usage.ts            # checkUsageLimit(), recordUsage(), pricing map ($5/user/month)
     └── weekly-digest.ts       # Weekly Digest Email (Resend, per-user, Monday 08:00 Warsaw)
 
@@ -660,16 +663,18 @@ Plan treningowy per-user z Firebase `training_plans/{userId}`.
 **Auto-repair startDate:** Jeśli custom plan istnieje ale brakuje `startDate` (np. utracone przez wcześniejszy bug), hook automatycznie odpytuje kolekcję `workouts` o najstarszy trening użytkownika i odtwarza `startDate` jako poniedziałek tego tygodnia. Naprawa jest jednorazowa (per mount) i zapisuje wynik do Firebase via `updateDoc`.
 
 ### useAuth()
-Autentykacja z Google OAuth i multi-email whitelistą.
+Autentykacja przez Google, email + hasło oraz reset hasła.
 
 ```typescript
-// .env: VITE_ALLOWED_EMAILS=email1@gmail.com,email2@gmail.com
 {
   user: User | null;
   isAuthenticated: boolean;
   loading: boolean;
   signInWithGoogle()
-  signOut()
+  registerWithEmail(email, password)
+  loginWithEmail(email, password)
+  resetPassword(email)
+  logout()
 }
 ```
 
@@ -912,10 +917,19 @@ fittracker-workouts (project)
 │   ├── email: string
 │   ├── displayName: string
 │   ├── role: "admin" | "user"
+│   ├── access.enabled: boolean
+│   ├── status: "pending_verification" | "active" | "suspended" | "deleted"
+│   ├── auth.primaryProvider: "google" | "password"
+│   ├── authProviders: string[]
+│   ├── verification.emailVerifiedAt?: string | null
+│   ├── registration.source?: string
+│   ├── registration.inviteId?: string | null
+│   ├── registration.waitlistId?: string | null
 │   ├── onboardingCompleted: boolean
+│   ├── onboarding.state?: "not_started" | "in_progress" | "completed"
 │   ├── lastLogin: string (ISO)
+│   ├── cohorts?: string[]
 │   ├── stravaConnected: boolean
-│   ├── stravaTokens?: { accessToken, refreshToken, expiresAt }
 │   ├── stravaAthleteId?: number
 │   ├── stravaAthleteName?: string
 │   └── stravaLastSync?: string (ISO)
@@ -940,6 +954,38 @@ fittracker-workouts (project)
 │   ├── averageHeartrate?, maxHeartrate?
 │   ├── totalElevationGain?, averageSpeed?
 │   └── stravaUrl, syncedAt
+│
+├── invites/{auto-id}           # Invite codes i metadata
+│   ├── code: string
+│   ├── email?: string | null
+│   ├── status: "active" | "redeemed" | "revoked" | "expired"
+│   ├── cohorts: string[]
+│   └── redeemedAt?, redeemedBy?, waitlistEntryId?
+│
+├── waitlist_entries/{auto-id}  # Waitlista / leady
+│   ├── email: string
+│   ├── displayName?: string | null
+│   ├── note?: string | null
+│   ├── source: string
+│   └── status: "waiting" | "invited" | "converted" | "archived"
+│
+├── email_verification_codes/{base64(email)}  # Hashowane kody mailowe
+│   ├── uid: string
+│   ├── codeHash: string
+│   ├── expiresAt: string
+│   └── attempts, status
+│
+├── auth_audit_logs/{auto-id}   # Audit auth/admin
+│   ├── eventType: string
+│   ├── uid?: string | null
+│   ├── email?: string | null
+│   ├── actorUid?: string | null
+│   └── createdAt: string
+│
+├── notification_logs/{auto-id} # Ślad wysłanych maili
+│   ├── type: string
+│   ├── email: string
+│   └── responseId?, error?, createdAt
 │
 ├── chat_messages/{auto-id}      # Wiadomości AI Chat (per-user)
 │   ├── userId: string
