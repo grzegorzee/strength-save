@@ -4,6 +4,27 @@ import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { checkUsageLimit, estimateUsageCost, recordUsage, releaseUsageBudget, reserveUsageBudget } from "./ai-usage";
+import {
+  API_RATE_LIMIT_PER_MINUTE,
+  checkAndConsumeRateLimit,
+  createApiKeyForUser,
+  decodeCursor,
+  DEFAULT_API_SCOPES,
+  encodeCursor,
+  type ExportResource,
+  getApiKeyRecordForUser,
+  hasScope,
+  listApiKeysForUser,
+  markApiKeyUsed,
+  normalizeApiKeyName,
+  parseDateParam,
+  parseFormat,
+  parseLimit,
+  parseResource,
+  revokeApiKeyForUser,
+  verifyApiKey,
+  writeApiAuditLog,
+} from "./admin-api";
 
 admin.initializeApp();
 
@@ -12,14 +33,19 @@ export { weeklyDigest } from "./weekly-digest";
 
 const db = admin.firestore();
 const USERS_COLLECTION = "users";
+const WORKOUTS_COLLECTION = "workouts";
 const STRAVA_ACTIVITIES_COLLECTION = "strava_activities";
 const STRAVA_CONNECTIONS_COLLECTION = "strava_connections";
+const MEASUREMENTS_COLLECTION = "measurements";
+const TRAINING_PLANS_COLLECTION = "training_plans";
+const PLAN_CYCLES_COLLECTION = "plan_cycles";
 
 // --- Secrets from Google Cloud Secret Manager ---
 const stravaClientId = defineSecret("strava-client-id");
 const stravaClientSecret = defineSecret("strava-client-secret");
 const stravaRedirectUri = defineSecret("strava-redirect-uri");
 const openaiApiKey = defineSecret("openai-api-key");
+const apiKeyPepper = defineSecret("API_KEY_PEPPER");
 
 // --- OpenAI constants & sanitizer ---
 const ALLOWED_MODELS = ["gpt-5-mini", "gpt-4.1-mini"];
@@ -78,6 +104,123 @@ const getStravaConnectionRef = (userId: string) => db.doc(`${STRAVA_CONNECTIONS_
 const getStravaActivityRef = (userId: string, activityId: number) => (
   db.collection(STRAVA_ACTIVITIES_COLLECTION).doc(`strava-${userId}-${activityId}`)
 );
+const getTrainingPlanRef = (userId: string) => db.doc(`${TRAINING_PLANS_COLLECTION}/${userId}`);
+
+function cleanExportProfile(profile: Record<string, unknown> | undefined) {
+  if (!profile) return null;
+  const {
+    stravaTokens: _stravaTokens,
+    ...safeProfile
+  } = profile;
+  return safeProfile;
+}
+
+async function assertAdmin(userId: string): Promise<void> {
+  const userDoc = await getUserRef(userId).get();
+  const role = userDoc.data()?.role;
+  if (role !== "admin") {
+    throw new HttpsError("permission-denied", "Admin access required");
+  }
+}
+
+async function getWorkoutExport(
+  userId: string,
+  from: string | null,
+  to: string | null,
+  limit?: number,
+  cursor?: number,
+) {
+  let query = db
+    .collection(WORKOUTS_COLLECTION)
+    .where("userId", "==", userId)
+    .orderBy("date", "desc");
+
+  if (from) {
+    query = query.where("date", ">=", from);
+  }
+  if (to) {
+    query = query.where("date", "<=", to);
+  }
+  if (cursor && cursor > 0) {
+    query = query.offset(cursor);
+  }
+  if (limit) {
+    query = query.limit(limit);
+  }
+
+  const snap = await query.get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+async function getMeasurementExport(
+  userId: string,
+  from: string | null,
+  to: string | null,
+  limit?: number,
+  cursor?: number,
+) {
+  let query = db
+    .collection(MEASUREMENTS_COLLECTION)
+    .where("userId", "==", userId)
+    .orderBy("date", "desc");
+
+  if (from) {
+    query = query.where("date", ">=", from);
+  }
+  if (to) {
+    query = query.where("date", "<=", to);
+  }
+  if (cursor && cursor > 0) {
+    query = query.offset(cursor);
+  }
+  if (limit) {
+    query = query.limit(limit);
+  }
+
+  const snap = await query.get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+async function getPlanCyclesExport(
+  userId: string,
+  from: string | null,
+  to: string | null,
+  limit?: number,
+  cursor?: number,
+) {
+  let query = db
+    .collection(PLAN_CYCLES_COLLECTION)
+    .where("userId", "==", userId)
+    .orderBy("startDate", "desc");
+
+  if (from) {
+    query = query.where("startDate", ">=", from);
+  }
+  if (to) {
+    query = query.where("startDate", "<=", to);
+  }
+  if (cursor && cursor > 0) {
+    query = query.offset(cursor);
+  }
+  if (limit) {
+    query = query.limit(limit);
+  }
+
+  const snap = await query.get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+async function getTrainingPlanExport(userId: string) {
+  const snap = await getTrainingPlanRef(userId).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...snap.data() };
+}
+
+async function getProfileExport(userId: string) {
+  const snap = await getUserRef(userId).get();
+  if (!snap.exists) return null;
+  return cleanExportProfile({ id: snap.id, ...snap.data() });
+}
 
 const buildStravaConnection = (tokenData: StravaTokenPayload, athleteName: string): StravaConnectionDoc => ({
   accessToken: tokenData.access_token,
@@ -618,6 +761,390 @@ export const streamOpenAI = onRequest(
     if (!res.writableEnded) {
       res.write("data: [DONE]\n\n");
       res.end();
+    }
+  },
+);
+
+function getExportApiUrl(): string {
+  const projectId = process.env.GCLOUD_PROJECT || process.env.PROJECT_ID || "fittracker-workouts";
+  return `https://us-central1-${projectId}.cloudfunctions.net/exportUserDataApi`;
+}
+
+function parseIncludeList(value: unknown): ExportResource[] {
+  if (typeof value !== "string" || !value.trim()) {
+    return ["profile", "workouts", "measurements", "training-plan", "plan-cycles"];
+  }
+
+  const resources = value
+    .split(",")
+    .map((item) => parseResource(item.trim()))
+    .filter((item): item is Exclude<ExportResource, "full"> => item !== "full");
+
+  return resources.length > 0
+    ? Array.from(new Set(resources))
+    : ["profile", "workouts", "measurements", "training-plan", "plan-cycles"];
+}
+
+export const listApiKeys = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  await assertAdmin(request.auth.uid);
+  const keys = await listApiKeysForUser(request.auth.uid);
+  return {
+    keys,
+    exportUrl: getExportApiUrl(),
+    defaultScopes: [...DEFAULT_API_SCOPES],
+  };
+});
+
+export const createApiKey = onCall(
+  { secrets: [apiKeyPepper] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in");
+    }
+
+    await assertAdmin(request.auth.uid);
+
+    const pepper = apiKeyPepper.value();
+    if (!pepper) {
+      throw new HttpsError("failed-precondition", "API key pepper not configured");
+    }
+
+    const name = normalizeApiKeyName(request.data?.name);
+    const result = await createApiKeyForUser(request.auth.uid, name, pepper);
+
+    return {
+      key: result.record,
+      rawKey: result.rawKey,
+      exportUrl: getExportApiUrl(),
+    };
+  },
+);
+
+export const revokeApiKey = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be logged in");
+  }
+
+  await assertAdmin(request.auth.uid);
+
+  const keyId = typeof request.data?.keyId === "string" ? request.data.keyId : "";
+  if (!keyId) {
+    throw new HttpsError("invalid-argument", "keyId is required");
+  }
+
+  await revokeApiKeyForUser(request.auth.uid, keyId);
+  return { success: true };
+});
+
+export const rotateApiKey = onCall(
+  { secrets: [apiKeyPepper] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Must be logged in");
+    }
+
+    await assertAdmin(request.auth.uid);
+
+    const pepper = apiKeyPepper.value();
+    if (!pepper) {
+      throw new HttpsError("failed-precondition", "API key pepper not configured");
+    }
+
+    const keyId = typeof request.data?.keyId === "string" ? request.data.keyId : "";
+    if (!keyId) {
+      throw new HttpsError("invalid-argument", "keyId is required");
+    }
+
+    const existing = await getApiKeyRecordForUser(request.auth.uid, keyId);
+    const rotated = await createApiKeyForUser(
+      request.auth.uid,
+      existing.name,
+      pepper,
+      {
+        scopes: existing.scopes,
+        expiresAt: existing.expiresAt,
+        rotatedFrom: existing.id,
+      },
+    );
+    await revokeApiKeyForUser(request.auth.uid, keyId);
+
+    return {
+      key: rotated.record,
+      rawKey: rotated.rawKey,
+      exportUrl: getExportApiUrl(),
+    };
+  },
+);
+
+export const exportUserDataApi = onRequest(
+  {
+    secrets: [apiKeyPepper],
+    timeoutSeconds: 120,
+    memory: "256MiB",
+  },
+  async (req, res) => {
+    const pepper = apiKeyPepper.value();
+    if (!pepper) {
+      res.status(500).json({ error: "API key pepper not configured" });
+      return;
+    }
+
+    if (req.method !== "GET") {
+      res.status(405).json({ error: "Method not allowed" });
+      return;
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Missing Authorization header" });
+      return;
+    }
+
+    const rawKey = authHeader.split("Bearer ")[1];
+    const verifiedKey = await verifyApiKey(rawKey, pepper);
+    if (!verifiedKey) {
+      res.status(401).json({ error: "Invalid API key" });
+      return;
+    }
+
+    try {
+      await checkAndConsumeRateLimit(verifiedKey.id, API_RATE_LIMIT_PER_MINUTE);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "RATE_LIMIT_EXCEEDED";
+      if (message === "RATE_LIMIT_EXCEEDED") {
+        await writeApiAuditLog({
+          keyId: verifiedKey.id,
+          userId: verifiedKey.userId,
+          resource: parseResource(req.query.resource),
+          statusCode: 429,
+          request: req,
+          pepper,
+          format: parseFormat(req.query.format),
+          responseBytes: 0,
+          query: { ...req.query },
+        });
+        res.status(429).json({ error: "Rate limit exceeded" });
+        return;
+      }
+      throw error;
+    }
+
+    await markApiKeyUsed(verifiedKey.id);
+
+    const resource = parseResource(req.query.resource);
+    const format = parseFormat(req.query.format);
+    const from = parseDateParam(req.query.from);
+    const to = parseDateParam(req.query.to);
+    const limit = parseLimit(req.query.limit, 250);
+    const cursor = decodeCursor(req.query.cursor);
+
+    if (!hasScope(verifiedKey.scopes, resource)) {
+      res.status(403).json({ error: "API key does not have required scope" });
+      return;
+    }
+
+    if (resource === "full" && format === "ndjson") {
+      res.status(400).json({ error: "NDJSON is not supported for full export" });
+      return;
+    }
+
+    let statusCode = 200;
+    let responseBytes = 0;
+
+    try {
+      if (resource === "workouts") {
+        const workouts = await getWorkoutExport(verifiedKey.userId, from, to, limit, cursor);
+        const nextCursor = workouts.length === limit ? encodeCursor(cursor + workouts.length) : null;
+
+        if (format === "ndjson") {
+          const payload = [
+            JSON.stringify({
+              type: "meta",
+              apiVersion: "v1",
+              resource,
+              ownerUserId: verifiedKey.userId,
+              generatedAt: new Date().toISOString(),
+              nextCursor,
+            }),
+            ...workouts.map((item) => JSON.stringify(item)),
+          ].join("\n");
+          responseBytes = Buffer.byteLength(payload);
+          res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+          res.status(200).send(payload);
+        } else {
+          const body = {
+            meta: {
+              apiVersion: "v1",
+              schemaVersion: 1,
+              resource,
+              ownerUserId: verifiedKey.userId,
+              generatedAt: new Date().toISOString(),
+              nextCursor,
+            },
+            data: workouts,
+          };
+          const payload = JSON.stringify(body);
+          responseBytes = Buffer.byteLength(payload);
+          res.status(200).json(body);
+        }
+      } else if (resource === "measurements") {
+        const measurements = await getMeasurementExport(verifiedKey.userId, from, to, limit, cursor);
+        const nextCursor = measurements.length === limit ? encodeCursor(cursor + measurements.length) : null;
+
+        if (format === "ndjson") {
+          const payload = [
+            JSON.stringify({
+              type: "meta",
+              apiVersion: "v1",
+              resource,
+              ownerUserId: verifiedKey.userId,
+              generatedAt: new Date().toISOString(),
+              nextCursor,
+            }),
+            ...measurements.map((item) => JSON.stringify(item)),
+          ].join("\n");
+          responseBytes = Buffer.byteLength(payload);
+          res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+          res.status(200).send(payload);
+        } else {
+          const body = {
+            meta: {
+              apiVersion: "v1",
+              schemaVersion: 1,
+              resource,
+              ownerUserId: verifiedKey.userId,
+              generatedAt: new Date().toISOString(),
+              nextCursor,
+            },
+            data: measurements,
+          };
+          const payload = JSON.stringify(body);
+          responseBytes = Buffer.byteLength(payload);
+          res.status(200).json(body);
+        }
+      } else if (resource === "plan-cycles") {
+        const planCycles = await getPlanCyclesExport(verifiedKey.userId, from, to, limit, cursor);
+        const nextCursor = planCycles.length === limit ? encodeCursor(cursor + planCycles.length) : null;
+
+        if (format === "ndjson") {
+          const payload = [
+            JSON.stringify({
+              type: "meta",
+              apiVersion: "v1",
+              resource,
+              ownerUserId: verifiedKey.userId,
+              generatedAt: new Date().toISOString(),
+              nextCursor,
+            }),
+            ...planCycles.map((item) => JSON.stringify(item)),
+          ].join("\n");
+          responseBytes = Buffer.byteLength(payload);
+          res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+          res.status(200).send(payload);
+        } else {
+          const body = {
+            meta: {
+              apiVersion: "v1",
+              schemaVersion: 1,
+              resource,
+              ownerUserId: verifiedKey.userId,
+              generatedAt: new Date().toISOString(),
+              nextCursor,
+            },
+            data: planCycles,
+          };
+          const payload = JSON.stringify(body);
+          responseBytes = Buffer.byteLength(payload);
+          res.status(200).json(body);
+        }
+      } else if (resource === "training-plan") {
+        const trainingPlan = await getTrainingPlanExport(verifiedKey.userId);
+        const body = {
+          meta: {
+            apiVersion: "v1",
+            schemaVersion: 1,
+            resource,
+            ownerUserId: verifiedKey.userId,
+            generatedAt: new Date().toISOString(),
+            nextCursor: null,
+          },
+          data: trainingPlan,
+        };
+        const payload = JSON.stringify(body);
+        responseBytes = Buffer.byteLength(payload);
+        res.status(200).json(body);
+      } else if (resource === "profile") {
+        const profile = await getProfileExport(verifiedKey.userId);
+        const body = {
+          meta: {
+            apiVersion: "v1",
+            schemaVersion: 1,
+            resource,
+            ownerUserId: verifiedKey.userId,
+            generatedAt: new Date().toISOString(),
+            nextCursor: null,
+          },
+          data: profile,
+        };
+        const payload = JSON.stringify(body);
+        responseBytes = Buffer.byteLength(payload);
+        res.status(200).json(body);
+      } else {
+        const include = parseIncludeList(req.query.include);
+        const profile = include.includes("profile") ? await getProfileExport(verifiedKey.userId) : undefined;
+        const workouts = include.includes("workouts") ? await getWorkoutExport(verifiedKey.userId, from, to) : undefined;
+        const measurements = include.includes("measurements") ? await getMeasurementExport(verifiedKey.userId, from, to) : undefined;
+        const trainingPlan = include.includes("training-plan") ? await getTrainingPlanExport(verifiedKey.userId) : undefined;
+        const planCycles = include.includes("plan-cycles") ? await getPlanCyclesExport(verifiedKey.userId, from, to) : undefined;
+
+        const body = {
+          meta: {
+            apiVersion: "v1",
+            schemaVersion: 1,
+            resource,
+            ownerUserId: verifiedKey.userId,
+            generatedAt: new Date().toISOString(),
+            nextCursor: null,
+            include,
+          },
+          data: {
+            ...(profile !== undefined && { profile }),
+            ...(workouts !== undefined && { workouts }),
+            ...(measurements !== undefined && { measurements }),
+            ...(trainingPlan !== undefined && { trainingPlan }),
+            ...(planCycles !== undefined && { planCycles }),
+          },
+        };
+        const payload = JSON.stringify(body);
+        responseBytes = Buffer.byteLength(payload);
+        res.status(200).json(body);
+      }
+    } catch (error) {
+      statusCode = 500;
+      logger.error("[ExportAPI] Export failed:", error);
+      res.status(500).json({ error: "Failed to export data" });
+    } finally {
+      await writeApiAuditLog({
+        keyId: verifiedKey.id,
+        userId: verifiedKey.userId,
+        resource,
+        statusCode,
+        request: req,
+        pepper,
+        format,
+        responseBytes,
+        query: {
+          from,
+          to,
+          limit,
+          cursor,
+          include: req.query.include ?? null,
+        },
+      }).catch((error) => logger.error("[ExportAPI] Failed to write audit log:", error));
     }
   },
 );

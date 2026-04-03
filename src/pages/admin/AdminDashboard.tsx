@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp, DollarSign } from 'lucide-react';
+import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -146,6 +147,8 @@ const AdminDashboard = () => {
           </Card>
         ) : null;
       })()}
+
+      <ApiKeysCard />
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">

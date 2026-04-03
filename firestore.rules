@@ -126,6 +126,19 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Private API keys and logs — Cloud Functions only
+    match /api_keys/{keyId} {
+      allow read, write: if false;
+    }
+
+    match /api_audit_logs/{logId} {
+      allow read, write: if false;
+    }
+
+    match /api_rate_limits/{docId} {
+      allow read, write: if false;
+    }
+
     // chat_conversations — REMOVED (AI Chat feature removed in v6.7.0)
   }
 }
