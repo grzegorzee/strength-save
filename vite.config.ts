@@ -32,7 +32,7 @@ export default defineConfig(() => ({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'StrengthSave - Tracker Treningowy',
@@ -63,6 +63,9 @@ export default defineConfig(() => ({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         navigateFallbackDenylist: [/strava-callback\.html/],
         runtimeCaching: [
