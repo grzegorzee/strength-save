@@ -147,7 +147,7 @@
 | html2canvas-pro | - | Generowanie obrazów z HTML (Share Workout) |
 | Resend | 6.x | Email API (Weekly Digest, verification, invite, access emails) |
 | Vitest | 3.x | Testy jednostkowe (167 testów) |
-| Playwright | 1.x | Testy E2E (75 testów, VITE_E2E_MODE) |
+| Playwright | 1.x | Testy E2E (83 testy, VITE_E2E_MODE) |
 | gh-pages | 6.x | Deploy na GitHub Pages |
 
 ---

@@ -417,6 +417,8 @@ interface LibraryExercise {
 ```
 HashRouter (dla GitHub Pages — URL z #)
 │
+├── /login               → Login.tsx (logowanie)
+├── /register            → Login.tsx (tryb rejestracji)
 ├── /                    → Dashboard.tsx
 ├── /day                 → DayPlan.tsx
 ├── /plan                → TrainingPlan.tsx
@@ -427,7 +429,6 @@ HashRouter (dla GitHub Pages — URL z #)
 ├── /plan/edit           → PlanEditor.tsx
 ├── /analytics           → Analytics.tsx
 │   └── ?tab=summary|charts|measurements|records
-├── /ai                  → AIChat.tsx
 ├── /exercises           → ExerciseLibrary.tsx
 ├── /settings            → Settings.tsx
 ├── /new-plan            → NewPlan.tsx
@@ -677,6 +678,17 @@ Autentykacja przez Google, email + hasło oraz reset hasła.
   logout()
 }
 ```
+
+### Registration i access flow
+
+- `/#/login` służy do logowania
+- `/#/register` służy do rejestracji i domyślnie otwiera formularz email
+- po rejestracji email user trafia na ekran wpisania kodu (`EmailVerificationGate`)
+- po weryfikacji konto przechodzi z `pending_verification` do `active`
+- zalogowany user nie może zostać na `/login` ani `/register`:
+  - zwykły aktywny user jest przekierowany na dashboard
+  - nowy user jest przekierowany do onboardingu
+- `invite` może zostać wykryty z URL i przypięty po logowaniu / rejestracji
 
 ### useStrava(userId)
 Integracja Strava — connect, sync, disconnect.
@@ -1797,7 +1809,7 @@ jsdom                         — Test environment
 Kolekcja `chat_conversations` jest **legacy** — nie ma pola `userId` na dokumentach. Security rules pozwalają każdemu zalogowanemu userowi czytać/pisać wszystkie rozmowy. **Do naprawy:** dodać `userId` i zaktualizować rules.
 
 ### 2. OpenAI API key client-side
-`VITE_OPENAI_API_KEY` jest eksponowany w bundlu frontendowym (Vite). Każdy kto zna URL aplikacji może wyciągnąć key z kodu. **Mitigation:** Email whitelist ogranicza dostęp do aplikacji. **Docelowo:** Przenieść wywołania AI na Cloud Functions.
+`VITE_OPENAI_API_KEY` jest eksponowany w bundlu frontendowym (Vite). Każdy kto zna URL aplikacji może wyciągnąć key z kodu. **Mitigation:** access control i status konta ograniczają wejście do aplikacji, ale nie rozwiązują problemu ekspozycji sekretu. **Docelowo:** przenieść wywołania AI na Cloud Functions.
 
 ### 3. Firebase `undefined` values
 Firebase Firestore nie akceptuje `undefined`. Wszystkie dane muszą być sanityzowane przed zapisem. Funkcja `sanitizeSets()` w `exercise-utils.ts` zajmuje się tym dla serii treningowych. Nowe pola muszą używać `?? defaultValue`.
@@ -1822,7 +1834,7 @@ CI/CD pipeline używa Node 20 (wystarczające dla Vite build). Cloud Functions w
 
 ---
 
-## E2E Testing (v6.7.0)
+## E2E Testing (v6.8.0)
 
 **Framework:** Playwright (`@playwright/test`)
 
@@ -1838,8 +1850,12 @@ CI/CD pipeline używa Node 20 (wystarczające dla Vite build). Cloud Functions w
 - Firebase requests blokowane w testach przez `page.route()`
 
 **Testy:** `e2e/`
-- `batch-save.spec.ts` — localStorage draft roundtrip, persistence po reload, corrupt data, bodyweight weight=0
-- `ui-improvements.spec.ts` — nawigacja 6 elementów, Dashboard karta treningu/wolnego/ukończonego
+- `auth-registration.spec.ts` — login/register, pending verification, suspended account, invite-aware onboarding, admin auth sections
+- `batch-save.spec.ts` — IndexedDB draft roundtrip, persistence po reload, corrupt data, offline start, Sync Center
+- `critical.spec.ts` — krytyczne routingi i shell
+- `edge-cases.spec.ts` — URL manipulation, localStorage/data boundaries, viewport extremes
+- `full-app.spec.ts` — smoke i core flows całej aplikacji
+- `ui-improvements.spec.ts` — nawigacja, dashboard card, polish
 
 **Komendy:**
 ```bash
@@ -1851,6 +1867,35 @@ npx playwright test --reporter=list  # verbose output
 ---
 
 ## Changelog
+
+### v6.8.0 (2026-04-03) — Stabilizacja, offline-first, auth i admin operations
+
+**Plan 1 — stabilność i poprawność**
+- Jeden wspólny silnik harmonogramu planu dla dashboardu, day planu, planu i analytics
+- Spójna obsługa lokalnych dat bez błędów off-by-one
+- `cycleId` dla nowych treningów i dual-read statystyk cyklu (`cycleId` + fallback po dacie dla starych danych)
+- Uczciwy status zapisu draftu: UI nie pokazuje już lokalnego sukcesu, jeśli trwały zapis faktycznie się nie udał
+- PWA update guard: aktualizacja nie przerywa aktywnego treningu
+- Backend access control egzekwowany przez `access.enabled` i `status`, nie tylko przez frontend
+- Mocniejszy CI gate: lint, build, vitest, functions build i Playwright jako warunek jakości
+
+**Plan 2 — produkt**
+- Offline-first start treningu z `provisional session`
+- Sync Center z kolejką wielu lokalnych sesji i retry
+- Rozwinięte `Cykle`: closeout, progres, porównanie do poprzedniego cyklu i rekomendacje
+- Historia treningów z filtrami i porównywaniem sesji
+- Self-service export/import dla zwykłego użytkownika
+- Telemetria jakości produktu i panel health w adminie
+
+**Auth / registration milestone**
+- Google sign-in i email + hasło
+- Własny kod mailowy wysyłany przez Functions + Resend
+- Osobne strony `/#/login` i `/#/register`
+- Invite flow z przypięciem metadata/cohort po wejściu do aplikacji
+- Waitlista z konwersją na invite
+- Audit auth i logi wysyłki maili
+- Admin operations: enable/disable access, suspend/restore, listy invite/waitlist/audit
+- Redirect zalogowanego użytkownika z `/login` i `/register` do właściwego ekranu aplikacji
 
 ### 2026-04-03 — Workout draft hardening + offline finish
 
