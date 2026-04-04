@@ -83,7 +83,7 @@ export const StravaTab = () => {
               {connection.athleteName && <p className="text-xs text-muted-foreground">{connection.athleteName}</p>}
             </div>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => syncActivities(true)} disabled={isSyncing}>
+              <Button size="sm" variant="outline" onClick={() => syncActivities()} disabled={isSyncing}>
                 {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                 Sync
               </Button>
