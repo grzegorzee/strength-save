@@ -403,7 +403,7 @@ const Dashboard = () => {
             </div>
             <div className="flex flex-wrap gap-2">
               {planNextStep.badges.map((badge) => (
-                <Badge key={badge} variant="outline" className="bg-white/80">
+                <Badge key={badge} variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold">
                   {badge}
                 </Badge>
               ))}
