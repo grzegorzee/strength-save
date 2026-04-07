@@ -343,21 +343,19 @@ const Dashboard = () => {
       {todayTraining.type === 'training' && (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <Dumbbell className="h-5 w-5 text-primary shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm">{todayTraining.day.dayName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{todayTraining.day.focus} · {todayTraining.day.exercises.length} ćwiczeń</p>
-                </div>
+            <div className="flex items-center gap-3 mb-3">
+              <Dumbbell className="h-5 w-5 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="font-semibold text-sm">{todayTraining.day.dayName}</p>
+                <p className="text-xs text-muted-foreground truncate">{todayTraining.day.focus} · {todayTraining.day.exercises.length} ćwiczeń</p>
               </div>
-              <div className="flex gap-2 shrink-0">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/day')}>Szczegóły</Button>
-                <Button size="sm" className="gap-1.5" onClick={() => navigate(`/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}>
-                  <Play className="h-3.5 w-3.5" />
-                  Rozpocznij trening
-                </Button>
-              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/day')}>Szczegóły</Button>
+              <Button size="sm" className="gap-1.5 flex-1" onClick={() => navigate(`/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}>
+                <Play className="h-3.5 w-3.5" />
+                Rozpocznij trening
+              </Button>
             </div>
           </CardContent>
         </Card>
