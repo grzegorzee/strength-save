@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { History, Dumbbell, Sparkles, TriangleAlert } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,11 +16,20 @@ import { useNavigate } from 'react-router-dom';
 const Cycles = () => {
   const navigate = useNavigate();
   const { uid } = useCurrentUser();
-  const { cycles, isLoaded } = usePlanCycles(uid);
+  const { cycles, isLoaded, createActiveCycle } = usePlanCycles(uid);
   const { workouts } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired } = useTrainingPlan(uid);
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);
   const activeCycle = cycles.find(cycle => cycle.status === 'active') || null;
+
+  // Auto-repair: create cycle document if active plan exists without one
+  const repairAttempted = useRef(false);
+  useEffect(() => {
+    if (repairAttempted.current || !isLoaded || activeCycle || !planStartDate || trainingPlan.length === 0 || isPlanExpired) return;
+    repairAttempted.current = true;
+    console.log('[Cycles] Auto-repair: creating missing active cycle for existing plan');
+    createActiveCycle(trainingPlan, planDurationWeeks, planStartDate);
+  }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle]);
   const liveActiveCycle = buildActiveCyclePreview(activeCycle, workouts);
   const previousCompletedCycle = cycles.find(cycle => cycle.status === 'completed') || null;
   const comparison = liveActiveCycle ? buildCycleComparison(liveActiveCycle, previousCompletedCycle) : null;
