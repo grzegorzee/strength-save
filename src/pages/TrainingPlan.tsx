@@ -1,6 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
-import { Calendar } from '@/components/ui/calendar';
 import { trainingRules } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -8,11 +6,112 @@ import { useStrava } from '@/hooks/useStrava';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
-import { useState, useMemo } from 'react';
-import { pl } from 'date-fns/locale';
+import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, Dumbbell, Pencil, CheckCircle } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
+
+// ── Custom grid calendar matching mockup ──
+const WEEKDAY_LABELS = ['pon', 'wto', 'śro', 'czw', 'pią', 'sob', 'nie'] as const;
+const MONTH_NAMES = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'] as const;
+
+interface PlanCalendarProps {
+  selectedDate?: Date;
+  onSelectDate: (date: Date) => void;
+  completedDates: Date[];
+  trainingDates: Date[];
+  stravaDates: Date[];
+}
+
+const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDates, stravaDates }: PlanCalendarProps) => {
+  const [viewMonth, setViewMonth] = useState(() => selectedDate || new Date());
+
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const todayStr = formatLocalDate(new Date());
+
+  const completedSet = useMemo(() => new Set(completedDates.map(formatLocalDate)), [completedDates]);
+  const trainingSet = useMemo(() => new Set(trainingDates.map(formatLocalDate)), [trainingDates]);
+  const stravaSet = useMemo(() => new Set(stravaDates.map(formatLocalDate)), [stravaDates]);
+
+  const days = useMemo(() => {
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    // Monday = 0, Sunday = 6
+    const startOffset = (firstDay.getDay() + 6) % 7;
+    const cells: { date: Date; dateStr: string; isCurrentMonth: boolean }[] = [];
+
+    // Previous month fill
+    for (let i = startOffset - 1; i >= 0; i--) {
+      const d = new Date(year, month, -i);
+      cells.push({ date: d, dateStr: formatLocalDate(d), isCurrentMonth: false });
+    }
+    // Current month
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const date = new Date(year, month, d);
+      cells.push({ date, dateStr: formatLocalDate(date), isCurrentMonth: true });
+    }
+    // Next month fill (to complete grid)
+    while (cells.length % 7 !== 0) {
+      const d = new Date(year, month + 1, cells.length - startOffset - lastDay.getDate() + 1);
+      cells.push({ date: d, dateStr: formatLocalDate(d), isCurrentMonth: false });
+    }
+    return cells;
+  }, [year, month]);
+
+  const prevMonth = useCallback(() => setViewMonth(new Date(year, month - 1, 1)), [year, month]);
+  const nextMonth = useCallback(() => setViewMonth(new Date(year, month + 1, 1)), [year, month]);
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-bold capitalize">{MONTH_NAMES[month]} {year}</span>
+        <div className="flex gap-1">
+          <button onClick={prevMonth} className="w-7 h-7 rounded-md border border-white/[0.06] bg-transparent text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">‹</button>
+          <button onClick={nextMonth} className="w-7 h-7 rounded-md border border-white/[0.06] bg-transparent text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">›</button>
+        </div>
+      </div>
+
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 mb-2">
+        {WEEKDAY_LABELS.map(label => (
+          <span key={label} className="text-center text-[10px] font-bold uppercase tracking-wider text-[#3a3f52] py-1">{label}</span>
+        ))}
+      </div>
+
+      {/* Day grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {days.map(({ date, dateStr, isCurrentMonth }) => {
+          const isToday = dateStr === todayStr;
+          const isSelected = selectedDate && formatLocalDate(selectedDate) === dateStr;
+          const isCompleted = completedSet.has(dateStr);
+          const isTraining = trainingSet.has(dateStr);
+          const isStrava = stravaSet.has(dateStr);
+
+          return (
+            <button
+              key={dateStr}
+              onClick={() => onSelectDate(date)}
+              className={cn(
+                "w-full aspect-square rounded-[10px] flex items-center justify-center text-xs font-semibold transition-all duration-150 cursor-pointer",
+                !isCurrentMonth && "text-[#1e2233]",
+                isCurrentMonth && !isCompleted && !isTraining && !isStrava && "text-[#505668] hover:bg-white/[0.04]",
+                isCompleted && "bg-emerald-500/15 text-emerald-400 font-bold",
+                !isCompleted && isTraining && "ring-2 ring-inset ring-primary/40 text-primary",
+                !isCompleted && !isTraining && isStrava && "ring-2 ring-inset ring-orange-500/40 text-orange-500",
+                isToday && !isCompleted && "text-primary font-extrabold",
+                isSelected && "bg-primary/20 ring-2 ring-primary"
+              )}
+            >
+              {date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
@@ -278,22 +377,12 @@ const TrainingPlan = () => {
           {/* ── Right: Calendar ── */}
           <div className="hidden lg:block space-y-4">
             <div className="rounded-2xl p-5 border border-white/[0.04] bg-white/[0.02]">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                locale={pl}
-                modifiers={{
-                  completed: completedDates,
-                  training: trainingDates,
-                  strava: stravaDates,
-                }}
-                modifiersClassNames={{
-                  completed: 'calendar-completed',
-                  training: 'calendar-training',
-                  strava: 'calendar-strava',
-                }}
-                className="w-full [&_.calendar-completed]:bg-emerald-500/15 [&_.calendar-completed]:text-emerald-400 [&_.calendar-completed]:font-bold [&_.calendar-completed]:hover:bg-emerald-500/25 [&_.calendar-training]:ring-2 [&_.calendar-training]:ring-primary/40 [&_.calendar-training]:ring-inset [&_.calendar-training]:text-primary [&_.calendar-strava]:ring-2 [&_.calendar-strava]:ring-orange-500/40 [&_.calendar-strava]:ring-inset [&_.calendar-strava]:text-orange-500"
+              <PlanCalendar
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                completedDates={completedDates}
+                trainingDates={trainingDates}
+                stravaDates={stravaDates}
               />
 
               {/* Legend */}
