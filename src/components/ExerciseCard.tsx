@@ -224,7 +224,7 @@ const ExerciseCardInner = ({
 
           {/* Delete button */}
           <div className="flex justify-center">
-            {isEditable && !allCompleted && !isWarmupRow && workingSets.length > 1 ? (
+            {isEditable ? (
               <button
                 onClick={() => handleRemoveSet(globalIndex)}
                 className="h-9 w-9 rounded-lg flex items-center justify-center text-[22px] leading-none text-[hsl(var(--ec-delete))] hover:text-destructive hover:bg-destructive/10 transition-colors"
