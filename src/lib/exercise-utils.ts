@@ -115,6 +115,11 @@ export const isBodyweightExercise = (name: string): boolean => {
   return found?.isBodyweight === true;
 };
 
+export const getExerciseInstructions = (name: string): { title: string; content: string }[] => {
+  const found = exerciseLibrary.find(e => e.name === name);
+  return found?.instructions ?? [];
+};
+
 // --- Set Count Parsing ---
 
 export const parseSetCount = (setsStr: string): number => {

@@ -2,11 +2,11 @@ import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Info, Flame, StickyNote, Play, Plus } from 'lucide-react';
+import { Flame, StickyNote, Play, Plus } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
-import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice } from '@/lib/exercise-utils';
+import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
 
 // ── Progression Badge sub-component ──
 const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 'maintain'; label: string } }) => {
@@ -182,7 +182,7 @@ const ExerciseCardInner = ({
           {/* Set number / label */}
           <span className={cn(
             "text-sm font-extrabold text-center select-none",
-            isWarmupRow ? "text-[hsl(var(--ec-warmup-gold))]" : "text-[hsl(var(--ec-set-number))]"
+            isWarmupRow ? "text-[11px] tracking-wide text-[hsl(var(--ec-warmup-gold))]" : "text-[hsl(var(--ec-set-number))]"
           )}>
             {label}
           </span>
@@ -239,11 +239,9 @@ const ExerciseCardInner = ({
 
         {/* Previous workout hint */}
         {prevHint && !set.completed && (
-          <div className="flex items-center gap-1.5 pl-[44px] pb-1 text-[11px]">
-            <span className="text-muted-foreground">↳ Poprzednio:</span>
-            <span className="font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-              {prevHint}
-            </span>
+          <div className="flex items-center gap-1 pl-[44px] pb-1 text-[11px] text-[#3a3f52]">
+            <span>↳ Poprzednio:</span>
+            <span className="font-semibold text-primary">{prevHint}</span>
           </div>
         )}
       </div>
@@ -292,7 +290,7 @@ const ExerciseCardInner = ({
         {exercise.videoUrl && (
           <button
             onClick={() => setShowVideo(true)}
-            className="h-[34px] w-[34px] rounded-[10px] flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors shrink-0 mt-1"
+            className="h-[34px] w-[34px] rounded-[10px] flex items-center justify-center border border-primary/15 bg-primary/[0.06] text-primary hover:bg-primary/10 hover:border-primary/30 transition-colors shrink-0 mt-1"
           >
             <Play className="h-4 w-4" />
           </button>
@@ -302,20 +300,18 @@ const ExerciseCardInner = ({
       {/* ── Divider ── */}
       <div className="exercise-card-divider mx-5" />
 
-      {/* ── Instructions (always visible) ── */}
-      {exercise.instructions.length > 0 && (
-        <div className="mx-5 mt-3 py-2.5 px-3.5 rounded-r-lg border-l-2 border-primary/20 bg-primary/[0.03] space-y-2">
-          {exercise.instructions.map((inst, i) => (
-            <div key={i} className="flex gap-2">
-              <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-medium text-primary">{inst.title}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{inst.content}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ── Instructions (always visible, with library fallback) ── */}
+      {(() => {
+        const displayInstructions = exercise.instructions.length > 0
+          ? exercise.instructions
+          : getExerciseInstructions(exercise.name);
+        if (displayInstructions.length === 0) return null;
+        return (
+          <div className="mx-5 mt-3 py-2.5 px-3.5 rounded-r-[10px] border-l-2 border-primary/20 bg-primary/[0.03] text-xs text-[#7a7f94] leading-relaxed font-medium">
+            {displayInstructions.map(inst => inst.content).join(' ')}
+          </div>
+        );
+      })()}
 
       {/* ── Warmup section ── */}
       {warmupSets.length > 0 && (
