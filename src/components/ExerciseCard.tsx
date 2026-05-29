@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Flame, StickyNote, Play, Plus } from 'lucide-react';
+import { Flame, StickyNote, Play, Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
+import type { NextSetAdvice } from '@/lib/next-set-advice';
 
 // ── Progression Badge sub-component ──
 const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 'maintain'; label: string } }) => {
@@ -44,6 +45,30 @@ const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 
   );
 };
 
+// ── Next-set target badge (konkretny cel z trendu historii) ──
+const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
+  const styles: Record<NextSetAdvice['kind'], string> = {
+    progress: 'border-green-500/30 text-green-400 bg-green-500/10',
+    hold: 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10',
+    deload: 'border-orange-500/40 text-orange-400 bg-orange-500/10',
+  };
+  const labels: Record<NextSetAdvice['kind'], string> = { progress: 'Cel', hold: 'Cel', deload: 'Deload' };
+  const target = advice.isBodyweight
+    ? `${advice.targetReps} powt.`
+    : `${advice.targetWeight} kg × ${advice.targetReps}`;
+  return (
+    <span
+      title={advice.reason}
+      className={cn(
+        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
+        styles[advice.kind],
+      )}
+    >
+      🎯 {labels[advice.kind]}: {target}
+    </span>
+  );
+};
+
 // ── Props ──
 interface ExerciseCardProps {
   exercise: Exercise;
@@ -54,6 +79,9 @@ interface ExerciseCardProps {
   onSetsChange?: (sets: SetData[], notes?: string) => void;
   isEditable?: boolean;
   isBodyweight?: boolean;
+  nextAdvice?: NextSetAdvice | null;
+  onAskCoach?: () => void;
+  coachBusy?: boolean;
 }
 
 // ── Main Component ──
@@ -66,6 +94,9 @@ const ExerciseCardInner = ({
   onSetsChange,
   isEditable = true,
   isBodyweight = false,
+  nextAdvice,
+  onAskCoach,
+  coachBusy = false,
 }: ExerciseCardProps) => {
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
@@ -306,7 +337,7 @@ const ExerciseCardInner = ({
               <span className="font-mono text-xs text-muted-foreground tracking-wide">
                 {exercise.sets}
               </span>
-              {progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
+              {nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
               {completedSets > 0 && (
                 <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -316,6 +347,9 @@ const ExerciseCardInner = ({
                 </span>
               )}
             </div>
+            {nextAdvice && completedSets === 0 && (
+              <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-snug">{nextAdvice.reason}</p>
+            )}
           </div>
         </div>
 
@@ -398,15 +432,27 @@ const ExerciseCardInner = ({
               <Plus className="h-3.5 w-3.5" />
               Dodaj serię
             </button>
-            {!showNotes && (
-              <button
-                onClick={() => setShowNotes(true)}
-                className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors px-3 py-2"
-              >
-                <StickyNote className="h-3.5 w-3.5" />
-                Notatka
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              {onAskCoach && (
+                <button
+                  onClick={onAskCoach}
+                  disabled={coachBusy}
+                  className="inline-flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary transition-colors px-3 py-2 disabled:opacity-50"
+                >
+                  {coachBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  Coach AI
+                </button>
+              )}
+              {!showNotes && (
+                <button
+                  onClick={() => setShowNotes(true)}
+                  className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors px-3 py-2"
+                >
+                  <StickyNote className="h-3.5 w-3.5" />
+                  Notatka
+                </button>
+              )}
+            </div>
           </div>
           {showNotes && (
             <Textarea
