@@ -52,7 +52,6 @@ interface ExerciseCardProps {
   savedNotes?: string;
   previousSets?: SetData[];
   onSetsChange?: (sets: SetData[], notes?: string) => void;
-  onSetCompleted?: (lastWeight?: number) => void;
   isEditable?: boolean;
   isBodyweight?: boolean;
 }
@@ -65,7 +64,6 @@ const ExerciseCardInner = ({
   savedNotes,
   previousSets,
   onSetsChange,
-  onSetCompleted,
   isEditable = true,
   isBodyweight = false,
 }: ExerciseCardProps) => {
@@ -87,31 +85,47 @@ const ExerciseCardInner = ({
     }
   }, [savedSets, savedNotes, setCount]);
 
-  // ── Auto-completion: mark set as completed when reps (+ weight) filled ──
+  // ── Edit a set value (no auto-completion — completion is confirmed via the checkmark) ──
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight', value: number) => {
     if (isBodyweight && field === 'weight') return;
     hasLocalChanges.current = true;
 
-    const currentSet = sets[setIndex];
     const updatedSet = {
-      ...currentSet,
+      ...sets[setIndex],
       [field]: value,
       ...(isBodyweight && { weight: 0 }),
     };
 
-    // Auto-complete when reps > 0 and (bodyweight or weight > 0)
-    const meetsCompletion = updatedSet.reps > 0 && (isBodyweight || updatedSet.weight > 0);
-    const wasCompleted = currentSet.completed;
-    updatedSet.completed = meetsCompletion;
-
     const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
     setSets(newSets);
     onSetsChange?.(newSets, notes);
+  };
 
-    // Fire rest timer on first transition to complete (not for warmups)
-    if (meetsCompletion && !wasCompleted && !currentSet.isWarmup) {
-      onSetCompleted?.(updatedSet.weight);
+  // ── Toggle a set as done. Confirms the (pre-filled) value without retyping. ──
+  const handleToggleComplete = (setIndex: number) => {
+    if (!isEditable) return;
+    hasLocalChanges.current = true;
+
+    const currentSet = sets[setIndex];
+    const turningOn = !currentSet.completed;
+
+    // If confirming an empty set and we have last time's value, adopt it.
+    let reps = currentSet.reps;
+    let weight = currentSet.weight;
+    if (turningOn && reps === 0 && previousSets && previousSets[setIndex]) {
+      reps = previousSets[setIndex].reps;
+      if (!isBodyweight) weight = previousSets[setIndex].weight;
     }
+
+    const updatedSet: SetData = {
+      ...currentSet,
+      reps,
+      weight: isBodyweight ? 0 : weight,
+      completed: turningOn,
+    };
+    const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
+    setSets(newSets);
+    onSetsChange?.(newSets, notes);
   };
 
   const handleNotesChange = (value: string) => {
@@ -169,8 +183,8 @@ const ExerciseCardInner = ({
     return `${prevSet.reps}×${prevSet.weight}kg`;
   };
 
-  // Grid columns helper
-  const gridCols = isBodyweight ? 'grid-cols-[36px_1fr_36px]' : 'grid-cols-[36px_1fr_1fr_36px]';
+  // Grid columns helper (label, reps, [weight], check, delete)
+  const gridCols = isBodyweight ? 'grid-cols-[28px_1fr_38px_30px]' : 'grid-cols-[28px_1fr_1fr_38px_30px]';
 
   // ── Render set row ──
   const renderSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean) => {
@@ -222,12 +236,31 @@ const ExerciseCardInner = ({
             />
           )}
 
+          {/* Done checkmark */}
+          <div className="flex justify-center">
+            <button
+              onClick={() => handleToggleComplete(globalIndex)}
+              disabled={!isEditable}
+              aria-label={set.completed ? 'Odznacz serię' : 'Zaznacz serię jako zrobioną'}
+              className={cn(
+                "h-9 w-9 rounded-lg flex items-center justify-center border transition-colors disabled:opacity-40",
+                set.completed
+                  ? "bg-emerald-500 border-emerald-500 text-white"
+                  : "border-border text-transparent hover:border-emerald-400/60 hover:text-emerald-400/40"
+              )}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+
           {/* Delete button */}
           <div className="flex justify-center">
             {isEditable ? (
               <button
                 onClick={() => handleRemoveSet(globalIndex)}
-                className="h-9 w-9 rounded-lg flex items-center justify-center text-[22px] leading-none text-[hsl(var(--ec-delete))] hover:text-destructive hover:bg-destructive/10 transition-colors"
+                className="h-9 w-9 rounded-lg flex items-center justify-center text-[20px] leading-none text-[hsl(var(--ec-delete))] hover:text-destructive hover:bg-destructive/10 transition-colors"
               >
                 &times;
               </button>
@@ -341,6 +374,7 @@ const ExerciseCardInner = ({
               Ciężar (kg)
             </span>
           )}
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 text-center">✓</span>
           <span />
         </div>
 

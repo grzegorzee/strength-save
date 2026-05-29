@@ -1,13 +1,15 @@
 import { lazy } from "react";
 
-type ModuleImport<T extends React.ComponentType<unknown>> = () => Promise<{ default: T }>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors React.lazy's own ComponentType<any> so route components keep their prop types
+type ModuleImport<T extends React.ComponentType<any>> = () => Promise<{ default: T }>;
 
 function shouldReloadForChunkError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /Failed to fetch dynamically imported module|Importing a module script failed|dynamically imported module/i.test(message);
 }
 
-export function lazyWithRetry<T extends React.ComponentType<unknown>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- see ModuleImport above
+export function lazyWithRetry<T extends React.ComponentType<any>>(
   importer: ModuleImport<T>,
   cacheKey: string,
 ) {

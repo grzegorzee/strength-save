@@ -30,6 +30,7 @@ describe('getExerciseBest1RM', () => {
   const workouts: WorkoutSession[] = [
     {
       id: 'w1',
+      userId: 'test-user',
       dayId: 'day-1',
       date: '2026-01-01',
       completed: true,
@@ -76,6 +77,7 @@ describe('detectNewPRs', () => {
   const previousWorkouts: WorkoutSession[] = [
     {
       id: 'w1',
+      userId: 'test-user',
       dayId: 'day-1',
       date: '2026-01-01',
       completed: true,
@@ -94,6 +96,7 @@ describe('detectNewPRs', () => {
   it('detects weight PR', () => {
     const current: WorkoutSession = {
       id: 'w2',
+      userId: 'test-user',
       dayId: 'day-1',
       date: '2026-01-08',
       completed: true,
@@ -116,6 +119,7 @@ describe('detectNewPRs', () => {
   it('returns empty when no PRs', () => {
     const current: WorkoutSession = {
       id: 'w2',
+      userId: 'test-user',
       dayId: 'day-1',
       date: '2026-01-08',
       completed: true,
@@ -135,6 +139,7 @@ describe('detectNewPRs', () => {
   it('ignores exercises with no completed sets', () => {
     const current: WorkoutSession = {
       id: 'w2',
+      userId: 'test-user',
       dayId: 'day-1',
       date: '2026-01-08',
       completed: true,

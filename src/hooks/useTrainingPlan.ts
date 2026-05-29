@@ -137,6 +137,7 @@ export const useTrainingPlan = (userId: string) => {
     exerciseId: string,
     newName: string,
     newSets?: string,
+    newVideoUrl?: string,
   ): Promise<{ success: boolean; error?: string }> => {
     const newPlan = plan.map(day => {
       if (day.id !== dayId) return day;
@@ -144,12 +145,15 @@ export const useTrainingPlan = (userId: string) => {
         ...day,
         exercises: day.exercises.map(ex => {
           if (ex.id !== exerciseId) return ex;
-          return {
+          const swapped = {
             ...ex,
             name: newName,
             ...(newSets && { sets: newSets }),
             instructions: [],
           };
+          if (newVideoUrl) swapped.videoUrl = newVideoUrl;
+          else delete swapped.videoUrl;
+          return swapped;
         }),
       };
     });

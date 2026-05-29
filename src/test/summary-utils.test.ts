@@ -29,7 +29,7 @@ describe('calculateTonnage', () => {
   it('sums reps × weight for completed working sets', () => {
     const workouts: WorkoutSession[] = [
       {
-        id: 'w1', dayId: 'day-1', date: '2026-01-01', completed: true,
+        id: 'w1', userId: 'test-user', dayId: 'day-1', date: '2026-01-01', completed: true,
         exercises: [
           {
             exerciseId: 'ex-1-1',
@@ -49,7 +49,7 @@ describe('calculateTonnage', () => {
   it('ignores incomplete sets', () => {
     const workouts: WorkoutSession[] = [
       {
-        id: 'w1', dayId: 'day-1', date: '2026-01-01', completed: true,
+        id: 'w1', userId: 'test-user', dayId: 'day-1', date: '2026-01-01', completed: true,
         exercises: [
           {
             exerciseId: 'ex-1-1',
@@ -76,7 +76,7 @@ describe('calculateStreak', () => {
 
   it('returns 0 for no completed workouts', () => {
     const workouts: WorkoutSession[] = [
-      { id: 'w1', dayId: 'day-1', date: '2026-02-23', completed: false, exercises: [] },
+      { id: 'w1', userId: 'test-user', dayId: 'day-1', date: '2026-02-23', completed: false, exercises: [] },
     ];
     expect(calculateStreak(workouts)).toBe(0);
   });

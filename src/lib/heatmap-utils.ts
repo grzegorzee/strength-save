@@ -59,7 +59,7 @@ export const generateHeatmapData = (
       cardioKm,
       hasWorkout,
       hasCardio,
-      level: getIntensityLevel({ date: dateStr, strengthTonnage, cardioKm, hasWorkout, hasCardio, level: 0 }, avgTonnage),
+      level: getIntensityLevel({ date: dateStr, strengthTonnage, cardioKm, hasWorkout, hasCardio }, avgTonnage),
     });
   }
 

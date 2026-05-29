@@ -83,6 +83,78 @@ export const exerciseLibrary: LibraryExercise[] = [
   // Calves
   { name: 'Wspięcia na palce (Nogi proste)', category: 'calves', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Pełne rozciągnięcie na dole, maksymalne wspięcie na górze. Pauza 1s na szczycie.' }] },
   { name: 'Wspięcia na palce siedząc', category: 'calves', type: 'isolation', videoUrl: 'https://www.youtube.com/watch?v=JbyjNymZOt0', instructions: [{ title: '💡 Technika', content: 'Siedząc z ciężarem na kolanach. Pełen zakres — od rozciągnięcia do wspięcia. Kontroluj tempo.' }] },
+
+  // ══════════════════════════════════════════════════════════════
+  // ROZSZERZENIE BIBLIOTEKI: maszyny, wyciągi, mobilność, ćwiczenia z planów
+  // ══════════════════════════════════════════════════════════════
+
+  // Chest
+  { name: 'Wyciskanie na maszynie Hammer', category: 'chest', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Ustaw siedzisko tak, by uchwyty były na linii środka klatki. Wyciskaj kontrolowanie, ściskaj klatkę na końcu.' }] },
+  { name: 'Pec Deck (Butterfly)', category: 'chest', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Łokcie na wysokości barków, lekko ugięte. Zwódź ramiona ściskając klatkę po środku. Powoli wracaj.' }] },
+  { name: 'Otwieranie klatki hantlami', category: 'chest', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Mobilność: leżąc lub stojąc rozciągaj klatkę z lekkimi hantlami. Kontroluj zakres, nie szarp.' }] },
+
+  // Back
+  { name: 'Wiosłowanie na maszynie (Hammer)', category: 'back', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Klatka na podparciu. Ciągnij łokciami w tył, ściskaj łopatki. Nie zaokrąglaj pleców.' }] },
+  { name: 'Wiosłowanie T-bar', category: 'back', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Pochylony tułów, plecy proste. Ciągnij sztangę do brzucha, ściskaj łopatki na górze.' }] },
+  { name: 'Wiosłowanie Pendleya', category: 'back', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Tułów równolegle do podłogi. Każde powtórzenie startuje z martwego punktu na ziemi. Eksplozywne ciągnięcie do brzucha.' }] },
+  { name: 'Podciąganie na drążku podchwytem', category: 'back', type: 'compound', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Chwyt podchwytem na szerokość barków. Mocniej angażuje biceps. Broda nad drążkiem, pełne zwisanie na dole.' }] },
+  { name: 'Ściąganie linki prostymi ramionami', category: 'back', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Ramiona niemal proste. Ciągnij drążek łukiem do ud, czuj napięcie w latach. Izolacja pleców.' }] },
+  { name: 'Przenoszenie hantla za głowę', category: 'back', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Pullover z hantlem. Leżąc, opuszczaj hantel za głowę z lekko ugiętymi łokciami. Czuj rozciąganie latów i klatki.' }] },
+  { name: 'Szrugi ze sztangą', category: 'back', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Unoś barki prosto do uszu (nie obracaj). Pauza na górze, kontroluj opuszczanie. Cel: kaptury.' }] },
+  { name: 'Szrugi z hantlami', category: 'back', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Hantli po bokach. Wzrusz barkami maksymalnie w górę, krótka pauza, powolny powrót.' }] },
+  { name: 'Prostowniki grzbietu (Hyperextensions)', category: 'back', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Na ławce rzymskiej. Schodź tułowiem w dół, wracaj do linii ciała (nie przeprostuj). Ściskaj pośladki.' }] },
+
+  // Shoulders
+  { name: 'Wyciskanie nad głowę na maszynie', category: 'shoulders', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Plecy oparte. Wyciskaj uchwyty nad głowę bez blokowania łokci. Kontroluj fazę opuszczania.' }] },
+  { name: 'Wznosy bokiem na maszynie', category: 'shoulders', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Ramiona przy podpórkach. Unoś do linii barków, pauza, powoli wracaj. Stały opór na bocznym aktonie.' }] },
+  { name: 'Wznosy bokiem na wyciągu', category: 'shoulders', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Linka dolna, jednorącz. Unoś ramię bokiem do linii barku. Stałe napięcie przez cały zakres.' }] },
+  { name: 'Wznosy bokiem na lince (zza pleców)', category: 'shoulders', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Linka za plecami. Prowadź łokieć w górę i w bok. Lekki ciężar, pełna kontrola — maksymalne rozciągnięcie boku barku.' }] },
+  { name: 'Rotacje ramienia z gumą frontem', category: 'shoulders', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Łokieć przy ciele zgięty 90°. Rotuj przedramię na zewnątrz przeciw gumie. Zdrowie barku i rotatorów.' }] },
+  { name: 'Aniołki i demony', category: 'shoulders', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Mobilność barków leżąc na brzuchu: ramiona w górę (anioł) i w dół wzdłuż ciała (demon). Powoli i kontrolowanie.' }] },
+  { name: 'Wall Angel', category: 'shoulders', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Plecy i ramiona przy ścianie. Przesuwaj ręce w górę i w dół utrzymując kontakt ze ścianą. Mobilność i postawa.' }] },
+  { name: 'Rozciąganie gumy nad głową', category: 'shoulders', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Guma w obu dłoniach nad głową. Rozciągaj na boki, ściągając łopatki. Rozgrzewka barków i klatki.' }] },
+
+  // Legs
+  { name: 'Hack Squat (maszyna)', category: 'legs', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Plecy płasko na oparciu. Stopy na środku platformy. Schodź do równoległości ud, napęd przez pięty.' }] },
+  { name: 'Wyciskanie jednonóż na suwnicy', category: 'legs', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Jedna stopa na platformie. Pełny zakres, kontrola. Świetne na asymetrie między nogami.' }] },
+  { name: 'Sissy Squat', category: 'legs', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Odchyl tułów do tyłu zginając kolana, pięty w górę. Maksymalne rozciągnięcie czworogłowego. Trzymaj się podpory.' }] },
+  { name: 'Przywodziciele na maszynie', category: 'legs', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Ściskaj nogi do środka przeciw oporowi. Kontroluj powrót, pełen zakres rozciągnięcia.' }] },
+  { name: 'Cossack Squat', category: 'legs', type: 'compound', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Szeroki rozkrok. Przysiad na jedną nogę, druga wyprostowana. Mobilność bioder i siła jednonóż.' }] },
+  { name: 'Przysiady wykroczne', category: 'legs', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Wykrok w miejscu lub chodzony. Kolano przedniej nogi nad stopą, tylne nisko. Tułów pionowo.' }] },
+  { name: 'Zakroki sprinterskie', category: 'legs', type: 'compound', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Zakrok w tył, dynamiczne wybicie do przodu kolanem (jak sprinter). Angażuje pośladki i hamstringi.' }] },
+  { name: 'Wejścia bokiem na skrzynię', category: 'legs', type: 'compound', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Stań bokiem do skrzyni. Wchodź nogą bliższą, prostuj biodro na górze. Skupienie na pośladku.' }] },
+
+  // Glutes
+  { name: 'Odwodziciele na maszynie', category: 'glutes', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Rozsuwaj nogi na zewnątrz przeciw oporowi. Lekki pochył tułowia mocniej angażuje pośladki średnie.' }] },
+  { name: 'Glute Kickback na wyciągu', category: 'glutes', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Mankiet na kostce, linka dolna. Wykop nogą w tył prosto, ściskaj pośladek. Nie wyginaj lędźwi.' }] },
+  { name: 'Pull Through', category: 'glutes', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Linka między nogami, tyłem do wyciągu. Ruch zawiasowy w biodrach, wypchnij biodra do przodu ściskając pośladki.' }] },
+  { name: 'Wyprosty biodra z gumą', category: 'glutes', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Guma wokół bioder/kostek. Wykop nogą w tył lub wypychaj biodra, aktywując pośladek. Lekki opór, dużo powtórzeń.' }] },
+
+  // Arms - Biceps
+  { name: 'Uginanie na modlitewniku (Preacher)', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Ramiona na pulpicie. Pełen zakres, nie odrywaj łokci. Maksymalne rozciągnięcie na dole eksponuje biceps.' }] },
+  { name: 'Uginania ze sztangą na modlitewniku', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Łamana sztanga na pulpicie modlitewnika. Powolne opuszczanie do prawie pełnego wyprostu, ściskaj na górze.' }] },
+  { name: 'Uginania łokci z hantlami stojąc', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Hantli po bokach, łokcie przy tułowiu. Uginaj naprzemiennie lub razem, bez bujania tułowiem.' }] },
+  { name: 'Uginanie na wyciągu dolnym', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Linka dolna z drążkiem. Stałe napięcie przez cały zakres. Łokcie stabilne przy ciele.' }] },
+  { name: 'Uginanie na maszynie', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Ramiona na podpórce. Stabilizuje ruch i izoluje biceps. Pełen zakres, kontrolowane tempo.' }] },
+
+  // Arms - Triceps
+  { name: 'Wyciskanie wąsko (Close-grip)', category: 'arms', type: 'compound', instructions: [{ title: '💡 Technika', content: 'Chwyt na szerokość barków. Łokcie blisko tułowia. Główny nacisk na triceps, wspomaga klatka.' }] },
+  { name: 'Francuskie wyciskanie sztangi leżąc', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Łamana sztanga, leżąc. Opuszczaj za czoło zginając tylko łokcie. Łokcie stabilne, skierowane do sufitu.' }] },
+  { name: 'Wyciskanie hantla oburącz w klęku', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Klęcząc, hantel oburącz za głową. Prostuj łokcie nad głowę, kontroluj opuszczanie. Stabilny tułów.' }] },
+  { name: 'Triceps na maszynie', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Ustaw oparcie. Prostuj ramiona do pełnego zakresu, ściskaj triceps. Kontroluj fazę powrotu.' }] },
+  { name: 'Kickback z hantlą', category: 'arms', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Tułów pochylony, ramię wzdłuż ciała. Prostuj łokieć w tył, ściskaj triceps na końcu. Łokieć nieruchomy.' }] },
+
+  // Core
+  { name: 'Brzuszki na maszynie', category: 'core', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Zginaj tułów siłą brzucha przeciw oporowi. Powolny powrót, stałe napięcie. Pozwala progresować ciężarem.' }] },
+  { name: 'Pallof Press', category: 'core', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Linka z boku. Wypychaj ramiona przed siebie opierając się rotacji tułowia. Antyrotacyjna stabilizacja core.' }] },
+  { name: 'Cable Woodchopper', category: 'core', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Linka od góry do dołu (lub odwrotnie) po skosie. Rotuj tułów kontrolowanie, ruch z brzucha nie z rąk.' }] },
+  { name: 'Mountain Climbers', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Pozycja deski. Przyciągaj kolana naprzemiennie do klatki. Biodra nisko, brzuch napięty.' }] },
+  { name: 'Hollow Hold', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Leżąc, unieś nogi i barki, lędźwie wciśnięte w podłogę. Trzymaj pozycję łódki, napięty brzuch.' }] },
+
+  // Calves
+  { name: 'Wspięcia na palce na suwnicy', category: 'calves', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Palce na platformie, pięty w dół do rozciągnięcia, wspięcie maksymalne. Pauza 1s na górze i na dole.' }] },
+  { name: 'Wspięcia na maszynie stojąc', category: 'calves', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Barki pod podpórkami. Pełen zakres — głębokie rozciągnięcie, pełne wspięcie. Kontroluj tempo.' }] },
+  { name: 'Donkey Calf Raise', category: 'calves', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Tułów pochylony, ciężar na biodrach. Wspięcia na palce z pełnym zakresem. Mocno rozciąga łydki.' }] },
 ];
 
 export const categoryLabels: Record<LibraryExercise['category'], string> = {

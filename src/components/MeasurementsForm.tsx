@@ -9,7 +9,7 @@ import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
-  onSave: (measurement: Omit<BodyMeasurement, 'id'>) => void;
+  onSave: (measurement: Omit<BodyMeasurement, 'id' | 'userId'>) => void;
 }
 
 export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsFormProps) => {

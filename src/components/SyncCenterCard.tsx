@@ -16,6 +16,10 @@ interface SyncCenterCardProps {
   uid: string;
 }
 
+// Active draft (no retry metadata) and queued entries are rendered in one list.
+// Queue-only fields are optional so the active draft is assignable too.
+type ListedSyncEntry = ActiveWorkoutDraft & Partial<Pick<WorkoutSyncQueueEntry, 'retryCount' | 'lastError'>>;
+
 const buildExercisesPayload = (draft: ActiveWorkoutDraft) => (
   Object.entries(draft.exerciseSets).map(([exerciseId, sets]) => ({
     exerciseId,
@@ -69,7 +73,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
           : { label: 'Zsynchronizowany', tone: 'bg-emerald-100 text-emerald-800 border-emerald-200' }
   ), []);
 
-  const listedEntries = useMemo(() => {
+  const listedEntries = useMemo<ListedSyncEntry[]>(() => {
     const dedupedQueue = queueEntries.filter(entry => entry.sessionId !== draft?.sessionId);
     return draft ? [draft, ...dedupedQueue] : dedupedQueue;
   }, [draft, queueEntries]);
@@ -298,7 +302,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                       </Badge>
                       {isActiveEntry && <Badge>Aktywny szkic</Badge>}
                       {!isActiveEntry && <Badge variant="secondary">Kolejka</Badge>}
-                      {entry.retryCount > 0 && (
+                      {(entry.retryCount ?? 0) > 0 && (
                         <Badge variant="secondary">Retry {entry.retryCount}</Badge>
                       )}
                     </div>

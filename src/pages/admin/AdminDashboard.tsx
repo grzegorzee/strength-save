@@ -83,6 +83,23 @@ interface TelemetryDoc {
   counters?: Record<string, number>;
 }
 
+// Loose shapes for raw Firestore docs (spreading an index-signature-only type
+// drops its properties, so we cast data() to an explicit named shape).
+interface CycleDocData {
+  startDate?: string;
+  status?: string;
+  durationWeeks?: number;
+  stats?: { completionRate?: number };
+}
+
+interface WorkoutDocData {
+  date?: string;
+  dayId?: string;
+  completed?: boolean;
+  exercises?: unknown[];
+  cycleId?: string;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -331,12 +348,12 @@ const AdminDashboard = () => {
           : null;
 
         const cycles = cyclesSnap.docs
-          .map((cycleDoc) => ({ id: cycleDoc.id, ...cycleDoc.data() }))
+          .map((cycleDoc) => ({ id: cycleDoc.id, ...(cycleDoc.data() as CycleDocData) }))
           .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')));
         const activeCycleDoc = cycles.find((cycle) => cycle.status === 'active') ?? null;
 
         const recentWorkouts = workoutsSnap.docs
-          .map((workoutDoc) => ({ id: workoutDoc.id, ...workoutDoc.data() }))
+          .map((workoutDoc) => ({ id: workoutDoc.id, ...(workoutDoc.data() as WorkoutDocData) }))
           .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
           .slice(0, 5)
           .map((workout) => ({

@@ -11,6 +11,7 @@ import {
   query,
   orderBy,
   where,
+  type UpdateData,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
@@ -339,7 +340,7 @@ export const useFirebaseWorkouts = (userId: string) => {
           if (Array.isArray(workout.exercises)) {
             safe.exercises = workout.exercises.slice(0, 50).map((ex: { exerciseId?: string; sets?: unknown[]; notes?: string }) => ({
               exerciseId: String(ex.exerciseId || '').slice(0, 100),
-              sets: Array.isArray(ex.sets) ? ex.sets.slice(0, 20).map(clampSet) : [],
+              sets: Array.isArray(ex.sets) ? ex.sets.slice(0, 20).map((s) => clampSet(s as Partial<SetData>)) : [],
               ...(ex.notes && { notes: String(ex.notes).slice(0, 2000) }),
             }));
           } else {
@@ -454,7 +455,7 @@ export const useFirebaseWorkouts = (userId: string) => {
       if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
       if (options?.completed) updateData.completed = true;
 
-      await updateDoc(workoutRef, updateData);
+      await updateDoc(workoutRef, updateData as UpdateData<Record<string, unknown>>);
       return { success: true };
     } catch (err) {
       console.error('Error batch saving workout:', err);

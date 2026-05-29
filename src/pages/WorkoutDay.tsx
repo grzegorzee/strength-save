@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Timer, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak } from '@/lib/summary-utils';
@@ -7,18 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExerciseCard } from '@/components/ExerciseCard';
-import { RestTimer } from '@/components/RestTimer';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { useAISwap } from '@/hooks/useAISwap';
+import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
-import { getRestDuration, lookupExerciseType, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
+import { detectNewPRs } from '@/lib/pr-utils';
+import { createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
@@ -50,7 +49,7 @@ const WorkoutDay = () => {
     batchSaveWorkout,
     isLoaded
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, swapExercise } = useTrainingPlan(uid);
   const { getActiveCycle } = usePlanCycles(uid);
 
   const today = formatLocalDate(new Date());
@@ -72,17 +71,15 @@ const WorkoutDay = () => {
   const [queuedDraft, setQueuedDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
-  const [showRestTimer, setShowRestTimer] = useState(false);
-  const [restTimerDuration, setRestTimerDuration] = useState(30);
-  const [restTimerLabel, setRestTimerLabel] = useState<string | undefined>();
-  const [restTimerKey, setRestTimerKey] = useState(0);
   const [showWarmup, setShowWarmup] = useState(false);
   const [showShare, setShowShare] = useState(false);
 
-  // AI Swap
-  const { result: swapResult, isLoading: swapLoading, error: swapError, findSwap, reset: resetSwap } = useAISwap(uid);
+  // Exercise swap (search library, no AI)
   const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
-  const [swapReason, setSwapReason] = useState('');
+  const [swapQuery, setSwapQuery] = useState('');
+  const [swapPick, setSwapPick] = useState<LibraryExercise | null>(null);
+  // Session-only swaps ("tylko dziś") keyed by exerciseId — not persisted to the plan.
+  const [sessionSwaps, setSessionSwaps] = useState<Record<string, { name: string; sets: string; videoUrl?: string }>>({});
 
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const firstExerciseRef = useRef<HTMLDivElement>(null);
@@ -106,7 +103,34 @@ const WorkoutDay = () => {
   useEffect(() => { activeDraftRef.current = activeDraft; }, [activeDraft]);
   useEffect(() => { queuedDraftRef.current = queuedDraft; }, [queuedDraft]);
 
-  const day = trainingPlan.find(d => d.id === dayId);
+  const baseDay = trainingPlan.find(d => d.id === dayId);
+  // Apply any session-only ("tylko dziś") swaps over the plan day.
+  const day = useMemo(() => {
+    if (!baseDay || Object.keys(sessionSwaps).length === 0) return baseDay;
+    return {
+      ...baseDay,
+      exercises: baseDay.exercises.map(ex => {
+        const ov = sessionSwaps[ex.id];
+        return ov ? { ...ex, name: ov.name, sets: ov.sets, videoUrl: ov.videoUrl, instructions: [] } : ex;
+      }),
+    };
+  }, [baseDay, sessionSwaps]);
+
+  // Apply an exercise swap chosen from the library — either for this session only or permanently.
+  const handleApplySwap = async (exerciseId: string, currentSets: string, scope: 'today' | 'plan') => {
+    if (!swapPick || !day) return;
+    if (scope === 'plan') {
+      await swapExercise(day.id, exerciseId, swapPick.name, currentSets, swapPick.videoUrl);
+    } else {
+      setSessionSwaps(prev => ({
+        ...prev,
+        [exerciseId]: { name: swapPick.name, sets: currentSets, videoUrl: swapPick.videoUrl },
+      }));
+    }
+    setSwapExerciseId(null);
+    setSwapPick(null);
+    setSwapQuery('');
+  };
   const currentPageDraft = (activeDraft && activeDraft.dayId === dayId && activeDraft.date === targetDate
     ? activeDraft
     : queuedDraft && queuedDraft.dayId === dayId && queuedDraft.date === targetDate
@@ -1315,23 +1339,6 @@ const WorkoutDay = () => {
               previousSets={getPreviousSets(exercise.id)}
               onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
               isBodyweight={isBodyweightExercise(exercise.name)}
-              onSetCompleted={(lastWeight?: number) => {
-                if (!isWorkoutStarted || isCompleted) return;
-                const exerciseType = lookupExerciseType(exercise.name);
-                const best = getExerciseBest1RM(workouts, exercise.id);
-                const duration = getRestDuration({
-                  exerciseIndex: index,
-                  isSuperset: !!exercise.isSuperset,
-                  isFirstInSuperset: !!exercise.isSuperset && exercise.id.endsWith('a'),
-                  exerciseType,
-                  weight: lastWeight,
-                  estimated1RM: best.best1RM > 0 ? best.best1RM : undefined,
-                });
-                setRestTimerDuration(duration);
-                setRestTimerLabel(exercise.name);
-                setRestTimerKey(k => k + 1);
-                setShowRestTimer(true);
-              }}
               isEditable={isWorkoutStarted && !isCompleted}
             />
             {/* AI Swap & Skip buttons — only in active workout */}
@@ -1351,8 +1358,8 @@ const WorkoutDay = () => {
                   className="text-xs text-muted-foreground gap-1"
                   onClick={() => {
                     setSwapExerciseId(exercise.id);
-                    setSwapReason('');
-                    resetSwap();
+                    setSwapQuery('');
+                    setSwapPick(null);
                   }}
                 >
                   <ArrowRightLeft className="h-3.5 w-3.5" />Zamień
@@ -1360,42 +1367,57 @@ const WorkoutDay = () => {
               </div>
             )}
 
-            {/* AI Swap dialog */}
+            {/* Exercise swap dialog — search the library, no AI */}
             {swapExerciseId === exercise.id && (
-              <Card className="border-blue-200 bg-blue-50/50">
+              <Card className="border-primary/30 bg-primary/[0.04]">
                 <CardContent className="pt-4 pb-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-sm">Zamień: {exercise.name}</p>
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSwapExerciseId(null)}>Zamknij</Button>
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSwapExerciseId(null); setSwapPick(null); setSwapQuery(''); }}>Zamknij</Button>
                   </div>
-                  <input
-                    type="text"
-                    value={swapReason}
-                    onChange={e => setSwapReason(e.target.value)}
-                    placeholder="Powód (opcjonalnie): brak sprzętu, kontuzja..."
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => findSwap(exercise.name, swapReason)}
-                    disabled={swapLoading}
-                    className="w-full"
-                  >
-                    {swapLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ArrowRightLeft className="h-4 w-4 mr-1" />}
-                    Znajdź zamiennik
-                  </Button>
-                  {swapError && <p className="text-sm text-destructive">{swapError}</p>}
-                  {swapResult && !swapLoading && (
-                    <div className="space-y-2">
-                      {swapResult.alternatives.map((alt, i) => (
-                        <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-background">
-                          <span className="font-bold text-sm text-primary">{i + 1}.</span>
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{alt.name} <Badge variant="outline" className="text-[10px] ml-1">{alt.setsScheme}</Badge></p>
-                            <p className="text-xs text-muted-foreground">{alt.reason}</p>
-                          </div>
-                        </div>
-                      ))}
+
+                  {!swapPick ? (
+                    <>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                          type="text"
+                          value={swapQuery}
+                          onChange={e => setSwapQuery(e.target.value)}
+                          placeholder="Szukaj ćwiczenia w bazie..."
+                          autoFocus
+                          className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="max-h-64 overflow-y-auto space-y-1">
+                        {exerciseLibrary
+                          .filter(e => e.name.toLowerCase().includes(swapQuery.trim().toLowerCase()))
+                          .slice(0, 40)
+                          .map(libEx => (
+                            <button
+                              key={libEx.name}
+                              onClick={() => setSwapPick(libEx)}
+                              className="w-full text-left flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-colors"
+                            >
+                              <span className="text-sm font-medium">{libEx.name}</span>
+                              <Badge variant="outline" className="text-[10px] shrink-0">{categoryLabels[libEx.category]}</Badge>
+                            </button>
+                          ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm">Zamieniam na: <span className="font-semibold text-primary">{swapPick.name}</span></p>
+                      <p className="text-xs text-muted-foreground">Na jak długo?</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleApplySwap(exercise.id, exercise.sets, 'today')}>
+                          Tylko dziś
+                        </Button>
+                        <Button size="sm" onClick={() => handleApplySwap(exercise.id, exercise.sets, 'plan')}>
+                          Na stałe w planie
+                        </Button>
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-xs w-full" onClick={() => setSwapPick(null)}>← Wybierz inne ćwiczenie</Button>
                     </div>
                   )}
                 </CardContent>
@@ -1432,16 +1454,6 @@ const WorkoutDay = () => {
         </div>
       )}
 
-      {/* Rest Timer */}
-      {showRestTimer && (
-        <RestTimer
-          key={`timer-${restTimerKey}`}
-          defaultSeconds={restTimerDuration}
-          exerciseLabel={restTimerLabel}
-          onClose={() => setShowRestTimer(false)}
-        />
-      )}
-
       {isWorkoutStarted && !isCompleted && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t z-40">
           {showCompleteConfirm ? (
@@ -1465,25 +1477,15 @@ const WorkoutDay = () => {
               </Button>
             </div>
           ) : (
-            <div className="flex gap-2">
-              <Button
-                size="lg"
-                variant="outline"
-                className="py-6"
-                onClick={() => setShowRestTimer(prev => !prev)}
-              >
-                <Timer className="h-5 w-5" />
-              </Button>
-              <Button
-                size="lg"
-                className="flex-1 py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
-                onClick={() => setShowCompleteConfirm(true)}
-                disabled={isExplicitSaving}
-              >
-                <Check className="h-5 w-5 mr-2" />
-                Zakończ trening
-              </Button>
-            </div>
+            <Button
+              size="lg"
+              className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
+              onClick={() => setShowCompleteConfirm(true)}
+              disabled={isExplicitSaving}
+            >
+              <Check className="h-5 w-5 mr-2" />
+              Zakończ trening
+            </Button>
           )}
         </div>
       )}

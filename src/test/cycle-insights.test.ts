@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { buildCycleComparison, buildCycleRecommendation, computeCycleStats } from '@/lib/cycle-insights';
 import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
+import type { TrainingDay } from '@/data/trainingPlan';
 
-const planDays = [
+const planDays: TrainingDay[] = [
   {
     id: 'day-1',
     dayName: 'Poniedziałek',

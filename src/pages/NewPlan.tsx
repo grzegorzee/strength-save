@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw } from 'lucide-react';
+import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw, Sparkles, ListChecks, Repeat } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -11,7 +11,27 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { generateTrainingPlan, generatePlanFromCycle, type OnboardingAnswers, type GeneratedPlan } from '@/lib/ai-onboarding';
 import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
-import type { TrainingDay } from '@/data/trainingPlan';
+import { planTemplates, type PlanTemplate } from '@/data/planTemplates';
+import type { TrainingDay, Weekday } from '@/data/trainingPlan';
+
+const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
+  { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
+  { value: 'tuesday', short: 'Wt', long: 'Wtorek' },
+  { value: 'wednesday', short: 'Śr', long: 'Środa' },
+  { value: 'thursday', short: 'Cz', long: 'Czwartek' },
+  { value: 'friday', short: 'Pt', long: 'Piątek' },
+  { value: 'saturday', short: 'So', long: 'Sobota' },
+  { value: 'sunday', short: 'Nd', long: 'Niedziela' },
+];
+
+const weekdayLongName = (value: Weekday): string =>
+  WEEKDAYS.find((w) => w.value === value)?.long ?? value;
+
+const levelLabels: Record<PlanTemplate['level'], string> = {
+  beginner: 'Początkujący',
+  intermediate: 'Średniozaawansowany',
+  advanced: 'Zaawansowany',
+};
 import type { ExerciseReplacement } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -60,6 +80,46 @@ const NewPlan = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null);
+  // Sposób ułożenia planu: AI vs gotowy szablon do wyboru.
+  const [planSource, setPlanSource] = useState<'ai' | 'templates'>('ai');
+  // Szablon wybrany, ale czekający na wybór dni tygodnia przez użytkownika.
+  const [pendingTemplate, setPendingTemplate] = useState<PlanTemplate | null>(null);
+  const [dayWeekdays, setDayWeekdays] = useState<Weekday[]>([]);
+
+  const hasCurrentPlan = !sourceCycle && currentPlan.length > 0;
+
+  const handlePickTemplate = (template: PlanTemplate) => {
+    setError(null);
+    setPendingTemplate(template);
+    setDayWeekdays(template.days.map((d) => d.weekday));
+  };
+
+  const setDayWeekday = (index: number, weekday: Weekday) => {
+    setDayWeekdays((prev) => {
+      const next = [...prev];
+      // Jeśli inny dzień ma już ten weekday — zamień się z nim (brak duplikatów).
+      const clashIndex = next.findIndex((w, i) => i !== index && w === weekday);
+      if (clashIndex >= 0) next[clashIndex] = next[index];
+      next[index] = weekday;
+      return next;
+    });
+  };
+
+  const confirmTemplateDays = () => {
+    if (!pendingTemplate) return;
+    const remapped: TrainingDay[] = pendingTemplate.days.map((d, i) => ({
+      ...d,
+      weekday: dayWeekdays[i],
+      dayName: weekdayLongName(dayWeekdays[i]),
+    }));
+    setReviewPlan({ days: remapped, planDurationWeeks: pendingTemplate.durationWeeks });
+    setPendingTemplate(null);
+  };
+
+  const handleContinueCurrent = () => {
+    setError(null);
+    setReviewPlan({ days: currentPlan, planDurationWeeks });
+  };
 
   // Swap dialog
   const [swapDialog, setSwapDialog] = useState<{
@@ -212,6 +272,69 @@ const NewPlan = () => {
     );
   }
 
+  // Weekday picker (after choosing a ready-made template)
+  if (pendingTemplate) {
+    const usedWeekdays = new Set(dayWeekdays);
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => setPendingTemplate(null)}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold">W które dni trenujesz?</h1>
+            <p className="text-sm text-muted-foreground">{pendingTemplate.name}</p>
+          </div>
+        </div>
+
+        <p className="text-sm text-muted-foreground">
+          Przypisz każdy dzień planu do dnia tygodnia. Każdy dzień tygodnia możesz wybrać tylko raz.
+        </p>
+
+        {pendingTemplate.days.map((d, i) => (
+          <Card key={d.id}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center justify-between">
+                <span>Dzień {i + 1}</span>
+                <Badge variant="outline" className="text-xs font-normal">{d.focus}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAYS.map((w) => {
+                  const selected = dayWeekdays[i] === w.value;
+                  const takenByOther = !selected && usedWeekdays.has(w.value);
+                  return (
+                    <Badge
+                      key={w.value}
+                      variant={selected ? 'default' : 'outline'}
+                      className={cn(
+                        'cursor-pointer',
+                        takenByOther && 'opacity-40',
+                      )}
+                      onClick={() => setDayWeekday(i, w.value)}
+                    >
+                      {w.short}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => setPendingTemplate(null)}>
+            <ChevronLeft className="h-4 w-4 mr-1" />Wróć
+          </Button>
+          <Button className="flex-1" onClick={confirmTemplateDays}>
+            Dalej do podglądu
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // Config page
   return (
     <div className="space-y-6">
@@ -270,61 +393,137 @@ const NewPlan = () => {
         </Card>
       )}
 
-      {/* New plan options */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Nowy cel</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {goalOptions.map(opt => (
-              <Badge
-                key={opt.id}
-                variant={answers.goal === opt.id ? 'default' : 'outline'}
-                className="cursor-pointer"
-                onClick={() => setAnswers(prev => ({ ...prev, goal: opt.id }))}
-              >
-                {opt.label}
-              </Badge>
-            ))}
-          </div>
+      {/* Continue the same plan for another block (no AI, no template) */}
+      {hasCurrentPlan && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Repeat className="h-4 w-4 text-primary" />
+              Kontynuuj ten sam plan
+            </CardTitle>
+            <CardDescription>
+              Zacznij obecny plan od nowa na kolejny blok ({planDurationWeeks} tyg.). Poprzedni blok trafi do cykli, a historia treningów zostaje nietknięta.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="secondary" className="w-full" onClick={handleContinueCurrent}>
+              <Repeat className="h-4 w-4 mr-2" />
+              Kontynuuj obecny plan
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-          <div>
-            <p className="text-sm font-medium mb-2">Dni w tygodniu</p>
-            <div className="flex gap-2">
-              {[2,3,4,5].map(n => (
-                <Badge
-                  key={n}
-                  variant={answers.daysPerWeek === n ? 'default' : 'outline'}
-                  className="cursor-pointer"
-                  onClick={() => setAnswers(prev => ({ ...prev, daysPerWeek: n }))}
-                >
-                  {n}
-                </Badge>
-              ))}
-            </div>
-          </div>
+      {/* Source toggle: AI vs ready-made templates */}
+      <div className="grid grid-cols-2 gap-2">
+        <Button
+          variant={planSource === 'ai' ? 'default' : 'outline'}
+          onClick={() => setPlanSource('ai')}
+        >
+          <Sparkles className="h-4 w-4 mr-2" />
+          Ułóż z AI
+        </Button>
+        <Button
+          variant={planSource === 'templates' ? 'default' : 'outline'}
+          onClick={() => setPlanSource('templates')}
+        >
+          <ListChecks className="h-4 w-4 mr-2" />
+          Gotowe plany
+        </Button>
+      </div>
 
-          <div>
-            <p className="text-sm font-medium mb-2">Kontuzje/zmiany (opcjonalne)</p>
-            <textarea
-              value={answers.injuries}
-              onChange={e => setAnswers(prev => ({ ...prev, injuries: e.target.value }))}
-              placeholder="np. chcę więcej ćwiczeń na plecy..."
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {planSource === 'ai' ? (
+        <>
+          {/* New plan options */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Nowy cel</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {goalOptions.map(opt => (
+                  <Badge
+                    key={opt.id}
+                    variant={answers.goal === opt.id ? 'default' : 'outline'}
+                    className="cursor-pointer"
+                    onClick={() => setAnswers(prev => ({ ...prev, goal: opt.id }))}
+                  >
+                    {opt.label}
+                  </Badge>
+                ))}
+              </div>
 
-      <Button className="w-full" onClick={handleGenerate} disabled={isGenerating}>
-        {isGenerating ? (
-          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        ) : (
-          <Dumbbell className="h-4 w-4 mr-2" />
-        )}
-        Wygeneruj nowy plan
-      </Button>
+              <div>
+                <p className="text-sm font-medium mb-2">Dni w tygodniu</p>
+                <div className="flex gap-2">
+                  {[2,3,4,5].map(n => (
+                    <Badge
+                      key={n}
+                      variant={answers.daysPerWeek === n ? 'default' : 'outline'}
+                      className="cursor-pointer"
+                      onClick={() => setAnswers(prev => ({ ...prev, daysPerWeek: n }))}
+                    >
+                      {n}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium mb-2">Kontuzje/zmiany (opcjonalne)</p>
+                <textarea
+                  value={answers.injuries}
+                  onChange={e => setAnswers(prev => ({ ...prev, injuries: e.target.value }))}
+                  placeholder="np. chcę więcej ćwiczeń na plecy..."
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Button className="w-full" onClick={handleGenerate} disabled={isGenerating}>
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Dumbbell className="h-4 w-4 mr-2" />
+            )}
+            Wygeneruj nowy plan
+          </Button>
+        </>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Wybierz gotowy plan, podejrzyj ćwiczenia (możesz je podmienić w następnym kroku) i zatwierdź. Bez generowania AI.
+          </p>
+          {planTemplates.map(template => (
+            <Card key={template.id}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{template.name}</CardTitle>
+                <CardDescription>{template.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary">{template.daysPerWeek} dni/tydzień</Badge>
+                  <Badge variant="secondary">{template.durationWeeks} tygodni</Badge>
+                  <Badge variant="outline">{levelLabels[template.level]}</Badge>
+                </div>
+                <div className="space-y-1">
+                  {template.days.map(day => (
+                    <div key={day.id} className="text-sm">
+                      <span className="font-medium">{day.dayName}:</span>{' '}
+                      <span className="text-muted-foreground">{day.focus}</span>
+                    </div>
+                  ))}
+                </div>
+                <Button className="w-full" onClick={() => handlePickTemplate(template)}>
+                  <Check className="h-4 w-4 mr-2" />
+                  Wybierz ten plan
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive text-center">{error}</p>}
     </div>

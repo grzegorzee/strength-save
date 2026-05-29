@@ -414,7 +414,7 @@ const Dashboard = () => {
               {planNextStep.primaryLabel}
             </Button>
             {planNextStep.secondaryPath && planNextStep.secondaryLabel ? (
-              <Button variant="outline" onClick={() => navigate(planNextStep.secondaryPath)}>
+              <Button variant="outline" onClick={() => navigate(planNextStep.secondaryPath!)}>
                 {planNextStep.secondaryLabel}
               </Button>
             ) : null}
