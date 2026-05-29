@@ -20,6 +20,7 @@ import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db'
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
+import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
@@ -163,10 +164,13 @@ const Dashboard = () => {
     const day = todayEntry.day;
     // Primary match by dayId+date; fall back to ANY completed workout on today's date so a
     // session logged under a prior plan (different day.id / cycle) still counts as done today.
-    const todayWorkout = workouts.find(w => w.dayId === day.id && w.date === todayEntry.dateKey)
-      ?? workouts.find(w => w.date === todayEntry.dateKey && w.completed);
+    const todayWorkout = findWorkoutForRoute(workouts, {
+      dayId: day.id,
+      date: todayEntry.dateKey,
+      allowDateFallback: true,
+    });
     if (todayWorkout?.completed) {
-      return { type: 'completed' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
+      return { type: 'completed' as const, day, workout: todayWorkout, dateStr: todayEntry.dateKey };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
   }, [trainingPlan, today, workouts, planStartDate]);
@@ -263,7 +267,7 @@ const Dashboard = () => {
     month: 'long',
   });
 
-  // Plan progress (0 until the plan actually starts)
+  // Time progress through the plan (0 until the plan actually starts).
   const planProgress = planStarted ? Math.min(100, Math.round((currentWeek / planDurationWeeks) * 100)) : 0;
 
   useEffect(() => {
@@ -404,7 +408,7 @@ const Dashboard = () => {
                 <p className="text-xs text-muted-foreground">{todayTraining.day.dayName}</p>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate(`/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}`)}>
+            <Button variant="ghost" size="sm" onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}>
               Zobacz
             </Button>
           </CardContent>
@@ -564,7 +568,7 @@ const Dashboard = () => {
                   style={{ width: `${planProgress}%` }}
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">{planProgress}% ukończone</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{planProgress}% czasu planu</p>
             </div>
 
             {/* Days overview */}
@@ -647,14 +651,21 @@ const Dashboard = () => {
 
             return items.map((item) => {
               if (item.type === 'training') {
-                const workoutForDate = workouts.find(w => w.dayId === item.dayId && w.date === item.dateStr);
+                const workoutForDate = findWorkoutForRoute(workouts, {
+                  dayId: item.dayId,
+                  date: item.dateStr,
+                  allowDateFallback: true,
+                });
                 return (
                   <TrainingDayCard
                     key={`training-${item.dayId}-${item.dateStr}`}
                     day={trainingPlan.find(d => d.id === item.dayId)!}
                     latestWorkout={workoutForDate}
                     trainingDate={item.date}
-                    onClick={() => navigate(`/workout/${item.dayId}?date=${item.dateStr}${!workoutForDate?.completed ? '&autostart=true' : ''}`)}
+                    onClick={() => navigate(workoutForDate?.completed
+                      ? buildWorkoutRoute(workoutForDate, item.dayId)
+                      : `/workout/${item.dayId}?date=${item.dateStr}&autostart=true`
+                    )}
                   />
                 );
               }

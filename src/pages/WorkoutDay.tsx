@@ -16,6 +16,7 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { getNextSetAdvice } from '@/lib/next-set-advice';
 import { getExerciseHistory } from '@/lib/exercise-progression';
 import { callOpenAI } from '@/lib/ai-coach';
+import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -60,6 +61,7 @@ const WorkoutDay = () => {
 
   const today = formatLocalDate(new Date());
   const targetDate = searchParams.get('date') || today;
+  const routeSessionId = searchParams.get('session');
   const autostart = searchParams.get('autostart') === 'true';
   const isViewingPastWorkout = targetDate !== today;
 
@@ -118,8 +120,13 @@ const WorkoutDay = () => {
 
   // Zapisany trening dla oglądanej daty (jeśli istnieje).
   const workoutForDate = useMemo(
-    () => workouts.find(w => w.dayId === dayId && w.date === targetDate),
-    [workouts, dayId, targetDate],
+    () => findWorkoutForRoute(workouts, {
+      dayId,
+      date: targetDate,
+      sessionId: routeSessionId,
+      allowDateFallback: true,
+    }),
+    [workouts, dayId, targetDate, routeSessionId],
   );
 
   // Apply any session-only ("tylko dziś") swaps over the plan day.
@@ -132,7 +139,7 @@ const WorkoutDay = () => {
     if (useSnapshot) {
       const label = resolver.resolveDayLabel(workoutForDate);
       const snapshotDay: TrainingDay = {
-        id: dayId ?? workoutForDate.dayId,
+        id: workoutForDate.dayId || dayId || '',
         dayName: label.dayName,
         weekday: baseDay?.weekday ?? 'monday',
         focus: label.focus,
@@ -490,7 +497,12 @@ const WorkoutDay = () => {
   useEffect(() => {
     if (!isLoaded || !isDraftLoaded || !dayId) return;
 
-    const workoutForDate = workouts.find(w => w.dayId === dayId && w.date === targetDate);
+    const workoutForDate = findWorkoutForRoute(workouts, {
+      dayId,
+      date: targetDate,
+      sessionId: routeSessionId,
+      allowDateFallback: true,
+    });
     const draftHasData = currentPageDraft
       ? hasDraftContent(
         currentPageDraft.exerciseSets,
@@ -589,7 +601,7 @@ const WorkoutDay = () => {
       dayNotes: '',
       skippedExercises: [],
     });
-  }, [isLoaded, isDraftLoaded, dayId, workouts, targetDate, currentPageDraft, applyWorkoutState, toast, uid]);
+  }, [isLoaded, isDraftLoaded, dayId, workouts, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid]);
 
   // Autostart workout when navigating with ?autostart=true
   useEffect(() => {

@@ -61,10 +61,11 @@ describe('exercise-name-resolver', () => {
     expect(r.resolveExerciseName(w, 'tpl-ex-1')).toBe('Wyciskanie sztangi');
   });
 
-  it('kompletny sierota: zwraca surowy id', () => {
+  it('kompletny sierota: zwraca czytelny fallback zamiast surowego id', () => {
     const r = buildWorkoutResolver(newPlan, []);
     const w = mkWorkout({ date: '2026-05-24' });
-    expect(r.resolveExerciseName(w, 'nieznane-id')).toBe('nieznane-id');
+    expect(r.resolveExerciseName(w, 'ex-99-1')).toBe('Ćwiczenie 99.1');
+    expect(r.resolveExerciseName(w, 'nieznane-id')).toBe('Ćwiczenie (nieznane-id)');
   });
 
   it('resolveDayLabel: snapshot dnia ma priorytet', () => {

@@ -25,6 +25,20 @@ const buildNameMap = (days: TrainingDay[]): Map<string, string> =>
 const buildDayMap = (days: TrainingDay[]): Map<string, { dayName: string; focus: string }> =>
   new Map(days.map(day => [day.id, { dayName: day.dayName, focus: day.focus }] as [string, { dayName: string; focus: string }]));
 
+export const formatUnknownExerciseName = (exerciseId: string): string => {
+  const match = exerciseId.match(/^ex-(\d+)-(.+)$/);
+  if (match) return `Ćwiczenie ${match[1]}.${match[2]}`;
+
+  const compact = exerciseId.trim();
+  return compact ? `Ćwiczenie (${compact})` : 'Ćwiczenie';
+};
+
+export const formatUnknownDayLabel = (dayId: string): { dayName: string; focus: string } => {
+  const match = dayId.match(/^day-(\d+)$/);
+  if (match) return { dayName: `Dzień treningowy ${match[1]}`, focus: '' };
+  return { dayName: dayId ? `Trening ${dayId}` : 'Trening', focus: '' };
+};
+
 export const buildWorkoutResolver = (
   trainingPlan: TrainingDay[],
   cycles: PlanCycle[] = [],
@@ -60,7 +74,7 @@ export const buildWorkoutResolver = (
     const fromCycle = cycle && cycleNameMaps.get(cycle.id)?.get(exerciseId);
     if (fromCycle) return fromCycle;
 
-    return planNames.get(exerciseId) || defaultNames.get(exerciseId) || exerciseId;
+    return planNames.get(exerciseId) || defaultNames.get(exerciseId) || formatUnknownExerciseName(exerciseId);
   };
 
   const resolveDayLabel = (workout: WorkoutSession): { dayName: string; focus: string } => {
@@ -70,7 +84,7 @@ export const buildWorkoutResolver = (
     const fromCycle = cycle && cycleDayMaps.get(cycle.id)?.get(workout.dayId);
     if (fromCycle) return fromCycle;
 
-    return planDays.get(workout.dayId) || defaultDays.get(workout.dayId) || { dayName: workout.dayId, focus: '' };
+    return planDays.get(workout.dayId) || defaultDays.get(workout.dayId) || formatUnknownDayLabel(workout.dayId);
   };
 
   return { resolveExerciseName, resolveDayLabel };

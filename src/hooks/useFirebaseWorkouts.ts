@@ -451,14 +451,23 @@ export const useFirebaseWorkouts = (userId: string) => {
     allCycles: PlanCycle[],
   ): Promise<{ updated: number; scanned: number; error?: string }> => {
     if (!userId) return { updated: 0, scanned: 0, error: 'Brak userId' };
-    const resolver = buildWorkoutResolver([], allCycles);
 
     try {
+      const cyclesForRepair = allCycles.length > 0
+        ? allCycles
+        : await (async () => {
+          const snap = await getDocs(query(
+            collection(db, 'plan_cycles'),
+            where('userId', '==', userId),
+          ));
+          return snap.docs.map(cycleDoc => ({ id: cycleDoc.id, ...cycleDoc.data() } as PlanCycle));
+        })();
+      const resolver = buildWorkoutResolver([], cyclesForRepair);
       let updated = 0;
       for (const w of workouts) {
         const matchedCycle = w.cycleId
-          ? allCycles.find(c => c.id === w.cycleId)
-          : allCycles.find(c => w.date >= c.startDate && (!c.endDate || w.date <= c.endDate));
+          ? cyclesForRepair.find(c => c.id === w.cycleId)
+          : cyclesForRepair.find(c => w.date >= c.startDate && (!c.endDate || w.date <= c.endDate));
 
         const update: Record<string, unknown> = {};
 

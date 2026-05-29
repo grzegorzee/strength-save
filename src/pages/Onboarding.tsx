@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw, Calendar } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -13,9 +14,13 @@ import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { planTemplates, type PlanTemplate } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { ExerciseReplacement } from '@/types';
+import { formatLocalDate } from '@/lib/utils';
+import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 
 // Lekki typ podglądu planu (AI usunięte w v6.10.0 — plan z gotowego szablonu).
 interface GeneratedPlan { days: TrainingDay[]; planDurationWeeks: number; }
+
+const weekMondayStr = (date: Date): string => formatLocalDate(getStartOfPlanWeek(date));
 
 const levelLabels: Record<PlanTemplate['level'], string> = {
   beginner: 'Początkujący',
@@ -30,6 +35,7 @@ const Onboarding = () => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState(() => formatLocalDate(new Date()));
 
   // Review state
   const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null);
@@ -55,16 +61,11 @@ const Onboarding = () => {
     setError(null);
 
     try {
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - daysSinceMonday);
-      const startDate = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+      const planStartDate = weekMondayStr(new Date(`${startDate}T00:00:00`));
 
       const saveResult = await savePlan(reviewPlan.days, {
         durationWeeks: reviewPlan.planDurationWeeks,
-        startDate,
+        startDate: planStartDate,
       });
 
       if (!saveResult.success) {
@@ -74,7 +75,7 @@ const Onboarding = () => {
       }
 
       // Create first active cycle
-      await createActiveCycle(reviewPlan.days, reviewPlan.planDurationWeeks, startDate);
+      await createActiveCycle(reviewPlan.days, reviewPlan.planDurationWeeks, planStartDate);
 
       await updateDoc(doc(db, 'users', uid), {
         onboardingCompleted: true,
@@ -183,6 +184,25 @@ const Onboarding = () => {
               </CardContent>
             </Card>
           ))}
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" />
+                Data rozpoczęcia
+              </CardTitle>
+              <CardDescription>
+                Wybierz dzień, od którego ma ruszyć nowy plan. Aplikacja zapisze start od poniedziałku tego tygodnia.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+            </CardContent>
+          </Card>
 
           <div className="flex gap-2 pt-2">
             <Button

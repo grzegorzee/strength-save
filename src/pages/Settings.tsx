@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Link2, Unlink, RefreshCw, Loader2, Clock, Shield, Users } from 'lucide-react';
+import { ArrowLeft, Link2, Unlink, RefreshCw, Loader2, Clock, Shield, Users, RotateCcw } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { DataManagement } from '@/components/DataManagement';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { formatLocalDate } from '@/lib/utils';
 
 const SUMMARY_HOUR_KEY = 'summary-hour';
 
@@ -158,6 +159,7 @@ const Settings = () => {
 
   const [maxHRInput, setMaxHRInput] = useState('');
   const [maxHRSaving, setMaxHRSaving] = useState(false);
+  const [isResettingOnboarding, setIsResettingOnboarding] = useState(false);
 
   const handleSaveMaxHR = async () => {
     const value = parseInt(maxHRInput);
@@ -194,6 +196,47 @@ const Settings = () => {
   const handleDisconnect = async () => {
     await disconnectStrava();
     toast({ title: 'Rozłączono', description: 'Konto Strava zostało odłączone.' });
+  };
+
+  const handleResetOnboarding = async () => {
+    const confirmed = window.confirm(
+      'To wymusi ponowny onboarding i wybór nowego planu z datą startu. ' +
+      'Treningi i pomiary zostaną zachowane, a aktywny cykl zostanie zamknięty. Kontynuować?',
+    );
+    if (!confirmed) return;
+
+    setIsResettingOnboarding(true);
+    try {
+      const today = formatLocalDate(new Date());
+      await Promise.all(
+        cycles
+          .filter(cycle => cycle.status === 'active')
+          .map(cycle => updateDoc(doc(db, 'plan_cycles', cycle.id), {
+            status: 'completed',
+            endDate: today,
+          })),
+      );
+      await updateDoc(doc(db, 'users', uid), {
+        onboardingCompleted: false,
+        onboarding: {
+          state: 'in_progress',
+          version: 2,
+          resetAt: new Date().toISOString(),
+        },
+      });
+      toast({
+        title: 'Onboarding zresetowany',
+        description: 'Po przejściu dalej wybierzesz plan i datę startu od nowa.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Nie udało się zresetować onboardingu',
+        description: err instanceof Error ? err.message : 'Spróbuj ponownie.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResettingOnboarding(false);
+    }
   };
 
   return (
@@ -272,6 +315,33 @@ const Settings = () => {
         importLabel="Importuj kopię"
         cleanupLabel="Wyczyść duplikaty treningów"
       />
+
+      <Card className="border-amber-500/30">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <RotateCcw className="h-5 w-5 text-amber-600" />
+            Reset planu
+          </CardTitle>
+          <CardDescription>
+            Zachowuje treningi i pomiary, zamyka aktywny cykl i uruchamia onboarding od nowa z wyborem daty startu.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+            onClick={handleResetOnboarding}
+            disabled={isResettingOnboarding}
+          >
+            {isResettingOnboarding ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4 mr-2" />
+            )}
+            Wymuś onboarding od nowa
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Strava integration — feature flag */}
       {canUseStrava && <Card>
