@@ -141,7 +141,9 @@ const TrainingPlan = () => {
   );
   const trainingDates = useMemo(() => schedule.map(s => s.date), [schedule]);
 
-  const actualCurrentWeek = Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek));
+  // Plan not started yet (start date in the future) → week 0, no progress.
+  const planStarted = getStartOfPlanWeek(today).getTime() >= startDate.getTime();
+  const actualCurrentWeek = planStarted ? Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek)) : 0;
   const selectedOrToday = selectedDate || today;
   const selectedWeekNumber = Math.floor((startOfLocalDay(selectedOrToday).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
   const displayWeek = Math.max(1, Math.min(planDurationWeeks, selectedWeekNumber));
@@ -361,7 +363,7 @@ const TrainingPlan = () => {
               </div>
               <div className="rounded-2xl p-4 border border-white/[0.04] bg-white/[0.02] text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">
-                  {workouts.filter(w => w.completed).length}
+                  {workouts.filter(w => w.completed && (!planStartDate || w.date >= planStartDate)).length}
                 </p>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">Ukończone</p>
               </div>

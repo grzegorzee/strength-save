@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { trainingPlan as defaultPlanData } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -92,7 +93,7 @@ const Dashboard = () => {
     isLoaded,
     error
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
   const { cycles } = usePlanCycles(uid);
   const [localDraft, setLocalDraft] = useState<ActiveWorkoutDraft | null>(null);
@@ -103,7 +104,13 @@ const Dashboard = () => {
   const totalWeight = getTotalWeight();
 
   const today = useMemo(() => new Date(), []);
-  const thisWeek = useMemo(() => getScheduledTrainingWeek(trainingPlan, today), [trainingPlan, today]);
+  const thisWeek = useMemo(() => {
+    const week = getScheduledTrainingWeek(trainingPlan, today);
+    // Hide plan days that fall before the plan's start date (plan not started yet this week).
+    if (!planStartDate) return week;
+    const start = parseLocalDate(planStartDate);
+    return week.filter(e => e.date >= start);
+  }, [trainingPlan, today, planStartDate]);
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
   const activeCycle = useMemo(() => cycles.find(cycle => cycle.status === 'active') ?? null, [cycles]);
@@ -138,6 +145,12 @@ const Dashboard = () => {
 
   // Determine today's training context
   const todayTraining = useMemo(() => {
+    // Plan hasn't started yet — don't push a training for today; point to the first session.
+    if (planStartDate && today < parseLocalDate(planStartDate)) {
+      const nextEntry = getNextScheduledTraining(trainingPlan, today);
+      return { type: 'rest' as const, nextDay: nextEntry?.day ?? null };
+    }
+
     const todayEntry = getScheduledTrainingForDate(trainingPlan, today);
 
     if (!todayEntry) {
@@ -154,7 +167,7 @@ const Dashboard = () => {
       return { type: 'completed' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
-  }, [trainingPlan, today, workouts]);
+  }, [trainingPlan, today, workouts, planStartDate]);
 
   // Calculate trends (last 4 weeks vs previous 4 weeks)
   const trends = useMemo(() => {
@@ -194,7 +207,10 @@ const Dashboard = () => {
 
   // Find most recent PR
   const latestPR = useMemo(() => {
-    const allNames = new Map(trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name])));
+    const allNames = new Map<string, string>([
+      ...defaultPlanData.flatMap(d => d.exercises.map(e => [e.id, e.name] as [string, string])),
+      ...trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name] as [string, string])),
+    ]);
     const completedSorted = workouts
       .filter(w => w.completed)
       .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
@@ -245,8 +261,8 @@ const Dashboard = () => {
     month: 'long',
   });
 
-  // Plan progress
-  const planProgress = Math.min(100, Math.round((currentWeek / planDurationWeeks) * 100));
+  // Plan progress (0 until the plan actually starts)
+  const planProgress = planStarted ? Math.min(100, Math.round((currentWeek / planDurationWeeks) * 100)) : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -531,7 +547,11 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 flex-wrap">
               <span>{trainingPlan.length}x/tydzień</span>
               <span>·</span>
-              <span>Tydzień {Math.min(currentWeek, planDurationWeeks)} z {planDurationWeeks}</span>
+              {planStarted ? (
+                <span>Tydzień {Math.min(currentWeek, planDurationWeeks)} z {planDurationWeeks}</span>
+              ) : (
+                <span>Start: {parseLocalDate(planStartDate!).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</span>
+              )}
             </div>
 
             {/* Progress bar */}

@@ -219,7 +219,6 @@ const WorkoutHistory = () => {
                       <Badge variant={workout.completed ? 'default' : 'secondary'}>
                         {workout.completed ? 'ukończony' : 'draft'}
                       </Badge>
-                      {workout.cycleId && <Badge variant="outline">cycle {workout.cycleId}</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {day?.dayName || workout.dayId} · {day?.focus || 'Bez focusu'}

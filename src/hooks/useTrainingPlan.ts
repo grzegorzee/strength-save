@@ -109,6 +109,9 @@ export const useTrainingPlan = (userId: string) => {
 
   const isPlanExpired = currentWeek > planDurationWeeks;
   const weeksRemaining = Math.max(0, planDurationWeeks - currentWeek);
+  // False when the plan's start date is still in the future (plan hasn't begun yet).
+  const planStarted = !planStartDate
+    || getStartOfPlanWeek(new Date()).getTime() >= getStartOfPlanWeek(parseLocalDate(planStartDate)).getTime();
 
   const savePlan = useCallback(async (
     newPlan: TrainingDay[],
@@ -238,6 +241,7 @@ export const useTrainingPlan = (userId: string) => {
     currentWeek,
     isPlanExpired,
     weeksRemaining,
+    planStarted,
     savePlan,
     swapExercise,
     updateExerciseSets,
