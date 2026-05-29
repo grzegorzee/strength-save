@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 interface Props {
   cycle: PlanCycle;
@@ -15,8 +16,14 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
   const isActive = cycle.status === 'active';
   const tonnageT = (cycle.stats.totalTonnage / 1000).toFixed(1);
 
+  const plannedEndDate = (start: string, weeks: number): string => {
+    const date = parseLocalDate(start);
+    date.setDate(date.getDate() + (weeks * 7) - 1);
+    return formatLocalDate(date);
+  };
   const formatDate = (d: string) =>
-    d ? new Date(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }) : 'teraz';
+    d ? parseLocalDate(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }) : 'teraz';
+  const displayedEndDate = cycle.endDate || plannedEndDate(cycle.startDate, cycle.durationWeeks);
 
   return (
     <div className="space-y-4">
@@ -27,7 +34,7 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
         <div>
           <h1 className="text-xl font-bold">Szczegóły cyklu</h1>
           <p className="text-sm text-muted-foreground">
-            {formatDate(cycle.startDate)} — {formatDate(cycle.endDate)}
+            {formatDate(cycle.startDate)} — {formatDate(displayedEndDate)}
           </p>
         </div>
         <Badge variant={isActive ? 'default' : 'secondary'} className="ml-auto">

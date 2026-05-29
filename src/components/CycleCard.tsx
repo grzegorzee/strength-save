@@ -2,20 +2,27 @@ import { Calendar, Dumbbell, Trophy, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
-import { cn } from '@/lib/utils';
+import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 interface Props {
   cycle: PlanCycle;
   onClick: () => void;
 }
 
-const formatDateRange = (startDate: string, endDate: string): string => {
+const formatDateRange = (startDate: string, endDate: string, durationWeeks: number): string => {
+  const plannedEndDate = (start: string, weeks: number): string => {
+    const date = parseLocalDate(start);
+    date.setDate(date.getDate() + (weeks * 7) - 1);
+    return formatLocalDate(date);
+  };
+
   const fmt = (d: string) => {
-    const date = new Date(d);
+    const date = parseLocalDate(d);
     return date.toLocaleDateString('pl-PL', { month: 'short', year: 'numeric' });
   };
-  if (!endDate) return `${fmt(startDate)} — teraz`;
-  return `${fmt(startDate)} — ${fmt(endDate)}`;
+  const effectiveEnd = endDate || plannedEndDate(startDate, durationWeeks);
+  if (startDate.slice(0, 7) === effectiveEnd.slice(0, 7)) return fmt(startDate);
+  return `${fmt(startDate)} — ${fmt(effectiveEnd)}`;
 };
 
 export const CycleCard = ({ cycle, onClick }: Props) => {
@@ -35,7 +42,7 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {formatDateRange(cycle.startDate, cycle.endDate)}
+              {formatDateRange(cycle.startDate, cycle.endDate || '', cycle.durationWeeks)}
             </span>
           </div>
           <Badge variant={isActive ? 'default' : 'secondary'} className="text-xs">

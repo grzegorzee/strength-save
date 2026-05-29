@@ -31,12 +31,13 @@ const Cycles = () => {
     createActiveCycle(trainingPlan, planDurationWeeks, planStartDate);
   }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle]);
   const liveActiveCycle = buildActiveCyclePreview(activeCycle, workouts);
-  const previousCompletedCycle = cycles.find(cycle => cycle.status === 'completed') || null;
+  const visibleStoredCycles = cycles.filter(cycle => cycle.status === 'active' || cycle.stats.totalWorkouts > 0);
+  const previousCompletedCycle = visibleStoredCycles.find(cycle => cycle.status === 'completed') || null;
   const comparison = liveActiveCycle ? buildCycleComparison(liveActiveCycle, previousCompletedCycle) : null;
   const recommendation = liveActiveCycle ? buildCycleRecommendation(liveActiveCycle, previousCompletedCycle) : null;
   const listedCycles = liveActiveCycle
-    ? [liveActiveCycle, ...cycles.filter(cycle => cycle.id !== liveActiveCycle.id)]
-    : cycles;
+    ? [liveActiveCycle, ...visibleStoredCycles.filter(cycle => cycle.id !== liveActiveCycle.id)]
+    : visibleStoredCycles;
 
   if (!isLoaded) {
     return (

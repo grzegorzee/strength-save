@@ -278,15 +278,15 @@ const SummaryTab = () => {
           <CardHeader className="pb-3"><CardTitle className="text-base">Ukończone treningi</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {currentWorkouts.map(w => {
-              const day = trainingPlan.find(d => d.id === w.dayId);
+              const dayLabel = resolver.resolveDayLabel(w);
               return (
                 <button
                   key={w.id}
                   className="flex items-center justify-between p-3 rounded-lg bg-muted/30 w-full text-left hover:bg-muted/50 transition-colors"
-                  onClick={() => navigate(`/workout/${w.dayId}?date=${w.date}`)}
+                  onClick={() => navigate(`/workout/${w.dayId}?date=${w.date}&session=${w.id}`)}
                 >
                   <div>
-                    <p className="font-medium text-sm">{day?.dayName || w.dayId}</p>
+                    <p className="font-medium text-sm">{dayLabel.dayName}</p>
                     <p className="text-xs text-muted-foreground">
                       {parseLocalDate(w.date).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}
                     </p>
