@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { parseLocalDate } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
@@ -17,6 +19,7 @@ const WorkoutHistory = () => {
   const { uid } = useCurrentUser();
   const { workouts, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { cycles } = usePlanCycles(uid);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDay, setSelectedDay] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'completed' | 'draft'>('all');
@@ -24,15 +27,8 @@ const WorkoutHistory = () => {
   const [toDate, setToDate] = useState('');
   const [compareIds, setCompareIds] = useState<string[]>([]);
 
-  const dayMap = useMemo(
-    () => new Map(trainingPlan.map(day => [day.id, day])),
-    [trainingPlan],
-  );
-
-  const exerciseNameMap = useMemo(
-    () => new Map(trainingPlan.flatMap(day => day.exercises.map(exercise => [exercise.id, exercise.name]))),
-    [trainingPlan],
-  );
+  // Resolver radzi sobie z treningami ze starych planów (snapshot → cykl → plan → id).
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
 
   const filteredWorkouts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -45,19 +41,19 @@ const WorkoutHistory = () => {
         if (toDate && workout.date > toDate) return false;
         if (!query) return true;
 
-        const day = dayMap.get(workout.dayId);
+        const { dayName, focus } = resolver.resolveDayLabel(workout);
         const haystack = [
           workout.date,
           workout.dayId,
-          day?.dayName || '',
-          day?.focus || '',
-          ...(workout.exercises.map(exercise => exerciseNameMap.get(exercise.exerciseId) || exercise.exerciseId)),
+          dayName,
+          focus,
+          ...(workout.exercises.map(exercise => resolver.resolveExerciseName(workout, exercise.exerciseId))),
         ].join(' ').toLowerCase();
 
         return haystack.includes(query);
       })
       .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
-  }, [dayMap, exerciseNameMap, fromDate, searchQuery, selectedDay, selectedStatus, toDate, workouts]);
+  }, [resolver, fromDate, searchQuery, selectedDay, selectedStatus, toDate, workouts]);
 
   const comparison = useMemo(() => {
     if (compareIds.length !== 2) return null;
@@ -203,7 +199,7 @@ const WorkoutHistory = () => {
 
       <div className="space-y-3">
         {filteredWorkouts.map((workout) => {
-          const day = dayMap.get(workout.dayId);
+          const dayLabel = resolver.resolveDayLabel(workout);
           const tonnage = workout.exercises.reduce(
             (sum, exercise) => sum + exercise.sets.reduce((setSum, set) => setSum + (set.completed ? set.reps * set.weight : 0), 0),
             0,
@@ -221,7 +217,7 @@ const WorkoutHistory = () => {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {day?.dayName || workout.dayId} · {day?.focus || 'Bez focusu'}
+                      {dayLabel.dayName} · {dayLabel.focus || 'Bez focusu'}
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-right text-sm">

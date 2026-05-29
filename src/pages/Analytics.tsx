@@ -20,6 +20,8 @@ import {
 } from 'recharts';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { useStrava } from '@/hooks/useStrava';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
@@ -91,6 +93,7 @@ const SummaryTab = () => {
   const { uid, canUseStrava } = useCurrentUser();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { cycles } = usePlanCycles(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -132,8 +135,14 @@ const SummaryTab = () => {
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
 
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+
   const periodPRs = useMemo(() => {
-    const allNames = new Map(trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name])));
+    // Nazwy ze wszystkich wykonanych ćwiczeń (snapshot/cykl/plan), nie tylko z aktualnego planu.
+    const allNames = new Map<string, string>();
+    workouts.forEach(w => w.exercises.forEach(ex => {
+      if (!allNames.has(ex.exerciseId)) allNames.set(ex.exerciseId, resolver.resolveExerciseName(w, ex.exerciseId));
+    }));
     const allPRs: Array<{ exerciseName: string; type: string }> = [];
     const historicalWorkouts = workouts.filter(w => w.completed && parseLocalDate(w.date).getTime() < boundsStartMs);
 
@@ -143,7 +152,7 @@ const SummaryTab = () => {
     });
 
     return allPRs;
-  }, [boundsStartMs, currentWorkouts, trainingPlan, workouts]);
+  }, [boundsStartMs, currentWorkouts, resolver, workouts]);
 
   const periodMeasurements = measurements.filter(m => {
     const d = parseLocalDate(m.date);
@@ -328,6 +337,8 @@ const ChartsTab = () => {
   const { uid } = useCurrentUser();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { cycles } = usePlanCycles(uid);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
   const [subTab, setSubTab] = useState<ChartsSubTab>('workouts');
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [weightMode, setWeightMode] = useState<WeightMode>('max');
@@ -416,14 +427,14 @@ const ChartsTab = () => {
     if (completedWorkouts.length === 0) return [];
 
     const exerciseIds = new Set<string>();
+    const exerciseNames = new Map<string, string>();
     completedWorkouts.forEach(w => {
       if (selectedDay !== 'all' && w.dayId !== selectedDay) return;
-      w.exercises.forEach(ex => exerciseIds.add(ex.exerciseId));
+      w.exercises.forEach(ex => {
+        exerciseIds.add(ex.exerciseId);
+        if (!exerciseNames.has(ex.exerciseId)) exerciseNames.set(ex.exerciseId, resolver.resolveExerciseName(w, ex.exerciseId));
+      });
     });
-
-    const allExercises = trainingPlan.flatMap(d => d.exercises);
-    const exerciseNames = new Map<string, string>();
-    allExercises.forEach(ex => exerciseNames.set(ex.id, ex.name));
 
     const filteredWorkouts = selectedDay === 'all'
       ? completedWorkouts
@@ -458,7 +469,7 @@ const ChartsTab = () => {
       return { id, name: exerciseNames.get(id) || id, chartData: history, isBodyweight: isBodyweightExercise(exerciseNames.get(id) || '') };
     }).filter(ex => ex.chartData.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [workouts, selectedDay, weightMode, trainingPlan]);
+  }, [workouts, selectedDay, weightMode, resolver]);
 
   const dayLabels = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
   const reorderDay = (jsDay: number) => (jsDay === 0 ? 6 : jsDay - 1);

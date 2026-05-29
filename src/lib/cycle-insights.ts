@@ -48,9 +48,14 @@ export const computeCycleStats = (
     ...defaultPlan.flatMap(day => day.exercises.map(exercise => [exercise.id, exercise.name] as [string, string])),
     ...planDays.flatMap(day => day.exercises.map(exercise => [exercise.id, exercise.name] as [string, string])),
   ]);
+  // Snapshot nazw z samych treningów ma najwyższy priorytet (odporny na zmianę planu).
+  const snapshotNames = new Map<string, string>();
 
   cycleWorkouts.forEach((workout) => {
     workout.exercises.forEach((exercise) => {
+      if (exercise.name && !snapshotNames.has(exercise.exerciseId)) {
+        snapshotNames.set(exercise.exerciseId, exercise.name);
+      }
       exercise.sets.forEach((set) => {
         if (!set.completed || set.isWarmup) return;
         const estimated1RM = calculate1RM(set.weight, set.reps);
@@ -64,7 +69,7 @@ export const computeCycleStats = (
 
   const prs = Array.from(exerciseBests.entries())
     .map(([exerciseId, data]) => ({
-      exerciseName: exerciseNames.get(exerciseId) || exerciseId,
+      exerciseName: snapshotNames.get(exerciseId) || exerciseNames.get(exerciseId) || exerciseId,
       weight: data.weight,
       estimated1RM: Math.round(data.estimated1RM * 10) / 10,
     }))
@@ -74,6 +79,19 @@ export const computeCycleStats = (
   // Expected sessions are based on time ELAPSED so far (capped at plan length),
   // not the whole plan — a fresh/active cycle shouldn't show all future sessions as "missed".
   const todayStr = formatLocalDate(new Date());
+  // Plan startujący w przyszłości jeszcze nie ruszył → 0 oczekiwanych sesji, 0% (nic nie "ominięte").
+  if (startDate > todayStr) {
+    return {
+      totalWorkouts,
+      totalTonnage,
+      prs,
+      completionRate: 0,
+      expectedWorkouts: 0,
+      missedWorkouts: 0,
+      averageWorkoutsPerWeek: 0,
+      averageTonnagePerWorkout: totalWorkouts > 0 ? Math.round(totalTonnage / totalWorkouts) : 0,
+    };
+  }
   // Active cycles persist endDate='' — treat empty/future end as today (avoids parseLocalDate NaN).
   const effectiveEndStr = (endDate && endDate < todayStr) ? endDate : todayStr; // min(endDate, today)
   const elapsedDays = Math.floor(
@@ -99,6 +117,9 @@ export const computeCycleStats = (
 
 export const buildCycleComparison = (cycle: PlanCycle, previousCycle: PlanCycle | null): CycleComparison | null => {
   if (!previousCycle) return null;
+  // Świeży cykl bez treningów nie ma czego porównywać — inaczej pokazywałby tylko ujemne delty
+  // (np. -50000 kg) względem zakończonego cyklu. Porównanie pojawi się po pierwszym treningu.
+  if (cycle.stats.totalWorkouts === 0) return null;
 
   return {
     completionRateDelta: cycle.stats.completionRate - previousCycle.stats.completionRate,

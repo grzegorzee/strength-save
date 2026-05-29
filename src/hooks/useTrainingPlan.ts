@@ -101,10 +101,11 @@ export const useTrainingPlan = (userId: string) => {
   const currentWeek = useMemo(() => {
     if (!planStartDate) return 1;
     const start = getStartOfPlanWeek(parseLocalDate(planStartDate));
-    const now = new Date();
-    const diffMs = getStartOfPlanWeek(now).getTime() - start.getTime();
-    const week = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
-    return Math.max(1, week);
+    const nowWeekStart = getStartOfPlanWeek(new Date());
+    // Plan startujący w przyszłości: tydzień 0 (jeszcze nie ruszył) — nie liczy postępu.
+    if (nowWeekStart.getTime() < start.getTime()) return 0;
+    const diffMs = nowWeekStart.getTime() - start.getTime();
+    return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
   }, [planStartDate]);
 
   const isPlanExpired = currentWeek > planDurationWeeks;

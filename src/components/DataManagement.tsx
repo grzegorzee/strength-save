@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Upload, Trash2, Loader2 } from 'lucide-react';
+import { Download, Upload, Trash2, Loader2, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatLocalDate } from '@/lib/utils';
 
@@ -9,26 +9,31 @@ interface DataManagementProps {
   onExport: () => string;
   onImport: (jsonString: string) => Promise<{ success: boolean; message: string }>;
   onCleanup?: () => Promise<{ deleted: number; error?: string }>;
+  onRepair?: () => Promise<{ updated: number; scanned: number; error?: string }>;
   title?: string;
   description?: string;
   exportLabel?: string;
   importLabel?: string;
   cleanupLabel?: string;
+  repairLabel?: string;
 }
 
 export const DataManagement = ({
   onExport,
   onImport,
   onCleanup,
+  onRepair,
   title = 'Zarządzanie danymi',
   description = 'Eksportuj, importuj lub wyczyść dane treningowe',
   exportLabel = 'Eksportuj JSON',
   importLabel = 'Importuj JSON',
   cleanupLabel = 'Wyczyść duplikaty i puste treningi',
+  repairLabel = 'Napraw dane historyczne',
 }: DataManagementProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
 
   const handleExport = () => {
     const data = onExport();
@@ -104,6 +109,30 @@ export const DataManagement = ({
     }
   };
 
+  const handleRepair = async () => {
+    if (!onRepair) return;
+    const confirmed = window.confirm(
+      'Naprawa dopisze brakujące powiązania (cykl, nazwy ćwiczeń i dni) do historycznych treningów. ' +
+      'Zalecane: najpierw zrób eksport kopii. Kontynuować?',
+    );
+    if (!confirmed) return;
+
+    setIsRepairing(true);
+    const result = await onRepair();
+    setIsRepairing(false);
+
+    if (result.error) {
+      toast({ title: 'Błąd naprawy', description: result.error, variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: result.updated === 0 ? 'Nic do naprawy' : 'Naprawiono!',
+      description: result.updated === 0
+        ? `Wszystkie ${result.scanned} treningów ma komplet danych.`
+        : `Zaktualizowano ${result.updated} z ${result.scanned} treningów.`,
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -128,6 +157,22 @@ export const DataManagement = ({
             className="hidden"
           />
         </div>
+
+        {onRepair && (
+          <Button
+            onClick={handleRepair}
+            variant="outline"
+            className="w-full text-sky-700 border-sky-300 hover:bg-sky-50"
+            disabled={isRepairing}
+          >
+            {isRepairing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Wrench className="h-4 w-4 mr-2" />
+            )}
+            {repairLabel}
+          </Button>
+        )}
 
         {onCleanup && (
           <Button

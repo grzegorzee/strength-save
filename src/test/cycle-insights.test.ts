@@ -117,4 +117,35 @@ describe('computeCycleStats — cycle attribution (regression: new cycle stealin
     expect(Number.isFinite(stats.expectedWorkouts)).toBe(true);
     expect(Number.isFinite(stats.completionRate)).toBe(true);
   });
+
+  it('plan startujący w przyszłości: 0% i 0 oczekiwanych (nie NaN, nie "missed")', () => {
+    // startDate daleko w przyszłości względem dzisiaj — niezależnie od daty uruchomienia testu.
+    const future = '2999-01-01';
+    const stats = computeCycleStats([], planDays2, future, '', 12, 'NEW');
+    expect(stats.expectedWorkouts).toBe(0);
+    expect(stats.completionRate).toBe(0);
+    expect(stats.missedWorkouts).toBe(0);
+  });
+});
+
+describe('buildCycleComparison — świeży cykl nie pokazuje ujemnych delt', () => {
+  const mkCycle = (id: string, totalWorkouts: number, totalTonnage: number, completionRate: number): PlanCycle => ({
+    id, userId: 'u1', days: [], durationWeeks: 12, startDate: '2026-01-01', endDate: '2026-03-25',
+    status: 'completed', createdAt: '2026-01-01T00:00:00.000Z',
+    stats: { totalWorkouts, totalTonnage, prs: [], completionRate },
+  });
+
+  it('zwraca null gdy nowy cykl ma 0 treningów (brak regresu -50000 kg)', () => {
+    const fresh = mkCycle('new', 0, 0, 0);
+    const prev = mkCycle('old', 30, 50000, 80);
+    expect(buildCycleComparison(fresh, prev)).toBeNull();
+  });
+
+  it('porównuje normalnie gdy nowy cykl ma już treningi', () => {
+    const current = mkCycle('new', 5, 8000, 40);
+    const prev = mkCycle('old', 30, 50000, 80);
+    const cmp = buildCycleComparison(current, prev);
+    expect(cmp).not.toBeNull();
+    expect(cmp?.tonnageDelta).toBe(8000 - 50000);
+  });
 });
