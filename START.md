@@ -10,7 +10,7 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.9.4) |
+| **Status** | AKTYWNY (v6.10.0) |
 | **Data utworzenia** | Styczeń 2026 |
 | **Data aktualizacji** | 2026-05-29 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |
@@ -58,7 +58,8 @@
 | src/pages/TrainingPlan.tsx | Kalendarz + plan tygodniowy + Strava |
 | src/pages/Analytics.tsx | Analityka: podsumowanie, **per-exercise progresja**, pomiary, rekordy |
 | src/pages/Onboarding.tsx | Wizard 5 kroków → AI generuje plan → review + swap |
-| src/pages/NewPlan.tsx | Generowanie nowego planu po wygaśnięciu |
+| src/pages/NewPlan.tsx | Nowy plan: gotowe szablony lub własny kreator (bez AI od v6.10.0) |
+| src/components/PlanBuilder.tsx | **Ręczny kreator planu od zera** (dni, ćwiczenia z biblioteki, serie, czas trwania) |
 | src/pages/DayPlan.tsx | Plan na dzisiaj (co dziś?) — ukryty z nawigacji, dostępny przez URL |
 | src/pages/Settings.tsx | Ustawienia konta, Strava connect/sync |
 | src/pages/Achievements.tsx | Osiągnięcia i rekordy osobiste **(z datami PR)** |
@@ -364,7 +365,13 @@ nazw/struktury historycznego treningu przez **aktualny** `trainingPlan`.
 - **Pomiń Ćwiczenie** — pomiń ćwiczenie na dziś (zostaje w planie na przyszłość)
 - **Dodaj/Usuń Serie** — dynamiczne dodawanie i usuwanie serii podczas treningu
 
-### AI
+### Tworzenie planu (v6.10.0 — bez AI)
+- **Gotowe szablony** (`planTemplates`) — FBW, PPL, Upper/Lower, Split 5-dniowy, Push/Pull, Ethier
+- **Własny kreator** (`PlanBuilder`) — zbuduj plan od zera: dni, ćwiczenia z biblioteki, serie, czas trwania
+- **Onboarding** nowego usera = wybór gotowego szablonu (nie AI quiz)
+- AI NIE generuje już planów (było nieprzewidywalne/kosztowne) — AI analizuje realne dane (niżej)
+
+### AI (analiza danych, nie generowanie planów)
 - AI Coach: analiza treningów, insights na Dashboard (cache 24h)
 - **AI Chat: streaming SSE** (token-by-token, Firestore per-user, $5/month limit)
 - AI Quick Action: "Podsumuj tydzień" (treningi + Strava)

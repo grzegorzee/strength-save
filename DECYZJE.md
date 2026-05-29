@@ -5,11 +5,32 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-05-29 (v6.9.4)
+**Ostatnia aktualizacja:** 2026-05-29 (v6.10.0)
 
 ---
 
 ## DECYZJE
+
+### v6.10.0 (2026-05-29) — Koniec AI w tworzeniu planów + własny builder
+
+**Decyzja:** Usunięto generowanie planów przez AI (nieprzewidywalne, kosztowne, zależne od
+OpenAI). Tworzenie planu = gotowe szablony (`planTemplates`) albo ręczny kreator od zera.
+AI zostaje tam, gdzie analizuje realne dane (Coach, Chat, podsumowania) — nie zgaduje planu.
+
+| Zmiana | Szczegóły | Status |
+|--------|-----------|--------|
+| Usunięto AI z `NewPlan` | Tryb 'ai' (quiz + `generateTrainingPlan`) wycięty. Toggle: Gotowe plany / Własny plan | ✅ |
+| Usunięto AI z `Onboarding` | 5-krokowy quiz + AI generate → wybór gotowego szablonu | ✅ |
+| Nowy `src/components/PlanBuilder.tsx` | Ręczny kreator: dni (weekday+focus), ćwiczenia z biblioteki, serie, czas trwania. Walidacja: dzień = focus + min 1 ćwiczenie | ✅ |
+| `fromCycle` bez AI | Kreator prefilluje dni skopiowane ze starego cyklu (zamiast AI-regeneracji) | ✅ |
+| Usunięto `src/lib/ai-onboarding.ts` | Osierocony po wycięciu AI (Karpathy: czyść własny bałagan). `ai-coach.ts` zostaje (Coach/Chat) | ✅ |
+
+**Jakość:** typecheck ✓, lint ✓, vitest 202/202 ✓, playwright 99/99 ✓ (1 test E2E zaktualizowany pod nowy onboarding), build ✓.
+
+**Backlog AI (do realizacji osobno, używa realnych danych):** progresja per ćwiczenie,
+wykrywanie plateau/deload, asystent doboru ćwiczeń w kreatorze, analiza dysbalansu objętości,
+predykcja celów, normalizacja nazw ćwiczeń, analiza ryzyka przeciążenia (TRIMP).
+
 
 ### v6.9.4 (2026-05-29) — Naprawa historii po zmianie planu + snapshot (prewencja)
 

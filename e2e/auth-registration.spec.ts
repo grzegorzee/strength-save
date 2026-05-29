@@ -79,7 +79,8 @@ test.describe('Auth and registration flows', () => {
 
     await expect(page.getByRole('heading', { name: 'Cześć, Invite!' })).toBeVisible();
     await expect(page.getByText(/Wchodzisz z invite/)).toBeVisible();
-    await expect(page.getByText('Jaki jest Twój cel?')).toBeVisible();
+    // Onboarding bez AI: użytkownik wybiera gotowy plan (v6.10.0).
+    await expect(page.getByRole('button', { name: /Wybierz ten plan/ }).first()).toBeVisible();
   });
 
   test('admin dashboard renders invite, waitlist and audit sections', async ({ page }) => {

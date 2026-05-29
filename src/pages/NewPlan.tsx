@@ -3,16 +3,19 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw, Sparkles, ListChecks, Repeat } from 'lucide-react';
+import { Loader2, ChevronLeft, Check, RefreshCw, ListChecks, Repeat, PencilRuler } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
-import { generateTrainingPlan, generatePlanFromCycle, type OnboardingAnswers, type GeneratedPlan } from '@/lib/ai-onboarding';
 import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
+import { PlanBuilder } from '@/components/PlanBuilder';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { planTemplates, type PlanTemplate } from '@/data/planTemplates';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
+
+// Lekki typ podglądu planu (dawniej z ai-onboarding, AI usunięte w v6.10.0).
+interface GeneratedPlan { days: TrainingDay[]; planDurationWeeks: number; }
 
 const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
   { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
@@ -46,14 +49,6 @@ const levelLabels: Record<PlanTemplate['level'], string> = {
 };
 import type { ExerciseReplacement } from '@/types';
 import { cn } from '@/lib/utils';
-
-const goalOptions = [
-  { id: 'strength', label: 'Siła' },
-  { id: 'muscle', label: 'Masa mięśniowa' },
-  { id: 'fat_loss', label: 'Redukcja' },
-  { id: 'health', label: 'Zdrowie' },
-];
-
 import type { PlanCycle } from '@/types/cycles';
 
 const NewPlan = () => {
@@ -67,33 +62,21 @@ const NewPlan = () => {
 
   const [sourceCycle, setSourceCycle] = useState<PlanCycle | null>(null);
 
-  const [answers, setAnswers] = useState<OnboardingAnswers>({
-    goal: 'strength',
-    experience: 'intermediate',
-    daysPerWeek: currentPlan.length || 3,
-    equipment: ['barbell', 'dumbbells', 'machines', 'cable'],
-    injuries: '',
-  });
-
-  // Load source cycle if fromCycle param is present
+  // Load source cycle if fromCycle param is present (kopia planu starego cyklu jako baza w kreatorze)
   useEffect(() => {
     if (!fromCycleId) return;
     getCycleById(fromCycleId).then(cycle => {
       if (cycle) {
         setSourceCycle(cycle);
-        setAnswers(prev => ({
-          ...prev,
-          daysPerWeek: cycle.days.length,
-        }));
+        setPlanSource('scratch');
       }
     });
   }, [fromCycleId, getCycleById]);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null);
-  // Sposób ułożenia planu: AI vs gotowy szablon do wyboru.
-  const [planSource, setPlanSource] = useState<'ai' | 'templates'>('ai');
+  // Sposób ułożenia planu: gotowy szablon vs własny kreator (AI usunięte w v6.10.0).
+  const [planSource, setPlanSource] = useState<'templates' | 'scratch'>('templates');
   // Data rozpoczęcia planu (pierwszy tydzień). Domyślnie bieżący poniedziałek, edytowalna w podglądzie.
   const [startDate, setStartDate] = useState<string>(() => weekMondayStr(new Date()));
   // Szablon wybrany, ale czekający na wybór dni tygodnia przez użytkownika.
@@ -144,21 +127,6 @@ const NewPlan = () => {
     sets: string;
     category: typeof exerciseLibrary[0]['category'] | null;
   }>({ open: false, dayId: '', exerciseId: '', exerciseName: '', sets: '', category: null });
-
-  const handleGenerate = async () => {
-    setIsGenerating(true);
-    setError(null);
-    try {
-      const generated = sourceCycle
-        ? await generatePlanFromCycle(answers, sourceCycle)
-        : await generateTrainingPlan(answers);
-      setReviewPlan(generated);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udało się wygenerować planu');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const handleApprove = async () => {
     if (!reviewPlan) return;
@@ -383,6 +351,18 @@ const NewPlan = () => {
     );
   }
 
+  // Własny plan od zera (kreator) — opcjonalnie z dniami skopiowanymi ze starego cyklu.
+  if (planSource === 'scratch') {
+    return (
+      <PlanBuilder
+        initialDays={sourceCycle?.days}
+        initialDurationWeeks={sourceCycle?.durationWeeks ?? planDurationWeeks}
+        onSubmit={(days, durationWeeks) => setReviewPlan({ days, planDurationWeeks: durationWeeks })}
+        onCancel={() => setPlanSource('templates')}
+      />
+    );
+  }
+
   // Config page
   return (
     <div className="space-y-6">
@@ -465,83 +445,25 @@ const NewPlan = () => {
       {/* Source toggle: AI vs ready-made templates */}
       <div className="grid grid-cols-2 gap-2">
         <Button
-          variant={planSource === 'ai' ? 'default' : 'outline'}
-          onClick={() => setPlanSource('ai')}
-        >
-          <Sparkles className="h-4 w-4 mr-2" />
-          Ułóż z AI
-        </Button>
-        <Button
           variant={planSource === 'templates' ? 'default' : 'outline'}
           onClick={() => setPlanSource('templates')}
         >
           <ListChecks className="h-4 w-4 mr-2" />
           Gotowe plany
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => setPlanSource('scratch')}
+        >
+          <PencilRuler className="h-4 w-4 mr-2" />
+          Własny plan
+        </Button>
       </div>
 
-      {planSource === 'ai' ? (
-        <>
-          {/* New plan options */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Nowy cel</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {goalOptions.map(opt => (
-                  <Badge
-                    key={opt.id}
-                    variant={answers.goal === opt.id ? 'default' : 'outline'}
-                    className="cursor-pointer"
-                    onClick={() => setAnswers(prev => ({ ...prev, goal: opt.id }))}
-                  >
-                    {opt.label}
-                  </Badge>
-                ))}
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-2">Dni w tygodniu</p>
-                <div className="flex gap-2">
-                  {[2,3,4,5].map(n => (
-                    <Badge
-                      key={n}
-                      variant={answers.daysPerWeek === n ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => setAnswers(prev => ({ ...prev, daysPerWeek: n }))}
-                    >
-                      {n}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium mb-2">Kontuzje/zmiany (opcjonalne)</p>
-                <textarea
-                  value={answers.injuries}
-                  onChange={e => setAnswers(prev => ({ ...prev, injuries: e.target.value }))}
-                  placeholder="np. chcę więcej ćwiczeń na plecy..."
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Button className="w-full" onClick={handleGenerate} disabled={isGenerating}>
-            {isGenerating ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Dumbbell className="h-4 w-4 mr-2" />
-            )}
-            Wygeneruj nowy plan
-          </Button>
-        </>
-      ) : (
+      {(
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Wybierz gotowy plan, podejrzyj ćwiczenia (możesz je podmienić w następnym kroku) i zatwierdź. Bez generowania AI.
+            Wybierz gotowy plan, podejrzyj ćwiczenia (możesz je podmienić w następnym kroku) i zatwierdź. Albo ułóż własny plan od zera.
           </p>
           {planTemplates.map(template => (
             <Card key={template.id}>
