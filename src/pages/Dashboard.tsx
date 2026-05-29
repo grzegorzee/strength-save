@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -92,7 +92,7 @@ const Dashboard = () => {
     isLoaded,
     error
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
   const { cycles } = usePlanCycles(uid);
   const [localDraft, setLocalDraft] = useState<ActiveWorkoutDraft | null>(null);
@@ -123,6 +123,18 @@ const Dashboard = () => {
     previousCompletedCycle,
     today,
   }), [currentWeek, isPlanExpired, liveActiveCycle, planDurationWeeks, previousCompletedCycle, today, trainingPlan.length, weeksRemaining]);
+
+  // Dismissable "co dalej z planem?" card — hidden per plan (reappears when a new plan starts).
+  const NEXT_STEP_DISMISS_KEY = 'fittracker_nextstep_dismissed';
+  const planSignature = planStartDate || 'no-plan';
+  const [dismissedSignature, setDismissedSignature] = useState<string | null>(() => {
+    try { return localStorage.getItem(NEXT_STEP_DISMISS_KEY); } catch { return null; }
+  });
+  const showNextStep = dismissedSignature !== planSignature;
+  const dismissNextStep = () => {
+    setDismissedSignature(planSignature);
+    try { localStorage.setItem(NEXT_STEP_DISMISS_KEY, planSignature); } catch { /* ignore */ }
+  };
 
   // Determine today's training context
   const todayTraining = useMemo(() => {
@@ -391,6 +403,7 @@ const Dashboard = () => {
         </Card>
       )}
 
+      {showNextStep && (
       <Card className={planNextStepTone[planNextStep.tone]}>
         <CardContent className="p-5 space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -401,12 +414,21 @@ const Dashboard = () => {
               <h2 className="text-lg font-semibold tracking-tight">{planNextStep.title}</h2>
               <p className="text-sm text-muted-foreground">{planNextStep.description}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {planNextStep.badges.map((badge) => (
-                <Badge key={badge} variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold">
-                  {badge}
-                </Badge>
-              ))}
+            <div className="flex items-start gap-2">
+              <div className="flex flex-wrap gap-2">
+                {planNextStep.badges.map((badge) => (
+                  <Badge key={badge} variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold">
+                    {badge}
+                  </Badge>
+                ))}
+              </div>
+              <button
+                onClick={dismissNextStep}
+                aria-label="Ukryj podpowiedź"
+                className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -421,6 +443,7 @@ const Dashboard = () => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Stats - 4 columns */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

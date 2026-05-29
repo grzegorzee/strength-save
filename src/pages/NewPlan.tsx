@@ -27,6 +27,18 @@ const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
 const weekdayLongName = (value: Weekday): string =>
   WEEKDAYS.find((w) => w.value === value)?.long ?? value;
 
+const toDateStr = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Monday of the week containing the given date — plans run on a Monday-anchored weekly grid.
+const weekMondayStr = (d: Date): string => {
+  const dow = d.getDay();
+  const since = dow === 0 ? 6 : dow - 1;
+  const m = new Date(d);
+  m.setDate(d.getDate() - since);
+  return toDateStr(m);
+};
+
 const levelLabels: Record<PlanTemplate['level'], string> = {
   beginner: 'Początkujący',
   intermediate: 'Średniozaawansowany',
@@ -82,6 +94,8 @@ const NewPlan = () => {
   const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null);
   // Sposób ułożenia planu: AI vs gotowy szablon do wyboru.
   const [planSource, setPlanSource] = useState<'ai' | 'templates'>('ai');
+  // Data rozpoczęcia planu (pierwszy tydzień). Domyślnie bieżący poniedziałek, edytowalna w podglądzie.
+  const [startDate, setStartDate] = useState<string>(() => weekMondayStr(new Date()));
   // Szablon wybrany, ale czekający na wybór dni tygodnia przez użytkownika.
   const [pendingTemplate, setPendingTemplate] = useState<PlanTemplate | null>(null);
   const [dayWeekdays, setDayWeekdays] = useState<Weekday[]>([]);
@@ -156,16 +170,12 @@ const NewPlan = () => {
         await archiveCurrentPlan(currentPlan, planDurationWeeks, planStartDate, workouts);
       }
 
-      const now = new Date();
-      const dayOfWeek = now.getDay();
-      const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - daysSinceMonday);
-      const startDate = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+      // Snap the chosen start date to its week's Monday (weekly grid anchor).
+      const newStartDate = weekMondayStr(new Date(`${startDate}T00:00:00`));
 
       const result = await savePlan(reviewPlan.days, {
         durationWeeks: reviewPlan.planDurationWeeks,
-        startDate,
+        startDate: newStartDate,
       });
       if (!result.success) {
         setError(result.error || 'Nie udało się zapisać');
@@ -174,7 +184,7 @@ const NewPlan = () => {
       }
 
       // Create active cycle for the new plan
-      await createActiveCycle(reviewPlan.days, reviewPlan.planDurationWeeks, startDate);
+      await createActiveCycle(reviewPlan.days, reviewPlan.planDurationWeeks, newStartDate);
 
       navigate('/');
     } catch (err) {
@@ -246,6 +256,21 @@ const NewPlan = () => {
             </CardContent>
           </Card>
         ))}
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Data rozpoczęcia</CardTitle>
+            <CardDescription>Od kiedy zaczynasz? Plan ruszy od tygodnia z tą datą — wcześniejsze dni nie liczą się jako opuszczone.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </CardContent>
+        </Card>
 
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={() => setReviewPlan(null)}>

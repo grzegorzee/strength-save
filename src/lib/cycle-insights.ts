@@ -1,4 +1,5 @@
 import type { TrainingDay } from '@/data/trainingPlan';
+import { trainingPlan as defaultPlan } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle, PlanCycleStats } from '@/types/cycles';
 import { calculate1RM } from '@/lib/pr-utils';
@@ -38,7 +39,12 @@ export const computeCycleStats = (
       exerciseSum + exercise.sets.reduce((setSum, set) => setSum + (set.completed ? set.reps * set.weight : 0), 0), 0), 0);
 
   const exerciseBests = new Map<string, { weight: number; estimated1RM: number }>();
-  const exerciseNames = new Map(planDays.flatMap(day => day.exercises.map(exercise => [exercise.id, exercise.name])));
+  // Resolve names from this cycle's days first, then fall back to the default plan
+  // (covers legacy workouts whose exercise ids aren't in the current cycle).
+  const exerciseNames = new Map<string, string>([
+    ...defaultPlan.flatMap(day => day.exercises.map(exercise => [exercise.id, exercise.name] as [string, string])),
+    ...planDays.flatMap(day => day.exercises.map(exercise => [exercise.id, exercise.name] as [string, string])),
+  ]);
 
   cycleWorkouts.forEach((workout) => {
     workout.exercises.forEach((exercise) => {
@@ -62,7 +68,16 @@ export const computeCycleStats = (
     .sort((a, b) => b.estimated1RM - a.estimated1RM)
     .slice(0, 10);
 
-  const expectedWorkouts = Math.max(planDays.length * durationWeeks, 0);
+  // Expected sessions are based on time ELAPSED so far (capped at plan length),
+  // not the whole plan — a fresh/active cycle shouldn't show all future sessions as "missed".
+  const todayStr = formatLocalDate(new Date());
+  const effectiveEndStr = endDate < todayStr ? endDate : todayStr; // min(endDate, today)
+  const elapsedDays = Math.floor(
+    (parseLocalDate(effectiveEndStr).getTime() - parseLocalDate(startDate).getTime()) / 86_400_000,
+  );
+  const elapsedWeeks = elapsedDays < 0 ? 0 : Math.floor(elapsedDays / 7) + 1;
+  const effectiveWeeks = Math.min(elapsedWeeks, durationWeeks);
+  const expectedWorkouts = Math.max(planDays.length * effectiveWeeks, 0);
   const completionRate = expectedWorkouts > 0 ? Math.round((totalWorkouts / expectedWorkouts) * 100) : 0;
   const missedWorkouts = Math.max(expectedWorkouts - totalWorkouts, 0);
 
