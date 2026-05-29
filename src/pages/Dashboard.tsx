@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
-import { trainingPlan as defaultPlanData } from '@/data/trainingPlan';
+import { trainingPlan as defaultPlanData, type TrainingDay } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -21,6 +21,7 @@ import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
+import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
@@ -117,6 +118,22 @@ const Dashboard = () => {
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
   const activeCycle = useMemo(() => cycles.find(cycle => cycle.status === 'active') ?? null, [cycles]);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+  const workoutToDay = useMemo(() => (workout: typeof workouts[number]): TrainingDay => {
+    const label = resolver.resolveDayLabel(workout);
+    return {
+      id: workout.dayId,
+      dayName: label.dayName,
+      weekday: 'monday',
+      focus: label.focus,
+      exercises: workout.exercises.map(exercise => ({
+        id: exercise.exerciseId,
+        name: resolver.resolveExerciseName(workout, exercise.exerciseId),
+        sets: `${exercise.sets.filter(set => !set.isWarmup).length} serii`,
+        instructions: [],
+      })),
+    };
+  }, [resolver]);
   const previousCompletedCycle = useMemo(() => (
     cycles
       .filter(cycle => cycle.status === 'completed')
@@ -148,6 +165,20 @@ const Dashboard = () => {
 
   // Determine today's training context
   const todayTraining = useMemo(() => {
+    const todayKey = formatLocalDate(today);
+    const completedToday = findWorkoutForRoute(workouts, {
+      date: todayKey,
+      allowDateFallback: true,
+    });
+    if (completedToday?.completed) {
+      return {
+        type: 'completed' as const,
+        day: workoutToDay(completedToday),
+        workout: completedToday,
+        dateStr: todayKey,
+      };
+    }
+
     // Plan hasn't started yet — don't push a training for today; point to the first session.
     if (planStartDate && today < parseLocalDate(planStartDate)) {
       const nextEntry = getNextScheduledTraining(trainingPlan, today);
@@ -173,7 +204,7 @@ const Dashboard = () => {
       return { type: 'completed' as const, day, workout: todayWorkout, dateStr: todayEntry.dateKey };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
-  }, [trainingPlan, today, workouts, planStartDate]);
+  }, [trainingPlan, today, workouts, planStartDate, workoutToDay]);
 
   // Calculate trends (last 4 weeks vs previous 4 weeks)
   const trends = useMemo(() => {

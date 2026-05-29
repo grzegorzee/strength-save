@@ -12,9 +12,9 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { planTemplates, type PlanTemplate } from '@/data/planTemplates';
-import type { TrainingDay } from '@/data/trainingPlan';
+import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import type { ExerciseReplacement } from '@/types';
-import { formatLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 
 // Lekki typ podglądu planu (AI usunięte w v6.10.0 — plan z gotowego szablonu).
@@ -27,6 +27,18 @@ const levelLabels: Record<PlanTemplate['level'], string> = {
   intermediate: 'Średniozaawansowany',
   advanced: 'Zaawansowany',
 };
+
+const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
+  { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
+  { value: 'tuesday', short: 'Wt', long: 'Wtorek' },
+  { value: 'wednesday', short: 'Śr', long: 'Środa' },
+  { value: 'thursday', short: 'Cz', long: 'Czwartek' },
+  { value: 'friday', short: 'Pt', long: 'Piątek' },
+  { value: 'saturday', short: 'So', long: 'Sobota' },
+  { value: 'sunday', short: 'Nd', long: 'Niedziela' },
+];
+
+const weekdayLong = (value: Weekday) => WEEKDAYS.find(w => w.value === value)?.long ?? value;
 
 const Onboarding = () => {
   const { uid, profile } = useCurrentUser();
@@ -53,6 +65,24 @@ const Onboarding = () => {
   const handlePickTemplate = (template: PlanTemplate) => {
     setError(null);
     setReviewPlan({ days: template.days, planDurationWeeks: template.durationWeeks });
+  };
+
+  const handleSetWeekday = (dayId: string, weekday: Weekday) => {
+    if (!reviewPlan) return;
+    const currentDay = reviewPlan.days.find(day => day.id === dayId);
+    if (!currentDay) return;
+
+    const clash = reviewPlan.days.find(day => day.id !== dayId && day.weekday === weekday);
+    const nextDays = reviewPlan.days.map(day => {
+      if (day.id === dayId) {
+        return { ...day, weekday, dayName: weekdayLong(weekday) };
+      }
+      if (clash && day.id === clash.id) {
+        return { ...day, weekday: currentDay.weekday, dayName: weekdayLong(currentDay.weekday) };
+      }
+      return day;
+    });
+    setReviewPlan({ ...reviewPlan, days: nextDays });
   };
 
   const handleApprovePlan = async () => {
@@ -164,7 +194,23 @@ const Onboarding = () => {
                   <Badge variant="outline" className="text-xs font-normal">{day.focus}</Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {WEEKDAYS.map(weekday => {
+                    const selected = day.weekday === weekday.value;
+                    const taken = reviewPlan.days.some(other => other.id !== day.id && other.weekday === weekday.value);
+                    return (
+                      <Badge
+                        key={weekday.value}
+                        variant={selected ? 'default' : 'outline'}
+                        className={cn('cursor-pointer', !selected && taken && 'opacity-45')}
+                        onClick={() => handleSetWeekday(day.id, weekday.value)}
+                      >
+                        {weekday.short}
+                      </Badge>
+                    );
+                  })}
+                </div>
                 {day.exercises.map(ex => (
                   <div key={ex.id} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div className="flex-1 min-w-0 mr-2">

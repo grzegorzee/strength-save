@@ -1,8 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { trainingRules } from '@/data/trainingPlan';
+import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
+import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
@@ -10,10 +12,21 @@ import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, Dumbbell, Pencil, CheckCircle } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
+import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
+import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 
 // ── Custom grid calendar matching mockup ──
 const WEEKDAY_LABELS = ['pon', 'wto', 'śro', 'czw', 'pią', 'sob', 'nie'] as const;
 const MONTH_NAMES = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'] as const;
+const JS_DAY_TO_WEEKDAY: Record<number, Weekday> = {
+  0: 'sunday',
+  1: 'monday',
+  2: 'tuesday',
+  3: 'wednesday',
+  4: 'thursday',
+  5: 'friday',
+  6: 'saturday',
+};
 
 interface PlanCalendarProps {
   selectedDate?: Date;
@@ -118,8 +131,10 @@ const TrainingPlan = () => {
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
+  const { cycles } = usePlanCycles(uid);
   const { activities: stravaActivities } = useStrava(uid, canUseStrava);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
 
   const completedDates = workouts
     .filter(w => w.completed)
@@ -146,29 +161,59 @@ const TrainingPlan = () => {
   const actualCurrentWeek = planStarted ? Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek)) : 0;
   const selectedOrToday = selectedDate || today;
   const selectedWeekNumber = Math.floor((startOfLocalDay(selectedOrToday).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
-  const displayWeek = Math.max(1, Math.min(planDurationWeeks, selectedWeekNumber));
+  const isHistoricalWeek = selectedWeekNumber < 1;
+  const displayWeek = isHistoricalWeek ? 0 : Math.max(1, Math.min(planDurationWeeks, selectedWeekNumber));
 
   const { selectedWeekStart, selectedWeekEnd } = useMemo(() => {
+    if (isHistoricalWeek) {
+      const weekStart = getStartOfPlanWeek(selectedOrToday);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      return { selectedWeekStart: weekStart, selectedWeekEnd: weekEnd };
+    }
+
     const weekStart = new Date(startDate);
     weekStart.setDate(startDate.getDate() + (displayWeek - 1) * 7);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     return { selectedWeekStart: weekStart, selectedWeekEnd: weekEnd };
-  }, [displayWeek, startDate]);
+  }, [displayWeek, isHistoricalWeek, selectedOrToday, startDate]);
   const selectedWeekStartMs = selectedWeekStart.getTime();
   const selectedWeekEndMs = selectedWeekEnd.getTime();
 
   const selectedWeekTrainingDates = useMemo(() => {
+    if (isHistoricalWeek) return [];
     return schedule.filter(s => {
       const dateMs = s.date.getTime();
       return dateMs >= selectedWeekStartMs && dateMs <= selectedWeekEndMs;
     });
-  }, [schedule, selectedWeekEndMs, selectedWeekStartMs]);
+  }, [isHistoricalWeek, schedule, selectedWeekEndMs, selectedWeekStartMs]);
 
-  const getWorkoutForDate = (date: Date) => {
+  const getWorkoutForDate = (date: Date, dayId?: string) => {
     const dateStr = formatLocalDate(date);
-    return workouts.find(w => w.date === dateStr);
+    return findWorkoutForRoute(workouts, {
+      dayId,
+      date: dateStr,
+      allowDateFallback: true,
+    });
   };
+
+  const workoutToDay = useCallback((workout: typeof workouts[number]): TrainingDay => {
+    const label = resolver.resolveDayLabel(workout);
+    const date = parseLocalDate(workout.date);
+    return {
+      id: workout.dayId,
+      dayName: label.dayName,
+      weekday: JS_DAY_TO_WEEKDAY[date.getDay()],
+      focus: label.focus,
+      exercises: workout.exercises.map(exercise => ({
+        id: exercise.exerciseId,
+        name: resolver.resolveExerciseName(workout, exercise.exerciseId),
+        sets: `${exercise.sets.filter(set => !set.isWarmup).length} serii`,
+        instructions: [],
+      })),
+    };
+  }, [resolver]);
 
   const getDayOfWeekName = (dateStr: string) => {
     const d = parseLocalDate(dateStr);
@@ -201,7 +246,7 @@ const TrainingPlan = () => {
                 Edytuj
               </button>
               <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 text-[13px] font-bold text-white whitespace-nowrap">
-                Tydzień {displayWeek}/{planDurationWeeks}
+                {isHistoricalWeek ? 'Historia' : `Tydzień ${displayWeek}/${planDurationWeeks}`}
               </div>
             </div>
           </div>
@@ -275,6 +320,7 @@ const TrainingPlan = () => {
             {(() => {
               type TimelineItem =
                 | { type: 'training'; scheduleItem: typeof selectedWeekTrainingDates[number]; dateStr: string }
+                | { type: 'workout'; workout: typeof workouts[number]; dateStr: string }
                 | { type: 'strava'; activity: typeof stravaActivities[number]; dateStr: string };
 
               const items: TimelineItem[] = [];
@@ -288,6 +334,13 @@ const TrainingPlan = () => {
 
               const weekStartStr = formatLocalDate(selectedWeekStart);
               const weekEndStr = formatLocalDate(selectedWeekEnd);
+              workouts
+                .filter(w => w.completed && w.date >= weekStartStr && w.date <= weekEndStr)
+                .filter(w => !items.some(item => item.type === 'training' && item.dateStr === w.date))
+                .forEach(workout => {
+                  items.push({ type: 'workout', workout, dateStr: workout.date });
+                });
+
               stravaActivities
                 .filter(a => a.date >= weekStartStr && a.date <= weekEndStr)
                 .forEach(activity => {
@@ -308,6 +361,7 @@ const TrainingPlan = () => {
                 const dateLabel = dateObj.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
                 const dayName = getDayOfWeekName(dateStr);
                 const trainingItem = dayItems.find(i => i.type === 'training') as Extract<TimelineItem, { type: 'training' }> | undefined;
+                const workoutItem = dayItems.find(i => i.type === 'workout') as Extract<TimelineItem, { type: 'workout' }> | undefined;
                 const stravaItems = dayItems.filter(i => i.type === 'strava') as Extract<TimelineItem, { type: 'strava' }>[];
 
                 return (
@@ -339,17 +393,29 @@ const TrainingPlan = () => {
                     {/* Training card */}
                     {trainingItem && (() => {
                       const dayPlan = trainingPlan.find(d => d.id === trainingItem.scheduleItem.dayId)!;
-                      const workoutForDate = getWorkoutForDate(trainingItem.scheduleItem.date);
+                      const workoutForDate = getWorkoutForDate(trainingItem.scheduleItem.date, dayPlan.id);
                       const trainingDateStr = formatLocalDate(trainingItem.scheduleItem.date);
                       return (
                         <TrainingDayCard
                           day={dayPlan}
                           latestWorkout={workoutForDate}
                           trainingDate={trainingItem.scheduleItem.date}
-                          onClick={() => navigate(`/workout/${dayPlan.id}?date=${trainingDateStr}`)}
+                          onClick={() => navigate(workoutForDate?.completed
+                            ? buildWorkoutRoute(workoutForDate, dayPlan.id)
+                            : `/workout/${dayPlan.id}?date=${trainingDateStr}`
+                          )}
                         />
                       );
                     })()}
+
+                    {!trainingItem && workoutItem && (
+                      <TrainingDayCard
+                        day={workoutToDay(workoutItem.workout)}
+                        latestWorkout={workoutItem.workout}
+                        trainingDate={parseLocalDate(workoutItem.workout.date)}
+                        onClick={() => navigate(buildWorkoutRoute(workoutItem.workout))}
+                      />
+                    )}
                   </div>
                 );
               });
@@ -411,10 +477,11 @@ const TrainingPlan = () => {
               const selectedDateStr = formatLocalDate(selectedDate);
               const scheduleEntry = schedule.find(s => formatLocalDate(s.date) === selectedDateStr);
               const stravaOnDate = stravaActivities.filter(a => a.date === selectedDateStr);
-              if (!scheduleEntry && stravaOnDate.length === 0) return null;
+              const workoutForDate = getWorkoutForDate(selectedDate, scheduleEntry?.dayId);
+              if (!scheduleEntry && !workoutForDate && stravaOnDate.length === 0) return null;
 
               const dayPlan = scheduleEntry ? trainingPlan.find(d => d.id === scheduleEntry.dayId) : null;
-              const workoutForDate = workouts.find(w => w.date === selectedDateStr);
+              const displayDay = dayPlan ?? (workoutForDate ? workoutToDay(workoutForDate) : null);
 
               return (
                 <div className="rounded-2xl p-4 border border-primary/10 bg-primary/[0.04] space-y-3">
@@ -425,9 +492,9 @@ const TrainingPlan = () => {
                     </span>
                   </div>
 
-                  {dayPlan && (
+                  {displayDay && (
                     <>
-                      <p className="text-sm text-[#7a7f94]">{dayPlan.dayName}: {dayPlan.focus}</p>
+                      <p className="text-sm text-[#7a7f94]">{displayDay.dayName}: {displayDay.focus}</p>
                       <div className="flex items-center gap-2">
                         {workoutForDate?.completed ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">
@@ -440,7 +507,10 @@ const TrainingPlan = () => {
                         )}
                       </div>
                       <button
-                        onClick={() => navigate(`/workout/${scheduleEntry!.dayId}?date=${selectedDateStr}`)}
+                        onClick={() => navigate(workoutForDate
+                          ? buildWorkoutRoute(workoutForDate, scheduleEntry?.dayId)
+                          : `/workout/${scheduleEntry!.dayId}?date=${selectedDateStr}`
+                        )}
                         className="text-xs text-primary hover:underline font-medium"
                       >
                         Przejdź do treningu →
@@ -450,7 +520,7 @@ const TrainingPlan = () => {
 
                   {stravaOnDate.length > 0 && (
                     <div className="space-y-1.5">
-                      {dayPlan && <div className="exercise-card-divider" />}
+                      {displayDay && <div className="exercise-card-divider" />}
                       {stravaOnDate.map(a => (
                         <div key={a.id} className="flex items-center gap-2 text-xs">
                           <div className="h-2 w-2 rounded-full bg-orange-500 shrink-0" />

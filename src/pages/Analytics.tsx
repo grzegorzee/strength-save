@@ -92,7 +92,7 @@ type Period = 'week' | 'month';
 const SummaryTab = () => {
   const { uid, canUseStrava } = useCurrentUser();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
@@ -122,8 +122,20 @@ const SummaryTab = () => {
   );
 
   const expectedWorkouts = useMemo(
-    () => countScheduledTrainingsInRange(trainingPlan, bounds.start, bounds.end),
-    [bounds.end, bounds.start, trainingPlan],
+    () => {
+      if (!planStartDate) {
+        return countScheduledTrainingsInRange(trainingPlan, bounds.start, bounds.end);
+      }
+
+      const startDate = parseLocalDate(planStartDate);
+      if (bounds.end < startDate) {
+        return currentWorkouts.length;
+      }
+
+      const effectiveStart = bounds.start < startDate ? startDate : bounds.start;
+      return countScheduledTrainingsInRange(trainingPlan, effectiveStart, bounds.end);
+    },
+    [bounds.end, bounds.start, currentWorkouts.length, planStartDate, trainingPlan],
   );
   const frequency = currentWorkouts.length;
 
