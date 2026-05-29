@@ -5,6 +5,8 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { Trophy, Dumbbell, Target, TrendingUp, ChevronRight, Zap } from 'lucide-react';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,67 +26,48 @@ const Achievements = () => {
   const { uid } = useCurrentUser();
   const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { cycles } = usePlanCycles(uid);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseRecord | null>(null);
   const [progressionExercise, setProgressionExercise] = useState<{ id: string; name: string } | null>(null);
 
   const totalWeight = getTotalWeight();
   const completedWorkouts = getCompletedWorkoutsCount();
 
-  // Get all exercise records with history
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+
+  // Rekordy budujemy z SAMYCH treningów (nie z aktualnego planu), żeby ćwiczenia ze starych
+  // planów nie znikały po zmianie planu. Nazwy resolwuje resolver (snapshot → cykl → plan).
   const exerciseRecords = useMemo((): ExerciseRecord[] => {
     const exerciseMap = new Map<string, ExerciseRecord>();
 
-    // Get all exercises from training plan
-    trainingPlan.forEach(day => {
-      day.exercises.forEach(exercise => {
-        if (!exerciseMap.has(exercise.id)) {
-          exerciseMap.set(exercise.id, {
-            exerciseId: exercise.id,
-            name: exercise.name,
+    workouts.forEach(workout => {
+      workout.exercises.forEach(ex => {
+        let record = exerciseMap.get(ex.exerciseId);
+        if (!record) {
+          record = {
+            exerciseId: ex.exerciseId,
+            name: resolver.resolveExerciseName(workout, ex.exerciseId),
             maxWeight: 0,
             maxReps: 0,
             history: [],
-          });
+          };
+          exerciseMap.set(ex.exerciseId, record);
         }
-      });
-    });
-
-    // Process all workouts
-    workouts.forEach(workout => {
-      const day = trainingPlan.find(d => d.id === workout.dayId);
-      workout.exercises.forEach(ex => {
-        const exercise = day?.exercises.find(e => e.id === ex.exerciseId);
-        if (!exercise) return;
-
-        const record = exerciseMap.get(ex.exerciseId);
-        if (!record) return;
 
         ex.sets.forEach(set => {
           if (set.completed && set.weight > 0) {
-            // Track max weight
-            if (set.weight > record.maxWeight) {
-              record.maxWeight = set.weight;
-            }
-            // Track max reps at any weight
-            if (set.reps > record.maxReps) {
-              record.maxReps = set.reps;
-            }
-            // Add to history
-            record.history.push({
-              date: workout.date,
-              weight: set.weight,
-              reps: set.reps,
-            });
+            if (set.weight > record.maxWeight) record.maxWeight = set.weight;
+            if (set.reps > record.maxReps) record.maxReps = set.reps;
+            record.history.push({ date: workout.date, weight: set.weight, reps: set.reps });
           }
         });
       });
     });
 
-    // Filter only exercises with data and sort by max weight
     return Array.from(exerciseMap.values())
       .filter(r => r.maxWeight > 0)
       .sort((a, b) => b.maxWeight - a.maxWeight);
-  }, [trainingPlan, workouts]);
+  }, [resolver, workouts]);
 
   // Group history by date for the dialog
   const getGroupedHistory = (history: { date: string; weight: number; reps: number }[]) => {
@@ -213,9 +196,13 @@ const Achievements = () => {
         </CardHeader>
         <CardContent>
           {(() => {
-            const allExercises = trainingPlan.flatMap(d => d.exercises);
-            const records = allExercises
-              .map(ex => ({ ...getExerciseBest1RM(workouts, ex.id), name: ex.name }))
+            // Iterujemy po ćwiczeniach faktycznie wykonanych (z historii), a nie tylko z nowego planu.
+            const seen = new Map<string, string>();
+            workouts.forEach(w => w.exercises.forEach(ex => {
+              if (!seen.has(ex.exerciseId)) seen.set(ex.exerciseId, resolver.resolveExerciseName(w, ex.exerciseId));
+            }));
+            const records = Array.from(seen.entries())
+              .map(([id, name]) => ({ ...getExerciseBest1RM(workouts, id), name }))
               .filter(r => r.best1RM > 0)
               .sort((a, b) => b.best1RM - a.best1RM);
 

@@ -105,12 +105,14 @@ const Dashboard = () => {
 
   const today = useMemo(() => new Date(), []);
   const thisWeek = useMemo(() => {
-    const week = getScheduledTrainingWeek(trainingPlan, today);
-    // Hide plan days that fall before the plan's start date (plan not started yet this week).
-    if (!planStartDate) return week;
+    if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today);
     const start = parseLocalDate(planStartDate);
+    // Plan jeszcze nie wystartował → pokaż PIERWSZY tydzień planu (daty od startu) jako zapowiedź,
+    // zamiast dat bieżącego tygodnia (które myliły jako "plan tygodnia").
+    if (!planStarted) return getScheduledTrainingWeek(trainingPlan, start);
+    const week = getScheduledTrainingWeek(trainingPlan, today);
     return week.filter(e => e.date >= start);
-  }, [trainingPlan, today, planStartDate]);
+  }, [trainingPlan, today, planStartDate, planStarted]);
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
   const activeCycle = useMemo(() => cycles.find(cycle => cycle.status === 'active') ?? null, [cycles]);

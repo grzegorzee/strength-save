@@ -15,6 +15,7 @@ import { db } from '@/lib/firebase';
 import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { DataManagement } from '@/components/DataManagement';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { usePlanCycles } from '@/hooks/usePlanCycles';
 
 const SUMMARY_HOUR_KEY = 'summary-hour';
 
@@ -133,7 +134,8 @@ const FeatureFlagsPanel = () => {
 const Settings = () => {
   const navigate = useNavigate();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
-  const { exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts(uid);
+  const { exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
+  const { cycles } = usePlanCycles(uid);
   const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
 
@@ -263,6 +265,7 @@ const Settings = () => {
         onExport={exportData}
         onImport={importData}
         onCleanup={cleanupEmptyWorkouts}
+        onRepair={() => backfillHistoricalWorkouts(cycles)}
         title="Backup i przywracanie"
         description="Pobierz kopię swoich treningów i pomiarów albo odtwórz dane z pliku JSON."
         exportLabel="Eksportuj kopię"

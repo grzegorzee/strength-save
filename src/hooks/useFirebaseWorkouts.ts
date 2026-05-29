@@ -15,7 +15,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
+import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import {
   buildWorkoutSessionId,
   createProvisionalWorkoutSession,
@@ -152,7 +154,8 @@ export const useFirebaseWorkouts = (userId: string) => {
     sessionId: string,
     exerciseId: string,
     sets: SetData[],
-    notes?: string
+    notes?: string,
+    name?: string
   ): Promise<{ success: boolean; error?: string }> => {
     if (!sessionId) {
       return { success: false, error: 'Brak ID sesji treningowej' };
@@ -174,20 +177,24 @@ export const useFirebaseWorkouts = (userId: string) => {
       const sanitizedSets = sets.map(clampSet);
 
       // Firebase doesn't accept undefined values - only include notes if defined
-      const newExercise: ExerciseProgress = notes !== undefined
-        ? { exerciseId, sets: sanitizedSets, notes }
-        : { exerciseId, sets: sanitizedSets };
+      const newExercise: ExerciseProgress = {
+        exerciseId,
+        sets: sanitizedSets,
+        ...(notes !== undefined && { notes }),
+        ...(name && { name }),
+      };
 
       const existingIndex = workout.exercises.findIndex(e => e.exerciseId === exerciseId);
       const newExercises = existingIndex >= 0
         ? workout.exercises.map((e, i) => i === existingIndex ? newExercise : e)
         : [...workout.exercises, newExercise];
 
-      // Sanitize and clamp entire exercises array
+      // Sanitize and clamp entire exercises array (zachowaj snapshot nazwy każdego ćwiczenia)
       const cleanExercises = newExercises.map(ex => ({
         exerciseId: ex.exerciseId,
         sets: ex.sets.map(clampSet),
         ...(ex.notes !== undefined && { notes: String(ex.notes).slice(0, 2000) }),
+        ...(ex.name && { name: String(ex.name).slice(0, 200) }),
       }));
 
       await updateDoc(workoutRef, { exercises: cleanExercises });
@@ -335,13 +342,17 @@ export const useFirebaseWorkouts = (userId: string) => {
             date: String(workout.date).slice(0, 10),
             completed: !!workout.completed,
             ...(workout.notes && { notes: String(workout.notes).slice(0, 5000) }),
+            ...(workout.cycleId && { cycleId: String(workout.cycleId).slice(0, 100) }),
+            ...(workout.dayName && { dayName: String(workout.dayName).slice(0, 200) }),
+            ...(workout.dayFocus && { dayFocus: String(workout.dayFocus).slice(0, 200) }),
             ...(Array.isArray(workout.skippedExercises) && { skippedExercises: workout.skippedExercises.filter((s: unknown) => typeof s === 'string').slice(0, 50) }),
           };
           if (Array.isArray(workout.exercises)) {
-            safe.exercises = workout.exercises.slice(0, 50).map((ex: { exerciseId?: string; sets?: unknown[]; notes?: string }) => ({
+            safe.exercises = workout.exercises.slice(0, 50).map((ex: { exerciseId?: string; sets?: unknown[]; notes?: string; name?: string }) => ({
               exerciseId: String(ex.exerciseId || '').slice(0, 100),
               sets: Array.isArray(ex.sets) ? ex.sets.slice(0, 20).map((s) => clampSet(s as Partial<SetData>)) : [],
               ...(ex.notes && { notes: String(ex.notes).slice(0, 2000) }),
+              ...(ex.name && { name: String(ex.name).slice(0, 200) }),
             }));
           } else {
             safe.exercises = [];
@@ -434,10 +445,71 @@ export const useFirebaseWorkouts = (userId: string) => {
     }
   }, [workouts]);
 
+  // Jednorazowa naprawa historycznych treningów: dopisuje cycleId + snapshot nazw (ćwiczeń i dnia)
+  // ze zarchiwizowanych cykli. Idempotentna — pomija treningi, które już mają komplet danych.
+  const backfillHistoricalWorkouts = useCallback(async (
+    allCycles: PlanCycle[],
+  ): Promise<{ updated: number; scanned: number; error?: string }> => {
+    if (!userId) return { updated: 0, scanned: 0, error: 'Brak userId' };
+    const resolver = buildWorkoutResolver([], allCycles);
+
+    try {
+      let updated = 0;
+      for (const w of workouts) {
+        const matchedCycle = w.cycleId
+          ? allCycles.find(c => c.id === w.cycleId)
+          : allCycles.find(c => w.date >= c.startDate && (!c.endDate || w.date <= c.endDate));
+
+        const update: Record<string, unknown> = {};
+
+        // 1. Brakujący cycleId — przypisz pasujący cykl (po zakresie dat).
+        if (!w.cycleId && matchedCycle) update.cycleId = matchedCycle.id;
+
+        // 2. Brakująca etykieta dnia — uzupełnij ze snapshotu cyklu (jeśli resolver coś realnego zwróci).
+        if (!w.dayName) {
+          const label = resolver.resolveDayLabel(w);
+          if (label.dayName && label.dayName !== w.dayId) {
+            update.dayName = label.dayName;
+            update.dayFocus = label.focus;
+          }
+        }
+
+        // 3. Brakujące nazwy ćwiczeń — dopisz snapshot, ale tylko gdy resolver zna realną nazwę.
+        if (w.exercises.some(ex => !ex.name)) {
+          let changedAny = false;
+          const nextExercises = w.exercises.map(ex => {
+            if (ex.name) return ex;
+            const resolved = resolver.resolveExerciseName(w, ex.exerciseId);
+            if (resolved && resolved !== ex.exerciseId) {
+              changedAny = true;
+              return { ...ex, name: resolved };
+            }
+            return ex;
+          }).map(ex => ({
+            exerciseId: ex.exerciseId,
+            sets: ex.sets.map(clampSet),
+            ...(ex.notes !== undefined && { notes: String(ex.notes).slice(0, 2000) }),
+            ...(ex.name && { name: String(ex.name).slice(0, 200) }),
+          }));
+          if (changedAny) update.exercises = nextExercises;
+        }
+
+        if (Object.keys(update).length === 0) continue;
+        await updateDoc(doc(db, WORKOUTS_COLLECTION, w.id), update as UpdateData<Record<string, unknown>>);
+        updated += 1;
+      }
+      return { updated, scanned: workouts.length };
+    } catch (err) {
+      console.error('Error backfilling workouts:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      return { updated: 0, scanned: workouts.length, error: errorMessage };
+    }
+  }, [userId, workouts]);
+
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
-    exercises: { exerciseId: string; sets: SetData[]; notes?: string }[],
-    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean }
+    exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string }[],
+    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string }
   ): Promise<{ success: boolean; error?: string }> => {
     if (!sessionId) return { success: false, error: 'Brak ID sesji' };
 
@@ -448,12 +520,16 @@ export const useFirebaseWorkouts = (userId: string) => {
         exerciseId: ex.exerciseId,
         sets: ex.sets.map(clampSet),
         ...(ex.notes !== undefined && ex.notes !== '' && { notes: String(ex.notes).slice(0, 2000) }),
+        // Snapshot nazwy — odporność historii na zmianę planu.
+        ...(ex.name && { name: String(ex.name).slice(0, 200) }),
       }));
 
       const updateData: Record<string, unknown> = { exercises: cleanExercises };
       if (options?.notes !== undefined) updateData.notes = String(options.notes).slice(0, 5000);
       if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
       if (options?.completed) updateData.completed = true;
+      if (options?.dayName) updateData.dayName = String(options.dayName).slice(0, 200);
+      if (options?.dayFocus) updateData.dayFocus = String(options.dayFocus).slice(0, 200);
 
       await updateDoc(workoutRef, updateData as UpdateData<Record<string, unknown>>);
       return { success: true };
@@ -487,6 +563,7 @@ export const useFirebaseWorkouts = (userId: string) => {
     importData,
     deleteWorkout,
     cleanupEmptyWorkouts,
+    backfillHistoricalWorkouts,
     isProvisionalWorkoutSessionId,
   };
 };

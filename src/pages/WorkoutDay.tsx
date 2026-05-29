@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExerciseCard } from '@/components/ExerciseCard';
+import type { TrainingDay } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
+import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -50,7 +52,8 @@ const WorkoutDay = () => {
     isLoaded
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, swapExercise } = useTrainingPlan(uid);
-  const { getActiveCycle } = usePlanCycles(uid);
+  const { getActiveCycle, cycles } = usePlanCycles(uid);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
 
   const today = formatLocalDate(new Date());
   const targetDate = searchParams.get('date') || today;
@@ -103,9 +106,42 @@ const WorkoutDay = () => {
   useEffect(() => { activeDraftRef.current = activeDraft; }, [activeDraft]);
   useEffect(() => { queuedDraftRef.current = queuedDraft; }, [queuedDraft]);
 
+  // Snapshot etykiet bieżącego dnia (nazwy ćwiczeń + dnia) zapisywany wraz z treningiem,
+  // żeby historia była odporna na przyszłe zmiany planu.
+  const daySnapshotRef = useRef<{ dayName: string; focus: string; names: Record<string, string> }>({ dayName: '', focus: '', names: {} });
+
   const baseDay = trainingPlan.find(d => d.id === dayId);
+
+  // Zapisany trening dla oglądanej daty (jeśli istnieje).
+  const workoutForDate = useMemo(
+    () => workouts.find(w => w.dayId === dayId && w.date === targetDate),
+    [workouts, dayId, targetDate],
+  );
+
   // Apply any session-only ("tylko dziś") swaps over the plan day.
   const day = useMemo(() => {
+    // Historię i ukończone treningi renderujemy z ZAPISANEGO treningu, nie z aktualnego
+    // planu (plan mógł zostać nadpisany — wtedy baseDay jest pusty lub pokazuje inne ćwiczenia).
+    const useSnapshot = workoutForDate
+      && workoutForDate.exercises.length > 0
+      && (isViewingPastWorkout || workoutForDate.completed);
+    if (useSnapshot) {
+      const label = resolver.resolveDayLabel(workoutForDate);
+      const snapshotDay: TrainingDay = {
+        id: dayId ?? workoutForDate.dayId,
+        dayName: label.dayName,
+        weekday: baseDay?.weekday ?? 'monday',
+        focus: label.focus,
+        exercises: workoutForDate.exercises.map(ex => ({
+          id: ex.exerciseId,
+          name: resolver.resolveExerciseName(workoutForDate, ex.exerciseId),
+          sets: `${ex.sets.filter(s => !s.isWarmup).length} serii`,
+          instructions: [],
+        })),
+      };
+      return snapshotDay;
+    }
+
     if (!baseDay || Object.keys(sessionSwaps).length === 0) return baseDay;
     return {
       ...baseDay,
@@ -114,7 +150,13 @@ const WorkoutDay = () => {
         return ov ? { ...ex, name: ov.name, sets: ov.sets, videoUrl: ov.videoUrl, instructions: [] } : ex;
       }),
     };
-  }, [baseDay, sessionSwaps]);
+  }, [baseDay, sessionSwaps, workoutForDate, isViewingPastWorkout, resolver, dayId]);
+
+  useEffect(() => {
+    daySnapshotRef.current = day
+      ? { dayName: day.dayName, focus: day.focus, names: Object.fromEntries(day.exercises.map(e => [e.id, e.name])) }
+      : { dayName: '', focus: '', names: {} };
+  }, [day]);
 
   // Apply an exercise swap chosen from the library — either for this session only or permanently.
   const handleApplySwap = async (exerciseId: string, currentSets: string, scope: 'today' | 'plan') => {
@@ -232,6 +274,7 @@ const WorkoutDay = () => {
       exerciseId,
       sets,
       ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
+      ...(daySnapshotRef.current.names[exerciseId] && { name: daySnapshotRef.current.names[exerciseId] }),
     }))
   ), []);
 
@@ -313,6 +356,8 @@ const WorkoutDay = () => {
       const result = await batchSaveWorkout(targetSessionId, buildExercisesPayload(), {
         notes: dayNotesRef.current || undefined,
         skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
+        dayName: daySnapshotRef.current.dayName || undefined,
+        dayFocus: daySnapshotRef.current.focus || undefined,
         ...(requiresFinalSync && { completed: true }),
       });
 
@@ -969,6 +1014,8 @@ const WorkoutDay = () => {
     const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
       notes: dayNotes,
       skippedExercises: skippedExercises.length > 0 ? skippedExercises : undefined,
+      dayName: daySnapshotRef.current.dayName || undefined,
+      dayFocus: daySnapshotRef.current.focus || undefined,
     });
 
     setIsExplicitSaving(false);
@@ -1315,8 +1362,8 @@ const WorkoutDay = () => {
         </Card>
       )}
 
-      {/* Today without workout - show start button */}
-      {!isWorkoutStarted && !isViewingPastWorkout && (
+      {/* Today without workout - show start button (nigdy na ukończonym treningu) */}
+      {!isWorkoutStarted && !isViewingPastWorkout && !isCompleted && (
         <Button
           size="lg"
           className="w-full py-6 text-lg"

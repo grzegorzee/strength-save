@@ -18,6 +18,9 @@ export interface ExerciseProgress {
   exerciseId: string;
   sets: SetData[];
   notes?: string;
+  // Snapshot nazwy ćwiczenia z momentu treningu. Dzięki temu historia wyświetla się
+  // poprawnie nawet po zmianie/nadpisaniu planu (exerciseId jest niestabilne między planami).
+  name?: string;
 }
 
 export interface WorkoutSession {
@@ -30,6 +33,9 @@ export interface WorkoutSession {
   notes?: string;
   cycleId?: string;
   skippedExercises?: string[];
+  // Snapshot etykiety dnia z momentu treningu (jak wyżej — odporność na zmianę planu).
+  dayName?: string;
+  dayFocus?: string;
 }
 
 export interface BodyMeasurement {

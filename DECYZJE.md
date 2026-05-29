@@ -5,11 +5,34 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-04-03 (v6.8.0)
+**Ostatnia aktualizacja:** 2026-05-29 (v6.9.4)
 
 ---
 
 ## DECYZJE
+
+### v6.9.4 (2026-05-29) — Naprawa historii po zmianie planu + snapshot (prewencja)
+
+**Problem:** Po odpaleniu nowego planu (FBW → push/pull, start 1 czerwca) historyczne
+treningi przestały się poprawnie wyświetlać: ukończony trening pokazywał pustą strukturę
+nowego planu, znikały nazwy ćwiczeń, rekordy, osiągnięcia; plan startujący w przyszłości
+pokazywał 8% i przyszły tydzień; cykle miały ujemne wartości. Dane w Firestore były
+bezpieczne — to był bug warstwy odczytu (kod resolwował historię przez aktualny plan,
+a `dayId`/`exerciseId` są niestabilne między planami).
+
+| Decyzja | Kontekst | Status |
+|---------|----------|--------|
+| Wspólny resolver nazw `src/lib/exercise-name-resolver.ts` | Priorytet: snapshot w treningu → zarchiwizowany cykl → aktualny plan → defaultPlan → id. Reużyty w WorkoutDay, WorkoutHistory, Achievements, Analytics, cycle-insights | ✅ |
+| `WorkoutDay` renderuje historię z ZAPISANEGO treningu, nie z planu | Snapshot dnia odbudowany z `workoutForDate.exercises`, gdy oglądamy ukończony/przeszły trening | ✅ |
+| Snapshot w modelu: `ExerciseProgress.name`, `WorkoutSession.dayName/dayFocus` | Opcjonalne, wstecznie zgodne. Zapisywane od teraz przy każdym treningu → odporność na przyszłe zmiany planu | ✅ |
+| `currentWeek=0` i guard `computeCycleStats` dla planu startującego w przyszłości | Eliminuje fałszywe 8% i NaN; plan tygodnia pokazuje pierwszy tydzień planu | ✅ |
+| `buildCycleComparison` zwraca null dla świeżego cyklu (0 treningów) | Koniec mylących ujemnych delt (np. -50000 kg) | ✅ |
+| Przycisk „Napraw dane historyczne" (Ustawienia) + `backfillHistoricalWorkouts` | Jednorazowe dotagowanie cycleId + snapshot nazw ze zarchiwizowanych cykli; idempotentne, ręczne (po eksporcie backupu) | ✅ |
+| Auto-dotagowanie przy zmianie planu (`NewPlan.handleApprove`) | Po archiwizacji starego planu untagged treningi dostają cycleId — zapobiega powtórce problemu | ✅ |
+
+**Jakość:** typecheck ✓, lint ✓, vitest 202/202 ✓, playwright 99/99 ✓, build ✓.
+**Globalnie wdrożone:** zasady Karpathy (`~/.claude/karpathy-guidelines.md`) jako pierwszy krok każdego developmentu.
+
 
 ### v6.8.0 (2026-04-03)
 

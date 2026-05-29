@@ -62,7 +62,7 @@ const NewPlan = () => {
   const fromCycleId = searchParams.get('fromCycle');
   const { uid } = useCurrentUser();
   const { plan: currentPlan, planDurationWeeks, planStartDate, savePlan } = useTrainingPlan(uid);
-  const { workouts, getCompletedWorkoutsCount } = useFirebaseWorkouts(uid);
+  const { workouts, getCompletedWorkoutsCount, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { archiveCurrentPlan, createActiveCycle, getCycleById } = usePlanCycles(uid);
 
   const [sourceCycle, setSourceCycle] = useState<PlanCycle | null>(null);
@@ -167,7 +167,23 @@ const NewPlan = () => {
     try {
       // Archive current plan before overwriting
       if (planStartDate && currentPlan.length > 0) {
-        await archiveCurrentPlan(currentPlan, planDurationWeeks, planStartDate, workouts);
+        const archivedCycleId = await archiveCurrentPlan(currentPlan, planDurationWeeks, planStartDate, workouts);
+        // Dotaguj historyczne treningi starego planu (cycleId + snapshot nazw ćwiczeń/dnia),
+        // żeby po nadpisaniu planu nie stały się osierocone. Idempotentne.
+        if (archivedCycleId) {
+          const archivedCycle: PlanCycle = {
+            id: archivedCycleId,
+            userId: uid,
+            days: currentPlan,
+            durationWeeks: planDurationWeeks,
+            startDate: planStartDate,
+            endDate: toDateStr(new Date()),
+            status: 'completed',
+            createdAt: new Date().toISOString(),
+            stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+          };
+          await backfillHistoricalWorkouts([archivedCycle]);
+        }
       }
 
       // Snap the chosen start date to its week's Monday (weekly grid anchor).
