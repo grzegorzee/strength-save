@@ -1,4 +1,9 @@
-# FitTracker - Dokumentacja Systemu v6.8.0
+# FitTracker - Dokumentacja Systemu v6.9.4
+
+> **v6.9.4 (2026-05-29):** Historia treningów odporna na zmianę planu. Kluczowe: `src/lib/exercise-name-resolver.ts`
+> (resolver nazw: snapshot → cykl → plan → id) + snapshot w modelu (`ExerciseProgress.name`, `WorkoutSession.dayName/dayFocus`).
+> NIGDY nie resolwuj historii przez aktualny `trainingPlan` — `dayId`/`exerciseId` są niestabilne między planami.
+> Szczegóły: START.md sekcja "Architektura: historia odporna na zmianę planu".
 
 ## Spis treści
 1. [Architektura](#architektura)

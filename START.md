@@ -10,9 +10,9 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.8.0) |
+| **Status** | AKTYWNY (v6.9.4) |
 | **Data utworzenia** | Styczeń 2026 |
-| **Data aktualizacji** | 2026-04-03 |
+| **Data aktualizacji** | 2026-05-29 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |
 
 ---
@@ -74,6 +74,9 @@
 | src/lib/ai-coach.ts | callOpenAI(), getSwapSuggestions(), callOpenAIStream() (gpt-5-mini) |
 | src/lib/offline-queue.ts | Kolejka operacji offline (localStorage) |
 | src/lib/pr-utils.ts | Detekcja rekordów osobistych, calculate1RM (Epley) |
+| src/lib/exercise-name-resolver.ts | **Resolver nazw ćwiczeń/dni dla historii (snapshot → cykl → plan → id)** — odporność na zmianę planu |
+| src/lib/cycle-insights.ts | Statystyki cyklu, porównania, rekomendacje (guard dla planu w przyszłości) |
+| src/lib/plan-schedule.ts | Harmonogram planu: mapowanie dat na dni, getScheduledTrainingWeek, getStartOfPlanWeek |
 | src/lib/summary-utils.ts | Streak, bounds tygodnia, tonnage |
 | src/lib/exercise-utils.ts | parseRepRange, Smart Rest Timer, lookupExerciseType, **createPrefilledSets**, **isBodyweightExercise** |
 | src/lib/exercise-progression.ts | Historia ćwiczeń, plateau detection, progression summary |
@@ -146,8 +149,8 @@
 | vite-plugin-pwa | 1.x | Progressive Web App |
 | html2canvas-pro | - | Generowanie obrazów z HTML (Share Workout) |
 | Resend | 6.x | Email API (Weekly Digest, verification, invite, access emails) |
-| Vitest | 3.x | Testy jednostkowe (167 testów) |
-| Playwright | 1.x | Testy E2E (83 testy, VITE_E2E_MODE) |
+| Vitest | 3.x | Testy jednostkowe (202 testy) |
+| Playwright | 1.x | Testy E2E (99 testów, VITE_E2E_MODE) |
 | gh-pages | 6.x | Deploy na GitHub Pages |
 
 ---
@@ -167,8 +170,9 @@ fittracker-workouts (project)
 │
 ├── workouts/                    # Sesje treningowe (per-user)
 │   └── workout-{timestamp}/
-│       ├── id, userId, dayId, date, completed
-│       ├── exercises: [{ exerciseId, sets[], notes? }]
+│       ├── id, userId, dayId, date, completed, cycleId?
+│       ├── exercises: [{ exerciseId, sets[], notes?, name? }]   # name = snapshot nazwy
+│       ├── dayName?, dayFocus?        # snapshot etykiety dnia (odporność na zmianę planu)
 │       └── skippedExercises?: string[]
 │
 ├── measurements/                # Pomiary ciała (per-user)
@@ -307,7 +311,42 @@ HashRouter (GitHub Pages)
 
 ---
 
-## KLUCZOWE FUNKCJONALNOŚCI (v6.8.0)
+## 🧩 ARCHITEKTURA: HISTORIA ODPORNA NA ZMIANĘ PLANU (v6.9.4 — WAŻNE przy rozwoju)
+
+> Przeczytaj zanim ruszysz cokolwiek związanego z historią, cyklami, rekordami, planem.
+
+**Problem, który to rozwiązuje:** `WorkoutSession.dayId` i `exercises[].exerciseId` są
+**niestabilne między planami** (generowane per-plan: `${startDate}-dN`, `tpl-ex-${counter}`).
+Po nadpisaniu planu stare referencje nie pasują do nowego planu. Dlatego NIGDY nie resolwuj
+nazw/struktury historycznego treningu przez **aktualny** `trainingPlan`.
+
+**Trzy filary rozwiązania:**
+1. **Snapshot w treningu** (`src/types/index.ts`): `ExerciseProgress.name`, `WorkoutSession.dayName/dayFocus`.
+   Zapisywane przy każdym zapisie treningu (`batchSaveWorkout`/`updateExerciseProgress`).
+   Trening jest samowystarczalny — nie potrzebuje planu do wyświetlenia.
+2. **Resolver** (`src/lib/exercise-name-resolver.ts`): `buildWorkoutResolver(trainingPlan, cycles)`
+   → `resolveExerciseName(workout, id)` i `resolveDayLabel(workout)`. Priorytet:
+   **snapshot → zarchiwizowany cykl (po cycleId lub dacie) → aktualny plan → defaultPlan → id**.
+   Używaj GO wszędzie gdzie pokazujesz historyczne nazwy (WorkoutHistory, Achievements, Analytics, WorkoutDay).
+3. **Zarchiwizowane cykle** (`plan_cycles`): `archiveCurrentPlan` zapisuje snapshot `days` starego planu
+   przed nadpisaniem → źródło nazw dla starych treningów bez snapshotu.
+
+**Zasady dla nowego kodu:**
+- Wyświetlasz historyczny trening? → render z `workout.exercises` + resolver, NIE z `trainingPlan.find(dayId)`.
+- Plan może startować w przyszłości → `currentWeek=0`, `planStarted=false`, `computeCycleStats` zwraca zera (guard `startDate > today`).
+- Naprawa istniejących danych: `backfillHistoricalWorkouts(cycles)` (przycisk w Ustawieniach) + auto-dotagowanie w `NewPlan.handleApprove`.
+
+---
+
+## KLUCZOWE FUNKCJONALNOŚCI (v6.9.4)
+
+### Plan & Cykle (v6.9.x)
+- **Data startu planu** — picker daty rozpoczęcia; plan może startować w przyszłości (0% do startu)
+- **Gotowe plany** (`planTemplates.ts`) — FBW, PPL, Upper/Lower, Split 5-dniowy, Push/Pull, Ethier FBW
+- **Globalnie unikalne dayId** per instancja planu (brak kolizji 'day-1' między planami)
+- **Historia odporna na zmianę planu** — snapshot + resolver (patrz sekcja architektury wyżej)
+- **Naprawa danych historycznych** — przycisk w Ustawieniach (cycleId + snapshot nazw, idempotentny)
+
 
 ### Core
 - Plan treningowy 2-5 dni/tydzień (dynamiczne weekdays)

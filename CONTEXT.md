@@ -1,14 +1,14 @@
 # strength_save (FitTracker) — kontekst
 
 > **Cel pliku:** Pełny kontekst projektu dla każdego AI assistanta. Czytany automatycznie gdy user wspomni projekt.
-> **Ostatnia aktualizacja:** 2026-05-17
+> **Ostatnia aktualizacja:** 2026-05-29 (v6.9.4)
 > **Status pliku:** uzupełniony z `dane/projekty-status.md` + plików projektu
 
 ---
 
 ## 🎯 1-LINIJKOWE PODSUMOWANIE
 
-Multi-user aplikacja PWA (React + Firebase + Strava) do śledzenia treningów siłowych z AI planami, live na GitHub Pages, v6.8.0+.
+Multi-user aplikacja PWA (React + Firebase + Strava) do śledzenia treningów siłowych z planami (gotowe szablony + własne), Strava i analityką, live na GitHub Pages, v6.9.4.
 
 ---
 
@@ -16,7 +16,7 @@ Multi-user aplikacja PWA (React + Firebase + Strava) do śledzenia treningów si
 
 | Pole | Wartość |
 |------|---------|
-| **Status** | aktywny (v6.8.0+, v5.1.0 wg `dane/projekty-status.md` — może być nieaktualne) |
+| **Status** | aktywny (v6.9.4) |
 | **Owner** | Grzegorz |
 | **Klient** | brak (własny projekt) |
 | **Data startu** | Styczeń 2026 |
@@ -63,7 +63,7 @@ Multi-user aplikacja PWA (React + Firebase + Strava) do śledzenia treningów si
 - `src/`
 
 **Ostatnia sesja (kiedy/co zrobione):**
-2026-04-03: aktualizacja v6.8.0
+2026-05-29 (v6.9.4): naprawa historii treningów po zmianie planu (resolver nazw + snapshot w modelu danych, guard dla planu startującego w przyszłości, naprawa cykli, przycisk "Napraw dane historyczne"). Szczegóły w DECYZJE.md.
 
 ---
 
