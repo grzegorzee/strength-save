@@ -10,7 +10,7 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.10.0) |
+| **Status** | AKTYWNY (v6.11.0) |
 | **Data utworzenia** | Styczeń 2026 |
 | **Data aktualizacji** | 2026-05-29 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |
@@ -75,6 +75,7 @@
 | src/lib/ai-coach.ts | callOpenAI(), getSwapSuggestions(), callOpenAIStream() (gpt-5-mini) |
 | src/lib/offline-queue.ts | Kolejka operacji offline (localStorage) |
 | src/lib/pr-utils.ts | Detekcja rekordów osobistych, calculate1RM (Epley) |
+| src/lib/next-set-advice.ts | **Coach następnej serii** — konkretny cel (ciężar×powt.) z trendu historii + deload przy plateau (`getNextSetAdvice`) |
 | src/lib/exercise-name-resolver.ts | **Resolver nazw ćwiczeń/dni dla historii (snapshot → cykl → plan → id)** — odporność na zmianę planu |
 | src/lib/cycle-insights.ts | Statystyki cyklu, porównania, rekomendacje (guard dla planu w przyszłości) |
 | src/lib/plan-schedule.ts | Harmonogram planu: mapowanie dat na dni, getScheduledTrainingWeek, getStartOfPlanWeek |

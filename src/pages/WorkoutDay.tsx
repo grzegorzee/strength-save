@@ -7,12 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExerciseCard } from '@/components/ExerciseCard';
-import type { TrainingDay } from '@/data/trainingPlan';
+import type { TrainingDay, Exercise } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
+import { getNextSetAdvice } from '@/lib/next-set-advice';
+import { getExerciseHistory } from '@/lib/exercise-progression';
+import { callOpenAI } from '@/lib/ai-coach';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -68,6 +71,7 @@ const WorkoutDay = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isExplicitSaving, setIsExplicitSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [coachBusyId, setCoachBusyId] = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
   const [skippedExercises, setSkippedExercises] = useState<string[]>([]);
   const [activeDraft, setActiveDraft] = useState<ActiveWorkoutDraft | null>(null);
@@ -884,6 +888,41 @@ const WorkoutDay = () => {
     });
   }, [saveDraftSnapshot, toast]);
 
+  // AI coach on-demand: jedno wywołanie na żądanie (przycisk), z kontekstem realnej historii.
+  // Koszt tylko gdy user kliknie — limit $5/user pilnuje Cloud Function proxyOpenAI.
+  const handleAskCoach = async (exercise: Exercise) => {
+    if (coachBusyId) return;
+    setCoachBusyId(exercise.id);
+    try {
+      const isBw = isBodyweightExercise(exercise.name);
+      const history = getExerciseHistory(workouts, exercise.id, isBw).slice(-5);
+      const histStr = history.length
+        ? history.map(h => isBw ? `${h.date}: ${h.bestReps} powt.` : `${h.date}: ${h.maxWeight}kg×${h.bestReps}`).join('; ')
+        : 'brak wcześniejszych sesji';
+      const advice = getNextSetAdvice(workouts, exercise.id, exercise.sets, 0, { isBodyweight: isBw, isSuperset: exercise.isSuperset });
+      const notes = exerciseNotes[exercise.id]?.trim() || dayNotes.trim() || 'brak';
+
+      const reply = await callOpenAI([
+        { role: 'system', content: 'Jesteś doświadczonym trenerem siłowym. Odpowiadasz po polsku, maksymalnie 2 krótkie zdania, konkretnie i praktycznie, bez wstępów i bez listy.' },
+        { role: 'user', content: `Ćwiczenie: ${exercise.name} (schemat ${exercise.sets}). Ostatnie sesje: ${histStr}. Sugestia systemu: ${advice?.reason ?? 'brak'}. Notatki zawodnika: ${notes}. Doradź na dzisiejszą serię.` },
+      ]);
+
+      toast({
+        title: `Coach AI: ${exercise.name}`,
+        description: reply.trim() || 'Brak odpowiedzi.',
+        duration: 12000,
+      });
+    } catch (err) {
+      toast({
+        title: 'Coach AI niedostępny',
+        description: err instanceof Error ? err.message : 'Spróbuj ponownie później (możliwy limit AI).',
+        variant: 'destructive',
+      });
+    } finally {
+      setCoachBusyId(null);
+    }
+  };
+
   const handleRetrySync = async () => {
     if (!currentPageDraft?.finalSyncPending) return;
 
@@ -1387,6 +1426,12 @@ const WorkoutDay = () => {
               onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
               isBodyweight={isBodyweightExercise(exercise.name)}
               isEditable={isWorkoutStarted && !isCompleted}
+              nextAdvice={getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
+                isBodyweight: isBodyweightExercise(exercise.name),
+                isSuperset: exercise.isSuperset,
+              })}
+              onAskCoach={isWorkoutStarted && !isCompleted ? () => handleAskCoach(exercise) : undefined}
+              coachBusy={coachBusyId === exercise.id}
             />
             {/* AI Swap & Skip buttons — only in active workout */}
             {isWorkoutStarted && !isCompleted && (
