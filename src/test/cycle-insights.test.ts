@@ -84,3 +84,37 @@ describe('cycle-insights', () => {
     expect(recommendation.title.length).toBeGreaterThan(0);
   });
 });
+
+describe('computeCycleStats — cycle attribution (regression: new cycle stealing workouts)', () => {
+  const planDays2: TrainingDay[] = [
+    { id: 'd1', dayName: 'Poniedziałek', weekday: 'monday', focus: 'A', exercises: [{ id: 'e1', name: 'X', sets: '3x8', instructions: [] }] },
+  ];
+  const mk = (id: string, date: string, cycleId?: string): WorkoutSession => ({
+    id, userId: 'u1', dayId: 'd1', date, completed: true,
+    ...(cycleId ? { cycleId } : {}),
+    exercises: [{ exerciseId: 'e1', sets: [{ reps: 8, weight: 50, completed: true }] }],
+  });
+
+  it('a real cycleId counts ONLY workouts tagged with it (no date-range theft)', () => {
+    const ws = [
+      mk('w-old1', '2026-05-04', 'OLD'),
+      mk('w-old2', '2026-05-06', 'OLD'),
+      mk('w-orphan', '2026-05-27'), // untagged, inside the NEW cycle's date window
+    ];
+    // Fresh cycle must not retroactively claim the untagged workout in its range.
+    expect(computeCycleStats(ws, planDays2, '2026-05-25', '2026-05-29', 12, 'NEW').totalWorkouts).toBe(0);
+    // Old cycle still owns its tagged workouts.
+    expect(computeCycleStats(ws, planDays2, '2026-05-01', '2026-05-29', 12, 'OLD').totalWorkouts).toBe(2);
+  });
+
+  it('null cycleId attributes only untagged workouts by date range', () => {
+    const ws = [mk('w1', '2026-05-27'), mk('w2', '2026-05-28', 'OTHER')];
+    expect(computeCycleStats(ws, planDays2, '2026-05-25', '2026-05-29', 12, null).totalWorkouts).toBe(1);
+  });
+
+  it('empty endDate does not break elapsed math (no NaN)', () => {
+    const stats = computeCycleStats([], planDays2, '2026-05-25', '', 12, 'NEW');
+    expect(Number.isFinite(stats.expectedWorkouts)).toBe(true);
+    expect(Number.isFinite(stats.completionRate)).toBe(true);
+  });
+});

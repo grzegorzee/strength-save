@@ -146,7 +146,10 @@ const Dashboard = () => {
     }
 
     const day = todayEntry.day;
-    const todayWorkout = workouts.find(w => w.dayId === day.id && w.date === todayEntry.dateKey);
+    // Primary match by dayId+date; fall back to ANY completed workout on today's date so a
+    // session logged under a prior plan (different day.id / cycle) still counts as done today.
+    const todayWorkout = workouts.find(w => w.dayId === day.id && w.date === todayEntry.dateKey)
+      ?? workouts.find(w => w.date === todayEntry.dateKey && w.completed);
     if (todayWorkout?.completed) {
       return { type: 'completed' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
     }

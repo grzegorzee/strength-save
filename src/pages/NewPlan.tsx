@@ -173,7 +173,14 @@ const NewPlan = () => {
       // Snap the chosen start date to its week's Monday (weekly grid anchor).
       const newStartDate = weekMondayStr(new Date(`${startDate}T00:00:00`));
 
-      const result = await savePlan(reviewPlan.days, {
+      // Give each plan instance globally-unique day ids so workouts/cycles never collide
+      // across plans that reuse 'day-1'..'day-N' (e.g. templates and default plan).
+      const uniqueDays: TrainingDay[] = reviewPlan.days.map((d, i) => ({
+        ...d,
+        id: `${newStartDate}-d${i + 1}`,
+      }));
+
+      const result = await savePlan(uniqueDays, {
         durationWeeks: reviewPlan.planDurationWeeks,
         startDate: newStartDate,
       });
@@ -184,7 +191,7 @@ const NewPlan = () => {
       }
 
       // Create active cycle for the new plan
-      await createActiveCycle(reviewPlan.days, reviewPlan.planDurationWeeks, newStartDate);
+      await createActiveCycle(uniqueDays, reviewPlan.planDurationWeeks, newStartDate);
 
       navigate('/');
     } catch (err) {

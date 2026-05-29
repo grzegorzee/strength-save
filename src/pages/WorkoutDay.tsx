@@ -1013,11 +1013,11 @@ const WorkoutDay = () => {
   // Calculate stats from exerciseSets
   const exerciseCount = Object.keys(exerciseSets).length;
   const completedSetsCount = Object.values(exerciseSets).reduce(
-    (total, sets) => total + sets.filter(s => s.completed).length,
+    (total, sets) => total + sets.filter(s => s.completed && !s.isWarmup).length,
     0
   );
   const totalRepsCount = Object.values(exerciseSets).reduce(
-    (total, sets) => total + sets.filter(s => s.completed).reduce((sum, s) => sum + s.reps, 0),
+    (total, sets) => total + sets.filter(s => s.completed && !s.isWarmup).reduce((sum, s) => sum + s.reps, 0),
     0
   );
 

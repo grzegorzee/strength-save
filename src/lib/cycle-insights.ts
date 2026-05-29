@@ -28,7 +28,10 @@ export const computeCycleStats = (
   const cycleWorkouts = workouts.filter(
     (workout) => {
       if (!workout.completed) return false;
-      if (cycleId && workout.cycleId === cycleId) return true;
+      // With a real cycleId, count ONLY workouts tagged with it — a fresh cycle starts empty
+      // and must not retroactively claim untagged workouts that fall in its date range.
+      if (cycleId) return workout.cycleId === cycleId;
+      // Legacy/aggregate path (no cycleId supplied): attribute untagged workouts by date range.
       return !workout.cycleId && workout.date >= startDate && workout.date <= endDate;
     },
   );
@@ -71,7 +74,8 @@ export const computeCycleStats = (
   // Expected sessions are based on time ELAPSED so far (capped at plan length),
   // not the whole plan — a fresh/active cycle shouldn't show all future sessions as "missed".
   const todayStr = formatLocalDate(new Date());
-  const effectiveEndStr = endDate < todayStr ? endDate : todayStr; // min(endDate, today)
+  // Active cycles persist endDate='' — treat empty/future end as today (avoids parseLocalDate NaN).
+  const effectiveEndStr = (endDate && endDate < todayStr) ? endDate : todayStr; // min(endDate, today)
   const elapsedDays = Math.floor(
     (parseLocalDate(effectiveEndStr).getTime() - parseLocalDate(startDate).getTime()) / 86_400_000,
   );
