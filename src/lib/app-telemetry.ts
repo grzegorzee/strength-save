@@ -13,6 +13,7 @@ export type TelemetryEventName =
   | 'sync_retry_batch'
   | 'sync_success'
   | 'sync_failure'
+  | 'sync_validation_failed'
   | 'final_sync_pending'
   | 'sync_queue_enqueued';
 

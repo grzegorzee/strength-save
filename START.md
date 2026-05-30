@@ -10,7 +10,7 @@
 |------|---------|
 | **Nazwa** | Strength Save / FitTracker |
 | **Cel** | Multi-user aplikacja PWA do śledzenia treningów siłowych |
-| **Status** | AKTYWNY (v6.11.0) |
+| **Status** | AKTYWNY (v6.11.4) |
 | **Data utworzenia** | Styczeń 2026 |
 | **Data aktualizacji** | 2026-05-29 |
 | **Użytkownicy** | g.jasionowicz@gmail.com (admin), role: admin + user |

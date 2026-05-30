@@ -5,11 +5,25 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-05-29 (v6.11.0)
+**Ostatnia aktualizacja:** 2026-05-30 (v6.11.4)
 
 ---
 
 ## DECYZJE
+
+### v6.11.4 (2026-05-30) — Final sync bez utraty treningu
+
+**Decyzja:** Finalny zapis treningu jest teraz potwierdzany odczytem z serwera przed
+usunięciem lokalnego draftu. IndexedDB pozostaje źródłem bezpieczeństwa do momentu, gdy
+Firestore zwróci `completed=true` oraz te same ćwiczenia, serie i ciężary.
+
+| Zmiana | Szczegóły | Status |
+|--------|-----------|--------|
+| Walidacja final sync | `batchSaveWorkout` nie wystarcza jako dowód. Po finalnym zapisie `WorkoutDay` i `SyncCenter` robią read-back z serwera i walidują payload przez `workout-final-sync.ts` | ✅ |
+| Brak kasowania draftu przy częściowym zapisie | Jeśli chmura nie potwierdzi kompletnego treningu, draft zostaje lokalnie, wraca do kolejki i pokazuje status final sync pending | ✅ |
+| Eksport awaryjny | Sync Center ma przycisk eksportu lokalnego draftu do JSON | ✅ |
+| Widoczna wersja PWA | Podbicie do `v6.11.4` pozwala sprawdzić, że użytkownik działa na nowym buildzie | ✅ |
+
 
 ### v6.11.0 (2026-05-29) — Coach następnej serii (1. funkcja AI dająca wartość)
 

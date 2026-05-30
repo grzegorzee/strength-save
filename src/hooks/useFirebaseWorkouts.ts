@@ -4,6 +4,7 @@ import {
   doc,
   getDocs,
   getDoc,
+  getDocFromServer,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -549,6 +550,17 @@ export const useFirebaseWorkouts = (userId: string) => {
     }
   }, []);
 
+  const getWorkoutSessionFromServer = useCallback(async (sessionId: string): Promise<WorkoutSession | null> => {
+    if (!sessionId) return null;
+
+    const snapshot = await getDocFromServer(doc(db, WORKOUTS_COLLECTION, sessionId));
+    if (!snapshot.exists()) return null;
+
+    const workout = { id: snapshot.id, ...snapshot.data() } as WorkoutSession;
+    if (workout.userId !== userId) return null;
+    return workout;
+  }, [userId]);
+
   return {
     workouts,
     measurements,
@@ -559,6 +571,7 @@ export const useFirebaseWorkouts = (userId: string) => {
     updateExerciseProgress,
     completeWorkout,
     batchSaveWorkout,
+    getWorkoutSessionFromServer,
     getWorkoutsByDay,
     getTodaysWorkout,
     getLatestWorkout,

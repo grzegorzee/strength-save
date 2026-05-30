@@ -29,6 +29,7 @@ import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -53,6 +54,7 @@ const WorkoutDay = () => {
     createWorkoutSession,
     createOfflineWorkoutSession,
     batchSaveWorkout,
+    getWorkoutSessionFromServer,
     isLoaded
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, swapExercise } = useTrainingPlan(uid);
@@ -383,6 +385,20 @@ const WorkoutDay = () => {
       setSaveError(null);
 
       if (requiresFinalSync) {
+        const confirmedWorkout = await getWorkoutSessionFromServer(targetSessionId);
+        const validation = validateWorkoutCloudWrite(
+          confirmedWorkout,
+          buildWorkoutWriteExpectation(buildExercisesPayload(), { completed: true })
+        );
+
+        if (!validation.ok) {
+          const errorMessage = `Chmura nie potwierdziła kompletnego zapisu (${validation.reason ?? 'unknown'}).`;
+          setSaveError(errorMessage);
+          setAutoSaveStatus('final-sync-pending');
+          trackTelemetryEvent(uid, 'sync_validation_failed');
+          return { success: false, error: errorMessage };
+        }
+
         if (usesActiveDraftStore) {
           try {
             await workoutDraftDb.clearActiveDraft(uid);
@@ -433,7 +449,7 @@ const WorkoutDay = () => {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [uid, sessionId, batchSaveWorkout, buildExercisesPayload, createWorkoutSession, persistDraftSnapshot, queueAutoSaveStatus]);
+  }, [uid, sessionId, batchSaveWorkout, buildExercisesPayload, createWorkoutSession, getWorkoutSessionFromServer, persistDraftSnapshot, queueAutoSaveStatus]);
 
   const applyWorkoutState = useCallback((next: {
     sessionId: string | null;
@@ -512,7 +528,17 @@ const WorkoutDay = () => {
       )
       : false;
 
-    if (workoutForDate?.completed && currentPageDraft && !currentPageDraft.finalSyncPending) {
+    const completedWorkoutValidation = workoutForDate?.completed && currentPageDraft
+      ? validateWorkoutCloudWrite(
+        workoutForDate,
+        buildWorkoutWriteExpectation(
+          Object.entries(currentPageDraft.exerciseSets).map(([exerciseId, sets]) => ({ exerciseId, sets })),
+          { completed: true }
+        )
+      )
+      : null;
+
+    if (workoutForDate?.completed && currentPageDraft && !currentPageDraft.finalSyncPending && completedWorkoutValidation?.ok) {
       void workoutDraftDb.clearActiveDraft(uid);
       setActiveDraft(null);
     }
@@ -521,7 +547,7 @@ const WorkoutDay = () => {
       if (!currentPageDraft) return false;
       if (workoutForDate && currentPageDraft.sessionId !== workoutForDate.id) return false;
       if (!workoutForDate) return draftHasData || currentPageDraft.finalSyncPending || Object.keys(currentPageDraft.exerciseSets).length > 0;
-      if (workoutForDate.completed && !currentPageDraft.finalSyncPending) return false;
+      if (workoutForDate.completed && !currentPageDraft.finalSyncPending) return completedWorkoutValidation?.ok === false && draftHasData;
       if (currentPageDraft.finalSyncPending) return true;
       if (currentPageDraft.dirty) return true;
       if (workoutForDate.exercises.length === 0 && draftHasData) return true;

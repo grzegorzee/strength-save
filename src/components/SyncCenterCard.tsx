@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cloud, CloudOff, ExternalLink, Loader2, RefreshCw, Trash2, Layers3 } from 'lucide-react';
+import { Cloud, CloudOff, Download, ExternalLink, Loader2, RefreshCw, Trash2, Layers3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 
 interface SyncCenterCardProps {
   uid: string;
@@ -32,7 +33,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isOnline } = useOnlineStatus();
-  const { createWorkoutSession, batchSaveWorkout } = useFirebaseWorkouts(uid);
+  const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer } = useFirebaseWorkouts(uid);
   const [draft, setDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [queueEntries, setQueueEntries] = useState<WorkoutSyncQueueEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -149,6 +150,24 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       }
 
       if (workingDraft.finalSyncPending) {
+        const confirmedWorkout = await getWorkoutSessionFromServer(workingDraft.sessionId);
+        const validation = validateWorkoutCloudWrite(
+          confirmedWorkout,
+          buildWorkoutWriteExpectation(buildExercisesPayload(workingDraft), { completed: true })
+        );
+
+        if (!validation.ok) {
+          const errorMessage = `Chmura nie potwierdziła kompletnego zapisu (${validation.reason ?? 'unknown'}).`;
+          toast({
+            title: 'Synchronizacja niepotwierdzona',
+            description: 'Lokalny szkic zostaje na urządzeniu. Spróbuj ponownie za chwilę.',
+            variant: 'destructive',
+          });
+          workoutSyncQueue.upsertFromDraft(workingDraft, { lastError: errorMessage });
+          trackTelemetryEvent(uid, 'sync_validation_failed');
+          return false;
+        }
+
         if (source === 'active') {
           await workoutDraftDb.clearActiveDraft(uid);
           setDraft(null);
@@ -190,7 +209,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     } finally {
       setQueueEntries(workoutSyncQueue.list(uid));
     }
-  }, [batchSaveWorkout, createWorkoutSession, isOnline, loadDraft, toast, uid]);
+  }, [batchSaveWorkout, createWorkoutSession, getWorkoutSessionFromServer, isOnline, loadDraft, toast, uid]);
 
   const handleRetrySync = async (targetDraft: ActiveWorkoutDraft, source: 'active' | 'queue') => {
     if (syncingSessionIds.includes(targetDraft.sessionId)) return;
@@ -246,7 +265,22 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   };
 
   const handleOpenWorkout = (targetDraft: ActiveWorkoutDraft) => {
-    navigate(`/workout/${targetDraft.dayId}?date=${targetDraft.date}`);
+    navigate(`/workout/${targetDraft.dayId}?date=${targetDraft.date}&session=${targetDraft.sessionId}`);
+  };
+
+  const handleExportDraft = (targetDraft: ActiveWorkoutDraft) => {
+    const payload = JSON.stringify({
+      exportedAt: new Date().toISOString(),
+      source: 'strength-save-sync-center',
+      draft: targetDraft,
+    }, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `strength-save-draft-${targetDraft.date}-${targetDraft.sessionId}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -336,10 +370,14 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                       <p className="text-xs text-destructive">Ostatni błąd: {entry.lastError}</p>
                     )}
 
-                    <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="grid gap-2 sm:grid-cols-4">
                       <Button variant="outline" onClick={() => handleOpenWorkout(entry)}>
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Otwórz trening
+                      </Button>
+                      <Button variant="outline" onClick={() => handleExportDraft(entry)}>
+                        <Download className="h-4 w-4 mr-2" />
+                        Eksport JSON
                       </Button>
                       <Button
                         onClick={() => void handleRetrySync(entry, source)}
