@@ -8,6 +8,7 @@ import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl } from '@/lib/exercise-media';
+import { useUnit } from '@/contexts/UnitContext';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 
 // ── Progression Badge sub-component ──
@@ -192,6 +193,18 @@ const ExerciseCardInner = ({
   const completedSets = workingSets.filter(s => s.completed).length;
   const allCompleted = workingSets.length > 0 && completedSets === workingSets.length;
   const animationUrl = getExerciseAnimationUrl(exercise.name);
+  const { unit, toDisplay, fromInput } = useUnit();
+
+  // Indeks pierwszej nieukończonej serii roboczej (podświetlana jako aktywna — mockup [17]).
+  const activeSetIndex = sets.findIndex((s) => !s.isWarmup && !s.completed);
+
+  // Docelowe powtórzenia z planu (np. "3 x 8-12" → placeholder "8-12").
+  const repsPlaceholder = useMemo(() => {
+    const range = parseRepRange(exercise.sets);
+    if (!range) return '—';
+    const { min, max } = range;
+    return min === max ? String(min) : `${min}-${max}`;
+  }, [exercise.sets]);
 
   const progressionAdvice = useMemo(() => {
     if (!previousSets) return null;
@@ -208,100 +221,107 @@ const ExerciseCardInner = ({
     return `${prevSet.reps}×${prevSet.weight}kg`;
   };
 
-  // Grid columns helper (label, reps, [weight], check, delete)
-  const gridCols = isBodyweight ? 'grid-cols-[28px_1fr_38px_30px]' : 'grid-cols-[28px_1fr_1fr_38px_30px]';
+  // Grid: SET | PREVIOUS | [KG] | REPS | ✓ | × (mockup [17])
+  const gridCols = isBodyweight
+    ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_22px]'
+    : 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_22px]';
 
   // ── Render set row ──
   const renderSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean) => {
     const prevHint = !isWarmupRow ? getPreviousHint(globalIndex) : null;
+    const isActive = !isWarmupRow && globalIndex === activeSetIndex;
+    const displayWeight = set.weight
+      ? (unit === 'lbs' ? Number(toDisplay(set.weight).toFixed(1)) : set.weight)
+      : '';
 
     return (
-      <div key={globalIndex}>
-        <div className={cn("grid gap-2 items-center py-1.5 px-1 rounded-lg", gridCols)}>
-          {/* Set number / label */}
-          <span className={cn(
-            "text-sm font-extrabold text-center select-none",
-            isWarmupRow ? "text-[11px] tracking-wide text-[hsl(var(--ec-warmup-gold))]" : "text-[hsl(var(--ec-set-number))]"
-          )}>
-            {label}
-          </span>
+      <div
+        key={globalIndex}
+        className={cn(
+          'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
+          gridCols,
+          isActive && 'bg-primary/[0.04] ring-2 ring-primary',
+        )}
+      >
+        {/* SET */}
+        <span className={cn(
+          'select-none text-center text-sm font-extrabold',
+          isWarmupRow
+            ? 'text-[11px] tracking-wide text-[hsl(var(--ec-warmup-gold))]'
+            : isActive ? 'text-primary' : 'text-[hsl(var(--ec-set-number))]',
+        )}>
+          {label}
+        </span>
 
-          {/* Reps */}
+        {/* PREVIOUS */}
+        <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
+          {isWarmupRow ? '—' : (prevHint || '—')}
+        </span>
+
+        {/* KG (non-bodyweight) */}
+        {!isBodyweight && (
           <Input
             type="number"
-            inputMode="numeric"
+            inputMode="decimal"
             min={0}
-            value={set.reps || ''}
-            onChange={(e) => handleSetChange(globalIndex, 'reps', parseInt(e.target.value) || 0)}
-            placeholder="—"
+            step={0.5}
+            value={displayWeight}
+            onChange={(e) => handleSetChange(globalIndex, 'weight', fromInput(parseFloat(e.target.value) || 0))}
+            placeholder="0"
             disabled={!isEditable}
             className={cn(
-              "exercise-card-input h-10 font-semibold text-[15px] focus-visible:ring-0 focus-visible:ring-offset-0",
-              isWarmupRow && "!border-[hsl(var(--ec-warmup-gold-border))]",
-              allCompleted && "text-muted-foreground"
+              'exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
+              isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
             )}
           />
+        )}
 
-          {/* Weight (non-bodyweight) */}
-          {!isBodyweight && (
-            <Input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={0.5}
-              value={set.weight || ''}
-              onChange={(e) => handleSetChange(globalIndex, 'weight', parseFloat(e.target.value) || 0)}
-              placeholder="—"
-              disabled={!isEditable}
-              className={cn(
-                "exercise-card-input h-10 font-semibold text-[15px] focus-visible:ring-0 focus-visible:ring-offset-0",
-                isWarmupRow && "!border-[hsl(var(--ec-warmup-gold-border))]",
-                allCompleted && "text-muted-foreground"
-              )}
-            />
+        {/* REPS */}
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={set.reps || ''}
+          onChange={(e) => handleSetChange(globalIndex, 'reps', parseInt(e.target.value) || 0)}
+          placeholder={isWarmupRow ? '—' : repsPlaceholder}
+          disabled={!isEditable}
+          className={cn(
+            'exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
+            isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
           )}
+        />
 
-          {/* Done checkmark */}
-          <div className="flex justify-center">
-            <button
-              onClick={() => handleToggleComplete(globalIndex)}
-              disabled={!isEditable}
-              aria-label={set.completed ? 'Odznacz serię' : 'Zaznacz serię jako zrobioną'}
-              className={cn(
-                "h-9 w-9 rounded-lg flex items-center justify-center border transition-colors disabled:opacity-40",
-                set.completed
-                  ? "bg-emerald-500 border-emerald-500 text-white"
-                  : "border-border text-transparent hover:border-emerald-400/60 hover:text-emerald-400/40"
-              )}
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </div>
-
-          {/* Delete button */}
-          <div className="flex justify-center">
-            {isEditable ? (
-              <button
-                onClick={() => handleRemoveSet(globalIndex)}
-                className="h-9 w-9 rounded-lg flex items-center justify-center text-[20px] leading-none text-[hsl(var(--ec-delete))] hover:text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                &times;
-              </button>
-            ) : (
-              <span className="w-9" />
+        {/* Done checkmark */}
+        <div className="flex justify-center">
+          <button
+            onClick={() => handleToggleComplete(globalIndex)}
+            disabled={!isEditable}
+            aria-label={set.completed ? 'Odznacz serię' : 'Zaznacz serię jako zrobioną'}
+            className={cn(
+              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
+              set.completed ? 'bg-accent text-accent-foreground' : 'bg-surface-highest text-transparent hover:text-accent/40',
             )}
-          </div>
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
         </div>
 
-        {/* Previous workout hint */}
-        {prevHint && !set.completed && (
-          <div className="flex items-center gap-1 pl-[44px] pb-1 text-[11px] text-[#3a3f52]">
-            <span>↳ Poprzednio:</span>
-            <span className="font-semibold text-primary">{prevHint}</span>
-          </div>
-        )}
+        {/* Delete */}
+        <div className="flex justify-center">
+          {isEditable ? (
+            <button
+              onClick={() => handleRemoveSet(globalIndex)}
+              aria-label="Usuń serię"
+              className="flex h-8 w-6 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
+            >
+              &times;
+            </button>
+          ) : (
+            <span className="w-6" />
+          )}
+        </div>
       </div>
     );
   };
@@ -394,18 +414,15 @@ const ExerciseCardInner = ({
 
       {/* ── Working sets grid ── */}
       <div className="px-4 sm:px-5 pt-4 pb-2">
-        {/* Grid header */}
-        <div className={cn("grid gap-2 px-1 pb-2 mb-1", gridCols)}>
-          <span />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-            Powtórzenia
-          </span>
+        {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
+        <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
+          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Set</span>
+          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Poprz.</span>
           {!isBodyweight && (
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-              Ciężar (kg)
-            </span>
+            <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{unit}</span>
           )}
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 text-center">✓</span>
+          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Powt.</span>
+          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">✓</span>
           <span />
         </div>
 
