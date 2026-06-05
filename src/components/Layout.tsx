@@ -21,7 +21,7 @@ const pageTitles: Record<string, string> = {
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const isFocusedFlow = location.pathname.startsWith('/workout/');
+  const isFocusedFlow = location.pathname.startsWith('/workout/') || location.pathname.startsWith('/exercise/');
   const title = pageTitles[location.pathname] || 'FitTracker';
 
   return (

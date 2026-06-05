@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Search, Dumbbell, ArrowRightLeft } from 'lucide-react';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import { trainingPlan } from '@/data/trainingPlan';
-import { cn } from '@/lib/utils';
-import { getExerciseAnimationUrl } from '@/lib/exercise-media';
+import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
 import { Chip } from '@/components/kinetic/Chip';
 
 const categoryOrder: LibraryExercise['category'][] = [
@@ -52,9 +51,9 @@ const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: Enrich
 };
 
 const ExerciseLibrary = () => {
+  const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState<LibraryExercise['category'] | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [detailExercise, setDetailExercise] = useState<EnrichedExercise | null>(null);
 
   const enrichedExercises = useMemo<EnrichedExercise[]>(() => {
     const planExercises = trainingPlan.flatMap((day) => day.exercises.map((ex) => ({ ...ex, dayName: day.dayName })));
@@ -112,55 +111,12 @@ const ExerciseLibrary = () => {
       {/* Lista */}
       <div className="space-y-2">
         {filtered.map((ex) => (
-          <ExerciseRow key={ex.name} ex={ex} onOpen={setDetailExercise} />
+          <ExerciseRow key={ex.name} ex={ex} onOpen={(e) => navigate(`/exercise/${slugifyExercise(e.name)}`)} />
         ))}
         {filtered.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">Brak wyników dla „{searchQuery}”</p>
         )}
       </div>
-
-      {/* Szczegóły ćwiczenia (Dialog — zastąpi go osobna strona w Etapie D) */}
-      <Dialog open={!!detailExercise} onOpenChange={(open) => !open && setDetailExercise(null)}>
-        <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto rounded-3xl border-0 bg-surface-low p-0">
-          <div className="relative aspect-video w-full overflow-hidden rounded-t-3xl bg-surface-highest">
-            {(() => {
-              const animationUrl = getExerciseAnimationUrl(detailExercise?.name);
-              return animationUrl ? (
-                <video src={animationUrl} className="absolute inset-0 h-full w-full object-cover" autoPlay loop muted playsInline />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground/40">
-                  <Dumbbell className="h-14 w-14" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.12em]">Animacja wkrótce</span>
-                </div>
-              );
-            })()}
-          </div>
-          <div className="space-y-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-            <DialogHeader>
-              <DialogTitle className="pr-6 text-left font-heading text-3xl leading-tight">{detailExercise?.name}</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-wrap gap-2">
-              {detailExercise && (
-                <>
-                  <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold uppercase text-accent-foreground">{categoryLabels[detailExercise.category]}</span>
-                  <span className="rounded-full bg-surface-highest px-3 py-1 text-xs font-bold uppercase text-muted-foreground">{typeLabel(detailExercise)}</span>
-                </>
-              )}
-            </div>
-            {detailExercise?.instructions && detailExercise.instructions.length > 0 && (
-              <section className="space-y-4">
-                <h3 className="font-heading text-xl font-bold">Instrukcje</h3>
-                {detailExercise.instructions.map((inst, index) => (
-                  <div key={`${inst.title}-${index}`} className="rounded-2xl bg-surface-highest p-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">{inst.title.replace('💡 ', '')}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{inst.content}</p>
-                  </div>
-                ))}
-              </section>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
