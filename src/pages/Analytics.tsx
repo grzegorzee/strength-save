@@ -98,7 +98,7 @@ const SummaryTab = () => {
   const { cycles } = usePlanCycles(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('week');
   const [copied, setCopied] = useState(false);
@@ -150,7 +150,7 @@ const SummaryTab = () => {
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
 
-  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const periodPRs = useMemo(() => {
     // Nazwy ze wszystkich wykonanych ćwiczeń (snapshot/cykl/plan), nie tylko z aktualnego planu.
@@ -350,11 +350,11 @@ type WeightMode = 'max' | '1rm';
 
 const ChartsTab = () => {
   const { uid } = useCurrentUser();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
-  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
   const [subTab, setSubTab] = useState<ChartsSubTab>('workouts');
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [weightMode, setWeightMode] = useState<WeightMode>('max');

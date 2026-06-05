@@ -2,6 +2,9 @@
 // Generowane przez AI i weryfikowane. Klucz = dokładna nazwa ćwiczenia z exerciseLibrary.ts.
 // Dopóki ćwiczenie nie ma wpisu, ekran szczegółów korzysta z fallbacku (instructions + kategoria).
 
+import type { LanguageCode } from '@/i18n';
+import { exerciseDetailsEn } from './exercise-details-en';
+
 export type PrimaryMuscle =
   | 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'forearms'
   | 'quads' | 'hamstrings' | 'glutes' | 'calves' | 'core' | 'fullbody';
@@ -764,8 +767,9 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
 };
 
-export const getExerciseDetails = (name?: string): ExerciseDetails | null => {
+export const getExerciseDetails = (name?: string, lang: LanguageCode = 'pl'): ExerciseDetails | null => {
   if (!name) return null;
+  if (lang === 'en') return exerciseDetailsEn[name] ?? exerciseDetails[name] ?? null;
   return exerciseDetails[name] ?? null;
 };
 

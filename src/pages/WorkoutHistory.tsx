@@ -17,7 +17,7 @@ import type { WorkoutSession } from '@/types';
 
 const WorkoutHistory = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
   const { workouts, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -30,7 +30,7 @@ const WorkoutHistory = () => {
   const [compareIds, setCompareIds] = useState<string[]>([]);
 
   // Resolver radzi sobie z treningami ze starych planów (snapshot → cykl → plan → id).
-  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const filteredWorkouts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

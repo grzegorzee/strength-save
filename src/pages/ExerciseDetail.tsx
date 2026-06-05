@@ -4,6 +4,7 @@ import { exerciseLibrary, categoryLabels } from '@/data/exerciseLibrary';
 import { trainingPlan } from '@/data/trainingPlan';
 import { slugifyExercise, getExerciseAnimationUrl } from '@/lib/exercise-media';
 import { getExerciseDetails, categoryToPrimaryMuscle } from '@/data/exercise-details';
+import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
 import { MuscleMap } from '@/components/MuscleMap';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +22,7 @@ const ExerciseDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
 
   const exercise = useMemo(
     () => exerciseLibrary.find((e) => slugifyExercise(e.name) === slug),
@@ -44,11 +45,11 @@ const ExerciseDetail = () => {
     );
   }
 
-  const details = getExerciseDetails(exercise.name);
+  const details = getExerciseDetails(exercise.name, lang);
   const animationUrl = getExerciseAnimationUrl(exercise.name);
 
-  // Fallback: kroki z instrukcji planu, grupa z kategorii.
-  const steps = details?.steps ?? (planEx?.instructions ?? exercise.instructions ?? []).map((i) => i.content);
+  // Fallback: kroki z instrukcji planu, grupa z kategorii. Wskazowki lokalizujemy do jezyka UI.
+  const steps = details?.steps ?? (planEx?.instructions ?? exercise.instructions ?? []).map((i) => localizeExerciseInstruction(exercise.name, i.content, lang));
   const proTip = details?.proTip;
   const targetMuscles = details?.targetMuscles ?? [categoryLabels[exercise.category]];
   const primaryMuscle = details?.primaryMuscle ?? categoryToPrimaryMuscle[exercise.category] ?? 'fullbody';
@@ -91,7 +92,7 @@ const ExerciseDetail = () => {
         )}
         <div className="absolute bottom-4 left-5 right-5">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">{typeText} / {categoryLabels[exercise.category]}</p>
-          <h1 className="mt-1 font-heading text-display-md font-bold uppercase leading-[0.95] tracking-tight">{exercise.name}</h1>
+          <h1 className="mt-1 font-heading text-display-md font-bold uppercase leading-[0.95] tracking-tight">{localizeExerciseName(exercise.name, lang)}</h1>
         </div>
       </div>
 
@@ -149,7 +150,7 @@ const ExerciseDetail = () => {
       {/* Akcje — pływające na dole nad bottom navem */}
       <div className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex gap-3 px-5">
         <Button
-          onClick={() => toast({ title: t('detail.added'), description: t('detail.addedSoon', { name: exercise.name }) })}
+          onClick={() => toast({ title: t('detail.added'), description: t('detail.addedSoon', { name: localizeExerciseName(exercise.name, lang) }) })}
           className="kinetic-primary-button h-14 flex-1 text-base"
         >
           <Plus className="mr-2 h-5 w-5" /> {t('detail.addToWorkout')}

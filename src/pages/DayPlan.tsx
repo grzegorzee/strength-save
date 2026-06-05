@@ -15,10 +15,11 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 
 const DayPlan = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
   const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -253,7 +254,7 @@ const DayPlan = () => {
                     }
                   </Badge>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{exercise.name}</p>
+                    <p className="font-medium text-sm truncate">{localizeExerciseName(exercise.name, lang)}</p>
                     <p className="text-xs text-muted-foreground">{exercise.sets}</p>
                   </div>
                   {exercise.isSuperset && (

@@ -51,7 +51,7 @@ const WorkoutDay = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
   const {
     workouts,
@@ -63,7 +63,7 @@ const WorkoutDay = () => {
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, swapExercise } = useTrainingPlan(uid);
   const { getActiveCycle, cycles } = usePlanCycles(uid);
-  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const today = formatLocalDate(new Date());
   const targetDate = searchParams.get('date') || today;

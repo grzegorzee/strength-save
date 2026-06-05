@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronLeft, Check, RefreshCw, ListChecks, Repeat, PencilRuler } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import type { TranslationKey } from '@/i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -54,7 +55,7 @@ import { cn } from '@/lib/utils';
 import type { PlanCycle } from '@/types/cycles';
 
 const NewPlan = () => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fromCycleId = searchParams.get('fromCycle');
@@ -239,7 +240,7 @@ const NewPlan = () => {
               {day.exercises.map(ex => (
                 <div key={ex.id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div className="flex-1 min-w-0 mr-2">
-                    <p className="text-sm font-medium truncate">{ex.name}</p>
+                    <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
                     <p className="text-xs text-muted-foreground">{ex.sets}</p>
                   </div>
                   <Button variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => handleSwapExercise(day.id, ex.id, ex.name, ex.sets)}>

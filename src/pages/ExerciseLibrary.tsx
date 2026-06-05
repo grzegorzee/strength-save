@@ -7,6 +7,7 @@ import { trainingPlan } from '@/data/trainingPlan';
 import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
 import { Chip } from '@/components/kinetic/Chip';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 
 const categoryOrder: LibraryExercise['category'][] = [
   'chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves',
@@ -20,7 +21,7 @@ interface EnrichedExercise extends LibraryExercise {
 
 // Wiersz listy wg mockupu: miniatura + nazwa uppercase + chip kategorii + typ + swap-ikona.
 const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: EnrichedExercise) => void }) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const typeLabel = ex.isBodyweight
     ? t('exercises.type.bodyweight')
     : ex.type === 'compound' ? t('exercises.type.compound') : t('exercises.type.isolation');
@@ -39,7 +40,7 @@ const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: Enrich
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate font-heading text-base font-bold uppercase leading-tight tracking-tight">{ex.name}</h3>
+        <h3 className="truncate font-heading text-base font-bold uppercase leading-tight tracking-tight">{localizeExerciseName(ex.name, lang)}</h3>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-primary">
             {categoryLabels[ex.category]}
@@ -54,7 +55,7 @@ const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: Enrich
 
 const ExerciseLibrary = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<LibraryExercise['category'] | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -75,7 +76,10 @@ const ExerciseLibrary = () => {
     let list = enrichedExercises;
     if (activeCategory !== 'all') list = list.filter((e) => e.category === activeCategory);
     const q = searchQuery.toLowerCase().trim();
-    if (q) list = list.filter((e) => e.name.toLowerCase().includes(q));
+    // Wyszukiwanie po nazwie PL (kanonicznej) ORAZ po nazwie EN, niezaleznie od jezyka UI.
+    if (q) list = list.filter((e) =>
+      e.name.toLowerCase().includes(q) || localizeExerciseName(e.name, 'en').toLowerCase().includes(q),
+    );
     return list;
   }, [enrichedExercises, activeCategory, searchQuery]);
 

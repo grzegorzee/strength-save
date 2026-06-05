@@ -16,6 +16,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import {
   ArrowLeft,
   ArrowUp,
@@ -32,7 +33,7 @@ import {
 
 const PlanEditor = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { toast } = useToast();
   const { uid } = useCurrentUser();
   const {
@@ -65,7 +66,9 @@ const PlanEditor = () => {
   const [selectedCategory, setSelectedCategory] = useState<LibraryExercise['category'] | 'all'>('all');
 
   const filteredExercises = exerciseLibrary.filter(ex => {
-    const matchesSearch = searchQuery === '' || ex.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase();
+    // Wyszukiwanie po nazwie PL (kanonicznej) ORAZ po nazwie EN, niezaleznie od jezyka UI.
+    const matchesSearch = searchQuery === '' || ex.name.toLowerCase().includes(q) || localizeExerciseName(ex.name, 'en').toLowerCase().includes(q);
     const matchesCategory = selectedCategory === 'all' || ex.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -94,7 +97,7 @@ const PlanEditor = () => {
     });
 
     if (result.success) {
-      toast({ title: t('planeditor.addedTitle'), description: ex.name });
+      toast({ title: t('planeditor.addedTitle'), description: localizeExerciseName(ex.name, lang) });
       setAddDialog(null);
     } else {
       toast({ title: t('planeditor.error'), description: result.error, variant: 'destructive' });
@@ -200,7 +203,7 @@ const PlanEditor = () => {
               }}
             >
               <div>
-                <p className="font-medium text-sm">{ex.name}</p>
+                <p className="font-medium text-sm">{localizeExerciseName(ex.name, lang)}</p>
                 <p className="text-xs text-muted-foreground">
                   {categoryLabels[ex.category]} · {ex.type === 'compound' ? t('planeditor.compound') : t('planeditor.isolation')}
                 </p>
@@ -262,7 +265,7 @@ const PlanEditor = () => {
                   {idx + 1}
                 </Badge>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{exercise.name}</p>
+                  <p className="font-medium text-sm truncate">{localizeExerciseName(exercise.name, lang)}</p>
                   {editingSets?.dayId === day.id && editingSets?.exerciseId === exercise.id ? (
                     <div className="flex items-center gap-1 mt-1">
                       <Input

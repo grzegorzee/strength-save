@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 
 interface Props {
   cycle: PlanCycle;
@@ -14,7 +15,7 @@ interface Props {
 
 export const CycleDetail = ({ cycle, onBack }: Props) => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const isActive = cycle.status === 'active';
   const tonnageT = (cycle.stats.totalTonnage / 1000).toFixed(1);
 
@@ -130,7 +131,7 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
               <div className="space-y-0.5 pl-3 border-l-2 border-muted">
                 {day.exercises.map(ex => (
                   <div key={ex.id} className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">{ex.name}</span>
+                    <span className="text-muted-foreground">{localizeExerciseName(ex.name, lang)}</span>
                     <span className="text-muted-foreground">{ex.sets}</span>
                   </div>
                 ))}

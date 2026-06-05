@@ -129,14 +129,14 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const { activities: stravaActivities } = useStrava(uid, canUseStrava);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const completedDates = workouts
     .filter(w => w.completed)

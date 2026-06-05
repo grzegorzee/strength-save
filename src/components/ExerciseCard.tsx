@@ -10,6 +10,7 @@ import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getEx
 import { getExerciseAnimationUrl } from '@/lib/exercise-media';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 
 // ── Progression Badge sub-component ──
@@ -106,7 +107,8 @@ const ExerciseCardInner = ({
   onAskCoach,
   coachBusy = false,
 }: ExerciseCardProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
@@ -347,7 +349,7 @@ const ExerciseCardInner = ({
             onClick={() => animationUrl && setShowVideo(true)}
             disabled={!animationUrl}
             className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70 disabled:cursor-default"
-            aria-label={animationUrl ? t('card.showAnimation', { name: exercise.name }) : undefined}
+            aria-label={animationUrl ? t('card.showAnimation', { name: localizedName }) : undefined}
           >
             {animationUrl ? (
               <>
@@ -364,7 +366,7 @@ const ExerciseCardInner = ({
           </button>
 
           <div className="min-w-0">
-            <h3 className="font-bold text-[16px] leading-tight">{exercise.name}</h3>
+            <h3 className="font-bold text-[16px] leading-tight">{localizedName}</h3>
             <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
               <span className="text-sm font-medium text-muted-foreground">
                 {t('card.setsCount', { n: workingSets.length })}
@@ -399,7 +401,7 @@ const ExerciseCardInner = ({
         if (displayInstructions.length === 0) return null;
         return (
           <div className="mx-5 mt-4 text-sm text-muted-foreground/80 leading-relaxed font-medium">
-            {displayInstructions.map(inst => inst.content).join(' ')}
+            {displayInstructions.map(inst => localizeExerciseInstruction(exercise.name, inst.content, lang)).join(' ')}
           </div>
         );
       })()}
@@ -491,7 +493,7 @@ const ExerciseCardInner = ({
         <Dialog open={showVideo} onOpenChange={setShowVideo}>
           <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6">
             <DialogHeader>
-              <DialogTitle className="text-sm pr-6">{exercise.name}</DialogTitle>
+              <DialogTitle className="text-sm pr-6">{localizedName}</DialogTitle>
             </DialogHeader>
             <div className="relative w-full overflow-hidden rounded-lg" style={{ paddingBottom: '56.25%' }}>
               {showVideo && (

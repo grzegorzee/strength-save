@@ -24,7 +24,7 @@ interface ExerciseRecord {
 }
 
 const Achievements = () => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
   const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -35,7 +35,7 @@ const Achievements = () => {
   const totalWeight = getTotalWeight();
   const completedWorkouts = getCompletedWorkoutsCount();
 
-  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   // Rekordy budujemy z SAMYCH treningów (nie z aktualnego planu), żeby ćwiczenia ze starych
   // planów nie znikały po zmianie planu. Nazwy resolwuje resolver (snapshot → cykl → plan).

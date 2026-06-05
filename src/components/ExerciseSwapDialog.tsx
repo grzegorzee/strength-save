@@ -5,6 +5,7 @@ import type { ExerciseReplacement } from '@/types';
 import { Play, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 
 interface ExerciseSwapDialogProps {
   open: boolean;
@@ -25,7 +26,7 @@ export const ExerciseSwapDialog = ({
   originalSets,
   onSwap,
 }: ExerciseSwapDialogProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const alternatives = category
     ? exerciseLibrary.filter(
         e =>
@@ -74,7 +75,7 @@ export const ExerciseSwapDialog = ({
                   onClick={() => handleSelect(exercise)}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{exercise.name}</p>
+                    <p className="font-medium text-sm truncate">{localizeExerciseName(exercise.name, lang)}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <Badge variant="outline" className="text-xs">
                         {exercise.type === 'compound' ? t('comp.swap.compound') : t('comp.swap.isolation')}

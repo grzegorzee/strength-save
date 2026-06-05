@@ -2,6 +2,8 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import { trainingPlan as defaultPlan } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
+import { localizeExerciseName } from '@/data/exercise-i18n';
+import type { LanguageCode } from '@/i18n';
 
 // Resolver nazw ćwiczeń i etykiet dni dla historycznych treningów.
 //
@@ -42,6 +44,7 @@ export const formatUnknownDayLabel = (dayId: string): { dayName: string; focus: 
 export const buildWorkoutResolver = (
   trainingPlan: TrainingDay[],
   cycles: PlanCycle[] = [],
+  lang: LanguageCode = 'pl',
 ): WorkoutResolver => {
   const planNames = buildNameMap(trainingPlan);
   const planDays = buildDayMap(trainingPlan);
@@ -66,7 +69,7 @@ export const buildWorkoutResolver = (
     );
   };
 
-  const resolveExerciseName = (workout: WorkoutSession, exerciseId: string): string => {
+  const resolveRawExerciseName = (workout: WorkoutSession, exerciseId: string): string => {
     const snapshot = workout.exercises.find(e => e.exerciseId === exerciseId)?.name;
     if (snapshot) return snapshot;
 
@@ -76,6 +79,10 @@ export const buildWorkoutResolver = (
 
     return planNames.get(exerciseId) || defaultNames.get(exerciseId) || formatUnknownExerciseName(exerciseId);
   };
+
+  // Kanoniczna nazwa PL z mapy/snapshotu -> nazwa w jezyku UI (EN tylko gdy mamy tlumaczenie).
+  const resolveExerciseName = (workout: WorkoutSession, exerciseId: string): string =>
+    localizeExerciseName(resolveRawExerciseName(workout, exerciseId), lang);
 
   const resolveDayLabel = (workout: WorkoutSession): { dayName: string; focus: string } => {
     if (workout.dayName) return { dayName: workout.dayName, focus: workout.dayFocus || '' };

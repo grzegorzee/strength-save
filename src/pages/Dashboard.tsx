@@ -88,7 +88,7 @@ const DashboardStatCard = ({
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
   const {
     workouts,
@@ -121,7 +121,7 @@ const Dashboard = () => {
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
   const activeCycle = useMemo(() => cycles.find(cycle => cycle.status === 'active') ?? null, [cycles]);
-  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles), [trainingPlan, cycles]);
+  const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
   const workoutToDay = useMemo(() => (workout: typeof workouts[number]): TrainingDay => {
     const label = resolver.resolveDayLabel(workout);
     return {

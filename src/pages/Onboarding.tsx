@@ -7,6 +7,7 @@ import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw, Calendar } from 'luci
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import type { TranslationKey } from '@/i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -43,7 +44,7 @@ const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
 const weekdayLong = (value: Weekday) => WEEKDAYS.find(w => w.value === value)?.long ?? value;
 
 const Onboarding = () => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { uid, profile } = useCurrentUser();
   const { savePlan } = useTrainingPlan(uid);
   const { createActiveCycle } = usePlanCycles(uid);
@@ -217,7 +218,7 @@ const Onboarding = () => {
                 {day.exercises.map(ex => (
                   <div key={ex.id} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div className="flex-1 min-w-0 mr-2">
-                      <p className="text-sm font-medium truncate">{ex.name}</p>
+                      <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
                       <p className="text-xs text-muted-foreground">{ex.sets}</p>
                     </div>
                     <Button
