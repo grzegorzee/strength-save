@@ -1,8 +1,10 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, Timer as TimerIcon } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak } from '@/lib/summary-utils';
+import { StatCard } from '@/components/kinetic/StatCard';
+import { useUnit } from '@/contexts/UnitContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -84,6 +86,8 @@ const WorkoutDay = () => {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showWarmup, setShowWarmup] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const { fmt } = useUnit();
 
   // Exercise swap (search library, no AI)
   const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
@@ -113,6 +117,30 @@ const WorkoutDay = () => {
   useEffect(() => { skippedExercisesRef.current = skippedExercises; }, [skippedExercises]);
   useEffect(() => { activeDraftRef.current = activeDraft; }, [activeDraft]);
   useEffect(() => { queuedDraftRef.current = queuedDraft; }, [queuedDraft]);
+
+  // Timer sesji (mockup [17]) — liczy od startedAt aktywnego treningu.
+  useEffect(() => {
+    if (sessionId === null || isCompleted || !activeDraft?.startedAt) return;
+    const start = activeDraft.startedAt;
+    const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - start) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [sessionId, isCompleted, activeDraft?.startedAt]);
+
+  // Tonaż bieżącej sesji (kg) — serie ukończone, bez rozgrzewki.
+  const sessionVolumeKg = useMemo(
+    () => Object.values(exerciseSets).flat().reduce((t, s) => t + (s.completed && !s.isWarmup ? s.reps * s.weight : 0), 0),
+    [exerciseSets],
+  );
+
+  const fmtDuration = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+  };
 
   // Snapshot etykiet bieżącego dnia (nazwy ćwiczeń + dnia) zapisywany wraz z treningiem,
   // żeby historia była odporna na przyszłe zmiany planu.
@@ -1418,6 +1446,20 @@ const WorkoutDay = () => {
         )}
         {(!isWorkoutStarted || isCompleted) && <span />}
       </div>
+
+      {/* Timer sesji + tonaż/czas (mockup [17]) */}
+      {isWorkoutStarted && !isCompleted && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-center gap-2 text-primary">
+            <TimerIcon className="h-5 w-5" />
+            <span className="font-heading text-3xl font-bold tabular-nums tracking-tight">{fmtDuration(elapsedSec)}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Tonaż" value={fmt(sessionVolumeKg)} accent="secondary" />
+            <StatCard label="Czas" value={fmtDuration(elapsedSec)} accent="primary" />
+          </div>
+        </div>
+      )}
 
       <ErrorBanner />
 
