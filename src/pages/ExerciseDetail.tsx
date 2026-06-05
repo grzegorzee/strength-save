@@ -7,6 +7,7 @@ import { getExerciseDetails, categoryToPrimaryMuscle } from '@/data/exercise-det
 import { MuscleMap } from '@/components/MuscleMap';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, Play, Bookmark, Dumbbell, Plus } from 'lucide-react';
 
@@ -20,6 +21,7 @@ const ExerciseDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const exercise = useMemo(
     () => exerciseLibrary.find((e) => slugifyExercise(e.name) === slug),
@@ -96,7 +98,7 @@ const ExerciseDetail = () => {
         {steps.length > 0 && (
           <section>
             <h2 className="mb-4 flex items-center gap-3 font-heading text-headline-lg font-bold">
-              <span className="h-0.5 w-6 bg-primary" /> Instrukcje
+              <span className="h-0.5 w-6 bg-primary" /> {t('detail.instructions')}
             </h2>
             <ol className="space-y-4">
               {steps.map((step, i) => (
@@ -112,14 +114,14 @@ const ExerciseDetail = () => {
         {/* Pro tip */}
         {proTip && (
           <div className="rounded-xl bg-surface-low p-4 ring-1 ring-accent/20">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Pro Tip</p>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">{t('detail.proTip')}</p>
             <p className="mt-2 text-sm italic leading-relaxed text-muted-foreground">{proTip}</p>
           </div>
         )}
 
         {/* Target muscles */}
         <section className="space-y-4">
-          <h2 className="font-heading text-lg font-bold">Zaangażowane mięśnie</h2>
+          <h2 className="font-heading text-lg font-bold">{t('detail.muscles')}</h2>
           <div className="flex flex-wrap gap-2">
             {targetMuscles.map((m) => (
               <span key={m} className="rounded-full bg-surface-highest px-3 py-1.5 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">{m}</span>
@@ -131,7 +133,7 @@ const ExerciseDetail = () => {
         {/* Equipment */}
         {equipment && (
           <section className="space-y-3">
-            <h2 className="font-heading text-lg font-bold">Sprzęt</h2>
+            <h2 className="font-heading text-lg font-bold">{t('detail.equipment')}</h2>
             <div className="flex items-center gap-3 rounded-xl bg-surface-low p-4">
               <span className="flex h-10 w-10 items-center justify-center rounded-md bg-surface-highest">
                 <Dumbbell className="h-5 w-5 text-muted-foreground" />
@@ -148,7 +150,7 @@ const ExerciseDetail = () => {
           onClick={() => toast({ title: 'Dodano', description: `${exercise.name} — dodawanie do treningu pojawi się wkrótce.` })}
           className="kinetic-primary-button h-14 flex-1 text-base"
         >
-          <Plus className="mr-2 h-5 w-5" /> Dodaj do treningu
+          <Plus className="mr-2 h-5 w-5" /> {t('detail.addToWorkout')}
         </Button>
         <button
           type="button"

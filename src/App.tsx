@@ -12,6 +12,7 @@ import { AdminRoute } from "./components/AdminRoute";
 import { useAuth } from "./hooks/useAuth";
 import { UserProvider, useCurrentUser } from "./contexts/UserContext";
 import { UnitProvider } from "./contexts/UnitContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
 import { Loader2, ShieldOff } from "lucide-react";
@@ -209,7 +210,8 @@ const AuthenticatedApp = () => {
 const App = () => (
   <ErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <UnitProvider>
+      <LanguageProvider>
+       <UnitProvider>
         <QueryClientProvider client={queryClient}>
           <TooltipProvider>
             <Toaster />
@@ -218,7 +220,8 @@ const App = () => (
             <AuthenticatedApp />
           </TooltipProvider>
         </QueryClientProvider>
-      </UnitProvider>
+       </UnitProvider>
+      </LanguageProvider>
     </ThemeProvider>
   </ErrorBoundary>
 );

@@ -6,6 +6,7 @@ import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/ex
 import { trainingPlan } from '@/data/trainingPlan';
 import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
 import { Chip } from '@/components/kinetic/Chip';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const categoryOrder: LibraryExercise['category'][] = [
   'chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves',
@@ -52,6 +53,7 @@ const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: Enrich
 
 const ExerciseLibrary = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<LibraryExercise['category'] | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -82,7 +84,7 @@ const ExerciseLibrary = () => {
       <div className="relative">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Szukaj ćwiczenia..."
+          placeholder={t('exercises.search')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="h-12 rounded-full border-0 bg-surface-lowest pl-11"
@@ -91,9 +93,9 @@ const ExerciseLibrary = () => {
 
       {/* Muscle groups — poziome chipy */}
       <div className="space-y-3">
-        <p className="text-label-md font-bold uppercase tracking-[0.12em] text-primary">Grupy mięśniowe</p>
+        <p className="text-label-md font-bold uppercase tracking-[0.12em] text-primary">{t('exercises.muscleGroups')}</p>
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <Chip active={activeCategory === 'all'} onClick={() => setActiveCategory('all')}>Wszystkie</Chip>
+          <Chip active={activeCategory === 'all'} onClick={() => setActiveCategory('all')}>{t('exercises.all')}</Chip>
           {categoryOrder.map((cat) => (
             <Chip key={cat} active={activeCategory === cat} onClick={() => setActiveCategory(cat)}>
               {categoryLabels[cat]}
@@ -104,8 +106,8 @@ const ExerciseLibrary = () => {
 
       {/* Tytuł + licznik */}
       <div className="flex items-end justify-between">
-        <h2 className="font-heading text-headline-lg font-bold uppercase italic tracking-tight">Ćwiczenia</h2>
-        <span className="text-xs font-bold uppercase tracking-[0.12em] text-accent">{filtered.length} wyników</span>
+        <h2 className="font-heading text-headline-lg font-bold uppercase italic tracking-tight">{t('exercises.title')}</h2>
+        <span className="text-xs font-bold uppercase tracking-[0.12em] text-accent">{filtered.length} {t('common.results')}</span>
       </div>
 
       {/* Lista */}
@@ -114,7 +116,7 @@ const ExerciseLibrary = () => {
           <ExerciseRow key={ex.name} ex={ex} onOpen={(e) => navigate(`/exercise/${slugifyExercise(e.name)}`)} />
         ))}
         {filtered.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">Brak wyników dla „{searchQuery}”</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">{t('exercises.noResults')} „{searchQuery}”</p>
         )}
       </div>
     </div>

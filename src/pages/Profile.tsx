@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { useTheme } from 'next-themes';
+import { useTranslation } from '@/contexts/LanguageContext';
+import type { LanguageCode } from '@/i18n';
 import { computeTier } from '@/lib/tier';
 import { SectionCard } from '@/components/kinetic/SectionCard';
 import { SettingRow } from '@/components/kinetic/SettingRow';
@@ -30,7 +32,6 @@ import {
 
 const REST_TIMER_KEY = 'rest-timer-default';
 const NOTIFICATIONS_KEY = 'notifications-enabled';
-const LANGUAGE_KEY = 'app-language';
 const REST_OPTIONS = ['30', '45', '60', '90', '120', '180'];
 
 const Profile = () => {
@@ -41,6 +42,7 @@ const Profile = () => {
   const { logout, resetPassword } = useAuth();
   const { workouts } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
+  const { t, lang, setLang } = useTranslation();
 
   const completedCount = workouts.filter((w) => w.completed).length;
   const tier = computeTier(completedCount);
@@ -51,10 +53,6 @@ const Profile = () => {
   const [notifications, setNotifications] = useState(() => {
     try { return localStorage.getItem(NOTIFICATIONS_KEY) !== 'false'; } catch { return true; }
   });
-  const [language, setLanguage] = useState(() => {
-    try { return localStorage.getItem(LANGUAGE_KEY) || 'pl'; } catch { return 'pl'; }
-  });
-
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
   const [savingName, setSavingName] = useState(false);
@@ -66,9 +64,8 @@ const Profile = () => {
   const handleRestChange = (v: string) => { setRestTimer(v); persist(REST_TIMER_KEY, v); };
   const handleNotifications = (v: boolean) => { setNotifications(v); persist(NOTIFICATIONS_KEY, String(v)); };
   const handleLanguage = (v: string) => {
-    setLanguage(v);
-    persist(LANGUAGE_KEY, v);
-    toast({ title: 'Język zapisany', description: 'Pełne tłumaczenie interfejsu pojawi się wkrótce.' });
+    setLang(v as LanguageCode);
+    toast({ title: t('profile.langSaved') });
   };
 
   const handleSaveName = async () => {
@@ -119,17 +116,17 @@ const Profile = () => {
       </div>
 
       {/* ACCOUNT */}
-      <SectionCard label="Konto">
-        <SettingRow icon={User} label="Edytuj profil" onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
-        <SettingRow icon={Lock} label="Zmień hasło" onClick={handleChangePassword} />
-        <SettingRow icon={ShieldCheck} label="Prywatność" onClick={() => navigate('/settings')} />
+      <SectionCard label={t('profile.section.account')}>
+        <SettingRow icon={User} label={t('profile.account.edit')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
+        <SettingRow icon={Lock} label={t('profile.account.password')} onClick={handleChangePassword} />
+        <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings')} />
       </SectionCard>
 
       {/* WORKOUT PREFERENCES */}
-      <SectionCard label="Preferencje treningu" labelAccent="secondary">
+      <SectionCard label={t('profile.section.preferences')} labelAccent="secondary">
         <SettingRow
           icon={Timer}
-          label="Domyślny czas odpoczynku"
+          label={t('profile.pref.restTimer')}
           right={(
             <Select value={restTimer} onValueChange={handleRestChange}>
               <SelectTrigger className="h-9 w-24 border-0 bg-surface-highest"><SelectValue /></SelectTrigger>
@@ -141,7 +138,7 @@ const Profile = () => {
         />
         <SettingRow
           icon={Scale}
-          label="Jednostki"
+          label={t('profile.pref.units')}
           right={(
             <div className="flex gap-1 rounded-full bg-surface-highest p-1">
               {(['kg', 'lbs'] as const).map((u) => (
@@ -163,14 +160,14 @@ const Profile = () => {
       </SectionCard>
 
       {/* APP SETTINGS */}
-      <SectionCard label="Aplikacja">
-        <SettingRow icon={Bell} label="Powiadomienia" right={<Switch checked={notifications} onCheckedChange={handleNotifications} />} />
-        <SettingRow icon={Moon} label="Tryb ciemny" right={<Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} />} />
+      <SectionCard label={t('profile.section.app')}>
+        <SettingRow icon={Bell} label={t('profile.app.notifications')} right={<Switch checked={notifications} onCheckedChange={handleNotifications} />} />
+        <SettingRow icon={Moon} label={t('profile.app.darkMode')} right={<Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} />} />
         <SettingRow
           icon={Globe}
-          label="Język"
+          label={t('profile.app.language')}
           right={(
-            <Select value={language} onValueChange={handleLanguage}>
+            <Select value={lang} onValueChange={handleLanguage}>
               <SelectTrigger className="h-9 w-28 border-0 bg-surface-highest"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pl">Polski</SelectItem>
@@ -182,11 +179,11 @@ const Profile = () => {
       </SectionCard>
 
       {/* SUPPORT */}
-      <SectionCard label="Wsparcie">
-        <SettingRow icon={SlidersHorizontal} label="Ustawienia zaawansowane" onClick={() => navigate('/settings')} />
-        <SettingRow icon={HelpCircle} label="Centrum pomocy" onClick={() => window.open('https://grzegorzee.github.io/strength-save/', '_blank')} />
-        <SettingRow icon={Mail} label="Kontakt" onClick={() => { window.location.href = 'mailto:kontakt@gjasionowicz.pl'; }} />
-        <SettingRow icon={Info} label="O aplikacji" onClick={() => toast({ title: 'FitTracker', description: 'Aplikacja do śledzenia treningów siłowych.' })} />
+      <SectionCard label={t('profile.section.support')}>
+        <SettingRow icon={SlidersHorizontal} label={t('profile.support.advanced')} onClick={() => navigate('/settings')} />
+        <SettingRow icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://grzegorzee.github.io/strength-save/', '_blank')} />
+        <SettingRow icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:kontakt@gjasionowicz.pl'; }} />
+        <SettingRow icon={Info} label={t('profile.support.about')} onClick={() => toast({ title: 'FitTracker', description: 'Aplikacja do śledzenia treningów siłowych.' })} />
       </SectionCard>
 
       <Button
@@ -194,18 +191,18 @@ const Profile = () => {
         onClick={logout}
         className="h-12 w-full rounded-xl border-destructive/30 bg-destructive/5 font-bold uppercase tracking-[0.12em] text-destructive hover:bg-destructive/10"
       >
-        <LogOut className="mr-2 h-4 w-4" /> Wyloguj
+        <LogOut className="mr-2 h-4 w-4" /> {t('profile.logout')}
       </Button>
 
       {/* Edit profile dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="rounded-xl border-0 bg-surface-low">
           <DialogHeader>
-            <DialogTitle className="font-heading uppercase">Edytuj profil</DialogTitle>
+            <DialogTitle className="font-heading uppercase">{t('profile.editTitle')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <label className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">Nazwa</label>
-            <Input value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder="Twoja nazwa" />
+            <label className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">{t('profile.nameLabel')}</label>
+            <Input value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder={t('profile.namePlaceholder')} />
           </div>
           <DialogFooter>
             <Button onClick={handleSaveName} disabled={savingName || !nameInput.trim()} className="kinetic-primary-button">

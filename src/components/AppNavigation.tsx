@@ -13,6 +13,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface AppNavigationProps {
   isOpen?: boolean;
@@ -21,15 +22,15 @@ interface AppNavigationProps {
 
 const navItems = [
   // Pierwsze 5 = mobilny bottom nav (mockup): Dashboard / Historia / Plan / Ćwiczenia / Profil
-  { to: '/', icon: Home, label: 'Dashboard' },
-  { to: '/history', icon: ScrollText, label: 'Historia' },
-  { to: '/plan', icon: Calendar, label: 'Plan' },
-  { to: '/exercises', icon: Library, label: 'Ćwiczenia' },
-  { to: '/profile', icon: User, label: 'Profil' },
+  { to: '/', icon: Home, labelKey: 'nav.dashboard' as const },
+  { to: '/history', icon: ScrollText, labelKey: 'nav.history' as const },
+  { to: '/plan', icon: Calendar, labelKey: 'nav.plan' as const },
+  { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
+  { to: '/profile', icon: User, labelKey: 'nav.profile' as const },
   // Pozostałe — sidebar (desktop) + menu mobilne
-  { to: '/analytics', icon: BarChart3, label: 'Analityka' },
-  { to: '/achievements', icon: Trophy, label: 'Osiągnięcia' },
-  { to: '/cycles', icon: History, label: 'Cykle' },
+  { to: '/analytics', icon: BarChart3, labelKey: 'nav.analytics' as const },
+  { to: '/achievements', icon: Trophy, labelKey: 'nav.achievements' as const },
+  { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
 ];
 
 const STORAGE_KEY = 'sidebar-collapsed';
@@ -38,6 +39,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
   const navigate = useNavigate();
   const { profile, isAdmin } = useCurrentUser();
   const { logout } = useAuth();
+  const { t } = useTranslation();
 
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -131,7 +133,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                   )}
                 >
                   <item.icon className="h-4.5 w-4.5 shrink-0" />
-                  <span className={cn(collapsed && "md:hidden")}>{item.label}</span>
+                  <span className={cn(collapsed && "md:hidden")}>{t(item.labelKey)}</span>
                 </NavLink>
               );
 
@@ -142,7 +144,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                       {link}
                     </TooltipTrigger>
                     <TooltipContent side="right" className="hidden md:block">
-                      {item.label}
+                      {t(item.labelKey)}
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -218,7 +220,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
             )}
           >
             <item.icon className="h-4.5 w-4.5" />
-            <span>{item.label.split(' ')[0]}</span>
+            <span>{t(item.labelKey).split(' ')[0]}</span>
           </NavLink>
         ))}
       </nav>
