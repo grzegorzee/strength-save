@@ -59,6 +59,16 @@ All colors MUST be HSL.
     --ec-warmup-gold: 43 70% 40%;
     --ec-warmup-gold-bg: 43 70% 40% / 0.06;
     --ec-warmup-gold-border: 43 70% 40% / 0.2;
+
+    /* Kinetic Precision — surface hierarchy (light) */
+    --surface: 210 20% 98%;
+    --surface-lowest: 0 0% 100%;
+    --surface-low: 210 20% 96%;
+    --surface-container: 0 0% 100%;
+    --surface-high: 210 20% 94%;
+    --surface-highest: 210 20% 90%;
+    --primary-light: 73 100% 89%;
+    --outline-variant: 214 20% 80%;
   }
 
   .dark {
@@ -103,6 +113,16 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 73 100% 96%;
     --sidebar-border: 0 0% 15%;
     --sidebar-ring: 73 97% 56%;
+
+    /* Kinetic Precision — surface hierarchy (DESIGN.md "The Void and The Pulse") */
+    --surface: 0 0% 5.5%;            /* #0e0e0e The Void */
+    --surface-lowest: 0 0% 4%;       /* najgłębsze tło / sunken inputs */
+    --surface-low: 0 0% 7.5%;        /* #131313 sekcje */
+    --surface-container: 0 0% 10%;   /* karty */
+    --surface-high: 0 0% 12.5%;      /* karty interaktywne */
+    --surface-highest: 0 0% 15%;     /* #262626 top-level / chip nieaktywny */
+    --primary-light: 73 100% 89%;    /* #f4ffc9 górny kolor "forged" gradientu */
+    --outline-variant: 60 2% 28%;    /* #484847 ghost border (używać @ ~15%) */
 
     /* ExerciseCard v3 — dark mode */
     --ec-set-number: 230 20% 20%;

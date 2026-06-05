@@ -18,7 +18,24 @@ export default {
         heading: ['Space Grotesk', 'sans-serif'],
         body: ['Inter', 'sans-serif'],
       },
+      fontSize: {
+        // Kinetic Precision editorial scale (DESIGN.md §3)
+        'display-lg': ['3.5rem', { lineHeight: '1', letterSpacing: '-0.02em' }],
+        'display-md': ['2.75rem', { lineHeight: '1.05', letterSpacing: '-0.02em' }],
+        'headline-lg': ['2rem', { lineHeight: '1.1', letterSpacing: '-0.01em' }],
+        'label-md': ['0.75rem', { lineHeight: '1', letterSpacing: '0.08em' }],
+      },
       colors: {
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          lowest: "hsl(var(--surface-lowest))",
+          low: "hsl(var(--surface-low))",
+          container: "hsl(var(--surface-container))",
+          high: "hsl(var(--surface-high))",
+          highest: "hsl(var(--surface-highest))",
+        },
+        "outline-variant": "hsl(var(--outline-variant))",
+        "primary-light": "hsl(var(--primary-light))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -70,6 +87,7 @@ export default {
         },
       },
       borderRadius: {
+        xl: "1.5rem",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
