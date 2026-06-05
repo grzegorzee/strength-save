@@ -7,6 +7,7 @@ import { Route } from 'lucide-react';
 import { tooltipStyle } from '@/lib/chart-config';
 import { computeWeeklyKm } from '@/lib/strava-utils';
 import type { StravaActivity } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface WeeklyKmChartProps {
   activities: StravaActivity[];
@@ -14,6 +15,7 @@ interface WeeklyKmChartProps {
 }
 
 export const WeeklyKmChart = ({ activities, referenceDate }: WeeklyKmChartProps) => {
+  const { t } = useTranslation();
   const data = useMemo(() => computeWeeklyKm(activities, 12, referenceDate), [activities, referenceDate]);
 
   if (!data.some((w) => w.km > 0)) return null;
@@ -23,7 +25,7 @@ export const WeeklyKmChart = ({ activities, referenceDate }: WeeklyKmChartProps)
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Route className="h-4 w-4 text-orange-500" />
-          Kilometry / tydzień
+          {t('strava.kmPerWeek')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -32,7 +34,7 @@ export const WeeklyKmChart = ({ activities, referenceDate }: WeeklyKmChartProps)
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
             <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" km" />
-            <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} km`, 'Dystans']} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} km`, t('strava.distance')]} />
             <Bar dataKey="km" name="km" fill="#f97316" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>

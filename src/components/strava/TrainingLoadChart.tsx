@@ -16,6 +16,7 @@ import { Activity } from 'lucide-react';
 import { computeDailyLoad, computeFitnessFatigue } from '@/lib/training-load';
 import { tooltipStyle } from '@/lib/chart-config';
 import type { StravaActivity } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface Props {
   activities: StravaActivity[];
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
+  const { t } = useTranslation();
   const data = useMemo(() => {
     const maxHR = estimatedMaxHR || 190;
     const daily = computeDailyLoad(activities, 60, maxHR);
@@ -35,9 +37,9 @@ export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
 
   const chartData = data.map(d => ({
     date: new Date(d.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' }),
-    Fitness: d.ctl,
-    'Zmęczenie': d.atl,
-    Forma: d.tsb,
+    fitness: d.ctl,
+    fatigue: d.atl,
+    form: d.tsb,
   }));
 
   return (
@@ -45,9 +47,9 @@ export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Activity className="h-5 w-5 text-blue-500" />
-          Training Load
+          {t('strava.trainingLoad')}
         </CardTitle>
-        <CardDescription>Pozytywna forma = gotowość do wyścigu</CardDescription>
+        <CardDescription>{t('strava.trainingLoadDesc')}</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={250}>
@@ -65,7 +67,8 @@ export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
             <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
             <Area
               type="monotone"
-              dataKey="Fitness"
+              dataKey="fitness"
+              name={t('strava.fitness')}
               stroke="#3b82f6"
               fill="#3b82f6"
               fillOpacity={0.15}
@@ -73,14 +76,16 @@ export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
             />
             <Line
               type="monotone"
-              dataKey="Zmęczenie"
+              dataKey="fatigue"
+              name={t('strava.fatigue')}
               stroke="#ef4444"
               strokeWidth={2}
               dot={false}
             />
             <Line
               type="monotone"
-              dataKey="Forma"
+              dataKey="form"
+              name={t('strava.form')}
               stroke="#22c55e"
               strokeWidth={2}
               strokeDasharray="5 5"

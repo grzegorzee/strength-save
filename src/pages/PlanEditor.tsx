@@ -15,6 +15,7 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/contexts/LanguageContext';
 import {
   ArrowLeft,
   ArrowUp,
@@ -31,6 +32,7 @@ import {
 
 const PlanEditor = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { uid } = useCurrentUser();
   const {
@@ -72,10 +74,10 @@ const PlanEditor = () => {
     if (!swapDialog) return;
     const result = await swapExercise(swapDialog.dayId, swapDialog.exerciseId, newName);
     if (result.success) {
-      toast({ title: 'Zamieniono!', description: `Nowe ćwiczenie: ${newName}` });
+      toast({ title: t('planeditor.swappedTitle'), description: t('planeditor.swappedDesc', { name: newName }) });
       setSwapDialog(null);
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('planeditor.error'), description: result.error, variant: 'destructive' });
     }
   };
 
@@ -92,19 +94,19 @@ const PlanEditor = () => {
     });
 
     if (result.success) {
-      toast({ title: 'Dodano!', description: ex.name });
+      toast({ title: t('planeditor.addedTitle'), description: ex.name });
       setAddDialog(null);
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('planeditor.error'), description: result.error, variant: 'destructive' });
     }
   };
 
   const handleRemove = async (dayId: string, exerciseId: string, name: string) => {
     const result = await removeExercise(dayId, exerciseId);
     if (result.success) {
-      toast({ title: 'Usunięto', description: name });
+      toast({ title: t('planeditor.removedTitle'), description: name });
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('planeditor.error'), description: result.error, variant: 'destructive' });
     }
   };
 
@@ -118,23 +120,23 @@ const PlanEditor = () => {
     if (result.success) {
       setEditingSets(null);
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('planeditor.error'), description: result.error, variant: 'destructive' });
     }
   };
 
   const handleReset = async () => {
     const result = await resetToDefault();
     if (result.success) {
-      toast({ title: 'Zresetowano!', description: 'Plan przywrócony do domyślnego.' });
+      toast({ title: t('planeditor.resetTitle'), description: t('planeditor.resetDesc') });
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('planeditor.error'), description: result.error, variant: 'destructive' });
     }
   };
 
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+        <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -143,11 +145,11 @@ const PlanEditor = () => {
     <Dialog open={!!swapDialog || !!addDialog} onOpenChange={() => { setSwapDialog(null); setAddDialog(null); setSearchQuery(''); setSelectedCategory('all'); }}>
       <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{swapDialog ? 'Zamień ćwiczenie' : 'Dodaj ćwiczenie'}</DialogTitle>
+          <DialogTitle>{swapDialog ? t('planeditor.swapExercise') : t('planeditor.addExercise')}</DialogTitle>
           <DialogDescription>
             {swapDialog
-              ? `Zamieniasz: ${swapDialog.exerciseName}`
-              : 'Wybierz ćwiczenie z biblioteki'}
+              ? t('planeditor.swappingExercise', { name: swapDialog.exerciseName })
+              : t('planeditor.pickFromLibrary')}
           </DialogDescription>
         </DialogHeader>
 
@@ -155,7 +157,7 @@ const PlanEditor = () => {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Szukaj ćwiczenia..."
+            placeholder={t('exercises.search')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -169,7 +171,7 @@ const PlanEditor = () => {
             className="cursor-pointer text-xs"
             onClick={() => setSelectedCategory('all')}
           >
-            Wszystkie
+            {t('exercises.all')}
           </Badge>
           {(Object.entries(categoryLabels) as [LibraryExercise['category'], string][]).map(([key, label]) => (
             <Badge
@@ -200,14 +202,14 @@ const PlanEditor = () => {
               <div>
                 <p className="font-medium text-sm">{ex.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {categoryLabels[ex.category]} · {ex.type === 'compound' ? 'Złożone' : 'Izolacja'}
+                  {categoryLabels[ex.category]} · {ex.type === 'compound' ? t('planeditor.compound') : t('planeditor.isolation')}
                 </p>
               </div>
             </button>
           ))}
           {filteredExercises.length === 0 && (
             <p className="text-center text-muted-foreground py-4 text-sm">
-              Nie znaleziono ćwiczeń
+              {t('planeditor.noExercisesFound')}
             </p>
           )}
         </div>
@@ -223,15 +225,15 @@ const PlanEditor = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Edytuj plan</h1>
+            <h1 className="text-2xl font-bold">{t('planeditor.title')}</h1>
             {isCustom && (
-              <p className="text-xs text-muted-foreground">Plan zmodyfikowany</p>
+              <p className="text-xs text-muted-foreground">{t('planeditor.modified')}</p>
             )}
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={handleReset}>
           <RefreshCcw className="h-4 w-4 mr-2" />
-          Reset
+          {t('planeditor.reset')}
         </Button>
       </div>
 
@@ -246,7 +248,7 @@ const PlanEditor = () => {
                 onClick={() => { setAddDialog(day.id); setSearchQuery(''); setSelectedCategory('all'); }}
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Dodaj
+                {t('planeditor.add')}
               </Button>
             </div>
           </CardHeader>

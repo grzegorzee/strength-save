@@ -14,6 +14,7 @@ import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/ex
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { ChevronLeft, Plus, Trash2, Search, Check, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
   { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
@@ -42,6 +43,7 @@ interface PlanBuilderProps {
 // Ręczny kreator planu treningowego od zera (bez AI). Użytkownik definiuje dni
 // (dzień tygodnia + focus), dodaje ćwiczenia z biblioteki i ustawia serie.
 export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, onCancel }: PlanBuilderProps) => {
+  const { t } = useTranslation();
   const [days, setDays] = useState<TrainingDay[]>(() =>
     initialDays && initialDays.length > 0
       ? initialDays.map(d => ({ ...d, id: nextId('scratch-d') }))
@@ -137,8 +139,8 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl font-bold">Twój własny plan</h1>
-          <p className="text-sm text-muted-foreground">Dodaj dni, ćwiczenia z biblioteki i ustaw serie.</p>
+          <h1 className="text-xl font-bold">{t('planbuilder.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('planbuilder.subtitle')}</p>
         </div>
       </div>
 
@@ -148,7 +150,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
           <Card key={day.id}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base">Dzień {i + 1}</CardTitle>
+                <CardTitle className="text-base">{t('planbuilder.day', { n: i + 1 })}</CardTitle>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeDay(day.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -172,7 +174,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
               </div>
 
               <Input
-                placeholder="Cel dnia (np. Push, Nogi, Całe ciało)"
+                placeholder={t('planbuilder.focusPlaceholder')}
                 value={day.focus}
                 onChange={e => setFocus(day.id, e.target.value)}
                 className="text-sm"
@@ -221,7 +223,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
                   onClick={() => { setPickerDayId(day.id); setSearch(''); setCategory('all'); }}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Dodaj ćwiczenie
+                  {t('planbuilder.addExercise')}
                 </Button>
               </div>
             </CardContent>
@@ -231,12 +233,12 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
 
       <Button variant="outline" className="w-full" onClick={addDay} disabled={days.length >= 6}>
         <Plus className="h-4 w-4 mr-2" />
-        Dodaj dzień {days.length >= 6 && '(max 6)'}
+        {t('planbuilder.addDay')} {days.length >= 6 && t('planbuilder.maxDays')}
       </Button>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Czas trwania planu</CardTitle>
+          <CardTitle className="text-base">{t('planbuilder.planDuration')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2">
@@ -247,7 +249,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
                 className="cursor-pointer"
                 onClick={() => setDurationWeeks(n)}
               >
-                {n} tyg.
+                {t('planbuilder.weeksShort', { n })}
               </Badge>
             ))}
           </div>
@@ -256,15 +258,15 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
 
       <div className="flex gap-2">
         <Button variant="outline" className="flex-1" onClick={onCancel}>
-          <ChevronLeft className="h-4 w-4 mr-1" />Wróć
+          <ChevronLeft className="h-4 w-4 mr-1" />{t('planbuilder.back')}
         </Button>
         <Button className="flex-1" disabled={!isValid} onClick={() => onSubmit(days, durationWeeks)}>
-          <Check className="h-4 w-4 mr-1" />Dalej do podglądu
+          <Check className="h-4 w-4 mr-1" />{t('planbuilder.nextToPreview')}
         </Button>
       </div>
       {!isValid && (
         <p className="text-xs text-muted-foreground text-center">
-          Każdy dzień potrzebuje celu i co najmniej jednego ćwiczenia.
+          {t('planbuilder.validation')}
         </p>
       )}
 
@@ -272,18 +274,18 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
       <Dialog open={!!pickerDayId} onOpenChange={(open) => { if (!open) { setPickerDayId(null); setSearch(''); setCategory('all'); } }}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Dodaj ćwiczenie</DialogTitle>
-            <DialogDescription>Wybierz ćwiczenie z biblioteki</DialogDescription>
+            <DialogTitle>{t('planbuilder.addExercise')}</DialogTitle>
+            <DialogDescription>{t('planbuilder.pickFromLibrary')}</DialogDescription>
           </DialogHeader>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Szukaj ćwiczenia..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <Input placeholder={t('exercises.search')} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
 
           <div className="flex flex-wrap gap-1.5">
             <Badge variant={category === 'all' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setCategory('all')}>
-              Wszystkie
+              {t('exercises.all')}
             </Badge>
             {(Object.entries(categoryLabels) as [LibraryExercise['category'], string][]).map(([key, label]) => (
               <Badge key={key} variant={category === key ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setCategory(key)}>
@@ -301,12 +303,12 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
               >
                 <p className="font-medium text-sm">{ex.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {categoryLabels[ex.category]} · {ex.type === 'compound' ? 'Złożone' : 'Izolacja'}
+                  {categoryLabels[ex.category]} · {ex.type === 'compound' ? t('planbuilder.compound') : t('planbuilder.isolation')}
                 </p>
               </button>
             ))}
             {filteredExercises.length === 0 && (
-              <p className="text-center text-muted-foreground py-4 text-sm">Nie znaleziono ćwiczeń</p>
+              <p className="text-center text-muted-foreground py-4 text-sm">{t('planbuilder.noExercisesFound')}</p>
             )}
           </div>
         </DialogContent>

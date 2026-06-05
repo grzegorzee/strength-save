@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronLeft, Check, RefreshCw, ListChecks, Repeat, PencilRuler } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
+import type { TranslationKey } from '@/i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -43,7 +44,7 @@ const weekMondayStr = (d: Date): string => {
   return toDateStr(m);
 };
 
-const levelLabelKeys: Record<PlanTemplate['level'], string> = {
+const levelLabelKeys: Record<PlanTemplate['level'], TranslationKey> = {
   beginner: 'newplan.level.beginner',
   intermediate: 'newplan.level.intermediate',
   advanced: 'newplan.level.advanced',

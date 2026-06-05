@@ -2,28 +2,32 @@ import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
 import { AppNavigation } from './AppNavigation';
+import { useTranslation } from '@/contexts/LanguageContext';
+import type { TranslationKey } from '@/i18n';
 
-const pageTitles: Record<string, string> = {
-  '/': 'Dashboard',
-  '/plan': 'Plan treningowy',
-  '/history': 'Historia treningów',
-  '/day': 'Plan dnia',
-  '/analytics': 'Analityka',
-  '/achievements': 'Osiągnięcia',
-  '/plan/edit': 'Edycja planu',
-  '/settings': 'Ustawienia',
-  '/profile': 'Profil',
-  '/measurements': 'Pomiary ciała',
-  '/admin': 'Panel admina',
-  '/cycles': 'Cykle treningowe',
-  '/exercises': 'Ćwiczenia',
+const pageTitleKeys: Record<string, TranslationKey> = {
+  '/': 'layout.title.dashboard',
+  '/plan': 'layout.title.plan',
+  '/history': 'layout.title.history',
+  '/day': 'layout.title.day',
+  '/analytics': 'layout.title.analytics',
+  '/achievements': 'layout.title.achievements',
+  '/plan/edit': 'layout.title.planEdit',
+  '/settings': 'layout.title.settings',
+  '/profile': 'layout.title.profile',
+  '/measurements': 'layout.title.measurements',
+  '/admin': 'layout.title.admin',
+  '/cycles': 'layout.title.cycles',
+  '/exercises': 'layout.title.exercises',
 };
 
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { t } = useTranslation();
   const isFocusedFlow = location.pathname.startsWith('/workout/') || location.pathname.startsWith('/exercise/');
-  const title = pageTitles[location.pathname] || 'FitTracker';
+  const titleKey = pageTitleKeys[location.pathname];
+  const title = titleKey ? t(titleKey) : 'FitTracker';
 
   return (
     <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-hidden md:overflow-hidden">

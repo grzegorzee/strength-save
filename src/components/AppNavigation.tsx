@@ -58,7 +58,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
     }
   }, [collapsed]);
 
-  const displayName = profile?.displayName || 'Trener';
+  const displayName = profile?.displayName || t('dash.defaultName');
   const photoURL = profile?.photoURL || '';
   const initials = displayName
     .split(' ')
@@ -78,7 +78,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
       )}
 
       {/* Sidebar */}
-      <nav aria-label="Nawigacja główna" className={cn(
+      <nav aria-label={t('nav.ariaMain')} className={cn(
         "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-300 md:translate-x-0 md:sticky md:top-0 md:h-[100dvh] md:self-start",
         collapsed ? "md:w-16" : "md:w-64",
         "w-64", // mobile always full width
@@ -187,18 +187,18 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                   </div>
                   <DropdownMenuItem onClick={() => { onClose?.(); navigate('/settings'); }} className="cursor-pointer">
                     <Settings className="h-4 w-4 mr-2" />
-                    Ustawienia
+                    {t('nav.settings')}
                   </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem onClick={() => { onClose?.(); navigate('/admin'); }} className="cursor-pointer">
                       <Shield className="h-4 w-4 mr-2" />
-                      Admin
+                      {t('nav.admin')}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="cursor-pointer">
                     <LogOut className="h-4 w-4 mr-2" />
-                    Wyloguj się
+                    {t('nav.logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -210,7 +210,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
       {/* Tło wypełniające dół ekranu pod floating navem — żeby treść nie prześwitywała w szczelinie nad home indicatorem */}
       <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-background md:hidden" />
 
-      <nav aria-label="Nawigacja mobilna" className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] md:hidden">
+      <nav aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] md:hidden">
         {navItems.slice(0, 5).map((item) => (
           <NavLink
             key={`mobile-${item.to}`}

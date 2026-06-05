@@ -74,7 +74,7 @@ const FeatureFlagsPanel = () => {
       setUsers(prev => prev.map(u =>
         u.uid === uid ? { ...u, features: { ...u.features, [feature]: enabled } } : u
       ));
-      toast({ title: enabled ? t('settings.feature.enabled') : t('settings.feature.disabled'), description: t('settings.feature.forUser', { feature, user: users.find(u => u.uid === uid)?.displayName }) });
+      toast({ title: enabled ? t('settings.feature.enabled') : t('settings.feature.disabled'), description: t('settings.feature.forUser', { feature, user: users.find(u => u.uid === uid)?.displayName ?? uid }) });
     } catch (err) {
       toast({ title: t('settings.toast.error'), description: t('settings.toast.saveFailed'), variant: 'destructive' });
     }

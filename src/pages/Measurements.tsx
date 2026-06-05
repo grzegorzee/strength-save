@@ -7,22 +7,24 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { parseLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 // Osobny ekran „Pomiary ciała" (przeniesiony z zakładki w Analityce do menu).
 const Measurements = () => {
   const { uid } = useCurrentUser();
   const { measurements, addMeasurement, getLatestMeasurement, exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const latestMeasurement = getLatestMeasurement();
 
   const handleSave = async (measurement: Parameters<typeof addMeasurement>[0]) => {
     const result = await addMeasurement(measurement);
     if (result.error || !result.measurement) {
-      toast({ title: 'Błąd zapisu!', description: result.error || 'Nie udało się zapisać pomiarów.', variant: 'destructive' });
+      toast({ title: t('measurements.saveErrorTitle'), description: result.error || t('measurements.saveErrorDesc'), variant: 'destructive' });
       return;
     }
-    toast({ title: 'Pomiary zapisane!', description: `Dane z dnia ${measurement.date} zostały zapisane.` });
+    toast({ title: t('measurements.saveSuccessTitle'), description: t('measurements.saveSuccessDesc', { date: measurement.date }) });
   };
 
   const getWeightTrend = () => {
@@ -48,7 +50,7 @@ const Measurements = () => {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              Historia pomiarów
+              {t('measurements.historyTitle')}
               {weightTrend && (
                 <Badge variant="outline" className="font-normal">
                   {weightTrend.direction === 'up' && <TrendingUp className="mr-1 h-4 w-4 text-destructive" />}
@@ -67,9 +69,9 @@ const Measurements = () => {
                     {parseLocalDate(m.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </span>
                   <div className="flex items-center gap-4 text-sm">
-                    {m.weight && <span>Waga: <strong>{m.weight} kg</strong></span>}
-                    {m.chest && <span className="hidden sm:inline">Klatka: <strong>{m.chest} cm</strong></span>}
-                    {m.waist && <span className="hidden sm:inline">Talia: <strong>{m.waist} cm</strong></span>}
+                    {m.weight && <span>{t('measurements.weightShort')}: <strong>{m.weight} kg</strong></span>}
+                    {m.chest && <span className="hidden sm:inline">{t('measurements.chestShort')}: <strong>{m.chest} cm</strong></span>}
+                    {m.waist && <span className="hidden sm:inline">{t('measurements.waistShort')}: <strong>{m.waist} cm</strong></span>}
                   </div>
                 </div>
               ))}

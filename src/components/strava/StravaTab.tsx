@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
+import { useTranslation } from '@/contexts/LanguageContext';
 import { filterByMonthYear, getAvailableYears } from '@/lib/strava-utils';
 import { SeasonFilter } from './SeasonFilter';
 import { StravaSummaryStats } from './StravaSummaryStats';
@@ -18,6 +19,7 @@ import { TrainingLoadChart } from './TrainingLoadChart';
 import { MonthlyActivities } from './MonthlyActivities';
 
 export const StravaTab = () => {
+  const { t } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
   const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -62,9 +64,9 @@ export const StravaTab = () => {
         <CardContent className="py-12">
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center text-2xl">🏃</div>
-            <p className="font-medium text-sm">Połącz ze Stravą</p>
-            <p className="text-sm text-muted-foreground">Synchronizuj aktywności cardio, biegi, rowery i inne ze Stravą.</p>
-            <Button onClick={connectStrava} className="mt-2 bg-orange-500 hover:bg-orange-600">Połącz Stravę</Button>
+            <p className="font-medium text-sm">{t('strava.connectTitle')}</p>
+            <p className="text-sm text-muted-foreground">{t('strava.connectDesc')}</p>
+            <Button onClick={connectStrava} className="mt-2 bg-orange-500 hover:bg-orange-600">{t('strava.connectButton')}</Button>
             {error && <p className="text-sm text-destructive mt-2">{error}</p>}
           </div>
         </CardContent>
@@ -79,15 +81,15 @@ export const StravaTab = () => {
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium text-sm">Strava połączona</p>
+              <p className="font-medium text-sm">{t('strava.connected')}</p>
               {connection.athleteName && <p className="text-xs text-muted-foreground">{connection.athleteName}</p>}
             </div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => syncActivities()} disabled={isSyncing}>
                 {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                Sync
+                {t('strava.sync')}
               </Button>
-              <Button size="sm" variant="ghost" className="text-destructive" onClick={disconnectStrava}>Rozłącz</Button>
+              <Button size="sm" variant="ghost" className="text-destructive" onClick={disconnectStrava}>{t('strava.disconnect')}</Button>
             </div>
           </div>
         </CardContent>

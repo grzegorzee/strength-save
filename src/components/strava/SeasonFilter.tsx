@@ -1,4 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface SeasonFilterProps {
   selectedYear: number;
@@ -8,10 +9,11 @@ interface SeasonFilterProps {
   availableYears: number[];
 }
 
-const MONTHS = [
-  'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
-  'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień',
-];
+const MONTH_KEYS = [
+  'strava.monthJan', 'strava.monthFeb', 'strava.monthMar', 'strava.monthApr',
+  'strava.monthMay', 'strava.monthJun', 'strava.monthJul', 'strava.monthAug',
+  'strava.monthSep', 'strava.monthOct', 'strava.monthNov', 'strava.monthDec',
+] as const;
 
 export const SeasonFilter = ({
   selectedYear,
@@ -19,7 +21,9 @@ export const SeasonFilter = ({
   onYearChange,
   onMonthChange,
   availableYears,
-}: SeasonFilterProps) => (
+}: SeasonFilterProps) => {
+  const { t } = useTranslation();
+  return (
   <div className="flex gap-2">
     <Select value={String(selectedYear)} onValueChange={(v) => onYearChange(Number(v))}>
       <SelectTrigger className="w-[100px] h-9">
@@ -36,11 +40,12 @@ export const SeasonFilter = ({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">Cały rok</SelectItem>
-        {MONTHS.map((name, i) => (
-          <SelectItem key={i} value={String(i + 1)}>{name}</SelectItem>
+        <SelectItem value="all">{t('strava.wholeYear')}</SelectItem>
+        {MONTH_KEYS.map((key, i) => (
+          <SelectItem key={i} value={String(i + 1)}>{t(key)}</SelectItem>
         ))}
       </SelectContent>
     </Select>
   </div>
-);
+  );
+};

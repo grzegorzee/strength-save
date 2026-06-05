@@ -136,7 +136,7 @@ const Dashboard = () => {
         instructions: [],
       })),
     };
-  }, [resolver]);
+  }, [resolver, t]);
   const previousCompletedCycle = useMemo(() => (
     cycles
       .filter(cycle => cycle.status === 'completed')
@@ -579,18 +579,18 @@ const Dashboard = () => {
                 onClick={() => navigate('/plan/edit')}
               >
                 <Pencil className="h-3 w-3" />
-                Edytuj
+                {t('dash.edit')}
               </Button>
             </div>
 
             {/* Plan meta */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 flex-wrap">
-              <span>{trainingPlan.length}x/tydzień</span>
+              <span>{t('dash.timesPerWeek', { n: trainingPlan.length })}</span>
               <span>·</span>
               {planStarted ? (
-                <span>Tydzień {Math.min(currentWeek, planDurationWeeks)} z {planDurationWeeks}</span>
+                <span>{t('dash.weekOf', { current: Math.min(currentWeek, planDurationWeeks), total: planDurationWeeks })}</span>
               ) : (
-                <span>Start: {parseLocalDate(planStartDate!).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</span>
+                <span>{t('dash.startDate')}: {parseLocalDate(planStartDate!).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</span>
               )}
             </div>
 
@@ -602,7 +602,7 @@ const Dashboard = () => {
                   style={{ width: `${planProgress}%` }}
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">{planProgress}% czasu planu</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{t('dash.planProgress', { percent: planProgress })}</p>
             </div>
 
             {/* Days overview */}
@@ -634,7 +634,7 @@ const Dashboard = () => {
                   <Trophy className="h-5 w-5 text-amber-500" />
                 </div>
                 <div>
-                  <p className="font-medium text-sm">Ostatni rekord</p>
+                  <p className="font-medium text-sm">{t('dash.lastPR')}</p>
                   <p className="text-xs text-muted-foreground">
                     {latestPR.exerciseName} — <span className="font-heading font-semibold text-foreground">{latestPR.value} kg</span>
                     {' '}
@@ -650,7 +650,7 @@ const Dashboard = () => {
 
       {/* This week's training — merged timeline */}
       <div className="space-y-3">
-        <h2 className="font-heading font-semibold text-base tracking-tight">Plan tygodnia</h2>
+        <h2 className="font-heading font-semibold text-base tracking-tight">{t('dash.weekPlan')}</h2>
         <div className="grid gap-3">
           {(() => {
             // Build unified timeline: training days + Strava activities
@@ -718,7 +718,7 @@ const Dashboard = () => {
         onClick={() => navigate('/analytics')}
       >
         <BarChart3 className="h-4 w-4 mr-2" />
-        Zobacz analitykę
+        {t('dash.seeAnalytics')}
       </Button>
     </div>
   );

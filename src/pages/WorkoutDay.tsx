@@ -5,6 +5,7 @@ import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak } from '@/lib/summary-utils';
 import { StatCard } from '@/components/kinetic/StatCard';
 import { useUnit } from '@/contexts/UnitContext';
+import { useTranslation } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +51,7 @@ const WorkoutDay = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const { uid } = useCurrentUser();
   const {
     workouts,
@@ -293,7 +295,7 @@ const WorkoutDay = () => {
         }
       }
     } catch {
-      setSaveError('Nie udało się zapisać szkicu lokalnie.');
+      setSaveError(t('workout.err.localSaveFailed'));
       setAutoSaveStatus('error');
       if (uid) {
         trackTelemetryEvent(uid, 'local_save_failed');
@@ -302,7 +304,7 @@ const WorkoutDay = () => {
     }
 
     return draft;
-  }, [buildDraftSnapshot, queueAutoSaveStatus, uid]);
+  }, [buildDraftSnapshot, queueAutoSaveStatus, uid, t]);
 
   const saveDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}) => {
     if (!sessionId || !dayId || !uid) return;
@@ -344,7 +346,7 @@ const WorkoutDay = () => {
       }
       const persistedDraft = await persistDraftSnapshot({}, { showStatus: false });
       if (!persistedDraft) {
-        return { success: false, error: 'Nie udało się zapisać szkicu lokalnie przed synchronizacją.' };
+        return { success: false, error: t('workout.err.localSaveBeforeSync') };
       }
     }
 
@@ -357,7 +359,7 @@ const WorkoutDay = () => {
       if (currentDraft?.sessionOrigin === 'provisional') {
         if (!navigator.onLine) {
           setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'local-only');
-          return { success: false, error: 'Brak połączenia z internetem. Trening pozostaje zapisany lokalnie.' };
+          return { success: false, error: t('workout.err.offline') };
         }
 
         const promoteResult = await createWorkoutSession(
@@ -367,7 +369,7 @@ const WorkoutDay = () => {
         );
 
         if (promoteResult.error || !promoteResult.session) {
-          const errorMessage = promoteResult.error || 'Nie udało się utworzyć sesji w chmurze.';
+          const errorMessage = promoteResult.error || t('workout.err.createSessionFailed');
           setSaveError(errorMessage);
           setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'local-only');
           return { success: false, error: errorMessage };
@@ -403,7 +405,7 @@ const WorkoutDay = () => {
       });
 
       if (!result.success) {
-        const errorMessage = result.error || 'Błąd synchronizacji';
+        const errorMessage = result.error || t('workout.err.syncFailed');
         setSaveError(errorMessage);
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
         return { success: false, error: errorMessage };
@@ -420,7 +422,7 @@ const WorkoutDay = () => {
         );
 
         if (!validation.ok) {
-          const errorMessage = `Chmura nie potwierdziła kompletnego zapisu (${validation.reason ?? 'unknown'}).`;
+          const errorMessage = t('workout.err.cloudIncomplete', { reason: validation.reason ?? 'unknown' });
           setSaveError(errorMessage);
           setAutoSaveStatus('final-sync-pending');
           trackTelemetryEvent(uid, 'sync_validation_failed');
@@ -431,7 +433,7 @@ const WorkoutDay = () => {
           try {
             await workoutDraftDb.clearActiveDraft(uid);
           } catch {
-            setSaveError('Trening zapisano w chmurze, ale nie udało się wyczyścić lokalnego szkicu.');
+            setSaveError(t('workout.err.cloudSavedLocalCleanupFailed'));
           }
         }
         workoutSyncQueue.remove(uid, targetSessionId);
@@ -451,7 +453,7 @@ const WorkoutDay = () => {
         try {
           await workoutDraftDb.markDraftSynced(uid, syncedAt);
         } catch {
-          setSaveError('Dane zapisano w chmurze, ale lokalny status synchronizacji nie został odświeżony.');
+          setSaveError(t('workout.err.cloudSavedStatusStale'));
         }
       }
       workoutSyncQueue.remove(uid, targetSessionId);
@@ -469,7 +471,7 @@ const WorkoutDay = () => {
       trackTelemetryEvent(uid, 'sync_success');
       return { success: true };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Błąd synchronizacji';
+      const errorMessage = err instanceof Error ? err.message : t('workout.err.syncFailed');
       setSaveError(errorMessage);
       setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
       trackTelemetryEvent(uid, 'sync_failure');
@@ -477,7 +479,7 @@ const WorkoutDay = () => {
     } finally {
       isSyncingRef.current = false;
     }
-  }, [uid, sessionId, batchSaveWorkout, buildExercisesPayload, createWorkoutSession, getWorkoutSessionFromServer, persistDraftSnapshot, queueAutoSaveStatus]);
+  }, [uid, sessionId, batchSaveWorkout, buildExercisesPayload, createWorkoutSession, getWorkoutSessionFromServer, persistDraftSnapshot, queueAutoSaveStatus, t]);
 
   const applyWorkoutState = useCallback((next: {
     sessionId: string | null;
@@ -597,10 +599,10 @@ const WorkoutDay = () => {
         draftRecoveryDone.current = currentPageDraft.sessionId;
         trackTelemetryEvent(uid, 'draft_recovered');
         toast({
-          title: currentPageDraft.finalSyncPending ? 'Trening czeka na synchronizację' : 'Odzyskano niezapisany trening',
+          title: currentPageDraft.finalSyncPending ? t('workout.toast.draftPendingTitle') : t('workout.toast.draftRecoveredTitle'),
           description: currentPageDraft.finalSyncPending
-            ? 'Dane zostały zapisane lokalnie. Synchronizacja wróci po połączeniu.'
-            : 'Wczytano dane z pamięci urządzenia.',
+            ? t('workout.toast.draftPendingDesc')
+            : t('workout.toast.draftRecoveredDesc'),
         });
       }
 
@@ -655,6 +657,8 @@ const WorkoutDay = () => {
       dayNotes: '',
       skippedExercises: [],
     });
+    // t pominięte celowo: użyte tylko w toaście; dodanie zresetowałoby stan treningu przy zmianie języka
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isDraftLoaded, dayId, workouts, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid]);
 
   // Autostart workout when navigating with ?autostart=true
@@ -772,8 +776,8 @@ const WorkoutDay = () => {
     if (!day || !uid) return;
     if (isViewingPastWorkout) {
       toast({
-        title: "Nie można rozpocząć",
-        description: "Nie można rozpocząć treningu dla przeszłej daty.",
+        title: t('workout.toast.cantStartTitle'),
+        description: t('workout.toast.cantStartPastDesc'),
         variant: "destructive",
       });
       return;
@@ -806,10 +810,10 @@ const WorkoutDay = () => {
       }
 
       if (result.error || !result.session) {
-        setSaveError(result.error || 'Nie udało się utworzyć treningu');
+        setSaveError(result.error || t('workout.err.createFailed'));
         toast({
-          title: "Błąd!",
-          description: result.error || 'Nie udało się rozpocząć treningu.',
+          title: t('workout.toast.errorTitle'),
+          description: result.error || t('workout.toast.startFailedDesc'),
           variant: "destructive",
         });
         return;
@@ -819,8 +823,8 @@ const WorkoutDay = () => {
         setSessionId(result.session.id);
         setIsCompleted(false);
         toast({
-          title: "Kontynuujesz trening",
-          description: "Wczytano istniejący trening.",
+          title: t('workout.toast.continueTitle'),
+          description: t('workout.toast.continueDesc'),
         });
       } else {
         // Pre-fill with progression from previous workout
@@ -861,10 +865,10 @@ const WorkoutDay = () => {
 
         const savedDraft = await persistDraftSnapshot(initialDraft, { showStatus: true });
         if (!savedDraft) {
-          setSaveError('Nie udało się zapisać szkicu lokalnie.');
+          setSaveError(t('workout.err.localSaveFailed'));
           toast({
-            title: "Błąd!",
-            description: 'Nie udało się zabezpieczyć treningu lokalnie.',
+            title: t('workout.toast.errorTitle'),
+            description: t('workout.toast.localSecureFailedDesc'),
             variant: "destructive",
           });
           return;
@@ -876,18 +880,18 @@ const WorkoutDay = () => {
           trackTelemetryEvent(uid, 'provisional_session_started');
         }
         toast({
-          title: result.provisional ? "Trening rozpoczęty offline" : "Trening rozpoczęty!",
+          title: result.provisional ? t('workout.toast.startedOfflineTitle') : t('workout.toast.startedTitle'),
           description: result.provisional
-            ? `${day.dayName} - ${day.focus}. Dane są zapisane lokalnie i zsynchronizują się po odzyskaniu internetu.`
+            ? t('workout.toast.startedOfflineDesc', { day: day.dayName, focus: day.focus })
             : `${day.dayName} - ${day.focus}`,
         });
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('workout.err.unknown');
       setSaveError(errorMessage);
       toast({
-        title: "Błąd!",
-        description: 'Nie udało się rozpocząć treningu.',
+        title: t('workout.toast.errorTitle'),
+        description: t('workout.toast.startFailedDesc'),
         variant: "destructive",
       });
     } finally {
@@ -949,10 +953,10 @@ const WorkoutDay = () => {
     });
 
     toast({
-      title: "Ćwiczenie pominięte",
-      description: "Ćwiczenie zostało pominięte na dzisiaj.",
+      title: t('workout.toast.skippedTitle'),
+      description: t('workout.toast.skippedDesc'),
     });
-  }, [saveDraftSnapshot, toast]);
+  }, [saveDraftSnapshot, toast, t]);
 
   // AI coach on-demand: jedno wywołanie na żądanie (przycisk), z kontekstem realnej historii.
   // Koszt tylko gdy user kliknie — limit $5/user pilnuje Cloud Function proxyOpenAI.
@@ -974,14 +978,14 @@ const WorkoutDay = () => {
       ]);
 
       toast({
-        title: `Coach AI: ${exercise.name}`,
-        description: reply.trim() || 'Brak odpowiedzi.',
+        title: t('workout.coach.toastTitle', { name: exercise.name }),
+        description: reply.trim() || t('workout.coach.noReply'),
         duration: 12000,
       });
     } catch (err) {
       toast({
-        title: 'Coach AI niedostępny',
-        description: err instanceof Error ? err.message : 'Spróbuj ponownie później (możliwy limit AI).',
+        title: t('workout.coach.unavailableTitle'),
+        description: err instanceof Error ? err.message : t('workout.coach.unavailableDesc'),
         variant: 'destructive',
       });
     } finally {
@@ -999,16 +1003,16 @@ const WorkoutDay = () => {
 
     if (!result.success) {
       toast({
-        title: "Brak synchronizacji",
-        description: "Trening nadal jest bezpieczny lokalnie. Spróbujemy ponownie po odzyskaniu połączenia.",
+        title: t('workout.toast.noSyncTitle'),
+        description: t('workout.toast.noSyncDesc'),
         variant: "destructive",
       });
       return;
     }
 
     toast({
-      title: "Synchronizacja zakończona",
-      description: "Trening został zapisany w chmurze.",
+      title: t('workout.toast.syncDoneTitle'),
+      description: t('workout.toast.syncDoneDesc'),
     });
   };
 
@@ -1022,8 +1026,8 @@ const WorkoutDay = () => {
     if (!flushedDraft) {
       setIsExplicitSaving(false);
       toast({
-        title: "Błąd zapisu lokalnego",
-        description: "Nie udało się bezpiecznie zapisać treningu na urządzeniu.",
+        title: t('workout.toast.localSaveErrorTitle'),
+        description: t('workout.toast.localSaveErrorDesc'),
         variant: "destructive",
       });
       return;
@@ -1049,16 +1053,16 @@ const WorkoutDay = () => {
         setAutoSaveStatus('final-sync-pending');
         completedSessionLockRef.current = sessionId;
         setQueuedDraft(pendingDraft);
-        setSaveError(result.error || 'Trening czeka na synchronizację');
+        setSaveError(result.error || t('workout.err.pendingSync'));
         toast({
-          title: "Trening zapisano lokalnie",
-          description: "Nie ma połączenia z internetem. Synchronizacja ruszy automatycznie po odzyskaniu sieci.",
+          title: t('workout.toast.savedLocallyTitle'),
+          description: t('workout.toast.savedLocallyDesc'),
         });
       } else {
-        setSaveError('Nie udało się zapisać treningu ani lokalnie, ani w chmurze.');
+        setSaveError(t('workout.err.saveAllFailed'));
         toast({
-          title: "Błąd zapisu lokalnego",
-          description: "Synchronizacja nie udała się i nie udało się też zachować treningu lokalnie.",
+          title: t('workout.toast.localSaveErrorTitle'),
+          description: t('workout.toast.bothFailedDesc'),
           variant: "destructive",
         });
       }
@@ -1086,19 +1090,19 @@ const WorkoutDay = () => {
       if (newPRs.length > 0) {
         const prNames = newPRs.map(pr => pr.exerciseName).join(', ');
         toast({
-          title: `🏆 Nowy rekord! (${newPRs.length})`,
+          title: t('workout.toast.newPRTitle', { n: newPRs.length }),
           description: prNames,
         });
       } else {
         toast({
-          title: "Trening zapisany!",
-          description: "Zapisano lokalnie i zsynchronizowano z chmurą.",
+          title: t('workout.toast.savedTitle'),
+          description: t('workout.toast.savedSyncedDesc'),
         });
       }
     } else {
       toast({
-        title: "Trening zapisany!",
-        description: "Zapisano lokalnie i zsynchronizowano z chmurą.",
+        title: t('workout.toast.savedTitle'),
+        description: t('workout.toast.savedSyncedDesc'),
       });
     }
   };
@@ -1106,8 +1110,8 @@ const WorkoutDay = () => {
   const handleFinishEditing = async () => {
     if (!sessionId) {
       toast({
-        title: "Błąd!",
-        description: "Brak sesji treningowej.",
+        title: t('workout.toast.errorTitle'),
+        description: t('workout.toast.noSessionDesc'),
         variant: "destructive",
       });
       return;
@@ -1126,16 +1130,16 @@ const WorkoutDay = () => {
     setIsExplicitSaving(false);
 
     if (!result.success) {
-      setSaveError(result.error || 'Błąd zapisu');
+      setSaveError(result.error || t('workout.err.saveGeneric'));
       toast({
-        title: "Błąd!",
-        description: "Nie udało się zapisać zmian.",
+        title: t('workout.toast.errorTitle'),
+        description: t('workout.toast.saveChangesFailedDesc'),
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Zapisano!",
-        description: "Zmiany zostały zapisane.",
+        title: t('workout.toast.savedShortTitle'),
+        description: t('workout.toast.changesSavedDesc'),
       });
       setIsEditing(false);
     }
@@ -1151,10 +1155,10 @@ const WorkoutDay = () => {
   if (!day) {
     return (
       <div className="py-12 text-center">
-        <h1 className="font-heading text-2xl font-bold">Nie znaleziono dnia treningowego</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Sprawdź adres lub wróć do planu treningowego.</p>
+        <h1 className="font-heading text-2xl font-bold">{t('workout.dayNotFound')}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{t('workout.dayNotFoundHint')}</p>
         <Button variant="link" onClick={() => navigate('/plan')}>
-          Wróć do planu
+          {t('workout.backToPlan')}
         </Button>
       </div>
     );
@@ -1199,13 +1203,13 @@ const WorkoutDay = () => {
         autoSaveStatus === 'final-sync-pending' && "bg-amber-100 text-amber-800",
         autoSaveStatus === 'error' && "bg-destructive/20 text-destructive",
       )}>
-        {autoSaveStatus === 'local-saved' && <><Cloud className="h-3 w-3" /> Zapisano lokalnie</>}
-        {autoSaveStatus === 'local-only' && <><CloudOff className="h-3 w-3" /> Trening offline</>}
-        {autoSaveStatus === 'sync-pending' && <><CloudOff className="h-3 w-3" /> Czeka na synchronizację</>}
-        {autoSaveStatus === 'syncing' && <><Loader2 className="h-3 w-3 animate-spin" /> Synchronizacja...</>}
-        {autoSaveStatus === 'synced' && <><Cloud className="h-3 w-3" /> Zsynchronizowano</>}
-        {autoSaveStatus === 'final-sync-pending' && <><CloudOff className="h-3 w-3" /> Trening zakończony lokalnie</>}
-        {autoSaveStatus === 'error' && <><CloudOff className="h-3 w-3" /> Błąd zapisu</>}
+        {autoSaveStatus === 'local-saved' && <><Cloud className="h-3 w-3" /> {t('workout.status.localSaved')}</>}
+        {autoSaveStatus === 'local-only' && <><CloudOff className="h-3 w-3" /> {t('workout.status.offline')}</>}
+        {autoSaveStatus === 'sync-pending' && <><CloudOff className="h-3 w-3" /> {t('workout.status.syncPending')}</>}
+        {autoSaveStatus === 'syncing' && <><Loader2 className="h-3 w-3 animate-spin" /> {t('workout.status.syncing')}</>}
+        {autoSaveStatus === 'synced' && <><Cloud className="h-3 w-3" /> {t('workout.status.synced')}</>}
+        {autoSaveStatus === 'final-sync-pending' && <><CloudOff className="h-3 w-3" /> {t('workout.status.finishedLocally')}</>}
+        {autoSaveStatus === 'error' && <><CloudOff className="h-3 w-3" /> {t('workout.status.error')}</>}
       </div>
     );
   };
@@ -1225,7 +1229,7 @@ const WorkoutDay = () => {
           {!isFinalSyncPending && (
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
               <Pencil className="h-4 w-4 mr-2" />
-              Edytuj
+              {t('dash.edit')}
             </Button>
           )}
         </div>
@@ -1236,8 +1240,8 @@ const WorkoutDay = () => {
           <Card className="border-amber-300 bg-amber-50">
             <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-medium text-amber-900">Trening zakończony lokalnie</p>
-                <p className="text-sm text-amber-800">Dane są bezpieczne na urządzeniu i czekają na zapis w Firebase.</p>
+                <p className="font-medium text-amber-900">{t('workout.finishedLocally.title')}</p>
+                <p className="text-sm text-amber-800">{t('workout.finishedLocally.desc')}</p>
               </div>
               <Button
                 variant="outline"
@@ -1246,7 +1250,7 @@ const WorkoutDay = () => {
                 disabled={isExplicitSaving}
               >
                 {isExplicitSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Cloud className="h-4 w-4 mr-2" />}
-                Synchronizuj teraz
+                {t('strava.syncNow')}
               </Button>
             </CardContent>
           </Card>
@@ -1262,25 +1266,25 @@ const WorkoutDay = () => {
               isFinalSyncPending && "text-amber-900"
             )}>
               <Check className="h-6 w-6" />
-              {isFinalSyncPending ? 'Trening ukończony lokalnie' : 'Trening ukończony!'}
+              {isFinalSyncPending ? t('workout.completedLocallyTitle') : t('workout.completedTitle')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              {isFinalSyncPending ? 'Czekamy tylko na synchronizację z chmurą.' : 'Świetna robota!'}
+              {isFinalSyncPending ? t('workout.waitingSyncDesc') : t('workout.greatJob')}
             </p>
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center p-3 bg-background rounded-lg">
                 <p className="text-2xl font-bold">{exerciseCount}</p>
-                <p className="text-xs text-muted-foreground">Ćwiczeń</p>
+                <p className="text-xs text-muted-foreground">{t('workout.statExercises')}</p>
               </div>
               <div className="text-center p-3 bg-background rounded-lg">
                 <p className="text-2xl font-bold">{completedSetsCount}</p>
-                <p className="text-xs text-muted-foreground">Serii</p>
+                <p className="text-xs text-muted-foreground">{t('workout.statSets')}</p>
               </div>
               <div className="text-center p-3 bg-background rounded-lg">
                 <p className="text-2xl font-bold">{totalRepsCount}</p>
-                <p className="text-xs text-muted-foreground">Powtórzeń</p>
+                <p className="text-xs text-muted-foreground">{t('workout.statReps')}</p>
               </div>
             </div>
           </CardContent>
@@ -1300,7 +1304,7 @@ const WorkoutDay = () => {
         <div className="space-y-2">
           <h3 className="font-semibold flex items-center gap-2">
             <Eye className="h-4 w-4" />
-            Podsumowanie
+            {t('workout.summary')}
           </h3>
           {day.exercises.map((exercise, index) => {
             const isSkipped = skippedExercises.includes(exercise.id);
@@ -1318,12 +1322,12 @@ const WorkoutDay = () => {
                       </Badge>
                       <span className="font-medium">{exercise.name}</span>
                       {isSkipped && (
-                        <Badge variant="outline" className="text-xs">Pominięte</Badge>
+                        <Badge variant="outline" className="text-xs">{t('dayplan.badgeMissed')}</Badge>
                       )}
                     </div>
                     {!isSkipped && (
                       <div className="flex items-center gap-4 text-sm">
-                        <span>{completed.length}/{sets.length} serii</span>
+                        <span>{t('workout.setsProgress', { done: completed.length, total: sets.length })}</span>
                         {totalWeight > 0 && (
                           <Badge className="bg-fitness-success text-white">{totalWeight} kg</Badge>
                         )}
@@ -1339,10 +1343,10 @@ const WorkoutDay = () => {
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={() => setShowShare(true)}>
             <Share2 className="h-4 w-4 mr-2" />
-            Udostępnij
+            {t('comp.share.share')}
           </Button>
           <Button variant="outline" className="flex-1" onClick={() => navigate('/')}>
-            Wróć do dashboardu
+            {t('workout.backToDashboard')}
           </Button>
         </div>
 
@@ -1354,7 +1358,7 @@ const WorkoutDay = () => {
               const sets = exerciseSets[ex.id] || [];
               const completed = sets.filter(s => s.completed && !s.isWarmup);
               const maxW = completed.length > 0 ? Math.max(...completed.map(s => s.weight)) : 0;
-              return { name: ex.name, sets: maxW > 0 ? `${completed.length}x ${maxW}kg` : `${completed.length} serii` };
+              return { name: ex.name, sets: maxW > 0 ? `${completed.length}x ${maxW}kg` : t('workout.setsCount', { n: completed.length }) };
             }),
             tonnage: Object.values(exerciseSets).reduce(
               (t, sets) => t + sets.filter(s => s.completed && !s.isWarmup).reduce((s, set) => s + set.reps * set.weight, 0), 0
@@ -1380,7 +1384,7 @@ const WorkoutDay = () => {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">{day.dayName}</h1>
-            <p className="text-muted-foreground">Tryb edycji</p>
+            <p className="text-muted-foreground">{t('workout.editMode')}</p>
           </div>
         </div>
 
@@ -1404,12 +1408,12 @@ const WorkoutDay = () => {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <StickyNote className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">Notatka do treningu</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('workout.dayNoteLabel')}</span>
           </div>
           <textarea
             value={dayNotes}
             onChange={e => setDayNotes(e.target.value)}
-            placeholder="Jak się czujesz? Coś do zapamiętania? (opcjonalne)"
+            placeholder={t('workout.dayNotePlaceholder')}
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
@@ -1420,7 +1424,7 @@ const WorkoutDay = () => {
           disabled={isExplicitSaving}
         >
           {isExplicitSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-          Zapisz zmiany
+          {t('workout.saveChanges')}
         </Button>
       </div>
     );
@@ -1440,7 +1444,7 @@ const WorkoutDay = () => {
           <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{day.focus}</p>
         </div>
         {isWorkoutStarted && !isCompleted && (
-          <Button variant="ghost" size="icon" onClick={() => setShowWarmup(true)} className="rounded-2xl bg-muted/60" aria-label="Rozgrzewka">
+          <Button variant="ghost" size="icon" onClick={() => setShowWarmup(true)} className="rounded-2xl bg-muted/60" aria-label={t('comp.warmup.title')}>
             <Flame className="h-4 w-4 text-orange-500" />
           </Button>
         )}
@@ -1455,8 +1459,8 @@ const WorkoutDay = () => {
             <span className="font-heading text-3xl font-bold tabular-nums tracking-tight">{fmtDuration(elapsedSec)}</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <StatCard label="Tonaż" value={fmt(sessionVolumeKg)} accent="secondary" />
-            <StatCard label="Czas" value={fmtDuration(elapsedSec)} accent="primary" />
+            <StatCard label={t('dash.stat.tonnage')} value={fmt(sessionVolumeKg)} accent="secondary" />
+            <StatCard label={t('workout.statTime')} value={fmtDuration(elapsedSec)} accent="primary" />
           </div>
         </div>
       )}
@@ -1474,9 +1478,9 @@ const WorkoutDay = () => {
       {!isWorkoutStarted && isViewingPastWorkout && (
         <Card className="bg-muted/30">
           <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">Brak zapisanego treningu dla tej daty</p>
+            <p className="text-muted-foreground">{t('workout.noWorkoutForDate')}</p>
             <Button variant="link" onClick={() => navigate('/plan')} className="mt-2">
-              Wróć do planu
+              {t('workout.backToPlan')}
             </Button>
           </CardContent>
         </Card>
@@ -1511,7 +1515,7 @@ const WorkoutDay = () => {
                   className="text-xs text-muted-foreground gap-1"
                   onClick={() => handleSkipExercise(exercise.id)}
                 >
-                  <SkipForward className="h-3.5 w-3.5" />Pomiń
+                  <SkipForward className="h-3.5 w-3.5" />{t('workout.skip')}
                 </Button>
                 <Button
                   variant="ghost"
@@ -1523,7 +1527,7 @@ const WorkoutDay = () => {
                     setSwapPick(null);
                   }}
                 >
-                  <ArrowRightLeft className="h-3.5 w-3.5" />Zamień
+                  <ArrowRightLeft className="h-3.5 w-3.5" />{t('newplan.swap')}
                 </Button>
               </div>
             )}
@@ -1533,8 +1537,8 @@ const WorkoutDay = () => {
               <Card className="border-primary/30 bg-primary/[0.04]">
                 <CardContent className="pt-4 pb-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm">Zamień: {exercise.name}</p>
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSwapExerciseId(null); setSwapPick(null); setSwapQuery(''); }}>Zamknij</Button>
+                    <p className="font-medium text-sm">{t('planeditor.swappingExercise', { name: exercise.name })}</p>
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSwapExerciseId(null); setSwapPick(null); setSwapQuery(''); }}>{t('workout.close')}</Button>
                   </div>
 
                   {!swapPick ? (
@@ -1545,7 +1549,7 @@ const WorkoutDay = () => {
                           type="text"
                           value={swapQuery}
                           onChange={e => setSwapQuery(e.target.value)}
-                          placeholder="Szukaj ćwiczenia w bazie..."
+                          placeholder={t('workout.swapSearchPlaceholder')}
                           autoFocus
                           className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-2 text-sm"
                         />
@@ -1568,17 +1572,17 @@ const WorkoutDay = () => {
                     </>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-sm">Zamieniam na: <span className="font-semibold text-primary">{swapPick.name}</span></p>
-                      <p className="text-xs text-muted-foreground">Na jak długo?</p>
+                      <p className="text-sm">{t('workout.swapTo')} <span className="font-semibold text-primary">{swapPick.name}</span></p>
+                      <p className="text-xs text-muted-foreground">{t('workout.swapHowLong')}</p>
                       <div className="grid grid-cols-2 gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleApplySwap(exercise.id, exercise.sets, 'today')}>
-                          Tylko dziś
+                          {t('workout.swapToday')}
                         </Button>
                         <Button size="sm" onClick={() => handleApplySwap(exercise.id, exercise.sets, 'plan')}>
-                          Na stałe w planie
+                          {t('workout.swapPermanent')}
                         </Button>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-xs w-full" onClick={() => setSwapPick(null)}>← Wybierz inne ćwiczenie</Button>
+                      <Button variant="ghost" size="sm" className="text-xs w-full" onClick={() => setSwapPick(null)}>{t('workout.swapPickOther')}</Button>
                     </div>
                   )}
                 </CardContent>
@@ -1596,7 +1600,7 @@ const WorkoutDay = () => {
         onClick={() => navigate('/plan/edit')}
       >
         <Pencil className="h-4 w-4 mr-2" />
-        Edytuj plan dnia
+        {t('workout.editDayPlan')}
       </Button>
 
       {/* Day notes - at the end of workout */}
@@ -1604,12 +1608,12 @@ const WorkoutDay = () => {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <StickyNote className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">Notatka do treningu</span>
+            <span className="text-sm font-medium text-muted-foreground">{t('workout.dayNoteLabel')}</span>
           </div>
           <textarea
             value={dayNotes}
             onChange={e => handleDayNotesChange(e.target.value)}
-            placeholder="Jak się czujesz? Coś do zapamiętania? (opcjonalne)"
+            placeholder={t('workout.dayNotePlaceholder')}
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
@@ -1625,7 +1629,7 @@ const WorkoutDay = () => {
                 className="flex-1 py-6"
                 onClick={() => setShowCompleteConfirm(false)}
               >
-                Anuluj
+                {t('common.cancel')}
               </Button>
               <Button
                 size="lg"
@@ -1634,7 +1638,7 @@ const WorkoutDay = () => {
                 disabled={isExplicitSaving}
               >
                 {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
-                Tak, zakończ
+                {t('workout.confirmFinish')}
               </Button>
             </div>
           ) : (
@@ -1645,7 +1649,7 @@ const WorkoutDay = () => {
               disabled={isExplicitSaving}
             >
               <Check className="h-5 w-5 mr-2" />
-              Zakończ trening
+              {t('workout.finishWorkout')}
             </Button>
           )}
         </div>
@@ -1660,7 +1664,7 @@ const WorkoutDay = () => {
             disabled={isExplicitSaving}
           >
             {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Play className="h-5 w-5 mr-2 fill-current" />}
-            Rozpocznij trening
+            {t('dash.startWorkout')}
           </Button>
         </div>
       )}

@@ -38,8 +38,8 @@ const ExerciseDetail = () => {
   if (!exercise) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-        <p className="text-muted-foreground">Nie znaleziono ćwiczenia.</p>
-        <Button variant="outline" onClick={() => navigate('/exercises')}>Wróć do biblioteki</Button>
+        <p className="text-muted-foreground">{t('detail.notFound')}</p>
+        <Button variant="outline" onClick={() => navigate('/exercises')}>{t('detail.backToLibrary')}</Button>
       </div>
     );
   }
@@ -53,7 +53,9 @@ const ExerciseDetail = () => {
   const targetMuscles = details?.targetMuscles ?? [categoryLabels[exercise.category]];
   const primaryMuscle = details?.primaryMuscle ?? categoryToPrimaryMuscle[exercise.category] ?? 'fullbody';
   const equipment = details?.equipment;
-  const typeText = exercise.isBodyweight ? 'Masa ciała' : exercise.type === 'compound' ? 'Wielostawowe' : 'Izolacja';
+  const typeText = exercise.isBodyweight
+    ? t('exercises.type.bodyweight')
+    : exercise.type === 'compound' ? t('exercises.type.compound') : t('exercises.type.isolation');
 
   const toggleBookmark = () => {
     const list = readBookmarks();
@@ -78,7 +80,7 @@ const ExerciseDetail = () => {
           type="button"
           onClick={() => navigate(-1)}
           className="absolute left-4 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full bg-surface/70 backdrop-blur-md"
-          aria-label="Wróć"
+          aria-label={t('common.back')}
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -147,7 +149,7 @@ const ExerciseDetail = () => {
       {/* Akcje — pływające na dole nad bottom navem */}
       <div className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex gap-3 px-5">
         <Button
-          onClick={() => toast({ title: 'Dodano', description: `${exercise.name} — dodawanie do treningu pojawi się wkrótce.` })}
+          onClick={() => toast({ title: t('detail.added'), description: t('detail.addedSoon', { name: exercise.name }) })}
           className="kinetic-primary-button h-14 flex-1 text-base"
         >
           <Plus className="mr-2 h-5 w-5" /> {t('detail.addToWorkout')}
@@ -159,7 +161,7 @@ const ExerciseDetail = () => {
             'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl transition-colors',
             bookmarked ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
           )}
-          aria-label="Zapisz ćwiczenie"
+          aria-label={t('detail.bookmark')}
         >
           <Bookmark className={cn('h-5 w-5', bookmarked && 'fill-current')} />
         </button>

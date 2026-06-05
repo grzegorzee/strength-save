@@ -50,7 +50,7 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
     return () => {
       cancelled = true;
     };
-  }, [toast]);
+  }, [toast, t]);
 
   const handleVerify = async () => {
     if (!code.trim()) return;
@@ -59,11 +59,11 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
     try {
       await verifyEmailCode(code.trim());
       toast({
-        title: 'Email potwierdzony',
-        description: 'Konto jest aktywne. Możesz przejść dalej do aplikacji.',
+        title: t('comp.emailGate.verifiedTitle'),
+        description: t('comp.emailGate.verifiedDesc'),
       });
     } catch (verifyError) {
-      setError(verifyError instanceof Error ? verifyError.message : 'Nie udało się potwierdzić kodu.');
+      setError(verifyError instanceof Error ? verifyError.message : t('comp.emailGate.verifyError'));
     } finally {
       setLoading(false);
     }
@@ -75,11 +75,11 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
     try {
       await requestEmailVerificationCode();
       toast({
-        title: 'Wysłano nowy kod',
-        description: 'Sprawdź skrzynkę mailową i wpisz najnowszy kod.',
+        title: t('comp.emailGate.resentTitle'),
+        description: t('comp.emailGate.resentDesc'),
       });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udało się wysłać nowego kodu.');
+      setError(requestError instanceof Error ? requestError.message : t('comp.emailGate.resendError'));
     } finally {
       setResending(false);
     }
@@ -93,9 +93,9 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
             <MailCheck className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-heading font-bold tracking-tight">Potwierdź adres email</h1>
+            <h1 className="text-2xl font-heading font-bold tracking-tight">{t('comp.emailGate.heading')}</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Wysłaliśmy kod na <span className="font-medium text-foreground">{email}</span>. Wpisz go poniżej, aby aktywować konto.
+              {t('comp.emailGate.sentToPrefix')} <span className="font-medium text-foreground">{email}</span>{t('comp.emailGate.sentToSuffix')}
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
           <Input
             value={code}
             onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="Kod 6-cyfrowy"
+            placeholder={t('comp.emailGate.codePlaceholder')}
             inputMode="numeric"
             autoComplete="one-time-code"
           />
@@ -117,16 +117,16 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
           <div className="flex gap-2">
             <Button className="flex-1" onClick={handleVerify} disabled={loading || code.length < 6}>
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-              Potwierdź kod
+              {t('comp.emailGate.verifyButton')}
             </Button>
             <Button variant="outline" onClick={handleResend} disabled={resending}>
-              {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Wyślij ponownie'}
+              {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('comp.emailGate.resendButton')}
             </Button>
           </div>
 
           <div className="flex gap-2">
             <Button variant="secondary" className="w-full" onClick={() => void signOut(auth)}>
-              Wyloguj
+              {t('profile.logout')}
             </Button>
           </div>
         </CardContent>

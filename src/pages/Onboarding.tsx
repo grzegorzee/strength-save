@@ -7,6 +7,7 @@ import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw, Calendar } from 'luci
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
+import type { TranslationKey } from '@/i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -23,7 +24,7 @@ interface GeneratedPlan { days: TrainingDay[]; planDurationWeeks: number; }
 
 const weekMondayStr = (date: Date): string => formatLocalDate(getStartOfPlanWeek(date));
 
-const levelLabelKeys: Record<PlanTemplate['level'], string> = {
+const levelLabelKeys: Record<PlanTemplate['level'], TranslationKey> = {
   beginner: 'onboarding.level.beginner',
   intermediate: 'onboarding.level.intermediate',
   advanced: 'onboarding.level.advanced',

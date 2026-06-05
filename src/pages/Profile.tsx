@@ -70,9 +70,9 @@ const Profile = () => {
       await uploadBytes(r, file);
       const url = await getDownloadURL(r);
       await updateDoc(doc(db, 'users', uid), { photoURL: url });
-      toast({ title: 'Zdjęcie zaktualizowane' });
+      toast({ title: t('profile.toast.avatarUpdated') });
     } catch {
-      toast({ title: 'Błąd', description: 'Nie udało się wgrać zdjęcia. Sprawdź reguły Firebase Storage.', variant: 'destructive' });
+      toast({ title: t('profile.toast.error'), description: t('profile.toast.avatarFailed'), variant: 'destructive' });
     } finally {
       setUploadingAvatar(false);
     }
@@ -95,10 +95,10 @@ const Profile = () => {
     setSavingName(true);
     try {
       await updateDoc(doc(db, 'users', uid), { displayName: trimmed });
-      toast({ title: 'Zapisano', description: 'Nazwa profilu zaktualizowana.' });
+      toast({ title: t('profile.toast.saved'), description: t('profile.toast.nameUpdated') });
       setEditOpen(false);
     } catch {
-      toast({ title: 'Błąd', description: 'Nie udało się zapisać.', variant: 'destructive' });
+      toast({ title: t('profile.toast.error'), description: t('profile.toast.saveFailed'), variant: 'destructive' });
     } finally {
       setSavingName(false);
     }
@@ -108,8 +108,8 @@ const Profile = () => {
     if (!profile?.email) return;
     const ok = await resetPassword(profile.email);
     toast(ok
-      ? { title: 'Wysłano', description: `Link do zmiany hasła wysłany na ${profile.email}.` }
-      : { title: 'Błąd', description: 'Nie udało się wysłać linku.', variant: 'destructive' });
+      ? { title: t('profile.toast.sent'), description: t('profile.toast.passwordLink', { email: profile.email }) }
+      : { title: t('profile.toast.error'), description: t('profile.toast.linkFailed'), variant: 'destructive' });
   };
 
   const initials = (profile?.displayName || profile?.email || '?').slice(0, 2).toUpperCase();
@@ -128,13 +128,13 @@ const Profile = () => {
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingAvatar}
             className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
-            aria-label="Zmień zdjęcie profilowe"
+            aria-label={t('profile.aria.changeAvatar')}
           >
             {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
         </div>
-        <h1 className="font-heading text-3xl font-bold uppercase tracking-tight">{profile?.displayName || 'Profil'}</h1>
+        <h1 className="font-heading text-3xl font-bold uppercase tracking-tight">{profile?.displayName || t('profile.title')}</h1>
         <TierBadge label={tier.label} />
       </div>
 
@@ -206,7 +206,7 @@ const Profile = () => {
         <SettingRow icon={SlidersHorizontal} label={t('profile.support.advanced')} onClick={() => navigate('/settings')} />
         <SettingRow icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://grzegorzee.github.io/strength-save/', '_blank')} />
         <SettingRow icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:kontakt@gjasionowicz.pl'; }} />
-        <SettingRow icon={Info} label={t('profile.support.about')} onClick={() => toast({ title: 'FitTracker', description: 'Aplikacja do śledzenia treningów siłowych.' })} />
+        <SettingRow icon={Info} label={t('profile.support.about')} onClick={() => toast({ title: t('profile.about.title'), description: t('profile.about.desc') })} />
       </SectionCard>
 
       <Button
@@ -229,7 +229,7 @@ const Profile = () => {
           </div>
           <DialogFooter>
             <Button onClick={handleSaveName} disabled={savingName || !nameInput.trim()} className="kinetic-primary-button">
-              {savingName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Zapisz
+              {savingName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -11,6 +11,7 @@ import type { StravaActivity } from '@/types/strava';
 import { HR_ZONES } from '@/types/strava';
 import { ExternalLink } from 'lucide-react';
 import { getHRZone, getHRZoneConfig, getHRPercent } from '@/lib/hr-zones';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const activityIcons: Record<string, string> = {
   Run: '🏃',
@@ -89,22 +90,23 @@ interface StravaActivityDetailProps {
 }
 
 export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: StravaActivityDetailProps) => {
+  const { t } = useTranslation();
   const icon = activityIcons[activity.type] || '🏅';
   const sportLabel = activity.sportType || activity.type;
   const fullDate = formatFullDate(activity);
   const time = formatTime(activity);
 
   const metrics: MetricItemProps[] = [
-    { label: 'Dystans', value: formatDistance(activity.distance) },
-    { label: 'Czas ruchu', value: formatDuration(activity.movingTime) },
-    { label: 'Tempo / Prędkość', value: formatPace(activity.averageSpeed, activity.type) },
-    { label: 'Czas całkowity', value: formatDuration(activity.elapsedTime) },
-    { label: 'Tętno średnie', value: activity.averageHeartrate ? `${Math.round(activity.averageHeartrate)} bpm` : '—' },
-    { label: 'Tętno max', value: activity.maxHeartrate ? `${Math.round(activity.maxHeartrate)} bpm` : '—' },
-    { label: 'Kadencja', value: activity.averageCadence ? `${Math.round(activity.averageCadence)} spm` : '—' },
-    { label: 'Przewyższenie', value: activity.totalElevationGain ? `${Math.round(activity.totalElevationGain)} m` : '—' },
-    { label: 'Kalorie', value: activity.calories ? `${activity.calories} kcal` : '—' },
-    { label: 'Kudos', value: activity.kudosCount != null ? `👍 ${activity.kudosCount}` : '—' },
+    { label: t('strava.detail.distance'), value: formatDistance(activity.distance) },
+    { label: t('strava.detail.movingTime'), value: formatDuration(activity.movingTime) },
+    { label: t('strava.detail.paceSpeed'), value: formatPace(activity.averageSpeed, activity.type) },
+    { label: t('strava.detail.elapsedTime'), value: formatDuration(activity.elapsedTime) },
+    { label: t('strava.detail.avgHR'), value: activity.averageHeartrate ? `${Math.round(activity.averageHeartrate)} bpm` : '—' },
+    { label: t('strava.detail.maxHR'), value: activity.maxHeartrate ? `${Math.round(activity.maxHeartrate)} bpm` : '—' },
+    { label: t('strava.detail.cadence'), value: activity.averageCadence ? `${Math.round(activity.averageCadence)} spm` : '—' },
+    { label: t('strava.detail.elevation'), value: activity.totalElevationGain ? `${Math.round(activity.totalElevationGain)} m` : '—' },
+    { label: t('strava.detail.calories'), value: activity.calories ? `${activity.calories} kcal` : '—' },
+    { label: t('strava.detail.kudos'), value: activity.kudosCount != null ? `👍 ${activity.kudosCount}` : '—' },
   ];
 
   return (
@@ -118,12 +120,12 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
             <div className="flex-1 min-w-0">
               <SheetTitle className="truncate">{activity.name}</SheetTitle>
               <SheetDescription>
-                {sportLabel} {activity.trainer && '(Indoor)'} — {fullDate}{time && `, ${time}`}
+                {sportLabel} {activity.trainer && `(${t('strava.detail.indoor')})`} — {fullDate}{time && `, ${time}`}
               </SheetDescription>
             </div>
           </div>
           {activity.trainer && (
-            <Badge variant="secondary" className="w-fit mt-2">🏠 Indoor</Badge>
+            <Badge variant="secondary" className="w-fit mt-2">🏠 {t('strava.detail.indoor')}</Badge>
           )}
         </SheetHeader>
 
@@ -139,7 +141,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
           const percent = getHRPercent(activity.averageHeartrate!, maxHR);
           return (
             <div className="mb-4">
-              <p className="text-xs text-muted-foreground mb-2">Strefa tętna</p>
+              <p className="text-xs text-muted-foreground mb-2">{t('strava.detail.hrZone')}</p>
               <div className="flex gap-1 h-8 rounded-lg overflow-hidden mb-2">
                 {HR_ZONES.map((z) => (
                   <div
@@ -153,7 +155,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
                 ))}
               </div>
               <p className="text-sm">
-                Dominująca strefa: <span className="font-semibold">Z{zone} — {zoneConfig.name}</span>{' '}
+                {t('strava.detail.dominantZone')} <span className="font-semibold">Z{zone} — {zoneConfig.name}</span>{' '}
                 <span className="text-muted-foreground">({percent}% max HR)</span>
               </p>
             </div>
@@ -162,7 +164,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
 
         {activity.description && (
           <div className="mb-4">
-            <p className="text-xs text-muted-foreground mb-1">Opis</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('strava.detail.description')}</p>
             <p className="text-sm">{activity.description}</p>
           </div>
         )}
@@ -172,7 +174,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
           onClick={() => window.open(activity.stravaUrl, '_blank')}
         >
           <ExternalLink className="h-4 w-4 mr-2" />
-          Otwórz w Strava
+          {t('strava.detail.openInStrava')}
         </Button>
       </SheetContent>
     </Sheet>

@@ -6,6 +6,7 @@ import { generateHeatmapData } from '@/lib/heatmap-utils';
 import type { WorkoutSession } from '@/types';
 import type { StravaActivity } from '@/types/strava';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface Props {
   workouts: WorkoutSession[];
@@ -20,10 +21,12 @@ const LEVEL_COLORS = [
   'bg-emerald-400',
 ] as const;
 
-const MONTHS = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paź', 'Lis', 'Gru'];
-const DAY_LABELS = ['Pn', '', 'Śr', '', 'Pt', '', ''];
+const MONTH_KEYS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
 
 export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
+  const { t } = useTranslation();
+  const MONTHS = MONTH_KEYS.map(k => t(`heatmap.month.${k}`));
+  const DAY_LABELS = [t('heatmap.day.mon'), '', t('heatmap.day.wed'), '', t('heatmap.day.fri'), '', ''];
   const currentYear = new Date().getFullYear();
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -82,7 +85,7 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
     });
 
     return labels;
-  }, [weeks]);
+  }, [weeks, MONTHS]);
 
   const activeDays = heatmapData.filter(d => d.level > 0).length;
   const totalWeeks = weeks.length;
@@ -94,9 +97,9 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Calendar className="h-5 w-5 text-emerald-500" />
-              Mapa treningowa
+              {t('heatmap.title')}
             </CardTitle>
-            <CardDescription>{activeDays} aktywnych dni w {selectedYear}</CardDescription>
+            <CardDescription>{t('heatmap.activeDays', { n: activeDays, year: selectedYear })}</CardDescription>
           </div>
         </div>
         {availableYears.length > 1 && (
@@ -167,11 +170,11 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
 
         {/* Legend */}
         <div className="flex items-center gap-1.5 sm:gap-2 mt-3 text-[10px] text-muted-foreground">
-          <span>Mniej</span>
+          <span>{t('heatmap.less')}</span>
           {LEVEL_COLORS.map((color, i) => (
             <div key={i} className={cn('h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-[2px] sm:rounded-sm', color)} />
           ))}
-          <span>Więcej</span>
+          <span>{t('heatmap.more')}</span>
         </div>
       </CardContent>
     </Card>

@@ -263,9 +263,9 @@ const TrainingPlan = () => {
             />
           </div>
           <div className="flex justify-between mt-2 text-[11px] font-semibold">
-            <span className="text-[#3a3f52]">Start</span>
-            <span className="text-primary">{progressPercent}% ukończone</span>
-            <span className="text-[#3a3f52]">Koniec</span>
+            <span className="text-[#3a3f52]">{t('trainingplan.start')}</span>
+            <span className="text-primary">{t('trainingplan.percentDone', { percent: progressPercent })}</span>
+            <span className="text-[#3a3f52]">{t('trainingplan.end')}</span>
           </div>
         </div>
 
@@ -310,7 +310,7 @@ const TrainingPlan = () => {
               onClick={() => setSelectedDate(new Date())}
               className="text-[11px] text-primary hover:underline font-medium"
             >
-              ← Bieżący tydzień
+              {t('trainingplan.currentWeek')}
             </button>
           )}
         </div>
@@ -380,7 +380,7 @@ const TrainingPlan = () => {
                           className="flex items-center gap-1 text-[11px] text-[#2e3348] hover:text-primary transition-colors"
                         >
                           <Pencil className="h-3 w-3" />
-                          Edytuj
+                          {t('trainingplan.edit')}
                         </button>
                       )}
                     </div>
@@ -427,19 +427,19 @@ const TrainingPlan = () => {
             <div className="grid grid-cols-3 gap-3 mt-4">
               <div className="rounded-2xl p-4 border border-white/[0.04] bg-white/[0.02] text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">{actualCurrentWeek}</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">Tydzień</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">{t('trainingplan.statWeek')}</p>
               </div>
               <div className="rounded-2xl p-4 border border-white/[0.04] bg-white/[0.02] text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">
                   {workouts.filter(w => w.completed && (!planStartDate || w.date >= planStartDate)).length}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">Ukończone</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">{t('trainingplan.statCompleted')}</p>
               </div>
               <div className="rounded-2xl p-4 border border-white/[0.04] bg-white/[0.02] text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">
                   {Math.max(0, planDurationWeeks - actualCurrentWeek)}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">Pozostało</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">{t('trainingplan.statRemaining')}</p>
               </div>
             </div>
           </div>
@@ -459,11 +459,11 @@ const TrainingPlan = () => {
               <div className="flex items-center justify-center gap-4 mt-4 text-[10px] font-semibold">
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                  <span className="text-[#3a3f52]">Ukończone</span>
+                  <span className="text-[#3a3f52]">{t('trainingplan.legendCompleted')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full ring-2 ring-primary/60 ring-inset" />
-                  <span className="text-[#3a3f52]">Zaplanowane</span>
+                  <span className="text-[#3a3f52]">{t('trainingplan.legendPlanned')}</span>
                 </div>
                 {canUseStrava && (
                   <div className="flex items-center gap-1.5">
@@ -500,11 +500,11 @@ const TrainingPlan = () => {
                       <div className="flex items-center gap-2">
                         {workoutForDate?.completed ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">
-                            <CheckCircle className="h-3 w-3" /> Ukończony
+                            <CheckCircle className="h-3 w-3" /> {t('trainingplan.statusCompleted')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-white/10 bg-white/[0.03] text-muted-foreground">
-                            <Dumbbell className="h-3 w-3" /> Zaplanowany
+                            <Dumbbell className="h-3 w-3" /> {t('trainingplan.statusPlanned')}
                           </span>
                         )}
                       </div>
@@ -515,7 +515,7 @@ const TrainingPlan = () => {
                         )}
                         className="text-xs text-primary hover:underline font-medium"
                       >
-                        Przejdź do treningu →
+                        {t('trainingplan.goToWorkout')}
                       </button>
                     </>
                   )}

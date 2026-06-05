@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Timer, X, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface RestTimerProps {
   defaultSeconds?: number;
@@ -35,6 +36,7 @@ function playBeep() {
 }
 
 export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestTimerProps) => {
+  const { t } = useTranslation();
   const [totalSeconds, setTotalSeconds] = useState(defaultSeconds);
   const [secondsLeft, setSecondsLeft] = useState(defaultSeconds);
   const [isRunning, setIsRunning] = useState(true);
@@ -93,7 +95,7 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Timer className="h-4 w-4 text-primary shrink-0" />
-            Odpoczynek
+            {t('resttimer.title')}
           </div>
           {exerciseLabel && (
             <p className="text-xs text-muted-foreground truncate mt-0.5 ml-6">{exerciseLabel}</p>
@@ -134,7 +136,7 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
               "text-2xl font-bold tabular-nums",
               isFinished && "text-fitness-success"
             )}>
-              {isFinished ? "GO!" : `${minutes}:${String(secs).padStart(2, '0')}`}
+              {isFinished ? t('resttimer.go') : `${minutes}:${String(secs).padStart(2, '0')}`}
             </span>
           </div>
         </div>
@@ -147,7 +149,7 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
             onClick={togglePause}
             disabled={isFinished}
           >
-            {isRunning ? 'Pauza' : 'Wznów'}
+            {isRunning ? t('resttimer.pause') : t('resttimer.resume')}
           </Button>
           <Button
             variant="outline"
@@ -155,7 +157,7 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
             onClick={() => handleReset()}
           >
             <RotateCcw className="h-3 w-3 mr-1" />
-            Reset
+            {t('resttimer.reset')}
           </Button>
         </div>
 

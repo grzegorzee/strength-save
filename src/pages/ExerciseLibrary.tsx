@@ -18,11 +18,12 @@ interface EnrichedExercise extends LibraryExercise {
   dayName?: string;
 }
 
-const typeLabel = (ex: EnrichedExercise) =>
-  ex.isBodyweight ? 'Masa ciała' : ex.type === 'compound' ? 'Wielostawowe' : 'Izolacja';
-
 // Wiersz listy wg mockupu: miniatura + nazwa uppercase + chip kategorii + typ + swap-ikona.
 const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: EnrichedExercise) => void }) => {
+  const { t } = useTranslation();
+  const typeLabel = ex.isBodyweight
+    ? t('exercises.type.bodyweight')
+    : ex.type === 'compound' ? t('exercises.type.compound') : t('exercises.type.isolation');
   const animationUrl = getExerciseAnimationUrl(ex.name);
   return (
     <button
@@ -43,7 +44,7 @@ const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: Enrich
           <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-primary">
             {categoryLabels[ex.category]}
           </span>
-          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{typeLabel(ex)}</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{typeLabel}</span>
         </div>
       </div>
       <ArrowRightLeft className="h-4 w-4 shrink-0 text-primary" />

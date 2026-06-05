@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl } from '@/lib/exercise-media';
 import { useUnit } from '@/contexts/UnitContext';
+import { useTranslation } from '@/contexts/LanguageContext';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 
 // ── Progression Badge sub-component ──
@@ -49,14 +50,19 @@ const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 
 
 // ── Next-set target badge (konkretny cel z trendu historii) ──
 const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
+  const { t } = useTranslation();
   const styles: Record<NextSetAdvice['kind'], string> = {
     progress: 'border-green-500/30 text-green-400 bg-green-500/10',
     hold: 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10',
     deload: 'border-orange-500/40 text-orange-400 bg-orange-500/10',
   };
-  const labels: Record<NextSetAdvice['kind'], string> = { progress: 'Cel', hold: 'Cel', deload: 'Deload' };
+  const labels: Record<NextSetAdvice['kind'], string> = {
+    progress: t('card.target'),
+    hold: t('card.target'),
+    deload: t('card.deload'),
+  };
   const target = advice.isBodyweight
-    ? `${advice.targetReps} powt.`
+    ? t('card.repsValue', { n: advice.targetReps })
     : `${advice.targetWeight} kg × ${advice.targetReps}`;
   return (
     <span
@@ -100,6 +106,7 @@ const ExerciseCardInner = ({
   onAskCoach,
   coachBusy = false,
 }: ExerciseCardProps) => {
+  const { t } = useTranslation();
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
@@ -217,7 +224,7 @@ const ExerciseCardInner = ({
     if (!previousSets || previousSets.length === 0) return null;
     const prevSet = previousSets[setIndex];
     if (!prevSet || (prevSet.weight === 0 && prevSet.reps === 0)) return null;
-    if (isBodyweight) return `${prevSet.reps} powt.`;
+    if (isBodyweight) return t('card.repsValue', { n: prevSet.reps });
     return `${prevSet.reps}×${prevSet.weight}kg`;
   };
 
@@ -296,7 +303,7 @@ const ExerciseCardInner = ({
           <button
             onClick={() => handleToggleComplete(globalIndex)}
             disabled={!isEditable}
-            aria-label={set.completed ? 'Odznacz serię' : 'Zaznacz serię jako zrobioną'}
+            aria-label={set.completed ? t('card.uncheckSet') : t('card.checkSet')}
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed ? 'bg-accent text-accent-foreground' : 'bg-surface-highest text-transparent hover:text-accent/40',
@@ -313,7 +320,7 @@ const ExerciseCardInner = ({
           {isEditable ? (
             <button
               onClick={() => handleRemoveSet(globalIndex)}
-              aria-label="Usuń serię"
+              aria-label={t('card.removeSet')}
               className="flex h-8 w-6 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
             >
               &times;
@@ -340,7 +347,7 @@ const ExerciseCardInner = ({
             onClick={() => animationUrl && setShowVideo(true)}
             disabled={!animationUrl}
             className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70 disabled:cursor-default"
-            aria-label={animationUrl ? `Pokaż animację: ${exercise.name}` : undefined}
+            aria-label={animationUrl ? t('card.showAnimation', { name: exercise.name }) : undefined}
           >
             {animationUrl ? (
               <>
@@ -360,7 +367,7 @@ const ExerciseCardInner = ({
             <h3 className="font-bold text-[16px] leading-tight">{exercise.name}</h3>
             <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
               <span className="text-sm font-medium text-muted-foreground">
-                {workingSets.length} {workingSets.length === 1 ? 'seria' : workingSets.length < 5 ? 'serie' : 'serii'}
+                {t('card.setsCount', { n: workingSets.length })}
               </span>
               {nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
               {completedSets > 0 && (
@@ -402,7 +409,7 @@ const ExerciseCardInner = ({
         <div className="px-5 pt-3">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest mb-2.5 text-[hsl(var(--ec-warmup-gold))] border border-[hsl(var(--ec-warmup-gold-border))] bg-[hsl(var(--ec-warmup-gold-bg))]">
             <Flame className="h-3 w-3" />
-            Rozgrzewka
+            {t('comp.warmup.title')}
           </div>
           {warmupSets.map((set, wi) => {
             const globalIndex = sets.indexOf(set);
@@ -416,12 +423,12 @@ const ExerciseCardInner = ({
       <div className="px-4 sm:px-5 pt-4 pb-2">
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
         <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
-          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Set</span>
-          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Poprz.</span>
+          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colSet')}</span>
+          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colPrevious')}</span>
           {!isBodyweight && (
             <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{unit}</span>
           )}
-          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Powt.</span>
+          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colReps')}</span>
           <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">✓</span>
           <span />
         </div>
@@ -443,7 +450,7 @@ const ExerciseCardInner = ({
               disabled={workingSets.length >= 10}
               className="inline-flex items-center gap-2 py-2 text-xs font-bold uppercase tracking-[0.14em] text-foreground hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              Dodaj serię
+              {t('card.addSet')}
               <Plus className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-1">
@@ -454,7 +461,7 @@ const ExerciseCardInner = ({
                   className="inline-flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary transition-colors px-3 py-2 disabled:opacity-50"
                 >
                   {coachBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  Coach AI
+                  {t('card.coachAi')}
                 </button>
               )}
               {!showNotes && (
@@ -463,14 +470,14 @@ const ExerciseCardInner = ({
                   className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors px-3 py-2"
                 >
                   <StickyNote className="h-3.5 w-3.5" />
-                  Notatka
+                  {t('card.note')}
                 </button>
               )}
             </div>
           </div>
           {showNotes && (
             <Textarea
-              placeholder="Notatki do ćwiczenia..."
+              placeholder={t('card.notePlaceholder')}
               value={notes}
               onChange={(e) => handleNotesChange(e.target.value)}
               className="mt-3 min-h-[60px] text-sm exercise-card-input !text-left"

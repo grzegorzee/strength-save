@@ -52,6 +52,7 @@ import {
 } from 'lucide-react';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 import { useTranslation } from '@/contexts/LanguageContext';
+import type { TranslationKey } from '@/i18n';
 
 type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
 
@@ -75,7 +76,7 @@ const workoutTonnage = (workout: WorkoutSession): number =>
     sum + ex.sets.filter(s => s.completed && !s.isWarmup).reduce((s, set) => s + set.reps * set.weight, 0),
   0);
 
-const getWeekLabel = (weekIndex: number, totalWeeks: number, t: (key: string, params?: Record<string, string | number>) => string): string => {
+const getWeekLabel = (weekIndex: number, totalWeeks: number, t: (key: TranslationKey, params?: Record<string, string | number>) => string): string => {
   if (weekIndex === totalWeeks - 1) return t('analytics.weekLabel.this');
   if (weekIndex === totalWeeks - 2) return t('analytics.weekLabel.last');
   return t('analytics.weekLabel.ago', { n: totalWeeks - weekIndex });
@@ -776,7 +777,7 @@ const WeeklyTab = () => {
                   <Flame className="h-3 w-3 text-amber-500" />
                 </div>
                 <p className="text-sm font-bold">{s.stats.prs.length}</p>
-                <p className="text-xs text-muted-foreground">PRy</p>
+                <p className="text-xs text-muted-foreground">{t('analytics.stat.prs')}</p>
               </div>
             </div>
 
@@ -807,6 +808,7 @@ const WeeklyTab = () => {
 const Analytics = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { canUseStrava } = useCurrentUser();
+  const { t } = useTranslation();
   const tabParam = searchParams.get('tab') as AnalyticsTab | null;
   const validTabs: AnalyticsTab[] = canUseStrava
     ? ['summary', 'charts', 'strava', 'weekly']
@@ -816,16 +818,16 @@ const Analytics = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight">Analityka</h1>
-        <p className="text-sm text-muted-foreground">Podsumowania, wykresy, pomiary i tygodniowe statystyki treningów.</p>
+        <h1 className="text-2xl font-heading font-bold tracking-tight">{t('analytics.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('analytics.subtitle')}</p>
       </div>
 
       <Tabs value={currentTab} onValueChange={(value) => setSearchParams({ tab: value })}>
         <TabsList className="w-full overflow-x-auto">
-          <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">Podsum.</TabsTrigger>
-          <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">Wykresy</TabsTrigger>
+          <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">{t('analytics.tab.summary')}</TabsTrigger>
+          <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">{t('analytics.tab.charts')}</TabsTrigger>
           {canUseStrava && <TabsTrigger value="strava" className="flex-1 text-xs min-w-0">Strava</TabsTrigger>}
-          <TabsTrigger value="weekly" className="flex-1 text-xs min-w-0">Tygodnie</TabsTrigger>
+          <TabsTrigger value="weekly" className="flex-1 text-xs min-w-0">{t('analytics.tab.weekly')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary"><SummaryTab /></TabsContent>

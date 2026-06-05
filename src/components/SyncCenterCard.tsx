@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface SyncCenterCardProps {
   uid: string;
@@ -31,6 +32,7 @@ const buildExercisesPayload = (draft: ActiveWorkoutDraft) => (
 
 export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { isOnline } = useOnlineStatus();
   const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer } = useFirebaseWorkouts(uid);
@@ -66,13 +68,13 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
   const status = useCallback((targetDraft: ActiveWorkoutDraft) => (
     targetDraft.finalSyncPending
-      ? { label: 'Zakończony lokalnie', tone: 'bg-amber-100 text-amber-800 border-amber-200' }
+      ? { label: t('strava.statusCompletedLocally'), tone: 'bg-amber-100 text-amber-800 border-amber-200' }
       : targetDraft.sessionOrigin === 'provisional'
-        ? { label: 'Tylko lokalnie', tone: 'bg-sky-100 text-sky-800 border-sky-200' }
+        ? { label: t('strava.statusLocalOnly'), tone: 'bg-sky-100 text-sky-800 border-sky-200' }
         : targetDraft.dirty
-          ? { label: 'Czeka na synchronizację', tone: 'bg-orange-100 text-orange-800 border-orange-200' }
-          : { label: 'Zsynchronizowany', tone: 'bg-emerald-100 text-emerald-800 border-emerald-200' }
-  ), []);
+          ? { label: t('strava.statusWaitingSync'), tone: 'bg-orange-100 text-orange-800 border-orange-200' }
+          : { label: t('strava.statusSynced'), tone: 'bg-emerald-100 text-emerald-800 border-emerald-200' }
+  ), [t]);
 
   const listedEntries = useMemo<ListedSyncEntry[]>(() => {
     const dedupedQueue = queueEntries.filter(entry => entry.sessionId !== draft?.sessionId);
@@ -86,8 +88,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       if (workingDraft.sessionOrigin === 'provisional') {
         if (!isOnline) {
           toast({
-            title: 'Brak internetu',
-            description: 'Ta sesja istnieje tylko lokalnie. Synchronizacja ruszy po odzyskaniu połączenia.',
+            title: t('strava.toastNoInternetTitle'),
+            description: t('strava.toastNoInternetDesc'),
             variant: 'destructive',
           });
           return false;
@@ -101,8 +103,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
         if (promoteResult.error || !promoteResult.session) {
           toast({
-            title: 'Nie udało się utworzyć sesji w chmurze',
-            description: promoteResult.error || 'Spróbuj ponownie za chwilę.',
+            title: t('strava.toastPromoteFailTitle'),
+            description: promoteResult.error || t('strava.tryAgainShortly'),
             variant: 'destructive',
           });
           workoutSyncQueue.markRetry(uid, targetDraft.sessionId, promoteResult.error || 'PROMOTE_FAILED');
@@ -138,8 +140,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
       if (!result.success) {
         toast({
-          title: 'Synchronizacja nie powiodła się',
-          description: result.error || 'Spróbuj ponownie za chwilę.',
+          title: t('strava.toastSyncFailTitle'),
+          description: result.error || t('strava.tryAgainShortly'),
           variant: 'destructive',
         });
         if (source === 'queue') {
@@ -157,10 +159,10 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         );
 
         if (!validation.ok) {
-          const errorMessage = `Chmura nie potwierdziła kompletnego zapisu (${validation.reason ?? 'unknown'}).`;
+          const errorMessage = t('strava.cloudNotConfirmed', { reason: validation.reason ?? 'unknown' });
           toast({
-            title: 'Synchronizacja niepotwierdzona',
-            description: 'Lokalny szkic zostaje na urządzeniu. Spróbuj ponownie za chwilę.',
+            title: t('strava.toastUnconfirmedTitle'),
+            description: t('strava.toastUnconfirmedDesc'),
             variant: 'destructive',
           });
           workoutSyncQueue.upsertFromDraft(workingDraft, { lastError: errorMessage });
@@ -176,8 +178,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         workoutSyncQueue.remove(uid, workingDraft.sessionId);
         setQueueEntries(workoutSyncQueue.list(uid));
         toast({
-          title: 'Trening zsynchronizowany',
-          description: 'Lokalny szkic został zapisany w chmurze i usunięty z kolejki.',
+          title: t('strava.toastWorkoutSyncedTitle'),
+          description: t('strava.toastWorkoutSyncedDesc'),
         });
         trackTelemetryEvent(uid, 'sync_success');
         return true;
@@ -189,15 +191,15 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       workoutSyncQueue.remove(uid, targetDraft.sessionId);
       await loadDraft();
       toast({
-        title: 'Synchronizacja zakończona',
-        description: 'Lokalny szkic został zsynchronizowany z chmurą.',
+        title: t('strava.toastSyncDoneTitle'),
+        description: t('strava.toastSyncDoneDesc'),
       });
       trackTelemetryEvent(uid, 'sync_success');
       return true;
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Nie udało się zsynchronizować lokalnego szkicu.';
+      const message = error instanceof Error ? error.message : t('strava.syncDraftFailed');
       toast({
-        title: 'Błąd synchronizacji',
+        title: t('strava.toastSyncErrorTitle'),
         description: message,
         variant: 'destructive',
       });
@@ -209,7 +211,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     } finally {
       setQueueEntries(workoutSyncQueue.list(uid));
     }
-  }, [batchSaveWorkout, createWorkoutSession, getWorkoutSessionFromServer, isOnline, loadDraft, toast, uid]);
+  }, [batchSaveWorkout, createWorkoutSession, getWorkoutSessionFromServer, isOnline, loadDraft, toast, uid, t]);
 
   const handleRetrySync = async (targetDraft: ActiveWorkoutDraft, source: 'active' | 'queue') => {
     if (syncingSessionIds.includes(targetDraft.sessionId)) return;
@@ -250,13 +252,13 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       workoutSyncQueue.remove(uid, targetDraft.sessionId);
       setQueueEntries(workoutSyncQueue.list(uid));
       toast({
-        title: 'Usunięto lokalny szkic',
-        description: 'Sesja została usunięta z urządzenia i kolejki synchronizacji.',
+        title: t('strava.toastDraftDiscardedTitle'),
+        description: t('strava.toastDraftDiscardedDesc'),
       });
     } catch {
       toast({
-        title: 'Nie udało się usunąć szkicu',
-        description: 'Spróbuj ponownie za chwilę.',
+        title: t('strava.toastDiscardFailTitle'),
+        description: t('strava.tryAgainShortly'),
         variant: 'destructive',
       });
     } finally {
@@ -288,10 +290,10 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {isOnline ? <Cloud className="h-5 w-5 text-primary" /> : <CloudOff className="h-5 w-5 text-muted-foreground" />}
-          Sync Center
+          {t('strava.syncCenter')}
         </CardTitle>
         <CardDescription>
-          Podgląd aktywnego szkicu i kolejki sesji oczekujących na zapis w Firebase.
+          {t('strava.syncCenterDesc')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -301,22 +303,22 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
           </div>
         ) : listedEntries.length === 0 ? (
           <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-            Brak aktywnych lokalnych szkiców ani sesji w kolejce. Wszystkie treningi są zsynchronizowane.
+            {t('strava.noPendingSessions')}
           </div>
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-4">
               <div className="flex items-center gap-2 text-sm">
                 <Layers3 className="h-4 w-4 text-primary" />
-                <span>{listedEntries.length} {listedEntries.length === 1 ? 'sesja oczekująca' : 'sesje oczekujące'}</span>
-                <Badge variant="secondary">{isOnline ? 'Online' : 'Offline'}</Badge>
+                <span>{listedEntries.length === 1 ? t('strava.pendingSessionsOne', { n: listedEntries.length }) : t('strava.pendingSessionsMany', { n: listedEntries.length })}</span>
+                <Badge variant="secondary">{isOnline ? t('strava.online') : t('strava.offline')}</Badge>
               </div>
               <Button
                 onClick={handleRetryAll}
                 disabled={!isOnline || listedEntries.every(entry => syncingSessionIds.includes(entry.sessionId))}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Retry all
+                {t('strava.retryAll')}
               </Button>
             </div>
 
@@ -334,50 +336,50 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                       <Badge variant="outline" className={cn('border', entryStatus.tone)}>
                         {entryStatus.label}
                       </Badge>
-                      {isActiveEntry && <Badge>Aktywny szkic</Badge>}
-                      {!isActiveEntry && <Badge variant="secondary">Kolejka</Badge>}
+                      {isActiveEntry && <Badge>{t('strava.activeDraft')}</Badge>}
+                      {!isActiveEntry && <Badge variant="secondary">{t('strava.queue')}</Badge>}
                       {(entry.retryCount ?? 0) > 0 && (
-                        <Badge variant="secondary">Retry {entry.retryCount}</Badge>
+                        <Badge variant="secondary">{t('strava.retryCount', { n: entry.retryCount ?? 0 })}</Badge>
                       )}
                     </div>
 
                     <div className="grid gap-2 text-sm sm:grid-cols-2">
                       <div>
-                        <span className="text-muted-foreground">Dzień:</span> {entry.dayId}
+                        <span className="text-muted-foreground">{t('strava.fieldDay')}</span> {entry.dayId}
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Data:</span> {entry.date}
+                        <span className="text-muted-foreground">{t('strava.fieldDate')}</span> {entry.date}
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Sesja:</span> {entry.sessionOrigin === 'provisional' ? 'provisional' : 'remote'}
+                        <span className="text-muted-foreground">{t('strava.fieldSession')}</span> {entry.sessionOrigin === 'provisional' ? t('strava.sessionProvisional') : t('strava.sessionRemote')}
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Ostatnia zmiana:</span> {new Date(entry.updatedAt).toLocaleString('pl-PL')}
+                        <span className="text-muted-foreground">{t('strava.fieldLastChange')}</span> {new Date(entry.updatedAt).toLocaleString('pl-PL')}
                       </div>
                     </div>
 
                     <p className="text-sm text-muted-foreground">
                       {entry.sessionOrigin === 'provisional'
-                        ? 'Ta sesja nie ma jeszcze dokumentu w Firebase. Powstanie przy pierwszej udanej synchronizacji online.'
+                        ? t('strava.descProvisional')
                         : entry.finalSyncPending
-                          ? 'Trening został zakończony lokalnie i czeka na finalny zapis do chmury.'
+                          ? t('strava.descFinalPending')
                           : entry.dirty
-                            ? 'Masz lokalne zmiany, które nie zostały jeszcze zsynchronizowane.'
-                            : 'Lokalny szkic jest zsynchronizowany.'}
+                            ? t('strava.descDirty')
+                            : t('strava.descSynced')}
                     </p>
 
                     {entry.lastError && (
-                      <p className="text-xs text-destructive">Ostatni błąd: {entry.lastError}</p>
+                      <p className="text-xs text-destructive">{t('strava.lastError', { msg: entry.lastError })}</p>
                     )}
 
                     <div className="grid gap-2 sm:grid-cols-4">
                       <Button variant="outline" onClick={() => handleOpenWorkout(entry)}>
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        Otwórz trening
+                        {t('strava.openWorkout')}
                       </Button>
                       <Button variant="outline" onClick={() => handleExportDraft(entry)}>
                         <Download className="h-4 w-4 mr-2" />
-                        Eksport JSON
+                        {t('strava.exportJson')}
                       </Button>
                       <Button
                         onClick={() => void handleRetrySync(entry, source)}
@@ -388,7 +390,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                         ) : (
                           <RefreshCw className="h-4 w-4 mr-2" />
                         )}
-                        Synchronizuj teraz
+                        {t('strava.syncNow')}
                       </Button>
                       <Button
                         variant="outline"
@@ -401,7 +403,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                         ) : (
                           <Trash2 className="h-4 w-4 mr-2" />
                         )}
-                        Usuń szkic
+                        {t('strava.deleteDraft')}
                       </Button>
                     </div>
                   </div>

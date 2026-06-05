@@ -1,20 +1,6 @@
 import type { PrimaryMuscle } from '@/data/exercise-details';
 import { cn } from '@/lib/utils';
-
-const MUSCLE_LABELS: Record<PrimaryMuscle, string> = {
-  chest: 'Klatka piersiowa',
-  back: 'Plecy',
-  shoulders: 'Barki',
-  biceps: 'Biceps',
-  triceps: 'Triceps',
-  forearms: 'Przedramiona',
-  quads: 'Czworogłowe ud',
-  hamstrings: 'Dwugłowe ud',
-  glutes: 'Pośladki',
-  calves: 'Łydki',
-  core: 'Brzuch / core',
-  fullbody: 'Całe ciało',
-};
+import { useTranslation } from '@/contexts/LanguageContext';
 
 // Które regiony schematu podświetlić dla danej grupy głównej.
 const ACTIVE_REGIONS: Record<PrimaryMuscle, string[]> = {
@@ -33,13 +19,15 @@ const ACTIVE_REGIONS: Record<PrimaryMuscle, string[]> = {
 };
 
 export const MuscleMap = ({ primary, className }: { primary: PrimaryMuscle; className?: string }) => {
+  const { t } = useTranslation();
   const active = new Set(ACTIVE_REGIONS[primary] ?? []);
   const fill = (id: string) => (active.has(id) ? 'hsl(var(--accent))' : 'hsl(var(--surface-highest))');
+  const muscleLabel = t(`muscle.${primary}`);
 
   return (
     <div className={cn('rounded-xl bg-surface-low p-6', className)}>
       <div className="flex items-center justify-center">
-        <svg viewBox="0 0 200 360" className="h-64 w-auto" role="img" aria-label={`Mapa mięśni: ${MUSCLE_LABELS[primary]}`}>
+        <svg viewBox="0 0 200 360" className="h-64 w-auto" role="img" aria-label={t('muscle.mapLabel', { muscle: muscleLabel })}>
           {/* head */}
           <circle cx="100" cy="28" r="18" fill="hsl(var(--surface-highest))" />
           {/* neck */}
@@ -70,7 +58,7 @@ export const MuscleMap = ({ primary, className }: { primary: PrimaryMuscle; clas
         </svg>
       </div>
       <p className="mt-2 text-center text-xs font-bold uppercase tracking-[0.16em] text-accent">
-        Główne: {MUSCLE_LABELS[primary]}
+        {t('muscle.primary', { muscle: muscleLabel })}
       </p>
     </div>
   );
