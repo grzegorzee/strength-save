@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <rect width="1024" height="1024" fill="#0e0e0e"/>
+<defs>
+    <linearGradient id="forged" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f4ffc9"/>
+      <stop offset="100%" stop-color="#cefc22"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#forged)">
+    <rect x="282" y="474" width="460" height="76" rx="18"/>
+    <rect x="214" y="372" width="74" height="280" rx="24"/>
+    <rect x="736" y="372" width="74" height="280" rx="24"/>
+    <rect x="160" y="417" width="56" height="190" rx="20"/>
+    <rect x="808" y="417" width="56" height="190" rx="20"/>
+  </g>
+</svg>
