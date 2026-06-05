@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "283539506094",
+    "project_id": "fittracker-workouts",
+    "storage_bucket": "fittracker-workouts.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:283539506094:android:d247e84bda5834fe66be3f",
+        "android_client_info": {
+          "package_name": "com.grzegorzjasionowicz.strengthsave"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "283539506094-ienjlbn9fhf3mt5459eqcqredkv7o27d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBHPA3aVolv7eqKvL-knjfAeuYy0jsqx3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "283539506094-ienjlbn9fhf3mt5459eqcqredkv7o27d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "283539506094-b1c236euu1dmjsa5omh7i0j50kehtjuj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.grzegorzjasionowicz.strengthsave"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

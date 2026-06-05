@@ -4,6 +4,7 @@ import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/ex
 import type { ExerciseReplacement } from '@/types';
 import { Play, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface ExerciseSwapDialogProps {
   open: boolean;
@@ -24,6 +25,7 @@ export const ExerciseSwapDialog = ({
   originalSets,
   onSwap,
 }: ExerciseSwapDialogProps) => {
+  const { t } = useTranslation();
   const alternatives = category
     ? exerciseLibrary.filter(
         e =>
@@ -47,10 +49,10 @@ export const ExerciseSwapDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] w-full sm:max-w-md p-0">
         <DialogHeader className="p-4 pb-2">
-          <DialogTitle className="text-base">Zamień ćwiczenie</DialogTitle>
+          <DialogTitle className="text-base">{t('comp.swap.title')}</DialogTitle>
           {category && (
             <p className="text-sm text-muted-foreground">
-              Kategoria: {categoryLabels[category]}
+              {t('comp.swap.category', { category: categoryLabels[category] })}
             </p>
           )}
         </DialogHeader>
@@ -58,7 +60,7 @@ export const ExerciseSwapDialog = ({
         <div className="max-h-[60vh] overflow-y-auto px-2 pb-4">
           {alternatives.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              Brak dostępnych alternatyw w tej kategorii
+              {t('comp.swap.noAlternatives')}
             </p>
           ) : (
             <div className="space-y-1">
@@ -75,7 +77,7 @@ export const ExerciseSwapDialog = ({
                     <p className="font-medium text-sm truncate">{exercise.name}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <Badge variant="outline" className="text-xs">
-                        {exercise.type === 'compound' ? 'Złożone' : 'Izolacja'}
+                        {exercise.type === 'compound' ? t('comp.swap.compound') : t('comp.swap.isolation')}
                       </Badge>
                       {exercise.videoUrl && (
                         <Play className="h-3 w-3 text-muted-foreground" />

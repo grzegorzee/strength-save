@@ -10,6 +10,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
+import { useTranslation } from '@/contexts/LanguageContext';
 import { calculateStreak } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
@@ -25,10 +26,11 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
+  const { t } = useTranslation();
   if (value === null || value === 0) {
     return (
       <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
-        <Minus className="h-3 w-3" /> stabilnie
+        <Minus className="h-3 w-3" /> {t('dash.trend.stable')}
       </span>
     );
   }
@@ -86,6 +88,7 @@ const DashboardStatCard = ({
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
   const {
     workouts,
@@ -129,7 +132,7 @@ const Dashboard = () => {
       exercises: workout.exercises.map(exercise => ({
         id: exercise.exerciseId,
         name: resolver.resolveExerciseName(workout, exercise.exerciseId),
-        sets: `${exercise.sets.filter(set => !set.isWarmup).length} serii`,
+        sets: t('dash.setsCount', { n: exercise.sets.filter(set => !set.isWarmup).length }),
         instructions: [],
       })),
     };
@@ -289,9 +292,9 @@ const Dashboard = () => {
 
   // Greeting
   const hour = new Date().getHours();
-  const greetingText = hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór';
+  const greetingText = hour < 12 ? t('dash.greeting.morning') : hour < 18 ? t('dash.greeting.day') : t('dash.greeting.evening');
   const GreetingIcon = hour < 18 ? Sun : Moon;
-  const displayName = profile?.displayName?.split(' ')[0] || 'Trener';
+  const displayName = profile?.displayName?.split(' ')[0] || t('dash.defaultName');
   const formattedDate = new Date().toLocaleDateString('pl-PL', {
     weekday: 'long',
     day: 'numeric',
@@ -340,7 +343,7 @@ const Dashboard = () => {
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+        <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -348,7 +351,7 @@ const Dashboard = () => {
   if (error) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-destructive">Błąd: {error}</p>
+        <p className="text-destructive">{t('dash.error')}: {error}</p>
       </div>
     );
   }
@@ -357,9 +360,9 @@ const Dashboard = () => {
     const d = parseLocalDate(dateStr);
     const today = new Date();
     const diffDays = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'dziś';
-    if (diffDays === 1) return 'wczoraj';
-    if (diffDays < 7) return `${diffDays} dni temu`;
+    if (diffDays === 0) return t('dash.date.today');
+    if (diffDays === 1) return t('dash.date.yesterday');
+    if (diffDays < 7) return t('dash.date.daysAgo', { n: diffDays });
     return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
   };
 
@@ -382,12 +385,12 @@ const Dashboard = () => {
               <div>
                 <p className="font-medium text-sky-950">
                   {localDraft?.finalSyncPending
-                    ? 'Masz trening zakończony lokalnie'
+                    ? t('dash.sync.finishedLocally')
                     : localDraft?.sessionOrigin === 'provisional'
-                      ? 'Masz trening rozpoczęty offline'
+                      ? t('dash.sync.startedOffline')
                       : pendingSyncCount > 0
-                        ? `Masz ${pendingSyncCount} ${pendingSyncCount === 1 ? 'sesję' : 'sesje'} w kolejce synchronizacji`
-                        : 'Masz lokalne zmiany do synchronizacji'}
+                        ? t('dash.sync.queued', { n: pendingSyncCount })
+                        : t('dash.sync.localChanges')}
                 </p>
                 <p className="text-sm text-sky-900/80">
                   {localDraft?.finalSyncPending

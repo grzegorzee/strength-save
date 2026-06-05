@@ -12,10 +12,12 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { parseLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 import type { WorkoutSession } from '@/types';
 
 const WorkoutHistory = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { uid } = useCurrentUser();
   const { workouts, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -96,7 +98,7 @@ const WorkoutHistory = () => {
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+        <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -110,16 +112,16 @@ const WorkoutHistory = () => {
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <History className="h-5 w-5 text-primary" />
-            Historia treningów
+            {t('history.title')}
           </h1>
-          <p className="text-sm text-muted-foreground">Filtruj, przeglądaj i porównuj wcześniejsze sesje.</p>
+          <p className="text-sm text-muted-foreground">{t('history.subtitle')}</p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Filtry</CardTitle>
-          <CardDescription>Zawężaj historię po dniu planu, statusie, dacie i ćwiczeniach.</CardDescription>
+          <CardTitle className="text-base">{t('history.filters')}</CardTitle>
+          <CardDescription>{t('history.filtersDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <div className="xl:col-span-2">
@@ -128,17 +130,17 @@ const WorkoutHistory = () => {
               <Input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Szukaj po dacie, dniu, focusie lub ćwiczeniu"
+                placeholder={t('history.searchPlaceholder')}
                 className="pl-9"
               />
             </div>
           </div>
           <Select value={selectedDay} onValueChange={setSelectedDay}>
             <SelectTrigger>
-              <SelectValue placeholder="Dzień planu" />
+              <SelectValue placeholder={t('history.planDay')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Wszystkie dni</SelectItem>
+              <SelectItem value="all">{t('history.allDays')}</SelectItem>
               {trainingPlan.map(day => (
                 <SelectItem key={day.id} value={day.id}>{day.dayName}</SelectItem>
               ))}
@@ -146,12 +148,12 @@ const WorkoutHistory = () => {
           </Select>
           <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as typeof selectedStatus)}>
             <SelectTrigger>
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder={t('history.status')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Wszystkie statusy</SelectItem>
-              <SelectItem value="completed">Ukończone</SelectItem>
-              <SelectItem value="draft">Drafty</SelectItem>
+              <SelectItem value="all">{t('history.allStatuses')}</SelectItem>
+              <SelectItem value="completed">{t('history.completed')}</SelectItem>
+              <SelectItem value="draft">{t('history.drafts')}</SelectItem>
             </SelectContent>
           </Select>
           <div className="grid grid-cols-2 gap-2 xl:col-span-1">
@@ -166,7 +168,7 @@ const WorkoutHistory = () => {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <ArrowRightLeft className="h-4 w-4 text-primary" />
-              Porównanie dwóch sesji
+              {t('history.compareTwo')}
             </CardTitle>
             <CardDescription>
               {comparison.first.date} vs {comparison.second.date}
@@ -174,15 +176,15 @@ const WorkoutHistory = () => {
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg bg-background/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Tonaż</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.tonnage')}</p>
               <p className="mt-1 text-xl font-semibold">{comparison.tonnageDelta >= 0 ? '+' : ''}{comparison.tonnageDelta} kg</p>
             </div>
             <div className="rounded-lg bg-background/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ukończone serie</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.completedSets')}</p>
               <p className="mt-1 text-xl font-semibold">{comparison.setDelta >= 0 ? '+' : ''}{comparison.setDelta}</p>
             </div>
             <div className="rounded-lg bg-background/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ćwiczenia</p>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.exercises')}</p>
               <p className="mt-1 text-xl font-semibold">{comparison.exerciseDelta >= 0 ? '+' : ''}{comparison.exerciseDelta}</p>
             </div>
           </CardContent>
@@ -192,9 +194,16 @@ const WorkoutHistory = () => {
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <CalendarRange className="h-4 w-4" />
-          {filteredWorkouts.length} {filteredWorkouts.length === 1 ? 'sesja' : 'sesji'}
+          {filteredWorkouts.length} {t(
+            filteredWorkouts.length === 1
+              ? 'history.sessionOne'
+              : (filteredWorkouts.length % 10 >= 2 && filteredWorkouts.length % 10 <= 4
+                  && (filteredWorkouts.length % 100 < 10 || filteredWorkouts.length % 100 >= 20))
+                ? 'history.sessionFew'
+                : 'history.sessionMany',
+          )}
         </div>
-        <div>W porównaniu możesz zaznaczyć maksymalnie 2 treningi.</div>
+        <div>{t('history.compareHint')}</div>
       </div>
 
       <div className="space-y-3">
@@ -213,17 +222,17 @@ const WorkoutHistory = () => {
                     <div className="flex items-center gap-2">
                       <p className="font-medium">{workout.date}</p>
                       <Badge variant={workout.completed ? 'default' : 'secondary'}>
-                        {workout.completed ? 'ukończony' : 'draft'}
+                        {workout.completed ? t('history.badgeCompleted') : t('history.badgeDraft')}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {dayLabel.dayName} · {dayLabel.focus || 'Bez focusu'}
+                      {dayLabel.dayName} · {dayLabel.focus || t('history.noFocus')}
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-right text-sm">
                     <div>
                       <p className="font-semibold">{workout.exercises.length}</p>
-                      <p className="text-xs text-muted-foreground">Ćwiczeń</p>
+                      <p className="text-xs text-muted-foreground">{t('history.exercisesShort')}</p>
                     </div>
                     <div>
                       <p className="font-semibold">{tonnage}</p>
@@ -231,17 +240,17 @@ const WorkoutHistory = () => {
                     </div>
                     <div>
                       <p className="font-semibold">{workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0)}</p>
-                      <p className="text-xs text-muted-foreground">Serii</p>
+                      <p className="text-xs text-muted-foreground">{t('history.setsShort')}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={() => navigate(`/workout/${workout.dayId}?date=${workout.date}&session=${workout.id}`)}>
-                    Otwórz trening
+                    {t('history.openWorkout')}
                   </Button>
                   <Button variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => toggleCompare(workout.id)}>
-                    {isSelected ? 'Usuń z porównania' : 'Porównaj'}
+                    {isSelected ? t('history.removeFromCompare') : t('history.compare')}
                   </Button>
                 </div>
               </CardContent>
@@ -252,7 +261,7 @@ const WorkoutHistory = () => {
         {filteredWorkouts.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
-              Brak sesji pasujących do aktualnych filtrów.
+              {t('history.empty')}
             </CardContent>
           </Card>
         )}

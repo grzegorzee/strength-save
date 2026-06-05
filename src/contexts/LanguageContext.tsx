@@ -6,11 +6,17 @@ import {
 
 const STORAGE_KEY = 'app-language';
 
+/** Wartości podstawiane za {placeholder} w tłumaczeniu. */
+type TParams = Record<string, string | number>;
+
 interface LanguageContextValue {
   lang: LanguageCode;
   setLang: (l: LanguageCode) => void;
-  /** Tłumaczy klucz na tekst w bieżącym języku (fallback: PL, potem sam klucz). */
-  t: (key: TranslationKey) => string;
+  /**
+   * Tłumaczy klucz na tekst w bieżącym języku (fallback: PL, potem sam klucz).
+   * Obsługuje interpolację: t('key.weekOf', { current: 4, total: 8 }) podstawia za {current}/{total}.
+   */
+  t: (key: TranslationKey, params?: TParams) => string;
 }
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
@@ -30,7 +36,13 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const t = useCallback(
-    (key: TranslationKey) => locales[lang][key] ?? locales[DEFAULT_LANGUAGE][key] ?? key,
+    (key: TranslationKey, params?: TParams) => {
+      const template = locales[lang][key] ?? locales[DEFAULT_LANGUAGE][key] ?? key;
+      if (!params) return template;
+      return template.replace(/\{(\w+)\}/g, (_, name: string) =>
+        params[name] != null ? String(params[name]) : `{${name}}`,
+      );
+    },
     [lang],
   );
 

@@ -17,6 +17,7 @@ import { DataManagement } from '@/components/DataManagement';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { formatLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const SUMMARY_HOUR_KEY = 'summary-hour';
 
@@ -38,6 +39,7 @@ const FeatureFlagsPanel = () => {
   const [users, setUsers] = useState<UserFeatureRow[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -72,9 +74,9 @@ const FeatureFlagsPanel = () => {
       setUsers(prev => prev.map(u =>
         u.uid === uid ? { ...u, features: { ...u.features, [feature]: enabled } } : u
       ));
-      toast({ title: enabled ? 'Włączono' : 'Wyłączono', description: `${feature} dla ${users.find(u => u.uid === uid)?.displayName}` });
+      toast({ title: enabled ? t('settings.feature.enabled') : t('settings.feature.disabled'), description: t('settings.feature.forUser', { feature, user: users.find(u => u.uid === uid)?.displayName }) });
     } catch (err) {
-      toast({ title: 'Błąd', description: 'Nie udało się zapisać.', variant: 'destructive' });
+      toast({ title: t('settings.toast.error'), description: t('settings.toast.saveFailed'), variant: 'destructive' });
     }
   };
 
@@ -93,10 +95,10 @@ const FeatureFlagsPanel = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="h-5 w-5 text-primary" />
-          Zarządzanie funkcjami
+          {t('settings.features.title')}
         </CardTitle>
         <CardDescription>
-          Włączaj/wyłączaj funkcje dla poszczególnych użytkowników
+          {t('settings.features.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 px-3 sm:px-6">
@@ -125,7 +127,7 @@ const FeatureFlagsPanel = () => {
           </div>
         ))}
         {users.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">Brak użytkowników</p>
+          <p className="text-sm text-muted-foreground text-center py-4">{t('settings.features.noUsers')}</p>
         )}
       </CardContent>
     </Card>
@@ -139,6 +141,7 @@ const Settings = () => {
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
   const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const [summaryHour, setSummaryHour] = useState(() => {
     try {
@@ -167,10 +170,10 @@ const Settings = () => {
     try {
       const n = await mergeContinuousCycles(workouts);
       toast(n > 0
-        ? { title: `Połączono ${n} ${n === 1 ? 'cykl' : 'cykle'}`, description: 'Przerwane cykle scalono w ciągłe bloki, treningi przypisano do właściwego cyklu.' }
-        : { title: 'Brak cykli do połączenia', description: 'Twoje cykle są już spójne.' });
+        ? { title: t('settings.merge.done', { n }), description: t('settings.merge.doneDesc') }
+        : { title: t('settings.merge.none'), description: t('settings.merge.noneDesc') });
     } catch {
-      toast({ title: 'Błąd', description: 'Nie udało się połączyć cykli.', variant: 'destructive' });
+      toast({ title: t('settings.toast.error'), description: t('settings.merge.error'), variant: 'destructive' });
     } finally {
       setMergingCycles(false);
     }
@@ -179,15 +182,15 @@ const Settings = () => {
   const handleSaveMaxHR = async () => {
     const value = parseInt(maxHRInput);
     if (isNaN(value) || value < 100 || value > 230) {
-      toast({ title: 'Nieprawidłowa wartość', description: 'Max HR musi być między 100 a 230 bpm.', variant: 'destructive' });
+      toast({ title: t('settings.maxHR.invalid'), description: t('settings.maxHR.invalidDesc'), variant: 'destructive' });
       return;
     }
     setMaxHRSaving(true);
     try {
       await updateDoc(doc(db, 'users', uid), { estimatedMaxHR: value, maxHRManualOverride: true });
-      toast({ title: 'Zapisano', description: `Max HR ustawione na ${value} bpm.` });
+      toast({ title: t('settings.toast.saved'), description: t('settings.maxHR.saved', { value }) });
     } catch {
-      toast({ title: 'Błąd', description: 'Nie udało się zapisać.', variant: 'destructive' });
+      toast({ title: t('settings.toast.error'), description: t('settings.toast.saveFailed'), variant: 'destructive' });
     } finally {
       setMaxHRSaving(false);
     }
@@ -196,28 +199,25 @@ const Settings = () => {
   const handleSync = async () => {
     const result = await syncActivities();
     if (!result.ok) {
-      toast({ title: 'Błąd synchronizacji', description: result.message, variant: 'destructive' });
+      toast({ title: t('settings.sync.error'), description: result.message, variant: 'destructive' });
       return;
     }
     if (result.synced > 0) {
-      toast({ title: 'Zsynchronizowano!', description: `${result.synced} nowych aktywności (${result.totalFetched} znalezionych w Strava).` });
+      toast({ title: t('settings.sync.done'), description: t('settings.sync.doneDesc', { synced: result.synced, total: result.totalFetched }) });
     } else if (result.totalFetched > 0) {
-      toast({ title: 'Brak nowych aktywności', description: `${result.totalFetched} aktywności ze Strava, wszystkie już zsynchronizowane.` });
+      toast({ title: t('settings.sync.noNew'), description: t('settings.sync.noNewDesc', { total: result.totalFetched }) });
     } else {
-      toast({ title: 'Brak aktywności', description: `Strava nie zwróciła aktywności (lookback: ${result.lookbackDays} dni).` });
+      toast({ title: t('settings.sync.empty'), description: t('settings.sync.emptyDesc', { days: result.lookbackDays }) });
     }
   };
 
   const handleDisconnect = async () => {
     await disconnectStrava();
-    toast({ title: 'Rozłączono', description: 'Konto Strava zostało odłączone.' });
+    toast({ title: t('settings.strava.disconnected'), description: t('settings.strava.disconnectedDesc') });
   };
 
   const handleResetOnboarding = async () => {
-    const confirmed = window.confirm(
-      'To wymusi ponowny onboarding i wybór nowego planu z datą startu. ' +
-      'Treningi i pomiary zostaną zachowane, a aktywny cykl zostanie zamknięty. Kontynuować?',
-    );
+    const confirmed = window.confirm(t('settings.reset.confirm'));
     if (!confirmed) return;
 
     setIsResettingOnboarding(true);
@@ -240,13 +240,13 @@ const Settings = () => {
         },
       });
       toast({
-        title: 'Onboarding zresetowany',
-        description: 'Po przejściu dalej wybierzesz plan i datę startu od nowa.',
+        title: t('settings.reset.done'),
+        description: t('settings.reset.doneDesc'),
       });
     } catch (err) {
       toast({
-        title: 'Nie udało się zresetować onboardingu',
-        description: err instanceof Error ? err.message : 'Spróbuj ponownie.',
+        title: t('settings.reset.error'),
+        description: err instanceof Error ? err.message : t('settings.toast.tryAgain'),
         variant: 'destructive',
       });
     } finally {
@@ -261,7 +261,7 @@ const Settings = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Ustawienia</h1>
+          <h1 className="text-2xl font-bold">{t('nav.settings')}</h1>
           <p className="text-muted-foreground text-sm">{profile?.email}</p>
         </div>
       </div>
@@ -269,19 +269,19 @@ const Settings = () => {
       {/* Account info */}
       <Card>
         <CardHeader>
-          <CardTitle>Konto</CardTitle>
+          <CardTitle>{t('profile.section.account')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm">Nazwa</span>
+            <span className="text-sm">{t('profile.nameLabel')}</span>
             <span className="font-medium">{profile?.displayName}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm">Email</span>
+            <span className="text-sm">{t('login.email')}</span>
             <span className="font-medium">{profile?.email}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm">Rola</span>
+            <span className="text-sm">{t('settings.account.role')}</span>
             <Badge variant={profile?.role === 'admin' ? 'default' : 'secondary'}>
               {profile?.role || 'user'}
             </Badge>
@@ -294,15 +294,15 @@ const Settings = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-primary" />
-            Podsumowanie tygodniowe
+            {t('settings.summary.title')}
           </CardTitle>
           <CardDescription>
-            Preferowana godzina generowania podsumowania tygodnia (niedziele)
+            {t('settings.summary.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
-            <span className="text-sm">Godzina</span>
+            <span className="text-sm">{t('settings.summary.hour')}</span>
             <Select value={summaryHour} onValueChange={handleSummaryHourChange}>
               <SelectTrigger className="w-32">
                 <SelectValue />
@@ -324,27 +324,27 @@ const Settings = () => {
         onImport={importData}
         onCleanup={cleanupEmptyWorkouts}
         onRepair={() => backfillHistoricalWorkouts(cycles)}
-        title="Backup i przywracanie"
-        description="Pobierz kopię swoich treningów i pomiarów albo odtwórz dane z pliku JSON."
-        exportLabel="Eksportuj kopię"
-        importLabel="Importuj kopię"
-        cleanupLabel="Wyczyść duplikaty treningów"
+        title={t('settings.backup.title')}
+        description={t('settings.backup.description')}
+        exportLabel={t('settings.backup.export')}
+        importLabel={t('settings.backup.import')}
+        cleanupLabel={t('settings.backup.cleanup')}
       />
 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-primary" />
-            Naprawa cykli
+            {t('settings.repairCycles.title')}
           </CardTitle>
           <CardDescription>
-            Łączy przerwane cykle tego samego planu (gdy po wygaśnięciu cyklu nie wybrano nowego planu, a treningi trwały dalej) w jeden ciągły blok. Treningi zostają przypisane do właściwego cyklu.
+            {t('settings.repairCycles.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="outline" className="w-full" onClick={handleMergeCycles} disabled={mergingCycles}>
             {mergingCycles ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Połącz przerwane cykle
+            {t('settings.repairCycles.button')}
           </Button>
         </CardContent>
       </Card>
@@ -353,10 +353,10 @@ const Settings = () => {
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <RotateCcw className="h-5 w-5 text-amber-600" />
-            Reset planu
+            {t('settings.resetPlan.title')}
           </CardTitle>
           <CardDescription>
-            Zachowuje treningi i pomiary, zamyka aktywny cykl i uruchamia onboarding od nowa z wyborem daty startu.
+            {t('settings.resetPlan.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -371,7 +371,7 @@ const Settings = () => {
             ) : (
               <RotateCcw className="h-4 w-4 mr-2" />
             )}
-            Wymuś onboarding od nowa
+            {t('settings.resetPlan.button')}
           </Button>
         </CardContent>
       </Card>
@@ -386,7 +386,7 @@ const Settings = () => {
             Strava
           </CardTitle>
           <CardDescription>
-            Połącz konto Strava, aby importować aktywności (bieganie, rower, etc.)
+            {t('settings.strava.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -395,14 +395,14 @@ const Settings = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
-                    Połączono
+                    {t('settings.strava.connected')}
                   </Badge>
                   {connection.athleteName && (
                     <p className="text-sm text-muted-foreground mt-1">{connection.athleteName}</p>
                   )}
                   {connection.lastSync && (
                     <p className="text-xs text-muted-foreground">
-                      Ostatni sync: {new Date(connection.lastSync).toLocaleString('pl-PL')}
+                      {t('settings.strava.lastSync', { date: new Date(connection.lastSync).toLocaleString('pl-PL') })}
                     </p>
                   )}
                 </div>
@@ -410,11 +410,11 @@ const Settings = () => {
               <div className="flex gap-2">
                 <Button variant="outline" onClick={handleSync} disabled={isSyncing}>
                   {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                  Synchronizuj
+                  {t('settings.strava.sync')}
                 </Button>
                 <Button variant="outline" className="text-destructive" onClick={handleDisconnect}>
                   <Unlink className="h-4 w-4 mr-2" />
-                  Rozłącz
+                  {t('settings.strava.disconnect')}
                 </Button>
               </div>
 
@@ -425,8 +425,8 @@ const Settings = () => {
                     <p className="text-sm font-medium">Max HR</p>
                     <p className="text-xs text-muted-foreground">
                       {connection.estimatedMaxHR
-                        ? `${connection.estimatedMaxHR} bpm ${connection.maxHRManualOverride ? '(Ręcznie ustawione)' : '(Automatycznie z danych)'}`
-                        : 'Brak danych — ustaw ręcznie lub zsynchronizuj aktywności z tętnem'
+                        ? t('settings.maxHR.value', { value: connection.estimatedMaxHR, source: connection.maxHRManualOverride ? t('settings.maxHR.manual') : t('settings.maxHR.auto') })
+                        : t('settings.maxHR.noData')
                       }
                     </p>
                   </div>
@@ -442,7 +442,7 @@ const Settings = () => {
                     className="w-24"
                   />
                   <Button variant="outline" size="sm" onClick={handleSaveMaxHR} disabled={maxHRSaving || !maxHRInput}>
-                    {maxHRSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Zapisz'}
+                    {maxHRSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t('common.save')}
                   </Button>
                 </div>
               </div>

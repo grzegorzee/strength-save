@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { calculateZoneDistribution } from '@/lib/hr-zones';
 import { HR_ZONES, type HRZone, type StravaActivity } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface HRZoneDistributionProps {
   activities: StravaActivity[];
@@ -9,6 +10,7 @@ interface HRZoneDistributionProps {
 }
 
 export const HRZoneDistribution = ({ activities, estimatedMaxHR }: HRZoneDistributionProps) => {
+  const { t } = useTranslation();
   const zoneDistribution = useMemo(() => {
     if (!estimatedMaxHR) return null;
     return calculateZoneDistribution(activities, estimatedMaxHR);
@@ -22,9 +24,9 @@ export const HRZoneDistribution = ({ activities, estimatedMaxHR }: HRZoneDistrib
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Rozkład stref tętna</CardTitle>
+        <CardTitle className="text-base">{t('strava.hrZoneTitle')}</CardTitle>
         <CardDescription className="text-xs">
-          Na podstawie {hrActivityCount} aktywności z danymi HR
+          {t('strava.hrZoneBasedOn', { n: hrActivityCount })}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">

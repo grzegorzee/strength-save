@@ -3,12 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy } from 'lucide-react';
 import { detectCardioPRs } from '@/lib/strava-utils';
 import type { StravaActivity } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface CardioPersonalBestsProps {
   activities: StravaActivity[];
 }
 
 export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) => {
+  const { t } = useTranslation();
   const prs = useMemo(() => detectCardioPRs(activities), [activities]);
 
   if (prs.length === 0) return null;
@@ -18,7 +20,7 @@ export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) =>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Trophy className="h-4 w-4 text-yellow-500" />
-          Rekordy Cardio
+          {t('strava.cardioRecords')}
         </CardTitle>
       </CardHeader>
       <CardContent>

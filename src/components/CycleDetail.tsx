@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface Props {
   cycle: PlanCycle;
@@ -13,6 +14,7 @@ interface Props {
 
 export const CycleDetail = ({ cycle, onBack }: Props) => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const isActive = cycle.status === 'active';
   const tonnageT = (cycle.stats.totalTonnage / 1000).toFixed(1);
 
@@ -22,7 +24,7 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
     return formatLocalDate(date);
   };
   const formatDate = (d: string) =>
-    d ? parseLocalDate(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }) : 'teraz';
+    d ? parseLocalDate(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }) : t('cycles.now');
   const displayedEndDate = cycle.endDate || plannedEndDate(cycle.startDate, cycle.durationWeeks);
 
   return (
@@ -32,13 +34,13 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl font-bold">Szczegóły cyklu</h1>
+          <h1 className="text-xl font-bold">{t('cycles.detailTitle')}</h1>
           <p className="text-sm text-muted-foreground">
             {formatDate(cycle.startDate)} — {formatDate(displayedEndDate)}
           </p>
         </div>
         <Badge variant={isActive ? 'default' : 'secondary'} className="ml-auto">
-          {isActive ? 'Aktywny' : 'Ukończony'}
+          {isActive ? t('cycles.active') : t('cycles.completed')}
         </Badge>
       </div>
 
@@ -48,42 +50,42 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
           <CardContent className="p-4 text-center">
             <Dumbbell className="h-5 w-5 text-primary mx-auto mb-1" />
             <p className="text-2xl font-bold">{cycle.stats.totalWorkouts}</p>
-            <p className="text-xs text-muted-foreground">Treningów</p>
+            <p className="text-xs text-muted-foreground">{t('cycles.workoutsLabel')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <TrendingUp className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
             <p className="text-2xl font-bold">{tonnageT}t</p>
-            <p className="text-xs text-muted-foreground">Tonaż</p>
+            <p className="text-xs text-muted-foreground">{t('cycles.tonnage')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <Trophy className="h-5 w-5 text-amber-500 mx-auto mb-1" />
             <p className="text-2xl font-bold">{cycle.stats.prs.length}</p>
-            <p className="text-xs text-muted-foreground">Rekordów</p>
+            <p className="text-xs text-muted-foreground">{t('cycles.recordsLabel')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <span className="text-lg font-bold text-primary">%</span>
             <p className="text-2xl font-bold">{cycle.stats.completionRate}%</p>
-            <p className="text-xs text-muted-foreground">Frekwencja</p>
+            <p className="text-xs text-muted-foreground">{t('cycles.attendance')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <CalendarX2 className="h-5 w-5 text-orange-500 mx-auto mb-1" />
             <p className="text-2xl font-bold">{cycle.stats.missedWorkouts || 0}</p>
-            <p className="text-xs text-muted-foreground">Missed sessions</p>
+            <p className="text-xs text-muted-foreground">{t('cycles.missedSessions')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <TrendingUp className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
             <p className="text-2xl font-bold">{cycle.stats.averageTonnagePerWorkout || 0}</p>
-            <p className="text-xs text-muted-foreground">kg / trening</p>
+            <p className="text-xs text-muted-foreground">{t('cycles.kgPerWorkout')}</p>
           </CardContent>
         </Card>
       </div>
@@ -94,7 +96,7 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Trophy className="h-4 w-4 text-amber-500" />
-              Rekordy osobiste
+              {t('cycles.personalRecords')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
@@ -104,7 +106,7 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
                 <div className="text-right">
                   <span className="text-sm font-bold">{pr.weight} kg</span>
                   <span className="text-xs text-muted-foreground ml-2">
-                    (est. 1RM: {pr.estimated1RM} kg)
+                    {t('cycles.est1RM', { value: pr.estimated1RM })}
                   </span>
                 </div>
               </div>
@@ -116,7 +118,7 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
       {/* Plan */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Plan treningowy</CardTitle>
+          <CardTitle className="text-base">{t('cycles.trainingPlan')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {cycle.days.map(day => (
@@ -145,7 +147,7 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
           onClick={() => navigate(`/new-plan?fromCycle=${cycle.id}`)}
         >
           <RefreshCw className="h-4 w-4 mr-2" />
-          Wygeneruj nowy plan na bazie tego cyklu
+          {t('cycles.generateFromCycle')}
         </Button>
       )}
     </div>

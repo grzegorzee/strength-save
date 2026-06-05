@@ -12,9 +12,11 @@ import { CycleDetail } from '@/components/CycleDetail';
 import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation } from '@/lib/cycle-insights';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const Cycles = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { uid } = useCurrentUser();
   const { cycles, isLoaded, createActiveCycle } = usePlanCycles(uid);
   const { workouts } = useFirebaseWorkouts(uid);
@@ -42,7 +44,7 @@ const Cycles = () => {
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+        <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -60,7 +62,7 @@ const Cycles = () => {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <History className="h-5 w-5 text-primary" />
-        <h1 className="text-xl font-bold">Cykle treningowe</h1>
+        <h1 className="text-xl font-bold">{t('cycles.title')}</h1>
       </div>
 
       {liveActiveCycle && recommendation && (
@@ -70,54 +72,54 @@ const Cycles = () => {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <p className="font-semibold text-sm">Closeout i progres cyklu</p>
-                  <Badge variant="outline">{recommendation.tone === 'success' ? 'progres' : recommendation.tone === 'warning' ? 'uwaga' : 'monitoring'}</Badge>
+                  <p className="font-semibold text-sm">{t('cycles.closeoutProgress')}</p>
+                  <Badge variant="outline">{recommendation.tone === 'success' ? t('cycles.tone.progress') : recommendation.tone === 'warning' ? t('cycles.tone.warning') : t('cycles.tone.monitoring')}</Badge>
                 </div>
                 <p className="text-lg font-semibold">{recommendation.title}</p>
                 <p className="text-sm text-muted-foreground">{recommendation.description}</p>
               </div>
               <Button onClick={() => navigate(`/new-plan?fromCycle=${liveActiveCycle.id}`)}>
-                Domknij cykl i przygotuj kolejny
+                {t('cycles.closeAndPrepare')}
               </Button>
             </div>
 
             <div className="grid gap-3 md:grid-cols-4">
               <div className="rounded-lg bg-background/70 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Frekwencja</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.attendance')}</p>
                 <p className="mt-1 text-2xl font-bold">{liveActiveCycle.stats.completionRate}%</p>
                 <p className="text-xs text-muted-foreground">
-                  {liveActiveCycle.stats.totalWorkouts}/{liveActiveCycle.stats.expectedWorkouts || 0} treningów
+                  {t('cycles.workoutsCount', { done: liveActiveCycle.stats.totalWorkouts, expected: liveActiveCycle.stats.expectedWorkouts || 0 })}
                 </p>
               </div>
               <div className="rounded-lg bg-background/70 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Missed</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.missed')}</p>
                 <p className="mt-1 text-2xl font-bold">{liveActiveCycle.stats.missedWorkouts || 0}</p>
-                <p className="text-xs text-muted-foreground">zaplanowanych sesji nie weszło</p>
+                <p className="text-xs text-muted-foreground">{t('cycles.missedSessionsHint')}</p>
               </div>
               <div className="rounded-lg bg-background/70 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Średnio / trening</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.avgPerWorkout')}</p>
                 <p className="mt-1 text-2xl font-bold">{liveActiveCycle.stats.averageTonnagePerWorkout || 0}</p>
-                <p className="text-xs text-muted-foreground">kg tonażu</p>
+                <p className="text-xs text-muted-foreground">{t('cycles.kgTonnage')}</p>
               </div>
               <div className="rounded-lg bg-background/70 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">PR-y</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.prs')}</p>
                 <p className="mt-1 text-2xl font-bold">{liveActiveCycle.stats.prs.length}</p>
-                <p className="text-xs text-muted-foreground">top rekordy w cyklu</p>
+                <p className="text-xs text-muted-foreground">{t('cycles.topPrsHint')}</p>
               </div>
             </div>
 
             {comparison && (
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="rounded-lg border bg-background/70 p-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Vs poprzedni cykl</p>
-                  <p className="mt-1 font-semibold">{comparison.completionRateDelta >= 0 ? '+' : ''}{comparison.completionRateDelta}% completion</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.vsPrevious')}</p>
+                  <p className="mt-1 font-semibold">{comparison.completionRateDelta >= 0 ? '+' : ''}{comparison.completionRateDelta}% {t('cycles.completion')}</p>
                 </div>
                 <div className="rounded-lg border bg-background/70 p-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Tonaż</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.tonnage')}</p>
                   <p className="mt-1 font-semibold">{comparison.tonnageDelta >= 0 ? '+' : ''}{comparison.tonnageDelta} kg</p>
                 </div>
                 <div className="rounded-lg border bg-background/70 p-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">PR-y</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.prs')}</p>
                   <p className="mt-1 font-semibold">{comparison.prDelta >= 0 ? '+' : ''}{comparison.prDelta}</p>
                 </div>
               </div>
@@ -133,10 +135,10 @@ const Cycles = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Dumbbell className="h-4 w-4 text-primary" />
-                <p className="font-semibold text-sm">Aktualny plan</p>
+                <p className="font-semibold text-sm">{t('cycles.currentPlan')}</p>
               </div>
               <p className="text-xs text-muted-foreground">
-                Tydzień {currentWeek} z {planDurationWeeks} · {weeksRemaining} {weeksRemaining === 1 ? 'tydzień' : 'tygodni'} pozostało
+                {t('cycles.weekProgress', { current: currentWeek, total: planDurationWeeks })} · {t('cycles.weeksRemaining', { n: weeksRemaining })}
               </p>
             </div>
             <div className="w-full bg-muted rounded-full h-2">
@@ -159,8 +161,8 @@ const Cycles = () => {
       {listedCycles.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <History className="h-12 w-12 mx-auto mb-4 opacity-30" />
-          <p className="text-sm">Brak historii cykli.</p>
-          <p className="text-xs mt-1">Twój pierwszy cykl pojawi się po wygenerowaniu nowego planu.</p>
+          <p className="text-sm">{t('cycles.emptyTitle')}</p>
+          <p className="text-xs mt-1">{t('cycles.emptyHint')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -179,8 +181,8 @@ const Cycles = () => {
           <CardContent className="p-4 flex items-start gap-3 text-sm text-muted-foreground">
             <TriangleAlert className="h-4 w-4 mt-0.5" />
             <div>
-              <p className="font-medium text-foreground">Brak aktywnego closeoutu cyklu</p>
-              <p>Wygeneruj nowy plan, aby zacząć zbierać pełne statystyki i rekomendacje na bazie cycle closeout.</p>
+              <p className="font-medium text-foreground">{t('cycles.noCloseoutTitle')}</p>
+              <p>{t('cycles.noCloseoutHint')}</p>
             </div>
           </CardContent>
         </Card>

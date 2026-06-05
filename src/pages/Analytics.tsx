@@ -51,6 +51,7 @@ import {
   Sparkles, Clock, Route,
 } from 'lucide-react';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
 
@@ -74,10 +75,10 @@ const workoutTonnage = (workout: WorkoutSession): number =>
     sum + ex.sets.filter(s => s.completed && !s.isWarmup).reduce((s, set) => s + set.reps * set.weight, 0),
   0);
 
-const getWeekLabel = (weekIndex: number, totalWeeks: number): string => {
-  if (weekIndex === totalWeeks - 1) return 'Ten tydz.';
-  if (weekIndex === totalWeeks - 2) return 'Ost. tydz.';
-  return `${totalWeeks - weekIndex} tyg. temu`;
+const getWeekLabel = (weekIndex: number, totalWeeks: number, t: (key: string, params?: Record<string, string | number>) => string): string => {
+  if (weekIndex === totalWeeks - 1) return t('analytics.weekLabel.this');
+  if (weekIndex === totalWeeks - 2) return t('analytics.weekLabel.last');
+  return t('analytics.weekLabel.ago', { n: totalWeeks - weekIndex });
 };
 
 const formatDateShort = (date: string): string =>
@@ -96,6 +97,7 @@ const SummaryTab = () => {
   const { cycles } = usePlanCycles(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('week');
   const [copied, setCopied] = useState(false);
@@ -174,27 +176,27 @@ const SummaryTab = () => {
   const latestWeight = latestMeasurement?.weight;
 
   const handleCopy = async () => {
-    const periodLabel = period === 'week' ? 'Tydzień' : 'Miesiąc';
+    const periodLabel = period === 'week' ? t('analytics.period.week') : t('analytics.period.month');
     const dateRange = `${bounds.start.toLocaleDateString('pl-PL')} - ${bounds.end.toLocaleDateString('pl-PL')}`;
     const lines = [
-      `📊 Podsumowanie: ${periodLabel}`,
+      `📊 ${t('analytics.copy.summary', { period: periodLabel })}`,
       `📅 ${dateRange}`,
       ``,
-      `🏋️ Frekwencja: ${frequency}/${expectedWorkouts} treningów`,
-      `💪 Tonaż: ${currentTonnage.toLocaleString('pl-PL')} kg${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
-      `🔥 Seria treningowa: ${streak} tyg.`,
+      `🏋️ ${t('analytics.copy.frequency', { done: frequency, expected: expectedWorkouts })}`,
+      `💪 ${t('analytics.copy.tonnage', { value: currentTonnage.toLocaleString('pl-PL') })}${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
+      `🔥 ${t('analytics.copy.streak', { n: streak })}`,
     ];
-    if (periodPRs.length > 0) lines.push(`🏆 Nowe PRy: ${periodPRs.map(p => p.exerciseName).join(', ')}`);
-    if (latestWeight) lines.push(`⚖️ Waga: ${latestWeight} kg`);
+    if (periodPRs.length > 0) lines.push(`🏆 ${t('analytics.copy.newPRs', { list: periodPRs.map(p => p.exerciseName).join(', ') })}`);
+    if (latestWeight) lines.push(`⚖️ ${t('analytics.copy.weight', { value: latestWeight })}`);
 
     await navigator.clipboard.writeText(lines.join('\n'));
     setCopied(true);
-    toast({ title: 'Skopiowano!', description: 'Podsumowanie w schowku.' });
+    toast({ title: t('analytics.toast.copied'), description: t('analytics.toast.copiedDesc') });
     setTimeout(() => setCopied(false), 2000);
   };
 
   if (!isLoaded) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">Ładowanie...</div></div>;
+    return <div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>;
   }
 
   return (
@@ -202,15 +204,15 @@ const SummaryTab = () => {
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           <Button variant={period === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('week')}>
-            <Calendar className="h-4 w-4 mr-2" />Tydzień
+            <Calendar className="h-4 w-4 mr-2" />{t('analytics.period.week')}
           </Button>
           <Button variant={period === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('month')}>
-            <BarChart3 className="h-4 w-4 mr-2" />Miesiąc
+            <BarChart3 className="h-4 w-4 mr-2" />{t('analytics.period.month')}
           </Button>
         </div>
         <Button variant="outline" size="sm" onClick={handleCopy}>
           {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-          {copied ? 'Skopiowano' : 'Kopiuj'}
+          {copied ? t('analytics.copied') : t('analytics.copy')}
         </Button>
       </div>
 
@@ -222,7 +224,7 @@ const SummaryTab = () => {
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><Dumbbell className="h-5 w-5 text-primary" /></div>
-            <div><p className="text-2xl font-bold">{frequency}/{expectedWorkouts}</p><p className="text-xs text-muted-foreground">Frekwencja</p></div>
+            <div><p className="text-2xl font-bold">{frequency}/{expectedWorkouts}</p><p className="text-xs text-muted-foreground">{t('analytics.stat.frequency')}</p></div>
           </div>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
@@ -231,7 +233,7 @@ const SummaryTab = () => {
             <div>
               <p className="text-2xl font-bold">{(currentTonnage / 1000).toFixed(1)}t</p>
               <p className="text-xs text-muted-foreground">
-                Tonaż
+                {t('analytics.stat.tonnage')}
                 {tonnageChange !== 0 && (
                   <span className={tonnageChange > 0 ? 'text-green-600 ml-1' : 'text-red-600 ml-1'}>
                     {tonnageChange > 0 ? '+' : ''}{tonnageChange}%
@@ -244,13 +246,13 @@ const SummaryTab = () => {
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center"><Flame className="h-5 w-5 text-orange-500" /></div>
-            <div><p className="text-2xl font-bold">{streak}</p><p className="text-xs text-muted-foreground">Seria (tyg.)</p></div>
+            <div><p className="text-2xl font-bold">{streak}</p><p className="text-xs text-muted-foreground">{t('analytics.stat.streakWeeks')}</p></div>
           </div>
         </CardContent></Card>
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><BarChart3 className="h-5 w-5 text-primary" /></div>
-            <div><p className="text-2xl font-bold">{latestWeight ? `${latestWeight} kg` : '--'}</p><p className="text-xs text-muted-foreground">Waga ciała</p></div>
+            <div><p className="text-2xl font-bold">{latestWeight ? `${latestWeight} kg` : '--'}</p><p className="text-xs text-muted-foreground">{t('analytics.stat.bodyWeight')}</p></div>
           </div>
         </CardContent></Card>
       </div>
@@ -260,7 +262,7 @@ const SummaryTab = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Trophy className="h-5 w-5 text-yellow-500" />
-              Nowe rekordy w tym {period === 'week' ? 'tygodniu' : 'miesiącu'}
+              {period === 'week' ? t('analytics.newPRs.week') : t('analytics.newPRs.month')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -275,7 +277,7 @@ const SummaryTab = () => {
 
       {currentWorkouts.length > 0 && (
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-base">Ukończone treningi</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="text-base">{t('analytics.completedWorkouts')}</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {currentWorkouts.map(w => {
               const dayLabel = resolver.resolveDayLabel(w);
@@ -292,7 +294,7 @@ const SummaryTab = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{w.exercises.length} ćw.</Badge>
+                    <Badge variant="outline" className="text-xs">{t('analytics.exercisesCount', { n: w.exercises.length })}</Badge>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </button>
@@ -305,7 +307,7 @@ const SummaryTab = () => {
       {currentWorkouts.length === 0 && (
         <Card className="bg-muted/30">
           <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">Brak ukończonych treningów w tym {period === 'week' ? 'tygodniu' : 'miesiącu'}</p>
+            <p className="text-muted-foreground">{period === 'week' ? t('analytics.noWorkouts.week') : t('analytics.noWorkouts.month')}</p>
           </CardContent>
         </Card>
       )}
@@ -321,7 +323,7 @@ const SummaryTab = () => {
         return (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Aktywności Strava</CardTitle>
+              <CardTitle className="text-base">{t('analytics.stravaActivities')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {periodStrava.map(a => (
@@ -347,6 +349,7 @@ type WeightMode = 'max' | '1rm';
 
 const ChartsTab = () => {
   const { uid } = useCurrentUser();
+  const { t } = useTranslation();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
@@ -365,13 +368,13 @@ const ChartsTab = () => {
       weekDate.setDate(now.getDate() - i * 7);
       const { start, end } = getWeekBounds(weekDate);
       const count = completed.filter(w => { const d = parseLocalDate(w.date); return d >= start && d <= end; }).length;
-      weeks.push({ label: getWeekLabel(11 - i, 12), count });
+      weeks.push({ label: getWeekLabel(11 - i, 12, t), count });
     }
     const totalCompleted = completed.length;
     const avgPerWeek = weeks.length > 0 ? (weeks.reduce((s, w) => s + w.count, 0) / weeks.length).toFixed(1) : '0';
     const bestWeek = Math.max(...weeks.map(w => w.count), 0);
     return { weeks, totalCompleted, avgPerWeek, bestWeek };
-  }, [workouts]);
+  }, [workouts, t]);
 
   // Tonnage chart data
   const tonnageData = useMemo(() => {
@@ -483,11 +486,14 @@ const ChartsTab = () => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [workouts, selectedDay, weightMode, resolver]);
 
-  const dayLabels = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'];
+  const dayLabels = [
+    t('analytics.day.mon'), t('analytics.day.tue'), t('analytics.day.wed'),
+    t('analytics.day.thu'), t('analytics.day.fri'), t('analytics.day.sat'), t('analytics.day.sun'),
+  ];
   const reorderDay = (jsDay: number) => (jsDay === 0 ? 6 : jsDay - 1);
 
   if (!isLoaded) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">Ładowanie...</div></div>;
+    return <div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>;
   }
 
   return (
@@ -495,19 +501,19 @@ const ChartsTab = () => {
       {/* Sub-tab switcher */}
       <div className="flex gap-1.5 flex-wrap">
         {([
-          { id: 'workouts', label: 'Treningi' },
-          { id: 'tonnage', label: 'Tonaż' },
-          { id: 'weight', label: 'Waga' },
-          { id: 'streak', label: 'Seria' },
-          { id: 'progression', label: 'Progresja' },
-        ] as const).map(t => (
+          { id: 'workouts', label: t('analytics.subtab.workouts') },
+          { id: 'tonnage', label: t('analytics.subtab.tonnage') },
+          { id: 'weight', label: t('analytics.subtab.weight') },
+          { id: 'streak', label: t('analytics.subtab.streak') },
+          { id: 'progression', label: t('analytics.subtab.progression') },
+        ] as const).map(item => (
           <Badge
-            key={t.id}
-            variant={subTab === t.id ? 'default' : 'outline'}
+            key={item.id}
+            variant={subTab === item.id ? 'default' : 'outline'}
             className="cursor-pointer"
-            onClick={() => setSubTab(t.id)}
+            onClick={() => setSubTab(item.id)}
           >
-            {t.label}
+            {item.label}
           </Badge>
         ))}
       </div>
@@ -522,14 +528,14 @@ const ChartsTab = () => {
                 <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} domain={[0, 'auto']} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <ReferenceLine y={3} stroke="hsl(var(--chart-2))" strokeDasharray="4 4" label={{ value: 'Cel: 3', position: 'right', fontSize: 10, fill: 'hsl(var(--chart-2))' }} />
-                <Bar dataKey="count" name="Treningi" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <ReferenceLine y={3} stroke="hsl(var(--chart-2))" strokeDasharray="4 4" label={{ value: t('analytics.chart.goal3'), position: 'right', fontSize: 10, fill: 'hsl(var(--chart-2))' }} />
+                <Bar dataKey="count" name={t('analytics.subtab.workouts')} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             <StatSummary items={[
-              { label: 'Łącznie ukończonych', value: workoutsData.totalCompleted },
-              { label: 'Średnia/tydzień', value: workoutsData.avgPerWeek },
-              { label: 'Najlepszy tydzień', value: workoutsData.bestWeek },
+              { label: t('analytics.stat.totalCompleted'), value: workoutsData.totalCompleted },
+              { label: t('analytics.stat.avgPerWeek'), value: workoutsData.avgPerWeek },
+              { label: t('analytics.stat.bestWeek'), value: workoutsData.bestWeek },
             ]} />
           </CardContent>
         </Card>
@@ -540,22 +546,22 @@ const ChartsTab = () => {
         <Card>
           <CardContent className="pt-6">
             {tonnageData.chartData.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">Brak ukończonych treningów do wyświetlenia</p>
+              <p className="text-center text-muted-foreground py-8">{t('analytics.noCompletedToShow')}</p>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={tonnageData.chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(tonnageData.chartData.length / 6) - 1)} />
                   <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" kg" />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kg`, 'Tonaż']} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kg`, t('analytics.stat.tonnage')]} />
                   <Area type="monotone" dataKey="tonnage" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} dot={{ r: 3 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
             <StatSummary items={[
-              { label: 'Tonaż łączny', value: `${(tonnageData.totalTonnage / 1000).toFixed(1)}t` },
-              { label: 'Średni/trening', value: `${tonnageData.avgPerWorkout} kg` },
-              { label: 'Trend (4 tyg.)', value: tonnageData.trend },
+              { label: t('analytics.stat.totalTonnage'), value: `${(tonnageData.totalTonnage / 1000).toFixed(1)}t` },
+              { label: t('analytics.stat.avgPerWorkout'), value: `${tonnageData.avgPerWorkout} kg` },
+              { label: t('analytics.stat.trend4w'), value: tonnageData.trend },
             ]} />
           </CardContent>
         </Card>
@@ -564,7 +570,7 @@ const ChartsTab = () => {
       {/* Weight chart */}
       {subTab === 'weight' && (
         weightData.chartData.length === 0 ? (
-          <Card><CardContent className="py-12"><p className="text-center text-muted-foreground">Brak pomiarów wagi. Dodaj pomiar w zakładce Pomiary.</p></CardContent></Card>
+          <Card><CardContent className="py-12"><p className="text-center text-muted-foreground">{t('analytics.noWeightData')}</p></CardContent></Card>
         ) : (
           <Card>
             <CardContent className="pt-6">
@@ -573,14 +579,14 @@ const ChartsTab = () => {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(weightData.chartData.length / 6) - 1)} />
                   <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" kg" domain={['dataMin - 1', 'dataMax + 1']} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kg`, 'Waga']} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kg`, t('analytics.subtab.weight')]} />
                   <Line type="monotone" dataKey="weight" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--primary))' }} />
                 </LineChart>
               </ResponsiveContainer>
               <StatSummary items={[
-                { label: 'Aktualna waga', value: weightData.current },
-                { label: 'Zmiana od startu', value: weightData.change },
-                { label: 'Min / Max', value: weightData.minMax },
+                { label: t('analytics.stat.currentWeight'), value: weightData.current },
+                { label: t('analytics.stat.changeFromStart'), value: weightData.change },
+                { label: t('analytics.stat.minMax'), value: weightData.minMax },
               ]} />
             </CardContent>
           </Card>
@@ -606,7 +612,7 @@ const ChartsTab = () => {
                       return (
                         <div key={dayIdx} className={cn('h-7 w-7 rounded-sm transition-colors',
                           cell.hasWorkout ? 'bg-fitness-success' : cell.isPlanned ? 'bg-muted/30 border-2 border-primary/30' : 'bg-muted/20'
-                        )} title={`${cell.date}${cell.hasWorkout ? ' - Trening' : ''}`} />
+                        )} title={`${cell.date}${cell.hasWorkout ? ` - ${t('analytics.legend.workout')}` : ''}`} />
                       );
                     })}
                   </div>

@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface Props {
   cycle: PlanCycle;
@@ -26,6 +27,7 @@ const formatDateRange = (startDate: string, endDate: string, durationWeeks: numb
 };
 
 export const CycleCard = ({ cycle, onClick }: Props) => {
+  const { t } = useTranslation();
   const isActive = cycle.status === 'active';
   const tonnageT = (cycle.stats.totalTonnage / 1000).toFixed(1);
 
@@ -46,12 +48,12 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
             </span>
           </div>
           <Badge variant={isActive ? 'default' : 'secondary'} className="text-xs">
-            {isActive ? 'Aktywny' : `${cycle.durationWeeks} tyg.`}
+            {isActive ? t('cycles.active') : t('cycles.weeksShort', { n: cycle.durationWeeks })}
           </Badge>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 flex-wrap">
-          <span>{cycle.days.length} dni/tydzień</span>
+          <span>{t('cycles.daysPerWeek', { n: cycle.days.length })}</span>
           <span>·</span>
           <span>{cycle.days.map(d => d.focus).join(', ')}</span>
         </div>
@@ -62,28 +64,28 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
               <Dumbbell className="h-3.5 w-3.5 text-primary" />
             </div>
             <p className="text-sm font-bold">{cycle.stats.totalWorkouts}</p>
-            <p className="text-[10px] text-muted-foreground">Treningi</p>
+            <p className="text-[10px] text-muted-foreground">{t('cycles.workouts')}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
               <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
             </div>
             <p className="text-sm font-bold">{tonnageT}t</p>
-            <p className="text-[10px] text-muted-foreground">Tonaż</p>
+            <p className="text-[10px] text-muted-foreground">{t('cycles.tonnage')}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
               <Trophy className="h-3.5 w-3.5 text-amber-500" />
             </div>
             <p className="text-sm font-bold">{cycle.stats.prs.length}</p>
-            <p className="text-[10px] text-muted-foreground">PRy</p>
+            <p className="text-[10px] text-muted-foreground">{t('cycles.prs')}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
               <span className="text-xs">%</span>
             </div>
             <p className="text-sm font-bold">{cycle.stats.completionRate}%</p>
-            <p className="text-[10px] text-muted-foreground">Frekwencja</p>
+            <p className="text-[10px] text-muted-foreground">{t('cycles.attendance')}</p>
           </div>
         </div>
       </CardContent>

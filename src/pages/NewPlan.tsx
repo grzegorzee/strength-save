@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronLeft, Check, RefreshCw, ListChecks, Repeat, PencilRuler } from 'lucide-react';
+import { useTranslation } from '@/contexts/LanguageContext';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -42,16 +43,17 @@ const weekMondayStr = (d: Date): string => {
   return toDateStr(m);
 };
 
-const levelLabels: Record<PlanTemplate['level'], string> = {
-  beginner: 'Początkujący',
-  intermediate: 'Średniozaawansowany',
-  advanced: 'Zaawansowany',
+const levelLabelKeys: Record<PlanTemplate['level'], string> = {
+  beginner: 'newplan.level.beginner',
+  intermediate: 'newplan.level.intermediate',
+  advanced: 'newplan.level.advanced',
 };
 import type { ExerciseReplacement } from '@/types';
 import { cn } from '@/lib/utils';
 import type { PlanCycle } from '@/types/cycles';
 
 const NewPlan = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fromCycleId = searchParams.get('fromCycle');
@@ -169,7 +171,7 @@ const NewPlan = () => {
         startDate: newStartDate,
       });
       if (!result.success) {
-        setError(result.error || 'Nie udało się zapisać');
+        setError(result.error || t('newplan.error.saveFailed'));
         setIsSaving(false);
         return;
       }
@@ -179,7 +181,7 @@ const NewPlan = () => {
 
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Błąd');
+      setError(err instanceof Error ? err.message : t('newplan.error.generic'));
       setIsSaving(false);
     }
   };
@@ -217,9 +219,9 @@ const NewPlan = () => {
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold">Nowy plan treningowy</h1>
+            <h1 className="text-xl font-bold">{t('newplan.title')}</h1>
             <p className="text-sm text-muted-foreground">
-              {reviewPlan.planDurationWeeks} tygodni • {reviewPlan.days.length} dni/tydzień
+              {t('newplan.weeksDaysSummary', { weeks: reviewPlan.planDurationWeeks, days: reviewPlan.days.length })}
             </p>
           </div>
         </div>
@@ -240,7 +242,7 @@ const NewPlan = () => {
                     <p className="text-xs text-muted-foreground">{ex.sets}</p>
                   </div>
                   <Button variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => handleSwapExercise(day.id, ex.id, ex.name, ex.sets)}>
-                    <RefreshCw className="h-3 w-3 mr-1" />Zamień
+                    <RefreshCw className="h-3 w-3 mr-1" />{t('newplan.swap')}
                   </Button>
                 </div>
               ))}
@@ -250,8 +252,8 @@ const NewPlan = () => {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Data rozpoczęcia</CardTitle>
-            <CardDescription>Od kiedy zaczynasz? Plan ruszy od tygodnia z tą datą — wcześniejsze dni nie liczą się jako opuszczone.</CardDescription>
+            <CardTitle className="text-base">{t('newplan.startDate.title')}</CardTitle>
+            <CardDescription>{t('newplan.startDate.desc')}</CardDescription>
           </CardHeader>
           <CardContent>
             <input
@@ -265,11 +267,11 @@ const NewPlan = () => {
 
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={() => setReviewPlan(null)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />Wróć
+            <ChevronLeft className="h-4 w-4 mr-1" />{t('newplan.back')}
           </Button>
           <Button className="flex-1" onClick={handleApprove} disabled={isSaving}>
             {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-            Zatwierdzam plan
+            {t('newplan.approve')}
           </Button>
         </div>
 
@@ -298,20 +300,20 @@ const NewPlan = () => {
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold">W które dni trenujesz?</h1>
+            <h1 className="text-xl font-bold">{t('newplan.weekdays.title')}</h1>
             <p className="text-sm text-muted-foreground">{pendingTemplate.name}</p>
           </div>
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Przypisz każdy dzień planu do dnia tygodnia. Każdy dzień tygodnia możesz wybrać tylko raz.
+          {t('newplan.weekdays.instruction')}
         </p>
 
         {pendingTemplate.days.map((d, i) => (
           <Card key={d.id}>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center justify-between">
-                <span>Dzień {i + 1}</span>
+                <span>{t('newplan.dayN', { n: i + 1 })}</span>
                 <Badge variant="outline" className="text-xs font-normal">{d.focus}</Badge>
               </CardTitle>
             </CardHeader>
@@ -341,10 +343,10 @@ const NewPlan = () => {
 
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={() => setPendingTemplate(null)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />Wróć
+            <ChevronLeft className="h-4 w-4 mr-1" />{t('newplan.back')}
           </Button>
           <Button className="flex-1" onClick={confirmTemplateDays}>
-            Dalej do podglądu
+            {t('newplan.toPreview')}
           </Button>
         </div>
       </div>
@@ -371,8 +373,8 @@ const NewPlan = () => {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl font-bold">Nowy plan treningowy</h1>
-          <p className="text-sm text-muted-foreground">Ukończonych treningów: {completedCount}</p>
+          <h1 className="text-xl font-bold">{t('newplan.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('newplan.completedWorkouts', { count: completedCount })}</p>
         </div>
       </div>
 
@@ -381,11 +383,11 @@ const NewPlan = () => {
         <Card className="border-primary/40 bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              Na bazie cyklu
-              <Badge variant="outline" className="text-xs">{sourceCycle.durationWeeks} tyg.</Badge>
+              {t('newplan.basedOnCycle')}
+              <Badge variant="outline" className="text-xs">{t('newplan.weeksShort', { n: sourceCycle.durationWeeks })}</Badge>
             </CardTitle>
             <CardDescription>
-              {sourceCycle.stats.totalWorkouts} treningów • {(sourceCycle.stats.totalTonnage / 1000).toFixed(1)}t • {sourceCycle.stats.completionRate}% frekwencja
+              {t('newplan.cycleStats', { workouts: sourceCycle.stats.totalWorkouts, tonnage: (sourceCycle.stats.totalTonnage / 1000).toFixed(1), rate: sourceCycle.stats.completionRate })}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -405,8 +407,8 @@ const NewPlan = () => {
       {!sourceCycle && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Poprzedni plan</CardTitle>
-            <CardDescription>{planDurationWeeks} tygodni • {currentPlan.length} dni/tydzień</CardDescription>
+            <CardTitle className="text-base">{t('newplan.previousPlan')}</CardTitle>
+            <CardDescription>{t('newplan.weeksDaysSummary', { weeks: planDurationWeeks, days: currentPlan.length })}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
@@ -427,16 +429,16 @@ const NewPlan = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Repeat className="h-4 w-4 text-primary" />
-              Kontynuuj ten sam plan
+              {t('newplan.continueSame')}
             </CardTitle>
             <CardDescription>
-              Zacznij obecny plan od nowa na kolejny blok ({planDurationWeeks} tyg.). Poprzedni blok trafi do cykli, a historia treningów zostaje nietknięta.
+              {t('newplan.continueSameDesc', { weeks: planDurationWeeks })}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="secondary" className="w-full" onClick={handleContinueCurrent}>
               <Repeat className="h-4 w-4 mr-2" />
-              Kontynuuj obecny plan
+              {t('newplan.continueCurrent')}
             </Button>
           </CardContent>
         </Card>
@@ -449,21 +451,21 @@ const NewPlan = () => {
           onClick={() => setPlanSource('templates')}
         >
           <ListChecks className="h-4 w-4 mr-2" />
-          Gotowe plany
+          {t('newplan.readyPlans')}
         </Button>
         <Button
           variant="outline"
           onClick={() => setPlanSource('scratch')}
         >
           <PencilRuler className="h-4 w-4 mr-2" />
-          Własny plan
+          {t('newplan.customPlan')}
         </Button>
       </div>
 
       {(
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Wybierz gotowy plan, podejrzyj ćwiczenia (możesz je podmienić w następnym kroku) i zatwierdź. Albo ułóż własny plan od zera.
+            {t('newplan.templatesIntro')}
           </p>
           {planTemplates.map(template => (
             <Card key={template.id}>
@@ -473,9 +475,9 @@ const NewPlan = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{template.daysPerWeek} dni/tydzień</Badge>
-                  <Badge variant="secondary">{template.durationWeeks} tygodni</Badge>
-                  <Badge variant="outline">{levelLabels[template.level]}</Badge>
+                  <Badge variant="secondary">{t('newplan.daysPerWeek', { n: template.daysPerWeek })}</Badge>
+                  <Badge variant="secondary">{t('newplan.weeks', { n: template.durationWeeks })}</Badge>
+                  <Badge variant="outline">{t(levelLabelKeys[template.level])}</Badge>
                 </div>
                 <div className="space-y-1">
                   {template.days.map(day => (
@@ -487,7 +489,7 @@ const NewPlan = () => {
                 </div>
                 <Button className="w-full" onClick={() => handlePickTemplate(template)}>
                   <Check className="h-4 w-4 mr-2" />
-                  Wybierz ten plan
+                  {t('newplan.choosePlan')}
                 </Button>
               </CardContent>
             </Card>

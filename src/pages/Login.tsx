@@ -10,6 +10,7 @@ import { Dumbbell, LogIn, AlertCircle, Loader2, Mail, UserPlus, Send } from 'luc
 import { createWaitlistEntry } from '@/lib/registration-api';
 import { setPendingInviteCode } from '@/lib/pending-invite';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface LoginProps {
   mode?: 'login' | 'register';
@@ -20,6 +21,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   const supportsGoogle = true;
   const { signInWithGoogle, registerWithEmail, loginWithEmail, resetPassword, error, loading } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [authTab, setAuthTab] = useState<'google' | 'email'>(
     mode === 'register' || !supportsGoogle ? 'email' : 'google'
   );
@@ -74,7 +76,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   const handleEmailSubmit = async () => {
     setLocalError(null);
     if (isRegisterMode && password !== confirmPassword) {
-      setLocalError('Hasła muszą być identyczne.');
+      setLocalError(t('login.error.passwordMismatch'));
       return;
     }
 
@@ -85,8 +87,8 @@ const Login = ({ mode = 'login' }: LoginProps) => {
         : await loginWithEmail(email, password);
       if (success && isRegisterMode) {
         toast({
-          title: 'Konto utworzone',
-          description: 'Zaraz zobaczysz ekran wpisania kodu potwierdzającego wysłanego na email.',
+          title: t('login.toast.accountCreated.title'),
+          description: t('login.toast.accountCreated.desc'),
         });
       }
     } finally {
@@ -97,7 +99,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   const handleResetPassword = async () => {
     setLocalError(null);
     if (!email.trim()) {
-      setLocalError('Podaj email, aby wysłać link do resetu hasła.');
+      setLocalError(t('login.error.emailForReset'));
       return;
     }
     setIsSubmitting(true);
@@ -105,8 +107,8 @@ const Login = ({ mode = 'login' }: LoginProps) => {
       const success = await resetPassword(email);
       if (success) {
         toast({
-          title: 'Link wysłany',
-          description: 'Sprawdź skrzynkę mailową, aby zresetować hasło.',
+          title: t('login.toast.linkSent.title'),
+          description: t('login.toast.linkSent.desc'),
         });
       }
     } finally {
@@ -125,14 +127,14 @@ const Login = ({ mode = 'login' }: LoginProps) => {
         source: 'login-screen',
       });
       toast({
-        title: 'Dodano do listy',
-        description: 'Twoje zgłoszenie zostało zapisane. Admin będzie mógł wysłać invite lub nadać cohortę.',
+        title: t('login.toast.waitlistAdded.title'),
+        description: t('login.toast.waitlistAdded.desc'),
       });
       setWaitlistEmail('');
       setWaitlistName('');
       setWaitlistNote('');
     } catch (waitlistError) {
-      setLocalError(waitlistError instanceof Error ? waitlistError.message : 'Nie udało się zapisać na listę.');
+      setLocalError(waitlistError instanceof Error ? waitlistError.message : t('login.error.waitlistFailed'));
     } finally {
       setIsWaitlistSubmitting(false);
     }
@@ -157,15 +159,15 @@ const Login = ({ mode = 'login' }: LoginProps) => {
           <CardDescription>
             {supportsGoogle
               ? isRegisterMode
-                ? 'Załóż konto przez Google albo email i hasło'
-                : 'Zaloguj się przez Google albo email i hasło'
+                ? t('login.subtitle.registerGoogle')
+                : t('login.subtitle')
               : isRegisterMode
-                ? 'Załóż konto przez email i hasło'
-                : 'Zaloguj się przez email i hasło'}
+                ? t('login.subtitle.registerEmail')
+                : t('login.subtitle.loginEmail')}
           </CardDescription>
           {inviteCode && (
             <p className="text-xs text-primary">
-              Wykryto kod zaproszenia: <span className="font-semibold">{inviteCode}</span>. Zostanie przypięty po wejściu do aplikacji.
+              {t('login.inviteDetected')} <span className="font-semibold">{inviteCode}</span>. {t('login.inviteWillAttach')}
             </p>
           )}
         </CardHeader>
@@ -179,18 +181,18 @@ const Login = ({ mode = 'login' }: LoginProps) => {
 
           <Tabs value={authTab} onValueChange={(value) => setAuthTab(value as 'google' | 'email')}>
             <TabsList className={`grid w-full ${supportsGoogle ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {supportsGoogle && <TabsTrigger value="google">Google</TabsTrigger>}
-              <TabsTrigger value="email">Email + hasło</TabsTrigger>
+              {supportsGoogle && <TabsTrigger value="google">{t('login.tab.google')}</TabsTrigger>}
+              <TabsTrigger value="email">{t('login.tab.email')}</TabsTrigger>
             </TabsList>
 
             {supportsGoogle && (
               <TabsContent value="google" className="pt-4">
                 <Button onClick={handleGoogleLogin} className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : isRegisterMode ? <UserPlus className="h-5 w-5 mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
-                  {isRegisterMode ? 'Załóż konto przez Google' : 'Zaloguj przez Google'}
+                  {isRegisterMode ? t('login.googleRegister') : t('login.google')}
                 </Button>
                 <p className="mt-3 text-xs text-center text-muted-foreground">
-                  Google daje od razu aktywne konto i uruchamia onboarding przy pierwszym wejściu.
+                  {t('login.googleHint')}
                 </p>
               </TabsContent>
             )}
@@ -201,32 +203,32 @@ const Login = ({ mode = 'login' }: LoginProps) => {
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="Email"
+                  placeholder={t('login.email')}
                 />
                 <Input
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Hasło"
+                  placeholder={t('login.password')}
                 />
                 {isRegisterMode && (
                   <Input
                     type="password"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Powtórz hasło"
+                    placeholder={t('login.confirmPassword')}
                   />
                 )}
               </div>
 
               <Button className="w-full" onClick={handleEmailSubmit} disabled={!canSubmitEmail || isSubmitting}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : isRegisterMode ? <UserPlus className="h-4 w-4 mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
-                {isRegisterMode ? 'Załóż konto i wyślij kod' : 'Zaloguj przez email'}
+                {isRegisterMode ? t('login.registerSubmit') : t('login.submit')}
               </Button>
 
               {!isRegisterMode && (
                 <Button type="button" variant="ghost" className="w-full text-xs" onClick={handleResetPassword} disabled={isSubmitting}>
-                  Reset hasła
+                  {t('login.resetPassword')}
                 </Button>
               )}
             </TabsContent>
@@ -234,25 +236,25 @@ const Login = ({ mode = 'login' }: LoginProps) => {
 
           <div className="rounded-lg border bg-muted/20 p-4 text-sm">
             <p className="font-medium">
-              {isRegisterMode ? 'Masz już konto?' : 'Nie masz jeszcze konta?'}
+              {isRegisterMode ? t('login.haveAccount') : t('login.noAccount')}
             </p>
             <p className="mt-1 text-muted-foreground">
               {isRegisterMode
-                ? 'Przejdź do logowania, jeśli konto jest już aktywne.'
-                : 'Przejdź do osobnej strony rejestracji, żeby utworzyć konto.'}
+                ? t('login.toLoginHint')
+                : t('login.toRegisterHint')}
             </p>
             <Button asChild variant="outline" className="mt-3 w-full">
               <Link to={isRegisterMode ? '/login' : '/register'}>
-                {isRegisterMode ? 'Przejdź do logowania' : 'Przejdź do rejestracji'}
+                {isRegisterMode ? t('login.toLogin') : t('login.toRegister')}
               </Link>
             </Button>
           </div>
 
           <div className="rounded-lg border border-dashed p-4 space-y-3">
             <div>
-              <p className="text-sm font-medium">Chcesz trafić na waitlistę lub dostać invite?</p>
+              <p className="text-sm font-medium">{t('login.waitlist.title')}</p>
               <p className="text-xs text-muted-foreground">
-                Zostaw email. Admin będzie mógł przypisać Ci invite, cohortę albo specjalne flagi konta.
+                {t('login.waitlist.desc')}
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -260,22 +262,22 @@ const Login = ({ mode = 'login' }: LoginProps) => {
                 type="email"
                 value={waitlistEmail}
                 onChange={(event) => setWaitlistEmail(event.target.value)}
-                placeholder="Email"
+                placeholder={t('login.email')}
               />
               <Input
                 value={waitlistName}
                 onChange={(event) => setWaitlistName(event.target.value)}
-                placeholder="Imię / nazwa"
+                placeholder={t('login.waitlist.namePlaceholder')}
               />
             </div>
             <Input
               value={waitlistNote}
               onChange={(event) => setWaitlistNote(event.target.value)}
-              placeholder="Notatka lub kontekst"
+              placeholder={t('login.waitlist.notePlaceholder')}
             />
             <Button variant="outline" className="w-full" onClick={handleWaitlistSubmit} disabled={!waitlistEmail.trim() || isWaitlistSubmitting}>
               {isWaitlistSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-              Zapisz na waitlistę
+              {t('login.waitlist.submit')}
             </Button>
           </div>
         </CardContent>

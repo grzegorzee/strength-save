@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { Check, Timer, Flame } from 'lucide-react';
 import { warmupExercises, getStretchingForFocus } from '@/data/warmupStretching';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface Props {
   focus: string;
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
+  const { t } = useTranslation();
   const stretches = getStretchingForFocus(focus);
   const allItems = [
     ...warmupExercises.map(e => ({ ...e, section: 'warmup' as const })),
@@ -69,10 +71,10 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Flame className="h-5 w-5 text-orange-500" />
-            Rozgrzewka
+            {t('comp.warmup.title')}
           </DialogTitle>
           <DialogDescription>
-            {focus} — {checked.size}/{allItems.length} ukończone
+            {t('comp.warmup.progress', { focus, done: checked.size, total: allItems.length })}
           </DialogDescription>
         </DialogHeader>
 
@@ -83,13 +85,13 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
           <div className="flex items-center justify-center gap-3 py-3 bg-muted/30 rounded-lg">
             <Timer className="h-5 w-5 text-primary animate-pulse" />
             <span className="text-2xl font-bold tabular-nums">{timerSeconds}s</span>
-            <Button size="sm" variant="ghost" onClick={() => setTimerActive(false)}>Stop</Button>
+            <Button size="sm" variant="ghost" onClick={() => setTimerActive(false)}>{t('comp.warmup.stop')}</Button>
           </div>
         )}
 
         {/* Warmup section */}
         <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground mb-2">Rozgrzewka dynamiczna</h4>
+          <h4 className="text-sm font-medium text-muted-foreground mb-2">{t('comp.warmup.dynamicWarmup')}</h4>
           {warmupExercises.map((ex, idx) => (
             <button
               key={idx}
@@ -113,7 +115,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
 
         {/* Stretching section */}
         <div className="space-y-1">
-          <h4 className="text-sm font-medium text-muted-foreground mb-2">Stretching</h4>
+          <h4 className="text-sm font-medium text-muted-foreground mb-2">{t('comp.warmup.stretching')}</h4>
           {stretches.map((ex, sIdx) => {
             const idx = warmupExercises.length + sIdx;
             return (
@@ -141,7 +143,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
         {/* Timer button */}
         {!timerActive && (
           <Button variant="outline" size="sm" className="w-full" onClick={startTimer}>
-            <Timer className="h-4 w-4 mr-2" /> Timer 30s
+            <Timer className="h-4 w-4 mr-2" /> {t('comp.warmup.timer30')}
           </Button>
         )}
       </DialogContent>

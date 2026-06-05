@@ -7,6 +7,7 @@ import { Flame } from 'lucide-react';
 import { tooltipStyle } from '@/lib/chart-config';
 import { computeWeeklyCalories } from '@/lib/strava-utils';
 import type { StravaActivity } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface CaloriesChartProps {
   activities: StravaActivity[];
@@ -14,6 +15,7 @@ interface CaloriesChartProps {
 }
 
 export const CaloriesChart = ({ activities, referenceDate }: CaloriesChartProps) => {
+  const { t } = useTranslation();
   const { data, totalSeason } = useMemo(
     () => computeWeeklyCalories(activities, 12, referenceDate),
     [activities, referenceDate],
@@ -26,10 +28,10 @@ export const CaloriesChart = ({ activities, referenceDate }: CaloriesChartProps)
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Flame className="h-4 w-4 text-red-500" />
-          Kalorie / tydzień
+          {t('strava.caloriesPerWeek')}
         </CardTitle>
         <CardDescription className="text-xs">
-          Łącznie: {Math.round(totalSeason)} kcal
+          {t('strava.totalKcal', { n: Math.round(totalSeason) })}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -38,8 +40,8 @@ export const CaloriesChart = ({ activities, referenceDate }: CaloriesChartProps)
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
             <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" kcal" />
-            <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kcal`, 'Kalorie']} />
-            <Bar dataKey="calories" name="Kalorie" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kcal`, t('strava.calories')]} />
+            <Bar dataKey="calories" name={t('strava.calories')} fill="#ef4444" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

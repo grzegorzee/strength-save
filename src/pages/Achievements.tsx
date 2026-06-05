@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { calculate1RM, getExerciseBest1RM } from '@/lib/pr-utils';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface ExerciseRecord {
   exerciseId: string;
@@ -23,6 +24,7 @@ interface ExerciseRecord {
 }
 
 const Achievements = () => {
+  const { t } = useTranslation();
   const { uid } = useCurrentUser();
   const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -84,7 +86,7 @@ const Achievements = () => {
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+        <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -92,27 +94,27 @@ const Achievements = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-heading font-bold tracking-tight">Osiągnięcia</h1>
-        <p className="text-sm text-muted-foreground">Rekordy, tonaż i progresja ćwiczeń w jednym miejscu.</p>
+        <h1 className="text-2xl font-heading font-bold tracking-tight">{t('achievements.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('achievements.subtitle')}</p>
       </div>
 
       {/* Main Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatsCard
-          title="Ukończone treningi"
+          title={t('achievements.completedWorkouts')}
           value={completedWorkouts}
           icon={Trophy}
           variant="success"
         />
         <StatsCard
-          title="Tonaż całkowity"
+          title={t('achievements.totalTonnage')}
           value={`${(totalWeight / 1000).toFixed(1)}t`}
-          subtitle="Suma podniesionych kg"
+          subtitle={t('achievements.totalTonnageSub')}
           icon={Dumbbell}
           variant="primary"
         />
         <StatsCard
-          title="Ćwiczeń z rekordem"
+          title={t('achievements.exercisesWithRecord')}
           value={exerciseRecords.length}
           icon={Target}
           variant="default"
@@ -122,8 +124,8 @@ const Achievements = () => {
       {/* Tonnage Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Tonaż</CardTitle>
-          <CardDescription>Zobacz sumę podniesionych kilogramów</CardDescription>
+          <CardTitle>{t('achievements.tonnage')}</CardTitle>
+          <CardDescription>{t('achievements.tonnageDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {totalWeight > 0 ? (
@@ -132,12 +134,12 @@ const Achievements = () => {
                 {totalWeight.toLocaleString('pl-PL')} kg
               </p>
               <p className="text-muted-foreground mt-2">
-                To równowartość {(totalWeight / 1000).toFixed(1)} ton!
+                {t('achievements.tonsEquivalent', { tons: (totalWeight / 1000).toFixed(1) })}
               </p>
             </div>
           ) : (
             <p className="text-center text-muted-foreground py-8">
-              Brak wyników do wyświetlenia
+              {t('achievements.noResults')}
             </p>
           )}
         </CardContent>
@@ -148,9 +150,9 @@ const Achievements = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-fitness-success" />
-            Rekordy wszystkich ćwiczeń
+            {t('achievements.allRecords')}
           </CardTitle>
-          <CardDescription>Kliknij ćwiczenie, aby zobaczyć historię ciężarów</CardDescription>
+          <CardDescription>{t('achievements.allRecordsDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {exerciseRecords.length > 0 ? (
@@ -164,13 +166,13 @@ const Achievements = () => {
                   <div className="flex-1">
                     <p className="font-medium">{record.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {record.history.length} zapisanych serii
+                      {t('achievements.savedSets', { n: record.history.length })}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className="text-lg font-bold text-fitness-success">{record.maxWeight} kg</p>
-                      <p className="text-xs text-muted-foreground">max ciężar</p>
+                      <p className="text-xs text-muted-foreground">{t('achievements.maxWeight')}</p>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
                   </div>
@@ -179,7 +181,7 @@ const Achievements = () => {
             </div>
           ) : (
             <p className="text-center text-muted-foreground py-8">
-              Brak wyników do wyświetlenia. Ukończ pierwszy trening!
+              {t('achievements.noResultsFirst')}
             </p>
           )}
         </CardContent>
@@ -190,9 +192,9 @@ const Achievements = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-primary" />
-            Rekordy osobiste (szacowane 1RM)
+            {t('achievements.personalRecords')}
           </CardTitle>
-          <CardDescription>Formuła Epley: ciężar × (1 + powtórzenia / 30)</CardDescription>
+          <CardDescription>{t('achievements.epleyFormula')}</CardDescription>
         </CardHeader>
         <CardContent>
           {(() => {
@@ -209,7 +211,7 @@ const Achievements = () => {
             if (records.length === 0) {
               return (
                 <p className="text-center text-muted-foreground py-8">
-                  Ukończ pierwszy trening, aby zobaczyć szacowane 1RM
+                  {t('achievements.firstWorkoutFor1RM')}
                 </p>
               );
             }
@@ -224,7 +226,7 @@ const Achievements = () => {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{record.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {record.best1RMWeight}kg × {record.best1RMReps} rep
+                        {record.best1RMWeight}kg × {record.best1RMReps} {t('achievements.repsShort')}
                         {record.bestDate && (
                           <> · {new Date(record.bestDate).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}</>
                         )}
@@ -233,7 +235,7 @@ const Achievements = () => {
                     <div className="flex items-center gap-2 shrink-0 ml-3">
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary">{record.best1RM} kg</p>
-                        <p className="text-xs text-muted-foreground">est. 1RM</p>
+                        <p className="text-xs text-muted-foreground">{t('achievements.est1RM')}</p>
                       </div>
                       <Button
                         variant="ghost"
@@ -268,7 +270,7 @@ const Achievements = () => {
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedExercise?.name}</DialogTitle>
-            <DialogDescription>Historia ciężarów i powtórzeń</DialogDescription>
+            <DialogDescription>{t('achievements.dialogDesc')}</DialogDescription>
           </DialogHeader>
           
           {selectedExercise && (
@@ -277,17 +279,17 @@ const Achievements = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg bg-fitness-success/10 text-center">
                   <p className="text-2xl font-bold text-fitness-success">{selectedExercise.maxWeight} kg</p>
-                  <p className="text-xs text-muted-foreground">Rekord ciężaru</p>
+                  <p className="text-xs text-muted-foreground">{t('achievements.weightRecord')}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-primary/10 text-center">
                   <p className="text-2xl font-bold text-primary">{selectedExercise.maxReps}</p>
-                  <p className="text-xs text-muted-foreground">Max powtórzeń</p>
+                  <p className="text-xs text-muted-foreground">{t('achievements.maxReps')}</p>
                 </div>
               </div>
 
               {/* History by date */}
               <div className="space-y-3">
-                <h4 className="font-medium text-sm text-muted-foreground">Historia treningów</h4>
+                <h4 className="font-medium text-sm text-muted-foreground">{t('achievements.workoutHistory')}</h4>
                 {getGroupedHistory(selectedExercise.history).map(([date, sets]) => (
                   <div key={date} className="p-3 rounded-lg bg-muted/30">
                     <p className="text-sm font-medium mb-2">

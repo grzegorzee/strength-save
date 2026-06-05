@@ -14,9 +14,11 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate } from '@/lib/plan-schedule';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const DayPlan = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
   const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -42,7 +44,7 @@ const DayPlan = () => {
 
   // Determine greeting based on time
   const hour = today.getHours();
-  const greeting = hour < 12 ? 'Dzień dobry' : hour < 18 ? 'Cześć' : 'Dobry wieczór';
+  const greeting = hour < 12 ? t('dayplan.greetingMorning') : hour < 18 ? t('dayplan.greetingDay') : t('dayplan.greetingEvening');
   const GreetingIcon = hour < 18 ? Sun : Moon;
 
   // Today's Strava activities (non-strength)
@@ -61,7 +63,7 @@ const DayPlan = () => {
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+        <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
       </div>
     );
   }
@@ -98,18 +100,18 @@ const DayPlan = () => {
               </div>
               <h3 className="text-xl font-semibold mb-2">
                 {isWorkoutCompleted
-                  ? 'Trening ukończony!'
+                  ? t('dayplan.workoutDoneTitle')
                   : todayStravaActivities.length > 0
-                    ? 'Dzisiaj bez siłki'
-                    : 'Dzisiaj wolne!'
+                    ? t('dayplan.noStrengthTitle')
+                    : t('dayplan.restTitle')
                 }
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
                 {isWorkoutCompleted
-                  ? `Świetna robota! Ukończyłeś trening "${todaysTraining?.focus}". Teraz czas na regenerację.`
+                  ? t('dayplan.workoutDoneDesc', { focus: todaysTraining?.focus ?? '' })
                   : todayStravaActivities.length > 0
-                    ? 'Brak treningu siłowego, ale masz aktywności cardio.'
-                    : 'Dziś jest dzień regeneracji. Możesz odpocząć, zrobić lekki stretching lub spacer.'
+                    ? t('dayplan.noStrengthDesc')
+                    : t('dayplan.restDesc')
                 }
               </p>
             </div>
@@ -117,7 +119,7 @@ const DayPlan = () => {
             {/* Today's Strava activities — shown before tips */}
             {todayStravaActivities.length > 0 && (
               <div className="space-y-2">
-                <h4 className="font-medium text-sm text-muted-foreground">Aktywności Strava dzisiaj:</h4>
+                <h4 className="font-medium text-sm text-muted-foreground">{t('dayplan.stravaToday')}</h4>
                 {todayStravaActivities.map(activity => (
                   <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
                 ))}
@@ -128,25 +130,25 @@ const DayPlan = () => {
               <Card className="bg-muted/30">
                 <CardContent className="p-4">
                   <h4 className="font-medium text-sm mb-1">
-                    {isWorkoutCompleted ? 'Statystyki treningu' : 'Następny trening'}
+                    {isWorkoutCompleted ? t('dayplan.workoutStats') : t('dayplan.nextTraining')}
                   </h4>
                   <p className="text-muted-foreground text-sm">
                     {isWorkoutCompleted
-                      ? `${todaysWorkout?.exercises.length || 0} ćwiczeń wykonanych`
+                      ? t('dayplan.exercisesDone', { n: todaysWorkout?.exercises.length || 0 })
                     : nextScheduledTraining
-                      ? `Następny trening: ${nextScheduledTraining.day.dayName} — ${nextScheduledTraining.day.focus}`
-                      : 'Sprawdź plan tygodniowy'
+                      ? t('dayplan.nextTrainingDetail', { day: nextScheduledTraining.day.dayName, focus: nextScheduledTraining.day.focus })
+                      : t('dayplan.checkWeeklyPlan')
                     }
                   </p>
                 </CardContent>
               </Card>
               <Card className="bg-muted/30">
                 <CardContent className="p-4">
-                  <h4 className="font-medium text-sm mb-1">Tip dnia</h4>
+                  <h4 className="font-medium text-sm mb-1">{t('dayplan.tipOfDay')}</h4>
                   <p className="text-muted-foreground text-sm">
                     {isWorkoutCompleted
-                      ? 'Białko w ciągu 2h po treningu wspiera regenerację mięśni.'
-                      : 'Pamiętaj o nawodnieniu i 7-8h snu dla optymalnej regeneracji.'
+                      ? t('dayplan.tipProtein')
+                      : t('dayplan.tipHydration')
                     }
                   </p>
                 </CardContent>
@@ -159,7 +161,7 @@ const DayPlan = () => {
                 className="w-full"
                 onClick={() => navigate(`/workout/${todaysTraining?.id}?date=${formatLocalDate(today)}`)}
               >
-                Zobacz szczegóły treningu
+                {t('dayplan.viewWorkoutDetails')}
               </Button>
             )}
           </CardContent>
@@ -181,7 +183,7 @@ const DayPlan = () => {
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <GreetingIcon className="h-5 w-5 text-yellow-500" />
-                  {greeting}! Dziś trening
+                  {greeting}! {t('dayplan.todayTraining')}
                 </CardTitle>
                 <CardDescription className="capitalize">
                   {dayName}, {dateStr}
@@ -197,7 +199,7 @@ const DayPlan = () => {
           <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl p-4">
             <h3 className="font-semibold text-lg mb-1">{todaysTraining.focus}</h3>
             <p className="text-muted-foreground text-sm">
-              {todaysTraining.exercises.length} ćwiczeń w dzisiejszym treningu
+              {t('dayplan.exercisesInToday', { n: todaysTraining.exercises.length })}
             </p>
           </div>
 
@@ -208,7 +210,7 @@ const DayPlan = () => {
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">🔥</span>
-              <span className="font-medium text-sm">Rozgrzewka (5 min)</span>
+              <span className="font-medium text-sm">{t('dayplan.warmup')}</span>
             </div>
             {showWarmup ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
           </button>
@@ -234,7 +236,7 @@ const DayPlan = () => {
 
           {/* Exercise List Preview */}
           <div className="space-y-2">
-            <h4 className="font-medium text-sm text-muted-foreground">Dzisiejsze ćwiczenia:</h4>
+            <h4 className="font-medium text-sm text-muted-foreground">{t('dayplan.todaysExercises')}</h4>
             <div className="space-y-2">
               {todaysTraining.exercises.map((exercise, index) => (
                 <div
@@ -289,7 +291,7 @@ const DayPlan = () => {
           {/* Today's Strava activities */}
           {todayStravaActivities.length > 0 && (
             <div className="space-y-2">
-              <h4 className="font-medium text-sm text-muted-foreground">Aktywności Strava dzisiaj:</h4>
+              <h4 className="font-medium text-sm text-muted-foreground">{t('dayplan.stravaToday')}</h4>
               {todayStravaActivities.map(activity => (
                 <StravaActivityCard key={activity.id} activity={activity} maxHR={stravaConnection.estimatedMaxHR} />
               ))}
