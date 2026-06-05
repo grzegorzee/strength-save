@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { History, Dumbbell, Sparkles, TriangleAlert } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,14 +24,29 @@ const Cycles = () => {
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);
   const activeCycle = cycles.find(cycle => cycle.status === 'active') || null;
 
-  // Auto-repair: create cycle document if active plan exists without one
-  const repairAttempted = useRef(false);
+  // Auto-repair: dotwórz dokument cyklu, jeśli aktywny plan istnieje bez niego.
+  //
+  // Root cause fantomowych cykli: createActiveCycle jest asynchroniczne, a guard
+  // oparty na ref żył tylko w obrębie jednego mountu. W oknie między wywołaniem a
+  // aktualizacją snapshotu `cycles` remount (nawigacja tam/z powrotem) resetował ref,
+  // activeCycle był wciąż null → powstawał duplikat. Powtórzone → wiele cykli dla
+  // tego samego planu (te, które naprawia mergeContinuousCycles).
+  //
+  // Fix: (1) nie twórz, jeśli ISTNIEJE jakikolwiek cykl dla tego planStartDate
+  // (aktywny lub już zarchiwizowany), (2) trwały guard per-plan w localStorage
+  // zamiast ref — przeżywa remount/odświeżenie w oknie asynchronicznym.
   useEffect(() => {
-    if (repairAttempted.current || !isLoaded || activeCycle || !planStartDate || trainingPlan.length === 0 || isPlanExpired) return;
-    repairAttempted.current = true;
+    if (!isLoaded || activeCycle || !planStartDate || trainingPlan.length === 0 || isPlanExpired) return;
+    // Plan ma już swój cykl (np. zarchiwizowany po wygaśnięciu) — nie dubluj.
+    if (cycles.some(c => c.startDate === planStartDate)) return;
+    const repairKey = `cycle-repair:${uid}:${planStartDate}`;
+    try {
+      if (localStorage.getItem(repairKey)) return;
+      localStorage.setItem(repairKey, '1');
+    } catch { /* localStorage niedostępny — kontynuuj, guard startDate wystarcza */ }
     console.log('[Cycles] Auto-repair: creating missing active cycle for existing plan');
     createActiveCycle(trainingPlan, planDurationWeeks, planStartDate);
-  }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle]);
+  }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle, cycles, uid]);
   const liveActiveCycle = buildActiveCyclePreview(activeCycle, workouts);
   const visibleStoredCycles = cycles.filter(cycle => cycle.status === 'active' || cycle.stats.totalWorkouts > 0);
   const previousCompletedCycle = visibleStoredCycles.find(cycle => cycle.status === 'completed') || null;
