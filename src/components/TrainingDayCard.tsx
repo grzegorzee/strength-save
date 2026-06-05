@@ -1,6 +1,7 @@
 import { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface TrainingDayCardProps {
   day: TrainingDay;
@@ -10,6 +11,7 @@ interface TrainingDayCardProps {
 }
 
 export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: TrainingDayCardProps) => {
+  const { t } = useTranslation();
   const todayStr = formatLocalDate(new Date());
   const trainingDateStr = trainingDate ? formatLocalDate(trainingDate) : undefined;
 
@@ -43,17 +45,17 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
           <p className="font-bold text-sm">{day.dayName}</p>
           {isCompletedToday && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">
-              Dziś
+              {t('dayplan.badgeToday')}
             </span>
           )}
           {isCompleted && !isCompletedToday && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">
-              Ukończone
+              {t('dayplan.badgeCompleted')}
             </span>
           )}
           {isMissed && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-red-500/25 bg-red-500/10 text-red-400">
-              Pominięte
+              {t('dayplan.badgeMissed')}
             </span>
           )}
         </div>

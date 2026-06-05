@@ -394,17 +394,17 @@ const Dashboard = () => {
                 </p>
                 <p className="text-sm text-sky-900/80">
                   {localDraft?.finalSyncPending
-                    ? 'Dane czekają na finalny zapis w chmurze.'
+                    ? t('dash.sync.finishedLocally.desc')
                     : localDraft?.sessionOrigin === 'provisional'
-                      ? 'Sesja istnieje tylko na urządzeniu i zostanie utworzona w Firebase po odzyskaniu internetu.'
+                      ? t('dash.sync.startedOffline.desc')
                       : pendingSyncCount > 0
-                        ? 'Otwórz Sync Center, aby sprawdzić wszystkie oczekujące treningi i uruchomić retry all.'
-                        : 'Otwórz Sync Center, aby sprawdzić status i wymusić synchronizację.'}
+                        ? t('dash.sync.queued.desc')
+                        : t('dash.sync.localChanges.desc')}
                 </p>
               </div>
             </div>
             <Button variant="outline" className="border-sky-300 bg-white hover:bg-sky-100" onClick={() => navigate('/settings')}>
-              Otwórz Sync Center
+              {t('dash.sync.openCenter')}
             </Button>
           </CardContent>
         </Card>
@@ -418,14 +418,14 @@ const Dashboard = () => {
               <Dumbbell className="h-5 w-5 text-primary shrink-0" />
               <div className="min-w-0">
                 <p className="font-semibold text-sm">{todayTraining.day.dayName}</p>
-                <p className="text-xs text-muted-foreground truncate">{todayTraining.day.focus} · {todayTraining.day.exercises.length} ćwiczeń</p>
+                <p className="text-xs text-muted-foreground truncate">{todayTraining.day.focus} · {t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}</p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/day')}>Szczegóły</Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/day')}>{t('dash.details')}</Button>
               <Button size="sm" className="gap-1.5 flex-1" onClick={() => navigate(`/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}>
                 <Play className="h-3.5 w-3.5" />
-                Rozpocznij trening
+                {t('dash.startWorkout')}
               </Button>
             </div>
           </CardContent>
@@ -438,12 +438,12 @@ const Dashboard = () => {
             <div className="flex items-center gap-3">
               <CheckCircle className="h-5 w-5 text-emerald-500" />
               <div>
-                <p className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">Trening ukończony!</p>
+                <p className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">{t('dash.workoutCompleted')}</p>
                 <p className="text-xs text-muted-foreground">{todayTraining.day.dayName}</p>
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}>
-              Zobacz
+              {t('dash.view')}
             </Button>
           </CardContent>
         </Card>
@@ -452,10 +452,10 @@ const Dashboard = () => {
       {todayTraining.type === 'rest' && (
         <Card className="bg-muted/30">
           <CardContent className="py-4 px-5">
-            <p className="text-sm font-medium">Dzisiaj wolne 🧘</p>
+            <p className="text-sm font-medium">{t('dash.restDay')} 🧘</p>
             {todayTraining.nextDay && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                Następny trening: {todayTraining.nextDay.dayName} ({todayTraining.nextDay.focus})
+                {t('dash.nextTraining')}: {todayTraining.nextDay.dayName} ({todayTraining.nextDay.focus})
               </p>
             )}
           </CardContent>
@@ -468,7 +468,7 @@ const Dashboard = () => {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                Co dalej z planem?
+                {t('dash.whatNext')}
               </p>
               <h2 className="text-lg font-semibold tracking-tight">{planNextStep.title}</h2>
               <p className="text-sm text-muted-foreground">{planNextStep.description}</p>
@@ -483,7 +483,7 @@ const Dashboard = () => {
               </div>
               <button
                 onClick={dismissNextStep}
-                aria-label="Ukryj podpowiedź"
+                aria-label={t('dash.dismissHint')}
                 className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
               >
                 <X className="h-4 w-4" />
@@ -507,7 +507,7 @@ const Dashboard = () => {
       {/* Stats - 4 columns */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <DashboardStatCard
-          title="Treningi"
+          title={t('dash.stat.workouts')}
           value={completedCount}
           icon={Trophy}
           trend={trends.workouts}
@@ -515,7 +515,7 @@ const Dashboard = () => {
           onClick={() => navigate('/analytics?tab=charts')}
         />
         <DashboardStatCard
-          title="Tonaż"
+          title={t('dash.stat.tonnage')}
           value={`${(totalWeight / 1000).toFixed(1)}t`}
           icon={Dumbbell}
           trend={trends.tonnage}
@@ -524,7 +524,7 @@ const Dashboard = () => {
           onClick={() => navigate('/analytics?tab=charts')}
         />
         <DashboardStatCard
-          title="Waga"
+          title={t('dash.stat.weight')}
           value={latestMeasurement?.weight ? `${latestMeasurement.weight} kg` : '--'}
           icon={Weight}
           trend={trends.weight}
@@ -533,11 +533,11 @@ const Dashboard = () => {
           onClick={() => navigate('/analytics?tab=charts')}
         />
         <DashboardStatCard
-          title="Streak"
-          value={`${streak} tyg.`}
+          title={t('dash.stat.streak')}
+          value={t('dash.weeksShort', { n: streak })}
           icon={Flame}
           trend={trends.streak}
-          trendSuffix=" tyg."
+          trendSuffix={` ${t('dash.weeksUnit')}`}
           iconColor="bg-amber-500/15 text-amber-500"
           onClick={() => navigate('/analytics?tab=charts')}
         />
@@ -556,7 +556,7 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-2xl font-heading font-bold tracking-tight">{weeklyKm.toFixed(1)} km</p>
-                <p className="text-xs text-muted-foreground">Ten tydzień (Strava)</p>
+                <p className="text-xs text-muted-foreground">{t('dash.thisWeekStrava')}</p>
               </div>
             </div>
           </CardContent>
@@ -570,7 +570,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
-                <h2 className="font-heading font-semibold text-base">Twój Plan Treningowy</h2>
+                <h2 className="font-heading font-semibold text-base">{t('dash.yourPlan')}</h2>
               </div>
               <Button
                 variant="ghost"

@@ -7,6 +7,7 @@ import { Clock } from 'lucide-react';
 import { tooltipStyle } from '@/lib/chart-config';
 import { computePaceTrendData, formatPaceFromSeconds } from '@/lib/strava-utils';
 import type { StravaActivity } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface PaceTrendChartProps {
   activities: StravaActivity[];
@@ -14,6 +15,7 @@ interface PaceTrendChartProps {
 }
 
 export const PaceTrendChart = ({ activities, referenceDate }: PaceTrendChartProps) => {
+  const { t } = useTranslation();
   const data = useMemo(() => computePaceTrendData(activities, 12, referenceDate), [activities, referenceDate]);
 
   if (!data.some((d) => d.paceSeconds !== null)) return null;
@@ -23,7 +25,7 @@ export const PaceTrendChart = ({ activities, referenceDate }: PaceTrendChartProp
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Clock className="h-4 w-4 text-blue-500" />
-          Trend tempa
+          {t('strava.paceTrend')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -40,7 +42,7 @@ export const PaceTrendChart = ({ activities, referenceDate }: PaceTrendChartProp
             />
             <Tooltip
               contentStyle={tooltipStyle}
-              formatter={(value: number) => [`${formatPaceFromSeconds(value)} /km`, 'Tempo']}
+              formatter={(value: number) => [`${formatPaceFromSeconds(value)} /km`, t('strava.pace')]}
             />
             <Line
               type="monotone"

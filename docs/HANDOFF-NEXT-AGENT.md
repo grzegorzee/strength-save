@@ -98,7 +98,13 @@ Google login), Tailwind + shadcn. Live web: https://grzegorzee.github.io/strengt
   signInWithCredential), provider 'apple.com' w capacitor.config, capability w Xcode.
 - **Storage rules**: sprawdź reguły Firebase Storage dla `avatars/{uid}/` (authd write) —
   inaczej upload avatara pada.
-- **Android (Google Play)** później (android/ skonfigurowany, keystore + Play Console).
+## Android (stan)
+- ✅ Zsynchronizowany (`cap sync` — UWAGA: rób `cap sync` BEZ argumentu albo osobno `cap sync android`,
+  wcześniej leciało tylko `cap sync ios` i android był pomijany). Aktualne web assets + 2 pluginy.
+- ✅ Android app w Firebase + `android/app/google-services.json` + debug SHA-1 (90:9D:56...) → Google login działa na debug.
+- ✅ `gradle assembleDebug` → BUILD SUCCESSFUL, APK w `android/app/build/outputs/apk/debug/`.
+- ⬜ Test na emulatorze/urządzeniu: `adb` poza PATH (`~/Library/Android/sdk/platform-tools`); użyj Android Studio albo `cap run android`.
+- ⬜ Release: keystore produkcyjny + jego SHA-1 w Firebase; Google Play Developer ($25) + Play Console.
 
 ## Pułapki
 - Firebase Auth Web SDK wiesza się w WKWebView z getAuth — używaj initializeAuth (zrobione).

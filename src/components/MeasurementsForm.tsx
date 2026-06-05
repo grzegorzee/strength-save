@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import type { BodyMeasurement } from '@/types';
 import { Save, User } from 'lucide-react';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
@@ -13,6 +14,7 @@ interface MeasurementsFormProps {
 }
 
 export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsFormProps) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     weight: latestMeasurement?.weight || '',
     armLeft: latestMeasurement?.armLeft || '',
@@ -48,16 +50,16 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
   };
 
   const measurementFields = [
-    { key: 'weight', label: 'Waga (kg)', description: 'Rano, na czczo' },
-    { key: 'armLeft', label: 'Ramię lewe (cm)', description: 'Na szczycie bicepsa' },
-    { key: 'armRight', label: 'Ramię prawe (cm)', description: 'Na szczycie bicepsa' },
-    { key: 'chest', label: 'Klatka piersiowa (cm)', description: '1cm powyżej linii sutków' },
-    { key: 'waist', label: 'Talia (cm)', description: 'W najwęższym miejscu' },
-    { key: 'hips', label: 'Biodra (cm)', description: 'W najszerszym miejscu' },
-    { key: 'thighLeft', label: 'Udo lewe (cm)', description: 'W najszerszym miejscu' },
-    { key: 'thighRight', label: 'Udo prawe (cm)', description: 'W najszerszym miejscu' },
-    { key: 'calfLeft', label: 'Łydka lewa (cm)', description: 'W najszerszym miejscu' },
-    { key: 'calfRight', label: 'Łydka prawa (cm)', description: 'W najszerszym miejscu' },
+    { key: 'weight', label: t('measurements.field.weight'), description: t('measurements.hint.fasting') },
+    { key: 'armLeft', label: t('measurements.field.armLeft'), description: t('measurements.hint.bicepsPeak') },
+    { key: 'armRight', label: t('measurements.field.armRight'), description: t('measurements.hint.bicepsPeak') },
+    { key: 'chest', label: t('measurements.field.chest'), description: t('measurements.hint.aboveNipples') },
+    { key: 'waist', label: t('measurements.field.waist'), description: t('measurements.hint.narrowest') },
+    { key: 'hips', label: t('measurements.field.hips'), description: t('measurements.hint.widest') },
+    { key: 'thighLeft', label: t('measurements.field.thighLeft'), description: t('measurements.hint.widest') },
+    { key: 'thighRight', label: t('measurements.field.thighRight'), description: t('measurements.hint.widest') },
+    { key: 'calfLeft', label: t('measurements.field.calfLeft'), description: t('measurements.hint.widest') },
+    { key: 'calfRight', label: t('measurements.field.calfRight'), description: t('measurements.hint.widest') },
   ];
 
   return (
@@ -68,16 +70,16 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
             <User className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <CardTitle>Pomiary ciała</CardTitle>
+            <CardTitle>{t('nav.measurements')}</CardTitle>
             <CardDescription>
               {latestMeasurement ? (
-                <>Ostatni pomiar: {parseLocalDate(latestMeasurement.date).toLocaleDateString('pl-PL', {
+                <>{t('measurements.lastMeasurement', { date: parseLocalDate(latestMeasurement.date).toLocaleDateString('pl-PL', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'
-                })}</>
+                }) })}</>
               ) : (
-                'Brak zapisanych pomiarów'
+                t('measurements.noMeasurements')
               )}
             </CardDescription>
           </div>
@@ -105,7 +107,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
           </div>
           <Button type="submit" className="w-full" size="lg">
             <Save className="h-4 w-4 mr-2" />
-            Zapisz pomiary
+            {t('measurements.saveButton')}
           </Button>
         </form>
       </CardContent>

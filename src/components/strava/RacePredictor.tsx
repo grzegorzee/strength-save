@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Zap } from 'lucide-react';
 import { getRacePredictions } from '@/lib/race-predictor';
 import type { StravaActivity } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface Props {
   activities: StravaActivity[];
@@ -16,6 +17,7 @@ const DISTANCE_EMOJIS: Record<string, string> = {
 };
 
 export const RacePredictor = ({ activities }: Props) => {
+  const { t } = useTranslation();
   const predictions = useMemo(() => getRacePredictions(activities), [activities]);
 
   if (predictions.length === 0) return null;
@@ -25,9 +27,9 @@ export const RacePredictor = ({ activities }: Props) => {
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Zap className="h-5 w-5 text-yellow-500" />
-          Predykcje wyścigowe
+          {t('strava.racePredictions')}
         </CardTitle>
-        <CardDescription>Formuła Riegel — na podstawie: {predictions[0].basedOn}</CardDescription>
+        <CardDescription>{t('strava.riegelBasedOn', { v: predictions[0].basedOn })}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3">

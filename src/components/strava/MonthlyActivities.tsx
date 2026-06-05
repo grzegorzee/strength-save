@@ -7,6 +7,7 @@ import { Calendar } from 'lucide-react';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { computeMonthlySummaries, formatPaceFromSeconds } from '@/lib/strava-utils';
 import type { StravaActivity } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface MonthlyActivitiesProps {
   activities: StravaActivity[];
@@ -14,13 +15,14 @@ interface MonthlyActivitiesProps {
 }
 
 export const MonthlyActivities = ({ activities, estimatedMaxHR }: MonthlyActivitiesProps) => {
+  const { t } = useTranslation();
   const summaries = useMemo(() => computeMonthlySummaries(activities), [activities]);
 
   if (summaries.length === 0) {
     return (
       <Card className="bg-muted/30">
         <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground">Brak aktywności Strava</p>
+          <p className="text-muted-foreground">{t('strava.noActivities')}</p>
         </CardContent>
       </Card>
     );
@@ -31,7 +33,7 @@ export const MonthlyActivities = ({ activities, estimatedMaxHR }: MonthlyActivit
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
-          Aktywności wg miesiąca
+          {t('strava.activitiesByMonth')}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -42,7 +44,7 @@ export const MonthlyActivities = ({ activities, estimatedMaxHR }: MonthlyActivit
                 <div className="flex items-center gap-3 text-left">
                   <span className="font-medium">{month.label}</span>
                   <span className="text-xs text-muted-foreground">
-                    {month.totalKm} km · {month.activityCount} akt.
+                    {month.totalKm} km · {t('strava.activitiesAbbr', { n: month.activityCount })}
                     {month.avgPace && ` · ${formatPaceFromSeconds(month.avgPace)} /km`}
                   </span>
                 </div>
@@ -51,19 +53,19 @@ export const MonthlyActivities = ({ activities, estimatedMaxHR }: MonthlyActivit
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{month.totalKm} km</p>
-                    <p className="text-[10px] text-muted-foreground">Dystans</p>
+                    <p className="text-[10px] text-muted-foreground">{t('strava.distance')}</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{month.activityCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Aktywności</p>
+                    <p className="text-[10px] text-muted-foreground">{t('strava.activities')}</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{Math.round(month.totalElevation)} m</p>
-                    <p className="text-[10px] text-muted-foreground">Przewyższenie</p>
+                    <p className="text-[10px] text-muted-foreground">{t('strava.elevation')}</p>
                   </div>
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{Math.round(month.totalCalories)} kcal</p>
-                    <p className="text-[10px] text-muted-foreground">Kalorie</p>
+                    <p className="text-[10px] text-muted-foreground">{t('strava.calories')}</p>
                   </div>
                 </div>
                 <div className="space-y-2">

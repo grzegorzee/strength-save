@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Download, Upload, Trash2, Loader2, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface DataManagementProps {
   onExport: () => string;
@@ -23,14 +24,15 @@ export const DataManagement = ({
   onImport,
   onCleanup,
   onRepair,
-  title = 'Zarządzanie danymi',
-  description = 'Eksportuj, importuj lub wyczyść dane treningowe',
-  exportLabel = 'Eksportuj JSON',
-  importLabel = 'Importuj JSON',
-  cleanupLabel = 'Wyczyść duplikaty i puste treningi',
-  repairLabel = 'Napraw dane historyczne',
+  title,
+  description,
+  exportLabel,
+  importLabel,
+  cleanupLabel,
+  repairLabel,
 }: DataManagementProps) => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
@@ -48,8 +50,8 @@ export const DataManagement = ({
     URL.revokeObjectURL(url);
 
     toast({
-      title: "Eksport zakończony!",
-      description: "Plik JSON został pobrany.",
+      title: t('data.export.done'),
+      description: t('data.export.doneDesc'),
     });
   };
 
@@ -67,7 +69,7 @@ export const DataManagement = ({
       const result = await onImport(content);
 
       toast({
-        title: result.success ? "Import zakończony!" : "Błąd importu",
+        title: result.success ? t('data.import.done') : t('data.import.error'),
         description: result.message,
         variant: result.success ? "default" : "destructive",
       });
@@ -89,7 +91,7 @@ export const DataManagement = ({
 
     if (result.error) {
       toast({
-        title: "Błąd!",
+        title: t('data.error'),
         description: result.error,
         variant: "destructive",
       });
@@ -98,23 +100,20 @@ export const DataManagement = ({
 
     if (result.deleted === 0) {
       toast({
-        title: "Brak duplikatów",
-        description: "Wszystkie dane są w porządku.",
+        title: t('data.cleanup.none'),
+        description: t('data.cleanup.noneDesc'),
       });
     } else {
       toast({
-        title: "Wyczyszczono!",
-        description: `Usunięto ${result.deleted} duplikat(ów)/pustych treningów.`,
+        title: t('data.cleanup.done'),
+        description: t('data.cleanup.doneDesc', { count: result.deleted }),
       });
     }
   };
 
   const handleRepair = async () => {
     if (!onRepair) return;
-    const confirmed = window.confirm(
-      'Naprawa dopisze brakujące powiązania (cykl, nazwy ćwiczeń i dni) do historycznych treningów. ' +
-      'Zalecane: najpierw zrób eksport kopii. Kontynuować?',
-    );
+    const confirmed = window.confirm(t('data.repair.confirm'));
     if (!confirmed) return;
 
     setIsRepairing(true);
@@ -122,32 +121,32 @@ export const DataManagement = ({
     setIsRepairing(false);
 
     if (result.error) {
-      toast({ title: 'Błąd naprawy', description: result.error, variant: 'destructive' });
+      toast({ title: t('data.repair.error'), description: result.error, variant: 'destructive' });
       return;
     }
     toast({
-      title: result.updated === 0 ? 'Nic do naprawy' : 'Naprawiono!',
+      title: result.updated === 0 ? t('data.repair.none') : t('data.repair.done'),
       description: result.updated === 0
-        ? `Wszystkie ${result.scanned} treningów ma komplet danych.`
-        : `Zaktualizowano ${result.updated} z ${result.scanned} treningów.`,
+        ? t('data.repair.noneDesc', { scanned: result.scanned })
+        : t('data.repair.doneDesc', { updated: result.updated, scanned: result.scanned }),
     });
   };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle className="text-lg">{title ?? t('data.title')}</CardTitle>
+        <CardDescription>{description ?? t('data.description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 px-3 sm:px-6">
         <div className="grid grid-cols-2 gap-3">
           <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm">
             <Download className="h-4 w-4 mr-1.5 shrink-0" />
-            {exportLabel}
+            {exportLabel ?? t('data.exportLabel')}
           </Button>
           <Button onClick={handleImportClick} variant="outline" className="w-full text-xs sm:text-sm">
             <Upload className="h-4 w-4 mr-1.5 shrink-0" />
-            {importLabel}
+            {importLabel ?? t('data.importLabel')}
           </Button>
           <input
             ref={fileInputRef}
@@ -170,7 +169,7 @@ export const DataManagement = ({
             ) : (
               <Wrench className="h-4 w-4 mr-2" />
             )}
-            {repairLabel}
+            {repairLabel ?? t('data.repairLabel')}
           </Button>
         )}
 
@@ -186,7 +185,7 @@ export const DataManagement = ({
             ) : (
               <Trash2 className="h-4 w-4 mr-2" />
             )}
-            {cleanupLabel}
+            {cleanupLabel ?? t('data.cleanupLabel')}
           </Button>
         )}
       </CardContent>

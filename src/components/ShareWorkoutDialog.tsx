@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, Share2, Camera, X } from 'lucide-react';
 import { generateWorkoutImage, type ShareData } from '@/lib/share-utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface Props {
   data: ShareData;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
+  const { t } = useTranslation();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -33,7 +35,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
       setBlob(result);
       setImageUrl(URL.createObjectURL(result));
     } catch {
-      setError('Nie udało się wygenerować obrazu');
+      setError(t('comp.share.generateError'));
     } finally {
       setIsGenerating(false);
     }
@@ -84,7 +86,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
     const file = new File([blob], `trening-${data.date}.png`, { type: 'image/png' });
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
       await navigator.share({
-        title: `Trening: ${data.dayName}`,
+        title: t('comp.share.shareTitle', { dayName: data.dayName }),
         files: [file],
       });
     } else {
@@ -96,8 +98,8 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Udostępnij trening</DialogTitle>
-          <DialogDescription>Wygenerowany obraz podsumowania</DialogDescription>
+          <DialogTitle>{t('comp.share.title')}</DialogTitle>
+          <DialogDescription>{t('comp.share.subtitle')}</DialogDescription>
         </DialogHeader>
 
         {/* Photo toggle */}
@@ -118,7 +120,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
               onClick={handleRemovePhoto}
             >
               <X className="h-3.5 w-3.5 mr-1" />
-              Usuń zdjęcie
+              {t('comp.share.removePhoto')}
             </Button>
           ) : (
             <Button
@@ -128,7 +130,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
               onClick={() => fileInputRef.current?.click()}
             >
               <Camera className="h-3.5 w-3.5 mr-1" />
-              Dodaj zdjęcie
+              {t('comp.share.addPhoto')}
             </Button>
           )}
         </div>
@@ -145,17 +147,17 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
           <div className="space-y-4">
             <img
               src={imageUrl}
-              alt="Podsumowanie treningu"
+              alt={t('comp.share.imageAlt')}
               className="w-full rounded-lg border"
             />
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={handleDownload}>
                 <Download className="h-4 w-4 mr-2" />
-                Pobierz
+                {t('comp.share.download')}
               </Button>
               <Button className="flex-1" onClick={handleShare}>
                 <Share2 className="h-4 w-4 mr-2" />
-                Udostępnij
+                {t('comp.share.share')}
               </Button>
             </div>
           </div>

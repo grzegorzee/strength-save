@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, ChevronLeft, Dumbbell, Check, RefreshCw, Calendar } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useTranslation } from '@/contexts/LanguageContext';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -22,10 +23,10 @@ interface GeneratedPlan { days: TrainingDay[]; planDurationWeeks: number; }
 
 const weekMondayStr = (date: Date): string => formatLocalDate(getStartOfPlanWeek(date));
 
-const levelLabels: Record<PlanTemplate['level'], string> = {
-  beginner: 'Początkujący',
-  intermediate: 'Średniozaawansowany',
-  advanced: 'Zaawansowany',
+const levelLabelKeys: Record<PlanTemplate['level'], string> = {
+  beginner: 'onboarding.level.beginner',
+  intermediate: 'onboarding.level.intermediate',
+  advanced: 'onboarding.level.advanced',
 };
 
 const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
@@ -41,6 +42,7 @@ const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
 const weekdayLong = (value: Weekday) => WEEKDAYS.find(w => w.value === value)?.long ?? value;
 
 const Onboarding = () => {
+  const { t } = useTranslation();
   const { uid, profile } = useCurrentUser();
   const { savePlan } = useTrainingPlan(uid);
   const { createActiveCycle } = usePlanCycles(uid);
@@ -99,7 +101,7 @@ const Onboarding = () => {
       });
 
       if (!saveResult.success) {
-        setError(saveResult.error || 'Nie udało się zapisać planu');
+        setError(saveResult.error || t('onboarding.error.saveFailed'));
         setIsSaving(false);
         return;
       }
@@ -115,7 +117,7 @@ const Onboarding = () => {
         },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udało się zapisać planu');
+      setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));
       setIsSaving(false);
     }
   };
@@ -154,17 +156,17 @@ const Onboarding = () => {
   };
 
 
-  const displayName = profile?.displayName?.split(' ')[0] || 'Trener';
+  const displayName = profile?.displayName?.split(' ')[0] || t('onboarding.defaultName');
   const onboardingVariant = profile?.registrationSource?.startsWith('invite')
     ? 'invite'
     : profile?.primaryProvider === 'password'
       ? 'email'
       : 'google';
   const onboardingIntro = onboardingVariant === 'invite'
-    ? 'Wchodzisz z invite. Wybierz gotowy plan treningowy, a ustawimy Ci dobry start.'
+    ? t('onboarding.intro.invite')
     : onboardingVariant === 'email'
-      ? 'Dzięki za potwierdzenie maila. Wybierz gotowy plan treningowy na start.'
-      : 'Wybierz gotowy plan treningowy na start. Później ułożysz też własny.';
+      ? t('onboarding.intro.email')
+      : t('onboarding.intro.google');
 
   // Used exercise names for swap dialog filtering
   const getUsedExerciseNames = (plan: TrainingDay[]) =>
@@ -180,9 +182,9 @@ const Onboarding = () => {
               <Dumbbell className="h-6 w-6 text-primary" />
               <span className="font-bold text-lg text-primary">FitTracker</span>
             </div>
-            <h2 className="text-xl font-bold">Twój plan treningowy</h2>
+            <h2 className="text-xl font-bold">{t('onboarding.yourPlan')}</h2>
             <p className="text-sm text-muted-foreground">
-              {reviewPlan.planDurationWeeks} tygodni • {reviewPlan.days.length} dni/tydzień
+              {t('onboarding.weeksDaysSummary', { weeks: reviewPlan.planDurationWeeks, days: reviewPlan.days.length })}
             </p>
           </div>
 
@@ -223,7 +225,7 @@ const Onboarding = () => {
                       className="text-xs shrink-0"
                       onClick={() => handleSwapExercise(day.id, ex.id, ex.name, ex.sets)}
                     >
-                      <RefreshCw className="h-3 w-3 mr-1" />Zamień
+                      <RefreshCw className="h-3 w-3 mr-1" />{t('onboarding.swap')}
                     </Button>
                   </div>
                 ))}
@@ -235,10 +237,10 @@ const Onboarding = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
-                Data rozpoczęcia
+                {t('onboarding.startDate.title')}
               </CardTitle>
               <CardDescription>
-                Wybierz dzień, od którego ma ruszyć nowy plan. Aplikacja zapisze start od poniedziałku tego tygodnia.
+                {t('onboarding.startDate.desc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -256,7 +258,7 @@ const Onboarding = () => {
               className="flex-1"
               onClick={() => setReviewPlan(null)}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />Wróć
+              <ChevronLeft className="h-4 w-4 mr-1" />{t('onboarding.back')}
             </Button>
             <Button
               className="flex-1"
@@ -268,7 +270,7 @@ const Onboarding = () => {
               ) : (
                 <Check className="h-4 w-4 mr-1" />
               )}
-              Zatwierdzam plan
+              {t('onboarding.approve')}
             </Button>
           </div>
 
@@ -297,7 +299,7 @@ const Onboarding = () => {
             <Dumbbell className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg text-primary">FitTracker</span>
           </div>
-          <h2 className="text-xl font-bold">Cześć, {displayName}!</h2>
+          <h2 className="text-xl font-bold">{t('onboarding.greeting', { name: displayName })}</h2>
           <CardDescription>{onboardingIntro}</CardDescription>
         </div>
 
@@ -309,9 +311,9 @@ const Onboarding = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">{template.daysPerWeek} dni/tydzień</Badge>
-                <Badge variant="secondary">{template.durationWeeks} tygodni</Badge>
-                <Badge variant="outline">{levelLabels[template.level]}</Badge>
+                <Badge variant="secondary">{t('onboarding.daysPerWeek', { n: template.daysPerWeek })}</Badge>
+                <Badge variant="secondary">{t('onboarding.weeks', { n: template.durationWeeks })}</Badge>
+                <Badge variant="outline">{t(levelLabelKeys[template.level])}</Badge>
               </div>
               <div className="space-y-1">
                 {template.days.map(day => (
@@ -323,7 +325,7 @@ const Onboarding = () => {
               </div>
               <Button className="w-full" onClick={() => handlePickTemplate(template)}>
                 <Check className="h-4 w-4 mr-2" />
-                Wybierz ten plan
+                {t('onboarding.choosePlan')}
               </Button>
             </CardContent>
           </Card>

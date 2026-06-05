@@ -258,7 +258,7 @@ const DayPlan = () => {
                   </div>
                   {exercise.isSuperset && (
                     <Badge variant="outline" className="text-xs shrink-0">
-                      Superseria
+                      {t('dayplan.superset')}
                     </Badge>
                   )}
                 </div>
@@ -273,7 +273,7 @@ const DayPlan = () => {
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">🧘</span>
-              <span className="font-medium text-sm">Stretching po treningu (5 min)</span>
+              <span className="font-medium text-sm">{t('dayplan.stretching')}</span>
             </div>
             {showStretching ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
           </button>
@@ -305,7 +305,7 @@ const DayPlan = () => {
             onClick={() => navigate(`/workout/${todaysTraining.id}?date=${formatLocalDate(today)}&autostart=true`)}
           >
             <Play className="h-5 w-5 mr-2" />
-            Rozpocznij trening
+            {t('dayplan.startWorkout')}
           </Button>
         </CardContent>
       </Card>

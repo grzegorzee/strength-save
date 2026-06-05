@@ -450,7 +450,7 @@ const Settings = () => {
           ) : (
             <Button onClick={connectStrava} className="bg-[#FC4C02] hover:bg-[#FC4C02]/90">
               <Link2 className="h-4 w-4 mr-2" />
-              Połącz ze Stravą
+              {t('settings.strava.connect')}
             </Button>
           )}
 

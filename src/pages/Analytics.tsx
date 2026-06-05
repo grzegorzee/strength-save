@@ -620,14 +620,14 @@ const ChartsTab = () => {
               </div>
             </div>
             <div className="flex items-center gap-4 mt-4 text-[10px] text-muted-foreground">
-              <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-fitness-success" /><span>Trening</span></div>
-              <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-muted/30 border border-primary/30" /><span>Zaplanowany</span></div>
-              <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-muted/20" /><span>Brak</span></div>
+              <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-fitness-success" /><span>{t('analytics.legend.workout')}</span></div>
+              <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-muted/30 border border-primary/30" /><span>{t('analytics.legend.planned')}</span></div>
+              <div className="flex items-center gap-1"><div className="h-3 w-3 rounded-sm bg-muted/20" /><span>{t('analytics.legend.none')}</span></div>
             </div>
             <StatSummary items={[
-              { label: 'Aktualna seria', value: `${streakData.streak} tyg.` },
-              { label: 'Najdłuższa seria', value: `${streakData.longestStreak} tyg.` },
-              { label: 'Frekwencja', value: `${streakData.attendance}%` },
+              { label: t('analytics.stat.currentStreak'), value: t('analytics.weeksValue', { n: streakData.streak }) },
+              { label: t('analytics.stat.longestStreak'), value: t('analytics.weeksValue', { n: streakData.longestStreak }) },
+              { label: t('analytics.stat.frequency'), value: `${streakData.attendance}%` },
             ]} />
           </CardContent>
         </Card>
@@ -639,25 +639,25 @@ const ChartsTab = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />Progresja ciężarów
+                <TrendingUp className="h-5 w-5 text-primary" />{t('analytics.weightProgression')}
               </CardTitle>
               <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
                 <div className="flex gap-1.5 flex-wrap">
-                  <Badge variant={selectedDay === 'all' ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay('all')}>Wszystkie</Badge>
+                  <Badge variant={selectedDay === 'all' ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay('all')}>{t('analytics.allDays')}</Badge>
                   {trainingPlan.map(day => (
                     <Badge key={day.id} variant={selectedDay === day.id ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay(day.id)}>{day.dayName}</Badge>
                   ))}
                 </div>
                 <div className="flex gap-1">
-                  <Badge variant={weightMode === 'max' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setWeightMode('max')}>Max ciężar</Badge>
-                  <Badge variant={weightMode === '1rm' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setWeightMode('1rm')}>Est. 1RM</Badge>
+                  <Badge variant={weightMode === 'max' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setWeightMode('max')}>{t('analytics.maxWeight')}</Badge>
+                  <Badge variant={weightMode === '1rm' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setWeightMode('1rm')}>{t('analytics.est1rm')}</Badge>
                 </div>
               </div>
             </CardHeader>
           </Card>
 
           {perExerciseData.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">Brak ukończonych treningów do wyświetlenia</p>
+            <p className="text-center text-muted-foreground py-8">{t('analytics.noCompletedToShow')}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {perExerciseData.map(ex => (
@@ -676,13 +676,13 @@ const ChartsTab = () => {
                       </ResponsiveContainer>
                     ) : (
                       <div className="h-[150px] flex items-center justify-center text-xs text-muted-foreground">
-                        Potrzeba min. 2 sesji
+                        {t('analytics.needMin2Sessions')}
                       </div>
                     )}
                     <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-                      <span>{ex.chartData.length} sesji</span>
+                      <span>{t('analytics.sessionsCount', { n: ex.chartData.length })}</span>
                       {ex.chartData.length > 0 && (
-                        <span>{ex.chartData[ex.chartData.length - 1].value} {ex.isBodyweight ? 'powt.' : 'kg'}</span>
+                        <span>{ex.chartData[ex.chartData.length - 1].value} {ex.isBodyweight ? t('analytics.unit.reps') : 'kg'}</span>
                       )}
                     </div>
                   </CardContent>
@@ -703,19 +703,20 @@ const ChartsTab = () => {
 
 const WeeklyTab = () => {
   const { uid, canUseStrava } = useCurrentUser();
+  const { t } = useTranslation();
   const { summaries, isGenerating, error, generateSummary } = useWeeklySummary(uid, canUseStrava);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-heading font-semibold text-base">Podsumowania tygodniowe</h3>
+        <h3 className="font-heading font-semibold text-base">{t('analytics.weeklySummaries')}</h3>
         <Button
           size="sm"
           onClick={() => generateSummary(new Date())}
           disabled={isGenerating}
         >
           {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-          Generuj teraz
+          {t('analytics.generateNow')}
         </Button>
       </div>
 
@@ -730,7 +731,7 @@ const WeeklyTab = () => {
       {summaries.length === 0 && !isGenerating && (
         <Card className="bg-muted/30">
           <CardContent className="py-8 text-center">
-            <p className="text-muted-foreground">Brak podsumowań. Kliknij "Generuj teraz" aby stworzyć pierwsze.</p>
+            <p className="text-muted-foreground">{t('analytics.noSummaries')}</p>
           </CardContent>
         </Card>
       )}
@@ -754,21 +755,21 @@ const WeeklyTab = () => {
                   <Dumbbell className="h-3 w-3 text-primary" />
                 </div>
                 <p className="text-sm font-bold">{s.stats.workoutCount}</p>
-                <p className="text-xs text-muted-foreground">Treningi</p>
+                <p className="text-xs text-muted-foreground">{t('analytics.subtab.workouts')}</p>
               </div>
               <div className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Trophy className="h-3 w-3 text-primary" />
                 </div>
                 <p className="text-sm font-bold">{(s.stats.tonnageKg / 1000).toFixed(1)}t</p>
-                <p className="text-xs text-muted-foreground">Tonaż</p>
+                <p className="text-xs text-muted-foreground">{t('analytics.stat.tonnage')}</p>
               </div>
               <div className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Route className="h-3 w-3 text-orange-500" />
                 </div>
                 <p className="text-sm font-bold">{s.stats.runKm} km</p>
-                <p className="text-xs text-muted-foreground">Bieg</p>
+                <p className="text-xs text-muted-foreground">{t('analytics.stat.run')}</p>
               </div>
               <div className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center gap-1 mb-1">

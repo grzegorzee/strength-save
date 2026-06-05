@@ -8,12 +8,14 @@ import { requestEmailVerificationCode, verifyEmailCode } from '@/lib/registratio
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface EmailVerificationGateProps {
   email: string;
 }
 
 export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,13 +31,13 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
         await requestEmailVerificationCode();
         if (!cancelled) {
           toast({
-            title: 'Kod wysłany',
-            description: 'Sprawdź skrzynkę mailową i wpisz kod, aby aktywować konto.',
+            title: t('comp.emailGate.codeSentTitle'),
+            description: t('comp.emailGate.codeSentDesc'),
           });
         }
       } catch (requestError) {
         if (!cancelled) {
-          setError(requestError instanceof Error ? requestError.message : 'Nie udało się wysłać kodu.');
+          setError(requestError instanceof Error ? requestError.message : t('comp.emailGate.sendError'));
         }
       } finally {
         if (!cancelled) {

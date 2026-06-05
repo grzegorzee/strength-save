@@ -14,6 +14,7 @@ import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 // ── Custom grid calendar matching mockup ──
 const WEEKDAY_LABELS = ['pon', 'wto', 'śro', 'czw', 'pią', 'sob', 'nie'] as const;
@@ -128,6 +129,7 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
 
 const TrainingPlan = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
@@ -232,9 +234,9 @@ const TrainingPlan = () => {
         <div className="p-6 pb-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight">Plan treningowy</h1>
+              <h1 className="text-xl font-extrabold tracking-tight">{t('trainingplan.title')}</h1>
               <p className="text-[13px] text-muted-foreground mt-1 font-medium">
-                {planDurationWeeks}-tygodniowy program: {trainingPlan.map(d => d.dayName).join(', ')}
+                {t('trainingplan.programSummary', { weeks: planDurationWeeks, days: trainingPlan.map(d => d.dayName).join(', ') })}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -243,10 +245,10 @@ const TrainingPlan = () => {
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.03] text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors"
               >
                 <Pencil className="h-3.5 w-3.5" />
-                Edytuj
+                {t('trainingplan.edit')}
               </button>
               <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 text-[13px] font-bold text-white whitespace-nowrap">
-                {isHistoricalWeek ? 'Historia' : `Tydzień ${displayWeek}/${planDurationWeeks}`}
+                {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
               </div>
             </div>
           </div>
