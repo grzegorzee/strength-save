@@ -1,54 +1,58 @@
+import { translate, type LanguageCode, type TranslationKey } from '@/i18n';
+
 export interface WarmupExercise {
-  name: string;
-  duration: string;
+  /** Klucz i18n nazwy cwiczenia (kanoniczny identyfikator). */
+  nameKey: TranslationKey;
+  /** Klucz i18n czasu trwania. */
+  durationKey: TranslationKey;
 }
 
 export const warmupExercises: WarmupExercise[] = [
-  { name: 'Jumping Jacks', duration: '30 sek.' },
-  { name: 'Kręcenie biodrami (Hip Circles)', duration: '10x każda strona' },
-  { name: 'Kręcenie ramionami (Arm Circles)', duration: '10x każda strona' },
-  { name: 'Przysiady z ciężarem ciała', duration: '15 powtórzeń' },
-  { name: 'Lekki trucht / marsz w miejscu', duration: '1 min' },
+  { nameKey: 'warmup.jumpingJacks', durationKey: 'warmup.dur.30sec' },
+  { nameKey: 'warmup.hipCircles', durationKey: 'warmup.dur.10eachSide' },
+  { nameKey: 'warmup.armCircles', durationKey: 'warmup.dur.10eachSide' },
+  { nameKey: 'warmup.bodyweightSquats', durationKey: 'warmup.dur.15reps' },
+  { nameKey: 'warmup.lightJog', durationKey: 'warmup.dur.1min' },
 ];
 
 export interface StretchExercise {
-  name: string;
-  duration: string;
+  nameKey: TranslationKey;
+  durationKey: TranslationKey;
 }
 
 // Stretching per day focus
 export const stretchingByFocus: Record<string, StretchExercise[]> = {
   default: [
-    { name: 'Rozciąganie klatki (drzwi)', duration: '30 sek. / strona' },
-    { name: 'Rozciąganie czworogłowego (stojąc)', duration: '30 sek. / noga' },
-    { name: 'Rozciąganie dwugłowego (w siadzie)', duration: '30 sek.' },
-    { name: 'Skłon do palców (stojąc)', duration: '30 sek.' },
-    { name: 'Cat-Cow (na czworakach)', duration: '10 powtórzeń' },
-    { name: 'Child\'s Pose', duration: '30 sek.' },
+    { nameKey: 'stretch.chestDoorway', durationKey: 'stretch.dur.30secSide' },
+    { nameKey: 'stretch.quadStanding', durationKey: 'stretch.dur.30secLeg' },
+    { nameKey: 'stretch.hamstringSeated', durationKey: 'stretch.dur.30sec' },
+    { nameKey: 'stretch.toeTouch', durationKey: 'stretch.dur.30sec' },
+    { nameKey: 'stretch.catCow', durationKey: 'stretch.dur.10reps' },
+    { nameKey: 'stretch.childsPose', durationKey: 'stretch.dur.30sec' },
   ],
   chest: [
-    { name: 'Rozciąganie klatki (drzwi)', duration: '30 sek. / strona' },
-    { name: 'Rozciąganie tricepsa', duration: '30 sek. / ręka' },
-    { name: 'Rozciąganie czworogłowego (stojąc)', duration: '30 sek. / noga' },
-    { name: 'Skręt tułowia (leżąc)', duration: '30 sek. / strona' },
-    { name: 'Cat-Cow (na czworakach)', duration: '10 powtórzeń' },
-    { name: 'Child\'s Pose', duration: '30 sek.' },
+    { nameKey: 'stretch.chestDoorway', durationKey: 'stretch.dur.30secSide' },
+    { nameKey: 'stretch.triceps', durationKey: 'stretch.dur.30secArm' },
+    { nameKey: 'stretch.quadStanding', durationKey: 'stretch.dur.30secLeg' },
+    { nameKey: 'stretch.spinalTwist', durationKey: 'stretch.dur.30secSide' },
+    { nameKey: 'stretch.catCow', durationKey: 'stretch.dur.10reps' },
+    { nameKey: 'stretch.childsPose', durationKey: 'stretch.dur.30sec' },
   ],
   back: [
-    { name: 'Rozciąganie latów (boczne pochylenie)', duration: '30 sek. / strona' },
-    { name: 'Rozciąganie dwugłowego (w siadzie)', duration: '30 sek.' },
-    { name: 'Rozciąganie lędźwi (kolana do klatki)', duration: '30 sek.' },
-    { name: 'Cat-Cow (na czworakach)', duration: '10 powtórzeń' },
-    { name: 'Pigeon Pose', duration: '30 sek. / strona' },
-    { name: 'Child\'s Pose', duration: '30 sek.' },
+    { nameKey: 'stretch.latSideBend', durationKey: 'stretch.dur.30secSide' },
+    { nameKey: 'stretch.hamstringSeated', durationKey: 'stretch.dur.30sec' },
+    { nameKey: 'stretch.lowerBack', durationKey: 'stretch.dur.30sec' },
+    { nameKey: 'stretch.catCow', durationKey: 'stretch.dur.10reps' },
+    { nameKey: 'stretch.pigeonPose', durationKey: 'stretch.dur.30secSide' },
+    { nameKey: 'stretch.childsPose', durationKey: 'stretch.dur.30sec' },
   ],
   shoulders: [
-    { name: 'Rozciąganie barków (ramię w poprzek)', duration: '30 sek. / strona' },
-    { name: 'Rozciąganie klatki (drzwi)', duration: '30 sek. / strona' },
-    { name: 'Rozciąganie czworogłowego (stojąc)', duration: '30 sek. / noga' },
-    { name: 'Rozciąganie bicepsa (ściana)', duration: '30 sek. / ręka' },
-    { name: 'Cat-Cow (na czworakach)', duration: '10 powtórzeń' },
-    { name: 'Child\'s Pose', duration: '30 sek.' },
+    { nameKey: 'stretch.shoulderCross', durationKey: 'stretch.dur.30secSide' },
+    { nameKey: 'stretch.chestDoorway', durationKey: 'stretch.dur.30secSide' },
+    { nameKey: 'stretch.quadStanding', durationKey: 'stretch.dur.30secLeg' },
+    { nameKey: 'stretch.bicepWall', durationKey: 'stretch.dur.30secArm' },
+    { nameKey: 'stretch.catCow', durationKey: 'stretch.dur.10reps' },
+    { nameKey: 'stretch.childsPose', durationKey: 'stretch.dur.30sec' },
   ],
 };
 
@@ -60,3 +64,9 @@ export function getStretchingForFocus(focus: string): StretchExercise[] {
   if (lowerFocus.includes('bark') || lowerFocus.includes('shoulder')) return stretchingByFocus.shoulders;
   return stretchingByFocus.default;
 }
+
+/** Zwraca nazwe + czas cwiczenia w jezyku UI. */
+export const localizeWarmup = (ex: WarmupExercise | StretchExercise, lang: LanguageCode) => ({
+  name: translate(lang, ex.nameKey),
+  duration: translate(lang, ex.durationKey),
+});

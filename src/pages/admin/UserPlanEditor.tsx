@@ -16,6 +16,9 @@ import {
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import {
   ArrowLeft,
   ArrowUp,
@@ -34,6 +37,7 @@ const UserPlanEditor = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t, lang } = useTranslation();
   const [userName, setUserName] = useState('');
 
   // Fetch user name
@@ -86,10 +90,10 @@ const UserPlanEditor = () => {
     if (!swapDialog) return;
     const result = await swapExercise(swapDialog.dayId, swapDialog.exerciseId, newName);
     if (result.success) {
-      toast({ title: 'Zamieniono!', description: `Nowe ćwiczenie: ${newName}` });
+      toast({ title: t('admin.swapped'), description: t('admin.newExercise', { name: localizeExerciseName(newName, lang) }) });
       setSwapDialog(null);
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('admin.error'), description: result.error, variant: 'destructive' });
     }
   };
 
@@ -106,19 +110,19 @@ const UserPlanEditor = () => {
     });
 
     if (result.success) {
-      toast({ title: 'Dodano!', description: ex.name });
+      toast({ title: t('admin.added'), description: localizeExerciseName(ex.name, lang) });
       setAddDialog(null);
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('admin.error'), description: result.error, variant: 'destructive' });
     }
   };
 
   const handleRemove = async (dayId: string, exerciseId: string, name: string) => {
     const result = await removeExercise(dayId, exerciseId);
     if (result.success) {
-      toast({ title: 'Usunięto', description: name });
+      toast({ title: t('admin.removed'), description: localizeExerciseName(name, lang) });
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('admin.error'), description: result.error, variant: 'destructive' });
     }
   };
 
@@ -132,23 +136,23 @@ const UserPlanEditor = () => {
     if (result.success) {
       setEditingSets(null);
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('admin.error'), description: result.error, variant: 'destructive' });
     }
   };
 
   const handleReset = async () => {
     const result = await resetToDefault();
     if (result.success) {
-      toast({ title: 'Zresetowano!', description: 'Plan przywrócony do domyślnego.' });
+      toast({ title: t('admin.resetDone'), description: t('admin.resetDoneDesc') });
     } else {
-      toast({ title: 'Błąd', description: result.error, variant: 'destructive' });
+      toast({ title: t('admin.error'), description: result.error, variant: 'destructive' });
     }
   };
 
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-muted-foreground">Ładowanie...</div>
+        <div className="animate-pulse text-muted-foreground">{t('admin.loading')}</div>
       </div>
     );
   }
@@ -161,15 +165,15 @@ const UserPlanEditor = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Edytuj plan: {userName}</h1>
+            <h1 className="text-2xl font-bold">{t('admin.planEditTitle', { name: userName })}</h1>
             {isCustom && (
-              <p className="text-xs text-muted-foreground">Plan zmodyfikowany</p>
+              <p className="text-xs text-muted-foreground">{t('admin.planModified')}</p>
             )}
           </div>
         </div>
         <Button variant="outline" size="sm" onClick={handleReset}>
           <RefreshCcw className="h-4 w-4 mr-2" />
-          Reset
+          {t('admin.reset')}
         </Button>
       </div>
 
@@ -177,14 +181,14 @@ const UserPlanEditor = () => {
         <Card key={day.id}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{day.dayName} - {day.focus}</CardTitle>
+              <CardTitle className="text-base">{localizeDayName(day.dayName, lang)} - {localizeFocus(day.focus, lang)}</CardTitle>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => { setAddDialog(day.id); setSearchQuery(''); setSelectedCategory('all'); }}
               >
                 <Plus className="h-4 w-4 mr-1" />
-                Dodaj
+                {t('admin.add')}
               </Button>
             </div>
           </CardHeader>
@@ -198,7 +202,7 @@ const UserPlanEditor = () => {
                   {idx + 1}
                 </Badge>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{exercise.name}</p>
+                  <p className="font-medium text-sm truncate">{localizeExerciseName(exercise.name, lang)}</p>
                   {editingSets?.dayId === day.id && editingSets?.exerciseId === exercise.id ? (
                     <div className="flex items-center gap-1 mt-1">
                       <Input
@@ -247,18 +251,18 @@ const UserPlanEditor = () => {
       <Dialog open={!!swapDialog || !!addDialog} onOpenChange={() => { setSwapDialog(null); setAddDialog(null); setSearchQuery(''); setSelectedCategory('all'); }}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{swapDialog ? 'Zamień ćwiczenie' : 'Dodaj ćwiczenie'}</DialogTitle>
+            <DialogTitle>{swapDialog ? t('admin.swapExercise') : t('admin.addExercise')}</DialogTitle>
             <DialogDescription>
               {swapDialog
-                ? `Zamieniasz: ${swapDialog.exerciseName}`
-                : 'Wybierz ćwiczenie z biblioteki'}
+                ? t('admin.swapping', { name: localizeExerciseName(swapDialog.exerciseName, lang) })
+                : t('admin.pickFromLibrary')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Szukaj ćwiczenia..."
+              placeholder={t('admin.searchExercise')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -271,16 +275,16 @@ const UserPlanEditor = () => {
               className="cursor-pointer text-xs"
               onClick={() => setSelectedCategory('all')}
             >
-              Wszystkie
+              {t('admin.all')}
             </Badge>
-            {(Object.entries(categoryLabels) as [LibraryExercise['category'], string][]).map(([key, label]) => (
+            {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
               <Badge
                 key={key}
                 variant={selectedCategory === key ? 'default' : 'outline'}
                 className="cursor-pointer text-xs"
                 onClick={() => setSelectedCategory(key)}
               >
-                {label}
+                {localizeCategory(key, lang)}
               </Badge>
             ))}
           </div>
@@ -296,16 +300,16 @@ const UserPlanEditor = () => {
                 }}
               >
                 <div>
-                  <p className="font-medium text-sm">{ex.name}</p>
+                  <p className="font-medium text-sm">{localizeExerciseName(ex.name, lang)}</p>
                   <p className="text-xs text-muted-foreground">
-                    {categoryLabels[ex.category]} · {ex.type === 'compound' ? 'Złożone' : 'Izolacja'}
+                    {localizeCategory(ex.category, lang)} · {ex.type === 'compound' ? t('admin.compound') : t('admin.isolation')}
                   </p>
                 </div>
               </button>
             ))}
             {filteredExercises.length === 0 && (
               <p className="text-center text-muted-foreground py-4 text-sm">
-                Nie znaleziono ćwiczeń
+                {t('admin.noExercisesFound')}
               </p>
             )}
           </div>

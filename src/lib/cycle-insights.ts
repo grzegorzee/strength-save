@@ -4,6 +4,7 @@ import type { WorkoutSession } from '@/types';
 import type { PlanCycle, PlanCycleStats } from '@/types/cycles';
 import { calculate1RM } from '@/lib/pr-utils';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { translate, type LanguageCode } from '@/i18n';
 
 export interface CycleRecommendation {
   title: string;
@@ -128,14 +129,14 @@ export const buildCycleComparison = (cycle: PlanCycle, previousCycle: PlanCycle 
   };
 };
 
-export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCycle | null, now = new Date()): CycleRecommendation => {
+export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCycle | null, now = new Date(), lang: LanguageCode = 'pl'): CycleRecommendation => {
   const isExpired = !!cycle.endDate && parseLocalDate(cycle.endDate) <= now;
   const comparison = buildCycleComparison(cycle, previousCycle);
 
   if (cycle.status === 'active' && cycle.stats.completionRate < 60) {
     return {
-      title: 'Ustabilizuj realizację planu',
-      description: 'Frekwencja jest niska. Zanim zwiększysz objętość, dopracuj regularność i rytm tygodnia.',
+      title: translate(lang, 'cyclerec.stabilize.title'),
+      description: translate(lang, 'cyclerec.stabilize.desc'),
       tone: 'warning',
     };
   }
@@ -144,25 +145,25 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
   // cyklu (isExpired), nie w jego trakcie — w trakcie spada do neutralnego statusu.
   if (cycle.status === 'active' && isExpired && cycle.stats.prs.length >= 3 && cycle.stats.completionRate >= 80) {
     return {
-      title: 'Cykl dowozi progres',
-      description: 'Masz dobrą frekwencję i realny progres. Możesz kontynuować plan albo przygotować kolejny cykl z wyższym bodźcem.',
+      title: translate(lang, 'cyclerec.progress.title'),
+      description: translate(lang, 'cyclerec.progress.desc'),
       tone: 'success',
     };
   }
 
   if (isExpired || cycle.status === 'completed') {
     return {
-      title: 'Czas na closeout i decyzję co dalej',
+      title: translate(lang, 'cyclerec.closeout.title'),
       description: comparison && comparison.completionRateDelta < 0
-        ? 'Ten cykl wypadł słabiej niż poprzedni. Rozważ deload albo prostszy układ tygodnia przed kolejnym planem.'
-        : 'Podsumuj wyniki cyklu i wygeneruj kolejny plan na bazie aktualnego poziomu.',
+        ? translate(lang, 'cyclerec.closeout.descWorse')
+        : translate(lang, 'cyclerec.closeout.descOk'),
       tone: 'info',
     };
   }
 
   return {
-    title: 'Monitoruj progres tygodniowy',
-    description: 'Sprawdzaj frekwencję, tonaż i PR-y. Jeśli przestają rosnąć przez kilka tygodni, przygotuj nowy blok.',
+    title: translate(lang, 'cyclerec.monitor.title'),
+    description: translate(lang, 'cyclerec.monitor.desc'),
     tone: 'info',
   };
 };

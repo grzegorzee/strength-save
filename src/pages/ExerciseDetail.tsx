@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { exerciseLibrary, categoryLabels } from '@/data/exerciseLibrary';
+import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { trainingPlan } from '@/data/trainingPlan';
 import { slugifyExercise, getExerciseAnimationUrl } from '@/lib/exercise-media';
 import { getExerciseDetails, categoryToPrimaryMuscle } from '@/data/exercise-details';
-import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
+import { localizeExerciseName, localizeExerciseInstruction, localizeCategory } from '@/data/exercise-i18n';
 import { MuscleMap } from '@/components/MuscleMap';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -51,7 +51,7 @@ const ExerciseDetail = () => {
   // Fallback: kroki z instrukcji planu, grupa z kategorii. Wskazowki lokalizujemy do jezyka UI.
   const steps = details?.steps ?? (planEx?.instructions ?? exercise.instructions ?? []).map((i) => localizeExerciseInstruction(exercise.name, i.content, lang));
   const proTip = details?.proTip;
-  const targetMuscles = details?.targetMuscles ?? [categoryLabels[exercise.category]];
+  const targetMuscles = details?.targetMuscles ?? [localizeCategory(exercise.category, lang)];
   const primaryMuscle = details?.primaryMuscle ?? categoryToPrimaryMuscle[exercise.category] ?? 'fullbody';
   const equipment = details?.equipment;
   const typeText = exercise.isBodyweight
@@ -91,7 +91,7 @@ const ExerciseDetail = () => {
           </span>
         )}
         <div className="absolute bottom-4 left-5 right-5">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">{typeText} / {categoryLabels[exercise.category]}</p>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">{typeText} / {localizeCategory(exercise.category, lang)}</p>
           <h1 className="mt-1 font-heading text-display-md font-bold uppercase leading-[0.95] tracking-tight">{localizeExerciseName(exercise.name, lang)}</h1>
         </div>
       </div>

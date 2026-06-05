@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Dumbbell, Play, Moon, Sun, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { trainingRules } from '@/data/trainingPlan';
-import { warmupExercises, getStretchingForFocus } from '@/data/warmupStretching';
+import { getTrainingRules } from '@/data/trainingPlan';
+import { warmupExercises, getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useStrava } from '@/hooks/useStrava';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -16,6 +16,8 @@ import { cn, formatLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { dateLocale } from '@/i18n';
 
 const DayPlan = () => {
   const navigate = useNavigate();
@@ -28,12 +30,14 @@ const DayPlan = () => {
   const [showWarmup, setShowWarmup] = useState(false);
   const [showStretching, setShowStretching] = useState(false);
 
+  const trainingRules = getTrainingRules(lang);
+
   // Determine today's training from dynamic plan
   const today = new Date();
   const todaysTraining = getScheduledTrainingForDate(trainingPlan, today)?.day ?? null;
   const nextScheduledTraining = getNextScheduledTraining(trainingPlan, today);
-  const dayName = today.toLocaleDateString('pl-PL', { weekday: 'long' });
-  const dateStr = today.toLocaleDateString('pl-PL', {
+  const dayName = today.toLocaleDateString(dateLocale(lang), { weekday: 'long' });
+  const dateStr = today.toLocaleDateString(dateLocale(lang), {
     day: 'numeric',
     month: 'long',
     year: 'numeric'
@@ -109,7 +113,7 @@ const DayPlan = () => {
               </h3>
               <p className="text-muted-foreground max-w-md mx-auto">
                 {isWorkoutCompleted
-                  ? t('dayplan.workoutDoneDesc', { focus: todaysTraining?.focus ?? '' })
+                  ? t('dayplan.workoutDoneDesc', { focus: localizeFocus(todaysTraining?.focus ?? '', lang) })
                   : todayStravaActivities.length > 0
                     ? t('dayplan.noStrengthDesc')
                     : t('dayplan.restDesc')
@@ -137,7 +141,7 @@ const DayPlan = () => {
                     {isWorkoutCompleted
                       ? t('dayplan.exercisesDone', { n: todaysWorkout?.exercises.length || 0 })
                     : nextScheduledTraining
-                      ? t('dayplan.nextTrainingDetail', { day: nextScheduledTraining.day.dayName, focus: nextScheduledTraining.day.focus })
+                      ? t('dayplan.nextTrainingDetail', { day: localizeDayName(nextScheduledTraining.day.dayName, lang), focus: localizeFocus(nextScheduledTraining.day.focus, lang) })
                       : t('dayplan.checkWeeklyPlan')
                     }
                   </p>
@@ -192,13 +196,13 @@ const DayPlan = () => {
               </div>
             </div>
             <Badge className="bg-primary text-primary-foreground px-3 py-1">
-              {todaysTraining.dayName}
+              {localizeDayName(todaysTraining.dayName, lang)}
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl p-4">
-            <h3 className="font-semibold text-lg mb-1">{todaysTraining.focus}</h3>
+            <h3 className="font-semibold text-lg mb-1">{localizeFocus(todaysTraining.focus, lang)}</h3>
             <p className="text-muted-foreground text-sm">
               {t('dayplan.exercisesInToday', { n: todaysTraining.exercises.length })}
             </p>
@@ -217,12 +221,15 @@ const DayPlan = () => {
           </button>
           {showWarmup && (
             <div className="space-y-1 pl-4">
-              {warmupExercises.map((ex, i) => (
-                <div key={i} className="flex items-center justify-between py-1.5 text-sm">
-                  <span>{ex.name}</span>
-                  <span className="text-muted-foreground text-xs">{ex.duration}</span>
-                </div>
-              ))}
+              {warmupExercises.map((ex, i) => {
+                const w = localizeWarmup(ex, lang);
+                return (
+                  <div key={i} className="flex items-center justify-between py-1.5 text-sm">
+                    <span>{w.name}</span>
+                    <span className="text-muted-foreground text-xs">{w.duration}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -280,12 +287,15 @@ const DayPlan = () => {
           </button>
           {showStretching && (
             <div className="space-y-1 pl-4">
-              {stretchingExercises.map((ex, i) => (
-                <div key={i} className="flex items-center justify-between py-1.5 text-sm">
-                  <span>{ex.name}</span>
-                  <span className="text-muted-foreground text-xs">{ex.duration}</span>
-                </div>
-              ))}
+              {stretchingExercises.map((ex, i) => {
+                const s = localizeWarmup(ex, lang);
+                return (
+                  <div key={i} className="flex items-center justify-between py-1.5 text-sm">
+                    <span>{s.name}</span>
+                    <span className="text-muted-foreground text-xs">{s.duration}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
 

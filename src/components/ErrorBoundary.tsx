@@ -28,6 +28,25 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      // Klasa zywie poza LanguageProvider, wiec jezyk czytamy bezposrednio z localStorage.
+      let isEN = false;
+      try {
+        isEN = localStorage.getItem('app-language') === 'en';
+      } catch {
+        isEN = false;
+      }
+      const txt = isEN
+        ? {
+            title: 'Something went wrong',
+            desc: 'The app hit an unexpected error. Try refreshing the page.',
+            refresh: 'Refresh page',
+          }
+        : {
+            title: 'Coś poszło nie tak',
+            desc: 'Aplikacja napotkała nieoczekiwany błąd. Spróbuj odświeżyć stronę.',
+            refresh: 'Odśwież stronę',
+          };
+
       return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-background">
           <Card className="w-full max-w-md">
@@ -35,11 +54,11 @@ export class ErrorBoundary extends Component<Props, State> {
               <div className="mx-auto h-16 w-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-4">
                 <AlertTriangle className="h-8 w-8 text-destructive" />
               </div>
-              <CardTitle>Coś poszło nie tak</CardTitle>
+              <CardTitle>{txt.title}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-center">
               <p className="text-sm text-muted-foreground">
-                Aplikacja napotkała nieoczekiwany błąd. Spróbuj odświeżyć stronę.
+                {txt.desc}
               </p>
               {this.state.error && (
                 <p className="text-xs text-muted-foreground/70 font-mono bg-muted p-2 rounded">
@@ -51,7 +70,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="w-full"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Odśwież stronę
+                {txt.refresh}
               </Button>
             </CardContent>
           </Card>

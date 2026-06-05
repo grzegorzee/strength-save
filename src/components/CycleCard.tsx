@@ -2,15 +2,18 @@ import { Calendar, Dumbbell, Trophy, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
+import type { LanguageCode } from '@/i18n';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeFocus } from '@/lib/plan-i18n';
+import { dateLocale } from '@/i18n';
 
 interface Props {
   cycle: PlanCycle;
   onClick: () => void;
 }
 
-const formatDateRange = (startDate: string, endDate: string, durationWeeks: number): string => {
+const formatDateRange = (startDate: string, endDate: string, durationWeeks: number, lang: LanguageCode): string => {
   const plannedEndDate = (start: string, weeks: number): string => {
     const date = parseLocalDate(start);
     date.setDate(date.getDate() + (weeks * 7) - 1);
@@ -19,7 +22,7 @@ const formatDateRange = (startDate: string, endDate: string, durationWeeks: numb
 
   const fmt = (d: string) => {
     const date = parseLocalDate(d);
-    return date.toLocaleDateString('pl-PL', { month: 'short', year: 'numeric' });
+    return date.toLocaleDateString(dateLocale(lang), { month: 'short', year: 'numeric' });
   };
   const effectiveEnd = endDate || plannedEndDate(startDate, durationWeeks);
   if (startDate.slice(0, 7) === effectiveEnd.slice(0, 7)) return fmt(startDate);
@@ -27,7 +30,7 @@ const formatDateRange = (startDate: string, endDate: string, durationWeeks: numb
 };
 
 export const CycleCard = ({ cycle, onClick }: Props) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const isActive = cycle.status === 'active';
   const tonnageT = (cycle.stats.totalTonnage / 1000).toFixed(1);
 
@@ -44,7 +47,7 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">
-              {formatDateRange(cycle.startDate, cycle.endDate || '', cycle.durationWeeks)}
+              {formatDateRange(cycle.startDate, cycle.endDate || '', cycle.durationWeeks, lang)}
             </span>
           </div>
           <Badge variant={isActive ? 'default' : 'secondary'} className="text-xs">
@@ -55,7 +58,7 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3 flex-wrap">
           <span>{t('cycles.daysPerWeek', { n: cycle.days.length })}</span>
           <span>·</span>
-          <span>{cycle.days.map(d => d.focus).join(', ')}</span>
+          <span>{cycle.days.map(d => localizeFocus(d.focus, lang)).join(', ')}</span>
         </div>
 
         <div className="grid grid-cols-4 gap-2">

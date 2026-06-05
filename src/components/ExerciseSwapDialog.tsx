@@ -1,11 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
+import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import type { ExerciseReplacement } from '@/types';
 import { Play, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
 
 interface ExerciseSwapDialogProps {
   open: boolean;
@@ -53,7 +53,7 @@ export const ExerciseSwapDialog = ({
           <DialogTitle className="text-base">{t('comp.swap.title')}</DialogTitle>
           {category && (
             <p className="text-sm text-muted-foreground">
-              {t('comp.swap.category', { category: categoryLabels[category] })}
+              {t('comp.swap.category', { category: localizeCategory(category, lang) })}
             </p>
           )}
         </DialogHeader>

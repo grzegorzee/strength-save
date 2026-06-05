@@ -2,6 +2,7 @@ import { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 
 interface TrainingDayCardProps {
   day: TrainingDay;
@@ -11,7 +12,7 @@ interface TrainingDayCardProps {
 }
 
 export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: TrainingDayCardProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const todayStr = formatLocalDate(new Date());
   const trainingDateStr = trainingDate ? formatLocalDate(trainingDate) : undefined;
 
@@ -42,7 +43,7 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className="font-bold text-sm">{day.dayName}</p>
+          <p className="font-bold text-sm">{localizeDayName(day.dayName, lang)}</p>
           {isCompletedToday && (
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">
               {t('dayplan.badgeToday')}
@@ -60,7 +61,7 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
           )}
         </div>
         <p className="text-[13px] text-[#7a7f94] mt-1">
-          {day.focus} · 🏋️ {day.exercises.length}
+          {localizeFocus(day.focus, lang)} · 🏋️ {day.exercises.length}
         </p>
       </div>
 

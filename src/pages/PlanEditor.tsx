@@ -16,7 +16,8 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import {
   ArrowLeft,
   ArrowUp,
@@ -176,14 +177,14 @@ const PlanEditor = () => {
           >
             {t('exercises.all')}
           </Badge>
-          {(Object.entries(categoryLabels) as [LibraryExercise['category'], string][]).map(([key, label]) => (
+          {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
             <Badge
               key={key}
               variant={selectedCategory === key ? 'default' : 'outline'}
               className="cursor-pointer text-xs"
               onClick={() => setSelectedCategory(key)}
             >
-              {label}
+              {localizeCategory(key, lang)}
             </Badge>
           ))}
         </div>
@@ -205,7 +206,7 @@ const PlanEditor = () => {
               <div>
                 <p className="font-medium text-sm">{localizeExerciseName(ex.name, lang)}</p>
                 <p className="text-xs text-muted-foreground">
-                  {categoryLabels[ex.category]} · {ex.type === 'compound' ? t('planeditor.compound') : t('planeditor.isolation')}
+                  {localizeCategory(ex.category, lang)} · {ex.type === 'compound' ? t('planeditor.compound') : t('planeditor.isolation')}
                 </p>
               </div>
             </button>
@@ -244,7 +245,7 @@ const PlanEditor = () => {
         <Card key={day.id}>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{day.dayName} - {day.focus}</CardTitle>
+              <CardTitle className="text-base">{localizeDayName(day.dayName, lang)} - {localizeFocus(day.focus, lang)}</CardTitle>
               <Button
                 variant="outline"
                 size="sm"

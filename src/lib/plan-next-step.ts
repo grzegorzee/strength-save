@@ -1,5 +1,6 @@
 import type { PlanCycle } from '@/types/cycles';
 import { buildCycleRecommendation } from '@/lib/cycle-insights';
+import { translate, type LanguageCode } from '@/i18n';
 
 export interface PlanNextStepAction {
   title: string;
@@ -21,6 +22,7 @@ interface BuildPlanNextStepParams {
   activeCycle: PlanCycle | null;
   previousCompletedCycle: PlanCycle | null;
   today?: Date;
+  lang?: LanguageCode;
 }
 
 export const buildPlanNextStep = ({
@@ -32,15 +34,18 @@ export const buildPlanNextStep = ({
   activeCycle,
   previousCompletedCycle,
   today = new Date(),
+  lang = 'pl',
 }: BuildPlanNextStepParams): PlanNextStepAction => {
+  const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params);
+
   if (!hasPlan) {
     return {
-      title: 'Brakuje aktywnego planu',
-      description: 'Ułóż pierwszy plan, żeby aplikacja mogła prowadzić trening, cykle i progres.',
-      badges: ['Start od zera'],
-      primaryLabel: 'Stwórz plan',
+      title: tr('plannext.noPlan.title'),
+      description: tr('plannext.noPlan.desc'),
+      badges: [tr('plannext.badge.startScratch')],
+      primaryLabel: tr('plannext.btn.createPlan'),
       primaryPath: '/new-plan',
-      secondaryLabel: 'Zobacz cykle',
+      secondaryLabel: tr('plannext.btn.viewCycles'),
       secondaryPath: '/cycles',
       tone: 'primary',
     };
@@ -49,12 +54,12 @@ export const buildPlanNextStep = ({
   if (!activeCycle) {
     if (isPlanExpired) {
       return {
-        title: 'Plan się zakończył i czeka na kolejny krok',
-        description: 'Wygeneruj nowy plan albo wróć do cykli, żeby podsumować ostatni blok treningowy.',
-        badges: ['Plan zakończony'],
-        primaryLabel: 'Nowy plan',
+        title: tr('plannext.ended.title'),
+        description: tr('plannext.ended.desc'),
+        badges: [tr('plannext.badge.planDone')],
+        primaryLabel: tr('plannext.btn.newPlan'),
         primaryPath: '/new-plan',
-        secondaryLabel: 'Zobacz cykle',
+        secondaryLabel: tr('plannext.btn.viewCycles'),
         secondaryPath: '/cycles',
         tone: 'primary',
       };
@@ -62,48 +67,48 @@ export const buildPlanNextStep = ({
 
     if (weeksRemaining <= 2) {
       return {
-        title: 'Końcówka planu: przygotuj kolejny blok',
-        description: 'Do końca obecnego planu zostało niewiele czasu. To dobry moment, żeby zaplanować kolejny cykl.',
-        badges: [`${weeksRemaining === 0 ? 'ostatni tydzień' : `${weeksRemaining} tyg. do końca`}`],
-        primaryLabel: 'Przygotuj kolejny plan',
+        title: tr('plannext.endingSoon.title'),
+        description: tr('plannext.endingSoon.desc'),
+        badges: [weeksRemaining === 0 ? tr('plannext.badge.lastWeek') : tr('plannext.badge.weeksLeft', { n: weeksRemaining })],
+        primaryLabel: tr('plannext.btn.prepNext'),
         primaryPath: '/new-plan',
-        secondaryLabel: 'Zobacz plan',
+        secondaryLabel: tr('plannext.btn.viewPlan'),
         secondaryPath: '/plan',
         tone: 'warning',
       };
     }
 
     return {
-      title: 'Trzymaj kurs i monitoruj plan',
-      description: 'Masz aktywny plan. Sprawdzaj regularnie historię i cykle, żeby odpowiednio wcześnie zauważyć stagnację.',
-      badges: [`Tydzień ${Math.min(currentWeek, planDurationWeeks)}/${planDurationWeeks}`],
-      primaryLabel: 'Zobacz cykle',
+      title: tr('plannext.onTrackPlan.title'),
+      description: tr('plannext.onTrackPlan.desc'),
+      badges: [tr('plannext.badge.week', { current: Math.min(currentWeek, planDurationWeeks), total: planDurationWeeks })],
+      primaryLabel: tr('plannext.btn.viewCycles'),
       primaryPath: '/cycles',
-      secondaryLabel: 'Historia treningów',
+      secondaryLabel: tr('plannext.btn.history'),
       secondaryPath: '/history',
       tone: 'info',
     };
   }
 
-  const recommendation = buildCycleRecommendation(activeCycle, previousCompletedCycle, today);
+  const recommendation = buildCycleRecommendation(activeCycle, previousCompletedCycle, today, lang);
   const badges = [
-    `Tydzień ${Math.min(currentWeek, planDurationWeeks)}/${planDurationWeeks}`,
-    `${activeCycle.stats.completionRate}% frekwencji`,
-    `${activeCycle.stats.prs.length} PR`,
+    tr('plannext.badge.week', { current: Math.min(currentWeek, planDurationWeeks), total: planDurationWeeks }),
+    tr('plannext.badge.attendance', { pct: activeCycle.stats.completionRate }),
+    tr('plannext.badge.prs', { n: activeCycle.stats.prs.length }),
   ];
 
   if (typeof activeCycle.stats.missedWorkouts === 'number') {
-    badges.push(`${activeCycle.stats.missedWorkouts} opuszczonych`);
+    badges.push(tr('plannext.badge.missed', { n: activeCycle.stats.missedWorkouts }));
   }
 
   if (isPlanExpired) {
     return {
-      title: 'Cykl jest gotowy do zamknięcia',
+      title: tr('plannext.closeout.title'),
       description: recommendation.description,
       badges,
-      primaryLabel: 'Przygotuj kolejny plan',
+      primaryLabel: tr('plannext.btn.prepNext'),
       primaryPath: `/new-plan?fromCycle=${activeCycle.id}`,
-      secondaryLabel: 'Zobacz cykle',
+      secondaryLabel: tr('plannext.btn.viewCycles'),
       secondaryPath: '/cycles',
       tone: 'primary',
     };
@@ -111,12 +116,12 @@ export const buildPlanNextStep = ({
 
   if (weeksRemaining <= 2) {
     return {
-      title: 'Końcówka planu: zdecyduj, co dalej',
+      title: tr('plannext.endingDecide.title'),
       description: recommendation.description,
       badges,
-      primaryLabel: 'Przygotuj kolejny plan',
+      primaryLabel: tr('plannext.btn.prepNext'),
       primaryPath: `/new-plan?fromCycle=${activeCycle.id}`,
-      secondaryLabel: 'Zobacz closeout',
+      secondaryLabel: tr('plannext.btn.closeout'),
       secondaryPath: '/cycles',
       tone: recommendation.tone === 'warning' ? 'warning' : 'primary',
     };
@@ -128,24 +133,22 @@ export const buildPlanNextStep = ({
       title: recommendation.title,
       description: recommendation.description,
       badges,
-      primaryLabel: 'Zobacz plan',
+      primaryLabel: tr('plannext.btn.viewPlan'),
       primaryPath: '/plan',
-      secondaryLabel: 'Historia treningów',
+      secondaryLabel: tr('plannext.btn.history'),
       secondaryPath: '/history',
       tone: 'warning',
     };
   }
 
-  // Cykl w trakcie (nie wygasł, > 2 tyg. do końca): neutralny status bez akcji
-  // closeoutu. Podsumowanie i "przygotuj kolejny plan" pojawiają się dopiero przy
-  // wygaśnięciu planu (wyżej, isPlanExpired) lub w końcówce (weeksRemaining <= 2).
+  // Cykl w trakcie (nie wygasł, > 2 tyg. do końca): neutralny status bez akcji closeoutu.
   return {
-    title: 'Trzymaj kurs i monitoruj progres',
-    description: 'Plan jest w toku. Skup się na realizacji treningów i progresji — podsumowanie cyklu pojawi się po jego zakończeniu.',
+    title: tr('plannext.onTrack.title'),
+    description: tr('plannext.onTrack.desc'),
     badges,
-    primaryLabel: 'Zobacz plan',
+    primaryLabel: tr('plannext.btn.viewPlan'),
     primaryPath: '/plan',
-    secondaryLabel: 'Historia treningów',
+    secondaryLabel: tr('plannext.btn.history'),
     secondaryPath: '/history',
     tone: 'info',
   };

@@ -3,7 +3,8 @@ import { trainingPlan as defaultPlan } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
 import { localizeExerciseName } from '@/data/exercise-i18n';
-import type { LanguageCode } from '@/i18n';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { translate, type LanguageCode } from '@/i18n';
 
 // Resolver nazw ćwiczeń i etykiet dni dla historycznych treningów.
 //
@@ -27,18 +28,18 @@ const buildNameMap = (days: TrainingDay[]): Map<string, string> =>
 const buildDayMap = (days: TrainingDay[]): Map<string, { dayName: string; focus: string }> =>
   new Map(days.map(day => [day.id, { dayName: day.dayName, focus: day.focus }] as [string, { dayName: string; focus: string }]));
 
-export const formatUnknownExerciseName = (exerciseId: string): string => {
+export const formatUnknownExerciseName = (exerciseId: string, lang: LanguageCode = 'pl'): string => {
   const match = exerciseId.match(/^ex-(\d+)-(.+)$/);
-  if (match) return `Ćwiczenie ${match[1]}.${match[2]}`;
+  if (match) return translate(lang, 'resolver.exerciseNum', { n: match[1], sub: match[2] });
 
   const compact = exerciseId.trim();
-  return compact ? `Ćwiczenie (${compact})` : 'Ćwiczenie';
+  return compact ? translate(lang, 'resolver.exerciseId', { id: compact }) : translate(lang, 'resolver.exercise');
 };
 
-export const formatUnknownDayLabel = (dayId: string): { dayName: string; focus: string } => {
+export const formatUnknownDayLabel = (dayId: string, lang: LanguageCode = 'pl'): { dayName: string; focus: string } => {
   const match = dayId.match(/^day-(\d+)$/);
-  if (match) return { dayName: `Dzień treningowy ${match[1]}`, focus: '' };
-  return { dayName: dayId ? `Trening ${dayId}` : 'Trening', focus: '' };
+  if (match) return { dayName: translate(lang, 'resolver.dayNum', { n: match[1] }), focus: '' };
+  return { dayName: dayId ? translate(lang, 'resolver.trainingId', { id: dayId }) : translate(lang, 'resolver.training'), focus: '' };
 };
 
 export const buildWorkoutResolver = (
@@ -77,21 +78,26 @@ export const buildWorkoutResolver = (
     const fromCycle = cycle && cycleNameMaps.get(cycle.id)?.get(exerciseId);
     if (fromCycle) return fromCycle;
 
-    return planNames.get(exerciseId) || defaultNames.get(exerciseId) || formatUnknownExerciseName(exerciseId);
+    return planNames.get(exerciseId) || defaultNames.get(exerciseId) || formatUnknownExerciseName(exerciseId, lang);
   };
 
   // Kanoniczna nazwa PL z mapy/snapshotu -> nazwa w jezyku UI (EN tylko gdy mamy tlumaczenie).
   const resolveExerciseName = (workout: WorkoutSession, exerciseId: string): string =>
     localizeExerciseName(resolveRawExerciseName(workout, exerciseId), lang);
 
-  const resolveDayLabel = (workout: WorkoutSession): { dayName: string; focus: string } => {
+  const resolveRawDayLabel = (workout: WorkoutSession): { dayName: string; focus: string } => {
     if (workout.dayName) return { dayName: workout.dayName, focus: workout.dayFocus || '' };
 
     const cycle = cycleForWorkout(workout);
     const fromCycle = cycle && cycleDayMaps.get(cycle.id)?.get(workout.dayId);
     if (fromCycle) return fromCycle;
 
-    return planDays.get(workout.dayId) || defaultDays.get(workout.dayId) || formatUnknownDayLabel(workout.dayId);
+    return planDays.get(workout.dayId) || defaultDays.get(workout.dayId) || formatUnknownDayLabel(workout.dayId, lang);
+  };
+
+  const resolveDayLabel = (workout: WorkoutSession): { dayName: string; focus: string } => {
+    const raw = resolveRawDayLabel(workout);
+    return { dayName: localizeDayName(raw.dayName, lang), focus: localizeFocus(raw.focus, lang) };
   };
 
   return { resolveExerciseName, resolveDayLabel };

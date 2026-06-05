@@ -23,6 +23,9 @@ import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { localizeExerciseName } from '@/data/exercise-i18n';
+import { dateLocale } from '@/i18n';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
@@ -152,7 +155,8 @@ const Dashboard = () => {
     activeCycle: liveActiveCycle,
     previousCompletedCycle,
     today,
-  }), [currentWeek, isPlanExpired, liveActiveCycle, planDurationWeeks, previousCompletedCycle, today, trainingPlan.length, weeksRemaining]);
+    lang,
+  }), [currentWeek, isPlanExpired, liveActiveCycle, planDurationWeeks, previousCompletedCycle, today, trainingPlan.length, weeksRemaining, lang]);
 
   // Dismissable "co dalej z planem?" card — hidden per plan (reappears when a new plan starts).
   const NEXT_STEP_DISMISS_KEY = 'fittracker_nextstep_dismissed';
@@ -295,7 +299,7 @@ const Dashboard = () => {
   const greetingText = hour < 12 ? t('dash.greeting.morning') : hour < 18 ? t('dash.greeting.day') : t('dash.greeting.evening');
   const GreetingIcon = hour < 18 ? Sun : Moon;
   const displayName = profile?.displayName?.split(' ')[0] || t('dash.defaultName');
-  const formattedDate = new Date().toLocaleDateString('pl-PL', {
+  const formattedDate = new Date().toLocaleDateString(dateLocale(lang), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -363,7 +367,7 @@ const Dashboard = () => {
     if (diffDays === 0) return t('dash.date.today');
     if (diffDays === 1) return t('dash.date.yesterday');
     if (diffDays < 7) return t('dash.date.daysAgo', { n: diffDays });
-    return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+    return d.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
   };
 
   return (
@@ -417,8 +421,8 @@ const Dashboard = () => {
             <div className="flex items-center gap-3 mb-3">
               <Dumbbell className="h-5 w-5 text-primary shrink-0" />
               <div className="min-w-0">
-                <p className="font-semibold text-sm">{todayTraining.day.dayName}</p>
-                <p className="text-xs text-muted-foreground truncate">{todayTraining.day.focus} · {t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}</p>
+                <p className="font-semibold text-sm">{localizeDayName(todayTraining.day.dayName, lang)}</p>
+                <p className="text-xs text-muted-foreground truncate">{localizeFocus(todayTraining.day.focus, lang)} · {t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -439,7 +443,7 @@ const Dashboard = () => {
               <CheckCircle className="h-5 w-5 text-emerald-500" />
               <div>
                 <p className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">{t('dash.workoutCompleted')}</p>
-                <p className="text-xs text-muted-foreground">{todayTraining.day.dayName}</p>
+                <p className="text-xs text-muted-foreground">{localizeDayName(todayTraining.day.dayName, lang)}</p>
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}>
@@ -455,7 +459,7 @@ const Dashboard = () => {
             <p className="text-sm font-medium">{t('dash.restDay')} 🧘</p>
             {todayTraining.nextDay && (
               <p className="text-xs text-muted-foreground mt-0.5">
-                {t('dash.nextTraining')}: {todayTraining.nextDay.dayName} ({todayTraining.nextDay.focus})
+                {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
               </p>
             )}
           </CardContent>
@@ -590,7 +594,7 @@ const Dashboard = () => {
               {planStarted ? (
                 <span>{t('dash.weekOf', { current: Math.min(currentWeek, planDurationWeeks), total: planDurationWeeks })}</span>
               ) : (
-                <span>{t('dash.startDate')}: {parseLocalDate(planStartDate!).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}</span>
+                <span>{t('dash.startDate')}: {parseLocalDate(planStartDate!).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })}</span>
               )}
             </div>
 
@@ -611,8 +615,8 @@ const Dashboard = () => {
                 <div key={day.id} className="flex items-center gap-3">
                   <div className={cn("h-2 w-2 rounded-full shrink-0", dayColors[i % dayColors.length])} />
                   <span className="text-sm">
-                    <span className="font-medium">{day.dayName}:</span>{' '}
-                    <span className="text-muted-foreground">{day.focus}</span>
+                    <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
+                    <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
                   </span>
                 </div>
               ))}
@@ -636,7 +640,7 @@ const Dashboard = () => {
                 <div>
                   <p className="font-medium text-sm">{t('dash.lastPR')}</p>
                   <p className="text-xs text-muted-foreground">
-                    {latestPR.exerciseName} — <span className="font-heading font-semibold text-foreground">{latestPR.value} kg</span>
+                    {localizeExerciseName(latestPR.exerciseName, lang)} — <span className="font-heading font-semibold text-foreground">{latestPR.value} kg</span>
                     {' '}
                     <span className="text-muted-foreground">({formatPRDate(latestPR.date)})</span>
                   </p>

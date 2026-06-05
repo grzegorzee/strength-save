@@ -24,6 +24,7 @@ import {
   createProvisionalWorkoutSession,
   isProvisionalWorkoutSessionId,
 } from '@/lib/workout-session';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
@@ -39,6 +40,7 @@ const clampSet = (set: Partial<SetData>): SetData => ({
 });
 
 export const useFirebaseWorkouts = (userId: string) => {
+  const { t } = useTranslation();
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -141,10 +143,10 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { session };
     } catch (err) {
       console.error('Error creating workout:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { session: null, error: errorMessage };
     }
-  }, [workouts, userId]);
+  }, [workouts, userId, t]);
 
   const createOfflineWorkoutSession = useCallback((dayId: string, date?: string, cycleId?: string): WorkoutSession => {
     const workoutDate = date || formatLocalDate(new Date());
@@ -159,7 +161,7 @@ export const useFirebaseWorkouts = (userId: string) => {
     name?: string
   ): Promise<{ success: boolean; error?: string }> => {
     if (!sessionId) {
-      return { success: false, error: 'Brak ID sesji treningowej' };
+      return { success: false, error: t('err.noSession') };
     }
 
     try {
@@ -169,7 +171,7 @@ export const useFirebaseWorkouts = (userId: string) => {
 
       if (!workoutSnap.exists()) {
         console.error('Workout not found in Firebase:', sessionId);
-        return { success: false, error: 'Nie znaleziono treningu w bazie danych' };
+        return { success: false, error: t('err.workoutNotFound') };
       }
 
       const workout = workoutSnap.data() as WorkoutSession;
@@ -202,10 +204,10 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { success: true };
     } catch (err) {
       console.error('Error updating exercise:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd zapisu';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownSaveError');
       return { success: false, error: errorMessage };
     }
-  }, []);
+  }, [t]);
 
   const completeWorkout = useCallback(async (sessionId: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -215,34 +217,34 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { success: true };
     } catch (err) {
       console.error('Error completing workout:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, []);
+  }, [t]);
 
   const updateSkippedExercises = useCallback(async (sessionId: string, skippedExercises: string[]): Promise<{ success: boolean; error?: string }> => {
-    if (!sessionId) return { success: false, error: 'Brak ID sesji' };
+    if (!sessionId) return { success: false, error: t('err.noSessionId') };
     try {
       await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), { skippedExercises });
       return { success: true };
     } catch (err) {
       console.error('Error updating skipped exercises:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, []);
+  }, [t]);
 
   const updateWorkoutNotes = useCallback(async (sessionId: string, notes: string): Promise<{ success: boolean; error?: string }> => {
-    if (!sessionId) return { success: false, error: 'Brak ID sesji' };
+    if (!sessionId) return { success: false, error: t('err.noSessionId') };
     try {
       await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), { notes });
       return { success: true };
     } catch (err) {
       console.error('Error updating workout notes:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, []);
+  }, [t]);
 
   const getWorkoutsByDay = useCallback((dayId: string) => {
     return workouts.filter(w => w.dayId === dayId).sort((a, b) =>
@@ -289,10 +291,10 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { measurement: { ...sanitized } as unknown as BodyMeasurement };
     } catch (err) {
       console.error('Error adding measurement:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { measurement: null, error: errorMessage };
     }
-  }, [userId]);
+  }, [userId, t]);
 
   const getLatestMeasurement = useCallback(() => {
     return measurements[0];
@@ -330,7 +332,7 @@ export const useFirebaseWorkouts = (userId: string) => {
 
       if (data.workouts && Array.isArray(data.workouts)) {
         if (data.workouts.length > 500) {
-          return { success: false, message: 'Zbyt dużo treningów (max 500)' };
+          return { success: false, message: t('data.tooManyWorkouts') };
         }
         for (const workout of data.workouts) {
           if (!workout.id || typeof workout.id !== 'string') continue;
@@ -365,7 +367,7 @@ export const useFirebaseWorkouts = (userId: string) => {
 
       if (data.measurements && Array.isArray(data.measurements)) {
         if (data.measurements.length > 500) {
-          return { success: false, message: 'Zbyt dużo pomiarów (max 500)' };
+          return { success: false, message: t('data.tooManyMeasurements') };
         }
         for (const m of data.measurements) {
           if (!m.id || typeof m.id !== 'string') continue;
@@ -386,12 +388,12 @@ export const useFirebaseWorkouts = (userId: string) => {
         }
       }
 
-      return { success: true, message: `Zaimportowano ${imported} rekordów.` };
+      return { success: true, message: t('data.imported', { n: imported }) };
     } catch (err) {
       console.error('Error importing data:', err);
-      return { success: false, message: 'Błąd importu: nieprawidłowy format JSON' };
+      return { success: false, message: t('data.importError') };
     }
-  }, [userId]);
+  }, [userId, t]);
 
   // Delete a specific workout (for cleanup)
   const deleteWorkout = useCallback(async (workoutId: string): Promise<{ success: boolean; error?: string }> => {
@@ -400,10 +402,10 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { success: true };
     } catch (err) {
       console.error('Error deleting workout:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, []);
+  }, [t]);
 
   // Cleanup empty/duplicate workouts
   const cleanupEmptyWorkouts = useCallback(async (): Promise<{ deleted: number; error?: string }> => {
@@ -441,17 +443,17 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { deleted };
     } catch (err) {
       console.error('Error cleaning up workouts:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { deleted: 0, error: errorMessage };
     }
-  }, [workouts]);
+  }, [workouts, t]);
 
   // Jednorazowa naprawa historycznych treningów: dopisuje cycleId + snapshot nazw (ćwiczeń i dnia)
   // ze zarchiwizowanych cykli. Idempotentna — pomija treningi, które już mają komplet danych.
   const backfillHistoricalWorkouts = useCallback(async (
     allCycles: PlanCycle[],
   ): Promise<{ updated: number; scanned: number; error?: string }> => {
-    if (!userId) return { updated: 0, scanned: 0, error: 'Brak userId' };
+    if (!userId) return { updated: 0, scanned: 0, error: t('err.noUserId') };
 
     try {
       const cyclesForRepair = allCycles.length > 0
@@ -511,17 +513,17 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { updated, scanned: workouts.length };
     } catch (err) {
       console.error('Error backfilling workouts:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { updated: 0, scanned: workouts.length, error: errorMessage };
     }
-  }, [userId, workouts]);
+  }, [userId, workouts, t]);
 
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string }[],
     options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string }
   ): Promise<{ success: boolean; error?: string }> => {
-    if (!sessionId) return { success: false, error: 'Brak ID sesji' };
+    if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
     try {
       const workoutRef = doc(db, WORKOUTS_COLLECTION, sessionId);
@@ -545,10 +547,10 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { success: true };
     } catch (err) {
       console.error('Error batch saving workout:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd zapisu';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownSaveError');
       return { success: false, error: errorMessage };
     }
-  }, []);
+  }, [t]);
 
   const getWorkoutSessionFromServer = useCallback(async (sessionId: string): Promise<WorkoutSession | null> => {
     if (!sessionId) return null;

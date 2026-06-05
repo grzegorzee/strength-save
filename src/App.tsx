@@ -12,7 +12,7 @@ import { AdminRoute } from "./components/AdminRoute";
 import { useAuth } from "./hooks/useAuth";
 import { UserProvider, useCurrentUser } from "./contexts/UserContext";
 import { UnitProvider } from "./contexts/UnitContext";
-import { LanguageProvider } from "./contexts/LanguageContext";
+import { LanguageProvider, useTranslation } from "./contexts/LanguageContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
 import { Loader2, ShieldOff } from "lucide-react";
@@ -74,7 +74,9 @@ const AccessRestrictedView = ({
   email: string;
   accessEnabled: boolean;
   suspended?: boolean;
-}) => (
+}) => {
+  const { t } = useTranslation();
+  return (
   <div className="min-h-screen flex items-center justify-center bg-background px-6">
     <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm">
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
@@ -82,32 +84,33 @@ const AccessRestrictedView = ({
       </div>
       <h1 className="text-2xl font-heading font-bold tracking-tight">
         {suspended
-          ? 'Konto jest zawieszone'
+          ? t('gate.suspended.title')
           : accessEnabled
-            ? 'Trwa ładowanie dostępu'
-            : 'Dostęp do aplikacji jest wyłączony'}
+            ? t('gate.loading.title')
+            : t('gate.disabled.title')}
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         {suspended
-          ? 'Administrator zawiesił konto. Skontaktuj się z nim, jeśli to niezamierzone.'
+          ? t('gate.suspended.desc')
           : accessEnabled
-            ? 'Spróbuj odświeżyć aplikację za chwilę. Jeśli problem się utrzyma, sprawdź stan konta w panelu admina.'
-            : 'Konto jest zalogowane, ale backend nie pozwala jeszcze korzystać z danych treningowych. Administrator może ponownie włączyć dostęp z panelu admina.'}
+            ? t('gate.loading.desc')
+            : t('gate.disabled.desc')}
       </p>
       <p className="mt-4 text-xs text-muted-foreground">
-        Konto: {email || 'brak adresu e-mail'}
+        {t('gate.account', { email: email || t('gate.noEmail') })}
       </p>
       <div className="mt-6 flex gap-2">
         <Button variant="outline" onClick={() => window.location.reload()}>
-          Odśwież
+          {t('gate.refresh')}
         </Button>
         <Button variant="secondary" onClick={() => void signOut(auth)}>
-          Wyloguj
+          {t('profile.logout')}
         </Button>
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const AppRoutes = () => {
   const { isNewUser, profileLoaded, hasAppAccess, profile, needsEmailVerification, isSuspended } = useCurrentUser();

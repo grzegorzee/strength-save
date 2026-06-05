@@ -18,7 +18,7 @@ interface Props {
 }
 
 export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,7 +31,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
     setError(null);
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     try {
-      const result = await generateWorkoutImage(data, photo || undefined);
+      const result = await generateWorkoutImage(data, photo || undefined, lang);
       setBlob(result);
       setImageUrl(URL.createObjectURL(result));
     } catch {

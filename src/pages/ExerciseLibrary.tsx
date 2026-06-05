@@ -2,12 +2,12 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Search, Dumbbell, ArrowRightLeft } from 'lucide-react';
-import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
+import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { trainingPlan } from '@/data/trainingPlan';
 import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
 import { Chip } from '@/components/kinetic/Chip';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
 
 const categoryOrder: LibraryExercise['category'][] = [
   'chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves',
@@ -43,7 +43,7 @@ const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: Enrich
         <h3 className="truncate font-heading text-base font-bold uppercase leading-tight tracking-tight">{localizeExerciseName(ex.name, lang)}</h3>
         <div className="mt-1.5 flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-primary">
-            {categoryLabels[ex.category]}
+            {localizeCategory(ex.category, lang)}
           </span>
           <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{typeLabel}</span>
         </div>
@@ -103,7 +103,7 @@ const ExerciseLibrary = () => {
           <Chip active={activeCategory === 'all'} onClick={() => setActiveCategory('all')}>{t('exercises.all')}</Chip>
           {categoryOrder.map((cat) => (
             <Chip key={cat} active={activeCategory === cat} onClick={() => setActiveCategory(cat)}>
-              {categoryLabels[cat]}
+              {localizeCategory(cat, lang)}
             </Chip>
           ))}
         </div>

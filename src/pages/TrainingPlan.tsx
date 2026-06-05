@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { trainingRules } from '@/data/trainingPlan';
+import { getTrainingRules } from '@/data/trainingPlan';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -15,10 +15,11 @@ import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/li
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { dateLocale } from '@/i18n';
+import type { LanguageCode } from '@/i18n';
 
 // ── Custom grid calendar matching mockup ──
-const WEEKDAY_LABELS = ['pon', 'wto', 'śro', 'czw', 'pią', 'sob', 'nie'] as const;
-const MONTH_NAMES = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'] as const;
 const JS_DAY_TO_WEEKDAY: Record<number, Weekday> = {
   0: 'sunday',
   1: 'monday',
@@ -35,9 +36,10 @@ interface PlanCalendarProps {
   completedDates: Date[];
   trainingDates: Date[];
   stravaDates: Date[];
+  lang: LanguageCode;
 }
 
-const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDates, stravaDates }: PlanCalendarProps) => {
+const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDates, stravaDates, lang }: PlanCalendarProps) => {
   const [viewMonth, setViewMonth] = useState(() => selectedDate || new Date());
 
   const year = viewMonth.getFullYear();
@@ -73,6 +75,13 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
     return cells;
   }, [year, month]);
 
+  const weekdayLabels = useMemo(() => {
+    // 2024-01-01 to poniedziałek; generujemy 7 krótkich nazw dni w bieżącym locale.
+    return Array.from({ length: 7 }, (_, i) =>
+      new Date(2024, 0, 1 + i).toLocaleDateString(dateLocale(lang), { weekday: 'short' }),
+    );
+  }, [lang]);
+
   const prevMonth = useCallback(() => setViewMonth(new Date(year, month - 1, 1)), [year, month]);
   const nextMonth = useCallback(() => setViewMonth(new Date(year, month + 1, 1)), [year, month]);
 
@@ -80,7 +89,7 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-bold capitalize">{MONTH_NAMES[month]} {year}</span>
+        <span className="text-sm font-bold capitalize">{viewMonth.toLocaleDateString(dateLocale(lang), { month: 'long' })} {year}</span>
         <div className="flex gap-1">
           <button onClick={prevMonth} className="w-7 h-7 rounded-md border border-white/[0.06] bg-transparent text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">‹</button>
           <button onClick={nextMonth} className="w-7 h-7 rounded-md border border-white/[0.06] bg-transparent text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">›</button>
@@ -89,8 +98,8 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-2">
-        {WEEKDAY_LABELS.map(label => (
-          <span key={label} className="text-center text-[10px] font-bold uppercase tracking-wider text-[#3a3f52] py-1">{label}</span>
+        {weekdayLabels.map((label, i) => (
+          <span key={i} className="text-center text-[10px] font-bold uppercase tracking-wider text-[#3a3f52] py-1">{label}</span>
         ))}
       </div>
 
@@ -130,6 +139,7 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
 const TrainingPlan = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
+  const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
@@ -211,16 +221,16 @@ const TrainingPlan = () => {
       exercises: workout.exercises.map(exercise => ({
         id: exercise.exerciseId,
         name: resolver.resolveExerciseName(workout, exercise.exerciseId),
-        sets: `${exercise.sets.filter(set => !set.isWarmup).length} serii`,
+        sets: t('card.setsCount', { n: exercise.sets.filter(set => !set.isWarmup).length }),
         instructions: [],
       })),
     };
-  }, [resolver]);
+  }, [resolver, t]);
 
   const getDayOfWeekName = (dateStr: string) => {
     const d = parseLocalDate(dateStr);
-    const long = d.toLocaleDateString('pl-PL', { weekday: 'long' });
-    const short = d.toLocaleDateString('pl-PL', { weekday: 'short' });
+    const long = d.toLocaleDateString(dateLocale(lang), { weekday: 'long' });
+    const short = d.toLocaleDateString(dateLocale(lang), { weekday: 'short' });
     return { long, short };
   };
 
@@ -236,7 +246,7 @@ const TrainingPlan = () => {
             <div>
               <h1 className="text-xl font-extrabold tracking-tight">{t('trainingplan.title')}</h1>
               <p className="text-[13px] text-muted-foreground mt-1 font-medium">
-                {t('trainingplan.programSummary', { weeks: planDurationWeeks, days: trainingPlan.map(d => d.dayName).join(', ') })}
+                {t('trainingplan.programSummary', { weeks: planDurationWeeks, days: trainingPlan.map(d => localizeDayName(d.dayName, lang)).join(', ') })}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -292,7 +302,7 @@ const TrainingPlan = () => {
             </button>
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[13px] font-semibold text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
-              {selectedWeekStart.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' })} – {selectedWeekEnd.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              {selectedWeekStart.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' })} – {selectedWeekEnd.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' })}
             </div>
             <button
               onClick={() => {
@@ -360,7 +370,7 @@ const TrainingPlan = () => {
 
               return Array.from(groupedByDate.entries()).map(([dateStr, dayItems]) => {
                 const dateObj = parseLocalDate(dateStr);
-                const dateLabel = dateObj.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+                const dateLabel = dateObj.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
                 const dayName = getDayOfWeekName(dateStr);
                 const trainingItem = dayItems.find(i => i.type === 'training') as Extract<TimelineItem, { type: 'training' }> | undefined;
                 const workoutItem = dayItems.find(i => i.type === 'workout') as Extract<TimelineItem, { type: 'workout' }> | undefined;
@@ -453,6 +463,7 @@ const TrainingPlan = () => {
                 completedDates={completedDates}
                 trainingDates={trainingDates}
                 stravaDates={stravaDates}
+                lang={lang}
               />
 
               {/* Legend */}
@@ -490,13 +501,13 @@ const TrainingPlan = () => {
                   <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
                     <CalendarDays className="h-3.5 w-3.5" />
                     <span className="capitalize">
-                      {selectedDate.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      {selectedDate.toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}
                     </span>
                   </div>
 
                   {displayDay && (
                     <>
-                      <p className="text-sm text-[#7a7f94]">{displayDay.dayName}: {displayDay.focus}</p>
+                      <p className="text-sm text-[#7a7f94]">{localizeDayName(displayDay.dayName, lang)}: {localizeFocus(displayDay.focus, lang)}</p>
                       <div className="flex items-center gap-2">
                         {workoutForDate?.completed ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">

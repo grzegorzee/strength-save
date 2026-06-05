@@ -22,6 +22,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { useStrava } from '@/hooks/useStrava';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
@@ -52,7 +53,8 @@ import {
 } from 'lucide-react';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 import { useTranslation } from '@/contexts/LanguageContext';
-import type { TranslationKey } from '@/i18n';
+import { dateLocale } from '@/i18n';
+import type { TranslationKey, LanguageCode } from '@/i18n';
 
 type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
 
@@ -82,8 +84,8 @@ const getWeekLabel = (weekIndex: number, totalWeeks: number, t: (key: Translatio
   return t('analytics.weekLabel.ago', { n: totalWeeks - weekIndex });
 };
 
-const formatDateShort = (date: string): string =>
-  parseLocalDate(date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+const formatDateShort = (date: string, lang: LanguageCode): string =>
+  parseLocalDate(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
 
 // ========================
 // TAB: Podsumowanie
@@ -178,13 +180,13 @@ const SummaryTab = () => {
 
   const handleCopy = async () => {
     const periodLabel = period === 'week' ? t('analytics.period.week') : t('analytics.period.month');
-    const dateRange = `${bounds.start.toLocaleDateString('pl-PL')} - ${bounds.end.toLocaleDateString('pl-PL')}`;
+    const dateRange = `${bounds.start.toLocaleDateString(dateLocale(lang))} - ${bounds.end.toLocaleDateString(dateLocale(lang))}`;
     const lines = [
       `📊 ${t('analytics.copy.summary', { period: periodLabel })}`,
       `📅 ${dateRange}`,
       ``,
       `🏋️ ${t('analytics.copy.frequency', { done: frequency, expected: expectedWorkouts })}`,
-      `💪 ${t('analytics.copy.tonnage', { value: currentTonnage.toLocaleString('pl-PL') })}${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
+      `💪 ${t('analytics.copy.tonnage', { value: currentTonnage.toLocaleString(dateLocale(lang)) })}${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
       `🔥 ${t('analytics.copy.streak', { n: streak })}`,
     ];
     if (periodPRs.length > 0) lines.push(`🏆 ${t('analytics.copy.newPRs', { list: periodPRs.map(p => p.exerciseName).join(', ') })}`);
@@ -218,7 +220,7 @@ const SummaryTab = () => {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        {bounds.start.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })} - {bounds.end.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
+        {bounds.start.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })} - {bounds.end.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
       </p>
 
       <div className="grid grid-cols-2 gap-4">
@@ -289,9 +291,9 @@ const SummaryTab = () => {
                   onClick={() => navigate(`/workout/${w.dayId}?date=${w.date}&session=${w.id}`)}
                 >
                   <div>
-                    <p className="font-medium text-sm">{dayLabel.dayName}</p>
+                    <p className="font-medium text-sm">{localizeDayName(dayLabel.dayName, lang)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {parseLocalDate(w.date).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      {parseLocalDate(w.date).toLocaleDateString(dateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -380,7 +382,7 @@ const ChartsTab = () => {
   // Tonnage chart data
   const tonnageData = useMemo(() => {
     const completed = workouts.filter(w => w.completed).sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
-    const chartData = completed.map(w => ({ date: formatDateShort(w.date), tonnage: Math.round(workoutTonnage(w)) }));
+    const chartData = completed.map(w => ({ date: formatDateShort(w.date, lang), tonnage: Math.round(workoutTonnage(w)) }));
     const totalTonnage = chartData.reduce((s, d) => s + d.tonnage, 0);
     const avgPerWorkout = chartData.length > 0 ? Math.round(totalTonnage / chartData.length) : 0;
     const now = new Date();
@@ -393,12 +395,12 @@ const ChartsTab = () => {
     let trend = '--';
     if (previousTonnage > 0) { const change = ((recentTonnage - previousTonnage) / previousTonnage * 100).toFixed(0); trend = `${Number(change) >= 0 ? '+' : ''}${change}%`; }
     return { chartData, totalTonnage, avgPerWorkout, trend };
-  }, [workouts]);
+  }, [workouts, lang]);
 
   // Weight chart data
   const weightData = useMemo(() => {
     const withWeight = measurements.filter(m => m.weight && m.weight > 0).sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
-    const chartData = withWeight.map(m => ({ date: formatDateShort(m.date), weight: m.weight! }));
+    const chartData = withWeight.map(m => ({ date: formatDateShort(m.date, lang), weight: m.weight! }));
     if (chartData.length === 0) return { chartData, current: '--', change: '--', minMax: '--' };
     const current = chartData[chartData.length - 1].weight;
     const first = chartData[0].weight;
@@ -406,7 +408,7 @@ const ChartsTab = () => {
     const change = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)} kg`;
     const weights = chartData.map(d => d.weight);
     return { chartData, current: `${current} kg`, change, minMax: `${Math.min(...weights)}–${Math.max(...weights)} kg` };
-  }, [measurements]);
+  }, [measurements, lang]);
 
   // Streak data
   const streakData = useMemo(() => {
@@ -470,14 +472,14 @@ const ChartsTab = () => {
               ? Math.max(...weightedSets.map(s => calculate1RM(s.weight, s.reps)))
               : Math.max(...weightedSets.map(s => s.weight));
             history.push({
-              date: parseLocalDate(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+              date: parseLocalDate(w.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
               value,
             });
           } else if (workingSets.length > 0) {
             // Bodyweight exercise — track max reps
             const maxReps = Math.max(...workingSets.map(s => s.reps));
             history.push({
-              date: parseLocalDate(w.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+              date: parseLocalDate(w.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
               value: maxReps,
             });
           }
@@ -485,7 +487,7 @@ const ChartsTab = () => {
       return { id, name: exerciseNames.get(id) || id, chartData: history, isBodyweight: isBodyweightExercise(exerciseNames.get(id) || '') };
     }).filter(ex => ex.chartData.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [workouts, selectedDay, weightMode, resolver]);
+  }, [workouts, selectedDay, weightMode, resolver, lang]);
 
   const dayLabels = [
     t('analytics.day.mon'), t('analytics.day.tue'), t('analytics.day.wed'),
@@ -646,7 +648,7 @@ const ChartsTab = () => {
                 <div className="flex gap-1.5 flex-wrap">
                   <Badge variant={selectedDay === 'all' ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay('all')}>{t('analytics.allDays')}</Badge>
                   {trainingPlan.map(day => (
-                    <Badge key={day.id} variant={selectedDay === day.id ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay(day.id)}>{day.dayName}</Badge>
+                    <Badge key={day.id} variant={selectedDay === day.id ? 'default' : 'outline'} className="cursor-pointer" onClick={() => setSelectedDay(day.id)}>{localizeDayName(day.dayName, lang)}</Badge>
                   ))}
                 </div>
                 <div className="flex gap-1">
@@ -704,7 +706,7 @@ const ChartsTab = () => {
 
 const WeeklyTab = () => {
   const { uid, canUseStrava } = useCurrentUser();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { summaries, isGenerating, error, generateSummary } = useWeeklySummary(uid, canUseStrava);
 
   return (
@@ -742,10 +744,10 @@ const WeeklyTab = () => {
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
               <Badge variant="outline" className="text-xs">
-                {new Date(s.weekStart).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })} - {new Date(s.weekEnd).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {new Date(s.weekStart).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })} - {new Date(s.weekEnd).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                {new Date(s.generatedAt).toLocaleDateString('pl-PL')}
+                {new Date(s.generatedAt).toLocaleDateString(dateLocale(lang))}
               </span>
             </div>
 

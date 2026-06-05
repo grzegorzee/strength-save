@@ -4,6 +4,7 @@ import { calculateStreak, getWeekBounds } from '@/lib/summary-utils';
 import { httpsCallable } from 'firebase/functions';
 import { functions, auth } from '@/lib/firebase';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { translate, type LanguageCode } from '@/i18n';
 
 // --- Types ---
 
@@ -35,10 +36,17 @@ interface CoachData {
   };
 }
 
+// --- Language instruction for LLM ---
+// Coach odpowiada w języku UI. Wstrzykiwane do każdego system promptu.
+const langInstruction = (lang: LanguageCode): string =>
+  lang === 'en'
+    ? 'Respond in English.'
+    : 'Mów po polsku.';
+
 // --- System prompt ---
 
-const SYSTEM_PROMPT = `Jesteś osobistym trenerem siłowym. Analizujesz dane treningowe i dajesz konkretne,
-praktyczne sugestie. Mów po polsku, bezpośrednio, bez zbędnych wstępów.
+const buildSystemPrompt = (lang: LanguageCode): string => `Jesteś osobistym trenerem siłowym. Analizujesz dane treningowe i dajesz konkretne,
+praktyczne sugestie. ${langInstruction(lang)} Bezpośrednio, bez zbędnych wstępów.
 
 TWOJE ZADANIA:
 1. Wykryj plateau (brak progresji ciężaru/objętości przez ≥2 tygodnie)
@@ -166,12 +174,13 @@ export interface StreamCallbacks {
 export async function callOpenAIStream(
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
   callbacks: StreamCallbacks,
+  lang: LanguageCode = 'pl',
 ): Promise<AbortController> {
   const controller = new AbortController();
 
   const user = auth.currentUser;
   if (!user) {
-    callbacks.onError('Musisz być zalogowany');
+    callbacks.onError(translate(lang, 'coach.err.notLoggedIn'));
     callbacks.onDone();
     return controller;
   }
@@ -191,7 +200,7 @@ export async function callOpenAIStream(
     });
   } catch (err) {
     if ((err as Error).name !== 'AbortError') {
-      callbacks.onError('Błąd połączenia z serwerem');
+      callbacks.onError(translate(lang, 'coach.err.connection'));
     }
     callbacks.onDone();
     return controller;
@@ -217,7 +226,7 @@ export async function callOpenAIStream(
   // Stream SSE
   const reader = response.body?.getReader();
   if (!reader) {
-    callbacks.onError('Brak streamu w odpowiedzi');
+    callbacks.onError(translate(lang, 'coach.err.noStream'));
     callbacks.onDone();
     return controller;
   }
@@ -260,7 +269,7 @@ export async function callOpenAIStream(
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        callbacks.onError('Stream przerwany');
+        callbacks.onError(translate(lang, 'coach.err.streamInterrupted'));
       }
     }
     callbacks.onDone();
@@ -306,7 +315,7 @@ export interface PlanSuggestion {
 
 // --- System prompts ---
 
-const SWAP_SYSTEM_PROMPT = `Jesteś trenerem siłowym. Użytkownik nie może wykonać danego ćwiczenia i prosi o zamiennik.
+const buildSwapSystemPrompt = (lang: LanguageCode): string => `Jesteś trenerem siłowym. Użytkownik nie może wykonać danego ćwiczenia i prosi o zamiennik. ${langInstruction(lang)}
 
 ZASADY:
 - Podaj 3 alternatywy, od najlepszej
@@ -325,7 +334,7 @@ Format:
   ]
 }`;
 
-const SUMMARY_SYSTEM_PROMPT = `Jesteś trenerem siłowym. Podsumowujesz trening użytkownika. Mów po polsku, krótko, konkretnie.
+const buildSummarySystemPrompt = (lang: LanguageCode): string => `Jesteś trenerem siłowym. Podsumowujesz trening użytkownika. ${langInstruction(lang)} Krótko, konkretnie.
 
 ZASADY:
 - headline: 1 zdanie podsumowujące (max 15 słów)
@@ -342,7 +351,7 @@ Format:
   "motivation": "Trzeci trening z rzędu — nie zatrzymuj się!"
 }`;
 
-const PLAN_SYSTEM_PROMPT = `Jesteś trenerem siłowym. Na podstawie historii treningów i aktualnego planu sugerujesz modyfikacje.
+const buildPlanSystemPrompt = (lang: LanguageCode): string => `Jesteś trenerem siłowym. Na podstawie historii treningów i aktualnego planu sugerujesz modyfikacje. ${langInstruction(lang)}
 
 ZASADY:
 - overview: 2-3 zdania ogólnej oceny planu
@@ -364,12 +373,12 @@ Format:
 
 // --- Main analysis function ---
 
-export async function analyzeWithAI(data: CoachData): Promise<CoachInsight[]> {
+export async function analyzeWithAI(data: CoachData, lang: LanguageCode = 'pl'): Promise<CoachInsight[]> {
   if (data.recentWorkouts.length < 6) {
     return [{
       type: 'warning',
-      title: 'Za mało danych',
-      message: `Mam tylko ${data.recentWorkouts.length} treningów z ostatnich 8 tygodni. Potrzebuję minimum 6 ukończonych treningów (ok. 2-3 tygodnie), żeby dać sensowną analizę. Trenuj dalej!`,
+      title: translate(lang, 'coach.err.notEnough'),
+      message: translate(lang, 'coach.err.notEnoughMsg', { count: data.recentWorkouts.length }),
       priority: 'medium',
     }];
   }
@@ -377,7 +386,7 @@ export async function analyzeWithAI(data: CoachData): Promise<CoachInsight[]> {
   const userMessage = `Przeanalizuj moje dane treningowe:\n\n${JSON.stringify(data, null, 2)}`;
 
   const raw = await callOpenAI([
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: buildSystemPrompt(lang) },
     { role: 'user', content: userMessage },
   ]);
 
@@ -386,7 +395,7 @@ export async function analyzeWithAI(data: CoachData): Promise<CoachInsight[]> {
   const parsed = JSON.parse(jsonStr);
 
   if (!Array.isArray(parsed)) {
-    throw new Error('Odpowiedź AI nie jest tablicą');
+    throw new Error(translate(lang, 'coach.err.notArray'));
   }
 
   // Sort by priority
@@ -403,6 +412,7 @@ export async function getSwapSuggestions(
   exerciseName: string,
   reason: string,
   plan: TrainingDay[],
+  lang: LanguageCode = 'pl',
 ): Promise<SwapSuggestion> {
   const planContext = plan.map(d => ({
     day: d.dayName,
@@ -416,7 +426,7 @@ Mój aktualny plan: ${JSON.stringify(planContext)}
 Zaproponuj 3 zamienniki.`;
 
   const raw = await callOpenAI([
-    { role: 'system', content: SWAP_SYSTEM_PROMPT },
+    { role: 'system', content: buildSwapSystemPrompt(lang) },
     { role: 'user', content: userMessage },
   ]);
 
@@ -430,6 +440,7 @@ export async function generateWorkoutSummary(
   workout: WorkoutSession,
   previousWorkout: WorkoutSession | undefined,
   plan: TrainingDay[],
+  lang: LanguageCode = 'pl',
 ): Promise<WorkoutSummaryResult> {
   const exerciseNames = new Map<string, string>();
   plan.forEach(day => {
@@ -465,7 +476,7 @@ ${previous ? `POPRZEDNI TRENING (ten sam dzień):
 ${JSON.stringify(previous, null, 2)}` : 'Brak poprzedniego treningu do porównania.'}`;
 
   const raw = await callOpenAI([
-    { role: 'system', content: SUMMARY_SYSTEM_PROMPT },
+    { role: 'system', content: buildSummarySystemPrompt(lang) },
     { role: 'user', content: userMessage },
   ]);
 
@@ -475,12 +486,12 @@ ${JSON.stringify(previous, null, 2)}` : 'Brak poprzedniego treningu do porównan
 
 // --- Plan suggestion function ---
 
-export async function suggestPlanChanges(data: CoachData): Promise<PlanSuggestion> {
+export async function suggestPlanChanges(data: CoachData, lang: LanguageCode = 'pl'): Promise<PlanSuggestion> {
   if (data.recentWorkouts.length < 6) {
     return {
-      overview: 'Za mało danych do analizy planu. Potrzebuję minimum 6 ukończonych treningów.',
+      overview: translate(lang, 'coach.err.planNotEnough'),
       changes: [],
-      reasoning: 'Trenuj przez 2-3 tygodnie, a potem wróć po sugestie zmian w planie.',
+      reasoning: translate(lang, 'coach.err.planNotEnoughReason'),
     };
   }
 
@@ -489,7 +500,7 @@ export async function suggestPlanChanges(data: CoachData): Promise<PlanSuggestio
 ${JSON.stringify(data, null, 2)}`;
 
   const raw = await callOpenAI([
-    { role: 'system', content: PLAN_SYSTEM_PROMPT },
+    { role: 'system', content: buildPlanSystemPrompt(lang) },
     { role: 'user', content: userMessage },
   ]);
 

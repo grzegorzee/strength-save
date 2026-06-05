@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas-pro';
 import { parseLocalDate } from '@/lib/utils';
+import { translate, dateLocale, type LanguageCode } from '@/i18n';
 
 export interface ShareData {
   dayName: string;
@@ -17,10 +18,10 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-function buildShareHtml(data: ShareData): string {
+function buildShareHtml(data: ShareData, lang: LanguageCode): string {
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
-    parseLocalDate(data.date).toLocaleDateString('pl-PL', {
+    parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     })
   );
@@ -36,7 +37,7 @@ function buildShareHtml(data: ShareData): string {
   }).join('');
 
   const moreText = data.exercises.length > 6
-    ? `<div style="font-size:13px;color:#94a3b8;padding-top:8px;">+${data.exercises.length - 6} więcej...</div>`
+    ? `<div style="font-size:13px;color:#94a3b8;padding-top:8px;">${escapeHtml(translate(lang, 'share.more', { n: data.exercises.length - 6 }))}</div>`
     : '';
 
   const prRows = data.prs.map(pr =>
@@ -55,7 +56,7 @@ function buildShareHtml(data: ShareData): string {
       padding:48px 36px;display:flex;flex-direction:column;
     ">
       <div style="margin-bottom:auto;">
-        <div style="font-size:14px;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;">Trening ukończony</div>
+        <div style="font-size:14px;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.workoutDone'))}</div>
         <div style="font-size:32px;font-weight:800;margin-top:8px;">${safeDayName}</div>
         <div style="font-size:16px;color:#94a3b8;margin-top:4px;">${safeDate}</div>
       </div>
@@ -63,19 +64,19 @@ function buildShareHtml(data: ShareData): string {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0;">
         <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:700;">${tonnageStr}t</div>
-          <div style="font-size:12px;color:#94a3b8;">Tonaż</div>
+          <div style="font-size:12px;color:#94a3b8;">${escapeHtml(translate(lang, 'share.tonnage'))}</div>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:700;">${data.exercises.length}</div>
-          <div style="font-size:12px;color:#94a3b8;">Ćwiczeń</div>
+          <div style="font-size:12px;color:#94a3b8;">${escapeHtml(translate(lang, 'share.exercises'))}</div>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:700;">${data.streak}</div>
-          <div style="font-size:12px;color:#94a3b8;">Seria (tyg.)</div>
+          <div style="font-size:12px;color:#94a3b8;">${escapeHtml(translate(lang, 'share.streakWeeks'))}</div>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:700;">${data.prs.length}</div>
-          <div style="font-size:12px;color:#94a3b8;">Nowe PRy</div>
+          <div style="font-size:12px;color:#94a3b8;">${escapeHtml(translate(lang, 'share.newPRs'))}</div>
         </div>
       </div>
 
@@ -94,10 +95,10 @@ function buildShareHtml(data: ShareData): string {
   `;
 }
 
-function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string): string {
+function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string, lang: LanguageCode): string {
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
-    parseLocalDate(data.date).toLocaleDateString('pl-PL', {
+    parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     })
   );
@@ -113,7 +114,7 @@ function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string): string 
   }).join('');
 
   const moreText = data.exercises.length > 4
-    ? `<div style="font-size:12px;color:rgba(255,255,255,0.6);padding-top:6px;">+${data.exercises.length - 4} więcej...</div>`
+    ? `<div style="font-size:12px;color:rgba(255,255,255,0.6);padding-top:6px;">${escapeHtml(translate(lang, 'share.more', { n: data.exercises.length - 4 }))}</div>`
     : '';
 
   const prBadges = data.prs.slice(0, 3).map(pr =>
@@ -140,7 +141,7 @@ function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string): string 
         padding:48px 36px;display:flex;flex-direction:column;height:100%;
       ">
         <div style="margin-bottom:auto;">
-          <div style="font-size:13px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:2px;">Trening ukończony</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.workoutDone'))}</div>
           <div style="font-size:32px;font-weight:800;margin-top:8px;text-shadow:0 2px 8px rgba(0,0,0,0.5);">${safeDayName}</div>
           <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-top:4px;">${safeDate}</div>
         </div>
@@ -148,15 +149,15 @@ function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string): string 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:24px 0;">
           <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
             <div style="font-size:26px;font-weight:700;">${tonnageStr}t</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.6);">Tonaż</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);">${escapeHtml(translate(lang, 'share.tonnage'))}</div>
           </div>
           <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
             <div style="font-size:26px;font-weight:700;">${data.exercises.length}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.6);">Ćwiczeń</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);">${escapeHtml(translate(lang, 'share.exercises'))}</div>
           </div>
           <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
             <div style="font-size:26px;font-weight:700;">${data.prs.length}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.6);">PRy</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);">${escapeHtml(translate(lang, 'share.prs'))}</div>
           </div>
         </div>
 
@@ -181,13 +182,13 @@ function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string): string 
   `;
 }
 
-export async function generateWorkoutImage(data: ShareData, photoDataUrl?: string): Promise<Blob> {
+export async function generateWorkoutImage(data: ShareData, photoDataUrl?: string, lang: LanguageCode = 'pl'): Promise<Blob> {
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;left:-9999px;top:0;width:540px;height:960px;';
   // All user-provided text is escaped via escapeHtml; photoDataUrl is a base64 data URI from FileReader
   container.innerHTML = photoDataUrl
-    ? buildShareHtmlWithPhoto(data, photoDataUrl)
-    : buildShareHtml(data);
+    ? buildShareHtmlWithPhoto(data, photoDataUrl, lang)
+    : buildShareHtml(data, lang);
 
   document.body.appendChild(container);
 

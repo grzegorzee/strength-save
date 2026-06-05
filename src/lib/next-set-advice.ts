@@ -1,6 +1,7 @@
 import type { WorkoutSession } from '@/types';
 import { getExerciseHistory, detectPlateau } from '@/lib/exercise-progression';
 import { parseRepRange, isIsolationExercise, type RepRange } from '@/lib/exercise-utils';
+import { translate, type LanguageCode } from '@/i18n';
 
 // Sugestia następnej serii: konkretny cel (ciężar × powtórzenia) z TRENDU całej historii,
 // nie tylko ostatniego treningu. Deterministyczna i darmowa — AI dokłada się tylko on-demand.
@@ -24,6 +25,7 @@ export const getNextSetAdvice = (
   setsStr: string,
   exerciseIndex: number,
   options?: { isBodyweight?: boolean; isSuperset?: boolean },
+  lang: LanguageCode = 'pl',
 ): NextSetAdvice | null => {
   const isBodyweight = !!options?.isBodyweight;
   const repRange: RepRange = parseRepRange(setsStr);
@@ -46,7 +48,7 @@ export const getNextSetAdvice = (
         kind: 'deload',
         targetWeight: 0,
         targetReps: Math.max(repRange.min, lastReps),
-        reason: `Zastój ${plateau.sessionsSinceProgress} sesji — zrób lżejszą sesję (krótsze serie), potem atakuj rekord.`,
+        reason: translate(lang, 'nsadvice.deload.bw', { sessions: plateau.sessionsSinceProgress }),
         isBodyweight,
       };
     }
@@ -55,7 +57,7 @@ export const getNextSetAdvice = (
       kind: 'deload',
       targetWeight: deloadWeight,
       targetReps: repRange.max,
-      reason: `Zastój ${plateau.sessionsSinceProgress} sesji — odpuść do ${deloadWeight} kg i odbuduj objętość, zamiast forsować.`,
+      reason: translate(lang, 'nsadvice.deload.weight', { sessions: plateau.sessionsSinceProgress, weight: deloadWeight }),
       isBodyweight,
     };
   }
@@ -63,9 +65,9 @@ export const getNextSetAdvice = (
   // Bodyweight: progresja przez powtórzenia.
   if (isBodyweight) {
     if (lastReps >= repRange.max) {
-      return { kind: 'progress', targetWeight: 0, targetReps: lastReps + 1, reason: `Ostatnio ${lastReps} powt. — dorzuć jedno więcej.`, isBodyweight };
+      return { kind: 'progress', targetWeight: 0, targetReps: lastReps + 1, reason: translate(lang, 'nsadvice.bw.progress', { reps: lastReps }), isBodyweight };
     }
-    return { kind: 'hold', targetWeight: 0, targetReps: Math.min(lastReps + 1, repRange.max), reason: `Dobij powtórzenia do ${repRange.max}, potem podnieś trudność.`, isBodyweight };
+    return { kind: 'hold', targetWeight: 0, targetReps: Math.min(lastReps + 1, repRange.max), reason: translate(lang, 'nsadvice.bw.hold', { max: repRange.max }), isBodyweight };
   }
 
   // Z obciążeniem.
@@ -77,7 +79,7 @@ export const getNextSetAdvice = (
       kind: 'progress',
       targetWeight: lastWeight + increment,
       targetReps: repRange.min,
-      reason: `Dowiozłeś ${lastReps} powt. — dołóż ${increment} kg (cel ${lastWeight + increment} kg × ${repRange.min}).`,
+      reason: translate(lang, 'nsadvice.progress', { reps: lastReps, increment, target: lastWeight + increment, min: repRange.min }),
       isBodyweight,
     };
   }
@@ -88,7 +90,7 @@ export const getNextSetAdvice = (
       kind: 'hold',
       targetWeight: lastWeight,
       targetReps: repRange.min,
-      reason: `Utrzymaj ${lastWeight} kg i dobij do ${repRange.min} powt.`,
+      reason: translate(lang, 'nsadvice.hold.below', { weight: lastWeight, min: repRange.min }),
       isBodyweight,
     };
   }
@@ -98,7 +100,7 @@ export const getNextSetAdvice = (
     kind: 'hold',
     targetWeight: lastWeight,
     targetReps: Math.min(lastReps + 1, repRange.max),
-    reason: `Ten sam ciężar — dorzuć powtórzenia w stronę ${repRange.max}.`,
+    reason: translate(lang, 'nsadvice.hold.inrange', { max: repRange.max }),
     isBodyweight,
   };
 };

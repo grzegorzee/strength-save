@@ -12,6 +12,7 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { parseLocalDate } from '@/lib/utils';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { WorkoutSession } from '@/types';
 
@@ -142,7 +143,7 @@ const WorkoutHistory = () => {
             <SelectContent>
               <SelectItem value="all">{t('history.allDays')}</SelectItem>
               {trainingPlan.map(day => (
-                <SelectItem key={day.id} value={day.id}>{day.dayName}</SelectItem>
+                <SelectItem key={day.id} value={day.id}>{localizeDayName(day.dayName, lang)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -226,7 +227,7 @@ const WorkoutHistory = () => {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {dayLabel.dayName} · {dayLabel.focus || t('history.noFocus')}
+                      {localizeDayName(dayLabel.dayName, lang)} · {localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-right text-sm">

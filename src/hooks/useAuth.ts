@@ -16,8 +16,10 @@ import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { auth, googleProvider } from '@/lib/firebase';
 import { readE2EAuthState } from '@/lib/e2e-auth';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 export const useAuth = () => {
+  const { t } = useTranslation();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export const useAuth = () => {
       }
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Błąd logowania';
+      const errorMessage = err instanceof Error ? err.message : t('auth.err.login');
       console.error('Login error:', errorMessage);
       setError(errorMessage);
       return false;
@@ -81,7 +83,7 @@ export const useAuth = () => {
       await createUserWithEmailAndPassword(auth, email.trim(), password);
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Błąd rejestracji';
+      const errorMessage = err instanceof Error ? err.message : t('auth.err.register');
       console.error('Register error:', errorMessage);
       setError(errorMessage);
       return false;
@@ -95,7 +97,7 @@ export const useAuth = () => {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Błąd logowania';
+      const errorMessage = err instanceof Error ? err.message : t('auth.err.login');
       console.error('Email login error:', errorMessage);
       setError(errorMessage);
       return false;
@@ -108,7 +110,7 @@ export const useAuth = () => {
       await sendPasswordResetEmail(auth, email.trim());
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Błąd resetu hasła';
+      const errorMessage = err instanceof Error ? err.message : t('auth.err.reset');
       console.error('Reset password error:', errorMessage);
       setError(errorMessage);
       return false;

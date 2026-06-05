@@ -17,8 +17,8 @@ const DISTANCE_EMOJIS: Record<string, string> = {
 };
 
 export const RacePredictor = ({ activities }: Props) => {
-  const { t } = useTranslation();
-  const predictions = useMemo(() => getRacePredictions(activities), [activities]);
+  const { t, lang } = useTranslation();
+  const predictions = useMemo(() => getRacePredictions(activities, lang), [activities, lang]);
 
   if (predictions.length === 0) return null;
 
@@ -36,7 +36,7 @@ export const RacePredictor = ({ activities }: Props) => {
           {predictions.map(p => (
             <div key={p.distanceLabel} className="p-3 rounded-lg bg-muted/30 text-center">
               <p className="text-xs text-muted-foreground mb-1">
-                {DISTANCE_EMOJIS[p.distanceLabel] || '🏃'} {p.distanceLabel}
+                {DISTANCE_EMOJIS[p.distanceLabel] || '🏃'} {p.displayLabel}
               </p>
               <p className="text-lg font-bold">{p.predictedTimeFormatted}</p>
             </div>

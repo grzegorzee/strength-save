@@ -13,10 +13,11 @@ import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation } from '@/lib/cycle-insights';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 
 const Cycles = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
   const { cycles, isLoaded, createActiveCycle } = usePlanCycles(uid);
   const { workouts } = useFirebaseWorkouts(uid);
@@ -51,7 +52,7 @@ const Cycles = () => {
   const visibleStoredCycles = cycles.filter(cycle => cycle.status === 'active' || cycle.stats.totalWorkouts > 0);
   const previousCompletedCycle = visibleStoredCycles.find(cycle => cycle.status === 'completed') || null;
   const comparison = liveActiveCycle ? buildCycleComparison(liveActiveCycle, previousCompletedCycle) : null;
-  const recommendation = liveActiveCycle ? buildCycleRecommendation(liveActiveCycle, previousCompletedCycle) : null;
+  const recommendation = liveActiveCycle ? buildCycleRecommendation(liveActiveCycle, previousCompletedCycle, new Date(), lang) : null;
   const listedCycles = liveActiveCycle
     ? [liveActiveCycle, ...visibleStoredCycles.filter(cycle => cycle.id !== liveActiveCycle.id)]
     : visibleStoredCycles;
@@ -165,7 +166,7 @@ const Cycles = () => {
             <div className="flex flex-wrap gap-2">
               {trainingPlan.map((day, i) => (
                 <span key={day.id} className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                  {day.dayName} — {day.focus}
+                  {localizeDayName(day.dayName, lang)} — {localizeFocus(day.focus, lang)}
                 </span>
               ))}
             </div>

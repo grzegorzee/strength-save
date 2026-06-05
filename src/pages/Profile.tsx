@@ -46,7 +46,7 @@ const Profile = () => {
   const { t, lang, setLang } = useTranslation();
 
   const completedCount = workouts.filter((w) => w.completed).length;
-  const tier = computeTier(completedCount);
+  const tier = computeTier(completedCount, 0, lang);
 
   const [restTimer, setRestTimer] = useState(() => {
     try { return localStorage.getItem(REST_TIMER_KEY) || '90'; } catch { return '90'; }

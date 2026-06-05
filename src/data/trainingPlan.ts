@@ -1,3 +1,5 @@
+import { translate, type LanguageCode } from '@/i18n';
+
 export interface Exercise {
   id: string;
   name: string;
@@ -461,10 +463,11 @@ export const trainingPlan: TrainingDay[] = [
   }
 ];
 
-// General training rules
-export const trainingRules = {
-  weight: "Ciężar: Taki, by ostatnie powtórzenie było walką, ale techniczną (1-2 ruchy zapasu).",
-  restMain: "Przerwy główne ćwiczenia: 2–3 minuty.",
-  restIsolation: "Przerwy izolacje: 60–90 sekund.",
-  supersets: "Superserie: Ostatnie dwa ćwiczenia (A i B) robisz ciągiem bez przerwy. Dopiero po zrobieniu B odpoczywasz."
-};
+// General training rules — lokalizowane przez i18n (PL/EN). Helper zwraca obiekt
+// z przetlumaczonymi tekstami dla biezacego jezyka UI.
+export const getTrainingRules = (lang: LanguageCode) => ({
+  weight: translate(lang, 'rules.weight'),
+  restMain: translate(lang, 'rules.restMain'),
+  restIsolation: translate(lang, 'rules.restIsolation'),
+  supersets: translate(lang, 'rules.supersets'),
+});

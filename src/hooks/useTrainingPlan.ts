@@ -14,10 +14,12 @@ import { db } from '@/lib/firebase';
 import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const PLAN_COLLECTION = 'training_plans';
 
 export const useTrainingPlan = (userId: string) => {
+  const { t } = useTranslation();
   const [plan, setPlan] = useState<TrainingDay[]>(defaultPlan);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isCustom, setIsCustom] = useState(false);
@@ -118,7 +120,7 @@ export const useTrainingPlan = (userId: string) => {
     newPlan: TrainingDay[],
     options?: { durationWeeks?: number; startDate?: string },
   ): Promise<{ success: boolean; error?: string }> => {
-    if (!userId) return { success: false, error: 'Brak userId' };
+    if (!userId) return { success: false, error: t('err.noUserId') };
     try {
       await setDoc(doc(db, PLAN_COLLECTION, userId), {
         days: newPlan,
@@ -131,10 +133,10 @@ export const useTrainingPlan = (userId: string) => {
       return { success: true };
     } catch (err) {
       console.error('Error saving training plan:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Nieznany błąd';
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, [userId, planDurationWeeks, planStartDate]);
+  }, [userId, planDurationWeeks, planStartDate, t]);
 
   const swapExercise = useCallback(async (
     dayId: string,

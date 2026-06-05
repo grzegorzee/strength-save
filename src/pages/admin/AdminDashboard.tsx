@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2, MailPlus, Ticket, ClipboardList, History, Mail, Ban } from 'lucide-react';
 import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
 import { cn } from '@/lib/utils';
 import {
   createInvite,
@@ -103,6 +105,7 @@ interface WorkoutDocData {
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t, lang } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [expandedUid, setExpandedUid] = useState<string | null>(null);
   const [aiUsage, setAiUsage] = useState<AIUsageDoc[]>([]);
@@ -218,7 +221,7 @@ const AdminDashboard = () => {
       setAuditLogs(auditRows);
     } catch (error) {
       console.error('[AdminDashboard] Failed to load invites/waitlist/audit', error);
-      toast({ title: 'Błąd', description: 'Nie udało się wczytać invite, waitlisty lub audytu.', variant: 'destructive' });
+      toast({ title: t('admin.error'), description: t('admin.loadOpsFailed'), variant: 'destructive' });
     } finally {
       setAdminDataLoading(false);
     }
@@ -236,9 +239,9 @@ const AdminDashboard = () => {
         u.uid === uid ? { ...u, features: { ...u.features, [feature]: enabled } } : u
       ));
       const userName = users.find(u => u.uid === uid)?.displayName || uid;
-      toast({ title: enabled ? 'Włączono' : 'Wyłączono', description: `${feature} — ${userName}` });
+      toast({ title: enabled ? t('admin.toggleEnabled') : t('admin.toggleDisabled'), description: `${feature} — ${userName}` });
     } catch {
-      toast({ title: 'Błąd', description: 'Nie udało się zapisać.', variant: 'destructive' });
+      toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
     }
   };
 
@@ -255,11 +258,11 @@ const AdminDashboard = () => {
       ));
       const userName = users.find(u => u.uid === uid)?.displayName || uid;
       toast({
-        title: enabled ? 'Dostęp włączony' : 'Dostęp wyłączony',
+        title: enabled ? t('admin.accessEnabledTitle') : t('admin.accessDisabledTitle'),
         description: `${userName}`,
       });
     } catch {
-      toast({ title: 'Błąd', description: 'Nie udało się zmienić dostępu.', variant: 'destructive' });
+      toast({ title: t('admin.error'), description: t('admin.accessChangeFailed'), variant: 'destructive' });
     }
   };
 
@@ -282,11 +285,11 @@ const AdminDashboard = () => {
       )));
       const userName = users.find(u => u.uid === uid)?.displayName || uid;
       toast({
-        title: suspended ? 'Konto zawieszone' : 'Konto przywrócone',
+        title: suspended ? t('admin.accountSuspended') : t('admin.accountRestored'),
         description: userName,
       });
     } catch {
-      toast({ title: 'Błąd', description: 'Nie udało się zmienić statusu konta.', variant: 'destructive' });
+      toast({ title: t('admin.error'), description: t('admin.statusChangeFailed'), variant: 'destructive' });
     }
   };
 
@@ -300,10 +303,10 @@ const AdminDashboard = () => {
         waitlistEntryId,
       });
       toast({
-        title: 'Invite utworzony',
+        title: t('admin.inviteCreated'),
         description: result.invite.email
-          ? `Wysłano zaproszenie do ${result.invite.email}.`
-          : `Kod ${result.invite.code} jest gotowy do użycia.`,
+          ? t('admin.inviteSent', { email: result.invite.email })
+          : t('admin.inviteCodeReady', { code: result.invite.code }),
       });
       setInviteEmail('');
       setInviteNote('');
@@ -311,7 +314,7 @@ const AdminDashboard = () => {
       await loadAdminOpsData();
     } catch (error) {
       console.error('[AdminDashboard] Failed to create invite', error);
-      toast({ title: 'Błąd', description: 'Nie udało się utworzyć invite.', variant: 'destructive' });
+      toast({ title: t('admin.error'), description: t('admin.createInviteFailed'), variant: 'destructive' });
     } finally {
       setCreatingInvite(false);
     }
@@ -320,10 +323,10 @@ const AdminDashboard = () => {
   const handleRevokeInvite = async (inviteId: string) => {
     try {
       await revokeInvite(inviteId);
-      toast({ title: 'Invite unieważniony', description: inviteId });
+      toast({ title: t('admin.inviteRevoked'), description: inviteId });
       await loadAdminOpsData();
     } catch {
-      toast({ title: 'Błąd', description: 'Nie udało się unieważnić invite.', variant: 'destructive' });
+      toast({ title: t('admin.error'), description: t('admin.revokeInviteFailed'), variant: 'destructive' });
     }
   };
 
@@ -401,8 +404,8 @@ const AdminDashboard = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Panel admina</h1>
-          <p className="text-muted-foreground text-sm">Zarządzaj użytkownikami i funkcjami</p>
+          <h1 className="text-2xl font-bold">{t('admin.title')}</h1>
+          <p className="text-muted-foreground text-sm">{t('admin.subtitle')}</p>
         </div>
       </div>
 
@@ -418,10 +421,10 @@ const AdminDashboard = () => {
                 <DollarSign className={cn('h-5 w-5', costColor)} />
                 <div>
                   <p className={cn('font-semibold text-sm', costColor)}>
-                    AI koszty ({currentMonth}): ${totalCost.toFixed(2)}
+                    {t('admin.aiCosts', { month: currentMonth, cost: totalCost.toFixed(2) })}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {totalCalls} wywołań, {aiUsage.length} użytkowników
+                    {t('admin.callsUsers', { calls: totalCalls, users: aiUsage.length })}
                   </p>
                 </div>
               </div>
@@ -441,23 +444,23 @@ const AdminDashboard = () => {
         return (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Health telemetry (7 dni)</CardTitle>
+              <CardTitle className="text-base">{t('admin.healthTelemetry')}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-4">
               <div className="rounded-lg border bg-muted/20 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Sync failures</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('admin.syncFailures')}</p>
                 <p className="mt-1 text-2xl font-bold">{aggregate.sync_failure || 0}</p>
               </div>
               <div className="rounded-lg border bg-muted/20 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Retry manual</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('admin.retryManual')}</p>
                 <p className="mt-1 text-2xl font-bold">{aggregate.sync_retry_manual || 0}</p>
               </div>
               <div className="rounded-lg border bg-muted/20 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Draft recovered</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('admin.draftRecovered')}</p>
                 <p className="mt-1 text-2xl font-bold">{aggregate.draft_recovered || 0}</p>
               </div>
               <div className="rounded-lg border bg-muted/20 p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Offline starts</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('admin.offlineStarts')}</p>
                 <p className="mt-1 text-2xl font-bold">{aggregate.provisional_session_started || 0}</p>
               </div>
             </CardContent>
@@ -472,28 +475,28 @@ const AdminDashboard = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <MailPlus className="h-5 w-5" />
-              Invite
+              {t('admin.invite')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Input
               value={inviteEmail}
               onChange={(event) => setInviteEmail(event.target.value)}
-              placeholder="Email (opcjonalnie)"
+              placeholder={t('admin.emailOptional')}
             />
             <Input
               value={inviteCohorts}
               onChange={(event) => setInviteCohorts(event.target.value)}
-              placeholder="Cohorty, np. beta,launch"
+              placeholder={t('admin.cohortsPlaceholder')}
             />
             <Input
               value={inviteNote}
               onChange={(event) => setInviteNote(event.target.value)}
-              placeholder="Notatka / kontekst invite"
+              placeholder={t('admin.notePlaceholder')}
             />
             <Button className="w-full" onClick={() => void handleCreateInvite()} disabled={creatingInvite}>
               {creatingInvite ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
-              Utwórz invite
+              {t('admin.createInvite')}
             </Button>
             <div className="space-y-2">
               {invites.slice(0, 6).map((invite) => (
@@ -502,14 +505,14 @@ const AdminDashboard = () => {
                     <div className="min-w-0">
                       <p className="font-medium truncate">{invite.email || invite.code}</p>
                       <p className="text-xs text-muted-foreground">
-                        {invite.status} · {invite.cohorts.join(', ') || 'brak cohort'}
+                        {invite.status} · {invite.cohorts.join(', ') || t('admin.noCohort')}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <Badge variant={invite.status === 'active' ? 'default' : 'secondary'}>{invite.status}</Badge>
                       {invite.status === 'active' && (
                         <Button variant="outline" size="sm" onClick={() => void handleRevokeInvite(invite.id)}>
-                          Revoke
+                          {t('admin.revoke')}
                         </Button>
                       )}
                     </div>
@@ -517,7 +520,7 @@ const AdminDashboard = () => {
                 </div>
               ))}
               {invites.length === 0 && !adminDataLoading && (
-                <p className="text-sm text-muted-foreground">Brak invite.</p>
+                <p className="text-sm text-muted-foreground">{t('admin.noInvites')}</p>
               )}
             </div>
           </CardContent>
@@ -527,7 +530,7 @@ const AdminDashboard = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <ClipboardList className="h-5 w-5" />
-              Waitlista
+              {t('admin.waitlist')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -537,7 +540,7 @@ const AdminDashboard = () => {
                   <div className="min-w-0">
                     <p className="font-medium truncate">{entry.email}</p>
                     <p className="text-xs text-muted-foreground">
-                      {entry.displayName || 'bez nazwy'} · {entry.status}
+                      {entry.displayName || t('admin.noName')} · {entry.status}
                     </p>
                   </div>
                   <Badge variant="secondary">{entry.status}</Badge>
@@ -548,13 +551,13 @@ const AdminDashboard = () => {
                 {entry.status === 'waiting' && (
                   <Button variant="outline" size="sm" onClick={() => void handleCreateInvite(entry.id, entry.email, entry.note)}>
                     <Ticket className="h-4 w-4 mr-1.5" />
-                    Zamień na invite
+                    {t('admin.convertToInvite')}
                   </Button>
                 )}
               </div>
             ))}
             {waitlistEntries.length === 0 && !adminDataLoading && (
-              <p className="text-sm text-muted-foreground">Brak wpisów na waitliście.</p>
+              <p className="text-sm text-muted-foreground">{t('admin.noWaitlist')}</p>
             )}
           </CardContent>
         </Card>
@@ -563,7 +566,7 @@ const AdminDashboard = () => {
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <History className="h-5 w-5" />
-              Audit auth
+              {t('admin.auditAuth')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -572,17 +575,17 @@ const AdminDashboard = () => {
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium">{log.eventType}</p>
                   <span className="text-xs text-muted-foreground">
-                    {new Date(log.createdAt).toLocaleString('pl-PL')}
+                    {new Date(log.createdAt).toLocaleString(dateLocale(lang))}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {log.email || log.uid || 'anonymous'}
+                  {log.email || log.uid || t('admin.anonymous')}
                   {log.actorUid ? ` · actor ${log.actorUid}` : ''}
                 </p>
               </div>
             ))}
             {auditLogs.length === 0 && !adminDataLoading && (
-              <p className="text-sm text-muted-foreground">Brak logów audytowych.</p>
+              <p className="text-sm text-muted-foreground">{t('admin.noAuditLogs')}</p>
             )}
           </CardContent>
         </Card>
@@ -592,7 +595,7 @@ const AdminDashboard = () => {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
             <Users className="h-5 w-5" />
-            Użytkownicy ({users.length})
+            {t('admin.users', { count: users.length })}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -612,7 +615,7 @@ const AdminDashboard = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-sm truncate">{user.displayName || 'Bez nazwy'}</p>
+                      <p className="font-medium text-sm truncate">{user.displayName || t('admin.noNameShort')}</p>
                       <Badge
                         variant={user.role === 'admin' ? 'default' : 'secondary'}
                         className="text-[10px] h-5 shrink-0"
@@ -623,7 +626,7 @@ const AdminDashboard = () => {
                         variant={user.accessEnabled ? 'outline' : 'destructive'}
                         className="text-[10px] h-5 shrink-0"
                       >
-                        {user.accessEnabled ? 'dostęp on' : 'dostęp off'}
+                        {user.accessEnabled ? t('admin.accessOn') : t('admin.accessOff')}
                       </Badge>
                       <Badge
                         variant={user.status === 'suspended' ? 'destructive' : 'secondary'}
@@ -644,7 +647,7 @@ const AdminDashboard = () => {
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-4">
                     <div className="rounded-lg bg-muted/20 p-3 space-y-3">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Dostęp</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('admin.access')}</p>
                       <div className="flex items-center justify-between">
                         <div className="flex items-start gap-2">
                           {user.accessEnabled ? (
@@ -654,10 +657,10 @@ const AdminDashboard = () => {
                           )}
                           <div>
                             <p className="text-sm font-medium">
-                              {user.accessEnabled ? 'Dostęp aktywny' : 'Dostęp wyłączony'}
+                              {user.accessEnabled ? t('admin.accessActive') : t('admin.accessDisabled')}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Backend egzekwuje ten stan dla danych treningowych i funkcji. Status konta: {user.status}.
+                              {t('admin.accessBackendNote', { status: user.status })}
                             </p>
                           </div>
                         </div>
@@ -671,12 +674,12 @@ const AdminDashboard = () => {
 
                     {/* Feature flags */}
                     <div className="rounded-lg bg-muted/20 p-3 space-y-3">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Funkcje</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('admin.features')}</p>
                       {AVAILABLE_FEATURES.map(feat => (
                         <div key={feat.key} className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-medium">{feat.label}</p>
-                            <p className="text-xs text-muted-foreground">{feat.description}</p>
+                            <p className="text-xs text-muted-foreground">{feat.key === 'strava' ? t('admin.featStravaDesc') : feat.description}</p>
                           </div>
                           <Switch
                             checked={user.features[feat.key] ?? user.role === 'admin'}
@@ -688,47 +691,47 @@ const AdminDashboard = () => {
                     </div>
 
                     <div className="rounded-lg bg-muted/20 p-3 space-y-3">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Podgląd użytkownika</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('admin.userPreview')}</p>
                       {detailsLoading && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          Ładowanie szczegółów...
+                          {t('admin.loadingDetails')}
                         </div>
                       )}
                       {!detailsLoading && details && (
                         <div className="space-y-3 text-sm">
                           <div className="grid gap-2 sm:grid-cols-2">
                             <div className="rounded-md border bg-background/60 p-3">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Plan</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('admin.plan')}</p>
                               <p className="mt-1 font-medium">
-                                {details.plan ? `${details.plan.dayCount} dni / ${details.plan.durationWeeks || '--'} tyg.` : 'Brak planu'}
+                                {details.plan ? t('admin.planDays', { days: details.plan.dayCount, weeks: details.plan.durationWeeks || '--' }) : t('admin.noPlan')}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Start: {details.plan?.startDate || 'brak'}
+                                {t('admin.start', { date: details.plan?.startDate || t('admin.none') })}
                               </p>
                             </div>
                             <div className="rounded-md border bg-background/60 p-3">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Aktywny cykl</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('admin.activeCycle')}</p>
                               <p className="mt-1 font-medium">
-                                {details.activeCycle ? `${details.activeCycle.durationWeeks} tyg.` : 'Brak aktywnego cyklu'}
+                                {details.activeCycle ? t('admin.cycleWeeks', { weeks: details.activeCycle.durationWeeks }) : t('admin.noActiveCycle')}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {details.activeCycle
-                                  ? `Start ${details.activeCycle.startDate} · completion ${details.activeCycle.completionRate}%`
-                                  : 'Brak danych'}
+                                  ? t('admin.cycleDetail', { date: details.activeCycle.startDate, rate: details.activeCycle.completionRate })
+                                  : t('admin.noData')}
                               </p>
                             </div>
                             <div className="rounded-md border bg-background/60 p-3">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Rejestracja</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('admin.registration')}</p>
                               <p className="mt-1 font-medium">{user.registrationSource}</p>
                               <p className="text-xs text-muted-foreground">
-                                Provider: {user.primaryProvider} · {user.emailVerifiedAt ? 'email verified' : 'email not verified'}
+                                {t('admin.providerInfo', { provider: user.primaryProvider, verified: user.emailVerifiedAt ? t('admin.emailVerified') : t('admin.emailNotVerified') })}
                               </p>
                             </div>
                           </div>
 
                           <div>
-                            <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Ostatnie treningi</p>
+                            <p className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">{t('admin.recentWorkouts')}</p>
                             <div className="space-y-2">
                               {details.recentWorkouts.length > 0 ? details.recentWorkouts.map((workout) => (
                                 <div key={workout.id} className="rounded-md border bg-background/60 p-3">
@@ -736,17 +739,17 @@ const AdminDashboard = () => {
                                     <div>
                                       <p className="font-medium">{workout.date}</p>
                                       <p className="text-xs text-muted-foreground">
-                                        {workout.dayId} · {workout.exerciseCount} ćwiczeń
-                                        {workout.cycleId ? ` · cycle ${workout.cycleId}` : ' · bez cycleId'}
+                                        {t('admin.workoutDetail', { dayId: workout.dayId, count: workout.exerciseCount })}
+                                        {workout.cycleId ? t('admin.withCycle', { cycleId: workout.cycleId }) : t('admin.noCycleId')}
                                       </p>
                                     </div>
                                     <Badge variant={workout.completed ? 'default' : 'secondary'}>
-                                      {workout.completed ? 'completed' : 'draft'}
+                                      {workout.completed ? t('admin.completed') : t('admin.draft')}
                                     </Badge>
                                   </div>
                                 </div>
                               )) : (
-                                <p className="text-xs text-muted-foreground">Brak treningów.</p>
+                                <p className="text-xs text-muted-foreground">{t('admin.noWorkouts')}</p>
                               )}
                             </div>
                           </div>
@@ -763,12 +766,12 @@ const AdminDashboard = () => {
                       const costColor = usage.estimatedCostUsd < 2 ? 'text-green-600' : usage.estimatedCostUsd < 4 ? 'text-yellow-600' : 'text-red-600';
                       return (
                         <div className="rounded-lg bg-muted/20 p-3">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">AI Usage ({currentMonth})</p>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{t('admin.aiUsage', { month: currentMonth })}</p>
                           <p className={cn('text-sm font-semibold', costColor)}>
                             ${usage.estimatedCostUsd.toFixed(2)} / $5.00
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {usage.callCount} wywołań, {tokenStr} tokenów
+                            {t('admin.aiUsageDetail', { calls: usage.callCount, tokens: tokenStr })}
                           </p>
                         </div>
                       );
@@ -782,7 +785,7 @@ const AdminDashboard = () => {
                         onClick={() => navigate(`/admin/plans/${user.uid}`)}
                       >
                         <Dumbbell className="h-4 w-4 mr-1.5" />
-                        Edytuj plan
+                        {t('admin.editPlan')}
                       </Button>
                       <Button
                         variant={user.status === 'suspended' ? 'outline' : 'destructive'}
@@ -791,19 +794,19 @@ const AdminDashboard = () => {
                         disabled={user.role === 'admin'}
                       >
                         {user.status === 'suspended' ? <ShieldCheck className="h-4 w-4 mr-1.5" /> : <Ban className="h-4 w-4 mr-1.5" />}
-                        {user.status === 'suspended' ? 'Przywróć konto' : 'Zawieś konto'}
+                        {user.status === 'suspended' ? t('admin.restoreAccount') : t('admin.suspendAccount')}
                       </Button>
                     </div>
 
                     {/* Info */}
                     <div className="text-xs text-muted-foreground space-y-0.5">
                       {user.lastLogin && (
-                        <p>Ostatnie logowanie: {new Date(user.lastLogin).toLocaleString('pl-PL')}</p>
+                        <p>{t('admin.lastLogin', { date: new Date(user.lastLogin).toLocaleString(dateLocale(lang)) })}</p>
                       )}
-                      <p>Onboarding: {user.onboardingCompleted ? 'ukończony' : 'nie ukończony'}</p>
-                      <p>Strava: {user.stravaConnected ? 'połączona' : 'niepołączona'}</p>
+                      <p>{t('admin.onboarding', { status: user.onboardingCompleted ? t('admin.onboardingDone') : t('admin.onboardingNotDone') })}</p>
+                      <p>{t('admin.strava', { status: user.stravaConnected ? t('admin.stravaConnected') : t('admin.stravaNotConnected') })}</p>
                       {user.cohorts.length > 0 && (
-                        <p>Cohorty: {user.cohorts.join(', ')}</p>
+                        <p>{t('admin.cohorts', { cohorts: user.cohorts.join(', ') })}</p>
                       )}
                     </div>
                   </div>
@@ -814,7 +817,7 @@ const AdminDashboard = () => {
 
           {users.length === 0 && (
             <p className="text-center text-muted-foreground py-8">
-              Brak zarejestrowanych użytkowników
+              {t('admin.noUsers')}
             </p>
           )}
         </CardContent>

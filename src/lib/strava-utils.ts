@@ -2,6 +2,7 @@ import { startOfWeek, format, parseISO } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import type { StravaActivity } from '@/types/strava';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { translate, type LanguageCode } from '@/i18n';
 
 // ========================
 // Types
@@ -414,6 +415,7 @@ export const computeWeeklyCalories = (
 
 export const detectCardioPRs = (
   activities: StravaActivity[],
+  lang: LanguageCode = 'pl',
 ): CardioPR[] => {
   const prs: CardioPR[] = [];
 
@@ -429,7 +431,7 @@ export const detectCardioPRs = (
     const paceSeconds = 1000 / fastest.averageSpeed!;
     prs.push({
       category: 'fastest_pace',
-      label: 'Najszybsze tempo',
+      label: translate(lang, 'stravautil.fastestPace'),
       emoji: '🏃',
       value: `${formatPaceFromSeconds(paceSeconds)} /km`,
       date: fastest.date,
@@ -445,7 +447,7 @@ export const detectCardioPRs = (
     );
     prs.push({
       category: 'longest_run',
-      label: 'Najdłuższy dystans',
+      label: translate(lang, 'stravautil.longestRun'),
       emoji: '📏',
       value: `${(longest.distance! / 1000).toFixed(1)} km`,
       date: longest.date,
@@ -463,7 +465,7 @@ export const detectCardioPRs = (
     );
     prs.push({
       category: 'most_elevation',
-      label: 'Najwięcej przewyższenia',
+      label: translate(lang, 'stravautil.mostElevation'),
       emoji: '⛰️',
       value: `${Math.round(mostElev.totalElevationGain!)} m`,
       date: mostElev.date,
@@ -481,7 +483,7 @@ export const detectCardioPRs = (
     );
     prs.push({
       category: 'best_5k',
-      label: 'Najlepsze 5K',
+      label: translate(lang, 'stravautil.best5k'),
       emoji: '🏅',
       value: formatDurationShort(best5k.movingTime!),
       date: best5k.date,
@@ -499,7 +501,7 @@ export const detectCardioPRs = (
     );
     prs.push({
       category: 'best_10k',
-      label: 'Najlepsze 10K',
+      label: translate(lang, 'stravautil.best10k'),
       emoji: '🏅',
       value: formatDurationShort(best10k.movingTime!),
       date: best10k.date,

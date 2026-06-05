@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronLeft, Check, RefreshCw, ListChecks, Repeat, PencilRuler } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeDayName, localizeFocus, localizeWeekdayShort } from '@/lib/plan-i18n';
 import type { TranslationKey } from '@/i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -232,8 +233,8 @@ const NewPlan = () => {
           <Card key={day.id}>
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center justify-between">
-                <span>{day.dayName}</span>
-                <Badge variant="outline" className="text-xs font-normal">{day.focus}</Badge>
+                <span>{localizeDayName(day.dayName, lang)}</span>
+                <Badge variant="outline" className="text-xs font-normal">{localizeFocus(day.focus, lang)}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
@@ -316,7 +317,7 @@ const NewPlan = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center justify-between">
                 <span>{t('newplan.dayN', { n: i + 1 })}</span>
-                <Badge variant="outline" className="text-xs font-normal">{d.focus}</Badge>
+                <Badge variant="outline" className="text-xs font-normal">{localizeFocus(d.focus, lang)}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -334,7 +335,7 @@ const NewPlan = () => {
                       )}
                       onClick={() => setDayWeekday(i, w.value)}
                     >
-                      {w.short}
+                      {localizeWeekdayShort(w.short, lang)}
                     </Badge>
                   );
                 })}
@@ -396,8 +397,8 @@ const NewPlan = () => {
             <div className="space-y-1">
               {sourceCycle.days.map(day => (
                 <div key={day.id} className="text-sm">
-                  <span className="font-medium">{day.dayName}:</span>{' '}
-                  <span className="text-muted-foreground">{day.focus}</span>
+                  <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
+                  <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
                 </div>
               ))}
             </div>
@@ -416,8 +417,8 @@ const NewPlan = () => {
             <div className="space-y-1">
               {currentPlan.map(day => (
                 <div key={day.id} className="text-sm">
-                  <span className="font-medium">{day.dayName}:</span>{' '}
-                  <span className="text-muted-foreground">{day.focus}</span>
+                  <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
+                  <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
                 </div>
               ))}
             </div>
@@ -484,8 +485,8 @@ const NewPlan = () => {
                 <div className="space-y-1">
                   {template.days.map(day => (
                     <div key={day.id} className="text-sm">
-                      <span className="font-medium">{day.dayName}:</span>{' '}
-                      <span className="text-muted-foreground">{day.focus}</span>
+                      <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
+                      <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
                     </div>
                   ))}
                 </div>

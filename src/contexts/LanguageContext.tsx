@@ -1,13 +1,10 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import {
-  locales, detectLanguage, DEFAULT_LANGUAGE,
-  type LanguageCode, type TranslationKey,
+  locales, detectLanguage, translate,
+  type LanguageCode, type TranslationKey, type TParams,
 } from '@/i18n';
 
 const STORAGE_KEY = 'app-language';
-
-/** Wartości podstawiane za {placeholder} w tłumaczeniu. */
-type TParams = Record<string, string | number>;
 
 interface LanguageContextValue {
   lang: LanguageCode;
@@ -36,13 +33,7 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const t = useCallback(
-    (key: TranslationKey, params?: TParams) => {
-      const template = locales[lang][key] ?? locales[DEFAULT_LANGUAGE][key] ?? key;
-      if (!params) return template;
-      return template.replace(/\{(\w+)\}/g, (_, name: string) =>
-        params[name] != null ? String(params[name]) : `{${name}}`,
-      );
-    },
+    (key: TranslationKey, params?: TParams) => translate(lang, key, params),
     [lang],
   );
 

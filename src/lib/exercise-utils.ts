@@ -1,5 +1,6 @@
 import type { SetData } from '@/types';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { translate, type LanguageCode } from '@/i18n';
 
 // --- Rep Range Parsing ---
 
@@ -47,6 +48,7 @@ export const getProgressionAdvice = (
   exerciseIndex: number,
   isSuperset?: boolean,
   isBodyweight?: boolean,
+  lang: LanguageCode = 'pl',
 ): ProgressionAdvice | null => {
   if (repRange.isMax) return null;
   if (!previousWorkingSets || previousWorkingSets.length === 0) return null;
@@ -59,24 +61,24 @@ export const getProgressionAdvice = (
 
   if (isBodyweight) {
     if (allAtOrAboveMax) {
-      return { type: 'increase', label: '↑ +powt.', increment: 0 };
+      return { type: 'increase', label: translate(lang, 'progress.increaseReps'), increment: 0 };
     }
     if (anyBelowMin) {
-      return { type: 'maintain', label: 'Utrzymaj powt.', increment: 0 };
+      return { type: 'maintain', label: translate(lang, 'progress.maintainReps'), increment: 0 };
     }
-    return { type: 'repeat', label: 'Powtórz', increment: 0 };
+    return { type: 'repeat', label: translate(lang, 'progress.repeat'), increment: 0 };
   }
 
   const isolation = isIsolationExercise(exerciseIndex, isSuperset);
   const increment = isolation ? 1 : 2.5;
 
   if (allAtOrAboveMax) {
-    return { type: 'increase', label: `↑ +${increment}kg`, increment };
+    return { type: 'increase', label: translate(lang, 'progress.increaseWeight', { kg: increment }), increment };
   }
   if (anyBelowMin) {
-    return { type: 'maintain', label: 'Utrzymaj ciężar', increment: 0 };
+    return { type: 'maintain', label: translate(lang, 'progress.maintainWeight'), increment: 0 };
   }
-  return { type: 'repeat', label: 'Powtórz', increment: 0 };
+  return { type: 'repeat', label: translate(lang, 'progress.repeat'), increment: 0 };
 };
 
 // --- Smart Rest Timer ---

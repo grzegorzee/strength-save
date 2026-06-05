@@ -10,8 +10,8 @@ interface CardioPersonalBestsProps {
 }
 
 export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) => {
-  const { t } = useTranslation();
-  const prs = useMemo(() => detectCardioPRs(activities), [activities]);
+  const { t, lang } = useTranslation();
+  const prs = useMemo(() => detectCardioPRs(activities, lang), [activities, lang]);
 
   if (prs.length === 0) return null;
 

@@ -8,6 +8,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeDayName, localizeFocus, localizeWeekdayShort } from '@/lib/plan-i18n';
 import type { TranslationKey } from '@/i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -194,8 +195,8 @@ const Onboarding = () => {
             <Card key={day.id}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span>{day.dayName}</span>
-                  <Badge variant="outline" className="text-xs font-normal">{day.focus}</Badge>
+                  <span>{localizeDayName(day.dayName, lang)}</span>
+                  <Badge variant="outline" className="text-xs font-normal">{localizeFocus(day.focus, lang)}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -210,7 +211,7 @@ const Onboarding = () => {
                         className={cn('cursor-pointer', !selected && taken && 'opacity-45')}
                         onClick={() => handleSetWeekday(day.id, weekday.value)}
                       >
-                        {weekday.short}
+                        {localizeWeekdayShort(weekday.short, lang)}
                       </Badge>
                     );
                   })}
@@ -320,8 +321,8 @@ const Onboarding = () => {
               <div className="space-y-1">
                 {template.days.map(day => (
                   <div key={day.id} className="text-sm">
-                    <span className="font-medium">{day.dayName}:</span>{' '}
-                    <span className="text-muted-foreground">{day.focus}</span>
+                    <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
+                    <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
                   </div>
                 ))}
               </div>

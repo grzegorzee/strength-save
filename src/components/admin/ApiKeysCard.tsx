@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "@/contexts/LanguageContext";
+import { dateLocale } from "@/i18n";
 import {
   createApiKey,
   listApiKeys,
@@ -21,9 +23,9 @@ import {
   type ApiKeyRecord,
 } from "@/lib/admin-api";
 
-function formatDateTime(value: string | null): string {
+function formatDateTime(value: string | null, locale: string): string {
   if (!value) return "—";
-  return new Date(value).toLocaleString("pl-PL");
+  return new Date(value).toLocaleString(locale);
 }
 
 type RevealState = {
@@ -34,6 +36,7 @@ type RevealState = {
 
 export const ApiKeysCard = () => {
   const { toast } = useToast();
+  const { t, lang } = useTranslation();
   const [keys, setKeys] = useState<ApiKeyRecord[]>([]);
   const [exportUrl, setExportUrl] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -54,8 +57,8 @@ export const ApiKeysCard = () => {
     } catch (error) {
       console.error("[ApiKeysCard] loadKeys failed:", error);
       toast({
-        title: "Błąd",
-        description: "Nie udało się wczytać kluczy API.",
+        title: t('admin.error'),
+        description: t('admin.loadKeysFailed'),
         variant: "destructive",
       });
     } finally {
@@ -74,13 +77,13 @@ export const ApiKeysCard = () => {
       setCopiedValue(type);
       window.setTimeout(() => setCopiedValue((current) => (current === type ? null : current)), 1600);
       toast({
-        title: "Skopiowano",
-        description: type === "key" ? "Klucz API został skopiowany." : "Polecenie curl zostało skopiowane.",
+        title: t('admin.copied'),
+        description: type === "key" ? t('admin.keyCopied') : t('admin.curlCopied'),
       });
     } catch {
       toast({
-        title: "Błąd",
-        description: "Nie udało się skopiować do schowka.",
+        title: t('admin.error'),
+        description: t('admin.copyFailed'),
         variant: "destructive",
       });
     }
@@ -90,8 +93,8 @@ export const ApiKeysCard = () => {
     const trimmedName = newKeyName.trim();
     if (!trimmedName) {
       toast({
-        title: "Brak nazwy",
-        description: "Podaj nazwę klucza API.",
+        title: t('admin.noKeyName'),
+        description: t('admin.provideKeyName'),
         variant: "destructive",
       });
       return;
@@ -104,14 +107,14 @@ export const ApiKeysCard = () => {
       setNewKeyName("Laptop backup");
       await loadKeys();
       toast({
-        title: "Klucz utworzony",
-        description: "Sekret pokazuje się tylko raz. Skopiuj go teraz.",
+        title: t('admin.keyCreatedTitle'),
+        description: t('admin.keyCreatedDesc'),
       });
     } catch (error) {
       console.error("[ApiKeysCard] createApiKey failed:", error);
       toast({
-        title: "Błąd",
-        description: "Nie udało się utworzyć klucza API.",
+        title: t('admin.error'),
+        description: t('admin.createKeyFailed'),
         variant: "destructive",
       });
     } finally {
@@ -125,14 +128,14 @@ export const ApiKeysCard = () => {
       await revokeApiKey(keyId);
       await loadKeys();
       toast({
-        title: "Klucz unieważniony",
-        description: "Ten klucz nie będzie już działał.",
+        title: t('admin.keyRevokedTitle'),
+        description: t('admin.keyRevokedDesc'),
       });
     } catch (error) {
       console.error("[ApiKeysCard] revokeApiKey failed:", error);
       toast({
-        title: "Błąd",
-        description: "Nie udało się unieważnić klucza API.",
+        title: t('admin.error'),
+        description: t('admin.revokeKeyFailed'),
         variant: "destructive",
       });
     } finally {
@@ -147,14 +150,14 @@ export const ApiKeysCard = () => {
       setRevealState(result);
       await loadKeys();
       toast({
-        title: "Klucz obrócony",
-        description: "Stary klucz został unieważniony, a nowy pokazuje się tylko raz.",
+        title: t('admin.keyRotatedTitle'),
+        description: t('admin.keyRotatedDesc'),
       });
     } catch (error) {
       console.error("[ApiKeysCard] rotateApiKey failed:", error);
       toast({
-        title: "Błąd",
-        description: "Nie udało się obrócić klucza API.",
+        title: t('admin.error'),
+        description: t('admin.rotateKeyFailed'),
         variant: "destructive",
       });
     } finally {
@@ -174,10 +177,10 @@ export const ApiKeysCard = () => {
             <div className="space-y-1">
               <CardTitle className="flex items-center gap-2 text-base">
                 <KeyRound className="h-5 w-5" />
-                API eksportu
+                {t('admin.apiExport')}
               </CardTitle>
               <CardDescription>
-                Admin-only klucze do pobierania danych na komputer przez `curl` lub skrypt.
+                {t('admin.apiExportDesc')}
               </CardDescription>
             </div>
             <Button variant="outline" size="sm" onClick={() => void loadKeys()} disabled={isLoading || isSubmitting}>
@@ -191,12 +194,12 @@ export const ApiKeysCard = () => {
               <Input
                 value={newKeyName}
                 onChange={(event) => setNewKeyName(event.target.value)}
-                placeholder="Nazwa klucza, np. Laptop backup"
+                placeholder={t('admin.keyNamePlaceholder')}
                 maxLength={80}
               />
               <Button onClick={handleCreate} disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
-                Generuj klucz
+                {t('admin.generateKey')}
               </Button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -206,11 +209,11 @@ export const ApiKeysCard = () => {
                 onClick={() => window.open(docsUrl, "_blank", "noopener,noreferrer")}
               >
                 <ExternalLink className="h-4 w-4 mr-1.5" />
-                Instrukcja API (.md)
+                {t('admin.apiDocs')}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Aktualnie aktywne: {activeKeys.length}. Każdy klucz ma pełny scope eksportu tylko dla Twoich danych.
+              {t('admin.activeKeysCount', { count: activeKeys.length })}
             </p>
           </div>
 
@@ -222,7 +225,7 @@ export const ApiKeysCard = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium text-sm">{key.name}</p>
                       <Badge variant={key.status === "active" ? "default" : "secondary"}>
-                        {key.status === "active" ? "active" : "revoked"}
+                        {key.status}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground break-all">{key.prefix}</p>
@@ -250,24 +253,24 @@ export const ApiKeysCard = () => {
                 </div>
 
                 <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                  <p>Utworzono: {formatDateTime(key.createdAt)}</p>
-                  <p>Ostatnie użycie: {formatDateTime(key.lastUsedAt)}</p>
-                  <p>Unieważniono: {formatDateTime(key.revokedAt)}</p>
-                  <p>Scopes: {key.scopes.join(", ")}</p>
+                  <p>{t('admin.keyCreated', { date: formatDateTime(key.createdAt, dateLocale(lang)) })}</p>
+                  <p>{t('admin.keyLastUsed', { date: formatDateTime(key.lastUsedAt, dateLocale(lang)) })}</p>
+                  <p>{t('admin.keyRevoked', { date: formatDateTime(key.revokedAt, dateLocale(lang)) })}</p>
+                  <p>{t('admin.keyScopes', { scopes: key.scopes.join(", ") })}</p>
                 </div>
               </div>
             ))}
 
             {keys.length === 0 && !isLoading && (
               <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground text-center">
-                Nie masz jeszcze żadnego klucza API.
+                {t('admin.noApiKeys')}
               </div>
             )}
           </div>
 
           {exportUrl && (
             <div className="rounded-lg bg-muted/20 p-3 text-xs text-muted-foreground break-all">
-              URL eksportu: {exportUrl}
+              {t('admin.exportUrl', { url: exportUrl })}
             </div>
           )}
         </CardContent>
@@ -276,15 +279,15 @@ export const ApiKeysCard = () => {
       <Dialog open={!!revealState} onOpenChange={(open) => !open && setRevealState(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Nowy klucz API</DialogTitle>
+            <DialogTitle>{t('admin.newApiKey')}</DialogTitle>
             <DialogDescription>
-              Skopiuj go teraz. Po zamknięciu okna pełny sekret nie będzie już dostępny.
+              {t('admin.newApiKeyDesc')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="rounded-lg border p-3 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Klucz</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('admin.key')}</p>
               <code className="block text-xs break-all whitespace-pre-wrap">{revealState?.rawKey}</code>
               <Button
                 variant="outline"
@@ -292,12 +295,12 @@ export const ApiKeysCard = () => {
                 onClick={() => revealState && void handleCopy(revealState.rawKey, "key")}
               >
                 {copiedValue === "key" ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                Kopiuj klucz
+                {t('admin.copyKey')}
               </Button>
             </div>
 
             <div className="rounded-lg border p-3 space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Przykład użycia</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('admin.usageExample')}</p>
               <code className="block text-xs break-all whitespace-pre-wrap">{exampleCurl}</code>
               <Button
                 variant="outline"
@@ -305,13 +308,13 @@ export const ApiKeysCard = () => {
                 onClick={() => exampleCurl && void handleCopy(exampleCurl, "curl")}
               >
                 {copiedValue === "curl" ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                Kopiuj curl
+                {t('admin.copyCurl')}
               </Button>
             </div>
           </div>
 
           <DialogFooter>
-            <Button onClick={() => setRevealState(null)}>Zamknij</Button>
+            <Button onClick={() => setRevealState(null)}>{t('admin.close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

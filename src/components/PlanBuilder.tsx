@@ -15,6 +15,8 @@ import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { ChevronLeft, Plus, Trash2, Search, Check, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeCategory } from '@/data/exercise-i18n';
+import { localizeWeekdayShort } from '@/lib/plan-i18n';
 
 const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
   { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
@@ -43,7 +45,7 @@ interface PlanBuilderProps {
 // Ręczny kreator planu treningowego od zera (bez AI). Użytkownik definiuje dni
 // (dzień tygodnia + focus), dodaje ćwiczenia z biblioteki i ustawia serie.
 export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, onCancel }: PlanBuilderProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [days, setDays] = useState<TrainingDay[]>(() =>
     initialDays && initialDays.length > 0
       ? initialDays.map(d => ({ ...d, id: nextId('scratch-d') }))
@@ -167,7 +169,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
                       className={cn('cursor-pointer', !selected && taken.has(w.value) && 'opacity-40')}
                       onClick={() => setWeekday(day.id, w.value)}
                     >
-                      {w.short}
+                      {localizeWeekdayShort(w.short, lang)}
                     </Badge>
                   );
                 })}
@@ -287,9 +289,9 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
             <Badge variant={category === 'all' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setCategory('all')}>
               {t('exercises.all')}
             </Badge>
-            {(Object.entries(categoryLabels) as [LibraryExercise['category'], string][]).map(([key, label]) => (
+            {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
               <Badge key={key} variant={category === key ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setCategory(key)}>
-                {label}
+                {localizeCategory(key, lang)}
               </Badge>
             ))}
           </div>
@@ -303,7 +305,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
               >
                 <p className="font-medium text-sm">{ex.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {categoryLabels[ex.category]} · {ex.type === 'compound' ? t('planbuilder.compound') : t('planbuilder.isolation')}
+                  {localizeCategory(ex.category, lang)} · {ex.type === 'compound' ? t('planbuilder.compound') : t('planbuilder.isolation')}
                 </p>
               </button>
             ))}

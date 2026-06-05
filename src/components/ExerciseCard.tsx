@@ -242,8 +242,8 @@ const ExerciseCardInner = ({
     if (!previousSets) return null;
     const repRange = parseRepRange(exercise.sets);
     const prevWorking = previousSets.filter(s => !s.isWarmup);
-    return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight);
-  }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight]);
+    return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight, lang);
+  }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight, lang]);
 
   const getPreviousHint = (setIndex: number): string | null => {
     if (!previousSets || previousSets.length === 0) return null;

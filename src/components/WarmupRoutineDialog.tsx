@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Check, Timer, Flame } from 'lucide-react';
-import { warmupExercises, getStretchingForFocus } from '@/data/warmupStretching';
+import { warmupExercises, getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 
@@ -21,7 +21,7 @@ interface Props {
 }
 
 export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const stretches = getStretchingForFocus(focus);
   const allItems = [
     ...warmupExercises.map(e => ({ ...e, section: 'warmup' as const })),
@@ -107,8 +107,8 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
               )}>
                 {checked.has(idx) && <Check className="h-4 w-4 text-white" />}
               </div>
-              <span className={cn('flex-1 text-sm', checked.has(idx) && 'line-through text-muted-foreground')}>{ex.name}</span>
-              <Badge variant="outline" className="text-[10px] shrink-0">{ex.duration}</Badge>
+              <span className={cn('flex-1 text-sm', checked.has(idx) && 'line-through text-muted-foreground')}>{localizeWarmup(ex, lang).name}</span>
+              <Badge variant="outline" className="text-[10px] shrink-0">{localizeWarmup(ex, lang).duration}</Badge>
             </button>
           ))}
         </div>
@@ -133,8 +133,8 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
                 )}>
                   {checked.has(idx) && <Check className="h-4 w-4 text-white" />}
                 </div>
-                <span className={cn('flex-1 text-sm', checked.has(idx) && 'line-through text-muted-foreground')}>{ex.name}</span>
-                <Badge variant="outline" className="text-[10px] shrink-0">{ex.duration}</Badge>
+                <span className={cn('flex-1 text-sm', checked.has(idx) && 'line-through text-muted-foreground')}>{localizeWarmup(ex, lang).name}</span>
+                <Badge variant="outline" className="text-[10px] shrink-0">{localizeWarmup(ex, lang).duration}</Badge>
               </button>
             );
           })}

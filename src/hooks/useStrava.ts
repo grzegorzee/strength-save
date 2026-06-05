@@ -10,6 +10,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
 import type { StravaActivity, StravaConnection } from '@/types/strava';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 const STRAVA_ACTIVITIES_COLLECTION = 'strava_activities';
 
@@ -18,6 +19,7 @@ const EMPTY_CONNECTION: StravaConnection = { connected: false };
 const noop = async () => ({ ok: false as const, message: 'Strava disabled' });
 
 export const useStrava = (userId: string, enabled: boolean = true) => {
+  const { t } = useTranslation();
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [connection, setConnection] = useState<StravaConnection>({ connected: false });
@@ -51,12 +53,14 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
       (err) => {
         console.error('[Strava] Activities query failed:', err.code, err.message);
         if (err.code === 'failed-precondition') {
-          setError('Brak indeksu Firestore — sprawdź konsolę Firebase.');
+          setError(t('strava.err.noIndex'));
         }
       }
     );
 
     return () => unsubscribe();
+    // t pominięte celowo: użyte tylko w komunikacie błędu; dodanie re-subskrybowałoby listener przy zmianie języka
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, enabled]);
 
   // Subscribe to user's Strava connection status
@@ -96,11 +100,11 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
       console.log('[Strava] Redirecting to Strava OAuth');
       window.location.href = data.url;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Nie udało się połączyć ze Stravą';
+      const message = err instanceof Error ? err.message : t('strava.err.connect');
       console.error('[Strava] Connect failed:', message);
       setError(message);
     }
-  }, []);
+  }, [t]);
 
   const syncActivities = useCallback(async (fullSync = false): Promise<
     | { ok: true; synced: number; totalFetched: number; alreadyExisted: number; lookbackDays: number }
@@ -122,14 +126,14 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
       console.log(`[Strava] Sync OK: ${data.synced} new, ${data.alreadyExisted} existed, ${data.totalFetched} total (lookback: ${data.lookbackDays}d)`);
       return { ok: true, ...data };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Błąd synchronizacji';
+      const message = err instanceof Error ? err.message : t('strava.err.sync');
       console.error('[Strava] Sync failed:', message);
       setError(message);
       return { ok: false, message };
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [t]);
 
   const disconnectStrava = useCallback(async () => {
     setError(null);
@@ -143,11 +147,11 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
       setConnection({ connected: false });
       setActivities([]);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Błąd rozłączenia';
+      const message = err instanceof Error ? err.message : t('strava.err.disconnect');
       console.error('[Strava] Disconnect failed:', message);
       setError(message);
     }
-  }, []);
+  }, [t]);
 
   if (!enabled) {
     return {

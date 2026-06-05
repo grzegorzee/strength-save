@@ -1,20 +1,22 @@
 import type { StravaActivity } from '@/types/strava';
 import { isPaceActivity, formatDurationShort } from '@/lib/strava-utils';
+import { translate, type LanguageCode } from '@/i18n';
 
 export interface RacePrediction {
   distance: number;
-  distanceLabel: string;
+  distanceLabel: string;     // klucz lookup (stały, np. 'Półmaraton') — NIE tłumaczony
+  displayLabel: string;      // etykieta do wyświetlenia (tłumaczona)
   predictedTime: number; // seconds
   predictedTimeFormatted: string;
   basedOn: string; // activity name
 }
 
 const RACE_DISTANCES = [
-  { distance: 5000, label: '5K' },
-  { distance: 10000, label: '10K' },
-  { distance: 21097, label: 'Półmaraton' },
-  { distance: 42195, label: 'Maraton' },
-];
+  { distance: 5000, label: '5K', i18nKey: 'racepredictor.5k' },
+  { distance: 10000, label: '10K', i18nKey: 'racepredictor.10k' },
+  { distance: 21097, label: 'Półmaraton', i18nKey: 'racepredictor.halfMarathon' },
+  { distance: 42195, label: 'Maraton', i18nKey: 'racepredictor.marathon' },
+] as const;
 
 /**
  * Riegel formula: T2 = T1 × (D2/D1)^1.06
@@ -55,6 +57,7 @@ export const findBestEffort = (
  */
 export const getRacePredictions = (
   activities: StravaActivity[],
+  lang: LanguageCode = 'pl',
 ): RacePrediction[] => {
   // Try to find best effort: prefer 10K > 5K > any run > 3km
   const searchOrder = [
@@ -71,11 +74,12 @@ export const getRacePredictions = (
 
   if (!bestEffort || !bestEffort.distance || !bestEffort.movingTime) return [];
 
-  return RACE_DISTANCES.map(({ distance, label }) => {
+  return RACE_DISTANCES.map(({ distance, label, i18nKey }) => {
     const predicted = predictRaceTime(bestEffort!.distance!, bestEffort!.movingTime!, distance);
     return {
       distance,
       distanceLabel: label,
+      displayLabel: translate(lang, i18nKey),
       predictedTime: Math.round(predicted),
       predictedTimeFormatted: formatDurationShort(Math.round(predicted)),
       basedOn: bestEffort!.name,

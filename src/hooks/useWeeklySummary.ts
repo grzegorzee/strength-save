@@ -18,8 +18,10 @@ import {
 } from '@/lib/weekly-summary';
 import { getWeekBounds } from '@/lib/summary-utils';
 import { formatLocalDate } from '@/lib/utils';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 export const useWeeklySummary = (userId: string, stravaEnabled: boolean = false) => {
+  const { t } = useTranslation();
   const [summaries, setSummaries] = useState<WeeklySummary[]>([]);
   const [summariesLoaded, setSummariesLoaded] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -74,7 +76,7 @@ export const useWeeklySummary = (userId: string, stravaEnabled: boolean = false)
       );
 
       if (!hasData) {
-        setError('Brak danych treningowych w tym tygodniu.');
+        setError(t('weekly.noData'));
         setIsGenerating(false);
         return;
       }
@@ -95,11 +97,11 @@ export const useWeeklySummary = (userId: string, stravaEnabled: boolean = false)
       await setDoc(doc(db, 'weekly_summaries', summaryId), summary);
     } catch (err) {
       console.error('Failed to generate weekly summary:', err);
-      setError(err instanceof Error ? err.message : 'Nie udało się wygenerować podsumowania.');
+      setError(err instanceof Error ? err.message : t('weekly.genError'));
     } finally {
       setIsGenerating(false);
     }
-  }, [userId, isGenerating, workouts, stravaActivities, trainingPlan]);
+  }, [userId, isGenerating, workouts, stravaActivities, trainingPlan, t]);
 
   // Auto-generate for last week if missing
   useEffect(() => {

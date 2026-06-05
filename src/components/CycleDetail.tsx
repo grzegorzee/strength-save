@@ -7,6 +7,8 @@ import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { dateLocale } from '@/i18n';
 
 interface Props {
   cycle: PlanCycle;
@@ -25,7 +27,7 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
     return formatLocalDate(date);
   };
   const formatDate = (d: string) =>
-    d ? parseLocalDate(d).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }) : t('cycles.now');
+    d ? parseLocalDate(d).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' }) : t('cycles.now');
   const displayedEndDate = cycle.endDate || plannedEndDate(cycle.startDate, cycle.durationWeeks);
 
   return (
@@ -125,8 +127,8 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
           {cycle.days.map(day => (
             <div key={day.id}>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium">{day.dayName}</span>
-                <Badge variant="outline" className="text-xs">{day.focus}</Badge>
+                <span className="text-sm font-medium">{localizeDayName(day.dayName, lang)}</span>
+                <Badge variant="outline" className="text-xs">{localizeFocus(day.focus, lang)}</Badge>
               </div>
               <div className="space-y-0.5 pl-3 border-l-2 border-muted">
                 {day.exercises.map(ex => (

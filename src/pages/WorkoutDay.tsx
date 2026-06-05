@@ -6,6 +6,7 @@ import { calculateStreak } from '@/lib/summary-utils';
 import { StatCard } from '@/components/kinetic/StatCard';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +21,8 @@ import { getNextSetAdvice } from '@/lib/next-set-advice';
 import { getExerciseHistory } from '@/lib/exercise-progression';
 import { callOpenAI } from '@/lib/ai-coach';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
-import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
+import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
+import { localizeCategory } from '@/data/exercise-i18n';
 import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -882,8 +884,8 @@ const WorkoutDay = () => {
         toast({
           title: result.provisional ? t('workout.toast.startedOfflineTitle') : t('workout.toast.startedTitle'),
           description: result.provisional
-            ? t('workout.toast.startedOfflineDesc', { day: day.dayName, focus: day.focus })
-            : `${day.dayName} - ${day.focus}`,
+            ? t('workout.toast.startedOfflineDesc', { day: localizeDayName(day.dayName, lang), focus: localizeFocus(day.focus, lang) })
+            : `${localizeDayName(day.dayName, lang)} - ${localizeFocus(day.focus, lang)}`,
         });
       }
     } catch (err) {
@@ -969,11 +971,15 @@ const WorkoutDay = () => {
       const histStr = history.length
         ? history.map(h => isBw ? `${h.date}: ${h.bestReps} powt.` : `${h.date}: ${h.maxWeight}kg×${h.bestReps}`).join('; ')
         : 'brak wcześniejszych sesji';
-      const advice = getNextSetAdvice(workouts, exercise.id, exercise.sets, 0, { isBodyweight: isBw, isSuperset: exercise.isSuperset });
+      const advice = getNextSetAdvice(workouts, exercise.id, exercise.sets, 0, { isBodyweight: isBw, isSuperset: exercise.isSuperset }, lang);
       const notes = exerciseNotes[exercise.id]?.trim() || dayNotes.trim() || 'brak';
 
+      const coachSystemPrompt = lang === 'en'
+        ? 'You are an experienced strength coach. Respond in English, max 2 short sentences, concrete and practical, no intros and no lists.'
+        : 'Jesteś doświadczonym trenerem siłowym. Odpowiadasz po polsku, maksymalnie 2 krótkie zdania, konkretnie i praktycznie, bez wstępów i bez listy.';
+
       const reply = await callOpenAI([
-        { role: 'system', content: 'Jesteś doświadczonym trenerem siłowym. Odpowiadasz po polsku, maksymalnie 2 krótkie zdania, konkretnie i praktycznie, bez wstępów i bez listy.' },
+        { role: 'system', content: coachSystemPrompt },
         { role: 'user', content: `Ćwiczenie: ${exercise.name} (schemat ${exercise.sets}). Ostatnie sesje: ${histStr}. Sugestia systemu: ${advice?.reason ?? 'brak'}. Notatki zawodnika: ${notes}. Doradź na dzisiejszą serię.` },
       ]);
 
@@ -1223,8 +1229,8 @@ const WorkoutDay = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold">{day.dayName}</h1>
-            <p className="text-muted-foreground">{day.focus}</p>
+            <h1 className="text-2xl font-bold">{localizeDayName(day.dayName, lang)}</h1>
+            <p className="text-muted-foreground">{localizeFocus(day.focus, lang)}</p>
           </div>
           {!isFinalSyncPending && (
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
@@ -1383,7 +1389,7 @@ const WorkoutDay = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{day.dayName}</h1>
+            <h1 className="text-2xl font-bold">{localizeDayName(day.dayName, lang)}</h1>
             <p className="text-muted-foreground">{t('workout.editMode')}</p>
           </div>
         </div>
@@ -1441,8 +1447,8 @@ const WorkoutDay = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="min-w-0 text-center">
-          <h1 className="truncate text-base font-heading font-bold uppercase tracking-[0.1em]">{day.dayName}</h1>
-          <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{day.focus}</p>
+          <h1 className="truncate text-base font-heading font-bold uppercase tracking-[0.1em]">{localizeDayName(day.dayName, lang)}</h1>
+          <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{localizeFocus(day.focus, lang)}</p>
         </div>
         {isWorkoutStarted && !isCompleted && (
           <Button variant="ghost" size="icon" onClick={() => setShowWarmup(true)} className="rounded-2xl bg-muted/60" aria-label={t('comp.warmup.title')}>
@@ -1503,7 +1509,7 @@ const WorkoutDay = () => {
               nextAdvice={getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
                 isBodyweight: isBodyweightExercise(exercise.name),
                 isSuperset: exercise.isSuperset,
-              })}
+              }, lang)}
               onAskCoach={isWorkoutStarted && !isCompleted ? () => handleAskCoach(exercise) : undefined}
               coachBusy={coachBusyId === exercise.id}
               historicalBest={getExerciseBest1RM(workouts, exercise.id)}
@@ -1567,7 +1573,7 @@ const WorkoutDay = () => {
                               className="w-full text-left flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-colors"
                             >
                               <span className="text-sm font-medium">{libEx.name}</span>
-                              <Badge variant="outline" className="text-[10px] shrink-0">{categoryLabels[libEx.category]}</Badge>
+                              <Badge variant="outline" className="text-[10px] shrink-0">{localizeCategory(libEx.category, lang)}</Badge>
                             </button>
                           ))}
                       </div>
