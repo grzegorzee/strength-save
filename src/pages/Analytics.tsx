@@ -52,7 +52,7 @@ import {
 } from 'lucide-react';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 
-type AnalyticsTab = 'summary' | 'charts' | 'measurements' | 'strava' | 'weekly';
+type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
 
 // ========================
 // Shared utilities
@@ -690,82 +690,6 @@ const ChartsTab = () => {
   );
 };
 
-// ========================
-// TAB: Pomiary
-// ========================
-
-const MeasurementsTab = () => {
-  const { uid } = useCurrentUser();
-  const { measurements, addMeasurement, getLatestMeasurement, exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts(uid);
-  const { toast } = useToast();
-
-  const latestMeasurement = getLatestMeasurement();
-
-  const handleSave = async (measurement: Parameters<typeof addMeasurement>[0]) => {
-    const result = await addMeasurement(measurement);
-    if (result.error || !result.measurement) {
-      toast({ title: "Błąd zapisu!", description: result.error || "Nie udało się zapisać pomiarów.", variant: "destructive" });
-      return;
-    }
-    toast({ title: "Pomiary zapisane!", description: `Dane z dnia ${measurement.date} zostały zapisane.` });
-  };
-
-  const getWeightTrend = () => {
-    if (measurements.length < 2) return null;
-    const sorted = [...measurements].filter(m => m.weight).sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
-    if (sorted.length < 2) return null;
-    const diff = (sorted[0].weight || 0) - (sorted[1].weight || 0);
-    if (diff > 0) return { direction: 'up' as const, value: diff };
-    if (diff < 0) return { direction: 'down' as const, value: Math.abs(diff) };
-    return { direction: 'same' as const, value: 0 };
-  };
-
-  const weightTrend = getWeightTrend();
-  const recentMeasurements = [...measurements]
-    .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
-    .slice(0, 5);
-
-  return (
-    <div className="space-y-6">
-      <MeasurementsForm latestMeasurement={latestMeasurement} onSave={handleSave} />
-      <DataManagement onExport={exportData} onImport={importData} onCleanup={cleanupEmptyWorkouts} />
-
-      {measurements.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Historia pomiarów
-              {weightTrend && (
-                <Badge variant="outline" className="font-normal">
-                  {weightTrend.direction === 'up' && <TrendingUp className="h-4 w-4 text-destructive mr-1" />}
-                  {weightTrend.direction === 'down' && <TrendingDown className="h-4 w-4 text-fitness-success mr-1" />}
-                  {weightTrend.direction === 'same' && <Minus className="h-4 w-4 mr-1" />}
-                  {weightTrend.value > 0 && `${weightTrend.value.toFixed(1)} kg`}
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentMeasurements.map((m) => (
-                  <div key={m.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm font-medium">
-                      {parseLocalDate(m.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </span>
-                    <div className="flex items-center gap-4 text-sm">
-                      {m.weight && <span>Waga: <strong>{m.weight} kg</strong></span>}
-                      {m.chest && <span className="hidden sm:inline">Klatka: <strong>{m.chest} cm</strong></span>}
-                      {m.waist && <span className="hidden sm:inline">Talia: <strong>{m.waist} cm</strong></span>}
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-};
 
 // ========================
 // TAB: Podsumowania tygodniowe
@@ -878,8 +802,8 @@ const Analytics = () => {
   const { canUseStrava } = useCurrentUser();
   const tabParam = searchParams.get('tab') as AnalyticsTab | null;
   const validTabs: AnalyticsTab[] = canUseStrava
-    ? ['summary', 'charts', 'measurements', 'strava', 'weekly']
-    : ['summary', 'charts', 'measurements', 'weekly'];
+    ? ['summary', 'charts', 'strava', 'weekly']
+    : ['summary', 'charts', 'weekly'];
   const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'summary';
 
   return (
@@ -893,14 +817,12 @@ const Analytics = () => {
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">Podsum.</TabsTrigger>
           <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">Wykresy</TabsTrigger>
-          <TabsTrigger value="measurements" className="flex-1 text-xs min-w-0">Pomiary</TabsTrigger>
           {canUseStrava && <TabsTrigger value="strava" className="flex-1 text-xs min-w-0">Strava</TabsTrigger>}
           <TabsTrigger value="weekly" className="flex-1 text-xs min-w-0">Tygodnie</TabsTrigger>
         </TabsList>
 
         <TabsContent value="summary"><SummaryTab /></TabsContent>
         <TabsContent value="charts"><ChartsTab /></TabsContent>
-        <TabsContent value="measurements"><MeasurementsTab /></TabsContent>
         {canUseStrava && <TabsContent value="strava"><StravaTab /></TabsContent>}
         <TabsContent value="weekly"><WeeklyTab /></TabsContent>
       </Tabs>

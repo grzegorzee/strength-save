@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, Trophy, BarChart3, X, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User } from 'lucide-react';
+import { Home, Calendar, Trophy, BarChart3, X, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
@@ -29,6 +29,7 @@ const navItems = [
   { to: '/profile', icon: User, labelKey: 'nav.profile' as const },
   // Pozostałe — sidebar (desktop) + menu mobilne
   { to: '/analytics', icon: BarChart3, labelKey: 'nav.analytics' as const },
+  { to: '/measurements', icon: Ruler, labelKey: 'nav.measurements' as const },
   { to: '/achievements', icon: Trophy, labelKey: 'nav.achievements' as const },
   { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
 ];

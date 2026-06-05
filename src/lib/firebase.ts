@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { Capacitor } from "@capacitor/core";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import {
   initializeAuth,
   indexedDBLocalPersistence,
@@ -21,6 +22,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 // initializeAuth z jawną konfiguracją zamiast getAuth.
 // Native (Capacitor/WKWebView, capacitor://localhost):
 //   - getAuth auto-detekcja wiesza inicjalizację → onAuthStateChanged nigdy nie strzela.

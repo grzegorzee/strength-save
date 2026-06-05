@@ -13,6 +13,7 @@ const pageTitles: Record<string, string> = {
   '/plan/edit': 'Edycja planu',
   '/settings': 'Ustawienia',
   '/profile': 'Profil',
+  '/measurements': 'Pomiary ciała',
   '/admin': 'Panel admina',
   '/cycles': 'Cykle treningowe',
   '/exercises': 'Ćwiczenia',

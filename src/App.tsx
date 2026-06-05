@@ -42,6 +42,7 @@ const NotFound = lazyWithRetry(() => import("./pages/NotFound"), "lazy-retry:not
 const Login = lazyWithRetry(() => import("./pages/Login"), "lazy-retry:login");
 const Profile = lazyWithRetry(() => import("./pages/Profile"), "lazy-retry:profile");
 const ExerciseDetail = lazyWithRetry(() => import("./pages/ExerciseDetail"), "lazy-retry:exercise-detail");
+const Measurements = lazyWithRetry(() => import("./pages/Measurements"), "lazy-retry:measurements");
 
 const AuthRedirect = () => {
   const location = useLocation();
@@ -157,6 +158,7 @@ const AppRoutes = () => {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/exercise/:slug" element={<ExerciseDetail />} />
+                <Route path="/measurements" element={<Measurements />} />
                 <Route path="/new-plan" element={<NewPlan />} />
                 <Route path="/cycles" element={<Cycles />} />
                 <Route path="/history" element={<WorkoutHistory />} />

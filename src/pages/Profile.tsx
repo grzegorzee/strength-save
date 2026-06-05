@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -56,6 +57,26 @@ const Profile = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
   const [savingName, setSavingName] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const r = storageRef(storage, `avatars/${uid}/${Date.now()}-${file.name}`);
+      await uploadBytes(r, file);
+      const url = await getDownloadURL(r);
+      await updateDoc(doc(db, 'users', uid), { photoURL: url });
+      toast({ title: 'Zdjęcie zaktualizowane' });
+    } catch {
+      toast({ title: 'Błąd', description: 'Nie udało się wgrać zdjęcia. Sprawdź reguły Firebase Storage.', variant: 'destructive' });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const persist = (key: string, value: string) => {
     try { localStorage.setItem(key, value); } catch { /* ignore */ }
@@ -104,12 +125,14 @@ const Profile = () => {
           </Avatar>
           <button
             type="button"
-            onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }}
-            className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground"
-            aria-label="Edytuj profil"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingAvatar}
+            className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
+            aria-label="Zmień zdjęcie profilowe"
           >
-            <Pencil className="h-4 w-4" />
+            {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pencil className="h-4 w-4" />}
           </button>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
         </div>
         <h1 className="font-heading text-3xl font-bold uppercase tracking-tight">{profile?.displayName || 'Profil'}</h1>
         <TierBadge label={tier.label} />
