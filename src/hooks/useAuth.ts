@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   User,
   signInWithPopup,
+  signInWithCredential,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   setPersistence,
@@ -10,6 +12,8 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { auth, googleProvider } from '@/lib/firebase';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 
@@ -48,8 +52,19 @@ export const useAuth = () => {
   const signInWithGoogle = async () => {
     try {
       setError(null);
-      await setPersistence(auth, browserLocalPersistence);
-      await signInWithPopup(auth, googleProvider);
+      if (Capacitor.isNativePlatform()) {
+        // Native (iOS/Android): popup nie działa w WebView. Natywny plugin tworzy
+        // credential Google, a logujemy się przez JS SDK (spójny stan z Firestore).
+        const result = await FirebaseAuthentication.signInWithGoogle();
+        const credential = GoogleAuthProvider.credential(
+          result.credential?.idToken,
+          result.credential?.accessToken,
+        );
+        await signInWithCredential(auth, credential);
+      } else {
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithPopup(auth, googleProvider);
+      }
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Błąd logowania';

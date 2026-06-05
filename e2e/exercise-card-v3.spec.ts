@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { blockFirebase, navigateAndWait, expectPageRendered } from './helpers';
 
-test.describe('ExerciseCard v3 — Glassmorphism Pro', () => {
+test.describe('ExerciseCard — Kinetic Precision', () => {
   test.beforeEach(async ({ page }) => {
     await blockFirebase(page);
   });
@@ -14,10 +14,9 @@ test.describe('ExerciseCard v3 — Glassmorphism Pro', () => {
     const cards = page.locator('.exercise-card');
     await expect(cards.first()).toBeVisible();
 
-    // Each card has a number badge (gradient div, not a Badge component)
-    const firstBadge = cards.first().locator('.bg-gradient-to-br').first();
-    await expect(firstBadge).toBeVisible();
-    await expect(firstBadge).toContainText(/\d/);
+    // Each card has a tonal header with a media thumbnail or fallback.
+    await expect(cards.first().locator('.exercise-card-header')).toBeVisible();
+    await expect(cards.first().locator('.exercise-card-header button').first()).toBeVisible();
   });
 
   test('exercise name and sets label are always visible (no expand/collapse)', async ({ page }) => {
@@ -32,9 +31,8 @@ test.describe('ExerciseCard v3 — Glassmorphism Pro', () => {
     const nameText = await exerciseName.textContent();
     expect(nameText?.length).toBeGreaterThan(0);
 
-    // Sets label (monospace) visible
-    const setsLabel = firstCard.locator('.font-mono');
-    await expect(setsLabel).toBeVisible();
+    // Human-readable set count visible
+    await expect(firstCard.getByText(/\d+ (seria|serie|serii)/)).toBeVisible();
   });
 
   test('no expand/collapse chevron buttons exist', async ({ page }) => {
@@ -88,16 +86,13 @@ test.describe('ExerciseCard v3 — Glassmorphism Pro', () => {
     await expect(warmupLabel).toBeVisible();
   });
 
-  test('exercise-card-divider elements separate sections', async ({ page }) => {
+  test('tonal header separates the card without a visible divider', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
 
     const firstCard = page.locator('.exercise-card').first();
-    const dividers = firstCard.locator('.exercise-card-divider');
-
-    // At least 2 dividers: after header + in footer (+ warmup divider if present)
-    const count = await dividers.count();
-    expect(count).toBeGreaterThanOrEqual(2);
+    await expect(firstCard.locator('.exercise-card-header')).toBeVisible();
+    await expect(firstCard.locator('.exercise-card-divider').first()).toBeAttached();
   });
 
   test('read-only mode hides interactive controls (delete, add set, notes)', async ({ page }) => {
@@ -215,7 +210,7 @@ test.describe('ExerciseCard v3 — Glassmorphism Pro', () => {
     await expect(cards.first()).toBeVisible();
   });
 
-  test('completed state shows green badge and reduced opacity', async ({ page }) => {
+  test('initial state is not visually marked as completed', async ({ page }) => {
     // This test verifies the CSS class is applied correctly
     // In E2E mode, sets start empty so nothing is completed
     await navigateAndWait(page, '/workout/day-1');
@@ -226,19 +221,12 @@ test.describe('ExerciseCard v3 — Glassmorphism Pro', () => {
     // Card should NOT have opacity-50 initially (no completed sets)
     await expect(firstCard).not.toHaveClass(/opacity-50/);
 
-    // Badge should be indigo (not green) initially
-    const badge = firstCard.locator('.bg-gradient-to-br').first();
-    await expect(badge).toHaveClass(/from-indigo/);
   });
 
-  test('superset cards have left border accent', async ({ page }) => {
+  test('superset cards keep the workout list functional', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
 
-    // Check for superset indicators (border-l-primary)
-    // May or may not exist depending on training plan
-    const supersetCards = page.locator('.exercise-card.border-l-\\[3px\\]');
-    // Just ensure no crash
     const allCards = page.locator('.exercise-card');
     expect(await allCards.count()).toBeGreaterThanOrEqual(1);
   });

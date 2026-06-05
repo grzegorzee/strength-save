@@ -16,9 +16,13 @@ interface LoginProps {
 }
 
 const Login = ({ mode = 'login' }: LoginProps) => {
+  // Google działa na obu platformach: web przez popup, native przez plugin.
+  const supportsGoogle = true;
   const { signInWithGoogle, registerWithEmail, loginWithEmail, resetPassword, error, loading } = useAuth();
   const { toast } = useToast();
-  const [authTab, setAuthTab] = useState<'google' | 'email'>(mode === 'register' ? 'email' : 'google');
+  const [authTab, setAuthTab] = useState<'google' | 'email'>(
+    mode === 'register' || !supportsGoogle ? 'email' : 'google'
+  );
   const [emailMode, setEmailMode] = useState<'login' | 'register'>(mode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,9 +36,9 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   useEffect(() => {
-    setAuthTab(mode === 'register' ? 'email' : 'google');
+    setAuthTab(mode === 'register' || !supportsGoogle ? 'email' : 'google');
     setEmailMode(mode);
-  }, [mode]);
+  }, [mode, supportsGoogle]);
 
   useEffect(() => {
     const directSearch = new URLSearchParams(window.location.search);
@@ -151,9 +155,13 @@ const Login = ({ mode = 'login' }: LoginProps) => {
           </div>
           <CardTitle className="text-2xl">FitTracker</CardTitle>
           <CardDescription>
-            {isRegisterMode
-              ? 'Załóż konto przez Google albo email i hasło'
-              : 'Zaloguj się przez Google albo email i hasło'}
+            {supportsGoogle
+              ? isRegisterMode
+                ? 'Załóż konto przez Google albo email i hasło'
+                : 'Zaloguj się przez Google albo email i hasło'
+              : isRegisterMode
+                ? 'Załóż konto przez email i hasło'
+                : 'Zaloguj się przez email i hasło'}
           </CardDescription>
           {inviteCode && (
             <p className="text-xs text-primary">
@@ -170,20 +178,22 @@ const Login = ({ mode = 'login' }: LoginProps) => {
           )}
 
           <Tabs value={authTab} onValueChange={(value) => setAuthTab(value as 'google' | 'email')}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="google">Google</TabsTrigger>
+            <TabsList className={`grid w-full ${supportsGoogle ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {supportsGoogle && <TabsTrigger value="google">Google</TabsTrigger>}
               <TabsTrigger value="email">Email + hasło</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="google" className="pt-4">
-              <Button onClick={handleGoogleLogin} className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : isRegisterMode ? <UserPlus className="h-5 w-5 mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
-                {isRegisterMode ? 'Załóż konto przez Google' : 'Zaloguj przez Google'}
-              </Button>
-              <p className="mt-3 text-xs text-center text-muted-foreground">
-                Google daje od razu aktywne konto i uruchamia onboarding przy pierwszym wejściu.
-              </p>
-            </TabsContent>
+            {supportsGoogle && (
+              <TabsContent value="google" className="pt-4">
+                <Button onClick={handleGoogleLogin} className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : isRegisterMode ? <UserPlus className="h-5 w-5 mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
+                  {isRegisterMode ? 'Załóż konto przez Google' : 'Zaloguj przez Google'}
+                </Button>
+                <p className="mt-3 text-xs text-center text-muted-foreground">
+                  Google daje od razu aktywne konto i uruchamia onboarding przy pierwszym wejściu.
+                </p>
+              </TabsContent>
+            )}
 
             <TabsContent value="email" className="pt-4 space-y-4">
               <div className="space-y-3">

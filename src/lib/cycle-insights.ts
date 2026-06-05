@@ -140,7 +140,9 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
     };
   }
 
-  if (cycle.status === 'active' && cycle.stats.prs.length >= 3 && cycle.stats.completionRate >= 80) {
+  // "Cykl dowozi progres" z akcjami closeoutu pokazujemy dopiero po zakończeniu
+  // cyklu (isExpired), nie w jego trakcie — w trakcie spada do neutralnego statusu.
+  if (cycle.status === 'active' && isExpired && cycle.stats.prs.length >= 3 && cycle.stats.completionRate >= 80) {
     return {
       title: 'Cykl dowozi progres',
       description: 'Masz dobrą frekwencję i realny progres. Możesz kontynuować plan albo przygotować kolejny cykl z wyższym bodźcem.',

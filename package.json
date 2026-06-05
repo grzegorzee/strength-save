@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:mobile": "vite build --mode mobile",
     "build:dev": "vite build --mode development",
+    "mobile:sync": "npm run build:mobile && cap sync",
+    "mobile:android": "npm run mobile:sync && cap open android",
+    "mobile:ios": "npm run mobile:sync && cap open ios",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview",
@@ -19,6 +23,11 @@
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.3.0",
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.0",
+    "@capacitor/status-bar": "^8.0.2",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -72,6 +81,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.0",
     "@eslint/js": "^9.32.0",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/typography": "^0.5.16",

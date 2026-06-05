@@ -13,7 +13,7 @@ test.describe('Navigation', () => {
     await expectPageRendered(page);
 
     // Count nav links in the sidebar
-    const navLinks = page.locator('nav a');
+    const navLinks = page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link');
     await expect(navLinks).toHaveCount(7);
 
     // Verify specific items are present

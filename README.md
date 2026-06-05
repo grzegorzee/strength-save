@@ -34,6 +34,11 @@ npm run deploy
 
 Aplikacja dostępna pod: https://grzegorzee.github.io/strength-save/
 
+## Mobile MVP
+
+Mobilne MVP Android/iOS korzysta z Capacitor i tego samego backendu Firebase/Google Cloud.
+Instrukcja konfiguracji i uruchomienia: [MOBILE_MVP.md](./MOBILE_MVP.md).
+
 
 ---
 
@@ -65,4 +70,3 @@ Ten projekt korzysta z **Superpowers** (github.com/obra/superpowers) — framewo
 - Test-Driven Development — testy PRZED kodem
 - YAGNI — nie buduj czegos co nie jest potrzebne teraz
 - Systematic over ad-hoc — proces zamiast zgadywania
-

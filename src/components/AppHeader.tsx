@@ -13,7 +13,7 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
   const { isOnline, pendingOps } = useOnlineStatus();
 
   return (
-    <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-lg border-b">
+    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between h-16 px-5 md:px-6 max-w-4xl mx-auto">
         <div className="flex items-center gap-3">
           {onMenuClick && (
@@ -21,7 +21,7 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <h1 className="text-xl font-heading font-bold text-foreground tracking-tight">{title}</h1>
+          <h1 className="text-lg font-heading font-bold uppercase text-foreground tracking-[0.08em]">{title}</h1>
         </div>
 
         <div className="flex items-center gap-2">

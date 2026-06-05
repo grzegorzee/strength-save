@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Flame, StickyNote, Play, Plus, Sparkles, Loader2 } from 'lucide-react';
+import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
+import { getYouTubeEmbedUrl, getYouTubeThumbnailUrl } from '@/lib/exercise-media';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 
 // ── Progression Badge sub-component ──
@@ -190,9 +191,7 @@ const ExerciseCardInner = ({
   const workingSets = sets.filter(s => !s.isWarmup);
   const completedSets = workingSets.filter(s => s.completed).length;
   const allCompleted = workingSets.length > 0 && completedSets === workingSets.length;
-  const exerciseLabel = exercise.isSuperset
-    ? `${index}${exercise.id.endsWith('a') ? 'a' : 'b'}`
-    : `${index}`;
+  const thumbnailUrl = getYouTubeThumbnailUrl(exercise.videoUrl);
 
   const progressionAdvice = useMemo(() => {
     if (!previousSets) return null;
@@ -200,11 +199,6 @@ const ExerciseCardInner = ({
     const prevWorking = previousSets.filter(s => !s.isWarmup);
     return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight);
   }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight]);
-
-  const getYouTubeEmbedUrl = (url: string): string | null => {
-    const match = url.match(/(?:v=|\/)([\w-]{11})(?:\?|&|$)/);
-    return match ? `https://www.youtube.com/embed/${match[1]}?rel=0&modestbranding=1` : null;
-  };
 
   const getPreviousHint = (setIndex: number): string | null => {
     if (!previousSets || previousSets.length === 0) return null;
@@ -315,27 +309,38 @@ const ExerciseCardInner = ({
   return (
     <div className={cn(
       "exercise-card",
-      exercise.isSuperset && "border-l-[3px] !border-l-primary",
+      exercise.isSuperset && "bg-primary/[0.04]",
       allCompleted && "opacity-50"
     )}>
       {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-3 p-5 pb-3">
-        <div className="flex items-start gap-3 min-w-0">
-          {/* Number badge */}
-          <div className={cn(
-            "h-[42px] w-[42px] rounded-xl flex items-center justify-center text-[17px] font-extrabold text-white shrink-0",
-            allCompleted
-              ? "bg-gradient-to-br from-emerald-500 to-emerald-400"
-              : "bg-gradient-to-br from-indigo-500 to-indigo-400"
-          )}>
-            {exerciseLabel}
-          </div>
+      <div className="flex items-center justify-between gap-3 p-3 pr-4 exercise-card-header">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => exercise.videoUrl && setShowVideo(true)}
+            disabled={!exercise.videoUrl}
+            className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70 disabled:cursor-default"
+            aria-label={exercise.videoUrl ? `Pokaż technikę: ${exercise.name}` : undefined}
+          >
+            {thumbnailUrl ? (
+              <img src={thumbnailUrl} alt="" className="h-full w-full object-cover opacity-80" loading="lazy" />
+            ) : (
+              <Dumbbell className="absolute inset-0 m-auto h-7 w-7 text-muted-foreground/40" />
+            )}
+            {exercise.videoUrl && (
+              <span className="absolute inset-0 flex items-center justify-center bg-black/10">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                </span>
+              </span>
+            )}
+          </button>
 
-          <div className="min-w-0 pt-0.5">
-            <h3 className="font-bold text-[15px] leading-tight">{exercise.name}</h3>
+          <div className="min-w-0">
+            <h3 className="font-bold text-[16px] leading-tight">{exercise.name}</h3>
             <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
-              <span className="font-mono text-xs text-muted-foreground tracking-wide">
-                {exercise.sets}
+              <span className="text-sm font-medium text-muted-foreground">
+                {workingSets.length} {workingSets.length === 1 ? 'seria' : workingSets.length < 5 ? 'serie' : 'serii'}
               </span>
               {nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
               {completedSets > 0 && (
@@ -353,19 +358,11 @@ const ExerciseCardInner = ({
           </div>
         </div>
 
-        {/* Video button */}
-        {exercise.videoUrl && (
-          <button
-            onClick={() => setShowVideo(true)}
-            className="h-[34px] w-[34px] rounded-[10px] flex items-center justify-center border border-primary/15 bg-primary/[0.06] text-primary hover:bg-primary/10 hover:border-primary/30 transition-colors shrink-0 mt-1"
-          >
-            <Play className="h-4 w-4" />
-          </button>
-        )}
+        <span className="w-2 shrink-0" aria-hidden="true" />
       </div>
 
       {/* ── Divider ── */}
-      <div className="exercise-card-divider mx-5" />
+      <div className="exercise-card-divider" />
 
       {/* ── Instructions (always visible, with library fallback) ── */}
       {(() => {
@@ -374,7 +371,7 @@ const ExerciseCardInner = ({
           : getExerciseInstructions(exercise.name);
         if (displayInstructions.length === 0) return null;
         return (
-          <div className="mx-5 mt-3 py-2.5 px-3.5 rounded-r-[10px] border-l-2 border-primary/20 bg-primary/[0.03] text-xs text-[#7a7f94] leading-relaxed font-medium">
+          <div className="mx-5 mt-4 text-sm text-muted-foreground/80 leading-relaxed font-medium">
             {displayInstructions.map(inst => inst.content).join(' ')}
           </div>
         );
@@ -396,9 +393,9 @@ const ExerciseCardInner = ({
       )}
 
       {/* ── Working sets grid ── */}
-      <div className="px-5 pt-3 pb-2">
+      <div className="px-4 sm:px-5 pt-4 pb-2">
         {/* Grid header */}
-        <div className={cn("grid gap-2 px-1 pb-2 mb-1 border-b border-border/30", gridCols)}>
+        <div className={cn("grid gap-2 px-1 pb-2 mb-1", gridCols)}>
           <span />
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
             Powtórzenia
@@ -427,10 +424,10 @@ const ExerciseCardInner = ({
             <button
               onClick={handleAddSet}
               disabled={workingSets.length >= 10}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider text-primary border border-primary/15 hover:bg-primary/5 hover:border-primary/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 py-2 text-xs font-bold uppercase tracking-[0.14em] text-foreground hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <Plus className="h-3.5 w-3.5" />
               Dodaj serię
+              <Plus className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-1">
               {onAskCoach && (

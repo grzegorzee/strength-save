@@ -122,38 +122,29 @@ export const buildPlanNextStep = ({
     };
   }
 
+  // Niska frekwencja w trakcie — ostrzeżenie, ale bez akcji closeoutu.
   if (recommendation.tone === 'warning') {
     return {
       title: recommendation.title,
       description: recommendation.description,
       badges,
-      primaryLabel: 'Zobacz closeout',
-      primaryPath: '/cycles',
+      primaryLabel: 'Zobacz plan',
+      primaryPath: '/plan',
       secondaryLabel: 'Historia treningów',
       secondaryPath: '/history',
       tone: 'warning',
     };
   }
 
-  if (recommendation.tone === 'success') {
-    return {
-      title: recommendation.title,
-      description: recommendation.description,
-      badges,
-      primaryLabel: 'Zobacz closeout',
-      primaryPath: '/cycles',
-      secondaryLabel: 'Przygotuj kolejny plan',
-      secondaryPath: `/new-plan?fromCycle=${activeCycle.id}`,
-      tone: 'success',
-    };
-  }
-
+  // Cykl w trakcie (nie wygasł, > 2 tyg. do końca): neutralny status bez akcji
+  // closeoutu. Podsumowanie i "przygotuj kolejny plan" pojawiają się dopiero przy
+  // wygaśnięciu planu (wyżej, isPlanExpired) lub w końcówce (weeksRemaining <= 2).
   return {
-    title: recommendation.title,
-    description: recommendation.description,
+    title: 'Trzymaj kurs i monitoruj progres',
+    description: 'Plan jest w toku. Skup się na realizacji treningów i progresji — podsumowanie cyklu pojawi się po jego zakończeniu.',
     badges,
-    primaryLabel: 'Zobacz closeout',
-    primaryPath: '/cycles',
+    primaryLabel: 'Zobacz plan',
+    primaryPath: '/plan',
     secondaryLabel: 'Historia treningów',
     secondaryPath: '/history',
     tone: 'info',

@@ -1,6 +1,13 @@
 import { initializeApp } from "firebase/app";
+import { Capacitor } from "@capacitor/core";
 import { getFirestore } from "firebase/firestore";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import {
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  GoogleAuthProvider,
+} from "firebase/auth";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
@@ -14,6 +21,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export const auth = getAuth(app);
+// initializeAuth z jawną konfiguracją zamiast getAuth.
+// Native (Capacitor/WKWebView, capacitor://localhost):
+//   - getAuth auto-detekcja wiesza inicjalizację → onAuthStateChanged nigdy nie strzela.
+//   - popupRedirectResolver tworzy cross-origin iframe (firebaseapp.com), który również
+//     wiesza Auth w WebView — pomijamy go (signInWithPopup i tak nie działa w WebView,
+//     na natywnej platformie używamy logowania e-mail/hasłem).
+// Web: pełna konfiguracja z resolverem, żeby Google signInWithPopup działał.
+export const auth = Capacitor.isNativePlatform()
+  ? initializeAuth(app, {
+      persistence: [browserLocalPersistence],
+    })
+  : initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
 export const functions = getFunctions(app, "us-central1");
 export const googleProvider = new GoogleAuthProvider();

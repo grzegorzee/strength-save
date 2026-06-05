@@ -14,12 +14,13 @@ const pageTitles: Record<string, string> = {
   '/settings': 'Ustawienia',
   '/admin': 'Panel admina',
   '/cycles': 'Cykle treningowe',
+  '/exercises': 'Ćwiczenia',
 };
 
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  
+  const isFocusedFlow = location.pathname.startsWith('/workout/');
   const title = pageTitles[location.pathname] || 'FitTracker';
 
   return (
@@ -27,9 +28,9 @@ export const Layout = () => {
       <AppNavigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden md:h-[100dvh] md:overflow-hidden">
-        <AppHeader title={title} onMenuClick={() => setSidebarOpen(true)} />
+        {!isFocusedFlow && <AppHeader title={title} onMenuClick={() => setSidebarOpen(true)} />}
 
-        <main className="flex-1 p-5 md:p-6 overflow-x-hidden md:overflow-y-auto">
+        <main className="flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:p-6 overflow-x-hidden md:overflow-y-auto">
           <div className="max-w-4xl mx-auto">
             <Outlet />
           </div>

@@ -1122,8 +1122,9 @@ const WorkoutDay = () => {
 
   if (!day) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">Nie znaleziono dnia treningowego</p>
+      <div className="py-12 text-center">
+        <h1 className="font-heading text-2xl font-bold">Nie znaleziono dnia treningowego</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Sprawdź adres lub wróć do planu treningowego.</p>
         <Button variant="link" onClick={() => navigate('/plan')}>
           Wróć do planu
         </Button>
@@ -1399,23 +1400,23 @@ const WorkoutDay = () => {
 
   // ACTIVE WORKOUT VIEW
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-28">
       <AutoSaveIndicator />
 
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+      <div className="grid grid-cols-[44px_1fr_44px] items-center gap-3 pt-[env(safe-area-inset-top)]">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-2xl bg-muted/60">
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{day.dayName}</h1>
-          <p className="text-muted-foreground">{day.focus}</p>
+        <div className="min-w-0 text-center">
+          <h1 className="truncate text-base font-heading font-bold uppercase tracking-[0.1em]">{day.dayName}</h1>
+          <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{day.focus}</p>
         </div>
         {isWorkoutStarted && !isCompleted && (
-          <Button variant="outline" size="sm" onClick={() => setShowWarmup(true)}>
-            <Flame className="h-4 w-4 mr-1 text-orange-500" />
-            Rozgrzewka
+          <Button variant="ghost" size="icon" onClick={() => setShowWarmup(true)} className="rounded-2xl bg-muted/60" aria-label="Rozgrzewka">
+            <Flame className="h-4 w-4 text-orange-500" />
           </Button>
         )}
+        {(!isWorkoutStarted || isCompleted) && <span />}
       </div>
 
       <ErrorBanner />
@@ -1440,18 +1441,6 @@ const WorkoutDay = () => {
       )}
 
       {/* Today without workout - show start button (nigdy na ukończonym treningu) */}
-      {!isWorkoutStarted && !isViewingPastWorkout && !isCompleted && (
-        <Button
-          size="lg"
-          className="w-full py-6 text-lg"
-          onClick={handleStartWorkout}
-          disabled={isExplicitSaving}
-        >
-          {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Play className="h-5 w-5 mr-2" />}
-          Rozpocznij trening
-        </Button>
-      )}
-
       <div className="space-y-4">
         {day.exercises.filter(ex => !(isWorkoutStarted && !isCompleted && skippedExercises.includes(ex.id))).map((exercise, index) => (
           <div key={exercise.id} ref={index === 0 ? firstExerciseRef : undefined} className="space-y-2">
@@ -1585,7 +1574,7 @@ const WorkoutDay = () => {
       )}
 
       {isWorkoutStarted && !isCompleted && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t z-40">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/85 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
           {showCompleteConfirm ? (
             <div className="flex gap-2">
               <Button
@@ -1598,7 +1587,7 @@ const WorkoutDay = () => {
               </Button>
               <Button
                 size="lg"
-                className="flex-1 py-6 bg-fitness-success hover:bg-fitness-success/90"
+                className="kinetic-primary-button flex-1 py-6 hover:brightness-105"
                 onClick={handleCompleteWorkout}
                 disabled={isExplicitSaving}
               >
@@ -1609,7 +1598,7 @@ const WorkoutDay = () => {
           ) : (
             <Button
               size="lg"
-              className="w-full py-6 text-lg bg-fitness-success hover:bg-fitness-success/90"
+              className="kinetic-primary-button w-full py-6 text-base hover:brightness-105"
               onClick={() => setShowCompleteConfirm(true)}
               disabled={isExplicitSaving}
             >
@@ -1617,6 +1606,20 @@ const WorkoutDay = () => {
               Zakończ trening
             </Button>
           )}
+        </div>
+      )}
+
+      {!isWorkoutStarted && !isViewingPastWorkout && !isCompleted && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/85 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
+          <Button
+            size="lg"
+            className="kinetic-primary-button w-full py-6 text-base hover:brightness-105"
+            onClick={handleStartWorkout}
+            disabled={isExplicitSaving}
+          >
+            {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Play className="h-5 w-5 mr-2 fill-current" />}
+            Rozpocznij trening
+          </Button>
         </div>
       )}
     </div>

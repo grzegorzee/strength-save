@@ -10,7 +10,9 @@ test.describe('Critical Routing and Shell', () => {
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+    await expect(
+      page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link', { name: 'Dashboard' }),
+    ).toBeVisible();
     await expect(page.getByText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony/i)).toBeVisible();
     await expect(page.getByText('Co dalej z planem?')).toBeVisible();
   });
