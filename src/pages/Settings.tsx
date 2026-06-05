@@ -135,8 +135,8 @@ const FeatureFlagsPanel = () => {
 const Settings = () => {
   const navigate = useNavigate();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
-  const { exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
-  const { cycles } = usePlanCycles(uid);
+  const { workouts, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
+  const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
   const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
 
@@ -160,6 +160,21 @@ const Settings = () => {
   const [maxHRInput, setMaxHRInput] = useState('');
   const [maxHRSaving, setMaxHRSaving] = useState(false);
   const [isResettingOnboarding, setIsResettingOnboarding] = useState(false);
+  const [mergingCycles, setMergingCycles] = useState(false);
+
+  const handleMergeCycles = async () => {
+    setMergingCycles(true);
+    try {
+      const n = await mergeContinuousCycles(workouts);
+      toast(n > 0
+        ? { title: `Połączono ${n} ${n === 1 ? 'cykl' : 'cykle'}`, description: 'Przerwane cykle scalono w ciągłe bloki, treningi przypisano do właściwego cyklu.' }
+        : { title: 'Brak cykli do połączenia', description: 'Twoje cykle są już spójne.' });
+    } catch {
+      toast({ title: 'Błąd', description: 'Nie udało się połączyć cykli.', variant: 'destructive' });
+    } finally {
+      setMergingCycles(false);
+    }
+  };
 
   const handleSaveMaxHR = async () => {
     const value = parseInt(maxHRInput);
@@ -315,6 +330,24 @@ const Settings = () => {
         importLabel="Importuj kopię"
         cleanupLabel="Wyczyść duplikaty treningów"
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 text-primary" />
+            Naprawa cykli
+          </CardTitle>
+          <CardDescription>
+            Łączy przerwane cykle tego samego planu (gdy po wygaśnięciu cyklu nie wybrano nowego planu, a treningi trwały dalej) w jeden ciągły blok. Treningi zostają przypisane do właściwego cyklu.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" className="w-full" onClick={handleMergeCycles} disabled={mergingCycles}>
+            {mergingCycles ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Połącz przerwane cykle
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="border-amber-500/30">
         <CardHeader>
