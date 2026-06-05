@@ -7,7 +7,7 @@ import { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
-import { getYouTubeEmbedUrl, getYouTubeThumbnailUrl } from '@/lib/exercise-media';
+import { getExerciseAnimationUrl } from '@/lib/exercise-media';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 
 // ── Progression Badge sub-component ──
@@ -191,7 +191,7 @@ const ExerciseCardInner = ({
   const workingSets = sets.filter(s => !s.isWarmup);
   const completedSets = workingSets.filter(s => s.completed).length;
   const allCompleted = workingSets.length > 0 && completedSets === workingSets.length;
-  const thumbnailUrl = getYouTubeThumbnailUrl(exercise.videoUrl);
+  const animationUrl = getExerciseAnimationUrl(exercise.name);
 
   const progressionAdvice = useMemo(() => {
     if (!previousSets) return null;
@@ -317,22 +317,22 @@ const ExerciseCardInner = ({
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
-            onClick={() => exercise.videoUrl && setShowVideo(true)}
-            disabled={!exercise.videoUrl}
+            onClick={() => animationUrl && setShowVideo(true)}
+            disabled={!animationUrl}
             className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70 disabled:cursor-default"
-            aria-label={exercise.videoUrl ? `Pokaż technikę: ${exercise.name}` : undefined}
+            aria-label={animationUrl ? `Pokaż animację: ${exercise.name}` : undefined}
           >
-            {thumbnailUrl ? (
-              <img src={thumbnailUrl} alt="" className="h-full w-full object-cover opacity-80" loading="lazy" />
+            {animationUrl ? (
+              <>
+                <video src={animationUrl} className="h-full w-full object-cover opacity-80" autoPlay loop muted playsInline />
+                <span className="absolute inset-0 flex items-center justify-center bg-black/10">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+                    <Play className="h-3.5 w-3.5 fill-current" />
+                  </span>
+                </span>
+              </>
             ) : (
               <Dumbbell className="absolute inset-0 m-auto h-7 w-7 text-muted-foreground/40" />
-            )}
-            {exercise.videoUrl && (
-              <span className="absolute inset-0 flex items-center justify-center bg-black/10">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
-                  <Play className="h-3.5 w-3.5 fill-current" />
-                </span>
-              </span>
             )}
           </button>
 
@@ -462,21 +462,22 @@ const ExerciseCardInner = ({
         </div>
       )}
 
-      {/* ── Video Dialog ── */}
-      {exercise.videoUrl && (
+      {/* ── Animation Dialog ── */}
+      {animationUrl && (
         <Dialog open={showVideo} onOpenChange={setShowVideo}>
           <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6">
             <DialogHeader>
               <DialogTitle className="text-sm pr-6">{exercise.name}</DialogTitle>
             </DialogHeader>
-            <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+            <div className="relative w-full overflow-hidden rounded-lg" style={{ paddingBottom: '56.25%' }}>
               {showVideo && (
-                <iframe
-                  className="absolute inset-0 w-full h-full rounded-lg"
-                  src={getYouTubeEmbedUrl(exercise.videoUrl) || ''}
-                  title={exercise.name}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
+                <video
+                  className="absolute inset-0 w-full h-full object-cover"
+                  src={animationUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
                 />
               )}
             </div>

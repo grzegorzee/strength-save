@@ -8,7 +8,7 @@ import { ArrowLeft, Search, Dumbbell, Target, Grip, Footprints, Zap, CircleDot, 
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import { trainingPlan } from '@/data/trainingPlan';
 import { cn } from '@/lib/utils';
-import { getYouTubeEmbedUrl, getYouTubeThumbnailUrl } from '@/lib/exercise-media';
+import { getExerciseAnimationUrl } from '@/lib/exercise-media';
 
 const categoryIcons: Record<LibraryExercise['category'], React.ElementType> = {
   chest: Heart,
@@ -26,7 +26,6 @@ const categoryOrder: LibraryExercise['category'][] = [
 ];
 
 interface EnrichedExercise extends LibraryExercise {
-  videoUrl?: string;
   sets?: string;
   instructions?: { title: string; content: string }[];
   dayName?: string;
@@ -42,15 +41,15 @@ const ExerciseRow = ({
   onDetailsOpen: (ex: EnrichedExercise) => void;
   showCategoryBadge: boolean;
 }) => {
-  const thumbnailUrl = getYouTubeThumbnailUrl(ex.videoUrl);
+  const animationUrl = getExerciseAnimationUrl(ex.name);
 
   return (
     <Card key={ex.name} className="overflow-hidden border-0 bg-card transition-colors duration-200 hover:bg-muted/80">
       <CardContent className="p-2">
         <button type="button" className="flex w-full items-center gap-3 text-left" onClick={() => onDetailsOpen(ex)}>
           <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-2xl bg-background">
-            {thumbnailUrl ? (
-              <img src={thumbnailUrl} alt="" className="h-full w-full object-cover opacity-80" loading="lazy" />
+            {animationUrl ? (
+              <video src={animationUrl} className="h-full w-full object-cover opacity-80" autoPlay loop muted playsInline />
             ) : (
               <Dumbbell className="absolute inset-0 m-auto h-7 w-7 text-muted-foreground/40" />
             )}
@@ -98,7 +97,6 @@ const ExerciseLibrary = () => {
       const planEx = allPlanExercises.find(p => p.name === libEx.name);
       return {
         ...libEx,
-        videoUrl: planEx?.videoUrl || libEx.videoUrl,
         sets: planEx?.sets,
         instructions: planEx?.instructions,
         dayName: planEx?.dayName,
@@ -240,16 +238,24 @@ const ExerciseLibrary = () => {
       <Dialog open={!!videoExercise} onOpenChange={(open) => !open && setVideoExercise(null)}>
         <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto rounded-3xl border-0 bg-background p-0">
           <div className="relative aspect-video w-full overflow-hidden rounded-t-3xl bg-card">
-            {videoExercise?.videoUrl && (
-              <iframe
-                className="absolute inset-0 h-full w-full"
-                src={getYouTubeEmbedUrl(videoExercise.videoUrl) || ''}
-                title={videoExercise.name}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            )}
-            {!videoExercise?.videoUrl && <Dumbbell className="absolute inset-0 m-auto h-16 w-16 text-muted-foreground/30" />}
+            {(() => {
+              const animationUrl = getExerciseAnimationUrl(videoExercise?.name);
+              return animationUrl ? (
+                <video
+                  src={animationUrl}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground/40">
+                  <Dumbbell className="h-14 w-14" />
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em]">Animacja wkrótce</span>
+                </div>
+              );
+            })()}
           </div>
           <div className="space-y-6 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
             <DialogHeader>
