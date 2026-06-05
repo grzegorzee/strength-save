@@ -221,7 +221,7 @@ const NewPlan = () => {
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold">{t('newplan.title')}</h1>
+            <h1 className="text-xl font-heading font-bold uppercase tracking-tight">{t('newplan.title')}</h1>
             <p className="text-sm text-muted-foreground">
               {t('newplan.weeksDaysSummary', { weeks: reviewPlan.planDurationWeeks, days: reviewPlan.days.length })}
             </p>
@@ -302,7 +302,7 @@ const NewPlan = () => {
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold">{t('newplan.weekdays.title')}</h1>
+            <h1 className="text-xl font-heading font-bold uppercase tracking-tight">{t('newplan.weekdays.title')}</h1>
             <p className="text-sm text-muted-foreground">{pendingTemplate.name}</p>
           </div>
         </div>
@@ -375,7 +375,7 @@ const NewPlan = () => {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl font-bold">{t('newplan.title')}</h1>
+          <h1 className="text-xl font-heading font-bold uppercase tracking-tight">{t('newplan.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('newplan.completedWorkouts', { count: completedCount })}</p>
         </div>
       </div>

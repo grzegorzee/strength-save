@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2 } from 'lucide-react';
+import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2, Star } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,18 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
+import type { ExerciseBest } from '@/lib/pr-utils';
+import { RestTimer } from './RestTimer';
+
+// Domyślny czas odpoczynku z ustawień (Profil → 'rest-timer-default'), w sekundach.
+const getRestDefaultSeconds = (): number => {
+  try {
+    const v = parseInt(localStorage.getItem('rest-timer-default') || '90', 10);
+    return Number.isFinite(v) && v > 0 ? v : 90;
+  } catch {
+    return 90;
+  }
+};
 
 // ── Progression Badge sub-component ──
 const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 'maintain'; label: string } }) => {
@@ -91,6 +103,8 @@ interface ExerciseCardProps {
   nextAdvice?: NextSetAdvice | null;
   onAskCoach?: () => void;
   coachBusy?: boolean;
+  /** Najlepszy historyczny wynik (1RM) tego ćwiczenia — badge BEST w nagłówku. */
+  historicalBest?: ExerciseBest;
 }
 
 // ── Main Component ──
@@ -106,8 +120,11 @@ const ExerciseCardInner = ({
   nextAdvice,
   onAskCoach,
   coachBusy = false,
+  historicalBest,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
+  // Kołowy timer odpoczynku po odhaczeniu serii roboczej. runId wymusza restart (remount).
+  const [rest, setRest] = useState<{ open: boolean; seconds: number; runId: number }>({ open: false, seconds: 90, runId: 0 });
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
@@ -168,6 +185,12 @@ const ExerciseCardInner = ({
     const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
     setSets(newSets);
     onSetsChange?.(newSets, notes);
+
+    // Po odhaczeniu serii roboczej uruchom kołowy timer odpoczynku.
+    if (turningOn && !currentSet.isWarmup) {
+      const seconds = getRestDefaultSeconds();
+      setRest(r => ({ open: true, seconds, runId: r.runId + 1 }));
+    }
   };
 
   const handleNotesChange = (value: string) => {
@@ -371,6 +394,15 @@ const ExerciseCardInner = ({
               <span className="text-sm font-medium text-muted-foreground">
                 {t('card.setsCount', { n: workingSets.length })}
               </span>
+              {historicalBest && historicalBest.best1RM > 0 && (
+                <span
+                  title={`${Math.round(toDisplay(historicalBest.best1RMWeight))} ${unit} × ${historicalBest.best1RMReps}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-[#00e3fd]/30 text-[#00e3fd] bg-[#00e3fd]/10"
+                >
+                  <Star className="h-3 w-3 fill-current" />
+                  {t('card.best')} {Math.round(toDisplay(historicalBest.best1RM))} {unit}
+                </span>
+              )}
               {nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
               {completedSets > 0 && (
                 <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
@@ -509,6 +541,15 @@ const ExerciseCardInner = ({
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {rest.open && (
+        <RestTimer
+          key={rest.runId}
+          defaultSeconds={rest.seconds}
+          exerciseLabel={localizedName}
+          onClose={() => setRest(r => ({ ...r, open: false }))}
+        />
       )}
     </div>
   );

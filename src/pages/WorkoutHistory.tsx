@@ -110,7 +110,7 @@ const WorkoutHistory = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-tight flex items-center gap-2">
             <History className="h-5 w-5 text-primary" />
             {t('history.title')}
           </h1>

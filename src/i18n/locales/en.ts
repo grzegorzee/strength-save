@@ -892,4 +892,5 @@ export const en: Record<keyof typeof pl, string> = {
   'exercises.type.bodyweight': 'Bodyweight',
   'exercises.type.compound': 'Compound',
   'exercises.type.isolation': 'Isolation',
+  'card.best': 'Best',
 };

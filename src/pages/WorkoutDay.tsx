@@ -25,7 +25,7 @@ import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { detectNewPRs } from '@/lib/pr-utils';
+import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
 import { createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -1401,6 +1401,7 @@ const WorkoutDay = () => {
               onSetsChange={(sets, notes) => handleSetsChangeLocal(exercise.id, sets, notes)}
               isEditable={true}
               isBodyweight={isBodyweightExercise(exercise.name)}
+              historicalBest={getExerciseBest1RM(workouts, exercise.id)}
             />
           ))}
         </div>
@@ -1505,6 +1506,7 @@ const WorkoutDay = () => {
               })}
               onAskCoach={isWorkoutStarted && !isCompleted ? () => handleAskCoach(exercise) : undefined}
               coachBusy={coachBusyId === exercise.id}
+              historicalBest={getExerciseBest1RM(workouts, exercise.id)}
             />
             {/* AI Swap & Skip buttons — only in active workout */}
             {isWorkoutStarted && !isCompleted && (

@@ -898,4 +898,5 @@ export const pl = {
   'exercises.type.bodyweight': 'Masa ciała',
   'exercises.type.compound': 'Wielostawowe',
   'exercises.type.isolation': 'Izolacja',
+  'card.best': 'Rekord',
 } as const;
