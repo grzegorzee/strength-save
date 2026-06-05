@@ -12,6 +12,7 @@ const pageTitles: Record<string, string> = {
   '/achievements': 'Osiągnięcia',
   '/plan/edit': 'Edycja planu',
   '/settings': 'Ustawienia',
+  '/profile': 'Profil',
   '/admin': 'Panel admina',
   '/cycles': 'Cykle treningowe',
   '/exercises': 'Ćwiczenia',

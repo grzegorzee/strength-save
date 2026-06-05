@@ -11,6 +11,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminRoute } from "./components/AdminRoute";
 import { useAuth } from "./hooks/useAuth";
 import { UserProvider, useCurrentUser } from "./contexts/UserContext";
+import { UnitProvider } from "./contexts/UnitContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
 import { Loader2, ShieldOff } from "lucide-react";
@@ -38,6 +39,7 @@ const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"
 const UserPlanEditor = lazyWithRetry(() => import("./pages/admin/UserPlanEditor"), "lazy-retry:user-plan-editor");
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"), "lazy-retry:not-found");
 const Login = lazyWithRetry(() => import("./pages/Login"), "lazy-retry:login");
+const Profile = lazyWithRetry(() => import("./pages/Profile"), "lazy-retry:profile");
 
 const AuthRedirect = () => {
   const location = useLocation();
@@ -151,6 +153,7 @@ const AppRoutes = () => {
                 <Route path="/analytics" element={<Analytics />} />
                 <Route path="/exercises" element={<ExerciseLibrary />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/profile" element={<Profile />} />
                 <Route path="/new-plan" element={<NewPlan />} />
                 <Route path="/cycles" element={<Cycles />} />
                 <Route path="/history" element={<WorkoutHistory />} />
@@ -204,14 +207,16 @@ const AuthenticatedApp = () => {
 const App = () => (
   <ErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <PWAUpdatePrompt />
-          <AuthenticatedApp />
-        </TooltipProvider>
-      </QueryClientProvider>
+      <UnitProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <PWAUpdatePrompt />
+            <AuthenticatedApp />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </UnitProvider>
     </ThemeProvider>
   </ErrorBoundary>
 );

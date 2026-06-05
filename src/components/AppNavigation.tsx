@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, Trophy, BarChart3, X, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield } from 'lucide-react';
+import { Home, Calendar, Trophy, BarChart3, X, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
@@ -20,10 +20,13 @@ interface AppNavigationProps {
 }
 
 const navItems = [
+  // Pierwsze 5 = mobilny bottom nav (mockup): Dashboard / Historia / Plan / Ćwiczenia / Profil
   { to: '/', icon: Home, label: 'Dashboard' },
-  { to: '/plan', icon: Calendar, label: 'Plan treningowy' },
   { to: '/history', icon: ScrollText, label: 'Historia' },
+  { to: '/plan', icon: Calendar, label: 'Plan' },
   { to: '/exercises', icon: Library, label: 'Ćwiczenia' },
+  { to: '/profile', icon: User, label: 'Profil' },
+  // Pozostałe — sidebar (desktop) + menu mobilne
   { to: '/analytics', icon: BarChart3, label: 'Analityka' },
   { to: '/achievements', icon: Trophy, label: 'Osiągnięcia' },
   { to: '/cycles', icon: History, label: 'Cykle' },
