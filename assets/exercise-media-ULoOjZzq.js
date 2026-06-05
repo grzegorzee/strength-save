@@ -1,0 +1,1 @@
+const o="https://store.gjasionowicz.pl/exercises",r={ą:"a",ć:"c",ę:"e",ł:"l",ń:"n",ó:"o",ś:"s",ź:"z",ż:"z"},c={},n=s=>s?s.toLowerCase().replace(/[ąćęłńóśźż]/g,e=>r[e]??e).replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,""):"",i=s=>{const e=n(s),t=e?c[e]:void 0;return t?`${o}/${t}`:null};export{i as g,n as s};
