@@ -41,14 +41,13 @@ npm run build:mobile
 echo "==> 2/5 cap sync ios"
 ./node_modules/.bin/cap sync ios
 
-echo "==> 3/5 archive (signing przez API key)"
+# Archive BEZ podpisu — podpis Distribution (App Store) zakładamy przy eksporcie.
+# Development signing wymagałby zarejestrowanego urządzenia; Distribution nie.
+echo "==> 3/5 archive (bez podpisu)"
 rm -rf "$ARCHIVE"
 xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release \
   -archivePath "$ARCHIVE" -destination 'generic/platform=iOS' archive \
-  -allowProvisioningUpdates \
-  -authenticationKeyPath "$ASC_KEY_PATH" \
-  -authenticationKeyID "$ASC_KEY_ID" \
-  -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
 echo "==> 4/5 export IPA (app-store-connect)"
 rm -rf "$EXPORT_DIR"

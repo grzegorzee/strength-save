@@ -33,3 +33,7 @@ REQUIREMENTS.md
 START.md
 plan-2026_-wersja-polska-detaliczna.html
 .superpowers/
+
+# iOS signing artifacts (zawiera PRYWATNY klucz dystrybucyjny — nigdy do repo)
+build/
+ios/ExportOptions-manual.plist
