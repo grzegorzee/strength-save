@@ -127,3 +127,10 @@ export const setE2EAuthScenario = async (
     authState: { scenario, ...overrides },
   });
 };
+
+// Wstrzykuje cykle planów do localStorage (czytane przez usePlanCycles w trybie E2E).
+export const setE2ECycles = async (page: Page, cycles: unknown[]) => {
+  await page.addInitScript(({ key, data }) => {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  }, { key: 'fittracker_e2e_cycles', data: cycles });
+};

@@ -20,12 +20,29 @@ import { computeCycleStats } from '@/lib/cycle-insights';
 
 const CYCLES_COLLECTION = 'plan_cycles';
 
+// E2E: cykle wstrzyknięte do localStorage (spójnie z bypassem auth). Czytane synchronicznie,
+// by były dostępne od pierwszego renderu (getCycleById local-first nie zależy od async Firestore).
+const readE2ECycles = (): PlanCycle[] => {
+  if (import.meta.env.VITE_E2E_MODE !== 'true') return [];
+  try {
+    const raw = window.localStorage.getItem('fittracker_e2e_cycles');
+    return raw ? (JSON.parse(raw) as PlanCycle[]) : [];
+  } catch {
+    return [];
+  }
+};
+
 export const usePlanCycles = (userId: string) => {
-  const [cycles, setCycles] = useState<PlanCycle[]>([]);
+  const [cycles, setCycles] = useState<PlanCycle[]>(readE2ECycles);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
+
+    if (import.meta.env.VITE_E2E_MODE === 'true') {
+      setIsLoaded(true);
+      return;
+    }
 
     const q = query(
       collection(db, CYCLES_COLLECTION),
