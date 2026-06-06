@@ -1,506 +1,227 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Loader2, Check, RefreshCw, Trophy, Dumbbell, Flame, Percent, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, ChevronLeft, Check, RefreshCw, ListChecks, Repeat, PencilRuler } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
 import { localizeExerciseName } from '@/data/exercise-i18n';
-import { localizeDayName, localizeFocus, localizeWeekdayShort } from '@/lib/plan-i18n';
-import type { TranslationKey } from '@/i18n';
+import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { buildActiveCyclePreview } from '@/lib/cycle-insights';
+import { PlanWizard, type PlanWizardChoice, type WizardLevel } from '@/components/PlanWizard';
 import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
-import { PlanBuilder } from '@/components/PlanBuilder';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
-import { planTemplates, type PlanTemplate } from '@/data/planTemplates';
-import type { TrainingDay, Weekday } from '@/data/trainingPlan';
-
-// Lekki typ podglądu planu (dawniej z ai-onboarding, AI usunięte w v6.10.0).
-interface GeneratedPlan { days: TrainingDay[]; planDurationWeeks: number; }
-
-const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
-  { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
-  { value: 'tuesday', short: 'Wt', long: 'Wtorek' },
-  { value: 'wednesday', short: 'Śr', long: 'Środa' },
-  { value: 'thursday', short: 'Cz', long: 'Czwartek' },
-  { value: 'friday', short: 'Pt', long: 'Piątek' },
-  { value: 'saturday', short: 'So', long: 'Sobota' },
-  { value: 'sunday', short: 'Nd', long: 'Niedziela' },
-];
-
-const weekdayLongName = (value: Weekday): string =>
-  WEEKDAYS.find((w) => w.value === value)?.long ?? value;
-
-const toDateStr = (d: Date): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-// Monday of the week containing the given date — plans run on a Monday-anchored weekly grid.
-const weekMondayStr = (d: Date): string => {
-  const dow = d.getDay();
-  const since = dow === 0 ? 6 : dow - 1;
-  const m = new Date(d);
-  m.setDate(d.getDate() - since);
-  return toDateStr(m);
-};
-
-const levelLabelKeys: Record<PlanTemplate['level'], TranslationKey> = {
-  beginner: 'newplan.level.beginner',
-  intermediate: 'newplan.level.intermediate',
-  advanced: 'newplan.level.advanced',
-};
-import type { ExerciseReplacement } from '@/types';
-import { cn } from '@/lib/utils';
+import type { PlanObjective } from '@/data/planTemplates';
+import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
+import type { ExerciseReplacement } from '@/types';
+import { formatLocalDate } from '@/lib/utils';
+import { getStartOfPlanWeek } from '@/lib/plan-schedule';
+
+const toDateStr = (d: Date): string => formatLocalDate(d);
+const weekMonday = (dateStr: string): string => formatLocalDate(getStartOfPlanWeek(new Date(`${dateStr}T00:00:00`)));
+
+interface ProfileHint { level: WizardLevel; objective: PlanObjective; daysPerWeek: number }
 
 const NewPlan = () => {
-  const { t, lang } = useTranslation();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const fromCycleId = searchParams.get('fromCycle');
+  const [params] = useSearchParams();
+  const fromCycleId = params.get('fromCycle');
+  const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
   const { plan: currentPlan, planDurationWeeks, planStartDate, savePlan } = useTrainingPlan(uid);
-  const { workouts, getCompletedWorkoutsCount, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
+  const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { archiveCurrentPlan, createActiveCycle, getCycleById } = usePlanCycles(uid);
 
+  const [phase, setPhase] = useState<'loading' | 'closeout' | 'wizard' | 'preview'>(fromCycleId ? 'loading' : 'wizard');
   const [sourceCycle, setSourceCycle] = useState<PlanCycle | null>(null);
-
-  // Load source cycle if fromCycle param is present (kopia planu starego cyklu jako baza w kreatorze)
-  useEffect(() => {
-    if (!fromCycleId) return;
-    getCycleById(fromCycleId).then(cycle => {
-      if (cycle) {
-        setSourceCycle(cycle);
-        setPlanSource('scratch');
-      }
-    });
-  }, [fromCycleId, getCycleById]);
+  const [profileHint, setProfileHint] = useState<ProfileHint | undefined>();
+  const [chosen, setChosen] = useState<PlanWizardChoice | null>(null);
+  const [reviewDays, setReviewDays] = useState<TrainingDay[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reviewPlan, setReviewPlan] = useState<GeneratedPlan | null>(null);
-  // Sposób ułożenia planu: gotowy szablon vs własny kreator (AI usunięte w v6.10.0).
-  const [planSource, setPlanSource] = useState<'templates' | 'scratch'>('templates');
-  // Data rozpoczęcia planu (pierwszy tydzień). Domyślnie bieżący poniedziałek, edytowalna w podglądzie.
-  const [startDate, setStartDate] = useState<string>(() => weekMondayStr(new Date()));
-  // Szablon wybrany, ale czekający na wybór dni tygodnia przez użytkownika.
-  const [pendingTemplate, setPendingTemplate] = useState<PlanTemplate | null>(null);
-  const [dayWeekdays, setDayWeekdays] = useState<Weekday[]>([]);
+  const [swap, setSwap] = useState<{ open: boolean; dayId: string; exerciseId: string; exerciseName: string; sets: string; category: typeof exerciseLibrary[0]['category'] | null }>(
+    { open: false, dayId: '', exerciseId: '', exerciseName: '', sets: '', category: null },
+  );
 
-  const hasCurrentPlan = !sourceCycle && currentPlan.length > 0;
+  // Pre-fill wizarda z zapisanego profilu treningowego (level/cel/dni z onboardingu).
+  useEffect(() => {
+    if (!uid) return;
+    getDoc(doc(db, 'users', uid)).then((snap) => {
+      const tp = snap.exists() ? (snap.data() as { trainingProfile?: ProfileHint }).trainingProfile : null;
+      if (tp && tp.level && tp.objective) setProfileHint({ level: tp.level, objective: tp.objective, daysPerWeek: tp.daysPerWeek || 4 });
+    }).catch(() => { /* brak profilu — wizard użyje domyślnych */ });
+  }, [uid]);
 
-  const handlePickTemplate = (template: PlanTemplate) => {
-    setError(null);
-    setPendingTemplate(template);
-    setDayWeekdays(template.days.map((d) => d.weekday));
+  // Wczytaj zakończony cykl (fromCycle) do ekranu closeout.
+  useEffect(() => {
+    if (!fromCycleId) return;
+    getCycleById(fromCycleId).then((c) => {
+      if (c) { setSourceCycle(c); setPhase('closeout'); } else setPhase('wizard');
+    }).catch(() => setPhase('wizard'));
+  }, [fromCycleId, getCycleById]);
+
+  const closeoutStats = sourceCycle ? (buildActiveCyclePreview(sourceCycle, workouts)?.stats ?? sourceCycle.stats) : null;
+
+  const onWizardConfirm = (c: PlanWizardChoice) => { setChosen(c); setReviewDays(c.days); setPhase('preview'); };
+
+  const openSwap = (dayId: string, exerciseId: string, exerciseName: string, sets: string) => {
+    const lib = exerciseLibrary.find((e) => e.name === exerciseName);
+    setSwap({ open: true, dayId, exerciseId, exerciseName, sets, category: lib?.category ?? null });
   };
-
-  const setDayWeekday = (index: number, weekday: Weekday) => {
-    setDayWeekdays((prev) => {
-      const next = [...prev];
-      // Jeśli inny dzień ma już ten weekday — zamień się z nim (brak duplikatów).
-      const clashIndex = next.findIndex((w, i) => i !== index && w === weekday);
-      if (clashIndex >= 0) next[clashIndex] = next[index];
-      next[index] = weekday;
-      return next;
-    });
-  };
-
-  const confirmTemplateDays = () => {
-    if (!pendingTemplate) return;
-    const remapped: TrainingDay[] = pendingTemplate.days.map((d, i) => ({
-      ...d,
-      weekday: dayWeekdays[i],
-      dayName: weekdayLongName(dayWeekdays[i]),
+  const confirmSwap = (rep: ExerciseReplacement) => {
+    setReviewDays((days) => days.map((day) => day.id !== swap.dayId ? day : {
+      ...day,
+      exercises: day.exercises.map((ex) => ex.id !== swap.exerciseId ? ex : { ...ex, name: rep.name, sets: rep.sets || ex.sets, videoUrl: rep.videoUrl, instructions: [] }),
     }));
-    setReviewPlan({ days: remapped, planDurationWeeks: pendingTemplate.durationWeeks });
-    setPendingTemplate(null);
   };
+  const usedNames = (days: TrainingDay[]) => days.flatMap((d) => d.exercises.map((e) => e.name));
 
-  const handleContinueCurrent = () => {
-    setError(null);
-    setReviewPlan({ days: currentPlan, planDurationWeeks });
-  };
-
-  // Swap dialog
-  const [swapDialog, setSwapDialog] = useState<{
-    open: boolean;
-    dayId: string;
-    exerciseId: string;
-    exerciseName: string;
-    sets: string;
-    category: typeof exerciseLibrary[0]['category'] | null;
-  }>({ open: false, dayId: '', exerciseId: '', exerciseName: '', sets: '', category: null });
-
-  const handleApprove = async () => {
-    if (!reviewPlan) return;
+  const handleConfirm = async () => {
+    if (!chosen) return;
     setIsSaving(true);
     setError(null);
     try {
-      // Archive current plan before overwriting
+      // Archiwizuj obecny plan (jeśli istnieje) jako zakończony cykl + dotaguj historię.
       if (planStartDate && currentPlan.length > 0) {
-        const archivedCycleId = await archiveCurrentPlan(currentPlan, planDurationWeeks, planStartDate, workouts);
-        // Dotaguj historyczne treningi starego planu (cycleId + snapshot nazw ćwiczeń/dnia),
-        // żeby po nadpisaniu planu nie stały się osierocone. Idempotentne.
-        if (archivedCycleId) {
+        const archivedId = await archiveCurrentPlan(currentPlan, planDurationWeeks, planStartDate, workouts);
+        if (archivedId) {
           const archivedCycle: PlanCycle = {
-            id: archivedCycleId,
-            userId: uid,
-            days: currentPlan,
-            durationWeeks: planDurationWeeks,
-            startDate: planStartDate,
-            endDate: toDateStr(new Date()),
-            status: 'completed',
+            id: archivedId, userId: uid, days: currentPlan, durationWeeks: planDurationWeeks,
+            startDate: planStartDate, endDate: toDateStr(new Date()), status: 'completed',
             createdAt: new Date().toISOString(),
             stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
           };
           await backfillHistoricalWorkouts([archivedCycle]);
         }
       }
-
-      // Snap the chosen start date to its week's Monday (weekly grid anchor).
-      const newStartDate = weekMondayStr(new Date(`${startDate}T00:00:00`));
-
-      // Give each plan instance globally-unique day ids so workouts/cycles never collide
-      // across plans that reuse 'day-1'..'day-N' (e.g. templates and default plan).
-      const uniqueDays: TrainingDay[] = reviewPlan.days.map((d, i) => ({
-        ...d,
-        id: `${newStartDate}-d${i + 1}`,
-      }));
-
-      const result = await savePlan(uniqueDays, {
-        durationWeeks: reviewPlan.planDurationWeeks,
-        startDate: newStartDate,
-      });
-      if (!result.success) {
-        setError(result.error || t('newplan.error.saveFailed'));
-        setIsSaving(false);
-        return;
-      }
-
-      // Create active cycle for the new plan
-      await createActiveCycle(uniqueDays, reviewPlan.planDurationWeeks, newStartDate);
-
+      const newStart = weekMonday(chosen.startDate);
+      const uniqueDays: TrainingDay[] = reviewDays.map((d, i) => ({ ...d, id: `${newStart}-d${i + 1}` }));
+      const result = await savePlan(uniqueDays, { durationWeeks: chosen.durationWeeks, startDate: newStart });
+      if (!result.success) { setError(result.error || t('onboarding.error.saveFailed')); setIsSaving(false); return; }
+      await createActiveCycle(uniqueDays, chosen.durationWeeks, newStart);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('newplan.error.generic'));
+      setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));
       setIsSaving(false);
     }
   };
 
-  const handleSwapExercise = (dayId: string, exerciseId: string, exerciseName: string, sets: string) => {
-    const libEx = exerciseLibrary.find(e => e.name === exerciseName);
-    setSwapDialog({ open: true, dayId, exerciseId, exerciseName, sets, category: libEx?.category || null });
-  };
-
-  const handleSwapConfirm = (replacement: ExerciseReplacement) => {
-    if (!reviewPlan) return;
-    const newDays = reviewPlan.days.map(day => {
-      if (day.id !== swapDialog.dayId) return day;
-      return {
-        ...day,
-        exercises: day.exercises.map(ex => {
-          if (ex.id !== swapDialog.exerciseId) return ex;
-          return { ...ex, name: replacement.name, sets: replacement.sets || ex.sets, videoUrl: replacement.videoUrl, instructions: [] };
-        }),
-      };
-    });
-    setReviewPlan({ ...reviewPlan, days: newDays });
-  };
-
-  const getUsedNames = (plan: TrainingDay[]) => plan.flatMap(d => d.exercises.map(e => e.name));
-
-  const completedCount = getCompletedWorkoutsCount();
-
-  // Review mode
-  if (reviewPlan) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setReviewPlan(null)}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-heading font-bold uppercase tracking-tight">{t('newplan.title')}</h1>
-            <p className="text-sm text-muted-foreground">
-              {t('newplan.weeksDaysSummary', { weeks: reviewPlan.planDurationWeeks, days: reviewPlan.days.length })}
-            </p>
-          </div>
-        </div>
-
-        {reviewPlan.days.map(day => (
-          <Card key={day.id}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center justify-between">
-                <span>{localizeDayName(day.dayName, lang)}</span>
-                <Badge variant="outline" className="text-xs font-normal">{localizeFocus(day.focus, lang)}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {day.exercises.map(ex => (
-                <div key={ex.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <div className="flex-1 min-w-0 mr-2">
-                    <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
-                    <p className="text-xs text-muted-foreground">{ex.sets}</p>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => handleSwapExercise(day.id, ex.id, ex.name, ex.sets)}>
-                    <RefreshCw className="h-3 w-3 mr-1" />{t('newplan.swap')}
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        ))}
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t('newplan.startDate.title')}</CardTitle>
-            <CardDescription>{t('newplan.startDate.desc')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </CardContent>
-        </Card>
-
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => setReviewPlan(null)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />{t('newplan.back')}
-          </Button>
-          <Button className="flex-1" onClick={handleApprove} disabled={isSaving}>
-            {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-            {t('newplan.approve')}
-          </Button>
-        </div>
-
-        {error && <p className="text-sm text-destructive text-center">{error}</p>}
-
-        <ExerciseSwapDialog
-          open={swapDialog.open}
-          onOpenChange={(open) => setSwapDialog(prev => ({ ...prev, open }))}
-          category={swapDialog.category}
-          currentExerciseName={swapDialog.exerciseName}
-          usedExerciseNames={getUsedNames(reviewPlan.days)}
-          originalSets={swapDialog.sets}
-          onSwap={handleSwapConfirm}
-        />
-      </div>
-    );
+  // ── Loading ──
+  if (phase === 'loading') {
+    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  // Weekday picker (after choosing a ready-made template)
-  if (pendingTemplate) {
-    const usedWeekdays = new Set(dayWeekdays);
+  // ── Wizard (pre-fill, start od rekomendacji) ──
+  if (phase === 'wizard') {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setPendingTemplate(null)}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-heading font-bold uppercase tracking-tight">{t('newplan.weekdays.title')}</h1>
-            <p className="text-sm text-muted-foreground">{pendingTemplate.name}</p>
-          </div>
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          {t('newplan.weekdays.instruction')}
-        </p>
-
-        {pendingTemplate.days.map((d, i) => (
-          <Card key={d.id}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center justify-between">
-                <span>{t('newplan.dayN', { n: i + 1 })}</span>
-                <Badge variant="outline" className="text-xs font-normal">{localizeFocus(d.focus, lang)}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {WEEKDAYS.map((w) => {
-                  const selected = dayWeekdays[i] === w.value;
-                  const takenByOther = !selected && usedWeekdays.has(w.value);
-                  return (
-                    <Badge
-                      key={w.value}
-                      variant={selected ? 'default' : 'outline'}
-                      className={cn(
-                        'cursor-pointer',
-                        takenByOther && 'opacity-40',
-                      )}
-                      onClick={() => setDayWeekday(i, w.value)}
-                    >
-                      {localizeWeekdayShort(w.short, lang)}
-                    </Badge>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => setPendingTemplate(null)}>
-            <ChevronLeft className="h-4 w-4 mr-1" />{t('newplan.back')}
-          </Button>
-          <Button className="flex-1" onClick={confirmTemplateDays}>
-            {t('newplan.toPreview')}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Własny plan od zera (kreator) — opcjonalnie z dniami skopiowanymi ze starego cyklu.
-  if (planSource === 'scratch') {
-    return (
-      <PlanBuilder
-        initialDays={sourceCycle?.days}
-        initialDurationWeeks={sourceCycle?.durationWeeks ?? planDurationWeeks}
-        onSubmit={(days, durationWeeks) => setReviewPlan({ days, planDurationWeeks: durationWeeks })}
-        onCancel={() => setPlanSource('templates')}
+      <PlanWizard
+        initial={profileHint}
+        startAtPrecision
+        confirmLabelKey="newplan.toReview"
+        onConfirm={onWizardConfirm}
+        onExitBack={() => (sourceCycle ? setPhase('closeout') : navigate(-1))}
       />
     );
   }
 
-  // Config page
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-xl font-heading font-bold uppercase tracking-tight">{t('newplan.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('newplan.completedWorkouts', { count: completedCount })}</p>
+  // ── Closeout (podsumowanie zakończonego cyklu) ──
+  if (phase === 'closeout' && closeoutStats) {
+    const stats = [
+      { icon: Dumbbell, label: t('newplan.closeout.workouts'), value: `${closeoutStats.totalWorkouts}/${closeoutStats.expectedWorkouts || closeoutStats.totalWorkouts}` },
+      { icon: Flame, label: t('newplan.closeout.tonnage'), value: `${Math.round(closeoutStats.totalTonnage).toLocaleString(dateLocale(lang))} kg` },
+      { icon: Percent, label: t('newplan.closeout.attendance'), value: `${closeoutStats.completionRate}%` },
+      { icon: Trophy, label: t('newplan.closeout.prs'), value: `${closeoutStats.prs.length}` },
+    ];
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="flex-1 max-w-lg w-full mx-auto px-6 pt-10 pb-6 flex flex-col">
+          <div className="flex items-center justify-between">
+            <button onClick={() => navigate(-1)} aria-label={t('common.back')} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="h-5 w-5" /></button>
+            <span className="font-heading font-bold uppercase tracking-widest text-xs text-primary">{t('ob.brand')}</span>
+            <span />
+          </div>
+          <div className="mt-8 mb-6">
+            <p className="text-xs font-medium uppercase tracking-widest text-fitness-cyan mb-2">{t('newplan.closeout.kicker')}</p>
+            <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">{t('newplan.closeout.title')}</h1>
+            <p className="text-muted-foreground mt-2">{t('newplan.closeout.desc')}</p>
+          </div>
+          <div className="flex-1 grid grid-cols-2 gap-3 content-start">
+            {stats.map((s, i) => (
+              <div key={i} className="rounded-2xl bg-surface-low p-4">
+                <s.icon className="h-5 w-5 text-fitness-cyan mb-2" />
+                <p className="font-heading font-bold text-2xl tabular-nums leading-none">{s.value}</p>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="pt-5">
+            <button onClick={() => setPhase('wizard')} className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-[#f4ffc9] to-primary flex items-center justify-center gap-2">
+              {t('newplan.closeout.choose')} <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Source cycle info (when generating from old cycle) */}
-      {sourceCycle && (
-        <Card className="border-primary/40 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              {t('newplan.basedOnCycle')}
-              <Badge variant="outline" className="text-xs">{t('newplan.weeksShort', { n: sourceCycle.durationWeeks })}</Badge>
-            </CardTitle>
-            <CardDescription>
-              {t('newplan.cycleStats', { workouts: sourceCycle.stats.totalWorkouts, tonnage: (sourceCycle.stats.totalTonnage / 1000).toFixed(1), rate: sourceCycle.stats.completionRate })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {sourceCycle.days.map(day => (
-                <div key={day.id} className="text-sm">
-                  <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
-                  <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
+  // ── Preview + swap (przed zatwierdzeniem) ──
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-1 max-w-lg w-full mx-auto px-6 pt-10 pb-6 flex flex-col">
+        <div className="flex items-center justify-between">
+          <button onClick={() => setPhase('wizard')} aria-label={t('common.back')} className="text-muted-foreground hover:text-foreground"><ChevronLeft className="h-5 w-5" /></button>
+          <span className="font-heading font-bold uppercase tracking-widest text-xs text-primary">{t('ob.brand')}</span>
+          <span />
+        </div>
+        <div className="mt-8 mb-5">
+          <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight uppercase">{t('newplan.preview.title')}</h1>
+          <p className="text-muted-foreground mt-2">{t('newplan.preview.desc')}</p>
+        </div>
+        <div className="flex-1 space-y-3 overflow-y-auto">
+          {reviewDays.map((day) => (
+            <div key={day.id} className="rounded-2xl bg-surface-low p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="font-heading font-bold">{localizeDayName(day.dayName, lang)}</p>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-surface-highest text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
+              </div>
+              {day.exercises.map((ex) => (
+                <div key={ex.id} className="flex items-center justify-between py-1.5">
+                  <div className="min-w-0 mr-2">
+                    <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{ex.sets}</p>
+                  </div>
+                  <Button variant="ghost" size="sm" className="text-xs shrink-0 text-fitness-cyan" onClick={() => openSwap(day.id, ex.id, ex.name, ex.sets)}>
+                    <RefreshCw className="h-3 w-3 mr-1" />{t('onboarding.swap')}
+                  </Button>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Previous plan summary */}
-      {!sourceCycle && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t('newplan.previousPlan')}</CardTitle>
-            <CardDescription>{t('newplan.weeksDaysSummary', { weeks: planDurationWeeks, days: currentPlan.length })}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {currentPlan.map(day => (
-                <div key={day.id} className="text-sm">
-                  <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
-                  <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Continue the same plan for another block (no AI, no template) */}
-      {hasCurrentPlan && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Repeat className="h-4 w-4 text-primary" />
-              {t('newplan.continueSame')}
-            </CardTitle>
-            <CardDescription>
-              {t('newplan.continueSameDesc', { weeks: planDurationWeeks })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="secondary" className="w-full" onClick={handleContinueCurrent}>
-              <Repeat className="h-4 w-4 mr-2" />
-              {t('newplan.continueCurrent')}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Source toggle: AI vs ready-made templates */}
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant={planSource === 'templates' ? 'default' : 'outline'}
-          onClick={() => setPlanSource('templates')}
-        >
-          <ListChecks className="h-4 w-4 mr-2" />
-          {t('newplan.readyPlans')}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setPlanSource('scratch')}
-        >
-          <PencilRuler className="h-4 w-4 mr-2" />
-          {t('newplan.customPlan')}
-        </Button>
-      </div>
-
-      {(
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {t('newplan.templatesIntro')}
-          </p>
-          {planTemplates.map(template => (
-            <Card key={template.id}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{template.name}</CardTitle>
-                <CardDescription>{template.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{t('newplan.daysPerWeek', { n: template.daysPerWeek })}</Badge>
-                  <Badge variant="secondary">{t('newplan.weeks', { n: template.durationWeeks })}</Badge>
-                  <Badge variant="outline">{t(levelLabelKeys[template.level])}</Badge>
-                </div>
-                <div className="space-y-1">
-                  {template.days.map(day => (
-                    <div key={day.id} className="text-sm">
-                      <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
-                      <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
-                    </div>
-                  ))}
-                </div>
-                <Button className="w-full" onClick={() => handlePickTemplate(template)}>
-                  <Check className="h-4 w-4 mr-2" />
-                  {t('newplan.choosePlan')}
-                </Button>
-              </CardContent>
-            </Card>
           ))}
         </div>
-      )}
+        <div className="pt-5">
+          <button onClick={handleConfirm} disabled={isSaving} className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-[#f4ffc9] to-primary disabled:opacity-50 flex items-center justify-center gap-2">
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            {t('newplan.preview.confirm')}
+          </button>
+          {error && <p className="text-sm text-destructive text-center mt-3">{error}</p>}
+        </div>
+      </div>
 
-      {error && <p className="text-sm text-destructive text-center">{error}</p>}
+      <ExerciseSwapDialog
+        open={swap.open}
+        onOpenChange={(open) => setSwap((prev) => ({ ...prev, open }))}
+        category={swap.category}
+        currentExerciseName={swap.exerciseName}
+        usedExerciseNames={usedNames(reviewDays)}
+        originalSets={swap.sets}
+        onSwap={confirmSwap}
+      />
     </div>
   );
 };
