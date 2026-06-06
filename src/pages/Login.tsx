@@ -155,7 +155,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
           <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
             <Dumbbell className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl">FitTracker</CardTitle>
+          <CardTitle className="text-2xl">Strength Save</CardTitle>
           <CardDescription>
             {supportsGoogle
               ? isRegisterMode

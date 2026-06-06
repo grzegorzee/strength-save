@@ -98,7 +98,7 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                 <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
                   <span className="text-primary font-heading font-bold text-sm">SS</span>
                 </div>
-                <span className="font-heading font-bold text-lg text-foreground">FitTracker</span>
+                <span className="font-heading font-bold text-lg text-foreground">Strength Save</span>
               </div>
             )}
             {/* Mobile: full logo + close. Desktop collapsed: just SS icon shown above */}

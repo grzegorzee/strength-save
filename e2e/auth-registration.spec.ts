@@ -7,7 +7,7 @@ test.describe('Auth and registration flows', () => {
     await page.goto('./#/?invite=INVITE42');
     await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.getByRole('heading', { name: 'FitTracker' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Strength Save' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Google' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Email + hasło' })).toBeVisible();
     await expect(page.getByText('Wykryto kod zaproszenia:')).toBeVisible();

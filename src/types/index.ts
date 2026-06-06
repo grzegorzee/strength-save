@@ -1,4 +1,4 @@
-// Centralne typy danych aplikacji FitTracker
+// Centralne typy danych aplikacji Strength Save
 
 export interface ExerciseReplacement {
   name: string;

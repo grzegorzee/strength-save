@@ -26,8 +26,18 @@ export const Layout = () => {
   const location = useLocation();
   const { t } = useTranslation();
   const isFocusedFlow = location.pathname.startsWith('/workout/') || location.pathname.startsWith('/exercise/');
+  // Replan (/new-plan) jest pełnoekranowym kreatorem (jak onboarding) — bez nawigacji i nagłówka appki.
+  const isFullScreenFlow = location.pathname === '/new-plan';
   const titleKey = pageTitleKeys[location.pathname];
-  const title = titleKey ? t(titleKey) : 'FitTracker';
+  const title = titleKey ? t(titleKey) : 'Strength Save';
+
+  if (isFullScreenFlow) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Outlet />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-hidden md:overflow-hidden">

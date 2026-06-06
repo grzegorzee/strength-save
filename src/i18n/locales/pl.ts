@@ -888,7 +888,7 @@ export const pl = {
   'profile.toast.linkFailed': 'Nie udało się wysłać linku.',
   'profile.toast.error': 'Błąd',
   'profile.aria.changeAvatar': 'Zmień zdjęcie profilowe',
-  'profile.about.title': 'FitTracker',
+  'profile.about.title': 'Strength Save',
   'profile.about.desc': 'Aplikacja do śledzenia treningów siłowych.',
   'detail.notFound': 'Nie znaleziono ćwiczenia.',
   'detail.backToLibrary': 'Wróć do biblioteki',
