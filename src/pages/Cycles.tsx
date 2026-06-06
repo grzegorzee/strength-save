@@ -7,20 +7,23 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useToast } from '@/hooks/use-toast';
 import { CycleCard } from '@/components/CycleCard';
 import { CycleDetail } from '@/components/CycleDetail';
 import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation } from '@/lib/cycle-insights';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 
 const Cycles = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
-  const { cycles, isLoaded, createActiveCycle } = usePlanCycles(uid);
+  const { cycles, isLoaded, createActiveCycle, deleteCycle } = usePlanCycles(uid);
   const { workouts } = useFirebaseWorkouts(uid);
+  const { toast } = useToast();
   const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired } = useTrainingPlan(uid);
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);
   const activeCycle = cycles.find(cycle => cycle.status === 'active') || null;
@@ -70,6 +73,13 @@ const Cycles = () => {
       <CycleDetail
         cycle={selectedCycle}
         onBack={() => setSelectedCycle(null)}
+        onDelete={async () => {
+          const ok = await deleteCycle(selectedCycle.id, workouts);
+          toast(ok
+            ? { title: t('cycles.deleted') }
+            : { title: t('cycles.deleteFailed'), variant: 'destructive' });
+          if (ok) setSelectedCycle(null);
+        }}
       />
     );
   }
@@ -128,15 +138,15 @@ const Cycles = () => {
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="rounded-lg border bg-background/70 p-3">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.vsPrevious')}</p>
-                  <p className="mt-1 font-semibold">{comparison.completionRateDelta >= 0 ? '+' : ''}{comparison.completionRateDelta}% {t('cycles.completion')}</p>
+                  <p className="mt-1 font-heading font-bold tabular-nums">{comparison.completionRateDelta >= 0 ? '+' : '−'}{Math.abs(comparison.completionRateDelta)}% {t('cycles.completion')}</p>
                 </div>
                 <div className="rounded-lg border bg-background/70 p-3">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.tonnage')}</p>
-                  <p className="mt-1 font-semibold">{comparison.tonnageDelta >= 0 ? '+' : ''}{comparison.tonnageDelta} kg</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.tonnagePerWorkout')}</p>
+                  <p className="mt-1 font-heading font-bold tabular-nums">{comparison.tonnageDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(comparison.tonnageDelta)).toLocaleString(dateLocale(lang))} kg</p>
                 </div>
                 <div className="rounded-lg border bg-background/70 p-3">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.prs')}</p>
-                  <p className="mt-1 font-semibold">{comparison.prDelta >= 0 ? '+' : ''}{comparison.prDelta}</p>
+                  <p className="mt-1 font-heading font-bold tabular-nums">{comparison.prDelta >= 0 ? '+' : '−'}{Math.abs(comparison.prDelta)}</p>
                 </div>
               </div>
             )}

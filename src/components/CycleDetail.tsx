@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Dumbbell, Trophy, TrendingUp, RefreshCw, CalendarX2 } from 'lucide-react';
+import { ChevronLeft, Dumbbell, Trophy, TrendingUp, RefreshCw, CalendarX2, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +14,14 @@ import { dateLocale } from '@/i18n';
 interface Props {
   cycle: PlanCycle;
   onBack: () => void;
+  /** Usuwa ten cykl (np. błędny/fantomowy). Pokazuje przycisk z potwierdzeniem dla nieaktywnych. */
+  onDelete?: () => void;
 }
 
-export const CycleDetail = ({ cycle, onBack }: Props) => {
+export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const isActive = cycle.status === 'active';
   const tonnageT = (cycle.stats.totalTonnage / 1000).toFixed(1);
 
@@ -152,6 +156,25 @@ export const CycleDetail = ({ cycle, onBack }: Props) => {
           <RefreshCw className="h-4 w-4 mr-2" />
           {t('cycles.generateFromCycle')}
         </Button>
+      )}
+
+      {/* Usuń błędny/fantomowy cykl (tylko nieaktywny) */}
+      {!isActive && onDelete && (
+        confirmingDelete ? (
+          <div className="rounded-xl bg-surface-low p-3 space-y-3">
+            <p className="text-sm text-muted-foreground">{t('cycles.deleteConfirm')}</p>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setConfirmingDelete(false)}>{t('common.cancel')}</Button>
+              <Button variant="destructive" className="flex-1" onClick={() => { setConfirmingDelete(false); onDelete(); }}>
+                <Trash2 className="h-4 w-4 mr-2" />{t('cycles.delete')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setConfirmingDelete(true)} className="w-full text-center text-sm text-muted-foreground hover:text-destructive transition-colors py-2 flex items-center justify-center gap-1.5">
+            <Trash2 className="h-3.5 w-3.5" />{t('cycles.delete')}
+          </button>
+        )
       )}
     </div>
   );

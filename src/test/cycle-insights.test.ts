@@ -132,7 +132,10 @@ describe('buildCycleComparison — świeży cykl nie pokazuje ujemnych delt', ()
   const mkCycle = (id: string, totalWorkouts: number, totalTonnage: number, completionRate: number): PlanCycle => ({
     id, userId: 'u1', days: [], durationWeeks: 12, startDate: '2026-01-01', endDate: '2026-03-25',
     status: 'completed', createdAt: '2026-01-01T00:00:00.000Z',
-    stats: { totalWorkouts, totalTonnage, prs: [], completionRate },
+    stats: {
+      totalWorkouts, totalTonnage, prs: [], completionRate,
+      averageTonnagePerWorkout: totalWorkouts > 0 ? Math.round(totalTonnage / totalWorkouts) : 0,
+    },
   });
 
   it('zwraca null gdy nowy cykl ma 0 treningów (brak regresu -50000 kg)', () => {
@@ -141,11 +144,13 @@ describe('buildCycleComparison — świeży cykl nie pokazuje ujemnych delt', ()
     expect(buildCycleComparison(fresh, prev)).toBeNull();
   });
 
-  it('porównuje normalnie gdy nowy cykl ma już treningi', () => {
-    const current = mkCycle('new', 5, 8000, 40);
-    const prev = mkCycle('old', 30, 50000, 80);
+  it('porównuje tonaż NA TRENING (nie sumę) — świeży cykl bez absurdalnego minusa', () => {
+    const current = mkCycle('new', 5, 8000, 40);   // 1600 kg/trening
+    const prev = mkCycle('old', 30, 50000, 80);    // 1667 kg/trening
     const cmp = buildCycleComparison(current, prev);
     expect(cmp).not.toBeNull();
-    expect(cmp?.tonnageDelta).toBe(8000 - 50000);
+    // 1600 - 1667 = -67 (sensowne), NIE 8000 - 50000 = -42000
+    expect(cmp?.tonnageDelta).toBe(1600 - 1667);
+    expect(Math.abs(cmp!.tonnageDelta)).toBeLessThan(1000);
   });
 });

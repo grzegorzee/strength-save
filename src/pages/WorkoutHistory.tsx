@@ -13,6 +13,7 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { WorkoutSession } from '@/types';
 
@@ -178,15 +179,15 @@ const WorkoutHistory = () => {
           <CardContent className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg bg-background/70 p-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.tonnage')}</p>
-              <p className="mt-1 text-xl font-semibold">{comparison.tonnageDelta >= 0 ? '+' : ''}{comparison.tonnageDelta} kg</p>
+              <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.tonnageDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(comparison.tonnageDelta)).toLocaleString(dateLocale(lang))} kg</p>
             </div>
             <div className="rounded-lg bg-background/70 p-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.completedSets')}</p>
-              <p className="mt-1 text-xl font-semibold">{comparison.setDelta >= 0 ? '+' : ''}{comparison.setDelta}</p>
+              <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.setDelta >= 0 ? '+' : ''}{comparison.setDelta}</p>
             </div>
             <div className="rounded-lg bg-background/70 p-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.exercises')}</p>
-              <p className="mt-1 text-xl font-semibold">{comparison.exerciseDelta >= 0 ? '+' : ''}{comparison.exerciseDelta}</p>
+              <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.exerciseDelta >= 0 ? '+' : ''}{comparison.exerciseDelta}</p>
             </div>
           </CardContent>
         </Card>
@@ -214,36 +215,34 @@ const WorkoutHistory = () => {
             (sum, exercise) => sum + exercise.sets.reduce((setSum, set) => setSum + (set.completed ? set.reps * set.weight : 0), 0),
             0,
           );
+          const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
           const isSelected = compareIds.includes(workout.id);
           return (
             <Card key={workout.id} className={isSelected ? 'border-primary/40 bg-primary/5' : ''}>
               <CardContent className="p-4 space-y-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium">{workout.date}</p>
-                      <Badge variant={workout.completed ? 'default' : 'secondary'}>
-                        {workout.completed ? t('history.badgeCompleted') : t('history.badgeDraft')}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {localizeDayName(dayLabel.dayName, lang)} · {localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}
-                    </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium tabular-nums">{workout.date}</p>
+                    <Badge variant={workout.completed ? 'default' : 'secondary'}>
+                      {workout.completed ? t('history.badgeCompleted') : t('history.badgeDraft')}
+                    </Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 text-right text-sm">
-                    <div>
-                      <p className="font-semibold">{workout.exercises.length}</p>
-                      <p className="text-xs text-muted-foreground">{t('history.exercisesShort')}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {localizeDayName(dayLabel.dayName, lang)} · {localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 rounded-xl bg-surface-low">
+                  {[
+                    { v: workout.exercises.length.toString(), l: t('history.exercisesShort') },
+                    { v: Math.round(tonnage).toLocaleString(dateLocale(lang)), l: 'kg' },
+                    { v: totalSets.toString(), l: t('history.setsShort') },
+                  ].map((s, i) => (
+                    <div key={i} className="text-center py-2.5">
+                      <p className="font-heading font-bold text-xl tabular-nums leading-none">{s.v}</p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{s.l}</p>
                     </div>
-                    <div>
-                      <p className="font-semibold">{tonnage}</p>
-                      <p className="text-xs text-muted-foreground">kg</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold">{workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0)}</p>
-                      <p className="text-xs text-muted-foreground">{t('history.setsShort')}</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 <div className="flex flex-wrap gap-2">

@@ -124,7 +124,9 @@ export const buildCycleComparison = (cycle: PlanCycle, previousCycle: PlanCycle 
 
   return {
     completionRateDelta: cycle.stats.completionRate - previousCycle.stats.completionRate,
-    tonnageDelta: cycle.stats.totalTonnage - previousCycle.stats.totalTonnage,
+    // Porównujemy tonaż NA TRENING (niezależny od długości/postępu cyklu), nie sumę —
+    // suma świeżego cyklu vs zakończonego zawsze dawała absurdalny minus.
+    tonnageDelta: (cycle.stats.averageTonnagePerWorkout ?? 0) - (previousCycle.stats.averageTonnagePerWorkout ?? 0),
     prDelta: cycle.stats.prs.length - previousCycle.stats.prs.length,
   };
 };

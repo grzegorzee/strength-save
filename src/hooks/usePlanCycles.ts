@@ -203,6 +203,23 @@ export const usePlanCycles = (userId: string) => {
     return removed;
   }, [cycles]);
 
+  // Usuwa pojedynczy cykl (np. błędny/fantomowy). Treningi NIE są kasowane —
+  // odtagowujemy je z cycleId, żeby nie zostały osierocone pod nieistniejącym cyklem.
+  const deleteCycle = useCallback(async (cycleId: string, workouts: WorkoutSession[] = []): Promise<boolean> => {
+    if (!userId || !cycleId) return false;
+    try {
+      const tagged = workouts.filter((w) => w.cycleId === cycleId);
+      for (const w of tagged) {
+        await updateDoc(doc(db, 'workouts', w.id), { cycleId: null });
+      }
+      await deleteDoc(doc(db, CYCLES_COLLECTION, cycleId));
+      return true;
+    } catch (err) {
+      console.error('[usePlanCycles] deleteCycle error:', err);
+      return false;
+    }
+  }, [userId]);
+
   return {
     cycles,
     isLoaded,
@@ -211,5 +228,6 @@ export const usePlanCycles = (userId: string) => {
     createActiveCycle,
     getCycleById,
     mergeContinuousCycles,
+    deleteCycle,
   };
 };
