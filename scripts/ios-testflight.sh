@@ -49,14 +49,14 @@ xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release \
   -archivePath "$ARCHIVE" -destination 'generic/platform=iOS' archive \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
-echo "==> 4/5 export IPA (app-store-connect)"
+# Export z manual signing (cert + profil utworzone wcześniej przez ios_signing.py).
+# Fallback do automatic ExportOptions jeśli manual nie istnieje.
+MANUAL_OPTS="ios/ExportOptions-manual.plist"
+[ -f "$MANUAL_OPTS" ] && OPTS="$MANUAL_OPTS"
+echo "==> 4/5 export IPA ($OPTS)"
 rm -rf "$EXPORT_DIR"
 xcodebuild -exportArchive -archivePath "$ARCHIVE" \
-  -exportPath "$EXPORT_DIR" -exportOptionsPlist "$OPTS" \
-  -allowProvisioningUpdates \
-  -authenticationKeyPath "$ASC_KEY_PATH" \
-  -authenticationKeyID "$ASC_KEY_ID" \
-  -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+  -exportPath "$EXPORT_DIR" -exportOptionsPlist "$OPTS"
 
 IPA="$(ls "$EXPORT_DIR"/*.ipa | head -1)"
 echo "==> 5/5 upload do TestFlight: $IPA"
