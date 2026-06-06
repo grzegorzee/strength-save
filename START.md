@@ -502,3 +502,18 @@ npm run deploy    # gh-pages -d dist
 - Istniejący użytkownicy: auto-detect (mają workouty) → skip onboarding
 - `chat_conversations` — DEPRECATED (zastąpione przez `chat_messages` per-user w v6.4.0)
 - 🔴 **DEPLOY:** `git push` ≠ deploy! Po KAŻDEJ zmianie kodu → `npm run deploy` (gh-pages branch)
+
+---
+
+## 🆕 STAN 2026-06-06 (najnowsza sesja)
+
+**Zrobione i na produkcji (web live + build iOS):**
+- Pełne i18n PL/EN (zero polskiego w trybie EN: strony, lib, dane, daty, dni, focus, admin, hooki; coach AI odpowiada w języku UI).
+- Katalog ćwiczeń **241** (było 106) — maszyny + wolne ciężary + BW, komplet PL+EN.
+- **10 planów** pod cele (bez nazwisk) + recommender `getRecommendedPlan(objective, level, days)` w `planTemplates.ts`.
+- **Onboarding 5-krokowy "Kinetic Precision"** (`PlanWizard`) + **spójny replan** (`/new-plan` używa tego samego kreatora: closeout → wizard pre-fill → preview+swap → archive).
+- BEST-badge + rest-timer w treningu; fix Historia (tonaż) i Cykle (porównanie per-trening + usuwanie cyklu); ikona/splash iOS.
+
+**🔴 BUDOWANIE iOS (przeczytaj zanim zbudujesz!):** iOS WYMAGA `npm run build:mobile` (base `./`). `npm run deploy` przebudowuje `dist` jako WEB (base `/strength-save/`) — jeśli potem `cap sync ios`, dostaniesz BIAŁY EKRAN (assety 404). Zawsze: `npm run build:mobile && ./node_modules/.bin/cap sync ios && ./node_modules/.bin/cap run ios --target=8F8734A8-5063-41DE-B465-1697B8F4771C`. Sprawdź: `grep 'src="' ios/App/App/public/index.html` → `./assets/...`.
+
+**Do zrobienia:** branding FitTracker→Strength Save; closeout cyklu (wizualnie niepotwierdzony); TestFlight Archive (Xcode); Android. Pełny handoff: `docs/HANDOFF-NEXT-AGENT.md` (sekcja 2026-06-06). Decyzje + wnioski z buildów: `DECYZJE.md` (sekcja SESJA 2026-06-05/06).

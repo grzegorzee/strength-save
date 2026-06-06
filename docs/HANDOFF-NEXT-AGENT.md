@@ -114,3 +114,90 @@ Google login), Tailwind + shadcn. Live web: https://grzegorzee.github.io/strengt
   jako narzędzia w apce (user uruchamia, ma dostęp przez security rules).
 
 Zacznij od `docs/DESIGN.md`, `START.md`, `DOCUMENTATION.md`. Powodzenia!
+
+---
+
+# 🔄 AKTUALIZACJA 2026-06-06 (sesja: i18n pełne, katalog 241, 10 planów, onboarding redesign, replan, fixy)
+
+# Prompt dla następnego agenta — Strength Save (FitTracker)
+
+Pracujesz nad aplikacją fitness **Strength Save** w
+`/Users/grzegorzjasionowicz/FIRMA/projekty/strength_save`. PWA (React 18 + TS + Vite 5 +
+Firebase 12 + Tailwind + shadcn) opakowana w Capacitor 8 jako natywna iOS/Android.
+Live web: https://grzegorzee.github.io/strength-save/ (gh-pages). Repo: github.com/grzegorzee/strength-save.
+
+## Zasady pracy
+- Język odpowiedzi: PL (polskie znaki, BEZ em-dash/en-dash). Karpathy rules: prostota, surgical changes, weryfikuj.
+- Design ŚCIŚLE wg `docs/DESIGN.md` ("Kinetic Precision"): Void #0e0e0e, lime #cefc22 (akcje główne),
+  cyan #00e3fd / token `fitness-cyan` (dane wtórne), No-Line (granice przez surface shifts, nie bordery),
+  Space Grotesk (font-heading) + Inter, surface-low/high/highest do warstwowania.
+- i18n: pełne PL/EN. `useTranslation()` → `const { t, lang } = ...`, `t('klucz', {param})`. Poza Reactem:
+  `translate(lang, key, params)` z `@/i18n`. Dane (nazwy ćwiczeń/dni/focus) są KANONICZNE po PL; lokalizuje się
+  TYLKO wyświetlanie przez helpery: `localizeExerciseName`/`localizeCategory` (@/data/exercise-i18n),
+  `localizeDayName`/`localizeFocus`/`localizeWeekdayShort` (@/lib/plan-i18n), `dateLocale(lang)` dla dat.
+  Wartości PL w locale dla kluczy asertowanych w testach MUSZĄ być 1:1 z oryginałem.
+
+## 🔴 KRYTYCZNA PUŁAPKA BUILDU (przyczyna białego ekranu na iOS)
+- `vite.config.ts` ma `base: isMobileBuild ? './' : '/strength-save/'`.
+- **iOS WYMAGA `npm run build:mobile`** (base `./`). WEBowy `vite build` (base `/strength-save/`) wgrany do
+  WKWebView = assety 404 = BIAŁY EKRAN.
+- `npm run deploy` ma predeploy `vite build` (WEB) — NADPISUJE `dist` buildem webowym.
+- **DLATEGO: nigdy `cap sync ios` zaraz po `npm run deploy` lub `npm run build`.**
+  Poprawna kolejność dla iOS: `npm run build:mobile && ./node_modules/.bin/cap sync ios && ./node_modules/.bin/cap run ios --target=8F8734A8-5063-41DE-B465-1697B8F4771C`.
+- Weryfikacja: `grep 'src="' ios/App/App/public/index.html` musi pokazać `./assets/...` (NIE `/strength-save/assets/...`).
+- Symulator iPhone 17 UDID: `8F8734A8-5063-41DE-B465-1697B8F4771C`. Screenshot: `xcrun simctl io <UDID> screenshot /tmp/x.png`.
+- RTK hook przepisuje `npx cap` → `npm cap` (błąd) — używaj `./node_modules/.bin/cap`.
+- Po zmianie kodu: `npx tsc --noEmit -p tsconfig.app.json` + `npx eslint .` + `npm run build:mobile` + `npx vitest run` (219 testów).
+
+## Weryfikacja wizualna onboardingu/wizarda (gdy trzeba)
+WKWebView nie pipuje konsoli JS; Chrome-extension MCP bywa offline. Działa **Playwright** (jest w node_modules):
+headless chromium + dev server z `.env.local` zawierającym `VITE_E2E_MODE=true`, `addInitScript` ustawia
+`localStorage fittracker_e2e_auth_state={"scenario":"new-user"|"active-admin"}` i `app-language`. PO TEŚCIE
+USUŃ `.env.local` (inaczej E2E-bypass trafi na produkcję). Onboarding pokazuje się tylko nowemu userowi
+(new-user); replan `/new-plan` wymaga active-admin.
+
+## Co ZROBIONE i zweryfikowane (tsc/eslint/219 testów/build zielone, commity na main)
+- **Pełne i18n PL/EN** — wszystkie strony, komponenty, lib (plan-next-step, cycle-insights, next-set-advice,
+  strava, share, ai-coach), dane (trainingRules, warmup), daty, dni/focus, admin, hooki, AccessGate. Coach AI
+  odpowiada w języku UI. Zostają świadomie PL: prompty wejściowe LLM, lookup-keys (np. 'Półmaraton'), komentarze.
+- **Katalog ćwiczeń 241** (było 106, +135: maszyny/wolne ciężary/BW), każde z PL+EN (kroki, mięśnie, sprzęt, proTip).
+  Pliki: exerciseLibrary.ts, exercise-details.ts, exercise-i18n.ts, exercise-details-en.ts.
+- **10 planów** (bez nazwisk) + pole `objective` + `getRecommendedPlan(objective, level, days)` w planTemplates.ts.
+- **Onboarding 5-krokowy** (Welcome→Baseline→Objective→Protocol→Precision + przeglądaj 10 + ułóż własny) wg makiet
+  Kinetic. Wspólny komponent `src/components/PlanWizard.tsx`; Onboarding.tsx = cienki wrapper. Zweryfikowany Playwrightem.
+- **Spójny replan** (D6): `/new-plan` (NewPlan.tsx) = closeout zakończonego cyklu (fromCycle) → PlanWizard pre-fill
+  z `trainingProfile` (zapisywany przy onboardingu do users/{uid}) startAtPrecision + "Zmień ustawienia" →
+  preview+swap → `archiveCurrentPlan` + `savePlan` + `createActiveCycle`. Wyzwalacze: Dashboard expiry card, Cykle, CycleDetail.
+- **BEST-badge + kołowy rest-timer** (ExerciseCard) + fonty nagłówków (font-heading uppercase) na stronach.
+- **Cykle root-cause** fantomów (Cycles.tsx auto-repair: guard per planStartDate + localStorage zamiast ref).
+- **Historia**: tonaż zaokrąglony + separator + staty font-heading/tabular-nums (mobile).
+- **Cykle porównanie**: tonaż liczony NA TRENING (averageTonnagePerWorkout), nie sumę (naprawia absurdalny minus).
+  Dodane **usuwanie cyklu** (CycleDetail → "Usuń cykl", odtagowuje cycleId, nie kasuje treningów) — `deleteCycle` w usePlanCycles.
+- **Branding iOS**: ikona on-brand (hantel lime na Void) + splash; DEVELOPMENT_TEAM=J4CRD2SA6D; Info.plist
+  ITSAppUsesNonExemptEncryption=false.
+
+## Co JESZCZE do sprawdzenia / zrobienia
+1. **Branding "FitTracker" → "Strength Save"**: app-header i ekran logowania nadal pokazują "FitTracker" (stara nazwa).
+   W onboardingu/replanie widać podwójny brand (FitTracker w app-shell + STRENGTH SAVE w kreatorze). Ujednolicić.
+   Szukaj literału 'FitTracker' w src (AppHeader, Login, toasty, manifest, capacitor.config appName='StrengthSave').
+2. **Closeout (podsumowanie cyklu) — wizualnie NIEpotwierdzony**: ekran w NewPlan.tsx (phase 'closeout') zbudowany,
+   tsc/build OK, ale nie sprawdzony na żywych danych cyklu (mock e2e ich nie ma). Zweryfikuj realnie kończąc plan.
+3. **Replan-wizard renderuje się w app-shellu** (z dolną nawigacją + nagłówkiem) — onboarding jest full-screen.
+   Rozważyć ukrycie nawigacji/nagłówka appki na trasie /new-plan dla spójności (Layout/AppHeader, route gating).
+4. **TestFlight** (BLOKER = akcja usera w Xcode): otwórz `ios/App/App.xcworkspace` → konto Apple jest dodane →
+   Product → Archive (Any iOS Device, NIE symulator) → Distribute → App Store Connect. Wcześniej utwórz rekord apki
+   w App Store Connect dla bundle ID `com.grzegorzjasionowicz.strengthsave`. Wersja 1.0/build 1.
+5. **Android (Google Play)**: cap run android (adb z ~/Library/Android/sdk/platform-tools do PATH), release keystore
+   + SHA-1 w Firebase (debug już jest), Google Play Developer ($25) + Play Console. Ikony Android już wygenerowane.
+6. **Firebase Storage rules** dla `avatars/{uid}/` (upload zdjęcia profilowego) — zweryfikować authd write.
+7. **Apple Sign-In** (odłożone) — wymaga Service ID + .p8 + provider w Firebase.
+
+## Pułapki dodatkowe
+- Brak admin-dostępu do Firestore z CLI (ADC PERMISSION_DENIED) — naprawy danych usera rób jako narzędzia w apce
+  (user uruchamia, ma dostęp przez security rules). Przykład: usuwanie błędnego cyklu = przycisk w CycleDetail.
+- ExerciseCard/WorkoutDay = KRYTYCZNY zapis serii do Firestore — nie ruszaj handlerów setData/onSetsChange.
+- Sekrety: `.env` → symlink do `_secrets` (gitignore). `.env.local` z VITE_E2E_MODE jest TYLKO do lokalnej diagnozy — usuń po użyciu.
+- Pamięć agenta: `~/.claude/projects/-Users-grzegorzjasionowicz-FIRMA-projekty-strength-save/memory/` (MEMORY.md +
+  i18n_architecture.md + deploy_and_build_gotchas.md).
+
+Zacznij od `docs/DESIGN.md`. Powodzenia!
