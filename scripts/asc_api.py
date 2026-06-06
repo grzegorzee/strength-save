@@ -123,6 +123,114 @@ def cmd_check_signing():
         print(f"  {rp.text[:300]}")
 
 
+def _app_id():
+    app, _ = find_app()
+    return app["id"] if app else None
+
+
+def cmd_builds():
+    aid = _app_id()
+    if not aid:
+        print("Brak rekordu apki")
+        return
+    r = get("/v1/builds", **{"filter[app]": aid, "limit": 20,
+                             "sort": "-version", "include": "preReleaseVersion"})
+    if r.status_code != 200:
+        print(f"{r.status_code}: {r.text[:300]}")
+        return
+    data = r.json()
+    pre = {x["id"]: x["attributes"]["version"] for x in data.get("included", [])
+           if x["type"] == "preReleaseVersions"}
+    for b in data.get("data", []):
+        a = b["attributes"]
+        rel = b.get("relationships", {}).get("preReleaseVersion", {}).get("data") or {}
+        ver = pre.get(rel.get("id"), "?")
+        print(f"  build {ver} ({a.get('version')}) state={a.get('processingState')} id={b['id']} expired={a.get('expired')}")
+
+
+def cmd_groups():
+    aid = _app_id()
+    r = get("/v1/betaGroups", **{"filter[app]": aid, "limit": 50})
+    if r.status_code != 200:
+        print(f"{r.status_code}: {r.text[:300]}")
+        return
+    for g in r.json().get("data", []):
+        a = g["attributes"]
+        print(f"  group '{a.get('name')}' internal={a.get('isInternalGroup')} id={g['id']}")
+
+
+def cmd_users():
+    r = get("/v1/users", limit=50)
+    if r.status_code != 200:
+        print(f"{r.status_code}: {r.text[:300]}")
+        return
+    for u in r.json().get("data", []):
+        a = u["attributes"]
+        print(f"  {a.get('username')} roles={a.get('roles')} id={u['id']}")
+
+
+def cmd_internal_setup():
+    """Utwórz internal beta group + podepnij najnowszy VALID build."""
+    aid = _app_id()
+    if not aid:
+        print("Brak rekordu apki")
+        sys.exit(1)
+    # znajdź grupę 'Wewnętrzni' lub utwórz
+    rg = get("/v1/betaGroups", **{"filter[app]": aid, "limit": 50})
+    group = None
+    for g in rg.json().get("data", []):
+        if g["attributes"].get("name") == "Wewnętrzni":
+            group = g
+            break
+    if not group:
+        body = {"data": {"type": "betaGroups",
+                         "attributes": {"name": "Wewnętrzni", "isInternalGroup": True},
+                         "relationships": {"app": {"data": {"type": "apps", "id": aid}}}}}
+        r = post("/v1/betaGroups", body)
+        if r.status_code not in (200, 201):
+            print(f"BŁĄD tworzenia grupy {r.status_code}: {r.text[:400]}")
+            sys.exit(1)
+        group = r.json()["data"]
+        print(f"UTWORZONO grupę 'Wewnętrzni' id={group['id']} internal={group['attributes'].get('isInternalGroup')}")
+    else:
+        print(f"Grupa 'Wewnętrzni' już istnieje id={group['id']}")
+    # najnowszy VALID build
+    rb = get("/v1/builds", **{"filter[app]": aid, "filter[processingState]": "VALID",
+                              "sort": "-version", "limit": 1})
+    builds = rb.json().get("data", [])
+    if not builds:
+        print("Brak VALID buildów")
+        sys.exit(1)
+    bid = builds[0]["id"]
+    # podepnij build do grupy
+    rr = post(f"/v1/betaGroups/{group['id']}/relationships/builds",
+              {"data": [{"type": "builds", "id": bid}]})
+    if rr.status_code in (200, 201, 204):
+        print(f"PODPIĘTO build {builds[0]['attributes'].get('version')} do grupy")
+    else:
+        print(f"build->grupa {rr.status_code}: {rr.text[:300]}")
+    print(f"GROUP_ID={group['id']}")
+
+
+def cmd_add_tester():
+    """add-tester <email> <imię> <nazwisko> — dodaj testera do grupy 'Wewnętrzni'."""
+    email, first, last = sys.argv[2], sys.argv[3], sys.argv[4]
+    aid = _app_id()
+    rg = get("/v1/betaGroups", **{"filter[app]": aid, "limit": 50})
+    group = next((g for g in rg.json().get("data", []) if g["attributes"].get("name") == "Wewnętrzni"), None)
+    if not group:
+        print("Brak grupy 'Wewnętrzni' — uruchom internal-setup")
+        sys.exit(1)
+    body = {"data": {"type": "betaTesters",
+                     "attributes": {"email": email, "firstName": first, "lastName": last},
+                     "relationships": {"betaGroups": {"data": [{"type": "betaGroups", "id": group["id"]}]}}}}
+    r = post("/v1/betaTesters", body)
+    if r.status_code in (200, 201):
+        print(f"DODANO testera {email} do 'Wewnętrzni'")
+    else:
+        print(f"BŁĄD {r.status_code}: {r.text[:400]}")
+
+
 def cmd_whoami():
     r = get("/v1/bundleIds", limit=5)
     print(f"status {r.status_code}")
@@ -138,4 +246,6 @@ def cmd_whoami():
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "whoami"
     {"bundle-ensure": cmd_bundle_ensure, "app-ensure": cmd_app_ensure,
-     "check-signing": cmd_check_signing, "whoami": cmd_whoami}[cmd]()
+     "check-signing": cmd_check_signing, "builds": cmd_builds, "groups": cmd_groups,
+     "users": cmd_users, "internal-setup": cmd_internal_setup,
+     "add-tester": cmd_add_tester, "whoami": cmd_whoami}[cmd]()
