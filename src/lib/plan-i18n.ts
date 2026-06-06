@@ -27,12 +27,15 @@ const FOCUS_TOKEN_EN: Record<string, string> = {
   'Pośladki': 'Glutes',
   'Łydki': 'Calves',
   'Ciało': 'Body',
+  'ciało': 'Body',
   'Całe': 'Full',
   'Cały': 'Full',
   'Tył': 'Posterior',
   'Przód': 'Anterior',
   'Siła': 'Strength',
   'Wytrzymałość': 'Endurance',
+  'Kondycja': 'Conditioning',
+  'Akcesoria': 'Accessories',
 };
 
 const WEEKDAY_SHORT_EN: Record<string, string> = {

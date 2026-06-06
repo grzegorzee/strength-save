@@ -156,7 +156,7 @@ export const planTemplates: PlanTemplate[] = [
     daysPerWeek: 3,
     durationWeeks: 12,
     days: [
-      day('day-1', 'Poniedziałek', 'monday', 'Push (klatka, barki, triceps)', [
+      day('day-1', 'Poniedziałek', 'monday', 'Push', [
         ex('Wyciskanie sztangi na ławce płaskiej', '4 x 6-8'),
         ex('Wyciskanie sztangi nad głowę (OHP)', '3 x 8-10'),
         ex('Wyciskanie sztangi na skosie', '3 x 8-10'),
@@ -164,7 +164,7 @@ export const planTemplates: PlanTemplate[] = [
         ex('Wyprosty na lince (Pushdown)', '3 x 10-12'),
         ex('Dips (pompki na poręczach)', '3 x 8-12'),
       ]),
-      day('day-2', 'Środa', 'wednesday', 'Pull (plecy, biceps)', [
+      day('day-2', 'Środa', 'wednesday', 'Pull', [
         ex('Martwy ciąg klasyczny', '3 x 5'),
         ex('Podciąganie na drążku', '3 x 6-10'),
         ex('Wiosłowanie sztangą', '4 x 8-10'),
@@ -172,7 +172,7 @@ export const planTemplates: PlanTemplate[] = [
         ex('Face Pull', '3 x 15'),
         ex('Uginanie sztangi stojąc', '3 x 10-12'),
       ]),
-      day('day-3', 'Piątek', 'friday', 'Legs (nogi, brzuch)', [
+      day('day-3', 'Piątek', 'friday', 'Legs', [
         ex('Przysiad ze sztangą (High Bar)', '4 x 6-8'),
         ex('Martwy Ciąg Rumuński (RDL)', '3 x 8-10'),
         ex('Prasa nożna', '3 x 10-12'),
@@ -264,7 +264,7 @@ export const planTemplates: PlanTemplate[] = [
         ex('Odwrotne rozpiętki (Tył barku)', '3 x 15'),
         ex('Face Pull', '3 x 15'),
       ]),
-      day('day-5', 'Piątek', 'friday', 'Ramiona + brzuch', [
+      day('day-5', 'Piątek', 'friday', 'Ramiona + Brzuch', [
         ex('Uginanie sztangi stojąc', '4 x 8-10'),
         ex('Wyprosty na lince (Pushdown)', '4 x 10-12'),
         ex('Uginanie hantli hammer', '3 x 12'),
@@ -367,26 +367,26 @@ export const planTemplates: PlanTemplate[] = [
     daysPerWeek: 4,
     durationWeeks: 12,
     days: [
-      day('day-1', 'Poniedziałek', 'monday', 'Przysiad + nogi', [
+      day('day-1', 'Poniedziałek', 'monday', 'Nogi', [
         ex('Przysiad ze sztangą (Low Bar)', '5 x 3-5'),
         ex('Prasa nożna', '3 x 8-10'),
         ex('Uginanie nóg na maszynie (Leżąc)', '3 x 10-12'),
         ex('Wspięcia na palce (Nogi proste)', '4 x 12-15'),
       ]),
-      day('day-2', 'Wtorek', 'tuesday', 'Wyciskanie + klatka', [
+      day('day-2', 'Wtorek', 'tuesday', 'Klatka', [
         ex('Wyciskanie sztangi na ławce płaskiej', '5 x 3-5'),
         ex('Wyciskanie sztangi na skosie', '3 x 8-10'),
         ex('Dips (pompki na poręczach)', '3 x 8-12'),
         ex('Wyprosty na lince (Pushdown)', '3 x 12'),
         ex('Wznosy bokiem (Lateral Raise)', '3 x 15'),
       ]),
-      day('day-3', 'Czwartek', 'thursday', 'Martwy ciąg + plecy', [
+      day('day-3', 'Czwartek', 'thursday', 'Plecy', [
         ex('Martwy ciąg klasyczny', '4 x 3-4'),
         ex('Wiosłowanie sztangą', '4 x 6-8'),
         ex('Podciąganie na drążku', '3 x MAX'),
         ex('Uginanie sztangi stojąc', '3 x 10-12'),
       ]),
-      day('day-4', 'Piątek', 'friday', 'OHP + barki', [
+      day('day-4', 'Piątek', 'friday', 'Barki', [
         ex('Wyciskanie sztangi nad głowę (OHP)', '5 x 3-5'),
         ex('Arnoldki', '3 x 8-10'),
         ex('Wznosy bokiem (Lateral Raise)', '4 x 12-15'),
@@ -405,28 +405,28 @@ export const planTemplates: PlanTemplate[] = [
     daysPerWeek: 4,
     durationWeeks: 8,
     days: [
-      day('day-1', 'Poniedziałek', 'monday', 'Obwód całego ciała A', [
+      day('day-1', 'Poniedziałek', 'monday', 'Całe ciało A', [
         ex('Przysiad goblet', '3 x 15', { superset: 'A' }),
         ex('Pompki', '3 x MAX', { superset: 'A' }),
         ex('Wiosłowanie hantlem jednorącz (Laty)', '3 x 12', { superset: 'A' }),
         ex('Burpees', '3 x 15'),
         ex('Plank', '3 x MAX'),
       ]),
-      day('day-2', 'Wtorek', 'tuesday', 'Obwód całego ciała B', [
+      day('day-2', 'Wtorek', 'tuesday', 'Całe ciało B', [
         ex('Martwy Ciąg Rumuński (RDL)', '3 x 12', { superset: 'B' }),
         ex('Wyciskanie hantli nad głowę (Siedząc)', '3 x 12', { superset: 'B' }),
         ex('Ściąganie drążka (Szeroki nachwyt)', '3 x 12', { superset: 'B' }),
         ex('Mountain Climbers', '3 x 40'),
         ex('Skręty rosyjskie', '3 x 20'),
       ]),
-      day('day-3', 'Czwartek', 'thursday', 'Obwód całego ciała C', [
+      day('day-3', 'Czwartek', 'thursday', 'Całe ciało C', [
         ex('Wykroki chodzone', '3 x 12/noga', { superset: 'C' }),
         ex('Wyciskanie hantli na ławce płaskiej', '3 x 12', { superset: 'C' }),
         ex('Wiosłowanie na lince siedząc', '3 x 12', { superset: 'C' }),
         ex('Burpees', '3 x 12'),
         ex('Unoszenie nóg w zwisie', '3 x MAX'),
       ]),
-      day('day-4', 'Piątek', 'friday', 'Obwód całego ciała D', [
+      day('day-4', 'Piątek', 'friday', 'Całe ciało D', [
         ex('Hip Thrust ze sztangą', '3 x 15', { superset: 'D' }),
         ex('Dips (pompki na poręczach)', '3 x MAX', { superset: 'D' }),
         ex('Podciąganie na drążku', '3 x MAX', { superset: 'D' }),
@@ -445,25 +445,25 @@ export const planTemplates: PlanTemplate[] = [
     daysPerWeek: 4,
     durationWeeks: 10,
     days: [
-      day('day-1', 'Poniedziałek', 'monday', 'Dolne partie + moc', [
+      day('day-1', 'Poniedziałek', 'monday', 'Dół', [
         ex('Przysiad ze sztangą (High Bar)', '4 x 5'),
         ex('Wykroki bułgarskie', '3 x 8/noga'),
         ex('Hip Thrust ze sztangą', '3 x 8'),
          ex('Wspięcia na palce (Nogi proste)', '3 x 12'),
       ]),
-      day('day-2', 'Wtorek', 'tuesday', 'Górne partie + moc', [
+      day('day-2', 'Wtorek', 'tuesday', 'Góra', [
         ex('Wyciskanie sztangi na ławce płaskiej', '4 x 5'),
         ex('Podciąganie na drążku', '4 x MAX'),
         ex('Wyciskanie sztangi nad głowę (OHP)', '3 x 6'),
         ex('Face Pull', '3 x 15'),
       ]),
-      day('day-3', 'Czwartek', 'thursday', 'Kondycja + core', [
+      day('day-3', 'Czwartek', 'thursday', 'Kondycja', [
         ex('Martwy ciąg klasyczny', '3 x 3'),
         ex('Burpees', '4 x 12'),
         ex('Mountain Climbers', '3 x 40'),
         ex('Plank', '3 x MAX'),
       ]),
-      day('day-4', 'Piątek', 'friday', 'Akcesoria atletyczne', [
+      day('day-4', 'Piątek', 'friday', 'Akcesoria', [
         ex('Wykroki chodzone', '3 x 12/noga'),
         ex('Wiosłowanie sztangą', '3 x 8'),
         ex('Wznosy bokiem (Lateral Raise)', '3 x 12'),

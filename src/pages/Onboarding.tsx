@@ -4,7 +4,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
-import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { localizeDayName, localizeFocus, localizeWeekdayShort } from '@/lib/plan-i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -303,7 +303,7 @@ const Onboarding = () => {
                     const on = trainingDays.includes(w.value);
                     return (
                       <button key={w.value} onClick={() => toggleDay(w.value)} className={cn('h-10 w-10 rounded-full font-bold text-sm transition-colors', on ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>
-                        {w.short.slice(0, 1)}
+                        {localizeWeekdayShort(w.short, lang).slice(0, 1)}
                       </button>
                     );
                   })}
