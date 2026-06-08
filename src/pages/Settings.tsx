@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Link2, Unlink, RefreshCw, Loader2, Clock, Shield, Users, RotateCcw } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc, collection, getDocs } from 'firebase/firestore';
@@ -258,6 +259,8 @@ const Settings = () => {
         <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('nav.settings')}</h1>
         <p className="text-muted-foreground text-sm">{profile?.email}</p>
       </div>
+
+      <NotificationSettings />
 
       {/* Account info */}
       <Card>

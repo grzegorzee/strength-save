@@ -12,6 +12,7 @@ const baseDraft: ActiveWorkoutDraft = {
   remoteSessionId: 'workout-user-1-day-1-2026-04-03',
   exerciseSets: { 'ex-1': [{ reps: 6, weight: 40, completed: true }] },
   exerciseNotes: {},
+  exerciseMetrics: {},
   dayNotes: '',
   skippedExercises: [],
   startedAt: 1,

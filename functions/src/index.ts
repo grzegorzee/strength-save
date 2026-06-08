@@ -49,6 +49,8 @@ admin.initializeApp();
 
 // Re-export weekly digest
 export { weeklyDigest } from "./weekly-digest";
+// Codzienne poranne przypomnienie o treningu (tylko w dni treningowe).
+export { dailyTrainingReminder } from "./daily-reminder";
 
 const db = admin.firestore();
 const USERS_COLLECTION = "users";

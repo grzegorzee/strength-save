@@ -39,6 +39,24 @@ const clampSet = (set: Partial<SetData>): SetData => ({
   ...(set.isWarmup && { isWarmup: true }),
 });
 
+// Metryki autoregulacji (RPE/ból/jakość) — opcjonalne. Zwraca tylko zdefiniowane,
+// poprawne liczby w zakresie (Firebase nie przyjmuje undefined, więc pomijamy puste).
+const cleanMetrics = (ex: { rpe?: number; pain?: number; quality?: number }): Record<string, number> => {
+  const out: Record<string, number> = {};
+  const clamp = (v: unknown, lo: number, hi: number, step: number): number | null => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return Math.max(lo, Math.min(hi, Math.round(n / step) * step));
+  };
+  const rpe = clamp(ex.rpe, 0, 10, 0.5);
+  const pain = clamp(ex.pain, 0, 10, 1);
+  const quality = clamp(ex.quality, 0, 5, 1);
+  if (ex.rpe !== undefined && rpe !== null) out.rpe = rpe;
+  if (ex.pain !== undefined && pain !== null) out.pain = pain;
+  if (ex.quality !== undefined && quality !== null) out.quality = quality;
+  return out;
+};
+
 export const useFirebaseWorkouts = (userId: string) => {
   const { t } = useTranslation();
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
@@ -198,6 +216,7 @@ export const useFirebaseWorkouts = (userId: string) => {
         sets: ex.sets.map(clampSet),
         ...(ex.notes !== undefined && { notes: String(ex.notes).slice(0, 2000) }),
         ...(ex.name && { name: String(ex.name).slice(0, 200) }),
+        ...cleanMetrics(ex),
       }));
 
       await updateDoc(workoutRef, { exercises: cleanExercises });
@@ -354,11 +373,12 @@ export const useFirebaseWorkouts = (userId: string) => {
             ...(Array.isArray(workout.skippedExercises) && { skippedExercises: workout.skippedExercises.filter((s: unknown) => typeof s === 'string').slice(0, 50) }),
           };
           if (Array.isArray(workout.exercises)) {
-            safe.exercises = workout.exercises.slice(0, 50).map((ex: { exerciseId?: string; sets?: unknown[]; notes?: string; name?: string }) => ({
+            safe.exercises = workout.exercises.slice(0, 50).map((ex: { exerciseId?: string; sets?: unknown[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }) => ({
               exerciseId: String(ex.exerciseId || '').slice(0, 100),
               sets: Array.isArray(ex.sets) ? ex.sets.slice(0, 20).map((s) => clampSet(s as Partial<SetData>)) : [],
               ...(ex.notes && { notes: String(ex.notes).slice(0, 2000) }),
               ...(ex.name && { name: String(ex.name).slice(0, 200) }),
+              ...cleanMetrics(ex),
             }));
           } else {
             safe.exercises = [];
@@ -505,6 +525,7 @@ export const useFirebaseWorkouts = (userId: string) => {
             sets: ex.sets.map(clampSet),
             ...(ex.notes !== undefined && { notes: String(ex.notes).slice(0, 2000) }),
             ...(ex.name && { name: String(ex.name).slice(0, 200) }),
+            ...cleanMetrics(ex),
           }));
           if (changedAny) update.exercises = nextExercises;
         }
@@ -523,7 +544,7 @@ export const useFirebaseWorkouts = (userId: string) => {
 
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
-    exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string }[],
+    exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }[],
     options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number }
   ): Promise<{ success: boolean; error?: string }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
@@ -537,6 +558,8 @@ export const useFirebaseWorkouts = (userId: string) => {
         ...(ex.notes !== undefined && ex.notes !== '' && { notes: String(ex.notes).slice(0, 2000) }),
         // Snapshot nazwy — odporność historii na zmianę planu.
         ...(ex.name && { name: String(ex.name).slice(0, 200) }),
+        // Metryki autoregulacji (RPE/ból/jakość) — tylko zdefiniowane.
+        ...cleanMetrics(ex),
       }));
 
       const updateData: Record<string, unknown> = { exercises: cleanExercises };

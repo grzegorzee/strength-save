@@ -132,6 +132,7 @@ const baseDraft: ActiveWorkoutDraft = {
     ],
   },
   exerciseNotes: { 'ex-1': 'Strong set' },
+  exerciseMetrics: { 'ex-1': { rpe: 8, pain: 1, quality: 5 } },
   dayNotes: 'Good session',
   skippedExercises: ['ex-3'],
   startedAt: 100,

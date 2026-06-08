@@ -18,13 +18,14 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { getNextSetAdvice } from '@/lib/next-set-advice';
+import { getRzaAdvice } from '@/lib/rza-progression';
 import { getExerciseHistory } from '@/lib/exercise-progression';
 import { callOpenAI } from '@/lib/ai-coach';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
-import type { SetData } from '@/types';
+import type { SetData, ExerciseMetrics } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
@@ -77,6 +78,7 @@ const WorkoutDay = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [exerciseSets, setExerciseSets] = useState<Record<string, SetData[]>>({});
   const [exerciseNotes, setExerciseNotes] = useState<Record<string, string>>({});
+  const [exerciseMetrics, setExerciseMetrics] = useState<Record<string, ExerciseMetrics>>({});
   const [isCompleted, setIsCompleted] = useState(false);
   const [dayNotes, setDayNotes] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -111,6 +113,7 @@ const WorkoutDay = () => {
   // Refs that mirror state for stable callback identity
   const exerciseSetsRef = useRef(exerciseSets);
   const exerciseNotesRef = useRef(exerciseNotes);
+  const exerciseMetricsRef = useRef(exerciseMetrics);
   const dayNotesRef = useRef(dayNotes);
   const skippedExercisesRef = useRef(skippedExercises);
   const activeDraftRef = useRef(activeDraft);
@@ -118,6 +121,7 @@ const WorkoutDay = () => {
 
   useEffect(() => { exerciseSetsRef.current = exerciseSets; }, [exerciseSets]);
   useEffect(() => { exerciseNotesRef.current = exerciseNotes; }, [exerciseNotes]);
+  useEffect(() => { exerciseMetricsRef.current = exerciseMetrics; }, [exerciseMetrics]);
   useEffect(() => { dayNotesRef.current = dayNotes; }, [dayNotes]);
   useEffect(() => { skippedExercisesRef.current = skippedExercises; }, [skippedExercises]);
   useEffect(() => { activeDraftRef.current = activeDraft; }, [activeDraft]);
@@ -265,6 +269,7 @@ const WorkoutDay = () => {
       remoteSessionId: overrides.remoteSessionId ?? previousDraft?.remoteSessionId ?? null,
       exerciseSets: overrides.exerciseSets ?? exerciseSetsRef.current,
       exerciseNotes: overrides.exerciseNotes ?? exerciseNotesRef.current,
+      exerciseMetrics: overrides.exerciseMetrics ?? exerciseMetricsRef.current,
       dayNotes: overrides.dayNotes ?? dayNotesRef.current,
       skippedExercises: overrides.skippedExercises ?? skippedExercisesRef.current,
       startedAt: overrides.startedAt ?? previousDraft?.startedAt ?? now,
@@ -321,6 +326,7 @@ const WorkoutDay = () => {
       sets,
       ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
       ...(daySnapshotRef.current.names[exerciseId] && { name: daySnapshotRef.current.names[exerciseId] }),
+      ...(exerciseMetricsRef.current[exerciseId] ?? {}),
     }))
   ), []);
 
@@ -495,6 +501,7 @@ const WorkoutDay = () => {
     completed: boolean;
     exerciseSets: Record<string, SetData[]>;
     exerciseNotes: Record<string, string>;
+    exerciseMetrics?: Record<string, ExerciseMetrics>;
     dayNotes: string;
     skippedExercises: string[];
   }) => {
@@ -502,6 +509,7 @@ const WorkoutDay = () => {
     setIsCompleted(next.completed);
     setExerciseSets(next.exerciseSets);
     setExerciseNotes(next.exerciseNotes);
+    setExerciseMetrics(next.exerciseMetrics ?? {});
     setDayNotes(next.dayNotes);
     setSkippedExercises(next.skippedExercises);
   }, []);
@@ -600,6 +608,7 @@ const WorkoutDay = () => {
         completed: currentPageDraft.completedLocally || !!workoutForDate?.completed,
         exerciseSets: currentPageDraft.exerciseSets,
         exerciseNotes: currentPageDraft.exerciseNotes,
+        exerciseMetrics: currentPageDraft.exerciseMetrics,
         dayNotes: currentPageDraft.dayNotes,
         skippedExercises: currentPageDraft.skippedExercises,
       });
@@ -635,6 +644,7 @@ const WorkoutDay = () => {
 
       const sets: Record<string, SetData[]> = {};
       const notes: Record<string, string> = {};
+      const metrics: Record<string, ExerciseMetrics> = {};
       workoutForDate.exercises.forEach(ex => {
         sets[ex.exerciseId] = ex.sets.map(s => ({
           reps: s.reps ?? 0,
@@ -645,6 +655,13 @@ const WorkoutDay = () => {
         if (ex.notes) {
           notes[ex.exerciseId] = ex.notes;
         }
+        if (ex.rpe !== undefined || ex.pain !== undefined || ex.quality !== undefined) {
+          metrics[ex.exerciseId] = {
+            ...(ex.rpe !== undefined && { rpe: ex.rpe }),
+            ...(ex.pain !== undefined && { pain: ex.pain }),
+            ...(ex.quality !== undefined && { quality: ex.quality }),
+          };
+        }
       });
 
       applyWorkoutState({
@@ -652,6 +669,7 @@ const WorkoutDay = () => {
         completed: workoutForDate.completed,
         exerciseSets: sets,
         exerciseNotes: notes,
+        exerciseMetrics: metrics,
         dayNotes: workoutForDate.notes || '',
         skippedExercises: workoutForDate.skippedExercises || [],
       });
@@ -886,6 +904,7 @@ const WorkoutDay = () => {
           remoteSessionId: result.provisional ? null : result.session.id,
           exerciseSets: prefilled,
           exerciseNotes: {},
+          exerciseMetrics: {},
           dayNotes: '',
           skippedExercises: [],
           startedAt: now,
@@ -970,6 +989,19 @@ const WorkoutDay = () => {
       exerciseNotes: nextExerciseNotes,
     });
 
+    setSaveError(null);
+  }, [saveDraftSnapshot]);
+
+  // Metryki (RPE/ból/jakość) — tryb edycji: tylko stan lokalny.
+  const handleMetricsChangeLocal = useCallback((exerciseId: string, metrics: ExerciseMetrics) => {
+    setExerciseMetrics(prev => ({ ...prev, [exerciseId]: metrics }));
+  }, []);
+
+  // Metryki — aktywny trening: stan + draft (Firebase na checkpointach/zakończeniu).
+  const handleMetricsChange = useCallback((exerciseId: string, metrics: ExerciseMetrics) => {
+    const nextMetrics = { ...exerciseMetricsRef.current, [exerciseId]: metrics };
+    setExerciseMetrics(nextMetrics);
+    saveDraftSnapshot({ exerciseMetrics: nextMetrics });
     setSaveError(null);
   }, [saveDraftSnapshot]);
 
@@ -1445,6 +1477,9 @@ const WorkoutDay = () => {
               isEditable={true}
               isBodyweight={isBodyweightExercise(exercise.name)}
               historicalBest={getExerciseBest1RM(workouts, exercise.id)}
+              metrics={exerciseMetrics[exercise.id]}
+              onMetricsChange={(m) => handleMetricsChangeLocal(exercise.id, m)}
+              defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
             />
           ))}
         </div>
@@ -1544,6 +1579,10 @@ const WorkoutDay = () => {
               onAskCoach={isWorkoutStarted && !isCompleted ? () => handleAskCoach(exercise) : undefined}
               coachBusy={coachBusyId === exercise.id}
               historicalBest={getExerciseBest1RM(workouts, exercise.id)}
+              metrics={exerciseMetrics[exercise.id]}
+              onMetricsChange={(m) => handleMetricsChange(exercise.id, m)}
+              defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
+              rzaAdvice={getRzaAdvice(workouts, exercise.id, exercise.name)}
             />
             {/* AI Swap & Skip buttons — only in active workout */}
             {isWorkoutStarted && !isCompleted && (

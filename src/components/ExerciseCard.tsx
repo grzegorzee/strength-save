@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2, Star } from 'lucide-react';
+import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
-import type { SetData } from '@/types';
+import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl } from '@/lib/exercise-media';
@@ -13,6 +13,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 import type { ExerciseBest } from '@/lib/pr-utils';
+import type { RzaAdvice } from '@/lib/rza-progression';
 import { RestTimer } from './RestTimer';
 
 // Domyślny czas odpoczynku z ustawień (Profil → 'rest-timer-default'), w sekundach.
@@ -90,6 +91,35 @@ const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
   );
 };
 
+// ── RZA autoregulation badge (next weight from RPE/ból/jakość) ──
+const RzaAdviceBadge = ({ advice }: { advice: RzaAdvice }) => {
+  const { t } = useTranslation();
+  const { unit, toDisplay } = useUnit();
+  const styles: Record<RzaAdvice['decision'], string> = {
+    progress: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
+    deload: 'border-fitness-warning/40 text-fitness-warning bg-fitness-warning/10',
+    repeat: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
+  };
+  const labels: Record<RzaAdvice['decision'], string> = {
+    progress: t('card.rzaProgress'),
+    deload: t('card.rzaDeload'),
+    repeat: t('card.rzaRepeat'),
+  };
+  const icon = advice.decision === 'progress' ? '⬆' : advice.decision === 'deload' ? '⬇' : '↺';
+  const next = `${Math.round(toDisplay(advice.nextKg) * 10) / 10} ${unit}`;
+  return (
+    <span
+      title={t('card.rzaReason', { last: `${Math.round(toDisplay(advice.lastKg) * 10) / 10} ${unit}` })}
+      className={cn(
+        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
+        styles[advice.decision],
+      )}
+    >
+      {icon} {labels[advice.decision]}: {next}
+    </span>
+  );
+};
+
 // ── Props ──
 interface ExerciseCardProps {
   exercise: Exercise;
@@ -105,6 +135,13 @@ interface ExerciseCardProps {
   coachBusy?: boolean;
   /** Najlepszy historyczny wynik (1RM) tego ćwiczenia — badge BEST w nagłówku. */
   historicalBest?: ExerciseBest;
+  /** Metryki autoregulacji (RPE/ból/jakość) zapisane dla tego ćwiczenia. */
+  metrics?: ExerciseMetrics;
+  onMetricsChange?: (metrics: ExerciseMetrics) => void;
+  /** Pokaż wiersz metryk domyślnie (plany sterowane RPE, np. RZA). */
+  defaultMetricsVisible?: boolean;
+  /** Rekomendacja ciężaru z reguły RZA (ma priorytet nad nextAdvice gdy obecna). */
+  rzaAdvice?: RzaAdvice | null;
 }
 
 // ── Main Component ──
@@ -121,6 +158,10 @@ const ExerciseCardInner = ({
   onAskCoach,
   coachBusy = false,
   historicalBest,
+  metrics,
+  onMetricsChange,
+  defaultMetricsVisible = false,
+  rzaAdvice,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   // Kołowy timer odpoczynku po odhaczeniu serii roboczej. runId wymusza restart (remount).
@@ -131,6 +172,9 @@ const ExerciseCardInner = ({
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
   const [notes, setNotes] = useState(savedNotes || '');
   const [showNotes, setShowNotes] = useState(!!savedNotes);
+  const hasMetricValue = (m?: ExerciseMetrics) => m?.rpe !== undefined || m?.pain !== undefined || m?.quality !== undefined;
+  const [metricsState, setMetricsState] = useState<ExerciseMetrics>(metrics || {});
+  const [showMetrics, setShowMetrics] = useState(hasMetricValue(metrics) || defaultMetricsVisible);
 
   const hasLocalChanges = useRef(false);
   const isInitialized = useRef(false);
@@ -140,9 +184,25 @@ const ExerciseCardInner = ({
       setSets(sanitizeSets(savedSets, setCount));
       setNotes(savedNotes || '');
       setShowNotes(!!savedNotes);
+      setMetricsState(metrics || {});
+      setShowMetrics(hasMetricValue(metrics) || defaultMetricsVisible);
       isInitialized.current = true;
     }
-  }, [savedSets, savedNotes, setCount]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedSets, savedNotes, setCount, metrics, defaultMetricsVisible]);
+
+  // Zmiana metryki: pusty input => pole usunięte (undefined), inaczej liczba w zakresie.
+  const handleMetricChange = (field: keyof ExerciseMetrics, raw: string) => {
+    hasLocalChanges.current = true;
+    const next: ExerciseMetrics = { ...metricsState };
+    if (raw === '') {
+      delete next[field];
+    } else {
+      next[field] = parseFloat(raw);
+    }
+    setMetricsState(next);
+    onMetricsChange?.(next);
+  };
 
   // ── Edit a set value (no auto-completion — completion is confirmed via the checkmark) ──
   const handleSetChange = (setIndex: number, field: 'reps' | 'weight', value: number) => {
@@ -405,7 +465,7 @@ const ExerciseCardInner = ({
                   {t('card.best')} {Math.round(toDisplay(historicalBest.best1RM))} {unit}
                 </span>
               )}
-              {nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
+              {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} /> : nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
               {completedSets > 0 && (
                 <span className="text-[11px] font-bold text-fitness-success flex items-center gap-1">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -500,6 +560,15 @@ const ExerciseCardInner = ({
                   {t('card.coachAi')}
                 </button>
               )}
+              {onMetricsChange && !showMetrics && (
+                <button
+                  onClick={() => setShowMetrics(true)}
+                  className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors px-3 py-2"
+                >
+                  <Activity className="h-3.5 w-3.5" />
+                  {t('card.metrics')}
+                </button>
+              )}
               {!showNotes && (
                 <button
                   onClick={() => setShowNotes(true)}
@@ -511,6 +580,30 @@ const ExerciseCardInner = ({
               )}
             </div>
           </div>
+          {onMetricsChange && showMetrics && (
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {([
+                { field: 'rpe' as const, label: t('card.rpe'), min: 0, max: 10, step: 0.5, ph: '8' },
+                { field: 'pain' as const, label: t('card.pain'), min: 0, max: 10, step: 1, ph: '0' },
+                { field: 'quality' as const, label: t('card.quality'), min: 1, max: 5, step: 1, ph: '5' },
+              ]).map(({ field, label, min, max, step, ph }) => (
+                <div key={field} className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-center">{label}</span>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={metricsState[field] ?? ''}
+                    onChange={(e) => handleMetricChange(field, e.target.value)}
+                    placeholder={ph}
+                    className="exercise-card-input h-11 text-base font-bold text-center focus-visible:ring-0 focus-visible:ring-offset-0"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
           {showNotes && (
             <Textarea
               placeholder={t('card.notePlaceholder')}

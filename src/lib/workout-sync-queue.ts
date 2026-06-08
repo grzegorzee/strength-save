@@ -30,6 +30,7 @@ const normalizeQueueEntry = (value: unknown): WorkoutSyncQueueEntry | null => {
     remoteSessionId: value.remoteSessionId == null ? null : String(value.remoteSessionId),
     exerciseSets: isRecord(value.exerciseSets) ? value.exerciseSets as ActiveWorkoutDraft['exerciseSets'] : {},
     exerciseNotes: isRecord(value.exerciseNotes) ? value.exerciseNotes as ActiveWorkoutDraft['exerciseNotes'] : {},
+    exerciseMetrics: isRecord(value.exerciseMetrics) ? value.exerciseMetrics as ActiveWorkoutDraft['exerciseMetrics'] : {},
     dayNotes: String(value.dayNotes ?? ''),
     skippedExercises: Array.isArray(value.skippedExercises) ? value.skippedExercises.map(item => String(item)) : [],
     startedAt: Number(value.startedAt) || Date.now(),

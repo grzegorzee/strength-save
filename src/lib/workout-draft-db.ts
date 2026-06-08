@@ -1,4 +1,4 @@
-import type { SetData } from '@/types';
+import type { SetData, ExerciseMetrics } from '@/types';
 import { workoutDraft } from '@/lib/workout-draft';
 import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 
@@ -17,6 +17,9 @@ export interface ActiveWorkoutDraft {
   remoteSessionId: string | null;
   exerciseSets: Record<string, SetData[]>;
   exerciseNotes: Record<string, string>;
+  // Metryki autoregulacji per ćwiczenie (RPE/ból/jakość). Opcjonalne — stare drafty bez nich
+  // normalizują się do {}. Nie wymaga bumpu wersji IndexedDB (pole additive na obiekcie).
+  exerciseMetrics: Record<string, ExerciseMetrics>;
   dayNotes: string;
   skippedExercises: string[];
   startedAt: number;
@@ -64,6 +67,27 @@ const normalizeExerciseNotes = (value: unknown): Record<string, string> => {
   );
 };
 
+const normalizeExerciseMetrics = (value: unknown): Record<string, ExerciseMetrics> => {
+  if (!isRecord(value)) return {};
+
+  const num = (v: unknown): number | undefined => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, m]) => isRecord(m))
+      .map(([exerciseId, m]) => {
+        const rec = m as Record<string, unknown>;
+        const metrics: ExerciseMetrics = {};
+        if (rec.rpe !== undefined && num(rec.rpe) !== undefined) metrics.rpe = num(rec.rpe);
+        if (rec.pain !== undefined && num(rec.pain) !== undefined) metrics.pain = num(rec.pain);
+        if (rec.quality !== undefined && num(rec.quality) !== undefined) metrics.quality = num(rec.quality);
+        return [exerciseId, metrics];
+      })
+  );
+};
+
 const normalizeStringArray = (value: unknown): string[] => (
   Array.isArray(value) ? value.map(item => String(item)) : []
 );
@@ -93,6 +117,7 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     remoteSessionId: value.remoteSessionId == null ? null : String(value.remoteSessionId),
     exerciseSets: normalizeExerciseSets(value.exerciseSets),
     exerciseNotes: normalizeExerciseNotes(value.exerciseNotes),
+    exerciseMetrics: normalizeExerciseMetrics(value.exerciseMetrics),
     dayNotes: String(value.dayNotes ?? ''),
     skippedExercises: normalizeStringArray(value.skippedExercises),
     startedAt: toNumberOr(value.startedAt, now),

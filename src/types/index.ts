@@ -14,6 +14,17 @@ export interface SetData {
   isWarmup?: boolean;
 }
 
+// Metryki autoregulacji per ćwiczenie (Faza 2 — model RZA). Wszystkie opcjonalne:
+// stare treningi bez nich działają bez zmian, a plany które ich nie używają po prostu ich nie wpisują.
+export interface ExerciseMetrics {
+  /** RPE najtrudniejszej serii (5-10, krok 0.5). 8 = ~2 powt. w zapasie. */
+  rpe?: number;
+  /** Ból stawowy 0-10. 0-2 OK, 3 obserwuj, 4+ odciąż. */
+  pain?: number;
+  /** Jakość techniki 1-5. 5 = pełny ROM i kontrola. */
+  quality?: number;
+}
+
 export interface ExerciseProgress {
   exerciseId: string;
   sets: SetData[];
@@ -21,6 +32,10 @@ export interface ExerciseProgress {
   // Snapshot nazwy ćwiczenia z momentu treningu. Dzięki temu historia wyświetla się
   // poprawnie nawet po zmianie/nadpisaniu planu (exerciseId jest niestabilne między planami).
   name?: string;
+  // Metryki autoregulacji (opcjonalne, patrz ExerciseMetrics).
+  rpe?: number;
+  pain?: number;
+  quality?: number;
 }
 
 export interface WorkoutSession {
