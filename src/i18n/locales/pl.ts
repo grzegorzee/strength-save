@@ -365,6 +365,8 @@ export const pl = {
   'history.removeFromCompare': 'Usuń z porównania',
   'history.compare': 'Porównaj',
   'history.empty': 'Brak sesji pasujących do aktualnych filtrów.',
+  'history.allShort': 'Wszystkie',
+  'history.dateRange': 'Zakres dat',
   'achievements.title': 'Osiągnięcia',
   'achievements.subtitle': 'Rekordy, tonaż i progresja ćwiczeń w jednym miejscu.',
   'achievements.completedWorkouts': 'Ukończone treningi',

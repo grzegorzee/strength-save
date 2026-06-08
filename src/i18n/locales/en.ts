@@ -359,6 +359,8 @@ export const en: Record<keyof typeof pl, string> = {
   'history.removeFromCompare': 'Remove from comparison',
   'history.compare': 'Compare',
   'history.empty': 'No sessions match the current filters.',
+  'history.allShort': 'All',
+  'history.dateRange': 'Date range',
   'achievements.title': 'Achievements',
   'achievements.subtitle': 'Records, tonnage and exercise progression in one place.',
   'achievements.completedWorkouts': 'Completed workouts',
