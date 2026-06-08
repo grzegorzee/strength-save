@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         disable: isMobileBuild,
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg'],
+        includeAssets: ['favicon.png'],
         manifest: {
           name: 'StrengthSave - Tracker Treningowy',
           short_name: 'StrengthSave',
