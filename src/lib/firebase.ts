@@ -8,6 +8,7 @@ import {
   browserLocalPersistence,
   browserPopupRedirectResolver,
   GoogleAuthProvider,
+  OAuthProvider,
 } from "firebase/auth";
 import { getFunctions } from "firebase/functions";
 
@@ -40,3 +41,9 @@ export const auth = Capacitor.isNativePlatform()
     });
 export const functions = getFunctions(app, "us-central1");
 export const googleProvider = new GoogleAuthProvider();
+export const appleProvider = (() => {
+  const provider = new OAuthProvider("apple.com");
+  provider.addScope("email");
+  provider.addScope("name");
+  return provider;
+})();

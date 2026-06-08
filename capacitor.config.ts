@@ -10,7 +10,7 @@ const config: CapacitorConfig = {
       // Native tworzy tylko credential; logowanie do Firebase robi JS SDK
       // (signInWithCredential), żeby stan auth był spójny z resztą apki (Firestore).
       skipNativeAuth: true,
-      providers: ['google.com'],
+      providers: ['google.com', 'apple.com'],
     },
   },
 };

@@ -51,6 +51,7 @@ export const pl = {
   'login.tab.email': 'Email + hasło',
   'login.google': 'Zaloguj przez Google',
   'login.googleRegister': 'Załóż konto przez Google',
+  'login.apple': 'Zaloguj przez Apple',
   'login.email': 'Email',
   'login.password': 'Hasło',
   'login.submit': 'Zaloguj przez email',

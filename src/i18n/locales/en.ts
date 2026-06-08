@@ -48,6 +48,7 @@ export const en: Record<keyof typeof pl, string> = {
   'login.tab.email': 'Email + password',
   'login.google': 'Sign in with Google',
   'login.googleRegister': 'Sign up with Google',
+  'login.apple': 'Sign in with Apple',
   'login.email': 'Email',
   'login.password': 'Password',
   'login.submit': 'Sign in with email',

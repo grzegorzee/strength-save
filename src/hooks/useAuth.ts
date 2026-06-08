@@ -4,6 +4,7 @@ import {
   signInWithPopup,
   signInWithCredential,
   GoogleAuthProvider,
+  OAuthProvider,
   signOut,
   onAuthStateChanged,
   setPersistence,
@@ -14,7 +15,7 @@ import {
 } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
-import { auth, googleProvider } from '@/lib/firebase';
+import { auth, googleProvider, appleProvider } from '@/lib/firebase';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { useTranslation } from '@/contexts/LanguageContext';
 
@@ -76,6 +77,32 @@ export const useAuth = () => {
     }
   };
 
+  const signInWithApple = async () => {
+    try {
+      setError(null);
+      if (Capacitor.isNativePlatform()) {
+        // Native (iOS): natywne „Zaloguj przez Apple", potem logowanie przez JS SDK
+        // tym samym credentialem (spójny stan z Firestore — jak w Google wyżej).
+        const result = await FirebaseAuthentication.signInWithApple();
+        const provider = new OAuthProvider('apple.com');
+        const credential = provider.credential({
+          idToken: result.credential?.idToken,
+          rawNonce: result.credential?.nonce,
+        });
+        await signInWithCredential(auth, credential);
+      } else {
+        await setPersistence(auth, browserLocalPersistence);
+        await signInWithPopup(auth, appleProvider);
+      }
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : t('auth.err.login');
+      console.error('Apple login error:', errorMessage);
+      setError(errorMessage);
+      return false;
+    }
+  };
+
   const registerWithEmail = async (email: string, password: string) => {
     try {
       setError(null);
@@ -131,6 +158,7 @@ export const useAuth = () => {
     error,
     isAuthenticated: !!user,
     signInWithGoogle,
+    signInWithApple,
     registerWithEmail,
     loginWithEmail,
     resetPassword,
