@@ -831,11 +831,11 @@ const WorkoutDay = () => {
       } else {
         // Pre-fill with progression from previous workout
         const prefilled: Record<string, SetData[]> = {};
-        day.exercises.forEach((exercise, idx) => {
+        day.exercises.forEach((exercise) => {
           const prevSets = getPreviousSets(exercise.id);
           const count = parseSetCount(exercise.sets);
           prefilled[exercise.id] = createPrefilledSets(
-            count, prevSets, idx, exercise.sets, exercise.isSuperset, isBodyweightExercise(exercise.name)
+            count, prevSets, isBodyweightExercise(exercise.name)
           );
         });
         setExerciseSets(prefilled);

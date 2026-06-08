@@ -365,7 +365,7 @@ describe('createPrefilledSets with bodyweight', () => {
       { reps: 12, weight: 0, completed: true },
       { reps: 10, weight: 0, completed: true },
     ];
-    const result = createPrefilledSets(2, prev, 0, '2 x 10-15', false, true);
+    const result = createPrefilledSets(2, prev, true);
     result.forEach(set => {
       expect(set.weight).toBe(0);
     });
@@ -377,8 +377,20 @@ describe('createPrefilledSets with bodyweight', () => {
       { reps: 15, weight: 0, completed: true },
       { reps: 15, weight: 0, completed: true },
     ];
-    const result = createPrefilledSets(2, prev, 0, '2 x 10-15', false, true);
+    const result = createPrefilledSets(2, prev, true);
     expect(result[1].weight).toBe(0);
     expect(result[2].weight).toBe(0);
+  });
+
+  it('pre-fill bierze OSTATNIĄ wagę bez auto-progresji (regresja #7: 14 → 14, nie 15)', () => {
+    const prev = [
+      { reps: 5, weight: 10, completed: false, isWarmup: true },
+      { reps: 15, weight: 14, completed: true },
+      { reps: 15, weight: 14, completed: true },
+    ];
+    const result = createPrefilledSets(2, prev, false);
+    // [warmup, set1, set2] — working sety mają ostatnią wagę 14, nie podbite do 15.
+    expect(result[1].weight).toBe(14);
+    expect(result[2].weight).toBe(14);
   });
 });

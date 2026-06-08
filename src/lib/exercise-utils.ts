@@ -142,19 +142,13 @@ export const createEmptySets = (count: number): SetData[] => {
 export const createPrefilledSets = (
   setCount: number,
   previousSets: SetData[] | undefined,
-  exerciseIndex: number,
-  setsStr: string,
-  isSuperset?: boolean,
   isBodyweight?: boolean,
 ): SetData[] => {
   if (!previousSets || previousSets.length === 0) {
     return createEmptySets(setCount);
   }
 
-  const repRange = parseRepRange(setsStr);
   const prevWorking = previousSets.filter(s => !s.isWarmup);
-  const advice = getProgressionAdvice(repRange, prevWorking, exerciseIndex, isSuperset, isBodyweight);
-  const increment = (advice?.type === 'increase' && !isBodyweight) ? advice.increment : 0;
 
   // Warmup set from previous
   const prevWarmup = previousSets.find(s => s.isWarmup);
@@ -165,14 +159,15 @@ export const createPrefilledSets = (
     isWarmup: true,
   };
 
-  // Working sets with progression
+  // Working sets: pre-fill OSTATNIĄ wagą (powtórzenie poprzedniego treningu), bez auto-progresji.
+  // Sugestię podbicia (+1/+2.5 kg) pokazuje osobno badge "CEL" — user sam decyduje, czy podnieść.
   const workingSets: SetData[] = [];
   for (let i = 0; i < setCount; i++) {
     const prevSet = prevWorking[i] || prevWorking[prevWorking.length - 1];
     if (prevSet && (prevSet.reps > 0 || prevSet.weight > 0)) {
       workingSets.push({
         reps: prevSet.reps,
-        weight: isBodyweight ? 0 : Math.round((prevSet.weight + increment) * 2) / 2,
+        weight: isBodyweight ? 0 : prevSet.weight,
         completed: false,
       });
     } else {
