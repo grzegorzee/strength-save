@@ -188,7 +188,6 @@ const ExerciseCardInner = ({
       setShowMetrics(hasMetricValue(metrics) || defaultMetricsVisible);
       isInitialized.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedSets, savedNotes, setCount, metrics, defaultMetricsVisible]);
 
   // Zmiana metryki: pusty input => pole usunięte (undefined), inaczej liczba w zakresie.

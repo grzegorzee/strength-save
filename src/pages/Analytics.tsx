@@ -38,6 +38,7 @@ import { detectNewPRs } from '@/lib/pr-utils';
 import { calculate1RM } from '@/lib/pr-utils';
 import { MeasurementsForm } from '@/components/MeasurementsForm';
 import { DataManagement } from '@/components/DataManagement';
+import { RzaMetricsCard } from '@/components/RzaMetricsCard';
 import { StravaTab } from '@/components/strava/StravaTab';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { TrainingHeatmap } from '@/components/TrainingHeatmap';
@@ -520,6 +521,9 @@ const ChartsTab = () => {
           </Badge>
         ))}
       </div>
+
+      {/* MASZYNA — agregaty tygodniowe RZA (tylko gdy są dane RPE) */}
+      <RzaMetricsCard workouts={workouts} />
 
       {/* Workouts chart */}
       {subTab === 'workouts' && (
