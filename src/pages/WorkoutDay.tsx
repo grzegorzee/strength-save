@@ -717,16 +717,26 @@ const WorkoutDay = () => {
     };
   }, [sessionId, currentPageDraft?.dirty, currentPageDraft?.finalSyncPending, syncDraftToFirebase]);
 
-  // Flush local draft and try best-effort sync when app goes to background
+  // Flush local draft and try best-effort sync when app goes to background.
+  // Przy okazji zapisujemy pozycję scrolla — iOS WKWebView potrafi przeładować stronę w tle,
+  // co bez tego cofa ekran na sam początek listy ćwiczeń.
   useEffect(() => {
+    const saveScroll = () => {
+      if (!sessionId) return;
+      try {
+        localStorage.setItem(`workout-scroll:${sessionId}`, JSON.stringify({ y: window.scrollY, t: Date.now() }));
+      } catch { /* localStorage niedostępny — pomijamy */ }
+    };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && sessionId) {
+        saveScroll();
         void persistDraftSnapshot({}, { showStatus: false });
         void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
       }
     };
     const handlePageHide = () => {
       if (!sessionId) return;
+      saveScroll();
       void persistDraftSnapshot({}, { showStatus: false });
       void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
     };
@@ -738,6 +748,21 @@ const WorkoutDay = () => {
       window.removeEventListener('pagehide', handlePageHide);
     };
   }, [sessionId, currentPageDraft?.finalSyncPending, persistDraftSnapshot, syncDraftToFirebase]);
+
+  // Po remount/reloadzie (iOS purguje WebView w tle) przywróć pozycję scrolla z localStorage —
+  // user wraca do ćwiczenia, które robił, a nie na początek. Tylko świeży zapis (<15 min).
+  useEffect(() => {
+    if (!sessionId || !isLoaded || isCompleted) return;
+    let raw: string | null = null;
+    try { raw = localStorage.getItem(`workout-scroll:${sessionId}`); } catch { return; }
+    if (!raw) return;
+    try {
+      const { y, t } = JSON.parse(raw) as { y: number; t: number };
+      if (typeof y !== 'number' || y <= 0 || Date.now() - t > 15 * 60 * 1000) return;
+      const id = setTimeout(() => window.scrollTo({ top: y, behavior: 'auto' }), 250);
+      return () => clearTimeout(id);
+    } catch { /* zła wartość — pomijamy */ }
+  }, [sessionId, isLoaded, isCompleted]);
 
   useEffect(() => {
     const handleOnline = () => {
