@@ -409,6 +409,7 @@ const WorkoutDay = () => {
         dayFocus: daySnapshotRef.current.focus || undefined,
         ...(requiresFinalSync && { completed: true }),
         ...(finalDurationSec !== undefined && { durationSec: finalDurationSec }),
+        ...(requiresFinalSync && startedAt ? { startedAt } : {}),
       });
 
       if (!result.success) {
@@ -1215,7 +1216,11 @@ const WorkoutDay = () => {
   );
   // Czas trwania do podsumowania: trwały durationSec z zapisanej sesji, a dla świeżo
   // zakończonego treningu fallback do licznika sesji (elapsedSec).
-  const sessionDurationSec = workouts.find(w => w.id === sessionId)?.durationSec ?? (elapsedSec > 0 ? elapsedSec : null);
+  const currentWorkoutForDuration = workouts.find(w => w.id === sessionId);
+  const durationFromTimestamps = currentWorkoutForDuration?.completedAt && currentWorkoutForDuration?.startedAt
+    ? Math.max(0, Math.floor((currentWorkoutForDuration.completedAt - currentWorkoutForDuration.startedAt) / 1000))
+    : null;
+  const sessionDurationSec = currentWorkoutForDuration?.durationSec ?? durationFromTimestamps ?? (elapsedSec > 0 ? elapsedSec : null);
 
   const ErrorBanner = () => saveError ? (
     <Card className="border-destructive bg-destructive/10">

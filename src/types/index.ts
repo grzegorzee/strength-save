@@ -38,6 +38,9 @@ export interface WorkoutSession {
   dayFocus?: string;
   // Czas trwania treningu w sekundach (od startu do zakończenia) — pokazywany w podsumowaniu.
   durationSec?: number;
+  // Znaczniki czasu (ms) — backup do policzenia czasu trwania niezależnie od durationSec.
+  startedAt?: number;
+  completedAt?: number;
 }
 
 export interface BodyMeasurement {

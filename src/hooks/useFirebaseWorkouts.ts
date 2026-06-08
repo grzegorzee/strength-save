@@ -349,6 +349,8 @@ export const useFirebaseWorkouts = (userId: string) => {
             ...(workout.dayName && { dayName: String(workout.dayName).slice(0, 200) }),
             ...(workout.dayFocus && { dayFocus: String(workout.dayFocus).slice(0, 200) }),
             ...(typeof workout.durationSec === 'number' && workout.durationSec > 0 && { durationSec: Math.floor(workout.durationSec) }),
+            ...(typeof workout.startedAt === 'number' && workout.startedAt > 0 && { startedAt: Math.floor(workout.startedAt) }),
+            ...(typeof workout.completedAt === 'number' && workout.completedAt > 0 && { completedAt: Math.floor(workout.completedAt) }),
             ...(Array.isArray(workout.skippedExercises) && { skippedExercises: workout.skippedExercises.filter((s: unknown) => typeof s === 'string').slice(0, 50) }),
           };
           if (Array.isArray(workout.exercises)) {
@@ -522,7 +524,7 @@ export const useFirebaseWorkouts = (userId: string) => {
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string }[],
-    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number }
+    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number }
   ): Promise<{ success: boolean; error?: string }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
@@ -540,10 +542,14 @@ export const useFirebaseWorkouts = (userId: string) => {
       const updateData: Record<string, unknown> = { exercises: cleanExercises };
       if (options?.notes !== undefined) updateData.notes = String(options.notes).slice(0, 5000);
       if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
-      if (options?.completed) updateData.completed = true;
+      if (options?.completed) {
+        updateData.completed = true;
+        updateData.completedAt = Date.now(); // zawsze przy zakończeniu — backup do liczenia czasu
+      }
       if (options?.dayName) updateData.dayName = String(options.dayName).slice(0, 200);
       if (options?.dayFocus) updateData.dayFocus = String(options.dayFocus).slice(0, 200);
       if (typeof options?.durationSec === 'number' && options.durationSec > 0) updateData.durationSec = Math.floor(options.durationSec);
+      if (typeof options?.startedAt === 'number' && options.startedAt > 0) updateData.startedAt = options.startedAt;
 
       await updateDoc(workoutRef, updateData as UpdateData<Record<string, unknown>>);
       return { success: true };
