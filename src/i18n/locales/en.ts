@@ -9,6 +9,9 @@ export const en: Record<keyof typeof pl, string> = {
   'common.results': 'results',
 
   'nav.dashboard': 'Dashboard',
+  'nav.group.main': 'Main',
+  'nav.group.progress': 'Progress',
+  'nav.group.account': 'Account',
   'nav.history': 'History',
   'nav.plan': 'Plan',
   'nav.exercises': 'Exercises',

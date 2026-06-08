@@ -10,6 +10,9 @@ export const pl = {
 
   // nawigacja
   'nav.dashboard': 'Dashboard',
+  'nav.group.main': 'Główne',
+  'nav.group.progress': 'Postępy',
+  'nav.group.account': 'Konto',
   'nav.history': 'Historia',
   'nav.plan': 'Plan',
   'nav.exercises': 'Ćwiczenia',

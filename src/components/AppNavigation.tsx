@@ -34,6 +34,13 @@ const navItems = [
   { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
 ];
 
+// Boczne menu pogrupowane w sekcje (mniej przytłaczające niż płaska lista 9 pozycji).
+const NAV_GROUPS = [
+  { titleKey: 'nav.group.main' as const, paths: ['/', '/plan', '/history', '/exercises'] },
+  { titleKey: 'nav.group.progress' as const, paths: ['/analytics', '/measurements', '/achievements', '/cycles'] },
+  { titleKey: 'nav.group.account' as const, paths: ['/profile'] },
+];
+
 const STORAGE_KEY = 'sidebar-collapsed';
 
 export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
@@ -66,6 +73,42 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
     .join('')
     .toUpperCase()
     .slice(0, 2);
+
+  // Pojedynczy link sidebara (z obsługą trybu zwiniętego = tooltip na desktopie).
+  const renderLink = (item: typeof navItems[number]) => {
+    const link = (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        onClick={onClose}
+        className={({ isActive }) => cn(
+          "flex items-center gap-3 rounded-lg transition-all duration-200 text-sm font-medium",
+          collapsed ? "md:justify-center md:px-0 md:py-2.5 px-3 py-2.5" : "px-3 py-2.5",
+          isActive
+            ? "bg-primary/15 text-primary"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        )}
+      >
+        <item.icon className="h-4.5 w-4.5 shrink-0" />
+        <span className={cn(collapsed && "md:hidden")}>{t(item.labelKey)}</span>
+      </NavLink>
+    );
+
+    if (collapsed) {
+      return (
+        <Tooltip key={item.to}>
+          <TooltipTrigger asChild className="hidden md:flex">
+            {link}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="hidden md:block">
+            {t(item.labelKey)}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return link;
+  };
 
   return (
     <>
@@ -117,42 +160,21 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
             </div>
           </div>
 
-          {/* Nav items */}
-          <div className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navItems.map((item) => {
-              const link = (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={onClose}
-                  className={({ isActive }) => cn(
-                    "flex items-center gap-3 rounded-lg transition-all duration-200 text-sm font-medium",
-                    collapsed ? "md:justify-center md:px-0 md:py-2.5 px-3 py-2.5" : "px-3 py-2.5",
-                    isActive
-                      ? "bg-primary/15 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="h-4.5 w-4.5 shrink-0" />
-                  <span className={cn(collapsed && "md:hidden")}>{t(item.labelKey)}</span>
-                </NavLink>
-              );
-
-              if (collapsed) {
-                return (
-                  <Tooltip key={item.to}>
-                    <TooltipTrigger asChild className="hidden md:flex">
-                      {link}
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="hidden md:block">
-                      {t(item.labelKey)}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              }
-
-              return link;
-            })}
+          {/* Nav items — pogrupowane w sekcje */}
+          <div className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.titleKey} className="space-y-1">
+                {!collapsed && (
+                  <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/60">
+                    {t(group.titleKey)}
+                  </p>
+                )}
+                {group.paths.map((path) => {
+                  const item = navItems.find((i) => i.to === path);
+                  return item ? renderLink(item) : null;
+                })}
+              </div>
+            ))}
           </div>
 
           {/* Bottom section — user dropdown */}
@@ -215,13 +237,25 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
           <NavLink
             key={`mobile-${item.to}`}
             to={item.to}
-            className={({ isActive }) => cn(
-              "flex min-w-12 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-[9px] font-bold uppercase tracking-wide transition-colors",
-              isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-            )}
+            className="flex flex-1 flex-col items-center gap-1 py-1"
           >
-            <item.icon className="h-4.5 w-4.5" />
-            <span>{t(item.labelKey).split(' ')[0]}</span>
+            {({ isActive }) => (
+              <>
+                {/* Pigułka stałej szerokości tylko pod ikoną — każda pozycja podświetla się tak samo. */}
+                <span className={cn(
+                  "flex h-9 w-14 items-center justify-center rounded-full transition-colors",
+                  isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                )}>
+                  <item.icon className="h-5 w-5" />
+                </span>
+                <span className={cn(
+                  "text-[9px] font-bold uppercase tracking-wide transition-colors",
+                  isActive ? "text-foreground" : "text-muted-foreground"
+                )}>
+                  {t(item.labelKey).split(' ')[0]}
+                </span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
