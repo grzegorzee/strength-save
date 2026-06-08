@@ -27,12 +27,13 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
-  User, Lock, ShieldCheck, Timer, Scale, Bell, Moon, Globe,
+  User, Lock, ShieldCheck, Timer, Scale, Bell, Moon, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
 } from 'lucide-react';
 
 const REST_TIMER_KEY = 'rest-timer-default';
 const NOTIFICATIONS_KEY = 'notifications-enabled';
+const SOUND_KEY = 'timer-sound-enabled';
 const REST_OPTIONS = ['30', '45', '60', '90', '120', '180'];
 
 const Profile = () => {
@@ -53,6 +54,9 @@ const Profile = () => {
   });
   const [notifications, setNotifications] = useState(() => {
     try { return localStorage.getItem(NOTIFICATIONS_KEY) !== 'false'; } catch { return true; }
+  });
+  const [sound, setSound] = useState(() => {
+    try { return localStorage.getItem(SOUND_KEY) !== 'false'; } catch { return true; }
   });
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
@@ -84,6 +88,7 @@ const Profile = () => {
 
   const handleRestChange = (v: string) => { setRestTimer(v); persist(REST_TIMER_KEY, v); };
   const handleNotifications = (v: boolean) => { setNotifications(v); persist(NOTIFICATIONS_KEY, String(v)); };
+  const handleSound = (v: boolean) => { setSound(v); persist(SOUND_KEY, String(v)); };
   const handleLanguage = (v: string) => {
     setLang(v as LanguageCode);
     toast({ title: t('profile.langSaved') });
@@ -185,6 +190,7 @@ const Profile = () => {
       {/* APP SETTINGS */}
       <SectionCard label={t('profile.section.app')}>
         <SettingRow icon={Bell} label={t('profile.app.notifications')} right={<Switch checked={notifications} onCheckedChange={handleNotifications} />} />
+        <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} />} />
         <SettingRow icon={Moon} label={t('profile.app.darkMode')} right={<Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} />} />
         <SettingRow
           icon={Globe}

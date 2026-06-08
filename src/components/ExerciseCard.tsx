@@ -10,6 +10,9 @@ import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getEx
 import { getExerciseAnimationUrl } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { IntervalTimer } from './IntervalTimer';
+import { Haptics, NotificationType } from '@capacitor/haptics';
+import { Capacitor } from '@capacitor/core';
+import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
@@ -17,6 +20,20 @@ import type { NextSetAdvice } from '@/lib/next-set-advice';
 import type { ExerciseBest } from '@/lib/pr-utils';
 import type { RzaAdvice } from '@/lib/rza-progression';
 import { RestTimer } from './RestTimer';
+
+// Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
+// Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
+async function exerciseCompleteHaptic() {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await Haptics.notification({ type: NotificationType.Success });
+    } else if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([120, 60, 120, 60, 200]);
+    }
+  } catch {
+    // Haptyka niedostępna — pomijamy.
+  }
+}
 
 // Domyślny czas odpoczynku z ustawień (Profil → 'rest-timer-default'), w sekundach.
 const getRestDefaultSeconds = (): number => {
@@ -251,11 +268,20 @@ const ExerciseCardInner = ({
     setSets(newSets);
     onSetsChange?.(newSets, notes);
 
-    // Po odhaczeniu serii roboczej uruchom kołowy timer odpoczynku.
-    // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
-    if (turningOn && !currentSet.isWarmup && !intervalSpec) {
-      const seconds = getRestDefaultSeconds();
-      setRest(r => ({ open: true, seconds, runId: r.runId + 1 }));
+    if (turningOn && !currentSet.isWarmup) {
+      const workingAfter = newSets.filter(s => !s.isWarmup);
+      const allDone = workingAfter.length > 0 && workingAfter.every(s => s.completed);
+      if (allDone) {
+        // Ostatnia seria ćwiczenia ukończona → sygnał „przejdź do następnego" (bez timera przerwy).
+        unlockTimerSound();
+        exerciseCompleteHaptic();
+        playTimerSound('complete');
+      } else if (!intervalSpec) {
+        // Kolejna seria robocza → kołowy timer odpoczynku.
+        // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
+        const seconds = getRestDefaultSeconds();
+        setRest(r => ({ open: true, seconds, runId: r.runId + 1 }));
+      }
     }
   };
 

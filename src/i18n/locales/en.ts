@@ -33,6 +33,7 @@ export const en: Record<keyof typeof pl, string> = {
   'profile.pref.units': 'Units',
   'profile.section.app': 'App settings',
   'profile.app.notifications': 'Notifications',
+  'profile.app.sound': 'Timer sound',
   'profile.app.darkMode': 'Dark mode',
   'profile.app.language': 'Language',
   'profile.section.support': 'Support',

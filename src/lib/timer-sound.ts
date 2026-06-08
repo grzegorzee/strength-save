@@ -37,16 +37,27 @@ const beepAt = (c: AudioContext, start: number, freq: number, dur: number): void
 
 /**
  * Krótki sygnał.
- * - 'tick'   pojedynczy krótki beep (start kolejnej rundy interwału),
- * - 'finish' dwa krótkie, wznoszące tony (koniec przerwy / koniec bloku).
+ * - 'tick'     pojedynczy krótki beep (start kolejnej rundy interwału),
+ * - 'finish'   dwa krótkie, wznoszące tony (koniec przerwy między seriami / koniec bloku),
+ * - 'complete' trzy wznoszące tony (koniec całego ćwiczenia — wyraźniejszy, „przejdź dalej").
  */
-export const playTimerSound = (kind: 'tick' | 'finish' = 'finish'): void => {
+// Przełącznik dźwięku z Profilu (Profil → Dźwięk). Domyślnie ON; OFF = pełna cisza timerów.
+const isSoundEnabled = (): boolean => {
+  try { return localStorage.getItem('timer-sound-enabled') !== 'false'; } catch { return true; }
+};
+
+export const playTimerSound = (kind: 'tick' | 'finish' | 'complete' = 'finish'): void => {
+  if (!isSoundEnabled()) return;
   const c = getCtx();
   if (!c) return;
   if (c.state === 'suspended') c.resume().catch(() => {});
   const now = c.currentTime;
   if (kind === 'tick') {
     beepAt(c, now, 880, 0.12);
+  } else if (kind === 'complete') {
+    beepAt(c, now, 880, 0.12);
+    beepAt(c, now + 0.15, 1175, 0.12);
+    beepAt(c, now + 0.30, 1568, 0.2);
   } else {
     beepAt(c, now, 880, 0.12);
     beepAt(c, now + 0.16, 1175, 0.16);

@@ -35,6 +35,7 @@ export const pl = {
   'profile.pref.units': 'Jednostki',
   'profile.section.app': 'Aplikacja',
   'profile.app.notifications': 'Powiadomienia',
+  'profile.app.sound': 'Dźwięk timera',
   'profile.app.darkMode': 'Tryb ciemny',
   'profile.app.language': 'Język',
   'profile.section.support': 'Wsparcie',
