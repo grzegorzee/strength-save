@@ -22,7 +22,8 @@ import { getExerciseHistory } from '@/lib/exercise-progression';
 import { callOpenAI } from '@/lib/ai-coach';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
-import { localizeCategory } from '@/data/exercise-i18n';
+import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
+import { dateLocale } from '@/i18n';
 import type { SetData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -1347,29 +1348,37 @@ const WorkoutDay = () => {
             const totalWeight = completed.reduce((sum, s) => sum + (s.reps * s.weight), 0);
 
             return (
-              <Card key={exercise.id} className={cn("bg-muted/30", isSkipped && "opacity-60")}>
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary" className="h-8 w-8 rounded-lg flex items-center justify-center">
-                        {index + 1}
-                      </Badge>
-                      <span className="font-medium">{exercise.name}</span>
-                      {isSkipped && (
-                        <Badge variant="outline" className="text-xs">{t('dayplan.badgeMissed')}</Badge>
-                      )}
-                    </div>
-                    {!isSkipped && (
-                      <div className="flex items-center gap-4 text-sm">
-                        <span>{t('workout.setsProgress', { done: completed.length, total: sets.length })}</span>
-                        {totalWeight > 0 && (
-                          <Badge className="bg-fitness-success text-background font-semibold">{totalWeight} kg</Badge>
-                        )}
-                      </div>
-                    )}
+              <div
+                key={exercise.id}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl bg-surface-low p-3",
+                  isSkipped && "opacity-50",
+                )}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fitness-cyan/15 font-heading text-sm font-bold tabular-nums text-fitness-cyan">
+                  {index + 1}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-heading text-sm font-bold uppercase leading-tight tracking-tight">
+                    {localizeExerciseName(exercise.name, lang)}
+                  </h3>
+                  <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                    {isSkipped
+                      ? t('dayplan.badgeMissed')
+                      : t('workout.setsProgress', { done: completed.length, total: sets.length })}
+                  </p>
+                </div>
+                {!isSkipped && totalWeight > 0 && (
+                  <div className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-center leading-none">
+                    <span className="block font-heading text-base font-bold tabular-nums text-background">
+                      {totalWeight.toLocaleString(dateLocale(lang))}
+                    </span>
+                    <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.12em] text-background/70">
+                      kg
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             );
           })}
         </div>
