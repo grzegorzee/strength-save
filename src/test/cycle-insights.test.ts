@@ -121,6 +121,33 @@ describe('cycle-insights', () => {
     expect(rec.canCloseout).toBe(true);
     expect(rec.title).toBe(translate('pl', 'cyclerec.closeout.title'));
   });
+
+  it('świeży cykl tuż po onboardingu (0 treningów, start dziś) → kickoff, NIE ostrzeżenie', () => {
+    const cycle: PlanCycle = {
+      id: 'fresh', userId: 'u1', days: planDays, durationWeeks: 8,
+      startDate: '2026-06-08', endDate: '2026-06-08',
+      status: 'active', createdAt: '2026-06-08T00:00:00.000Z',
+      stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+    };
+    const rec = buildCycleRecommendation(cycle, null, new Date('2026-06-08'));
+    expect(rec.isKickoff).toBe(true);
+    expect(rec.tone).toBe('success');
+    expect(rec.title).toBe(translate('pl', 'cyclerec.kickoff.title'));
+    expect(rec.title).not.toBe(translate('pl', 'cyclerec.stabilize.title'));
+    expect(rec.canCloseout).toBe(false);
+  });
+
+  it('niska frekwencja PO pierwszym tygodniu → ostrzeżenie stabilize', () => {
+    const cycle: PlanCycle = {
+      id: 'behind', userId: 'u1', days: planDays, durationWeeks: 8,
+      startDate: '2026-05-25', endDate: '', // 14 dni temu (po karencji)
+      status: 'active', createdAt: '2026-05-25T00:00:00.000Z',
+      stats: { totalWorkouts: 1, totalTonnage: 1000, prs: [], completionRate: 20 },
+    };
+    const rec = buildCycleRecommendation(cycle, null, new Date('2026-06-08'));
+    expect(rec.tone).toBe('warning');
+    expect(rec.title).toBe(translate('pl', 'cyclerec.stabilize.title'));
+  });
 });
 
 describe('computeCycleStats — cycle attribution (regression: new cycle stealing workouts)', () => {

@@ -12,6 +12,8 @@ export interface CycleRecommendation {
   tone: 'success' | 'warning' | 'info';
   // Czy to moment na zamknięcie cyklu (pokazać akcję "Domknij/Powtórz"). False w trakcie cyklu.
   canCloseout: boolean;
+  // Świeży cykl tuż po starcie (powitanie zamiast oceny frekwencji).
+  isKickoff?: boolean;
 }
 
 export interface CycleComparison {
@@ -156,7 +158,24 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
   const canCloseout = isExpired || cycle.status === 'completed';
   const comparison = buildCycleComparison(cycle, previousCycle);
 
-  if (cycle.status === 'active' && cycle.stats.completionRate < 60) {
+  // Ile dni minęło od startu cyklu. Pierwszy tydzień = okres karencji:
+  // nie oceniamy frekwencji (świeży cykl po onboardingu zawsze miałby 0% i fałszywy alarm).
+  const elapsedDays = Math.floor((now.getTime() - parseLocalDate(cycle.startDate).getTime()) / 86_400_000);
+  const inFirstWeek = elapsedDays < 7;
+
+  // Świeży, aktywny cykl bez treningów → POWITANIE (kick-off), a nie ostrzeżenie o frekwencji.
+  if (cycle.status === 'active' && cycle.stats.totalWorkouts === 0 && inFirstWeek) {
+    return {
+      title: translate(lang, 'cyclerec.kickoff.title'),
+      description: translate(lang, 'cyclerec.kickoff.desc'),
+      tone: 'success',
+      canCloseout: false,
+      isKickoff: true,
+    };
+  }
+
+  // Ostrzeżenie o niskiej frekwencji DOPIERO po pierwszym tygodniu (po karencji).
+  if (cycle.status === 'active' && !inFirstWeek && cycle.stats.completionRate < 60) {
     return {
       title: translate(lang, 'cyclerec.stabilize.title'),
       description: translate(lang, 'cyclerec.stabilize.desc'),

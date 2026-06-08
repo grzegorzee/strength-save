@@ -124,7 +124,7 @@ const ExerciseDetail = () => {
 
         {/* Target muscles */}
         <section className="space-y-4">
-          <h2 className="font-heading text-lg font-bold">{t('detail.muscles')}</h2>
+          <h2 className="font-heading text-lg font-bold uppercase tracking-tight">{t('detail.muscles')}</h2>
           <div className="flex flex-wrap gap-2">
             {targetMuscles.map((m) => (
               <span key={m} className="rounded-full bg-surface-highest px-3 py-1.5 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">{m}</span>
@@ -136,7 +136,7 @@ const ExerciseDetail = () => {
         {/* Equipment */}
         {equipment && (
           <section className="space-y-3">
-            <h2 className="font-heading text-lg font-bold">{t('detail.equipment')}</h2>
+            <h2 className="font-heading text-lg font-bold uppercase tracking-tight">{t('detail.equipment')}</h2>
             <div className="flex items-center gap-3 rounded-xl bg-surface-low p-4">
               <span className="flex h-10 w-10 items-center justify-center rounded-md bg-surface-highest">
                 <Dumbbell className="h-5 w-5 text-muted-foreground" />

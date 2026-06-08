@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Medal, Calendar, Check, Pencil, ListChecks, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
-import { localizeFocus, localizeWeekdayShort } from '@/lib/plan-i18n';
+import { localizeFocus, localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
 import { PlanBuilder } from '@/components/PlanBuilder';
 import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
@@ -313,7 +313,7 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
             <div className="mt-7 mb-5">
               <p className="text-xs font-medium uppercase tracking-widest text-primary mb-2">{t('ob.precision.kicker')}</p>
               <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">{t('ob.precision.title')}</h1>
-              <p className="text-muted-foreground mt-2">{picked ? t('ob.precision.chosen') : t('ob.precision.recommended', { name: chosen.name })}</p>
+              <p className="text-muted-foreground mt-2">{picked ? t('ob.precision.chosen') : t('ob.precision.recommended', { name: localizePlanName(chosen.id, chosen.name, lang) })}</p>
               {startAtPrecision && (
                 <button onClick={() => setStep(2)} className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-fitness-cyan font-medium">
                   <SlidersHorizontal className="h-3.5 w-3.5" />{t('ob.precision.change')}
@@ -323,7 +323,7 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
             <div className="flex-1 space-y-3">
               <div className="rounded-2xl bg-surface-low p-5">
                 <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</p>
-                <h2 className="font-heading font-bold text-2xl text-primary mt-1 leading-tight">{chosen.name}</h2>
+                <h2 className="font-heading font-bold text-2xl text-primary mt-1 leading-tight">{localizePlanName(chosen.id, chosen.name, lang)}</h2>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {OBJECTIVE_TAGS[chosen.objective].map(tag => (
                     <span key={tag} className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-surface-highest text-muted-foreground">{t(tag)}</span>
@@ -378,10 +378,10 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
               {planTemplates.map(tpl => (
                 <button key={tpl.id} onClick={() => { setPicked(tpl); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container p-4 transition-colors">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-heading font-bold text-lg text-primary">{tpl.name}</h3>
+                    <h3 className="font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
                     <span className="text-[11px] text-muted-foreground tabular-nums">{tpl.daysPerWeek}× · {tpl.durationWeeks}{t('ob.browse.wk')}</span>
                   </div>
-                  <p className="text-[13px] text-muted-foreground mt-1 leading-snug">{tpl.description}</p>
+                  <p className="text-[13px] text-muted-foreground mt-1 leading-snug">{localizePlanDescription(tpl.id, tpl.description, lang)}</p>
                 </button>
               ))}
             </div>

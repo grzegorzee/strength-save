@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -93,6 +94,17 @@ const DashboardStatCard = ({
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Confetti po ukończeniu onboardingu (Onboarding nawiguje na /?welcome=1).
+  const [showConfetti, setShowConfetti] = useState(() => searchParams.get('welcome') === '1');
+  useEffect(() => {
+    if (searchParams.get('welcome') === '1') {
+      const next = new URLSearchParams(searchParams);
+      next.delete('welcome');
+      setSearchParams(next, { replace: true }); // czyść URL, żeby odświeżenie nie powtarzało confetti
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { t, lang } = useTranslation();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
   const {
@@ -414,6 +426,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {showConfetti && <ConfettiBurst onDone={() => setShowConfetti(false)} />}
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
@@ -622,7 +635,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-primary" />
-                <h2 className="font-heading font-semibold text-base">{t('dash.yourPlan')}</h2>
+                <h2 className="font-heading font-bold text-base uppercase tracking-tight">{t('dash.yourPlan')}</h2>
               </div>
               <Button
                 variant="ghost"
@@ -702,7 +715,7 @@ const Dashboard = () => {
 
       {/* This week's training — merged timeline */}
       <div className="space-y-3">
-        <h2 className="font-heading font-semibold text-base tracking-tight">{t('dash.weekPlan')}</h2>
+        <h2 className="font-heading font-bold text-base uppercase tracking-tight">{t('dash.weekPlan')}</h2>
         <div className="grid gap-3">
           {(() => {
             // Build unified timeline: training days + Strava activities

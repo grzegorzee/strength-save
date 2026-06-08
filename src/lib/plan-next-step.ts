@@ -91,6 +91,22 @@ export const buildPlanNextStep = ({
   }
 
   const recommendation = buildCycleRecommendation(activeCycle, previousCompletedCycle, today, lang);
+
+  // Świeży cykl tuż po onboardingu → pozytywna karta startowa bez metryk frekwencji
+  // (żeby nie straszyć "0% frekwencji / 0 ominiętych" zanim user w ogóle zacznie).
+  if (recommendation.isKickoff) {
+    return {
+      title: recommendation.title,
+      description: recommendation.description,
+      badges: [tr('plannext.badge.week', { current: 1, total: planDurationWeeks })],
+      primaryLabel: tr('plannext.btn.viewPlan'),
+      primaryPath: '/plan',
+      secondaryLabel: tr('plannext.btn.history'),
+      secondaryPath: '/history',
+      tone: 'success',
+    };
+  }
+
   const badges = [
     tr('plannext.badge.week', { current: Math.min(currentWeek, planDurationWeeks), total: planDurationWeeks }),
     tr('plannext.badge.attendance', { pct: activeCycle.stats.completionRate }),

@@ -12,11 +12,12 @@ import {
 } from '@/components/ui/dialog';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
-import { ChevronLeft, Plus, Trash2, Search, Check, Pencil } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Search, Check, Pencil, Dumbbell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeCategory } from '@/data/exercise-i18n';
+import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
 import { localizeWeekdayShort } from '@/lib/plan-i18n';
+import { matchesQuery } from '@/lib/search-utils';
 
 const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
   { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
@@ -125,14 +126,23 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
   };
 
   const filteredExercises = exerciseLibrary.filter(ex => {
-    const matchesSearch = search === '' || ex.name.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = category === 'all' || ex.category === category;
+    // Szukamy bez polskich znaków po nazwie PL, EN oraz kategorii.
+    const matchesSearch = matchesQuery(search, [ex.name, localizeExerciseName(ex.name, 'en'), localizeCategory(ex.category, lang)]);
     return matchesSearch && matchesCategory;
   });
 
-  // Walidacja: min 1 dzień, każdy dzień ma focus i min 1 ćwiczenie.
-  const isValid = days.length > 0
-    && days.every(d => d.focus.trim() !== '' && d.exercises.length > 0);
+  // Walidacja: min 1 dzień, każdy dzień ma min 1 ćwiczenie. Cel dnia jest opcjonalny
+  // (uzupełniany domyślną nazwą przy zapisie) — wcześniej blokował przycisk przy pustym polu.
+  const isValid = days.length > 0 && days.every(d => d.exercises.length > 0);
+
+  const handleSubmit = () => {
+    const finalized = days.map((d, i) => ({
+      ...d,
+      focus: d.focus.trim() || t('planbuilder.defaultFocus', { n: i + 1 }),
+    }));
+    onSubmit(finalized, durationWeeks);
+  };
 
   return (
     <div className="space-y-4">
@@ -176,7 +186,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
               </div>
 
               <Input
-                placeholder={t('planbuilder.focusPlaceholder')}
+                placeholder={t('planbuilder.focusPlaceholderOptional')}
                 value={day.focus}
                 onChange={e => setFocus(day.id, e.target.value)}
                 className="text-sm"
@@ -186,7 +196,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
                 {day.exercises.map(ex => (
                   <div key={ex.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{ex.name}</p>
+                      <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
                       {editingSets?.dayId === day.id && editingSets?.exerciseId === ex.id ? (
                         <div className="flex items-center gap-1 mt-1">
                           <Input
@@ -262,55 +272,81 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
         <Button variant="outline" className="flex-1" onClick={onCancel}>
           <ChevronLeft className="h-4 w-4 mr-1" />{t('planbuilder.back')}
         </Button>
-        <Button className="flex-1" disabled={!isValid} onClick={() => onSubmit(days, durationWeeks)}>
+        <Button className="flex-1" disabled={!isValid} onClick={handleSubmit}>
           <Check className="h-4 w-4 mr-1" />{t('planbuilder.nextToPreview')}
         </Button>
       </div>
       {!isValid && (
         <p className="text-xs text-muted-foreground text-center">
-          {t('planbuilder.validation')}
+          {t('planbuilder.validationExercises')}
         </p>
       )}
 
       {/* Exercise picker */}
       <Dialog open={!!pickerDayId} onOpenChange={(open) => { if (!open) { setPickerDayId(null); setSearch(''); setCategory('all'); } }}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('planbuilder.addExercise')}</DialogTitle>
+        <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] max-h-[88vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3">
+            <DialogTitle className="font-heading font-bold uppercase tracking-tight">{t('planbuilder.addExercise')}</DialogTitle>
             <DialogDescription>{t('planbuilder.pickFromLibrary')}</DialogDescription>
           </DialogHeader>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder={t('exercises.search')} value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+          <div className="px-5 pb-3 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t('exercises.search')}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 h-11 rounded-xl bg-surface-lowest border-0"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+              <button
+                onClick={() => setCategory('all')}
+                className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                  category === 'all' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
+              >
+                {t('exercises.all')}
+              </button>
+              {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => setCategory(key)}
+                  className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                    category === key ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
+                >
+                  {localizeCategory(key, lang)}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">
-            <Badge variant={category === 'all' ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setCategory('all')}>
-              {t('exercises.all')}
-            </Badge>
-            {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
-              <Badge key={key} variant={category === key ? 'default' : 'outline'} className="cursor-pointer text-xs" onClick={() => setCategory(key)}>
-                {localizeCategory(key, lang)}
-              </Badge>
-            ))}
-          </div>
-
-          <div className="space-y-1 max-h-[40vh] overflow-y-auto">
+          <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
+              {t('planbuilder.resultsCount', { n: filteredExercises.length })}
+            </p>
             {filteredExercises.map((ex, i) => (
               <button
                 key={i}
-                className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                className="w-full text-left flex items-center gap-3 p-3 rounded-xl bg-surface-low hover:bg-surface-high transition-colors"
                 onClick={() => pickerDayId && addExercise(pickerDayId, ex)}
               >
-                <p className="font-medium text-sm">{ex.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {localizeCategory(ex.category, lang)} · {ex.type === 'compound' ? t('planbuilder.compound') : t('planbuilder.isolation')}
-                </p>
+                <span className="h-9 w-9 shrink-0 rounded-lg bg-surface-highest flex items-center justify-center text-fitness-cyan">
+                  <Dumbbell className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium text-sm truncate">{localizeExerciseName(ex.name, lang)}</span>
+                  <span className="block text-xs text-muted-foreground truncate">
+                    {localizeCategory(ex.category, lang)} · {ex.type === 'compound' ? t('planbuilder.compound') : t('planbuilder.isolation')}
+                  </span>
+                </span>
+                <Plus className="h-4 w-4 shrink-0 text-primary" />
               </button>
             ))}
             {filteredExercises.length === 0 && (
-              <p className="text-center text-muted-foreground py-4 text-sm">{t('planbuilder.noExercisesFound')}</p>
+              <p className="text-center text-muted-foreground py-8 text-sm">{t('planbuilder.noExercisesFound')}</p>
             )}
           </div>
         </DialogContent>

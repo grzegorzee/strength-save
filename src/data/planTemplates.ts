@@ -478,7 +478,9 @@ export const getPlanTemplateById = (id: string): PlanTemplate | undefined =>
 
 /**
  * Rekomenduje plan na podstawie wyborów z onboardingu (cel × poziom × dni/tydz).
- * Punktacja: cel = najważniejszy, potem dopasowanie dni, potem poziom. Zawsze zwraca plan.
+ * Punktacja: CZĘSTOTLIWOŚĆ = twardy priorytet (user świadomie wybrał liczbę dni na kroku 4,
+ * więc rekomendacja musi ją uszanować — inaczej krok 5 pokazuje inną liczbę dni niż wybrana),
+ * potem cel, potem poziom. Zawsze zwraca plan.
  */
 export const getRecommendedPlan = (
   objective: PlanObjective,
@@ -488,8 +490,10 @@ export const getRecommendedPlan = (
   const levelRank: Record<PlanTemplate['level'], number> = { beginner: 0, intermediate: 1, advanced: 2 };
   const score = (t: PlanTemplate): number => {
     let s = 0;
+    // Waga 1000 sprawia, że dopasowanie częstotliwości przebija cel (100) i poziom (10):
+    // plan o pasującej liczbie dni zawsze wygrywa, a w obrębie tej samej liczby decyduje cel.
+    s -= Math.abs(t.daysPerWeek - daysPerWeek) * 1000;
     if (t.objective === objective) s += 100;
-    s -= Math.abs(t.daysPerWeek - daysPerWeek) * 15;
     s -= Math.abs(levelRank[t.level] - levelRank[level]) * 10;
     return s;
   };

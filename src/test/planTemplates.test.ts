@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planTemplates, getPlanTemplateById } from '@/data/planTemplates';
+import { planTemplates, getPlanTemplateById, getRecommendedPlan } from '@/data/planTemplates';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 
 const libraryNames = new Set(exerciseLibrary.map((e) => e.name));
@@ -56,5 +56,20 @@ describe('planTemplates', () => {
   it('getPlanTemplateById resolves known ids and returns undefined otherwise', () => {
     expect(getPlanTemplateById(planTemplates[0].id)?.id).toBe(planTemplates[0].id);
     expect(getPlanTemplateById('nope')).toBeUndefined();
+  });
+
+  it('getRecommendedPlan respektuje wybraną liczbę dni (krok 4 = krok 5)', () => {
+    // Częstotliwość to twardy priorytet: rekomendacja MUSI mieć tyle dni co wybór usera.
+    for (const days of [3, 4, 5]) {
+      expect(getRecommendedPlan('build_muscle', 'beginner', days).daysPerWeek).toBe(days);
+      expect(getRecommendedPlan('peak_strength', 'advanced', days).daysPerWeek).toBe(days);
+      expect(getRecommendedPlan('fat_loss', 'intermediate', days).daysPerWeek).toBe(days);
+    }
+  });
+
+  it('przy tej samej częstotliwości preferuje dopasowanie celu', () => {
+    // Wśród planów 4-dniowych: peak_strength → plan o objective peak_strength.
+    expect(getRecommendedPlan('peak_strength', 'advanced', 4).objective).toBe('peak_strength');
+    expect(getRecommendedPlan('fat_loss', 'intermediate', 4).objective).toBe('fat_loss');
   });
 });

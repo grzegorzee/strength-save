@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -12,6 +13,7 @@ import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 // Onboarding nowego użytkownika = wspólny PlanWizard (z ekranem Welcome) + zapis planu.
 const Onboarding = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { uid } = useCurrentUser();
   const { savePlan } = useTrainingPlan(uid);
   const { createActiveCycle } = usePlanCycles(uid);
@@ -35,7 +37,9 @@ const Onboarding = () => {
         onboarding: { state: 'completed', version: 2 },
         trainingProfile: { level: choice.level, objective: choice.objective, daysPerWeek: choice.daysPerWeek },
       });
-      // onboardingCompleted w profilu przekieruje na dashboard (router).
+      // Jawne przejście na dashboard z flagą powitania (confetti). Router i tak przełączy
+      // drzewo tras po aktualizacji profilu, ale to gwarantuje natychmiastowy redirect bez 404.
+      navigate('/?welcome=1', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));
       setIsSaving(false);

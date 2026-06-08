@@ -150,6 +150,9 @@ const AppRoutes = () => {
               <Route element={<Layout />}>
                 <Route path="/login" element={<Navigate to="/" replace />} />
                 <Route path="/register" element={<Navigate to="/" replace />} />
+                {/* Po ukończeniu onboardingu URL zostaje #/onboarding — bez tego redirectu
+                    drzewo tras nie-new-user nie ma tej trasy i wpada w 404. */}
+                <Route path="/onboarding" element={<Navigate to="/?welcome=1" replace />} />
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/day" element={<DayPlan />} />
                 <Route path="/plan" element={<TrainingPlan />} />
