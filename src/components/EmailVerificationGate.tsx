@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, MailCheck, AlertCircle } from 'lucide-react';
+import { Loader2, MailCheck, AlertCircle, ExternalLink } from 'lucide-react';
 import { requestEmailVerificationCode, verifyEmailCode } from '@/lib/registration-api';
+import { getInboxProviders } from '@/lib/inbox-links';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -14,6 +15,9 @@ interface EmailVerificationGateProps {
   email: string;
 }
 
+// Po wysłaniu kodu blokujemy ponowne wysłanie na 60 s.
+const RESEND_COOLDOWN_SEC = 60;
+
 export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -21,6 +25,16 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+
+  const inboxProviders = getInboxProviders(email);
+
+  // Odliczanie cooldownu do ponownego wysłania.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setInterval(() => setCooldown((prev) => (prev <= 1 ? 0 : prev - 1)), 1000);
+    return () => clearInterval(id);
+  }, [cooldown]);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,6 +44,7 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
       try {
         await requestEmailVerificationCode();
         if (!cancelled) {
+          setCooldown(RESEND_COOLDOWN_SEC);
           toast({
             title: t('comp.emailGate.codeSentTitle'),
             description: t('comp.emailGate.codeSentDesc'),
@@ -70,10 +85,12 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
   };
 
   const handleResend = async () => {
+    if (cooldown > 0 || resending) return;
     setResending(true);
     setError(null);
     try {
       await requestEmailVerificationCode();
+      setCooldown(RESEND_COOLDOWN_SEC);
       toast({
         title: t('comp.emailGate.resentTitle'),
         description: t('comp.emailGate.resentDesc'),
@@ -83,6 +100,10 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
     } finally {
       setResending(false);
     }
+  };
+
+  const openInbox = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -114,13 +135,33 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
             autoComplete="one-time-code"
           />
 
+          {/* Szybkie otwarcie skrzynki — dopasowane do domeny maila */}
+          <div className="flex flex-wrap gap-2">
+            {inboxProviders.map((p) => (
+              <Button
+                key={p.provider}
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => openInbox(p.url)}
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                {t('comp.emailGate.openInbox', { provider: p.provider })}
+              </Button>
+            ))}
+          </div>
+
           <div className="flex gap-2">
             <Button className="flex-1" onClick={handleVerify} disabled={loading || code.length < 6}>
               {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {t('comp.emailGate.verifyButton')}
             </Button>
-            <Button variant="outline" onClick={handleResend} disabled={resending}>
-              {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('comp.emailGate.resendButton')}
+            <Button variant="outline" onClick={handleResend} disabled={resending || cooldown > 0}>
+              {resending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : cooldown > 0
+                  ? t('comp.emailGate.resendIn', { s: cooldown })
+                  : t('comp.emailGate.resendButton')}
             </Button>
           </div>
 

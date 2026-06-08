@@ -590,6 +590,8 @@ export const pl = {
   'comp.emailGate.codePlaceholder': 'Kod 6-cyfrowy',
   'comp.emailGate.verifyButton': 'Potwierdź kod',
   'comp.emailGate.resendButton': 'Wyślij ponownie',
+  'comp.emailGate.resendIn': 'Wyślij ponownie ({s}s)',
+  'comp.emailGate.openInbox': 'Otwórz {provider}',
   'comp.pwa.updateWaitingTitle': 'Aktualizacja czeka',
   'comp.pwa.updateWaitingDesc': 'Wykryto nową wersję aplikacji, ale aktywny trening blokuje automatyczne odświeżenie. Zastosujemy update po zakończeniu synchronizacji.',
   'comp.notFound.message': 'Ups! Nie znaleziono strony',

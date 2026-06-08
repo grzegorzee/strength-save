@@ -584,6 +584,8 @@ export const en: Record<keyof typeof pl, string> = {
   'comp.emailGate.codePlaceholder': '6-digit code',
   'comp.emailGate.verifyButton': 'Confirm code',
   'comp.emailGate.resendButton': 'Resend',
+  'comp.emailGate.resendIn': 'Resend ({s}s)',
+  'comp.emailGate.openInbox': 'Open {provider}',
   'comp.pwa.updateWaitingTitle': 'Update waiting',
   'comp.pwa.updateWaitingDesc': 'A new version of the app was detected, but an active workout is blocking the automatic refresh. We will apply the update once syncing is complete.',
   'comp.notFound.message': 'Oops! Page not found',
