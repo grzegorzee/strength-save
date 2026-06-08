@@ -5,6 +5,7 @@ import { Haptics, NotificationType, ImpactStyle } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import type { IntervalSpec } from '@/lib/interval-timer';
 
 // Haptyka: lekki impuls na starcie rundy, mocniejszy sukces na koniec bloku.
@@ -18,28 +19,6 @@ async function haptic(kind: 'round' | 'finish') {
     }
   } catch {
     // Haptyka niedostępna — pomijamy.
-  }
-}
-
-// Beep przez WebAudio. count=1 krótki (start rundy), count=3 potrójny (koniec).
-function beep(count: number) {
-  try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    osc.start();
-    let t = ctx.currentTime;
-    for (let i = 0; i < count; i++) {
-      gain.gain.setValueAtTime(0.3, t);
-      gain.gain.setValueAtTime(0, t + 0.15);
-      t += 0.25;
-    }
-    osc.stop(t);
-  } catch {
-    // Audio niedostępne.
   }
 }
 
@@ -64,6 +43,9 @@ export const IntervalTimer = ({ spec, exerciseLabel, onClose }: IntervalTimerPro
     }
   }, []);
 
+  // Odblokuj audio na starcie (montaż = efekt tapnięcia chipa timera) — by beep zagrał na iOS.
+  useEffect(() => { unlockTimerSound(); }, []);
+
   useEffect(() => {
     if (!isRunning) return;
     intervalRef.current = setInterval(() => {
@@ -72,13 +54,13 @@ export const IntervalTimer = ({ spec, exerciseLabel, onClose }: IntervalTimerPro
         if (next >= spec.totalSec) {
           clearTimer();
           setIsRunning(false);
-          beep(3);
+          playTimerSound('finish');
           haptic('finish');
           return spec.totalSec;
         }
-        // Granica rundy (EMOM): beep + lekka haptyka na starcie nowej rundy.
+        // Granica rundy (EMOM): krótki dźwięk + lekka haptyka na starcie nowej rundy.
         if (spec.kind === 'emom' && next % spec.intervalSec === 0) {
-          beep(1);
+          playTimerSound('tick');
           haptic('round');
         }
         return next;

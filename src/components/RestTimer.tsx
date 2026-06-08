@@ -5,6 +5,7 @@ import { Haptics, NotificationType } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 
 // Wibracja końca odpoczynku: natywnie przez Capacitor Haptics (iOS/Android),
 // w przeglądarce fallback do Vibration API (navigator.vibrate jest no-op na iOS WKWebView).
@@ -28,29 +29,6 @@ interface RestTimerProps {
 
 const PRESETS = [15, 30, 45, 60, 90, 120];
 
-function playBeep() {
-  try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.value = 0.3;
-    osc.start();
-    // Three short beeps
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.setValueAtTime(0, ctx.currentTime + 0.15);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.25);
-    gain.gain.setValueAtTime(0, ctx.currentTime + 0.4);
-    gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.5);
-    gain.gain.setValueAtTime(0, ctx.currentTime + 0.65);
-    osc.stop(ctx.currentTime + 0.7);
-  } catch {
-    // Audio not available
-  }
-}
-
 export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestTimerProps) => {
   const { t } = useTranslation();
   const [totalSeconds, setTotalSeconds] = useState(defaultSeconds);
@@ -65,6 +43,9 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
     }
   }, []);
 
+  // Odblokuj audio na starcie (montaż = efekt gestu odhaczenia serii) — by końcowy beep zagrał na iOS.
+  useEffect(() => { unlockTimerSound(); }, []);
+
   useEffect(() => {
     if (isRunning && secondsLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -72,9 +53,9 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
           if (prev <= 1) {
             clearTimer();
             setIsRunning(false);
-            // Wibracja (haptic) + beep na koniec odpoczynku
+            // Wibracja (haptic) + krótki dźwięk na koniec odpoczynku
             triggerEndHaptic();
-            playBeep();
+            playTimerSound('finish');
             return 0;
           }
           return prev - 1;
