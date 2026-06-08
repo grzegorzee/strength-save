@@ -14,6 +14,7 @@ import { useStrava } from '@/hooks/useStrava';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 import { calculateStreak } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
@@ -106,6 +107,7 @@ const Dashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const { t, lang } = useTranslation();
+  const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
   const {
     workouts,
@@ -581,19 +583,19 @@ const Dashboard = () => {
         />
         <DashboardStatCard
           title={t('dash.stat.tonnage')}
-          value={`${(totalWeight / 1000).toFixed(1)}t`}
+          value={fmtTonnage(totalWeight)}
           icon={Dumbbell}
-          trend={trends.tonnage}
-          trendSuffix="t"
+          trend={trends.tonnage != null ? Number((toDisplay(trends.tonnage * 1000) / 1000).toFixed(1)) : null}
+          trendSuffix={unit === 'lbs' ? ' k lbs' : 't'}
           iconColor="bg-primary/15 text-primary"
           onClick={() => navigate('/analytics?tab=charts')}
         />
         <DashboardStatCard
           title={t('dash.stat.weight')}
-          value={latestMeasurement?.weight ? `${latestMeasurement.weight} kg` : '--'}
+          value={latestMeasurement?.weight ? fmt(latestMeasurement.weight) : '--'}
           icon={Weight}
           trend={trends.weight}
-          trendSuffix=" kg"
+          trendSuffix={` ${unit}`}
           iconColor="bg-muted text-muted-foreground"
           onClick={() => navigate('/analytics?tab=charts')}
         />
@@ -701,7 +703,7 @@ const Dashboard = () => {
                 <div>
                   <p className="font-medium text-sm">{t('dash.lastPR')}</p>
                   <p className="text-xs text-muted-foreground">
-                    {localizeExerciseName(latestPR.exerciseName, lang)} — <span className="font-heading font-semibold text-foreground">{latestPR.value} kg</span>
+                    {localizeExerciseName(latestPR.exerciseName, lang)} — <span className="font-heading font-semibold text-foreground">{fmt(latestPR.value)}</span>
                     {' '}
                     <span className="text-muted-foreground">({formatPRDate(latestPR.date)})</span>
                   </p>

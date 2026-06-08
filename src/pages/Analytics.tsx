@@ -54,6 +54,7 @@ import {
 } from 'lucide-react';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import type { TranslationKey, LanguageCode } from '@/i18n';
 
@@ -102,6 +103,7 @@ const SummaryTab = () => {
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
   const { t, lang } = useTranslation();
+  const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('week');
   const [copied, setCopied] = useState(false);
@@ -187,11 +189,11 @@ const SummaryTab = () => {
       `📅 ${dateRange}`,
       ``,
       `🏋️ ${t('analytics.copy.frequency', { done: frequency, expected: expectedWorkouts })}`,
-      `💪 ${t('analytics.copy.tonnage', { value: currentTonnage.toLocaleString(dateLocale(lang)) })}${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
+      `💪 ${t('analytics.copy.tonnage', { value: Math.round(toDisplay(currentTonnage)).toLocaleString(dateLocale(lang)), unit })}${tonnageChange !== 0 ? ` (${tonnageChange > 0 ? '+' : ''}${tonnageChange}%)` : ''}`,
       `🔥 ${t('analytics.copy.streak', { n: streak })}`,
     ];
     if (periodPRs.length > 0) lines.push(`🏆 ${t('analytics.copy.newPRs', { list: periodPRs.map(p => p.exerciseName).join(', ') })}`);
-    if (latestWeight) lines.push(`⚖️ ${t('analytics.copy.weight', { value: latestWeight })}`);
+    if (latestWeight) lines.push(`⚖️ ${t('analytics.copy.weight', { value: Number(toDisplay(latestWeight).toFixed(1)), unit })}`);
 
     await navigator.clipboard.writeText(lines.join('\n'));
     setCopied(true);
@@ -235,7 +237,7 @@ const SummaryTab = () => {
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><Trophy className="h-5 w-5 text-primary" /></div>
             <div>
-              <p className="text-2xl font-bold">{(currentTonnage / 1000).toFixed(1)}t</p>
+              <p className="text-2xl font-bold">{fmtTonnage(currentTonnage)}</p>
               <p className="text-xs text-muted-foreground">
                 {t('analytics.stat.tonnage')}
                 {tonnageChange !== 0 && (
@@ -256,7 +258,7 @@ const SummaryTab = () => {
         <Card><CardContent className="pt-6">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center"><BarChart3 className="h-5 w-5 text-primary" /></div>
-            <div><p className="text-2xl font-bold">{latestWeight ? `${latestWeight} kg` : '--'}</p><p className="text-xs text-muted-foreground">{t('analytics.stat.bodyWeight')}</p></div>
+            <div><p className="text-2xl font-bold">{latestWeight ? fmt(latestWeight) : '--'}</p><p className="text-xs text-muted-foreground">{t('analytics.stat.bodyWeight')}</p></div>
           </div>
         </CardContent></Card>
       </div>
@@ -354,6 +356,7 @@ type WeightMode = 'max' | '1rm';
 const ChartsTab = () => {
   const { uid } = useCurrentUser();
   const { t, lang } = useTranslation();
+  const { unit, toDisplay, fmtTonnage } = useUnit();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
@@ -383,7 +386,7 @@ const ChartsTab = () => {
   // Tonnage chart data
   const tonnageData = useMemo(() => {
     const completed = workouts.filter(w => w.completed).sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
-    const chartData = completed.map(w => ({ date: formatDateShort(w.date, lang), tonnage: Math.round(workoutTonnage(w)) }));
+    const chartData = completed.map(w => ({ date: formatDateShort(w.date, lang), tonnage: Math.round(toDisplay(workoutTonnage(w))) }));
     const totalTonnage = chartData.reduce((s, d) => s + d.tonnage, 0);
     const avgPerWorkout = chartData.length > 0 ? Math.round(totalTonnage / chartData.length) : 0;
     const now = new Date();
@@ -396,20 +399,20 @@ const ChartsTab = () => {
     let trend = '--';
     if (previousTonnage > 0) { const change = ((recentTonnage - previousTonnage) / previousTonnage * 100).toFixed(0); trend = `${Number(change) >= 0 ? '+' : ''}${change}%`; }
     return { chartData, totalTonnage, avgPerWorkout, trend };
-  }, [workouts, lang]);
+  }, [workouts, lang, toDisplay]);
 
   // Weight chart data
   const weightData = useMemo(() => {
     const withWeight = measurements.filter(m => m.weight && m.weight > 0).sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
-    const chartData = withWeight.map(m => ({ date: formatDateShort(m.date, lang), weight: m.weight! }));
+    const chartData = withWeight.map(m => ({ date: formatDateShort(m.date, lang), weight: Number(toDisplay(m.weight!).toFixed(1)) }));
     if (chartData.length === 0) return { chartData, current: '--', change: '--', minMax: '--' };
     const current = chartData[chartData.length - 1].weight;
     const first = chartData[0].weight;
     const diff = current - first;
-    const change = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)} kg`;
+    const change = `${diff >= 0 ? '+' : ''}${diff.toFixed(1)} ${unit}`;
     const weights = chartData.map(d => d.weight);
-    return { chartData, current: `${current} kg`, change, minMax: `${Math.min(...weights)}–${Math.max(...weights)} kg` };
-  }, [measurements, lang]);
+    return { chartData, current: `${current} ${unit}`, change, minMax: `${Math.min(...weights)}–${Math.max(...weights)} ${unit}` };
+  }, [measurements, lang, unit, toDisplay]);
 
   // Streak data
   const streakData = useMemo(() => {
@@ -474,7 +477,7 @@ const ChartsTab = () => {
               : Math.max(...weightedSets.map(s => s.weight));
             history.push({
               date: parseLocalDate(w.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
-              value,
+              value: Math.round(toDisplay(value)),
             });
           } else if (workingSets.length > 0) {
             // Bodyweight exercise — track max reps
@@ -488,7 +491,7 @@ const ChartsTab = () => {
       return { id, name: exerciseNames.get(id) || id, chartData: history, isBodyweight: isBodyweightExercise(exerciseNames.get(id) || '') };
     }).filter(ex => ex.chartData.length > 0)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [workouts, selectedDay, weightMode, resolver, lang]);
+  }, [workouts, selectedDay, weightMode, resolver, lang, toDisplay]);
 
   const dayLabels = [
     t('analytics.day.mon'), t('analytics.day.tue'), t('analytics.day.wed'),
@@ -559,15 +562,15 @@ const ChartsTab = () => {
                 <AreaChart data={tonnageData.chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(tonnageData.chartData.length / 6) - 1)} />
-                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" kg" />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kg`, t('analytics.stat.tonnage')]} />
+                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} ${unit}`, t('analytics.stat.tonnage')]} />
                   <Area type="monotone" dataKey="tonnage" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} dot={{ r: 3 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
             <StatSummary items={[
-              { label: t('analytics.stat.totalTonnage'), value: `${(tonnageData.totalTonnage / 1000).toFixed(1)}t` },
-              { label: t('analytics.stat.avgPerWorkout'), value: `${tonnageData.avgPerWorkout} kg` },
+              { label: t('analytics.stat.totalTonnage'), value: `${(tonnageData.totalTonnage / 1000).toFixed(1)}${unit === 'lbs' ? ' k lbs' : 't'}` },
+              { label: t('analytics.stat.avgPerWorkout'), value: `${tonnageData.avgPerWorkout} ${unit}` },
               { label: t('analytics.stat.trend4w'), value: tonnageData.trend },
             ]} />
           </CardContent>
@@ -585,8 +588,8 @@ const ChartsTab = () => {
                 <LineChart data={weightData.chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(weightData.chartData.length / 6) - 1)} />
-                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit=" kg" domain={['dataMin - 1', 'dataMax + 1']} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} kg`, t('analytics.subtab.weight')]} />
+                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} domain={['dataMin - 1', 'dataMax + 1']} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} ${unit}`, t('analytics.subtab.weight')]} />
                   <Line type="monotone" dataKey="weight" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--primary))' }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -676,7 +679,7 @@ const ChartsTab = () => {
                         <LineChart data={ex.chartData}>
                           <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                           <XAxis dataKey="date" tick={{ fontSize: 9 }} className="fill-muted-foreground" />
-                          <YAxis tick={{ fontSize: 9 }} className="fill-muted-foreground" unit={ex.isBodyweight ? ' rp' : ' kg'} width={45} />
+                          <YAxis tick={{ fontSize: 9 }} className="fill-muted-foreground" unit={ex.isBodyweight ? ' rp' : ` ${unit}`} width={45} />
                           <Tooltip contentStyle={tooltipStyle} />
                           <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 2 }} connectNulls />
                         </LineChart>
@@ -689,7 +692,7 @@ const ChartsTab = () => {
                     <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
                       <span>{t('analytics.sessionsCount', { n: ex.chartData.length })}</span>
                       {ex.chartData.length > 0 && (
-                        <span>{ex.chartData[ex.chartData.length - 1].value} {ex.isBodyweight ? t('analytics.unit.reps') : 'kg'}</span>
+                        <span>{ex.chartData[ex.chartData.length - 1].value} {ex.isBodyweight ? t('analytics.unit.reps') : unit}</span>
                       )}
                     </div>
                   </CardContent>
@@ -711,6 +714,7 @@ const ChartsTab = () => {
 const WeeklyTab = () => {
   const { uid, canUseStrava } = useCurrentUser();
   const { t, lang } = useTranslation();
+  const { fmt, fmtTonnage } = useUnit();
   const { summaries, isGenerating, error, generateSummary } = useWeeklySummary(uid, canUseStrava);
 
   return (
@@ -768,7 +772,7 @@ const WeeklyTab = () => {
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Trophy className="h-3 w-3 text-primary" />
                 </div>
-                <p className="text-sm font-bold">{(s.stats.tonnageKg / 1000).toFixed(1)}t</p>
+                <p className="text-sm font-bold">{fmtTonnage(s.stats.tonnageKg)}</p>
                 <p className="text-xs text-muted-foreground">{t('analytics.stat.tonnage')}</p>
               </div>
               <div className="text-center p-2 bg-muted/30 rounded-lg">
@@ -795,7 +799,7 @@ const WeeklyTab = () => {
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {s.stats.prs.map((pr, i) => (
                   <Badge key={i} className="text-xs bg-fitness-warning/10 text-fitness-warning border-fitness-warning/30">
-                    {pr.exerciseName} — {pr.newValue} kg
+                    {pr.exerciseName} — {fmt(pr.newValue)}
                   </Badge>
                 ))}
               </div>

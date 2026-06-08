@@ -1,6 +1,7 @@
 import html2canvas from 'html2canvas-pro';
 import { parseLocalDate } from '@/lib/utils';
 import { translate, dateLocale, type LanguageCode } from '@/i18n';
+import { formatTonnage, type UnitSystem } from '@/lib/units';
 
 export interface ShareData {
   dayName: string;
@@ -18,14 +19,14 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-function buildShareHtml(data: ShareData, lang: LanguageCode): string {
+function buildShareHtml(data: ShareData, lang: LanguageCode, unit: UnitSystem): string {
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
     parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     })
   );
-  const tonnageStr = (data.tonnage / 1000).toFixed(1);
+  const tonnageStr = formatTonnage(data.tonnage, unit);
 
   const exerciseRows = data.exercises.slice(0, 6).map(ex => {
     const safeName = escapeHtml(ex.name);
@@ -63,7 +64,7 @@ function buildShareHtml(data: ShareData, lang: LanguageCode): string {
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0;">
         <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;">
-          <div style="font-size:28px;font-weight:700;">${tonnageStr}t</div>
+          <div style="font-size:28px;font-weight:700;">${tonnageStr}</div>
           <div style="font-size:12px;color:#94a3b8;">${escapeHtml(translate(lang, 'share.tonnage'))}</div>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;">
@@ -95,14 +96,14 @@ function buildShareHtml(data: ShareData, lang: LanguageCode): string {
   `;
 }
 
-function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string, lang: LanguageCode): string {
+function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string, lang: LanguageCode, unit: UnitSystem): string {
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
     parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     })
   );
-  const tonnageStr = (data.tonnage / 1000).toFixed(1);
+  const tonnageStr = formatTonnage(data.tonnage, unit);
 
   const exerciseRows = data.exercises.slice(0, 4).map(ex => {
     const safeName = escapeHtml(ex.name);
@@ -148,7 +149,7 @@ function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string, lang: La
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:24px 0;">
           <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
-            <div style="font-size:26px;font-weight:700;">${tonnageStr}t</div>
+            <div style="font-size:26px;font-weight:700;">${tonnageStr}</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.6);">${escapeHtml(translate(lang, 'share.tonnage'))}</div>
           </div>
           <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
@@ -182,13 +183,13 @@ function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string, lang: La
   `;
 }
 
-export async function generateWorkoutImage(data: ShareData, photoDataUrl?: string, lang: LanguageCode = 'pl'): Promise<Blob> {
+export async function generateWorkoutImage(data: ShareData, photoDataUrl?: string, lang: LanguageCode = 'pl', unit: UnitSystem = 'kg'): Promise<Blob> {
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;left:-9999px;top:0;width:540px;height:960px;';
   // All user-provided text is escaped via escapeHtml; photoDataUrl is a base64 data URI from FileReader
   container.innerHTML = photoDataUrl
-    ? buildShareHtmlWithPhoto(data, photoDataUrl, lang)
-    : buildShareHtml(data, lang);
+    ? buildShareHtmlWithPhoto(data, photoDataUrl, lang, unit)
+    : buildShareHtml(data, lang, unit);
 
   document.body.appendChild(container);
 

@@ -15,12 +15,14 @@ import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation
 import { startCycleWithPlan } from '@/lib/cycle-actions';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 
 const Cycles = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
+  const { unit, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
   const { cycles, isLoaded, createActiveCycle, deleteCycle, archiveCurrentPlan } = usePlanCycles(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
@@ -151,8 +153,8 @@ const Cycles = () => {
               </div>
               <div className="rounded-lg bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.avgPerWorkout')}</p>
-                <p className="mt-1 text-2xl font-bold">{liveActiveCycle.stats.averageTonnagePerWorkout || 0}</p>
-                <p className="text-xs text-muted-foreground">{t('cycles.kgTonnage')}</p>
+                <p className="mt-1 text-2xl font-bold">{Math.round(toDisplay(liveActiveCycle.stats.averageTonnagePerWorkout || 0))}</p>
+                <p className="text-xs text-muted-foreground">{t('cycles.kgTonnage', { unit })}</p>
               </div>
               <div className="rounded-lg bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.prs')}</p>
@@ -169,7 +171,7 @@ const Cycles = () => {
                 </div>
                 <div className="rounded-lg border bg-background/70 p-3">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.tonnagePerWorkout')}</p>
-                  <p className="mt-1 font-heading font-bold tabular-nums">{comparison.tonnageDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(comparison.tonnageDelta)).toLocaleString(dateLocale(lang))} kg</p>
+                  <p className="mt-1 font-heading font-bold tabular-nums">{comparison.tonnageDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(toDisplay(comparison.tonnageDelta))).toLocaleString(dateLocale(lang))} {unit}</p>
                 </div>
                 <div className="rounded-lg border bg-background/70 p-3">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.prs')}</p>

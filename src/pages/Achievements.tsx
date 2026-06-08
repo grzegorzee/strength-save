@@ -23,6 +23,7 @@ import { tooltipStyle } from '@/lib/chart-config';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +43,7 @@ const milestoneIcon = (category: Milestone['category']) => {
 
 const Achievements = () => {
   const { t, lang } = useTranslation();
+  const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
   const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -122,9 +124,9 @@ const Achievements = () => {
     const [y, mo] = m.month.split('-').map(Number);
     return {
       label: new Date(y, mo - 1, 1).toLocaleDateString(dateLocale(lang), { month: 'short' }),
-      tonnes: Math.round(m.tonnage / 100) / 10,
+      tonnes: Number((toDisplay(m.tonnage) / 1000).toFixed(1)),
     };
-  }), [monthlyTonnage, lang]);
+  }), [monthlyTonnage, lang, toDisplay]);
   const hasTrendData = monthlyTonnage.some(m => m.tonnage > 0);
 
   const milestones = useMemo(
@@ -133,7 +135,7 @@ const Achievements = () => {
   );
 
   const milestoneLabel = (m: Milestone) => {
-    if (m.category === 'tonnage') return t('achievements.ms.tonnage', { n: m.threshold / 1000 });
+    if (m.category === 'tonnage') return t('achievements.ms.tonnage', { n: Number((toDisplay(m.threshold) / 1000).toFixed(1)), unit: unit === 'lbs' ? ' k lbs' : 't' });
     if (m.category === 'records') return t('achievements.ms.records', { n: m.threshold });
     return t('achievements.ms.workouts', { n: m.threshold });
   };
@@ -175,8 +177,8 @@ const Achievements = () => {
         />
         <StatsCard
           title={t('achievements.totalTonnage')}
-          value={`${(totalWeight / 1000).toFixed(1)}t`}
-          subtitle={t('achievements.totalTonnageSub')}
+          value={fmtTonnage(totalWeight)}
+          subtitle={t('achievements.totalTonnageSub', { unit })}
           icon={Dumbbell}
           variant="primary"
         />
@@ -204,13 +206,13 @@ const Achievements = () => {
                 <div key={pr.id} className="rounded-xl bg-surface-low p-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground truncate">{pr.name}</p>
                   <p className="mt-2 font-heading text-3xl font-bold text-primary leading-none">
-                    {pr.best1RM}
-                    <span className="text-base font-normal text-muted-foreground"> kg</span>
+                    {Math.round(toDisplay(pr.best1RM))}
+                    <span className="text-base font-normal text-muted-foreground"> {unit}</span>
                   </p>
                   {pr.delta > 0 ? (
                     <p className="mt-2 flex items-center gap-1 text-xs font-bold text-fitness-success">
                       <TrendingUp className="h-3.5 w-3.5" />
-                      +{pr.delta} kg
+                      +{Math.round(toDisplay(pr.delta))} {unit}
                       <span className="font-normal text-muted-foreground">{t('achievements.deltaSince')}</span>
                     </p>
                   ) : (
@@ -239,7 +241,7 @@ const Achievements = () => {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" domain={[0, 'auto']} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} t`, t('achievements.totalTonnage')]} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value}${unit === 'lbs' ? ' k lbs' : ' t'}`, t('achievements.totalTonnage')]} />
                 <Bar dataKey="tonnes" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -350,7 +352,7 @@ const Achievements = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className="text-lg font-bold text-fitness-success">{record.maxWeight} kg</p>
+                      <p className="text-lg font-bold text-fitness-success">{fmt(record.maxWeight)}</p>
                       <p className="text-xs text-muted-foreground">{t('achievements.maxWeight')}</p>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -386,7 +388,7 @@ const Achievements = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{record.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {record.best1RMWeight}kg × {record.best1RMReps} {t('achievements.repsShort')}
+                      {fmt(record.best1RMWeight)} × {record.best1RMReps} {t('achievements.repsShort')}
                       {record.bestDate && (
                         <> · {formatShortDate(record.bestDate)}</>
                       )}
@@ -394,7 +396,7 @@ const Achievements = () => {
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
                     <div className="text-right">
-                      <p className="text-lg font-bold text-primary">{record.best1RM} kg</p>
+                      <p className="text-lg font-bold text-primary">{fmt(record.best1RM)}</p>
                       <p className="text-xs text-muted-foreground">{t('achievements.est1RM')}</p>
                     </div>
                     <Button
@@ -441,7 +443,7 @@ const Achievements = () => {
               {/* Max Stats */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-lg bg-fitness-success/10 text-center">
-                  <p className="text-2xl font-bold text-fitness-success">{selectedExercise.maxWeight} kg</p>
+                  <p className="text-2xl font-bold text-fitness-success">{fmt(selectedExercise.maxWeight)}</p>
                   <p className="text-xs text-muted-foreground">{t('achievements.weightRecord')}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-primary/10 text-center">
@@ -465,7 +467,7 @@ const Achievements = () => {
                     <div className="flex flex-wrap gap-2">
                       {sets.map((set, idx) => (
                         <Badge key={idx} variant="secondary">
-                          {set.weight}kg × {set.reps}
+                          {fmt(set.weight)} × {set.reps}
                         </Badge>
                       ))}
                     </div>

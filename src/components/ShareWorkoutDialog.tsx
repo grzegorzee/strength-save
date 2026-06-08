@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Download, Share2, Camera, X } from 'lucide-react';
 import { generateWorkoutImage, type ShareData } from '@/lib/share-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 
 interface Props {
   data: ShareData;
@@ -19,6 +20,7 @@ interface Props {
 
 export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   const { t, lang } = useTranslation();
+  const { unit } = useUnit();
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,7 +33,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
     setError(null);
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     try {
-      const result = await generateWorkoutImage(data, photo || undefined, lang);
+      const result = await generateWorkoutImage(data, photo || undefined, lang, unit);
       setBlob(result);
       setImageUrl(URL.createObjectURL(result));
     } catch {

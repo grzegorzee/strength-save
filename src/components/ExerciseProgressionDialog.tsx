@@ -25,6 +25,7 @@ import { getExerciseHistory, detectPlateau, getProgressionSummary } from '@/lib/
 import { tooltipStyle } from '@/lib/chart-config';
 import { parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 
 interface Props {
   exerciseId: string;
@@ -36,12 +37,15 @@ interface Props {
 
 export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOpenChange, isBodyweight = false }: Props) => {
   const { t } = useTranslation();
+  const { unit, fmt, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
   const { workouts } = useFirebaseWorkouts(uid);
+  // Ciężar wagowy → jednostka usera; bodyweight pokazuje powtórzenia (bez konwersji).
+  const dispVal = (v: number): number => (isBodyweight ? v : Math.round(toDisplay(v)));
 
   const labelMaxReps = t('comp.progression.maxReps');
   const labelTotalReps = t('comp.progression.totalReps');
-  const labelMaxKg = t('comp.progression.maxKg');
+  const labelMaxKg = t('comp.progression.maxKg', { unit });
 
   const history = useMemo(() => getExerciseHistory(workouts, exerciseId, isBodyweight), [workouts, exerciseId, isBodyweight]);
   const plateau = useMemo(() => detectPlateau(history, 4, isBodyweight), [history, isBodyweight]);
@@ -56,10 +60,10 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
         }))
       : history.map(h => ({
           date: parseLocalDate(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
-          '1RM': h.estimated1RM,
-          [labelMaxKg]: h.maxWeight,
+          '1RM': Math.round(toDisplay(h.estimated1RM)),
+          [labelMaxKg]: Math.round(toDisplay(h.maxWeight)),
         })),
-  [history, isBodyweight, labelMaxReps, labelTotalReps, labelMaxKg]);
+  [history, isBodyweight, labelMaxReps, labelTotalReps, labelMaxKg, toDisplay]);
 
   const recentSessions = useMemo(() => history.slice(-5).reverse(), [history]);
 
@@ -93,7 +97,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
-              <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" unit={isBodyweight ? ` ${t('comp.progression.repsShort')}` : " kg"} />
+              <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" unit={isBodyweight ? ` ${t('comp.progression.repsShort')}` : ` ${unit}`} />
               <Tooltip contentStyle={tooltipStyle} />
               <Legend wrapperStyle={{ fontSize: '11px' }} />
               {isBodyweight ? (
@@ -114,16 +118,16 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center p-3 bg-muted/30 rounded-lg">
-            <p className="text-lg font-bold">{summary.startValue}</p>
-            <p className="text-[10px] text-muted-foreground">{t('comp.progression.start')} ({isBodyweight ? t('comp.progression.repsShort') : 'kg'})</p>
+            <p className="text-lg font-bold">{dispVal(summary.startValue)}</p>
+            <p className="text-[10px] text-muted-foreground">{t('comp.progression.start')} ({isBodyweight ? t('comp.progression.repsShort') : unit})</p>
           </div>
           <div className="text-center p-3 bg-muted/30 rounded-lg">
-            <p className="text-lg font-bold">{summary.currentValue}</p>
-            <p className="text-[10px] text-muted-foreground">{t('comp.progression.now')} ({isBodyweight ? t('comp.progression.repsShort') : 'kg'})</p>
+            <p className="text-lg font-bold">{dispVal(summary.currentValue)}</p>
+            <p className="text-[10px] text-muted-foreground">{t('comp.progression.now')} ({isBodyweight ? t('comp.progression.repsShort') : unit})</p>
           </div>
           <div className="text-center p-3 bg-muted/30 rounded-lg">
             <p className="text-lg font-bold">
-              {summary.change >= 0 ? '+' : ''}{summary.change} {isBodyweight ? t('comp.progression.repsShort') : 'kg'}
+              {summary.change >= 0 ? '+' : ''}{dispVal(summary.change)} {isBodyweight ? t('comp.progression.repsShort') : unit}
             </p>
             <p className="text-[10px] text-muted-foreground">
               {summary.changePercent >= 0 ? '+' : ''}{summary.changePercent}% / {t('comp.progression.sessionsCount', { count: summary.totalSessions })}
@@ -160,9 +164,9 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
                   </>
                 ) : (
                   <>
-                    <Badge variant="secondary" className="text-xs">{s.maxWeight} kg</Badge>
+                    <Badge variant="secondary" className="text-xs">{fmt(s.maxWeight)}</Badge>
                     <Badge variant="outline" className="text-xs">{s.bestReps} {t('comp.progression.repShort')}</Badge>
-                    <span className="text-xs text-muted-foreground">{s.estimated1RM} 1RM</span>
+                    <span className="text-xs text-muted-foreground">{Math.round(toDisplay(s.estimated1RM))} 1RM</span>
                   </>
                 )}
               </div>

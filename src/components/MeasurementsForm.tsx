@@ -7,6 +7,7 @@ import type { BodyMeasurement } from '@/types';
 import { Save, User } from 'lucide-react';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
@@ -15,8 +16,11 @@ interface MeasurementsFormProps {
 
 export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsFormProps) => {
   const { t } = useTranslation();
+  const { unit, toDisplay, fromInput } = useUnit();
   const [formData, setFormData] = useState({
-    weight: latestMeasurement?.weight || '',
+    weight: latestMeasurement?.weight != null
+      ? String(Number(toDisplay(latestMeasurement.weight).toFixed(1)))
+      : '',
     armLeft: latestMeasurement?.armLeft || '',
     armRight: latestMeasurement?.armRight || '',
     chest: latestMeasurement?.chest || '',
@@ -36,7 +40,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
     e.preventDefault();
     onSave({
       date: formatLocalDate(new Date()),
-      weight: formData.weight ? Number(formData.weight) : undefined,
+      weight: formData.weight ? fromInput(Number(formData.weight)) : undefined,
       armLeft: formData.armLeft ? Number(formData.armLeft) : undefined,
       armRight: formData.armRight ? Number(formData.armRight) : undefined,
       chest: formData.chest ? Number(formData.chest) : undefined,
@@ -50,7 +54,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
   };
 
   const measurementFields = [
-    { key: 'weight', label: t('measurements.field.weight'), description: t('measurements.hint.fasting') },
+    { key: 'weight', label: t('measurements.field.weight', { unit }), description: t('measurements.hint.fasting') },
     { key: 'armLeft', label: t('measurements.field.armLeft'), description: t('measurements.hint.bicepsPeak') },
     { key: 'armRight', label: t('measurements.field.armRight'), description: t('measurements.hint.bicepsPeak') },
     { key: 'chest', label: t('measurements.field.chest'), description: t('measurements.hint.aboveNipples') },

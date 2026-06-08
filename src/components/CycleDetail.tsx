@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
@@ -21,9 +22,10 @@ interface Props {
 export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
+  const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const isActive = cycle.status === 'active';
-  const tonnageT = (cycle.stats.totalTonnage / 1000).toFixed(1);
+  const tonnageT = fmtTonnage(cycle.stats.totalTonnage);
 
   const plannedEndDate = (start: string, weeks: number): string => {
     const date = parseLocalDate(start);
@@ -63,7 +65,7 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
         <Card>
           <CardContent className="p-4 text-center">
             <TrendingUp className="h-5 w-5 text-fitness-success mx-auto mb-1" />
-            <p className="text-2xl font-bold">{tonnageT}t</p>
+            <p className="text-2xl font-bold">{tonnageT}</p>
             <p className="text-xs text-muted-foreground">{t('cycles.tonnage')}</p>
           </CardContent>
         </Card>
@@ -91,8 +93,8 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
         <Card>
           <CardContent className="p-4 text-center">
             <TrendingUp className="h-5 w-5 text-fitness-success mx-auto mb-1" />
-            <p className="text-2xl font-bold">{cycle.stats.averageTonnagePerWorkout || 0}</p>
-            <p className="text-xs text-muted-foreground">{t('cycles.kgPerWorkout')}</p>
+            <p className="text-2xl font-bold">{Math.round(toDisplay(cycle.stats.averageTonnagePerWorkout || 0))}</p>
+            <p className="text-xs text-muted-foreground">{t('cycles.kgPerWorkout', { unit })}</p>
           </CardContent>
         </Card>
       </div>
@@ -111,9 +113,9 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
               <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
                 <span className="text-sm">{pr.exerciseName}</span>
                 <div className="text-right">
-                  <span className="text-sm font-bold">{pr.weight} kg</span>
+                  <span className="text-sm font-bold">{fmt(pr.weight)}</span>
                   <span className="text-xs text-muted-foreground ml-2">
-                    {t('cycles.est1RM', { value: pr.estimated1RM })}
+                    {t('cycles.est1RM', { value: Math.round(toDisplay(pr.estimated1RM)), unit })}
                   </span>
                 </div>
               </div>

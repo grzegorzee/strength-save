@@ -15,6 +15,7 @@ import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { cn } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 import type { WorkoutSession } from '@/types';
 
 const FilterChip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) => (
@@ -33,6 +34,7 @@ const FilterChip = ({ active, onClick, children }: { active: boolean; onClick: (
 const WorkoutHistory = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
+  const { unit, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
   const { workouts, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
@@ -214,7 +216,7 @@ const WorkoutHistory = () => {
           <CardContent className="grid gap-3 md:grid-cols-3">
             <div className="rounded-lg bg-background/70 p-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.tonnage')}</p>
-              <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.tonnageDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(comparison.tonnageDelta)).toLocaleString(dateLocale(lang))} kg</p>
+              <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.tonnageDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(toDisplay(comparison.tonnageDelta))).toLocaleString(dateLocale(lang))} {unit}</p>
             </div>
             <div className="rounded-lg bg-background/70 p-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.completedSets')}</p>
@@ -242,7 +244,7 @@ const WorkoutHistory = () => {
             <div className="flex items-baseline justify-between border-b border-surface-high pb-2">
               <h2 className="font-heading font-bold uppercase italic tracking-tight">{group.label}</h2>
               <span className="text-xs text-muted-foreground tabular-nums">
-                {group.workouts.length} {sessionWord(group.workouts.length)} · {Math.round(group.tonnage).toLocaleString(dateLocale(lang))} kg
+                {group.workouts.length} {sessionWord(group.workouts.length)} · {Math.round(toDisplay(group.tonnage)).toLocaleString(dateLocale(lang))} {unit}
               </span>
             </div>
 
@@ -277,7 +279,7 @@ const WorkoutHistory = () => {
                   <div className="grid grid-cols-3 rounded-xl bg-surface-lowest">
                     {[
                       { v: workout.exercises.length.toString(), l: t('history.exercisesShort') },
-                      { v: Math.round(tonnage).toLocaleString(dateLocale(lang)), l: 'kg' },
+                      { v: Math.round(toDisplay(tonnage)).toLocaleString(dateLocale(lang)), l: unit },
                       { v: totalSets.toString(), l: t('history.setsShort') },
                     ].map((s, i) => (
                       <div key={i} className="text-center py-2.5">

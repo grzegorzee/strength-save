@@ -94,7 +94,7 @@ const WorkoutDay = () => {
   const [showWarmup, setShowWarmup] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const { fmt } = useUnit();
+  const { unit, fmt, toDisplay } = useUnit();
 
   // Exercise swap (search library, no AI)
   const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
@@ -1033,9 +1033,9 @@ const WorkoutDay = () => {
       const isBw = isBodyweightExercise(exercise.name);
       const history = getExerciseHistory(workouts, exercise.id, isBw).slice(-5);
       const histStr = history.length
-        ? history.map(h => isBw ? `${h.date}: ${h.bestReps} powt.` : `${h.date}: ${h.maxWeight}kg×${h.bestReps}`).join('; ')
+        ? history.map(h => isBw ? `${h.date}: ${h.bestReps} powt.` : `${h.date}: ${fmt(h.maxWeight)}×${h.bestReps}`).join('; ')
         : 'brak wcześniejszych sesji';
-      const advice = getNextSetAdvice(workouts, exercise.id, exercise.sets, 0, { isBodyweight: isBw, isSuperset: exercise.isSuperset }, lang);
+      const advice = getNextSetAdvice(workouts, exercise.id, exercise.sets, 0, { isBodyweight: isBw, isSuperset: exercise.isSuperset }, lang, unit);
       const notes = exerciseNotes[exercise.id]?.trim() || dayNotes.trim() || 'brak';
 
       const coachSystemPrompt = lang === 'en'
@@ -1403,10 +1403,10 @@ const WorkoutDay = () => {
                 {!isSkipped && totalWeight > 0 && (
                   <div className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-center leading-none">
                     <span className="block font-heading text-base font-bold tabular-nums text-background">
-                      {totalWeight.toLocaleString(dateLocale(lang))}
+                      {Math.round(toDisplay(totalWeight)).toLocaleString(dateLocale(lang))}
                     </span>
                     <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.12em] text-background/70">
-                      kg
+                      {unit}
                     </span>
                   </div>
                 )}
@@ -1433,7 +1433,7 @@ const WorkoutDay = () => {
               const sets = exerciseSets[ex.id] || [];
               const completed = sets.filter(s => s.completed && !s.isWarmup);
               const maxW = completed.length > 0 ? Math.max(...completed.map(s => s.weight)) : 0;
-              return { name: ex.name, sets: maxW > 0 ? `${completed.length}x ${maxW}kg` : t('workout.setsCount', { n: completed.length }) };
+              return { name: ex.name, sets: maxW > 0 ? `${completed.length}x ${fmt(maxW)}` : t('workout.setsCount', { n: completed.length }) };
             }),
             tonnage: Object.values(exerciseSets).reduce(
               (t, sets) => t + sets.filter(s => s.completed && !s.isWarmup).reduce((s, set) => s + set.reps * set.weight, 0), 0
@@ -1575,7 +1575,7 @@ const WorkoutDay = () => {
               nextAdvice={getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
                 isBodyweight: isBodyweightExercise(exercise.name),
                 isSuperset: exercise.isSuperset,
-              }, lang)}
+              }, lang, unit)}
               onAskCoach={isWorkoutStarted && !isCompleted ? () => handleAskCoach(exercise) : undefined}
               coachBusy={coachBusyId === exercise.id}
               historicalBest={getExerciseBest1RM(workouts, exercise.id)}

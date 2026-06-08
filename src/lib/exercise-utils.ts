@@ -1,6 +1,7 @@
 import type { SetData } from '@/types';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { translate, type LanguageCode } from '@/i18n';
+import { toDisplayWeight, type UnitSystem } from '@/lib/units';
 
 // --- Rep Range Parsing ---
 
@@ -49,6 +50,7 @@ export const getProgressionAdvice = (
   isSuperset?: boolean,
   isBodyweight?: boolean,
   lang: LanguageCode = 'pl',
+  unit: UnitSystem = 'kg',
 ): ProgressionAdvice | null => {
   if (repRange.isMax) return null;
   if (!previousWorkingSets || previousWorkingSets.length === 0) return null;
@@ -73,7 +75,8 @@ export const getProgressionAdvice = (
   const increment = isolation ? 1 : 2.5;
 
   if (allAtOrAboveMax) {
-    return { type: 'increase', label: translate(lang, 'progress.increaseWeight', { kg: increment }), increment };
+    const dispIncrement = Number(toDisplayWeight(increment, unit).toFixed(1));
+    return { type: 'increase', label: translate(lang, 'progress.increaseWeight', { kg: dispIncrement, unit }), increment };
   }
   if (anyBelowMin) {
     return { type: 'maintain', label: translate(lang, 'progress.maintainWeight'), increment: 0 };

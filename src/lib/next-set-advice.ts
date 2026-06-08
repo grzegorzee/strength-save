@@ -2,6 +2,7 @@ import type { WorkoutSession } from '@/types';
 import { getExerciseHistory, detectPlateau } from '@/lib/exercise-progression';
 import { parseRepRange, isIsolationExercise, type RepRange } from '@/lib/exercise-utils';
 import { translate, type LanguageCode } from '@/i18n';
+import { formatWeight, type UnitSystem } from '@/lib/units';
 
 // Sugestia następnej serii: konkretny cel (ciężar × powtórzenia) z TRENDU całej historii,
 // nie tylko ostatniego treningu. Deterministyczna i darmowa — AI dokłada się tylko on-demand.
@@ -26,8 +27,11 @@ export const getNextSetAdvice = (
   exerciseIndex: number,
   options?: { isBodyweight?: boolean; isSuperset?: boolean },
   lang: LanguageCode = 'pl',
+  unit: UnitSystem = 'kg',
 ): NextSetAdvice | null => {
   const isBodyweight = !!options?.isBodyweight;
+  // Wartości wag w treści podpowiedzi w jednostce użytkownika (sam ciężar w modelu = kg).
+  const disp = (kg: number): string => formatWeight(kg, unit, { withUnit: false });
   const repRange: RepRange = parseRepRange(setsStr);
   // Przy zakresie "do upadku" (max) nie ma sensownego celu liczbowego.
   if (repRange.isMax) return null;
@@ -57,7 +61,7 @@ export const getNextSetAdvice = (
       kind: 'deload',
       targetWeight: deloadWeight,
       targetReps: repRange.max,
-      reason: translate(lang, 'nsadvice.deload.weight', { sessions: plateau.sessionsSinceProgress, weight: deloadWeight }),
+      reason: translate(lang, 'nsadvice.deload.weight', { sessions: plateau.sessionsSinceProgress, weight: disp(deloadWeight), unit }),
       isBodyweight,
     };
   }
@@ -79,7 +83,7 @@ export const getNextSetAdvice = (
       kind: 'progress',
       targetWeight: lastWeight + increment,
       targetReps: repRange.min,
-      reason: translate(lang, 'nsadvice.progress', { reps: lastReps, increment, target: lastWeight + increment, min: repRange.min }),
+      reason: translate(lang, 'nsadvice.progress', { reps: lastReps, increment: disp(increment), target: disp(lastWeight + increment), min: repRange.min, unit }),
       isBodyweight,
     };
   }
@@ -90,7 +94,7 @@ export const getNextSetAdvice = (
       kind: 'hold',
       targetWeight: lastWeight,
       targetReps: repRange.min,
-      reason: translate(lang, 'nsadvice.hold.below', { weight: lastWeight, min: repRange.min }),
+      reason: translate(lang, 'nsadvice.hold.below', { weight: disp(lastWeight), min: repRange.min, unit }),
       isBodyweight,
     };
   }

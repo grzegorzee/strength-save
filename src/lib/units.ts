@@ -25,3 +25,17 @@ export const formatWeight = (kg: number, unit: UnitSystem, opts: FormatOpts = {}
   const str = v.toFixed(decimals);
   return opts.withUnit === false ? str : `${str} ${unit}`;
 };
+
+/** Etykieta jednostki wagi: "kg" / "lbs". */
+export const weightUnitLabel = (unit: UnitSystem): string => unit;
+
+/**
+ * Zwięzły tonaż (suma kg) w wybranej jednostce.
+ * kg → "12.3 t", lbs → "27.1 k lbs" (tysiące funtów).
+ */
+export const formatTonnage = (kg: number, unit: UnitSystem): string => {
+  if (unit === 'lbs') {
+    return `${(kgToLbs(kg) / 1000).toFixed(1)} k lbs`;
+  }
+  return `${(kg / 1000).toFixed(1)} t`;
+};

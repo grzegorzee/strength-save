@@ -67,6 +67,7 @@ const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 
 // ── Next-set target badge (konkretny cel z trendu historii) ──
 const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
   const { t } = useTranslation();
+  const { unit, toDisplay } = useUnit();
   const styles: Record<NextSetAdvice['kind'], string> = {
     progress: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
     hold: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
@@ -79,7 +80,7 @@ const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
   };
   const target = advice.isBodyweight
     ? t('card.repsValue', { n: advice.targetReps })
-    : `${advice.targetWeight} kg × ${advice.targetReps}`;
+    : `${Math.round(toDisplay(advice.targetWeight) * 10) / 10} ${unit} × ${advice.targetReps}`;
   return (
     <span
       title={advice.reason}
@@ -290,7 +291,7 @@ const ExerciseCardInner = ({
   const completedSets = workingSets.filter(s => s.completed).length;
   const allCompleted = workingSets.length > 0 && completedSets === workingSets.length;
   const animationUrl = getExerciseAnimationUrl(exercise.name);
-  const { unit, toDisplay, fromInput } = useUnit();
+  const { unit, fmt, toDisplay, fromInput } = useUnit();
 
   // Indeks pierwszej nieukończonej serii roboczej (podświetlana jako aktywna — mockup [17]).
   const activeSetIndex = sets.findIndex((s) => !s.isWarmup && !s.completed);
@@ -307,15 +308,15 @@ const ExerciseCardInner = ({
     if (!previousSets) return null;
     const repRange = parseRepRange(exercise.sets);
     const prevWorking = previousSets.filter(s => !s.isWarmup);
-    return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight, lang);
-  }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight, lang]);
+    return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight, lang, unit);
+  }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight, lang, unit]);
 
   const getPreviousHint = (setIndex: number): string | null => {
     if (!previousSets || previousSets.length === 0) return null;
     const prevSet = previousSets[setIndex];
     if (!prevSet || (prevSet.weight === 0 && prevSet.reps === 0)) return null;
     if (isBodyweight) return t('card.repsValue', { n: prevSet.reps });
-    return `${prevSet.reps}×${prevSet.weight}kg`;
+    return `${prevSet.reps}×${fmt(prevSet.weight, { withUnit: false })}${unit}`;
   };
 
   // Grid: SET | PREVIOUS | [KG] | REPS | ✓ | × (mockup [17])

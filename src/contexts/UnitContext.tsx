@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { formatWeight, toDisplayWeight, fromInputWeight, type UnitSystem } from '@/lib/units';
+import { formatWeight, formatTonnage, toDisplayWeight, fromInputWeight, type UnitSystem } from '@/lib/units';
 
 const STORAGE_KEY = 'unit-system';
 
@@ -8,6 +8,8 @@ interface UnitContextValue {
   setUnit: (u: UnitSystem) => void;
   /** Formatuje ciężar zapisany w kg w aktualnej jednostce. */
   fmt: (kg: number, opts?: { decimals?: number; withUnit?: boolean }) => string;
+  /** Zwięzły tonaż: kg → "12.3 t", lbs → "27.1 k lbs". */
+  fmtTonnage: (kg: number) => string;
   toDisplay: (kg: number) => number;
   fromInput: (value: number) => number;
 }
@@ -35,6 +37,7 @@ export const UnitProvider = ({ children }: { children: ReactNode }) => {
         unit,
         setUnit,
         fmt: (kg, opts) => formatWeight(kg, unit, opts),
+        fmtTonnage: (kg) => formatTonnage(kg, unit),
         toDisplay: (kg) => toDisplayWeight(kg, unit),
         fromInput: (value) => fromInputWeight(value, unit),
       }}

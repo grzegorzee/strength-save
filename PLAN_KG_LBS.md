@@ -1,5 +1,7 @@
 # PLAN: kg ↔ lbs — przełącznik jednostek działa WSZĘDZIE
 
+> ✅ **ZREALIZOWANY 2026-06-08** (kod gotowy, NIE wdrożony — zmiany lokalne na życzenie usera). Szczegóły: DECYZJE.md cz. 6, PLAN.md M42. Wszystkie 6 kroków poniżej wykonane; 287 testów, tsc/eslint/build:mobile OK, Playwright potwierdził lbs. Jedyny świadomy wyjątek: proza AI w cotygodniowym podsumowaniu (Cloud Function server-side) nadal cytuje kg.
+
 > Cel: przełącznik kg/lbs (Profil) ma zmieniać KAŻDĄ wagę w całej aplikacji (wyświetlanie + pola wpisywania + wykresy + tonaż + rekordy + pomiary ciała). Dziś działa tylko w 4 plikach.
 
 ## Zasada (NIE zmieniać modelu danych)

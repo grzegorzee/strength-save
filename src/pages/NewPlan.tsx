@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase';
 import { Loader2, Check, RefreshCw, Trophy, Dumbbell, Flame, Percent, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { dateLocale } from '@/i18n';
+import { useUnit } from '@/contexts/UnitContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -33,6 +33,7 @@ const NewPlan = () => {
   const [params] = useSearchParams();
   const fromCycleId = params.get('fromCycle');
   const { t, lang } = useTranslation();
+  const { fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
   const { plan: currentPlan, planDurationWeeks, planStartDate, savePlan } = useTrainingPlan(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
@@ -134,7 +135,7 @@ const NewPlan = () => {
   if (phase === 'closeout' && closeoutStats) {
     const stats = [
       { icon: Dumbbell, label: t('newplan.closeout.workouts'), value: `${closeoutStats.totalWorkouts}/${closeoutStats.expectedWorkouts || closeoutStats.totalWorkouts}` },
-      { icon: Flame, label: t('newplan.closeout.tonnage'), value: `${Math.round(closeoutStats.totalTonnage).toLocaleString(dateLocale(lang))} kg` },
+      { icon: Flame, label: t('newplan.closeout.tonnage'), value: fmtTonnage(closeoutStats.totalTonnage) },
       { icon: Percent, label: t('newplan.closeout.attendance'), value: `${closeoutStats.completionRate}%` },
       { icon: Trophy, label: t('newplan.closeout.prs'), value: `${closeoutStats.prs.length}` },
     ];

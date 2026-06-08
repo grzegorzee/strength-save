@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 
 // Osobny ekran „Pomiary ciała" (przeniesiony z zakładki w Analityce do menu).
 const Measurements = () => {
@@ -15,6 +16,7 @@ const Measurements = () => {
   const { measurements, addMeasurement, getLatestMeasurement, exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { fmt } = useUnit();
 
   const latestMeasurement = getLatestMeasurement();
 
@@ -56,7 +58,7 @@ const Measurements = () => {
                   {weightTrend.direction === 'up' && <TrendingUp className="mr-1 h-4 w-4 text-destructive" />}
                   {weightTrend.direction === 'down' && <TrendingDown className="mr-1 h-4 w-4 text-fitness-success" />}
                   {weightTrend.direction === 'same' && <Minus className="mr-1 h-4 w-4" />}
-                  {weightTrend.value > 0 && `${weightTrend.value.toFixed(1)} kg`}
+                  {weightTrend.value > 0 && fmt(weightTrend.value, { decimals: 1 })}
                 </Badge>
               )}
             </CardTitle>
@@ -69,7 +71,7 @@ const Measurements = () => {
                     {parseLocalDate(m.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </span>
                   <div className="flex items-center gap-4 text-sm">
-                    {m.weight && <span>{t('measurements.weightShort')}: <strong>{m.weight} kg</strong></span>}
+                    {m.weight && <span>{t('measurements.weightShort')}: <strong>{fmt(m.weight)}</strong></span>}
                     {m.chest && <span className="hidden sm:inline">{t('measurements.chestShort')}: <strong>{m.chest} cm</strong></span>}
                     {m.waist && <span className="hidden sm:inline">{t('measurements.waistShort')}: <strong>{m.waist} cm</strong></span>}
                   </div>

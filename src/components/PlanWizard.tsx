@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Medal, Calendar, Check, Pencil, ListChecks, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
 import { localizeFocus, localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
 import { PlanBuilder } from '@/components/PlanBuilder';
@@ -144,6 +145,7 @@ interface PlanWizardProps {
 
 export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
+  const { unit, toDisplay } = useUnit();
 
   const initialDays = initial?.daysPerWeek ?? 4;
   const [step, setStep] = useState(showWelcome ? 1 : startAtPrecision ? 5 : 2);
@@ -342,7 +344,7 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
               </div>
               <div className="rounded-2xl bg-surface-low p-4">
                 <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.volume')}</p>
-                <p className="font-heading font-bold text-2xl mt-1">{estimateMonthlyVolume(chosen).toLocaleString(dateLocale(lang))} <span className="text-sm text-muted-foreground font-sans font-medium">{t('ob.precision.kgMonth')}</span></p>
+                <p className="font-heading font-bold text-2xl mt-1">{Math.round(toDisplay(estimateMonthlyVolume(chosen))).toLocaleString(dateLocale(lang))} <span className="text-sm text-muted-foreground font-sans font-medium">{t('ob.precision.kgMonth', { unit })}</span></p>
               </div>
               <div className="rounded-2xl bg-surface-low p-4 space-y-1.5">
                 {chosen.days.map((d, i) => (
