@@ -1,4 +1,4 @@
-import { Menu, Moon, Sun, WifiOff } from 'lucide-react';
+import { ArrowLeft, Menu, Moon, Sun, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -7,9 +7,10 @@ import { useTranslation } from '@/contexts/LanguageContext';
 interface AppHeaderProps {
   title: string;
   onMenuClick?: () => void;
+  onBack?: () => void;
 }
 
-export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
+export const AppHeader = ({ title, onMenuClick, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
   const { isOnline, pendingOps } = useOnlineStatus();
@@ -18,7 +19,11 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between h-16 px-5 md:px-6 max-w-4xl mx-auto">
         <div className="flex items-center gap-3">
-          {onMenuClick && (
+          {onBack ? (
+            <Button variant="ghost" size="icon" onClick={onBack} aria-label={t('comp.header.back')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          ) : onMenuClick && (
             <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden">
               <Menu className="h-5 w-5" />
             </Button>

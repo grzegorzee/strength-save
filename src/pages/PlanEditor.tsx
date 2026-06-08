@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +18,6 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import {
-  ArrowLeft,
   ArrowUp,
   ArrowDown,
   Trash2,
@@ -33,7 +31,6 @@ import {
 } from 'lucide-react';
 
 const PlanEditor = () => {
-  const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { toast } = useToast();
   const { uid } = useCurrentUser();
@@ -224,16 +221,11 @@ const PlanEditor = () => {
   return (
     <div className="space-y-6 pb-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/plan')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{t('planeditor.title')}</h1>
-            {isCustom && (
-              <p className="text-xs text-muted-foreground">{t('planeditor.modified')}</p>
-            )}
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">{t('planeditor.title')}</h1>
+          {isCustom && (
+            <p className="text-xs text-muted-foreground">{t('planeditor.modified')}</p>
+          )}
         </div>
         <Button variant="outline" size="sm" onClick={handleReset}>
           <RefreshCcw className="h-4 w-4 mr-2" />

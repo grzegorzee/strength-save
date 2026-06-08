@@ -549,6 +549,7 @@ export const en: Record<keyof typeof pl, string> = {
   'comp.share.share': 'Share',
   'comp.header.offline': 'Offline',
   'comp.header.toggleTheme': 'Toggle theme',
+  'comp.header.back': 'Back',
   'comp.emailGate.codeSentTitle': 'Code sent',
   'comp.emailGate.codeSentDesc': 'Check your inbox and enter the code to activate your account.',
   'comp.emailGate.sendError': 'Failed to send the code.',

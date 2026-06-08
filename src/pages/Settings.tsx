@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Link2, Unlink, RefreshCw, Loader2, Clock, Shield, Users, RotateCcw } from 'lucide-react';
+import { Link2, Unlink, RefreshCw, Loader2, Clock, Shield, Users, RotateCcw } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
@@ -135,7 +134,6 @@ const FeatureFlagsPanel = () => {
 };
 
 const Settings = () => {
-  const navigate = useNavigate();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
   const { workouts, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
@@ -256,14 +254,9 @@ const Settings = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('nav.settings')}</h1>
-          <p className="text-muted-foreground text-sm">{profile?.email}</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('nav.settings')}</h1>
+        <p className="text-muted-foreground text-sm">{profile?.email}</p>
       </div>
 
       {/* Account info */}

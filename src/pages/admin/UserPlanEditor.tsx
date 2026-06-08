@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +20,6 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import {
-  ArrowLeft,
   ArrowUp,
   ArrowDown,
   Trash2,
@@ -35,7 +34,6 @@ import {
 
 const UserPlanEditor = () => {
   const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const [userName, setUserName] = useState('');
@@ -160,16 +158,11 @@ const UserPlanEditor = () => {
   return (
     <div className="space-y-6 pb-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{t('admin.planEditTitle', { name: userName })}</h1>
-            {isCustom && (
-              <p className="text-xs text-muted-foreground">{t('admin.planModified')}</p>
-            )}
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">{t('admin.planEditTitle', { name: userName })}</h1>
+          {isCustom && (
+            <p className="text-xs text-muted-foreground">{t('admin.planModified')}</p>
+          )}
         </div>
         <Button variant="outline" size="sm" onClick={handleReset}>
           <RefreshCcw className="h-4 w-4 mr-2" />

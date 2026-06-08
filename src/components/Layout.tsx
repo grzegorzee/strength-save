@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
 import { AppNavigation } from './AppNavigation';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -21,15 +21,31 @@ const pageTitleKeys: Record<string, TranslationKey> = {
   '/exercises': 'layout.title.exercises',
 };
 
+// Trasy najwyższego poziomu (bottom nav) — bez strzałki wstecz.
+const rootPaths = new Set(['/', '/plan', '/history', '/exercises', '/profile']);
+
 export const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const isFocusedFlow = location.pathname.startsWith('/workout/') || location.pathname.startsWith('/exercise/');
   // Replan (/new-plan) jest pełnoekranowym kreatorem (jak onboarding) — bez nawigacji i nagłówka appki.
   const isFullScreenFlow = location.pathname === '/new-plan';
+  const isRootPage = rootPaths.has(location.pathname);
   const titleKey = pageTitleKeys[location.pathname];
   const title = titleKey ? t(titleKey) : 'Strength Save';
+
+  const handleBack = () => {
+    // React Router v6 trzyma indeks historii w window.history.state.idx.
+    // Gdy wchodzimy z deep linka (idx 0) wracamy na dashboard, w innym wypadku cofamy.
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) {
+      navigate(-1);
+    } else {
+      navigate('/');
+    }
+  };
 
   if (isFullScreenFlow) {
     return (
@@ -44,7 +60,13 @@ export const Layout = () => {
       <AppNavigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden md:h-[100dvh] md:overflow-hidden">
-        {!isFocusedFlow && <AppHeader title={title} onMenuClick={() => setSidebarOpen(true)} />}
+        {!isFocusedFlow && (
+          <AppHeader
+            title={title}
+            onMenuClick={isRootPage ? () => setSidebarOpen(true) : undefined}
+            onBack={isRootPage ? undefined : handleBack}
+          />
+        )}
 
         <main className="flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:p-6 overflow-x-hidden md:overflow-y-auto">
           <div className="max-w-4xl mx-auto">

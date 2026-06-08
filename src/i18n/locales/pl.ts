@@ -555,6 +555,7 @@ export const pl = {
   'comp.share.share': 'Udostępnij',
   'comp.header.offline': 'Offline',
   'comp.header.toggleTheme': 'Przełącz motyw',
+  'comp.header.back': 'Wstecz',
   'comp.emailGate.codeSentTitle': 'Kod wysłany',
   'comp.emailGate.codeSentDesc': 'Sprawdź skrzynkę mailową i wpisz kod, aby aktywować konto.',
   'comp.emailGate.sendError': 'Nie udało się wysłać kodu.',
