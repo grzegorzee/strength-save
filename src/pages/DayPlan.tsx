@@ -89,7 +89,7 @@ const DayPlan = () => {
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <GreetingIcon className="h-5 w-5 text-yellow-500" />
+                  <GreetingIcon className="h-5 w-5 text-fitness-warning" />
                   {greeting}!
                 </CardTitle>
                 <CardDescription className="capitalize">
@@ -187,7 +187,7 @@ const DayPlan = () => {
               </div>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <GreetingIcon className="h-5 w-5 text-yellow-500" />
+                  <GreetingIcon className="h-5 w-5 text-fitness-warning" />
                   {greeting}! {t('dayplan.todayTraining')}
                 </CardTitle>
                 <CardDescription className="capitalize">
@@ -277,7 +277,7 @@ const DayPlan = () => {
           {/* Stretching section (collapsible) */}
           <button
             onClick={() => setShowStretching(prev => !prev)}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 text-left"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-fitness-cyan/5 border border-fitness-cyan/20 text-left"
           >
             <div className="flex items-center gap-2">
               <span className="text-lg">🧘</span>

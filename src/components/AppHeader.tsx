@@ -28,7 +28,7 @@ export const AppHeader = ({ title, onMenuClick }: AppHeaderProps) => {
 
         <div className="flex items-center gap-2">
           {!isOnline && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-orange-500/10 text-orange-600 text-xs font-medium">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-fitness-warning/10 text-fitness-warning text-xs font-medium">
               <WifiOff className="h-3.5 w-3.5" />
               {t('comp.header.offline')}
               {pendingOps > 0 && <span className="ml-0.5">({pendingOps})</span>}

@@ -26,7 +26,7 @@ export const RacePredictor = ({ activities }: Props) => {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
-          <Zap className="h-5 w-5 text-yellow-500" />
+          <Zap className="h-5 w-5 text-fitness-warning" />
           {t('strava.racePredictions')}
         </CardTitle>
         <CardDescription>{t('strava.riegelBasedOn', { v: predictions[0].basedOn })}</CardDescription>

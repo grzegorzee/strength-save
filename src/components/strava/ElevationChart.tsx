@@ -31,7 +31,7 @@ export const ElevationChart = ({ activities, referenceDate }: ElevationChartProp
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Mountain className="h-4 w-4 text-amber-700" />
+          <Mountain className="h-4 w-4 text-fitness-warning" />
           {t('strava.elevationPerWeek')}
         </CardTitle>
         <CardDescription className="text-xs">

@@ -28,9 +28,9 @@ const getRestDefaultSeconds = (): number => {
 // ── Progression Badge sub-component ──
 const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 'maintain'; label: string } }) => {
   const styles = {
-    increase: 'border-green-500/30 text-green-400 bg-green-500/10 dark:text-green-400 dark:border-green-500/30',
-    repeat: 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/30',
-    maintain: 'border-red-500/30 text-red-400 bg-red-500/10 dark:text-red-400 dark:border-red-500/30',
+    increase: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10 dark:text-fitness-success dark:border-fitness-success/30',
+    repeat: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10 dark:text-fitness-warning dark:border-fitness-warning/30',
+    maintain: 'border-destructive/30 text-destructive bg-destructive/10',
   };
   const arrows = {
     increase: (
@@ -65,9 +65,9 @@ const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 
 const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
   const { t } = useTranslation();
   const styles: Record<NextSetAdvice['kind'], string> = {
-    progress: 'border-green-500/30 text-green-400 bg-green-500/10',
-    hold: 'border-yellow-500/30 text-yellow-400 bg-yellow-500/10',
-    deload: 'border-orange-500/40 text-orange-400 bg-orange-500/10',
+    progress: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
+    hold: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
+    deload: 'border-fitness-warning/40 text-fitness-warning bg-fitness-warning/10',
   };
   const labels: Record<NextSetAdvice['kind'], string> = {
     progress: t('card.target'),
@@ -399,7 +399,7 @@ const ExerciseCardInner = ({
               {historicalBest && historicalBest.best1RM > 0 && (
                 <span
                   title={`${Math.round(toDisplay(historicalBest.best1RMWeight))} ${unit} × ${historicalBest.best1RMReps}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-[#00e3fd]/30 text-[#00e3fd] bg-[#00e3fd]/10"
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-cyan/30 text-fitness-cyan bg-fitness-cyan/10"
                 >
                   <Star className="h-3 w-3 fill-current" />
                   {t('card.best')} {Math.round(toDisplay(historicalBest.best1RM))} {unit}
@@ -407,7 +407,7 @@ const ExerciseCardInner = ({
               )}
               {nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
               {completedSets > 0 && (
-                <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+                <span className="text-[11px] font-bold text-fitness-success flex items-center gap-1">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                     <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>

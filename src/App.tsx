@@ -79,7 +79,7 @@ const AccessRestrictedView = ({
   return (
   <div className="min-h-screen flex items-center justify-center bg-background px-6">
     <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-sm">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-fitness-warning/10 text-fitness-warning">
         <ShieldOff className="h-6 w-6" />
       </div>
       <h1 className="text-2xl font-heading font-bold tracking-tight">

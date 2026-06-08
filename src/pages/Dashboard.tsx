@@ -41,13 +41,13 @@ const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?:
   }
   if (value > 0) {
     return (
-      <span className="flex items-center gap-0.5 text-[11px] text-emerald-500">
+      <span className="flex items-center gap-0.5 text-[11px] text-fitness-success">
         <TrendingUp className="h-3 w-3" /> +{value}{suffix}
       </span>
     );
   }
   return (
-    <span className="flex items-center gap-0.5 text-[11px] text-red-400">
+    <span className="flex items-center gap-0.5 text-[11px] text-destructive">
       <TrendingDown className="h-3 w-3" /> {value}{suffix}
     </span>
   );
@@ -378,12 +378,12 @@ const Dashboard = () => {
   }, [uid]);
 
   // Day focus descriptions
-  const dayColors = ['bg-emerald-500', 'bg-blue-500', 'bg-purple-500'];
+  const dayColors = ['bg-fitness-success', 'bg-fitness-cyan', 'bg-primary'];
   const planNextStepTone = {
     primary: 'border-primary/40 bg-primary/5',
-    warning: 'border-amber-500/40 bg-amber-500/5',
-    success: 'border-emerald-500/40 bg-emerald-500/5',
-    info: 'border-sky-500/40 bg-sky-500/5',
+    warning: 'border-fitness-warning/40 bg-fitness-warning/5',
+    success: 'border-fitness-success/40 bg-fitness-success/5',
+    info: 'border-fitness-cyan/40 bg-fitness-cyan/5',
   } as const;
 
   if (!isLoaded) {
@@ -417,19 +417,19 @@ const Dashboard = () => {
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase flex items-center gap-2 tracking-tight">
-          <GreetingIcon className="h-6 w-6 text-yellow-500" />
+          <GreetingIcon className="h-6 w-6 text-fitness-warning" />
           {greetingText}, {displayName}!
         </h1>
         <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
       </div>
 
       {(localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0 ? (
-        <Card className="border-sky-200 bg-sky-50/80">
+        <Card className="border-fitness-cyan/30 bg-fitness-cyan/5">
           <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <CloudOff className="h-5 w-5 text-sky-700 mt-0.5 shrink-0" />
+              <CloudOff className="h-5 w-5 text-fitness-cyan mt-0.5 shrink-0" />
               <div>
-                <p className="font-medium text-sky-950">
+                <p className="font-semibold text-foreground">
                   {localDraft?.finalSyncPending
                     ? t('dash.sync.finishedLocally')
                     : localDraft?.sessionOrigin === 'provisional'
@@ -438,7 +438,7 @@ const Dashboard = () => {
                         ? t('dash.sync.queued', { n: pendingSyncCount })
                         : t('dash.sync.localChanges')}
                 </p>
-                <p className="text-sm text-sky-900/80">
+                <p className="text-sm text-muted-foreground">
                   {localDraft?.finalSyncPending
                     ? t('dash.sync.finishedLocally.desc')
                     : localDraft?.sessionOrigin === 'provisional'
@@ -449,7 +449,7 @@ const Dashboard = () => {
                 </p>
               </div>
             </div>
-            <Button variant="outline" className="border-sky-300 bg-white hover:bg-sky-100" onClick={() => navigate('/settings')}>
+            <Button variant="outline" onClick={() => navigate('/settings')}>
               {t('dash.sync.openCenter')}
             </Button>
           </CardContent>
@@ -479,12 +479,12 @@ const Dashboard = () => {
       )}
 
       {todayTraining.type === 'completed' && (
-        <Card className="border-emerald-500/40 bg-emerald-500/5">
+        <Card className="border-fitness-success/40 bg-fitness-success/5">
           <CardContent className="py-4 px-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-emerald-500" />
+              <CheckCircle className="h-5 w-5 text-fitness-success" />
               <div>
-                <p className="font-semibold text-sm text-emerald-600 dark:text-emerald-400">{t('dash.workoutCompleted')}</p>
+                <p className="font-semibold text-sm text-fitness-success dark:text-fitness-success">{t('dash.workoutCompleted')}</p>
                 <p className="text-xs text-muted-foreground">{localizeDayName(todayTraining.day.dayName, lang)}</p>
               </div>
             </div>
@@ -516,7 +516,7 @@ const Dashboard = () => {
               <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 {t('dash.whatNext')}
               </p>
-              <h2 className="text-lg font-semibold tracking-tight">{planNextStep.title}</h2>
+              <h2 className="font-heading text-lg font-bold uppercase tracking-tight">{planNextStep.title}</h2>
               <p className="text-sm text-muted-foreground">{planNextStep.description}</p>
             </div>
             <div className="flex items-start gap-2">
@@ -563,7 +563,7 @@ const Dashboard = () => {
           value={completedCount}
           icon={Trophy}
           trend={trends.workouts}
-          iconColor="bg-emerald-500/15 text-emerald-500"
+          iconColor="bg-fitness-success/15 text-fitness-success"
           onClick={() => navigate('/analytics?tab=charts')}
         />
         <DashboardStatCard
@@ -590,7 +590,7 @@ const Dashboard = () => {
           icon={Flame}
           trend={trends.streak}
           trendSuffix={` ${t('dash.weeksUnit')}`}
-          iconColor="bg-amber-500/15 text-amber-500"
+          iconColor="bg-primary/15 text-primary"
           onClick={() => navigate('/analytics?tab=charts')}
         />
       </div>
@@ -676,14 +676,14 @@ const Dashboard = () => {
       {/* Latest PR */}
       {latestPR && (
         <Card
-          className="cursor-pointer hover:border-amber-500/40 transition-all duration-200 border-amber-500/20"
+          className="cursor-pointer hover:border-primary/40 transition-all duration-200 border-primary/20"
           onClick={() => navigate('/achievements')}
         >
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <Trophy className="h-5 w-5 text-amber-500" />
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Trophy className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">{t('dash.lastPR')}</p>

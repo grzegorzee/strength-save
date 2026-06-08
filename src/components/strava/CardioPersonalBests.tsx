@@ -19,7 +19,7 @@ export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) =>
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-yellow-500" />
+          <Trophy className="h-4 w-4 text-fitness-warning" />
           {t('strava.cardioRecords')}
         </CardTitle>
       </CardHeader>
@@ -28,7 +28,7 @@ export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) =>
           {prs.map((pr) => (
             <div
               key={pr.category}
-              className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20"
+              className="p-3 rounded-lg bg-fitness-warning/5 border border-fitness-warning/20"
             >
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-lg">{pr.emoji}</span>

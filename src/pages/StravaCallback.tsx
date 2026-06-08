@@ -73,7 +73,7 @@ const StravaCallback = () => {
 
             {status === 'success' && (
               <>
-                <CheckCircle className="h-12 w-12 text-green-500" />
+                <CheckCircle className="h-12 w-12 text-fitness-success" />
                 <p className="font-medium">{t('strava.callback.connected')}</p>
                 <p className="text-sm text-muted-foreground">
                   {syncedCount > 0

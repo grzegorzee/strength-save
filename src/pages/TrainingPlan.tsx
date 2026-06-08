@@ -387,7 +387,7 @@ const TrainingPlan = () => {
                       {trainingItem && (
                         <button
                           onClick={(e) => { e.stopPropagation(); navigate('/plan/edit'); }}
-                          className="flex items-center gap-1 text-[11px] text-[#2e3348] hover:text-primary transition-colors"
+                          className="flex items-center gap-1 text-[11px] text-muted-foreground/40 hover:text-primary transition-colors"
                         >
                           <Pencil className="h-3 w-3" />
                           {t('trainingplan.edit')}

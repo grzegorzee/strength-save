@@ -651,7 +651,7 @@ const AdminDashboard = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-start gap-2">
                           {user.accessEnabled ? (
-                            <ShieldCheck className="mt-0.5 h-4 w-4 text-emerald-600" />
+                            <ShieldCheck className="mt-0.5 h-4 w-4 text-fitness-success" />
                           ) : (
                             <ShieldOff className="mt-0.5 h-4 w-4 text-destructive" />
                           )}

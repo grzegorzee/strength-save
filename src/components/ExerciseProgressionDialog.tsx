@@ -133,9 +133,9 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
 
         {/* Plateau alert */}
         {plateau.isPlateau && (
-          <Card className="border-yellow-500/50 bg-yellow-500/5">
+          <Card className="border-fitness-warning/50 bg-fitness-warning/5">
             <CardContent className="py-3 px-4 flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-fitness-warning shrink-0" />
               <div>
                 <p className="text-sm font-medium">{t('comp.progression.plateauTitle', { count: plateau.sessionsSinceProgress })}</p>
                 <p className="text-xs text-muted-foreground">{t('comp.progression.plateauHint')}</p>

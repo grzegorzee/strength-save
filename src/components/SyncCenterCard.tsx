@@ -68,12 +68,12 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
   const status = useCallback((targetDraft: ActiveWorkoutDraft) => (
     targetDraft.finalSyncPending
-      ? { label: t('strava.statusCompletedLocally'), tone: 'bg-amber-100 text-amber-800 border-amber-200' }
+      ? { label: t('strava.statusCompletedLocally'), tone: 'bg-fitness-warning text-fitness-warning border-fitness-warning' }
       : targetDraft.sessionOrigin === 'provisional'
-        ? { label: t('strava.statusLocalOnly'), tone: 'bg-sky-100 text-sky-800 border-sky-200' }
+        ? { label: t('strava.statusLocalOnly'), tone: 'bg-fitness-cyan/15 text-fitness-cyan border-fitness-cyan/30' }
         : targetDraft.dirty
-          ? { label: t('strava.statusWaitingSync'), tone: 'bg-orange-100 text-orange-800 border-orange-200' }
-          : { label: t('strava.statusSynced'), tone: 'bg-emerald-100 text-emerald-800 border-emerald-200' }
+          ? { label: t('strava.statusWaitingSync'), tone: 'bg-fitness-warning/15 text-fitness-warning border-fitness-warning/30' }
+          : { label: t('strava.statusSynced'), tone: 'bg-fitness-success/15 text-fitness-success border-fitness-success/30' }
   ), [t]);
 
   const listedEntries = useMemo<ListedSyncEntry[]>(() => {

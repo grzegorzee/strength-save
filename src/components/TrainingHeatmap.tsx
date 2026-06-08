@@ -15,10 +15,10 @@ interface Props {
 
 const LEVEL_COLORS = [
   'bg-muted/40',
-  'bg-emerald-900/40',
-  'bg-emerald-700/60',
-  'bg-emerald-500/80',
-  'bg-emerald-400',
+  'bg-fitness-success/20',
+  'bg-fitness-success/40',
+  'bg-fitness-success/80',
+  'bg-fitness-success',
 ] as const;
 
 const MONTH_KEYS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
@@ -96,7 +96,7 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Calendar className="h-5 w-5 text-emerald-500" />
+              <Calendar className="h-5 w-5 text-fitness-success" />
               {t('heatmap.title')}
             </CardTitle>
             <CardDescription>{t('heatmap.activeDays', { n: activeDays, year: selectedYear })}</CardDescription>

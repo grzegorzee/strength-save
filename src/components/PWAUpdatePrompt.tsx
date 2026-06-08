@@ -33,12 +33,12 @@ export const PWAUpdatePrompt = () => {
   }
 
   return (
-    <Card className="fixed bottom-4 right-4 z-[60] w-[min(26rem,calc(100vw-2rem))] border-amber-400/60 bg-amber-50 shadow-lg dark:bg-amber-950/80">
+    <Card className="fixed bottom-4 right-4 z-[60] w-[min(26rem,calc(100vw-2rem))] border-fitness-warning/60 bg-fitness-warning shadow-lg dark:bg-fitness-warning/10">
       <CardContent className="flex items-start gap-3 p-4">
-        <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
+        <CloudOff className="mt-0.5 h-5 w-5 shrink-0 text-fitness-warning dark:text-fitness-warning" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">{t('comp.pwa.updateWaitingTitle')}</p>
-          <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+          <p className="text-sm font-semibold text-fitness-warning dark:text-fitness-warning">{t('comp.pwa.updateWaitingTitle')}</p>
+          <p className="mt-1 text-xs text-fitness-warning dark:text-fitness-warning">
             {t('comp.pwa.updateWaitingDesc')}
           </p>
         </div>

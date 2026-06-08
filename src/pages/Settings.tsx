@@ -349,10 +349,10 @@ const Settings = () => {
         </CardContent>
       </Card>
 
-      <Card className="border-amber-500/30">
+      <Card className="border-fitness-warning/30">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <RotateCcw className="h-5 w-5 text-amber-600" />
+            <RotateCcw className="h-5 w-5 text-fitness-warning" />
             {t('settings.resetPlan.title')}
           </CardTitle>
           <CardDescription>
@@ -362,7 +362,7 @@ const Settings = () => {
         <CardContent>
           <Button
             variant="outline"
-            className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+            className="w-full border-fitness-warning text-fitness-warning hover:bg-fitness-warning/10"
             onClick={handleResetOnboarding}
             disabled={isResettingOnboarding}
           >
@@ -394,7 +394,7 @@ const Settings = () => {
             <>
               <div className="flex items-center justify-between">
                 <div>
-                  <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
+                  <Badge className="bg-fitness-success/10 text-green-600 border-fitness-success/30">
                     {t('settings.strava.connected')}
                   </Badge>
                   {connection.athleteName && (

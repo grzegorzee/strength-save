@@ -13,6 +13,7 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { cn } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { WorkoutSession } from '@/types';
@@ -218,43 +219,47 @@ const WorkoutHistory = () => {
           const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
           const isSelected = compareIds.includes(workout.id);
           return (
-            <Card key={workout.id} className={isSelected ? 'border-primary/40 bg-primary/5' : ''}>
-              <CardContent className="p-4 space-y-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium tabular-nums">{workout.date}</p>
-                    <Badge variant={workout.completed ? 'default' : 'secondary'}>
-                      {workout.completed ? t('history.badgeCompleted') : t('history.badgeDraft')}
-                    </Badge>
+            <div
+              key={workout.id}
+              className={cn(
+                "rounded-xl bg-surface-low p-4 space-y-3",
+                isSelected && "ring-2 ring-inset ring-primary/50",
+              )}
+            >
+              <div>
+                <div className="flex items-center gap-2">
+                  <p className="font-heading font-bold tabular-nums">{workout.date}</p>
+                  <Badge variant={workout.completed ? 'default' : 'secondary'}>
+                    {workout.completed ? t('history.badgeCompleted') : t('history.badgeDraft')}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                  {localizeDayName(dayLabel.dayName, lang)} · {localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 rounded-xl bg-surface-lowest">
+                {[
+                  { v: workout.exercises.length.toString(), l: t('history.exercisesShort') },
+                  { v: Math.round(tonnage).toLocaleString(dateLocale(lang)), l: 'kg' },
+                  { v: totalSets.toString(), l: t('history.setsShort') },
+                ].map((s, i) => (
+                  <div key={i} className="text-center py-2.5">
+                    <p className="font-heading font-bold text-xl tabular-nums leading-none">{s.v}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{s.l}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {localizeDayName(dayLabel.dayName, lang)} · {localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}
-                  </p>
-                </div>
+                ))}
+              </div>
 
-                <div className="grid grid-cols-3 rounded-xl bg-surface-low">
-                  {[
-                    { v: workout.exercises.length.toString(), l: t('history.exercisesShort') },
-                    { v: Math.round(tonnage).toLocaleString(dateLocale(lang)), l: 'kg' },
-                    { v: totalSets.toString(), l: t('history.setsShort') },
-                  ].map((s, i) => (
-                    <div key={i} className="text-center py-2.5">
-                      <p className="font-heading font-bold text-xl tabular-nums leading-none">{s.v}</p>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{s.l}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/workout/${workout.dayId}?date=${workout.date}&session=${workout.id}`)}>
-                    {t('history.openWorkout')}
-                  </Button>
-                  <Button variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => toggleCompare(workout.id)}>
-                    {isSelected ? t('history.removeFromCompare') : t('history.compare')}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/workout/${workout.dayId}?date=${workout.date}&session=${workout.id}`)}>
+                  {t('history.openWorkout')}
+                </Button>
+                <Button variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => toggleCompare(workout.id)}>
+                  {isSelected ? t('history.removeFromCompare') : t('history.compare')}
+                </Button>
+              </div>
+            </div>
           );
         })}
 

@@ -62,14 +62,14 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <TrendingUp className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
+            <TrendingUp className="h-5 w-5 text-fitness-success mx-auto mb-1" />
             <p className="text-2xl font-bold">{tonnageT}t</p>
             <p className="text-xs text-muted-foreground">{t('cycles.tonnage')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <Trophy className="h-5 w-5 text-amber-500 mx-auto mb-1" />
+            <Trophy className="h-5 w-5 text-primary mx-auto mb-1" />
             <p className="text-2xl font-bold">{cycle.stats.prs.length}</p>
             <p className="text-xs text-muted-foreground">{t('cycles.recordsLabel')}</p>
           </CardContent>
@@ -83,14 +83,14 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <CalendarX2 className="h-5 w-5 text-orange-500 mx-auto mb-1" />
+            <CalendarX2 className="h-5 w-5 text-fitness-warning mx-auto mb-1" />
             <p className="text-2xl font-bold">{cycle.stats.missedWorkouts || 0}</p>
             <p className="text-xs text-muted-foreground">{t('cycles.missedSessions')}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <TrendingUp className="h-5 w-5 text-emerald-500 mx-auto mb-1" />
+            <TrendingUp className="h-5 w-5 text-fitness-success mx-auto mb-1" />
             <p className="text-2xl font-bold">{cycle.stats.averageTonnagePerWorkout || 0}</p>
             <p className="text-xs text-muted-foreground">{t('cycles.kgPerWorkout')}</p>
           </CardContent>
@@ -102,7 +102,7 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" />
+              <Trophy className="h-4 w-4 text-primary" />
               {t('cycles.personalRecords')}
             </CardTitle>
           </CardHeader>

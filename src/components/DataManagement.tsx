@@ -161,7 +161,7 @@ export const DataManagement = ({
           <Button
             onClick={handleRepair}
             variant="outline"
-            className="w-full text-sky-700 border-sky-300 hover:bg-sky-50"
+            className="w-full text-fitness-cyan border-fitness-cyan/40 hover:bg-fitness-cyan/10"
             disabled={isRepairing}
           >
             {isRepairing ? (
@@ -177,7 +177,7 @@ export const DataManagement = ({
           <Button
             onClick={handleCleanup}
             variant="outline"
-            className="w-full text-orange-600 border-orange-300 hover:bg-orange-50"
+            className="w-full text-fitness-warning border-fitness-warning/40 hover:bg-fitness-warning/10"
             disabled={isCleaningUp}
           >
             {isCleaningUp ? (

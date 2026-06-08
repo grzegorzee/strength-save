@@ -71,14 +71,14 @@ export const CycleCard = ({ cycle, onClick }: Props) => {
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
-              <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+              <TrendingUp className="h-3.5 w-3.5 text-fitness-success" />
             </div>
             <p className="text-sm font-bold">{tonnageT}t</p>
             <p className="text-[10px] text-muted-foreground">{t('cycles.tonnage')}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center mb-1">
-              <Trophy className="h-3.5 w-3.5 text-amber-500" />
+              <Trophy className="h-3.5 w-3.5 text-primary" />
             </div>
             <p className="text-sm font-bold">{cycle.stats.prs.length}</p>
             <p className="text-[10px] text-muted-foreground">{t('cycles.prs')}</p>

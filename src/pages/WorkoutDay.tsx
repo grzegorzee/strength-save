@@ -1268,15 +1268,15 @@ const WorkoutDay = () => {
         <ErrorBanner />
 
         {isFinalSyncPending && (
-          <Card className="border-amber-300 bg-amber-50">
+          <Card className="border-fitness-warning bg-fitness-warning">
             <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="font-medium text-amber-900">{t('workout.finishedLocally.title')}</p>
-                <p className="text-sm text-amber-800">{t('workout.finishedLocally.desc')}</p>
+                <p className="font-medium text-fitness-warning">{t('workout.finishedLocally.title')}</p>
+                <p className="text-sm text-fitness-warning">{t('workout.finishedLocally.desc')}</p>
               </div>
               <Button
                 variant="outline"
-                className="border-amber-400 text-amber-900 hover:bg-amber-100"
+                className="border-fitness-warning text-fitness-warning hover:bg-fitness-warning/20"
                 onClick={handleRetrySync}
                 disabled={isExplicitSaving}
               >
@@ -1289,12 +1289,12 @@ const WorkoutDay = () => {
 
         <Card className={cn(
           "border-fitness-success bg-fitness-success/10",
-          isFinalSyncPending && "border-amber-300 bg-amber-50"
+          isFinalSyncPending && "border-fitness-warning bg-fitness-warning"
         )}>
           <CardHeader>
             <CardTitle className={cn(
               "flex items-center gap-2 text-fitness-success",
-              isFinalSyncPending && "text-amber-900"
+              isFinalSyncPending && "text-fitness-warning"
             )}>
               <Check className="h-6 w-6" />
               {isFinalSyncPending ? t('workout.completedLocallyTitle') : t('workout.completedTitle')}

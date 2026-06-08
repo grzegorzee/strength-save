@@ -264,14 +264,14 @@ const SummaryTab = () => {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Trophy className="h-5 w-5 text-yellow-500" />
+              <Trophy className="h-5 w-5 text-fitness-warning" />
               {period === 'week' ? t('analytics.newPRs.week') : t('analytics.newPRs.month')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {periodPRs.map((pr, i) => (
-                <Badge key={i} className="bg-yellow-500/10 text-yellow-700 border-yellow-500/30">🏆 {pr.exerciseName}</Badge>
+                <Badge key={i} className="bg-fitness-warning/10 text-yellow-700 border-fitness-warning/30">🏆 {pr.exerciseName}</Badge>
               ))}
             </div>
           </CardContent>
@@ -776,7 +776,7 @@ const WeeklyTab = () => {
               </div>
               <div className="text-center p-2 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center gap-1 mb-1">
-                  <Flame className="h-3 w-3 text-amber-500" />
+                  <Flame className="h-3 w-3 text-primary" />
                 </div>
                 <p className="text-sm font-bold">{s.stats.prs.length}</p>
                 <p className="text-xs text-muted-foreground">{t('analytics.stat.prs')}</p>
@@ -790,7 +790,7 @@ const WeeklyTab = () => {
             {s.stats.prs.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {s.stats.prs.map((pr, i) => (
-                  <Badge key={i} className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/30">
+                  <Badge key={i} className="text-xs bg-fitness-warning/10 text-fitness-warning border-fitness-warning/30">
                     {pr.exerciseName} — {pr.newValue} kg
                   </Badge>
                 ))}
