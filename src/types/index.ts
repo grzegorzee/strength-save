@@ -36,6 +36,8 @@ export interface WorkoutSession {
   // Snapshot etykiety dnia z momentu treningu (jak wyżej — odporność na zmianę planu).
   dayName?: string;
   dayFocus?: string;
+  // Czas trwania treningu w sekundach (od startu do zakończenia) — pokazywany w podsumowaniu.
+  durationSec?: number;
 }
 
 export interface BodyMeasurement {

@@ -348,6 +348,7 @@ export const useFirebaseWorkouts = (userId: string) => {
             ...(workout.cycleId && { cycleId: String(workout.cycleId).slice(0, 100) }),
             ...(workout.dayName && { dayName: String(workout.dayName).slice(0, 200) }),
             ...(workout.dayFocus && { dayFocus: String(workout.dayFocus).slice(0, 200) }),
+            ...(typeof workout.durationSec === 'number' && workout.durationSec > 0 && { durationSec: Math.floor(workout.durationSec) }),
             ...(Array.isArray(workout.skippedExercises) && { skippedExercises: workout.skippedExercises.filter((s: unknown) => typeof s === 'string').slice(0, 50) }),
           };
           if (Array.isArray(workout.exercises)) {
@@ -521,7 +522,7 @@ export const useFirebaseWorkouts = (userId: string) => {
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string }[],
-    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string }
+    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number }
   ): Promise<{ success: boolean; error?: string }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
@@ -542,6 +543,7 @@ export const useFirebaseWorkouts = (userId: string) => {
       if (options?.completed) updateData.completed = true;
       if (options?.dayName) updateData.dayName = String(options.dayName).slice(0, 200);
       if (options?.dayFocus) updateData.dayFocus = String(options.dayFocus).slice(0, 200);
+      if (typeof options?.durationSec === 'number' && options.durationSec > 0) updateData.durationSec = Math.floor(options.durationSec);
 
       await updateDoc(workoutRef, updateData as UpdateData<Record<string, unknown>>);
       return { success: true };

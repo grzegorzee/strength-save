@@ -398,12 +398,17 @@ const WorkoutDay = () => {
         trackTelemetryEvent(uid, 'provisional_session_promoted');
       }
 
+      const startedAt = activeDraftRef.current?.startedAt;
+      const finalDurationSec = requiresFinalSync && startedAt
+        ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+        : undefined;
       const result = await batchSaveWorkout(targetSessionId, buildExercisesPayload(), {
         notes: dayNotesRef.current || undefined,
         skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
         dayName: daySnapshotRef.current.dayName || undefined,
         dayFocus: daySnapshotRef.current.focus || undefined,
         ...(requiresFinalSync && { completed: true }),
+        ...(finalDurationSec !== undefined && { durationSec: finalDurationSec }),
       });
 
       if (!result.success) {
@@ -1183,6 +1188,9 @@ const WorkoutDay = () => {
     (total, sets) => total + sets.filter(s => s.completed && !s.isWarmup).reduce((sum, s) => sum + s.reps, 0),
     0
   );
+  // Czas trwania do podsumowania: trwały durationSec z zapisanej sesji, a dla świeżo
+  // zakończonego treningu fallback do licznika sesji (elapsedSec).
+  const sessionDurationSec = workouts.find(w => w.id === sessionId)?.durationSec ?? (elapsedSec > 0 ? elapsedSec : null);
 
   const ErrorBanner = () => saveError ? (
     <Card className="border-destructive bg-destructive/10">
@@ -1265,7 +1273,7 @@ const WorkoutDay = () => {
             <p className="text-muted-foreground mb-4">
               {isFinalSyncPending ? t('workout.waitingSyncDesc') : t('workout.greatJob')}
             </p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="text-center p-3 bg-background rounded-lg">
                 <p className="text-2xl font-bold">{exerciseCount}</p>
                 <p className="text-xs text-muted-foreground">{t('workout.statExercises')}</p>
@@ -1277,6 +1285,10 @@ const WorkoutDay = () => {
               <div className="text-center p-3 bg-background rounded-lg">
                 <p className="text-2xl font-bold">{totalRepsCount}</p>
                 <p className="text-xs text-muted-foreground">{t('workout.statReps')}</p>
+              </div>
+              <div className="text-center p-3 bg-background rounded-lg">
+                <p className="text-2xl font-bold tabular-nums">{sessionDurationSec != null ? fmtDuration(sessionDurationSec) : '—'}</p>
+                <p className="text-xs text-muted-foreground">{t('workout.statTime')}</p>
               </div>
             </div>
           </CardContent>
