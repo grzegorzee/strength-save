@@ -91,15 +91,15 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-bold capitalize">{viewMonth.toLocaleDateString(dateLocale(lang), { month: 'long' })} {year}</span>
         <div className="flex gap-1">
-          <button onClick={prevMonth} className="w-7 h-7 rounded-md border border-white/[0.06] bg-transparent text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">‹</button>
-          <button onClick={nextMonth} className="w-7 h-7 rounded-md border border-white/[0.06] bg-transparent text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">›</button>
+          <button onClick={prevMonth} className="w-7 h-7 rounded-md bg-surface-low text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">‹</button>
+          <button onClick={nextMonth} className="w-7 h-7 rounded-md bg-surface-low text-muted-foreground flex items-center justify-center hover:text-primary transition-colors text-sm">›</button>
         </div>
       </div>
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-2">
         {weekdayLabels.map((label, i) => (
-          <span key={i} className="text-center text-[10px] font-bold uppercase tracking-wider text-[#3a3f52] py-1">{label}</span>
+          <span key={i} className="text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 py-1">{label}</span>
         ))}
       </div>
 
@@ -118,9 +118,9 @@ const PlanCalendar = ({ selectedDate, onSelectDate, completedDates, trainingDate
               onClick={() => onSelectDate(date)}
               className={cn(
                 "w-full aspect-square rounded-[10px] flex items-center justify-center text-xs font-semibold transition-all duration-150 cursor-pointer",
-                !isCurrentMonth && "text-[#1e2233]",
-                isCurrentMonth && !isCompleted && !isTraining && !isStrava && "text-[#505668] hover:bg-white/[0.04]",
-                isCompleted && "bg-emerald-500/15 text-emerald-400 font-bold",
+                !isCurrentMonth && "text-muted-foreground/25",
+                isCurrentMonth && !isCompleted && !isTraining && !isStrava && "text-muted-foreground/80 hover:bg-surface-high",
+                isCompleted && "bg-fitness-success/15 text-fitness-success font-bold",
                 !isCompleted && isTraining && "ring-2 ring-inset ring-primary/40 text-primary",
                 !isCompleted && !isTraining && isStrava && "ring-2 ring-inset ring-orange-500/40 text-orange-500",
                 isToday && !isCompleted && "text-primary font-extrabold",
@@ -244,7 +244,7 @@ const TrainingPlan = () => {
         <div className="p-6 pb-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight">{t('trainingplan.title')}</h1>
+              <h1 className="text-xl font-heading font-bold uppercase tracking-tight">{t('trainingplan.title')}</h1>
               <p className="text-[13px] text-muted-foreground mt-1 font-medium">
                 {t('trainingplan.programSummary', { weeks: planDurationWeeks, days: trainingPlan.map(d => localizeDayName(d.dayName, lang)).join(', ') })}
               </p>
@@ -252,12 +252,12 @@ const TrainingPlan = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate('/plan/edit')}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/[0.06] bg-white/[0.03] text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border-0 bg-surface-low text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 {t('trainingplan.edit')}
               </button>
-              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-400 text-[13px] font-bold text-white whitespace-nowrap">
+              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-[#f4ffc9] to-primary text-[13px] font-heading font-bold uppercase tracking-tight text-background whitespace-nowrap">
                 {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
               </div>
             </div>
@@ -266,23 +266,23 @@ const TrainingPlan = () => {
 
         {/* Progress bar */}
         <div className="px-6 pb-5">
-          <div className="w-full h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
+          <div className="w-full h-1.5 bg-surface-high rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-400 transition-all duration-500"
+              className="h-full rounded-full bg-gradient-to-r from-[#f4ffc9] to-primary transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="flex justify-between mt-2 text-[11px] font-semibold">
-            <span className="text-[#3a3f52]">{t('trainingplan.start')}</span>
+          <div className="flex justify-between mt-2 text-[11px] font-semibold uppercase tracking-wide">
+            <span className="text-muted-foreground">{t('trainingplan.start')}</span>
             <span className="text-primary">{t('trainingplan.percentDone', { percent: progressPercent })}</span>
-            <span className="text-[#3a3f52]">{t('trainingplan.end')}</span>
+            <span className="text-muted-foreground">{t('trainingplan.end')}</span>
           </div>
         </div>
 
         <div className="exercise-card-divider mx-6" />
 
         {/* Rules tip */}
-        <div className="mx-6 mt-5 mb-5 py-3 px-4 rounded-xl bg-primary/[0.04] border-l-[3px] border-primary/30 text-xs text-[#7a7f94] leading-relaxed">
+        <div className="mx-6 mt-5 mb-5 py-3 px-4 rounded-xl bg-primary/[0.04] border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed">
           <strong className="text-muted-foreground">⚡ {trainingRules.weight}</strong><br />
           ⏱️ {trainingRules.restMain} • {trainingRules.restIsolation}
         </div>
@@ -296,11 +296,11 @@ const TrainingPlan = () => {
                 prev.setDate(prev.getDate() - 7);
                 setSelectedDate(prev);
               }}
-              className="w-8 h-8 rounded-lg border border-white/[0.06] bg-white/[0.03] text-muted-foreground flex items-center justify-center hover:border-primary/30 hover:text-primary transition-colors text-sm"
+              className="w-8 h-8 rounded-lg border-0 bg-surface-low text-muted-foreground flex items-center justify-center hover:border-primary/30 hover:text-primary transition-colors text-sm"
             >
               ‹
             </button>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-[13px] font-semibold text-muted-foreground">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-surface-low text-[13px] font-semibold text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
               {selectedWeekStart.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' })} – {selectedWeekEnd.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' })}
             </div>
@@ -310,7 +310,7 @@ const TrainingPlan = () => {
                 next.setDate(next.getDate() + 7);
                 setSelectedDate(next);
               }}
-              className="w-8 h-8 rounded-lg border border-white/[0.06] bg-white/[0.03] text-muted-foreground flex items-center justify-center hover:border-primary/30 hover:text-primary transition-colors text-sm"
+              className="w-8 h-8 rounded-lg border-0 bg-surface-low text-muted-foreground flex items-center justify-center hover:border-primary/30 hover:text-primary transition-colors text-sm"
             >
               ›
             </button>
@@ -380,7 +380,7 @@ const TrainingPlan = () => {
                   <div key={dateStr} className="mb-4">
                     {/* Day label */}
                     <div className="flex items-center justify-between mb-2 px-1">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#3a3f52]">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
                         <span className="capitalize sm:hidden">{dayName.short}</span>
                         <span className="capitalize hidden sm:inline">{dayName.long}</span>, {dateLabel}
                       </span>
@@ -435,28 +435,28 @@ const TrainingPlan = () => {
 
             {/* Stats strip */}
             <div className="grid grid-cols-3 gap-3 mt-4">
-              <div className="rounded-2xl p-4 border border-white/[0.04] bg-white/[0.02] text-center">
+              <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">{actualCurrentWeek}</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">{t('trainingplan.statWeek')}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statWeek')}</p>
               </div>
-              <div className="rounded-2xl p-4 border border-white/[0.04] bg-white/[0.02] text-center">
+              <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">
                   {workouts.filter(w => w.completed && (!planStartDate || w.date >= planStartDate)).length}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">{t('trainingplan.statCompleted')}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statCompleted')}</p>
               </div>
-              <div className="rounded-2xl p-4 border border-white/[0.04] bg-white/[0.02] text-center">
+              <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">
                   {Math.max(0, planDurationWeeks - actualCurrentWeek)}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#3a3f52] mt-1">{t('trainingplan.statRemaining')}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statRemaining')}</p>
               </div>
             </div>
           </div>
 
           {/* ── Right: Calendar ── */}
           <div className="hidden lg:block space-y-4">
-            <div className="rounded-2xl p-5 border border-white/[0.04] bg-white/[0.02]">
+            <div className="rounded-2xl p-5 border-0 bg-surface-low">
               <PlanCalendar
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
@@ -469,17 +469,17 @@ const TrainingPlan = () => {
               {/* Legend */}
               <div className="flex items-center justify-center gap-4 mt-4 text-[10px] font-semibold">
                 <div className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                  <span className="text-[#3a3f52]">{t('trainingplan.legendCompleted')}</span>
+                  <div className="h-2 w-2 rounded-full bg-fitness-success" />
+                  <span className="text-muted-foreground/70">{t('trainingplan.legendCompleted')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <div className="h-2 w-2 rounded-full ring-2 ring-primary/60 ring-inset" />
-                  <span className="text-[#3a3f52]">{t('trainingplan.legendPlanned')}</span>
+                  <span className="text-muted-foreground/70">{t('trainingplan.legendPlanned')}</span>
                 </div>
                 {canUseStrava && (
                   <div className="flex items-center gap-1.5">
                     <div className="h-2 w-2 rounded-full ring-2 ring-orange-500/60 ring-inset" />
-                    <span className="text-[#3a3f52]">Strava</span>
+                    <span className="text-muted-foreground/70">Strava</span>
                   </div>
                 )}
               </div>
@@ -507,14 +507,14 @@ const TrainingPlan = () => {
 
                   {displayDay && (
                     <>
-                      <p className="text-sm text-[#7a7f94]">{localizeDayName(displayDay.dayName, lang)}: {localizeFocus(displayDay.focus, lang)}</p>
+                      <p className="text-sm text-muted-foreground">{localizeDayName(displayDay.dayName, lang)}: {localizeFocus(displayDay.focus, lang)}</p>
                       <div className="flex items-center gap-2">
                         {workoutForDate?.completed ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-emerald-500/25 bg-emerald-500/10 text-emerald-400">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-0 bg-fitness-success/15 text-fitness-success">
                             <CheckCircle className="h-3 w-3" /> {t('trainingplan.statusCompleted')}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-white/10 bg-white/[0.03] text-muted-foreground">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border-0 bg-surface-high text-muted-foreground">
                             <Dumbbell className="h-3 w-3" /> {t('trainingplan.statusPlanned')}
                           </span>
                         )}
@@ -539,7 +539,7 @@ const TrainingPlan = () => {
                           <div className="h-2 w-2 rounded-full bg-orange-500 shrink-0" />
                           <span className="text-muted-foreground truncate">{a.name}</span>
                           {a.distance && (
-                            <span className="text-[#3a3f52] shrink-0">
+                            <span className="text-muted-foreground/70 shrink-0">
                               {(a.distance / 1000).toFixed(1)} km
                             </span>
                           )}
