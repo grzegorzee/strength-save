@@ -1,7 +1,19 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
+import { detectLanguage, type LanguageCode } from "@/i18n";
 
 const isE2EMode = import.meta.env.VITE_E2E_MODE === 'true';
+
+// Język UI klienta (źródło prawdy: localStorage 'app-language' ustawiany w LanguageContext;
+// fallback: wykrycie z urządzenia). Przekazujemy do funkcji wysyłających maile,
+// by treść (kod weryfikacyjny, welcome) szła w języku użytkownika.
+function currentLanguage(): LanguageCode {
+  try {
+    const saved = localStorage.getItem('app-language');
+    if (saved === 'pl' || saved === 'en') return saved;
+  } catch { /* ignore */ }
+  return detectLanguage();
+}
 
 export type AccountStatus = "pending_verification" | "active" | "suspended" | "deleted";
 
@@ -97,8 +109,8 @@ export async function syncUserProfile() {
       stravaConnected: false,
     };
   }
-  const fn = httpsCallable<Record<string, never>, { profile: AppUserProfile }>(functions, "syncUserProfile");
-  const result = await fn({});
+  const fn = httpsCallable<{ language: LanguageCode }, { profile: AppUserProfile }>(functions, "syncUserProfile");
+  const result = await fn({ language: currentLanguage() });
   return result.data.profile;
 }
 
@@ -106,8 +118,8 @@ export async function requestEmailVerificationCode() {
   if (isE2EMode) {
     return { sent: true, alreadyVerified: false };
   }
-  const fn = httpsCallable<Record<string, never>, { sent: boolean; alreadyVerified?: boolean }>(functions, "requestEmailVerificationCode");
-  const result = await fn({});
+  const fn = httpsCallable<{ language: LanguageCode }, { sent: boolean; alreadyVerified?: boolean }>(functions, "requestEmailVerificationCode");
+  const result = await fn({ language: currentLanguage() });
   return result.data;
 }
 

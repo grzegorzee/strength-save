@@ -55,6 +55,14 @@
 				<string>com.googleusercontent.apps.283539506094-b1c236euu1dmjsa5omh7i0j50kehtjuj</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.grzegorzjasionowicz.strengthsave</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>strengthsave</string>
+			</array>
+		</dict>
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

@@ -3,6 +3,17 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
+import {
+  type Lang,
+  verificationSubject,
+  welcomeSubject,
+  accessChangedSubject,
+  verificationEmailHtml,
+  welcomeEmailHtml,
+  inviteEmailHtml,
+  accessChangedEmailHtml,
+  adminMessageEmailHtml,
+} from "./email-templates";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 const authPepper = defineSecret("API_KEY_PEPPER");
@@ -38,6 +49,7 @@ interface UserProfileDoc {
     state?: "not_started" | "in_progress" | "completed";
     version?: number;
   };
+  language?: Lang;
   verification?: {
     emailVerifiedAt?: string | null;
     lastCodeSentAt?: string | null;
@@ -118,6 +130,11 @@ function normalizeEmail(value: unknown): string {
     throw new HttpsError("invalid-argument", "Nieprawidłowy adres email.");
   }
   return normalized;
+}
+
+// Język maili. Domyślnie PL; "en" tylko jeśli klient jawnie go przekazał/zapisał.
+function normalizeLanguage(value: unknown): Lang {
+  return value === "en" ? "en" : "pl";
 }
 
 function normalizeOptionalString(value: unknown, maxLength: number): string | null {
@@ -207,63 +224,13 @@ async function sendEmail(params: {
   });
 }
 
-function verificationEmailHtml(code: string, email: string): string {
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">Potwierdź adres email</h1>
-      <p style="margin:0 0 24px;color:#475569;">Użyj poniższego kodu, aby dokończyć rejestrację w Strength Save dla ${email}.</p>
-      <div style="font-size:36px;font-weight:700;letter-spacing:0.18em;text-align:center;padding:20px 0;border-radius:12px;background:#0f172a;color:#fff;">
-        ${code}
-      </div>
-      <p style="margin:24px 0 0;color:#64748b;font-size:14px;">Kod wygasa po 10 minutach.</p>
-    </div>
-  </div>`;
-}
-
-function welcomeEmailHtml(displayName: string): string {
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">Witamy w Strength Save</h1>
-      <p style="margin:0 0 24px;color:#475569;">${displayName || "Cześć"} — konto jest gotowe. Możesz przejść do onboardingu i zacząć układać swój plan treningowy.</p>
-      <a href="https://grzegorzee.github.io/strength-save/" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">Otwórz aplikację</a>
-    </div>
-  </div>`;
-}
-
-function inviteEmailHtml(code: string, inviteUrl: string, note: string | null): string {
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">Masz zaproszenie do Strength Save</h1>
-      <p style="margin:0 0 16px;color:#475569;">Możesz wejść do aplikacji przez Google albo email + hasło. Jeśli aplikacja poprosi o kod zaproszenia, użyj:</p>
-      <div style="font-size:28px;font-weight:700;letter-spacing:0.12em;text-align:center;padding:18px 0;border-radius:12px;background:#0f172a;color:#fff;">
-        ${code}
-      </div>
-      ${note ? `<p style="margin:16px 0 0;color:#334155;">${note}</p>` : ""}
-      <p style="margin:20px 0 12px;color:#64748b;">Bezpośredni link:</p>
-      <a href="${inviteUrl}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">Otwórz aplikację</a>
-    </div>
-  </div>`;
-}
-
-function accessChangedEmailHtml(enabled: boolean): string {
-  return `
-  <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
-    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">Zmiana dostępu do konta</h1>
-      <p style="margin:0;color:#475569;">${enabled ? "Administrator ponownie włączył dostęp do aplikacji." : "Administrator wyłączył dostęp do aplikacji."}</p>
-    </div>
-  </div>`;
-}
-
 async function maybeSendWelcomeEmail(userRef: FirebaseFirestore.DocumentReference, data: UserProfileDoc): Promise<void> {
   if (data.notifications?.welcomeSentAt || !data.email) return;
+  const lang = normalizeLanguage(data.language);
   await sendEmail({
     to: data.email,
-    subject: "Strength Save — konto gotowe",
-    html: welcomeEmailHtml(data.displayName || data.email),
+    subject: welcomeSubject(lang),
+    html: welcomeEmailHtml(data.displayName || data.email, lang),
     type: "welcome_email",
     userId: data.uid,
   });
@@ -282,6 +249,7 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
 
   const uid = request.auth.uid;
   const email = normalizeEmail(request.auth.token.email);
+  const language = normalizeLanguage(request.data?.language);
   const provider = providerFromToken(request.auth.token.firebase?.sign_in_provider);
   const displayName = normalizeOptionalString(request.auth.token.name, 120) || email.split("@")[0];
   const photoURL = normalizeOptionalString(request.auth.token.picture, 500) || "";
@@ -297,6 +265,7 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
       displayName,
       photoURL,
       role: "user",
+      language,
       access: { enabled: provider === "google" },
       status: provider === "google" ? "active" : "pending_verification",
       authProviders: [provider],
@@ -344,6 +313,7 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
     email,
     displayName: current.displayName || displayName,
     photoURL: current.photoURL || photoURL,
+    language,
     authProviders,
     auth: {
       ...(current.auth || {}),
@@ -389,6 +359,7 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
   }
 
   const userData = userSnap.data() as UserProfileDoc;
+  const language = normalizeLanguage(request.data?.language ?? userData.language);
   if (userData.status === "active" && userData.verification?.emailVerifiedAt) {
     return { sent: true, alreadyVerified: true };
   }
@@ -421,6 +392,7 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
   await userRef.set({
     status: "pending_verification",
     access: { enabled: false },
+    language,
     verification: {
       ...(userData.verification || {}),
       lastCodeSentAt: timestamp,
@@ -429,8 +401,8 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
 
   await sendEmail({
     to: email,
-    subject: "Strength Save — kod weryfikacyjny",
-    html: verificationEmailHtml(code, email),
+    subject: verificationSubject(code, language),
+    html: verificationEmailHtml(code, email, language),
     type: "verification_code",
     userId: uid,
   });
@@ -784,10 +756,11 @@ export const updateUserAccess = onCall({ secrets: [resendApiKey] }, async (reque
   }, { merge: true });
 
   if (userData.email) {
+    const lang = normalizeLanguage(userData.language);
     await sendEmail({
       to: userData.email,
-      subject: "Strength Save — zmiana dostępu do konta",
-      html: accessChangedEmailHtml(accessEnabled && !suspended),
+      subject: accessChangedSubject(lang),
+      html: accessChangedEmailHtml(accessEnabled && !suspended, lang),
       type: "access_changed",
       userId: uid,
     });
@@ -815,16 +788,6 @@ export const listAuthAuditLogs = onCall(async (request) => {
 });
 
 // ── Panel admina (Fazy 1-3 + push) ──────────────────────────────────────────
-
-// Prosty branded HTML dla maili admina (custom + broadcast).
-function adminMessageEmailHtml(body: string): string {
-  const safe = body.replace(/\n/g, "<br/>");
-  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
-    <p style="font-weight:700;font-size:18px;color:#0e0e0e;margin:0 0 16px">Strength Save</p>
-    <div style="font-size:15px;line-height:1.6">${safe}</div>
-    <p style="margin-top:24px;font-size:12px;color:#888">Strength Save</p>
-  </div>`;
-}
 
 // Logi per-użytkownik: maile (notification_logs) + zdarzenia auth (auth_audit_logs).
 // Bez orderBy w zapytaniu (uniknięcie composite indexu) — sortujemy w pamięci.
@@ -878,6 +841,7 @@ export const adminResendVerification = onCall({ secrets: [resendApiKey, authPepp
   const userData = userSnap.data() as UserProfileDoc;
   const email = userData.email ? normalizeEmail(userData.email) : null;
   if (!email) throw new HttpsError("failed-precondition", "User has no email");
+  const language = normalizeLanguage(userData.language);
 
   const code = randomVerificationCode();
   const timestamp = nowIso();
@@ -889,7 +853,7 @@ export const adminResendVerification = onCall({ secrets: [resendApiKey, authPepp
     attempts: 0, status: "pending",
   } satisfies VerificationCodeDoc);
 
-  await sendEmail({ to: email, subject: "Strength Save — kod weryfikacyjny", html: verificationEmailHtml(code, email), type: "verification_code", userId: uid });
+  await sendEmail({ to: email, subject: verificationSubject(code, language), html: verificationEmailHtml(code, email, language), type: "verification_code", userId: uid });
   return { success: true };
 });
 

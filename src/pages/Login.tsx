@@ -12,6 +12,7 @@ import { createWaitlistEntry } from '@/lib/registration-api';
 import { setPendingInviteCode } from '@/lib/pending-invite';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { LANGUAGES } from '@/i18n';
 
 interface LoginProps {
   mode?: 'login' | 'register';
@@ -31,7 +32,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   // Apple wymaga „Sign in with Apple" gdy oferujemy inne logowanie social (Google) na iOS.
   const isIOS = Capacitor.getPlatform() === 'ios';
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, lang, setLang } = useTranslation();
   const [authTab, setAuthTab] = useState<'google' | 'email'>(
     mode === 'register' || !supportsGoogle ? 'email' : 'google'
   );
@@ -176,6 +177,23 @@ const Login = ({ mode = 'login' }: LoginProps) => {
             <Dumbbell className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl">Strength Save</CardTitle>
+          {/* Wybór języka przy rejestracji: ustawia język UI i maili (kod, welcome) PRZED wysłaniem. */}
+          {isRegisterMode && (
+            <div className="mt-2 flex justify-center gap-1">
+              {LANGUAGES.map((l) => (
+                <Button
+                  key={l.code}
+                  type="button"
+                  size="sm"
+                  variant={lang === l.code ? 'default' : 'outline'}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setLang(l.code)}
+                >
+                  {l.label}
+                </Button>
+              ))}
+            </div>
+          )}
           <CardDescription>
             {supportsGoogle
               ? isRegisterMode
