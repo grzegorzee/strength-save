@@ -96,6 +96,7 @@ const rza = (
     id: `tpl-ex-${exerciseCounter}`,
     name,
     sets: cel,
+    timer: opts.timer,
     instructions: [
       { title: '📋 Parametry', content: `${opts.typ} • ${opts.timer} • RPE ${opts.rpe}` },
       { title: '💡 Wskazówka', content: opts.uwaga },

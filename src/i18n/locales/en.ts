@@ -742,6 +742,8 @@ export const en: Record<keyof typeof pl, string> = {
   'resttimer.pause': 'Pause',
   'resttimer.resume': 'Resume',
   'resttimer.reset': 'Reset',
+  'interval.round': 'Round',
+  'interval.done': 'DONE',
   'card.target': 'Target',
   'card.deload': 'Deload',
   'card.repsValue': '{n} reps',

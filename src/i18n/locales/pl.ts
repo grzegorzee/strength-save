@@ -748,6 +748,8 @@ export const pl = {
   'resttimer.pause': 'Pauza',
   'resttimer.resume': 'Wznów',
   'resttimer.reset': 'Reset',
+  'interval.round': 'Runda',
+  'interval.done': 'KONIEC',
   'card.target': 'Cel',
   'card.deload': 'Deload',
   'card.repsValue': '{n} powt.',

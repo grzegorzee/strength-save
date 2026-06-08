@@ -12,6 +12,9 @@ export interface Exercise {
   }[];
   isSuperset?: boolean;
   supersetGroup?: string;
+  /** Zapis timera interwałowego z planu (np. "E4MOM x5", "EMOM 8", "AMRAP 8"). Opcjonalny —
+   * tylko plany sterowane interwałem (RZA) go ustawiają; reszta używa timera przerwy. */
+  timer?: string;
 }
 
 export type Weekday = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';

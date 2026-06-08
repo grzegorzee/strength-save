@@ -2,12 +2,14 @@ import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity } from 'lucide-react';
+import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl } from '@/lib/exercise-media';
+import { parseIntervalTimer } from '@/lib/interval-timer';
+import { IntervalTimer } from './IntervalTimer';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
@@ -166,6 +168,9 @@ const ExerciseCardInner = ({
   const { t, lang } = useTranslation();
   // Kołowy timer odpoczynku po odhaczeniu serii roboczej. runId wymusza restart (remount).
   const [rest, setRest] = useState<{ open: boolean; seconds: number; runId: number }>({ open: false, seconds: 90, runId: 0 });
+  // Timer interwałowy (EMOM/AMRAP) — tylko gdy ćwiczenie ma rozpoznany zapis interwału.
+  const intervalSpec = useMemo(() => parseIntervalTimer(exercise.timer), [exercise.timer]);
+  const [intervalRun, setIntervalRun] = useState<{ open: boolean; runId: number }>({ open: false, runId: 0 });
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
@@ -246,7 +251,8 @@ const ExerciseCardInner = ({
     onSetsChange?.(newSets, notes);
 
     // Po odhaczeniu serii roboczej uruchom kołowy timer odpoczynku.
-    if (turningOn && !currentSet.isWarmup) {
+    // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
+    if (turningOn && !currentSet.isWarmup && !intervalSpec) {
       const seconds = getRestDefaultSeconds();
       setRest(r => ({ open: true, seconds, runId: r.runId + 1 }));
     }
@@ -465,6 +471,15 @@ const ExerciseCardInner = ({
                 </span>
               )}
               {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} /> : nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
+              {intervalSpec && (
+                <button
+                  onClick={() => setIntervalRun(r => ({ open: true, runId: r.runId + 1 }))}
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                >
+                  <Timer className="h-3 w-3" />
+                  {intervalSpec.label}
+                </button>
+              )}
               {completedSets > 0 && (
                 <span className="text-[11px] font-bold text-fitness-success flex items-center gap-1">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
@@ -643,6 +658,15 @@ const ExerciseCardInner = ({
           defaultSeconds={rest.seconds}
           exerciseLabel={localizedName}
           onClose={() => setRest(r => ({ ...r, open: false }))}
+        />
+      )}
+
+      {intervalSpec && intervalRun.open && (
+        <IntervalTimer
+          key={intervalRun.runId}
+          spec={intervalSpec}
+          exerciseLabel={localizedName}
+          onClose={() => setIntervalRun(r => ({ ...r, open: false }))}
         />
       )}
     </div>
