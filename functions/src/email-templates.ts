@@ -8,6 +8,17 @@ export type Lang = "pl" | "en";
 // i Android AndroidManifest.xml). Otwiera Strength Save na telefonie.
 const APP_DEEP_LINK = "strengthsave://open";
 
+// Escape HTML dla wartości interpolowanych do maili (email, displayName, note, body
+// mogą zawierać znaki sterujące z OAuth/inputu admina). Zapobiega HTML injection.
+function esc(value: string): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── Tematy maili (i18n; kod wstawiony w temat weryfikacji) ───────────────────
 export function verificationSubject(code: string, lang: Lang): string {
   return lang === "en"
@@ -27,15 +38,16 @@ export function accessChangedSubject(lang: Lang): string {
 
 // ── Treści HTML ──────────────────────────────────────────────────────────────
 export function verificationEmailHtml(code: string, email: string, lang: Lang): string {
+  const e = esc(email);
   const t = lang === "en"
     ? {
         title: "Confirm your email",
-        intro: `Use the code below to finish signing up for Strength Save for ${email}.`,
+        intro: `Use the code below to finish signing up for Strength Save for ${e}.`,
         expires: "The code expires in 10 minutes.",
       }
     : {
         title: "Potwierdź adres email",
-        intro: `Użyj poniższego kodu, aby dokończyć rejestrację w Strength Save dla ${email}.`,
+        intro: `Użyj poniższego kodu, aby dokończyć rejestrację w Strength Save dla ${e}.`,
         expires: "Kod wygasa po 10 minutach.",
       };
   return `
@@ -52,15 +64,16 @@ export function verificationEmailHtml(code: string, email: string, lang: Lang): 
 }
 
 export function welcomeEmailHtml(displayName: string, lang: Lang): string {
+  const name = esc(displayName);
   const t = lang === "en"
     ? {
         title: "Welcome to Strength Save",
-        body: `${displayName || "Hi"}, your account is ready. You can head to onboarding and start building your training plan.`,
+        body: `${name || "Hi"}, your account is ready. You can head to onboarding and start building your training plan.`,
         cta: "Open the app",
       }
     : {
         title: "Witamy w Strength Save",
-        body: `${displayName || "Cześć"}, konto jest gotowe. Możesz przejść do onboardingu i zacząć układać swój plan treningowy.`,
+        body: `${name || "Cześć"}, konto jest gotowe. Możesz przejść do onboardingu i zacząć układać swój plan treningowy.`,
         cta: "Otwórz aplikację",
       };
   return `
@@ -82,9 +95,9 @@ export function inviteEmailHtml(code: string, inviteUrl: string, note: string | 
       <div style="font-size:28px;font-weight:700;letter-spacing:0.12em;text-align:center;padding:18px 0;border-radius:12px;background:#0f172a;color:#fff;">
         ${code}
       </div>
-      ${note ? `<p style="margin:16px 0 0;color:#334155;">${note}</p>` : ""}
+      ${note ? `<p style="margin:16px 0 0;color:#334155;">${esc(note)}</p>` : ""}
       <p style="margin:20px 0 12px;color:#64748b;">Bezpośredni link:</p>
-      <a href="${inviteUrl}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">Otwórz aplikację</a>
+      <a href="${esc(inviteUrl)}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">Otwórz aplikację</a>
     </div>
   </div>`;
 }
@@ -114,7 +127,7 @@ export function accessChangedEmailHtml(enabled: boolean, lang: Lang): string {
 
 // Prosty branded HTML dla maili admina (custom + broadcast).
 export function adminMessageEmailHtml(body: string): string {
-  const safe = body.replace(/\n/g, "<br/>");
+  const safe = esc(body).replace(/\n/g, "<br/>");
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
     <p style="font-weight:700;font-size:18px;color:#0e0e0e;margin:0 0 16px">Strength Save</p>
     <div style="font-size:15px;line-height:1.6">${safe}</div>
