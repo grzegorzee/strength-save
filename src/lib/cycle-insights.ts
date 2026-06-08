@@ -2,7 +2,7 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import { trainingPlan as defaultPlan } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle, PlanCycleStats } from '@/types/cycles';
-import { calculate1RM } from '@/lib/pr-utils';
+import { calculate1RM, detectNewPRs } from '@/lib/pr-utils';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { translate, type LanguageCode } from '@/i18n';
 
@@ -10,6 +10,8 @@ export interface CycleRecommendation {
   title: string;
   description: string;
   tone: 'success' | 'warning' | 'info';
+  // Czy to moment na zamknięcie cyklu (pokazać akcję "Domknij/Powtórz"). False w trakcie cyklu.
+  canCloseout: boolean;
 }
 
 export interface CycleComparison {
@@ -68,14 +70,24 @@ export const computeCycleStats = (
     });
   });
 
+  // PR-y = RZECZYWISTE rekordy: ćwiczenia, które w którymś treningu cyklu pobiły dotychczasowy
+  // najlepszy wynik z CAŁEJ historii sprzed tego treningu (nie top-N najmocniejszych ćwiczeń cyklu).
+  const prExerciseIds = new Set<string>();
+  for (const w of cycleWorkouts) {
+    const before = workouts.filter((x) => x.completed && x.date < w.date);
+    for (const pr of detectNewPRs(w, before, exerciseNames)) {
+      prExerciseIds.add(pr.exerciseId);
+    }
+  }
+
   const prs = Array.from(exerciseBests.entries())
+    .filter(([exerciseId]) => prExerciseIds.has(exerciseId))
     .map(([exerciseId, data]) => ({
       exerciseName: snapshotNames.get(exerciseId) || exerciseNames.get(exerciseId) || exerciseId,
       weight: data.weight,
       estimated1RM: Math.round(data.estimated1RM * 10) / 10,
     }))
-    .sort((a, b) => b.estimated1RM - a.estimated1RM)
-    .slice(0, 10);
+    .sort((a, b) => b.estimated1RM - a.estimated1RM);
 
   // Expected sessions are based on time ELAPSED so far (capped at plan length),
   // not the whole plan — a fresh/active cycle shouldn't show all future sessions as "missed".
@@ -139,6 +151,9 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
   const isExpired = cycle.status === 'completed'
     ? (!!cycle.endDate && parseLocalDate(cycle.endDate) <= now)
     : plannedEnd <= now;
+  // Akcję zamknięcia/powtórzenia pokazujemy TYLKO gdy cykl wygasł lub jest zakończony —
+  // nie w trakcie (wtedy user ma tylko monitorować).
+  const canCloseout = isExpired || cycle.status === 'completed';
   const comparison = buildCycleComparison(cycle, previousCycle);
 
   if (cycle.status === 'active' && cycle.stats.completionRate < 60) {
@@ -146,6 +161,7 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
       title: translate(lang, 'cyclerec.stabilize.title'),
       description: translate(lang, 'cyclerec.stabilize.desc'),
       tone: 'warning',
+      canCloseout,
     };
   }
 
@@ -156,6 +172,7 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
       title: translate(lang, 'cyclerec.progress.title'),
       description: translate(lang, 'cyclerec.progress.desc'),
       tone: 'success',
+      canCloseout,
     };
   }
 
@@ -166,6 +183,7 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
         ? translate(lang, 'cyclerec.closeout.descWorse')
         : translate(lang, 'cyclerec.closeout.descOk'),
       tone: 'info',
+      canCloseout,
     };
   }
 
@@ -173,6 +191,7 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
     title: translate(lang, 'cyclerec.monitor.title'),
     description: translate(lang, 'cyclerec.monitor.desc'),
     tone: 'info',
+    canCloseout,
   };
 };
 

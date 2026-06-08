@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { History, Dumbbell, Sparkles, TriangleAlert } from 'lucide-react';
+import { History, Dumbbell, Sparkles, TriangleAlert, RefreshCw, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import { CycleCard } from '@/components/CycleCard';
 import { CycleDetail } from '@/components/CycleDetail';
 import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation } from '@/lib/cycle-insights';
+import { startCycleWithPlan } from '@/lib/cycle-actions';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -21,12 +22,30 @@ const Cycles = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
-  const { cycles, isLoaded, createActiveCycle, deleteCycle } = usePlanCycles(uid);
-  const { workouts } = useFirebaseWorkouts(uid);
+  const { cycles, isLoaded, createActiveCycle, deleteCycle, archiveCurrentPlan } = usePlanCycles(uid);
+  const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
-  const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan } = useTrainingPlan(uid);
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);
+  const [isRepeating, setIsRepeating] = useState(false);
   const activeCycle = cycles.find(cycle => cycle.status === 'active') || null;
+
+  const handleRepeatPlan = async () => {
+    const days = activeCycle?.days?.length ? activeCycle.days : trainingPlan;
+    if (days.length === 0) return;
+    setIsRepeating(true);
+    const res = await startCycleWithPlan(days, activeCycle?.durationWeeks ?? planDurationWeeks, {
+      uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+      archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
+    });
+    setIsRepeating(false);
+    if (res.success) {
+      toast({ title: t('cycles.repeatStarted') });
+      navigate('/');
+    } else {
+      toast({ title: t('cycles.repeatFailed'), variant: 'destructive' });
+    }
+  };
 
   // Auto-repair: dotwórz dokument cyklu, jeśli aktywny plan istnieje bez niego.
   //
@@ -104,9 +123,17 @@ const Cycles = () => {
                 <p className="text-lg font-semibold">{recommendation.title}</p>
                 <p className="text-sm text-muted-foreground">{recommendation.description}</p>
               </div>
-              <Button onClick={() => navigate(`/new-plan?fromCycle=${liveActiveCycle.id}`)}>
-                {t('cycles.closeAndPrepare')}
-              </Button>
+              {recommendation.canCloseout && (
+                <div className="flex flex-col gap-2 shrink-0">
+                  <Button onClick={handleRepeatPlan} disabled={isRepeating}>
+                    {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                    {t('cycles.repeatPlan')}
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate(`/new-plan?fromCycle=${liveActiveCycle.id}`)}>
+                    {t('cycles.changePlan')}
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-3 md:grid-cols-4">

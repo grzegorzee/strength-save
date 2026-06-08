@@ -23,6 +23,15 @@ const planDays: TrainingDay[] = [
 ];
 
 const workouts: WorkoutSession[] = [
+  // Historia sprzed cyklu — baseline dla rekordów (ex-1 robiony na 50 kg).
+  {
+    id: 'w0',
+    userId: 'user-1',
+    dayId: 'day-1',
+    date: '2026-03-20',
+    completed: true,
+    exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 6, weight: 50, completed: true }] }],
+  },
   {
     id: 'w1',
     userId: 'user-1',
@@ -96,6 +105,21 @@ describe('cycle-insights', () => {
     const rec = buildCycleRecommendation(cycle, null, new Date('2026-06-08'));
     expect(rec.title).toBe(translate('pl', 'cyclerec.monitor.title'));
     expect(rec.title).not.toBe(translate('pl', 'cyclerec.closeout.title'));
+    // W trakcie cyklu NIE pokazujemy akcji zamknięcia/powtórzenia.
+    expect(rec.canCloseout).toBe(false);
+  });
+
+  it('wygasły aktywny cykl wyzwala closeout + canCloseout=true', () => {
+    const cycle: PlanCycle = {
+      id: 'expired', userId: 'u1', days: planDays, durationWeeks: 12,
+      startDate: '2026-01-01', endDate: '', // aktywny (preview ustawi endDate=dziś)
+      status: 'active', createdAt: '2026-01-01T00:00:00.000Z',
+      stats: { totalWorkouts: 30, totalTonnage: 50000, prs: [], completionRate: 70 },
+    };
+    // now daleko po planowanym końcu (2026-01-01 + 12 tyg = ~2026-03-26)
+    const rec = buildCycleRecommendation(cycle, null, new Date('2026-06-08'));
+    expect(rec.canCloseout).toBe(true);
+    expect(rec.title).toBe(translate('pl', 'cyclerec.closeout.title'));
   });
 });
 

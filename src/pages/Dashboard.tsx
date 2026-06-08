@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { useToast } from '@/hooks/use-toast';
+import { startCycleWithPlan } from '@/lib/cycle-actions';
 import { trainingPlan as defaultPlanData, type TrainingDay } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
@@ -99,11 +101,51 @@ const Dashboard = () => {
     getCompletedWorkoutsCount,
     getLatestMeasurement,
     isLoaded,
-    error
+    error,
+    backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
-  const { cycles } = usePlanCycles(uid);
+  const { cycles, archiveCurrentPlan, createActiveCycle } = usePlanCycles(uid);
+  const { toast } = useToast();
+  const [isRepeating, setIsRepeating] = useState(false);
+
+  const handleRepeatPlan = async () => {
+    const active = cycles.find((c) => c.status === 'active') || null;
+    const days = active?.days?.length ? active.days : trainingPlan;
+    if (days.length === 0) return;
+    setIsRepeating(true);
+    const res = await startCycleWithPlan(days, active?.durationWeeks ?? planDurationWeeks, {
+      uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+      archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
+    });
+    setIsRepeating(false);
+    toast(res.success
+      ? { title: t('cycles.repeatStarted') }
+      : { title: t('cycles.repeatFailed'), variant: 'destructive' });
+  };
+
+  // Auto-przedłużenie: jeśli plan wygasł >7 dni temu, a user nie wybrał nic nowego —
+  // automatycznie startuj nowy cykl tego samego planu (decyzja produktowa: nie blokujemy).
+  // Guard w localStorage per-plan zapewnia jednorazowość; dlatego deps celowo ograniczone.
+  useEffect(() => {
+    if (!isLoaded || trainingPlan.length === 0 || !planStartDate || !uid) return;
+    const plannedEnd = parseLocalDate(planStartDate).getTime() + planDurationWeeks * 7 * 86_400_000;
+    const daysSinceEnd = Math.floor((Date.now() - plannedEnd) / 86_400_000);
+    if (daysSinceEnd < 7) return;
+    const guardKey = `auto-extend:${uid}:${planStartDate}`;
+    try {
+      if (localStorage.getItem(guardKey)) return;
+      localStorage.setItem(guardKey, '1');
+    } catch { return; }
+    startCycleWithPlan(trainingPlan, planDurationWeeks, {
+      uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+      archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
+    }).then((res) => {
+      if (res.success) toast({ title: t('cycles.autoExtended') });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, trainingPlan, planStartDate, planDurationWeeks, uid]);
   const [localDraft, setLocalDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
@@ -501,6 +543,12 @@ const Dashboard = () => {
             {planNextStep.secondaryPath && planNextStep.secondaryLabel ? (
               <Button variant="outline" onClick={() => navigate(planNextStep.secondaryPath!)}>
                 {planNextStep.secondaryLabel}
+              </Button>
+            ) : null}
+            {isPlanExpired && trainingPlan.length > 0 ? (
+              <Button variant="outline" onClick={handleRepeatPlan} disabled={isRepeating}>
+                {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                {t('cycles.repeatPlan')}
               </Button>
             ) : null}
           </div>
