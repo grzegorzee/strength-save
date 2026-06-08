@@ -331,7 +331,9 @@ const ExerciseCardInner = ({
             aria-label={set.completed ? t('card.uncheckSet') : t('card.checkSet')}
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
-              set.completed ? 'bg-accent text-accent-foreground' : 'bg-surface-highest text-transparent hover:text-accent/40',
+              set.completed
+                ? 'bg-accent text-accent-foreground'
+                : 'border-2 border-muted-foreground/40 text-muted-foreground/50 hover:border-accent hover:text-accent',
             )}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">

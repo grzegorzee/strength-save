@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, Timer as TimerIcon } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak } from '@/lib/summary-utils';
@@ -1195,27 +1195,13 @@ const WorkoutDay = () => {
     </Card>
   ) : null;
 
-  // Subtle auto-save indicator (no layout shift)
+  // Auto-save indicator: lokalny zapis jest cichy (trening trzymany lokalnie, sync leci
+  // przy "Zakończ trening"). Pokazujemy TYLKO realny błąd, żeby nie zaśmiecać ekranu.
   const AutoSaveIndicator = () => {
-    if (autoSaveStatus === 'idle') return null;
+    if (autoSaveStatus !== 'error') return null;
     return (
-      <div className={cn(
-        "fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300",
-        autoSaveStatus === 'local-saved' && "bg-muted text-muted-foreground opacity-70",
-        autoSaveStatus === 'local-only' && "bg-sky-100 text-sky-800",
-        autoSaveStatus === 'sync-pending' && "bg-amber-100 text-amber-700",
-        autoSaveStatus === 'syncing' && "bg-primary/10 text-primary",
-        autoSaveStatus === 'synced' && "bg-emerald-100 text-emerald-700",
-        autoSaveStatus === 'final-sync-pending' && "bg-amber-100 text-amber-800",
-        autoSaveStatus === 'error' && "bg-destructive/20 text-destructive",
-      )}>
-        {autoSaveStatus === 'local-saved' && <><Cloud className="h-3 w-3" /> {t('workout.status.localSaved')}</>}
-        {autoSaveStatus === 'local-only' && <><CloudOff className="h-3 w-3" /> {t('workout.status.offline')}</>}
-        {autoSaveStatus === 'sync-pending' && <><CloudOff className="h-3 w-3" /> {t('workout.status.syncPending')}</>}
-        {autoSaveStatus === 'syncing' && <><Loader2 className="h-3 w-3 animate-spin" /> {t('workout.status.syncing')}</>}
-        {autoSaveStatus === 'synced' && <><Cloud className="h-3 w-3" /> {t('workout.status.synced')}</>}
-        {autoSaveStatus === 'final-sync-pending' && <><CloudOff className="h-3 w-3" /> {t('workout.status.finishedLocally')}</>}
-        {autoSaveStatus === 'error' && <><CloudOff className="h-3 w-3" /> {t('workout.status.error')}</>}
+      <div className="fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300 bg-destructive/20 text-destructive">
+        <CloudOff className="h-3 w-3" /> {t('workout.status.error')}
       </div>
     );
   };
@@ -1335,7 +1321,7 @@ const WorkoutDay = () => {
                       <div className="flex items-center gap-4 text-sm">
                         <span>{t('workout.setsProgress', { done: completed.length, total: sets.length })}</span>
                         {totalWeight > 0 && (
-                          <Badge className="bg-fitness-success text-white">{totalWeight} kg</Badge>
+                          <Badge className="bg-fitness-success text-background font-semibold">{totalWeight} kg</Badge>
                         )}
                       </div>
                     )}
@@ -1458,17 +1444,11 @@ const WorkoutDay = () => {
         {(!isWorkoutStarted || isCompleted) && <span />}
       </div>
 
-      {/* Timer sesji + tonaż/czas (mockup [17]) */}
+      {/* Tonaż + czas sesji (kafelki) */}
       {isWorkoutStarted && !isCompleted && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-center gap-2 text-primary">
-            <TimerIcon className="h-5 w-5" />
-            <span className="font-heading text-3xl font-bold tabular-nums tracking-tight">{fmtDuration(elapsedSec)}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <StatCard label={t('dash.stat.tonnage')} value={fmt(sessionVolumeKg)} accent="secondary" />
-            <StatCard label={t('workout.statTime')} value={fmtDuration(elapsedSec)} accent="primary" />
-          </div>
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard label={t('dash.stat.tonnage')} value={fmt(sessionVolumeKg)} accent="secondary" />
+          <StatCard label={t('workout.statTime')} value={fmtDuration(elapsedSec)} accent="primary" />
         </div>
       )}
 
