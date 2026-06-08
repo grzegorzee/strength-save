@@ -58,9 +58,12 @@ service cloud.firestore {
 
     // Workouts collection
     match /workouts/{workoutId} {
-      // Users can only read/write their own workouts (by userId field)
+      // Users can only read/write their own workouts (by userId field).
+      // resource == null: dokument nie istnieje — get() po ID zwraca pustkę, nic nie wycieka.
+      // Bez tego getDoc na nowym (jeszcze nieutworzonym) treningu = PERMISSION_DENIED i nie da się
+      // rozpocząć treningu (resource.data.userId na nieistniejącym dokumencie to błąd ewaluacji).
       allow read: if request.auth != null
-                  && (isAdmin() || hasSelfAccess(resource.data.userId));
+                  && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
       allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
@@ -131,7 +134,8 @@ service cloud.firestore {
 
     // Plan cycles (training plan history)
     match /plan_cycles/{cycleId} {
-      allow read: if request.auth != null && (isAdmin() || hasSelfAccess(resource.data.userId));
+      // resource == null: getCycleById po nieistniejącym ID nie wycieka danych (patrz workouts).
+      allow read: if request.auth != null && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
       allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
