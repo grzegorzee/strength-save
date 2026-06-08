@@ -192,7 +192,7 @@ async function sendEmail(params: {
 
   const resend = new Resend(apiKey);
   const response = await resend.emails.send({
-    from: "Strength Save <onboarding@resend.dev>",
+    from: "Strength Save <noreply@strengthsave.app>",
     to: params.to,
     subject: params.subject,
     html: params.html,

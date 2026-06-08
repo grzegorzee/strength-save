@@ -219,7 +219,7 @@ export const weeklyDigest = onSchedule(
 </html>`;
 
         await resend.emails.send({
-          from: "Strength Save <onboarding@resend.dev>",
+          from: "Strength Save <noreply@strengthsave.app>",
           to: user.email,
           subject,
           html,
