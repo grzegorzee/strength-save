@@ -228,7 +228,7 @@ export async function listWaitlistEntries() {
   return result.data.entries;
 }
 
-export async function updateUserAccess(input: { uid: string; accessEnabled: boolean; suspended: boolean }) {
+export async function updateUserAccess(input: { uid: string; accessEnabled: boolean; suspended: boolean; reason?: string }) {
   if (isE2EMode) {
     return { success: true };
   }
@@ -252,4 +252,49 @@ export async function listAuthAuditLogs() {
   const fn = httpsCallable<Record<string, never>, { logs: AuthAuditLogRecord[] }>(functions, "listAuthAuditLogs");
   const result = await fn({});
   return result.data.logs;
+}
+
+// ── Panel admina (Fazy 1-3 + push) ──────────────────────────────────────────
+
+export interface AdminLogEntry {
+  id: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+export async function adminGetUserLogs(uid: string) {
+  if (isE2EMode) return { notifications: [] as AdminLogEntry[], authLogs: [] as AdminLogEntry[] };
+  const fn = httpsCallable<{ uid: string }, { notifications: AdminLogEntry[]; authLogs: AdminLogEntry[] }>(functions, "adminGetUserLogs");
+  const result = await fn({ uid });
+  return result.data;
+}
+
+export async function adminSendUserEmail(input: { uid: string; subject: string; body: string }) {
+  if (isE2EMode) return { success: true };
+  const fn = httpsCallable<typeof input, { success: boolean }>(functions, "adminSendUserEmail");
+  return (await fn(input)).data;
+}
+
+export async function adminResendVerification(uid: string) {
+  if (isE2EMode) return { success: true };
+  const fn = httpsCallable<{ uid: string }, { success: boolean }>(functions, "adminResendVerification");
+  return (await fn({ uid })).data;
+}
+
+export async function adminBroadcastEmail(input: { target: string; subject: string; body: string }) {
+  if (isE2EMode) return { success: true, sent: 0, total: 0 };
+  const fn = httpsCallable<typeof input, { success: boolean; sent: number; total: number }>(functions, "adminBroadcastEmail");
+  return (await fn(input)).data;
+}
+
+export async function adminSendPush(input: { target: string; title: string; body: string }) {
+  if (isE2EMode) return { success: true, sent: 0, total: 0 };
+  const fn = httpsCallable<typeof input, { success: boolean; sent: number; total: number }>(functions, "adminSendPush");
+  return (await fn(input)).data;
+}
+
+export async function adminDeleteUser(uid: string) {
+  if (isE2EMode) return { success: true };
+  const fn = httpsCallable<{ uid: string }, { success: boolean }>(functions, "adminDeleteUser");
+  return (await fn({ uid })).data;
 }

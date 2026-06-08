@@ -37,6 +37,12 @@ export {
   syncUserProfile,
   updateUserAccess,
   verifyEmailCode,
+  adminGetUserLogs,
+  adminSendUserEmail,
+  adminResendVerification,
+  adminBroadcastEmail,
+  adminSendPush,
+  adminDeleteUser,
 } from "./registration";
 
 admin.initializeApp();
@@ -149,6 +155,17 @@ async function assertAppAccess(userId: string): Promise<void> {
 
   if (data?.access?.enabled === false) {
     throw new HttpsError("permission-denied", "Access disabled by admin");
+  }
+}
+
+// AI per użytkownik: admin może wyłączyć AI ustawiając features.ai = false.
+// Domyślnie AI jest włączone (undefined/true). Admin zawsze ma dostęp.
+async function assertAiEnabled(userId: string): Promise<void> {
+  const userDoc = await getUserRef(userId).get();
+  const data = userDoc.data();
+  if (data?.role === "admin") return;
+  if (data?.features?.ai === false) {
+    throw new HttpsError("permission-denied", "AI disabled by admin");
   }
 }
 
@@ -551,6 +568,7 @@ export const proxyOpenAI = onCall(
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
     await assertAppAccess(request.auth.uid);
+    await assertAiEnabled(request.auth.uid);
 
     const { messages, model, maxTokens } = request.data;
     if (!messages || !Array.isArray(messages)) {
@@ -662,6 +680,7 @@ export const streamOpenAI = onRequest(
 
     try {
       await assertAppAccess(userId);
+      await assertAiEnabled(userId);
     } catch (error) {
       const message = error instanceof HttpsError ? error.message : "Access denied";
       res.status(403).json({ error: message });

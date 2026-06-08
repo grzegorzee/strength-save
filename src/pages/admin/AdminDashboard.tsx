@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, getDocs, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, getDocs, getCountFromServer, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2, MailPlus, Ticket, ClipboardList, History, Mail, Ban } from 'lucide-react';
+import { Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2, MailPlus, Ticket, ClipboardList, History, Mail, Ban, Search, Trash2, RotateCcw, Send } from 'lucide-react';
 import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
+import { AdminUserLogs } from '@/components/admin/AdminUserLogs';
+import { AdminCommsCard } from '@/components/admin/AdminCommsCard';
+import { AdminFeatureFlagsCard } from '@/components/admin/AdminFeatureFlagsCard';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -20,14 +23,21 @@ import {
   listWaitlistEntries,
   revokeInvite,
   updateUserAccess,
+  adminSendUserEmail,
+  adminResendVerification,
+  adminDeleteUser,
   type AuthAuditLogRecord,
   type InviteRecord,
   type WaitlistEntryRecord,
 } from '@/lib/registration-api';
 
 const AVAILABLE_FEATURES = [
-  { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą' },
+  { key: 'ai', label: 'AI', description: 'Dostęp do funkcji AI (Coach, plany)', defaultOn: true },
+  { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą', defaultOn: false },
 ] as const;
+
+type UserFilter = 'all' | 'active' | 'suspended' | 'no-access' | 'unverified';
+type UserSort = 'recent' | 'name';
 
 type FeatureKey = typeof AVAILABLE_FEATURES[number]['key'];
 
@@ -120,6 +130,10 @@ const AdminDashboard = () => {
   const [inviteCohorts, setInviteCohorts] = useState('');
   const [creatingInvite, setCreatingInvite] = useState(false);
   const [adminDataLoading, setAdminDataLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userFilter, setUserFilter] = useState<UserFilter>('all');
+  const [userSort, setUserSort] = useState<UserSort>('recent');
+  const [counts, setCounts] = useState<{ workouts: number; activeCycles: number } | null>(null);
 
   // Current month key for AI usage query
   const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -269,10 +283,18 @@ const AdminDashboard = () => {
   const toggleSuspended = async (uid: string, suspended: boolean) => {
     try {
       const currentUser = users.find((user) => user.uid === uid);
+      // Przy zawieszaniu pytamy o powód (np. naruszenie regulaminu) — trafia do audytu.
+      let reason: string | undefined;
+      if (suspended) {
+        const input = window.prompt('Powód zawieszenia (np. naruszenie regulaminu):', '');
+        if (input === null) return; // anulowano
+        reason = input.trim() || undefined;
+      }
       await updateUserAccess({
         uid,
         accessEnabled: suspended ? false : (currentUser?.accessEnabled ?? true),
         suspended,
+        reason,
       });
       setUsers(prev => prev.map(user => (
         user.uid === uid
@@ -397,12 +419,156 @@ const AdminDashboard = () => {
   const getInitials = (name: string) =>
     name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
 
+  // Liczniki ogólne (puls): treningi + aktywne cykle (efektywne zapytania count).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [w, c] = await Promise.all([
+          getCountFromServer(collection(db, 'workouts')),
+          getCountFromServer(query(collection(db, 'plan_cycles'), where('status', '==', 'active'))),
+        ]);
+        if (!cancelled) setCounts({ workouts: w.data().count, activeCycles: c.data().count });
+      } catch {
+        if (!cancelled) setCounts(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Unikalne cohorty (do broadcastu i filtrów).
+  const allCohorts = useMemo(
+    () => Array.from(new Set(users.flatMap(u => u.cohorts))).sort(),
+    [users],
+  );
+
+  // Aktywni w ostatnich 7 dniach (po lastLogin).
+  const activeLast7 = useMemo(() => {
+    const cutoff = Date.now() - 7 * 86_400_000;
+    return users.filter(u => u.lastLogin && new Date(u.lastLogin).getTime() >= cutoff).length;
+  }, [users]);
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    const matchesFilter = (u: AdminUser) => {
+      switch (userFilter) {
+        case 'active': return u.status === 'active' && u.accessEnabled;
+        case 'suspended': return u.status === 'suspended';
+        case 'no-access': return !u.accessEnabled && u.status !== 'suspended';
+        case 'unverified': return !u.emailVerifiedAt;
+        default: return true;
+      }
+    };
+    return users
+      .filter(u => matchesFilter(u) && (!q || u.email.toLowerCase().includes(q) || u.displayName.toLowerCase().includes(q)))
+      .sort((a, b) => userSort === 'name'
+        ? (a.displayName || a.email).localeCompare(b.displayName || b.email)
+        : (b.lastLogin || '').localeCompare(a.lastLogin || ''));
+  }, [users, userSearch, userFilter, userSort]);
+
+  const handleResetOnboarding = async (uid: string) => {
+    if (!confirm('Zresetować onboarding tego użytkownika? Przejdzie kreator od nowa.')) return;
+    try {
+      await updateDoc(doc(db, 'users', uid), { onboardingCompleted: false, 'onboarding.state': 'not_started' });
+      toast({ title: 'Onboarding zresetowany' });
+    } catch {
+      toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
+    }
+  };
+
+  const handleResendCode = async (uid: string) => {
+    if (!confirm('Wysłać ponownie kod weryfikacyjny do tego użytkownika?')) return;
+    try {
+      await adminResendVerification(uid);
+      toast({ title: 'Kod wysłany' });
+    } catch (e) {
+      toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
+    }
+  };
+
+  const handleSendEmail = async (uid: string) => {
+    const subject = window.prompt('Temat maila:', '');
+    if (!subject) return;
+    const body = window.prompt('Treść maila:', '');
+    if (!body) return;
+    try {
+      await adminSendUserEmail({ uid, subject, body });
+      toast({ title: 'Mail wysłany' });
+    } catch (e) {
+      toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
+    }
+  };
+
+  const handleEditCohorts = async (uid: string, current: string[]) => {
+    const input = window.prompt('Cohorty (po przecinku):', current.join(', '));
+    if (input === null) return;
+    const cohorts = input.split(',').map(c => c.trim()).filter(Boolean);
+    try {
+      await updateDoc(doc(db, 'users', uid), { cohorts });
+      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, cohorts } : u));
+      toast({ title: 'Cohorty zapisane', description: cohorts.join(', ') || 'brak' });
+    } catch {
+      toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
+    }
+  };
+
+  const handleDeleteUser = async (uid: string, name: string) => {
+    if (!confirm(`Usunąć konto i WSZYSTKIE dane użytkownika "${name}"? Tego nie da się cofnąć.`)) return;
+    if (!confirm('Na pewno? Druga i ostatnia prośba o potwierdzenie.')) return;
+    try {
+      await adminDeleteUser(uid);
+      setUsers(prev => prev.filter(u => u.uid !== uid));
+      setExpandedUid(null);
+      toast({ title: 'Konto usunięte', description: name });
+    } catch (e) {
+      toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{t('admin.title')}</h1>
+        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('admin.title')}</h1>
         <p className="text-muted-foreground text-sm">{t('admin.subtitle')}</p>
       </div>
+
+      {/* Puls aplikacji */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-heading font-bold uppercase tracking-tight">Puls aplikacji</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const suspended = users.filter(u => u.status === 'suspended').length;
+            const noAccess = users.filter(u => !u.accessEnabled && u.status !== 'suspended').length;
+            const unverified = users.filter(u => !u.emailVerifiedAt).length;
+            const activeInvites = invites.filter(i => i.status === 'active').length;
+            const aiCost = aiUsage.reduce((s, u) => s + u.estimatedCostUsd, 0);
+            const stats: { label: string; value: string | number }[] = [
+              { label: 'Użytkownicy', value: users.length },
+              { label: 'Aktywni 7 dni', value: activeLast7 },
+              { label: 'Treningi', value: counts ? counts.workouts : '—' },
+              { label: 'Aktywne cykle', value: counts ? counts.activeCycles : '—' },
+              { label: 'Zawieszeni', value: suspended },
+              { label: 'Bez dostępu', value: noAccess },
+              { label: 'Niezweryfikowani', value: unverified },
+              { label: 'Waitlista', value: waitlistEntries.length },
+              { label: 'Zaproszenia akt.', value: activeInvites },
+              { label: 'Koszt AI/mies', value: `$${aiCost.toFixed(2)}` },
+            ];
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {stats.map(s => (
+                  <div key={s.label} className="rounded-xl bg-surface-low p-3">
+                    <p className="font-heading font-bold text-2xl tabular-nums leading-none">{s.value}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* AI Cost Summary */}
       {(() => {
@@ -588,13 +754,28 @@ const AdminDashboard = () => {
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
             <Users className="h-5 w-5" />
-            {t('admin.users', { count: users.length })}
+            {t('admin.users', { count: filteredUsers.length })}
           </CardTitle>
+          <div className="pt-3 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Szukaj po nazwie lub mailu" className="pl-9" />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {([['all', 'Wszyscy'], ['active', 'Aktywni'], ['suspended', 'Zawieszeni'], ['no-access', 'Bez dostępu'], ['unverified', 'Niezweryf.']] as [UserFilter, string][]).map(([key, label]) => (
+                <button key={key} onClick={() => setUserFilter(key)} className={cn('rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', userFilter === key ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>{label}</button>
+              ))}
+              <span className="mx-1 w-px self-stretch bg-surface-high" />
+              {([['recent', 'Ostatni'], ['name', 'Nazwa']] as [UserSort, string][]).map(([key, label]) => (
+                <button key={key} onClick={() => setUserSort(key)} className={cn('rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', userSort === key ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}>{label}</button>
+              ))}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
-          {users.map((user) => {
+          {filteredUsers.map((user) => {
             const isExpanded = expandedUid === user.uid;
             const details = detailsByUser[user.uid];
             const detailsLoading = !!loadingDetails[user.uid];
@@ -677,7 +858,7 @@ const AdminDashboard = () => {
                             <p className="text-xs text-muted-foreground">{feat.key === 'strava' ? t('admin.featStravaDesc') : feat.description}</p>
                           </div>
                           <Switch
-                            checked={user.features[feat.key] ?? user.role === 'admin'}
+                            checked={user.features[feat.key] ?? (feat.defaultOn || user.role === 'admin')}
                             onCheckedChange={(checked) => toggleFeature(user.uid, feat.key, checked)}
                             disabled={user.role === 'admin'}
                           />
@@ -772,15 +953,29 @@ const AdminDashboard = () => {
                       );
                     })()}
 
+                    {/* Logi per-użytkownik */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Logi</p>
+                      <AdminUserLogs uid={user.uid} />
+                    </div>
+
                     {/* Actions */}
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/plans/${user.uid}`)}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/admin/plans/${user.uid}`)}>
                         <Dumbbell className="h-4 w-4 mr-1.5" />
                         {t('admin.editPlan')}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => void handleSendEmail(user.uid)}>
+                        <Mail className="h-4 w-4 mr-1.5" /> Wyślij mail
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => void handleResendCode(user.uid)}>
+                        <Send className="h-4 w-4 mr-1.5" /> Wyślij kod
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => void handleResetOnboarding(user.uid)}>
+                        <RotateCcw className="h-4 w-4 mr-1.5" /> Reset onboardingu
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => void handleEditCohorts(user.uid, user.cohorts)}>
+                        <Ticket className="h-4 w-4 mr-1.5" /> Cohorty
                       </Button>
                       <Button
                         variant={user.status === 'suspended' ? 'outline' : 'destructive'}
@@ -790,6 +985,14 @@ const AdminDashboard = () => {
                       >
                         {user.status === 'suspended' ? <ShieldCheck className="h-4 w-4 mr-1.5" /> : <Ban className="h-4 w-4 mr-1.5" />}
                         {user.status === 'suspended' ? t('admin.restoreAccount') : t('admin.suspendAccount')}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => void handleDeleteUser(user.uid, user.displayName || user.email)}
+                        disabled={user.role === 'admin'}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1.5" /> Usuń konto
                       </Button>
                     </div>
 
@@ -810,13 +1013,18 @@ const AdminDashboard = () => {
             );
           })}
 
-          {users.length === 0 && (
+          {filteredUsers.length === 0 && (
             <p className="text-center text-muted-foreground py-8">
               {t('admin.noUsers')}
             </p>
           )}
         </CardContent>
       </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AdminCommsCard cohorts={allCohorts} />
+        <AdminFeatureFlagsCard />
+      </div>
     </div>
   );
 };

@@ -766,6 +766,7 @@ export const updateUserAccess = onCall({ secrets: [resendApiKey] }, async (reque
   if (!uid) throw new HttpsError("invalid-argument", "uid is required");
   const accessEnabled = Boolean(request.data?.accessEnabled);
   const suspended = Boolean(request.data?.suspended);
+  const reason = normalizeOptionalString(request.data?.reason, 500);
   const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
   const userSnap = await userRef.get();
   if (!userSnap.exists) throw new HttpsError("not-found", "User not found");
@@ -778,6 +779,7 @@ export const updateUserAccess = onCall({ secrets: [resendApiKey] }, async (reque
     status: nextStatus,
     audit: {
       lastAccessChangeAt: timestamp,
+      ...(suspended && reason ? { lastSuspendReason: reason } : {}),
     },
   }, { merge: true });
 
@@ -797,7 +799,7 @@ export const updateUserAccess = onCall({ secrets: [resendApiKey] }, async (reque
     email: userData.email || null,
     actorUid: request.auth.uid,
     createdAt: timestamp,
-    metadata: { accessEnabled, suspended },
+    metadata: { accessEnabled, suspended, ...(reason ? { reason } : {}) },
   });
 
   return { success: true };
@@ -810,4 +812,186 @@ export const listAuthAuditLogs = onCall(async (request) => {
   return {
     logs: snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
   };
+});
+
+// ── Panel admina (Fazy 1-3 + push) ──────────────────────────────────────────
+
+// Prosty branded HTML dla maili admina (custom + broadcast).
+function adminMessageEmailHtml(body: string): string {
+  const safe = body.replace(/\n/g, "<br/>");
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
+    <p style="font-weight:700;font-size:18px;color:#0e0e0e;margin:0 0 16px">Strength Save</p>
+    <div style="font-size:15px;line-height:1.6">${safe}</div>
+    <p style="margin-top:24px;font-size:12px;color:#888">Strength Save</p>
+  </div>`;
+}
+
+// Logi per-użytkownik: maile (notification_logs) + zdarzenia auth (auth_audit_logs).
+// Bez orderBy w zapytaniu (uniknięcie composite indexu) — sortujemy w pamięci.
+export const adminGetUserLogs = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const uid = normalizeOptionalString(request.data?.uid, 120);
+  if (!uid) throw new HttpsError("invalid-argument", "uid is required");
+
+  const [notifSnap, authSnap] = await Promise.all([
+    getDb().collection(NOTIFICATION_LOGS_COLLECTION).where("userId", "==", uid).limit(100).get(),
+    getDb().collection(AUTH_AUDIT_COLLECTION).where("uid", "==", uid).limit(100).get(),
+  ]);
+
+  const createdAtOf = (x: Record<string, unknown>) => (typeof x.createdAt === "string" ? x.createdAt : "");
+  const byCreatedDesc = (a: Record<string, unknown>, b: Record<string, unknown>) =>
+    createdAtOf(b).localeCompare(createdAtOf(a));
+
+  const notifications = notifSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort(byCreatedDesc);
+  const authLogs = authSnap.docs.map((d) => ({ id: d.id, ...d.data() })).sort(byCreatedDesc);
+  return { notifications, authLogs };
+});
+
+// Wyślij własnego maila do użytkownika.
+export const adminSendUserEmail = onCall({ secrets: [resendApiKey] }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const uid = normalizeOptionalString(request.data?.uid, 120);
+  const subject = normalizeOptionalString(request.data?.subject, 200);
+  const body = normalizeOptionalString(request.data?.body, 5000);
+  if (!uid || !subject || !body) throw new HttpsError("invalid-argument", "uid, subject, body required");
+
+  const userSnap = await getDb().collection(USERS_COLLECTION).doc(uid).get();
+  if (!userSnap.exists) throw new HttpsError("not-found", "User not found");
+  const email = (userSnap.data() as UserProfileDoc).email;
+  if (!email) throw new HttpsError("failed-precondition", "User has no email");
+
+  await sendEmail({ to: email, subject, html: adminMessageEmailHtml(body), type: "admin_message", userId: uid });
+  return { success: true };
+});
+
+// Ponowne wysłanie kodu weryfikacyjnego do wybranego użytkownika (admin).
+export const adminResendVerification = onCall({ secrets: [resendApiKey, authPepper] }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const uid = normalizeOptionalString(request.data?.uid, 120);
+  if (!uid) throw new HttpsError("invalid-argument", "uid required");
+  const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
+  const userSnap = await userRef.get();
+  if (!userSnap.exists) throw new HttpsError("not-found", "User not found");
+  const userData = userSnap.data() as UserProfileDoc;
+  const email = userData.email ? normalizeEmail(userData.email) : null;
+  if (!email) throw new HttpsError("failed-precondition", "User has no email");
+
+  const code = randomVerificationCode();
+  const timestamp = nowIso();
+  await getDb().collection(VERIFICATION_CODES_COLLECTION).doc(codeDocId(email)).set({
+    email, uid,
+    codeHash: hashCode(email, code, authPepper.value()),
+    createdAt: timestamp, sentAt: timestamp,
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    attempts: 0, status: "pending",
+  } satisfies VerificationCodeDoc);
+
+  await sendEmail({ to: email, subject: "Strength Save — kod weryfikacyjny", html: verificationEmailHtml(code, email), type: "verification_code", userId: uid });
+  return { success: true };
+});
+
+// Broadcast mailowy do wszystkich lub do cohorty.
+export const adminBroadcastEmail = onCall({ secrets: [resendApiKey] }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const target = normalizeOptionalString(request.data?.target, 60) || "all"; // 'all' | nazwa cohorty
+  const subject = normalizeOptionalString(request.data?.subject, 200);
+  const body = normalizeOptionalString(request.data?.body, 5000);
+  if (!subject || !body) throw new HttpsError("invalid-argument", "subject, body required");
+
+  let query: FirebaseFirestore.Query = getDb().collection(USERS_COLLECTION);
+  if (target !== "all") query = query.where("cohorts", "array-contains", target);
+  const snap = await query.get();
+  const recipients = snap.docs
+    .map((d) => (d.data() as UserProfileDoc).email)
+    .filter((e): e is string => !!e);
+
+  const html = adminMessageEmailHtml(body);
+  let sent = 0;
+  for (const email of recipients) {
+    try {
+      await sendEmail({ to: email, subject, html, type: "admin_broadcast", userId: null });
+      sent += 1;
+    } catch {
+      // pojedynczy błąd nie przerywa broadcastu
+    }
+  }
+  return { success: true, sent, total: recipients.length };
+});
+
+// Push (FCM) do wszystkich lub do cohorty. Tokeny w users/{uid}.fcmTokens.
+export const adminSendPush = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const target = normalizeOptionalString(request.data?.target, 60) || "all";
+  const title = normalizeOptionalString(request.data?.title, 120);
+  const body = normalizeOptionalString(request.data?.body, 500);
+  if (!title || !body) throw new HttpsError("invalid-argument", "title, body required");
+
+  let query: FirebaseFirestore.Query = getDb().collection(USERS_COLLECTION);
+  if (target !== "all") query = query.where("cohorts", "array-contains", target);
+  const snap = await query.get();
+
+  const tokens: string[] = [];
+  snap.docs.forEach((d) => {
+    const t = (d.data() as { fcmTokens?: unknown }).fcmTokens;
+    if (Array.isArray(t)) t.forEach((tok) => { if (typeof tok === "string" && tok) tokens.push(tok); });
+  });
+  const unique = Array.from(new Set(tokens));
+  if (unique.length === 0) return { success: true, sent: 0, total: 0 };
+
+  // sendEachForMulticast obsługuje max 500 tokenów na wywołanie.
+  let sent = 0;
+  for (let i = 0; i < unique.length; i += 500) {
+    const batch = unique.slice(i, i + 500);
+    const res = await admin.messaging().sendEachForMulticast({
+      tokens: batch,
+      notification: { title, body },
+    });
+    sent += res.successCount;
+  }
+  return { success: true, sent, total: unique.length };
+});
+
+// Usuń użytkownika: konto Auth + dane Firestore (GDPR). Operacja nieodwracalna.
+export const adminDeleteUser = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const uid = normalizeOptionalString(request.data?.uid, 120);
+  if (!uid) throw new HttpsError("invalid-argument", "uid required");
+  if (uid === request.auth.uid) throw new HttpsError("failed-precondition", "Nie można usunąć własnego konta admina.");
+
+  const db = getDb();
+  // Kolekcje z polem userId.
+  const byUserId = ["workouts", "measurements", "plan_cycles", "weekly_summaries", "chat_messages", "strava_activities"];
+  for (const coll of byUserId) {
+    const snap = await db.collection(coll).where("userId", "==", uid).limit(500).get();
+    let batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    if (!snap.empty) await batch.commit();
+  }
+  // Dokumenty po ID = uid.
+  await db.collection("training_plans").doc(uid).delete().catch(() => {});
+  await db.collection(USERS_COLLECTION).doc(uid).delete().catch(() => {});
+  // ai_usage: docId = `${uid}_${miesiac}`.
+  const aiSnap = await db.collection("ai_usage").where("userId", "==", uid).limit(500).get();
+  if (!aiSnap.empty) {
+    const batch = db.batch();
+    aiSnap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+  // Konto Auth.
+  await admin.auth().deleteUser(uid).catch(() => {});
+
+  await writeAuthAuditLog({
+    eventType: "admin_user_deleted",
+    uid,
+    email: null,
+    actorUid: request.auth.uid,
+    createdAt: nowIso(),
+  });
+  return { success: true };
 });
