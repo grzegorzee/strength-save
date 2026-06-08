@@ -86,67 +86,60 @@ export const IntervalTimer = ({ spec, exerciseLabel, onClose }: IntervalTimerPro
   const progress = unitLen > 0 ? (secInUnit / unitLen) * 100 : 0;
 
   return (
+    // Kompaktowy pasek dokowany nad dolnym paskiem akcji. Cienki i waski — NIE zasłania pól serii
+    // (KG/powt), więc można logować serie w trakcie interwału (E4MOM = seria co rundę). z-[60] > pasek akcji.
     <div className={cn(
-      'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border rounded-2xl shadow-2xl p-4 w-72 transition-all',
+      'fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-md',
+      'bg-card/95 backdrop-blur-md border rounded-2xl shadow-2xl px-3.5 py-2.5 transition-colors',
       isFinished && 'border-fitness-success ring-2 ring-fitness-success/40',
     )}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Timer className="h-4 w-4 text-primary shrink-0" />
-            {spec.label}
+      <div className="flex items-center gap-3">
+        {/* Lewa: etykieta + ćwiczenie */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-[13px] font-semibold leading-none">
+            <Timer className={cn('h-3.5 w-3.5 shrink-0', isFinished ? 'text-fitness-success' : 'text-primary')} />
+            <span className="truncate">{spec.label}</span>
+            {!isAmrap && (
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground shrink-0">
+                · {t('interval.round')} {round}/{spec.rounds}
+              </span>
+            )}
           </div>
           {exerciseLabel && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5 ml-6">{exerciseLabel}</p>
+            <p className="text-[11px] text-muted-foreground truncate mt-1 ml-5">{exerciseLabel}</p>
           )}
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
 
-      <div className="flex flex-col items-center gap-3">
-        {/* Numer rundy (EMOM) */}
-        {!isAmrap && (
-          <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-            {t('interval.round')} {round} / {spec.rounds}
-          </span>
-        )}
-
-        {/* Progress ring + czas rundy */}
-        <div className="relative h-24 w-24">
-          <svg className="h-24 w-24 -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="6" className="text-muted" />
-            <circle
-              cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round"
-              strokeDasharray={`${2 * Math.PI * 42}`}
-              strokeDashoffset={`${2 * Math.PI * 42 * (1 - progress / 100)}`}
-              className={cn('transition-all duration-1000', isFinished ? 'text-fitness-success' : 'text-primary')}
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className={cn('text-2xl font-bold tabular-nums', isFinished && 'text-fitness-success')}>
-              {isFinished ? t('interval.done') : fmt(leftInUnit)}
-            </span>
+        {/* Środek: czas rundy + łączny */}
+        <div className="text-right shrink-0 leading-none">
+          <div className={cn('text-2xl font-bold tabular-nums', isFinished && 'text-fitness-success')}>
+            {isFinished ? t('interval.done') : fmt(leftInUnit)}
+          </div>
+          <div className="text-[10px] tabular-nums text-muted-foreground mt-1">
+            {fmt(elapsed)} / {fmt(spec.totalSec)}
           </div>
         </div>
 
-        {/* Łączny czas */}
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {fmt(elapsed)} / {fmt(spec.totalSec)}
-        </span>
-
-        {/* Sterowanie */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setIsRunning(p => !p)} disabled={isFinished}>
-            {isRunning ? <Pause className="h-3 w-3 mr-1" /> : <Play className="h-3 w-3 mr-1" />}
-            {isRunning ? t('resttimer.pause') : t('resttimer.resume')}
+        {/* Prawa: sterowanie ikonami (kompaktowo) */}
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsRunning(p => !p)} disabled={isFinished} aria-label={isRunning ? t('resttimer.pause') : t('resttimer.resume')}>
+            {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            <RotateCcw className="h-3 w-3 mr-1" />
-            {t('resttimer.reset')}
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleReset} aria-label={t('resttimer.reset')}>
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} aria-label={t('workout.close')}>
+            <X className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Liniowy progress rundy (cienki, nie zabiera wysokości) */}
+      <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn('h-full rounded-full transition-all duration-1000', isFinished ? 'bg-fitness-success' : 'bg-primary')}
+          style={{ width: `${isFinished ? 100 : progress}%` }}
+        />
       </div>
     </div>
   );

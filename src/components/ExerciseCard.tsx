@@ -8,7 +8,7 @@ import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl } from '@/lib/exercise-media';
-import { parseIntervalTimer } from '@/lib/interval-timer';
+import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { IntervalTimer } from './IntervalTimer';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -170,7 +170,7 @@ const ExerciseCardInner = ({
   // Kołowy timer odpoczynku po odhaczeniu serii roboczej. runId wymusza restart (remount).
   const [rest, setRest] = useState<{ open: boolean; seconds: number; runId: number }>({ open: false, seconds: 90, runId: 0 });
   // Timer interwałowy (EMOM/AMRAP) — tylko gdy ćwiczenie ma rozpoznany zapis interwału.
-  const intervalSpec = useMemo(() => parseIntervalTimer(exercise.timer), [exercise.timer]);
+  const intervalSpec = useMemo(() => resolveExerciseInterval(exercise), [exercise]);
   const [intervalRun, setIntervalRun] = useState<{ open: boolean; runId: number }>({ open: false, runId: 0 });
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);

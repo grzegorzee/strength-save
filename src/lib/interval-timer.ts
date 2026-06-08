@@ -55,3 +55,22 @@ export const parseIntervalTimer = (spec?: string): IntervalSpec | null => {
 
   return null;
 };
+
+/**
+ * Zwraca spec interwału dla ćwiczenia. Najpierw pole `timer` (nowe plany), a gdy go brak —
+ * fallback do treści instrukcji. Plany RZA zapisane PRZED dodaniem pola `timer` (commit 6a2f71e)
+ * trzymają interwał tylko w instrukcji "Parametry" (np. "Heavy • E4MOM x5 • RPE 7-8"), więc bez
+ * tego fallbacku timer nie pokazywał się na już zapisanych planach. parseIntervalTimer skanuje
+ * cały string, więc rozpoznaje token interwału wewnątrz tekstu Parametrów.
+ */
+export const resolveExerciseInterval = (
+  ex: { timer?: string; instructions?: { content: string }[] },
+): IntervalSpec | null => {
+  const fromField = parseIntervalTimer(ex.timer);
+  if (fromField) return fromField;
+  for (const ins of ex.instructions ?? []) {
+    const spec = parseIntervalTimer(ins.content);
+    if (spec) return spec;
+  }
+  return null;
+};

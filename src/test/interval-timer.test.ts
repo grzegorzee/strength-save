@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseIntervalTimer } from '@/lib/interval-timer';
+import { parseIntervalTimer, resolveExerciseInterval } from '@/lib/interval-timer';
 
 describe('parseIntervalTimer', () => {
   it('EMOM n → co minutę, n rund', () => {
@@ -30,5 +30,31 @@ describe('parseIntervalTimer', () => {
     expect(parseIntervalTimer('Warm-up')).toBeNull();
     expect(parseIntervalTimer('')).toBeNull();
     expect(parseIntervalTimer(undefined)).toBeNull();
+  });
+
+  it('wykrywa token interwału wewnątrz tekstu Parametrów', () => {
+    expect(parseIntervalTimer('Heavy • E4MOM x5 • RPE 7-8')?.label).toBe('E4MOM × 5');
+    expect(parseIntervalTimer('Finisher • AMRAP 8 • RPE 7')?.kind).toBe('amrap');
+  });
+});
+
+describe('resolveExerciseInterval', () => {
+  it('preferuje pole timer (nowe plany)', () => {
+    expect(resolveExerciseInterval({ timer: 'E4MOM x5' })?.label).toBe('E4MOM × 5');
+  });
+
+  it('fallback do instrukcji gdy brak pola timer (stare plany RZA)', () => {
+    const ex = {
+      instructions: [
+        { content: 'Heavy • E4MOM x5 • RPE 7-8' },
+        { content: 'Główny bój. Kontrola zejścia.' },
+      ],
+    };
+    expect(resolveExerciseInterval(ex)?.label).toBe('E4MOM × 5');
+  });
+
+  it('null gdy ani pole timer, ani instrukcje nie mają interwału', () => {
+    expect(resolveExerciseInterval({ instructions: [{ content: 'RIR 2 • Tempo 3010 • Przerwa 90s' }] })).toBeNull();
+    expect(resolveExerciseInterval({})).toBeNull();
   });
 });
