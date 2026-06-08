@@ -785,6 +785,8 @@ export const pl = {
   'workout.statTime': 'Czas',
   'workout.setsProgress': '{done}/{total} serii',
   'workout.setsCount': '{n} serii',
+  'workout.setLabel': 'Seria {n}',
+  'workout.warmupShort': 'Rozgrzewka',
   'workout.completedTitle': 'Trening ukończony!',
   'workout.completedLocallyTitle': 'Trening ukończony lokalnie',
   'workout.greatJob': 'Świetna robota!',

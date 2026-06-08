@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, ChevronDown } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak } from '@/lib/summary-utils';
@@ -93,6 +93,8 @@ const WorkoutDay = () => {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showWarmup, setShowWarmup] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  // Podsumowanie ukończonego treningu: które ćwiczenia mają rozwinięte serie.
+  const [expandedSummaryIds, setExpandedSummaryIds] = useState<Set<string>>(new Set());
   const [elapsedSec, setElapsedSec] = useState(0);
   const { unit, fmt, toDisplay } = useUnit();
 
@@ -1378,36 +1380,87 @@ const WorkoutDay = () => {
             const sets = exerciseSets[exercise.id] || [];
             const completed = sets.filter(s => s.completed);
             const totalWeight = completed.reduce((sum, s) => sum + (s.reps * s.weight), 0);
+            const canExpand = !isSkipped && sets.length > 0;
+            const isExpanded = expandedSummaryIds.has(exercise.id);
+            const toggleExpand = () => setExpandedSummaryIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(exercise.id)) next.delete(exercise.id);
+              else next.add(exercise.id);
+              return next;
+            });
 
             return (
               <div
                 key={exercise.id}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl bg-surface-low p-3",
+                  "rounded-xl bg-surface-low",
                   isSkipped && "opacity-50",
                 )}
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fitness-cyan/15 font-heading text-sm font-bold tabular-nums text-fitness-cyan">
-                  {index + 1}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-heading text-sm font-bold uppercase leading-tight tracking-tight">
-                    {localizeExerciseName(exercise.name, lang)}
-                  </h3>
-                  <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                    {isSkipped
-                      ? t('dayplan.badgeMissed')
-                      : t('workout.setsProgress', { done: completed.length, total: sets.length })}
-                  </p>
-                </div>
-                {!isSkipped && totalWeight > 0 && (
-                  <div className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-center leading-none">
-                    <span className="block font-heading text-base font-bold tabular-nums text-background">
-                      {Math.round(toDisplay(totalWeight)).toLocaleString(dateLocale(lang))}
-                    </span>
-                    <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.12em] text-background/70">
-                      {unit}
-                    </span>
+                <button
+                  type="button"
+                  onClick={toggleExpand}
+                  disabled={!canExpand}
+                  className="flex w-full items-center gap-3 p-3 text-left disabled:cursor-default"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fitness-cyan/15 font-heading text-sm font-bold tabular-nums text-fitness-cyan">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-heading text-sm font-bold uppercase leading-tight tracking-tight">
+                      {localizeExerciseName(exercise.name, lang)}
+                    </h3>
+                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                      {isSkipped
+                        ? t('dayplan.badgeMissed')
+                        : t('workout.setsProgress', { done: completed.length, total: sets.length })}
+                    </p>
+                  </div>
+                  {!isSkipped && totalWeight > 0 && (
+                    <div className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-center leading-none">
+                      <span className="block font-heading text-base font-bold tabular-nums text-background">
+                        {Math.round(toDisplay(totalWeight)).toLocaleString(dateLocale(lang))}
+                      </span>
+                      <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.12em] text-background/70">
+                        {unit}
+                      </span>
+                    </div>
+                  )}
+                  {canExpand && (
+                    <ChevronDown className={cn(
+                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                      isExpanded && "rotate-180",
+                    )} />
+                  )}
+                </button>
+
+                {canExpand && isExpanded && (
+                  <div className="border-t border-surface-high px-3 py-2 space-y-1.5">
+                    {sets.map((set, si) => (
+                      <div
+                        key={si}
+                        className={cn(
+                          "flex items-center justify-between text-sm tabular-nums",
+                          !set.completed && "opacity-40",
+                        )}
+                      >
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          {set.isWarmup ? (
+                            <span className="flex items-center gap-1 text-[hsl(var(--ec-warmup-gold))]">
+                              <Flame className="h-3 w-3" />
+                              {t('workout.warmupShort')}
+                            </span>
+                          ) : (
+                            t('workout.setLabel', { n: si + 1 })
+                          )}
+                        </span>
+                        <span className="font-bold text-foreground">
+                          {set.weight > 0
+                            ? `${set.reps} × ${fmt(set.weight)}`
+                            : t('card.repsValue', { n: set.reps })}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

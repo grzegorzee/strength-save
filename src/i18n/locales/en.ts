@@ -779,6 +779,8 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.statTime': 'Time',
   'workout.setsProgress': '{done}/{total} sets',
   'workout.setsCount': '{n} sets',
+  'workout.setLabel': 'Set {n}',
+  'workout.warmupShort': 'Warm-up',
   'workout.completedTitle': 'Workout completed!',
   'workout.completedLocallyTitle': 'Workout completed locally',
   'workout.greatJob': 'Great job!',
