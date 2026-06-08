@@ -1,8 +1,24 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Timer, X, RotateCcw } from 'lucide-react';
+import { Haptics, NotificationType } from '@capacitor/haptics';
+import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+
+// Wibracja końca odpoczynku: natywnie przez Capacitor Haptics (iOS/Android),
+// w przeglądarce fallback do Vibration API (navigator.vibrate jest no-op na iOS WKWebView).
+async function triggerEndHaptic() {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await Haptics.notification({ type: NotificationType.Success });
+    } else if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+  } catch {
+    // Haptics niedostępne — pomijamy.
+  }
+}
 
 interface RestTimerProps {
   defaultSeconds?: number;
@@ -56,8 +72,8 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
           if (prev <= 1) {
             clearTimer();
             setIsRunning(false);
-            // Vibrate + beep
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+            // Wibracja (haptic) + beep na koniec odpoczynku
+            triggerEndHaptic();
             playBeep();
             return 0;
           }
@@ -89,7 +105,7 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
   return (
     <div className={cn(
       "fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border rounded-2xl shadow-2xl p-4 w-72 transition-all",
-      isFinished && "border-fitness-success animate-pulse"
+      isFinished && "border-fitness-success ring-2 ring-fitness-success/40"
     )}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex-1 min-w-0">

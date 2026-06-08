@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildCycleComparison, buildCycleRecommendation, computeCycleStats } from '@/lib/cycle-insights';
+import { translate } from '@/i18n';
 import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
 import type { TrainingDay } from '@/data/trainingPlan';
@@ -82,6 +83,19 @@ describe('cycle-insights', () => {
 
     const recommendation = buildCycleRecommendation(currentCycle, previousCycle, new Date('2026-04-05'));
     expect(recommendation.title.length).toBeGreaterThan(0);
+  });
+
+  it('świeży aktywny cykl (przed planowanym końcem) NIE wyzwala closeout — choć endDate=dziś jak w preview', () => {
+    // Regression #9: buildActiveCyclePreview ustawia endDate=dziś, co fałszywie dawało closeout.
+    const cycle: PlanCycle = {
+      id: 'fresh', userId: 'u1', days: planDays, durationWeeks: 12,
+      startDate: '2026-05-25', endDate: '2026-06-08', // endDate=dziś (preview), ale plan kończy się dopiero ~08-17
+      status: 'active', createdAt: '2026-05-25T00:00:00.000Z',
+      stats: { totalWorkouts: 5, totalTonnage: 5000, prs: [], completionRate: 63 },
+    };
+    const rec = buildCycleRecommendation(cycle, null, new Date('2026-06-08'));
+    expect(rec.title).toBe(translate('pl', 'cyclerec.monitor.title'));
+    expect(rec.title).not.toBe(translate('pl', 'cyclerec.closeout.title'));
   });
 });
 

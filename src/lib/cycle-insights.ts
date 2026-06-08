@@ -132,7 +132,13 @@ export const buildCycleComparison = (cycle: PlanCycle, previousCycle: PlanCycle 
 };
 
 export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCycle | null, now = new Date(), lang: LanguageCode = 'pl'): CycleRecommendation => {
-  const isExpired = !!cycle.endDate && parseLocalDate(cycle.endDate) <= now;
+  // Aktywny cykl uznajemy za "wygasły" (czas na closeout) DOPIERO gdy minął jego planowany
+  // koniec (startDate + durationWeeks), a NIE na podstawie endDate — bo buildActiveCyclePreview
+  // ustawia endDate=dziś, co fałszywie wyzwalało closeout dla świeżo rozpoczętych cykli.
+  const plannedEnd = new Date(parseLocalDate(cycle.startDate).getTime() + cycle.durationWeeks * 7 * 86_400_000);
+  const isExpired = cycle.status === 'completed'
+    ? (!!cycle.endDate && parseLocalDate(cycle.endDate) <= now)
+    : plannedEnd <= now;
   const comparison = buildCycleComparison(cycle, previousCycle);
 
   if (cycle.status === 'active' && cycle.stats.completionRate < 60) {
