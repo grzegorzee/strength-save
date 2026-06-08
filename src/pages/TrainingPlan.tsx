@@ -244,7 +244,7 @@ const TrainingPlan = () => {
         <div className="p-6 pb-4">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h1 className="text-xl font-heading font-bold uppercase tracking-tight">{t('trainingplan.title')}</h1>
+              <h1 className="text-xl font-heading font-bold uppercase italic tracking-tight">{t('trainingplan.title')}</h1>
               <p className="text-[13px] text-muted-foreground mt-1 font-medium">
                 {t('trainingplan.programSummary', { weeks: planDurationWeeks, days: trainingPlan.map(d => localizeDayName(d.dayName, lang)).join(', ') })}
               </p>

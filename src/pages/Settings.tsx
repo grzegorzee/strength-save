@@ -261,7 +261,7 @@ const Settings = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-heading font-bold uppercase tracking-tight">{t('nav.settings')}</h1>
+          <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('nav.settings')}</h1>
           <p className="text-muted-foreground text-sm">{profile?.email}</p>
         </div>
       </div>

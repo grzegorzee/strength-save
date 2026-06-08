@@ -416,7 +416,7 @@ const Dashboard = () => {
     <div className="space-y-6">
       {/* Greeting */}
       <div>
-        <h1 className="text-2xl font-heading font-bold uppercase flex items-center gap-2 tracking-tight">
+        <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
           <GreetingIcon className="h-6 w-6 text-fitness-warning" />
           {greetingText}, {displayName}!
         </h1>

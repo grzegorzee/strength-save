@@ -820,7 +820,7 @@ const Analytics = () => {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-heading font-bold uppercase tracking-tight">{t('analytics.title')}</h1>
+        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('analytics.title')}</h1>
         <p className="text-sm text-muted-foreground">{t('analytics.subtitle')}</p>
       </div>
 

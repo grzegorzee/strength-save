@@ -134,7 +134,7 @@ const Profile = () => {
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
         </div>
-        <h1 className="font-heading text-3xl font-bold uppercase tracking-tight">{profile?.displayName || t('profile.title')}</h1>
+        <h1 className="font-heading text-3xl font-bold uppercase italic tracking-tight">{profile?.displayName || t('profile.title')}</h1>
         <TierBadge label={tier.label} />
       </div>
 
