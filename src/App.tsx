@@ -15,6 +15,7 @@ import { UnitProvider } from "./contexts/UnitContext";
 import { LanguageProvider, useTranslation } from "./contexts/LanguageContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
+import { PushRegistrar } from "./components/PushRegistrar";
 import { Loader2, ShieldOff } from "lucide-react";
 import { lazyWithRetry } from "./lib/lazy-with-retry";
 import { auth } from "./lib/firebase";
@@ -210,6 +211,7 @@ const AuthenticatedApp = () => {
   return (
     <UserProvider>
       <TelemetryHeartbeat />
+      <PushRegistrar />
       <AppRoutes />
     </UserProvider>
   );

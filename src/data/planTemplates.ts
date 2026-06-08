@@ -82,6 +82,28 @@ const imp = (
   };
 };
 
+// Ćwiczenie planu RZA (3-dniowy, 12 tygodni). Nazwy zostają 1:1 z arkusza (są skrótami
+// i wariantami combo spoza biblioteki), dlatego plan jest 'imported'. Parametry RZA
+// (Typ, Timer interwałowy, docelowe RPE, uwaga techniczna) trafiają do instrukcji.
+const rza = (
+  name: string,
+  cel: string,
+  opts: { typ: string; timer: string; rpe: string; uwaga: string },
+): Exercise => {
+  const lib = exerciseLibrary.find((e) => e.name === name);
+  exerciseCounter += 1;
+  return {
+    id: `tpl-ex-${exerciseCounter}`,
+    name,
+    sets: cel,
+    instructions: [
+      { title: '📋 Parametry', content: `${opts.typ} • ${opts.timer} • RPE ${opts.rpe}` },
+      { title: '💡 Wskazówka', content: opts.uwaga },
+    ],
+    ...(lib?.videoUrl ? { videoUrl: lib.videoUrl } : {}),
+  };
+};
+
 export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-fullbody-2',
@@ -468,6 +490,46 @@ export const planTemplates: PlanTemplate[] = [
         ex('Wiosłowanie sztangą', '3 x 8'),
         ex('Wznosy bokiem (Lateral Raise)', '3 x 12'),
         ex('Skręty rosyjskie', '3 x 20'),
+      ]),
+    ],
+  },
+  {
+    id: 'tpl-rza-3',
+    name: 'RZA V-Taper',
+    description: 'Trzy dni A/B/C przez 12 tygodni. Nacisk na barki boczne, plecy i szerokość sylwetki (V-taper), sterowanie przez RPE i finishery kondycyjne. Dla świadomych, którzy lubią twarde, mierzalne treningi.',
+    goal: 'muscle',
+    objective: 'build_muscle',
+    level: 'advanced',
+    daysPerWeek: 3,
+    durationWeeks: 12,
+    source: 'imported',
+    days: [
+      day('day-1', 'Dzień A', 'monday', 'Nogi + plecy + barki', [
+        rza('Przysiad tylny', '5 x 3-5', { typ: 'Heavy', timer: 'E4MOM x5', rpe: '7-8', uwaga: 'Główny bój. Kontrola zejścia, bez grind reps.' }),
+        rza('Podciaganie nachwytem', '5 x 4-8', { typ: 'Heavy', timer: 'E3MOM x5', rpe: '8', uwaga: 'Pełny zwis, depresja łopatki, bez kopania. Obciążenie/guma wg formy.' }),
+        rza('Wioslowanie chest-supported', '4 rundy 30/20/10', { typ: 'Timed', timer: 'E2MOM x8 alt', rpe: '8-9', uwaga: 'Bez pracy lędźwiami; prowadzenie łokcia. Na zmianę z lateral raise.' }),
+        rza('Unoszenie bokiem linka/hantle', '4 rundy 30/20/10', { typ: 'Timed', timer: 'E2MOM x8 alt', rpe: '8-9', uwaga: 'Priorytet barków. Zero bujania, kontrola górnej połowy ruchu.' }),
+        rza('Reverse pec deck / rear delt fly', '3 rundy 40s', { typ: 'Timed', timer: 'E2MOM x5', rpe: '8', uwaga: 'Łopatki stabilne, ruch z barku. Na zmianę z core.' }),
+        rza('Core: dead bug / plank RKC', '2 rundy 30-40s', { typ: 'Timed', timer: 'E2MOM x5', rpe: '7', uwaga: 'Jakość napięcia ważniejsza niż czas.' }),
+        rza('Air bike / farmer walk', '8 min', { typ: 'Finisher', timer: 'EMOM 8', rpe: '7', uwaga: 'Bez zajechania; oddech pod kontrolą.' }),
+      ]),
+      day('day-2', 'Dzień B', 'wednesday', 'Push + tył uda + barki', [
+        rza('Wyciskanie sztangi lezac', '5 x 3-5', { typ: 'Heavy', timer: 'E4MOM x5', rpe: '7-8', uwaga: 'Stabilne łopatki, nogi w podłodze.' }),
+        rza('RDL - martwy rumunski', '4 x 6-8', { typ: 'Heavy', timer: 'E3MOM x4', rpe: '7-8', uwaga: '3 s ekscentryka, neutralny kręgosłup.' }),
+        rza('Wyciskanie hantli siedzac / landmine', '4 rundy 6-10', { typ: 'Timed', timer: 'E2MOM x8 alt', rpe: '8', uwaga: 'Kontrola toru, bez przeprostu lędźwi. Na zmianę z lateral raise.' }),
+        rza('Unoszenie bokiem linka/hantle', '4 rundy 30/20/10', { typ: 'Timed', timer: 'E2MOM x8 alt', rpe: '8-9', uwaga: 'Drugi bodziec barków. Zero bujania.' }),
+        rza('Sciaganie drazka neutralnie', '3 rundy 35-45s', { typ: 'Timed', timer: 'E2MOM x6 alt', rpe: '8', uwaga: 'Łokcie do bioder, bez bujania.' }),
+        rza('Face pull z rotacja', '3 rundy 35-45s', { typ: 'Timed', timer: 'E2MOM x6 alt', rpe: '7-8', uwaga: 'Rotacja zewnętrzna na końcu ruchu.' }),
+        rza('AMRAP: swing/pompki/bike', '8 min', { typ: 'Finisher', timer: 'AMRAP 8', rpe: '7-8', uwaga: 'Równy rytm, nie rzeź.' }),
+      ]),
+      day('day-3', 'Dzień C', 'friday', 'Full body + V-taper', [
+        rza('Trap bar deadlift / Front squat', '5 x 3-5', { typ: 'Heavy', timer: 'E4MOM x5', rpe: '7-8', uwaga: 'Wybierz jedną wersję na cały cykl (12 tygodni).' }),
+        rza('Wioslowanie chest-supported', '5 x 6-8', { typ: 'Heavy', timer: 'E3MOM x5', rpe: '8', uwaga: 'Ciężkie plecy bez lędźwi; prowadzenie łokcia.' }),
+        rza('Cable pullover / straight-arm pulldown', '4 rundy 30/20/10', { typ: 'Timed', timer: 'E2MOM x8 alt', rpe: '8-9', uwaga: 'Szerokość pleców. Ruch przez bark; czuj najszerszy.' }),
+        rza('Machine/cable lateral raise', '4 rundy 30/20/10', { typ: 'Timed', timer: 'E2MOM x8 alt', rpe: '8-9', uwaga: 'Najważniejszy blok estetyczny.' }),
+        rza('Cable curl / modlitewnik', '3 rundy 40s', { typ: 'Timed', timer: 'E2MOM x6 alt', rpe: '8', uwaga: 'Dodatek; nie kradnij czasu plecom.' }),
+        rza('Reverse pec deck / rear delt fly', '3 rundy 40s', { typ: 'Timed', timer: 'E2MOM x6 alt', rpe: '8', uwaga: 'Tył barku. Łopatki stabilne, ruch z barku.' }),
+        rza('Ski erg / sled / farmer', '10 min', { typ: 'Finisher', timer: 'EMOM 10', rpe: '7-8', uwaga: 'Kondycja bez spalenia regeneracji.' }),
       ]),
     ],
   },
