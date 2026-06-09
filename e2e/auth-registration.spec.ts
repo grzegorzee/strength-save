@@ -95,4 +95,19 @@ test.describe('Auth and registration flows', () => {
     await expect(page.getByText('invite@test.com')).toBeVisible();
     await expect(page.getByText('waitlist@test.com')).toBeVisible();
   });
+
+  test('admin push send shows delivery diagnostics in E2E mode', async ({ page }) => {
+    await setE2EAuthScenario(page, 'active-admin');
+    page.on('dialog', (dialog) => dialog.accept());
+    await navigateAndWait(page, '/admin');
+
+    await expectPageRendered(page);
+    await page.getByPlaceholder('Tytuł powiadomienia').fill('Test push');
+    await page.getByPlaceholder('Treść powiadomienia').fill('Treść testowa');
+    await page.getByRole('button', { name: 'Wyślij push' }).click();
+
+    await expect(page.getByTestId('admin-comms-result')).toContainText('Dostarczono do 1/1');
+    await expect(page.getByTestId('admin-comms-result')).toContainText('Błędy: 0');
+    await expect(page.getByTestId('admin-comms-result')).toContainText('Martwe tokeny: 0');
+  });
 });

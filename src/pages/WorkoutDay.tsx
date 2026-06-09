@@ -2,6 +2,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, ChevronDown } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
+import { RestTimer } from '@/components/RestTimer';
 import { calculateStreak } from '@/lib/summary-utils';
 import { StatCard } from '@/components/kinetic/StatCard';
 import { useUnit } from '@/contexts/UnitContext';
@@ -93,6 +94,12 @@ const WorkoutDay = () => {
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showWarmup, setShowWarmup] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [restTimer, setRestTimer] = useState<{ open: boolean; seconds: number; exerciseLabel: string; runId: number }>({
+    open: false,
+    seconds: 90,
+    exerciseLabel: '',
+    runId: 0,
+  });
   // Podsumowanie ukończonego treningu: które ćwiczenia mają rozwinięte serie.
   const [expandedSummaryIds, setExpandedSummaryIds] = useState<Set<string>>(new Set());
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -247,6 +254,15 @@ const WorkoutDay = () => {
         setAutoSaveStatus(current => current === status ? nextStatus : current);
       }, delay);
     }
+  }, []);
+
+  const startRestTimer = useCallback((payload: { seconds: number; exerciseLabel: string }) => {
+    setRestTimer((current) => ({
+      open: true,
+      seconds: payload.seconds,
+      exerciseLabel: payload.exerciseLabel,
+      runId: current.runId + 1,
+    }));
   }, []);
 
   const buildDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}): ActiveWorkoutDraft | null => {
@@ -1636,6 +1652,7 @@ const WorkoutDay = () => {
               onMetricsChange={(m) => handleMetricsChange(exercise.id, m)}
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
               rzaAdvice={getRzaAdvice(workouts, exercise.id, exercise.name)}
+              onRestTimerStart={startRestTimer}
             />
             {/* AI Swap & Skip buttons — only in active workout */}
             {isWorkoutStarted && !isCompleted && (
@@ -1748,6 +1765,15 @@ const WorkoutDay = () => {
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
+      )}
+
+      {isWorkoutStarted && !isCompleted && restTimer.open && (
+        <RestTimer
+          key={restTimer.runId}
+          defaultSeconds={restTimer.seconds}
+          exerciseLabel={restTimer.exerciseLabel}
+          onClose={() => setRestTimer((current) => ({ ...current, open: false }))}
+        />
       )}
 
       {isWorkoutStarted && !isCompleted && (

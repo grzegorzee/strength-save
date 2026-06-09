@@ -1,4 +1,5 @@
 /// <reference types="@capacitor-firebase/authentication" />
+/// <reference types="@capacitor-firebase/messaging" />
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
@@ -11,6 +12,9 @@ const config: CapacitorConfig = {
       // (signInWithCredential), żeby stan auth był spójny z resztą apki (Firestore).
       skipNativeAuth: true,
       providers: ['google.com', 'apple.com'],
+    },
+    FirebaseMessaging: {
+      presentationOptions: ['alert', 'badge', 'sound'],
     },
   },
 };

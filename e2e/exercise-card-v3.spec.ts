@@ -148,6 +148,36 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     }
   });
 
+  test('rest timer starts globally after a working set and can be closed', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('app-language', 'pl');
+      localStorage.setItem('rest-timer-default', '30');
+    });
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+
+    const startBtn = page.getByRole('button', { name: /Rozpocznij trening|Start workout/i });
+    await expect(startBtn).toBeVisible();
+    await startBtn.click();
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.getByText(/Dodaj serię|Add set/i)).toBeVisible({ timeout: 5000 });
+
+    const checkButtons = firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i });
+    await checkButtons.nth(1).click();
+
+    const timer = page.getByTestId('rest-timer');
+    await expect(timer).toBeVisible();
+    await expect(timer.getByText(/Odpoczynek|Rest/i)).toBeVisible();
+    await expect(timer.getByText('0:30')).toBeVisible();
+
+    await checkButtons.nth(2).click();
+    await expect(page.getByTestId('rest-timer')).toHaveCount(1);
+
+    await timer.getByRole('button', { name: /Zamknij|Close/i }).click();
+    await expect(page.getByTestId('rest-timer')).toHaveCount(0);
+  });
+
   test('progression badge renders for exercises with previous data', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);

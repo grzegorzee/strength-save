@@ -899,16 +899,35 @@ export const adminSendPush = onCall(async (request) => {
   if (target !== "all") query = query.where("cohorts", "array-contains", target);
   const snap = await query.get();
 
-  const tokens: string[] = [];
+  const tokenOwners = new Map<string, FirebaseFirestore.DocumentReference[]>();
   snap.docs.forEach((d) => {
     const t = (d.data() as { fcmTokens?: unknown }).fcmTokens;
-    if (Array.isArray(t)) t.forEach((tok) => { if (typeof tok === "string" && tok) tokens.push(tok); });
+    if (!Array.isArray(t)) return;
+    t.forEach((tok) => {
+      if (typeof tok !== "string" || !tok) return;
+      const owners = tokenOwners.get(tok) || [];
+      owners.push(d.ref);
+      tokenOwners.set(tok, owners);
+    });
   });
-  const unique = Array.from(new Set(tokens));
-  if (unique.length === 0) return { success: true, sent: 0, total: 0 };
+  const unique = Array.from(tokenOwners.keys());
+  if (unique.length === 0) {
+    await writeNotificationLog({
+      type: "admin_push",
+      actorUid: request.auth.uid,
+      target,
+      sent: 0,
+      failed: 0,
+      total: 0,
+      invalidTokens: 0,
+    });
+    return { success: true, sent: 0, failed: 0, total: 0, invalidTokens: 0 };
+  }
 
   // sendEachForMulticast obsługuje max 500 tokenów na wywołanie.
   let sent = 0;
+  let failed = 0;
+  const invalidTokens = new Set<string>();
   for (let i = 0; i < unique.length; i += 500) {
     const batch = unique.slice(i, i + 500);
     const res = await admin.messaging().sendEachForMulticast({
@@ -916,8 +935,40 @@ export const adminSendPush = onCall(async (request) => {
       notification: { title, body },
     });
     sent += res.successCount;
+    failed += res.failureCount;
+    res.responses.forEach((response, idx) => {
+      if (response.success) return;
+      const code = response.error?.code;
+      if (
+        code === "messaging/registration-token-not-registered" ||
+        code === "messaging/invalid-registration-token"
+      ) {
+        invalidTokens.add(batch[idx]);
+      }
+    });
   }
-  return { success: true, sent, total: unique.length };
+
+  const cleanupWrites: Promise<unknown>[] = [];
+  invalidTokens.forEach((token) => {
+    const owners = tokenOwners.get(token) || [];
+    owners.forEach((ref) => {
+      cleanupWrites.push(ref.update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(token) }));
+    });
+  });
+  await Promise.allSettled(cleanupWrites);
+
+  await writeNotificationLog({
+    type: "admin_push",
+    actorUid: request.auth.uid,
+    target,
+    sent,
+    failed,
+    total: unique.length,
+    invalidTokens: invalidTokens.size,
+    cleanedTokenRefs: cleanupWrites.length,
+  });
+
+  return { success: true, sent, failed, total: unique.length, invalidTokens: invalidTokens.size };
 });
 
 // Usuń użytkownika: konto Auth + dane Firestore (GDPR). Operacja nieodwracalna.
@@ -933,7 +984,7 @@ export const adminDeleteUser = onCall(async (request) => {
   const byUserId = ["workouts", "measurements", "plan_cycles", "weekly_summaries", "chat_messages", "strava_activities"];
   for (const coll of byUserId) {
     const snap = await db.collection(coll).where("userId", "==", uid).limit(500).get();
-    let batch = db.batch();
+    const batch = db.batch();
     snap.docs.forEach((d) => batch.delete(d.ref));
     if (!snap.empty) await batch.commit();
   }

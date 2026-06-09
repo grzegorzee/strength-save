@@ -34,7 +34,10 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
   const [totalSeconds, setTotalSeconds] = useState(defaultSeconds);
   const [secondsLeft, setSecondsLeft] = useState(defaultSeconds);
   const [isRunning, setIsRunning] = useState(true);
+  const [deadline, setDeadline] = useState(() => Date.now() + defaultSeconds * 1000);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const secondsLeftRef = useRef(defaultSeconds);
+  const finishFiredRef = useRef(false);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -47,35 +50,57 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
   useEffect(() => { unlockTimerSound(); }, []);
 
   useEffect(() => {
-    if (isRunning && secondsLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        setSecondsLeft(prev => {
-          if (prev <= 1) {
-            clearTimer();
-            setIsRunning(false);
-            // Wibracja (haptic) + krótki dźwięk na koniec odpoczynku
-            triggerEndHaptic();
-            playTimerSound('finish');
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    secondsLeftRef.current = secondsLeft;
+  }, [secondsLeft]);
+
+  const finishTimer = useCallback(() => {
+    if (finishFiredRef.current) return;
+    finishFiredRef.current = true;
+    clearTimer();
+    setIsRunning(false);
+    setSecondsLeft(0);
+    // Wibracja (haptic) + krótki dźwięk na koniec odpoczynku.
+    triggerEndHaptic();
+    playTimerSound('finish');
+  }, [clearTimer]);
+
+  useEffect(() => {
+    if (!isRunning || secondsLeftRef.current <= 0) return clearTimer;
+
+    const tick = () => {
+      const next = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      if (next <= 0) {
+        finishTimer();
+        return;
+      }
+      setSecondsLeft(next);
+    };
+
+    tick();
+    intervalRef.current = setInterval(tick, 250);
 
     return clearTimer;
-  }, [isRunning, secondsLeft, clearTimer]);
+  }, [isRunning, deadline, finishTimer, clearTimer]);
 
   const handleReset = (seconds?: number) => {
     clearTimer();
     const newTotal = seconds || totalSeconds;
+    finishFiredRef.current = false;
     setTotalSeconds(newTotal);
     setSecondsLeft(newTotal);
+    setDeadline(Date.now() + newTotal * 1000);
     setIsRunning(true);
   };
 
   const togglePause = () => {
-    setIsRunning(prev => !prev);
+    if (secondsLeftRef.current <= 0) return;
+    if (isRunning) {
+      clearTimer();
+      setIsRunning(false);
+    } else {
+      setDeadline(Date.now() + secondsLeftRef.current * 1000);
+      setIsRunning(true);
+    }
   };
 
   const minutes = Math.floor(secondsLeft / 60);
@@ -85,9 +110,9 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
 
   return (
     <div className={cn(
-      "fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border rounded-2xl shadow-2xl p-4 w-72 transition-all",
+      "fixed bottom-[calc(6.75rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[70] bg-card border rounded-2xl shadow-2xl p-4 w-[calc(100%-1.5rem)] max-w-80 transition-colors",
       isFinished && "border-fitness-success ring-2 ring-fitness-success/40"
-    )}>
+    )} data-testid="rest-timer">
       <div className="flex items-center justify-between mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-sm font-medium">
@@ -98,7 +123,7 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
             <p className="text-xs text-muted-foreground truncate mt-0.5 ml-6">{exerciseLabel}</p>
           )}
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} aria-label={t('workout.close')}>
           <X className="h-4 w-4" />
         </Button>
       </div>

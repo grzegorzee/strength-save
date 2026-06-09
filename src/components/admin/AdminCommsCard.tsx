@@ -15,6 +15,7 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [lastResult, setLastResult] = useState<string | null>(null);
 
   const targets = ['all', ...cohorts];
 
@@ -26,10 +27,16 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
     if (!confirm(`Wysłać ${channel === 'email' ? 'maila' : 'push'} do: ${target === 'all' ? 'WSZYSTKICH' : target}?`)) return;
     setSending(true);
     try {
-      const res = channel === 'email'
-        ? await adminBroadcastEmail({ target, subject, body })
-        : await adminSendPush({ target, title: subject, body });
-      toast({ title: 'Wysłano', description: `Dostarczono do ${res.sent}/${res.total}.` });
+      let resultText: string;
+      if (channel === 'email') {
+        const res = await adminBroadcastEmail({ target, subject, body });
+        resultText = `Dostarczono do ${res.sent}/${res.total}.`;
+      } else {
+        const res = await adminSendPush({ target, title: subject, body });
+        resultText = `Dostarczono do ${res.sent}/${res.total}. Błędy: ${res.failed}. Martwe tokeny: ${res.invalidTokens}.`;
+      }
+      setLastResult(resultText);
+      toast({ title: 'Wysłano', description: resultText });
       setSubject(''); setBody('');
     } catch (e) {
       toast({ title: 'Błąd', description: e instanceof Error ? e.message : 'Nie udało się wysłać.', variant: 'destructive' });
@@ -83,6 +90,12 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
           {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
           Wyślij {channel === 'email' ? 'mail' : 'push'}
         </Button>
+
+        {lastResult && (
+          <p className="rounded-lg bg-surface-low px-3 py-2 text-xs text-muted-foreground" data-testid="admin-comms-result">
+            {lastResult}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

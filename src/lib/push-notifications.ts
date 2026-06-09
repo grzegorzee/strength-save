@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { FirebaseMessaging } from '@capacitor-firebase/messaging';
+import type { Notification } from '@capacitor-firebase/messaging';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -7,6 +8,15 @@ import { db } from './firebase';
 // codzienne przypomnienie przez dailyTrainingReminder). Web push = osobny temat (VAPID + SW).
 
 export type PushPermission = 'granted' | 'denied' | 'prompt' | 'unsupported';
+export type PushRegistrationStatus = 'registered' | 'unsupported' | 'permission-required' | 'no-token' | 'error';
+
+export interface PushRegistrationResult {
+  status: PushRegistrationStatus;
+  permission: PushPermission;
+  tokenSaved: boolean;
+  tokenSuffix?: string;
+  error?: string;
+}
 
 async function saveToken(uid: string, token: string): Promise<void> {
   try {
@@ -28,15 +38,29 @@ export async function getPushPermission(): Promise<PushPermission> {
 }
 
 /** Rejestruje token JEŚLI zgoda już udzielona (bez wyświetlania prośby). Wołane przy starcie. */
-export async function registerPushForUser(uid: string): Promise<void> {
-  if (!Capacitor.isNativePlatform()) return;
+export async function registerPushForUser(uid: string): Promise<PushRegistrationResult> {
+  if (!Capacitor.isNativePlatform()) {
+    return { status: 'unsupported', permission: 'unsupported', tokenSaved: false };
+  }
   try {
     const { receive } = await FirebaseMessaging.checkPermissions();
-    if (receive !== 'granted') return;
+    if (receive !== 'granted') {
+      return { status: 'permission-required', permission: receive as PushPermission, tokenSaved: false };
+    }
     const { token } = await FirebaseMessaging.getToken();
-    if (token) await saveToken(uid, token);
+    if (!token) {
+      return { status: 'no-token', permission: 'granted', tokenSaved: false };
+    }
+    await saveToken(uid, token);
+    return { status: 'registered', permission: 'granted', tokenSaved: true, tokenSuffix: token.slice(-8) };
   } catch (e) {
     console.error('[push] register error', e);
+    return {
+      status: 'error',
+      permission: 'unsupported',
+      tokenSaved: false,
+      error: e instanceof Error ? e.message : 'Unknown push registration error',
+    };
   }
 }
 
@@ -60,6 +84,15 @@ export function listenPushTokenRefresh(uid: string): () => void {
   let handle: { remove: () => void } | null = null;
   void FirebaseMessaging.addListener('tokenReceived', (event: { token?: string }) => {
     if (event?.token) void saveToken(uid, event.token);
+  }).then((h) => { handle = h; });
+  return () => { handle?.remove(); };
+}
+
+export function listenForegroundPush(onNotification: (notification: Notification) => void): () => void {
+  if (!Capacitor.isNativePlatform()) return () => {};
+  let handle: { remove: () => void } | null = null;
+  void FirebaseMessaging.addListener('notificationReceived', (event) => {
+    if (event.notification) onNotification(event.notification);
   }).then((h) => { handle = h; });
   return () => { handle?.remove(); };
 }

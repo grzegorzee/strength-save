@@ -19,7 +19,6 @@ import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exerci
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 import type { ExerciseBest } from '@/lib/pr-utils';
 import type { RzaAdvice } from '@/lib/rza-progression';
-import { RestTimer } from './RestTimer';
 
 // Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
 // Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
@@ -162,6 +161,8 @@ interface ExerciseCardProps {
   defaultMetricsVisible?: boolean;
   /** Rekomendacja ciężaru z reguły RZA (ma priorytet nad nextAdvice gdy obecna). */
   rzaAdvice?: RzaAdvice | null;
+  /** Startuje globalny timer przerwy na poziomie strony treningu. */
+  onRestTimerStart?: (payload: { seconds: number; exerciseLabel: string }) => void;
 }
 
 // ── Main Component ──
@@ -182,10 +183,9 @@ const ExerciseCardInner = ({
   onMetricsChange,
   defaultMetricsVisible = false,
   rzaAdvice,
+  onRestTimerStart,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
-  // Kołowy timer odpoczynku po odhaczeniu serii roboczej. runId wymusza restart (remount).
-  const [rest, setRest] = useState<{ open: boolean; seconds: number; runId: number }>({ open: false, seconds: 90, runId: 0 });
   // Timer interwałowy (EMOM/AMRAP) — tylko gdy ćwiczenie ma rozpoznany zapis interwału.
   const intervalSpec = useMemo(() => resolveExerciseInterval(exercise), [exercise]);
   const [intervalRun, setIntervalRun] = useState<{ open: boolean; runId: number }>({ open: false, runId: 0 });
@@ -280,7 +280,8 @@ const ExerciseCardInner = ({
         // Kolejna seria robocza → kołowy timer odpoczynku.
         // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
         const seconds = getRestDefaultSeconds();
-        setRest(r => ({ open: true, seconds, runId: r.runId + 1 }));
+        unlockTimerSound();
+        onRestTimerStart?.({ seconds, exerciseLabel: localizedName });
       }
     }
   };
@@ -677,15 +678,6 @@ const ExerciseCardInner = ({
             </div>
           </DialogContent>
         </Dialog>
-      )}
-
-      {rest.open && (
-        <RestTimer
-          key={rest.runId}
-          defaultSeconds={rest.seconds}
-          exerciseLabel={localizedName}
-          onClose={() => setRest(r => ({ ...r, open: false }))}
-        />
       )}
 
       {intervalSpec && intervalRun.open && (

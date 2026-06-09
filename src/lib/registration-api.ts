@@ -300,8 +300,8 @@ export async function adminBroadcastEmail(input: { target: string; subject: stri
 }
 
 export async function adminSendPush(input: { target: string; title: string; body: string }) {
-  if (isE2EMode) return { success: true, sent: 0, total: 0 };
-  const fn = httpsCallable<typeof input, { success: boolean; sent: number; total: number }>(functions, "adminSendPush");
+  if (isE2EMode) return { success: true, sent: 1, failed: 0, total: 1, invalidTokens: 0 };
+  const fn = httpsCallable<typeof input, { success: boolean; sent: number; failed: number; total: number; invalidTokens: number }>(functions, "adminSendPush");
   return (await fn(input)).data;
 }
 
