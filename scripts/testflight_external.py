@@ -21,6 +21,7 @@ ISSUER = "c7dc0c6f-bae0-43ee-a96c-fbb0eabab7b9"
 KEY = "/Users/grzegorzjasionowicz/FIRMA/_secrets/oauth/AuthKey_UD43687FB9.p8"
 APP_ID = "6777446137"
 EXTERNAL_GROUP = "4ad8388a-a717-42a6-b7a7-7aeb737d29e8"   # "Testerzy zewnetrzni" (Robert)
+INTERNAL_GROUP = "48daa230-813f-4bcc-8158-cc12e69d354c"   # "Wewnetrzni" (Ty) — bez Beta Review, instalacja od razu
 BASE = "https://api.appstoreconnect.apple.com"
 
 
@@ -81,6 +82,13 @@ def main():
         print("TIMEOUT: build nie osiagnal VALID.")
         return 1
 
+    # 1.5) podpiecie do grupy WEWNETRZNEJ (idempotentne) — internal testerzy NIE wymagaja
+    #      Beta App Review, wiec build jest u nich widoczny od razu (nie czeka ~24h jak external).
+    sc, resp = req("POST", f"/v1/betaGroups/{INTERNAL_GROUP}/relationships/builds",
+                   {"data": [{"type": "builds", "id": bid}]})
+    print(f"podpiecie do grupy wewnetrznej -> HTTP {sc}"
+          + ("" if sc in (200, 204) else f" {resp}"), flush=True)
+
     # 2) whatsNew (en-US + ewentualnie pozostale lokalizacje)
     _, locs = req("GET", f"/v1/builds/{bid}/betaBuildLocalizations")
     for loc in locs.get("data", []):
@@ -126,7 +134,8 @@ def main():
     _, sub = req("GET", f"/v1/builds/{bid}/betaAppReviewSubmission")
     state = (sub.get("data") or {}).get("attributes", {}).get("betaReviewState", "?")
     print(f"\nBuild {version}: betaReviewState = {state}")
-    print("Po zatwierdzeniu przez Apple Robert dostanie maila z nowym buildem.")
+    print("Internal (Ty): build widoczny w TestFlight OD RAZU (bez review).")
+    print("External (Robert): po zatwierdzeniu Beta App Review przez Apple (~24h).")
     return 0
 
 
