@@ -201,10 +201,13 @@ const Dashboard = () => {
       .filter(cycle => cycle.status === 'completed')
       .sort((a, b) => b.endDate.localeCompare(a.endDate))[0] ?? null
   ), [cycles]);
+  const currentPlanArchived = useMemo(() => (
+    !activeCycle && !!planStartDate && cycles.some(cycle => cycle.status === 'completed' && cycle.startDate === planStartDate)
+  ), [activeCycle, cycles, planStartDate]);
   const liveActiveCycle = useMemo(() => buildActiveCyclePreview(activeCycle, workouts, today), [activeCycle, today, workouts]);
   const planNextStep = useMemo(() => buildPlanNextStep({
     hasPlan: trainingPlan.length > 0,
-    isPlanExpired,
+    isPlanExpired: isPlanExpired || currentPlanArchived,
     weeksRemaining,
     currentWeek,
     planDurationWeeks,
@@ -212,15 +215,15 @@ const Dashboard = () => {
     previousCompletedCycle,
     today,
     lang,
-  }), [currentWeek, isPlanExpired, liveActiveCycle, planDurationWeeks, previousCompletedCycle, today, trainingPlan.length, weeksRemaining, lang]);
+  }), [currentPlanArchived, currentWeek, isPlanExpired, liveActiveCycle, planDurationWeeks, previousCompletedCycle, today, trainingPlan.length, weeksRemaining, lang]);
 
   // Dismissable "co dalej z planem?" card — hidden per plan (reappears when a new plan starts).
   const NEXT_STEP_DISMISS_KEY = 'fittracker_nextstep_dismissed';
-  const planSignature = planStartDate || 'no-plan';
+  const planSignature = `${planStartDate || 'no-plan'}:${planNextStep?.primaryPath || 'none'}:${planNextStep?.title || 'none'}`;
   const [dismissedSignature, setDismissedSignature] = useState<string | null>(() => {
     try { return localStorage.getItem(NEXT_STEP_DISMISS_KEY); } catch { return null; }
   });
-  const showNextStep = dismissedSignature !== planSignature;
+  const showNextStep = !!planNextStep && dismissedSignature !== planSignature;
   const dismissNextStep = () => {
     setDismissedSignature(planSignature);
     try { localStorage.setItem(NEXT_STEP_DISMISS_KEY, planSignature); } catch { /* ignore */ }
@@ -433,7 +436,7 @@ const Dashboard = () => {
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
           <GreetingIcon className="h-6 w-6 text-fitness-warning" />
-          {greetingText}, {displayName}!
+          {greetingText}, <span className="text-primary">{displayName}</span>!
         </h1>
         <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
       </div>
@@ -523,7 +526,7 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {showNextStep && (
+      {showNextStep && planNextStep && (
       <Card className={planNextStepTone[planNextStep.tone]}>
         <CardContent className="p-5 space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
