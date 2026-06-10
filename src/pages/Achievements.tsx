@@ -99,10 +99,20 @@ const Achievements = () => {
     workouts.forEach(w => w.exercises.forEach(ex => {
       if (!seen.has(ex.exerciseId)) seen.set(ex.exerciseId, resolver.resolveExerciseName(w, ex.exerciseId));
     }));
-    return Array.from(seen.entries())
+    const sorted = Array.from(seen.entries())
       .map(([id, name]) => ({ ...getExerciseBest1RM(workouts, id), name }))
       .filter(r => r.best1RM > 0)
       .sort((a, b) => b.best1RM - a.best1RM);
+    // Dedup po nazwie: różne exerciseId mogą mapować na to samo ćwiczenie (np. id
+    // z planu vs z biblioteki) i bez tego rekord pokazuje się dwukrotnie. Lista jest
+    // posortowana malejąco po 1RM, więc pierwsze wystąpienie = najsilniejsze.
+    const seenNames = new Set<string>();
+    return sorted.filter(r => {
+      const key = r.name.trim().toLowerCase();
+      if (seenNames.has(key)) return false;
+      seenNames.add(key);
+      return true;
+    });
   }, [resolver, workouts]);
 
   const exerciseNames = useMemo(() => {
