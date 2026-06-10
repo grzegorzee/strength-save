@@ -1,5 +1,4 @@
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -7,37 +6,19 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useWeeklySummary } from '@/hooks/useWeeklySummary';
 import { dateLocale } from '@/i18n';
 import { parseLocalDate } from '@/lib/utils';
-import { Dumbbell, Flame, Loader2, Route, Sparkles, Trophy } from 'lucide-react';
+import { Dumbbell, Flame, Route, Trophy } from 'lucide-react';
 
 const AnalyticsWeeklyTab = () => {
-  const { uid, canUseStrava } = useCurrentUser();
+  const { uid } = useCurrentUser();
   const { t, lang } = useTranslation();
   const { fmt, fmtTonnage } = useUnit();
-  const { summaries, isGenerating, error, generateSummary } = useWeeklySummary(uid, canUseStrava);
+  const { summaries } = useWeeklySummary(uid);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-heading font-semibold text-base">{t('analytics.weeklySummaries')}</h3>
-        <Button
-          size="sm"
-          onClick={() => generateSummary(new Date())}
-          disabled={isGenerating}
-        >
-          {isGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-          {t('analytics.generateNow')}
-        </Button>
-      </div>
+      <h3 className="font-heading font-semibold text-base">{t('analytics.weeklySummaries')}</h3>
 
-      {error && (
-        <Card className="border-destructive">
-          <CardContent className="py-3">
-            <p className="text-sm text-destructive">{error}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {summaries.length === 0 && !isGenerating && (
+      {summaries.length === 0 && (
         <Card className="bg-muted/30">
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground">{t('analytics.noSummaries')}</p>
