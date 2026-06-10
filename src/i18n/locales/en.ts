@@ -671,6 +671,8 @@ export const en: Record<keyof typeof pl, string> = {
   'strava.descProvisional': 'This session does not have a Firebase document yet. It will be created on the first successful online sync.',
   'strava.descSynced': 'The local draft is synced.',
   'strava.disconnect': 'Disconnect',
+  'strava.disconnectConfirmTitle': 'Disconnect Strava?',
+  'strava.disconnectConfirmDesc': 'All imported Strava activities will be removed from the app. After reconnecting, we can restore at most the last 365 days of history.',
   'strava.distance': 'Distance',
   'strava.elevation': 'Elevation',
   'strava.elevationPerWeek': 'Elevation / week',

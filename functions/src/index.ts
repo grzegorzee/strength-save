@@ -478,14 +478,21 @@ export const stravaCallback = onCall(
       : "unknown";
     logger.info(`[Strava] Token OK for athlete: ${athleteName} (id: ${tokenData.athlete?.id})`);
 
+    // Kasujemy stare aktywności TYLKO przy zmianie konta Strava (inny athleteId) —
+    // reconnect tego samego konta nie może tracić historii starszej niż 365 dni
+    // (sync odtwarza tylko rok wstecz; upsert po deterministycznym id i tak nadpisze duplikaty).
+    const previousConnection = await getStravaConnection(userId).catch(() => null);
+    const newAthleteId = tokenData.athlete?.id || null;
+    const athleteChanged = previousConnection?.athleteId != null
+      && newAthleteId != null
+      && previousConnection.athleteId !== newAthleteId;
+
     await saveStravaConnection(userId, tokenData, athleteName);
     logger.info(`[Strava] User doc updated, stravaLastSync reset to null`);
 
-    // Delete existing strava_activities for clean reconnect (paginated — a single
-    // batch caps at 500 ops and would fail for long Strava histories).
-    const deletedCount = await deleteUserStravaActivities(userId);
-    if (deletedCount > 0) {
-      logger.info(`[Strava] Deleted ${deletedCount} old activities for clean reconnect`);
+    if (athleteChanged) {
+      const deletedCount = await deleteUserStravaActivities(userId);
+      logger.info(`[Strava] Athlete changed (${previousConnection?.athleteId} -> ${newAthleteId}), deleted ${deletedCount} old activities`);
     }
 
     logger.info(`[Strava] Starting initial sync for ${userId}...`);

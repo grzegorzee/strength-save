@@ -1,6 +1,16 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
@@ -24,6 +34,7 @@ export const StravaTab = () => {
   const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | 'all'>(new Date().getMonth() + 1);
+  const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
 
   const nonStrengthActivities = useMemo(
     () => activities.filter((a) => a.type !== 'WeightTraining' && a.type !== 'Crossfit'),
@@ -89,7 +100,7 @@ export const StravaTab = () => {
                 {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                 {t('strava.sync')}
               </Button>
-              <Button size="sm" variant="ghost" className="text-destructive" onClick={disconnectStrava}>{t('strava.disconnect')}</Button>
+              <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDisconnectConfirmOpen(true)}>{t('strava.disconnect')}</Button>
             </div>
           </div>
         </CardContent>
@@ -145,6 +156,24 @@ export const StravaTab = () => {
         activities={filteredActivities}
         estimatedMaxHR={connection.estimatedMaxHR}
       />
+
+      <AlertDialog open={disconnectConfirmOpen} onOpenChange={setDisconnectConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('strava.disconnectConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('strava.disconnectConfirmDesc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { setDisconnectConfirmOpen(false); disconnectStrava(); }}
+            >
+              {t('strava.disconnect')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -677,6 +677,8 @@ export const pl = {
   'strava.descProvisional': 'Ta sesja nie ma jeszcze dokumentu w Firebase. Powstanie przy pierwszej udanej synchronizacji online.',
   'strava.descSynced': 'Lokalny szkic jest zsynchronizowany.',
   'strava.disconnect': 'Rozłącz',
+  'strava.disconnectConfirmTitle': 'Rozłączyć Stravę?',
+  'strava.disconnectConfirmDesc': 'Wszystkie zaimportowane aktywności Strava zostaną usunięte z aplikacji. Po ponownym połączeniu odtworzymy maksymalnie ostatnie 365 dni historii.',
   'strava.distance': 'Dystans',
   'strava.elevation': 'Przewyższenie',
   'strava.elevationPerWeek': 'Przewyższenie / tydzień',
