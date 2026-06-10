@@ -9,6 +9,16 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExerciseCard } from '@/components/ExerciseCard';
@@ -90,6 +100,8 @@ const WorkoutDay = () => {
   const [queuedDraft, setQueuedDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  // Konflikt wersji między urządzeniami: dialog wyboru zamiast cichego nadpisania.
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
   const [showWarmup, setShowWarmup] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [restTimer, setRestTimer] = useState<{ open: boolean; seconds: number; exerciseLabel: string; runId: number }>({
@@ -116,6 +128,10 @@ const WorkoutDay = () => {
   const draftRecoveryDone = useRef<string | null>(null);
   const isSyncingRef = useRef(false);
   const completedSessionLockRef = useRef<string | null>(null);
+  // Znacznik wersji dokumentu w chmurze dla sesji wczytanej z Firestore (bez draftu).
+  // Bez tego seeda draft tworzony nad istniejącym workoutem ma cloudUpdatedAt=undefined,
+  // czyli expectedUpdatedAt=null i detekcja konfliktów jest wyłączona.
+  const cloudMetaRef = useRef<{ sessionId: string; updatedAt?: number; revision?: number } | null>(null);
 
   // Refs that mirror state for stable callback identity
   const exerciseSetsRef = useRef(exerciseSets);
@@ -336,8 +352,12 @@ const WorkoutDay = () => {
       skippedExercises: overrides.skippedExercises ?? skippedExercisesRef.current,
       startedAt: overrides.startedAt ?? previousDraft?.startedAt ?? now,
       updatedAt: overrides.updatedAt ?? now,
-      cloudUpdatedAt: overrides.cloudUpdatedAt ?? previousDraft?.cloudUpdatedAt,
-      cloudRevision: overrides.cloudRevision ?? previousDraft?.cloudRevision,
+      cloudUpdatedAt: overrides.cloudUpdatedAt
+        ?? previousDraft?.cloudUpdatedAt
+        ?? (cloudMetaRef.current?.sessionId === draftSessionId ? cloudMetaRef.current.updatedAt : undefined),
+      cloudRevision: overrides.cloudRevision
+        ?? previousDraft?.cloudRevision
+        ?? (cloudMetaRef.current?.sessionId === draftSessionId ? cloudMetaRef.current.revision : undefined),
       lastFirebaseSyncAt: overrides.lastFirebaseSyncAt ?? previousDraft?.lastFirebaseSyncAt ?? null,
       dirty: overrides.dirty ?? true,
       completedLocally: overrides.completedLocally ?? previousDraft?.completedLocally ?? false,
@@ -489,6 +509,13 @@ const WorkoutDay = () => {
       const result = await batchSaveWorkout(targetSessionId, exercisesPayload, saveOptions);
 
       if (!result.success) {
+        if (result.error === 'WORKOUT_CONFLICT') {
+          // Trening zmieniony na innym urządzeniu — user wybiera wersję zamiast cichego nadpisania.
+          setConflictDialogOpen(true);
+          setSaveError(null);
+          setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
+          return { success: false, error: result.error };
+        }
         const errorMessage = result.error || t('workout.err.syncFailed');
         setSaveError(errorMessage);
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
@@ -569,6 +596,36 @@ const WorkoutDay = () => {
       isSyncingRef.current = false;
     }
   }, [uid, sessionId, batchSaveWorkout, buildExercisesPayload, createWorkoutSession, getWorkoutSessionFromServer, persistDraftSnapshot, queueAutoSaveStatus, t]);
+
+  // Konflikt urządzeń: zachowaj lokalną wersję — podbij znacznik chmury w drafcie
+  // do stanu serwera i ponów zapis (świadome nadpisanie wersji z drugiego urządzenia).
+  const resolveConflictKeepMine = useCallback(async () => {
+    setConflictDialogOpen(false);
+    if (!uid || !sessionId) return;
+    const server = await getWorkoutSessionFromServer(sessionId);
+    await persistDraftSnapshot({
+      ...(server?.updatedAt !== undefined ? { cloudUpdatedAt: server.updatedAt } : {}),
+      ...(server?.revision !== undefined ? { cloudRevision: server.revision } : {}),
+    }, { showStatus: false });
+    await syncDraftToFirebase(activeDraftRef.current?.finalSyncPending ? 'final' : 'checkpoint');
+  }, [uid, sessionId, getWorkoutSessionFromServer, persistDraftSnapshot, syncDraftToFirebase]);
+
+  // Konflikt urządzeń: pobierz wersję z chmury — porzuć lokalny draft i kolejkę;
+  // efekt wczytywania załaduje stan serwera z onSnapshot (workouts).
+  const resolveConflictUseCloud = useCallback(async () => {
+    setConflictDialogOpen(false);
+    if (!uid || !sessionId) return;
+    try {
+      await workoutDraftDb.clearActiveDraft(uid, sessionId);
+    } catch {
+      // Draft lokalny może już nie istnieć — stan i tak załadujemy z chmury.
+    }
+    workoutSyncQueue.remove(uid, sessionId);
+    setQueuedDraft(prev => prev?.sessionId === sessionId ? null : prev);
+    setActiveDraft(null);
+    setSaveError(null);
+    setAutoSaveStatus('idle');
+  }, [uid, sessionId]);
 
   const applyWorkoutState = useCallback((next: {
     sessionId: string | null;
@@ -740,6 +797,11 @@ const WorkoutDay = () => {
         }
       });
 
+      cloudMetaRef.current = {
+        sessionId: workoutForDate.id,
+        updatedAt: workoutForDate.updatedAt,
+        revision: workoutForDate.revision,
+      };
       applyWorkoutState({
         sessionId: workoutForDate.id,
         completed: workoutForDate.completed,
@@ -954,6 +1016,11 @@ const WorkoutDay = () => {
       }
 
       if (result.existing) {
+        cloudMetaRef.current = {
+          sessionId: result.session.id,
+          updatedAt: result.session.updatedAt,
+          revision: result.session.revision,
+        };
         setSessionId(result.session.id);
         setIsCompleted(false);
         toast({
@@ -1859,6 +1926,23 @@ const WorkoutDay = () => {
           </Button>
         </div>
       )}
+
+      <AlertDialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('workout.conflict.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('workout.conflict.desc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => void resolveConflictUseCloud()}>
+              {t('workout.conflict.useCloud')}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => void resolveConflictKeepMine()}>
+              {t('workout.conflict.keepMine')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
