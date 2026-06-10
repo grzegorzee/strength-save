@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   Area,
   AreaChart,
   XAxis,
@@ -33,9 +31,9 @@ import { calculate1RM } from '@/lib/pr-utils';
 import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
-import { tooltipStyle } from '@/lib/chart-config';
+import { tooltipStyle, axisProps } from '@/lib/chart-config';
 import { getTrainingDayForDate, startOfLocalDay } from '@/lib/plan-schedule';
-import { TrendingUp } from 'lucide-react';
+import { Dumbbell, Flame, Scale, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
 import { dateLocale } from '@/i18n';
 import type { LanguageCode, TranslationKey } from '@/i18n';
 
@@ -45,12 +43,32 @@ type WeightMode = 'max' | '1rm';
 const StatSummary = ({ items }: { items: { label: string; value: string | number }[] }) => (
   <div className="grid grid-cols-3 gap-3 mt-4">
     {items.map(item => (
-      <div key={item.label} className="text-center p-3 bg-muted/30 rounded-lg">
-        <p className="text-lg font-bold">{item.value}</p>
+      <div key={item.label} className="text-center p-3 bg-muted/30 rounded-xl">
+        <p className="text-lg font-heading font-bold tracking-tight">{item.value}</p>
         <p className="text-[10px] text-muted-foreground leading-tight">{item.label}</p>
       </div>
     ))}
   </div>
+);
+
+// Nagłówek karty wykresu — ikona w neonowym kółku (wzorzec StatsCard) + tytuł.
+const ChartHeader = ({ icon: Icon, title }: { icon: LucideIcon; title: string }) => (
+  <div className="flex items-center gap-3 mb-4">
+    <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center shrink-0">
+      <Icon className="h-4.5 w-4.5 text-primary-foreground" />
+    </div>
+    <h3 className="font-heading font-bold uppercase tracking-tight text-base">{title}</h3>
+  </div>
+);
+
+// Gradient pod liniami/słupkami — definicja per wykres (unikalne id).
+const ChartGradient = ({ id }: { id: string }) => (
+  <defs>
+    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.45} />
+      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
+    </linearGradient>
+  </defs>
 );
 
 const workoutTonnage = (workout: WorkoutSession): number =>
@@ -240,14 +258,16 @@ const AnalyticsChartsTab = () => {
       {subTab === 'workouts' && (
         <Card>
           <CardContent className="pt-6">
+            <ChartHeader icon={Dumbbell} title={t('analytics.subtab.workouts')} />
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={workoutsData.weeks}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} />
-                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} domain={[0, 'auto']} />
-                <Tooltip contentStyle={tooltipStyle} />
+                <ChartGradient id="grad-workouts" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} {...axisProps} />
+                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} domain={[0, 'auto']} width={28} {...axisProps} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--primary) / 0.08)' }} />
                 <ReferenceLine y={3} stroke="hsl(var(--chart-2))" strokeDasharray="4 4" label={{ value: t('analytics.chart.goal3'), position: 'right', fontSize: 10, fill: 'hsl(var(--chart-2))' }} />
-                <Bar dataKey="count" name={t('analytics.subtab.workouts')} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" name={t('analytics.subtab.workouts')} fill="url(#grad-workouts)" stroke="hsl(var(--primary))" strokeWidth={1} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             <StatSummary items={[
@@ -262,16 +282,18 @@ const AnalyticsChartsTab = () => {
       {subTab === 'tonnage' && (
         <Card>
           <CardContent className="pt-6">
+            <ChartHeader icon={Trophy} title={t('analytics.subtab.tonnage')} />
             {tonnageData.chartData.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">{t('analytics.noCompletedToShow')}</p>
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={tonnageData.chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(tonnageData.chartData.length / 6) - 1)} />
-                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} />
+                  <ChartGradient id="grad-tonnage" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(tonnageData.chartData.length / 6) - 1)} {...axisProps} />
+                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} {...axisProps} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} ${unit}`, t('analytics.stat.tonnage')]} />
-                  <Area type="monotone" dataKey="tonnage" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.15} strokeWidth={2} dot={{ r: 3 }} />
+                  <Area type="monotone" dataKey="tonnage" stroke="hsl(var(--primary))" fill="url(#grad-tonnage)" strokeWidth={2.5} dot={false} activeDot={{ r: 4 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -290,14 +312,16 @@ const AnalyticsChartsTab = () => {
         ) : (
           <Card>
             <CardContent className="pt-6">
+              <ChartHeader icon={Scale} title={t('analytics.subtab.weight')} />
               <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={weightData.chartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(weightData.chartData.length / 6) - 1)} />
-                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} domain={['dataMin - 1', 'dataMax + 1']} />
+                <AreaChart data={weightData.chartData}>
+                  <ChartGradient id="grad-weight" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(weightData.chartData.length / 6) - 1)} {...axisProps} />
+                  <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} domain={['dataMin - 1', 'dataMax + 1']} {...axisProps} />
                   <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value} ${unit}`, t('analytics.subtab.weight')]} />
-                  <Line type="monotone" dataKey="weight" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--primary))' }} />
-                </LineChart>
+                  <Area type="monotone" dataKey="weight" stroke="hsl(var(--primary))" fill="url(#grad-weight)" strokeWidth={2.5} dot={{ r: 3, fill: 'hsl(var(--primary))', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                </AreaChart>
               </ResponsiveContainer>
               <StatSummary items={[
                 { label: t('analytics.stat.currentWeight'), value: weightData.current },
@@ -312,6 +336,7 @@ const AnalyticsChartsTab = () => {
       {subTab === 'streak' && (
         <Card>
           <CardContent className="pt-6">
+            <ChartHeader icon={Flame} title={t('analytics.subtab.streak')} />
             <div className="flex gap-1">
               <div className="flex flex-col gap-1 mr-1">
                 {dayLabels.map(label => (
@@ -380,13 +405,14 @@ const AnalyticsChartsTab = () => {
                     <p className="text-sm font-medium mb-2 truncate">{ex.name}</p>
                     {ex.chartData.length >= 2 ? (
                       <ResponsiveContainer width="100%" height={150}>
-                        <LineChart data={ex.chartData}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="date" tick={{ fontSize: 9 }} className="fill-muted-foreground" />
-                          <YAxis tick={{ fontSize: 9 }} className="fill-muted-foreground" unit={ex.isBodyweight ? ' rp' : ` ${unit}`} width={45} />
+                        <AreaChart data={ex.chartData}>
+                          <ChartGradient id={`grad-ex-${ex.id}`} />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                          <XAxis dataKey="date" tick={{ fontSize: 9 }} className="fill-muted-foreground" {...axisProps} />
+                          <YAxis tick={{ fontSize: 9 }} className="fill-muted-foreground" unit={ex.isBodyweight ? ' rp' : ` ${unit}`} width={45} {...axisProps} />
                           <Tooltip contentStyle={tooltipStyle} />
-                          <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 2 }} connectNulls />
-                        </LineChart>
+                          <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" fill={`url(#grad-ex-${ex.id})`} strokeWidth={2} dot={{ r: 2, fill: 'hsl(var(--primary))', strokeWidth: 0 }} connectNulls />
+                        </AreaChart>
                       </ResponsiveContainer>
                     ) : (
                       <div className="h-[150px] flex items-center justify-center text-xs text-muted-foreground">

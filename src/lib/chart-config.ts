@@ -1,9 +1,17 @@
 export const tooltipStyle = {
-  backgroundColor: 'hsl(var(--card))',
-  border: '1px solid hsl(var(--border))',
-  borderRadius: '8px',
+  backgroundColor: 'hsl(var(--card) / 0.95)',
+  border: '1px solid hsl(var(--primary) / 0.25)',
+  borderRadius: '12px',
   fontSize: '12px',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+  backdropFilter: 'blur(8px)',
 };
+
+// Wspólne propsy osi — czyste osie bez kresek i linii (spójnie we wszystkich wykresach).
+export const axisProps = {
+  tickLine: false,
+  axisLine: false,
+} as const;
 
 export const CHART_COLORS = [
   'hsl(var(--primary))',
