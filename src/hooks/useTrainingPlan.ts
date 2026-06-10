@@ -124,9 +124,13 @@ export const useTrainingPlan = (userId: string) => {
     options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean },
   ): Promise<{ success: boolean; error?: string }> => {
     if (!userId) return { success: false, error: t('err.noUserId') };
+    // Zapis przed załadowaniem snapshotu nadpisałby istniejący plan domyślnym stanem
+    // (durationWeeks=12, startDate=null) — czyli skasowałby custom plan i datę startu.
+    if (!isLoaded) return { success: false, error: t('err.planNotLoaded') };
     try {
       const nextDurationWeeks = options?.durationWeeks ?? planDurationWeeks;
       const nextStartDate = options?.startDate !== undefined ? options.startDate : planStartDate;
+      // merge: true — pola pominięte (np. startDate, gdy stan go jeszcze nie ma) zostają w dokumencie.
       await setDoc(doc(db, PLAN_COLLECTION, userId), {
         days: newPlan,
         updatedAt: new Date().toISOString(),
@@ -134,7 +138,7 @@ export const useTrainingPlan = (userId: string) => {
         ...(options?.startDate !== undefined
           ? { startDate: options.startDate }
           : planStartDate ? { startDate: planStartDate } : {}),
-      });
+      }, { merge: true });
 
       if (options?.syncActiveCycle !== false) {
         const activeCyclesQuery = query(
@@ -153,7 +157,7 @@ export const useTrainingPlan = (userId: string) => {
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, [userId, planDurationWeeks, planStartDate, t]);
+  }, [userId, isLoaded, planDurationWeeks, planStartDate, t]);
 
   const swapExercise = useCallback(async (
     dayId: string,

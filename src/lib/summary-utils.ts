@@ -56,7 +56,9 @@ export const calculateStreak = (workouts: WorkoutSession[]): number => {
   const { start: currentWeekStart } = getWeekBounds(now);
 
   for (let i = 0; i < weeks.length; i++) {
-    const weekStart = new Date(weeks[i]);
+    // parseLocalDate, nie new Date('YYYY-MM-DD') (UTC) — w strefach UTC+ poniedziałkowe
+    // treningi (lokalna północ) wypadały przed tak sparsowanym początkiem tygodnia.
+    const weekStart = parseLocalDate(weeks[i]);
     const expectedWeekStart = new Date(currentWeekStart);
     expectedWeekStart.setDate(expectedWeekStart.getDate() - i * 7);
     const expectedStr = formatLocalDate(expectedWeekStart);

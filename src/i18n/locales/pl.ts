@@ -1270,6 +1270,7 @@ export const pl = {
   'err.noSession': 'Brak ID sesji treningowej',
   'err.workoutNotFound': 'Nie znaleziono treningu w bazie danych',
   'err.noUserId': 'Brak userId',
+  'err.planNotLoaded': 'Plan jeszcze się ładuje. Spróbuj za chwilę.',
   'weekly.noData': 'Brak danych treningowych w tym tygodniu.',
   // === onboarding v2 (ob.*) ===
   'ob.brand': 'STRENGTH SAVE',

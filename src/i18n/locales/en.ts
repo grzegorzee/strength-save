@@ -1264,6 +1264,7 @@ export const en: Record<keyof typeof pl, string> = {
   'err.noSession': 'Missing workout session ID',
   'err.workoutNotFound': 'Workout not found in the database',
   'err.noUserId': 'Missing user ID',
+  'err.planNotLoaded': 'The plan is still loading. Try again in a moment.',
   'weekly.noData': 'No training data for this week.',
   // === onboarding v2 (ob.*) ===
   'ob.brand': 'STRENGTH SAVE',

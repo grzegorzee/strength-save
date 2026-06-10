@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getWeekBounds, calculateTonnage, calculateStreak } from '@/lib/summary-utils';
+import { formatLocalDate } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
 describe('getWeekBounds', () => {
@@ -79,5 +80,25 @@ describe('calculateStreak', () => {
       { id: 'w1', userId: 'test-user', dayId: 'day-1', date: '2026-02-23', completed: false, exercises: [] },
     ];
     expect(calculateStreak(workouts)).toBe(0);
+  });
+
+  // Regresja: weekStart parsowany jako UTC (new Date('YYYY-MM-DD')) wykluczał treningi
+  // poniedziałkowe z licznika tygodnia w strefach UTC+ (d < weekStart o offset strefy).
+  it('counts Monday workouts towards the week (no UTC/local mix)', () => {
+    const { start: currentMonday } = getWeekBounds(new Date());
+    const onDay = (weeksBack: number, dayOffset: number): string => {
+      const d = new Date(currentMonday);
+      d.setDate(d.getDate() - weeksBack * 7 + dayOffset);
+      return formatLocalDate(d);
+    };
+    const mk = (id: string, date: string): WorkoutSession => (
+      { id, userId: 'test-user', dayId: 'day-1', date, completed: true, exercises: [] }
+    );
+    // Dwa pełne tygodnie: poniedziałek + wtorek w bieżącym i poprzednim tygodniu.
+    const workouts = [
+      mk('w1', onDay(0, 0)), mk('w2', onDay(0, 1)),
+      mk('w3', onDay(1, 0)), mk('w4', onDay(1, 1)),
+    ];
+    expect(calculateStreak(workouts)).toBe(2);
   });
 });
