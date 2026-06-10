@@ -137,6 +137,8 @@ interface PlanWizardProps {
   initial?: { level?: WizardLevel; objective?: PlanObjective; daysPerWeek?: number };
   /** Poprzedni wybór (powrót z preview) — przywraca selekcje, datę startu i własny plan zamiast zaczynać od zera. */
   resume?: PlanWizardChoice | null;
+  /** Klucz localStorage dla szkicu PlanBuildera (tryb "własny plan"). */
+  builderDraftKey?: string;
   startAtPrecision?: boolean;
   confirmLabelKey: TranslationKey;
   onConfirm: (choice: PlanWizardChoice) => void;
@@ -145,7 +147,7 @@ interface PlanWizardProps {
   onExitBack?: () => void;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, initial, resume, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, socialProof, initial, resume, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
 
@@ -186,6 +188,7 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, resume, startAtP
           <PlanBuilder
             initialDays={resumedCustomPlan?.days}
             initialDurationWeeks={resumedCustomPlan?.durationWeeks ?? 12}
+            draftStorageKey={builderDraftKey}
             onSubmit={(days, weeks) => fire(days, weeks, undefined)}
             onCancel={() => setMode('recommend')}
           />

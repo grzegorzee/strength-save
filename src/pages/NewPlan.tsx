@@ -25,6 +25,32 @@ import { swapExerciseIdentity } from '@/lib/exercise-swap';
 
 interface ProfileHint { level: WizardLevel; objective: PlanObjective; daysPerWeek: number }
 
+interface NewPlanDraft { chosen: PlanWizardChoice; reviewDays: TrainingDay[] }
+
+const newPlanDraftKey = (uid: string) => `ss-newplan-draft_${uid}`;
+const builderDraftKey = (uid: string) => `ss-plan-builder-draft_${uid}`;
+
+const readNewPlanDraft = (uid: string): NewPlanDraft | null => {
+  try {
+    const raw = localStorage.getItem(newPlanDraftKey(uid));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<NewPlanDraft>;
+    if (!parsed.chosen || !Array.isArray(parsed.reviewDays) || parsed.reviewDays.length === 0) return null;
+    return parsed as NewPlanDraft;
+  } catch {
+    return null;
+  }
+};
+
+const clearPlanDrafts = (uid: string) => {
+  try {
+    localStorage.removeItem(newPlanDraftKey(uid));
+    localStorage.removeItem(builderDraftKey(uid));
+  } catch {
+    // nieistotne
+  }
+};
+
 const NewPlan = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -46,6 +72,31 @@ const NewPlan = () => {
   const [swap, setSwap] = useState<{ open: boolean; dayId: string; exerciseId: string; exerciseName: string; sets: string; category: typeof exerciseLibrary[0]['category'] | null }>(
     { open: false, dayId: '', exerciseId: '', exerciseName: '', sets: '', category: null },
   );
+  // Szkic z poprzedniej sesji (refresh/crash w podglądzie) — banner "kontynuować?".
+  const [savedDraft, setSavedDraft] = useState<NewPlanDraft | null>(() => (uid ? readNewPlanDraft(uid) : null));
+
+  // Autozapis stanu podglądu: zatwierdzony wybór + swapy.
+  useEffect(() => {
+    if (!uid || phase !== 'preview' || !chosen) return;
+    try {
+      localStorage.setItem(newPlanDraftKey(uid), JSON.stringify({ chosen, reviewDays } satisfies NewPlanDraft));
+    } catch {
+      // brak miejsca — szkic to bonus
+    }
+  }, [uid, phase, chosen, reviewDays]);
+
+  const resumeDraft = () => {
+    if (!savedDraft) return;
+    setChosen(savedDraft.chosen);
+    setReviewDays(savedDraft.reviewDays);
+    setPhase('preview');
+    setSavedDraft(null);
+  };
+
+  const discardDraft = () => {
+    if (uid) clearPlanDrafts(uid);
+    setSavedDraft(null);
+  };
 
   // Pre-fill wizarda z zapisanego profilu treningowego (level/cel/dni z onboardingu).
   useEffect(() => {
@@ -99,6 +150,7 @@ const NewPlan = () => {
         backfillHistoricalWorkouts,
       });
       if (!result.success) { setError(result.error || t('onboarding.error.saveFailed')); setIsSaving(false); return; }
+      clearPlanDrafts(uid);
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));
@@ -114,14 +166,28 @@ const NewPlan = () => {
   // ── Wizard (pre-fill, start od rekomendacji) ──
   if (phase === 'wizard') {
     return (
-      <PlanWizard
-        initial={profileHint}
-        resume={chosen}
-        startAtPrecision
-        confirmLabelKey="newplan.toReview"
-        onConfirm={onWizardConfirm}
-        onExitBack={() => (sourceCycle ? setPhase('closeout') : navigate(-1))}
-      />
+      <>
+        {savedDraft && !chosen && (
+          <div className="fixed inset-x-0 top-0 z-50 px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+            <div className="mx-auto flex max-w-lg items-center justify-between gap-3 rounded-2xl bg-surface-high/95 p-3 shadow-lg backdrop-blur">
+              <p className="text-sm font-medium">{t('newplan.draft.resumeTitle')}</p>
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" variant="ghost" onClick={discardDraft}>{t('newplan.draft.discard')}</Button>
+                <Button size="sm" className="kinetic-primary-button" onClick={resumeDraft}>{t('newplan.draft.resume')}</Button>
+              </div>
+            </div>
+          </div>
+        )}
+        <PlanWizard
+          initial={profileHint}
+          resume={chosen}
+          builderDraftKey={builderDraftKey(uid)}
+          startAtPrecision
+          confirmLabelKey="newplan.toReview"
+          onConfirm={onWizardConfirm}
+          onExitBack={() => (sourceCycle ? setPhase('closeout') : navigate(-1))}
+        />
+      </>
     );
   }
 

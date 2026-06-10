@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChipButton } from '@/components/ui/chip-button';
@@ -39,20 +39,49 @@ const nextId = (prefix: string) => `${prefix}-${(scratchCounter += 1)}`;
 interface PlanBuilderProps {
   initialDays?: TrainingDay[];
   initialDurationWeeks?: number;
+  /** Klucz localStorage do autozapisu szkicu — refresh/crash nie kasuje ułożonego planu. */
+  draftStorageKey?: string;
   onSubmit: (days: TrainingDay[], durationWeeks: number) => void;
   onCancel: () => void;
 }
 
+const readBuilderDraft = (key: string | undefined): { days: TrainingDay[]; durationWeeks: number } | null => {
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { days?: TrainingDay[]; durationWeeks?: number };
+    if (!Array.isArray(parsed.days) || parsed.days.length === 0) return null;
+    return { days: parsed.days, durationWeeks: typeof parsed.durationWeeks === 'number' ? parsed.durationWeeks : 12 };
+  } catch {
+    return null;
+  }
+};
+
 // Ręczny kreator planu treningowego od zera (bez AI). Użytkownik definiuje dni
 // (dzień tygodnia + focus), dodaje ćwiczenia z biblioteki i ustawia serie.
-export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, onCancel }: PlanBuilderProps) => {
+export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStorageKey, onSubmit, onCancel }: PlanBuilderProps) => {
   const { t, lang } = useTranslation();
+  // initialDays (powrót z preview) ma pierwszeństwo przed szkicem z localStorage.
+  const [restoredDraft] = useState(() =>
+    initialDays && initialDays.length > 0 ? null : readBuilderDraft(draftStorageKey));
   const [days, setDays] = useState<TrainingDay[]>(() =>
     initialDays && initialDays.length > 0
       ? initialDays.map(d => ({ ...d, id: nextId('scratch-d') }))
-      : [],
+      : restoredDraft?.days ?? [],
   );
-  const [durationWeeks, setDurationWeeks] = useState(initialDurationWeeks);
+  const [durationWeeks, setDurationWeeks] = useState(restoredDraft?.durationWeeks ?? initialDurationWeeks);
+
+  // Autozapis szkicu przy każdej zmianie; pusty plan czyści wpis.
+  useEffect(() => {
+    if (!draftStorageKey) return;
+    try {
+      if (days.length === 0) localStorage.removeItem(draftStorageKey);
+      else localStorage.setItem(draftStorageKey, JSON.stringify({ days, durationWeeks }));
+    } catch {
+      // Brak miejsca w localStorage — szkic to bonus, nie blokujemy buildera.
+    }
+  }, [draftStorageKey, days, durationWeeks]);
   const [pickerDayId, setPickerDayId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<LibraryExercise['category'] | 'all'>('all');
@@ -141,6 +170,9 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
       ...d,
       focus: d.focus.trim() || t('planbuilder.defaultFocus', { n: i + 1 }),
     }));
+    if (draftStorageKey) {
+      try { localStorage.removeItem(draftStorageKey); } catch { /* nieistotne */ }
+    }
     onSubmit(finalized, durationWeeks);
   };
 

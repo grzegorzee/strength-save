@@ -50,6 +50,7 @@ const Onboarding = () => {
     <PlanWizard
       showWelcome
       socialProof
+      builderDraftKey={`ss-plan-builder-draft_${uid}`}
       confirmLabelKey="ob.precision.confirm"
       onConfirm={handleConfirm}
       isSaving={isSaving}
