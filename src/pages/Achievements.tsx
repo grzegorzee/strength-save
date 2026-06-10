@@ -183,7 +183,7 @@ const Achievements = () => {
           title={t('achievements.completedWorkouts')}
           value={completedWorkouts}
           icon={Trophy}
-          variant="success"
+          variant="primary"
         />
         <StatsCard
           title={t('achievements.totalTonnage')}
@@ -196,7 +196,7 @@ const Achievements = () => {
           title={t('achievements.exercisesWithRecord')}
           value={exerciseRecords.length}
           icon={Target}
-          variant="default"
+          variant="primary"
         />
       </div>
 
