@@ -62,6 +62,7 @@ export {
   adminBroadcastEmail,
   adminSendPush,
   adminDeleteUser,
+  deleteOwnAccount,
 } from "./registration";
 
 admin.initializeApp();
