@@ -192,7 +192,7 @@ const Cycles = () => {
               </div>
               <div className="rounded-lg bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.avgPerWorkout')}</p>
-                <p className="mt-1 text-2xl font-bold">{Math.round(toDisplay(liveActiveCycle.stats.averageTonnagePerWorkout || 0))}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{Math.round(toDisplay(liveActiveCycle.stats.averageTonnagePerWorkout || 0)).toLocaleString(dateLocale(lang))}</p>
                 <p className="text-xs text-muted-foreground">{t('cycles.kgTonnage', { unit })}</p>
               </div>
               <div className="rounded-lg bg-background/70 p-3">

@@ -566,7 +566,7 @@ export const pl = {
   'planeditor.isolation': 'Izolacja',
   'planeditor.noExercisesFound': 'Nie znaleziono ćwiczeń',
   'planeditor.title': 'Edytuj plan',
-  'planeditor.modified': 'Plan zmodyfikowany',
+  'planeditor.modified': 'Plan własny',
   'planeditor.reset': 'Reset',
   'planeditor.add': 'Dodaj',
   'comp.swap.title': 'Zamień ćwiczenie',

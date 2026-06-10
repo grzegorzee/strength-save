@@ -560,7 +560,7 @@ export const en: Record<keyof typeof pl, string> = {
   'planeditor.isolation': 'Isolation',
   'planeditor.noExercisesFound': 'No exercises found',
   'planeditor.title': 'Edit plan',
-  'planeditor.modified': 'Plan modified',
+  'planeditor.modified': 'Custom plan',
   'planeditor.reset': 'Reset',
   'planeditor.add': 'Add',
   'comp.swap.title': 'Swap exercise',
