@@ -16,6 +16,7 @@ import { LanguageProvider, useTranslation } from "./contexts/LanguageContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
 import { AutoSyncOnReconnect } from "./components/AutoSyncOnReconnect";
+import { PreferenceSync } from "./components/PreferenceSync";
 import { PushRegistrar } from "./components/PushRegistrar";
 import { IosSwipeBack } from "./components/IosSwipeBack";
 import { Loader2, ShieldOff } from "lucide-react";
@@ -223,6 +224,7 @@ const AuthenticatedApp = () => {
       <TelemetryHeartbeat />
       <PushRegistrar />
       <AutoSyncOnReconnect />
+      <PreferenceSync />
       <AppRoutes />
     </UserProvider>
   );

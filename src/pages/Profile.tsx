@@ -101,8 +101,20 @@ const Profile = () => {
     try { localStorage.setItem(key, value); } catch { /* ignore */ }
   };
 
-  const handleRestChange = (v: string) => { setRestTimer(v); persist(REST_TIMER_KEY, v); };
-  const handleSound = (v: boolean) => { setSound(v); persist(SOUND_KEY, String(v)); };
+  // Timer i dźwięk lecą też do users/{uid}.preferences — spójne między web i iOS.
+  const persistPreference = (patch: Record<string, number | boolean>) => {
+    updateDoc(doc(db, 'users', uid), patch).catch(() => { /* offline — localStorage wystarczy do następnej sesji */ });
+  };
+  const handleRestChange = (v: string) => {
+    setRestTimer(v);
+    persist(REST_TIMER_KEY, v);
+    persistPreference({ 'preferences.restTimerSec': parseInt(v, 10) || 90 });
+  };
+  const handleSound = (v: boolean) => {
+    setSound(v);
+    persist(SOUND_KEY, String(v));
+    persistPreference({ 'preferences.timerSound': v });
+  };
   const handleLanguage = (v: string) => {
     setLang(v as LanguageCode);
     toast({ title: t('profile.langSaved') });

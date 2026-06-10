@@ -15,6 +15,12 @@ export interface UserProfile {
   emailVerifiedAt: string | null;
   cohorts: string[];
   features?: Record<string, boolean>;
+  preferences?: {
+    unit?: 'kg' | 'lbs';
+    language?: 'pl' | 'en';
+    restTimerSec?: number;
+    timerSound?: boolean;
+  };
 }
 
 interface AuthProfileSeed {
@@ -55,6 +61,7 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   emailVerifiedAt: data.verification?.emailVerifiedAt || null,
   cohorts: data.cohorts || [],
   features: data.features || undefined,
+  preferences: data.preferences || undefined,
 });
 
 export const resolveProfileLoadFailure = (lastKnownProfile: UserProfile | null): UserProfile | null =>

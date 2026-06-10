@@ -48,6 +48,13 @@ export interface AppUserProfile {
   cohorts?: string[];
   features?: Record<string, boolean>;
   stravaConnected?: boolean;
+  // Preferencje aplikacji synchronizowane między urządzeniami (web + iOS).
+  preferences?: {
+    unit?: 'kg' | 'lbs';
+    language?: 'pl' | 'en';
+    restTimerSec?: number;
+    timerSound?: boolean;
+  };
 }
 
 export interface InviteRecord {
