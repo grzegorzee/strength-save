@@ -1,6 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { Capacitor } from "@capacitor/core";
-import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
+import {
+  connectFirestoreEmulator,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import {
   initializeAuth,
@@ -23,7 +28,14 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+// Persistent cache (IndexedDB): zimny start offline serwuje plan/treningi/profil
+// z cache, a zapisy (setDoc/updateDoc) czekają w kolejce mutacji do odzyskania sieci.
+// Transakcje (runTransaction) nadal wymagają sieci — offline łapie je istniejący
+// fallback provisional/sync-queue w WorkoutDay. Gdy IndexedDB niedostępne,
+// SDK sam spada do cache w pamięci (tylko warning w konsoli).
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+});
 export const storage = getStorage(app);
 // initializeAuth z jawną konfiguracją zamiast getAuth.
 // Native (Capacitor/WKWebView, capacitor://localhost):
