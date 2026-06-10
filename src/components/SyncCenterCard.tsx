@@ -13,6 +13,8 @@ import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/lib/sync-center-payload';
+import { dateLocale } from '@/i18n';
 
 interface SyncCenterCardProps {
   uid: string;
@@ -22,21 +24,13 @@ interface SyncCenterCardProps {
 // Queue-only fields are optional so the active draft is assignable too.
 type ListedSyncEntry = ActiveWorkoutDraft & Partial<Pick<WorkoutSyncQueueEntry, 'retryCount' | 'lastError'>>;
 
-const buildExercisesPayload = (draft: ActiveWorkoutDraft) => (
-  Object.entries(draft.exerciseSets).map(([exerciseId, sets]) => ({
-    exerciseId,
-    sets,
-    ...(draft.exerciseNotes[exerciseId] && { notes: draft.exerciseNotes[exerciseId] }),
-  }))
-);
-
 export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { toast } = useToast();
   const { isOnline } = useOnlineStatus();
   const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer } = useFirebaseWorkouts(uid);
-  const [draft, setDraft] = useState<ActiveWorkoutDraft | null>(null);
+  const [drafts, setDrafts] = useState<ActiveWorkoutDraft[]>([]);
   const [queueEntries, setQueueEntries] = useState<WorkoutSyncQueueEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [syncingSessionIds, setSyncingSessionIds] = useState<string[]>([]);
@@ -44,8 +38,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
   const loadDraft = useCallback(async () => {
     if (!uid) return;
-    const loadedDraft = await workoutDraftDb.loadActiveDraft(uid);
-    setDraft(loadedDraft);
+    const loadedDrafts = await workoutDraftDb.listDrafts(uid);
+    setDrafts(loadedDrafts);
     setQueueEntries(workoutSyncQueue.list(uid));
     setIsLoaded(true);
   }, [uid]);
@@ -77,9 +71,10 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   ), [t]);
 
   const listedEntries = useMemo<ListedSyncEntry[]>(() => {
-    const dedupedQueue = queueEntries.filter(entry => entry.sessionId !== draft?.sessionId);
-    return draft ? [draft, ...dedupedQueue] : dedupedQueue;
-  }, [draft, queueEntries]);
+    const draftSessionIds = new Set(drafts.map(draft => draft.sessionId));
+    const dedupedQueue = queueEntries.filter(entry => !draftSessionIds.has(entry.sessionId));
+    return [...drafts, ...dedupedQueue];
+  }, [drafts, queueEntries]);
 
   const syncOne = useCallback(async (targetDraft: ActiveWorkoutDraft, source: 'active' | 'queue') => {
     let workingDraft = targetDraft;
@@ -123,7 +118,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
         if (source === 'active') {
           await workoutDraftDb.saveActiveDraft(workingDraft);
-          setDraft(workingDraft);
+          setDrafts(current => current.map(draft => draft.sessionId === targetDraft.sessionId ? workingDraft : draft));
         }
         workoutSyncQueue.remove(uid, targetDraft.sessionId);
         if (workingDraft.finalSyncPending) {
@@ -132,11 +127,9 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         trackTelemetryEvent(uid, 'provisional_session_promoted');
       }
 
-      const result = await batchSaveWorkout(workingDraft.sessionId, buildExercisesPayload(workingDraft), {
-        notes: workingDraft.dayNotes || undefined,
-        skippedExercises: workingDraft.skippedExercises.length > 0 ? workingDraft.skippedExercises : undefined,
-        ...(workingDraft.finalSyncPending && { completed: true }),
-      });
+      const exercisesPayload = buildSyncCenterExercisesPayload(workingDraft);
+      const saveOptions = buildSyncCenterSaveOptions(workingDraft);
+      const result = await batchSaveWorkout(workingDraft.sessionId, exercisesPayload, saveOptions);
 
       if (!result.success) {
         toast({
@@ -155,7 +148,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         const confirmedWorkout = await getWorkoutSessionFromServer(workingDraft.sessionId);
         const validation = validateWorkoutCloudWrite(
           confirmedWorkout,
-          buildWorkoutWriteExpectation(buildExercisesPayload(workingDraft), { completed: true })
+          buildWorkoutWriteExpectation(exercisesPayload, saveOptions)
         );
 
         if (!validation.ok) {
@@ -171,8 +164,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         }
 
         if (source === 'active') {
-          await workoutDraftDb.clearActiveDraft(uid);
-          setDraft(null);
+          await workoutDraftDb.clearActiveDraft(uid, workingDraft.sessionId);
+          setDrafts(current => current.filter(draft => draft.sessionId !== workingDraft.sessionId));
         }
         workoutSyncQueue.remove(uid, targetDraft.sessionId);
         workoutSyncQueue.remove(uid, workingDraft.sessionId);
@@ -186,7 +179,10 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       }
 
       if (source === 'active') {
-        await workoutDraftDb.markDraftSynced(uid, Date.now());
+        await workoutDraftDb.markDraftSynced(uid, Date.now(), workingDraft.sessionId, {
+          updatedAt: result.updatedAt,
+          revision: result.revision,
+        });
       }
       workoutSyncQueue.remove(uid, targetDraft.sessionId);
       await loadDraft();
@@ -233,7 +229,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     for (const entry of retryTargets) {
       setSyncingSessionIds(prev => [...prev, entry.sessionId]);
       try {
-        await syncOne(entry, draft?.sessionId === entry.sessionId ? 'active' : 'queue');
+        await syncOne(entry, drafts.some(draft => draft.sessionId === entry.sessionId) ? 'active' : 'queue');
       } finally {
         setSyncingSessionIds(prev => prev.filter(sessionId => sessionId !== entry.sessionId));
       }
@@ -246,8 +242,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     setDiscardingSessionIds(prev => [...prev, targetDraft.sessionId]);
     try {
       if (source === 'active') {
-        await workoutDraftDb.clearActiveDraft(uid);
-        setDraft(null);
+        await workoutDraftDb.clearActiveDraft(uid, targetDraft.sessionId);
+        setDrafts(current => current.filter(draft => draft.sessionId !== targetDraft.sessionId));
       }
       workoutSyncQueue.remove(uid, targetDraft.sessionId);
       setQueueEntries(workoutSyncQueue.list(uid));
@@ -325,7 +321,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
             <div className="space-y-3">
               {listedEntries.map((entry) => {
                 const entryStatus = status(entry);
-                const isActiveEntry = draft?.sessionId === entry.sessionId;
+                const isActiveEntry = drafts.some(draft => draft.sessionId === entry.sessionId);
                 const isSyncing = syncingSessionIds.includes(entry.sessionId);
                 const isDiscarding = discardingSessionIds.includes(entry.sessionId);
                 const source = isActiveEntry ? 'active' : 'queue';
@@ -354,7 +350,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                         <span className="text-muted-foreground">{t('strava.fieldSession')}</span> {entry.sessionOrigin === 'provisional' ? t('strava.sessionProvisional') : t('strava.sessionRemote')}
                       </div>
                       <div>
-                        <span className="text-muted-foreground">{t('strava.fieldLastChange')}</span> {new Date(entry.updatedAt).toLocaleString('pl-PL')}
+                        <span className="text-muted-foreground">{t('strava.fieldLastChange')}</span> {new Date(entry.updatedAt).toLocaleString(dateLocale(lang))}
                       </div>
                     </div>
 

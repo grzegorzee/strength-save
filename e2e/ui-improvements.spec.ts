@@ -7,28 +7,67 @@ test.describe('Navigation', () => {
     await blockFirebase(page);
   });
 
-  test('sidebar has 7 navigation items (with history, no Plan dnia, no AI Coach)', async ({ page }) => {
+  test('sidebar has current navigation items (with history, no Plan dnia, no AI Coach)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
     await expectPageRendered(page);
 
     // Count nav links in the sidebar
     const navLinks = page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link');
-    await expect(navLinks).toHaveCount(7);
+    await expect(navLinks).toHaveCount(9);
 
     // Verify specific items are present
     const labels = await navLinks.allTextContents();
     const joinedLabels = labels.join(' ');
     expect(joinedLabels).toContain('Dashboard');
-    expect(joinedLabels).toContain('Plan treningowy');
+    expect(joinedLabels).toContain('Plan');
     expect(joinedLabels).toContain('Historia');
+    expect(joinedLabels).toContain('Ćwiczenia');
     expect(joinedLabels).toContain('Analityka');
+    expect(joinedLabels).toContain('Pomiary ciała');
     expect(joinedLabels).toContain('Osiągnięcia');
     expect(joinedLabels).toContain('Cykle');
+    expect(joinedLabels).toContain('Profil');
 
     // Verify removed items are NOT present
     expect(joinedLabels).not.toContain('Plan dnia');
     expect(joinedLabels).not.toContain('AI Coach');
+  });
+
+  test('closed mobile drawer does not expose sidebar links to keyboard focus', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+    await expectPageRendered(page);
+
+    await expect(page.getByRole('navigation', { name: 'Nawigacja główna' })).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Nawigacja główna' }).click();
+    await expect(page.getByRole('navigation', { name: 'Nawigacja główna' })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('navigation', { name: 'Nawigacja główna' })).toHaveCount(0);
+
+    for (let i = 0; i < 8; i += 1) {
+      await page.keyboard.press('Tab');
+      const focusedHref = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
+      expect(focusedHref).not.toBe('#/analytics');
+      expect(focusedHref).not.toBe('#/measurements');
+      expect(focusedHref).not.toBe('#/achievements');
+      expect(focusedHref).not.toBe('#/cycles');
+    }
+  });
+
+  test('mobile workout keeps focused mode free of bottom navigation', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/#/workout/day-1');
+    await page.waitForLoadState('domcontentloaded');
+    await expectPageRendered(page);
+
+    await expect(page.getByRole('navigation', { name: 'Nawigacja mobilna' })).toHaveCount(0);
+    await expect(page.locator('.exercise-card').first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Rozpocznij trening|Start workout/i })).toBeVisible();
   });
 });
 

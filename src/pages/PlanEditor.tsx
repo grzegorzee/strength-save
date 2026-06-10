@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ChipButton } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -17,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { nextExerciseIdForDay } from '@/lib/plan-cycle-utils';
 import {
   ArrowUp,
   ArrowDown,
@@ -86,9 +88,8 @@ const PlanEditor = () => {
     const day = plan.find(d => d.id === dayId);
     if (!day) return;
 
-    const newId = `ex-${dayId.replace('day-', '')}-${day.exercises.length + 1}`;
     const result = await addExercise(dayId, {
-      id: newId,
+      id: nextExerciseIdForDay(day),
       name: ex.name,
       sets: ex.type === 'compound' ? '3 x 6-8' : '3 x 10-12',
       instructions: [],
@@ -167,22 +168,24 @@ const PlanEditor = () => {
 
         {/* Category filter */}
         <div className="flex flex-wrap gap-1.5">
-          <Badge
+          <ChipButton
             variant={selectedCategory === 'all' ? 'default' : 'outline'}
-            className="cursor-pointer text-xs"
+            pressed={selectedCategory === 'all'}
+            className="text-xs"
             onClick={() => setSelectedCategory('all')}
           >
             {t('exercises.all')}
-          </Badge>
+          </ChipButton>
           {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
-            <Badge
+            <ChipButton
               key={key}
               variant={selectedCategory === key ? 'default' : 'outline'}
-              className="cursor-pointer text-xs"
+              pressed={selectedCategory === key}
+              className="text-xs"
               onClick={() => setSelectedCategory(key)}
             >
               {localizeCategory(key, lang)}
-            </Badge>
+            </ChipButton>
           ))}
         </div>
 

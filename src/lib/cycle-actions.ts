@@ -3,6 +3,7 @@ import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
+import { assignCycleDayIds, getCycleStartPreview } from '@/lib/plan-cycle-utils';
 
 export interface StartCycleDeps {
   uid: string;
@@ -10,10 +11,26 @@ export interface StartCycleDeps {
   planStartDate: string | null;
   planDurationWeeks: number;
   workouts: WorkoutSession[];
+  startDate?: string;
   archiveCurrentPlan: (days: TrainingDay[], weeks: number, start: string, workouts: WorkoutSession[]) => Promise<string | null>;
-  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string }) => Promise<{ success: boolean; error?: string }>;
+  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
+}
+
+export interface CompleteOnboardingChoice {
+  days: TrainingDay[];
+  durationWeeks: number;
+  startDate: string;
+  level: string;
+  objective: string;
+  daysPerWeek: number;
+}
+
+export interface CompleteOnboardingDeps {
+  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
+  markOnboardingComplete: (choice: CompleteOnboardingChoice, days: TrainingDay[], startDate: string) => Promise<void>;
 }
 
 /**
@@ -29,9 +46,28 @@ export async function startCycleWithPlan(
   durationWeeks: number,
   deps: StartCycleDeps,
 ): Promise<{ success: boolean; error?: string }> {
-  const newStart = formatLocalDate(getStartOfPlanWeek(new Date()));
+  const newStart = deps.startDate
+    ? getCycleStartPreview(deps.startDate).cycleStartDate
+    : formatLocalDate(getStartOfPlanWeek(new Date()));
 
-  // Archiwizuj obecny plan jako zakończony cykl + dotaguj historię.
+  const uniqueDays = assignCycleDayIds(days, newStart);
+  const result = await deps.savePlan(uniqueDays, { durationWeeks, startDate: newStart, syncActiveCycle: false });
+  if (!result.success) return result;
+
+  const activeCycleId = await deps.createActiveCycle(uniqueDays, durationWeeks, newStart);
+  if (!activeCycleId) {
+    if (deps.planStartDate && deps.currentPlan.length > 0) {
+      await deps.savePlan(deps.currentPlan, {
+        durationWeeks: deps.planDurationWeeks,
+        startDate: deps.planStartDate,
+        syncActiveCycle: false,
+      });
+    }
+    return { success: false, error: 'Active cycle was not created' };
+  }
+
+  // Archiwizuj poprzedni plan dopiero po utworzeniu nowego aktywnego cyklu. Jeśli ten krok
+  // zostanie ponowiony, archiveCurrentPlan ma zachować idempotencję po startDate.
   if (deps.planStartDate && deps.currentPlan.length > 0) {
     const archivedId = await deps.archiveCurrentPlan(
       deps.currentPlan, deps.planDurationWeeks, deps.planStartDate, deps.workouts,
@@ -47,9 +83,29 @@ export async function startCycleWithPlan(
     }
   }
 
-  const uniqueDays: TrainingDay[] = days.map((d, i) => ({ ...d, id: `${newStart}-d${i + 1}` }));
-  const result = await deps.savePlan(uniqueDays, { durationWeeks, startDate: newStart });
-  if (!result.success) return result;
-  await deps.createActiveCycle(uniqueDays, durationWeeks, newStart);
   return { success: true };
+}
+
+export async function completeOnboardingPlan(
+  choice: CompleteOnboardingChoice,
+  deps: CompleteOnboardingDeps,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const planStartDate = getCycleStartPreview(choice.startDate).cycleStartDate;
+    const days = assignCycleDayIds(choice.days, planStartDate);
+    const result = await deps.savePlan(days, {
+      durationWeeks: choice.durationWeeks,
+      startDate: planStartDate,
+      syncActiveCycle: false,
+    });
+    if (!result.success) return result;
+
+    const activeCycleId = await deps.createActiveCycle(days, choice.durationWeeks, planStartDate);
+    if (!activeCycleId) return { success: false, error: 'Active cycle was not created' };
+
+    await deps.markOnboardingComplete(choice, days, planStartDate);
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Could not complete onboarding' };
+  }
 }

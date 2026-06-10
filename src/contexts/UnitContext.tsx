@@ -1,5 +1,15 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { formatWeight, formatTonnage, toDisplayWeight, fromInputWeight, type UnitSystem } from '@/lib/units';
+import {
+  formatLength,
+  formatWeight,
+  formatTonnage,
+  toDisplayLength,
+  toDisplayWeight,
+  fromInputLength,
+  fromInputWeight,
+  lengthUnitLabel,
+  type UnitSystem,
+} from '@/lib/units';
 
 const STORAGE_KEY = 'unit-system';
 
@@ -12,6 +22,10 @@ interface UnitContextValue {
   fmtTonnage: (kg: number) => string;
   toDisplay: (kg: number) => number;
   fromInput: (value: number) => number;
+  lengthUnit: string;
+  fmtLength: (cm: number, opts?: { decimals?: number; withUnit?: boolean }) => string;
+  toDisplayLength: (cm: number) => number;
+  fromInputLength: (value: number) => number;
 }
 
 const UnitContext = createContext<UnitContextValue | null>(null);
@@ -40,6 +54,10 @@ export const UnitProvider = ({ children }: { children: ReactNode }) => {
         fmtTonnage: (kg) => formatTonnage(kg, unit),
         toDisplay: (kg) => toDisplayWeight(kg, unit),
         fromInput: (value) => fromInputWeight(value, unit),
+        lengthUnit: lengthUnitLabel(unit),
+        fmtLength: (cm, opts) => formatLength(cm, unit, opts),
+        toDisplayLength: (cm) => toDisplayLength(cm, unit),
+        fromInputLength: (value) => fromInputLength(value, unit),
       }}
     >
       {children}

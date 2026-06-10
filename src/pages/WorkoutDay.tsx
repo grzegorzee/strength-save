@@ -31,7 +31,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
-import { createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
+import { createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
+import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
@@ -110,7 +111,7 @@ const WorkoutDay = () => {
   const [swapQuery, setSwapQuery] = useState('');
   const [swapPick, setSwapPick] = useState<LibraryExercise | null>(null);
   // Session-only swaps ("tylko dziś") keyed by exerciseId — not persisted to the plan.
-  const [sessionSwaps, setSessionSwaps] = useState<Record<string, { name: string; sets: string; videoUrl?: string }>>({});
+  const [sessionSwaps, setSessionSwaps] = useState<Record<string, { id: string; name: string; sets: string; videoUrl?: string }>>({});
 
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const firstExerciseRef = useRef<HTMLDivElement>(null);
@@ -206,7 +207,7 @@ const WorkoutDay = () => {
       ...baseDay,
       exercises: baseDay.exercises.map(ex => {
         const ov = sessionSwaps[ex.id];
-        return ov ? { ...ex, name: ov.name, sets: ov.sets, videoUrl: ov.videoUrl, instructions: [] } : ex;
+        return ov ? { ...ex, id: ov.id, name: ov.name, sets: ov.sets, videoUrl: ov.videoUrl, instructions: [] } : ex;
       }),
     };
   }, [baseDay, sessionSwaps, workoutForDate, isViewingPastWorkout, resolver, dayId]);
@@ -220,12 +221,39 @@ const WorkoutDay = () => {
   // Apply an exercise swap chosen from the library — either for this session only or permanently.
   const handleApplySwap = async (exerciseId: string, currentSets: string, scope: 'today' | 'plan') => {
     if (!swapPick || !day) return;
+    const currentExercise = day.exercises.find(ex => ex.id === exerciseId);
+    if (!currentExercise) return;
+
     if (scope === 'plan') {
       await swapExercise(day.id, exerciseId, swapPick.name, currentSets, swapPick.videoUrl);
     } else {
+      const swappedId = buildSwappedExerciseId(exerciseId, swapPick.name, day.exercises.map(ex => ex.id));
+      const nextExerciseSets = { ...exerciseSetsRef.current };
+      nextExerciseSets[swappedId] = resetSetsForExerciseSwap(
+        nextExerciseSets[exerciseId] ?? createEmptySets(parseSetCount(currentSets)),
+        currentExercise.name,
+        swapPick.name,
+      );
+      delete nextExerciseSets[exerciseId];
+      exerciseSetsRef.current = nextExerciseSets;
+      setExerciseSets(nextExerciseSets);
+
+      const nextExerciseNotes = { ...exerciseNotesRef.current };
+      if (nextExerciseNotes[exerciseId]) nextExerciseNotes[swappedId] = nextExerciseNotes[exerciseId];
+      delete nextExerciseNotes[exerciseId];
+      exerciseNotesRef.current = nextExerciseNotes;
+      setExerciseNotes(nextExerciseNotes);
+
+      const nextExerciseMetrics = { ...exerciseMetricsRef.current };
+      if (nextExerciseMetrics[exerciseId]) nextExerciseMetrics[swappedId] = nextExerciseMetrics[exerciseId];
+      delete nextExerciseMetrics[exerciseId];
+      exerciseMetricsRef.current = nextExerciseMetrics;
+      setExerciseMetrics(nextExerciseMetrics);
+
+      setSkippedExercises(prev => prev.filter(id => id !== exerciseId));
       setSessionSwaps(prev => ({
         ...prev,
-        [exerciseId]: { name: swapPick.name, sets: currentSets, videoUrl: swapPick.videoUrl },
+        [exerciseId]: { id: swappedId, name: swapPick.name, sets: currentSets, videoUrl: swapPick.videoUrl },
       }));
     }
     setSwapExerciseId(null);
@@ -287,11 +315,16 @@ const WorkoutDay = () => {
       remoteSessionId: overrides.remoteSessionId ?? previousDraft?.remoteSessionId ?? null,
       exerciseSets: overrides.exerciseSets ?? exerciseSetsRef.current,
       exerciseNotes: overrides.exerciseNotes ?? exerciseNotesRef.current,
+      exerciseNames: overrides.exerciseNames ?? previousDraft?.exerciseNames ?? daySnapshotRef.current.names,
       exerciseMetrics: overrides.exerciseMetrics ?? exerciseMetricsRef.current,
       dayNotes: overrides.dayNotes ?? dayNotesRef.current,
+      dayName: overrides.dayName ?? previousDraft?.dayName ?? daySnapshotRef.current.dayName,
+      dayFocus: overrides.dayFocus ?? previousDraft?.dayFocus ?? daySnapshotRef.current.focus,
       skippedExercises: overrides.skippedExercises ?? skippedExercisesRef.current,
       startedAt: overrides.startedAt ?? previousDraft?.startedAt ?? now,
       updatedAt: overrides.updatedAt ?? now,
+      cloudUpdatedAt: overrides.cloudUpdatedAt ?? previousDraft?.cloudUpdatedAt,
+      cloudRevision: overrides.cloudRevision ?? previousDraft?.cloudRevision,
       lastFirebaseSyncAt: overrides.lastFirebaseSyncAt ?? previousDraft?.lastFirebaseSyncAt ?? null,
       dirty: overrides.dirty ?? true,
       completedLocally: overrides.completedLocally ?? previousDraft?.completedLocally ?? false,
@@ -409,6 +442,8 @@ const WorkoutDay = () => {
           sessionOrigin: 'remote',
           remoteSessionId: promoteResult.session.id,
           updatedAt: now,
+          cloudUpdatedAt: promoteResult.session.updatedAt,
+          cloudRevision: promoteResult.session.revision,
           version: currentDraft.version + 1,
         };
 
@@ -427,7 +462,7 @@ const WorkoutDay = () => {
       const finalDurationSec = requiresFinalSync && startedAt
         ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
         : undefined;
-      const result = await batchSaveWorkout(targetSessionId, buildExercisesPayload(), {
+      const saveOptions = {
         notes: dayNotesRef.current || undefined,
         skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
         dayName: daySnapshotRef.current.dayName || undefined,
@@ -435,7 +470,10 @@ const WorkoutDay = () => {
         ...(requiresFinalSync && { completed: true }),
         ...(finalDurationSec !== undefined && { durationSec: finalDurationSec }),
         ...(requiresFinalSync && startedAt ? { startedAt } : {}),
-      });
+        expectedUpdatedAt: currentDraft?.cloudUpdatedAt ?? null,
+      };
+      const exercisesPayload = buildExercisesPayload();
+      const result = await batchSaveWorkout(targetSessionId, exercisesPayload, saveOptions);
 
       if (!result.success) {
         const errorMessage = result.error || t('workout.err.syncFailed');
@@ -451,7 +489,7 @@ const WorkoutDay = () => {
         const confirmedWorkout = await getWorkoutSessionFromServer(targetSessionId);
         const validation = validateWorkoutCloudWrite(
           confirmedWorkout,
-          buildWorkoutWriteExpectation(buildExercisesPayload(), { completed: true })
+          buildWorkoutWriteExpectation(exercisesPayload, saveOptions)
         );
 
         if (!validation.ok) {
@@ -464,7 +502,7 @@ const WorkoutDay = () => {
 
         if (usesActiveDraftStore) {
           try {
-            await workoutDraftDb.clearActiveDraft(uid);
+            await workoutDraftDb.clearActiveDraft(uid, targetSessionId);
           } catch {
             setSaveError(t('workout.err.cloudSavedLocalCleanupFailed'));
           }
@@ -484,7 +522,10 @@ const WorkoutDay = () => {
 
       if (usesActiveDraftStore) {
         try {
-          await workoutDraftDb.markDraftSynced(uid, syncedAt);
+          await workoutDraftDb.markDraftSynced(uid, syncedAt, targetSessionId, {
+            updatedAt: result.updatedAt,
+            revision: result.revision,
+          });
         } catch {
           setSaveError(t('workout.err.cloudSavedStatusStale'));
         }
@@ -496,6 +537,8 @@ const WorkoutDay = () => {
             ...prev,
             dirty: false,
             lastFirebaseSyncAt: syncedAt,
+            ...(result.updatedAt !== undefined && { cloudUpdatedAt: result.updatedAt }),
+            ...(result.revision !== undefined && { cloudRevision: result.revision }),
           }
           : prev
         );
@@ -544,7 +587,9 @@ const WorkoutDay = () => {
     setIsDraftLoaded(false);
 
     const loadDraft = async () => {
-      const draft = await workoutDraftDb.loadActiveDraft(uid);
+      const draft = routeSessionId
+        ? await workoutDraftDb.loadDraft(uid, routeSessionId)
+        : await workoutDraftDb.loadActiveDraft(uid);
       const resolvedDraft = draft ?? await workoutDraftDb.migrateFromLocalStorage(uid);
       if (!cancelled) {
         setActiveDraft(resolvedDraft);
@@ -557,7 +602,7 @@ const WorkoutDay = () => {
     return () => {
       cancelled = true;
     };
-  }, [uid]);
+  }, [uid, routeSessionId]);
 
   useEffect(() => {
     if (!uid || !dayId) {
@@ -604,7 +649,7 @@ const WorkoutDay = () => {
       : null;
 
     if (workoutForDate?.completed && currentPageDraft && !currentPageDraft.finalSyncPending && completedWorkoutValidation?.ok) {
-      void workoutDraftDb.clearActiveDraft(uid);
+      void workoutDraftDb.clearActiveDraft(uid, currentPageDraft.sessionId);
       setActiveDraft(null);
     }
 
@@ -859,9 +904,15 @@ const WorkoutDay = () => {
     try {
       const activeCycle = getActiveCycle();
       const shouldStartOffline = !navigator.onLine;
+      const createRemoteWorkoutSession = () => Promise.race([
+        createWorkoutSession(day.id, targetDate, activeCycle?.id),
+        new Promise<{ session: null; error: string }>(resolve => {
+          setTimeout(() => resolve({ session: null, error: 'network-timeout' }), 2000);
+        }),
+      ]);
       let result = shouldStartOffline
         ? { session: createOfflineWorkoutSession(day.id, targetDate, activeCycle?.id), existing: false, provisional: true }
-        : await createWorkoutSession(day.id, targetDate, activeCycle?.id);
+        : await createRemoteWorkoutSession();
 
       if (!shouldStartOffline && (result.error || !result.session)) {
         const normalizedError = String(result.error || '').toLowerCase();
@@ -920,6 +971,8 @@ const WorkoutDay = () => {
           cycleId: activeCycle?.id ?? null,
           sessionOrigin: result.provisional ? 'provisional' : 'remote',
           remoteSessionId: result.provisional ? null : result.session.id,
+          cloudUpdatedAt: result.session.updatedAt,
+          cloudRevision: result.session.revision,
           exerciseSets: prefilled,
           exerciseNotes: {},
           exerciseMetrics: {},
@@ -1125,7 +1178,15 @@ const WorkoutDay = () => {
 
     if (!result.success) {
       const now = Date.now();
+      const latestDraft = activeDraftRef.current;
       const pendingDraft = await persistDraftSnapshot({
+        ...(latestDraft && {
+          sessionId: latestDraft.sessionId,
+          sessionOrigin: latestDraft.sessionOrigin,
+          remoteSessionId: latestDraft.remoteSessionId,
+          cloudUpdatedAt: latestDraft.cloudUpdatedAt,
+          cloudRevision: latestDraft.cloudRevision,
+        }),
         completedLocally: true,
         finalSyncPending: true,
         dirty: true,

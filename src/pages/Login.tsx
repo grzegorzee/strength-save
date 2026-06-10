@@ -253,12 +253,14 @@ const Login = ({ mode = 'login' }: LoginProps) => {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder={t('login.email')}
+                  aria-label={t('login.email')}
                 />
                 <Input
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder={t('login.password')}
+                  aria-label={t('login.password')}
                 />
                 {isRegisterMode && (
                   <Input
@@ -266,6 +268,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     placeholder={t('login.confirmPassword')}
+                    aria-label={t('login.confirmPassword')}
                   />
                 )}
               </div>
@@ -312,17 +315,20 @@ const Login = ({ mode = 'login' }: LoginProps) => {
                 value={waitlistEmail}
                 onChange={(event) => setWaitlistEmail(event.target.value)}
                 placeholder={t('login.email')}
+                aria-label={t('login.email')}
               />
               <Input
                 value={waitlistName}
                 onChange={(event) => setWaitlistName(event.target.value)}
                 placeholder={t('login.waitlist.namePlaceholder')}
+                aria-label={t('login.waitlist.namePlaceholder')}
               />
             </div>
             <Input
               value={waitlistNote}
               onChange={(event) => setWaitlistNote(event.target.value)}
               placeholder={t('login.waitlist.notePlaceholder')}
+              aria-label={t('login.waitlist.notePlaceholder')}
             />
             <Button variant="outline" className="w-full" onClick={handleWaitlistSubmit} disabled={!waitlistEmail.trim() || isWaitlistSubmitting}>
               {isWaitlistSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}

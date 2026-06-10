@@ -48,15 +48,15 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(chevronIcons).toHaveCount(0);
   });
 
-  test('set grid headers show Powtórzenia and Ciężar labels', async ({ page }) => {
+  test('set grid headers show reps and weight labels', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
 
     const firstCard = page.locator('.exercise-card').first();
 
     // Grid headers
-    await expect(firstCard.getByText('Powtórzenia')).toBeVisible();
-    await expect(firstCard.getByText('Ciężar (kg)')).toBeVisible();
+    await expect(firstCard.getByText('Powt.')).toBeVisible();
+    await expect(firstCard.getByText('kg')).toBeVisible();
   });
 
   test('set rows have number inputs with exercise-card-input class', async ({ page }) => {
@@ -69,6 +69,24 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     // At least 2 inputs per set (reps + weight), warmup + working sets
     const count = await inputs.count();
     expect(count).toBeGreaterThanOrEqual(4);
+  });
+
+  test('set inputs expose unique accessible names', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+
+    const firstCard = page.locator('.exercise-card').first();
+    const exerciseName = (await firstCard.locator('h3').textContent())?.trim();
+    expect(exerciseName?.length).toBeGreaterThan(0);
+
+    const labels = await firstCard.locator('input.exercise-card-input').evaluateAll((inputs) =>
+      inputs.map((input) => input.getAttribute('aria-label') ?? ''),
+    );
+
+    expect(labels.length).toBeGreaterThanOrEqual(4);
+    expect(labels.every(Boolean)).toBe(true);
+    expect(labels.some((label) => label.includes(exerciseName!) && /kg|lbs/.test(label))).toBe(true);
+    expect(labels.some((label) => label.includes(exerciseName!) && /Powt\.|Reps/.test(label))).toBe(true);
   });
 
   test('warmup section shows gold-styled tag', async ({ page }) => {

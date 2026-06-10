@@ -57,7 +57,7 @@ export const Layout = () => {
 
   return (
     <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-hidden md:overflow-hidden">
-      <AppNavigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <AppNavigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} hideMobileNav={isFocusedFlow} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden md:h-[100dvh] md:overflow-hidden">
         {!isFocusedFlow && (

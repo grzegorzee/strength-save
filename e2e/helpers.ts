@@ -2,6 +2,7 @@ import { Page, expect } from '@playwright/test';
 
 const WORKOUT_DRAFT_DB_NAME = 'strength-save-db';
 const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
+const WORKOUT_DRAFT_DB_VERSION = 2;
 const WORKOUT_SYNC_QUEUE_KEY_PREFIX = 'fittracker_workout_sync_queue_v1';
 const E2E_AUTH_STATE_KEY = 'fittracker_e2e_auth_state';
 
@@ -35,78 +36,107 @@ export const expectPageRendered = async (page: Page) => {
 };
 
 export const writeWorkoutDraftDb = async (page: Page, draft: unknown) => {
-  await page.evaluate(async ({ dbName, storeName, draftValue }) => {
+  await page.evaluate(async ({ dbName, storeName, dbVersion, draftValue }) => {
     await new Promise<void>((resolve, reject) => {
-      const request = indexedDB.open(dbName, 1);
+      const request = indexedDB.open(dbName, dbVersion);
 
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: 'userId' });
+          db.createObjectStore(storeName);
         }
       };
 
       request.onsuccess = () => {
         const db = request.result;
         const tx = db.transaction(storeName, 'readwrite');
-        tx.objectStore(storeName).put(draftValue);
+        const value = draftValue as { userId?: string; sessionId?: string };
+        if (!value.userId || !value.sessionId) {
+          reject(new Error('Draft userId/sessionId required'));
+          return;
+        }
+        tx.objectStore(storeName).put(draftValue, `${value.userId}::${value.sessionId}`);
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       };
 
       request.onerror = () => reject(request.error);
     });
-  }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, draftValue: draft });
+  }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, dbVersion: WORKOUT_DRAFT_DB_VERSION, draftValue: draft });
 };
 
-export const readWorkoutDraftDb = async (page: Page, userId: string) => {
-  return page.evaluate(async ({ dbName, storeName, userId: draftUserId }) => {
+export const readWorkoutDraftDb = async (page: Page, userId: string, sessionId?: string) => {
+  return page.evaluate(async ({ dbName, storeName, dbVersion, userId: draftUserId, sessionId: draftSessionId }) => {
     return new Promise<unknown>((resolve, reject) => {
-      const request = indexedDB.open(dbName, 1);
+      const request = indexedDB.open(dbName, dbVersion);
 
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: 'userId' });
+          db.createObjectStore(storeName);
         }
       };
 
       request.onsuccess = () => {
         const db = request.result;
         const tx = db.transaction(storeName, 'readonly');
-        const getRequest = tx.objectStore(storeName).get(draftUserId);
-        getRequest.onsuccess = () => resolve(getRequest.result ?? null);
-        getRequest.onerror = () => reject(getRequest.error);
+        const store = tx.objectStore(storeName);
+        if (draftSessionId) {
+          const getRequest = store.get(`${draftUserId}::${draftSessionId}`);
+          getRequest.onsuccess = () => resolve(getRequest.result ?? null);
+          getRequest.onerror = () => reject(getRequest.error);
+          return;
+        }
+
+        const getAllRequest = store.getAll();
+        getAllRequest.onsuccess = () => {
+          const drafts = (Array.isArray(getAllRequest.result) ? getAllRequest.result : [])
+            .filter((draft: { userId?: string }) => draft.userId === draftUserId)
+            .sort((a: { updatedAt?: number }, b: { updatedAt?: number }) => Number(b.updatedAt ?? 0) - Number(a.updatedAt ?? 0));
+          resolve(drafts[0] ?? null);
+        };
+        getAllRequest.onerror = () => reject(getAllRequest.error);
       };
 
       request.onerror = () => reject(request.error);
     });
-  }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, userId });
+  }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, dbVersion: WORKOUT_DRAFT_DB_VERSION, userId, sessionId });
 };
 
-export const clearWorkoutDraftDb = async (page: Page, userId: string) => {
-  await page.evaluate(async ({ dbName, storeName, userId: draftUserId }) => {
+export const clearWorkoutDraftDb = async (page: Page, userId: string, sessionId?: string) => {
+  await page.evaluate(async ({ dbName, storeName, dbVersion, userId: draftUserId, sessionId: draftSessionId }) => {
     await new Promise<void>((resolve, reject) => {
-      const request = indexedDB.open(dbName, 1);
+      const request = indexedDB.open(dbName, dbVersion);
 
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: 'userId' });
+          db.createObjectStore(storeName);
         }
       };
 
       request.onsuccess = () => {
         const db = request.result;
         const tx = db.transaction(storeName, 'readwrite');
-        tx.objectStore(storeName).delete(draftUserId);
+        const store = tx.objectStore(storeName);
+        if (draftSessionId) {
+          store.delete(`${draftUserId}::${draftSessionId}`);
+        } else {
+          const getAllRequest = store.getAll();
+          getAllRequest.onsuccess = () => {
+            (Array.isArray(getAllRequest.result) ? getAllRequest.result : [])
+              .filter((draft: { userId?: string; sessionId?: string }) => draft.userId === draftUserId && draft.sessionId)
+              .forEach((draft: { sessionId?: string }) => store.delete(`${draftUserId}::${draft.sessionId}`));
+          };
+          getAllRequest.onerror = () => reject(getAllRequest.error);
+        }
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       };
 
       request.onerror = () => reject(request.error);
     });
-  }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, userId });
+  }, { dbName: WORKOUT_DRAFT_DB_NAME, storeName: WORKOUT_DRAFT_STORE_NAME, dbVersion: WORKOUT_DRAFT_DB_VERSION, userId, sessionId });
 };
 
 export const writeWorkoutSyncQueue = async (page: Page, userId: string, entries: unknown[]) => {

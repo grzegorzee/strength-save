@@ -14,6 +14,7 @@ class FakeObjectStore {
   constructor(
     private readonly data: Map<string, unknown>,
     private readonly tx?: FakeTransaction,
+    public readonly keyPath: string | string[] | null = null,
   ) {}
 
   get(key: string) {
@@ -25,11 +26,21 @@ class FakeObjectStore {
     return request as unknown as IDBRequest;
   }
 
-  put(value: { userId: string }) {
+  getAll() {
+    const request = new FakeRequest<unknown[]>();
+    setTimeout(() => {
+      request.result = Array.from(this.data.values());
+      request.onsuccess?.(new Event('success'));
+    }, 0);
+    return request as unknown as IDBRequest;
+  }
+
+  put(value: { userId: string; sessionId?: string }, key?: IDBValidKey) {
     const request = new FakeRequest<string>();
     setTimeout(() => {
-      this.data.set(value.userId, JSON.parse(JSON.stringify(value)));
-      request.result = value.userId;
+      const resolvedKey = String(key ?? value.userId);
+      this.data.set(resolvedKey, JSON.parse(JSON.stringify(value)));
+      request.result = resolvedKey;
       request.onsuccess?.(new Event('success'));
       this.tx?.complete();
     }, 0);
@@ -53,12 +64,13 @@ class FakeTransaction {
   public onerror: ((event: Event) => void) | null = null;
   public onabort: ((event: Event) => void) | null = null;
 
-  constructor(private readonly stores: Map<string, Map<string, unknown>>) {}
+  constructor(private readonly stores: Map<string, { data: Map<string, unknown>; keyPath: string | string[] | null }>) {}
 
   objectStore(name: string) {
-    const store = this.stores.get(name);
+    const entry = this.stores.get(name);
+    const store = entry?.data;
     if (!store) throw new Error(`Missing object store: ${name}`);
-    return new FakeObjectStore(store, this) as unknown as IDBObjectStore;
+    return new FakeObjectStore(store, this, entry.keyPath) as unknown as IDBObjectStore;
   }
 
   complete() {
@@ -74,13 +86,18 @@ class FakeDatabase {
     contains: (name: string) => this.stores.has(name),
   } as DOMStringList;
 
-  constructor(private readonly stores: Map<string, Map<string, unknown>>) {}
+  constructor(private readonly stores: Map<string, { data: Map<string, unknown>; keyPath: string | string[] | null }>) {}
 
-  createObjectStore(name: string) {
+  createObjectStore(name: string, options?: IDBObjectStoreParameters) {
     if (!this.stores.has(name)) {
-      this.stores.set(name, new Map());
+      this.stores.set(name, { data: new Map(), keyPath: options?.keyPath ?? null });
     }
-    return new FakeObjectStore(this.stores.get(name)!) as unknown as IDBObjectStore;
+    const entry = this.stores.get(name)!;
+    return new FakeObjectStore(entry.data, undefined, entry.keyPath) as unknown as IDBObjectStore;
+  }
+
+  deleteObjectStore(name: string) {
+    this.stores.delete(name);
   }
 
   transaction(name: string) {
@@ -89,7 +106,7 @@ class FakeDatabase {
 }
 
 class FakeIndexedDbFactory {
-  private readonly databases = new Map<string, { version: number; stores: Map<string, Map<string, unknown>> }>();
+  private readonly databases = new Map<string, { version: number; stores: Map<string, { data: Map<string, unknown>; keyPath: string | string[] | null }> }>();
 
   open(name: string, version?: number) {
     const request = new FakeRequest<IDBDatabase>();
@@ -160,6 +177,26 @@ describe('workoutDraftDb', () => {
     expect(loaded).toEqual(baseDraft);
   });
 
+  it('keeps multiple dirty drafts for the same user keyed by session', async () => {
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: 'workout-456',
+      dayId: 'day-2',
+      date: '2026-04-04',
+      remoteSessionId: 'workout-456',
+      updatedAt: 300,
+    });
+
+    const drafts = await workoutDraftDb.listDrafts('user-1');
+    const first = await workoutDraftDb.loadDraft('user-1', 'workout-123');
+    const second = await workoutDraftDb.loadDraft('user-1', 'workout-456');
+
+    expect(drafts.map(draft => draft.sessionId).sort()).toEqual(['workout-123', 'workout-456']);
+    expect(first?.dayId).toBe('day-1');
+    expect(second?.dayId).toBe('day-2');
+  });
+
   it('markDraftSynced clears dirty flag and sets timestamp', async () => {
     await workoutDraftDb.saveActiveDraft(baseDraft);
     await workoutDraftDb.markDraftSynced('user-1', 999);
@@ -185,12 +222,14 @@ describe('workoutDraftDb', () => {
       remoteSessionId: null,
     });
 
-    await workoutDraftDb.markPromotedToRemote('user-1', 'workout-user-1-day-1-2026-04-03');
-    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    await workoutDraftDb.markPromotedToRemote('user-1', 'workout-user-1-day-1-2026-04-03', 'local-workout-user-1-day-1-2026-04-03');
+    const loaded = await workoutDraftDb.loadDraft('user-1', 'workout-user-1-day-1-2026-04-03');
+    const oldDraft = await workoutDraftDb.loadDraft('user-1', 'local-workout-user-1-day-1-2026-04-03');
 
     expect(loaded?.sessionId).toBe('workout-user-1-day-1-2026-04-03');
     expect(loaded?.sessionOrigin).toBe('remote');
     expect(loaded?.remoteSessionId).toBe('workout-user-1-day-1-2026-04-03');
+    expect(oldDraft).toBeNull();
   });
 
   it('clearActiveDraft removes stored record', async () => {

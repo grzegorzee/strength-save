@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
-import { History, Dumbbell, Sparkles, TriangleAlert, RefreshCw, Loader2 } from 'lucide-react';
+import { History, Dumbbell, Sparkles, TriangleAlert, RefreshCw, Loader2, CalendarX2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -16,6 +26,7 @@ import { startCycleWithPlan } from '@/lib/cycle-actions';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
+import { formatLocalDate } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 
@@ -30,6 +41,8 @@ const Cycles = () => {
   const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan } = useTrainingPlan(uid);
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);
   const [isRepeating, setIsRepeating] = useState(false);
+  const [endPlanOpen, setEndPlanOpen] = useState(false);
+  const [isEndingPlan, setIsEndingPlan] = useState(false);
   const activeCycle = cycles.find(cycle => cycle.status === 'active') || null;
 
   const handleRepeatPlan = async () => {
@@ -47,6 +60,32 @@ const Cycles = () => {
     } else {
       toast({ title: t('cycles.repeatFailed'), variant: 'destructive' });
     }
+  };
+
+  const handleEndPlan = async () => {
+    if (!planStartDate || trainingPlan.length === 0) return;
+    setIsEndingPlan(true);
+    const archivedId = await archiveCurrentPlan(trainingPlan, planDurationWeeks, planStartDate, workouts);
+    if (archivedId) {
+      const archivedCycle = cycles.find(cycle => cycle.id === archivedId) ?? {
+        id: archivedId,
+        userId: uid,
+        days: trainingPlan,
+        durationWeeks: planDurationWeeks,
+        startDate: planStartDate,
+        endDate: formatLocalDate(new Date()),
+        status: 'completed' as const,
+        createdAt: new Date().toISOString(),
+        stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+      };
+      await backfillHistoricalWorkouts([archivedCycle]);
+      toast({ title: t('cycles.endPlanDone') });
+      navigate(`/new-plan?fromCycle=${archivedId}`);
+    } else {
+      toast({ title: t('cycles.endPlanFailed'), variant: 'destructive' });
+    }
+    setIsEndingPlan(false);
+    setEndPlanOpen(false);
   };
 
   // Auto-repair: dotwórz dokument cyklu, jeśli aktywny plan istnieje bez niego.
@@ -203,15 +242,37 @@ const Cycles = () => {
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              {trainingPlan.map((day, i) => (
+              {trainingPlan.map((day) => (
                 <span key={day.id} className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
                   {localizeDayName(day.dayName, lang)} — {localizeFocus(day.focus, lang)}
                 </span>
               ))}
             </div>
+            {activeCycle && (
+              <Button variant="outline" className="w-full" onClick={() => setEndPlanOpen(true)}>
+                <CalendarX2 className="h-4 w-4 mr-2" />
+                {t('cycles.endPlan')}
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={endPlanOpen} onOpenChange={setEndPlanOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('cycles.endPlanConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('cycles.endPlanConfirmDesc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isEndingPlan}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void handleEndPlan(); }} disabled={isEndingPlan}>
+              {isEndingPlan ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarX2 className="h-4 w-4 mr-2" />}
+              {t('cycles.endPlanConfirmAction')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {listedCycles.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">

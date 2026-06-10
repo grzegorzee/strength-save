@@ -32,7 +32,6 @@ import {
 } from 'lucide-react';
 
 const REST_TIMER_KEY = 'rest-timer-default';
-const NOTIFICATIONS_KEY = 'notifications-enabled';
 const SOUND_KEY = 'timer-sound-enabled';
 const REST_OPTIONS = ['30', '45', '60', '90', '120', '180'];
 
@@ -51,9 +50,6 @@ const Profile = () => {
 
   const [restTimer, setRestTimer] = useState(() => {
     try { return localStorage.getItem(REST_TIMER_KEY) || '90'; } catch { return '90'; }
-  });
-  const [notifications, setNotifications] = useState(() => {
-    try { return localStorage.getItem(NOTIFICATIONS_KEY) !== 'false'; } catch { return true; }
   });
   const [sound, setSound] = useState(() => {
     try { return localStorage.getItem(SOUND_KEY) !== 'false'; } catch { return true; }
@@ -87,7 +83,6 @@ const Profile = () => {
   };
 
   const handleRestChange = (v: string) => { setRestTimer(v); persist(REST_TIMER_KEY, v); };
-  const handleNotifications = (v: boolean) => { setNotifications(v); persist(NOTIFICATIONS_KEY, String(v)); };
   const handleSound = (v: boolean) => { setSound(v); persist(SOUND_KEY, String(v)); };
   const handleLanguage = (v: string) => {
     setLang(v as LanguageCode);
@@ -157,7 +152,7 @@ const Profile = () => {
           label={t('profile.pref.restTimer')}
           right={(
             <Select value={restTimer} onValueChange={handleRestChange}>
-              <SelectTrigger className="h-9 w-24 border-0 bg-surface-highest"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-24 border-0 bg-surface-highest" aria-label={t('profile.pref.restTimer')}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {REST_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}s</SelectItem>)}
               </SelectContent>
@@ -174,6 +169,8 @@ const Profile = () => {
                   key={u}
                   type="button"
                   onClick={() => setUnit(u)}
+                  aria-pressed={unit === u}
+                  aria-label={`${t('profile.pref.units')}: ${u}`}
                   className={cn(
                     'rounded-full px-3 py-1 text-xs font-bold uppercase transition-colors',
                     unit === u ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
@@ -189,15 +186,15 @@ const Profile = () => {
 
       {/* APP SETTINGS */}
       <SectionCard label={t('profile.section.app')}>
-        <SettingRow icon={Bell} label={t('profile.app.notifications')} right={<Switch checked={notifications} onCheckedChange={handleNotifications} />} />
-        <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} />} />
-        <SettingRow icon={Moon} label={t('profile.app.darkMode')} right={<Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} />} />
+        <SettingRow icon={Bell} label={t('profile.app.notifications')} onClick={() => navigate('/settings')} />
+        <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
+        <SettingRow icon={Moon} label={t('profile.app.darkMode')} right={<Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} aria-label={t('profile.app.darkMode')} />} />
         <SettingRow
           icon={Globe}
           label={t('profile.app.language')}
           right={(
             <Select value={lang} onValueChange={handleLanguage}>
-              <SelectTrigger className="h-9 w-28 border-0 bg-surface-highest"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-28 border-0 bg-surface-highest" aria-label={t('profile.app.language')}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pl">Polski</SelectItem>
                 <SelectItem value="en">English</SelectItem>
@@ -230,8 +227,8 @@ const Profile = () => {
             <DialogTitle className="font-heading uppercase">{t('profile.editTitle')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <label className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">{t('profile.nameLabel')}</label>
-            <Input value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder={t('profile.namePlaceholder')} />
+            <label htmlFor="profile-display-name" className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">{t('profile.nameLabel')}</label>
+            <Input id="profile-display-name" value={nameInput} onChange={(e) => setNameInput(e.target.value)} placeholder={t('profile.namePlaceholder')} />
           </div>
           <DialogFooter>
             <Button onClick={handleSaveName} disabled={savingName || !nameInput.trim()} className="kinetic-primary-button">

@@ -71,10 +71,12 @@ const AccessRestrictedView = ({
   email,
   accessEnabled,
   suspended,
+  loadError,
 }: {
   email: string;
   accessEnabled: boolean;
   suspended?: boolean;
+  loadError?: boolean;
 }) => {
   const { t } = useTranslation();
   return (
@@ -84,14 +86,18 @@ const AccessRestrictedView = ({
         <ShieldOff className="h-6 w-6" />
       </div>
       <h1 className="text-2xl font-heading font-bold tracking-tight">
-        {suspended
+        {loadError
+          ? t('gate.profileLoadError.title')
+          : suspended
           ? t('gate.suspended.title')
           : accessEnabled
             ? t('gate.loading.title')
             : t('gate.disabled.title')}
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        {suspended
+        {loadError
+          ? t('gate.profileLoadError.desc')
+          : suspended
           ? t('gate.suspended.desc')
           : accessEnabled
             ? t('gate.loading.desc')
@@ -114,7 +120,7 @@ const AccessRestrictedView = ({
 };
 
 const AppRoutes = () => {
-  const { isNewUser, profileLoaded, hasAppAccess, profile, needsEmailVerification, isSuspended } = useCurrentUser();
+  const { isNewUser, profileLoaded, hasAppAccess, profile, needsEmailVerification, isSuspended, profileLoadError } = useCurrentUser();
 
   if (!profileLoaded) {
     return <AppLoader />;
@@ -130,6 +136,7 @@ const AppRoutes = () => {
         email={profile?.email || ''}
         accessEnabled={profile?.accessEnabled ?? false}
         suspended={isSuspended}
+        loadError={!!profileLoadError && !profile}
       />
     );
   }

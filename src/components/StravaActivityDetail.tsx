@@ -12,6 +12,8 @@ import { HR_ZONES } from '@/types/strava';
 import { ExternalLink } from 'lucide-react';
 import { getHRZone, getHRZoneConfig, getHRPercent } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
+import { parseLocalDate } from '@/lib/utils';
 
 const activityIcons: Record<string, string> = {
   Run: '🏃',
@@ -50,10 +52,13 @@ const formatPace = (speedMs?: number, type?: string): string => {
   return `${(speedMs * 3.6).toFixed(1)} km/h`;
 };
 
-const formatFullDate = (activity: StravaActivity): string => {
+const parseActivityDate = (value: string): Date =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) ? parseLocalDate(value) : new Date(value);
+
+const formatFullDate = (activity: StravaActivity, locale: string): string => {
   const dateSource = activity.startDateLocal || activity.date;
-  const date = new Date(dateSource);
-  return date.toLocaleDateString('pl-PL', {
+  const date = parseActivityDate(dateSource);
+  return date.toLocaleDateString(locale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -61,10 +66,10 @@ const formatFullDate = (activity: StravaActivity): string => {
   });
 };
 
-const formatTime = (activity: StravaActivity): string => {
+const formatTime = (activity: StravaActivity, locale: string): string => {
   if (!activity.startDateLocal) return '';
   const date = new Date(activity.startDateLocal);
-  return date.toLocaleTimeString('pl-PL', {
+  return date.toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -90,11 +95,12 @@ interface StravaActivityDetailProps {
 }
 
 export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: StravaActivityDetailProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const icon = activityIcons[activity.type] || '🏅';
   const sportLabel = activity.sportType || activity.type;
-  const fullDate = formatFullDate(activity);
-  const time = formatTime(activity);
+  const locale = dateLocale(lang);
+  const fullDate = formatFullDate(activity, locale);
+  const time = formatTime(activity, locale);
 
   const metrics: MetricItemProps[] = [
     { label: t('strava.detail.distance'), value: formatDistance(activity.distance) },

@@ -61,8 +61,14 @@ const readQueue = (userId: string): WorkoutSyncQueueEntry[] => {
   }
 };
 
-const writeQueue = (userId: string, entries: WorkoutSyncQueueEntry[]) => {
-  localStorage.setItem(getQueueKey(userId), JSON.stringify(entries));
+const writeQueue = (userId: string, entries: WorkoutSyncQueueEntry[]): boolean => {
+  try {
+    localStorage.setItem(getQueueKey(userId), JSON.stringify(entries));
+    return true;
+  } catch (error) {
+    console.warn('Failed to write workout sync queue', error);
+    return false;
+  }
 };
 
 export const workoutSyncQueue = {

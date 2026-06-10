@@ -6,8 +6,15 @@ import {
   fromInputWeight,
   formatWeight,
   formatTonnage,
+  cmToInches,
+  inchesToCm,
+  toDisplayLength,
+  fromInputLength,
+  formatLength,
+  lengthUnitLabel,
   weightUnitLabel,
 } from '@/lib/units';
+import { clampSet } from '@/lib/workout-sanitizers';
 
 describe('units — konwersja', () => {
   it('kgToLbs / lbsToKg round-trip', () => {
@@ -42,6 +49,12 @@ describe('units — toDisplay / fromInput', () => {
 
   it('nie zaokrągla kg przy zapisie (100 lbs)', () => {
     expect(fromInputWeight(100, 'lbs')).toBeCloseTo(45.359, 3);
+  });
+
+  it('save sanitization preserves lbs → kg → lbs round-trip', () => {
+    const enteredLbs = 185;
+    const saved = clampSet({ reps: 5, weight: fromInputWeight(enteredLbs, 'lbs'), completed: true });
+    expect(toDisplayWeight(saved.weight, 'lbs')).toBeCloseTo(enteredLbs, 6);
   });
 });
 
@@ -78,5 +91,19 @@ describe('units — weightUnitLabel', () => {
   it('zwraca etykietę jednostki', () => {
     expect(weightUnitLabel('kg')).toBe('kg');
     expect(weightUnitLabel('lbs')).toBe('lbs');
+  });
+});
+
+describe('units — length conversion', () => {
+  it('round-trip inches → cm → inches', () => {
+    expect(cmToInches(inchesToCm(36))).toBeCloseTo(36, 6);
+    expect(toDisplayLength(fromInputLength(42.5, 'lbs'), 'lbs')).toBeCloseTo(42.5, 6);
+  });
+
+  it('uses cm for metric and inches for imperial measurement labels', () => {
+    expect(lengthUnitLabel('kg')).toBe('cm');
+    expect(lengthUnitLabel('lbs')).toBe('in');
+    expect(formatLength(100, 'kg')).toBe('100 cm');
+    expect(formatLength(100, 'lbs')).toBe('39.4 in');
   });
 });

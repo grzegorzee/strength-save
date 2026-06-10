@@ -65,7 +65,7 @@ export const NotificationSettings = () => {
                 <p className="text-sm font-medium">{t('settings.notif.daily')}</p>
                 <p className="text-xs text-muted-foreground">{t('settings.notif.dailyDesc')}</p>
               </div>
-              <Switch checked={dailyReminder} onCheckedChange={toggleDaily} />
+              <Switch checked={dailyReminder} onCheckedChange={toggleDaily} aria-label={t('settings.notif.daily')} />
             </div>
           </>
         ) : perm === 'denied' ? (

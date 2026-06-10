@@ -28,24 +28,24 @@ const activeCycle: PlanCycle = {
 };
 
 describe('buildPlanNextStep', () => {
-  it('suggests generating a new plan when the active cycle is ending soon', () => {
+  it('suggests generating a new plan in the final week of an active cycle', () => {
     const result = buildPlanNextStep({
       hasPlan: true,
       isPlanExpired: false,
-      weeksRemaining: 1,
-      currentWeek: 7,
+      weeksRemaining: 0,
+      currentWeek: 8,
       planDurationWeeks: 8,
       activeCycle,
       previousCompletedCycle: null,
       today: new Date('2026-04-03T10:00:00.000Z'),
     });
 
-    expect(result.primaryPath).toBe('/new-plan?fromCycle=cycle-1');
-    expect(result.primaryLabel).toBe('Przygotuj kolejny plan');
-    expect(result.badges).toContain('88% frekwencji');
+    expect(result?.primaryPath).toBe('/new-plan?fromCycle=cycle-1');
+    expect(result?.primaryLabel).toBe('Przygotuj kolejny plan');
+    expect(result?.badges).toContain('88% frekwencji');
   });
 
-  it('falls back to a generic prompt when no active cycle exists', () => {
+  it('does not show a generic prompt in the middle of a plan', () => {
     const result = buildPlanNextStep({
       hasPlan: true,
       isPlanExpired: false,
@@ -57,7 +57,6 @@ describe('buildPlanNextStep', () => {
       today: new Date('2026-04-03T10:00:00.000Z'),
     });
 
-    expect(result.primaryPath).toBe('/cycles');
-    expect(result.title).toContain('Trzymaj kurs');
+    expect(result).toBeNull();
   });
 });

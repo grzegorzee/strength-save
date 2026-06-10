@@ -43,6 +43,17 @@ describe('getExerciseHistory', () => {
     expect(history).toHaveLength(1);
     expect(history[0].maxWeight).toBe(40);
   });
+
+  it('does not merge progression from the pre-swap exercise identity', () => {
+    const workouts = [
+      makeWorkout('2026-01-03', 'ex1', [{ weight: 80, reps: 8 }]),
+      makeWorkout('2026-01-10', 'ex1__swap-pompki', [{ weight: 0, reps: 15 }]),
+    ];
+
+    const history = getExerciseHistory(workouts, 'ex1__swap-pompki', true);
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({ date: '2026-01-10', bestReps: 15, maxWeight: 0 });
+  });
 });
 
 describe('detectPlateau', () => {

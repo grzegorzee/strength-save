@@ -9,14 +9,15 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
+import { dateLocale } from '@/i18n';
 
 // Osobny ekran „Pomiary ciała" (przeniesiony z zakładki w Analityce do menu).
 const Measurements = () => {
   const { uid } = useCurrentUser();
   const { measurements, addMeasurement, getLatestMeasurement, exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
-  const { t } = useTranslation();
-  const { fmt } = useUnit();
+  const { t, lang } = useTranslation();
+  const { fmt, fmtLength } = useUnit();
 
   const latestMeasurement = getLatestMeasurement();
 
@@ -68,12 +69,12 @@ const Measurements = () => {
               {recentMeasurements.map((m) => (
                 <div key={m.id} className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
                   <span className="text-sm font-medium">
-                    {parseLocalDate(m.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {parseLocalDate(m.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
                   </span>
                   <div className="flex items-center gap-4 text-sm">
                     {m.weight && <span>{t('measurements.weightShort')}: <strong>{fmt(m.weight)}</strong></span>}
-                    {m.chest && <span className="hidden sm:inline">{t('measurements.chestShort')}: <strong>{m.chest} cm</strong></span>}
-                    {m.waist && <span className="hidden sm:inline">{t('measurements.waistShort')}: <strong>{m.waist} cm</strong></span>}
+                    {m.chest && <span className="hidden sm:inline">{t('measurements.chestShort')}: <strong>{fmtLength(m.chest)}</strong></span>}
+                    {m.waist && <span className="hidden sm:inline">{t('measurements.waistShort')}: <strong>{fmtLength(m.waist)}</strong></span>}
                   </div>
                 </div>
               ))}

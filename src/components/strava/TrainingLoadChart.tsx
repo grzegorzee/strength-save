@@ -17,6 +17,8 @@ import { computeDailyLoad, computeFitnessFatigue } from '@/lib/training-load';
 import { tooltipStyle } from '@/lib/chart-config';
 import type { StravaActivity } from '@/types/strava';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
+import { parseLocalDate } from '@/lib/utils';
 
 interface Props {
   activities: StravaActivity[];
@@ -24,7 +26,7 @@ interface Props {
 }
 
 export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const data = useMemo(() => {
     const maxHR = estimatedMaxHR || 190;
     const daily = computeDailyLoad(activities, 60, maxHR);
@@ -36,7 +38,7 @@ export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
   if (hrActivities.length < 7 || data.length === 0) return null;
 
   const chartData = data.map(d => ({
-    date: new Date(d.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' }),
+    date: parseLocalDate(d.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'numeric' }),
     fitness: d.ctl,
     fatigue: d.atl,
     form: d.tsb,

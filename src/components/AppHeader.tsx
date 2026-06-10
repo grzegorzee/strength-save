@@ -24,7 +24,7 @@ export const AppHeader = ({ title, onMenuClick, onBack }: AppHeaderProps) => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           ) : onMenuClick && (
-            <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden">
+            <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden" aria-label={t('nav.ariaMain')}>
               <Menu className="h-5 w-5" />
             </Button>
           )}

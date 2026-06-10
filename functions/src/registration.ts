@@ -14,6 +14,16 @@ import {
   accessChangedEmailHtml,
   adminMessageEmailHtml,
 } from "./email-templates";
+import {
+  ADMIN_DELETE_BATCH_SIZE,
+  type AuthProvider,
+  GDPR_DIRECT_DOC_COLLECTIONS,
+  GDPR_UID_FIELD_COLLECTIONS,
+  GDPR_USER_ID_COLLECTIONS,
+  providerFromSignInProvider,
+  providerGetsImmediateAccess,
+  resendErrorMessage,
+} from "./security";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 const authPepper = defineSecret("API_KEY_PEPPER");
@@ -25,7 +35,6 @@ const VERIFICATION_CODES_COLLECTION = "email_verification_codes";
 const AUTH_AUDIT_COLLECTION = "auth_audit_logs";
 const NOTIFICATION_LOGS_COLLECTION = "notification_logs";
 
-type AuthProvider = "google" | "password";
 type UserStatus = "pending_verification" | "active" | "suspended" | "deleted";
 type InviteStatus = "active" | "redeemed" | "revoked" | "expired";
 type WaitlistStatus = "waiting" | "invited" | "converted" | "archived";
@@ -172,11 +181,6 @@ function randomInviteCode(): string {
   return Array.from({ length: 8 }, () => alphabet[randomInt(0, alphabet.length)]).join("");
 }
 
-function providerFromToken(provider: unknown): AuthProvider {
-  if (provider === "google.com") return "google";
-  return "password";
-}
-
 async function assertAdmin(userId: string): Promise<void> {
   const snap = await getDb().collection(USERS_COLLECTION).doc(userId).get();
   if (!snap.exists || snap.data()?.role !== "admin") {
@@ -193,6 +197,46 @@ async function writeNotificationLog(payload: Record<string, unknown>): Promise<v
     createdAt: nowIso(),
     ...payload,
   });
+}
+
+function sanitizedIdentifierHash(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+async function deleteQueryInBatches(query: FirebaseFirestore.Query, batchSize = ADMIN_DELETE_BATCH_SIZE): Promise<number> {
+  let deleted = 0;
+  while (true) {
+    const snap = await query.limit(batchSize).get();
+    if (snap.empty) return deleted;
+
+    const batch = getDb().batch();
+    snap.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    deleted += snap.size;
+
+    if (snap.size < batchSize) return deleted;
+  }
+}
+
+async function deleteCollectionByField(collection: string, field: string, value: string): Promise<number> {
+  return deleteQueryInBatches(getDb().collection(collection).where(field, "==", value));
+}
+
+async function deleteApiKeysAndReturnIds(uid: string): Promise<string[]> {
+  const deletedKeyIds: string[] = [];
+  while (true) {
+    const snap = await getDb().collection("api_keys").where("userId", "==", uid).limit(ADMIN_DELETE_BATCH_SIZE).get();
+    if (snap.empty) return deletedKeyIds;
+
+    const batch = getDb().batch();
+    snap.docs.forEach((doc) => {
+      deletedKeyIds.push(doc.id);
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+
+    if (snap.size < ADMIN_DELETE_BATCH_SIZE) return deletedKeyIds;
+  }
 }
 
 async function sendEmail(params: {
@@ -222,6 +266,11 @@ async function sendEmail(params: {
     responseId: response.data?.id ?? null,
     error: response.error?.message ?? null,
   });
+
+  const errorMessage = resendErrorMessage(response);
+  if (errorMessage) {
+    throw new HttpsError("unavailable", `Email provider rejected message: ${errorMessage}`);
+  }
 }
 
 async function maybeSendWelcomeEmail(userRef: FirebaseFirestore.DocumentReference, data: UserProfileDoc): Promise<void> {
@@ -250,7 +299,7 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
   const uid = request.auth.uid;
   const email = normalizeEmail(request.auth.token.email);
   const language = normalizeLanguage(request.data?.language);
-  const provider = providerFromToken(request.auth.token.firebase?.sign_in_provider);
+  const provider = providerFromSignInProvider(request.auth.token.firebase?.sign_in_provider);
   const displayName = normalizeOptionalString(request.auth.token.name, 120) || email.split("@")[0];
   const photoURL = normalizeOptionalString(request.auth.token.picture, 500) || "";
   const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
@@ -259,6 +308,7 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
   const timestamp = nowIso();
 
   if (!current) {
+    const immediateAccess = providerGetsImmediateAccess(provider);
     const nextProfile: UserProfileDoc = {
       uid,
       email,
@@ -266,15 +316,15 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
       photoURL,
       role: "user",
       language,
-      access: { enabled: provider === "google" },
-      status: provider === "google" ? "active" : "pending_verification",
+      access: { enabled: immediateAccess },
+      status: immediateAccess ? "active" : "pending_verification",
       authProviders: [provider],
       auth: { primaryProvider: provider },
       stravaConnected: false,
       onboardingCompleted: false,
       onboarding: { state: "not_started", version: 1 },
       verification: {
-        emailVerifiedAt: provider === "google" ? timestamp : null,
+        emailVerifiedAt: immediateAccess ? timestamp : null,
         lastCodeSentAt: null,
       },
       registration: {
@@ -295,14 +345,14 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
     };
     await userRef.set(nextProfile, { merge: true });
     await writeAuthAuditLog({
-      eventType: provider === "google" ? "register_google" : "register_email_pending",
+      eventType: immediateAccess ? `register_${provider}` : "register_email_pending",
       uid,
       email,
       actorUid: uid,
       createdAt: timestamp,
       metadata: { provider },
     });
-    if (provider === "google") {
+    if (immediateAccess) {
       await maybeSendWelcomeEmail(userRef, nextProfile);
     }
     return { profile: nextProfile };
@@ -681,7 +731,11 @@ export const redeemInvite = onCall(async (request) => {
   if (!userSnap.exists) throw new HttpsError("failed-precondition", "User profile missing");
 
   const userData = userSnap.data() as UserProfileDoc;
-  const sourcePrefix = userData.auth?.primaryProvider === "google" ? "invite-google" : "invite-email";
+  const sourcePrefix = userData.auth?.primaryProvider === "google"
+    ? "invite-google"
+    : userData.auth?.primaryProvider === "apple"
+      ? "invite-apple"
+      : "invite-email";
   await userRef.set({
     cohorts: Array.from(new Set([...(userData.cohorts || []), ...(invite.cohorts || [])])),
     features: {
@@ -980,33 +1034,52 @@ export const adminDeleteUser = onCall(async (request) => {
   if (uid === request.auth.uid) throw new HttpsError("failed-precondition", "Nie można usunąć własnego konta admina.");
 
   const db = getDb();
-  // Kolekcje z polem userId.
-  const byUserId = ["workouts", "measurements", "plan_cycles", "weekly_summaries", "chat_messages", "strava_activities"];
-  for (const coll of byUserId) {
-    const snap = await db.collection(coll).where("userId", "==", uid).limit(500).get();
-    const batch = db.batch();
-    snap.docs.forEach((d) => batch.delete(d.ref));
-    if (!snap.empty) await batch.commit();
+
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
+    if (code !== "auth/user-not-found") {
+      throw new HttpsError("internal", "Nie udało się usunąć konta Auth użytkownika.");
+    }
   }
-  // Dokumenty po ID = uid.
-  await db.collection("training_plans").doc(uid).delete().catch(() => {});
-  await db.collection(USERS_COLLECTION).doc(uid).delete().catch(() => {});
-  // ai_usage: docId = `${uid}_${miesiac}`.
-  const aiSnap = await db.collection("ai_usage").where("userId", "==", uid).limit(500).get();
-  if (!aiSnap.empty) {
-    const batch = db.batch();
-    aiSnap.docs.forEach((d) => batch.delete(d.ref));
-    await batch.commit();
+
+  const deletedCounts: Record<string, number> = {};
+  for (const coll of GDPR_USER_ID_COLLECTIONS) {
+    deletedCounts[coll] = await deleteCollectionByField(coll, "userId", uid);
   }
-  // Konto Auth.
-  await admin.auth().deleteUser(uid).catch(() => {});
+
+  for (const coll of GDPR_UID_FIELD_COLLECTIONS) {
+    deletedCounts[coll] = await deleteCollectionByField(coll, "uid", uid);
+  }
+  deletedCounts.auth_audit_logs = await deleteCollectionByField("auth_audit_logs", "uid", uid);
+  deletedCounts.auth_audit_logs += await deleteCollectionByField("auth_audit_logs", "actorUid", uid);
+
+  const apiKeyIds = await deleteApiKeysAndReturnIds(uid);
+  deletedCounts.api_keys = apiKeyIds.length;
+  deletedCounts.api_rate_limits = 0;
+  for (const keyId of apiKeyIds) {
+    deletedCounts.api_rate_limits += await deleteCollectionByField("api_rate_limits", "keyId", keyId);
+  }
+
+  for (const coll of GDPR_DIRECT_DOC_COLLECTIONS) {
+    await db.collection(coll).doc(uid).delete().catch(() => {});
+  }
 
   await writeAuthAuditLog({
     eventType: "admin_user_deleted",
-    uid,
+    uid: null,
     email: null,
     actorUid: request.auth.uid,
     createdAt: nowIso(),
+    metadata: {
+      deletedUidHash: sanitizedIdentifierHash(uid),
+      deletedCounts,
+    },
+  }).catch((error) => {
+    console.error("Failed to write sanitized admin delete audit log", error);
   });
   return { success: true };
 });

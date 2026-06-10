@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { ChipButton } from '@/components/ui/chip-button';
 import { Calendar } from 'lucide-react';
 import { generateHeatmapData } from '@/lib/heatmap-utils';
 import type { WorkoutSession } from '@/types';
 import type { StravaActivity } from '@/types/strava';
-import { cn } from '@/lib/utils';
+import { cn, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
 
 interface Props {
   workouts: WorkoutSession[];
@@ -24,7 +25,7 @@ const LEVEL_COLORS = [
 const MONTH_KEYS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
 
 export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const MONTHS = MONTH_KEYS.map(k => t(`heatmap.month.${k}`));
   const DAY_LABELS = [t('heatmap.day.mon'), '', t('heatmap.day.wed'), '', t('heatmap.day.fri'), '', ''];
   const currentYear = new Date().getFullYear();
@@ -105,14 +106,15 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
         {availableYears.length > 1 && (
           <div className="flex gap-1.5 pt-2 flex-wrap">
             {availableYears.map(y => (
-              <Badge
+              <ChipButton
                 key={y}
                 variant={selectedYear === y ? 'default' : 'outline'}
-                className="cursor-pointer text-xs"
+                pressed={selectedYear === y}
+                className="text-xs"
                 onClick={() => setSelectedYear(y)}
               >
                 {y}
-              </Badge>
+              </ChipButton>
             ))}
           </div>
         )}
@@ -159,7 +161,7 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
                         'aspect-square rounded-[2px] sm:rounded-sm min-w-[6px]',
                         day ? LEVEL_COLORS[day.level] : 'bg-transparent',
                       )}
-                      title={day ? `${new Date(day.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}${day.hasWorkout ? ` — ${(day.strengthTonnage / 1000).toFixed(1)}t` : ''}${day.hasCardio ? ` — ${day.cardioKm}km` : ''}` : ''}
+                      title={day ? `${parseLocalDate(day.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}${day.hasWorkout ? ` — ${(day.strengthTonnage / 1000).toFixed(1)}t` : ''}${day.hasCardio ? ` — ${day.cardioKm}km` : ''}` : ''}
                     />
                   );
                 })}

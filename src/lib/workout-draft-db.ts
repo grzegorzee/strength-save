@@ -5,7 +5,7 @@ import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 export const WORKOUT_DRAFT_DB_NAME = 'strength-save-db';
 export const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
 
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export interface ActiveWorkoutDraft {
   sessionId: string;
@@ -17,13 +17,18 @@ export interface ActiveWorkoutDraft {
   remoteSessionId: string | null;
   exerciseSets: Record<string, SetData[]>;
   exerciseNotes: Record<string, string>;
+  exerciseNames?: Record<string, string>;
   // Metryki autoregulacji per ćwiczenie (RPE/ból/jakość). Opcjonalne — stare drafty bez nich
   // normalizują się do {}. Nie wymaga bumpu wersji IndexedDB (pole additive na obiekcie).
   exerciseMetrics: Record<string, ExerciseMetrics>;
   dayNotes: string;
+  dayName?: string;
+  dayFocus?: string;
   skippedExercises: string[];
   startedAt: number;
   updatedAt: number;
+  cloudUpdatedAt?: number;
+  cloudRevision?: number;
   lastFirebaseSyncAt: number | null;
   dirty: boolean;
   completedLocally: boolean;
@@ -97,6 +102,8 @@ const toNumberOr = (value: unknown, fallback: number): number => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+export const getWorkoutDraftKey = (userId: string, sessionId: string): string => `${userId}::${sessionId}`;
+
 const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutDraft | null => {
   if (!isRecord(value)) return null;
   if (!value.sessionId || !value.dayId || !value.date) return null;
@@ -117,11 +124,20 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     remoteSessionId: value.remoteSessionId == null ? null : String(value.remoteSessionId),
     exerciseSets: normalizeExerciseSets(value.exerciseSets),
     exerciseNotes: normalizeExerciseNotes(value.exerciseNotes),
+    ...(isRecord(value.exerciseNames) && {
+      exerciseNames: Object.fromEntries(
+        Object.entries(value.exerciseNames).map(([exerciseId, name]) => [exerciseId, String(name ?? '')])
+      ),
+    }),
     exerciseMetrics: normalizeExerciseMetrics(value.exerciseMetrics),
     dayNotes: String(value.dayNotes ?? ''),
+    ...(value.dayName !== undefined && { dayName: String(value.dayName) }),
+    ...(value.dayFocus !== undefined && { dayFocus: String(value.dayFocus) }),
     skippedExercises: normalizeStringArray(value.skippedExercises),
     startedAt: toNumberOr(value.startedAt, now),
     updatedAt: toNumberOr(value.updatedAt, now),
+    ...(value.cloudUpdatedAt !== undefined && { cloudUpdatedAt: toNumberOr(value.cloudUpdatedAt, now) }),
+    ...(value.cloudRevision !== undefined && { cloudRevision: Math.max(0, Math.round(toNumberOr(value.cloudRevision, 0))) }),
     lastFirebaseSyncAt: value.lastFirebaseSyncAt == null ? null : toNumberOr(value.lastFirebaseSyncAt, now),
     dirty: !!value.dirty,
     completedLocally: !!value.completedLocally,
@@ -197,29 +213,84 @@ const openDatabase = (): Promise<IDBDatabase | null> => new Promise((resolve, re
   request.onupgradeneeded = () => {
     const db = request.result;
     if (!db.objectStoreNames.contains(WORKOUT_DRAFT_STORE_NAME)) {
-      db.createObjectStore(WORKOUT_DRAFT_STORE_NAME, { keyPath: 'userId' });
+      db.createObjectStore(WORKOUT_DRAFT_STORE_NAME);
+      return;
     }
+
+    const tx = request.transaction;
+    if (!tx) return;
+
+    const existingStore = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
+    if (existingStore.keyPath !== 'userId') return;
+
+    const getAllRequest = existingStore.getAll();
+    getAllRequest.onsuccess = () => {
+      const legacyDrafts = (getAllRequest.result ?? [])
+        .map(value => normalizeDraft(value))
+        .filter((draft): draft is ActiveWorkoutDraft => !!draft);
+
+      db.deleteObjectStore(WORKOUT_DRAFT_STORE_NAME);
+      const nextStore = db.createObjectStore(WORKOUT_DRAFT_STORE_NAME);
+      legacyDrafts.forEach(draft => {
+        nextStore.put(draft, getWorkoutDraftKey(draft.userId, draft.sessionId));
+      });
+    };
   };
 
   request.onsuccess = () => resolve(request.result);
   request.onerror = () => reject(request.error);
 });
 
-const runRead = async <T>(userId: string): Promise<T | null> => {
-  const db = await openDatabase();
-  if (!db) return null;
+const pickActiveDraft = (drafts: ActiveWorkoutDraft[]): ActiveWorkoutDraft | null => {
+  if (drafts.length === 0) return null;
+  return [...drafts].sort((a, b) => {
+    const aPending = a.finalSyncPending || a.dirty || a.sessionOrigin === 'provisional';
+    const bPending = b.finalSyncPending || b.dirty || b.sessionOrigin === 'provisional';
+    if (aPending !== bPending) return aPending ? -1 : 1;
+    return b.updatedAt - a.updatedAt;
+  })[0];
+};
 
-  return new Promise<T | null>((resolve, reject) => {
+const runReadAll = async (userId: string): Promise<ActiveWorkoutDraft[]> => {
+  const db = await openDatabase();
+  if (!db) return [];
+
+  return new Promise<ActiveWorkoutDraft[]>((resolve, reject) => {
     const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readonly');
     const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
-    const request = store.get(userId);
+    const request = store.getAll();
 
-    request.onsuccess = () => resolve((request.result as T | undefined) ?? null);
+    request.onsuccess = () => {
+      const drafts = Array.isArray(request.result)
+        ? request.result
+          .map(value => normalizeDraft(value, userId))
+          .filter((draft): draft is ActiveWorkoutDraft => !!draft && draft.userId === userId)
+        : [];
+      resolve(drafts);
+    };
     request.onerror = () => reject(request.error);
   });
 };
 
-const runWrite = async (value: ActiveWorkoutDraft | null, userId: string): Promise<void> => {
+const runRead = async (userId: string, sessionId?: string): Promise<ActiveWorkoutDraft | null> => {
+  const db = await openDatabase();
+  if (!db) return null;
+
+  if (!sessionId) {
+    return pickActiveDraft(await runReadAll(userId));
+  }
+
+  return new Promise<ActiveWorkoutDraft | null>((resolve, reject) => {
+    const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readonly');
+    const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
+    const request = store.get(getWorkoutDraftKey(userId, sessionId));
+
+    request.onsuccess = () => resolve(normalizeDraft(request.result, userId));
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const runWrite = async (value: ActiveWorkoutDraft | null, userId: string, sessionId?: string): Promise<void> => {
   const db = await openDatabase();
   if (!db) {
     if (value) {
@@ -236,9 +307,27 @@ const runWrite = async (value: ActiveWorkoutDraft | null, userId: string): Promi
     const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readwrite');
     const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
     if (value) {
-      store.put(value);
+      if (sessionId && sessionId !== value.sessionId) {
+        store.delete(getWorkoutDraftKey(userId, sessionId));
+      }
+      store.put(value, getWorkoutDraftKey(value.userId, value.sessionId));
     } else {
-      store.delete(userId);
+      if (sessionId) {
+        store.delete(getWorkoutDraftKey(userId, sessionId));
+      } else {
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const activeDraft = pickActiveDraft(
+            (Array.isArray(request.result) ? request.result : [])
+              .map(value => normalizeDraft(value, userId))
+              .filter((draft): draft is ActiveWorkoutDraft => !!draft && draft.userId === userId)
+          );
+          if (activeDraft) {
+            store.delete(getWorkoutDraftKey(activeDraft.userId, activeDraft.sessionId));
+          }
+        };
+        request.onerror = () => reject(request.error);
+      }
     }
 
     tx.oncomplete = () => resolve();
@@ -249,13 +338,16 @@ const runWrite = async (value: ActiveWorkoutDraft | null, userId: string): Promi
 
 const updateDraft = async (
   userId: string,
+  sessionId: string | undefined,
   updater: (draft: ActiveWorkoutDraft) => ActiveWorkoutDraft | null
 ): Promise<void> => {
-  const current = await workoutDraftDb.loadActiveDraft(userId);
+  const current = sessionId
+    ? await workoutDraftDb.loadDraft(userId, sessionId)
+    : await workoutDraftDb.loadActiveDraft(userId);
   if (!current) return;
 
   const next = updater(current);
-  await runWrite(next, userId);
+  await runWrite(next, userId, current.sessionId);
 };
 
 export const workoutDraftDb = {
@@ -269,10 +361,37 @@ export const workoutDraftDb = {
     }
 
     try {
-      const raw = await runRead<ActiveWorkoutDraft>(userId);
-      return normalizeDraft(raw, userId);
+      return await runRead(userId);
     } catch {
       return withFallbackLoad(userId);
+    }
+  },
+
+  async loadDraft(userId: string, sessionId: string): Promise<ActiveWorkoutDraft | null> {
+    if (!this.isSupported()) {
+      const fallback = withFallbackLoad(userId);
+      return fallback?.sessionId === sessionId ? fallback : null;
+    }
+
+    try {
+      return await runRead(userId, sessionId);
+    } catch {
+      const fallback = withFallbackLoad(userId);
+      return fallback?.sessionId === sessionId ? fallback : null;
+    }
+  },
+
+  async listDrafts(userId: string): Promise<ActiveWorkoutDraft[]> {
+    if (!this.isSupported()) {
+      const fallback = withFallbackLoad(userId);
+      return fallback ? [fallback] : [];
+    }
+
+    try {
+      return await runReadAll(userId);
+    } catch {
+      const fallback = withFallbackLoad(userId);
+      return fallback ? [fallback] : [];
     }
   },
 
@@ -282,16 +401,23 @@ export const workoutDraftDb = {
     await runWrite(normalized, normalized.userId);
   },
 
-  async markDraftSynced(userId: string, syncedAt: number): Promise<void> {
-    await updateDraft(userId, draft => ({
+  async markDraftSynced(
+    userId: string,
+    syncedAt: number,
+    sessionId?: string,
+    cloudState?: { updatedAt?: number; revision?: number }
+  ): Promise<void> {
+    await updateDraft(userId, sessionId, draft => ({
       ...draft,
       dirty: false,
       lastFirebaseSyncAt: syncedAt,
+      ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+      ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
     }));
   },
 
-  async markCompletedLocally(userId: string): Promise<void> {
-    await updateDraft(userId, draft => ({
+  async markCompletedLocally(userId: string, sessionId?: string): Promise<void> {
+    await updateDraft(userId, sessionId, draft => ({
       ...draft,
       completedLocally: true,
       finalSyncPending: true,
@@ -301,8 +427,8 @@ export const workoutDraftDb = {
     }));
   },
 
-  async markPromotedToRemote(userId: string, remoteSessionId: string): Promise<void> {
-    await updateDraft(userId, draft => ({
+  async markPromotedToRemote(userId: string, remoteSessionId: string, sessionId?: string): Promise<void> {
+    await updateDraft(userId, sessionId, draft => ({
       ...draft,
       sessionId: remoteSessionId,
       sessionOrigin: 'remote',
@@ -312,8 +438,8 @@ export const workoutDraftDb = {
     }));
   },
 
-  async clearActiveDraft(userId: string): Promise<void> {
-    await runWrite(null, userId);
+  async clearActiveDraft(userId: string, sessionId?: string): Promise<void> {
+    await runWrite(null, userId, sessionId);
   },
 
   async migrateFromLocalStorage(userId: string): Promise<ActiveWorkoutDraft | null> {

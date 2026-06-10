@@ -8,6 +8,7 @@ import { PlanBuilder } from '@/components/PlanBuilder';
 import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
+import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection } from '@/lib/plan-cycle-utils';
 
 export type WizardLevel = 'beginner' | 'intermediate' | 'advanced' | 'elite';
 
@@ -31,7 +32,6 @@ const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
   { value: 'saturday', short: 'So', long: 'Sobota' },
   { value: 'sunday', short: 'Nd', long: 'Niedziela' },
 ];
-const weekdayLong = (value: Weekday) => WEEKDAYS.find(w => w.value === value)?.long ?? value;
 
 const DEFAULT_DAYS: Record<number, Weekday[]> = {
   2: ['monday', 'thursday'],
@@ -160,23 +160,16 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
 
   const recommended = useMemo(() => getRecommendedPlan(objective, mapLevel(level), daysPerWeek), [objective, level, daysPerWeek]);
   const chosen = picked ?? recommended;
+  const weekdaySelectionValid = hasExactWeekdaySelection(trainingDays, daysPerWeek);
+  const startPreview = getCycleStartPreview(startDate);
 
   const setDays = (n: number) => { setDaysPerWeek(n); setTrainingDays(DEFAULT_DAYS[n] ?? DEFAULT_DAYS[4]); };
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
 
-  const applyWeekdays = (days: TrainingDay[]): TrainingDay[] => {
-    const order = WEEKDAYS.map(w => w.value);
-    const sorted = [...trainingDays].sort((a, b) => order.indexOf(a) - order.indexOf(b));
-    return days.map((d, i) => {
-      const wd = sorted[i];
-      return wd ? { ...d, weekday: wd, dayName: weekdayLong(wd) } : d;
-    });
-  };
-
   const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string) =>
-    onConfirm({ days, durationWeeks, startDate, level, objective, daysPerWeek, templateId });
+    onConfirm({ days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId });
 
-  const confirmTemplate = () => fire(applyWeekdays(chosen.days), chosen.durationWeeks, chosen.id);
+  const confirmTemplate = () => fire(applyWeekdaysToPlanDays(chosen.days, trainingDays), chosen.durationWeeks, chosen.id);
 
   // ── Tryb: ułóż własny plan ──
   if (mode === 'own') {
@@ -261,7 +254,7 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
               <div className="rounded-2xl bg-surface-low p-4">
                 <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">{t('ob.protocol.daysQ')}</p>
                 <div className="flex gap-2">
-                  {[3, 4, 5, 6].map(n => (
+                  {[2, 3, 4, 5, 6].map(n => (
                     <button key={n} onClick={() => setDays(n)} className={cn('flex-1 h-11 rounded-xl font-heading font-bold transition-colors', daysPerWeek === n ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}>{n}</button>
                   ))}
                 </div>
@@ -303,9 +296,15 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
                   <span>{t('ob.protocol.specificDate')}</span>
                   <input type="date" value={startDate} min={formatLocalDate(new Date())} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-foreground outline-none" />
                 </label>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  {t('ob.protocol.startPreview', {
+                    selected: new Date(`${startPreview.selectedDate}T00:00:00`).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+                    start: new Date(`${startPreview.cycleStartDate}T00:00:00`).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+                  })}
+                </p>
               </div>
             </div>
-            <div className="pt-5"><PrimaryButton onClick={() => { setPicked(null); setReachedViaSteps(true); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
+            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setReachedViaSteps(true); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
         )}
 
@@ -378,7 +377,7 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto">
               {planTemplates.map(tpl => (
-                <button key={tpl.id} onClick={() => { setPicked(tpl); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container p-4 transition-colors">
+                <button key={tpl.id} onClick={() => { setPicked(tpl); setDays(tpl.daysPerWeek); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container p-4 transition-colors">
                   <div className="flex items-center justify-between">
                     <h3 className="font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
                     <span className="text-[11px] text-muted-foreground tabular-nums">{tpl.daysPerWeek}× · {tpl.durationWeeks}{t('ob.browse.wk')}</span>

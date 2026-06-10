@@ -358,6 +358,7 @@ const ExerciseCardInner = ({
     const displayWeight = set.weight
       ? (unit === 'lbs' ? Number(toDisplay(set.weight).toFixed(1)) : set.weight)
       : '';
+    const setLabel = isWarmupRow ? `${t('comp.warmup.title')} ${label}` : `${t('card.colSet')} ${label}`;
 
     return (
       <div
@@ -394,6 +395,7 @@ const ExerciseCardInner = ({
             onChange={(e) => handleSetChange(globalIndex, 'weight', fromInput(parseFloat(e.target.value) || 0))}
             placeholder="0"
             disabled={!isEditable}
+            aria-label={`${localizedName}, ${setLabel}, ${unit}`}
             className={cn(
               'exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
               isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
@@ -410,6 +412,7 @@ const ExerciseCardInner = ({
           onChange={(e) => handleSetChange(globalIndex, 'reps', parseInt(e.target.value) || 0)}
           placeholder={isWarmupRow ? '—' : repsPlaceholder}
           disabled={!isEditable}
+          aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
           className={cn(
             'exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
             isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',

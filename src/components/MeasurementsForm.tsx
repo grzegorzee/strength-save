@@ -8,6 +8,7 @@ import { Save, User } from 'lucide-react';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
+import { dateLocale } from '@/i18n';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
@@ -15,21 +16,21 @@ interface MeasurementsFormProps {
 }
 
 export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsFormProps) => {
-  const { t } = useTranslation();
-  const { unit, toDisplay, fromInput } = useUnit();
+  const { t, lang } = useTranslation();
+  const { unit, lengthUnit, toDisplay, fromInput, toDisplayLength, fromInputLength } = useUnit();
   const [formData, setFormData] = useState({
     weight: latestMeasurement?.weight != null
       ? String(Number(toDisplay(latestMeasurement.weight).toFixed(1)))
       : '',
-    armLeft: latestMeasurement?.armLeft || '',
-    armRight: latestMeasurement?.armRight || '',
-    chest: latestMeasurement?.chest || '',
-    waist: latestMeasurement?.waist || '',
-    hips: latestMeasurement?.hips || '',
-    thighLeft: latestMeasurement?.thighLeft || '',
-    thighRight: latestMeasurement?.thighRight || '',
-    calfLeft: latestMeasurement?.calfLeft || '',
-    calfRight: latestMeasurement?.calfRight || '',
+    armLeft: latestMeasurement?.armLeft != null ? String(Number(toDisplayLength(latestMeasurement.armLeft).toFixed(1))) : '',
+    armRight: latestMeasurement?.armRight != null ? String(Number(toDisplayLength(latestMeasurement.armRight).toFixed(1))) : '',
+    chest: latestMeasurement?.chest != null ? String(Number(toDisplayLength(latestMeasurement.chest).toFixed(1))) : '',
+    waist: latestMeasurement?.waist != null ? String(Number(toDisplayLength(latestMeasurement.waist).toFixed(1))) : '',
+    hips: latestMeasurement?.hips != null ? String(Number(toDisplayLength(latestMeasurement.hips).toFixed(1))) : '',
+    thighLeft: latestMeasurement?.thighLeft != null ? String(Number(toDisplayLength(latestMeasurement.thighLeft).toFixed(1))) : '',
+    thighRight: latestMeasurement?.thighRight != null ? String(Number(toDisplayLength(latestMeasurement.thighRight).toFixed(1))) : '',
+    calfLeft: latestMeasurement?.calfLeft != null ? String(Number(toDisplayLength(latestMeasurement.calfLeft).toFixed(1))) : '',
+    calfRight: latestMeasurement?.calfRight != null ? String(Number(toDisplayLength(latestMeasurement.calfRight).toFixed(1))) : '',
   });
 
   const handleChange = (field: string, value: string) => {
@@ -41,29 +42,29 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
     onSave({
       date: formatLocalDate(new Date()),
       weight: formData.weight ? fromInput(Number(formData.weight)) : undefined,
-      armLeft: formData.armLeft ? Number(formData.armLeft) : undefined,
-      armRight: formData.armRight ? Number(formData.armRight) : undefined,
-      chest: formData.chest ? Number(formData.chest) : undefined,
-      waist: formData.waist ? Number(formData.waist) : undefined,
-      hips: formData.hips ? Number(formData.hips) : undefined,
-      thighLeft: formData.thighLeft ? Number(formData.thighLeft) : undefined,
-      thighRight: formData.thighRight ? Number(formData.thighRight) : undefined,
-      calfLeft: formData.calfLeft ? Number(formData.calfLeft) : undefined,
-      calfRight: formData.calfRight ? Number(formData.calfRight) : undefined,
+      armLeft: formData.armLeft ? fromInputLength(Number(formData.armLeft)) : undefined,
+      armRight: formData.armRight ? fromInputLength(Number(formData.armRight)) : undefined,
+      chest: formData.chest ? fromInputLength(Number(formData.chest)) : undefined,
+      waist: formData.waist ? fromInputLength(Number(formData.waist)) : undefined,
+      hips: formData.hips ? fromInputLength(Number(formData.hips)) : undefined,
+      thighLeft: formData.thighLeft ? fromInputLength(Number(formData.thighLeft)) : undefined,
+      thighRight: formData.thighRight ? fromInputLength(Number(formData.thighRight)) : undefined,
+      calfLeft: formData.calfLeft ? fromInputLength(Number(formData.calfLeft)) : undefined,
+      calfRight: formData.calfRight ? fromInputLength(Number(formData.calfRight)) : undefined,
     });
   };
 
   const measurementFields = [
     { key: 'weight', label: t('measurements.field.weight', { unit }), description: t('measurements.hint.fasting') },
-    { key: 'armLeft', label: t('measurements.field.armLeft'), description: t('measurements.hint.bicepsPeak') },
-    { key: 'armRight', label: t('measurements.field.armRight'), description: t('measurements.hint.bicepsPeak') },
-    { key: 'chest', label: t('measurements.field.chest'), description: t('measurements.hint.aboveNipples') },
-    { key: 'waist', label: t('measurements.field.waist'), description: t('measurements.hint.narrowest') },
-    { key: 'hips', label: t('measurements.field.hips'), description: t('measurements.hint.widest') },
-    { key: 'thighLeft', label: t('measurements.field.thighLeft'), description: t('measurements.hint.widest') },
-    { key: 'thighRight', label: t('measurements.field.thighRight'), description: t('measurements.hint.widest') },
-    { key: 'calfLeft', label: t('measurements.field.calfLeft'), description: t('measurements.hint.widest') },
-    { key: 'calfRight', label: t('measurements.field.calfRight'), description: t('measurements.hint.widest') },
+    { key: 'armLeft', label: t('measurements.field.armLeft', { unit: lengthUnit }), description: t('measurements.hint.bicepsPeak') },
+    { key: 'armRight', label: t('measurements.field.armRight', { unit: lengthUnit }), description: t('measurements.hint.bicepsPeak') },
+    { key: 'chest', label: t('measurements.field.chest', { unit: lengthUnit }), description: t('measurements.hint.aboveNipples') },
+    { key: 'waist', label: t('measurements.field.waist', { unit: lengthUnit }), description: t('measurements.hint.narrowest') },
+    { key: 'hips', label: t('measurements.field.hips', { unit: lengthUnit }), description: t('measurements.hint.widest') },
+    { key: 'thighLeft', label: t('measurements.field.thighLeft', { unit: lengthUnit }), description: t('measurements.hint.widest') },
+    { key: 'thighRight', label: t('measurements.field.thighRight', { unit: lengthUnit }), description: t('measurements.hint.widest') },
+    { key: 'calfLeft', label: t('measurements.field.calfLeft', { unit: lengthUnit }), description: t('measurements.hint.widest') },
+    { key: 'calfRight', label: t('measurements.field.calfRight', { unit: lengthUnit }), description: t('measurements.hint.widest') },
   ];
 
   return (
@@ -77,7 +78,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
             <CardTitle>{t('nav.measurements')}</CardTitle>
             <CardDescription>
               {latestMeasurement ? (
-                <>{t('measurements.lastMeasurement', { date: parseLocalDate(latestMeasurement.date).toLocaleDateString('pl-PL', {
+                <>{t('measurements.lastMeasurement', { date: parseLocalDate(latestMeasurement.date).toLocaleDateString(dateLocale(lang), {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'

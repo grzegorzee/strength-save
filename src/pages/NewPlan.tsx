@@ -20,11 +20,7 @@ import type { PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 import type { ExerciseReplacement } from '@/types';
-import { formatLocalDate } from '@/lib/utils';
-import { getStartOfPlanWeek } from '@/lib/plan-schedule';
-
-const toDateStr = (d: Date): string => formatLocalDate(d);
-const weekMonday = (dateStr: string): string => formatLocalDate(getStartOfPlanWeek(new Date(`${dateStr}T00:00:00`)));
+import { startCycleWithPlan } from '@/lib/cycle-actions';
 
 interface ProfileHint { level: WizardLevel; objective: PlanObjective; daysPerWeek: number }
 
@@ -88,24 +84,19 @@ const NewPlan = () => {
     setIsSaving(true);
     setError(null);
     try {
-      // Archiwizuj obecny plan (jeśli istnieje) jako zakończony cykl + dotaguj historię.
-      if (planStartDate && currentPlan.length > 0) {
-        const archivedId = await archiveCurrentPlan(currentPlan, planDurationWeeks, planStartDate, workouts);
-        if (archivedId) {
-          const archivedCycle: PlanCycle = {
-            id: archivedId, userId: uid, days: currentPlan, durationWeeks: planDurationWeeks,
-            startDate: planStartDate, endDate: toDateStr(new Date()), status: 'completed',
-            createdAt: new Date().toISOString(),
-            stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
-          };
-          await backfillHistoricalWorkouts([archivedCycle]);
-        }
-      }
-      const newStart = weekMonday(chosen.startDate);
-      const uniqueDays: TrainingDay[] = reviewDays.map((d, i) => ({ ...d, id: `${newStart}-d${i + 1}` }));
-      const result = await savePlan(uniqueDays, { durationWeeks: chosen.durationWeeks, startDate: newStart });
+      const result = await startCycleWithPlan(reviewDays, chosen.durationWeeks, {
+        uid,
+        currentPlan,
+        planStartDate,
+        planDurationWeeks,
+        workouts,
+        startDate: chosen.startDate,
+        archiveCurrentPlan,
+        savePlan,
+        createActiveCycle,
+        backfillHistoricalWorkouts,
+      });
       if (!result.success) { setError(result.error || t('onboarding.error.saveFailed')); setIsSaving(false); return; }
-      await createActiveCycle(uniqueDays, chosen.durationWeeks, newStart);
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));

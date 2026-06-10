@@ -3,17 +3,37 @@ import type { SetData, WorkoutSession } from '@/types';
 export interface WorkoutWriteExercise {
   exerciseId: string;
   sets: SetData[];
+  notes?: string;
+  name?: string;
+  rpe?: number;
+  pain?: number;
+  quality?: number;
 }
 
 export interface WorkoutWriteExpectation {
   completed: boolean;
   exercises: WorkoutWriteExercise[];
+  notes?: string;
+  skippedExercises?: string[];
+  dayName?: string;
+  dayFocus?: string;
+  durationSec?: number;
+  startedAt?: number;
 }
 
 export interface WorkoutWriteValidation {
   ok: boolean;
   reason?: string;
 }
+
+export const hasWorkoutWriteConflict = (
+  current: Pick<WorkoutSession, 'updatedAt'>,
+  expectedUpdatedAt?: number | null
+): boolean => (
+  typeof expectedUpdatedAt === 'number'
+  && typeof current.updatedAt === 'number'
+  && current.updatedAt > expectedUpdatedAt
+);
 
 const normalizeSet = (set: Partial<SetData>): SetData => ({
   reps: Math.max(0, Math.min(999, Math.round(Number(set.reps) || 0))),
@@ -32,15 +52,46 @@ const setsMatch = (actual: SetData, expected: SetData): boolean => {
     && !!nextActual.isWarmup === !!nextExpected.isWarmup;
 };
 
+const metricMatches = (actual: number | undefined, expected: number | undefined): boolean => (
+  expected === undefined || actual === expected
+);
+
+const stringMatches = (actual: string | undefined, expected: string | undefined): boolean => (
+  expected === undefined || (actual ?? '') === expected
+);
+
+const arrayMatches = (actual: string[] | undefined, expected: string[] | undefined): boolean => (
+  expected === undefined || JSON.stringify(actual ?? []) === JSON.stringify(expected)
+);
+
 export const buildWorkoutWriteExpectation = (
   exercises: WorkoutWriteExercise[],
-  options: { completed?: boolean } = {}
+  options: {
+    completed?: boolean;
+    notes?: string;
+    skippedExercises?: string[];
+    dayName?: string;
+    dayFocus?: string;
+    durationSec?: number;
+    startedAt?: number;
+  } = {}
 ): WorkoutWriteExpectation => ({
   completed: !!options.completed,
   exercises: exercises.map(exercise => ({
     exerciseId: exercise.exerciseId,
     sets: exercise.sets.map(normalizeSet),
+    ...(exercise.notes !== undefined && { notes: exercise.notes }),
+    ...(exercise.name !== undefined && { name: exercise.name }),
+    ...(exercise.rpe !== undefined && { rpe: exercise.rpe }),
+    ...(exercise.pain !== undefined && { pain: exercise.pain }),
+    ...(exercise.quality !== undefined && { quality: exercise.quality }),
   })),
+  ...(options.notes !== undefined && { notes: options.notes }),
+  ...(options.skippedExercises !== undefined && { skippedExercises: options.skippedExercises }),
+  ...(options.dayName !== undefined && { dayName: options.dayName }),
+  ...(options.dayFocus !== undefined && { dayFocus: options.dayFocus }),
+  ...(options.durationSec !== undefined && { durationSec: options.durationSec }),
+  ...(options.startedAt !== undefined && { startedAt: options.startedAt }),
 });
 
 export const validateWorkoutCloudWrite = (
@@ -53,6 +104,30 @@ export const validateWorkoutCloudWrite = (
 
   if (expectation.completed && workout.completed !== true) {
     return { ok: false, reason: 'not-completed' };
+  }
+
+  if (!stringMatches(workout.notes, expectation.notes)) {
+    return { ok: false, reason: 'notes-mismatch' };
+  }
+
+  if (!arrayMatches(workout.skippedExercises, expectation.skippedExercises)) {
+    return { ok: false, reason: 'skipped-exercises-mismatch' };
+  }
+
+  if (!stringMatches(workout.dayName, expectation.dayName)) {
+    return { ok: false, reason: 'day-name-mismatch' };
+  }
+
+  if (!stringMatches(workout.dayFocus, expectation.dayFocus)) {
+    return { ok: false, reason: 'day-focus-mismatch' };
+  }
+
+  if (expectation.durationSec !== undefined && workout.durationSec !== expectation.durationSec) {
+    return { ok: false, reason: 'duration-mismatch' };
+  }
+
+  if (expectation.startedAt !== undefined && workout.startedAt !== expectation.startedAt) {
+    return { ok: false, reason: 'started-at-mismatch' };
   }
 
   if (expectation.completed && expectation.exercises.length === 0) {
@@ -77,6 +152,26 @@ export const validateWorkoutCloudWrite = (
       if (!setsMatch(actualExercise.sets[index], expectedExercise.sets[index])) {
         return { ok: false, reason: `set-mismatch:${expectedExercise.exerciseId}:${index + 1}` };
       }
+    }
+
+    if (!stringMatches(actualExercise.notes, expectedExercise.notes)) {
+      return { ok: false, reason: `exercise-notes-mismatch:${expectedExercise.exerciseId}` };
+    }
+
+    if (!stringMatches(actualExercise.name, expectedExercise.name)) {
+      return { ok: false, reason: `exercise-name-mismatch:${expectedExercise.exerciseId}` };
+    }
+
+    if (!metricMatches(actualExercise.rpe, expectedExercise.rpe)) {
+      return { ok: false, reason: `rpe-mismatch:${expectedExercise.exerciseId}` };
+    }
+
+    if (!metricMatches(actualExercise.pain, expectedExercise.pain)) {
+      return { ok: false, reason: `pain-mismatch:${expectedExercise.exerciseId}` };
+    }
+
+    if (!metricMatches(actualExercise.quality, expectedExercise.quality)) {
+      return { ok: false, reason: `quality-mismatch:${expectedExercise.exerciseId}` };
     }
   }
 

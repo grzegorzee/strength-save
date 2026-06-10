@@ -3,6 +3,7 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { randomBytes } from "crypto";
 import { checkUsageLimit, estimateUsageCost, recordUsage, releaseUsageBudget, reserveUsageBudget } from "./ai-usage";
 import {
   API_RATE_LIMIT_PER_MINUTE,
@@ -25,6 +26,14 @@ import {
   verifyApiKey,
   writeApiAuditLog,
 } from "./admin-api";
+import {
+  canUseApiExport,
+  canUseStravaIntegration,
+  hasCallableAppAccess,
+  isValidStravaOAuthState,
+  STRAVA_OAUTH_STATE_BYTES,
+  STRAVA_OAUTH_STATE_TTL_MS,
+} from "./security";
 export {
   createInvite,
   createWaitlistEntry,
@@ -97,6 +106,9 @@ interface StravaConnectionDoc {
   athleteId: number | null;
   athleteName: string | null;
   updatedAt: string;
+  oauthState?: string;
+  oauthStateCreatedAt?: number;
+  oauthStateExpiresAt?: number;
 }
 
 interface StravaApiActivity {
@@ -151,12 +163,20 @@ async function assertAppAccess(userId: string): Promise<void> {
   }
 
   const data = userDoc.data();
-  if (data?.role === "admin") {
-    return;
+  if (!hasCallableAppAccess(data)) {
+    throw new HttpsError("permission-denied", "Active app access required");
+  }
+}
+
+async function assertStravaAccess(userId: string): Promise<void> {
+  const userDoc = await getUserRef(userId).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("permission-denied", "User profile missing");
   }
 
-  if (data?.access?.enabled === false) {
-    throw new HttpsError("permission-denied", "Access disabled by admin");
+  const data = userDoc.data();
+  if (!canUseStravaIntegration(data)) {
+    throw new HttpsError("permission-denied", "Strava access disabled");
   }
 }
 
@@ -324,6 +344,39 @@ const getStravaConnection = async (userId: string): Promise<StravaConnectionDoc 
   return migratedConnection;
 };
 
+const createStravaOAuthState = () => (
+  randomBytes(STRAVA_OAUTH_STATE_BYTES)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/u, "")
+);
+
+const savePendingStravaOAuthState = async (userId: string, state: string) => {
+  const now = Date.now();
+  await getStravaConnectionRef(userId).set({
+    oauthState: state,
+    oauthStateCreatedAt: now,
+    oauthStateExpiresAt: now + STRAVA_OAUTH_STATE_TTL_MS,
+  }, { merge: true });
+};
+
+const assertPendingStravaOAuthState = async (userId: string, state: unknown) => {
+  if (!isValidStravaOAuthState(state)) {
+    throw new HttpsError("invalid-argument", "state is required");
+  }
+
+  const connectionDoc = await getStravaConnectionRef(userId).get();
+  const connection = connectionDoc.data() as Partial<StravaConnectionDoc> | undefined;
+  if (!connection?.oauthState || connection.oauthState !== state) {
+    throw new HttpsError("permission-denied", "Invalid Strava OAuth state");
+  }
+
+  if (!connection.oauthStateExpiresAt || connection.oauthStateExpiresAt < Date.now()) {
+    throw new HttpsError("deadline-exceeded", "Expired Strava OAuth state");
+  }
+};
+
 /**
  * Generate Strava OAuth authorization URL
  */
@@ -334,7 +387,7 @@ export const stravaAuthUrl = onCall(
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
     const userId = request.auth.uid;
-    await assertAppAccess(userId);
+    await assertStravaAccess(userId);
 
     const clientId = stravaClientId.value();
     const redirectUri = stravaRedirectUri.value();
@@ -344,6 +397,9 @@ export const stravaAuthUrl = onCall(
       throw new HttpsError("failed-precondition", "Strava client_id not configured");
     }
 
+    const state = createStravaOAuthState();
+    await savePendingStravaOAuthState(userId, state);
+
     const scope = "read,activity:read_all";
     const url =
       `https://www.strava.com/oauth/authorize` +
@@ -352,7 +408,7 @@ export const stravaAuthUrl = onCall(
       `&response_type=code` +
       `&scope=${scope}` +
       `&approval_prompt=force` +
-      `&state=${userId}`;
+      `&state=${encodeURIComponent(state)}`;
 
     logger.info(`[Strava] Auth URL generated for ${userId}, redirect: ${redirectUri}`);
     return { url };
@@ -369,11 +425,12 @@ export const stravaCallback = onCall(
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
     const userId = request.auth.uid;
-    await assertAppAccess(userId);
-    const { code } = request.data;
-    if (!code) {
+    await assertStravaAccess(userId);
+    const { code, state } = request.data;
+    if (typeof code !== "string" || code.length === 0) {
       throw new HttpsError("invalid-argument", "code is required");
     }
+    await assertPendingStravaOAuthState(userId, state);
 
     logger.info(`[Strava] Callback: exchanging code for ${userId}`);
 
@@ -433,7 +490,7 @@ export const stravaSync = onCall(
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
     const userId = request.auth.uid;
-    await assertAppAccess(userId);
+    await assertStravaAccess(userId);
     const { fullSync } = request.data;
 
     logger.info(`[Strava] Manual sync requested for ${userId}, fullSync=${!!fullSync}`);
@@ -974,6 +1031,25 @@ export const exportUserDataApi = onRequest(
       return;
     }
 
+    const resource = parseResource(req.query.resource);
+    const format = parseFormat(req.query.format);
+    const ownerDoc = await getUserRef(verifiedKey.userId).get();
+    if (!ownerDoc.exists || !canUseApiExport(ownerDoc.data())) {
+      await writeApiAuditLog({
+        keyId: verifiedKey.id,
+        userId: verifiedKey.userId,
+        resource,
+        statusCode: 403,
+        request: req,
+        pepper,
+        format,
+        responseBytes: 0,
+        query: { ...req.query },
+      }).catch((error) => logger.error("[ExportAPI] Failed to write denied owner audit log:", error));
+      res.status(403).json({ error: "API key owner no longer has export access" });
+      return;
+    }
+
     try {
       await checkAndConsumeRateLimit(verifiedKey.id, API_RATE_LIMIT_PER_MINUTE);
     } catch (error) {
@@ -998,8 +1074,6 @@ export const exportUserDataApi = onRequest(
 
     await markApiKeyUsed(verifiedKey.id);
 
-    const resource = parseResource(req.query.resource);
-    const format = parseFormat(req.query.format);
     const from = parseDateParam(req.query.from);
     const to = parseDateParam(req.query.to);
     const limit = parseLimit(req.query.limit, 250);
@@ -1413,6 +1487,11 @@ export const stravaScheduledSync = onSchedule(
       const userId = userDoc.id;
 
       try {
+        if (!canUseStravaIntegration(userDoc.data())) {
+          logger.info(`[Strava] Skipping ${userId}: access disabled`);
+          continue;
+        }
+
         const connection = await getStravaConnection(userId);
         if (!connection) {
           logger.warn(`[Strava] Skipping ${userId}: no tokens`);
@@ -1445,7 +1524,7 @@ export const stravaDisconnect = onCall(async (request) => {
   }
 
   const userId = request.auth.uid;
-  await assertAppAccess(userId);
+  await assertStravaAccess(userId);
 
   await getStravaConnectionRef(userId).delete().catch(() => undefined);
   await getUserRef(userId).set({

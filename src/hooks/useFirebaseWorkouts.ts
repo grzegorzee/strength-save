@@ -12,6 +12,7 @@ import {
   query,
   orderBy,
   where,
+  runTransaction,
   type UpdateData,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -25,19 +26,13 @@ import {
   isProvisionalWorkoutSessionId,
 } from '@/lib/workout-session';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { hasWorkoutWriteConflict } from '@/lib/workout-final-sync';
+import { clampSet } from '@/lib/workout-sanitizers';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
 const WORKOUTS_COLLECTION = 'workouts';
 const MEASUREMENTS_COLLECTION = 'measurements';
-
-// Sanitize and clamp set values to valid ranges
-const clampSet = (set: Partial<SetData>): SetData => ({
-  reps: Math.max(0, Math.min(999, Math.round(Number(set.reps) || 0))),
-  weight: Math.max(0, Math.min(999, Math.round((Number(set.weight) || 0) * 2) / 2)),
-  completed: !!set.completed,
-  ...(set.isWarmup && { isWarmup: true }),
-});
 
 // Metryki autoregulacji (RPE/ból/jakość) — opcjonalne. Zwraca tylko zdefiniowane,
 // poprawne liczby w zakresie (Firebase nie przyjmuje undefined, więc pomijamy puste).
@@ -57,8 +52,7 @@ const cleanMetrics = (ex: { rpe?: number; pain?: number; quality?: number }): Re
   return out;
 };
 
-export const useFirebaseWorkouts = (userId: string) => {
-  const { t } = useTranslation();
+export const useFirebaseWorkoutReads = (userId: string) => {
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -119,6 +113,22 @@ export const useFirebaseWorkouts = (userId: string) => {
     return () => unsubscribe();
   }, [userId]);
 
+  return {
+    workouts,
+    measurements,
+    isLoaded,
+    error,
+  };
+};
+
+type FirebaseWorkoutReads = ReturnType<typeof useFirebaseWorkoutReads>;
+
+export const useFirebaseWorkoutActions = (
+  userId: string,
+  { workouts, measurements }: Pick<FirebaseWorkoutReads, 'workouts' | 'measurements'>,
+) => {
+  const { t } = useTranslation();
+
   const createWorkoutSession = useCallback(async (dayId: string, date?: string, cycleId?: string): Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean; provisional?: boolean }> => {
     const workoutDate = date || formatLocalDate(new Date());
     const sessionId = buildWorkoutSessionId(userId, dayId, workoutDate);
@@ -140,6 +150,7 @@ export const useFirebaseWorkouts = (userId: string) => {
       return { session: existingWorkout, existing: true };
     }
 
+    const createdAt = Date.now();
     const session: WorkoutSession = {
       id: sessionId,
       userId,
@@ -147,18 +158,23 @@ export const useFirebaseWorkouts = (userId: string) => {
       date: workoutDate,
       exercises: [],
       completed: false,
+      updatedAt: createdAt,
+      revision: 0,
       ...(cycleId && { cycleId }),
     };
 
     try {
       const workoutRef = doc(db, WORKOUTS_COLLECTION, session.id);
-      const existingSnapshot = await getDoc(workoutRef);
-      if (existingSnapshot.exists()) {
-        return { session: { id: existingSnapshot.id, ...existingSnapshot.data() } as WorkoutSession, existing: true };
-      }
+      const transactionResult = await runTransaction(db, async (transaction) => {
+        const existingSnapshot = await transaction.get(workoutRef);
+        if (existingSnapshot.exists()) {
+          return { session: { id: existingSnapshot.id, ...existingSnapshot.data() } as WorkoutSession, existing: true };
+        }
 
-      await setDoc(workoutRef, session);
-      return { session };
+        transaction.set(workoutRef, session);
+        return { session, existing: false };
+      });
+      return transactionResult;
     } catch (err) {
       console.error('Error creating workout:', err);
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
@@ -545,8 +561,8 @@ export const useFirebaseWorkouts = (userId: string) => {
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }[],
-    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number }
-  ): Promise<{ success: boolean; error?: string }> => {
+    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; expectedUpdatedAt?: number | null }
+  ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
     try {
@@ -562,7 +578,8 @@ export const useFirebaseWorkouts = (userId: string) => {
         ...cleanMetrics(ex),
       }));
 
-      const updateData: Record<string, unknown> = { exercises: cleanExercises };
+      const updateTime = Date.now();
+      const updateData: Record<string, unknown> = { exercises: cleanExercises, updatedAt: updateTime };
       if (options?.notes !== undefined) updateData.notes = String(options.notes).slice(0, 5000);
       if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
       if (options?.completed) {
@@ -574,8 +591,22 @@ export const useFirebaseWorkouts = (userId: string) => {
       if (typeof options?.durationSec === 'number' && options.durationSec > 0) updateData.durationSec = Math.floor(options.durationSec);
       if (typeof options?.startedAt === 'number' && options.startedAt > 0) updateData.startedAt = options.startedAt;
 
-      await updateDoc(workoutRef, updateData as UpdateData<Record<string, unknown>>);
-      return { success: true };
+      const syncState = await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(workoutRef);
+        if (!snapshot.exists()) {
+          throw new Error('WORKOUT_NOT_FOUND');
+        }
+
+        const current = snapshot.data() as WorkoutSession;
+        if (hasWorkoutWriteConflict(current, options?.expectedUpdatedAt)) {
+          throw new Error('WORKOUT_CONFLICT');
+        }
+
+        const revision = (typeof current.revision === 'number' ? current.revision : 0) + 1;
+        transaction.update(workoutRef, { ...updateData, revision } as UpdateData<Record<string, unknown>>);
+        return { updatedAt: updateTime, revision };
+      });
+      return { success: true, ...syncState };
     } catch (err) {
       console.error('Error batch saving workout:', err);
       const errorMessage = err instanceof Error ? err.message : t('common.unknownSaveError');
@@ -595,10 +626,6 @@ export const useFirebaseWorkouts = (userId: string) => {
   }, [userId]);
 
   return {
-    workouts,
-    measurements,
-    isLoaded,
-    error,
     createWorkoutSession,
     createOfflineWorkoutSession,
     updateExerciseProgress,
@@ -620,5 +647,15 @@ export const useFirebaseWorkouts = (userId: string) => {
     cleanupEmptyWorkouts,
     backfillHistoricalWorkouts,
     isProvisionalWorkoutSessionId,
+  };
+};
+
+export const useFirebaseWorkouts = (userId: string) => {
+  const reads = useFirebaseWorkoutReads(userId);
+  const actions = useFirebaseWorkoutActions(userId, reads);
+
+  return {
+    ...reads,
+    ...actions,
   };
 };

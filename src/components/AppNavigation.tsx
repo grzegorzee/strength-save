@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, Trophy, BarChart3, X, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User, Ruler } from 'lucide-react';
+import { Home, Calendar, Trophy, BarChart3, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +19,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 interface AppNavigationProps {
   isOpen?: boolean;
   onClose?: () => void;
+  hideMobileNav?: boolean;
 }
 
 const navItems = [
@@ -43,7 +45,7 @@ const NAV_GROUPS = [
 
 const STORAGE_KEY = 'sidebar-collapsed';
 
-export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
+export const AppNavigation = ({ isOpen, onClose, hideMobileNav = false }: AppNavigationProps) => {
   const navigate = useNavigate();
   const { profile, isAdmin } = useCurrentUser();
   const { logout } = useAuth();
@@ -110,23 +112,8 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
     return link;
   };
 
-  return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 md:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sidebar */}
-      <nav aria-label={t('nav.ariaMain')} className={cn(
-        "fixed inset-y-0 left-0 z-50 bg-sidebar border-r border-sidebar-border transform transition-all duration-300 md:translate-x-0 md:sticky md:top-0 md:h-[100dvh] md:self-start",
-        collapsed ? "md:w-16" : "md:w-64",
-        "w-64", // mobile always full width
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+  const sidebarBody = (
+    <nav aria-label={t('nav.ariaMain')} className="h-full bg-sidebar">
         <div className="flex flex-col h-full pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
           {/* Logo + collapse toggle */}
           <div className="flex items-center justify-between h-16 px-5 border-b border-sidebar-border">
@@ -151,11 +138,9 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
                 size="icon"
                 onClick={() => setCollapsed(prev => !prev)}
                 className="hidden md:flex h-8 w-8"
+                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
               >
                 {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={onClose} className="md:hidden h-8 w-8">
-                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -228,37 +213,58 @@ export const AppNavigation = ({ isOpen, onClose }: AppNavigationProps) => {
           </div>
         </div>
       </nav>
+  );
+
+  return (
+    <>
+      <aside
+        className={cn(
+          "hidden bg-sidebar border-r border-sidebar-border transition-all duration-300 md:sticky md:top-0 md:block md:h-[100dvh] md:self-start",
+          collapsed ? "md:w-16" : "md:w-64",
+        )}
+      >
+        {sidebarBody}
+      </aside>
+
+      <Sheet open={!!isOpen} onOpenChange={(open) => { if (!open) onClose?.(); }}>
+        <SheetContent side="left" className="w-64 border-sidebar-border bg-sidebar p-0 md:hidden">
+          <SheetTitle className="sr-only">{t('nav.ariaMain')}</SheetTitle>
+          {sidebarBody}
+        </SheetContent>
+      </Sheet>
 
       {/* Tło wypełniające dół ekranu pod floating navem — żeby treść nie prześwitywała w szczelinie nad home indicatorem */}
-      <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-background md:hidden" />
+      {!hideMobileNav && <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-background md:hidden" />}
 
-      <nav aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] md:hidden">
-        {navItems.slice(0, 5).map((item) => (
-          <NavLink
-            key={`mobile-${item.to}`}
-            to={item.to}
-            className="flex flex-1 flex-col items-center gap-1 py-1"
-          >
-            {({ isActive }) => (
-              <>
-                {/* Pigułka stałej szerokości tylko pod ikoną — każda pozycja podświetla się tak samo. */}
-                <span className={cn(
-                  "flex h-9 w-14 items-center justify-center rounded-full transition-colors",
-                  isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                )}>
-                  <item.icon className="h-5 w-5" />
-                </span>
-                <span className={cn(
-                  "text-[9px] font-bold uppercase tracking-wide transition-colors",
-                  isActive ? "text-foreground" : "text-muted-foreground"
-                )}>
-                  {t(item.labelKey).split(' ')[0]}
-                </span>
-              </>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+      {!hideMobileNav && (
+        <nav aria-label={t('nav.ariaMobile')} className="kinetic-glass fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 z-40 flex items-center justify-around rounded-3xl px-2 py-2 shadow-[0_20px_40px_rgba(0,0,0,0.45)] md:hidden">
+          {navItems.slice(0, 5).map((item) => (
+            <NavLink
+              key={`mobile-${item.to}`}
+              to={item.to}
+              className="flex flex-1 flex-col items-center gap-1 py-1"
+            >
+              {({ isActive }) => (
+                <>
+                  {/* Pigułka stałej szerokości tylko pod ikoną — każda pozycja podświetla się tak samo. */}
+                  <span className={cn(
+                    "flex h-9 w-14 items-center justify-center rounded-full transition-colors",
+                    isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                  )}>
+                    <item.icon className="h-5 w-5" />
+                  </span>
+                  <span className={cn(
+                    "text-[9px] font-bold uppercase tracking-wide transition-colors",
+                    isActive ? "text-foreground" : "text-muted-foreground"
+                  )}>
+                    {t(item.labelKey).split(' ')[0]}
+                  </span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+      )}
     </>
   );
 };

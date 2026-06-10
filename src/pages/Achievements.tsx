@@ -25,7 +25,7 @@ import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
-import { cn } from '@/lib/utils';
+import { cn, parseLocalDate } from '@/lib/utils';
 
 interface ExerciseRecord {
   exerciseId: string;
@@ -57,7 +57,7 @@ const Achievements = () => {
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const formatShortDate = (date: string) =>
-    new Date(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
+    parseLocalDate(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
 
   // Rekordy budujemy z SAMYCH treningów (nie z aktualnego planu), żeby ćwiczenia ze starych
   // planów nie znikały po zmianie planu. Nazwy resolwuje resolver (snapshot → cykl → plan).
@@ -458,7 +458,7 @@ const Achievements = () => {
                 {getGroupedHistory(selectedExercise.history).map(([date, sets]) => (
                   <div key={date} className="p-3 rounded-lg bg-surface-low">
                     <p className="text-sm font-medium mb-2">
-                      {new Date(date).toLocaleDateString(dateLocale(lang), {
+                      {parseLocalDate(date).toLocaleDateString(dateLocale(lang), {
                         weekday: 'long',
                         day: 'numeric',
                         month: 'long'

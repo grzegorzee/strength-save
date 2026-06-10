@@ -17,6 +17,7 @@ service cloud.firestore {
       return request.auth != null
              && request.auth.uid == userId
              && exists(/databases/$(database)/documents/users/$(userId))
+             && get(/databases/$(database)/documents/users/$(userId)).data.status == 'active'
              && (
                !('access' in get(/databases/$(database)/documents/users/$(userId)).data)
                || !('enabled' in get(/databases/$(database)/documents/users/$(userId)).data.access)

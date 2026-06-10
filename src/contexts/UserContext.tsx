@@ -5,23 +5,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { consumePendingInviteCode, readInviteCodeFromLocation, setPendingInviteCode } from '@/lib/pending-invite';
 import { redeemInvite, syncUserProfile, type AppUserProfile } from '@/lib/registration-api';
-
-export interface UserProfile {
-  uid: string;
-  email: string;
-  displayName: string;
-  photoURL: string;
-  role: 'admin' | 'user';
-  accessEnabled: boolean;
-  status: 'pending_verification' | 'active' | 'suspended' | 'deleted';
-  stravaConnected: boolean;
-  onboardingCompleted: boolean;
-  primaryProvider: 'google' | 'password';
-  registrationSource: string;
-  emailVerifiedAt: string | null;
-  cohorts: string[];
-  features?: Record<string, boolean>;
-}
+import {
+  buildPendingAuthProfile,
+  mapAppUserProfile,
+  resolveProfileLoadFailure,
+  type UserProfile,
+} from '@/lib/user-profile';
 
 interface UserContextValue {
   uid: string;
@@ -33,6 +22,7 @@ interface UserContextValue {
   canUseStrava: boolean;
   isNewUser: boolean;
   profileLoaded: boolean;
+  profileLoadError: string | null;
 }
 
 const UserContext = createContext<UserContextValue | null>(null);
@@ -43,6 +33,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileLoadError, setProfileLoadError] = useState<string | null>(null);
   const userId = user?.uid;
   const userEmail = user?.email || '';
   const userDisplayName = user?.displayName || '';
@@ -52,6 +43,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     if (!userId) {
       setProfile(null);
       setProfileLoaded(false);
+      setProfileLoadError(null);
       return;
     }
 
@@ -87,10 +79,17 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         cohorts: e2eState.scenario === 'active-admin' ? ['internal'] : [],
       });
       setProfileLoaded(true);
+      setProfileLoadError(null);
       return;
     }
 
     const docRef = doc(db, USERS_COLLECTION, userId);
+    const authProfileSeed = {
+      userId,
+      email: userEmail,
+      displayName: userDisplayName,
+      photoURL: userPhotoUrl,
+    };
 
     let cancelled = false;
 
@@ -113,6 +112,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       } catch (err) {
         console.error('Error syncing user profile:', err);
         if (!cancelled) {
+          const message = err instanceof Error ? err.message : 'Profile sync failed';
+          setProfileLoadError(message);
           setProfileLoaded(true);
         }
       }
@@ -123,59 +124,17 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data() as AppUserProfile;
-        setProfile({
-          uid: userId,
-          email: data.email || userEmail,
-          displayName: data.displayName || userDisplayName,
-          photoURL: data.photoURL || userPhotoUrl,
-          role: data.role || 'user',
-          accessEnabled: data.access?.enabled !== false,
-          status: data.status || 'active',
-          stravaConnected: data.stravaConnected || false,
-          onboardingCompleted: data.onboardingCompleted || false,
-          primaryProvider: data.auth?.primaryProvider || 'google',
-          registrationSource: data.registration?.source || data.auth?.primaryProvider || 'google',
-          emailVerifiedAt: data.verification?.emailVerifiedAt || null,
-          cohorts: data.cohorts || [],
-          features: data.features || undefined,
-        });
+        setProfile(mapAppUserProfile(userId, data, authProfileSeed));
       } else {
         // Doc not yet created, use auth data
-        setProfile({
-          uid: userId,
-          email: userEmail,
-          displayName: userDisplayName,
-          photoURL: userPhotoUrl,
-          role: 'user',
-          accessEnabled: false,
-          status: 'pending_verification',
-          stravaConnected: false,
-          onboardingCompleted: false,
-          primaryProvider: 'password',
-          registrationSource: 'email',
-          emailVerifiedAt: null,
-          cohorts: [],
-        });
+        setProfile(buildPendingAuthProfile(authProfileSeed));
       }
+      setProfileLoadError(null);
       setProfileLoaded(true);
     }, (err) => {
       console.error('Error fetching user profile:', err);
-      // Fallback to auth data
-      setProfile({
-        uid: userId,
-        email: userEmail,
-        displayName: userDisplayName,
-        photoURL: userPhotoUrl,
-        role: 'user',
-        accessEnabled: false,
-        status: 'pending_verification',
-        stravaConnected: false,
-        onboardingCompleted: false,
-        primaryProvider: 'password',
-        registrationSource: 'email',
-        emailVerifiedAt: null,
-        cohorts: [],
-      });
+      setProfile((currentProfile) => resolveProfileLoadFailure(currentProfile));
+      setProfileLoadError(err.message || 'Profile load failed');
       setProfileLoaded(true);
     });
 
@@ -205,6 +164,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       canUseStrava: hasAppAccess && (profile?.features?.strava ?? profile?.role === 'admin'),
       isNewUser,
       profileLoaded,
+      profileLoadError,
     }}>
       {children}
     </UserContext.Provider>

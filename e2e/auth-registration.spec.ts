@@ -73,14 +73,12 @@ test.describe('Auth and registration flows', () => {
     await expect(page.getByText('blocked@test.com')).toBeVisible();
   });
 
-  test('new invited user lands in onboarding with invite-aware copy', async ({ page }) => {
+  test('new invited user lands in onboarding', async ({ page }) => {
     await setE2EAuthScenario(page, 'new-invited-user', { displayName: 'Invite Tester' });
     await navigateAndWait(page, '/');
 
-    await expect(page.getByRole('heading', { name: 'Cześć, Invite!' })).toBeVisible();
-    await expect(page.getByText(/Wchodzisz z invite/)).toBeVisible();
-    // Onboarding bez AI: użytkownik wybiera gotowy plan (v6.10.0).
-    await expect(page.getByRole('button', { name: /Wybierz ten plan/ }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Witaj w Iron Zone' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Dalej' })).toBeVisible();
   });
 
   test('admin dashboard renders invite, waitlist and audit sections', async ({ page }) => {
@@ -98,13 +96,13 @@ test.describe('Auth and registration flows', () => {
 
   test('admin push send shows delivery diagnostics in E2E mode', async ({ page }) => {
     await setE2EAuthScenario(page, 'active-admin');
-    page.on('dialog', (dialog) => dialog.accept());
     await navigateAndWait(page, '/admin');
 
     await expectPageRendered(page);
     await page.getByPlaceholder('Tytuł powiadomienia').fill('Test push');
     await page.getByPlaceholder('Treść powiadomienia').fill('Treść testowa');
     await page.getByRole('button', { name: 'Wyślij push' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Wyślij' }).click();
 
     await expect(page.getByTestId('admin-comms-result')).toContainText('Dostarczono do 1/1');
     await expect(page.getByTestId('admin-comms-result')).toContainText('Błędy: 0');

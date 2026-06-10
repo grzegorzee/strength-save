@@ -7,6 +7,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:8080/strength-save/',
     viewport: { width: 390, height: 844 },
+    locale: 'pl-PL',
     actionTimeout: 10000,
     screenshot: 'only-on-failure',
   },

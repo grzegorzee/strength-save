@@ -7,6 +7,24 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2, MailPlus, Ticket, ClipboardList, History, Mail, Ban, Search, Trash2, RotateCcw, Send } from 'lucide-react';
 import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
 import { AdminUserLogs } from '@/components/admin/AdminUserLogs';
@@ -38,6 +56,13 @@ const AVAILABLE_FEATURES = [
 
 type UserFilter = 'all' | 'active' | 'suspended' | 'no-access' | 'unverified';
 type UserSort = 'recent' | 'name';
+type ConfirmDialogState = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive?: boolean;
+  onConfirm: () => Promise<void>;
+} | null;
 
 type FeatureKey = typeof AVAILABLE_FEATURES[number]['key'];
 
@@ -51,7 +76,7 @@ interface AdminUser {
   stravaConnected: boolean;
   features: Record<string, boolean>;
   onboardingCompleted: boolean;
-  primaryProvider: 'google' | 'password';
+  primaryProvider: 'google' | 'password' | 'apple';
   registrationSource: string;
   emailVerifiedAt: string | null;
   cohorts: string[];
@@ -134,6 +159,12 @@ const AdminDashboard = () => {
   const [userFilter, setUserFilter] = useState<UserFilter>('all');
   const [userSort, setUserSort] = useState<UserSort>('recent');
   const [counts, setCounts] = useState<{ workouts: number; activeCycles: number } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [suspendDialog, setSuspendDialog] = useState<{ uid: string; name: string } | null>(null);
+  const [suspendReason, setSuspendReason] = useState('');
+  const [emailDialog, setEmailDialog] = useState<{ uid: string; subject: string; body: string } | null>(null);
+  const [cohortsDialog, setCohortsDialog] = useState<{ uid: string; cohorts: string } | null>(null);
 
   // Current month key for AI usage query
   const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
@@ -280,16 +311,9 @@ const AdminDashboard = () => {
     }
   };
 
-  const toggleSuspended = async (uid: string, suspended: boolean) => {
+  const applySuspended = async (uid: string, suspended: boolean, reason?: string) => {
     try {
       const currentUser = users.find((user) => user.uid === uid);
-      // Przy zawieszaniu pytamy o powód (np. naruszenie regulaminu) — trafia do audytu.
-      let reason: string | undefined;
-      if (suspended) {
-        const input = window.prompt('Powód zawieszenia (np. naruszenie regulaminu):', '');
-        if (input === null) return; // anulowano
-        reason = input.trim() || undefined;
-      }
       await updateUserAccess({
         uid,
         accessEnabled: suspended ? false : (currentUser?.accessEnabled ?? true),
@@ -313,6 +337,16 @@ const AdminDashboard = () => {
     } catch {
       toast({ title: t('admin.error'), description: t('admin.statusChangeFailed'), variant: 'destructive' });
     }
+  };
+
+  const toggleSuspended = async (uid: string, suspended: boolean) => {
+    if (suspended) {
+      const userName = users.find(u => u.uid === uid)?.displayName || uid;
+      setSuspendReason('');
+      setSuspendDialog({ uid, name: userName });
+      return;
+    }
+    await applySuspended(uid, false);
   };
 
   const handleCreateInvite = async (waitlistEntryId?: string, waitlistEmail?: string, waitlistEntryNote?: string | null) => {
@@ -467,65 +501,110 @@ const AdminDashboard = () => {
   }, [users, userSearch, userFilter, userSort]);
 
   const handleResetOnboarding = async (uid: string) => {
-    if (!confirm('Zresetować onboarding tego użytkownika? Przejdzie kreator od nowa.')) return;
-    try {
-      await updateDoc(doc(db, 'users', uid), { onboardingCompleted: false, 'onboarding.state': 'not_started' });
-      toast({ title: 'Onboarding zresetowany' });
-    } catch {
-      toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
-    }
+    setConfirmDialog({
+      title: 'Reset onboardingu',
+      description: 'Zresetować onboarding tego użytkownika? Przejdzie kreator od nowa.',
+      confirmLabel: 'Resetuj onboarding',
+      onConfirm: async () => {
+        try {
+          await updateDoc(doc(db, 'users', uid), { onboardingCompleted: false, 'onboarding.state': 'not_started' });
+          toast({ title: 'Onboarding zresetowany' });
+        } catch {
+          toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
+        }
+      },
+    });
   };
 
   const handleResendCode = async (uid: string) => {
-    if (!confirm('Wysłać ponownie kod weryfikacyjny do tego użytkownika?')) return;
-    try {
-      await adminResendVerification(uid);
-      toast({ title: 'Kod wysłany' });
-    } catch (e) {
-      toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
-    }
+    setConfirmDialog({
+      title: 'Ponowne wysłanie kodu',
+      description: 'Wysłać ponownie kod weryfikacyjny do tego użytkownika?',
+      confirmLabel: 'Wyślij kod',
+      onConfirm: async () => {
+        try {
+          await adminResendVerification(uid);
+          toast({ title: 'Kod wysłany' });
+        } catch (e) {
+          toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
+        }
+      },
+    });
   };
 
   const handleSendEmail = async (uid: string) => {
-    const subject = window.prompt('Temat maila:', '');
-    if (!subject) return;
-    const body = window.prompt('Treść maila:', '');
-    if (!body) return;
+    setEmailDialog({ uid, subject: '', body: '' });
+  };
+
+  const handleEditCohorts = async (uid: string, current: string[]) => {
+    setCohortsDialog({ uid, cohorts: current.join(', ') });
+  };
+
+  const handleDeleteUser = async (uid: string, name: string) => {
+    setConfirmDialog({
+      title: 'Usunąć konto użytkownika?',
+      description: `Usunąć konto i WSZYSTKIE dane użytkownika "${name}"? Tego nie da się cofnąć.`,
+      confirmLabel: 'Usuń konto',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await adminDeleteUser(uid);
+          setUsers(prev => prev.filter(u => u.uid !== uid));
+          setExpandedUid(null);
+          toast({ title: 'Konto usunięte', description: name });
+        } catch (e) {
+          toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
+        }
+      },
+    });
+  };
+
+  const runConfirmDialog = async () => {
+    if (!confirmDialog) return;
+    setConfirmBusy(true);
     try {
-      await adminSendUserEmail({ uid, subject, body });
+      await confirmDialog.onConfirm();
+      setConfirmDialog(null);
+    } finally {
+      setConfirmBusy(false);
+    }
+  };
+
+  const submitSuspendDialog = async () => {
+    if (!suspendDialog) return;
+    const target = suspendDialog;
+    setSuspendDialog(null);
+    await applySuspended(target.uid, true, suspendReason.trim() || undefined);
+  };
+
+  const submitEmailDialog = async () => {
+    if (!emailDialog || !emailDialog.subject.trim() || !emailDialog.body.trim()) return;
+    const payload = emailDialog;
+    setEmailDialog(null);
+    try {
+      await adminSendUserEmail({ uid: payload.uid, subject: payload.subject.trim(), body: payload.body.trim() });
       toast({ title: 'Mail wysłany' });
     } catch (e) {
       toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
     }
   };
 
-  const handleEditCohorts = async (uid: string, current: string[]) => {
-    const input = window.prompt('Cohorty (po przecinku):', current.join(', '));
-    if (input === null) return;
-    const cohorts = input.split(',').map(c => c.trim()).filter(Boolean);
+  const submitCohortsDialog = async () => {
+    if (!cohortsDialog) return;
+    const payload = cohortsDialog;
+    const cohorts = payload.cohorts.split(',').map(c => c.trim()).filter(Boolean);
+    setCohortsDialog(null);
     try {
-      await updateDoc(doc(db, 'users', uid), { cohorts });
-      setUsers(prev => prev.map(u => u.uid === uid ? { ...u, cohorts } : u));
+      await updateDoc(doc(db, 'users', payload.uid), { cohorts });
+      setUsers(prev => prev.map(u => u.uid === payload.uid ? { ...u, cohorts } : u));
       toast({ title: 'Cohorty zapisane', description: cohorts.join(', ') || 'brak' });
     } catch {
       toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
     }
   };
 
-  const handleDeleteUser = async (uid: string, name: string) => {
-    if (!confirm(`Usunąć konto i WSZYSTKIE dane użytkownika "${name}"? Tego nie da się cofnąć.`)) return;
-    if (!confirm('Na pewno? Druga i ostatnia prośba o potwierdzenie.')) return;
-    try {
-      await adminDeleteUser(uid);
-      setUsers(prev => prev.filter(u => u.uid !== uid));
-      setExpandedUid(null);
-      toast({ title: 'Konto usunięte', description: name });
-    } catch (e) {
-      toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
-    }
-  };
-
   return (
+    <>
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('admin.title')}</h1>
@@ -1026,6 +1105,97 @@ const AdminDashboard = () => {
         <AdminFeatureFlagsCard />
       </div>
     </div>
+    <AlertDialog open={!!confirmDialog} onOpenChange={(open) => { if (!open) setConfirmDialog(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{confirmDialog?.title}</AlertDialogTitle>
+          <AlertDialogDescription>{confirmDialog?.description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={confirmBusy}>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={confirmBusy}
+            className={confirmDialog?.destructive ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : undefined}
+            onClick={(event) => { event.preventDefault(); void runConfirmDialog(); }}
+          >
+            {confirmBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            {confirmDialog?.confirmLabel}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <Dialog open={!!suspendDialog} onOpenChange={(open) => { if (!open) setSuspendDialog(null); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Zawieś konto</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <label htmlFor="admin-suspend-reason" className="text-sm font-medium">
+            Powód zawieszenia {suspendDialog ? `- ${suspendDialog.name}` : ''}
+          </label>
+          <Textarea
+            id="admin-suspend-reason"
+            value={suspendReason}
+            onChange={(event) => setSuspendReason(event.target.value)}
+            placeholder="Np. naruszenie regulaminu"
+            rows={3}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setSuspendDialog(null)}>{t('common.cancel')}</Button>
+          <Button variant="destructive" onClick={() => void submitSuspendDialog()}>Zawieś konto</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={!!emailDialog} onOpenChange={(open) => { if (!open) setEmailDialog(null); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Wyślij mail</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input
+            value={emailDialog?.subject ?? ''}
+            onChange={(event) => setEmailDialog(prev => prev ? { ...prev, subject: event.target.value } : prev)}
+            placeholder="Temat maila"
+            aria-label="Temat maila"
+          />
+          <Textarea
+            value={emailDialog?.body ?? ''}
+            onChange={(event) => setEmailDialog(prev => prev ? { ...prev, body: event.target.value } : prev)}
+            placeholder="Treść maila"
+            aria-label="Treść maila"
+            rows={5}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEmailDialog(null)}>{t('common.cancel')}</Button>
+          <Button onClick={() => void submitEmailDialog()} disabled={!emailDialog?.subject.trim() || !emailDialog?.body.trim()}>Wyślij mail</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={!!cohortsDialog} onOpenChange={(open) => { if (!open) setCohortsDialog(null); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edytuj cohorty</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          <label htmlFor="admin-user-cohorts" className="text-sm font-medium">Cohorty po przecinku</label>
+          <Input
+            id="admin-user-cohorts"
+            value={cohortsDialog?.cohorts ?? ''}
+            onChange={(event) => setCohortsDialog(prev => prev ? { ...prev, cohorts: event.target.value } : prev)}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setCohortsDialog(null)}>{t('common.cancel')}</Button>
+          <Button onClick={() => void submitCohortsDialog()}>Zapisz cohorty</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 

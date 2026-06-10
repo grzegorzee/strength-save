@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { CloudOff } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { isPwaUpdateBlocked, subscribeToPwaUpdateBlock } from '@/lib/pwa-update-guard';
+import { Button } from '@/components/ui/button';
+import {
+  clearPendingGuardedReload,
+  hasPendingGuardedReload,
+  isPwaUpdateBlocked,
+  subscribeToPendingGuardedReload,
+  subscribeToPwaUpdateBlock,
+} from '@/lib/pwa-update-guard';
 import { useTranslation } from '@/contexts/LanguageContext';
 
 export const PWAUpdatePrompt = () => {
@@ -19,16 +26,26 @@ export const PWAUpdatePrompt = () => {
     },
   });
   const [isBlocked, setIsBlocked] = useState(() => isPwaUpdateBlocked());
+  const [hasPendingReload, setHasPendingReload] = useState(() => hasPendingGuardedReload());
 
   useEffect(() => subscribeToPwaUpdateBlock(setIsBlocked), []);
+  useEffect(() => subscribeToPendingGuardedReload(setHasPendingReload), []);
 
-  useEffect(() => {
-    if (needRefresh && !isBlocked) {
+  const applyUpdate = () => {
+    if (isBlocked) return;
+
+    if (needRefresh) {
       void updateServiceWorker(true);
+      return;
     }
-  }, [isBlocked, needRefresh, updateServiceWorker]);
 
-  if (!needRefresh || !isBlocked) {
+    if (hasPendingReload) {
+      clearPendingGuardedReload();
+      window.location.reload();
+    }
+  };
+
+  if (!needRefresh && !hasPendingReload) {
     return null;
   }
 
@@ -39,8 +56,17 @@ export const PWAUpdatePrompt = () => {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-fitness-warning dark:text-fitness-warning">{t('comp.pwa.updateWaitingTitle')}</p>
           <p className="mt-1 text-xs text-fitness-warning dark:text-fitness-warning">
-            {t('comp.pwa.updateWaitingDesc')}
+            {isBlocked ? t('comp.pwa.updateWaitingDesc') : t('comp.pwa.updateReadyDesc')}
           </p>
+          <Button
+            className="mt-3"
+            size="sm"
+            variant="secondary"
+            disabled={isBlocked}
+            onClick={applyUpdate}
+          >
+            {t('comp.pwa.updateNow')}
+          </Button>
         </div>
       </CardContent>
     </Card>

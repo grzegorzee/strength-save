@@ -18,6 +18,7 @@ const StravaCallback = () => {
 
   useEffect(() => {
     const code = searchParams.get('code');
+    const state = searchParams.get('state');
     const callbackError = searchParams.get('error');
 
     if (callbackError) {
@@ -34,12 +35,19 @@ const StravaCallback = () => {
       return;
     }
 
+    if (!state) {
+      console.error('[Strava] No OAuth state in callback URL');
+      setStatus('error');
+      setErrorMessage(t('strava.callback.noState'));
+      return;
+    }
+
     const exchangeCode = async () => {
       console.log('[Strava] Exchanging OAuth code for tokens...');
       try {
         const functions = getFunctions();
         const callback = httpsCallable(functions, 'stravaCallback');
-        const result = await callback({ code });
+        const result = await callback({ code, state });
         const data = result.data as { synced?: number; totalFetched?: number; lookbackDays?: number };
         console.log(`[Strava] Callback OK: synced=${data.synced}, fetched=${data.totalFetched}, lookback=${data.lookbackDays}d`);
         setSyncedCount(data.synced || 0);

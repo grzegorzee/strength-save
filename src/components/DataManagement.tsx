@@ -1,6 +1,16 @@
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Download, Upload, Trash2, Loader2, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatLocalDate } from '@/lib/utils';
@@ -36,6 +46,7 @@ export const DataManagement = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
+  const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
 
   const handleExport = () => {
     const data = onExport();
@@ -113,8 +124,6 @@ export const DataManagement = ({
 
   const handleRepair = async () => {
     if (!onRepair) return;
-    const confirmed = window.confirm(t('data.repair.confirm'));
-    if (!confirmed) return;
 
     setIsRepairing(true);
     const result = await onRepair();
@@ -133,62 +142,79 @@ export const DataManagement = ({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{title ?? t('data.title')}</CardTitle>
-        <CardDescription>{description ?? t('data.description')}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 px-3 sm:px-6">
-        <div className="grid grid-cols-2 gap-3">
-          <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm">
-            <Download className="h-4 w-4 mr-1.5 shrink-0" />
-            {exportLabel ?? t('data.exportLabel')}
-          </Button>
-          <Button onClick={handleImportClick} variant="outline" className="w-full text-xs sm:text-sm">
-            <Upload className="h-4 w-4 mr-1.5 shrink-0" />
-            {importLabel ?? t('data.importLabel')}
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-        </div>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{title ?? t('data.title')}</CardTitle>
+          <CardDescription>{description ?? t('data.description')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 px-3 sm:px-6">
+          <div className="grid grid-cols-2 gap-3">
+            <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm">
+              <Download className="h-4 w-4 mr-1.5 shrink-0" />
+              {exportLabel ?? t('data.exportLabel')}
+            </Button>
+            <Button onClick={handleImportClick} variant="outline" className="w-full text-xs sm:text-sm">
+              <Upload className="h-4 w-4 mr-1.5 shrink-0" />
+              {importLabel ?? t('data.importLabel')}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+          </div>
 
-        {onRepair && (
-          <Button
-            onClick={handleRepair}
-            variant="outline"
-            className="w-full text-fitness-cyan border-fitness-cyan/40 hover:bg-fitness-cyan/10"
-            disabled={isRepairing}
-          >
-            {isRepairing ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Wrench className="h-4 w-4 mr-2" />
-            )}
-            {repairLabel ?? t('data.repairLabel')}
-          </Button>
-        )}
+          {onRepair && (
+            <Button
+              onClick={() => setRepairConfirmOpen(true)}
+              variant="outline"
+              className="w-full text-fitness-cyan border-fitness-cyan/40 hover:bg-fitness-cyan/10"
+              disabled={isRepairing}
+            >
+              {isRepairing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Wrench className="h-4 w-4 mr-2" />
+              )}
+              {repairLabel ?? t('data.repairLabel')}
+            </Button>
+          )}
 
-        {onCleanup && (
-          <Button
-            onClick={handleCleanup}
-            variant="outline"
-            className="w-full text-fitness-warning border-fitness-warning/40 hover:bg-fitness-warning/10"
-            disabled={isCleaningUp}
-          >
-            {isCleaningUp ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4 mr-2" />
-            )}
-            {cleanupLabel ?? t('data.cleanupLabel')}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+          {onCleanup && (
+            <Button
+              onClick={handleCleanup}
+              variant="outline"
+              className="w-full text-fitness-warning border-fitness-warning/40 hover:bg-fitness-warning/10"
+              disabled={isCleaningUp}
+            >
+              {isCleaningUp ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              {cleanupLabel ?? t('data.cleanupLabel')}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={repairConfirmOpen} onOpenChange={setRepairConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{repairLabel ?? t('data.repairLabel')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('data.repair.confirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRepairing}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); setRepairConfirmOpen(false); void handleRepair(); }} disabled={isRepairing}>
+              {repairLabel ?? t('data.repairLabel')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

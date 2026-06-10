@@ -7,6 +7,7 @@ test.describe('Critical Routing and Shell', () => {
   });
 
   test('dashboard renders app shell and today card', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
@@ -14,14 +15,14 @@ test.describe('Critical Routing and Shell', () => {
       page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link', { name: 'Dashboard' }),
     ).toBeVisible();
     await expect(page.getByText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony/i)).toBeVisible();
-    await expect(page.getByText('Co dalej z planem?')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Plan tygodnia' })).toBeVisible();
   });
 
   test('hash route renders 404 page inside app shell', async ({ page }) => {
     await navigateAndWait(page, '/__missing-route__');
     await expectHashRoute(page, '/__missing-route__');
     await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Return to Home/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Wróć do strony głównej|Return to Home/i })).toBeVisible();
   });
 
   test('plan page shows current plan title and schedule summary', async ({ page }) => {
@@ -78,7 +79,7 @@ test.describe('Critical Interactions', () => {
     await navigateAndWait(page, '/analytics');
     await expectPageRendered(page);
 
-    const tabs = ['Podsum.', 'Wykresy', 'Pomiary', 'Tygodnie'];
+    const tabs = ['Podsum.', 'Wykresy', 'Strava', 'Tygodnie'];
     for (const label of tabs) {
       await expect(page.getByRole('tab', { name: label })).toBeVisible();
       await page.getByRole('tab', { name: label }).click();

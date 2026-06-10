@@ -26,6 +26,7 @@ import { tooltipStyle } from '@/lib/chart-config';
 import { parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
+import { dateLocale } from '@/i18n';
 
 interface Props {
   exerciseId: string;
@@ -36,7 +37,7 @@ interface Props {
 }
 
 export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOpenChange, isBodyweight = false }: Props) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { unit, fmt, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
   const { workouts } = useFirebaseWorkouts(uid);
@@ -54,16 +55,16 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const chartData = useMemo(() =>
     isBodyweight
       ? history.map(h => ({
-          date: parseLocalDate(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+          date: parseLocalDate(h.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
           [labelMaxReps]: h.bestReps,
           [labelTotalReps]: h.totalVolume,
         }))
       : history.map(h => ({
-          date: parseLocalDate(h.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }),
+          date: parseLocalDate(h.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
           '1RM': Math.round(toDisplay(h.estimated1RM)),
           [labelMaxKg]: Math.round(toDisplay(h.maxWeight)),
         })),
-  [history, isBodyweight, labelMaxReps, labelTotalReps, labelMaxKg, toDisplay]);
+  [history, isBodyweight, labelMaxReps, labelTotalReps, labelMaxKg, toDisplay, lang]);
 
   const recentSessions = useMemo(() => history.slice(-5).reverse(), [history]);
 
@@ -154,7 +155,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
           {recentSessions.map(s => (
             <div key={s.date} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30">
               <span className="text-sm">
-                {parseLocalDate(s.date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                {parseLocalDate(s.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}
               </span>
               <div className="flex items-center gap-2">
                 {isBodyweight ? (

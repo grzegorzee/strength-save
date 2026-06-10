@@ -5,6 +5,9 @@ import { ChevronRight } from 'lucide-react';
 import type { StravaActivity } from '@/types/strava';
 import { StravaActivityDetail } from '@/components/StravaActivityDetail';
 import { getHRZone, getHRZoneConfig } from '@/lib/hr-zones';
+import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
+import { parseLocalDate } from '@/lib/utils';
 
 const activityIcons: Record<string, string> = {
   Run: '🏃',
@@ -44,10 +47,13 @@ const formatPace = (speedMs?: number, type?: string): string => {
   return `${(speedMs * 3.6).toFixed(1)} km/h`;
 };
 
-const formatShortDate = (activity: StravaActivity): string => {
+const parseActivityDate = (value: string): Date =>
+  /^\d{4}-\d{2}-\d{2}$/.test(value) ? parseLocalDate(value) : new Date(value);
+
+const formatShortDate = (activity: StravaActivity, locale: string): string => {
   const dateSource = activity.startDateLocal || activity.date;
-  const date = new Date(dateSource);
-  return date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+  const date = parseActivityDate(dateSource);
+  return date.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 };
 
 interface StravaActivityCardProps {
@@ -56,9 +62,10 @@ interface StravaActivityCardProps {
 }
 
 export const StravaActivityCard = ({ activity, maxHR }: StravaActivityCardProps) => {
+  const { lang } = useTranslation();
   const [detailOpen, setDetailOpen] = useState(false);
   const icon = activityIcons[activity.type] || '🏅';
-  const shortDate = formatShortDate(activity);
+  const shortDate = formatShortDate(activity, dateLocale(lang));
 
   const hrZone = activity.averageHeartrate && maxHR
     ? getHRZone(activity.averageHeartrate, maxHR)

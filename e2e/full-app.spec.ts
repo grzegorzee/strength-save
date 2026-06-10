@@ -25,7 +25,7 @@ test.describe('Page Load Smoke Tests', () => {
   test('Exercise Library (/exercises) loads', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Biblioteka ćwiczeń' })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Ćwiczenia' })).toBeVisible();
   });
 
   test('Workout History (/history) loads', async ({ page }) => {
@@ -78,17 +78,17 @@ test.describe('Page Load Smoke Tests', () => {
 
   test('New Plan (/new-plan) loads', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await expectPageRendered(page);
+    await expect(page.getByRole('heading', { name: /Witaj w Iron Zone|Twój precyzyjny protokół/ })).toBeVisible();
   });
 
   test('404 page for unknown route', async ({ page }) => {
     await navigateAndWait(page, '/nonexistent-route');
     await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
-    await expect(page.getByRole('link', { name: /Return to Home/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Wróć do strony głównej|Return to Home/i })).toBeVisible();
   });
 
   test('Legacy routes redirect to analytics', async ({ page }) => {
-    for (const path of ['/stats', '/summary', '/progress', '/measurements']) {
+    for (const path of ['/stats', '/summary', '/progress']) {
       await navigateAndWait(page, path);
       await expectPageRendered(page);
       await expect(page.getByRole('main').getByRole('heading', { name: 'Analityka' })).toBeVisible();
@@ -153,7 +153,7 @@ test.describe('Dashboard Features', () => {
     // E2E mock user is "E2E Tester"
     const greeting = page.locator('h1').first();
     await expect(greeting).toBeVisible();
-    await expect(page.getByText('Co dalej z planem?')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Plan tygodnia' })).toBeVisible();
   });
 
   test('settings allow self-service export for regular user flow', async ({ page }) => {
@@ -212,15 +212,14 @@ test.describe('Exercise Library', () => {
   test('shows exercise categories', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
-    await expect(page.getByRole('heading', { name: 'Biblioteka ćwiczeń' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ćwiczenia' }).first()).toBeVisible();
   });
 
   test('exercises are clickable/expandable', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
-    // Try clicking first exercise card
-    const firstCard = page.locator('[class*="card"]').first();
-    await expect(firstCard).toBeVisible();
-    await firstCard.click();
+    const firstExercise = page.getByRole('button', { name: /Wyciskanie|Pompki|Przysiad/ }).first();
+    await expect(firstExercise).toBeVisible();
+    await firstExercise.click();
     await expectPageRendered(page);
   });
 });
@@ -238,7 +237,7 @@ test.describe('Analytics Tabs', () => {
     await expectPageRendered(page);
 
     // Check for tab triggers
-    const tabLabels = ['Podsum.', 'Wykresy', 'Pomiary', 'Tygodnie'];
+    const tabLabels = ['Podsum.', 'Wykresy', 'Strava', 'Tygodnie'];
     for (const label of tabLabels) {
       const tab = page.getByRole('tab', { name: label });
       await expect(tab).toBeVisible();
@@ -328,8 +327,8 @@ test.describe('Bodyweight Exercises', () => {
   test('exercise library includes bodyweight exercises', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
-    await expect(page.getByRole('heading', { name: 'Biblioteka ćwiczeń' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Brzuch' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Ćwiczenia' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Brzuch', exact: true })).toBeVisible();
   });
 });
 

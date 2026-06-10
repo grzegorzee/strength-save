@@ -254,13 +254,13 @@ test.describe('Batch Save Workflow', () => {
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
 
-    await expect(page.getByRole('heading', { name: 'Sync Center' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Centrum synchronizacji' })).toBeVisible();
     await expect(page.getByText('2 sesje oczekujące')).toBeVisible();
     await expect(page.getByText('Tylko lokalnie')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Otwórz trening' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Synchronizuj teraz' }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Usuń szkic' }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Retry all' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Ponów wszystkie' })).toBeVisible();
   });
 
   test('dashboard highlights offline or pending local workout state', async ({ page }) => {
@@ -301,7 +301,7 @@ test.describe('Batch Save Workflow', () => {
 
     await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
 
-    await expect(page.getByText('Trening offline')).toBeVisible();
+    await expect(page.getByText('Trening rozpoczęty offline', { exact: true }).first()).toBeVisible();
 
     const draft = await readWorkoutDraftDb(page, E2E_USER_ID) as {
       sessionId: string;
@@ -316,6 +316,43 @@ test.describe('Batch Save Workflow', () => {
     expect(draft?.sessionOrigin).toBe('provisional');
     expect(draft?.remoteSessionId).toBeNull();
     expect(Object.keys(draft?.exerciseSets ?? {}).length).toBeGreaterThan(0);
+  });
+
+  test('starting a second workout does not delete an existing dirty draft', async ({ page }) => {
+    await navigateAndWait(page, '/');
+
+    const today = new Date().toISOString().split('T')[0];
+    const existingSessionId = `local-workout-${E2E_USER_ID}-day-1-${today}`;
+    await writeWorkoutDraftDb(page, {
+      sessionId: existingSessionId,
+      userId: E2E_USER_ID,
+      dayId: 'day-1',
+      date: today,
+      cycleId: 'cycle-1',
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      exerciseSets: {
+        'ex-1-1': [{ reps: 6, weight: 20, completed: true }],
+      },
+      exerciseNotes: {},
+      exerciseMetrics: {},
+      dayNotes: 'keep me',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
+    });
+
+    await navigateAndWait(page, `/workout/day-2?date=${today}`);
+    await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
+    await expect(page.getByText('Trening rozpoczęty offline', { exact: true }).first()).toBeVisible();
+
+    const preserved = await readWorkoutDraftDb(page, E2E_USER_ID, existingSessionId) as { dayNotes: string } | null;
+    expect(preserved?.dayNotes).toBe('keep me');
   });
 });
 

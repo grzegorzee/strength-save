@@ -5,7 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Link2, Unlink, RefreshCw, Loader2, Clock, Shield, Users, RotateCcw } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Link2, Unlink, RefreshCw, Loader2, Clock, Shield, RotateCcw } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { useStrava } from '@/hooks/useStrava';
@@ -18,6 +28,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
 
 const SUMMARY_HOUR_KEY = 'summary-hour';
 
@@ -120,6 +131,7 @@ const FeatureFlagsPanel = () => {
                   <Switch
                     checked={user.features[feat.key] ?? user.role === 'admin'}
                     onCheckedChange={(checked) => toggleFeature(user.uid, feat.key, checked)}
+                    aria-label={`${feat.label}: ${user.displayName}`}
                   />
                 </div>
               ))}
@@ -140,7 +152,7 @@ const Settings = () => {
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
   const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
 
   const [summaryHour, setSummaryHour] = useState(() => {
     try {
@@ -162,6 +174,7 @@ const Settings = () => {
   const [maxHRInput, setMaxHRInput] = useState('');
   const [maxHRSaving, setMaxHRSaving] = useState(false);
   const [isResettingOnboarding, setIsResettingOnboarding] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [mergingCycles, setMergingCycles] = useState(false);
 
   const handleMergeCycles = async () => {
@@ -216,9 +229,6 @@ const Settings = () => {
   };
 
   const handleResetOnboarding = async () => {
-    const confirmed = window.confirm(t('settings.reset.confirm'));
-    if (!confirmed) return;
-
     setIsResettingOnboarding(true);
     try {
       const today = formatLocalDate(new Date());
@@ -300,7 +310,7 @@ const Settings = () => {
           <div className="flex items-center justify-between">
             <span className="text-sm">{t('settings.summary.hour')}</span>
             <Select value={summaryHour} onValueChange={handleSummaryHourChange}>
-              <SelectTrigger className="w-32">
+              <SelectTrigger className="w-32" aria-label={t('settings.summary.hour')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -359,7 +369,7 @@ const Settings = () => {
           <Button
             variant="outline"
             className="w-full border-fitness-warning text-fitness-warning hover:bg-fitness-warning/10"
-            onClick={handleResetOnboarding}
+            onClick={() => setResetConfirmOpen(true)}
             disabled={isResettingOnboarding}
           >
             {isResettingOnboarding ? (
@@ -371,6 +381,21 @@ const Settings = () => {
           </Button>
         </CardContent>
       </Card>
+
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('settings.resetPlan.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('settings.reset.confirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isResettingOnboarding}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); setResetConfirmOpen(false); void handleResetOnboarding(); }} disabled={isResettingOnboarding}>
+              {t('settings.resetPlan.button')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Strava integration — feature flag */}
       {canUseStrava && <Card>
@@ -398,7 +423,7 @@ const Settings = () => {
                   )}
                   {connection.lastSync && (
                     <p className="text-xs text-muted-foreground">
-                      {t('settings.strava.lastSync', { date: new Date(connection.lastSync).toLocaleString('pl-PL') })}
+                      {t('settings.strava.lastSync', { date: new Date(connection.lastSync).toLocaleString(dateLocale(lang)) })}
                     </p>
                   )}
                 </div>
@@ -430,6 +455,7 @@ const Settings = () => {
                 <div className="flex gap-2">
                   <Input
                     type="number"
+                    aria-label="Max HR"
                     placeholder={connection.estimatedMaxHR?.toString() || '185'}
                     min={100}
                     max={230}

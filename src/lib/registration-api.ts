@@ -26,7 +26,7 @@ export interface AppUserProfile {
   access?: { enabled?: boolean };
   status?: AccountStatus;
   auth?: {
-    primaryProvider?: "google" | "password";
+    primaryProvider?: "google" | "password" | "apple";
   };
   authProviders?: string[];
   onboardingCompleted?: boolean;

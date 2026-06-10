@@ -1,5 +1,5 @@
 import type { LanguageCode } from "@/i18n";
-import { categoryLabels } from "@/data/exerciseLibrary";
+import { categoryLabels, exerciseLibrary } from "@/data/exerciseLibrary";
 
 // Lokalizacja EN nazw i wskazowek cwiczen. Nazwa PL pozostaje kanonicznym kluczem
 // (slug CDN, lookup szczegolow, zapis do Firestore) — EN sluzy TYLKO do wyswietlania.
@@ -500,8 +500,19 @@ export const localizeExerciseName = (name: string, lang: LanguageCode): string =
   lang === "en" ? EXERCISE_NAME_EN[name] ?? name : name;
 
 /** Zwraca wskazowke techniczna w jezyku UI (fallback do oryginalu PL). */
+const canonicalInstructionKey = (name: string, original: string): string => `${name}\u0000${original}`;
+
+const CANONICAL_LIBRARY_INSTRUCTION_EN = new Map(
+  exerciseLibrary.flatMap(exercise =>
+    (exercise.instructions ?? []).map(instruction => [
+      canonicalInstructionKey(exercise.name, instruction.content),
+      EXERCISE_INSTRUCTION_EN[exercise.name] ?? instruction.content,
+    ] as const),
+  ),
+);
+
 export const localizeExerciseInstruction = (name: string, original: string, lang: LanguageCode): string =>
-  lang === "en" ? EXERCISE_INSTRUCTION_EN[name] ?? original : original;
+  lang === "en" ? CANONICAL_LIBRARY_INSTRUCTION_EN.get(canonicalInstructionKey(name, original)) ?? original : original;
 
 /** Klucz kategorii miesniowej -> etykieta EN (do wyswietlania w trybie EN). */
 const CATEGORY_LABEL_EN: Record<string, string> = {

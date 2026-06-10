@@ -7,8 +7,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
-import { formatLocalDate } from '@/lib/utils';
-import { getStartOfPlanWeek } from '@/lib/plan-schedule';
+import { completeOnboardingPlan } from '@/lib/cycle-actions';
 
 // Onboarding nowego użytkownika = wspólny PlanWizard (z ekranem Welcome) + zapis planu.
 const Onboarding = () => {
@@ -23,20 +22,21 @@ const Onboarding = () => {
   const handleConfirm = async (choice: PlanWizardChoice) => {
     setIsSaving(true);
     setError(null);
-    try {
-      const planStartDate = formatLocalDate(getStartOfPlanWeek(new Date(`${choice.startDate}T00:00:00`)));
-      const result = await savePlan(choice.days, { durationWeeks: choice.durationWeeks, startDate: planStartDate });
-      if (!result.success) {
-        setError(result.error || t('onboarding.error.saveFailed'));
-        setIsSaving(false);
-        return;
-      }
-      await createActiveCycle(choice.days, choice.durationWeeks, planStartDate);
-      await updateDoc(doc(db, 'users', uid), {
+    const result = await completeOnboardingPlan(choice, {
+      savePlan,
+      createActiveCycle,
+      markOnboardingComplete: async (confirmed) => updateDoc(doc(db, 'users', uid), {
         onboardingCompleted: true,
         onboarding: { state: 'completed', version: 2 },
-        trainingProfile: { level: choice.level, objective: choice.objective, daysPerWeek: choice.daysPerWeek },
-      });
+        trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
+      }),
+    });
+    if (!result.success) {
+      setError(result.error || t('onboarding.error.saveFailed'));
+      setIsSaving(false);
+      return;
+    }
+    try {
       // Jawne przejście na dashboard z flagą powitania (confetti). Router i tak przełączy
       // drzewo tras po aktualizacji profilu, ale to gwarantuje natychmiastowy redirect bez 404.
       navigate('/?welcome=1', { replace: true });

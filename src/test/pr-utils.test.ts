@@ -155,6 +155,32 @@ describe('detectNewPRs', () => {
     const prs = detectNewPRs(current, previousWorkouts, names);
     expect(prs).toHaveLength(0);
   });
+
+  it('does not mix PR history after a swapped exercise receives a new identity', () => {
+    const current: WorkoutSession = {
+      id: 'w2',
+      userId: 'test-user',
+      dayId: 'day-1',
+      date: '2026-01-08',
+      completed: true,
+      exercises: [
+        {
+          exerciseId: 'ex-1-1__swap-pompki',
+          sets: [
+            { reps: 10, weight: 0, completed: true },
+          ],
+        },
+      ],
+    };
+
+    const prs = detectNewPRs(
+      current,
+      previousWorkouts,
+      new Map([['ex-1-1__swap-pompki', 'Pompki']]),
+      new Set(['ex-1-1__swap-pompki']),
+    );
+    expect(prs).toHaveLength(0);
+  });
 });
 
 describe('getExerciseBestReps', () => {

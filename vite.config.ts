@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => {
       },
       VitePWA({
         disable: isMobileBuild,
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         includeAssets: ['favicon.png'],
         manifest: {
           name: 'StrengthSave - Tracker Treningowy',
@@ -84,8 +84,8 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          skipWaiting: true,
-          clientsClaim: true,
+          skipWaiting: false,
+          clientsClaim: false,
           cleanupOutdatedCaches: true,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           navigateFallbackDenylist: [/strava-callback\.html/],
@@ -111,6 +111,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      modulePreload: false,
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -118,9 +119,8 @@ export default defineConfig(({ mode }) => {
 
             // Keep only the heaviest, low-risk libraries in dedicated chunks.
             // Over-splitting React/Radix internals created circular vendor chunks in production.
+            if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/")) return "react-vendor";
             if (id.includes("firebase")) return "firebase";
-            if (id.includes("recharts")) return "recharts";
-            if (id.includes("/d3-")) return "d3-vendor";
 
             return undefined;
           },

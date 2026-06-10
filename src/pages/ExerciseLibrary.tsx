@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
-import { Search, Dumbbell, ArrowRightLeft } from 'lucide-react';
+import { Search, Dumbbell, ArrowRightLeft, Play } from 'lucide-react';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { trainingPlan } from '@/data/trainingPlan';
 import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
@@ -19,9 +19,50 @@ interface EnrichedExercise extends LibraryExercise {
   dayName?: string;
 }
 
+const ExerciseVideoPreview = ({ animationUrl, active }: { animationUrl: string | null; active: boolean }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    if (!('IntersectionObserver' in window)) {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsVisible(entry.isIntersecting);
+    }, { rootMargin: '120px' });
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const shouldPlay = Boolean(animationUrl && active && isVisible);
+
+  return (
+    <div ref={containerRef} className="relative h-full w-full">
+      {shouldPlay && animationUrl ? (
+        <video src={animationUrl} className="h-full w-full object-cover" autoPlay loop muted playsInline preload="none" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          {animationUrl ? (
+            <Play className="h-5 w-5 text-muted-foreground/50" />
+          ) : (
+            <Dumbbell className="h-6 w-6 text-muted-foreground/40" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Wiersz listy wg mockupu: miniatura + nazwa uppercase + chip kategorii + typ + swap-ikona.
 const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: EnrichedExercise) => void }) => {
   const { t, lang } = useTranslation();
+  const [previewActive, setPreviewActive] = useState(false);
   const typeLabel = ex.isBodyweight
     ? t('exercises.type.bodyweight')
     : ex.type === 'compound' ? t('exercises.type.compound') : t('exercises.type.isolation');
@@ -30,14 +71,14 @@ const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: Enrich
     <button
       type="button"
       onClick={() => onOpen(ex)}
+      onFocus={() => setPreviewActive(true)}
+      onBlur={() => setPreviewActive(false)}
+      onMouseEnter={() => setPreviewActive(true)}
+      onMouseLeave={() => setPreviewActive(false)}
       className="flex w-full items-center gap-3 rounded-xl bg-surface-low p-3 text-left transition-colors hover:bg-surface-high"
     >
       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-lowest">
-        {animationUrl ? (
-          <video src={animationUrl} className="h-full w-full object-cover" autoPlay loop muted playsInline />
-        ) : (
-          <Dumbbell className="absolute inset-0 m-auto h-6 w-6 text-muted-foreground/40" />
-        )}
+        <ExerciseVideoPreview animationUrl={animationUrl} active={previewActive} />
       </div>
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-heading text-base font-bold uppercase leading-tight tracking-tight">{localizeExerciseName(ex.name, lang)}</h3>

@@ -226,7 +226,7 @@ export const trainingPlan: TrainingDay[] = [
     exercises: [
       {
         id: "ex-2-1",
-        name: "Wyciskanie sztangi/hantli (Płasko)",
+        name: "Wyciskanie sztangi na ławce płaskiej",
         sets: "3 x 6-8",
         instructions: [
           {
@@ -301,7 +301,7 @@ export const trainingPlan: TrainingDay[] = [
           },
           {
             title: "💪 Wykonanie",
-            content: "Leżąc na ławce skośnej na plecach. Wnoś hantle szeroko w kształt litery Y. Nie szarp."
+            content: "Leżąc przodem na ławce skośnej. Unoś hantle szeroko w kształt litery Y. Nie szarp."
           }
         ]
       },

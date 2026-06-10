@@ -5,6 +5,7 @@ import type { WorkoutSession } from '@/types';
 import { getWeeklyMetrics } from '@/lib/rza-metrics';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
+import { dateLocale } from '@/i18n';
 
 // Karta "MASZYNA" — agregaty tygodniowe (objętość, śr. RPE, śr. ból, liczba OK).
 // Renderuje się TYLKO gdy zapisano jakiekolwiek RPE, więc plany bez autoregulacji jej nie widzą.
@@ -46,6 +47,7 @@ const FragmentRow = ({ weekStart, volume, rpe, pain, ok }: {
   weekStart: string; volume: number; rpe: number | null; pain: number | null; ok: number;
 }) => {
   const { unit, toDisplay } = useUnit();
+  const { lang } = useTranslation();
   // Ból na żółto/czerwono gdy podwyższony (sygnał odciążenia).
   const painClass = pain == null ? 'text-muted-foreground/40'
     : pain >= 4 ? 'text-destructive font-bold'
@@ -54,7 +56,7 @@ const FragmentRow = ({ weekStart, volume, rpe, pain, ok }: {
   return (
     <>
       <span className="tabular-nums text-muted-foreground">{weekStart.slice(5)}</span>
-      <span className="tabular-nums text-right font-medium">{Math.round(toDisplay(volume)).toLocaleString('pl-PL')} {unit}</span>
+      <span className="tabular-nums text-right font-medium">{Math.round(toDisplay(volume)).toLocaleString(dateLocale(lang))} {unit}</span>
       <span className="tabular-nums text-right font-bold">{rpe ?? '—'}</span>
       <span className={`tabular-nums text-right ${painClass}`}>{pain ?? '—'}</span>
       <span className="tabular-nums text-right text-fitness-success font-bold">{ok}</span>

@@ -15,8 +15,11 @@ import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { buildActiveCyclePlanPatch } from '@/lib/plan-cycle-utils';
+import { swapExerciseIdentity } from '@/lib/exercise-swap';
 
 const PLAN_COLLECTION = 'training_plans';
+const CYCLES_COLLECTION = 'plan_cycles';
 
 export const useTrainingPlan = (userId: string) => {
   const { t } = useTranslation();
@@ -118,18 +121,32 @@ export const useTrainingPlan = (userId: string) => {
 
   const savePlan = useCallback(async (
     newPlan: TrainingDay[],
-    options?: { durationWeeks?: number; startDate?: string },
+    options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean },
   ): Promise<{ success: boolean; error?: string }> => {
     if (!userId) return { success: false, error: t('err.noUserId') };
     try {
+      const nextDurationWeeks = options?.durationWeeks ?? planDurationWeeks;
+      const nextStartDate = options?.startDate !== undefined ? options.startDate : planStartDate;
       await setDoc(doc(db, PLAN_COLLECTION, userId), {
         days: newPlan,
         updatedAt: new Date().toISOString(),
-        durationWeeks: options?.durationWeeks ?? planDurationWeeks,
+        durationWeeks: nextDurationWeeks,
         ...(options?.startDate !== undefined
           ? { startDate: options.startDate }
           : planStartDate ? { startDate: planStartDate } : {}),
       });
+
+      if (options?.syncActiveCycle !== false) {
+        const activeCyclesQuery = query(
+          collection(db, CYCLES_COLLECTION),
+          where('userId', '==', userId),
+          where('status', '==', 'active'),
+        );
+        const activeCycles = await getDocs(activeCyclesQuery);
+        const patch = buildActiveCyclePlanPatch(newPlan, nextDurationWeeks, nextStartDate);
+        await Promise.all(activeCycles.docs.map(activeCycle => updateDoc(activeCycle.ref, patch)));
+      }
+
       return { success: true };
     } catch (err) {
       console.error('Error saving training plan:', err);
@@ -151,15 +168,11 @@ export const useTrainingPlan = (userId: string) => {
         ...day,
         exercises: day.exercises.map(ex => {
           if (ex.id !== exerciseId) return ex;
-          const swapped = {
-            ...ex,
-            name: newName,
-            ...(newSets && { sets: newSets }),
-            instructions: [],
-          };
-          if (newVideoUrl) swapped.videoUrl = newVideoUrl;
-          else delete swapped.videoUrl;
-          return swapped;
+          return swapExerciseIdentity(
+            ex,
+            { name: newName, sets: newSets, videoUrl: newVideoUrl },
+            day.exercises.map(e => e.id),
+          );
         }),
       };
     });

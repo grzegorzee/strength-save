@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 
@@ -27,6 +27,10 @@ const baseDraft: ActiveWorkoutDraft = {
 describe('workoutSyncQueue', () => {
   beforeEach(() => {
     localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('stores multiple queued sessions per user', () => {
@@ -69,5 +73,14 @@ describe('workoutSyncQueue', () => {
     workoutSyncQueue.upsertFromDraft(baseDraft);
     workoutSyncQueue.remove('user-1', baseDraft.sessionId);
     expect(workoutSyncQueue.pendingCount('user-1')).toBe(0);
+  });
+
+  it('does not throw when localStorage rejects queue writes', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Quota exceeded', 'QuotaExceededError');
+    });
+
+    expect(() => workoutSyncQueue.upsertFromDraft(baseDraft)).not.toThrow();
   });
 });

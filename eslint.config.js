@@ -7,12 +7,14 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
-      "dist",
-      "coverage",
-      "playwright-report",
-      "test-results",
-      "android/**/build",
-      "ios/DerivedData",
+      "build/ios/**",
+      "dist/**",
+      "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
+      "android/**/build/**",
+      "android/app/src/main/assets/**",
+      "ios/DerivedData/**",
     ],
   },
   {

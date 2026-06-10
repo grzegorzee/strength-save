@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { ChipButton } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -173,14 +173,15 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
                 {WEEKDAYS.map(w => {
                   const selected = day.weekday === w.value;
                   return (
-                    <Badge
+                    <ChipButton
                       key={w.value}
                       variant={selected ? 'default' : 'outline'}
-                      className={cn('cursor-pointer', !selected && taken.has(w.value) && 'opacity-40')}
+                      pressed={selected}
+                      className={cn(!selected && taken.has(w.value) && 'opacity-40')}
                       onClick={() => setWeekday(day.id, w.value)}
                     >
                       {localizeWeekdayShort(w.short, lang)}
-                    </Badge>
+                    </ChipButton>
                   );
                 })}
               </div>
@@ -255,14 +256,14 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, onSubmit, 
         <CardContent>
           <div className="flex gap-2">
             {DURATIONS.map(n => (
-              <Badge
+              <ChipButton
                 key={n}
                 variant={durationWeeks === n ? 'default' : 'outline'}
-                className="cursor-pointer"
+                pressed={durationWeeks === n}
                 onClick={() => setDurationWeeks(n)}
               >
                 {t('planbuilder.weeksShort', { n })}
-              </Badge>
+              </ChipButton>
             ))}
           </div>
         </CardContent>

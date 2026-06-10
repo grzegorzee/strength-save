@@ -35,7 +35,7 @@ export const buildPlanNextStep = ({
   previousCompletedCycle,
   today = new Date(),
   lang = 'pl',
-}: BuildPlanNextStepParams): PlanNextStepAction => {
+}: BuildPlanNextStepParams): PlanNextStepAction | null => {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params);
 
   if (!hasPlan) {
@@ -65,7 +65,7 @@ export const buildPlanNextStep = ({
       };
     }
 
-    if (weeksRemaining <= 2) {
+    if (weeksRemaining <= 0) {
       return {
         title: tr('plannext.endingSoon.title'),
         description: tr('plannext.endingSoon.desc'),
@@ -78,16 +78,7 @@ export const buildPlanNextStep = ({
       };
     }
 
-    return {
-      title: tr('plannext.onTrackPlan.title'),
-      description: tr('plannext.onTrackPlan.desc'),
-      badges: [tr('plannext.badge.week', { current: Math.min(currentWeek, planDurationWeeks), total: planDurationWeeks })],
-      primaryLabel: tr('plannext.btn.viewCycles'),
-      primaryPath: '/cycles',
-      secondaryLabel: tr('plannext.btn.history'),
-      secondaryPath: '/history',
-      tone: 'info',
-    };
+    return null;
   }
 
   const recommendation = buildCycleRecommendation(activeCycle, previousCompletedCycle, today, lang);
@@ -95,16 +86,7 @@ export const buildPlanNextStep = ({
   // Świeży cykl tuż po onboardingu → pozytywna karta startowa bez metryk frekwencji
   // (żeby nie straszyć "0% frekwencji / 0 ominiętych" zanim user w ogóle zacznie).
   if (recommendation.isKickoff) {
-    return {
-      title: recommendation.title,
-      description: recommendation.description,
-      badges: [tr('plannext.badge.week', { current: 1, total: planDurationWeeks })],
-      primaryLabel: tr('plannext.btn.viewPlan'),
-      primaryPath: '/plan',
-      secondaryLabel: tr('plannext.btn.history'),
-      secondaryPath: '/history',
-      tone: 'success',
-    };
+    return null;
   }
 
   const badges = [
@@ -130,7 +112,7 @@ export const buildPlanNextStep = ({
     };
   }
 
-  if (weeksRemaining <= 2) {
+  if (weeksRemaining <= 0) {
     return {
       title: tr('plannext.endingDecide.title'),
       description: recommendation.description,
@@ -157,15 +139,6 @@ export const buildPlanNextStep = ({
     };
   }
 
-  // Cykl w trakcie (nie wygasł, > 2 tyg. do końca): neutralny status bez akcji closeoutu.
-  return {
-    title: tr('plannext.onTrack.title'),
-    description: tr('plannext.onTrack.desc'),
-    badges,
-    primaryLabel: tr('plannext.btn.viewPlan'),
-    primaryPath: '/plan',
-    secondaryLabel: tr('plannext.btn.history'),
-    secondaryPath: '/history',
-    tone: 'info',
-  };
+  // Cykl w trakcie bez problemów: nie pokazujemy karty "co dalej" przed ostatnim tygodniem.
+  return null;
 };

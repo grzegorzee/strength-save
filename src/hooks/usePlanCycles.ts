@@ -17,8 +17,15 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { computeCycleStats } from '@/lib/cycle-insights';
+import { shouldMergeContinuousCycles } from '@/lib/plan-cycle-utils';
 
 const CYCLES_COLLECTION = 'plan_cycles';
+
+const archivedDurationWeeks = (startDate: string, endDate: string, plannedWeeks: number): number => {
+  const elapsedDays = Math.floor((parseLocalDate(endDate).getTime() - parseLocalDate(startDate).getTime()) / 86_400_000) + 1;
+  const elapsedWeeks = Math.max(1, Math.ceil(elapsedDays / 7));
+  return Math.max(1, Math.min(plannedWeeks, elapsedWeeks));
+};
 
 // E2E: cykle wstrzyknięte do localStorage (spójnie z bypassem auth). Czytane synchronicznie,
 // by były dostępne od pierwszego renderu (getCycleById local-first nie zależy od async Firestore).
@@ -92,12 +99,19 @@ export const usePlanCycles = (userId: string) => {
     try {
       const endDate = formatLocalDate(new Date());
       const activeCycle = getActiveCycle();
-      const stats = computeStats(workouts, planDays, startDate, endDate, durationWeeks, activeCycle?.id);
+      const completedCycle = !activeCycle
+        ? cycles.find(cycle => cycle.status === 'completed' && cycle.startDate === startDate)
+        : null;
+
+      if (completedCycle) return completedCycle.id;
+
+      const effectiveDurationWeeks = archivedDurationWeeks(startDate, endDate, durationWeeks);
+      const stats = computeStats(workouts, planDays, startDate, endDate, effectiveDurationWeeks, activeCycle?.id);
 
       if (activeCycle) {
         await updateDoc(doc(db, CYCLES_COLLECTION, activeCycle.id), {
           days: planDays,
-          durationWeeks,
+          durationWeeks: effectiveDurationWeeks,
           startDate,
           endDate,
           status: 'completed',
@@ -109,7 +123,7 @@ export const usePlanCycles = (userId: string) => {
       const cycle: Omit<PlanCycle, 'id'> = {
         userId,
         days: planDays,
-        durationWeeks,
+        durationWeeks: effectiveDurationWeeks,
         startDate,
         endDate,
         status: 'completed',
@@ -123,7 +137,7 @@ export const usePlanCycles = (userId: string) => {
       console.error('[usePlanCycles] Archive error:', err);
       return null;
     }
-  }, [userId, computeStats, getActiveCycle]);
+  }, [userId, computeStats, getActiveCycle, cycles]);
 
   const createActiveCycle = useCallback(async (
     planDays: TrainingDay[],
@@ -186,7 +200,7 @@ export const usePlanCycles = (userId: string) => {
     for (const c of completed) {
       const last = groups[groups.length - 1];
       const prev = last?.[last.length - 1];
-      if (last && prev && c.startDate >= prev.endDate && daysBetween(prev.endDate, c.startDate) <= 14) {
+      if (last && prev && shouldMergeContinuousCycles(prev, c)) {
         last.push(c);
       } else {
         groups.push([c]);

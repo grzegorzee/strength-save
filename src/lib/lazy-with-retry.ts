@@ -1,4 +1,5 @@
 import { lazy } from "react";
+import { requestGuardedReload } from "./pwa-update-guard";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors React.lazy's own ComponentType<any> so route components keep their prop types
 type ModuleImport<T extends React.ComponentType<any>> = () => Promise<{ default: T }>;
@@ -27,8 +28,9 @@ export function lazyWithRetry<T extends React.ComponentType<any>>(
         !window.sessionStorage.getItem(cacheKey)
       ) {
         window.sessionStorage.setItem(cacheKey, "1");
-        window.location.reload();
-        await new Promise<never>(() => {});
+        if (requestGuardedReload("chunk")) {
+          await new Promise<never>(() => {});
+        }
       }
 
       throw error;

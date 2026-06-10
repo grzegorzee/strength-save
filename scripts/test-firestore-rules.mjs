@@ -13,10 +13,10 @@ const env = await initializeTestEnvironment({
 const UID = 'user123';
 const WORKOUT_ID = `workout-${UID}-tpl-fullbody-2-2026-06-08`;
 
-const seedUser = async (accessField) => {
+const seedUser = async (accessField, status = 'active') => {
   await env.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(ctx.firestore(), 'users', UID), {
-      uid: UID, email: 'a@b.c', role: 'user', status: 'active',
+      uid: UID, email: 'a@b.c', role: 'user', status,
       onboardingCompleted: true, ...(accessField !== undefined ? { access: accessField } : {}),
     });
   });
@@ -39,6 +39,11 @@ add('write training_plans (access=true)', true, await ok(() => setDoc(doc(db, 't
 await env.clearFirestore();
 await seedUser({ enabled: false });
 add('create workout (access=false) zablokowane', false, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
+
+await env.clearFirestore();
+await seedUser({ enabled: true }, 'pending_verification');
+add('create workout (pending_verification + access=true) zablokowane', false, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
+add('write training_plans (pending_verification + access=true) zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { days: [], durationWeeks: 12, startDate: '2026-06-08', updatedAt: 'x' })));
 
 await env.clearFirestore();
 add('create workout (brak users doc) zablokowane', false, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
