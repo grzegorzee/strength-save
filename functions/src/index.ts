@@ -41,6 +41,7 @@ import {
   REFRESHABLE_ACTIVITY_FIELDS,
   type StravaActivityDoc,
 } from "./strava-activity";
+import { disconnectStravaForUser } from "./strava-disconnect";
 export {
   createInvite,
   createWaitlistEntry,
@@ -1529,14 +1530,18 @@ export const stravaDisconnect = onCall(async (request) => {
   const userId = request.auth.uid;
   await assertStravaAccess(userId);
 
-  await getStravaConnectionRef(userId).delete().catch(() => undefined);
-  await getUserRef(userId).set({
-    stravaConnected: false,
-    stravaAthleteId: null,
-    stravaAthleteName: null,
-    stravaLastSync: null,
-    estimatedMaxHR: null,
-    maxHRManualOverride: null,
-    stravaTokens: admin.firestore.FieldValue.delete(),
-  }, { merge: true });
+  const { deletedActivities } = await disconnectStravaForUser(userId, {
+    deleteActivities: deleteUserStravaActivities,
+    deleteConnection: (uid) => getStravaConnectionRef(uid).delete(),
+    clearProfile: (uid) => getUserRef(uid).set({
+      stravaConnected: false,
+      stravaAthleteId: null,
+      stravaAthleteName: null,
+      stravaLastSync: null,
+      estimatedMaxHR: null,
+      maxHRManualOverride: null,
+      stravaTokens: admin.firestore.FieldValue.delete(),
+    }, { merge: true }),
+  });
+  logger.info(`[Strava] Disconnected ${userId}, removed ${deletedActivities} activities`);
 });
