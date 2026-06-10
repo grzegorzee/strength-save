@@ -8,7 +8,6 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
-import { useTheme } from 'next-themes';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { LanguageCode } from '@/i18n';
 import { computeTier } from '@/lib/tier';
@@ -27,7 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import {
-  User, Lock, ShieldCheck, Timer, Scale, Bell, Moon, Globe, Volume2,
+  User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
 } from 'lucide-react';
 
@@ -39,7 +38,6 @@ const Profile = () => {
   const navigate = useNavigate();
   const { uid, profile } = useCurrentUser();
   const { unit, setUnit } = useUnit();
-  const { theme, setTheme } = useTheme();
   const { logout, resetPassword } = useAuth();
   const { workouts } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
@@ -188,7 +186,6 @@ const Profile = () => {
       <SectionCard label={t('profile.section.app')}>
         <SettingRow icon={Bell} label={t('profile.app.notifications')} onClick={() => navigate('/settings')} />
         <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
-        <SettingRow icon={Moon} label={t('profile.app.darkMode')} right={<Switch checked={theme === 'dark'} onCheckedChange={(v) => setTheme(v ? 'dark' : 'light')} aria-label={t('profile.app.darkMode')} />} />
         <SettingRow
           icon={Globe}
           label={t('profile.app.language')}

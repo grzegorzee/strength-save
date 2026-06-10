@@ -228,7 +228,7 @@ const AuthenticatedApp = () => {
 
 const App = () => (
   <ErrorBoundary>
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
       <LanguageProvider>
        <UnitProvider>
         <QueryClientProvider client={queryClient}>

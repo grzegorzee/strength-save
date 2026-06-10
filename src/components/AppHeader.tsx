@@ -1,7 +1,8 @@
-import { ArrowLeft, Menu, Moon, Sun, WifiOff } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Menu, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useTheme } from 'next-themes';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useCurrentUser } from '@/contexts/UserContext';
+import { useFirebaseWorkoutReads } from '@/hooks/useFirebaseWorkouts';
 import { useTranslation } from '@/contexts/LanguageContext';
 
 interface AppHeaderProps {
@@ -12,8 +13,10 @@ interface AppHeaderProps {
 
 export const AppHeader = ({ title, onMenuClick, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
-  const { theme, setTheme } = useTheme();
+  const { uid } = useCurrentUser();
+  const { workouts, isLoaded } = useFirebaseWorkoutReads(uid);
   const { isOnline, pendingOps } = useOnlineStatus();
+  const completedCount = workouts.filter((w) => w.completed).length;
 
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
@@ -39,15 +42,16 @@ export const AppHeader = ({ title, onMenuClick, onBack }: AppHeaderProps) => {
               {pendingOps > 0 && <span className="ml-0.5">({pendingOps})</span>}
             </div>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            aria-label={t('comp.header.toggleTheme')}
-          >
-            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          </Button>
+          {isLoaded && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-bold"
+              aria-label={t('comp.header.workoutsCount', { count: completedCount })}
+              title={t('comp.header.workoutsCount', { count: completedCount })}
+            >
+              <Dumbbell className="h-4 w-4" />
+              {completedCount}
+            </div>
+          )}
         </div>
       </div>
     </header>
