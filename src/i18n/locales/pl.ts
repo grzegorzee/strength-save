@@ -149,6 +149,7 @@ export const pl = {
   'dash.weekOf': 'Tydzień {current} z {total}',
   'dash.startDate': 'Start',
   'dash.startsInDays': 'startuje za {n} dni',
+  'dash.streakHint': 'Zrób jeszcze {n} trening(i) w tym tygodniu, aby utrzymać serię.',
   'dash.extend.title': 'Plan dobiegł końca',
   'dash.extend.desc': 'Twój plan zakończył się {n} dni temu. Przedłużyć go o kolejny cykl?',
   'dash.extend.confirm': 'Przedłuż plan',

@@ -294,6 +294,14 @@ const Achievements = () => {
                   )}>
                     {milestoneLabel(m)}
                   </p>
+                  {!m.achieved && m.progress > 0 && (
+                    <div className="w-full">
+                      <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                        <div className="h-full rounded-full bg-primary/60" style={{ width: `${m.progress}%` }} />
+                      </div>
+                      <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground">{m.progress}%</p>
+                    </div>
+                  )}
                 </div>
               );
             })}

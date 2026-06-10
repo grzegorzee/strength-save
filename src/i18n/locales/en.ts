@@ -143,6 +143,7 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.weekOf': 'Week {current} of {total}',
   'dash.startDate': 'Start',
   'dash.startsInDays': 'starts in {n} days',
+  'dash.streakHint': 'Complete {n} more workout(s) this week to keep your streak.',
   'dash.extend.title': 'Your plan has ended',
   'dash.extend.desc': 'Your plan ended {n} days ago. Extend it with another cycle?',
   'dash.extend.confirm': 'Extend plan',

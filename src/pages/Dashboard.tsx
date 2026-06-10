@@ -15,7 +15,7 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
-import { calculateStreak } from '@/lib/summary-utils';
+import { calculateStreak, getWeekBounds } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
@@ -158,6 +158,17 @@ const Dashboard = () => {
   }, [trainingPlan, today, planStartDate, planStarted]);
 
   const streak = useMemo(() => calculateStreak(workouts), [workouts]);
+  // Ile treningów brakuje w TYM tygodniu, żeby podtrzymać serię (tydzień liczy się od 2 treningów).
+  const streakHint = useMemo(() => {
+    if (streak === 0) return 0;
+    const { start, end } = getWeekBounds(new Date());
+    const thisWeekCompleted = workouts.filter(w => {
+      if (!w.completed) return false;
+      const d = parseLocalDate(w.date);
+      return d >= start && d <= end;
+    }).length;
+    return thisWeekCompleted < 2 ? 2 - thisWeekCompleted : 0;
+  }, [streak, workouts]);
   const activeCycle = useMemo(() => cycles.find(cycle => cycle.status === 'active') ?? null, [cycles]);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
   const workoutToDay = useMemo(() => (workout: typeof workouts[number]): TrainingDay => {
@@ -646,6 +657,14 @@ const Dashboard = () => {
           onClick={() => navigate('/analytics?tab=charts')}
         />
       </div>
+
+      {/* Podpowiedź utrzymania serii (zamiast cichego zera na początku tygodnia) */}
+      {streakHint > 0 && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Flame className="h-3.5 w-3.5 text-primary" />
+          {t('dash.streakHint', { n: streakHint })}
+        </p>
+      )}
 
       {/* Weekly km counter (Strava) */}
       {weeklyKm > 0 && (

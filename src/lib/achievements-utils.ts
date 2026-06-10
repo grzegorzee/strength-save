@@ -145,6 +145,10 @@ export interface Milestone {
   category: MilestoneCategory;
   threshold: number;
   achieved: boolean;
+  /** Aktualna wartość statystyki (pasek postępu do progu na zablokowanej odznace). */
+  current: number;
+  /** Postęp 0-100 względem progu. */
+  progress: number;
 }
 
 const MILESTONE_THRESHOLDS: Record<MilestoneCategory, number[]> = {
@@ -171,6 +175,8 @@ export const computeMilestones = (stats: {
       category,
       threshold,
       achieved: valueFor[category] >= threshold,
+      current: valueFor[category],
+      progress: Math.min(100, Math.round((valueFor[category] / threshold) * 100)),
     })),
   );
 };
