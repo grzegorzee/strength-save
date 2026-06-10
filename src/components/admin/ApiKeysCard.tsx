@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, Copy, ExternalLink, KeyRound, Loader2, RefreshCcw, ShieldCheck, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -38,6 +39,7 @@ export const ApiKeysCard = () => {
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const [keys, setKeys] = useState<ApiKeyRecord[]>([]);
+  const [pendingKeyAction, setPendingKeyAction] = useState<{ type: 'revoke' | 'rotate'; keyId: string } | null>(null);
   const [exportUrl, setExportUrl] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -234,7 +236,7 @@ export const ApiKeysCard = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => void handleRotate(key.id)}
+                      onClick={() => setPendingKeyAction({ type: 'rotate', keyId: key.id })}
                       disabled={isSubmitting || key.status !== "active"}
                     >
                       <RefreshCcw className="h-4 w-4 mr-1.5" />
@@ -243,7 +245,7 @@ export const ApiKeysCard = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => void handleRevoke(key.id)}
+                      onClick={() => setPendingKeyAction({ type: 'revoke', keyId: key.id })}
                       disabled={isSubmitting || key.status !== "active"}
                     >
                       <Trash2 className="h-4 w-4 mr-1.5" />
@@ -318,6 +320,22 @@ export const ApiKeysCard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!pendingKeyAction}
+        onOpenChange={(open) => { if (!open) setPendingKeyAction(null); }}
+        title={pendingKeyAction?.type === 'rotate' ? t('admin.confirmRotateTitle') : t('admin.confirmRevokeTitle')}
+        description={pendingKeyAction?.type === 'rotate' ? t('admin.confirmRotateDesc') : t('admin.confirmRevokeDesc')}
+        confirmLabel={pendingKeyAction?.type === 'rotate' ? 'Rotate' : 'Revoke'}
+        destructive={pendingKeyAction?.type === 'revoke'}
+        onConfirm={() => {
+          if (!pendingKeyAction) return;
+          const { type, keyId } = pendingKeyAction;
+          setPendingKeyAction(null);
+          if (type === 'rotate') void handleRotate(keyId);
+          else void handleRevoke(keyId);
+        }}
+      />
     </>
   );
 };

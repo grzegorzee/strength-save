@@ -27,6 +27,7 @@ import { DataManagement } from '@/components/DataManagement';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -178,6 +179,7 @@ const Settings = () => {
   const [isResettingOnboarding, setIsResettingOnboarding] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [mergingCycles, setMergingCycles] = useState(false);
+  const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false);
 
   const handleMergeCycles = async () => {
     setMergingCycles(true);
@@ -362,10 +364,19 @@ const Settings = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="outline" className="w-full" onClick={handleMergeCycles} disabled={mergingCycles}>
+          {/* disabled do załadowania workouts: merge na pustej liście remapowałby zero treningów, a cykle i tak by skasował */}
+          <Button variant="outline" className="w-full" onClick={() => setMergeConfirmOpen(true)} disabled={mergingCycles || !workoutsLoaded}>
             {mergingCycles ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
             {t('settings.repairCycles.button')}
           </Button>
+          <ConfirmDialog
+            open={mergeConfirmOpen}
+            onOpenChange={setMergeConfirmOpen}
+            title={t('settings.repairCycles.title')}
+            description={t('settings.merge.confirmDesc')}
+            confirmLabel={t('settings.repairCycles.button')}
+            onConfirm={() => void handleMergeCycles()}
+          />
         </CardContent>
       </Card>
 

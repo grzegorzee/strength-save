@@ -15,6 +15,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -79,6 +80,7 @@ const UserPlanEditor = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<LibraryExercise['category'] | 'all'>('all');
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const filteredExercises = exerciseLibrary.filter(ex => {
     const matchesSearch = searchQuery === '' || ex.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -165,10 +167,19 @@ const UserPlanEditor = () => {
             <p className="text-xs text-muted-foreground">{t('admin.planModified')}</p>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={handleReset}>
+        <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)}>
           <RefreshCcw className="h-4 w-4 mr-2" />
           {t('admin.reset')}
         </Button>
+        <ConfirmDialog
+          open={resetConfirmOpen}
+          onOpenChange={setResetConfirmOpen}
+          title={t('admin.resetConfirmTitle')}
+          description={t('admin.resetConfirmDesc')}
+          confirmLabel={t('admin.reset')}
+          destructive
+          onConfirm={() => void handleReset()}
+        />
       </div>
 
       {plan.map(day => (

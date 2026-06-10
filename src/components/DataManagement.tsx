@@ -15,6 +15,7 @@ import { Download, Upload, Trash2, Loader2, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface DataManagementProps {
   onExport: () => string;
@@ -63,6 +64,7 @@ export const DataManagement = ({
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
   const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
+  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -235,7 +237,7 @@ export const DataManagement = ({
 
           {onCleanup && (
             <Button
-              onClick={handleCleanup}
+              onClick={() => setCleanupConfirmOpen(true)}
               variant="outline"
               className="w-full text-fitness-warning border-fitness-warning/40 hover:bg-fitness-warning/10"
               disabled={isCleaningUp || disabled}
@@ -250,6 +252,16 @@ export const DataManagement = ({
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={cleanupConfirmOpen}
+        onOpenChange={setCleanupConfirmOpen}
+        title={cleanupLabel ?? t('data.cleanupLabel')}
+        description={t('data.cleanup.confirmDesc')}
+        confirmLabel={cleanupLabel ?? t('data.cleanupLabel')}
+        destructive
+        onConfirm={() => void handleCleanup()}
+      />
 
       <AlertDialog open={!!pendingImport} onOpenChange={(open) => { if (!open && !isImporting) setPendingImport(null); }}>
         <AlertDialogContent>
