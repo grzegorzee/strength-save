@@ -139,27 +139,6 @@ const Dashboard = () => {
       : { title: t('cycles.repeatFailed'), variant: 'destructive' });
   };
 
-  // Auto-przedłużenie: jeśli plan wygasł >7 dni temu, a user nie wybrał nic nowego —
-  // automatycznie startuj nowy cykl tego samego planu (decyzja produktowa: nie blokujemy).
-  // Guard w localStorage per-plan zapewnia jednorazowość; dlatego deps celowo ograniczone.
-  useEffect(() => {
-    if (!isLoaded || trainingPlan.length === 0 || !planStartDate || !uid) return;
-    const plannedEnd = parseLocalDate(planStartDate).getTime() + planDurationWeeks * 7 * 86_400_000;
-    const daysSinceEnd = Math.floor((Date.now() - plannedEnd) / 86_400_000);
-    if (daysSinceEnd < 7) return;
-    const guardKey = `auto-extend:${uid}:${planStartDate}`;
-    try {
-      if (localStorage.getItem(guardKey)) return;
-      localStorage.setItem(guardKey, '1');
-    } catch { return; }
-    startCycleWithPlan(trainingPlan, planDurationWeeks, {
-      uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
-      archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
-    }).then((res) => {
-      if (res.success) toast({ title: t('cycles.autoExtended') });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, trainingPlan, planStartDate, planDurationWeeks, uid]);
   const [localDraft, setLocalDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
@@ -204,6 +183,39 @@ const Dashboard = () => {
   const currentPlanArchived = useMemo(() => (
     !activeCycle && !!planStartDate && cycles.some(cycle => cycle.status === 'completed' && cycle.startDate === planStartDate)
   ), [activeCycle, cycles, planStartDate]);
+  // Jeden jawny stan "plan się skończył": wygasł czasowo LUB user zakończył go wcześniej.
+  const planEnded = isPlanExpired || currentPlanArchived;
+
+  // Karta przedłużenia ZAMIAST cichego auto-startu cyklu: plan wygasł >=7 dni temu,
+  // user nic nie wybrał i nie zakończył planu jawnie — pytamy o zgodę.
+  const [extendOfferDismissed, setExtendOfferDismissed] = useState(false);
+  const extendOffer = useMemo(() => {
+    if (!isLoaded || trainingPlan.length === 0 || !planStartDate || !uid || currentPlanArchived) return null;
+    const plannedEnd = parseLocalDate(planStartDate).getTime() + planDurationWeeks * 7 * 86_400_000;
+    const daysSinceEnd = Math.floor((Date.now() - plannedEnd) / 86_400_000);
+    if (daysSinceEnd < 7) return null;
+    const guardKey = `auto-extend:${uid}:${planStartDate}`;
+    try {
+      if (localStorage.getItem(guardKey)) return null;
+    } catch {
+      return null;
+    }
+    return { daysSinceEnd, guardKey };
+  }, [isLoaded, trainingPlan.length, planStartDate, uid, currentPlanArchived, planDurationWeeks]);
+
+  const handleExtendPlan = async () => {
+    if (!extendOffer) return;
+    try { localStorage.setItem(extendOffer.guardKey, '1'); } catch { /* nieistotne */ }
+    setExtendOfferDismissed(true);
+    await handleRepeatPlan();
+  };
+
+  const dismissExtendOffer = () => {
+    if (extendOffer) {
+      try { localStorage.setItem(extendOffer.guardKey, '1'); } catch { /* nieistotne */ }
+    }
+    setExtendOfferDismissed(true);
+  };
   const liveActiveCycle = useMemo(() => buildActiveCyclePreview(activeCycle, workouts, today), [activeCycle, today, workouts]);
   const planNextStep = useMemo(() => buildPlanNextStep({
     hasPlan: trainingPlan.length > 0,
@@ -563,7 +575,7 @@ const Dashboard = () => {
                 {planNextStep.secondaryLabel}
               </Button>
             ) : null}
-            {isPlanExpired && trainingPlan.length > 0 ? (
+            {planEnded && trainingPlan.length > 0 ? (
               <Button variant="outline" onClick={handleRepeatPlan} disabled={isRepeating}>
                 {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                 {t('cycles.repeatPlan')}
@@ -572,6 +584,28 @@ const Dashboard = () => {
           </div>
         </CardContent>
       </Card>
+      )}
+
+      {/* Karta przedłużenia planu (zamiast cichego auto-startu cyklu) */}
+      {extendOffer && !extendOfferDismissed && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-heading font-bold">{t('dash.extend.title')}</p>
+              <p className="text-sm text-muted-foreground">{t('dash.extend.desc', { n: extendOffer.daysSinceEnd })}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button onClick={handleExtendPlan} disabled={isRepeating}>
+                {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                {t('dash.extend.confirm')}
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/new-plan')}>{t('dash.extend.newPlan')}</Button>
+              <Button variant="ghost" size="icon" onClick={dismissExtendOffer} aria-label={t('common.cancel')}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Stats - 4 columns */}
@@ -634,7 +668,7 @@ const Dashboard = () => {
       )}
 
       {/* Your Plan Card */}
-      {!isPlanExpired && trainingPlan.length > 0 && (
+      {!planEnded && trainingPlan.length > 0 && (
         <Card className="hover:border-primary/30 transition-all duration-200">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
@@ -660,7 +694,11 @@ const Dashboard = () => {
               {planStarted ? (
                 <span>{t('dash.weekOf', { current: Math.min(currentWeek, planDurationWeeks), total: planDurationWeeks })}</span>
               ) : (
-                <span>{t('dash.startDate')}: {parseLocalDate(planStartDate!).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })}</span>
+                <span>
+                  {t('dash.startDate')}: {parseLocalDate(planStartDate!).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })}
+                  {' · '}
+                  {t('dash.startsInDays', { n: Math.max(1, Math.ceil((parseLocalDate(planStartDate!).getTime() - Date.now()) / 86_400_000)) })}
+                </span>
               )}
             </div>
 
