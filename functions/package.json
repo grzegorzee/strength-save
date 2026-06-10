@@ -3,7 +3,8 @@
   "scripts": {
     "build": "tsc",
     "serve": "npm run build && firebase emulators:start --only functions",
-    "deploy": "firebase deploy --only functions"
+    "deploy": "firebase deploy --only functions",
+    "test": "vitest run"
   },
   "engines": {
     "node": "22"
@@ -21,7 +22,8 @@
     "path-to-regexp": "0.1.13"
   },
   "devDependencies": {
-    "typescript": "^5.4.0"
+    "typescript": "^5.4.0",
+    "vitest": "^2.1.9"
   },
   "private": true
 }

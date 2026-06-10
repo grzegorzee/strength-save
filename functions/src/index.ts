@@ -34,6 +34,7 @@ import {
   STRAVA_OAUTH_STATE_BYTES,
   STRAVA_OAUTH_STATE_TTL_MS,
 } from "./security";
+import { deleteQueryInBatches } from "./firestore-batch";
 export {
   createInvite,
   createWaitlistEntry,
@@ -138,6 +139,18 @@ const getStravaActivityRef = (userId: string, activityId: number) => (
   db.collection(STRAVA_ACTIVITIES_COLLECTION).doc(`strava-${userId}-${activityId}`)
 );
 const getTrainingPlanRef = (userId: string) => db.doc(`${TRAINING_PLANS_COLLECTION}/${userId}`);
+
+/**
+ * Remove all strava_activities for a user using paginated batches. A single
+ * batch caps at 500 ops, so a clean reconnect/disconnect of an account with
+ * hundreds of activities would otherwise fail.
+ */
+const deleteUserStravaActivities = (userId: string): Promise<number> => (
+  deleteQueryInBatches(
+    db.collection(STRAVA_ACTIVITIES_COLLECTION).where("userId", "==", userId),
+    () => db.batch(),
+  )
+);
 
 function cleanExportProfile(profile: Record<string, unknown> | undefined) {
   if (!profile) return null;
@@ -460,16 +473,11 @@ export const stravaCallback = onCall(
     await saveStravaConnection(userId, tokenData, athleteName);
     logger.info(`[Strava] User doc updated, stravaLastSync reset to null`);
 
-    // Delete existing strava_activities for clean reconnect
-    const existingActivities = await db
-      .collection(STRAVA_ACTIVITIES_COLLECTION)
-      .where("userId", "==", userId)
-      .get();
-    if (!existingActivities.empty) {
-      const deleteBatch = db.batch();
-      existingActivities.docs.forEach((d) => deleteBatch.delete(d.ref));
-      await deleteBatch.commit();
-      logger.info(`[Strava] Deleted ${existingActivities.size} old activities for clean reconnect`);
+    // Delete existing strava_activities for clean reconnect (paginated — a single
+    // batch caps at 500 ops and would fail for long Strava histories).
+    const deletedCount = await deleteUserStravaActivities(userId);
+    if (deletedCount > 0) {
+      logger.info(`[Strava] Deleted ${deletedCount} old activities for clean reconnect`);
     }
 
     logger.info(`[Strava] Starting initial sync for ${userId}...`);
