@@ -285,6 +285,8 @@ export const en: Record<keyof typeof pl, string> = {
   'analytics.rza.ok': 'OK',
   'analytics.subtab.workouts': 'Workouts',
   'analytics.subtab.tonnage': 'Tonnage',
+  'analytics.range.weeks': '{n} wk',
+  'analytics.range.all': 'All',
   'analytics.subtab.weight': 'Weight',
   'analytics.subtab.streak': 'Streak',
   'analytics.subtab.progression': 'Progression',

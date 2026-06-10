@@ -99,6 +99,8 @@ const AnalyticsChartsTab = () => {
   const [subTab, setSubTab] = useState<ChartsSubTab>('workouts');
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [weightMode, setWeightMode] = useState<WeightMode>('max');
+  // Zakres wykresu tonażu: przy setkach treningów oś X od początku konta robi się nieczytelna.
+  const [tonnageRange, setTonnageRange] = useState<'8w' | '12w' | 'all'>('12w');
 
   const workoutsData = useMemo(() => {
     const completed = workouts.filter(w => w.completed);
@@ -118,8 +120,15 @@ const AnalyticsChartsTab = () => {
   }, [workouts, t]);
 
   const tonnageData = useMemo(() => {
+    const rangeCutoff = (() => {
+      if (tonnageRange === 'all') return null;
+      const d = new Date();
+      d.setDate(d.getDate() - (tonnageRange === '8w' ? 8 : 12) * 7);
+      return d;
+    })();
     const completed = workouts
       .filter(w => w.completed)
+      .filter(w => !rangeCutoff || parseLocalDate(w.date) >= rangeCutoff)
       .slice()
       .sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
     const chartData = completed.map(w => ({ date: formatDateShort(w.date, lang), tonnage: Math.round(toDisplay(workoutTonnage(w))) }));
@@ -138,7 +147,7 @@ const AnalyticsChartsTab = () => {
       trend = `${Number(change) >= 0 ? '+' : ''}${change}%`;
     }
     return { chartData, totalTonnage, avgPerWorkout, trend };
-  }, [workouts, lang, toDisplay]);
+  }, [workouts, lang, toDisplay, tonnageRange]);
 
   const weightData = useMemo(() => {
     const withWeight = measurements
@@ -286,6 +295,19 @@ const AnalyticsChartsTab = () => {
         <Card>
           <CardContent className="pt-6">
             <ChartHeader icon={Trophy} title={t('analytics.subtab.tonnage')} />
+            <div className="mb-3 flex gap-1.5">
+              {(['8w', '12w', 'all'] as const).map((range) => (
+                <ChipButton
+                  key={range}
+                  variant={tonnageRange === range ? 'default' : 'outline'}
+                  pressed={tonnageRange === range}
+                  className="text-xs"
+                  onClick={() => setTonnageRange(range)}
+                >
+                  {range === 'all' ? t('analytics.range.all') : t('analytics.range.weeks', { n: range === '8w' ? 8 : 12 })}
+                </ChipButton>
+              ))}
+            </div>
             {tonnageData.chartData.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">{t('analytics.noCompletedToShow')}</p>
             ) : (

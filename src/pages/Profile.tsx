@@ -173,7 +173,7 @@ const Profile = () => {
       <SectionCard label={t('profile.section.account')}>
         <SettingRow icon={User} label={t('profile.account.edit')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
         <SettingRow icon={Lock} label={t('profile.account.password')} onClick={handleChangePassword} />
-        <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings')} />
+        <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings?section=data')} />
       </SectionCard>
 
       {/* WORKOUT PREFERENCES */}
@@ -217,7 +217,7 @@ const Profile = () => {
 
       {/* APP SETTINGS */}
       <SectionCard label={t('profile.section.app')}>
-        <SettingRow icon={Bell} label={t('profile.app.notifications')} onClick={() => navigate('/settings')} />
+        <SettingRow icon={Bell} label={t('profile.app.notifications')} onClick={() => navigate('/settings?section=notifications')} />
         <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
         <SettingRow
           icon={Globe}

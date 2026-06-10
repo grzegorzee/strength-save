@@ -28,6 +28,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useSearchParams } from 'react-router-dom';
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -180,6 +181,15 @@ const Settings = () => {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [mergingCycles, setMergingCycles] = useState(false);
   const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+
+  // Linki z Profilu (?section=notifications|account|data) przewijają do właściwej sekcji.
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (!section) return;
+    const el = document.getElementById(`settings-${section}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [searchParams]);
 
   const handleMergeCycles = async () => {
     setMergingCycles(true);
@@ -279,10 +289,12 @@ const Settings = () => {
         <p className="text-muted-foreground text-sm">{profile?.email}</p>
       </div>
 
-      <NotificationSettings />
+      <div id="settings-notifications" className="scroll-mt-20">
+        <NotificationSettings />
+      </div>
 
       {/* Account info */}
-      <Card>
+      <Card id="settings-account" className="scroll-mt-20">
         <CardHeader>
           <CardTitle>{t('profile.section.account')}</CardTitle>
         </CardHeader>
@@ -334,6 +346,7 @@ const Settings = () => {
         </CardContent>
       </Card>
 
+      <div id="settings-data" className="scroll-mt-20">
       <DataManagement
         onExport={() => exportData({
           trainingPlan: isCustom
@@ -352,6 +365,7 @@ const Settings = () => {
         importLabel={t('settings.backup.import')}
         cleanupLabel={t('settings.backup.cleanup')}
       />
+      </div>
 
       <Card>
         <CardHeader>

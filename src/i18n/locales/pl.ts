@@ -291,6 +291,8 @@ export const pl = {
   'analytics.rza.ok': 'OK',
   'analytics.subtab.workouts': 'Treningi',
   'analytics.subtab.tonnage': 'Tonaż',
+  'analytics.range.weeks': '{n} tyg.',
+  'analytics.range.all': 'Wszystko',
   'analytics.subtab.weight': 'Waga',
   'analytics.subtab.streak': 'Seria',
   'analytics.subtab.progression': 'Progresja',
