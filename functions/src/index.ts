@@ -35,6 +35,12 @@ import {
   STRAVA_OAUTH_STATE_TTL_MS,
 } from "./security";
 import { deleteQueryInBatches } from "./firestore-batch";
+import {
+  diffRefreshableFields,
+  mapStravaActivityToDoc,
+  REFRESHABLE_ACTIVITY_FIELDS,
+  type StravaActivityDoc,
+} from "./strava-activity";
 export {
   createInvite,
   createWaitlistEntry,
@@ -1329,6 +1335,7 @@ async function refreshStravaToken(userId: string, refreshToken: string): Promise
 
 interface SyncResult {
   synced: number;
+  refreshed: number;
   totalFetched: number;
   alreadyExisted: number;
   lookbackDays: number;
@@ -1384,17 +1391,21 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
   logger.info(`[Strava] Fetched ${activities.length} activities in ${page - 1} pages (lookback: ${lookbackDays} days)`);
 
   let synced = 0;
+  let refreshed = 0;
   let alreadyExisted = 0;
-  const existingActivityIds = new Set<number>();
+  // Select stravaId + every refreshable field so we can update activities that
+  // Strava backfilled later (description, calories, kudos, HR) instead of
+  // blindly skipping known ids.
+  const existingActivities = new Map<number, Partial<StravaActivityDoc>>();
   const existingActivitiesSnapshot = await db
     .collection(STRAVA_ACTIVITIES_COLLECTION)
     .where("userId", "==", userId)
-    .select("stravaId")
+    .select("stravaId", ...REFRESHABLE_ACTIVITY_FIELDS)
     .get();
   existingActivitiesSnapshot.docs.forEach((doc) => {
-    const stravaId = doc.data().stravaId;
-    if (typeof stravaId === "number") {
-      existingActivityIds.add(stravaId);
+    const data = doc.data() as Partial<StravaActivityDoc> & { stravaId?: unknown };
+    if (typeof data.stravaId === "number") {
+      existingActivities.set(data.stravaId, data);
     }
   });
 
@@ -1408,42 +1419,26 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
   };
 
   for (const activity of activities) {
-    if (existingActivityIds.has(activity.id)) {
-      alreadyExisted++;
-      continue;
+    const docRef = getStravaActivityRef(userId, activity.id);
+    const fullDoc = mapStravaActivityToDoc(userId, activity, new Date().toISOString());
+    const existing = existingActivities.get(activity.id);
+
+    if (existing) {
+      // Known activity — refresh only the fields Strava may have backfilled.
+      const changes = diffRefreshableFields(existing, fullDoc);
+      if (!changes) {
+        alreadyExisted++;
+        continue;
+      }
+      batch.set(docRef, changes, { merge: true });
+      existingActivities.set(activity.id, { ...existing, ...changes });
+      refreshed++;
+    } else {
+      batch.set(docRef, fullDoc);
+      synced++;
+      existingActivities.set(activity.id, fullDoc);
     }
 
-    const dateStr = activity.start_date_local
-      ? activity.start_date_local.split("T")[0]
-      : new Date(activity.start_date).toISOString().split("T")[0];
-
-    const docRef = getStravaActivityRef(userId, activity.id);
-    batch.set(docRef, {
-      userId,
-      stravaId: activity.id,
-      name: activity.name,
-      type: activity.type,
-      date: dateStr,
-      distance: activity.distance || null,
-      movingTime: activity.moving_time || null,
-      elapsedTime: activity.elapsed_time || null,
-      averageHeartrate: activity.average_heartrate || null,
-      maxHeartrate: activity.max_heartrate || null,
-      totalElevationGain: activity.total_elevation_gain || null,
-      averageSpeed: activity.average_speed || null,
-      calories: activity.calories || null,
-      description: activity.description || null,
-      sportType: activity.sport_type || null,
-      averageCadence: activity.average_cadence || null,
-      startDateLocal: activity.start_date_local || null,
-      trainer: activity.trainer ?? null,
-      kudosCount: activity.kudos_count || null,
-      stravaUrl: `https://www.strava.com/activities/${activity.id}`,
-      syncedAt: new Date().toISOString(),
-    });
-
-    synced++;
-    existingActivityIds.add(activity.id);
     pendingWrites++;
     if (pendingWrites === 450) {
       await commitBatch();
@@ -1467,8 +1462,8 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
     }
   }
 
-  logger.info(`[Strava] Result: ${synced} new, ${alreadyExisted} already existed, ${activities.length} total for ${userId}`);
-  return { synced, totalFetched: activities.length, alreadyExisted, lookbackDays };
+  logger.info(`[Strava] Result: ${synced} new, ${refreshed} refreshed, ${alreadyExisted} already existed, ${activities.length} total for ${userId}`);
+  return { synced, refreshed, totalFetched: activities.length, alreadyExisted, lookbackDays };
 }
 
 /**
