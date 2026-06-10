@@ -26,6 +26,7 @@ import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { DataManagement } from '@/components/DataManagement';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -148,7 +149,8 @@ const FeatureFlagsPanel = () => {
 
 const Settings = () => {
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
-  const { workouts, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
+  const { workouts, isLoaded: workoutsLoaded, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
+  const { plan, isCustom, planDurationWeeks, planStartDate } = useTrainingPlan(uid);
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
   const { connection, isSyncing, error, connectStrava, syncActivities, saveMaxHR, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
@@ -331,10 +333,17 @@ const Settings = () => {
       </Card>
 
       <DataManagement
-        onExport={exportData}
+        onExport={() => exportData({
+          trainingPlan: isCustom
+            ? { days: plan, durationWeeks: planDurationWeeks, ...(planStartDate ? { startDate: planStartDate } : {}) }
+            : undefined,
+          planCycles: cycles,
+        })}
         onImport={importData}
         onCleanup={cleanupEmptyWorkouts}
         onRepair={() => backfillHistoricalWorkouts(cycles)}
+        existingWorkoutIds={workouts.map((w) => w.id)}
+        disabled={!workoutsLoaded}
         title={t('settings.backup.title')}
         description={t('settings.backup.description')}
         exportLabel={t('settings.backup.export')}

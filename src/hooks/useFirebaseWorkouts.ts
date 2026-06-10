@@ -13,6 +13,7 @@ import {
   orderBy,
   where,
   runTransaction,
+  writeBatch,
   type UpdateData,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -356,11 +357,14 @@ export const useFirebaseWorkoutActions = (
     return workouts.filter(w => w.completed).length;
   }, [workouts]);
 
-  // Export data to JSON
-  const exportData = useCallback(() => {
+  // Export data to JSON (pełna kopia: treningi + pomiary + opcjonalnie plan i cykle)
+  const exportData = useCallback((extras?: { trainingPlan?: unknown; planCycles?: unknown[] }) => {
     const data = {
+      schemaVersion: 2,
       workouts,
       measurements,
+      ...(extras?.trainingPlan ? { trainingPlan: extras.trainingPlan } : {}),
+      ...(extras?.planCycles && extras.planCycles.length > 0 ? { planCycles: extras.planCycles } : {}),
       exportedAt: new Date().toISOString()
     };
     return JSON.stringify(data, null, 2);
@@ -368,15 +372,25 @@ export const useFirebaseWorkoutActions = (
 
   // Import data from JSON (with schema validation)
   const importData = useCallback(async (jsonString: string) => {
+    let data: {
+      workouts?: unknown[];
+      measurements?: unknown[];
+      trainingPlan?: { days?: unknown; durationWeeks?: unknown; startDate?: unknown };
+      planCycles?: unknown[];
+    };
     try {
-      const data = JSON.parse(jsonString);
-      let imported = 0;
+      data = JSON.parse(jsonString);
+    } catch (err) {
+      console.error('Error parsing import file:', err);
+      return { success: false, message: t('data.importError') };
+    }
+
+    let imported = 0;
+    try {
+      const ops: Array<{ collection: string; id: string; data: Record<string, unknown> }> = [];
 
       if (data.workouts && Array.isArray(data.workouts)) {
-        if (data.workouts.length > 500) {
-          return { success: false, message: t('data.tooManyWorkouts') };
-        }
-        for (const workout of data.workouts) {
+        for (const workout of data.workouts as Array<Record<string, unknown>>) {
           if (!workout.id || typeof workout.id !== 'string') continue;
           if (!workout.date || typeof workout.date !== 'string') continue;
           // Whitelist only known fields
@@ -386,13 +400,16 @@ export const useFirebaseWorkoutActions = (
             dayId: String(workout.dayId || '').slice(0, 50),
             date: String(workout.date).slice(0, 10),
             completed: !!workout.completed,
-            ...(workout.notes && { notes: String(workout.notes).slice(0, 5000) }),
-            ...(workout.cycleId && { cycleId: String(workout.cycleId).slice(0, 100) }),
-            ...(workout.dayName && { dayName: String(workout.dayName).slice(0, 200) }),
-            ...(workout.dayFocus && { dayFocus: String(workout.dayFocus).slice(0, 200) }),
+            ...(workout.notes ? { notes: String(workout.notes).slice(0, 5000) } : {}),
+            ...(workout.cycleId ? { cycleId: String(workout.cycleId).slice(0, 100) } : {}),
+            ...(workout.dayName ? { dayName: String(workout.dayName).slice(0, 200) } : {}),
+            ...(workout.dayFocus ? { dayFocus: String(workout.dayFocus).slice(0, 200) } : {}),
             ...(typeof workout.durationSec === 'number' && workout.durationSec > 0 && { durationSec: Math.floor(workout.durationSec) }),
             ...(typeof workout.startedAt === 'number' && workout.startedAt > 0 && { startedAt: Math.floor(workout.startedAt) }),
             ...(typeof workout.completedAt === 'number' && workout.completedAt > 0 && { completedAt: Math.floor(workout.completedAt) }),
+            // updatedAt/revision zachowane — bez nich detekcja konfliktów zapisu nie działa po imporcie.
+            ...(typeof workout.updatedAt === 'number' && workout.updatedAt > 0 && { updatedAt: Math.floor(workout.updatedAt) }),
+            ...(typeof workout.revision === 'number' && workout.revision > 0 && { revision: Math.floor(workout.revision) }),
             ...(Array.isArray(workout.skippedExercises) && { skippedExercises: workout.skippedExercises.filter((s: unknown) => typeof s === 'string').slice(0, 50) }),
           };
           if (Array.isArray(workout.exercises)) {
@@ -406,16 +423,12 @@ export const useFirebaseWorkoutActions = (
           } else {
             safe.exercises = [];
           }
-          await setDoc(doc(db, WORKOUTS_COLLECTION, safe.id as string), safe);
-          imported++;
+          ops.push({ collection: WORKOUTS_COLLECTION, id: safe.id as string, data: safe });
         }
       }
 
       if (data.measurements && Array.isArray(data.measurements)) {
-        if (data.measurements.length > 500) {
-          return { success: false, message: t('data.tooManyMeasurements') };
-        }
-        for (const m of data.measurements) {
+        for (const m of data.measurements as Array<Record<string, unknown>>) {
           if (!m.id || typeof m.id !== 'string') continue;
           if (!m.date || typeof m.date !== 'string') continue;
           const safe: Record<string, string | number> = {
@@ -426,18 +439,44 @@ export const useFirebaseWorkoutActions = (
           const numFields = ['weight', 'armLeft', 'armRight', 'chest', 'waist', 'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight'];
           for (const field of numFields) {
             if (m[field] !== undefined && typeof m[field] === 'number') {
-              safe[field] = Math.max(0, Math.min(999, m[field]));
+              safe[field] = Math.max(0, Math.min(999, m[field] as number));
             }
           }
-          await setDoc(doc(db, MEASUREMENTS_COLLECTION, safe.id as string), safe);
-          imported++;
+          ops.push({ collection: MEASUREMENTS_COLLECTION, id: safe.id as string, data: safe });
         }
+      }
+
+      if (data.planCycles && Array.isArray(data.planCycles)) {
+        for (const cycle of data.planCycles as Array<Record<string, unknown>>) {
+          if (!cycle || typeof cycle.id !== 'string' || !cycle.id) continue;
+          ops.push({ collection: 'plan_cycles', id: cycle.id.slice(0, 100), data: { ...cycle, userId } });
+        }
+      }
+
+      // Batch po 400 (limit Firestore: 500 operacji) — bez twardego limitu liczby rekordów.
+      for (let i = 0; i < ops.length; i += 400) {
+        const batch = writeBatch(db);
+        const chunk = ops.slice(i, i + 400);
+        chunk.forEach((op) => batch.set(doc(db, op.collection, op.id), op.data));
+        await batch.commit();
+        imported += chunk.length;
+      }
+
+      const tp = data.trainingPlan;
+      if (tp && typeof tp === 'object' && Array.isArray(tp.days) && tp.days.length > 0) {
+        await setDoc(doc(db, 'training_plans', userId), {
+          days: tp.days,
+          durationWeeks: typeof tp.durationWeeks === 'number' ? tp.durationWeeks : 12,
+          ...(typeof tp.startDate === 'string' ? { startDate: tp.startDate.slice(0, 10) } : {}),
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        imported++;
       }
 
       return { success: true, message: t('data.imported', { n: imported }) };
     } catch (err) {
       console.error('Error importing data:', err);
-      return { success: false, message: t('data.importError') };
+      return { success: false, message: t('data.importWriteError', { n: imported }) };
     }
   }, [userId, t]);
 

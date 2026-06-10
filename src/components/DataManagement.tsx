@@ -21,6 +21,10 @@ interface DataManagementProps {
   onImport: (jsonString: string) => Promise<{ success: boolean; message: string }>;
   onCleanup?: () => Promise<{ deleted: number; error?: string }>;
   onRepair?: () => Promise<{ updated: number; scanned: number; error?: string }>;
+  /** ID istniejących treningów — do policzenia, ile rekordów import nadpisze. */
+  existingWorkoutIds?: string[];
+  /** Blokuje operacje, dopóki dane się nie załadują (eksport przed snapshotem = pusty backup). */
+  disabled?: boolean;
   title?: string;
   description?: string;
   exportLabel?: string;
@@ -29,11 +33,23 @@ interface DataManagementProps {
   repairLabel?: string;
 }
 
+interface PendingImport {
+  content: string;
+  date: string | null;
+  workouts: number;
+  measurements: number;
+  cycles: number;
+  hasPlan: boolean;
+  overwrites: number;
+}
+
 export const DataManagement = ({
   onExport,
   onImport,
   onCleanup,
   onRepair,
+  existingWorkoutIds,
+  disabled,
   title,
   description,
   exportLabel,
@@ -47,6 +63,8 @@ export const DataManagement = ({
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
   const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const handleExport = () => {
     const data = onExport();
@@ -70,20 +88,38 @@ export const DataManagement = ({
     fileInputRef.current?.click();
   };
 
+  // Wybór pliku NIE importuje od razu — najpierw dialog z podsumowaniem (co i ile nadpisze).
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       const content = event.target?.result as string;
-      const result = await onImport(content);
-
-      toast({
-        title: result.success ? t('data.import.done') : t('data.import.error'),
-        description: result.message,
-        variant: result.success ? "default" : "destructive",
-      });
+      try {
+        const data = JSON.parse(content) as {
+          workouts?: Array<{ id?: string }>;
+          measurements?: unknown[];
+          planCycles?: unknown[];
+          trainingPlan?: { days?: unknown[] };
+          exportedAt?: string;
+        };
+        const workoutIds = Array.isArray(data.workouts)
+          ? data.workouts.map((w) => w?.id).filter((id): id is string => typeof id === 'string')
+          : [];
+        const existing = new Set(existingWorkoutIds ?? []);
+        setPendingImport({
+          content,
+          date: typeof data.exportedAt === 'string' ? data.exportedAt.slice(0, 10) : null,
+          workouts: workoutIds.length,
+          measurements: Array.isArray(data.measurements) ? data.measurements.length : 0,
+          cycles: Array.isArray(data.planCycles) ? data.planCycles.length : 0,
+          hasPlan: Array.isArray(data.trainingPlan?.days) && data.trainingPlan.days.length > 0,
+          overwrites: workoutIds.filter((id) => existing.has(id)).length,
+        });
+      } catch {
+        toast({ title: t('data.import.error'), description: t('data.importError'), variant: 'destructive' });
+      }
     };
     reader.readAsText(file);
 
@@ -91,6 +127,20 @@ export const DataManagement = ({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!pendingImport) return;
+    setIsImporting(true);
+    const result = await onImport(pendingImport.content);
+    setIsImporting(false);
+    setPendingImport(null);
+
+    toast({
+      title: result.success ? t('data.import.done') : t('data.import.error'),
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
   };
 
   const handleCleanup = async () => {
@@ -150,11 +200,11 @@ export const DataManagement = ({
         </CardHeader>
         <CardContent className="space-y-4 px-3 sm:px-6">
           <div className="grid grid-cols-2 gap-3">
-            <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm">
+            <Button onClick={handleExport} variant="outline" className="w-full text-xs sm:text-sm" disabled={disabled}>
               <Download className="h-4 w-4 mr-1.5 shrink-0" />
               {exportLabel ?? t('data.exportLabel')}
             </Button>
-            <Button onClick={handleImportClick} variant="outline" className="w-full text-xs sm:text-sm">
+            <Button onClick={handleImportClick} variant="outline" className="w-full text-xs sm:text-sm" disabled={disabled}>
               <Upload className="h-4 w-4 mr-1.5 shrink-0" />
               {importLabel ?? t('data.importLabel')}
             </Button>
@@ -172,7 +222,7 @@ export const DataManagement = ({
               onClick={() => setRepairConfirmOpen(true)}
               variant="outline"
               className="w-full text-fitness-cyan border-fitness-cyan/40 hover:bg-fitness-cyan/10"
-              disabled={isRepairing}
+              disabled={isRepairing || disabled}
             >
               {isRepairing ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -188,7 +238,7 @@ export const DataManagement = ({
               onClick={handleCleanup}
               variant="outline"
               className="w-full text-fitness-warning border-fitness-warning/40 hover:bg-fitness-warning/10"
-              disabled={isCleaningUp}
+              disabled={isCleaningUp || disabled}
             >
               {isCleaningUp ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -200,6 +250,31 @@ export const DataManagement = ({
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!pendingImport} onOpenChange={(open) => { if (!open && !isImporting) setPendingImport(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('data.import.confirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingImport && t('data.import.confirmDesc', {
+                date: pendingImport.date ?? t('data.import.unknownDate'),
+                workouts: pendingImport.workouts,
+                measurements: pendingImport.measurements,
+                cycles: pendingImport.cycles,
+                plan: pendingImport.hasPlan ? '✓' : '—',
+                overwrites: pendingImport.overwrites,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isImporting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void handleConfirmImport(); }} disabled={isImporting}>
+              {isImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              {importLabel ?? t('data.importLabel')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={repairConfirmOpen} onOpenChange={setRepairConfirmOpen}>
         <AlertDialogContent>
