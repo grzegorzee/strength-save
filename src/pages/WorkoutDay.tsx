@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, ChevronDown } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { RestTimer } from '@/components/RestTimer';
@@ -1387,13 +1387,25 @@ const WorkoutDay = () => {
     </Card>
   ) : null;
 
-  // Auto-save indicator: lokalny zapis jest cichy (trening trzymany lokalnie, sync leci
-  // przy "Zakończ trening"). Pokazujemy TYLKO realny błąd, żeby nie zaśmiecać ekranu.
+  // Auto-save indicator: dwa proste stany dla usera ("na telefonie" / "w chmurze HH:MM")
+  // plus czerwony błąd. Wewnętrzne statusy (7 wartości) zostają tylko logiką.
   const AutoSaveIndicator = () => {
-    if (autoSaveStatus !== 'error') return null;
+    if (autoSaveStatus === 'error') {
+      return (
+        <div className="fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300 bg-destructive/20 text-destructive">
+          <CloudOff className="h-3 w-3" /> {t('workout.status.error')}
+        </div>
+      );
+    }
+    if (!isWorkoutStarted || isCompleted) return null;
+    const lastCloudSync = activeDraft?.lastFirebaseSyncAt ?? null;
+    const cloudCurrent = !!lastCloudSync && !activeDraft?.dirty;
     return (
-      <div className="fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300 bg-destructive/20 text-destructive">
-        <CloudOff className="h-3 w-3" /> {t('workout.status.error')}
+      <div className="fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300 bg-surface-high/90 text-muted-foreground backdrop-blur">
+        {cloudCurrent ? <Cloud className="h-3 w-3 text-fitness-success" /> : <Smartphone className="h-3 w-3" />}
+        {cloudCurrent
+          ? t('workout.status.cloudSaved', { time: new Date(lastCloudSync).toLocaleTimeString(dateLocale(lang), { hour: '2-digit', minute: '2-digit' }) })
+          : t('workout.status.localSaved')}
       </div>
     );
   };

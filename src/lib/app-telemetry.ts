@@ -11,6 +11,7 @@ export type TelemetryEventName =
   | 'local_save_failed'
   | 'sync_retry_manual'
   | 'sync_retry_batch'
+  | 'sync_retry_auto'
   | 'sync_success'
   | 'sync_failure'
   | 'sync_validation_failed'
