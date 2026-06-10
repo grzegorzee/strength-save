@@ -61,12 +61,15 @@ const ChartHeader = ({ icon: Icon, title }: { icon: LucideIcon; title: string })
   </div>
 );
 
-// Gradient pod liniami/słupkami — definicja per wykres (unikalne id).
-const ChartGradient = ({ id }: { id: string }) => (
+// Gradient pod liniami/słupkami — <defs> musi być bezpośrednim dzieckiem wykresu
+// (recharts ignoruje nieznane komponenty-wrappery w children). Kolor literalny
+// = --primary (73 97% 56%): var() w stop-color nie parsuje się w atrybucie SVG.
+const PRIMARY_HSL = 'hsl(73, 97%, 56%)';
+const gradientDef = (id: string, strong?: boolean) => (
   <defs>
     <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.45} />
-      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
+      <stop offset="0%" stopColor={PRIMARY_HSL} stopOpacity={strong ? 1 : 0.45} />
+      <stop offset="100%" stopColor={PRIMARY_HSL} stopOpacity={strong ? 0.35 : 0.02} />
     </linearGradient>
   </defs>
 );
@@ -261,7 +264,7 @@ const AnalyticsChartsTab = () => {
             <ChartHeader icon={Dumbbell} title={t('analytics.subtab.workouts')} />
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={workoutsData.weeks}>
-                <ChartGradient id="grad-workouts" />
+                {gradientDef('grad-workouts', true)}
                 <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                 <XAxis dataKey="label" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={2} {...axisProps} />
                 <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" allowDecimals={false} domain={[0, 'auto']} width={28} {...axisProps} />
@@ -288,7 +291,7 @@ const AnalyticsChartsTab = () => {
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={tonnageData.chartData}>
-                  <ChartGradient id="grad-tonnage" />
+                  {gradientDef('grad-tonnage')}
                   <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(tonnageData.chartData.length / 6) - 1)} {...axisProps} />
                   <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} {...axisProps} />
@@ -315,7 +318,7 @@ const AnalyticsChartsTab = () => {
               <ChartHeader icon={Scale} title={t('analytics.subtab.weight')} />
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={weightData.chartData}>
-                  <ChartGradient id="grad-weight" />
+                  {gradientDef('grad-weight')}
                   <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" interval={Math.max(0, Math.floor(weightData.chartData.length / 6) - 1)} {...axisProps} />
                   <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" unit={` ${unit}`} domain={['dataMin - 1', 'dataMax + 1']} {...axisProps} />
@@ -406,7 +409,7 @@ const AnalyticsChartsTab = () => {
                     {ex.chartData.length >= 2 ? (
                       <ResponsiveContainer width="100%" height={150}>
                         <AreaChart data={ex.chartData}>
-                          <ChartGradient id={`grad-ex-${ex.id}`} />
+                          {gradientDef(`grad-ex-${ex.id}`)}
                           <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
                           <XAxis dataKey="date" tick={{ fontSize: 9 }} className="fill-muted-foreground" {...axisProps} />
                           <YAxis tick={{ fontSize: 9 }} className="fill-muted-foreground" unit={ex.isBodyweight ? ' rp' : ` ${unit}`} width={45} {...axisProps} />
