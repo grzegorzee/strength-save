@@ -11,6 +11,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
@@ -64,6 +74,7 @@ const PlanEditor = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<LibraryExercise['category'] | 'all'>('all');
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const filteredExercises = exerciseLibrary.filter(ex => {
     const q = searchQuery.toLowerCase();
@@ -127,6 +138,7 @@ const PlanEditor = () => {
   };
 
   const handleReset = async () => {
+    setResetConfirmOpen(false);
     const result = await resetToDefault();
     if (result.success) {
       toast({ title: t('planeditor.resetTitle'), description: t('planeditor.resetDesc') });
@@ -230,7 +242,7 @@ const PlanEditor = () => {
             <p className="text-xs text-muted-foreground">{t('planeditor.modified')}</p>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={handleReset}>
+        <Button variant="outline" size="sm" onClick={() => setResetConfirmOpen(true)}>
           <RefreshCcw className="h-4 w-4 mr-2" />
           {t('planeditor.reset')}
         </Button>
@@ -329,6 +341,19 @@ const PlanEditor = () => {
       ))}
 
       <ExerciseSwapDialog />
+
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('planeditor.resetConfirmTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('planeditor.resetConfirmDesc')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleReset}>{t('planeditor.reset')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

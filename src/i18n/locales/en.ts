@@ -549,6 +549,8 @@ export const en: Record<keyof typeof pl, string> = {
   'planeditor.error': 'Error',
   'planeditor.addedTitle': 'Added!',
   'planeditor.removedTitle': 'Removed',
+  'planeditor.resetConfirmTitle': 'Restore the default plan?',
+  'planeditor.resetConfirmDesc': 'Your current plan (all exercise and set changes) will be overwritten with the default plan. This cannot be undone.',
   'planeditor.resetTitle': 'Reset!',
   'planeditor.resetDesc': 'Plan restored to default.',
   'planeditor.swapExercise': 'Swap exercise',

@@ -135,6 +135,8 @@ interface PlanWizardProps {
   showWelcome?: boolean;
   socialProof?: boolean;
   initial?: { level?: WizardLevel; objective?: PlanObjective; daysPerWeek?: number };
+  /** Poprzedni wybór (powrót z preview) — przywraca selekcje, datę startu i własny plan zamiast zaczynać od zera. */
+  resume?: PlanWizardChoice | null;
   startAtPrecision?: boolean;
   confirmLabelKey: TranslationKey;
   onConfirm: (choice: PlanWizardChoice) => void;
@@ -143,19 +145,24 @@ interface PlanWizardProps {
   onExitBack?: () => void;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, socialProof, initial, resume, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
 
-  const initialDays = initial?.daysPerWeek ?? 4;
+  const initialDays = resume?.daysPerWeek ?? initial?.daysPerWeek ?? 4;
+  const resumedCustomPlan = resume && !resume.templateId ? resume : null;
   const [step, setStep] = useState(showWelcome ? 1 : startAtPrecision ? 5 : 2);
-  const [level, setLevel] = useState<WizardLevel>(initial?.level ?? 'beginner');
-  const [objective, setObjective] = useState<PlanObjective>(initial?.objective ?? 'build_muscle');
+  const [level, setLevel] = useState<WizardLevel>(resume?.level ?? initial?.level ?? 'beginner');
+  const [objective, setObjective] = useState<PlanObjective>(resume?.objective ?? initial?.objective ?? 'build_muscle');
   const [daysPerWeek, setDaysPerWeek] = useState(initialDays);
-  const [trainingDays, setTrainingDays] = useState<Weekday[]>(DEFAULT_DAYS[initialDays] ?? DEFAULT_DAYS[4]);
-  const [startDate, setStartDate] = useState(() => formatLocalDate(new Date()));
-  const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>('recommend');
-  const [picked, setPicked] = useState<PlanTemplate | null>(null);
+  const [trainingDays, setTrainingDays] = useState<Weekday[]>(() => {
+    const fromResume = resume?.days.map((d) => d.weekday).filter(Boolean);
+    return fromResume && fromResume.length ? fromResume : (DEFAULT_DAYS[initialDays] ?? DEFAULT_DAYS[4]);
+  });
+  const [startDate, setStartDate] = useState(() => resume?.startDate ?? formatLocalDate(new Date()));
+  const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>(resumedCustomPlan ? 'own' : 'recommend');
+  const [picked, setPicked] = useState<PlanTemplate | null>(() =>
+    resume?.templateId ? planTemplates.find((p) => p.id === resume.templateId) ?? null : null);
   const [reachedViaSteps, setReachedViaSteps] = useState(!startAtPrecision);
 
   const recommended = useMemo(() => getRecommendedPlan(objective, mapLevel(level), daysPerWeek), [objective, level, daysPerWeek]);
@@ -177,7 +184,8 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, startAtPrecision
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-lg mx-auto">
           <PlanBuilder
-            initialDurationWeeks={12}
+            initialDays={resumedCustomPlan?.days}
+            initialDurationWeeks={resumedCustomPlan?.durationWeeks ?? 12}
             onSubmit={(days, weeks) => fire(days, weeks, undefined)}
             onCancel={() => setMode('recommend')}
           />

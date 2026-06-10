@@ -555,6 +555,8 @@ export const pl = {
   'planeditor.error': 'Błąd',
   'planeditor.addedTitle': 'Dodano!',
   'planeditor.removedTitle': 'Usunięto',
+  'planeditor.resetConfirmTitle': 'Przywrócić plan domyślny?',
+  'planeditor.resetConfirmDesc': 'Twój obecny plan (wszystkie zmiany ćwiczeń i serii) zostanie nadpisany planem domyślnym. Tej operacji nie można cofnąć.',
   'planeditor.resetTitle': 'Zresetowano!',
   'planeditor.resetDesc': 'Plan przywrócony do domyślnego.',
   'planeditor.swapExercise': 'Zamień ćwiczenie',

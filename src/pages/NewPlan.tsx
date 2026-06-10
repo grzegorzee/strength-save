@@ -21,6 +21,7 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 import type { ExerciseReplacement } from '@/types';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
+import { swapExerciseIdentity } from '@/lib/exercise-swap';
 
 interface ProfileHint { level: WizardLevel; objective: PlanObjective; daysPerWeek: number }
 
@@ -74,7 +75,8 @@ const NewPlan = () => {
   const confirmSwap = (rep: ExerciseReplacement) => {
     setReviewDays((days) => days.map((day) => day.id !== swap.dayId ? day : {
       ...day,
-      exercises: day.exercises.map((ex) => ex.id !== swap.exerciseId ? ex : { ...ex, name: rep.name, sets: rep.sets || ex.sets, videoUrl: rep.videoUrl, instructions: [] }),
+      // swapExerciseIdentity pomija videoUrl gdy zamiennik go nie ma — undefined wywala setDoc w Firestore.
+      exercises: day.exercises.map((ex) => ex.id !== swap.exerciseId ? ex : swapExerciseIdentity(ex, rep, day.exercises.map((e) => e.id))),
     }));
   };
   const usedNames = (days: TrainingDay[]) => days.flatMap((d) => d.exercises.map((e) => e.name));
@@ -114,6 +116,7 @@ const NewPlan = () => {
     return (
       <PlanWizard
         initial={profileHint}
+        resume={chosen}
         startAtPrecision
         confirmLabelKey="newplan.toReview"
         onConfirm={onWizardConfirm}
