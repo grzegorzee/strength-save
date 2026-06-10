@@ -271,6 +271,22 @@ const WorkoutDay = () => {
     w.exercises.length > 0
   );
 
+  // Fallback pre-fillu po nazwie ćwiczenia z całej historii — dayId/exerciseId
+  // zmieniają się między cyklami, więc po starcie nowego cyklu lookup po id nie trafia.
+  const previousSetsByName = useMemo(() => {
+    const map = new Map<string, SetData[]>();
+    const sorted = workouts
+      .filter(w => w.completed && w.date < targetDate && w.exercises.length > 0)
+      .sort((a, b) => b.date.localeCompare(a.date));
+    for (const w of sorted) {
+      for (const ex of w.exercises) {
+        if (!ex.name || map.has(ex.name) || !ex.sets || ex.sets.length === 0) continue;
+        map.set(ex.name, ex.sets);
+      }
+    }
+    return map;
+  }, [workouts, targetDate]);
+
   const queueAutoSaveStatus = useCallback((status: AutoSaveStatus, nextStatus?: AutoSaveStatus, delay = 1600) => {
     setAutoSaveStatus(status);
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -948,7 +964,7 @@ const WorkoutDay = () => {
         // Pre-fill with progression from previous workout
         const prefilled: Record<string, SetData[]> = {};
         day.exercises.forEach((exercise) => {
-          const prevSets = getPreviousSets(exercise.id);
+          const prevSets = getPreviousSets(exercise.id, exercise.name);
           const count = parseSetCount(exercise.sets);
           prefilled[exercise.id] = createPrefilledSets(
             count, prevSets, isBodyweightExercise(exercise.name)
@@ -1253,10 +1269,11 @@ const WorkoutDay = () => {
   };
 
   // Get previous sets for a specific exercise
-  const getPreviousSets = (exerciseId: string): SetData[] | undefined => {
-    if (!previousWorkout) return undefined;
-    const ex = previousWorkout.exercises.find(e => e.exerciseId === exerciseId);
-    return ex?.sets;
+  const getPreviousSets = (exerciseId: string, exerciseName?: string): SetData[] | undefined => {
+    const ex = previousWorkout?.exercises.find(e => e.exerciseId === exerciseId);
+    if (ex?.sets && ex.sets.length > 0) return ex.sets;
+    // Nowy cykl = nowe id — dopasuj po nazwie (snapshot w historii).
+    return exerciseName ? previousSetsByName.get(exerciseName) : undefined;
   };
 
   if (!day) {
@@ -1656,7 +1673,7 @@ const WorkoutDay = () => {
               index={index + 1}
               savedSets={exerciseSets[exercise.id]}
               savedNotes={exerciseNotes[exercise.id]}
-              previousSets={getPreviousSets(exercise.id)}
+              previousSets={getPreviousSets(exercise.id, exercise.name)}
               onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
               isBodyweight={isBodyweightExercise(exercise.name)}
               isEditable={isWorkoutStarted && !isCompleted}
