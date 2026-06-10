@@ -11,6 +11,42 @@ const days: TrainingDay[] = [{
 }];
 
 describe('cycle lifecycle actions', () => {
+  it('archives the previous plan as a completed cycle when starting a new one', async () => {
+    const savePlan = vi.fn().mockResolvedValue({ success: true });
+    const createActiveCycle = vi.fn().mockResolvedValue('new-cycle-id');
+    const archiveCurrentPlan = vi.fn().mockResolvedValue('archived-cycle-id');
+    const backfillHistoricalWorkouts = vi.fn().mockResolvedValue(undefined);
+
+    const oldPlan: TrainingDay[] = [{
+      id: 'old-day-1',
+      dayName: 'Wtorek',
+      weekday: 'tuesday',
+      focus: 'Pull',
+      exercises: [{ id: 'old-ex-1', name: 'Row', sets: '3 x 8', instructions: [] }],
+    }];
+
+    const result = await startCycleWithPlan(days, 8, {
+      uid: 'u1',
+      currentPlan: oldPlan,
+      planStartDate: '2026-05-04',
+      planDurationWeeks: 6,
+      workouts: [],
+      startDate: '2026-06-10',
+      archiveCurrentPlan,
+      savePlan,
+      createActiveCycle,
+      backfillHistoricalWorkouts,
+    });
+
+    expect(result.success).toBe(true);
+    // Stary plan trafia do archiwum (cykl completed), nie jest kasowany w ciszy.
+    expect(archiveCurrentPlan).toHaveBeenCalledWith(oldPlan, 6, '2026-05-04', []);
+    // Historia treningów dotagowana snapshotem zarchiwizowanego cyklu.
+    expect(backfillHistoricalWorkouts).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'archived-cycle-id', days: oldPlan, status: 'completed' }),
+    ]);
+  });
+
   it('rolls back NewPlan plan save when active cycle creation fails', async () => {
     const savePlan = vi.fn()
       .mockResolvedValueOnce({ success: true })
