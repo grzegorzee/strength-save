@@ -26,7 +26,7 @@ All colors MUST be HSL.
     --muted: 210 20% 96%;
     --muted-foreground: 215 16% 47%;
 
-    --accent: 186 100% 50%;
+    --accent: 73 97% 56%;
     --accent-foreground: 0 0% 6%;
 
     --destructive: 0 84% 60%;
@@ -39,7 +39,8 @@ All colors MUST be HSL.
     --radius: 0.75rem;
 
     /* Fitness app custom colors */
-    --fitness-cyan: 186 100% 50%;
+    /* Ujednolicone do primary (zieleń) — cyjan był niespójnym drugim akcentem (audyt produktu) */
+    --fitness-cyan: 73 97% 56%;
     --fitness-navy: 220 60% 25%;
     --fitness-success: 73 97% 56%;
     --fitness-warning: 38 92% 50%;
@@ -90,7 +91,7 @@ All colors MUST be HSL.
     --muted: 0 0% 12%;
     --muted-foreground: 0 0% 57%;
 
-    --accent: 186 100% 50%;
+    --accent: 73 97% 56%;
     --accent-foreground: 0 0% 6%;
 
     --destructive: 0 63% 31%;
@@ -100,7 +101,8 @@ All colors MUST be HSL.
     --input: 0 0% 7%;
     --ring: 73 97% 56%;
 
-    --fitness-cyan: 186 100% 50%;
+    /* Ujednolicone do primary (zieleń) — cyjan był niespójnym drugim akcentem (audyt produktu) */
+    --fitness-cyan: 73 97% 56%;
     --fitness-navy: 220 60% 45%;
     --fitness-success: 73 97% 56%;
     --fitness-warning: 38 92% 50%;
