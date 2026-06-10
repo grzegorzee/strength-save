@@ -7,7 +7,8 @@ import { readFileSync } from 'node:fs';
 
 const env = await initializeTestEnvironment({
   projectId: 'rules-repro',
-  firestore: { rules: readFileSync('firestore.rules', 'utf8'), host: '127.0.0.1', port: 8080 },
+  // Port 8081 zgodnie z firebase.json (8080 koliduje z vite dev serverem przy e2e:emulator).
+  firestore: { rules: readFileSync('firestore.rules', 'utf8'), host: '127.0.0.1', port: 8081 },
 });
 
 const UID = 'user123';

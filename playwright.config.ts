@@ -1,7 +1,11 @@
 import { defineConfig } from '@playwright/test';
 
+// Suite e2e:mock — szybkie testy UI bez backendu (VITE_E2E_MODE + blockFirebase).
+// Testy emulatorowe (real auth/rules) żyją w e2e/emulator i mają własny config:
+// playwright.emulator.config.ts (npm run e2e:emulator).
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: '**/emulator/**',
   timeout: 30000,
   retries: process.env.CI ? 2 : 0,
   use: {

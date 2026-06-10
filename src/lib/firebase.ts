@@ -1,16 +1,17 @@
 import { initializeApp } from "firebase/app";
 import { Capacitor } from "@capacitor/core";
-import { getFirestore } from "firebase/firestore";
+import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import {
   initializeAuth,
+  connectAuthEmulator,
   indexedDBLocalPersistence,
   browserLocalPersistence,
   browserPopupRedirectResolver,
   GoogleAuthProvider,
   OAuthProvider,
 } from "firebase/auth";
-import { getFunctions } from "firebase/functions";
+import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -40,6 +41,15 @@ export const auth = Capacitor.isNativePlatform()
       popupRedirectResolver: browserPopupRedirectResolver,
     });
 export const functions = getFunctions(app, "us-central1");
+
+// e2e:emulator — podłącz SDK do lokalnych emulatorów zamiast produkcji.
+// Porty zgodne z firebase.json (firestore na 8081, bo 8080 zajmuje vite dev server).
+if (import.meta.env.VITE_USE_EMULATORS === "true") {
+  connectFirestoreEmulator(db, "127.0.0.1", 8081);
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+}
+
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = (() => {
   const provider = new OAuthProvider("apple.com");
