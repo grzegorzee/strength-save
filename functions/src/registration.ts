@@ -1033,13 +1033,9 @@ export const adminSendPush = onCall(async (request) => {
 });
 
 // Usuń użytkownika: konto Auth + dane Firestore (GDPR). Operacja nieodwracalna.
-export const adminDeleteUser = onCall(async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
-  await assertAdmin(request.auth.uid);
-  const uid = normalizeOptionalString(request.data?.uid, 120);
-  if (!uid) throw new HttpsError("invalid-argument", "uid required");
-  if (uid === request.auth.uid) throw new HttpsError("failed-precondition", "Nie można usunąć własnego konta admina.");
-
+// Pełne usunięcie konta i danych użytkownika (Auth + wszystkie kolekcje + avatary Storage).
+// Wspólne dla adminDeleteUser i deleteOwnAccount (wymóg Apple 5.1.1(v): self-service delete).
+async function purgeUserData(uid: string): Promise<Record<string, number>> {
   const db = getDb();
 
   try {
@@ -1075,6 +1071,25 @@ export const adminDeleteUser = onCall(async (request) => {
     await db.collection(coll).doc(uid).delete().catch(() => {});
   }
 
+  // Avatary w Storage (avatars/{uid}/...) — bez tego pliki zostają po usunięciu konta.
+  try {
+    await admin.storage().bucket().deleteFiles({ prefix: `avatars/${uid}/` });
+  } catch (error) {
+    console.error("Failed to delete user avatars from Storage", error);
+  }
+
+  return deletedCounts;
+}
+
+export const adminDeleteUser = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const uid = normalizeOptionalString(request.data?.uid, 120);
+  if (!uid) throw new HttpsError("invalid-argument", "uid required");
+  if (uid === request.auth.uid) throw new HttpsError("failed-precondition", "Nie można usunąć własnego konta admina.");
+
+  const deletedCounts = await purgeUserData(uid);
+
   await writeAuthAuditLog({
     eventType: "admin_user_deleted",
     uid: null,
@@ -1087,6 +1102,34 @@ export const adminDeleteUser = onCall(async (request) => {
     },
   }).catch((error) => {
     console.error("Failed to write sanitized admin delete audit log", error);
+  });
+  return { success: true };
+});
+
+// Self-service usunięcie własnego konta (wymóg Apple 5.1.1(v)).
+export const deleteOwnAccount = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  const uid = request.auth.uid;
+
+  const profile = await getDb().collection(USERS_COLLECTION).doc(uid).get();
+  if (profile.data()?.role === "admin") {
+    throw new HttpsError("failed-precondition", "Konto admina nie może usunąć samo siebie.");
+  }
+
+  const deletedCounts = await purgeUserData(uid);
+
+  await writeAuthAuditLog({
+    eventType: "user_self_deleted",
+    uid: null,
+    email: null,
+    actorUid: null,
+    createdAt: nowIso(),
+    metadata: {
+      deletedUidHash: sanitizedIdentifierHash(uid),
+      deletedCounts,
+    },
+  }).catch((error) => {
+    console.error("Failed to write sanitized self delete audit log", error);
   });
   return { success: true };
 });

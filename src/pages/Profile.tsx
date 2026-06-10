@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { LanguageCode } from '@/i18n';
 import { computeTier } from '@/lib/tier';
+import { deleteOwnAccount } from '@/lib/registration-api';
 import { SectionCard } from '@/components/kinetic/SectionCard';
 import { SettingRow } from '@/components/kinetic/SettingRow';
 import { TierBadge } from '@/components/kinetic/TierBadge';
@@ -56,6 +57,26 @@ const Profile = () => {
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
   const [savingName, setSavingName] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const deleteConfirmWord = lang === 'pl' ? 'USUŃ' : 'DELETE';
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      await deleteOwnAccount();
+      // Konto Auth już nie istnieje — lokalny logout domyka sesję, gate przejmuje resztę.
+      await logout();
+    } catch (err) {
+      setDeletingAccount(false);
+      toast({
+        title: t('profile.deleteAccount.error'),
+        description: err instanceof Error ? err.message : '',
+        variant: 'destructive',
+      });
+    }
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,6 +237,47 @@ const Profile = () => {
       >
         <LogOut className="mr-2 h-4 w-4" /> {t('profile.logout')}
       </Button>
+
+      <button
+        onClick={() => { setDeleteConfirmInput(''); setDeleteAccountOpen(true); }}
+        className="w-full text-center text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
+      >
+        {t('profile.deleteAccount')}
+      </button>
+
+      {/* Delete account dialog (Apple 5.1.1(v): self-service usunięcie konta) */}
+      <Dialog open={deleteAccountOpen} onOpenChange={(open) => { if (!deletingAccount) setDeleteAccountOpen(open); }}>
+        <DialogContent className="rounded-xl border-0 bg-surface-low">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase text-destructive">{t('profile.deleteAccount')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('profile.deleteAccount.desc')}</p>
+          <div className="space-y-2">
+            <label htmlFor="delete-account-confirm" className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              {t('profile.deleteAccount.typeToConfirm', { word: deleteConfirmWord })}
+            </label>
+            <Input
+              id="delete-account-confirm"
+              value={deleteConfirmInput}
+              onChange={(e) => setDeleteConfirmInput(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteAccountOpen(false)} disabled={deletingAccount}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount || deleteConfirmInput.trim().toUpperCase() !== deleteConfirmWord}
+            >
+              {deletingAccount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {t('profile.deleteAccount.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit profile dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

@@ -29,6 +29,7 @@ export const GDPR_USER_ID_COLLECTIONS = [
   "ai_usage",
   "api_audit_logs",
   "notification_logs",
+  "app_telemetry_daily",
 ] as const;
 
 export const GDPR_UID_FIELD_COLLECTIONS = [

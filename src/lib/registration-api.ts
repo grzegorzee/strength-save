@@ -310,3 +310,9 @@ export async function adminDeleteUser(uid: string) {
   const fn = httpsCallable<{ uid: string }, { success: boolean }>(functions, "adminDeleteUser");
   return (await fn({ uid })).data;
 }
+
+export async function deleteOwnAccount() {
+  if (isE2EMode) return { success: true };
+  const fn = httpsCallable<Record<string, never>, { success: boolean }>(functions, "deleteOwnAccount");
+  return (await fn({})).data;
+}
