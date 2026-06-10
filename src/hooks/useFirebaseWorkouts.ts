@@ -332,7 +332,14 @@ export const useFirebaseWorkoutActions = (
   }, [userId, t]);
 
   const getLatestMeasurement = useCallback(() => {
-    return measurements[0];
+    // Najnowszy pomiar z faktycznymi danymi (measurements jest desc po dacie). Pomijamy
+    // puste/częściowe rekordy, by formularz prefillował się sensownymi wartościami,
+    // a nie pustkami (gdy najnowszy wpis nie ma jeszcze wypełnionych pól).
+    const hasValue = (m: BodyMeasurement) =>
+      m.weight != null || m.armLeft != null || m.armRight != null || m.chest != null ||
+      m.waist != null || m.hips != null || m.thighLeft != null || m.thighRight != null ||
+      m.calfLeft != null || m.calfRight != null;
+    return measurements.find(hasValue) ?? measurements[0];
   }, [measurements]);
 
   const getTotalWeight = useCallback(() => {
