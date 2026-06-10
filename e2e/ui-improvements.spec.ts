@@ -52,7 +52,9 @@ test.describe('Navigation', () => {
     for (let i = 0; i < 8; i += 1) {
       await page.keyboard.press('Tab');
       const focusedHref = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
-      expect(focusedHref).not.toBe('#/analytics');
+      // Linki tylko-sidebarowe (history/measurements/achievements/cycles) nie mogą
+      // łapać fokusa przy zamkniętym drawerze; analytics jest teraz w dolnym pasku.
+      expect(focusedHref).not.toBe('#/history');
       expect(focusedHref).not.toBe('#/measurements');
       expect(focusedHref).not.toBe('#/achievements');
       expect(focusedHref).not.toBe('#/cycles');

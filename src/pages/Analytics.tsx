@@ -279,7 +279,8 @@ const Analytics = () => {
   const validTabs: AnalyticsTab[] = canUseStrava
     ? ['summary', 'charts', 'strava', 'weekly']
     : ['summary', 'charts', 'weekly'];
-  const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'summary';
+  // Bez parametru ?tab= otwieramy podsumowanie tygodniowe (wejście z dolnego paska).
+  const currentTab: AnalyticsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'weekly';
 
   return (
     <div className="space-y-4">

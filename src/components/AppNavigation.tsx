@@ -23,14 +23,14 @@ interface AppNavigationProps {
 }
 
 const navItems = [
-  // Pierwsze 5 = mobilny bottom nav (mockup): Dashboard / Historia / Plan / Ćwiczenia / Profil
+  // Pierwsze 5 = mobilny bottom nav: Dashboard / Plan / Analityka / Ćwiczenia / Profil
   { to: '/', icon: Home, labelKey: 'nav.dashboard' as const },
   { to: '/plan', icon: Calendar, labelKey: 'nav.plan' as const },
-  { to: '/history', icon: ScrollText, labelKey: 'nav.history' as const },
+  { to: '/analytics', icon: BarChart3, labelKey: 'nav.analytics' as const },
   { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
   { to: '/profile', icon: User, labelKey: 'nav.profile' as const },
   // Pozostałe — sidebar (desktop) + menu mobilne
-  { to: '/analytics', icon: BarChart3, labelKey: 'nav.analytics' as const },
+  { to: '/history', icon: ScrollText, labelKey: 'nav.history' as const },
   { to: '/measurements', icon: Ruler, labelKey: 'nav.measurements' as const },
   { to: '/achievements', icon: Trophy, labelKey: 'nav.achievements' as const },
   { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
