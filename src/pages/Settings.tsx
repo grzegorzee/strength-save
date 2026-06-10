@@ -150,7 +150,7 @@ const Settings = () => {
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
   const { workouts, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
-  const { connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
+  const { connection, isSyncing, error, connectStrava, syncActivities, saveMaxHR, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
   const { t, lang } = useTranslation();
 
@@ -199,7 +199,12 @@ const Settings = () => {
     }
     setMaxHRSaving(true);
     try {
-      await updateDoc(doc(db, 'users', uid), { estimatedMaxHR: value, maxHRManualOverride: true });
+      // Rules blokują estimatedMaxHR/maxHRManualOverride w bezpośrednim update
+      // profilu — zapis idzie przez callable saveMaxHR (admin SDK).
+      const result = await saveMaxHR(value);
+      if (!result.ok) {
+        throw new Error(result.message);
+      }
       toast({ title: t('settings.toast.saved'), description: t('settings.maxHR.saved', { value }) });
     } catch {
       toast({ title: t('settings.toast.error'), description: t('settings.toast.saveFailed'), variant: 'destructive' });

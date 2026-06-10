@@ -135,6 +135,27 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     }
   }, [t]);
 
+  const saveMaxHR = useCallback(async (value: number): Promise<
+    | { ok: true; estimatedMaxHR: number }
+    | { ok: false; message: string }
+  > => {
+    setError(null);
+    console.log(`[Strava] Saving max HR override: ${value}...`);
+    try {
+      const functions = getFunctions();
+      const save = httpsCallable(functions, 'saveMaxHR');
+      const result = await save({ maxHR: value });
+      const data = result.data as { estimatedMaxHR: number };
+      console.log(`[Strava] Max HR saved: ${data.estimatedMaxHR}`);
+      return { ok: true, ...data };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t('strava.err.sync');
+      console.error('[Strava] Max HR save failed:', message);
+      setError(message);
+      return { ok: false, message };
+    }
+  }, [t]);
+
   const disconnectStrava = useCallback(async () => {
     setError(null);
     console.log('[Strava] Disconnecting...');
@@ -162,6 +183,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
       error: null,
       connectStrava: noop,
       syncActivities: noop as () => ReturnType<typeof syncActivities>,
+      saveMaxHR: noop as (value: number) => ReturnType<typeof saveMaxHR>,
       disconnectStrava: noop,
     };
   }
@@ -174,6 +196,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     error,
     connectStrava,
     syncActivities,
+    saveMaxHR,
     disconnectStrava,
   };
 };
