@@ -31,6 +31,7 @@ import {
   canUseStravaIntegration,
   hasCallableAppAccess,
   isValidStravaOAuthState,
+  readFeatureFlags,
   STRAVA_OAUTH_STATE_BYTES,
   STRAVA_OAUTH_STATE_TTL_MS,
 } from "./security";
@@ -201,12 +202,17 @@ async function assertStravaAccess(userId: string): Promise<void> {
   }
 }
 
-// AI per użytkownik: admin może wyłączyć AI ustawiając features.ai = false.
+// AI per użytkownik: admin może wyłączyć AI ustawiając features.ai = false
+// albo globalnie flagą config/feature_flags.aiEnabled (wyłącznik awaryjny).
 // Domyślnie AI jest włączone (undefined/true). Admin zawsze ma dostęp.
 async function assertAiEnabled(userId: string): Promise<void> {
   const userDoc = await getUserRef(userId).get();
   const data = userDoc.data();
   if (data?.role === "admin") return;
+  const flags = await readFeatureFlags(db);
+  if (flags.aiEnabled === false) {
+    throw new HttpsError("permission-denied", "AI disabled by admin");
+  }
   if (data?.features?.ai === false) {
     throw new HttpsError("permission-denied", "AI disabled by admin");
   }
@@ -550,6 +556,8 @@ export const generateWeeklySummary = onCall(
       throw new HttpsError("unauthenticated", "Must be logged in");
     }
     await assertAppAccess(request.auth.uid);
+    // Ta sama bramka co proxyOpenAI/streamOpenAI — bez niej wyłącznik AI admina nie działał na tę ścieżkę.
+    await assertAiEnabled(request.auth.uid);
 
     const { stats } = request.data;
     if (!stats) {

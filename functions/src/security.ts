@@ -41,6 +41,23 @@ export const GDPR_DIRECT_DOC_COLLECTIONS = [
   "users",
 ] as const;
 
+// Globalne flagi funkcji ustawiane przez admina (config/feature_flags).
+// Domyślnie wszystko otwarte — flaga działa dopiero gdy jawnie ustawiona na false.
+export interface FeatureFlags {
+  aiEnabled?: boolean;
+  registrationOpen?: boolean;
+  stravaForAll?: boolean;
+}
+
+export async function readFeatureFlags(db: FirebaseFirestore.Firestore): Promise<FeatureFlags> {
+  try {
+    const snap = await db.collection("config").doc("feature_flags").get();
+    return (snap.data() as FeatureFlags) || {};
+  } catch {
+    return {};
+  }
+}
+
 export function providerFromSignInProvider(provider: unknown): AuthProvider {
   if (provider === "google.com") return "google";
   if (provider === "apple.com") return "apple";

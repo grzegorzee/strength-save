@@ -22,6 +22,7 @@ import {
   GDPR_USER_ID_COLLECTIONS,
   providerFromSignInProvider,
   providerGetsImmediateAccess,
+  readFeatureFlags,
   resendErrorMessage,
 } from "./security";
 
@@ -308,6 +309,12 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
   const timestamp = nowIso();
 
   if (!current) {
+    // Flaga admina registrationOpen=false zamyka tworzenie nowych kont
+    // (kill switch m.in. na nadużycie budżetu AI przez masowe konta Google/Apple).
+    const flags = await readFeatureFlags(getDb());
+    if (flags.registrationOpen === false) {
+      throw new HttpsError("permission-denied", "Registration is currently closed");
+    }
     const immediateAccess = providerGetsImmediateAccess(provider);
     const nextProfile: UserProfileDoc = {
       uid,
