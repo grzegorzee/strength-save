@@ -45,6 +45,11 @@ export function prepareWeeklyData(
 
   // PRs
   const allNames = new Map(trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name])));
+  // Wzbogać o nazwy-snapshoty z samych treningów (ćwiczenia spoza bieżącego planu
+  // nie są w trainingPlan i bez tego renderowałyby się jako surowe id, np. "EX-3-1").
+  weekWorkouts.forEach(w => w.exercises.forEach(ex => {
+    if (ex.name && !allNames.has(ex.exerciseId)) allNames.set(ex.exerciseId, ex.name);
+  }));
   const historicalWorkouts = workouts.filter(w => w.completed && parseLocalDate(w.date) < bounds.start);
   const prs: WeeklySummaryStats['prs'] = [];
   weekWorkouts.forEach(w => {
