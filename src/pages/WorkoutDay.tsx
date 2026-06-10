@@ -20,8 +20,6 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { getNextSetAdvice } from '@/lib/next-set-advice';
 import { getRzaAdvice } from '@/lib/rza-progression';
-import { getExerciseHistory } from '@/lib/exercise-progression';
-import { callOpenAI } from '@/lib/ai-coach';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
@@ -86,7 +84,6 @@ const WorkoutDay = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isExplicitSaving, setIsExplicitSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [coachBusyId, setCoachBusyId] = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
   const [skippedExercises, setSkippedExercises] = useState<string[]>([]);
   const [activeDraft, setActiveDraft] = useState<ActiveWorkoutDraft | null>(null);
@@ -1095,45 +1092,6 @@ const WorkoutDay = () => {
     });
   }, [saveDraftSnapshot, toast, t]);
 
-  // AI coach on-demand: jedno wywołanie na żądanie (przycisk), z kontekstem realnej historii.
-  // Koszt tylko gdy user kliknie — limit $5/user pilnuje Cloud Function proxyOpenAI.
-  const handleAskCoach = async (exercise: Exercise) => {
-    if (coachBusyId) return;
-    setCoachBusyId(exercise.id);
-    try {
-      const isBw = isBodyweightExercise(exercise.name);
-      const history = getExerciseHistory(workouts, exercise.id, isBw).slice(-5);
-      const histStr = history.length
-        ? history.map(h => isBw ? `${h.date}: ${h.bestReps} powt.` : `${h.date}: ${fmt(h.maxWeight)}×${h.bestReps}`).join('; ')
-        : 'brak wcześniejszych sesji';
-      const advice = getNextSetAdvice(workouts, exercise.id, exercise.sets, 0, { isBodyweight: isBw, isSuperset: exercise.isSuperset }, lang, unit);
-      const notes = exerciseNotes[exercise.id]?.trim() || dayNotes.trim() || 'brak';
-
-      const coachSystemPrompt = lang === 'en'
-        ? 'You are an experienced strength coach. Respond in English, max 2 short sentences, concrete and practical, no intros and no lists.'
-        : 'Jesteś doświadczonym trenerem siłowym. Odpowiadasz po polsku, maksymalnie 2 krótkie zdania, konkretnie i praktycznie, bez wstępów i bez listy.';
-
-      const reply = await callOpenAI([
-        { role: 'system', content: coachSystemPrompt },
-        { role: 'user', content: `Ćwiczenie: ${exercise.name} (schemat ${exercise.sets}). Ostatnie sesje: ${histStr}. Sugestia systemu: ${advice?.reason ?? 'brak'}. Notatki zawodnika: ${notes}. Doradź na dzisiejszą serię.` },
-      ]);
-
-      toast({
-        title: t('workout.coach.toastTitle', { name: exercise.name }),
-        description: reply.trim() || t('workout.coach.noReply'),
-        duration: 12000,
-      });
-    } catch (err) {
-      toast({
-        title: t('workout.coach.unavailableTitle'),
-        description: err instanceof Error ? err.message : t('workout.coach.unavailableDesc'),
-        variant: 'destructive',
-      });
-    } finally {
-      setCoachBusyId(null);
-    }
-  };
-
   const handleRetrySync = async () => {
     if (!currentPageDraft?.finalSyncPending) return;
 
@@ -1706,8 +1664,6 @@ const WorkoutDay = () => {
                 isBodyweight: isBodyweightExercise(exercise.name),
                 isSuperset: exercise.isSuperset,
               }, lang, unit)}
-              onAskCoach={isWorkoutStarted && !isCompleted ? () => handleAskCoach(exercise) : undefined}
-              coachBusy={coachBusyId === exercise.id}
               historicalBest={getExerciseBest1RM(workouts, exercise.id)}
               metrics={exerciseMetrics[exercise.id]}
               onMetricsChange={(m) => handleMetricsChange(exercise.id, m)}

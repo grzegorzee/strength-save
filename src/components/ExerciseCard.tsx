@@ -150,8 +150,6 @@ interface ExerciseCardProps {
   isEditable?: boolean;
   isBodyweight?: boolean;
   nextAdvice?: NextSetAdvice | null;
-  onAskCoach?: () => void;
-  coachBusy?: boolean;
   /** Najlepszy historyczny wynik (1RM) tego ćwiczenia — badge BEST w nagłówku. */
   historicalBest?: ExerciseBest;
   /** Metryki autoregulacji (RPE/ból/jakość) zapisane dla tego ćwiczenia. */
@@ -176,8 +174,6 @@ const ExerciseCardInner = ({
   isEditable = true,
   isBodyweight = false,
   nextAdvice,
-  onAskCoach,
-  coachBusy = false,
   historicalBest,
   metrics,
   onMetricsChange,
@@ -595,16 +591,6 @@ const ExerciseCardInner = ({
               <Plus className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-1">
-              {onAskCoach && (
-                <button
-                  onClick={onAskCoach}
-                  disabled={coachBusy}
-                  className="inline-flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary transition-colors px-3 py-2 disabled:opacity-50"
-                >
-                  {coachBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                  {t('card.coachAi')}
-                </button>
-              )}
               {onMetricsChange && !showMetrics && (
                 <button
                   onClick={() => setShowMetrics(true)}
