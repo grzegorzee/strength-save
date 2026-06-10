@@ -1,3 +1,7 @@
+// Import wyłącznie typu — ten plik trafia też do webowego programu TS
+// (src/test/functions-security.test.ts), gdzie globalny namespace FirebaseFirestore nie istnieje.
+import type { Firestore } from "firebase-admin/firestore";
+
 export type AuthProvider = "google" | "password" | "apple";
 
 export interface AccessProfile {
@@ -50,7 +54,7 @@ export interface FeatureFlags {
   stravaForAll?: boolean;
 }
 
-export async function readFeatureFlags(db: FirebaseFirestore.Firestore): Promise<FeatureFlags> {
+export async function readFeatureFlags(db: Firestore): Promise<FeatureFlags> {
   try {
     const snap = await db.collection("config").doc("feature_flags").get();
     return (snap.data() as FeatureFlags) || {};
