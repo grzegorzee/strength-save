@@ -121,6 +121,8 @@ Pętla /loop nad sekcją 5 planu release. Kluczowa lekcja: plan audytu był NIEA
 
 **Weryfikacja:** typecheck + lint + **370 unit** (w tym 8 nowych `paywall-guard.test.ts`: świeży→enforced, expired z treningami→off, admin/comp→off, web→off, pending) + **116 E2E** (5 nowych `paywall-funnel.spec.ts` ze screenshotami teaser+paywall: redirect z `/`, `/plan`, `/analytics`, `/settings`; brak strzałki wstecz; link Wyloguj; expired/admin/comp/web bez redirectu). Scenariusz manualny na urządzeniu: świeże konto → quiz → teaser → paywall; sprawdzić, że back-swipe nie wychodzi z paywalla i że po starcie trialu wchodzi dashboard z confetti.
 
+**Wdrożone:** web (GH Pages) + **TestFlight build 38** (upload OK, Beta App Review **APPROVED**, Robert dostaje build automatycznie). Test zakupu sandbox z cz. 12 nadal otwarty (propagacja produktów po stronie Apple) — ponowić na buildzie 38.
+
 ### 2026-06-11 (cz. 12) — Test usera na buildzie 37: decyzja o przebudowie funnelu (wariant B)
 
 **Problem z realnego testu usera:** (1) z paywalla po onboardingu można wyjść strzałką wstecz i przeglądać całą apkę (gating łapie tylko akcje: start treningu, nowy plan), co dla świeżego usera wygląda jak działająca darmowa apka; (2) brak zapowiedzi płatności na początku onboardingu = wrażenie bait-and-switch; (3) paywall to suchy cennik, nie wykorzystuje momentu "właśnie ułożyliśmy Ci plan".
