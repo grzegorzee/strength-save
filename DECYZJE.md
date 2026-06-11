@@ -37,6 +37,13 @@ Cel: logowanie treningu bezpośrednio na zegarku, bez wyjmowania telefonu.
 - 4 testy `WatchEventRouter` (nawigacja, peek, filtr daty/typu, dedup po `at`). Ścieżka preview→start nie miała pełnego E2E na symulatorze (dzisiejszy dzień miał realny draft na koncie admina — nie fałszujemy danych treningowych); pierwsza realna weryfikacja w nowy dzień treningowy.
 - Wdrożone: web (GH Pages) + **TestFlight build 29** (Beta App Review APPROVED).
 
+### 2026-06-11 (cz. 3) — Rest timer na zegarku + zakończenie treningu z nadgarstka (build 30)
+
+- Rest timer: po zaliczeniu serii zegarek odlicza odpoczynek (czas z ustawień telefonu, klucz `rest-timer-default`, fallback 90 s, payload `restSeconds`); pasek na liście ćwiczeń i w widoku serii, tap = pomiń, haptyka na koniec; nie startuje po ostatniej serii ćwiczenia. Uwaga: haptyka końca timera wymaga działającej apki (bez extended runtime session — świadomie poza zakresem).
+- Zakończenie z zegarka: confirmationDialog z liczbą zaliczonych serii → event `workoutFinished` → telefon finalizuje przez `handleCompleteWorkout` (ref, bez drugiego dialogu; guard isCompleted/isExplicitSaving). Zegarek pokazuje sticky ekran „Trening zakończony"; telefon po ukończeniu wysyła `noWorkout`.
+- Zweryfikowane na symulatorze (screenshoty 19-26): timer 1:28→0:57, dialog z licznikiem „Zaliczone serie: 2", cancel. Finalizacji NIE wykonano na realnym koncie admina (nie fałszujemy danych treningowych); testowe eventy serii wyczyszczone z natywnej kolejki (plutil -remove). W drafcie dnia pozostała testowa seria 45 kg×6 (wyciskanie, seria 1) z cz. 1 — do ręcznego odznaczenia.
+- Wdrożone: web (GH Pages) + **TestFlight build 30** (Beta App Review APPROVED).
+
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
 Cel: przełącznik kg/lbs (Profil) zmienia KAŻDĄ wagę w apce (wyświetlanie, pola wpisywania, wykresy, tonaż, rekordy, podpowiedzi, pomiary, share, onboarding). Wcześniej działał tylko w 4 plikach. **NIE wdrożone** (commit/push/deploy odłożone na życzenie usera — zmiany w working tree).
