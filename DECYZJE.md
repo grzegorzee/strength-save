@@ -56,6 +56,12 @@ Feedback z porannego treningu na iPhone 14 Pro. Wszystkie 5 naprawione, commit `
 - Weryfikacja: 350/350 testów, typecheck+lint czyste. Wdrożone: web (GH Pages) + **TestFlight build 32** (Beta App Review APPROVED).
 - **Proces na przyszłość (Karpathy):** bugi typu „timer nie gra przy zgaszonym ekranie" i „scroll wraca na górę" wynikały z testowania wyłącznie na symulatorze/web w foregroundzie. Przy zmianach dotykających cyklu życia apki (timery, zapis, scroll) obowiązkowy scenariusz weryfikacji: zgaś ekran / zbackgrounduj apkę / wróć — na realnym urządzeniu lub z symulacją suspendu, zanim build pójdzie na TestFlight.
 
+### 2026-06-11 (cz. 5) — Zegarek: jednostki kg/lbs + Digital Crown (w buildzie 32)
+
+- Payload watch niesie `unit` (localStorage `unit-system`, jak UnitContext); zegarek wyświetla i steppuje w jednostce usera (krok 2,5 kg / 5 lbs), model i eventy zawsze w kg (zaokrąglenie do 2 miejsc po konwersji). Naprawia hardcoded „kg" na zegarku.
+- Edytor serii: Digital Crown kręci ciężarem (`focusable` + `digitalCrownRotation`, haptyka detentów). Koronka niezweryfikowana na symulatorze (idb nie symuluje crown) — sprawdzić na realnym zegarku.
+- Commit `116e831`. Build 31 (upload OK, VALID) NIE został rozdystrybuowany — w międzyczasie sesja bugfixowa wypuściła build 32 z main zawierającym te zmiany; dystrybucja 31 byłaby zbędna. Lekcja: `release-ios.sh` pollował 40×, a ASC przetwarzał dłużej; przy TIMEOUT sprawdzić `asc_api.py builds` i ewentualnie dokończyć `testflight_external.py <nr>` ręcznie.
+
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
 Cel: przełącznik kg/lbs (Profil) zmienia KAŻDĄ wagę w apce (wyświetlanie, pola wpisywania, wykresy, tonaż, rekordy, podpowiedzi, pomiary, share, onboarding). Wcześniej działał tylko w 4 plikach. **NIE wdrożone** (commit/push/deploy odłożone na życzenie usera — zmiany w working tree).
