@@ -107,6 +107,24 @@ Pętla /loop nad sekcją 5 planu release. Kluczowa lekcja: plan audytu był NIEA
 - Koordynacja: kolizja numeru builda przy uploadzie (równoległa sesja watch wgrała 33-35) — przeskok na 36 z HEAD łączącym obie sesje.
 - Wdrożone: web (GH Pages), functions (weeklyDigest), **TestFlight build 36** (Beta App Review APPROVED). Commity `afd1909` + `1fd26f1`. Statusy odhaczone w `docs/PLAN_RELEASE_1.0.md` sekcja 5.
 
+### 2026-06-11 (cz. 10) — Monetyzacja: decyzje cenowe + formalności ASC ZALICZONE (Paid Apps ACTIVE)
+
+**Decyzje usera (wiążące dla 1.0):**
+- Cennik: **14,99 zł/mies** ($2.99 US) + **99,99 zł/rok** ($19.99 US). BEZ lifetime.
+- Triale asymetryczne: miesięczny 14 dni free, roczny 30 dni free (intro offers per produkt; raz na konto Apple per grupa).
+- Apka mobilna BEZ kodów invite: zaloguj/zarejestruj na jednym ekranie (email verification zostaje). Web pozostaje invite-only.
+- Płatności: RevenueCat (wariant A) zamiast własnego StoreKit.
+- Otwarte: zachowanie po końcu trialu (rekomendacja: read-only historia + eksport, blokada nowych treningów).
+
+**Formalności App Store Connect (przeprowadzone z userem krok po kroku, wszystko jednego dnia, finał: Paid Apps ACTIVE):**
+- Zaktualizowana ADP License Agreement zaakceptowana → odblokowała resztę.
+- Legal Entity uzupełnione; DSA trader: YES, dane publiczne (adres CEIDG, contact@strengthsave.app), dokument tożsamości i adresu: **PDF z VIES** (rejestr VAT UE, po angielsku — sposób na wymóg "English (US)"; NIP 6852331914 zwraca imię+adres). Status: In Review (nie blokuje IAP).
+- Paid Apps Agreement: **ACTIVE**. Bank mBank PLN: **ACTIVE** (routing = cyfry 3-10 NRB, SWIFT BREXPLPWMBK). Tax: W-8BEN **ACTIVE** (Foreign TIN=NIP, treaty Poland art. 8 business profits 0%) + Certificate of Foreign Status **ACTIVE** (Individual/Sole proprietor, Title: Owner).
+- SBP (15% prowizji): formularz do dokończenia (associated accounts: 4×No; rola Marketing u klienta się nie liczy).
+- Dokumenty prawne privacy+terms PL/EN w `landing/legal/` (commit 36f37ed), do publikacji na strengthsave.app.
+
+**Następne:** produkty subskrypcji przez ASC API (agent), RevenueCat (user: konto + In-App Purchase Key), kod: login bez invite + paywall + entitlement gating.
+
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
 Cel: przełącznik kg/lbs (Profil) zmienia KAŻDĄ wagę w apce (wyświetlanie, pola wpisywania, wykresy, tonaż, rekordy, podpowiedzi, pomiary, share, onboarding). Wcześniej działał tylko w 4 plikach. **NIE wdrożone** (commit/push/deploy odłożone na życzenie usera — zmiany w working tree).
