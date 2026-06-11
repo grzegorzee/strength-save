@@ -53,7 +53,7 @@ watch_target.build_configurations.each do |config|
   s['CODE_SIGN_ENTITLEMENTS'] = 'WatchApp/StrengthWatch.entitlements'
   s['INFOPLIST_KEY_NSHealthShareUsageDescription'] = 'Tetno i kalorie podczas treningu silowego.'
   s['INFOPLIST_KEY_NSHealthUpdateUsageDescription'] = 'Zapis treningu silowego do Apple Health.'
-  s['CURRENT_PROJECT_VERSION'] = '34'
+  s['CURRENT_PROJECT_VERSION'] = '35'
   s['MARKETING_VERSION'] = '0.0.1'
   s['ENABLE_PREVIEWS'] = 'YES'
   s['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'

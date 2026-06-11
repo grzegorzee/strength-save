@@ -42,22 +42,26 @@ def H():
     return {"Authorization": f"Bearer {token()}", "Content-Type": "application/json"}
 
 
-def ensure_watch_bundle_id():
+def ensure_bundle_id(identifier, name):
     r = requests.get(f"{BASE}/v1/bundleIds", headers=H(),
-                     params={"filter[identifier]": WATCH_BUNDLE, "limit": 200})
+                     params={"filter[identifier]": identifier, "limit": 200})
     r.raise_for_status()
     for b in r.json().get("data", []):
-        if b["attributes"]["identifier"] == WATCH_BUNDLE:
-            print(f"  bundle ID istnieje: {b['id']}")
+        if b["attributes"]["identifier"] == identifier:
+            print(f"  bundle ID istnieje: {b['id']} ({identifier})")
             return b["id"]
     body = {"data": {"type": "bundleIds", "attributes": {
-        "identifier": WATCH_BUNDLE, "name": "Strength Save Watch", "platform": "IOS"}}}
+        "identifier": identifier, "name": name, "platform": "IOS"}}}
     r = requests.post(f"{BASE}/v1/bundleIds", headers=H(), data=json.dumps(body))
     if r.status_code not in (200, 201):
         raise SystemExit(f"bundleIds -> {r.status_code}: {r.text[:300]}")
     bid = r.json()["data"]["id"]
-    print(f"  zarejestrowano bundle ID: {bid}")
+    print(f"  zarejestrowano bundle ID: {bid} ({identifier})")
     return bid
+
+
+def ensure_watch_bundle_id():
+    return ensure_bundle_id(WATCH_BUNDLE, "Strength Save Watch")
 
 
 def ensure_healthkit_capability(bundle_resource_id):
@@ -94,15 +98,15 @@ def distribution_cert_id():
     return cert["id"]
 
 
-def profiles_by_name():
+def profiles_by_name(name=PROFILE_NAME):
     r = requests.get(f"{BASE}/v1/profiles", headers=H(),
-                     params={"filter[name]": PROFILE_NAME, "limit": 200})
+                     params={"filter[name]": name, "limit": 200})
     r.raise_for_status()
-    return [p for p in r.json().get("data", []) if p["attributes"]["name"] == PROFILE_NAME]
+    return [p for p in r.json().get("data", []) if p["attributes"]["name"] == name]
 
 
-def existing_profile():
-    for p in profiles_by_name():
+def existing_profile(name=PROFILE_NAME):
+    for p in profiles_by_name(name):
         if p["attributes"].get("profileState") == "ACTIVE":
             return p
     return None
@@ -121,10 +125,10 @@ def install_profile(prof):
     return uuid
 
 
-def create_profile(cert_id, bundle_resource_id):
+def create_profile(cert_id, bundle_resource_id, name=PROFILE_NAME):
     body = {"data": {
         "type": "profiles",
-        "attributes": {"name": PROFILE_NAME, "profileType": "IOS_APP_STORE"},
+        "attributes": {"name": name, "profileType": "IOS_APP_STORE"},
         "relationships": {
             "bundleId": {"data": {"type": "bundleIds", "id": bundle_resource_id}},
             "certificates": {"data": [{"type": "certificates", "id": cert_id}]},
@@ -135,13 +139,13 @@ def create_profile(cert_id, bundle_resource_id):
     return r.json()["data"]
 
 
-def update_export_options(uuid):
+def update_export_options(uuid, bundle=WATCH_BUNDLE):
     with open(EXPORT_OPTS, "rb") as f:
         opts = plistlib.load(f)
-    opts.setdefault("provisioningProfiles", {})[WATCH_BUNDLE] = uuid
+    opts.setdefault("provisioningProfiles", {})[bundle] = uuid
     with open(EXPORT_OPTS, "wb") as f:
         plistlib.dump(opts, f)
-    print(f"  {EXPORT_OPTS}: {WATCH_BUNDLE} -> {uuid}")
+    print(f"  {EXPORT_OPTS}: {bundle} -> {uuid}")
 
 
 if __name__ == "__main__":
@@ -167,4 +171,20 @@ if __name__ == "__main__":
     uuid = install_profile(prof)
     print("==> ExportOptions-manual.plist")
     update_export_options(uuid)
+
+    print("==> widget extension (komplikacje)")
+    widgets_bundle = WATCH_BUNDLE + ".widgets"
+    widgets_profile_name = "Strength Save Watch Widgets App Store"
+    wbid = ensure_bundle_id(widgets_bundle, "Strength Save Watch Widgets")
+    wprof = existing_profile(widgets_profile_name)
+    if wprof is None:
+        for p in profiles_by_name(widgets_profile_name):
+            delete_profile(p["id"])
+        cert_id = distribution_cert_id()
+        wprof = create_profile(cert_id, wbid, widgets_profile_name)
+        print(f"  utworzono profil {wprof['id']}")
+    else:
+        print(f"  profil istnieje: {wprof['id']}")
+    wuuid = install_profile(wprof)
+    update_export_options(wuuid, widgets_bundle)
     print("GOTOWE — signing zegarka przygotowany.")
