@@ -62,6 +62,14 @@ Feedback z porannego treningu na iPhone 14 Pro. Wszystkie 5 naprawione, commit `
 - Edytor serii: Digital Crown kręci ciężarem (`focusable` + `digitalCrownRotation`, haptyka detentów). Koronka niezweryfikowana na symulatorze (idb nie symuluje crown) — sprawdzić na realnym zegarku.
 - Commit `116e831`. Build 31 (upload OK, VALID) NIE został rozdystrybuowany — w międzyczasie sesja bugfixowa wypuściła build 32 z main zawierającym te zmiany; dystrybucja 31 byłaby zbędna. Lekcja: `release-ios.sh` pollował 40×, a ASC przetwarzał dłużej; przy TIMEOUT sprawdzić `asc_api.py builds` i ewentualnie dokończyć `testflight_external.py <nr>` ręcznie.
 
+### 2026-06-11 (cz. 6) — Zegarek: one-tap logowanie następnej serii (build 33)
+
+- `WorkoutStore.nextSetSuggestion`: pierwsza niezaliczona seria treningu (wartości z serii albo ostatniej zaliczonej; bez sensownych wartości przycisk się nie pokazuje — zostaje edytor).
+- `QuickLogButton` na liście ćwiczeń (z nazwą ćwiczenia) i w widoku ćwiczenia. Jeden tap = seria zalogowana + haptyka + rest timer. Trzy interakcje → jedna.
+- Zweryfikowane na symulatorze (screenshoty 29-30): tap zalogował rozgrzewkę, timer ruszył, sugestia przeskoczyła na „Seria 2 · 6 × 50 kg" (pominęła zaliczoną serię 1).
+- Testowa rozgrzewka 10×30 mogła wejść do draftu „Góra B" (live drain) — do odznaczenia razem z serią 45 kg×6 z cz. 1, jeśli draft jeszcze aktywny.
+- Wdrożone: **TestFlight build 33** (Beta App Review APPROVED). Web bez zmian (iteracja czysto watchowa, bez deploya).
+
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
 Cel: przełącznik kg/lbs (Profil) zmienia KAŻDĄ wagę w apce (wyświetlanie, pola wpisywania, wykresy, tonaż, rekordy, podpowiedzi, pomiary, share, onboarding). Wcześniej działał tylko w 4 plikach. **NIE wdrożone** (commit/push/deploy odłożone na życzenie usera — zmiany w working tree).
