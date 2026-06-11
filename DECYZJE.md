@@ -107,6 +107,14 @@ Pętla /loop nad sekcją 5 planu release. Kluczowa lekcja: plan audytu był NIEA
 - Koordynacja: kolizja numeru builda przy uploadzie (równoległa sesja watch wgrała 33-35) — przeskok na 36 z HEAD łączącym obie sesje.
 - Wdrożone: web (GH Pages), functions (weeklyDigest), **TestFlight build 36** (Beta App Review APPROVED). Commity `afd1909` + `1fd26f1`. Statusy odhaczone w `docs/PLAN_RELEASE_1.0.md` sekcja 5.
 
+### 2026-06-11 (cz. 12) — Test usera na buildzie 37: decyzja o przebudowie funnelu (wariant B)
+
+**Problem z realnego testu usera:** (1) z paywalla po onboardingu można wyjść strzałką wstecz i przeglądać całą apkę (gating łapie tylko akcje: start treningu, nowy plan), co dla świeżego usera wygląda jak działająca darmowa apka; (2) brak zapowiedzi płatności na początku onboardingu = wrażenie bait-and-switch; (3) paywall to suchy cennik, nie wykorzystuje momentu "właśnie ułożyliśmy Ci plan".
+
+**Rozważone warianty:** A) domknięcie obecnego flow (paywall bez wyjścia), B) pełna przebudowa funnelu wzorem Fitbod (quiz → teaser zamglonego planu → hard paywall → trial → reveal), C) kompromis (A + narracja "plan gotowy"). **Decyzja usera: B.** Zadanie przekazane do osobnej sesji: prompt w `docs/PROMPT_ONBOARDING_B.md` (krótki /goal + pełny kontekst; /goal ma limit 4000 znaków). Zasada zachowana: read-only + eksport dla wygasłych userów Z DANYMI zostaje; hard gate dotyczy tylko świeżych kont bez treningów.
+
+**Test zakupu sandbox:** wstrzymany — StoreKit nie zwracał produktów (stan MISSING_METADATA; po wgraniu screenshotów recenzji oba produkty READY_TO_SUBMIT od ~16:00; pozostała propagacja po stronie Apple, godziny). Ponowić na buildzie 37.
+
 ### 2026-06-11 (cz. 11) — Tydzień 1 monetyzacji WDROŻONY (build 37) + podwyżka cen US
 
 **Kod monetyzacji (commity ed9318b, f432437, rejestracja, build 37 TestFlight APPROVED):**

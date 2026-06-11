@@ -60,6 +60,9 @@ StoreKit (w tym sandbox/TestFlight) NIE zwraca produktów w stanie MISSING_METAD
 - **Kolizja build number między sesjami:** ASC zwraca `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` z `previousBundleVersion` — bumpnij PONAD tę wartość z aktualnego HEAD (po git pull). Jedna sesja buduje naraz.
 - **Package.swift/Package.resolved po `cap sync` COMMITOWAĆ** — bez nich świeży checkout nie zbuduje apki z nowymi pluginami.
 - **RTK (token saver) kompresuje JSON z curla do schematu** — gdy potrzebny surowy JSON: `rtk proxy curl ...` albo grep/cut na wyjściu.
+- **RTK przepisuje grep na rg**: wzorce z `(`, `|` w basic-regex padają z "regex parse error: unclosed group" — używać `rtk proxy grep`, `grep -F` (literal) albo poprawnego ERE.
+- **`/goal` w Claude Code ma limit 4000 znaków** na warunek — długie zadania: krótki /goal + szczegóły w pliku w repo, który agent ma przeczytać najpierw.
+- **Duplikaty accessible name psują testy RTL/Playwright**: klikalne kółko timera z aria-label "Pauza" kolidowało z przyciskiem "Pauza" (`getByRole` znajduje 2) — nowym interaktywnym elementom dawać unikalne etykiety (np. z prefiksem kontekstu).
 - **Bash: cwd PERSYSTUJE między wywołaniami** — `cd functions && ...` psuje kolejne komendy (objaw: "functions/: No such file", "Missing script: firebase"). Używać ścieżek absolutnych albo wracać `cd` na końcu.
 - `firebase deploy` czyta SKOMPILOWANE functions/lib — po zmianie nazwy sekretu/kodu najpierw `npm run build` w functions.
 
