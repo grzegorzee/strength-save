@@ -398,7 +398,18 @@ export const workoutDraftDb = {
   async saveActiveDraft(draft: ActiveWorkoutDraft): Promise<void> {
     const normalized = normalizeDraft(draft, draft.userId);
     if (!normalized) return;
-    await runWrite(normalized, normalized.userId);
+    try {
+      await runWrite(normalized, normalized.userId);
+    } catch {
+      // IndexedDB w WKWebView potrafi stracić połączenie po powrocie z tła — jedna ponowna
+      // próba (openDatabase otwiera świeże połączenie), a gdy i ta padnie, awaryjny zapis
+      // do localStorage, żeby user nie stracił treningu. Błąd leci dalej tylko gdy oba padną.
+      try {
+        await runWrite(normalized, normalized.userId);
+      } catch {
+        withFallbackSave(normalized);
+      }
+    }
   },
 
   async markDraftSynced(

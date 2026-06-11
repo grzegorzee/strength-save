@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
+import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
 
 // Wibracja końca odpoczynku: natywnie przez Capacitor Haptics (iOS/Android),
 // w przeglądarce fallback do Vibration API (navigator.vibrate jest no-op na iOS WKWebView).
@@ -59,6 +60,8 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
     clearTimer();
     setIsRunning(false);
     setSecondsLeft(0);
+    // Koniec w foregroundzie: systemowe powiadomienie zbędne — anulujemy i gramy in-app.
+    void cancelRestEndNotification();
     // Wibracja (haptic) + krótki dźwięk na koniec odpoczynku.
     triggerEndHaptic();
     playTimerSound('finish');
@@ -81,6 +84,26 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
 
     return clearTimer;
   }, [isRunning, deadline, finishTimer, clearTimer]);
+
+  // Systemowe powiadomienie na koniec przerwy: przy zgaszonym ekranie JS jest wstrzymany,
+  // więc o końcu odpoczynku informuje iOS/Android (dźwięk + wibracja). Pauza/zamknięcie anuluje.
+  useEffect(() => {
+    if (isRunning && secondsLeftRef.current > 0) {
+      // +1s za deadline: gdy timer kończy się w foregroundzie, finishTimer (tick co 250ms)
+      // zdąży anulować powiadomienie zanim system je dostarczy — bez podwójnego sygnału.
+      const seconds = Math.max(1, Math.round((deadline - Date.now()) / 1000) + 1);
+      void scheduleRestEndNotification(
+        seconds,
+        t('resttimer.notifTitle'),
+        exerciseLabel ? `${exerciseLabel} — ${t('resttimer.notifBody')}` : t('resttimer.notifBody')
+      );
+    } else {
+      void cancelRestEndNotification();
+    }
+  }, [isRunning, deadline, exerciseLabel, t]);
+
+  // Unmount (zamknięcie timera) — nie zostawiaj wiszącego powiadomienia.
+  useEffect(() => () => { void cancelRestEndNotification(); }, []);
 
   const handleReset = (seconds?: number) => {
     clearTimer();
@@ -130,7 +153,14 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
 
       {/* Progress ring */}
       <div className="flex flex-col items-center gap-3">
-        <div className="relative h-24 w-24">
+        <button
+          type="button"
+          onClick={() => (isFinished ? handleReset() : togglePause())}
+          aria-label={isFinished
+            ? t('resttimer.restart')
+            : `${t('resttimer.title')}: ${isRunning ? t('resttimer.pause') : t('resttimer.resume')}`}
+          className="relative h-24 w-24 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
           <svg className="h-24 w-24 -rotate-90" viewBox="0 0 100 100">
             <circle
               cx="50" cy="50" r="42"
@@ -155,13 +185,13 @@ export const RestTimer = ({ defaultSeconds = 30, exerciseLabel, onClose }: RestT
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
             <span className={cn(
-              "text-2xl font-bold tabular-nums",
-              isFinished && "text-fitness-success"
+              "font-bold tabular-nums",
+              isFinished ? "text-base text-fitness-success" : "text-2xl"
             )}>
               {isFinished ? t('resttimer.go') : `${minutes}:${String(secs).padStart(2, '0')}`}
             </span>
           </div>
-        </div>
+        </button>
 
         {/* Controls */}
         <div className="flex items-center gap-2">

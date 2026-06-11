@@ -790,6 +790,9 @@ export const en: Record<keyof typeof pl, string> = {
   'resttimer.pause': 'Pause',
   'resttimer.resume': 'Resume',
   'resttimer.reset': 'Reset',
+  'resttimer.restart': 'Restart rest timer',
+  'resttimer.notifTitle': 'Rest over!',
+  'resttimer.notifBody': 'Time for the next set.',
   'interval.round': 'Round',
   'interval.done': 'DONE',
   'card.target': 'Target',
@@ -901,7 +904,7 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.saveChangesFailedDesc': 'Failed to save changes.',
   'workout.toast.changesSavedDesc': 'Your changes have been saved.',
   // === workout error messages ===
-  'workout.err.localSaveFailed': 'Could not save draft locally.',
+  'workout.err.localSaveFailed': 'Could not save your progress on this device. Keep the app open — finish the workout and tap "Finish workout" to save it to the cloud.',
   'workout.err.localSaveBeforeSync': 'Could not save draft locally before syncing.',
   'workout.err.offline': 'No internet connection. Workout stays saved locally.',
   'workout.err.cloudSavedLocalCleanupFailed': 'Workout saved to the cloud, but the local draft could not be cleared.',

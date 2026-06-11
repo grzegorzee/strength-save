@@ -18,6 +18,11 @@ vi.mock('@/lib/timer-sound', () => ({
   unlockTimerSound: vi.fn(),
 }));
 
+vi.mock('@/lib/rest-notification', () => ({
+  scheduleRestEndNotification: vi.fn().mockResolvedValue(undefined),
+  cancelRestEndNotification: vi.fn().mockResolvedValue(undefined),
+}));
+
 const renderTimer = (defaultSeconds = 3, onClose = vi.fn()) => {
   render(
     <LanguageProvider>
@@ -62,6 +67,23 @@ describe('RestTimer', () => {
       vi.advanceTimersByTime(2000);
     });
     expect(playTimerSound).toHaveBeenCalledTimes(1);
+  });
+
+  it('restarts countdown when tapping the circle after finish', () => {
+    renderTimer(3);
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(screen.getByText('START!')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Uruchom przerwę od nowa' }));
+    expect(screen.getByText('0:03')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByText('0:02')).toBeInTheDocument();
   });
 
   it('pauses, resumes and closes', () => {

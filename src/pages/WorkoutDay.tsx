@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, ChevronDown, X } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { RestTimer } from '@/components/RestTimer';
@@ -880,11 +880,14 @@ const WorkoutDay = () => {
   // Flush local draft and try best-effort sync when app goes to background.
   // Przy okazji zapisujemy pozycję scrolla — iOS WKWebView potrafi przeładować stronę w tle,
   // co bez tego cofa ekran na sam początek listy ćwiczeń.
+  // Klucz per user+data (NIE per sessionId): promocja provisional→remote zmienia sessionId
+  // w trakcie treningu i zapis pod starym kluczem stawał się nieodnajdywalny.
+  const scrollStorageKey = uid ? `workout-scroll:${uid}:${targetDate}` : null;
   useEffect(() => {
     const saveScroll = () => {
-      if (!sessionId) return;
+      if (!sessionId || !scrollStorageKey) return;
       try {
-        localStorage.setItem(`workout-scroll:${sessionId}`, JSON.stringify({ y: window.scrollY, t: Date.now() }));
+        localStorage.setItem(scrollStorageKey, JSON.stringify({ y: window.scrollY, t: Date.now() }));
       } catch { /* localStorage niedostępny — pomijamy */ }
     };
     const handleVisibilityChange = () => {
@@ -907,22 +910,51 @@ const WorkoutDay = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handlePageHide);
     };
-  }, [sessionId, currentPageDraft?.finalSyncPending, persistDraftSnapshot, syncDraftToFirebase]);
+  }, [sessionId, scrollStorageKey, currentPageDraft?.finalSyncPending, persistDraftSnapshot, syncDraftToFirebase]);
 
-  // Po remount/reloadzie (iOS purguje WebView w tle) przywróć pozycję scrolla z localStorage —
-  // user wraca do ćwiczenia, które robił, a nie na początek. Tylko świeży zapis (<15 min).
+  // Po remount/reloadzie (iOS purguje WebView w tle) ORAZ po powrocie z tła przywróć pozycję
+  // scrolla — user wraca do ćwiczenia, które robił, a nie na początek. Tylko świeży zapis (<15 min).
+  // Pojedynczy scrollTo po 250ms zawodził: lista ćwiczeń po reloadzie jeszcze się renderuje,
+  // strona jest za niska i scroll clampuje do zera — dlatego ponawiamy, aż strona urośnie.
   useEffect(() => {
-    if (!sessionId || !isLoaded || isCompleted) return;
-    let raw: string | null = null;
-    try { raw = localStorage.getItem(`workout-scroll:${sessionId}`); } catch { return; }
-    if (!raw) return;
-    try {
-      const { y, t } = JSON.parse(raw) as { y: number; t: number };
-      if (typeof y !== 'number' || y <= 0 || Date.now() - t > 15 * 60 * 1000) return;
-      const id = setTimeout(() => window.scrollTo({ top: y, behavior: 'auto' }), 250);
-      return () => clearTimeout(id);
-    } catch { /* zła wartość — pomijamy */ }
-  }, [sessionId, isLoaded, isCompleted]);
+    if (!sessionId || !isLoaded || isCompleted || !scrollStorageKey) return;
+
+    const readSavedY = (): number | null => {
+      try {
+        const raw = localStorage.getItem(scrollStorageKey);
+        if (!raw) return null;
+        const { y, t } = JSON.parse(raw) as { y: number; t: number };
+        if (typeof y !== 'number' || y <= 0 || Date.now() - t > 15 * 60 * 1000) return null;
+        return y;
+      } catch { return null; }
+    };
+
+    const timeouts: ReturnType<typeof setTimeout>[] = [];
+    const restoreWithRetry = (y: number) => {
+      [250, 700, 1500, 2600].forEach(delay => {
+        timeouts.push(setTimeout(() => {
+          if (Math.abs(window.scrollY - y) < 24) return;
+          const maxY = document.documentElement.scrollHeight - window.innerHeight;
+          if (maxY >= y - 24) window.scrollTo({ top: y, behavior: 'auto' });
+        }, delay));
+      });
+    };
+
+    const initialY = readSavedY();
+    if (initialY !== null) restoreWithRetry(initialY);
+
+    // Powrót z tła bez remountu: iOS potrafi wyzerować scroll mimo żywej strony.
+    const handleVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const y = readSavedY();
+      if (y !== null && y > 200 && window.scrollY < 100) restoreWithRetry(y);
+    };
+    document.addEventListener('visibilitychange', handleVisible);
+    return () => {
+      timeouts.forEach(clearTimeout);
+      document.removeEventListener('visibilitychange', handleVisible);
+    };
+  }, [sessionId, isLoaded, isCompleted, scrollStorageKey]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -1430,8 +1462,15 @@ const WorkoutDay = () => {
     <Card className="border-destructive bg-destructive/10">
       <CardContent className="py-3">
         <div className="flex items-center gap-2 text-destructive">
-          <AlertCircle className="h-5 w-5" />
-          <span className="text-sm">{saveError}</span>
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span className="flex-1 text-sm">{saveError}</span>
+          <button
+            onClick={() => setSaveError(null)}
+            aria-label={t('workout.close')}
+            className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-destructive/15"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       </CardContent>
     </Card>

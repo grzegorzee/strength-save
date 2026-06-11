@@ -796,6 +796,9 @@ export const pl = {
   'resttimer.pause': 'Pauza',
   'resttimer.resume': 'Wznów',
   'resttimer.reset': 'Reset',
+  'resttimer.restart': 'Uruchom przerwę od nowa',
+  'resttimer.notifTitle': 'Koniec przerwy!',
+  'resttimer.notifBody': 'Czas na kolejną serię.',
   'interval.round': 'Runda',
   'interval.done': 'KONIEC',
   'card.target': 'Cel',
@@ -907,7 +910,7 @@ export const pl = {
   'workout.toast.saveChangesFailedDesc': 'Nie udało się zapisać zmian.',
   'workout.toast.changesSavedDesc': 'Zmiany zostały zapisane.',
   // === workout error messages ===
-  'workout.err.localSaveFailed': 'Nie udało się zapisać szkicu lokalnie.',
+  'workout.err.localSaveFailed': 'Nie udało się zapisać postępu na telefonie. Nie zamykaj apki — dokończ trening i kliknij „Zakończ trening", żeby zapisać go w chmurze.',
   'workout.err.localSaveBeforeSync': 'Nie udało się zapisać szkicu lokalnie przed synchronizacją.',
   'workout.err.offline': 'Brak połączenia z internetem. Trening pozostaje zapisany lokalnie.',
   'workout.err.cloudSavedLocalCleanupFailed': 'Trening zapisano w chmurze, ale nie udało się wyczyścić lokalnego szkicu.',

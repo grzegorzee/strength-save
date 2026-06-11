@@ -590,25 +590,35 @@ const ExerciseCardInner = ({
               {t('card.addSet')}
               <Plus className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-1">
-              {onMetricsChange && !showMetrics && (
+            <div className="flex items-center gap-1.5">
+              {onMetricsChange && (
                 <button
-                  onClick={() => setShowMetrics(true)}
-                  className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors px-3 py-2"
+                  onClick={() => setShowMetrics(v => !v)}
+                  aria-pressed={showMetrics}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold transition-colors",
+                    showMetrics
+                      ? "border-primary/40 bg-primary/10 text-primary"
+                      : "border-border bg-muted/40 text-foreground/80 hover:text-foreground"
+                  )}
                 >
                   <Activity className="h-3.5 w-3.5" />
                   {t('card.metrics')}
                 </button>
               )}
-              {!showNotes && (
-                <button
-                  onClick={() => setShowNotes(true)}
-                  className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors px-3 py-2"
-                >
-                  <StickyNote className="h-3.5 w-3.5" />
-                  {t('card.note')}
-                </button>
-              )}
+              <button
+                onClick={() => setShowNotes(v => !v)}
+                aria-pressed={showNotes}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold transition-colors",
+                  showNotes
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border bg-muted/40 text-foreground/80 hover:text-foreground"
+                )}
+              >
+                <StickyNote className="h-3.5 w-3.5" />
+                {t('card.note')}
+              </button>
             </div>
           </div>
           {onMetricsChange && showMetrics && (
