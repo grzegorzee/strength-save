@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1250B630B6A80D5E7EDCE5DE /* PhoneWatchSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */; };
 		2D3CE223881D42528AB322FF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 957D18FA556717B27228D48F /* GoogleService-Info.plist */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
@@ -16,10 +17,47 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
+		60C701771DD97B4AFFDB5E87 /* ExerciseDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1BBD2AE4E8CC17D105D4944 /* ExerciseDetailView.swift */; };
+		635BE1BB948AD66020178891 /* WatchBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A5C154A80546659595207D /* WatchBridgePlugin.swift */; };
+		792329F990DF8EC8CC529017 /* WorkoutModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882B980C9939C416BF0A0055 /* WorkoutModels.swift */; };
+		7E2786085D17F7C9B994BCB1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E83CF5EFFE95E2A5977E9A2B /* ContentView.swift */; };
+		82238AF82748ED978CDC26FD /* StrengthWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3604679A7761D6AF0C11BB5E /* StrengthWatchApp.swift */; };
+		98DC6BAA8DF16448159670B3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC2C74C4F56CE93A4F37EF1 /* Foundation.framework */; };
+		D49107F0D0A6DADA86650CFD /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C03062003363EC390CFA58 /* WorkoutStore.swift */; };
+		DE2119989E46C6CE74169801 /* BridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E6AF113A4DF6B15EE3C518 /* BridgeViewController.swift */; };
+		E55F2F0365B9CC0A919F20B5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */; };
+		FE128978EF5B130144976C0D /* StrengthWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = FE9F7135B6617093094F1CF5 /* StrengthWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5AE82676B3F9CEDE274CE8FD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6BC5D2050E7E328EC3E440D0;
+			remoteInfo = StrengthWatch;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2C527E4552A238A917DBF13F /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				FE128978EF5B130144976C0D /* StrengthWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
+		31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3604679A7761D6AF0C11BB5E /* StrengthWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StrengthWatchApp.swift; sourceTree = "<group>"; };
+		47E6AF113A4DF6B15EE3C518 /* BridgeViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BridgeViewController.swift; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -28,8 +66,16 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		6FC2C74C4F56CE93A4F37EF1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		882B980C9939C416BF0A0055 /* WorkoutModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutModels.swift; sourceTree = "<group>"; };
 		957D18FA556717B27228D48F /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhoneWatchSessionManager.swift; sourceTree = "<group>"; };
+		B7A5C154A80546659595207D /* WatchBridgePlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchBridgePlugin.swift; sourceTree = "<group>"; };
+		D1BBD2AE4E8CC17D105D4944 /* ExerciseDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExerciseDetailView.swift; sourceTree = "<group>"; };
+		E6C03062003363EC390CFA58 /* WorkoutStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
+		E83CF5EFFE95E2A5977E9A2B /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		FE9F7135B6617093094F1CF5 /* StrengthWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StrengthWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +84,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		877023910A3152FEA787B9DA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				98DC6BAA8DF16448159670B3 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -50,6 +104,8 @@
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				504EC3051FED79650016851F /* Products */,
+				5490E8A4A7D735F875E725CC /* Frameworks */,
+				A5F547BB2E07B1FAD7CB8882 /* WatchApp */,
 			);
 			sourceTree = "<group>";
 		};
@@ -57,6 +113,7 @@
 			isa = PBXGroup;
 			children = (
 				504EC3041FED79650016851F /* App.app */,
+				FE9F7135B6617093094F1CF5 /* StrengthWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -73,8 +130,50 @@
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
 				957D18FA556717B27228D48F /* GoogleService-Info.plist */,
+				62355E2FA3AF3CC20BBEB336 /* WatchBridge */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		5490E8A4A7D735F875E725CC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				F963B273E5808F0B6754F5F0 /* watchOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		62355E2FA3AF3CC20BBEB336 /* WatchBridge */ = {
+			isa = PBXGroup;
+			children = (
+				B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */,
+				B7A5C154A80546659595207D /* WatchBridgePlugin.swift */,
+				47E6AF113A4DF6B15EE3C518 /* BridgeViewController.swift */,
+			);
+			name = WatchBridge;
+			path = WatchBridge;
+			sourceTree = "<group>";
+		};
+		A5F547BB2E07B1FAD7CB8882 /* WatchApp */ = {
+			isa = PBXGroup;
+			children = (
+				3604679A7761D6AF0C11BB5E /* StrengthWatchApp.swift */,
+				E83CF5EFFE95E2A5977E9A2B /* ContentView.swift */,
+				D1BBD2AE4E8CC17D105D4944 /* ExerciseDetailView.swift */,
+				882B980C9939C416BF0A0055 /* WorkoutModels.swift */,
+				E6C03062003363EC390CFA58 /* WorkoutStore.swift */,
+				31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */,
+			);
+			name = WatchApp;
+			path = WatchApp;
+			sourceTree = "<group>";
+		};
+		F963B273E5808F0B6754F5F0 /* watchOS */ = {
+			isa = PBXGroup;
+			children = (
+				6FC2C74C4F56CE93A4F37EF1 /* Foundation.framework */,
+			);
+			name = watchOS;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -87,10 +186,12 @@
 				504EC3001FED79650016851F /* Sources */,
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
+				2C527E4552A238A917DBF13F /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C41ED81A922DFF76DFAD6E1E /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -98,6 +199,23 @@
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6BC5D2050E7E328EC3E440D0 /* StrengthWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BDCFD61008992520D92E1934 /* Build configuration list for PBXNativeTarget "StrengthWatch" */;
+			buildPhases = (
+				D10EBA41C8A4D4006D84B875 /* Sources */,
+				877023910A3152FEA787B9DA /* Frameworks */,
+				DE61F7726150E925B4E001FB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = StrengthWatch;
+			productName = StrengthWatch;
+			productReference = FE9F7135B6617093094F1CF5 /* StrengthWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -133,6 +251,7 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				6BC5D2050E7E328EC3E440D0 /* StrengthWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -152,6 +271,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DE61F7726150E925B4E001FB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E55F2F0365B9CC0A919F20B5 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -160,10 +287,34 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				1250B630B6A80D5E7EDCE5DE /* PhoneWatchSessionManager.swift in Sources */,
+				635BE1BB948AD66020178891 /* WatchBridgePlugin.swift in Sources */,
+				DE2119989E46C6CE74169801 /* BridgeViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D10EBA41C8A4D4006D84B875 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				82238AF82748ED978CDC26FD /* StrengthWatchApp.swift in Sources */,
+				7E2786085D17F7C9B994BCB1 /* ContentView.swift in Sources */,
+				60C701771DD97B4AFFDB5E87 /* ExerciseDetailView.swift in Sources */,
+				792329F990DF8EC8CC529017 /* WorkoutModels.swift in Sources */,
+				D49107F0D0A6DADA86650CFD /* WorkoutStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C41ED81A922DFF76DFAD6E1E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = StrengthWatch;
+			target = 6BC5D2050E7E328EC3E440D0 /* StrengthWatch */;
+			targetProxy = 5AE82676B3F9CEDE274CE8FD /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		504EC30B1FED79650016851F /* Main.storyboard */ = {
@@ -185,6 +336,35 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		22D991C433B959B2A68DA67D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 28;
+				DEVELOPMENT_TEAM = J4CRD2SA6D;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Strength Save";
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.grzegorzjasionowicz.strengthsave;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 		504EC3141FED79650016851F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
@@ -299,9 +479,10 @@
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 28;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
-				CURRENT_PROJECT_VERSION = 26;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -313,7 +494,6 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -323,9 +503,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 28;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
-				CURRENT_PROJECT_VERSION = 26;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -336,11 +517,38 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
-				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		83626AF09252A56C2EB27475 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 28;
+				DEVELOPMENT_TEAM = J4CRD2SA6D;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Strength Save";
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.grzegorzjasionowicz.strengthsave;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
 		};
 /* End XCBuildConfiguration section */
 
@@ -359,6 +567,15 @@
 			buildConfigurations = (
 				504EC3171FED79650016851F /* Debug */,
 				504EC3181FED79650016851F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BDCFD61008992520D92E1934 /* Build configuration list for PBXNativeTarget "StrengthWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				22D991C433B959B2A68DA67D /* Release */,
+				83626AF09252A56C2EB27475 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

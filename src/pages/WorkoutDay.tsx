@@ -47,6 +47,8 @@ import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
+import type { WatchSetLoggedEvent } from '@/lib/watch-bridge';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -1142,6 +1144,41 @@ const WorkoutDay = () => {
 
     setSaveError(null);
   }, [saveDraftSnapshot]);
+
+  // Apple Watch: serie zalogowane na zegarku trafiają do draftu jak ręczne zmiany.
+  const handleWatchSetLogged = useCallback((event: WatchSetLoggedEvent) => {
+    const current = exerciseSetsRef.current[event.exerciseId];
+    if (!current || event.setIndex < 0 || event.setIndex >= current.length) return;
+    const next = current.map((set, i) =>
+      i === event.setIndex
+        ? { ...set, reps: event.reps, weight: event.weight, completed: event.completed }
+        : set
+    );
+    handleSetsChange(event.exerciseId, next);
+    toast({
+      title: t('workout.toast.watchSetLoggedTitle'),
+      description: t('workout.toast.watchSetLoggedDesc'),
+    });
+  }, [handleSetsChange, toast, t]);
+
+  const handleWatchWorkoutFinished = useCallback(() => {
+    toast({
+      title: t('workout.toast.watchFinishedTitle'),
+      description: t('workout.toast.watchFinishedDesc'),
+    });
+  }, [toast, t]);
+
+  useWatchWorkoutSync({
+    enabled: !!sessionId && !isCompleted && !isEditing && !isViewingPastWorkout,
+    date: targetDate,
+    dayId: day?.id,
+    dayName: day?.dayName,
+    focus: day?.focus,
+    exercises: day?.exercises,
+    exerciseSets,
+    onSetLogged: handleWatchSetLogged,
+    onWorkoutFinished: handleWatchWorkoutFinished,
+  });
 
   // Metryki (RPE/ból/jakość) — tryb edycji: tylko stan lokalny.
   const handleMetricsChangeLocal = useCallback((exerciseId: string, metrics: ExerciseMetrics) => {

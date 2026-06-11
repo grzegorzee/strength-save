@@ -5,11 +5,27 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-06-10 (audyt 20 agentów, 13 HIGH fixes, 9 funkcji UX, v6.12.0)
+**Ostatnia aktualizacja:** 2026-06-11 (Apple Watch app + grywalizacja)
 
 ---
 
 ## DECYZJE
+
+### 2026-06-11 — Aplikacja Apple Watch (StrengthWatch): logowanie serii z nadgarstka
+
+Cel: logowanie treningu bezpośrednio na zegarku, bez wyjmowania telefonu.
+
+**Architektura (zweryfikowana E2E na sparowanych symulatorach iPhone 17 + Watch Ultra 3):**
+- Target watchOS `StrengthWatch` (SwiftUI, watchOS 10+, single-target watch app) osadzony w apce iOS. Źródła: `ios/App/WatchApp/`. Target dodawany skryptem `scripts/add_watch_target.rb` (gem xcodeproj, idempotentny).
+- Transport: WatchConnectivity. Telefon → zegarek: `updateApplicationContext` (JSON pod kluczem `workout`). Zegarek → telefon: `sendMessage` z fallbackiem `transferUserInfo` (kolejkowane, działa gdy apka telefonu uśpiona).
+- Most do warstwy web: lokalny plugin Capacitora `WatchBridge` (`ios/App/App/WatchBridge/`), rejestrowany przez `BridgeViewController` (subclass `CAPBridgeViewController`, podpięty w Main.storyboard). Eventy z zegarka trafiają do trwałej kolejki w UserDefaults (max 500) i są odbierane przez JS listenerem `watchEvent` + `drainEvents()` przy starcie/foregroundzie — nic nie ginie, gdy webview nie żyje.
+- Web: `src/lib/watch-bridge.ts` (protokół + API pluginu), `src/hooks/useWatchWorkoutSync.ts` (wysyłka stanu z debounce 800 ms, dedup eventów po `at`), wpięty w `WorkoutDay.tsx`. Serie z zegarka przechodzą przez `handleSetsChange` → draft IndexedDB → istniejący sync do Firestore (zero nowych ścieżek zapisu).
+- Zasada MVP: trening trzeba WYSTARTOWAĆ na telefonie (draft + sessionId), zegarek służy do logowania serii. Eventy dla nieaktywnej sesji czekają w natywnej kolejce.
+- Zegarek trzyma payload w UserDefaults (działa offline); merge przychodzącego kontekstu zachowuje lokalnie zaliczone serie.
+- UI zegarka: lista ćwiczeń (postęp x/y) → serie → edytor (steppery powt./ciężar ±2,5 kg, prefill z poprzedniej zaliczonej serii) → „Zalicz serię" (haptyka). Teksty PL.
+- Build: `CURRENT_PROJECT_VERSION = 28` (build 27 wydała równoległa sesja grywalizacji z czystego worktree). Ikona watch = ikona iOS 1024.
+- Koordynacja: w repo pracowała równolegle sesja grywalizacji — commit watch zrobiony jawnymi ścieżkami (bez `git add -A`); klucze i18n watch weszły przypadkiem z commitem 901eb27 (nieszkodliwe).
+- Dowody E2E: `audit/shots/watch/` (10-watch-context, 13-watch-after-log, 14-phone-after-watch-log — toast „Set from watch" + seria zaliczona na telefonie).
 
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
