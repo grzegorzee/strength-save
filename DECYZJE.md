@@ -70,6 +70,13 @@ Feedback z porannego treningu na iPhone 14 Pro. Wszystkie 5 naprawione, commit `
 - Testowa rozgrzewka 10×30 mogła wejść do draftu „Góra B" (live drain) — do odznaczenia razem z serią 45 kg×6 z cz. 1, jeśli draft jeszcze aktywny.
 - Wdrożone: **TestFlight build 33** (Beta App Review APPROVED). Web bez zmian (iteracja czysto watchowa, bez deploya).
 
+### 2026-06-11 (cz. 7) — Zegarek: sesja treningowa HealthKit + live tętno (build 34)
+
+- `WorkoutSessionManager`: HKWorkoutSession (.traditionalStrengthTraining, indoor) + HKLiveWorkoutBuilder. Start gdy trening aktywny (start z zegarka / kontekst `active` z telefonu / powrót do apki), stop przy finish lub `noWorkout`. Efekt: apka żyje cały trening (haptyka rest timera przy opuszczonej ręce), trening siłowy w Apple Health (tętno, kalorie), live BPM w nagłówku listy.
+- Signing: capability HEALTHKIT przez API unieważnia istniejący profil → `watch_signing.py` usuwa wszystkie profile o tej nazwie (też INVALID — blokują create konfliktem nazwy 409) i tworzy świeży. Entitlements `com.apple.developer.healthkit` + `INFOPLIST_KEY_NSHealth*UsageDescription` w add_watch_target.rb.
+- NIEZWERYFIKOWANE na symulatorze: trening usera był już ukończony (zegarek poprawnie pokazał „Dziś odpoczynek"), test wymagałby sfałszowania sesji. Realna weryfikacja = pierwszy trening z zegarkiem; arkusz zgody HealthKit pojawi się raz na zegarku.
+- Wdrożone: **TestFlight build 34** (Beta App Review APPROVED). Web bez zmian.
+
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
 Cel: przełącznik kg/lbs (Profil) zmienia KAŻDĄ wagę w apce (wyświetlanie, pola wpisywania, wykresy, tonaż, rekordy, podpowiedzi, pomiary, share, onboarding). Wcześniej działał tylko w 4 plikach. **NIE wdrożone** (commit/push/deploy odłożone na życzenie usera — zmiany w working tree).
