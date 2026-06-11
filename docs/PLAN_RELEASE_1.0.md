@@ -79,20 +79,27 @@ Kategoria: tanie czyste trackery ($3-5/mies) vs apki z AI ($10-16/mies). Strengt
 ### Tydzień 1: monetyzacja
 - [x] ASC: Paid Applications Agreement + dane bankowe + formularze podatkowe — **ZROBIONE 2026-06-11**: Paid Apps "Processing", bank mBank PLN "Processing" (do 24 h), tax forms (W-8BEN + Certificate of Foreign Status) **Active**, DSA trader compliance "In Review" (dokumenty: VIES PDF jako name+address proof)
 - [x] ASC: subscription group + 2 produkty + intro offers — **ZROBIONE 2026-06-11 przez ASC API** (`scripts/asc_subscriptions.py`): grupa "Strength Save PRO" (22150355), `strengthsave_pro_monthly` (6779203923, 14,99 zł / $2.99, trial 14 dni) i `strengthsave_pro_yearly` (6779203549, 99,99 zł / $19.99, trial 30 dni), lokalizacje PL/EN, ceny 175 terytoriów (POL/USA jawnie, reszta equalizacja), intro offers FREE_TRIAL 175 terytoriów per produkt. Stan: MISSING_METADATA (brakuje tylko screenshotu do review — wgramy z paywallem przy submicie)
-- [ ] RevenueCat: konto, projekt, podpięcie produktów (In-App Purchase Key z ASC), instalacja pluginu Capacitora
-- [ ] Firestore: pole `subscription` w UserProfileDoc + Cloud Function webhook RevenueCat → entitlement
-- [ ] Paywall UI (po onboardingu + w Profilu): porównanie planów, CTA trial, restore purchases
-- [ ] Gating funkcji na entitlement (spięcie z istniejącymi feature-flagami)
-- [ ] Ekran logowania: zaloguj/zarejestruj na jednym ekranie, BEZ kodów invite (decyzja 2026-06-11); web bez zmian (invite-only)
-- [ ] Zapis do Small Business Program — formularz przejdzie po aktywacji Paid Apps (DSA + legal entity + ADP License Agreement zaliczone)
+- [x] RevenueCat: konto + projekt + In-App Purchase Key (HVDHQ8XD4Y) + plugin Capacitora zainstalowany i wpięty (configure/logIn/logOut) — **ZROBIONE 2026-06-11**
+- [x] Firestore: pole `subscription` + hook useSubscription + Cloud Function `revenuecatWebhook` WDROŻONA (sekret REVENUECAT_WEBHOOK_AUTH) — **ZROBIONE 2026-06-11**
+- [x] Paywall UI (`/paywall`): plany z cenami z RC Offerings, triale 14/30 dni, nota o odnowieniu, restore, linki legal — **ZROBIONE 2026-06-11 (build 37)**
+- [x] Gating na entitlement (iOS): start treningu, kreator planu, onboarding→paywall, baner Dashboard; historia/eksport/konto wolne — **ZROBIONE 2026-06-11**
+- [x] Ekran logowania bez invite (mobile otwarte, web invite-only serwerowo) — **ZROBIONE + WDROŻONE 2026-06-11**
+- [x] Zapis do Small Business Program — **WYSŁANE 2026-06-11** (czeka na potwierdzenie Apple)
+- [x] Podwyżka cen US przed startem: $4.99/$29.99 + re-equalizacja 173 terytoriów (PL bez zmian) — **ZROBIONE 2026-06-11**
+- [ ] **RC dashboard (USER, w toku)**: entitlement `pro` (podpięte oba produkty) + offering `default` (pakiety Annual+Monthly) + webhook (URL + Authorization)
+- [ ] Test zakupu w sandboxie na urządzeniu (build 37; po konfiguracji RC dashboard)
+- [ ] Screenshot paywalla do metadanych subskrypcji w ASC (zdejmie stan MISSING_METADATA; przy submicie)
 
 ### Tydzień 2: formalności + hardening
 - [ ] PrivacyInfo.xcprivacy (deklaracje: Firebase, UserDefaults, required reason APIs)
-- [ ] Polityka prywatności + regulamin na landingu, linki w Login/Profil
-- [ ] MARKETING_VERSION 1.0.0
-- [ ] MUST-y z sekcji 5 (security + Resend + rejestracja + closeout)
+- [x] Polityka prywatności + regulamin NAPISANE PL/EN (`landing/legal/`, commit 36f37ed)
+- [ ] Publikacja landingu + legal na domenie strengthsave.app (Cloudflare Pages, token jest) + linki w apce (Login/Profil)
+- [ ] MARKETING_VERSION 1.0.0 (przy submicie)
+- [x] MUST-y z sekcji 5: security/Resend/closeout zweryfikowane lub naprawione (build 36); rejestracja otwarta na mobile (build 37)
+- [ ] Firebase App Check (App Attest) — hardening spoofowalnego `platform` w rejestracji (finding security review 2026-06-11)
 - [ ] Konto demo dla App Review
-- [ ] APNs key w Firebase Console
+- [ ] APNs key w Firebase Console (sprawdzić: jeśli poranne pushe przychodzą na TestFlight, już jest)
+- [ ] Skrzynka contact@strengthsave.app (odbiór; Cloudflare Email Routing)
 
 ### Tydzień 3: pakiet ASC i submit
 - [ ] Screenshoty (6.7" wymagane, 5.5" opcjonalne od 2024; iPad jeśli wspieramy)
@@ -105,7 +112,7 @@ Kategoria: tanie czyste trackery ($3-5/mies) vs apki z AI ($10-16/mies). Strengt
 
 | Decyzja | Ustalenie |
 |---------|-----------|
-| Cennik | **14,99 zł/mies** (US: $2.99) + **99,99 zł/rok** (US: $19.99; 44% taniej, 8,33 zł/mies) |
+| Cennik | **14,99 zł/mies** (US: $4.99) + **99,99 zł/rok** (US: $29.99); podwyżka US z $2.99/$19.99 przed startem 2026-06-11 (kotwica equalizacji) |
 | Triale (asymetryczne, intro offers per produkt) | miesięczny: **14 dni free**, roczny: **30 dni free**; raz na konto Apple per grupa subskrypcji |
 | Lifetime | **NIE MA** (ani w 1.0, ani w planach) |
 | Rejestracja w apce mobilnej | **bez kodów invite**: zaloguj/zarejestruj na jednym ekranie (weryfikacja email zostaje) |
