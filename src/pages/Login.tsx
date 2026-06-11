@@ -32,6 +32,8 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   const { signInWithGoogle, signInWithApple, registerWithEmail, loginWithEmail, resetPassword, error, loading } = useAuth();
   // Apple wymaga „Sign in with Apple" gdy oferujemy inne logowanie social (Google) na iOS.
   const isIOS = Capacitor.getPlatform() === 'ios';
+  // Mobile: rejestracja otwarta (bramka = paywall/trial) — bez invite i bez waitlisty.
+  const isNative = Capacitor.isNativePlatform();
   const { toast } = useToast();
   const { t, lang, setLang } = useTranslation();
   const [authTab, setAuthTab] = useState<'google' | 'email'>(
@@ -204,7 +206,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
                 ? t('login.subtitle.registerEmail')
                 : t('login.subtitle.loginEmail')}
           </CardDescription>
-          {inviteCode && (
+          {inviteCode && !isNative && (
             <p className="text-xs text-primary">
               {t('login.inviteDetected')} <span className="font-semibold">{inviteCode}</span>. {t('login.inviteWillAttach')}
             </p>
@@ -303,6 +305,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
             </Button>
           </div>
 
+          {!isNative && (
           <div className="rounded-lg border border-dashed p-4 space-y-3">
             <div>
               <p className="text-sm font-medium">{t('login.waitlist.title')}</p>
@@ -336,6 +339,7 @@ const Login = ({ mode = 'login' }: LoginProps) => {
               {t('login.waitlist.submit')}
             </Button>
           </div>
+          )}
         </CardContent>
       </Card>
     </div>

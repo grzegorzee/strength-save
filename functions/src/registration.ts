@@ -292,6 +292,17 @@ async function maybeSendWelcomeEmail(userRef: FirebaseFirestore.DocumentReferenc
   }, { merge: true });
 }
 
+/** Walidacja zaproszenia bez konsumpcji (rejestracja web). Te same warunki co redeemInvite. */
+async function isInviteUsable(code: string, email: string): Promise<boolean> {
+  const inviteSnap = await getDb().collection(INVITES_COLLECTION).where("code", "==", code.toUpperCase()).limit(1).get();
+  if (inviteSnap.empty) return false;
+  const invite = inviteSnap.docs[0].data() as InviteDoc;
+  if (invite.status !== "active") return false;
+  if (invite.email && invite.email !== email) return false;
+  if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) return false;
+  return true;
+}
+
 export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Must be logged in");
@@ -314,6 +325,21 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
     const flags = await readFeatureFlags(getDb());
     if (flags.registrationOpen === false) {
       throw new HttpsError("permission-denied", "Registration is currently closed");
+    }
+    // Mobile (App Store): rejestracja otwarta — bramką monetyzacji jest paywall/trial.
+    // Web: invite-only — nowe konto wymaga ważnego zaproszenia (konsumpcję robi
+    // redeemInvite po utworzeniu profilu; tu tylko walidacja uprawnienia do rejestracji).
+    const platform = normalizeOptionalString(request.data?.platform, 20) || "web";
+    const isMobilePlatform = platform === "ios" || platform === "android";
+    if (!isMobilePlatform) {
+      const inviteCode = normalizeOptionalString(request.data?.inviteCode, 20);
+      const inviteValid = inviteCode ? await isInviteUsable(inviteCode, email) : false;
+      if (!inviteValid) {
+        throw new HttpsError(
+          "permission-denied",
+          "Rejestracja przez stronę wymaga zaproszenia. Pobierz aplikację Strength Save na iPhone, aby założyć konto."
+        );
+      }
     }
     const immediateAccess = providerGetsImmediateAccess(provider);
     const nextProfile: UserProfileDoc = {
