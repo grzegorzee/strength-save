@@ -8,7 +8,11 @@ struct ContentView: View {
             Group {
                 if let payload = store.payload {
                     if payload.type == "todayWorkout", let exercises = payload.exercises, !exercises.isEmpty {
-                        WorkoutListView(payload: payload, exercises: exercises)
+                        if store.isFinishedLocally {
+                            finishedView(exercises: exercises)
+                        } else {
+                            WorkoutListView(payload: payload, exercises: exercises)
+                        }
                     } else {
                         restDayView(date: payload.date)
                     }
@@ -26,6 +30,22 @@ struct ContentView: View {
                 .font(.title2)
                 .foregroundStyle(.secondary)
             Text("Otwórz Strength Save na iPhonie, żeby wysłać trening na zegarek.")
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+    }
+
+    private func finishedView(exercises: [WatchExercise]) -> some View {
+        let done = exercises.reduce(0) { $0 + $1.completedWorkingCount }
+        return VStack(spacing: 8) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.title)
+                .foregroundStyle(.green)
+            Text("Trening zakończony")
+                .font(.headline)
+            Text("Zaliczone serie: \(done). Szczegóły na iPhonie.")
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
@@ -52,13 +72,23 @@ struct WorkoutListView: View {
     @EnvironmentObject var store: WorkoutStore
     let payload: WatchWorkoutPayload
     let exercises: [WatchExercise]
+    @State private var confirmFinish = false
 
     private var allDone: Bool {
         exercises.allSatisfy { $0.isDone }
     }
 
+    private var doneCount: Int {
+        exercises.reduce(0) { $0 + $1.completedWorkingCount }
+    }
+
     var body: some View {
         List {
+            if store.restEndsAt != nil {
+                Section {
+                    RestTimerRow()
+                }
+            }
             if !store.isActive {
                 Section {
                     Button {
@@ -89,7 +119,7 @@ struct WorkoutListView: View {
             if store.isActive {
                 Section {
                     Button {
-                        store.finishWorkout()
+                        confirmFinish = true
                     } label: {
                         Label("Zakończ trening", systemImage: "flag.checkered")
                             .foregroundStyle(allDone ? .green : .primary)
@@ -99,9 +129,46 @@ struct WorkoutListView: View {
                 }
             }
         }
+        .confirmationDialog(
+            "Zakończyć trening? Zaliczone serie: \(doneCount).",
+            isPresented: $confirmFinish,
+            titleVisibility: .visible
+        ) {
+            Button("Zakończ i zapisz", role: .destructive) {
+                store.finishWorkout()
+            }
+            Button("Wróć", role: .cancel) {}
+        }
         .navigationDestination(for: String.self) { exerciseId in
             if let exercise = store.payload?.exercises?.first(where: { $0.id == exerciseId }) {
                 ExerciseDetailView(exerciseId: exercise.id)
+            }
+        }
+    }
+}
+
+// Pasek odpoczynku między seriami: odliczanie + tap = pomiń.
+struct RestTimerRow: View {
+    @EnvironmentObject var store: WorkoutStore
+
+    var body: some View {
+        if let end = store.restEndsAt {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let left = max(0, Int(end.timeIntervalSince(context.date).rounded()))
+                Button {
+                    store.cancelRestTimer()
+                } label: {
+                    HStack {
+                        Image(systemName: "timer")
+                            .foregroundStyle(.orange)
+                        Text("Odpoczynek")
+                            .font(.caption)
+                        Spacer()
+                        Text(String(format: "%d:%02d", left / 60, left % 60))
+                            .font(.title3.monospacedDigit())
+                            .foregroundStyle(.orange)
+                    }
+                }
             }
         }
     }

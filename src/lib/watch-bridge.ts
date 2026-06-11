@@ -42,7 +42,19 @@ export interface WatchWorkoutPayload {
   sentAt: number;
   /** true = sesja wystartowana na telefonie; false/brak = podgląd planu (zegarek pokaże "Rozpocznij trening"). */
   active?: boolean;
+  /** Domyślny odpoczynek między seriami (sekundy) — zegarek odpala timer po zaliczeniu serii. */
+  restSeconds?: number;
   exercises?: WatchExercisePayload[];
+}
+
+/** Ten sam klucz ustawień co RestTimer/ExerciseCard na telefonie. */
+export function getRestDefaultSeconds(): number {
+  try {
+    const v = parseInt(localStorage.getItem('rest-timer-default') || '90', 10);
+    return Number.isFinite(v) && v > 0 ? v : 90;
+  } catch {
+    return 90;
+  }
 }
 
 export interface WatchSetLoggedEvent {

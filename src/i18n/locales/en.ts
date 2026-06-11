@@ -877,7 +877,7 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.watchSetLoggedTitle': 'Set from watch',
   'workout.toast.watchSetLoggedDesc': 'Saved a set logged on Apple Watch.',
   'workout.toast.watchFinishedTitle': 'Watch: workout finished',
-  'workout.toast.watchFinishedDesc': 'Review your sets and finish the workout on your phone.',
+  'workout.toast.watchFinishedDesc': 'Saving and closing the workout.',
   'workout.toast.continueDesc': 'Loaded an existing workout.',
   'workout.toast.localSecureFailedDesc': 'Failed to secure the workout locally.',
   'workout.toast.startedOfflineTitle': 'Workout started offline',

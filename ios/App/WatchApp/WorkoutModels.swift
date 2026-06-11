@@ -33,6 +33,8 @@ struct WatchWorkoutPayload: Codable {
     var sentAt: Double
     // true = sesja aktywna na telefonie; false/nil = podgląd planu (preview).
     var active: Bool?
+    // Domyślny odpoczynek między seriami (z ustawień telefonu), sekundy.
+    var restSeconds: Int?
     var exercises: [WatchExercise]?
 }
 

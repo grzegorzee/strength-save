@@ -883,7 +883,7 @@ export const pl = {
   'workout.toast.watchSetLoggedTitle': 'Seria z zegarka',
   'workout.toast.watchSetLoggedDesc': 'Zapisano serię zalogowaną na Apple Watch.',
   'workout.toast.watchFinishedTitle': 'Zegarek: trening ukończony',
-  'workout.toast.watchFinishedDesc': 'Sprawdź serie i zakończ trening na telefonie.',
+  'workout.toast.watchFinishedDesc': 'Zapisuję i zamykam trening.',
   'workout.toast.continueDesc': 'Wczytano istniejący trening.',
   'workout.toast.localSecureFailedDesc': 'Nie udało się zabezpieczyć treningu lokalnie.',
   'workout.toast.startedOfflineTitle': 'Trening rozpoczęty offline',

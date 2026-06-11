@@ -10,6 +10,7 @@ import type { SetData } from '@/types';
 import {
   addWatchEventListener,
   drainWatchEvents,
+  getRestDefaultSeconds,
   isWatchBridgeSupported,
   sendWorkoutToWatch,
   type WatchEvent,
@@ -56,6 +57,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         focus,
         sentAt: Date.now(),
         active: true,
+        restSeconds: getRestDefaultSeconds(),
         exercises: exercises.map((exercise) => ({
           id: exercise.id,
           name: exercise.name,

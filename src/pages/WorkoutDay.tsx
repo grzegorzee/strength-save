@@ -48,7 +48,7 @@ import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
-import type { WatchSetLoggedEvent } from '@/lib/watch-bridge';
+import { sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -1161,11 +1161,15 @@ const WorkoutDay = () => {
     });
   }, [handleSetsChange, toast, t]);
 
+  // handleCompleteWorkout jest zdefiniowany niżej — ref omija TDZ i exhaustive-deps.
+  const completeWorkoutRef = useRef<(() => Promise<void>) | null>(null);
   const handleWatchWorkoutFinished = useCallback(() => {
     toast({
       title: t('workout.toast.watchFinishedTitle'),
       description: t('workout.toast.watchFinishedDesc'),
     });
+    // User potwierdził zakończenie na zegarku — finalizujemy bez drugiego dialogu.
+    void completeWorkoutRef.current?.();
   }, [toast, t]);
 
   useWatchWorkoutSync({
@@ -1237,6 +1241,7 @@ const WorkoutDay = () => {
 
   const handleCompleteWorkout = async () => {
     if (!sessionId || !uid || !day) return;
+    if (isCompleted || isExplicitSaving) return;
 
     setIsExplicitSaving(true);
     setSaveError(null);
@@ -1333,6 +1338,14 @@ const WorkoutDay = () => {
       });
     }
   };
+  completeWorkoutRef.current = handleCompleteWorkout;
+
+  // Po ukończeniu treningu zegarek dostaje noWorkout (pokazuje stan "po treningu"),
+  // zamiast wisieć na ostatnim aktywnym payloadzie.
+  useEffect(() => {
+    if (!isCompleted || isViewingPastWorkout) return;
+    void sendWorkoutToWatch({ type: 'noWorkout', date: targetDate, sentAt: Date.now() });
+  }, [isCompleted, isViewingPastWorkout, targetDate]);
 
   const handleFinishEditing = async () => {
     if (!sessionId) {

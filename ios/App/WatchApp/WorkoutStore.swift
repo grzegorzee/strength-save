@@ -11,12 +11,23 @@ final class WorkoutStore: NSObject, ObservableObject {
 
     @Published var payload: WatchWorkoutPayload?
     @Published var isPhoneReachable = false
+    /// Koniec bieżącego odpoczynku między seriami (nil = brak timera).
+    @Published var restEndsAt: Date?
+    private var restTask: Task<Void, Never>?
 
     private let defaults = UserDefaults.standard
     private let storageKey = "watch.workoutPayload"
     // Lokalny start z zegarka (sticky): "date|dayId" treningu wystartowanego na
     // zegarku zanim telefon potwierdzi sesję (payload active=true).
     private let localStartKey = "watch.localStart"
+    // Trening zakończony z zegarka: "date|dayId" — UI pokazuje podsumowanie,
+    // dopóki telefon nie przyśle nowego kontekstu.
+    private let localFinishKey = "watch.localFinish"
+
+    var isFinishedLocally: Bool {
+        guard let payload, let dayId = payload.dayId else { return false }
+        return defaults.string(forKey: localFinishKey) == "\(payload.date)|\(dayId)"
+    }
 
     /// Czy trening jest aktywny: telefon potwierdził (active=true) albo user
     /// wystartował lokalnie na zegarku.
@@ -61,6 +72,11 @@ final class WorkoutStore: NSObject, ObservableObject {
             if incoming.active == true || localStart != incomingKey {
                 defaults.removeObject(forKey: localStartKey)
             }
+        }
+        // Lokalny finish czyścimy, gdy przyszedł INNY trening (nowy dzień/plan).
+        if let localFinish = defaults.string(forKey: localFinishKey),
+           localFinish != "\(incoming.date)|\(incoming.dayId ?? "")" {
+            defaults.removeObject(forKey: localFinishKey)
         }
         var merged = incoming
         if let current = payload,
@@ -110,6 +126,15 @@ final class WorkoutStore: NSObject, ObservableObject {
 
         WKInterfaceDevice.current().play(.success)
 
+        // Rest timer: tylko gdy w ćwiczeniu zostały serie do zrobienia.
+        let exercise = exercises[exIndex]
+        let workingLeft = exercise.workingSets.contains { !$0.completed }
+        if workingLeft {
+            startRestTimer(seconds: payload.restSeconds ?? 90)
+        } else {
+            cancelRestTimer()
+        }
+
         if let dayId = payload.dayId {
             sendEvent(WatchEvent.setLogged(
                 date: payload.date, dayId: dayId, exerciseId: exerciseId,
@@ -120,8 +145,34 @@ final class WorkoutStore: NSObject, ObservableObject {
 
     func finishWorkout() {
         guard let payload, let dayId = payload.dayId else { return }
+        cancelRestTimer()
+        defaults.set("\(payload.date)|\(dayId)", forKey: localFinishKey)
+        objectWillChange.send()
         WKInterfaceDevice.current().play(.notification)
         sendEvent(WatchEvent.workoutFinished(date: payload.date, dayId: dayId))
+    }
+
+    // MARK: - Rest timer
+
+    private func startRestTimer(seconds: Int) {
+        restTask?.cancel()
+        let end = Date().addingTimeInterval(TimeInterval(seconds))
+        restEndsAt = end
+        restTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(max(0, end.timeIntervalSinceNow) * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self, self.restEndsAt == end else { return }
+                self.restEndsAt = nil
+                WKInterfaceDevice.current().play(.notification)
+            }
+        }
+    }
+
+    func cancelRestTimer() {
+        restTask?.cancel()
+        restTask = nil
+        restEndsAt = nil
     }
 
     private func sendEvent(_ event: [String: Any]) {

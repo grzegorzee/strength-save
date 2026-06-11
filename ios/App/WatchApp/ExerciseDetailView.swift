@@ -14,6 +14,11 @@ struct ExerciseDetailView: View {
         Group {
             if let exercise {
                 List {
+                    if store.restEndsAt != nil {
+                        Section {
+                            RestTimerRow()
+                        }
+                    }
                     ForEach(Array(exercise.sets.enumerated()), id: \.offset) { index, set in
                         NavigationLink {
                             SetEditorView(exerciseId: exerciseId, setIndex: index)

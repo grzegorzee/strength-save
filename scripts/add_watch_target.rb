@@ -50,7 +50,7 @@ watch_target.build_configurations.each do |config|
   s['INFOPLIST_KEY_WKApplication'] = 'YES'
   s['INFOPLIST_KEY_WKCompanionAppBundleIdentifier'] = PHONE_BUNDLE_ID
   s['INFOPLIST_KEY_CFBundleDisplayName'] = 'Strength Save'
-  s['CURRENT_PROJECT_VERSION'] = '29'
+  s['CURRENT_PROJECT_VERSION'] = '30'
   s['MARKETING_VERSION'] = '0.0.1'
   s['ENABLE_PREVIEWS'] = 'YES'
   s['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
