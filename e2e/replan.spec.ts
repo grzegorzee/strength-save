@@ -46,6 +46,9 @@ test.describe('Replan', () => {
     // Przycisk wyboru nowego planu kończy ekran closeout.
     await expect(page.getByRole('button', { name: /Choose|Wybierz|new plan|nowy plan/i })).toBeVisible();
     await expect(page.getByRole('banner')).toHaveCount(0);
+    // Statystyki muszą pochodzić ze snapshotu cyklu (stats), nie z przeliczenia pustych workouts.
+    await expect(page.getByText('28/32')).toBeVisible();
+    await expect(page.getByText('88%')).toBeVisible();
     await page.screenshot({ path: '/tmp/replan-closeout.png' });
   });
 });

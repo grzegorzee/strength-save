@@ -123,7 +123,12 @@ const NewPlan = () => {
     }).catch(() => setPhase('wizard'));
   }, [fromCycleId, getCycleById]);
 
-  const closeoutStats = sourceCycle ? (buildActiveCyclePreview(sourceCycle, workouts)?.stats ?? sourceCycle.stats) : null;
+  // Zakończony cykl ma snapshot statystyk zapisany przy zamknięciu — to on jest źródłem prawdy.
+  // buildActiveCyclePreview (przeliczenie z workouts) tylko dla starych cykli bez snapshotu;
+  // liczone na żywo pokazywało zera, zanim workouts się załadowały.
+  const closeoutStats = sourceCycle
+    ? (sourceCycle.stats ?? buildActiveCyclePreview(sourceCycle, workouts)?.stats ?? null)
+    : null;
   const closeoutMedal = closeoutStats ? medalForCompletionRate(closeoutStats.completionRate) : null;
 
   const onWizardConfirm = (c: PlanWizardChoice) => { setChosen(c); setReviewDays(c.days); setPhase('preview'); };

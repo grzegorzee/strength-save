@@ -218,12 +218,17 @@ export const weeklyDigest = onSchedule(
 </body>
 </html>`;
 
-        await resend.emails.send({
+        const response = await resend.emails.send({
           from: "Strength Save <noreply@strengthsave.app>",
           to: user.email,
           subject,
           html,
         });
+        // Resend SDK nie rzuca przy odrzuceniu — błąd wraca w response.error.
+        if (response.error) {
+          logger.error(`[WeeklyDigest] Provider rejected for ${user.email}: ${response.error.message}`);
+          return;
+        }
         logger.info(`[WeeklyDigest] Email sent to ${user.email}`);
       } catch (error) {
         logger.error(`[WeeklyDigest] Failed for ${user.email}:`, error);
