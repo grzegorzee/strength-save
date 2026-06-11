@@ -78,7 +78,7 @@ Kategoria: tanie czyste trackery ($3-5/mies) vs apki z AI ($10-16/mies). Strengt
 
 ### Tydzień 1: monetyzacja
 - [x] ASC: Paid Applications Agreement + dane bankowe + formularze podatkowe — **ZROBIONE 2026-06-11**: Paid Apps "Processing", bank mBank PLN "Processing" (do 24 h), tax forms (W-8BEN + Certificate of Foreign Status) **Active**, DSA trader compliance "In Review" (dokumenty: VIES PDF jako name+address proof)
-- [ ] ASC: subscription group + 2 produkty (monthly, annual) + intro offers wg decyzji w sekcji 7 — czeka aż Paid Apps będzie Active
+- [x] ASC: subscription group + 2 produkty + intro offers — **ZROBIONE 2026-06-11 przez ASC API** (`scripts/asc_subscriptions.py`): grupa "Strength Save PRO" (22150355), `strengthsave_pro_monthly` (6779203923, 14,99 zł / $2.99, trial 14 dni) i `strengthsave_pro_yearly` (6779203549, 99,99 zł / $19.99, trial 30 dni), lokalizacje PL/EN, ceny 175 terytoriów (POL/USA jawnie, reszta equalizacja), intro offers FREE_TRIAL 175 terytoriów per produkt. Stan: MISSING_METADATA (brakuje tylko screenshotu do review — wgramy z paywallem przy submicie)
 - [ ] RevenueCat: konto, projekt, podpięcie produktów (In-App Purchase Key z ASC), instalacja pluginu Capacitora
 - [ ] Firestore: pole `subscription` w UserProfileDoc + Cloud Function webhook RevenueCat → entitlement
 - [ ] Paywall UI (po onboardingu + w Profilu): porównanie planów, CTA trial, restore purchases
