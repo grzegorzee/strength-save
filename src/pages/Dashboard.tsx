@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2 } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
-import { calculateStreak, getWeekBounds } from '@/lib/summary-utils';
+import { calculateStreakDetails, getWeekBounds } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
@@ -157,7 +157,15 @@ const Dashboard = () => {
     return week.filter(e => e.date >= start);
   }, [trainingPlan, today, planStartDate, planStarted]);
 
-  const streak = useMemo(() => calculateStreak(workouts), [workouts]);
+  const streakDetails = useMemo(() => calculateStreakDetails(workouts), [workouts]);
+  const streak = streakDetails.streak;
+  // Tarcza uratowała poprzedni tydzień — pokaż to userowi, żeby wiedział, że seria wisi na włosku.
+  const previousWeekFrozen = useMemo(() => {
+    const { start } = getWeekBounds(new Date());
+    const prev = new Date(start);
+    prev.setDate(prev.getDate() - 7);
+    return streakDetails.frozenWeeks.includes(formatLocalDate(prev));
+  }, [streakDetails]);
   // Ile treningów brakuje w TYM tygodniu, żeby podtrzymać serię (tydzień liczy się od 2 treningów).
   const streakHint = useMemo(() => {
     if (streak === 0) return 0;
@@ -663,6 +671,14 @@ const Dashboard = () => {
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Flame className="h-3.5 w-3.5 text-primary" />
           {t('dash.streakHint', { n: streakHint })}
+        </p>
+      )}
+
+      {/* Tarcza serii zużyta w zeszłym tygodniu — kolejna dostępna dopiero za ~miesiąc */}
+      {previousWeekFrozen && (
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <ShieldCheck className="h-3.5 w-3.5 text-fitness-cyan" />
+          {t('dash.streakFrozen')}
         </p>
       )}
 

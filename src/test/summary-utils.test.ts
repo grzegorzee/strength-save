@@ -1,7 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { getWeekBounds, calculateTonnage, calculateStreak } from '@/lib/summary-utils';
+import { getWeekBounds, calculateTonnage, calculateStreak, calculateStreakDetails } from '@/lib/summary-utils';
 import { formatLocalDate } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
+
+// Trening `dayOffset` dni od poniedziałku tygodnia `weeksBack` tygodni wstecz.
+const workoutOn = (id: string, weeksBack: number, dayOffset: number): WorkoutSession => {
+  const { start } = getWeekBounds(new Date());
+  const d = new Date(start);
+  d.setDate(d.getDate() - weeksBack * 7 + dayOffset);
+  return { id, userId: 'test-user', dayId: 'day-1', date: formatLocalDate(d), completed: true, exercises: [] };
+};
+
+// Zaliczony tydzień: 2 treningi (pon + wt).
+const fullWeek = (weeksBack: number): WorkoutSession[] => [
+  workoutOn(`w${weeksBack}-a`, weeksBack, 0),
+  workoutOn(`w${weeksBack}-b`, weeksBack, 1),
+];
 
 describe('getWeekBounds', () => {
   it('returns Monday to Sunday for a Wednesday', () => {
@@ -85,20 +99,52 @@ describe('calculateStreak', () => {
   // Regresja: weekStart parsowany jako UTC (new Date('YYYY-MM-DD')) wykluczał treningi
   // poniedziałkowe z licznika tygodnia w strefach UTC+ (d < weekStart o offset strefy).
   it('counts Monday workouts towards the week (no UTC/local mix)', () => {
-    const { start: currentMonday } = getWeekBounds(new Date());
-    const onDay = (weeksBack: number, dayOffset: number): string => {
-      const d = new Date(currentMonday);
-      d.setDate(d.getDate() - weeksBack * 7 + dayOffset);
-      return formatLocalDate(d);
-    };
-    const mk = (id: string, date: string): WorkoutSession => (
-      { id, userId: 'test-user', dayId: 'day-1', date, completed: true, exercises: [] }
-    );
-    // Dwa pełne tygodnie: poniedziałek + wtorek w bieżącym i poprzednim tygodniu.
-    const workouts = [
-      mk('w1', onDay(0, 0)), mk('w2', onDay(0, 1)),
-      mk('w3', onDay(1, 0)), mk('w4', onDay(1, 1)),
-    ];
+    const workouts = [...fullWeek(0), ...fullWeek(1)];
     expect(calculateStreak(workouts)).toBe(2);
+  });
+});
+
+describe('calculateStreakDetails (tarcza serii)', () => {
+  it('pusty bieżący tydzień nie zeruje serii z poprzednich tygodni', () => {
+    const workouts = [...fullWeek(1), ...fullWeek(2)];
+    const { streak, frozenWeeks } = calculateStreakDetails(workouts);
+    expect(streak).toBe(2);
+    expect(frozenWeeks).toEqual([]);
+  });
+
+  it('jeden pusty tydzień między zaliczonymi jest ratowany tarczą', () => {
+    const workouts = [...fullWeek(0), ...fullWeek(2)]; // tydzień -1 pusty
+    const { streak, frozenWeeks } = calculateStreakDetails(workouts);
+    expect(streak).toBe(2);
+    expect(frozenWeeks).toHaveLength(1);
+  });
+
+  it('dwa puste tygodnie z rzędu łamią serię (tarcza nie chroni dziury bez kontynuacji)', () => {
+    const workouts = [...fullWeek(0), ...fullWeek(3)]; // tygodnie -1 i -2 puste
+    const { streak } = calculateStreakDetails(workouts);
+    expect(streak).toBe(1);
+  });
+
+  it('druga tarcza w oknie 4 tygodni jest niedostępna', () => {
+    // full(0), pusty(1)=tarcza, full(2), full(3), pusty(4) -> 4-1=3 < 4: brak tarczy, seria pęka.
+    const workouts = [...fullWeek(0), ...fullWeek(2), ...fullWeek(3), ...fullWeek(5)];
+    const { streak, frozenWeeks } = calculateStreakDetails(workouts);
+    expect(streak).toBe(3);
+    expect(frozenWeeks).toHaveLength(1);
+  });
+
+  it('druga tarcza po odstępie >= 4 tygodni działa', () => {
+    // pusty(1)=tarcza, full(2..4), pusty(5): 5-1=4 -> druga tarcza, full(6).
+    const workouts = [...fullWeek(0), ...fullWeek(2), ...fullWeek(3), ...fullWeek(4), ...fullWeek(6)];
+    const { streak, frozenWeeks } = calculateStreakDetails(workouts);
+    expect(streak).toBe(5);
+    expect(frozenWeeks).toHaveLength(2);
+  });
+
+  it('tydzień z jednym treningiem nie kwalifikuje się, ale tarcza go ratuje', () => {
+    const workouts = [...fullWeek(0), workoutOn('solo', 1, 2), ...fullWeek(2)];
+    const { streak, frozenWeeks } = calculateStreakDetails(workouts);
+    expect(streak).toBe(2);
+    expect(frozenWeeks).toHaveLength(1);
   });
 });

@@ -144,6 +144,7 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.startDate': 'Start',
   'dash.startsInDays': 'starts in {n} days',
   'dash.streakHint': 'Complete {n} more workout(s) this week to keep your streak.',
+  'dash.streakFrozen': 'A streak shield saved your streak last week. The next one will be available in about a month.',
   'dash.extend.title': 'Your plan has ended',
   'dash.extend.desc': 'Your plan ended {n} days ago. Extend it with another cycle?',
   'dash.extend.confirm': 'Extend plan',

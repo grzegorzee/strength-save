@@ -33,60 +33,70 @@ export const calculateTonnage = (workouts: WorkoutSession[]): number => {
   }, 0);
 };
 
-export const calculateStreak = (workouts: WorkoutSession[]): number => {
-  if (workouts.length === 0) return 0;
+export interface StreakDetails {
+  /** Liczba kolejnych zaliczonych tygodni (>=2 treningi). */
+  streak: number;
+  /** Początki tygodni (YYYY-MM-DD) uratowanych tarczą, od najnowszego. */
+  frozenWeeks: string[];
+}
 
+// Tarcza serii (streak freeze): tydzień bez 2 treningów nie zeruje serii, jeśli
+// poprzednia tarcza była użyta co najmniej FREEZE_SPACING_WEEKS tygodni wcześniej
+// (max ~1/miesiąc). Zamrożony tydzień nie powiększa serii, tylko ją chroni.
+// Bieżący (trwający) tydzień nigdy nie łamie serii i nie zużywa tarczy.
+const FREEZE_SPACING_WEEKS = 4;
+
+export const calculateStreakDetails = (workouts: WorkoutSession[]): StreakDetails => {
   const completedWorkouts = workouts.filter(w => w.completed);
-  if (completedWorkouts.length === 0) return 0;
+  if (completedWorkouts.length === 0) return { streak: 0, frozenWeeks: [] };
 
-  // Group by week (week = ISO week starting Monday)
-  const weekSet = new Set<string>();
+  // Liczba ukończonych treningów per początek tygodnia (poniedziałek, czas lokalny).
+  const weekCounts = new Map<string, number>();
+  let earliestWeek = '';
   completedWorkouts.forEach(w => {
-    const d = parseLocalDate(w.date);
-    const { start } = getWeekBounds(d);
-    weekSet.add(formatLocalDate(start));
+    const { start } = getWeekBounds(parseLocalDate(w.date));
+    const key = formatLocalDate(start);
+    weekCounts.set(key, (weekCounts.get(key) || 0) + 1);
+    if (!earliestWeek || key < earliestWeek) earliestWeek = key;
   });
 
-  // Sort weeks descending
-  const weeks = Array.from(weekSet).sort((a, b) => b.localeCompare(a));
+  const { start: currentWeekStart } = getWeekBounds(new Date());
+  const weekStartAt = (weeksBack: number): string => {
+    const d = new Date(currentWeekStart);
+    d.setDate(d.getDate() - weeksBack * 7);
+    return formatLocalDate(d);
+  };
+  const weekQualifies = (key: string) => (weekCounts.get(key) || 0) >= 2;
 
-  // Count consecutive weeks with at least 2 workouts
   let streak = 0;
-  const now = new Date();
-  const { start: currentWeekStart } = getWeekBounds(now);
+  const frozenWeeks: string[] = [];
+  let lastFreezeIndex: number | null = null;
 
-  for (let i = 0; i < weeks.length; i++) {
-    // parseLocalDate, nie new Date('YYYY-MM-DD') (UTC) — w strefach UTC+ poniedziałkowe
-    // treningi (lokalna północ) wypadały przed tak sparsowanym początkiem tygodnia.
-    const weekStart = parseLocalDate(weeks[i]);
-    const expectedWeekStart = new Date(currentWeekStart);
-    expectedWeekStart.setDate(expectedWeekStart.getDate() - i * 7);
-    const expectedStr = formatLocalDate(expectedWeekStart);
-
-    if (weeks[i] !== expectedStr) break;
-
-    // Count workouts in this week
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    const weekWorkouts = completedWorkouts.filter(w => {
-      const d = parseLocalDate(w.date);
-      return d >= weekStart && d <= weekEnd;
-    });
-
-    if (weekWorkouts.length >= 2) {
-      streak++;
-    } else {
-      // Current week is allowed to have fewer (in progress)
-      if (i === 0) {
-        streak++;
-      } else {
-        break;
-      }
+  for (let i = 0; ; i++) {
+    const key = weekStartAt(i);
+    if (key < earliestWeek) break;
+    if (weekQualifies(key)) {
+      streak += 1;
+      continue;
     }
+    // Bieżący tydzień w toku: ani nie łamie serii, ani nie zużywa tarczy.
+    if (i === 0) continue;
+    // Tarcza tylko gdy chroni realną kontynuację (starszy tydzień zaliczony)
+    // i poprzednia była użyta >= FREEZE_SPACING_WEEKS tygodni temu.
+    const freezeAvailable = lastFreezeIndex === null || i - lastFreezeIndex >= FREEZE_SPACING_WEEKS;
+    if (freezeAvailable && weekQualifies(weekStartAt(i + 1))) {
+      frozenWeeks.push(key);
+      lastFreezeIndex = i;
+      continue;
+    }
+    break;
   }
 
-  return streak;
+  return { streak, frozenWeeks };
 };
+
+export const calculateStreak = (workouts: WorkoutSession[]): number =>
+  calculateStreakDetails(workouts).streak;
 
 export const calculateLongestStreak = (workouts: WorkoutSession[]): number => {
   const completedWorkouts = workouts.filter(w => w.completed);
