@@ -47,6 +47,15 @@ export interface AppUserProfile {
   };
   cohorts?: string[];
   features?: Record<string, boolean>;
+  // Subskrypcja PRO: pisane przez webhook RevenueCat (Cloud Function) albo admina (tier 'comp').
+  subscription?: {
+    tier?: string;
+    status?: string;
+    expiresAt?: string | null;
+    productId?: string;
+    willRenew?: boolean;
+    updatedAt?: string;
+  };
   stravaConnected?: boolean;
   // Preferencje aplikacji synchronizowane między urządzeniami (web + iOS).
   preferences?: {

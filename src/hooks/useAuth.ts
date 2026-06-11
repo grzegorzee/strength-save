@@ -16,6 +16,7 @@ import {
 import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { auth, googleProvider, appleProvider } from '@/lib/firebase';
+import { logInPurchases, logOutPurchases } from '@/lib/purchases';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { useTranslation } from '@/contexts/LanguageContext';
 
@@ -47,6 +48,12 @@ export const useAuth = () => {
       setUser(user);
       setError(null);
       setLoading(false);
+      // RevenueCat: zwiąż/odwiąż zakupy z kontem (no-op poza natywnym iOS).
+      if (user) {
+        void logInPurchases(user.uid);
+      } else {
+        void logOutPurchases();
+      }
     });
 
     return () => unsubscribe();

@@ -1,5 +1,40 @@
 import type { AppUserProfile } from '@/lib/registration-api';
 
+export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
+
+export interface SubscriptionState {
+  tier: SubscriptionTier;
+  status: 'active' | 'expired' | 'billing_issue' | 'cancelled' | 'none';
+  expiresAt: string | null;
+  productId?: string;
+  willRenew?: boolean;
+  updatedAt?: string;
+}
+
+const TIERS: SubscriptionTier[] = ['monthly', 'yearly', 'trial', 'comp', 'none'];
+const SUB_STATUSES: SubscriptionState['status'][] = ['active', 'expired', 'billing_issue', 'cancelled', 'none'];
+
+export const mapSubscription = (raw: AppUserProfile['subscription']): SubscriptionState | null => {
+  if (!raw) return null;
+  return {
+    tier: TIERS.includes(raw.tier as SubscriptionTier) ? (raw.tier as SubscriptionTier) : 'none',
+    status: SUB_STATUSES.includes(raw.status as SubscriptionState['status']) ? (raw.status as SubscriptionState['status']) : 'none',
+    expiresAt: raw.expiresAt ?? null,
+    ...(raw.productId && { productId: raw.productId }),
+    ...(raw.willRenew !== undefined && { willRenew: raw.willRenew }),
+    ...(raw.updatedAt && { updatedAt: raw.updatedAt }),
+  };
+};
+
+/** Czy stan z Firestore daje aktywny dostęp PRO (comp bezterminowo; reszta wg expiresAt). */
+export const isSubscriptionActive = (sub: SubscriptionState | null, now = Date.now()): boolean => {
+  if (!sub) return false;
+  if (sub.tier === 'comp') return sub.status === 'active';
+  if (sub.status !== 'active' && sub.status !== 'billing_issue') return false;
+  // billing_issue = grace period — dostęp zostaje do expiresAt.
+  return !!sub.expiresAt && new Date(sub.expiresAt).getTime() > now;
+};
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -15,6 +50,7 @@ export interface UserProfile {
   emailVerifiedAt: string | null;
   cohorts: string[];
   features?: Record<string, boolean>;
+  subscription?: SubscriptionState | null;
   preferences?: {
     unit?: 'kg' | 'lbs';
     language?: 'pl' | 'en';
@@ -61,6 +97,7 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   emailVerifiedAt: data.verification?.emailVerifiedAt || null,
   cohorts: data.cohorts || [],
   features: data.features || undefined,
+  subscription: mapSubscription(data.subscription),
   preferences: data.preferences || undefined,
 });
 
