@@ -7,12 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Dumbbell, LogIn, AlertCircle, Loader2, Mail, UserPlus, Send } from 'lucide-react';
+import { LogIn, AlertCircle, Loader2, Mail, UserPlus, Send } from 'lucide-react';
 import { createWaitlistEntry } from '@/lib/registration-api';
 import { setPendingInviteCode } from '@/lib/pending-invite';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { LANGUAGES } from '@/i18n';
+import appIcon from '@/assets/app-icon.png';
 
 interface LoginProps {
   mode?: 'login' | 'register';
@@ -173,10 +174,10 @@ const Login = ({ mode = 'login' }: LoginProps) => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-xl">
         <CardHeader className="text-center">
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-            <Dumbbell className="h-8 w-8 text-primary" />
+          <div className="mx-auto mb-4">
+            <img src={appIcon} alt="Strength Save" className="h-16 w-16 rounded-2xl" />
           </div>
-          <CardTitle className="text-2xl">Strength Save</CardTitle>
+          <CardTitle className="font-heading text-2xl">Strength Save</CardTitle>
           {/* Wybór języka przy rejestracji: ustawia język UI i maili (kod, welcome) PRZED wysłaniem. */}
           {isRegisterMode && (
             <div className="mt-2 flex justify-center gap-1">

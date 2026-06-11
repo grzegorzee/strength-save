@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/contexts/LanguageContext';
+import appIcon from '@/assets/app-icon.png';
 
 interface AppNavigationProps {
   isOpen?: boolean;
@@ -119,15 +120,11 @@ export const AppNavigation = ({ isOpen, onClose, hideMobileNav = false }: AppNav
           <div className="flex items-center justify-between h-16 px-5 border-b border-sidebar-border">
             {collapsed ? (
               <div className="hidden md:flex items-center justify-center w-full">
-                <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
-                  <span className="text-primary font-heading font-bold text-sm">SS</span>
-                </div>
+                <img src={appIcon} alt="Strength Save" className="h-8 w-8 rounded-lg" />
               </div>
             ) : (
               <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center">
-                  <span className="text-primary font-heading font-bold text-sm">SS</span>
-                </div>
+                <img src={appIcon} alt="" className="h-8 w-8 rounded-lg" />
                 <span className="font-heading font-bold text-lg text-foreground">Strength Save</span>
               </div>
             )}

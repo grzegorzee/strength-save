@@ -54,13 +54,13 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         disable: isMobileBuild,
         registerType: 'prompt',
-        includeAssets: ['favicon.png'],
+        includeAssets: ['favicon.png', 'favicon.svg'],
         manifest: {
           name: 'StrengthSave - Tracker Treningowy',
           short_name: 'StrengthSave',
           description: 'Aplikacja do śledzenia treningów siłowych i postępów',
-          theme_color: '#0a0a1a',
-          background_color: '#0a0a1a',
+          theme_color: '#0e0e0e',
+          background_color: '#0e0e0e',
           display: 'standalone',
           scope: '/strength-save/',
           start_url: '/strength-save/',
