@@ -89,6 +89,12 @@ struct WorkoutListView: View {
                     RestTimerRow()
                 }
             }
+
+            if let suggestion = store.nextSetSuggestion {
+                Section {
+                    QuickLogButton(suggestion: suggestion, showExerciseName: true)
+                }
+            }
             if !store.isActive {
                 Section {
                     Button {
@@ -144,6 +150,37 @@ struct WorkoutListView: View {
                 ExerciseDetailView(exerciseId: exercise.id)
             }
         }
+    }
+}
+
+// One-tap logowanie następnej serii bez wchodzenia w edytor.
+struct QuickLogButton: View {
+    @EnvironmentObject var store: WorkoutStore
+    let suggestion: WorkoutStore.NextSetSuggestion
+    let showExerciseName: Bool
+
+    var body: some View {
+        let unit = store.weightUnit
+        Button {
+            store.log(suggestion: suggestion)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                if showExerciseName {
+                    Text(suggestion.exerciseName)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .foregroundStyle(.black.opacity(0.7))
+                }
+                Label(
+                    "\(suggestion.label) · \(suggestion.reps) × \(unit.toDisplay(suggestion.weight).weightText) \(unit.label)",
+                    systemImage: "checkmark"
+                )
+                .font(.body.bold())
+                .foregroundStyle(.black)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .listRowBackground(RoundedRectangle(cornerRadius: 12).fill(.green))
     }
 }
 

@@ -19,6 +19,11 @@ struct ExerciseDetailView: View {
                             RestTimerRow()
                         }
                     }
+                    if let suggestion = store.nextSet(in: exercise) {
+                        Section {
+                            QuickLogButton(suggestion: suggestion, showExerciseName: false)
+                        }
+                    }
                     ForEach(Array(exercise.sets.enumerated()), id: \.offset) { index, set in
                         NavigationLink {
                             SetEditorView(exerciseId: exerciseId, setIndex: index)

@@ -34,6 +34,59 @@ final class WorkoutStore: NSObject, ObservableObject {
         WeightUnit(rawValue: payload?.unit ?? "kg") ?? .kg
     }
 
+    // MARK: - Sugestia następnej serii (one-tap log)
+
+    struct NextSetSuggestion {
+        let exerciseId: String
+        let exerciseName: String
+        let setIndex: Int
+        let label: String
+        let reps: Int
+        let weight: Double // kg
+    }
+
+    /// Następna niezaliczona seria w ćwiczeniu, z wartościami do zalogowania
+    /// (z serii albo z ostatniej zaliczonej). nil gdy brak sensownych wartości.
+    func nextSet(in exercise: WatchExercise) -> NextSetSuggestion? {
+        guard let index = exercise.sets.firstIndex(where: { !$0.completed }) else { return nil }
+        let set = exercise.sets[index]
+        let prior = exercise.sets.prefix(index).last(where: { $0.completed })
+        let reps = set.reps > 0 ? set.reps : (prior?.reps ?? 0)
+        let weight = set.weight > 0 ? set.weight : (prior?.weight ?? 0)
+        guard reps > 0 else { return nil }
+
+        let label: String
+        if set.isWarmup == true {
+            label = "Rozgrzewka"
+        } else {
+            let warmupCount = exercise.sets.prefix(index).filter { $0.isWarmup == true }.count
+            label = "Seria \(index - warmupCount + 1)"
+        }
+        return NextSetSuggestion(
+            exerciseId: exercise.id, exerciseName: exercise.name,
+            setIndex: index, label: label, reps: reps, weight: weight
+        )
+    }
+
+    /// Pierwsza niezaliczona seria w całym treningu (kolejność planu).
+    var nextSetSuggestion: NextSetSuggestion? {
+        guard let exercises = payload?.exercises else { return nil }
+        for exercise in exercises {
+            if let suggestion = nextSet(in: exercise) { return suggestion }
+            // Ćwiczenie bez sensownych wartości, ale z niezaliczonymi seriami:
+            // nie przeskakuj do następnego ćwiczenia — user musi użyć edytora.
+            if exercise.sets.contains(where: { !$0.completed }) { return nil }
+        }
+        return nil
+    }
+
+    func log(suggestion: NextSetSuggestion) {
+        logSet(
+            exerciseId: suggestion.exerciseId, setIndex: suggestion.setIndex,
+            reps: suggestion.reps, weight: suggestion.weight
+        )
+    }
+
     /// Czy trening jest aktywny: telefon potwierdził (active=true) albo user
     /// wystartował lokalnie na zegarku.
     var isActive: Bool {
