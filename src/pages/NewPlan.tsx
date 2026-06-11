@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Loader2, Check, RefreshCw, Trophy, Dumbbell, Flame, Percent, ChevronLeft } from 'lucide-react';
+import { Loader2, Check, RefreshCw, Trophy, Dumbbell, Flame, Percent, ChevronLeft, Medal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -22,6 +22,14 @@ import type { PlanCycle } from '@/types/cycles';
 import type { ExerciseReplacement } from '@/types';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
+import { medalForCompletionRate, type SeasonMedal } from '@/lib/season-medals';
+import type { TranslationKey } from '@/i18n';
+
+const MEDAL_STYLE: Record<SeasonMedal, { labelKey: TranslationKey; tone: string }> = {
+  gold: { labelKey: 'achievements.seasons.gold', tone: 'bg-yellow-400/15 text-yellow-400' },
+  silver: { labelKey: 'achievements.seasons.silver', tone: 'bg-slate-300/15 text-slate-300' },
+  bronze: { labelKey: 'achievements.seasons.bronze', tone: 'bg-amber-600/15 text-amber-600' },
+};
 
 interface ProfileHint { level: WizardLevel; objective: PlanObjective; daysPerWeek: number }
 
@@ -116,6 +124,7 @@ const NewPlan = () => {
   }, [fromCycleId, getCycleById]);
 
   const closeoutStats = sourceCycle ? (buildActiveCyclePreview(sourceCycle, workouts)?.stats ?? sourceCycle.stats) : null;
+  const closeoutMedal = closeoutStats ? medalForCompletionRate(closeoutStats.completionRate) : null;
 
   const onWizardConfirm = (c: PlanWizardChoice) => { setChosen(c); setReviewDays(c.days); setPhase('preview'); };
 
@@ -211,6 +220,12 @@ const NewPlan = () => {
             <p className="text-xs font-medium uppercase tracking-widest text-fitness-cyan mb-2">{t('newplan.closeout.kicker')}</p>
             <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">{t('newplan.closeout.title')}</h1>
             <p className="text-muted-foreground mt-2">{t('newplan.closeout.desc')}</p>
+            {closeoutMedal && (
+              <span className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${MEDAL_STYLE[closeoutMedal].tone}`}>
+                <Medal className="h-4 w-4" />
+                {t(MEDAL_STYLE[closeoutMedal].labelKey)}
+              </span>
+            )}
           </div>
           <div className="flex-1 grid grid-cols-2 gap-3 content-start">
             {stats.map((s, i) => (

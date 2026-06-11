@@ -4,7 +4,9 @@ import {
   getMonthlyTonnage,
   detectPlateaus,
   computeMilestones,
+  computeSpecialBadges,
 } from '@/lib/achievements-utils';
+import { medalForCompletionRate } from '@/lib/season-medals';
 import type { WorkoutSession } from '@/types';
 
 const wk = (id: string, date: string, exId: string, sets: { reps: number; weight: number; completed?: boolean; isWarmup?: boolean }[]): WorkoutSession => ({
@@ -114,5 +116,68 @@ describe('computeMilestones', () => {
     expect(m('tonnage-50000').achieved).toBe(false);
     expect(m('records-1').achieved).toBe(true);
     expect(m('records-5').achieved).toBe(false);
+  });
+});
+
+describe('computeSpecialBadges', () => {
+  const base = (id: string, date: string, extra: Partial<WorkoutSession> = {}): WorkoutSession => ({
+    id, userId: 'u', dayId: 'd', date, completed: true, exercises: [], ...extra,
+  });
+  const badge = (workouts: WorkoutSession[], id: string, planDays?: number) =>
+    computeSpecialBadges(workouts, planDays).find(b => b.id === id)!;
+
+  it('early-bird: trening rozpoczęty przed 7:00 lokalnie', () => {
+    const at6 = new Date(2026, 0, 5, 6, 30).getTime();
+    const at9 = new Date(2026, 0, 6, 9, 0).getTime();
+    expect(badge([base('a', '2026-01-05', { startedAt: at6 })], 'early-bird').achieved).toBe(true);
+    expect(badge([base('b', '2026-01-06', { startedAt: at9 })], 'early-bird').achieved).toBe(false);
+    expect(badge([base('c', '2026-01-06')], 'early-bird').achieved).toBe(false);
+  });
+
+  it('sunday-warrior: trening w niedzielę', () => {
+    expect(badge([base('a', '2026-01-04')], 'sunday-warrior').achieved).toBe(true); // niedziela
+    expect(badge([base('b', '2026-01-05')], 'sunday-warrior').achieved).toBe(false); // poniedziałek
+  });
+
+  it('comeback: powrót po przerwie >= 21 dni', () => {
+    expect(badge([base('a', '2026-01-01'), base('b', '2026-01-22')], 'comeback').achieved).toBe(true);
+    expect(badge([base('a', '2026-01-01'), base('b', '2026-01-15')], 'comeback').achieved).toBe(false);
+    expect(badge([base('a', '2026-01-01')], 'comeback').achieved).toBe(false);
+  });
+
+  it('consistent-4: cztery kolejne tygodnie z kompletem treningów planu', () => {
+    // 4 tygodnie (pon 2026-01-05, 12, 19, 26) po 2 treningi (pon+śr), plan 2 dni/tydz.
+    const workouts = [
+      base('a1', '2026-01-05'), base('a2', '2026-01-07'),
+      base('b1', '2026-01-12'), base('b2', '2026-01-14'),
+      base('c1', '2026-01-19'), base('c2', '2026-01-21'),
+      base('d1', '2026-01-26'), base('d2', '2026-01-28'),
+    ];
+    expect(badge(workouts, 'consistent-4', 2).achieved).toBe(true);
+    // Dziura w trzecim tygodniu — brak odznaki.
+    const withGap = workouts.filter(w => !w.id.startsWith('c'));
+    expect(badge(withGap, 'consistent-4', 2).achieved).toBe(false);
+    // Plan 3 dni/tydzień: 2 treningi/tydzień to za mało.
+    expect(badge(workouts, 'consistent-4', 3).achieved).toBe(false);
+  });
+
+  it('treningi nieukończone nie liczą się do odznak', () => {
+    const at6 = new Date(2026, 0, 4, 6, 0).getTime();
+    const incomplete = { ...{ id: 'x', userId: 'u', dayId: 'd', date: '2026-01-04', completed: false, exercises: [] }, startedAt: at6 } as WorkoutSession;
+    const res = computeSpecialBadges([incomplete]);
+    expect(res.every(b => !b.achieved)).toBe(true);
+  });
+});
+
+describe('medalForCompletionRate', () => {
+  it('przyznaje medale wg progów frekwencji', () => {
+    expect(medalForCompletionRate(100)).toBe('gold');
+    expect(medalForCompletionRate(85)).toBe('gold');
+    expect(medalForCompletionRate(84)).toBe('silver');
+    expect(medalForCompletionRate(65)).toBe('silver');
+    expect(medalForCompletionRate(64)).toBe('bronze');
+    expect(medalForCompletionRate(40)).toBe('bronze');
+    expect(medalForCompletionRate(39)).toBeNull();
+    expect(medalForCompletionRate(0)).toBeNull();
   });
 });

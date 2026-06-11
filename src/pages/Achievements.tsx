@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Lock } from 'lucide-react';
+import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Lock, Sunrise, RotateCcw, Swords, CalendarCheck, Medal } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -17,14 +17,17 @@ import {
   getMonthlyTonnage,
   detectPlateaus,
   computeMilestones,
+  computeSpecialBadges,
   type Milestone,
+  type SpecialBadgeId,
 } from '@/lib/achievements-utils';
+import { medalForCompletionRate } from '@/lib/season-medals';
 import { tooltipStyle } from '@/lib/chart-config';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
-import { dateLocale } from '@/i18n';
+import { dateLocale, type TranslationKey } from '@/i18n';
 import { cn, parseLocalDate } from '@/lib/utils';
 
 interface ExerciseRecord {
@@ -39,6 +42,39 @@ const milestoneIcon = (category: Milestone['category']) => {
   if (category === 'workouts') return Trophy;
   if (category === 'tonnage') return Dumbbell;
   return Target;
+};
+
+const specialBadgeIcon: Record<SpecialBadgeId, typeof Sunrise> = {
+  'early-bird': Sunrise,
+  'comeback': RotateCcw,
+  'sunday-warrior': Swords,
+  'consistent-4': CalendarCheck,
+};
+
+const specialBadgeLabelKey: Record<SpecialBadgeId, TranslationKey> = {
+  'early-bird': 'achievements.special.earlyBird',
+  'comeback': 'achievements.special.comeback',
+  'sunday-warrior': 'achievements.special.sundayWarrior',
+  'consistent-4': 'achievements.special.consistent',
+};
+
+const specialBadgeDescKey: Record<SpecialBadgeId, TranslationKey> = {
+  'early-bird': 'achievements.special.earlyBird.desc',
+  'comeback': 'achievements.special.comeback.desc',
+  'sunday-warrior': 'achievements.special.sundayWarrior.desc',
+  'consistent-4': 'achievements.special.consistent.desc',
+};
+
+const medalColor: Record<string, string> = {
+  gold: 'text-yellow-400',
+  silver: 'text-slate-300',
+  bronze: 'text-amber-600',
+};
+
+const medalLabelKey: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
+  gold: 'achievements.seasons.gold',
+  silver: 'achievements.seasons.silver',
+  bronze: 'achievements.seasons.bronze',
 };
 
 const Achievements = () => {
@@ -142,6 +178,20 @@ const Achievements = () => {
   const milestones = useMemo(
     () => computeMilestones({ completedWorkouts, totalTonnage: totalWeight, exercisesWithRecord: exerciseRecords.length }),
     [completedWorkouts, totalWeight, exerciseRecords.length],
+  );
+
+  const specialBadges = useMemo(
+    () => computeSpecialBadges(workouts, trainingPlan.length),
+    [workouts, trainingPlan.length],
+  );
+
+  // Półka medali: ukończone cykle (sezony) z medalem wg frekwencji, najnowsze pierwsze.
+  const seasonShelf = useMemo(
+    () => cycles
+      .filter(c => c.status === 'completed')
+      .sort((a, b) => b.endDate.localeCompare(a.endDate))
+      .map(c => ({ cycle: c, medal: medalForCompletionRate(c.stats.completionRate) })),
+    [cycles],
   );
 
   const milestoneLabel = (m: Milestone) => {
@@ -308,6 +358,91 @@ const Achievements = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Special badges */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-fitness-cyan" />
+            {t('achievements.special.title')}
+          </CardTitle>
+          <CardDescription>{t('achievements.special.desc')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {specialBadges.map(badge => {
+              const Icon = specialBadgeIcon[badge.id];
+              return (
+                <div
+                  key={badge.id}
+                  title={t(specialBadgeDescKey[badge.id])}
+                  className={cn(
+                    'flex flex-col items-center gap-1.5 rounded-xl p-3 text-center',
+                    badge.achieved ? 'bg-fitness-cyan/10' : 'bg-surface-low',
+                  )}
+                >
+                  <div className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-lg',
+                    badge.achieved ? 'bg-fitness-cyan/20 text-fitness-cyan' : 'bg-muted text-muted-foreground',
+                  )}>
+                    {badge.achieved ? <Icon className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                  </div>
+                  <p className={cn(
+                    'text-[11px] font-bold uppercase tracking-wide leading-tight',
+                    badge.achieved ? 'text-foreground' : 'text-muted-foreground',
+                  )}>
+                    {t(specialBadgeLabelKey[badge.id])}
+                  </p>
+                  <p className="text-[10px] leading-tight text-muted-foreground">
+                    {t(specialBadgeDescKey[badge.id])}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Season medal shelf */}
+      {seasonShelf.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Medal className="h-5 w-5 text-yellow-400" />
+              {t('achievements.seasons.title')}
+            </CardTitle>
+            <CardDescription>{t('achievements.seasons.desc')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {seasonShelf.map(({ cycle, medal }) => (
+                <div key={cycle.id} className="flex items-center justify-between gap-3 rounded-lg bg-surface-low p-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn(
+                      'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted',
+                      medal ? medalColor[medal] : 'text-muted-foreground',
+                    )}>
+                      <Medal className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">
+                        {medal ? t(medalLabelKey[medal]) : t('achievements.seasons.none')}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {formatShortDate(cycle.startDate)} – {formatShortDate(cycle.endDate)}
+                        {' · '}{t('achievements.seasons.workouts', { n: cycle.stats.totalWorkouts })}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0 tabular-nums">
+                    {cycle.stats.completionRate}%
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Plateau alert */}
       {plateaus.length > 0 && (

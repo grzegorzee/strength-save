@@ -1,5 +1,7 @@
 import type { WorkoutSession } from '@/types';
 import { calculate1RM, getExerciseBest1RM } from './pr-utils';
+import { formatLocalDate, parseLocalDate } from './utils';
+import { getWeekBounds } from './summary-utils';
 
 // Daty treningów to 'YYYY-MM-DD', więc porównanie leksykograficzne stringów == porównanie chronologiczne.
 
@@ -136,6 +138,68 @@ export const detectPlateaus = (
   });
 
   return plateaus.sort((a, b) => b.sessionCount - a.sessionCount);
+};
+
+export type SpecialBadgeId = 'early-bird' | 'comeback' | 'sunday-warrior' | 'consistent-4';
+
+export interface SpecialBadge {
+  id: SpecialBadgeId;
+  achieved: boolean;
+}
+
+/**
+ * Odznaki sytuacyjne (rzadkie), liczone w całości z historii treningów:
+ * - early-bird: trening rozpoczęty przed 7:00 czasu lokalnego (startedAt),
+ * - comeback: ukończony trening po przerwie >= 21 dni,
+ * - sunday-warrior: ukończony trening w niedzielę,
+ * - consistent-4: 4 kolejne tygodnie z kompletem treningów planu (min 2/tydzień).
+ */
+export const computeSpecialBadges = (
+  workouts: WorkoutSession[],
+  planDaysPerWeek?: number,
+): SpecialBadge[] => {
+  const completed = workouts
+    .filter(w => w.completed)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const earlyBird = completed.some(w =>
+    typeof w.startedAt === 'number' && w.startedAt > 0 && new Date(w.startedAt).getHours() < 7);
+
+  const sundayWarrior = completed.some(w => parseLocalDate(w.date).getDay() === 0);
+
+  let comeback = false;
+  for (let i = 1; i < completed.length; i++) {
+    const gapDays = (parseLocalDate(completed[i].date).getTime() - parseLocalDate(completed[i - 1].date).getTime()) / 86_400_000;
+    if (gapDays >= 21) { comeback = true; break; }
+  }
+
+  const weeklyTarget = Math.max(2, planDaysPerWeek ?? 2);
+  const weekCounts = new Map<string, number>();
+  completed.forEach(w => {
+    const key = formatLocalDate(getWeekBounds(parseLocalDate(w.date)).start);
+    weekCounts.set(key, (weekCounts.get(key) || 0) + 1);
+  });
+  const qualifyingWeeks = Array.from(weekCounts.entries())
+    .filter(([, count]) => count >= weeklyTarget)
+    .map(([key]) => key)
+    .sort();
+  let consistent = false;
+  let consecutive = 1;
+  for (let i = 1; i < qualifyingWeeks.length; i++) {
+    const diff = Math.round(
+      (parseLocalDate(qualifyingWeeks[i]).getTime() - parseLocalDate(qualifyingWeeks[i - 1]).getTime()) / 86_400_000,
+    );
+    consecutive = diff === 7 ? consecutive + 1 : 1;
+    if (consecutive >= 4) { consistent = true; break; }
+  }
+
+  return [
+    { id: 'early-bird', achieved: earlyBird },
+    { id: 'comeback', achieved: comeback },
+    { id: 'sunday-warrior', achieved: sundayWarrior },
+    { id: 'consistent-4', achieved: consistent },
+  ];
 };
 
 export type MilestoneCategory = 'workouts' | 'tonnage' | 'records';
