@@ -8,6 +8,7 @@ import { redeemInvite, syncUserProfile, type AppUserProfile } from '@/lib/regist
 import {
   buildPendingAuthProfile,
   mapAppUserProfile,
+  mapSubscription,
   resolveProfileLoadFailure,
   type UserProfile,
 } from '@/lib/user-profile';
@@ -77,6 +78,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         registrationSource,
         emailVerifiedAt: status === 'active' ? new Date().toISOString() : null,
         cohorts: e2eState.scenario === 'active-admin' ? ['internal'] : [],
+        subscription: mapSubscription(e2eState.subscription ?? undefined),
       });
       setProfileLoaded(true);
       setProfileLoadError(null);

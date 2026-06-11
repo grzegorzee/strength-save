@@ -107,6 +107,20 @@ Pętla /loop nad sekcją 5 planu release. Kluczowa lekcja: plan audytu był NIEA
 - Koordynacja: kolizja numeru builda przy uploadzie (równoległa sesja watch wgrała 33-35) — przeskok na 36 z HEAD łączącym obie sesje.
 - Wdrożone: web (GH Pages), functions (weeklyDigest), **TestFlight build 36** (Beta App Review APPROVED). Commity `afd1909` + `1fd26f1`. Statusy odhaczone w `docs/PLAN_RELEASE_1.0.md` sekcja 5.
 
+### 2026-06-11 (cz. 13) — Funnel onboardingu wariant B WDROŻONY (build 38): hard paywall bez wyjścia + teaser planu
+
+**Co i dlaczego:** realizacja decyzji z cz. 12 (`docs/PROMPT_ONBOARDING_B.md`). Flow: quiz (bez zmian logiki) → zapis planu → teaser "Twój plan jest gotowy" (zamglone ćwiczenia) → hard paywall bez strzałki wstecz (jedyna ucieczka: Wyloguj) → trial → dashboard z confetti (`/?welcome=1`). Świeży user na iOS bez PRO nie widzi już ŻADNEGO ekranu apki poza paywallem.
+
+**Implementacja:**
+- **Route guard (domknięcie dziury z cz. 12):** czysta funkcja `resolvePaywallGuard` (`src/lib/paywall-guard.ts`) + hook `useHardPaywall` (sprawdza `workouts limit(1)`; fail-open przy błędzie odczytu — apki nie zamykamy userowi z danymi, monetyzację chronią bramki akcji) + `PaywallRouteGuard` owijający całe drzewo tras w `App.tsx`. Status `enforced` → każda trasa poza `/paywall` przekierowuje na paywall; `pending` → loader (zero mignięcia dashboardem). Kolejność decyzji: PRO z dowolnego ustalonego źródła zwalnia guard bez czekania na RevenueCat.
+- **Anty-"data hostage" zachowane:** user z ukończonymi treningami i wygasłym dostępem zostaje w read-only + bramki akcji + baner (bez zmian). Admin i tier `comp` omijają wszystko. Web: ZERO zmian (invite-only).
+- **Teaser** jako wewnętrzny krok `/paywall` w trybie hard (decyzja wykonawcza: jedna trasa = prosty guard, zero problemów z back-stackiem): czas trwania, dni/tydzień, lista dni z ćwiczeniami pod `blur` + gradient, CTA "Odblokuj 30 dni za darmo" odsłania cennik. Po zakupie/restore w trybie hard nawigacja na `/?welcome=1` (tryb zapamiętany w ref, bo zakup gasi `enforced` przed redirectem).
+- **Zapowiedź trialu:** dyskretna linijka na ekranie Welcome wizarda ("Najpierw ułożymy Twój plan. Potem 30 dni testujesz za darmo.") — prop `trialNotice` w PlanWizard, włączany tylko w onboardingu na iOS (nie replan, nie web).
+- **Seam testowy E2E:** `E2EAuthState` rozszerzony o `simulateNative` / `subscription` / `hasWorkouts`; `isPaywallPlatform()` honoruje symulację tylko w `VITE_E2E_MODE` (RC nieaktywny — efekty RC sprawdzają Capacitor bezpośrednio).
+- Wymogi App Review 3.1.2 na paywallu nietknięte (ceny z RC, trial, nota o odnowieniu, restore, legal).
+
+**Weryfikacja:** typecheck + lint + **370 unit** (w tym 8 nowych `paywall-guard.test.ts`: świeży→enforced, expired z treningami→off, admin/comp→off, web→off, pending) + **116 E2E** (5 nowych `paywall-funnel.spec.ts` ze screenshotami teaser+paywall: redirect z `/`, `/plan`, `/analytics`, `/settings`; brak strzałki wstecz; link Wyloguj; expired/admin/comp/web bez redirectu). Scenariusz manualny na urządzeniu: świeże konto → quiz → teaser → paywall; sprawdzić, że back-swipe nie wychodzi z paywalla i że po starcie trialu wchodzi dashboard z confetti.
+
 ### 2026-06-11 (cz. 12) — Test usera na buildzie 37: decyzja o przebudowie funnelu (wariant B)
 
 **Problem z realnego testu usera:** (1) z paywalla po onboardingu można wyjść strzałką wstecz i przeglądać całą apkę (gating łapie tylko akcje: start treningu, nowy plan), co dla świeżego usera wygląda jak działająca darmowa apka; (2) brak zapowiedzi płatności na początku onboardingu = wrażenie bait-and-switch; (3) paywall to suchy cennik, nie wykorzystuje momentu "właśnie ułożyliśmy Ci plan".

@@ -134,6 +134,8 @@ const PrimaryButton = ({ onClick, disabled, children }: { onClick: () => void; d
 interface PlanWizardProps {
   showWelcome?: boolean;
   socialProof?: boolean;
+  /** Dyskretna zapowiedź trialu na ekranie Welcome (tylko onboarding na iOS — nie replan, nie web). */
+  trialNotice?: boolean;
   initial?: { level?: WizardLevel; objective?: PlanObjective; daysPerWeek?: number };
   /** Poprzedni wybór (powrót z preview) — przywraca selekcje, datę startu i własny plan zamiast zaczynać od zera. */
   resume?: PlanWizardChoice | null;
@@ -147,7 +149,7 @@ interface PlanWizardProps {
   onExitBack?: () => void;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, initial, resume, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, resume, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
 
@@ -210,6 +212,9 @@ export const PlanWizard = ({ showWelcome, socialProof, initial, resume, builderD
                 <span className="text-primary">{t('ob.welcome.title2')}</span>
               </h1>
               <p className="text-muted-foreground mt-5 leading-relaxed">{t('ob.welcome.desc')}</p>
+              {trialNotice && (
+                <p className="mt-4 text-[13px] text-fitness-cyan">{t('ob.welcome.trialNotice')}</p>
+              )}
             </div>
             <PrimaryButton onClick={() => setStep(2)}>{t('ob.next')} <ArrowRight className="h-4 w-4" /></PrimaryButton>
             {socialProof && <p className="text-center text-[11px] font-medium tracking-widest uppercase text-muted-foreground mt-4">{t('ob.social')}</p>}

@@ -13,6 +13,12 @@ export interface E2EAuthState {
   scenario: E2EAuthScenario;
   email?: string;
   displayName?: string;
+  /** Symuluj natywny iOS (paywall) w testach E2E uruchamianych w przeglądarce. */
+  simulateNative?: boolean;
+  /** Stan subskrypcji wstrzykiwany do profilu E2E (surowy kształt z Firestore). */
+  subscription?: { tier: string; status: string; expiresAt: string | null } | null;
+  /** Czy user ma ukończone treningi (sprawdzane przez hard paywall guard). */
+  hasWorkouts?: boolean;
 }
 
 export const readE2EAuthState = (): E2EAuthState => {
@@ -35,6 +41,9 @@ export const readE2EAuthState = (): E2EAuthState => {
       scenario: parsed.scenario as E2EAuthScenario,
       email: typeof parsed.email === 'string' ? parsed.email : undefined,
       displayName: typeof parsed.displayName === 'string' ? parsed.displayName : undefined,
+      simulateNative: parsed.simulateNative === true,
+      subscription: parsed.subscription && typeof parsed.subscription === 'object' ? parsed.subscription : null,
+      hasWorkouts: parsed.hasWorkouts === true,
     };
   } catch {
     return { scenario: 'active-admin' };

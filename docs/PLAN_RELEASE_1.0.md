@@ -87,7 +87,8 @@ Kategoria: tanie czyste trackery ($3-5/mies) vs apki z AI ($10-16/mies). Strengt
 - [x] Zapis do Small Business Program — **WYSŁANE 2026-06-11** (czeka na potwierdzenie Apple)
 - [x] Podwyżka cen US przed startem: $4.99/$29.99 + re-equalizacja 173 terytoriów (PL bez zmian) — **ZROBIONE 2026-06-11**
 - [ ] **RC dashboard (USER, w toku)**: entitlement `pro` (podpięte oba produkty) + offering `default` (pakiety Annual+Monthly) + webhook (URL + Authorization)
-- [ ] Test zakupu w sandboxie na urządzeniu (build 37; po konfiguracji RC dashboard)
+- [x] Funnel onboardingu wariant B (build 38): quiz → teaser "Twój plan jest gotowy" → hard paywall bez wyjścia (route guard, Wyloguj jako jedyna ucieczka) → trial → dashboard z confetti; expired z danymi read-only bez zmian, web bez zmian — **ZROBIONE 2026-06-11** (DECYZJE cz. 13)
+- [ ] Test zakupu w sandboxie na urządzeniu (build 38; po konfiguracji RC dashboard)
 - [ ] Screenshot paywalla do metadanych subskrypcji w ASC (zdejmie stan MISSING_METADATA; przy submicie)
 
 ### Tydzień 2: formalności + hardening

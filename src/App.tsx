@@ -9,6 +9,7 @@ import { ThemeProvider } from "next-themes";
 import { Layout } from "./components/Layout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminRoute } from "./components/AdminRoute";
+import { PaywallRouteGuard } from "./components/PaywallRouteGuard";
 import { useAuth } from "./hooks/useAuth";
 import { UserProvider, useCurrentUser } from "./contexts/UserContext";
 import { UnitProvider } from "./contexts/UnitContext";
@@ -161,7 +162,7 @@ const AppRoutes = () => {
               <Route path="*" element={<Onboarding />} />
             </>
           ) : (
-            <>
+            <Route element={<PaywallRouteGuard />}>
               <Route element={<Layout />}>
                 <Route path="/login" element={<Navigate to="/" replace />} />
                 <Route path="/register" element={<Navigate to="/" replace />} />
@@ -194,7 +195,7 @@ const AppRoutes = () => {
                 <Route path="/measurements" element={<Analytics />} />
               </Route>
               <Route path="*" element={<NotFound />} />
-            </>
+            </Route>
           )}
         </Routes>
       </Suspense>

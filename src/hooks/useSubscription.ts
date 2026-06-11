@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { Purchases } from '@revenuecat/purchases-capacitor';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { PRO_ENTITLEMENT } from '@/lib/purchases';
+import { readE2EAuthState } from '@/lib/e2e-auth';
 import { isSubscriptionActive, type SubscriptionState, type SubscriptionTier } from '@/lib/user-profile';
 
 // Źródła prawdy o PRO (w kolejności):
@@ -99,11 +100,22 @@ export const useSubscription = (): SubscriptionInfo => {
 };
 
 /**
+ * Platforma objęta paywallem: natywny iOS. W trybie E2E (przeglądarka) testy mogą
+ * symulować native przez `simulateNative` w stanie e2e-auth — RC i tak nie jest
+ * wołany (efekty RC sprawdzają Capacitor bezpośrednio), PRO pochodzi z profilu.
+ */
+export const isPaywallPlatform = (): boolean => {
+  if (Capacitor.isNativePlatform()) return true;
+  if (import.meta.env.VITE_E2E_MODE === 'true') return readE2EAuthState().simulateNative === true;
+  return false;
+};
+
+/**
  * Hard paywall obowiązuje TYLKO na natywnym iOS (web jest invite-only, bez sprzedaży).
  * true = zablokuj akcję i wyślij na /paywall. Podczas ładowania stanu zwraca false,
  * żeby nie migać paywallem userom z aktywnym PRO.
  */
 export const useRequiresPaywall = (): boolean => {
   const { isPro, loading } = useSubscription();
-  return Capacitor.isNativePlatform() && !loading && !isPro;
+  return isPaywallPlatform() && !loading && !isPro;
 };

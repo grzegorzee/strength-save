@@ -53,6 +53,7 @@ const Onboarding = () => {
     <PlanWizard
       showWelcome
       socialProof
+      trialNotice={requiresPaywall}
       builderDraftKey={`ss-plan-builder-draft_${uid}`}
       confirmLabelKey="ob.precision.confirm"
       onConfirm={handleConfirm}

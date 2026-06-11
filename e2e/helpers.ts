@@ -148,7 +148,16 @@ export const writeWorkoutSyncQueue = async (page: Page, userId: string, entries:
 export const setE2EAuthScenario = async (
   page: Page,
   scenario: 'unauthenticated' | 'pending-verification' | 'suspended' | 'active-user' | 'active-admin' | 'new-user' | 'new-invited-user',
-  overrides?: { email?: string; displayName?: string },
+  overrides?: {
+    email?: string;
+    displayName?: string;
+    /** Symuluj natywny iOS (hard paywall guard) w przeglądarce. */
+    simulateNative?: boolean;
+    /** Stan subskrypcji w profilu (surowy kształt Firestore). */
+    subscription?: { tier: string; status: string; expiresAt: string | null } | null;
+    /** Czy user ma ukończone treningi (guard sprawdza przed redirectem na paywall). */
+    hasWorkouts?: boolean;
+  },
 ) => {
   await page.addInitScript(({ storageKey, authState }) => {
     window.localStorage.setItem(storageKey, JSON.stringify(authState));

@@ -1,18 +1,29 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Purchases, type PurchasesPackage } from '@revenuecat/purchases-capacitor';
-import { ArrowLeft, Check, Crown, Loader2, RefreshCw } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { ArrowLeft, Check, Crown, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { auth } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useHardPaywall } from '@/hooks/useHardPaywall';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { localizeFocus } from '@/lib/plan-i18n';
 import { PRO_ENTITLEMENT } from '@/lib/purchases';
 import { useToast } from '@/hooks/use-toast';
 
 // Paywall PRO. Wymogi App Review 3.1.2: widoczna cena i okres, długość trialu,
 // informacja o automatycznym odnowieniu, restore purchases, linki do Terms i Privacy.
 // Ceny zawsze z RC Offerings (lokalizowane przez App Store) — zero cen na sztywno.
+//
+// Tryb hard (onboarding, wariant B): świeży user bez PRO i bez treningów trafia tu
+// zaraz po wizardzie — najpierw teaser "Twój plan jest gotowy" (zamglone ćwiczenia),
+// potem cennik BEZ strzałki wstecz; jedyna ucieczka to "Wyloguj". Po zakupie/trialu
+// dashboard z confetti (/?welcome=1).
 
 const LEGAL_BASE = 'https://strengthsave.app/legal';
 
@@ -22,7 +33,16 @@ export default function Paywall() {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { uid } = useCurrentUser();
   const { isPro, refresh } = useSubscription();
+  const hardStatus = useHardPaywall();
+  const hard = hardStatus === 'enforced';
+  // Zakup zmienia hardStatus na 'off' zanim odpali się redirect — zapamiętaj tryb,
+  // żeby świeży user dostał confetti (/?welcome=1), a nie goły dashboard.
+  const wasHard = useRef(false);
+  if (hard) wasHard.current = true;
+  const successRoute = () => (wasHard.current ? '/?welcome=1' : '/');
+  const { plan, planDurationWeeks } = useTrainingPlan(uid);
   const isNative = Capacitor.isNativePlatform();
 
   const [packages, setPackages] = useState<Record<PlanKey, PurchasesPackage | null>>({ yearly: null, monthly: null });
@@ -30,6 +50,7 @@ export default function Paywall() {
   const [loadError, setLoadError] = useState(false);
   const [selected, setSelected] = useState<PlanKey>('yearly');
   const [busy, setBusy] = useState(false);
+  const [teaserDismissed, setTeaserDismissed] = useState(false);
 
   const loadOfferings = useCallback(async () => {
     if (!isNative) return;
@@ -53,7 +74,7 @@ export default function Paywall() {
 
   // PRO aktywne (zakup/restore/comp) — paywall nie ma już nic do sprzedania.
   useEffect(() => {
-    if (isPro) navigate('/', { replace: true });
+    if (isPro) navigate(wasHard.current ? '/?welcome=1' : '/', { replace: true });
   }, [isPro, navigate]);
 
   const trialDays: Record<PlanKey, number> = { yearly: 30, monthly: 14 };
@@ -66,7 +87,7 @@ export default function Paywall() {
       const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
       if (customerInfo.entitlements.active[PRO_ENTITLEMENT]) {
         await refresh();
-        navigate('/', { replace: true });
+        navigate(successRoute(), { replace: true });
       }
     } catch (error) {
       const cancelled = typeof error === 'object' && error !== null
@@ -87,7 +108,7 @@ export default function Paywall() {
       if (customerInfo.entitlements.active[PRO_ENTITLEMENT]) {
         await refresh();
         toast({ title: t('paywall.restored') });
-        navigate('/', { replace: true });
+        navigate(successRoute(), { replace: true });
       } else {
         toast({ title: t('paywall.restoreNone') });
       }
@@ -150,12 +171,87 @@ export default function Paywall() {
     );
   };
 
+  // Guard jeszcze ustala stan (subskrypcja / treningi) — nie migaj cennikiem ani teaserem.
+  if (hardStatus === 'pending') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Onboarding (hard mode), krok 1: teaser świeżo ułożonego planu z zamglonymi ćwiczeniami.
+  if (hard && !teaserDismissed) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-[calc(2.5rem+env(safe-area-inset-top))]">
+          <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-primary">
+            <Sparkles className="h-3.5 w-3.5" />{t('paywall.teaser.kicker')}
+          </p>
+          <h1 className="mt-2 font-heading text-4xl font-black leading-tight tracking-tight">{t('paywall.teaser.title')}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t('paywall.teaser.subtitle')}</p>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-surface-low p-4">
+              <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
+              <p className="mt-1 font-heading text-2xl font-bold">
+                <span className="text-fitness-cyan">{planDurationWeeks}</span>{' '}
+                <span className="font-sans text-sm font-medium text-muted-foreground">{t('ob.precision.weeks')}</span>
+              </p>
+            </div>
+            <div className="rounded-2xl bg-surface-low p-4">
+              <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.frequency')}</p>
+              <p className="mt-1 font-heading text-2xl font-bold">
+                <span className="text-primary">{plan.length}</span>{' '}
+                <span className="font-sans text-sm font-medium text-muted-foreground">{t('ob.precision.daysWk')}</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="relative mt-3 flex-1 overflow-hidden rounded-2xl bg-surface-low p-4">
+            <div className="space-y-3.5">
+              {plan.map((d, i) => (
+                <div key={d.id}>
+                  <div className="flex gap-2 text-[13px]">
+                    <span className="font-bold tabular-nums text-fitness-cyan">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="font-medium">{localizeFocus(d.focus, lang)}</span>
+                    <span className="text-muted-foreground">· {d.exercises.length} {t('ob.precision.exercises')}</span>
+                  </div>
+                  {/* Ćwiczenia celowo zamglone — pełną treść odsłania trial. */}
+                  <div className="mt-1 select-none space-y-0.5 pl-7 blur-[5px]" aria-hidden>
+                    {d.exercises.slice(0, 3).map(e => (
+                      <p key={e.id} className="text-[12px] text-muted-foreground">{e.name}</p>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent" />
+          </div>
+
+          <Button
+            className="mt-5 h-14 w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide"
+            onClick={() => setTeaserDismissed(true)}
+          >
+            {t('paywall.teaser.cta')}
+          </Button>
+          <button onClick={() => void signOut(auth)} className="mt-4 text-center text-xs text-muted-foreground underline underline-offset-2">
+            {t('paywall.logout')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <div className="mx-auto max-w-md px-5 pt-[calc(1rem+env(safe-area-inset-top))]">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-2xl bg-muted/60" aria-label={t('workout.close')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+        {/* Hard mode (onboarding): bez strzałki wstecz — nie ma "obejrzę sobie apkę bez trialu". */}
+        {!hard && (
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-2xl bg-muted/60" aria-label={t('workout.close')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        )}
 
         <div className="mt-4 flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/15 text-primary">
@@ -228,6 +324,15 @@ export default function Paywall() {
             {t('paywall.privacy')}
           </a>
         </div>
+
+        {/* Hard mode: jedyna ucieczka z paywalla to wylogowanie. */}
+        {hard && (
+          <div className="mt-5 text-center">
+            <button onClick={() => void signOut(auth)} className="text-xs text-muted-foreground underline underline-offset-2">
+              {t('paywall.logout')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
