@@ -28,6 +28,15 @@ Cel: logowanie treningu bezpośrednio na zegarku, bez wyjmowania telefonu.
 - Dowody E2E: `audit/shots/watch/` (10-watch-context, 13-watch-after-log, 14-phone-after-watch-log — toast „Set from watch" + seria zaliczona na telefonie).
 - Wdrożone: web (GH Pages) + **TestFlight build 28** (upload OK, Beta App Review APPROVED od razu). Signing zegarka: `scripts/watch_signing.py` (bundle ID `...watchkitapp` zarejestrowany, profil „Strength Save Watch App Store" na istniejącym cercie Distribution, mapowanie dopisane do ExportOptions-manual.plist — plik poza repo).
 
+### 2026-06-11 (cz. 2) — Start treningu z zegarka + podgląd planu (build 29)
+
+- Zegarek pokazuje plan dnia PRZED startem sesji (Dashboard → `useWatchPlanPreview`, payload `active:false`, prefill jak w WorkoutDay) i ma przycisk „Rozpocznij trening".
+- Event `startWorkout` → globalny `WatchEventRouter` (App.tsx) nawiguje do WorkoutDay z `autostart=true`; sesja powstaje istniejącą ścieżką. Plugin dostał `peekEvents` (podgląd kolejki bez kasowania — eventy serii konsumuje wyłącznie WorkoutDay).
+- Zaliczenie serii na zegarku w trybie podglądu = niejawny start (sticky lokalny override do potwierdzenia `active:true` z telefonu).
+- Aktywny draft → Dashboard wysyła stan z draftu (`active:true`) — zegarek aktualny bez otwierania WorkoutDay (zweryfikowane na symulatorze).
+- 4 testy `WatchEventRouter` (nawigacja, peek, filtr daty/typu, dedup po `at`). Ścieżka preview→start nie miała pełnego E2E na symulatorze (dzisiejszy dzień miał realny draft na koncie admina — nie fałszujemy danych treningowych); pierwsza realna weryfikacja w nowy dzień treningowy.
+- Wdrożone: web (GH Pages) + **TestFlight build 29** (Beta App Review APPROVED).
+
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
 Cel: przełącznik kg/lbs (Profil) zmienia KAŻDĄ wagę w apce (wyświetlanie, pola wpisywania, wykresy, tonaż, rekordy, podpowiedzi, pomiary, share, onboarding). Wcześniej działał tylko w 4 plikach. **NIE wdrożone** (commit/push/deploy odłożone na życzenie usera — zmiany w working tree).
