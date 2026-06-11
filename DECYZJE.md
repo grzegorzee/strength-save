@@ -77,6 +77,14 @@ Feedback z porannego treningu na iPhone 14 Pro. Wszystkie 5 naprawione, commit `
 - NIEZWERYFIKOWANE na symulatorze: trening usera był już ukończony (zegarek poprawnie pokazał „Dziś odpoczynek"), test wymagałby sfałszowania sesji. Realna weryfikacja = pierwszy trening z zegarkiem; arkusz zgody HealthKit pojawi się raz na zegarku.
 - Wdrożone: **TestFlight build 34** (Beta App Review APPROVED). Web bez zmian.
 
+### 2026-06-11 (cz. 8) — Zegarek: komplikacja na tarczę (build 35)
+
+- Target `StrengthWatchWidgets` (widget extension watchOS, appex w PlugIns apki zegarkowej): accessoryCircular/Corner (hantla) + accessoryInline; tap otwiera apkę. Skrypt `scripts/add_watch_widget_target.rb` (idempotentny), własny Info.plist z `NSExtensionPointIdentifier = com.apple.widgetkit-extension` (`GENERATE_INFOPLIST_FILE=NO` — kluczy NSExtension nie da się wygenerować z INFOPLIST_KEY_*).
+- Signing: `watch_signing.py` zgeneralizowany (ensure_bundle_id/create_profile z parametrami) + sekcja widgets: bundle `...watchkitapp.widgets` (Z4Q5Q88AX9), profil „Strength Save Watch Widgets App Store", ExportOptions z trzema mapowaniami profili.
+- Wersje appex MUSZĄ równać się wersjom apki zegarkowej (CFBundleShortVersionString/CFBundleVersion) — bump teraz dotyczy 6 wystąpień CURRENT_PROJECT_VERSION w pbxproj (App ×2, StrengthWatch ×2, Widgets ×2).
+- Weryfikacja: build + appex w PlugIns + apka startuje bez crashu; dodanie komplikacji do tarczy do sprawdzenia na realnym zegarku.
+- Wdrożone: **TestFlight build 35** (Beta App Review APPROVED). Po 7 iteracjach (buildy 28-30, 32-35) apka watch ma komplet: komplikacja → preview → start → one-tap serie → rest timer (sesja HK trzyma apkę żywą) → live tętno → finish → Apple Health.
+
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
 Cel: przełącznik kg/lbs (Profil) zmienia KAŻDĄ wagę w apce (wyświetlanie, pola wpisywania, wykresy, tonaż, rekordy, podpowiedzi, pomiary, share, onboarding). Wcześniej działał tylko w 4 plikach. **NIE wdrożone** (commit/push/deploy odłożone na życzenie usera — zmiany w working tree).
