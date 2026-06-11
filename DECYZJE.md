@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-06-11 — Rebrand ikony aplikacji: limonkowy hantel 3D
+
+**Co:** Nowa ikona (3D hantel na limonkowym tle #DDF70D, wygenerowana w ChatGPT) wdrożona wszędzie: iOS AppIcon + watch icon (1024px, rogi zalane limonką, bez kanału alpha — wymóg App Store), splash screen (ikona na tle #0e0e0e, 9 wariantów — zastąpiła stare logo tarczy), PWA (pwa-192/512), favicon.png 96px + favicon.svg (embedded PNG), logo w sidebarze (AppNavigation) i na ekranie logowania (zamiast badge "SS" i lucide Dumbbell), tytuł logowania w font-heading (Space Grotesk).
+
+**Dlaczego:** Wyróżnialność w App Store (kategoria fitness = morze ciemnych ikon, solid lime się wybija) + spójność z motywem neon lime apki. Wybrano wariant solid (bez gradientu/tekstury) — najlepsza czytelność przy 60px, zgodnie z Apple HIG.
+
+**Technika:** ImageMagick — maska roundrectangle (promień 186/1254 jak w wypieczonych rogach źródła), wersja kwadratowa (rogi zalane #DDF70D) dla iOS/PWA i wersja z przezroczystymi rogami dla favicon/UI. theme-color #0a0a1a → #0e0e0e (index.html + manifest PWA).
+
+**Weryfikacja:** 350 testów zielonych, typecheck, lint, build OK, web zdeployowany (favicon.svg/png widoczne na live). Nowa ikona iOS pojawi się w TestFlight przy następnym buildzie.
+
 ### 2026-06-11 — Aplikacja Apple Watch (StrengthWatch): logowanie serii z nadgarstka
 
 Cel: logowanie treningu bezpośrednio na zegarku, bez wyjmowania telefonu.
