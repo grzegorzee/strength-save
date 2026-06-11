@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Strength Save — Join the Iron</title>
+<meta name="description" content="Strength Save — track your strength training, follow structured plans, watch your progress. Join the Iron." />
+<meta property="og:title" content="Strength Save — Join the Iron" />
+<meta property="og:description" content="Track your lifts. Follow the plan. Watch the numbers climb." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700;1,800;1,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --lime: #ccfc22;
+    --lime-dim: #a8d11c;
+    --cyan: #00d9ff;
+    --orange: #ff8c1a;
+    --bg: #0e0e0e;
+    --bg-2: #0a0a0a;
+    --card: #171717;
+    --card-2: #1c1c1c;
+    --border: #303030;
+    --border-soft: #232323;
+    --fg: #f4ffe0;
+    --muted: #8a8a82;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .display {
+    font-family: 'Archivo', sans-serif;
+    font-style: italic;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 0.95;
+  }
+  .label {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.72rem;
+  }
+
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- NAV ---------- */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    backdrop-filter: blur(14px);
+    background: rgba(14,14,14,0.72);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family:'Archivo'; font-style:italic; font-weight:900; text-transform:uppercase; letter-spacing:-0.01em; font-size: 1.1rem; }
+  .shield {
+    width: 28px; height: 32px; flex: none;
+    background: var(--lime);
+    -webkit-mask: var(--shield-mask) center/contain no-repeat;
+    mask: var(--shield-mask) center/contain no-repeat;
+  }
+  .shield svg { display:block; }
+  .nav-links { display: flex; align-items: center; gap: 28px; }
+  .nav-links a.label { color: var(--muted); transition: color .2s; }
+  .nav-links a.label:hover { color: var(--fg); }
+  .btn {
+    font-family:'Archivo'; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
+    font-size: 0.82rem; border-radius: 999px; padding: 11px 22px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; border: 1px solid transparent;
+    transition: transform .15s, box-shadow .2s, background .2s;
+  }
+  .btn-primary { background: var(--lime); color: #0a0a0a; box-shadow: 0 0 0 rgba(204,252,34,0); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(204,252,34,0.28); }
+  .btn-ghost { background: transparent; color: var(--fg); border-color: var(--border); }
+  .btn-ghost:hover { border-color: var(--lime); color: var(--lime); }
+  @media (max-width: 760px){ .nav-links .label { display:none; } }
+
+  /* ---------- HERO ---------- */
+  header.hero { position: relative; padding: 150px 0 90px; overflow: hidden; }
+  .hero-glow {
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(680px 420px at 78% 18%, rgba(204,252,34,0.10), transparent 70%),
+      radial-gradient(560px 420px at 12% 80%, rgba(0,217,255,0.07), transparent 70%);
+  }
+  .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; }
+  .eyebrow { display:inline-flex; align-items:center; gap:8px; color: var(--lime); margin-bottom: 22px; }
+  .eyebrow .dot { width:7px; height:7px; border-radius:50%; background: var(--lime); box-shadow: 0 0 12px var(--lime); }
+  h1.hero-title { font-size: clamp(2.8rem, 7vw, 5.2rem); }
+  h1.hero-title .accent { color: var(--lime); }
+  .hero-sub { color: var(--muted); font-size: 1.12rem; max-width: 30rem; margin: 24px 0 34px; }
+  .hero-cta { display:flex; gap: 14px; flex-wrap: wrap; }
+  .hero-meta { display:flex; gap: 28px; margin-top: 36px; }
+  .hero-meta .stat .n { font-family:'Archivo'; font-style:italic; font-weight:900; font-size: 1.7rem; color: var(--fg); }
+  .hero-meta .stat .l { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: .1em; }
+
+  /* video / phone in hero */
+  .hero-media { position: relative; display:flex; justify-content:center; }
+  .video-frame {
+    position: relative; width: 100%; max-width: 460px; aspect-ratio: 16/10;
+    border-radius: 20px; overflow: hidden; border: 1px solid var(--border);
+    background: linear-gradient(160deg, #141414, #0b0b0b);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .video-frame video, .video-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .video-placeholder {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap: 14px; text-align:center; padding: 24px; color: var(--muted);
+    background:
+      radial-gradient(420px 300px at 50% 35%, rgba(204,252,34,0.10), transparent 70%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0 12px, transparent 12px 24px);
+  }
+  .video-placeholder .play {
+    width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--lime);
+    display:flex; align-items:center; justify-content:center; color: var(--lime);
+    box-shadow: 0 0 30px rgba(204,252,34,0.25);
+  }
+  .video-placeholder code { color: var(--lime-dim); font-size: 0.74rem; }
+  @media (max-width: 880px){
+    .hero-grid { grid-template-columns: 1fr; gap: 44px; }
+    .hero-media { order: -1; }
+  }
+
+  /* ---------- SCROLL CINEMATIC ---------- */
+  .scroll-stage { position: relative; height: 600vh; background: #000; }
+  .stage-pin { position: sticky; top: 0; height: 100vh; overflow: hidden; }
+
+  .stage-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; display: none; }
+
+  .stage-layers { position: absolute; inset: 0; z-index: 1; }
+  .layer { position: absolute; inset: 0; opacity: 0; will-change: opacity, transform; }
+  .layer-img { background-size: cover; background-position: center; }
+  .s3 { background: radial-gradient(circle at 50% 50%, rgba(204,252,34,0.95), rgba(204,252,34,0.15) 38%, transparent 68%); }
+  .s4 { display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(700px 500px at 50% 45%, rgba(204,252,34,0.10), transparent 70%), #050505; perspective: 1400px; }
+  .s5 { background: radial-gradient(620px 420px at 50% 32%, rgba(204,252,34,0.14), transparent 70%), #050505; }
+  .stage-vignette { position: absolute; inset: 0; z-index: 2; pointer-events: none;
+        background: radial-gradient(125% 100% at 50% 38%, transparent 52%, rgba(0,0,0,0.72)); }
+
+  /* spinning phone (placeholder for the iPhone 360° rotation clip) */
+  .spin-phone { width: 230px; aspect-ratio: 9/19.5; border-radius: 34px; padding: 9px;
+        background: linear-gradient(160deg, #1d1d1d, #0d0d0d);
+        box-shadow: 0 0 0 2px #ccfc22, 0 0 60px rgba(204,252,34,0.4), 0 40px 90px rgba(0,0,0,0.7);
+        transform-style: preserve-3d; will-change: transform; }
+  .sp-screen { width: 100%; height: 100%; border-radius: 26px; background: #0a0a0a; padding: 22px 16px;
+        display: flex; flex-direction: column; }
+  .sp-ico { color: var(--lime); font-size: 18px; margin-bottom: 8px; }
+  .sp-title { font-family:'Archivo'; font-weight: 900; font-style: italic; text-transform: uppercase;
+        color: #fff; font-size: 30px; line-height: 0.92; letter-spacing: -0.01em; }
+  .sp-pill { align-self: flex-start; margin-top: 14px; background: var(--lime); color: #0a0a0a;
+        font-family:'Archivo'; font-weight: 800; text-transform: uppercase; font-size: 12px;
+        padding: 6px 13px; border-radius: 999px; }
+  .sp-bar { margin-top: 12px; height: 7px; border-radius: 7px; background: #222; overflow: hidden; }
+  .sp-bar span { display: block; width: 17%; height: 100%; background: var(--lime); }
+  .sp-sub { color: var(--muted); font-size: 12px; margin-top: 9px; }
+
+  .captions { position: absolute; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center;
+        text-align: center; padding: 24px; pointer-events: none; }
+  .captions .btn { pointer-events: auto; }
+  .cap { position: absolute; opacity: 0; will-change: opacity, transform; }
+  .cap h1, .cap h2 { font-size: clamp(2.8rem, 9vw, 6.5rem); text-shadow: 0 4px 40px rgba(0,0,0,0.6); }
+  .cap .accent { color: var(--lime); }
+  .cap .eyebrow { margin-bottom: 18px; }
+
+  .scroll-hint { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 4;
+        color: var(--muted); animation: bob 1.8s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{ transform: translateX(-50%) translateY(0);} 50%{ transform: translateX(-50%) translateY(7px);} }
+  .scrub-progress { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: rgba(255,255,255,0.06); z-index: 5; }
+  .scrub-progress > span { display: block; height: 100%; width: 0; background: var(--lime); box-shadow: 0 0 12px var(--lime); }
+
+  @media (max-width: 760px){ .spin-phone { width: 180px; } }
+
+  /* ---------- SECTION SHELL ---------- */
+  section { position: relative; padding: 96px 0; }
+  .sec-head { max-width: 40rem; margin-bottom: 54px; }
+  .sec-head .label { color: var(--lime); display:block; margin-bottom: 14px; }
+  .sec-head h2 { font-size: clamp(2rem, 4.4vw, 3.1rem); }
+  .sec-head p { color: var(--muted); margin-top: 16px; font-size: 1.05rem; }
+
+  /* ---------- FEATURES ---------- */
+  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .feature {
+    background: var(--card); border: 1px solid var(--border-soft); border-radius: 18px; padding: 28px 24px;
+    transition: transform .2s, border-color .2s;
+  }
+  .feature:hover { transform: translateY(-4px); border-color: var(--border); }
+  .feature .ico {
+    width: 46px; height: 46px; border-radius: 13px; display:flex; align-items:center; justify-content:center;
+    background: rgba(204,252,34,0.10); color: var(--lime); margin-bottom: 18px;
+  }
+  .feature h3 { font-family:'Archivo'; font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; font-size: 1.08rem; margin-bottom: 9px; }
+  .feature p { color: var(--muted); font-size: 0.94rem; }
+  @media (max-width: 880px){ .features { grid-template-columns: 1fr; } }
+
+  /* ---------- SHOWCASE ---------- */
+  .showcase { background: var(--bg-2); border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
+  .showcase-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items:center; }
+  .showcase-grid.rev { direction: rtl; } .showcase-grid.rev > * { direction: ltr; }
+  .showcase-text h2 { font-size: clamp(1.8rem, 3.6vw, 2.6rem); margin-bottom: 18px; }
+  .showcase-text p { color: var(--muted); margin-bottom: 14px; }
+  .tick { display:flex; gap:12px; align-items:flex-start; margin-top: 14px; color: var(--fg); }
+  .tick .t { color: var(--lime); flex:none; }
+  .phones { display:flex; justify-content:center; }
+  @media (max-width: 880px){ .showcase-grid, .showcase-grid.rev { grid-template-columns: 1fr; direction: ltr; } }
+
+  /* ---------- PHONE MOCKUP (CSS recreation of the app) ---------- */
+  .phone {
+    width: 280px; aspect-ratio: 9/19.5; border-radius: 42px; padding: 11px;
+    background: #1a1a1a; border: 1px solid #2a2a2a;
+    box-shadow: 0 40px 90px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+  .phone .screen { width:100%; height:100%; border-radius: 32px; background: #0b0b0b; overflow: hidden; position: relative; padding: 18px 14px; font-size: 11px; }
+  .notch { position:absolute; top:9px; left:50%; transform:translateX(-50%); width:96px; height:18px; background:#000; border-radius:0 0 12px 12px; }
+  .ph-top { display:flex; justify-content:space-between; align-items:center; color:#fff; margin: 14px 2px 16px; }
+  .ph-top .ttl { font-family:'Archivo'; font-weight:900; font-style:italic; text-transform:uppercase; letter-spacing:.04em; font-size:14px; }
+  .ph-greet { font-family:'Archivo'; font-weight:900; font-style:italic; text-transform:uppercase; color:#fff; font-size: 19px; display:flex; align-items:center; gap:6px; }
+  .ph-greet .sun { color: var(--orange); }
+  .ph-date { color: var(--muted); font-size: 10px; margin: 3px 0 14px; }
+  .ph-banner { border:1px solid rgba(204,252,34,0.35); border-radius: 12px; padding: 11px 12px; display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
+  .ph-banner .l { color: var(--lime); font-weight:700; font-size: 12px; }
+  .ph-banner .s { color: var(--muted); font-size:9px; }
+  .ph-banner .v { color:#fff; font-weight:600; font-size: 11px; }
+  .ph-card { border:1px solid rgba(0,217,255,0.30); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  .ph-card .k { color: var(--muted); font-size: 9px; letter-spacing:.12em; text-transform:uppercase; }
+  .ph-card .h { font-family:'Archivo'; font-weight:900; text-transform:uppercase; color:#fff; font-size: 15px; line-height:1.05; margin: 7px 0 9px; }
+  .pills { display:flex; flex-wrap:wrap; gap:6px; margin-bottom: 12px; }
+  .pill { background: rgba(204,252,34,0.10); color: var(--lime); border-radius:999px; padding:4px 9px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+  .ph-btn { background: var(--lime); color:#0a0a0a; text-align:center; border-radius:999px; padding:9px; font-weight:800; font-size:12px; text-transform:uppercase; }
+  .ph-stats { display:flex; gap:8px; margin-top:12px; }
+  .ph-stat { flex:1; border:1px solid var(--border-soft); border-radius:12px; padding:10px; }
+  .ph-stat .si { color: var(--lime); font-size: 12px; }
+  .ph-stat .sl { color: var(--muted); font-size:8px; text-transform:uppercase; letter-spacing:.08em; margin-top:4px; }
+  .ph-stat .sn { color:#fff; font-family:'Archivo'; font-style:italic; font-weight:900; font-size: 18px; }
+  .ph-tab { position:absolute; left:14px; right:14px; bottom:12px; display:flex; justify-content:space-between; background:#141414; border:1px solid var(--border-soft); border-radius:18px; padding:8px 14px; }
+  .ph-tab .ti { color: var(--muted); font-size:8px; text-transform:uppercase; letter-spacing:.05em; text-align:center; }
+  .ph-tab .ti.on { color:#0a0a0a; }
+  .ph-tab .ti.on .dot { background: var(--lime); }
+  .ph-tab .ti .dot { width:26px; height:18px; border-radius:9px; margin:0 auto 3px; display:block; }
+
+  /* ---------- CTA ---------- */
+  .cta-final { text-align:center; }
+  .cta-final .ring { position:relative; border-radius: 28px; padding: 72px 28px; overflow:hidden;
+    background: linear-gradient(160deg, #161a08, #0c0c0c); border: 1px solid var(--border); }
+  .cta-final .ring::before { content:""; position:absolute; inset:0; background: radial-gradient(500px 300px at 50% 0%, rgba(204,252,34,0.16), transparent 70%); }
+  .cta-final h2 { position:relative; font-size: clamp(2.2rem, 6vw, 4.2rem); }
+  .cta-final h2 .accent { color: var(--lime); }
+  .cta-final p { position:relative; color: var(--muted); margin: 18px auto 30px; max-width: 32rem; }
+  .cta-final .hero-cta { position:relative; justify-content:center; }
+
+  /* ---------- FOOTER ---------- */
+  footer { border-top: 1px solid var(--border-soft); padding: 40px 0; }
+  .foot { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; color: var(--muted); font-size: 0.85rem; }
+  .foot .brand { color: var(--fg); font-size: 1rem; }
+
+  .fade { opacity:0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+  .fade.in { opacity:1; transform:none; }
+</style>
+</head>
+<body>
+
+<!-- shield mask used by .shield -->
+<svg width="0" height="0" style="position:absolute"><defs>
+  <clipPath id="x"></clipPath>
+</defs></svg>
+
+<nav>
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top">
+      <svg class="shield-svg" width="26" height="30" viewBox="0 0 26 30" fill="none">
+        <path d="M13 1 24 5v9c0 8-5 12.5-11 15C7 26.5 2 22 2 14V5l11-4Z" fill="#ccfc22"/>
+        <path d="M9 15.5 12 18.5 18 11" stroke="#0a0a0a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      Strength&nbsp;Save
+    </a>
+    <div class="nav-links">
+      <a class="label" href="#features">Features</a>
+      <a class="label" href="#plan">The Plan</a>
+      <a class="label" href="#progress">Progress</a>
+      <a class="btn btn-primary" href="#download">Join the Iron</a>
+    </div>
+  </div>
+</nav>
+
+<a id="top"></a>
+
+<!-- ============ SCROLL CINEMATIC (5 scenes, scroll-scrubbed) ============ -->
+<!-- Podstaw wygenerowany ciąg pod landing/scroll-sequence.mp4 (barbell → lift → zoom → iPhone 360° → explode/CTA). -->
+<!-- Dopóki pliku nie ma, działa fallback na grafikach w assets/. -->
+<section class="scroll-stage" id="cinematic">
+  <div class="stage-pin">
+
+    <!-- Realny film (scroll steruje currentTime). Pokaże się gdy mp4 się załaduje. -->
+    <video class="stage-video" muted playsinline preload="auto" poster="assets/scene-barbell.jpg">
+      <source src="scroll-sequence.mp4" type="video/mp4" />
+    </video>
+
+    <!-- Fallback: warstwy scen z grafik (widoczne dopóki nie ma mp4) -->
+    <div class="stage-layers">
+      <div class="layer layer-img s1" style="background-image:url('assets/scene-barbell.jpg')"></div>
+      <div class="layer layer-img s2" style="background-image:url('assets/scene-barbell.jpg')"></div>
+      <div class="layer s3"></div>
+      <div class="layer s4">
+        <div class="spin-phone">
+          <div class="sp-screen">
+            <div class="sp-ico">▣</div>
+            <div class="sp-title">Your<br/>Training<br/>Plan</div>
+            <div class="sp-pill">Week 2/12</div>
+            <div class="sp-bar"><span></span></div>
+            <div class="sp-sub">17% of plan time</div>
+          </div>
+        </div>
+      </div>
+      <div class="layer s5"></div>
+    </div>
+
+    <div class="stage-vignette"></div>
+
+    <!-- Napisy per scena -->
+    <div class="captions">
+      <div class="cap c1">
+        <span class="eyebrow label"><span class="dot"></span> Strength training tracker</span>
+        <h1 class="display">Join the <span class="accent">Iron.</span></h1>
+      </div>
+      <div class="cap c2"><h2 class="display">Every rep<br/><span class="accent">counts.</span></h2></div>
+      <div class="cap c4"><h2 class="display">Your plan.<br/>In your <span class="accent">pocket.</span></h2></div>
+      <div class="cap c5">
+        <h2 class="display">Strength <span class="accent">Save</span></h2>
+        <div class="hero-cta" style="justify-content:center; margin-top:24px;">
+          <a class="btn btn-primary" href="#download">↓ Get the app</a>
+          <a class="btn btn-ghost" href="#features">See features</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll-hint label">Scroll ↓</div>
+    <div class="scrub-progress"><span></span></div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head fade">
+      <span class="label">What you get</span>
+      <h2 class="display">Everything you need.<br/>Nothing you don't.</h2>
+      <p>No fluff, no gimmicks. Just the tools that make strength training actually stick.</p>
+    </div>
+    <div class="features">
+      <div class="feature fade">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6h4v12H6zM14 6h4v12h-4z"/><path d="M2 9v6M22 9v6"/></svg></div>
+        <h3>Structured plans</h3>
+        <p>Build your own 8–16 week program or start from a template. 2–5 sessions a week, with weight &amp; rest guidance baked in.</p>
+      </div>
+      <div class="feature fade">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 7h6v6"/></svg></div>
+        <h3>Progress tracking</h3>
+        <p>Tonnage, attendance, PRs and per-cycle summaries. Your history is resilient even when you change the plan.</p>
+      </div>
+      <div class="feature fade">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg></div>
+        <h3>Smart rest timer</h3>
+        <p>Per-exercise rest timers so you nail 2–3 min on main lifts and 60–90s on isolation, automatically.</p>
+      </div>
+      <div class="feature fade">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg></div>
+        <h3>Exercise library</h3>
+        <p>A full catalog with form notes and video, so you always know how to run the movement right.</p>
+      </div>
+      <div class="feature fade">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></div>
+        <h3>Analytics</h3>
+        <p>Charts that show the long game: volume trends, weekly digests and the metrics that actually move the needle.</p>
+      </div>
+      <div class="feature fade">
+        <div class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg></div>
+        <h3>Strava sync</h3>
+        <p>Pull in your runs and rides — heart-rate zones, pace and elevation right alongside your lifting.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="plan" class="showcase">
+  <div class="wrap showcase-grid">
+    <div class="phones fade">
+      <div class="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="ph-top"><span class="ttl">Training Plan</span><span>☾</span></div>
+          <div class="ph-card" style="border-color:var(--border-soft)">
+            <div class="h" style="font-style:italic">Training Plan</div>
+            <div class="ph-date">12-week program · Mon, Tue, Thu, Fri</div>
+            <div class="pills"><span class="pill" style="background:var(--lime);color:#0a0a0a">Week 2/12</span></div>
+            <div style="height:6px;border-radius:6px;background:#222;overflow:hidden;margin:4px 0 6px"><div style="width:17%;height:100%;background:var(--lime)"></div></div>
+            <div style="display:flex;justify-content:space-between;color:var(--muted);font-size:9px"><span>START</span><span style="color:var(--lime);font-weight:700">17% DONE</span><span>END</span></div>
+          </div>
+          <div class="ph-banner" style="border-color:rgba(204,252,34,0.30)">
+            <div><div class="l" style="font-size:11px">✅ Monday · Upper A</div><div class="s">Completed</div></div>
+            <div class="pill">Done</div>
+          </div>
+          <div class="ph-banner" style="border-color:rgba(204,252,34,0.30)">
+            <div><div class="l" style="font-size:11px">Tuesday · Lower A</div><div class="s">5 exercises</div></div>
+            <div class="pill">Today</div>
+          </div>
+          <div class="ph-tab">
+            <div class="ti"><span class="dot"></span>Home</div>
+            <div class="ti on"><span class="dot"></span>Plan</div>
+            <div class="ti"><span class="dot"></span>History</div>
+            <div class="ti"><span class="dot"></span>Exercises</div>
+            <div class="ti"><span class="dot"></span>Profile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="showcase-text fade">
+      <span class="label" style="color:var(--lime)">The plan</span>
+      <h2 class="display">Show up.<br/>Follow the plan.</h2>
+      <p>Every week is laid out for you — which day, which split, which lifts. No decision fatigue, no guessing what's next.</p>
+      <div class="tick"><span class="t">✔</span><span>Weekly view with completed / today / upcoming sessions</span></div>
+      <div class="tick"><span class="t">✔</span><span>Auto progression: weight cues and reps-in-reserve guidance</span></div>
+      <div class="tick"><span class="t">✔</span><span>Edit any day, swap exercises, or build a plan from scratch</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="progress">
+  <div class="wrap showcase-grid rev">
+    <div class="phones fade">
+      <div class="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="ph-top"><span class="ttl">Dashboard</span><span>☾</span></div>
+          <div class="ph-greet"><span class="sun">☀</span> Hi, Greg!</div>
+          <div class="ph-date">Tuesday, June 9</div>
+          <div class="ph-banner"><div><div class="l">✓ Workout completed!</div><div class="s">Tuesday</div></div><div class="v">View</div></div>
+          <div class="ph-card">
+            <div class="k">What's next with the plan?</div>
+            <div class="h">Stay the course &amp; monitor your progress</div>
+            <div class="pills">
+              <span class="pill">Week 2/12</span><span class="pill">75% attendance</span><span class="pill">7 PRs</span>
+            </div>
+            <div class="ph-btn">View plan</div>
+          </div>
+          <div class="ph-stats">
+            <div class="ph-stat"><div class="si">🏆</div><div class="sl">Workouts</div><div class="sn">43</div></div>
+            <div class="ph-stat"><div class="si">🔗</div><div class="sl">Tonnage</div><div class="sn">260.4t</div></div>
+          </div>
+          <div class="ph-tab">
+            <div class="ti on"><span class="dot"></span>Home</div>
+            <div class="ti"><span class="dot"></span>Plan</div>
+            <div class="ti"><span class="dot"></span>History</div>
+            <div class="ti"><span class="dot"></span>Exercises</div>
+            <div class="ti"><span class="dot"></span>Profile</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="showcase-text fade">
+      <span class="label" style="color:var(--lime)">Progress</span>
+      <h2 class="display">The numbers<br/>don't lie.</h2>
+      <p>Open the app and see exactly where you stand: workouts logged, total tonnage moved, attendance and every personal record you've hit.</p>
+      <div class="tick"><span class="t">✔</span><span>Cycle summary the moment a program ends</span></div>
+      <div class="tick"><span class="t">✔</span><span>Attendance, PRs and missed sessions at a glance</span></div>
+      <div class="tick"><span class="t">✔</span><span>Weekly digest so momentum never slips</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="download">
+  <div class="wrap cta-final">
+    <div class="ring fade">
+      <h2 class="display">Join the <span class="accent">Iron.</span></h2>
+      <p>Stop guessing. Start tracking. Strength Save keeps you accountable, session after session — and shows you the progress to prove it.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#">↓ Download on TestFlight</a>
+        <a class="btn btn-ghost" href="https://grzegorzee.github.io/strength-save/">Open web app</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <a class="brand" href="#top">
+      <svg width="22" height="26" viewBox="0 0 26 30" fill="none" style="vertical-align:middle;margin-right:8px">
+        <path d="M13 1 24 5v9c0 8-5 12.5-11 15C7 26.5 2 22 2 14V5l11-4Z" fill="#ccfc22"/>
+        <path d="M9 15.5 12 18.5 18 11" stroke="#0a0a0a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Strength Save
+    </a>
+    <span>© 2026 Strength Save · Built for people who lift.</span>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((es) => {
+    es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.fade').forEach(el => io.observe(el));
+</script>
+</body>
+</html>

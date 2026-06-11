@@ -37,3 +37,6 @@ plan-2026_-wersja-polska-detaliczna.html
 # iOS signing artifacts (zawiera PRYWATNY klucz dystrybucyjny — nigdy do repo)
 build/
 ios/ExportOptions-manual.plist
+
+# Python cache (skrypty pomocnicze)
+scripts/__pycache__/
