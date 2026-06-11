@@ -26,6 +26,7 @@ Cel: logowanie treningu bezpośrednio na zegarku, bez wyjmowania telefonu.
 - Build: `CURRENT_PROJECT_VERSION = 28` (build 27 wydała równoległa sesja grywalizacji z czystego worktree). Ikona watch = ikona iOS 1024.
 - Koordynacja: w repo pracowała równolegle sesja grywalizacji — commit watch zrobiony jawnymi ścieżkami (bez `git add -A`); klucze i18n watch weszły przypadkiem z commitem 901eb27 (nieszkodliwe).
 - Dowody E2E: `audit/shots/watch/` (10-watch-context, 13-watch-after-log, 14-phone-after-watch-log — toast „Set from watch" + seria zaliczona na telefonie).
+- Wdrożone: web (GH Pages) + **TestFlight build 28** (upload OK, Beta App Review APPROVED od razu). Signing zegarka: `scripts/watch_signing.py` (bundle ID `...watchkitapp` zarejestrowany, profil „Strength Save Watch App Store" na istniejącym cercie Distribution, mapowanie dopisane do ExportOptions-manual.plist — plik poza repo).
 
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
