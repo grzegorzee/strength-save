@@ -107,6 +107,20 @@ Pętla /loop nad sekcją 5 planu release. Kluczowa lekcja: plan audytu był NIEA
 - Koordynacja: kolizja numeru builda przy uploadzie (równoległa sesja watch wgrała 33-35) — przeskok na 36 z HEAD łączącym obie sesje.
 - Wdrożone: web (GH Pages), functions (weeklyDigest), **TestFlight build 36** (Beta App Review APPROVED). Commity `afd1909` + `1fd26f1`. Statusy odhaczone w `docs/PLAN_RELEASE_1.0.md` sekcja 5.
 
+### 2026-06-11 (cz. 11) — Tydzień 1 monetyzacji WDROŻONY (build 37) + podwyżka cen US
+
+**Kod monetyzacji (commity ed9318b, f432437, rejestracja, build 37 TestFlight APPROVED):**
+- RevenueCat SDK (configure na starcie, logIn/logOut = uid Firebase), model `subscription` na profilu + `useSubscription` (admin → Firestore comp/webhook → RC CustomerInfo), webhook `revenuecatWebhook` WDROŻONY (sekret REVENUECAT_WEBHOOK_AUTH; chroni tier comp; grace period przy billing_issue).
+- Paywall `/paywall`: ceny z RC Offerings, triale 14/30 dni, nota o auto-odnowieniu (3.1.2), restore, linki legal per język. Gating tylko iOS: start treningu, kreator planu, koniec onboardingu → paywall; historia/eksport/konto wolne; baner PRO na Dashboardzie. Web bez paywalla.
+- Rejestracja: mobile otwarta (platform w syncUserProfile), web invite-only (isInviteUsable przed utworzeniem profilu). Login na native bez waitlisty/invite. Funkcje wdrożone.
+- Testy: 361 app + 63 functions + 10 E2E. Build SPM padł raz na fetchu RevenueCat → fix: `xcodebuild -resolvePackageDependencies -scmProvider system`.
+
+**Podwyżka cen US PRZED startem (zero subskrybentów):** $2.99→**$4.99** (monthly), $19.99→**$29.99** (yearly). Powód: USA jest kotwicą equalizacji — zaniżone US ceny zaniżały 173 pozostałe terytoria; odwrócona siła nabywcza vs PL. Polska BEZ ZMIAN (14,99/99,99 zł, jawna decyzja). Re-equalizacja: DEU €5.99/€34.99, GBR £4.99/£29.99, JPN ¥800/¥5000. Zmiana przez `scripts/asc_subscriptions.py prices`; przejściowe 500 przy hurtowych POST-ach to re-POST-y już zastosowanych zmian (zweryfikowano per terytorium). Stan: oba produkty 175 cen + 175 intro offers, POL nietknięta. Uwaga na przyszłość: weryfikuj ceny po `customerPrice`, nie po ID price pointu (Apple ma wiele pointów o tej samej cenie klienta).
+
+**Hardening do tygodnia 2 (finding security review):** pole `platform` w syncUserProfile jest deklaracją klienta (spoofowalne) — techniczny user może założyć webowe konto bez invite. Ryzyko zaakceptowane na teraz (ochrona przychodu = paywall iOS); właściwy fix: **Firebase App Check** (App Attest) przed publicznym launchem.
+
+**Zostało (user):** RC dashboard: entitlement `pro` + offering default (2 pakiety) + webhook (URL + Authorization). Potem test sandbox na urządzeniu.
+
 ### 2026-06-11 (cz. 10) — Monetyzacja: decyzje cenowe + formalności ASC ZALICZONE (Paid Apps ACTIVE)
 
 **Decyzje usera (wiążące dla 1.0):**

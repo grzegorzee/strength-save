@@ -26,7 +26,7 @@ PRODUCTS = {
         "period": "ONE_MONTH",
         "trial": "TWO_WEEKS",
         "price_pl": "14.99",
-        "price_us": "2.99",
+        "price_us": "4.99",
         "loc": {
             "en-US": ("PRO Monthly", "Full access: unlimited plans, AI Coach, analytics."),
             "pl": ("PRO Miesięczny", "Nielimitowane plany, Trener AI, pełna analityka."),
@@ -38,7 +38,7 @@ PRODUCTS = {
         "period": "ONE_YEAR",
         "trial": "ONE_MONTH",
         "price_pl": "99.99",
-        "price_us": "19.99",
+        "price_us": "29.99",
         "loc": {
             "en-US": ("PRO Yearly", "Full access for a year. Best value: 5 months free."),
             "pl": ("PRO Roczny", "Pełny dostęp na rok. 5 miesięcy gratis."),
