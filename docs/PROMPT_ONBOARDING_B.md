@@ -4,6 +4,10 @@
 
 ---
 
+/goal Przebudowany funnel onboardingu iOS (wariant B): świeży użytkownik bez aktywnego trialu/PRO nie jest w stanie zobaczyć żadnego ekranu apki poza paywallem; flow = quiz → teaser "Twój plan jest gotowy" (zamglony plan) → hard paywall bez wyjścia → trial/zakup → dashboard; wszystkie testy zielone (unit + E2E ze screenshotami), wdrożone: web + functions (jeśli dotknięte) + build 38 na TestFlight (Beta App Review), DECYZJE.md i PLAN_RELEASE_1.0.md zaktualizowane.
+
+Użyj /loop do realizacji tego zadania i pracuj aż zostanie dowiezione w całości — bez pytań o pozwolenie przy odwracalnych krokach.
+
 Pracujesz w projekcie Strength Save (`/Users/grzegorzjasionowicz/FIRMA/projekty/strength_save`). Przeczytaj najpierw: lokalny `CLAUDE.md` (zasady pracy, checklist wdrożenia), `docs/PLAN_RELEASE_1.0.md` (plan release, sekcje 6-7), `DECYZJE.md` wpisy z 2026-06-11 cz. 10-11 (monetyzacja). Stack: React 18 + TS + Vite + Firebase + Capacitor iOS. Pełne i18n PL/EN (`src/i18n/locales/pl.ts` + `en.ts`, każdy klucz w OBU plikach, inaczej typecheck padnie).
 
 ## ZADANIE
