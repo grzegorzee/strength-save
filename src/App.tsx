@@ -14,6 +14,7 @@ import { UserProvider, useCurrentUser } from "./contexts/UserContext";
 import { UnitProvider } from "./contexts/UnitContext";
 import { LanguageProvider, useTranslation } from "./contexts/LanguageContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
+import { WatchEventRouter } from "./components/WatchEventRouter";
 import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
 import { AutoSyncOnReconnect } from "./components/AutoSyncOnReconnect";
 import { PreferenceSync } from "./components/PreferenceSync";
@@ -148,6 +149,7 @@ const AppRoutes = () => {
     <HashRouter>
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <IosSwipeBack />
+      {!isNewUser && <WatchEventRouter />}
       <Suspense fallback={<AppLoader />}>
         <Routes>
           {isNewUser ? (

@@ -64,6 +64,14 @@ final class PhoneWatchSessionManager: NSObject {
         }
     }
 
+    /// Podgląd kolejki bez kasowania — dla globalnego routera (np. startWorkout),
+    /// który nie może ukraść eventów właściwemu konsumentowi (WorkoutDay).
+    func peekEvents() -> [String] {
+        queue.sync {
+            UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
+        }
+    }
+
     private func handleIncoming(_ userInfo: [String: Any]) {
         guard let json = userInfo["event"] as? String else { return }
         enqueue(eventJSON: json)

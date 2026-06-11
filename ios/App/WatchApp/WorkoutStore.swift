@@ -14,6 +14,18 @@ final class WorkoutStore: NSObject, ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let storageKey = "watch.workoutPayload"
+    // Lokalny start z zegarka (sticky): "date|dayId" treningu wystartowanego na
+    // zegarku zanim telefon potwierdzi sesję (payload active=true).
+    private let localStartKey = "watch.localStart"
+
+    /// Czy trening jest aktywny: telefon potwierdził (active=true) albo user
+    /// wystartował lokalnie na zegarku.
+    var isActive: Bool {
+        guard let payload, payload.type == "todayWorkout" else { return false }
+        if payload.active == true { return true }
+        guard let dayId = payload.dayId else { return false }
+        return defaults.string(forKey: localStartKey) == "\(payload.date)|\(dayId)"
+    }
 
     private override init() {
         super.init()
@@ -42,6 +54,14 @@ final class WorkoutStore: NSObject, ObservableObject {
     /// Nowy kontekst z telefonu. Jeśli to ten sam dzień/trening, zachowujemy
     /// lokalnie zaliczone serie (zegarek może być dalej niż telefon).
     private func applyIncoming(_ incoming: WatchWorkoutPayload) {
+        // Porządek w lokalnym starcie: telefon potwierdził sesję albo przyszedł
+        // inny dzień/trening → lokalny override przestaje być potrzebny.
+        if let localStart = defaults.string(forKey: localStartKey) {
+            let incomingKey = "\(incoming.date)|\(incoming.dayId ?? "")"
+            if incoming.active == true || localStart != incomingKey {
+                defaults.removeObject(forKey: localStartKey)
+            }
+        }
         var merged = incoming
         if let current = payload,
            current.date == incoming.date,
@@ -64,7 +84,19 @@ final class WorkoutStore: NSObject, ObservableObject {
 
     // MARK: - Akcje użytkownika
 
+    /// Start treningu z zegarka: lokalny override + event do telefonu
+    /// (telefon nawiguje do WorkoutDay z autostartem i tworzy sesję).
+    func startWorkout() {
+        guard let payload, payload.type == "todayWorkout", let dayId = payload.dayId else { return }
+        objectWillChange.send()
+        defaults.set("\(payload.date)|\(dayId)", forKey: localStartKey)
+        WKInterfaceDevice.current().play(.start)
+        sendEvent(WatchEvent.startWorkout(date: payload.date, dayId: dayId))
+    }
+
     func logSet(exerciseId: String, setIndex: Int, reps: Int, weight: Double) {
+        // Logowanie w trybie podglądu = niejawny start treningu.
+        if !isActive { startWorkout() }
         guard var payload, var exercises = payload.exercises,
               let exIndex = exercises.firstIndex(where: { $0.id == exerciseId }),
               setIndex < exercises[exIndex].sets.count else { return }

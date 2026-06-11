@@ -11,6 +11,7 @@ public class WatchBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "sendWorkout", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "drainEvents", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "peekEvents", returnType: CAPPluginReturnPromise),
     ]
 
     public override func load() {
@@ -51,5 +52,9 @@ public class WatchBridgePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func drainEvents(_ call: CAPPluginCall) {
         call.resolve(["events": PhoneWatchSessionManager.shared.drainEvents()])
+    }
+
+    @objc func peekEvents(_ call: CAPPluginCall) {
+        call.resolve(["events": PhoneWatchSessionManager.shared.peekEvents()])
     }
 }

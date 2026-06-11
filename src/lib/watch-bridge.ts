@@ -14,6 +14,7 @@ interface WatchBridgePluginApi {
   isAvailable(): Promise<WatchAvailability>;
   sendWorkout(options: { payload: string }): Promise<void>;
   drainEvents(): Promise<{ events: string[] }>;
+  peekEvents(): Promise<{ events: string[] }>;
   addListener(
     eventName: 'watchEvent',
     listener: (data: { payload: string }) => void
@@ -39,6 +40,8 @@ export interface WatchWorkoutPayload {
   dayName?: string;
   focus?: string;
   sentAt: number;
+  /** true = sesja wystartowana na telefonie; false/brak = podgląd planu (zegarek pokaże "Rozpocznij trening"). */
+  active?: boolean;
   exercises?: WatchExercisePayload[];
 }
 
@@ -61,12 +64,19 @@ export interface WatchWorkoutFinishedEvent {
   at: number;
 }
 
-export type WatchEvent = WatchSetLoggedEvent | WatchWorkoutFinishedEvent;
+export interface WatchStartWorkoutEvent {
+  type: 'startWorkout';
+  date: string;
+  dayId: string;
+  at: number;
+}
+
+export type WatchEvent = WatchSetLoggedEvent | WatchWorkoutFinishedEvent | WatchStartWorkoutEvent;
 
 export function parseWatchEvent(json: string): WatchEvent | null {
   try {
     const parsed = JSON.parse(json);
-    if (parsed?.type === 'setLogged' || parsed?.type === 'workoutFinished') {
+    if (parsed?.type === 'setLogged' || parsed?.type === 'workoutFinished' || parsed?.type === 'startWorkout') {
       return parsed as WatchEvent;
     }
   } catch {
@@ -97,6 +107,17 @@ export async function drainWatchEvents(): Promise<WatchEvent[]> {
   if (!isWatchBridgeSupported()) return [];
   try {
     const { events } = await WatchBridge.drainEvents();
+    return events.map(parseWatchEvent).filter((e): e is WatchEvent => e !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** Podgląd kolejki BEZ kasowania — dla globalnego routera (startWorkout). */
+export async function peekWatchEvents(): Promise<WatchEvent[]> {
+  if (!isWatchBridgeSupported()) return [];
+  try {
+    const { events } = await WatchBridge.peekEvents();
     return events.map(parseWatchEvent).filter((e): e is WatchEvent => e !== null);
   } catch {
     return [];

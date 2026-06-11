@@ -22,6 +22,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
@@ -302,6 +303,15 @@ const Dashboard = () => {
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
   }, [trainingPlan, today, workouts, planStartDate, workoutToDay]);
+
+  // Apple Watch: podgląd dzisiejszego planu na zegarku zanim sesja wystartuje.
+  useWatchPlanPreview({
+    uid,
+    type: todayTraining.type,
+    day: todayTraining.type === 'training' ? todayTraining.day : null,
+    dateStr: todayTraining.type === 'training' ? todayTraining.dateStr : undefined,
+    workouts,
+  });
 
   // Calculate trends (last 4 weeks vs previous 4 weeks)
   const trends = useMemo(() => {

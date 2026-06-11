@@ -59,6 +59,21 @@ struct WorkoutListView: View {
 
     var body: some View {
         List {
+            if !store.isActive {
+                Section {
+                    Button {
+                        store.startWorkout()
+                    } label: {
+                        Label("Rozpocznij trening", systemImage: "play.fill")
+                            .frame(maxWidth: .infinity)
+                            .foregroundStyle(.black)
+                    }
+                    .listRowBackground(RoundedRectangle(cornerRadius: 12).fill(.green))
+                } footer: {
+                    Text("Możesz też od razu zaliczyć serię — trening wystartuje sam.")
+                }
+            }
+
             Section {
                 ForEach(exercises) { exercise in
                     NavigationLink(value: exercise.id) {
@@ -71,15 +86,17 @@ struct WorkoutListView: View {
                 }
             }
 
-            Section {
-                Button {
-                    store.finishWorkout()
-                } label: {
-                    Label("Zakończ trening", systemImage: "flag.checkered")
-                        .foregroundStyle(allDone ? .green : .primary)
+            if store.isActive {
+                Section {
+                    Button {
+                        store.finishWorkout()
+                    } label: {
+                        Label("Zakończ trening", systemImage: "flag.checkered")
+                            .foregroundStyle(allDone ? .green : .primary)
+                    }
+                } footer: {
+                    Text("Serie zapisują się na iPhonie na bieżąco.")
                 }
-            } footer: {
-                Text("Serie zapisują się na iPhonie na bieżąco.")
             }
         }
         .navigationDestination(for: String.self) { exerciseId in

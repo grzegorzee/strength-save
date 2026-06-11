@@ -31,6 +31,8 @@ struct WatchWorkoutPayload: Codable {
     var dayName: String?
     var focus: String?
     var sentAt: Double
+    // true = sesja aktywna na telefonie; false/nil = podgląd planu (preview).
+    var active: Bool?
     var exercises: [WatchExercise]?
 }
 
@@ -52,6 +54,15 @@ enum WatchEvent {
     static func workoutFinished(date: String, dayId: String) -> [String: Any] {
         [
             "type": "workoutFinished",
+            "date": date,
+            "dayId": dayId,
+            "at": Date().timeIntervalSince1970 * 1000,
+        ]
+    }
+
+    static func startWorkout(date: String, dayId: String) -> [String: Any] {
+        [
+            "type": "startWorkout",
             "date": date,
             "dayId": dayId,
             "at": Date().timeIntervalSince1970 * 1000,

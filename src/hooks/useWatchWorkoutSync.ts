@@ -55,6 +55,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         dayName,
         focus,
         sentAt: Date.now(),
+        active: true,
         exercises: exercises.map((exercise) => ({
           id: exercise.id,
           name: exercise.name,
