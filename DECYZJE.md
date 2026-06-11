@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-06-11 (Apple Watch app + grywalizacja)
+**Ostatnia aktualizacja:** 2026-06-11 (bugfixy z treningu: timer, metryki, szkic, scroll — build 32)
 
 ---
 
@@ -43,6 +43,18 @@ Cel: logowanie treningu bezpośrednio na zegarku, bez wyjmowania telefonu.
 - Zakończenie z zegarka: confirmationDialog z liczbą zaliczonych serii → event `workoutFinished` → telefon finalizuje przez `handleCompleteWorkout` (ref, bez drugiego dialogu; guard isCompleted/isExplicitSaving). Zegarek pokazuje sticky ekran „Trening zakończony"; telefon po ukończeniu wysyła `noWorkout`.
 - Zweryfikowane na symulatorze (screenshoty 19-26): timer 1:28→0:57, dialog z licznikiem „Zaliczone serie: 2", cancel. Finalizacji NIE wykonano na realnym koncie admina (nie fałszujemy danych treningowych); testowe eventy serii wyczyszczone z natywnej kolejki (plutil -remove). W drafcie dnia pozostała testowa seria 45 kg×6 (wyciskanie, seria 1) z cz. 1 — do ręcznego odznaczenia.
 - Wdrożone: web (GH Pages) + **TestFlight build 30** (Beta App Review APPROVED).
+
+### 2026-06-11 (cz. 4) — 5 bugów zgłoszonych z realnego treningu (build 32)
+
+Feedback z porannego treningu na iPhone 14 Pro. Wszystkie 5 naprawione, commit `82e3ad7`.
+
+- **Metryki/Notatka (ExerciseCard):** szare „linki" (`text-muted-foreground/40`) wyglądały na nieaktywne i po otwarciu sekcji znikały bez możliwości zwinięcia. Teraz: przyciski z ramką i jasnym tekstem, działają jak toggle (drugi klik zwija, dane zostają), stan aktywny podświetlony primary.
+- **RestTimer — kółko START:** po końcu odliczania kółko pokazywało „START!" (text-2xl, nie mieściło się) i nie było klikalne. Teraz kółko = przycisk: po końcu klik restartuje przerwę, w trakcie pauzuje/wznawia; tekst zmniejszony (text-base). Test: tap po finishu restartuje odliczanie.
+- **Brak wibracji/dźwięku końca przerwy na iOS — ROOT CAUSE:** po zgaszeniu ekranu WKWebView wstrzymuje JS, więc `finishTimer` (haptic+beep) w ogóle nie odpalał się w tle. Fix: `@capacitor/local-notifications` — powiadomienie systemowe (dźwięk+wibracja) planowane na deadline+1s przy starcie/wznowieniu timera, anulowane przy pauzie/reset/zamknięciu i przy końcu w foregroundzie (wtedy gra in-app sygnał, +1s bufora eliminuje podwójny dźwięk). Nowy moduł `src/lib/rest-notification.ts`, permission lazy przy pierwszym timerze.
+- **„Nie udało się zapisać szkicu lokalnie":** IndexedDB w WKWebView potrafi stracić połączenie po powrocie z tła. `saveActiveDraft`: retry (świeże połączenie) → fallback `localStorage` → błąd tylko gdy oba padną. Komunikat akcjonowalny (nie zamykaj apki, zakończ trening), banner zamykalny (X).
+- **Scroll do góry po odblokowaniu telefonu:** dwa defekty starego mechanizmu: (1) klucz `workout-scroll:${sessionId}` pękał po promocji provisional→remote (sessionId się zmienia), (2) pojedynczy `scrollTo` po 250 ms clampował do 0, bo lista jeszcze się nie wyrenderowała. Teraz: klucz `workout-scroll:${uid}:${date}`, restore z retry (250/700/1500/2600 ms, czeka aż strona urośnie), dodatkowo restore na `visibilitychange→visible` gdy iOS wyzeruje scroll bez remountu (warunek: scrollY<100, zapis y>200, świeży <15 min).
+- Weryfikacja: 350/350 testów, typecheck+lint czyste. Wdrożone: web (GH Pages) + **TestFlight build 32** (Beta App Review APPROVED).
+- **Proces na przyszłość (Karpathy):** bugi typu „timer nie gra przy zgaszonym ekranie" i „scroll wraca na górę" wynikały z testowania wyłącznie na symulatorze/web w foregroundzie. Przy zmianach dotykających cyklu życia apki (timery, zapis, scroll) obowiązkowy scenariusz weryfikacji: zgaś ekran / zbackgrounduj apkę / wróć — na realnym urządzeniu lub z symulacją suspendu, zanim build pójdzie na TestFlight.
 
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 
