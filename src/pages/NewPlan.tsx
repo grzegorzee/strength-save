@@ -12,6 +12,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { useRequiresPaywall } from '@/hooks/useSubscription';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { PlanWizard, type PlanWizardChoice, type WizardLevel } from '@/components/PlanWizard';
 import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
@@ -71,6 +72,13 @@ const NewPlan = () => {
   const { archiveCurrentPlan, createActiveCycle, getCycleById } = usePlanCycles(uid);
 
   const [phase, setPhase] = useState<'loading' | 'closeout' | 'wizard' | 'preview'>(fromCycleId ? 'loading' : 'wizard');
+  const requiresPaywall = useRequiresPaywall();
+  // Hard paywall (iOS): tworzenie planu wymaga PRO; podsumowanie cyklu (closeout) zostaje do odczytu.
+  useEffect(() => {
+    if (requiresPaywall && phase !== 'loading' && phase !== 'closeout') {
+      navigate('/paywall', { replace: true });
+    }
+  }, [requiresPaywall, phase, navigate]);
   const [sourceCycle, setSourceCycle] = useState<PlanCycle | null>(null);
   const [profileHint, setProfileHint] = useState<ProfileHint | undefined>();
   const [chosen, setChosen] = useState<PlanWizardChoice | null>(null);

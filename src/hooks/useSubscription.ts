@@ -97,3 +97,13 @@ export const useSubscription = (): SubscriptionInfo => {
     refresh,
   };
 };
+
+/**
+ * Hard paywall obowiązuje TYLKO na natywnym iOS (web jest invite-only, bez sprzedaży).
+ * true = zablokuj akcję i wyślij na /paywall. Podczas ładowania stanu zwraca false,
+ * żeby nie migać paywallem userom z aktywnym PRO.
+ */
+export const useRequiresPaywall = (): boolean => {
+  const { isPro, loading } = useSubscription();
+  return Capacitor.isNativePlatform() && !loading && !isPro;
+};

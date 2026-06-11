@@ -30,8 +30,8 @@ export const Layout = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const isFocusedFlow = location.pathname.startsWith('/workout/') || location.pathname.startsWith('/exercise/');
-  // Replan (/new-plan) jest pełnoekranowym kreatorem (jak onboarding) — bez nawigacji i nagłówka appki.
-  const isFullScreenFlow = location.pathname === '/new-plan';
+  // Replan (/new-plan) i paywall są pełnoekranowe (jak onboarding) — bez nawigacji i nagłówka appki.
+  const isFullScreenFlow = location.pathname === '/new-plan' || location.pathname === '/paywall';
   const isRootPage = rootPaths.has(location.pathname);
   const titleKey = pageTitleKeys[location.pathname];
   const title = titleKey ? t(titleKey) : 'Strength Save';

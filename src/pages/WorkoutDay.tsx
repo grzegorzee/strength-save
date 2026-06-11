@@ -25,6 +25,7 @@ import { ExerciseCard } from '@/components/ExerciseCard';
 import type { TrainingDay, Exercise } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useRequiresPaywall } from '@/hooks/useSubscription';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -69,6 +70,7 @@ const WorkoutDay = () => {
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
+  const requiresPaywall = useRequiresPaywall();
   const {
     workouts,
     createWorkoutSession,
@@ -998,6 +1000,11 @@ const WorkoutDay = () => {
 
   const handleStartWorkout = async () => {
     if (!day || !uid) return;
+    // Hard paywall (iOS): start treningu wymaga PRO/trialu; historia zostaje do odczytu.
+    if (requiresPaywall) {
+      navigate('/paywall');
+      return;
+    }
     if (isViewingPastWorkout) {
       toast({
         title: t('workout.toast.cantStartTitle'),

@@ -8,6 +8,7 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
+import { useRequiresPaywall } from '@/hooks/useSubscription';
 
 // Onboarding nowego użytkownika = wspólny PlanWizard (z ekranem Welcome) + zapis planu.
 const Onboarding = () => {
@@ -18,6 +19,7 @@ const Onboarding = () => {
   const { createActiveCycle } = usePlanCycles(uid);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requiresPaywall = useRequiresPaywall();
 
   const handleConfirm = async (choice: PlanWizardChoice) => {
     setIsSaving(true);
@@ -37,9 +39,10 @@ const Onboarding = () => {
       return;
     }
     try {
-      // Jawne przejście na dashboard z flagą powitania (confetti). Router i tak przełączy
-      // drzewo tras po aktualizacji profilu, ale to gwarantuje natychmiastowy redirect bez 404.
-      navigate('/?welcome=1', { replace: true });
+      // Jawne przejście po onboardingu. Router i tak przełączy drzewo tras po aktualizacji
+      // profilu, ale to gwarantuje natychmiastowy redirect bez 404. Na iOS bez PRO nowy user
+      // trafia prosto na paywall (start trialu); na web na dashboard z confetti.
+      navigate(requiresPaywall ? '/paywall' : '/?welcome=1', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('onboarding.error.saveFailed'));
       setIsSaving(false);
