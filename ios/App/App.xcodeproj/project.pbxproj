@@ -23,6 +23,7 @@
 		7E2786085D17F7C9B994BCB1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E83CF5EFFE95E2A5977E9A2B /* ContentView.swift */; };
 		82238AF82748ED978CDC26FD /* StrengthWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3604679A7761D6AF0C11BB5E /* StrengthWatchApp.swift */; };
 		98DC6BAA8DF16448159670B3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC2C74C4F56CE93A4F37EF1 /* Foundation.framework */; };
+		BFD820486A52B866B2D956CE /* WorkoutSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553AE42606DFFEAD2C43D706 /* WorkoutSessionManager.swift */; };
 		D49107F0D0A6DADA86650CFD /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C03062003363EC390CFA58 /* WorkoutStore.swift */; };
 		DE2119989E46C6CE74169801 /* BridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E6AF113A4DF6B15EE3C518 /* BridgeViewController.swift */; };
 		E55F2F0365B9CC0A919F20B5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */; };
@@ -66,6 +67,7 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		553AE42606DFFEAD2C43D706 /* WorkoutSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutSessionManager.swift; sourceTree = "<group>"; };
 		6FC2C74C4F56CE93A4F37EF1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/WatchOS.platform/Developer/SDKs/WatchOS11.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		882B980C9939C416BF0A0055 /* WorkoutModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutModels.swift; sourceTree = "<group>"; };
 		957D18FA556717B27228D48F /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -163,6 +165,7 @@
 				882B980C9939C416BF0A0055 /* WorkoutModels.swift */,
 				E6C03062003363EC390CFA58 /* WorkoutStore.swift */,
 				31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */,
+				553AE42606DFFEAD2C43D706 /* WorkoutSessionManager.swift */,
 			);
 			name = WatchApp;
 			path = WatchApp;
@@ -302,6 +305,7 @@
 				60C701771DD97B4AFFDB5E87 /* ExerciseDetailView.swift in Sources */,
 				792329F990DF8EC8CC529017 /* WorkoutModels.swift in Sources */,
 				D49107F0D0A6DADA86650CFD /* WorkoutStore.swift in Sources */,
+				BFD820486A52B866B2D956CE /* WorkoutSessionManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -341,12 +345,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WatchApp/StrengthWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Strength Save";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tetno i kalorie podczas treningu silowego.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Zapis treningu silowego do Apple Health.";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.grzegorzjasionowicz.strengthsave;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -481,7 +488,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -505,7 +512,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -527,12 +534,15 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = WatchApp/StrengthWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 33;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Strength Save";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tetno i kalorie podczas treningu silowego.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Zapis treningu silowego do Apple Health.";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.grzegorzjasionowicz.strengthsave;
 				LD_RUNPATH_SEARCH_PATHS = (

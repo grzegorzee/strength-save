@@ -70,6 +70,7 @@ struct ContentView: View {
 
 struct WorkoutListView: View {
     @EnvironmentObject var store: WorkoutStore
+    @ObservedObject private var health = WorkoutSessionManager.shared
     let payload: WatchWorkoutPayload
     let exercises: [WatchExercise]
     @State private var confirmFinish = false
@@ -117,8 +118,16 @@ struct WorkoutListView: View {
                     }
                 }
             } header: {
-                if let focus = payload.focus {
-                    Text(focus)
+                HStack {
+                    if let focus = payload.focus {
+                        Text(focus)
+                    }
+                    Spacer()
+                    if let hr = health.heartRate {
+                        Label("\(Int(hr))", systemImage: "heart.fill")
+                            .foregroundStyle(.red)
+                            .labelStyle(.titleAndIcon)
+                    }
                 }
             }
 

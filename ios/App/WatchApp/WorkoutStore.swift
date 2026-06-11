@@ -106,6 +106,8 @@ final class WorkoutStore: NSObject, ObservableObject {
         let session = WCSession.default
         session.delegate = self
         session.activate()
+        // Powrót do apki w trakcie treningu: wznow sesję HealthKit.
+        syncHealthSession()
     }
 
     // MARK: - Stan
@@ -154,6 +156,7 @@ final class WorkoutStore: NSObject, ObservableObject {
         }
         payload = merged
         persist()
+        syncHealthSession()
     }
 
     // MARK: - Akcje użytkownika
@@ -166,6 +169,16 @@ final class WorkoutStore: NSObject, ObservableObject {
         defaults.set("\(payload.date)|\(dayId)", forKey: localStartKey)
         WKInterfaceDevice.current().play(.start)
         sendEvent(WatchEvent.startWorkout(date: payload.date, dayId: dayId))
+        WorkoutSessionManager.shared.start()
+    }
+
+    /// Sesja HealthKit podąża za stanem treningu (aktywny → start, koniec → stop).
+    private func syncHealthSession() {
+        if isActive && !isFinishedLocally {
+            WorkoutSessionManager.shared.start()
+        } else {
+            WorkoutSessionManager.shared.stop()
+        }
     }
 
     func logSet(exerciseId: String, setIndex: Int, reps: Int, weight: Double) {
@@ -208,6 +221,7 @@ final class WorkoutStore: NSObject, ObservableObject {
         objectWillChange.send()
         WKInterfaceDevice.current().play(.notification)
         sendEvent(WatchEvent.workoutFinished(date: payload.date, dayId: dayId))
+        WorkoutSessionManager.shared.stop()
     }
 
     // MARK: - Rest timer

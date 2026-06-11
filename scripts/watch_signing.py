@@ -60,6 +60,27 @@ def ensure_watch_bundle_id():
     return bid
 
 
+def ensure_healthkit_capability(bundle_resource_id):
+    r = requests.get(f"{BASE}/v1/bundleIds/{bundle_resource_id}/bundleIdCapabilities", headers=H())
+    r.raise_for_status()
+    for cap in r.json().get("data", []):
+        if cap["attributes"].get("capabilityType") == "HEALTHKIT":
+            print("  HealthKit już włączony")
+            return False
+    body = {"data": {"type": "bundleIdCapabilities", "attributes": {"capabilityType": "HEALTHKIT"},
+                     "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bundle_resource_id}}}}}
+    r = requests.post(f"{BASE}/v1/bundleIdCapabilities", headers=H(), data=json.dumps(body))
+    if r.status_code not in (200, 201):
+        raise SystemExit(f"bundleIdCapabilities -> {r.status_code}: {r.text[:300]}")
+    print("  HealthKit włączony na bundle")
+    return True
+
+
+def delete_profile(profile_id):
+    r = requests.delete(f"{BASE}/v1/profiles/{profile_id}", headers=H())
+    print(f"  usunięto stary profil {profile_id} -> {r.status_code}")
+
+
 def distribution_cert_id():
     r = requests.get(f"{BASE}/v1/certificates", headers=H(),
                      params={"filter[certificateType]": "DISTRIBUTION", "limit": 200})
@@ -73,12 +94,16 @@ def distribution_cert_id():
     return cert["id"]
 
 
-def existing_profile():
+def profiles_by_name():
     r = requests.get(f"{BASE}/v1/profiles", headers=H(),
                      params={"filter[name]": PROFILE_NAME, "limit": 200})
     r.raise_for_status()
-    for p in r.json().get("data", []):
-        if p["attributes"]["name"] == PROFILE_NAME and p["attributes"].get("profileState") == "ACTIVE":
+    return [p for p in r.json().get("data", []) if p["attributes"]["name"] == PROFILE_NAME]
+
+
+def existing_profile():
+    for p in profiles_by_name():
+        if p["attributes"].get("profileState") == "ACTIVE":
             return p
     return None
 
@@ -122,9 +147,18 @@ def update_export_options(uuid):
 if __name__ == "__main__":
     print("==> bundle ID zegarka")
     bid = ensure_watch_bundle_id()
+    print("==> capability HealthKit")
+    capability_added = ensure_healthkit_capability(bid)
     print("==> profil App Store dla zegarka")
     prof = existing_profile()
+    if prof is not None and capability_added:
+        # Zmiana capability unieważnia profil — wymień na świeży.
+        prof = None
     if prof is None:
+        # Usuń WSZYSTKIE profile o tej nazwie (INVALID po zmianie capability
+        # blokują create przez konflikt nazwy).
+        for p in profiles_by_name():
+            delete_profile(p["id"])
         cert_id = distribution_cert_id()
         prof = create_profile(cert_id, bid)
         print(f"  utworzono profil {prof['id']}")

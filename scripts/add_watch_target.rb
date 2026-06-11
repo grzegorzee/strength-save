@@ -50,7 +50,10 @@ watch_target.build_configurations.each do |config|
   s['INFOPLIST_KEY_WKApplication'] = 'YES'
   s['INFOPLIST_KEY_WKCompanionAppBundleIdentifier'] = PHONE_BUNDLE_ID
   s['INFOPLIST_KEY_CFBundleDisplayName'] = 'Strength Save'
-  s['CURRENT_PROJECT_VERSION'] = '33'
+  s['CODE_SIGN_ENTITLEMENTS'] = 'WatchApp/StrengthWatch.entitlements'
+  s['INFOPLIST_KEY_NSHealthShareUsageDescription'] = 'Tetno i kalorie podczas treningu silowego.'
+  s['INFOPLIST_KEY_NSHealthUpdateUsageDescription'] = 'Zapis treningu silowego do Apple Health.'
+  s['CURRENT_PROJECT_VERSION'] = '34'
   s['MARKETING_VERSION'] = '0.0.1'
   s['ENABLE_PREVIEWS'] = 'YES'
   s['ASSETCATALOG_COMPILER_APPICON_NAME'] = 'AppIcon'
@@ -60,7 +63,7 @@ end
 
 # --- 3. Źródła watch ---
 watch_group = project.main_group['WatchApp'] || project.main_group.new_group('WatchApp', 'WatchApp')
-%w[StrengthWatchApp.swift ContentView.swift ExerciseDetailView.swift WorkoutModels.swift WorkoutStore.swift].each do |name|
+%w[StrengthWatchApp.swift ContentView.swift ExerciseDetailView.swift WorkoutModels.swift WorkoutStore.swift WorkoutSessionManager.swift].each do |name|
   next if watch_group.files.any? { |f| f.display_name == name }
   ref = watch_group.new_file(name)
   watch_target.source_build_phase.add_file_reference(ref, true)
