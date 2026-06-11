@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-06-11 (bugfixy z treningu: timer, metryki, szkic, scroll — build 32)
+**Ostatnia aktualizacja:** 2026-06-11 (release-prep: closeout + weekly-digest, build 36)
 
 ---
 
@@ -84,6 +84,18 @@ Feedback z porannego treningu na iPhone 14 Pro. Wszystkie 5 naprawione, commit `
 - Wersje appex MUSZĄ równać się wersjom apki zegarkowej (CFBundleShortVersionString/CFBundleVersion) — bump teraz dotyczy 6 wystąpień CURRENT_PROJECT_VERSION w pbxproj (App ×2, StrengthWatch ×2, Widgets ×2).
 - Weryfikacja: build + appex w PlugIns + apka startuje bez crashu; dodanie komplikacji do tarczy do sprawdzenia na realnym zegarku.
 - Wdrożone: **TestFlight build 35** (Beta App Review APPROVED). Po 7 iteracjach (buildy 28-30, 32-35) apka watch ma komplet: komplikacja → preview → start → one-tap serie → rest timer (sesja HK trzyma apkę żywą) → live tętno → finish → Apple Health.
+
+### 2026-06-11 (cz. 9) — Release-prep: weryfikacja MUST/SHOULD z PLAN_RELEASE_1.0 (build 36)
+
+Pętla /loop nad sekcją 5 planu release. Kluczowa lekcja: plan audytu był NIEAKTUALNY względem kodu — większość pozycji naprawiły wcześniejsze commity ("audit fixes 13 HIGH"). Każdą pozycję zweryfikowano względem kodu i testów zamiast ślepo "naprawiać".
+
+- **Zweryfikowane jako zrobione wcześniej:** adminDeleteUser (paginacja + błąd auth), reguły Firestore `status=='active'` (testy rules na emulatorze: PASS, w tym deny dla pending_verification), sendEmail rzuca przy błędzie Resend, stabilne ID ćwiczeń (nextId licznik), PlanWizard dni==daysPerWeek, PWA update guard, a11y drawer (Radix Sheet), locale E2E (pl-PL, 111/111 green).
+- **NAPRAWIONE — closeout cyklu (bug znaleziony wizualną weryfikacją):** NewPlan liczył statystyki na żywo z workouts (`buildActiveCyclePreview`) i pokazywał ZERA zanim workouts się załadowały, ignorując snapshot `cycle.stats` zapisany przy zamknięciu. Fix: snapshot ?? przeliczenie. Regresja przykryta asercjami 28/32 i 88% w replan.spec.ts; screenshot potwierdza dane + medal sezonu.
+- **NAPRAWIONE — weekly-digest:** Resend SDK nie rzuca przy odrzuceniu (błąd w `response.error`); digest logował sukces mimo odrzucenia. Funkcja weeklyDigest wdrożona na Firebase.
+- **Domena strengthsave.app w Resend: VERIFIED** (API) — kody rejestracyjne dochodzą.
+- **Poza zakresem (świadomie):** otwarcie rejestracji (czeka na decyzje cenowe + RevenueCat, tydzień 1 planu), konflikt draftów multi-device (jedyny otwarty SHOULD).
+- Koordynacja: kolizja numeru builda przy uploadzie (równoległa sesja watch wgrała 33-35) — przeskok na 36 z HEAD łączącym obie sesje.
+- Wdrożone: web (GH Pages), functions (weeklyDigest), **TestFlight build 36** (Beta App Review APPROVED). Commity `afd1909` + `1fd26f1`. Statusy odhaczone w `docs/PLAN_RELEASE_1.0.md` sekcja 5.
 
 ### 2026-06-08 (cz. 6) — Przełącznik jednostek kg ↔ lbs działa w CAŁEJ aplikacji
 

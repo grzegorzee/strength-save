@@ -62,13 +62,15 @@ Kategoria: tanie czyste trackery ($3-5/mies) vs apki z AI ($10-16/mies). Strengt
 
 ## 5. JAKOŚĆ PRZED LAUNCHEM (z docs/AUDIT_REMEDIATION_PLAN.md)
 
-**MUST (płacący user + publiczna rejestracja):**
-1. Security: `adminDeleteUser` usuwa tylko pierwsze 500 dokumentów, brak obsługi błędu `auth().deleteUser`; reguły Firestore sprawdzają `access.enabled` zamiast `status === 'active'`.
-2. Resend: obsługa `response.error` przy wysyłce (dziś `sent: true` nawet gdy provider odrzucił) + weryfikacja domeny strengthsave.app.
-3. Otwarcie rejestracji w iOS (paywall/trial jako bramka zamiast invite). Web: zostaje invite-only (decyzja do potwierdzenia, sekcja "Decyzje").
-4. Wizualna weryfikacja closeout cyklu (ekran istnieje, nie potwierdzony na realnych danych).
+**MUST (płacący user + publiczna rejestracja):** [aktualizacja 2026-06-11, commit afd1909, build 36]
+1. ✅ Security: ZWERYFIKOWANE jako już naprawione (deleteQueryInBatches paginuje, purgeUserData obsługuje błąd auth, reguły wymagają `status == 'active'`; testy rules na emulatorze: wszystkie PASS).
+2. ✅ Resend: `sendEmail` rzucał już HttpsError; NAPRAWIONO weekly-digest (SDK nie rzuca, błąd był połykany w `response.error`). Domena strengthsave.app w Resend: VERIFIED (API, 2026-06-11).
+3. ⏳ Otwarcie rejestracji w iOS (paywall/trial jako bramka zamiast invite). CZEKA na decyzje (sekcja 7) i RevenueCat z tygodnia 1. Web: zostaje invite-only (do potwierdzenia).
+4. ✅ Closeout: zweryfikowany wizualnie (E2E + screenshot) i NAPRAWIONY znaleziony bug: statystyki liczone na żywo pokazywały zera zamiast snapshotu `cycle.stats`; teraz snapshot ?? przeliczenie, asercje w replan.spec.ts.
 
-**SHOULD (pierwszy miesiąc po launchu):** konflikt draftów multi-device (etap 3 audytu), stabilne ID ćwiczeń w PlanBuilder, PlanWizard egzekwujący liczbę dni == daysPerWeek, a11y (etap 6), PWA update guard (etap 7), stabilizacja E2E (locale drift PL/EN).
+**SHOULD (pierwszy miesiąc po launchu):** [aktualizacja 2026-06-11]
+- ✅ stabilne ID ćwiczeń w PlanBuilder (nextId = monotoniczny licznik), ✅ PlanWizard egzekwuje dni == daysPerWeek (hasExactWeekdaySelection), ✅ a11y drawer (Radix Sheet), ✅ PWA update guard (pwa-update-guard.ts + blokada w WorkoutDay), ✅ E2E locale (pl-PL w configu, 111/111 green)
+- ⏳ konflikt draftów multi-device (etap 3 audytu) — jedyny otwarty SHOULD.
 
 **LATER:** Android/Google Play (keystore, konsola $25, Google Play Billing), web push (VAPID), scalenie logiki PR między Analytics i Achievements.
 
