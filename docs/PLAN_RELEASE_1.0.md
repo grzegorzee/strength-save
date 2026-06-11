@@ -77,13 +77,14 @@ Kategoria: tanie czyste trackery ($3-5/mies) vs apki z AI ($10-16/mies). Strengt
 ## 6. PLAN WYKONAWCZY (3 tygodnie do submitu)
 
 ### Tydzień 1: monetyzacja
-- [ ] ASC: Paid Applications Agreement + dane bankowe + formularze podatkowe (WYMAGANE zanim IAP zadziała, sekcja 8)
-- [ ] ASC: subscription group + 2 produkty (monthly, annual) + introductory offer 1 mies. free
-- [ ] RevenueCat: konto, projekt, podpięcie produktów, instalacja pluginu Capacitora
+- [x] ASC: Paid Applications Agreement + dane bankowe + formularze podatkowe — **ZROBIONE 2026-06-11**: Paid Apps "Processing", bank mBank PLN "Processing" (do 24 h), tax forms (W-8BEN + Certificate of Foreign Status) **Active**, DSA trader compliance "In Review" (dokumenty: VIES PDF jako name+address proof)
+- [ ] ASC: subscription group + 2 produkty (monthly, annual) + intro offers wg decyzji w sekcji 7 — czeka aż Paid Apps będzie Active
+- [ ] RevenueCat: konto, projekt, podpięcie produktów (In-App Purchase Key z ASC), instalacja pluginu Capacitora
 - [ ] Firestore: pole `subscription` w UserProfileDoc + Cloud Function webhook RevenueCat → entitlement
 - [ ] Paywall UI (po onboardingu + w Profilu): porównanie planów, CTA trial, restore purchases
 - [ ] Gating funkcji na entitlement (spięcie z istniejącymi feature-flagami)
-- [ ] Zapis do Small Business Program (sekcja 8)
+- [ ] Ekran logowania: zaloguj/zarejestruj na jednym ekranie, BEZ kodów invite (decyzja 2026-06-11); web bez zmian (invite-only)
+- [ ] Zapis do Small Business Program — formularz przejdzie po aktywacji Paid Apps (DSA + legal entity + ADP License Agreement zaliczone)
 
 ### Tydzień 2: formalności + hardening
 - [ ] PrivacyInfo.xcprivacy (deklaracje: Firebase, UserDefaults, required reason APIs)
@@ -100,22 +101,28 @@ Kategoria: tanie czyste trackery ($3-5/mies) vs apki z AI ($10-16/mies). Strengt
 - [ ] Submit 1.0 do App Review
 - [ ] Bufor na 1-2 rundy odrzuceń (normalne przy pierwszym submicie z subskrypcją)
 
-## 7. DECYZJE USERA (do potwierdzenia)
+## 7. DECYZJE USERA (PODJĘTE 2026-06-11)
 
-| Decyzja | Rekomendacja | Status |
-|---------|--------------|--------|
-| Cena 39,99 zł/mies + 199,99 zł/rok | tak | ❓ |
-| Hard paywall (wszystko za subskrypcją po trialu) vs freemium | hard paywall z 30-dn. trialem; freemium można dodać później, odwrotnie nie | ❓ |
-| Web zostaje invite-only poza sprzedażą | tak (unikamy kanibalizacji i wytycznych o omijaniu IAP) | ❓ |
-| Lifetime w 1.0 | nie, dodać później | ❓ |
+| Decyzja | Ustalenie |
+|---------|-----------|
+| Cennik | **14,99 zł/mies** (US: $2.99) + **99,99 zł/rok** (US: $19.99; 44% taniej, 8,33 zł/mies) |
+| Triale (asymetryczne, intro offers per produkt) | miesięczny: **14 dni free**, roczny: **30 dni free**; raz na konto Apple per grupa subskrypcji |
+| Lifetime | **NIE MA** (ani w 1.0, ani w planach) |
+| Rejestracja w apce mobilnej | **bez kodów invite**: zaloguj/zarejestruj na jednym ekranie (weryfikacja email zostaje) |
+| Web | zostaje invite-only, sprzedaje tylko App Store |
+| Architektura płatności | **RevenueCat** (wariant A); migracja na własny StoreKit możliwa po przekroczeniu progu płatności RC |
+| OTWARTE: co po końcu trialu bez płatności | rekomendacja: blokada nowych treningów, historia read-only + eksport zawsze dostępny (anty-"data hostage") — do potwierdzenia |
 
 ## 8. SMALL BUSINESS PROGRAM + PRZEDPOLE IAP (checklist)
 
-Warunki wstępne (bez tego ani SBP, ani IAP nie ruszy):
-- [ ] Konto Apple Developer Program aktywne (jest: wysyłamy na TestFlight)
-- [ ] Rola Account Holder (zapisać może tylko Account Holder)
-- [ ] ASC → Business/Agreements: zaakceptowany **Paid Applications Agreement**
-- [ ] ASC: uzupełnione dane bankowe (konto do wypłat) i formularze podatkowe
+Warunki wstępne (stan 2026-06-11):
+- [x] Konto Apple Developer Program aktywne
+- [x] Rola Account Holder (Grzegorz Jasionowicz, Team J4CRD2SA6D)
+- [x] Zaktualizowana ADP License Agreement zaakceptowana (odblokowała resztę)
+- [x] Legal Entity uzupełnione; DSA trader compliance zgłoszone (status "In Review"; dane tradera: adres CEIDG + contact@strengthsave.app; dowody: VIES PDF)
+- [x] **Paid Applications Agreement zaakceptowany** (status "Processing" do czasu weryfikacji banku)
+- [x] Bank: mBank PLN (status "Processing", do 24 h) · Tax: W-8BEN **Active** (treaty PL art. 8, 0% withholding, NIP jako Foreign TIN) + Certificate of Foreign Status **Active**
+- [ ] SBP: formularz do dokończenia po aktywacji Paid Apps (pyt. o agreement: Yes; Associated Accounts: 4×No, rola Marketing u klienta się nie liczy)
 - Zapis: developer.apple.com/app-store/small-business-program/ → Enroll, zalogować się jako Account Holder, potwierdzić listę powiązanych kont developerskich (wszystkie liczą się łącznie do progu 1 mln USD), zaakceptować warunki.
 - Wejście w życie: stawka 15% aktywuje się 15 dni po końcu miesiąca fiskalnego Apple, w którym zatwierdzono zapis. Zapisać się PRZED launchem.
 - Utrata: po przekroczeniu 1 mln USD proceeds w roku → 30% na dalszą sprzedaż; spadek poniżej → ponowna kwalifikacja od kolejnego roku.
