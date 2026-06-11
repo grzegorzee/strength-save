@@ -36,6 +36,7 @@ struct ExerciseDetailView: View {
 }
 
 struct SetRow: View {
+    @EnvironmentObject var store: WorkoutStore
     let index: Int
     let set: WatchSet
     let sets: [WatchSet]
@@ -47,13 +48,14 @@ struct SetRow: View {
     }
 
     var body: some View {
+        let unit = store.weightUnit
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if set.reps > 0 || set.weight > 0 {
-                    Text("\(set.reps) × \(set.weight.weightText) kg")
+                    Text("\(set.reps) × \(unit.toDisplay(set.weight).weightText) \(unit.label)")
                         .font(.body)
                 } else {
                     Text("—")
@@ -74,6 +76,7 @@ struct SetEditorView: View {
     let setIndex: Int
 
     @State private var reps: Int = 0
+    /// Ciężar w jednostce WYŚWIETLANIA (kg lub lbs) — konwersja do kg przy zapisie.
     @State private var weight: Double = 0
     @State private var loaded = false
 
@@ -111,14 +114,24 @@ struct SetEditorView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Stepper(value: $weight, in: 0...500, step: 2.5) {
-                        Text("\(weight.weightText) kg")
+                    Stepper(value: $weight, in: 0...1100, step: store.weightUnit.step) {
+                        Text("\(weight.weightText) \(store.weightUnit.label)")
                             .font(.title3.monospacedDigit())
                     }
                 }
+                // Digital Crown też kręci ciężarem (krok jak stepper).
+                .focusable()
+                .digitalCrownRotation(
+                    $weight,
+                    from: 0, through: 1100, by: store.weightUnit.step,
+                    sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true
+                )
 
                 Button {
-                    store.logSet(exerciseId: exerciseId, setIndex: setIndex, reps: reps, weight: weight)
+                    store.logSet(
+                        exerciseId: exerciseId, setIndex: setIndex, reps: reps,
+                        weight: store.weightUnit.toKg(weight)
+                    )
                     dismiss()
                 } label: {
                     Label("Zalicz serię", systemImage: "checkmark")
@@ -133,14 +146,15 @@ struct SetEditorView: View {
         .onAppear {
             guard !loaded, let set = currentSet else { return }
             loaded = true
+            let unit = store.weightUnit
             reps = set.reps
-            weight = set.weight
+            weight = unit.toDisplay(set.weight)
             // Prefill z poprzedniej zaliczonej serii, żeby nie klikać od zera.
             if reps == 0 || weight == 0,
                let exercise = store.payload?.exercises?.first(where: { $0.id == exerciseId }) {
                 let prior = exercise.sets.prefix(setIndex).last(where: { $0.completed })
                 if reps == 0 { reps = prior?.reps ?? 0 }
-                if weight == 0 { weight = prior?.weight ?? 0 }
+                if weight == 0 { weight = unit.toDisplay(prior?.weight ?? 0) }
             }
         }
     }

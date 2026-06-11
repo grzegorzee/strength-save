@@ -11,6 +11,7 @@ import {
   addWatchEventListener,
   drainWatchEvents,
   getRestDefaultSeconds,
+  getUnitSystemForWatch,
   isWatchBridgeSupported,
   sendWorkoutToWatch,
   type WatchEvent,
@@ -58,6 +59,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         sentAt: Date.now(),
         active: true,
         restSeconds: getRestDefaultSeconds(),
+        unit: getUnitSystemForWatch(),
         exercises: exercises.map((exercise) => ({
           id: exercise.id,
           name: exercise.name,

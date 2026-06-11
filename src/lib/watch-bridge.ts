@@ -44,7 +44,18 @@ export interface WatchWorkoutPayload {
   active?: boolean;
   /** Domyślny odpoczynek między seriami (sekundy) — zegarek odpala timer po zaliczeniu serii. */
   restSeconds?: number;
+  /** Jednostka wyświetlania ciężaru na zegarku (model i eventy zawsze w kg). */
+  unit?: 'kg' | 'lbs';
   exercises?: WatchExercisePayload[];
+}
+
+/** Jednostka usera — ten sam klucz co UnitContext na telefonie. */
+export function getUnitSystemForWatch(): 'kg' | 'lbs' {
+  try {
+    return localStorage.getItem('unit-system') === 'lbs' ? 'lbs' : 'kg';
+  } catch {
+    return 'kg';
+  }
 }
 
 /** Ten sam klucz ustawień co RestTimer/ExerciseCard na telefonie. */

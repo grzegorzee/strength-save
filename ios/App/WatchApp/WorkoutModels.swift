@@ -35,7 +35,31 @@ struct WatchWorkoutPayload: Codable {
     var active: Bool?
     // Domyślny odpoczynek między seriami (z ustawień telefonu), sekundy.
     var restSeconds: Int?
+    // Jednostka WYŚWIETLANIA ("kg"/"lbs"). Model i eventy zawsze trzymają kg.
+    var unit: String?
     var exercises: [WatchExercise]?
+}
+
+// Jednostka ciężaru: konwersja tylko w warstwie UI, zapis zawsze w kg.
+enum WeightUnit: String {
+    case kg
+    case lbs
+
+    static let lbsPerKg = 2.2046226218
+
+    var label: String { rawValue }
+    /// Krok steppera/koronki w jednostce wyświetlania.
+    var step: Double { self == .kg ? 2.5 : 5.0 }
+
+    func toDisplay(_ kg: Double) -> Double {
+        self == .kg ? kg : kg * Self.lbsPerKg
+    }
+
+    func toKg(_ display: Double) -> Double {
+        let kg = self == .kg ? display : display / Self.lbsPerKg
+        // 2 miejsca wystarczą; bez tego po konwersji lbs zostaje szum floatów.
+        return (kg * 100).rounded() / 100
+    }
 }
 
 enum WatchEvent {

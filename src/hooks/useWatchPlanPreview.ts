@@ -8,7 +8,7 @@ import type { SetData, WorkoutSession } from '@/types';
 import { createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { formatLocalDate } from '@/lib/utils';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
-import { getRestDefaultSeconds, isWatchBridgeSupported, sendWorkoutToWatch } from '@/lib/watch-bridge';
+import { getRestDefaultSeconds, getUnitSystemForWatch, isWatchBridgeSupported, sendWorkoutToWatch } from '@/lib/watch-bridge';
 
 interface UseWatchPlanPreviewOptions {
   uid: string | null;
@@ -47,6 +47,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
             sentAt: Date.now(),
             active: true,
             restSeconds: getRestDefaultSeconds(),
+            unit: getUnitSystemForWatch(),
             exercises: day.exercises.map((exercise) => ({
               id: exercise.id,
               name: exercise.name,
@@ -87,6 +88,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
           sentAt: Date.now(),
           active: false,
           restSeconds: getRestDefaultSeconds(),
+          unit: getUnitSystemForWatch(),
           exercises: day.exercises.map((exercise) => ({
             id: exercise.id,
             name: exercise.name,

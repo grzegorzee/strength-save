@@ -29,6 +29,11 @@ final class WorkoutStore: NSObject, ObservableObject {
         return defaults.string(forKey: localFinishKey) == "\(payload.date)|\(dayId)"
     }
 
+    /// Jednostka wyświetlania ciężaru (z ustawień telefonu, default kg).
+    var weightUnit: WeightUnit {
+        WeightUnit(rawValue: payload?.unit ?? "kg") ?? .kg
+    }
+
     /// Czy trening jest aktywny: telefon potwierdził (active=true) albo user
     /// wystartował lokalnie na zegarku.
     var isActive: Bool {
