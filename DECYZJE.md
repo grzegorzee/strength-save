@@ -11,6 +11,29 @@
 
 ## DECYZJE
 
+### 2026-06-18 — Naprawa 3 bugów z treningu na siłowni (audyt + TDD wg Karpathy)
+
+**Kontekst:** User zgłosił 3 bugi po realnym treningu (5G, ekran zgaszony). Audyt root cause (3 równoległych agentów Explore) → potwierdzenie w kodzie → fix każdego przez TDD (test odtwarzający RED → fix GREEN), izolowane commity (1 bug = 1 zmiana).
+
+**Bug 1 — miks ćwiczeń z dwóch dni planu w podsumowaniu (część 0/4 serii, część zrobiona).**
+Root cause: `findWorkoutForRoute` z `allowDateFallback` wracał do treningu INNEGO dnia planu z tej samej daty (fallback ignoruje `dayId`). Przy starcie dzisiejszego treningu dnia A, gdy istniał ukończony trening dnia B z tej samej daty, init wczytywał ćwiczenia B do `exerciseSets` (`WorkoutDay.tsx:785`), user dorabiał A, a zapis `Object.entries(exerciseSets)` (`:1356`) utrwalał miks obu dni pod jedną sesją.
+Fix: nowa opcja `today` w `findWorkoutForRoute` — cross-day fallback działa tylko dla dat PRZESZŁYCH (oglądanie historii po zmianie planu, chronione testem `:16-32`). Dla dzisiejszej daty fallback zablokowany → nowy trening startuje czysto z `baseDay`. Podłączone w widoku (`:189`) i init (`:701`).
+Weryfikacja: 3 nowe testy w `workout-lookup.test.ts` (blokada cross-day dziś, fallback historii w przeszłości, własny dzień dziś).
+
+**Bug 2 — layout „rozjeżdża się" w bok przy zamianie ćwiczenia.**
+Root cause: nazwy ćwiczeń w nagłówku dialogu zamiany (`WorkoutDay.tsx:1897`) i w pozycjach listy biblioteki (`:1924`) były we flex-kontenerze bez `min-w-0`/`truncate`. Flex-item z długim tekstem ma `min-width:auto`, więc rozpychał kontener szerzej niż ekran → poziomy scroll całej strony.
+Fix: `min-w-0` + `truncate` na tekstach, `shrink-0` na przycisku Zamknij.
+Weryfikacja: build + scenariusz manualny (CSS layout poza zasięgiem unit-testu).
+
+**Bug 3 — pusta kolumna POPRZ. mimo istniejącej historii.**
+Root cause: `getPreviousHint` (`ExerciseCard.tsx`) indeksował `previousSets[globalIndex]`, gdzie `globalIndex` liczył rozgrzewki+robocze bieżącej sesji, a `previousSets` to surowa tablica historii. Różna liczba rozgrzewek między sesjami rozjeżdżała indeksy → `'—'`.
+Fix: nowa czysta funkcja `previousWorkingSet()` (`exercise-utils.ts`) filtruje rozgrzewki po obu stronach i indeksuje po kolejności serii roboczych (spójnie z `createPrefilledSets`). `renderSetRow` przekazuje working index.
+Weryfikacja: 4 testy w `exercise-utils.test.ts`.
+
+**Uwaga o danych:** Fix bug 1 zatrzymuje tworzenie NOWYCH miksów. Treningi już zapisane z miksem (jeśli istnieją w Firestore) pozostaną — to osobna naprawa danych, nie dotykano konta usera (dane święte). Build/resume na urządzeniu do potwierdzenia bug 2.
+
+**Stan:** 376/376 testów zielone, typecheck + lint + build OK. 3 izolowane commity na `main`.
+
 ### 2026-06-11 — Rebrand ikony aplikacji: limonkowy hantel 3D
 
 **Co:** Nowa ikona (3D hantel na limonkowym tle #DDF70D, wygenerowana w ChatGPT) wdrożona wszędzie: iOS AppIcon + watch icon (1024px, rogi zalane limonką, bez kanału alpha — wymóg App Store), splash screen (ikona na tle #0e0e0e, 9 wariantów — zastąpiła stare logo tarczy), PWA (pwa-192/512), favicon.png 96px + favicon.svg (embedded PNG), logo w sidebarze (AppNavigation) i na ekranie logowania (zamiast badge "SS" i lucide Dumbbell), tytuł logowania w font-heading (Space Grotesk).
