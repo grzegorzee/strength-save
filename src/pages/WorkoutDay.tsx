@@ -1893,9 +1893,9 @@ const WorkoutDay = () => {
             {swapExerciseId === exercise.id && (
               <Card className="border-primary/30 bg-primary/[0.04]">
                 <CardContent className="pt-4 pb-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium text-sm">{t('planeditor.swappingExercise', { name: exercise.name })}</p>
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSwapExerciseId(null); setSwapPick(null); setSwapQuery(''); }}>{t('workout.close')}</Button>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-medium text-sm min-w-0 truncate">{t('planeditor.swappingExercise', { name: exercise.name })}</p>
+                    <Button variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => { setSwapExerciseId(null); setSwapPick(null); setSwapQuery(''); }}>{t('workout.close')}</Button>
                   </div>
 
                   {!swapPick ? (
@@ -1921,7 +1921,7 @@ const WorkoutDay = () => {
                               onClick={() => setSwapPick(libEx)}
                               className="w-full text-left flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-colors"
                             >
-                              <span className="text-sm font-medium">{libEx.name}</span>
+                              <span className="text-sm font-medium min-w-0 truncate">{libEx.name}</span>
                               <Badge variant="outline" className="text-[10px] shrink-0">{localizeCategory(libEx.category, lang)}</Badge>
                             </button>
                           ))}
