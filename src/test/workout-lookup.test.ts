@@ -45,6 +45,55 @@ describe('workout-lookup', () => {
     expect(result?.id).toBe('saved-history');
   });
 
+  it('does NOT pull a different-day completed workout when starting today\'s session', () => {
+    // Bug: ten sam dzień kalendarzowy ma ukończony trening INNEGO dnia planu (day-2).
+    // User otwiera day-1 żeby zacząć dzisiejszy trening — fallback nie może wciągnąć day-2
+    // (powodowało to miks ćwiczeń z dwóch dni w podsumowaniu).
+    const otherDay = workout({
+      id: 'w-b',
+      dayId: 'day-2',
+      date: '2026-06-18',
+      completed: true,
+      exercises: [{ exerciseId: 'ex-2-1', sets: [{ reps: 8, weight: 50, completed: true }] }],
+    });
+
+    const result = findWorkoutForRoute([otherDay], {
+      dayId: 'day-1',
+      date: '2026-06-18',
+      today: '2026-06-18',
+      allowDateFallback: true,
+    });
+
+    expect(result).toBeUndefined();
+  });
+
+  it('still falls back to a historical workout of another day for PAST dates', () => {
+    const hist = workout({ id: 'w-b', dayId: 'day-2', date: '2026-06-10', completed: true });
+
+    const result = findWorkoutForRoute([hist], {
+      dayId: 'day-1',
+      date: '2026-06-10',
+      today: '2026-06-18',
+      allowDateFallback: true,
+    });
+
+    expect(result?.id).toBe('w-b');
+  });
+
+  it('finds today\'s own completed workout by matching dayId', () => {
+    const own = workout({ id: 'w-a', dayId: 'day-1', date: '2026-06-18', completed: true });
+    const other = workout({ id: 'w-b', dayId: 'day-2', date: '2026-06-18', completed: true });
+
+    const result = findWorkoutForRoute([own, other], {
+      dayId: 'day-1',
+      date: '2026-06-18',
+      today: '2026-06-18',
+      allowDateFallback: true,
+    });
+
+    expect(result?.id).toBe('w-a');
+  });
+
   it('builds a route to the persisted workout id and dayId', () => {
     expect(buildWorkoutRoute(workout({ id: 'saved', dayId: 'day-3' })))
       .toBe('/workout/day-3?date=2026-05-29&session=saved');

@@ -5,6 +5,11 @@ type WorkoutLookupOptions = {
   date: string;
   sessionId?: string | null;
   allowDateFallback?: boolean;
+  /** Dzisiejsza data (YYYY-MM-DD). Gdy podana, cross-day fallback (trening INNEGO
+   *  dnia z tej samej daty) działa tylko dla dat przeszłych — oglądanie historii.
+   *  Dla daty dzisiejszej user może zaczynać nowy trening danego dnia, więc nie
+   *  wolno wciągać ukończonego treningu innego dnia (powodowało miks ćwiczeń). */
+  today?: string;
 };
 
 const workoutScore = (workout: WorkoutSession): number => {
@@ -30,7 +35,7 @@ export const findWorkoutForRoute = (
   workouts: WorkoutSession[],
   options: WorkoutLookupOptions,
 ): WorkoutSession | undefined => {
-  const { dayId, date, sessionId, allowDateFallback = false } = options;
+  const { dayId, date, sessionId, allowDateFallback = false, today } = options;
 
   if (sessionId) {
     const bySession = workouts.find(workout => workout.id === sessionId && workout.date === date);
@@ -43,6 +48,11 @@ export const findWorkoutForRoute = (
   }
 
   if (!allowDateFallback) return undefined;
+
+  // Fallback po dacie zwraca trening INNEGO dnia planu (bo byDayAndDate nie trafił).
+  // Dla daty dzisiejszej blokujemy go: user zaczyna nowy trening danego dnia i nie
+  // chce wciągać ukończonego treningu innego dnia z tej samej daty (miks ćwiczeń).
+  if (dayId && today && date >= today) return undefined;
 
   return bestWorkout(workouts.filter(workout => workout.date === date && workout.completed));
 };

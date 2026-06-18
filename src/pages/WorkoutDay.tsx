@@ -191,8 +191,9 @@ const WorkoutDay = () => {
       date: targetDate,
       sessionId: routeSessionId,
       allowDateFallback: true,
+      today,
     }),
-    [workouts, dayId, targetDate, routeSessionId],
+    [workouts, dayId, targetDate, routeSessionId, today],
   );
 
   // Apply any session-only ("tylko dziś") swaps over the plan day.
@@ -702,6 +703,7 @@ const WorkoutDay = () => {
       date: targetDate,
       sessionId: routeSessionId,
       allowDateFallback: true,
+      today,
     });
     const draftHasData = currentPageDraft
       ? hasDraftContent(
@@ -828,7 +830,7 @@ const WorkoutDay = () => {
     });
     // t pominięte celowo: użyte tylko w toaście; dodanie zresetowałoby stan treningu przy zmianie języka
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isDraftLoaded, dayId, workouts, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid]);
+  }, [isLoaded, isDraftLoaded, dayId, workouts, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid, today]);
 
   // Autostart workout when navigating with ?autostart=true
   useEffect(() => {
