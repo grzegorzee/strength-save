@@ -142,6 +142,16 @@ export const createEmptySets = (count: number): SetData[] => {
   return sets;
 };
 
+// Poprzedni wynik dla N-tej serii ROBOCZEJ (kolumna POPRZ.). Rozgrzewki są pomijane
+// po obu stronach — inaczej różna liczba rozgrzewek między sesjami rozjeżdża indeksy.
+export const previousWorkingSet = (
+  previousSets: SetData[] | undefined,
+  workingIndex: number,
+): SetData | undefined => {
+  if (!previousSets || previousSets.length === 0) return undefined;
+  return previousSets.filter(s => !s.isWarmup)[workingIndex];
+};
+
 export const createPrefilledSets = (
   setCount: number,
   previousSets: SetData[] | undefined,

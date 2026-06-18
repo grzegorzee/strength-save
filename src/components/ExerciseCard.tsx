@@ -6,7 +6,7 @@ import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activ
 import { Exercise } from '@/data/trainingPlan';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
-import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions } from '@/lib/exercise-utils';
+import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { IntervalTimer } from './IntervalTimer';
@@ -334,9 +334,10 @@ const ExerciseCardInner = ({
     return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight, lang, unit);
   }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight, lang, unit]);
 
-  const getPreviousHint = (setIndex: number): string | null => {
-    if (!previousSets || previousSets.length === 0) return null;
-    const prevSet = previousSets[setIndex];
+  // Hint kolumny POPRZ. dla N-tej serii ROBOCZEJ (workingIndex), nie globalnej —
+  // inaczej różna liczba rozgrzewek między sesjami rozjeżdża wartości.
+  const getPreviousHint = (workingIndex: number): string | null => {
+    const prevSet = previousWorkingSet(previousSets, workingIndex);
     if (!prevSet || (prevSet.weight === 0 && prevSet.reps === 0)) return null;
     if (isBodyweight) return t('card.repsValue', { n: prevSet.reps });
     return `${prevSet.reps}×${fmt(prevSet.weight, { withUnit: false })}${unit}`;
@@ -348,8 +349,8 @@ const ExerciseCardInner = ({
     : 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_22px]';
 
   // ── Render set row ──
-  const renderSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean) => {
-    const prevHint = !isWarmupRow ? getPreviousHint(globalIndex) : null;
+  const renderSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean, workingIndex = -1) => {
+    const prevHint = !isWarmupRow ? getPreviousHint(workingIndex) : null;
     const isActive = !isWarmupRow && globalIndex === activeSetIndex;
     const displayWeight = set.weight
       ? (unit === 'lbs' ? Number(toDisplay(set.weight).toFixed(1)) : set.weight)
@@ -573,7 +574,7 @@ const ExerciseCardInner = ({
         {/* Set rows */}
         {workingSets.map((set, wi) => {
           const globalIndex = sets.indexOf(set);
-          return renderSetRow(set, globalIndex, wi + 1, false);
+          return renderSetRow(set, globalIndex, wi + 1, false, wi);
         })}
       </div>
 

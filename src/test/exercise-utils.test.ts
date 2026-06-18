@@ -10,7 +10,37 @@ import {
   lookupExerciseType,
   isBodyweightExercise,
   createPrefilledSets,
+  previousWorkingSet,
 } from '@/lib/exercise-utils';
+import type { SetData } from '@/types';
+
+describe('previousWorkingSet (kolumna POPRZ.)', () => {
+  const W = (reps: number, weight: number, isWarmup = false): SetData => ({ reps, weight, completed: true, ...(isWarmup && { isWarmup: true }) });
+
+  it('zwraca n-tą serię ROBOCZĄ poprzedniej sesji, pomijając rozgrzewkę', () => {
+    const prev = [W(10, 0, true), W(8, 50), W(8, 52.5), W(6, 55)];
+    expect(previousWorkingSet(prev, 0)).toEqual(W(8, 50));
+    expect(previousWorkingSet(prev, 1)).toEqual(W(8, 52.5));
+    expect(previousWorkingSet(prev, 2)).toEqual(W(6, 55));
+  });
+
+  it('nie rozjeżdża się gdy poprzednia sesja miała inną liczbę rozgrzewek', () => {
+    // 2 rozgrzewki w poprzedniej sesji — pierwsza robocza to indeks 2 globalnie, ale working #0
+    const prev = [W(12, 0, true), W(10, 30, true), W(8, 50), W(8, 52.5)];
+    expect(previousWorkingSet(prev, 0)).toEqual(W(8, 50));
+  });
+
+  it('działa gdy poprzednia sesja nie ma rozgrzewki', () => {
+    const prev = [W(8, 50), W(8, 52.5)];
+    expect(previousWorkingSet(prev, 0)).toEqual(W(8, 50));
+  });
+
+  it('zwraca undefined poza zakresem i dla braku danych', () => {
+    expect(previousWorkingSet([W(8, 50)], 3)).toBeUndefined();
+    expect(previousWorkingSet(undefined, 0)).toBeUndefined();
+    expect(previousWorkingSet([], 0)).toBeUndefined();
+  });
+});
 
 describe('parseSetCount', () => {
   it('extracts number from "3 x 6-8"', () => {
