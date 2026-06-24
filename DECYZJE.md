@@ -11,6 +11,29 @@
 
 ## DECYZJE
 
+### 2026-06-18/24 — Pusty paywall IAP: root cause = brak App Review pierwszej subskrypcji (WSTRZYMANE, czeka na usera)
+
+**Objaw:** natywny paywall iOS nie ładuje pakietów (`getOfferings()` → `code=23`, puste pakiety).
+
+**Root cause (systematic-debugging, dowód warstwa po warstwie):** to NIE bug w kodzie ani błąd
+konfiguracji. Wszystkie warstwy zielone (klucz w buildzie, kod, RC offering+produkty, ASC
+READY_TO_SUBMIT+ceny+lokalizacje, Paid Apps Agreement Active, bundle). Jedyna przyczyna: app w
+`PREPARE_FOR_SUBMISSION`, **pierwsza subskrypcja nigdy nie przeszła App Review** — StoreKit nie
+serwuje produktów first-time app w sandbox/TestFlight, dopóki IAP nie pójdzie do review z buildem.
+Potwierdzone na urządzeniu (build 40 z diagnostyką na ekranie): `cfg=true THROW code=23 ... no App
+Store products registered ... for your offerings`. RC backend (odpytany kluczem z builda) zwraca
+poprawne identyfikatory — porażka jest na poziomie StoreKit fetch.
+
+**Decyzja:** jedyna droga = wysłać apkę 1.0 z subskrypcjami do App Review (i tak konieczne do sprzedaży).
+
+**Zrobione:** build 40 (diagnostyka, potwierdził root cause) → build 41 (czysty, VALID na TestFlight);
+cena Free; kategoria Health & Fitness; privacy/support URL; konto demo Auth (`applereview@strengthsave.app`).
+
+**Blokery (czeka na usera):** service account Firebase (grzegorzee bez GCP IAM na fittracker →
+brak Firestore admin write do nadania PRO comp koncie demo); dane kontaktowe recenzenta; akceptacja copy.
+
+**Pełny status + checklist + dane referencyjne:** `docs/APP-REVIEW-IAP-STATUS.md`.
+
 ### 2026-06-18 — Naprawa 3 bugów z treningu na siłowni (audyt + TDD wg Karpathy)
 
 **Kontekst:** User zgłosił 3 bugi po realnym treningu (5G, ekran zgaszony). Audyt root cause (3 równoległych agentów Explore) → potwierdzenie w kodzie → fix każdego przez TDD (test odtwarzający RED → fix GREEN), izolowane commity (1 bug = 1 zmiana).
