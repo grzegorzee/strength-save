@@ -26,6 +26,8 @@ export interface ActiveWorkoutDraft {
   dayFocus?: string;
   skippedExercises: string[];
   startedAt: number;
+  /** Moment potwierdzenia zakończenia. Stabilizuje duration przy retry finalnego syncu. */
+  finalizedAt?: number;
   updatedAt: number;
   cloudUpdatedAt?: number;
   cloudRevision?: number;
@@ -135,6 +137,7 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     ...(value.dayFocus !== undefined && { dayFocus: String(value.dayFocus) }),
     skippedExercises: normalizeStringArray(value.skippedExercises),
     startedAt: toNumberOr(value.startedAt, now),
+    ...(value.finalizedAt !== undefined && { finalizedAt: toNumberOr(value.finalizedAt, now) }),
     updatedAt: toNumberOr(value.updatedAt, now),
     ...(value.cloudUpdatedAt !== undefined && { cloudUpdatedAt: toNumberOr(value.cloudUpdatedAt, now) }),
     ...(value.cloudRevision !== undefined && { cloudRevision: Math.max(0, Math.round(toNumberOr(value.cloudRevision, 0))) }),

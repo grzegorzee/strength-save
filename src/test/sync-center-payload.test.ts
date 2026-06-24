@@ -19,6 +19,7 @@ const draft: ActiveWorkoutDraft = {
   dayFocus: 'Chest',
   skippedExercises: ['ex-2'],
   startedAt: 1000,
+  finalizedAt: 61_000,
   updatedAt: 2000,
   cloudUpdatedAt: 1500,
   cloudRevision: 2,
@@ -50,6 +51,7 @@ describe('Sync Center retry payload', () => {
       dayFocus: 'Chest',
       durationSec: 60,
       startedAt: 1000,
+      completedAt: 61_000,
       completed: true,
       expectedUpdatedAt: 1500,
     });

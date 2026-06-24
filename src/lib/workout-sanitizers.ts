@@ -6,3 +6,9 @@ export const clampSet = (set: Partial<SetData>): SetData => ({
   completed: !!set.completed,
   ...(set.isWarmup && { isWarmup: true }),
 });
+
+/** Completed warm-up sets do not make an exercise complete on their own. */
+export const isExerciseFullyCompleted = (sets: SetData[] | undefined): boolean => {
+  const workingSets = (sets ?? []).filter(set => !set.isWarmup);
+  return workingSets.length > 0 && workingSets.every(set => set.completed);
+};

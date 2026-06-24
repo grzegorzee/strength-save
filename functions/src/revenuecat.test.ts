@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapEventToSubscription, resolveUid } from "./revenuecat";
+import { mapEventToSubscription, resolveUid, shouldApplySubscriptionEvent } from "./revenuecat";
 
 const NOW = "2026-06-11T12:00:00.000Z";
 const EXP_MS = Date.parse("2026-07-11T12:00:00.000Z");
@@ -71,5 +71,18 @@ describe("mapEventToSubscription", () => {
   it("TEST i nieznane eventy => null (bez zmiany stanu)", () => {
     expect(mapEventToSubscription({ type: "TEST" }, NOW)).toBeNull();
     expect(mapEventToSubscription({ type: "SUBSCRIBER_ALIAS" }, NOW)).toBeNull();
+  });
+
+  it("nie pozwala starszemu EXPIRATION nadpisać nowszego RENEWAL", () => {
+    const renewal = mapEventToSubscription({ type: "RENEWAL", id: "renewal-t2", event_timestamp_ms: 2_000, product_id: "strengthsave_pro_yearly" }, NOW)!;
+    const expiration = mapEventToSubscription({ type: "EXPIRATION", id: "expiration-t1", event_timestamp_ms: 1_000 }, NOW)!;
+
+    expect(shouldApplySubscriptionEvent(undefined, renewal)).toBe(true);
+    expect(shouldApplySubscriptionEvent(renewal, expiration)).toBe(false);
+  });
+
+  it("ignoruje duplikat eventu RevenueCat", () => {
+    const event = mapEventToSubscription({ type: "RENEWAL", id: "event-1", event_timestamp_ms: 2_000 }, NOW)!;
+    expect(shouldApplySubscriptionEvent(event, event)).toBe(false);
   });
 });

@@ -177,3 +177,17 @@ export const validateWorkoutCloudWrite = (
 
   return { ok: true };
 };
+
+/**
+ * Potwierdza, że poprzednia próba zapisu finalnego już dotarła do chmury.
+ * Nie porównujemy czasu: stare drafty nie miały finalizedAt, więc retry po dniach
+ * wyliczał inny durationSec mimo identycznie zapisanego treningu.
+ */
+export const matchesFinalWorkoutContent = (
+  workout: WorkoutSession | null,
+  expectation: WorkoutWriteExpectation,
+): boolean => validateWorkoutCloudWrite(workout, {
+  ...expectation,
+  durationSec: undefined,
+  startedAt: undefined,
+}).ok;

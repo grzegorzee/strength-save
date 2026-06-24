@@ -1,0 +1,26 @@
+{
+  "score": 10.0,
+  "mode": "native-ios",
+  "build": "fresh (mobile:sync + cap run ios) — pętla #2 2026-06-10: onboarding/plany/cykle + nawigacja + Analytics + Achievements",
+  "device": "iPhone 17, iOS 26.5",
+  "iteration": "loop 7-zadań — finalna weryfikacja",
+  "summary": "7/7 zadań DONE. Nawigacja, Analytics (Weekly default + nowe wykresy), Achievements zweryfikowane natywnie; onboarding/cykle dowiedzione testami emulatorowymi (real Auth+Firestore+rules).",
+  "blockers_red": [],
+  "orange": [],
+  "yellow": [],
+  "done_and_verified": [
+    { "task": "A1+A2. Onboarding: własny plan + pojedyncze ćwiczenia", "commit": "test(plans)", "verified": "Funkcje ISTNIAŁY (PlanWizard 'Ułóż własny' → PlanBuilder z pickerem biblioteki). Dowód: emulator e2e — new user przechodzi onboarding ścieżką własnego planu, dodaje ćwiczenie z biblioteki (search), ląduje na Dashboard, plan w training_plans + aktywny cykl w plan_cycles." },
+    { "task": "A3. Nowy plan nie kasuje starego", "commit": "test(plans)", "verified": "ISTNIAŁO (startCycleWithPlan → archiveCurrentPlan po utworzeniu nowego cyklu). Dowód: unit happy-path — stary plan archiwizowany jako completed cykl + backfill historii." },
+    { "task": "A4. Zakończenie planu przed czasem", "commit": "test(plans)", "verified": "ISTNIAŁO (Cycles → 'Zakończ plan' + dialog). Dowód: emulator e2e — cykl completed w Firestore + przejście na /new-plan." },
+    { "task": "A5. Analytics zamiast History w tab barze + Weekly default", "commit": "2e117bc", "verified": "NATYWNIE: pasek DASHBOARD/PLAN/ANALYTICS/EXERCISES/PROFILE; wejście w Analytics otwiera Weekly. History w menu bocznym. Spec nav-analytics + poprawka focus-trap." },
+    { "task": "A6. Ładniejszy Charts tab", "commit": "feat(analytics) + fix(analytics)", "verified": "NATYWNIE wszystkie 5 chipów: nagłówki z neonową ikoną, bary z gradientem, area z gradientem pod linią, czyste osie, glassy tooltip. Dwa root cause niewidocznych gradientów naprawione (recharts children + var() w stop-color)." },
+    { "task": "A7. Achievements spójne ikony", "commit": "fix(achievements)", "verified": "NATYWNIE: 3 kafle w wariancie primary (neonowe kółko + ciemna ikona + neonowa wartość)." }
+  ],
+  "caveats": [
+    "e2e:emulator wymaga JAVA_HOME=/opt/homebrew/opt/openjdk@21 (firebase-tools odrzuca JDK<21; domyślna java na PATH to 20).",
+    "Zadania A1-A4 nie wymagały zmian produkcyjnego kodu — funkcjonalność istniała, dostarczono testy-dowody (4 nowe e2e emulator + 1 unit).",
+    "Strava tab widoczna na screenshotach, bo konto symulatora = admin (zgodnie z feature flagiem)."
+  ],
+  "scoring": "Model harmoniczny: zero 🔴, zero 🟠, zero 🟡 → score 10.0.",
+  "screenshots_dir": "audit/shots/ (f2-*, f3-*, f4-*.png)"
+}

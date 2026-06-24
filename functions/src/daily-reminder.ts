@@ -9,6 +9,21 @@ const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frida
 
 interface PlanDay { weekday?: string; focus?: string; dayName?: string }
 
+type DeliveryResponse = { success: boolean; error?: { code?: string } };
+
+const INVALID_TOKEN_CODES = new Set([
+  "messaging/registration-token-not-registered",
+  "messaging/invalid-registration-token",
+]);
+
+export const getInvalidFcmTokens = (tokens: string[], responses: DeliveryResponse[]): string[] => (
+  responses.flatMap((response, index) => (
+    !response.success && response.error?.code && INVALID_TOKEN_CODES.has(response.error.code)
+      ? [tokens[index]]
+      : []
+  ))
+);
+
 export const dailyTrainingReminder = onSchedule(
   {
     schedule: "every day 07:00",
@@ -22,7 +37,10 @@ export const dailyTrainingReminder = onSchedule(
     logger.info(`[dailyReminder] start, dzień: ${today}`);
 
     const usersSnap = await db.collection("users").get();
+    let candidates = 0;
     let sent = 0;
+    let failed = 0;
+    let invalidTokens = 0;
 
     for (const doc of usersSnap.docs) {
       const u = doc.data() as {
@@ -45,19 +63,35 @@ export const dailyTrainingReminder = onSchedule(
       const todayDay = days.find((d) => d.weekday === today);
       if (!todayDay) continue; // dziś dzień wolny — nie przypominamy
 
+      candidates += 1;
+
       const firstName = (u.displayName || "").trim().split(" ")[0];
       const focus = todayDay.focus || todayDay.dayName || "trening";
       const title = firstName ? `Cześć ${firstName}! Czas na trening 💪` : "Czas na trening 💪";
       const body = `Dziś w planie: ${focus}. Wejdź i odhacz pierwszą serię.`;
 
       try {
-        const res = await admin.messaging().sendEachForMulticast({ tokens, notification: { title, body } });
-        sent += res.successCount;
+        for (let index = 0; index < tokens.length; index += 500) {
+          const tokenBatch = tokens.slice(index, index + 500);
+          const res = await admin.messaging().sendEachForMulticast({
+            tokens: tokenBatch,
+            notification: { title, body },
+            apns: { payload: { aps: { sound: "default" } } },
+          });
+          sent += res.successCount;
+          failed += res.failureCount;
+
+          const invalid = getInvalidFcmTokens(tokenBatch, res.responses);
+          if (invalid.length > 0) {
+            invalidTokens += invalid.length;
+            await doc.ref.update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalid) });
+          }
+        }
       } catch (e) {
         logger.error(`[dailyReminder] send failed for ${doc.id}`, e);
       }
     }
 
-    logger.info(`[dailyReminder] done, wysłano ${sent} powiadomień`);
+    logger.info("[dailyReminder] done", { candidates, sent, failed, invalidTokens });
   },
 );

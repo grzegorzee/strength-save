@@ -148,6 +148,8 @@ interface ExerciseCardProps {
   previousSets?: SetData[];
   onSetsChange?: (sets: SetData[], notes?: string) => void;
   isEditable?: boolean;
+  /** Aktywny trening: liczba serii roboczych jest dokładnie zgodna z planem. */
+  enforceWorkingSetCount?: boolean;
   isBodyweight?: boolean;
   nextAdvice?: NextSetAdvice | null;
   /** Najlepszy historyczny wynik (1RM) tego ćwiczenia — badge BEST w nagłówku. */
@@ -172,6 +174,7 @@ const ExerciseCardInner = ({
   previousSets,
   onSetsChange,
   isEditable = true,
+  enforceWorkingSetCount = false,
   isBodyweight = false,
   nextAdvice,
   historicalBest,
@@ -188,7 +191,7 @@ const ExerciseCardInner = ({
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
-  const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
+  const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount, enforceWorkingSetCount));
   const [notes, setNotes] = useState(savedNotes || '');
   const [showNotes, setShowNotes] = useState(!!savedNotes);
   const hasMetricValue = (m?: ExerciseMetrics) => m?.rpe !== undefined || m?.pain !== undefined || m?.quality !== undefined;
@@ -200,14 +203,18 @@ const ExerciseCardInner = ({
 
   useEffect(() => {
     if (!isInitialized.current || !hasLocalChanges.current) {
-      setSets(sanitizeSets(savedSets, setCount));
+      const normalizedSets = sanitizeSets(savedSets, setCount, enforceWorkingSetCount);
+      setSets(normalizedSets);
+      if (enforceWorkingSetCount && JSON.stringify(savedSets ?? []) !== JSON.stringify(normalizedSets)) {
+        onSetsChange?.(normalizedSets, savedNotes || '');
+      }
       setNotes(savedNotes || '');
       setShowNotes(!!savedNotes);
       setMetricsState(metrics || {});
       setShowMetrics(hasMetricValue(metrics) || defaultMetricsVisible);
       isInitialized.current = true;
     }
-  }, [savedSets, savedNotes, setCount, metrics, defaultMetricsVisible]);
+  }, [savedSets, savedNotes, setCount, metrics, defaultMetricsVisible, enforceWorkingSetCount, onSetsChange]);
 
   // Zmiana metryki: pusty input => pole usunięte (undefined), inaczej liczba w zakresie.
   const handleMetricChange = (field: keyof ExerciseMetrics, raw: string) => {
@@ -437,7 +444,7 @@ const ExerciseCardInner = ({
 
         {/* Delete */}
         <div className="flex justify-center">
-          {isEditable ? (
+          {isEditable && (!enforceWorkingSetCount || isWarmupRow) ? (
             <button
               onClick={() => handleRemoveSet(globalIndex)}
               aria-label={t('card.removeSet')}
@@ -583,14 +590,17 @@ const ExerciseCardInner = ({
         <div className="px-5 pb-5">
           <div className="exercise-card-divider mb-3" />
           <div className="flex items-center justify-between">
-            <button
-              onClick={handleAddSet}
-              disabled={workingSets.length >= 10}
-              className="inline-flex items-center gap-2 py-2 text-xs font-bold uppercase tracking-[0.14em] text-foreground hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              {t('card.addSet')}
-              <Plus className="h-5 w-5" />
-            </button>
+            {!enforceWorkingSetCount && (
+              <button
+                onClick={handleAddSet}
+                disabled={workingSets.length >= 10}
+                className="inline-flex items-center gap-2 py-2 text-xs font-bold uppercase tracking-[0.14em] text-foreground hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {t('card.addSet')}
+                <Plus className="h-5 w-5" />
+              </button>
+            )}
+            {enforceWorkingSetCount && <span />}
             <div className="flex items-center gap-1.5">
               {onMetricsChange && (
                 <button

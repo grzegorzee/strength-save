@@ -218,6 +218,8 @@ export const pl = {
   'settings.notif.enabled': 'Powiadomienia włączone',
   'settings.notif.denied': 'Nie włączono',
   'settings.notif.deniedDesc': 'Możesz włączyć je w Ustawieniach iOS → Strength Save → Powiadomienia.',
+  'settings.notif.registrationFailed': 'Nie udało się zarejestrować powiadomień',
+  'settings.notif.registrationFailedDesc': 'Zgoda systemowa jest włączona, ale telefon nie został jeszcze zarejestrowany. Spróbuj ponownie po połączeniu z internetem.',
   'settings.notif.deniedSettings': 'Powiadomienia są wyłączone. Włącz je w Ustawieniach systemu telefonu.',
   'settings.notif.daily': 'Poranne przypomnienie o treningu',
   'settings.notif.dailyDesc': 'Tylko w dni, gdy masz zaplanowany trening (ok. 7:00).',

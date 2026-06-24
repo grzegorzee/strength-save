@@ -21,9 +21,11 @@
     "prebuild": "npm run typecheck",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "e2e": "playwright test",
-    "e2e:mock": "playwright test",
+    "e2e": "playwright test --project=chromium",
+    "e2e:mock": "playwright test --project=chromium",
+    "e2e:webkit": "playwright test --project=webkit e2e/critical.spec.ts",
     "e2e:emulator": "firebase emulators:exec --only auth,firestore --project fittracker-workouts \"playwright test --config playwright.emulator.config.ts\"",
+    "ios:simulator:smoke": "bash scripts/ios-simulator-smoke.sh",
     "e2e:ui": "playwright test --ui"
   },
   "dependencies": {

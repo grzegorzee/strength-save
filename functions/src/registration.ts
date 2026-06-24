@@ -113,10 +113,10 @@ interface VerificationCodeDoc {
   uid: string;
   codeHash: string;
   createdAt: string;
-  sentAt: string;
+  sentAt?: string;
   expiresAt: string;
   attempts: number;
-  status: "pending" | "verified" | "expired";
+  status: "pending_send" | "pending" | "verified" | "expired";
 }
 
 interface AuthAuditLogDoc {
@@ -326,20 +326,15 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
     if (flags.registrationOpen === false) {
       throw new HttpsError("permission-denied", "Registration is currently closed");
     }
-    // Mobile (App Store): rejestracja otwarta — bramką monetyzacji jest paywall/trial.
-    // Web: invite-only — nowe konto wymaga ważnego zaproszenia (konsumpcję robi
-    // redeemInvite po utworzeniu profilu; tu tylko walidacja uprawnienia do rejestracji).
-    const platform = normalizeOptionalString(request.data?.platform, 20) || "web";
-    const isMobilePlatform = platform === "ios" || platform === "android";
-    if (!isMobilePlatform) {
-      const inviteCode = normalizeOptionalString(request.data?.inviteCode, 20);
-      const inviteValid = inviteCode ? await isInviteUsable(inviteCode, email) : false;
-      if (!inviteValid) {
-        throw new HttpsError(
-          "permission-denied",
-          "Rejestracja przez stronę wymaga zaproszenia. Pobierz aplikację Strength Save na iPhone, aby założyć konto."
-        );
-      }
+    // Nie ufamy deklaracji platformy od klienta. Otwartą rejestrację mobilną
+    // wolno włączyć dopiero po wdrożeniu wymuszanego App Check/attestation.
+    const inviteCode = normalizeOptionalString(request.data?.inviteCode, 20);
+    const inviteValid = inviteCode ? await isInviteUsable(inviteCode, email) : false;
+    if (!inviteValid) {
+      throw new HttpsError(
+        "permission-denied",
+        "Rejestracja wymaga ważnego zaproszenia."
+      );
     }
     const immediateAccess = providerGetsImmediateAccess(provider);
     const nextProfile: UserProfileDoc = {
@@ -452,8 +447,8 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
   const currentTime = new Date();
   if (existingCodeSnap.exists) {
     const existing = existingCodeSnap.data() as VerificationCodeDoc;
-    const sentAt = new Date(existing.sentAt);
-    if (currentTime.getTime() - sentAt.getTime() < 60_000) {
+    const sentAt = existing.status === "pending" && existing.sentAt ? new Date(existing.sentAt) : null;
+    if (sentAt && currentTime.getTime() - sentAt.getTime() < 60_000) {
       throw new HttpsError("resource-exhausted", "Odczekaj chwilę przed ponownym wysłaniem kodu.");
     }
   }
@@ -461,17 +456,30 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
   const code = randomVerificationCode();
   const timestamp = nowIso();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  // pending_send nie uruchamia cooldownu. Gdy Resend odrzuci mail, dokument jest
+  // usuwany, więc użytkownik może natychmiast ponowić próbę.
   await codeRef.set({
     email,
     uid,
     codeHash: hashCode(email, code, authPepper.value()),
     createdAt: timestamp,
-    sentAt: timestamp,
     expiresAt,
     attempts: 0,
-    status: "pending",
+    status: "pending_send",
   } satisfies VerificationCodeDoc);
-
+  try {
+    await sendEmail({
+      to: email,
+      subject: verificationSubject(code, language),
+      html: verificationEmailHtml(code, email, language),
+      type: "verification_code",
+      userId: uid,
+    });
+  } catch (error) {
+    await codeRef.delete().catch(() => undefined);
+    throw error;
+  }
+  await codeRef.set({ status: "pending", sentAt: timestamp }, { merge: true });
   await userRef.set({
     status: "pending_verification",
     access: { enabled: false },
@@ -481,14 +489,6 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
       lastCodeSentAt: timestamp,
     },
   }, { merge: true });
-
-  await sendEmail({
-    to: email,
-    subject: verificationSubject(code, language),
-    html: verificationEmailHtml(code, email, language),
-    type: "verification_code",
-    userId: uid,
-  });
 
   await writeAuthAuditLog({
     eventType: "verification_code_sent",
@@ -584,37 +584,39 @@ export const verifyEmailCode = onCall({ secrets: [resendApiKey, authPepper] }, a
   return { verified: true };
 });
 
-export const createWaitlistEntry = onCall(async (request) => {
+export const createWaitlistEntry = onCall({ enforceAppCheck: true }, async (request) => {
   const email = normalizeEmail(request.data?.email);
   const displayName = normalizeOptionalString(request.data?.displayName, 120);
   const note = normalizeOptionalString(request.data?.note, 500);
   const source = normalizeOptionalString(request.data?.source, 60) || "login";
 
-  const existingSnap = await getDb().collection(WAITLIST_COLLECTION).where("email", "==", email).limit(1).get();
+  const db = getDb();
+  const rateRef = db.collection("waitlist_rate_limits").doc(sanitizedIdentifierHash(email));
   const timestamp = nowIso();
-  if (!existingSnap.empty) {
-    const docRef = existingSnap.docs[0].ref;
-    await docRef.set({
+  const result = await db.runTransaction(async (transaction) => {
+    const rate = await transaction.get(rateRef);
+    const lastRequestAt = typeof rate.data()?.lastRequestAt === "string" ? Date.parse(rate.data()!.lastRequestAt) : 0;
+    if (Number.isFinite(lastRequestAt) && Date.now() - lastRequestAt < 60_000) {
+      throw new HttpsError("resource-exhausted", "Odczekaj chwilę przed ponownym zgłoszeniem.");
+    }
+    transaction.set(rateRef, { lastRequestAt: timestamp }, { merge: true });
+    const existing = await transaction.get(db.collection(WAITLIST_COLLECTION).where("email", "==", email).limit(1));
+    if (!existing.empty) return { entryId: existing.docs[0].id, existing: true };
+
+    const docRef = db.collection(WAITLIST_COLLECTION).doc();
+    transaction.set(docRef, {
+      email,
       displayName,
       note,
       source,
+      status: "waiting",
+      createdAt: timestamp,
       updatedAt: timestamp,
-    }, { merge: true });
-    return { entryId: docRef.id, existing: true };
-  }
-
-  const docRef = getDb().collection(WAITLIST_COLLECTION).doc();
-  await docRef.set({
-    email,
-    displayName,
-    note,
-    source,
-    status: "waiting",
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    convertedUserId: null,
-    linkedInviteId: null,
-  } satisfies WaitlistEntryDoc);
+      convertedUserId: null,
+      linkedInviteId: null,
+    } satisfies WaitlistEntryDoc);
+    return { entryId: docRef.id, existing: false };
+  });
 
   await writeAuthAuditLog({
     eventType: "waitlist_entry_created",
@@ -625,7 +627,29 @@ export const createWaitlistEntry = onCall(async (request) => {
     metadata: { source },
   });
 
-  return { entryId: docRef.id, existing: false };
+  return result;
+});
+
+export const registerPushToken = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  const token = normalizeOptionalString(request.data?.token, 4096);
+  if (!token) throw new HttpsError("invalid-argument", "Push token is required");
+  await getDb().collection(USERS_COLLECTION).doc(request.auth.uid).set({
+    fcmTokens: admin.firestore.FieldValue.arrayUnion(token),
+    fcmTokensLastSeenAt: nowIso(),
+  }, { merge: true });
+  return { success: true };
+});
+
+export const unregisterPushToken = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  const token = normalizeOptionalString(request.data?.token, 4096);
+  if (!token) throw new HttpsError("invalid-argument", "Push token is required");
+  await getDb().collection(USERS_COLLECTION).doc(request.auth.uid).set({
+    fcmTokens: admin.firestore.FieldValue.arrayRemove(token),
+    fcmTokensLastSeenAt: nowIso(),
+  }, { merge: true });
+  return { success: true };
 });
 
 export const createInvite = onCall({ secrets: [resendApiKey] }, async (request) => {
@@ -1064,17 +1088,6 @@ export const adminSendPush = onCall(async (request) => {
 async function purgeUserData(uid: string): Promise<Record<string, number>> {
   const db = getDb();
 
-  try {
-    await admin.auth().deleteUser(uid);
-  } catch (error) {
-    const code = typeof error === "object" && error !== null && "code" in error
-      ? String((error as { code?: unknown }).code)
-      : "";
-    if (code !== "auth/user-not-found") {
-      throw new HttpsError("internal", "Nie udało się usunąć konta Auth użytkownika.");
-    }
-  }
-
   const deletedCounts: Record<string, number> = {};
   for (const coll of GDPR_USER_ID_COLLECTIONS) {
     deletedCounts[coll] = await deleteCollectionByField(coll, "userId", uid);
@@ -1094,6 +1107,7 @@ async function purgeUserData(uid: string): Promise<Record<string, number>> {
   }
 
   for (const coll of GDPR_DIRECT_DOC_COLLECTIONS) {
+    if (coll === USERS_COLLECTION) continue;
     await db.collection(coll).doc(uid).delete().catch(() => {});
   }
 
@@ -1103,6 +1117,20 @@ async function purgeUserData(uid: string): Promise<Record<string, number>> {
   } catch (error) {
     console.error("Failed to delete user avatars from Storage", error);
   }
+
+  // Auth zostaje do końca: jeśli którykolwiek purge wyżej padnie, użytkownik
+  // może bezpiecznie ponowić żądanie z deletionPending już zapisanym w profilu.
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : "";
+    if (code !== "auth/user-not-found") {
+      throw new HttpsError("internal", "Nie udało się usunąć konta Auth użytkownika.");
+    }
+  }
+  await db.collection(USERS_COLLECTION).doc(uid).delete();
 
   return deletedCounts;
 }
@@ -1114,6 +1142,7 @@ export const adminDeleteUser = onCall(async (request) => {
   if (!uid) throw new HttpsError("invalid-argument", "uid required");
   if (uid === request.auth.uid) throw new HttpsError("failed-precondition", "Nie można usunąć własnego konta admina.");
 
+  await getDb().collection(USERS_COLLECTION).doc(uid).set({ deletionPending: { requestedAt: nowIso(), requestedBy: request.auth.uid } }, { merge: true });
   const deletedCounts = await purgeUserData(uid);
 
   await writeAuthAuditLog({
@@ -1142,6 +1171,7 @@ export const deleteOwnAccount = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "Konto admina nie może usunąć samo siebie.");
   }
 
+  await getDb().collection(USERS_COLLECTION).doc(uid).set({ deletionPending: { requestedAt: nowIso(), requestedBy: uid } }, { merge: true });
   const deletedCounts = await purgeUserData(uid);
 
   await writeAuthAuditLog({

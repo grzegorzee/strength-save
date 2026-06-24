@@ -1,5 +1,4 @@
 import { httpsCallable } from "firebase/functions";
-import { Capacitor } from "@capacitor/core";
 import { functions } from "@/lib/firebase";
 import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, type LanguageCode } from "@/i18n";
@@ -128,13 +127,11 @@ export async function syncUserProfile() {
     };
   }
   const fn = httpsCallable<
-    { language: LanguageCode; platform: string; inviteCode: string | null },
+    { language: LanguageCode; inviteCode: string | null },
     { profile: AppUserProfile }
   >(functions, "syncUserProfile");
-  // platform: mobile rejestruje otwarcie (bramka = paywall), web wymaga zaproszenia.
   const result = await fn({
     language: currentLanguage(),
-    platform: Capacitor.getPlatform(),
     inviteCode: getPendingInviteCode(),
   });
   return result.data.profile;

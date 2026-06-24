@@ -47,9 +47,10 @@ import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
-import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
 import { sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
+import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -356,6 +357,7 @@ const WorkoutDay = () => {
       dayFocus: overrides.dayFocus ?? previousDraft?.dayFocus ?? daySnapshotRef.current.focus,
       skippedExercises: overrides.skippedExercises ?? skippedExercisesRef.current,
       startedAt: overrides.startedAt ?? previousDraft?.startedAt ?? now,
+      finalizedAt: overrides.finalizedAt ?? previousDraft?.finalizedAt,
       updatedAt: overrides.updatedAt ?? now,
       cloudUpdatedAt: overrides.cloudUpdatedAt
         ?? previousDraft?.cloudUpdatedAt
@@ -380,6 +382,7 @@ const WorkoutDay = () => {
 
     try {
       await workoutDraftDb.saveActiveDraft(draft);
+      activeDraftRef.current = draft;
       setActiveDraft(draft);
       setSaveError(null);
       if (options.showStatus) {
@@ -497,8 +500,11 @@ const WorkoutDay = () => {
       }
 
       const startedAt = activeDraftRef.current?.startedAt;
-      const finalDurationSec = requiresFinalSync && startedAt
-        ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+      const finalizedAt = requiresFinalSync
+        ? currentDraft?.finalizedAt ?? Date.now()
+        : undefined;
+      const finalDurationSec = requiresFinalSync && startedAt && finalizedAt
+        ? Math.max(0, Math.floor((finalizedAt - startedAt) / 1000))
         : undefined;
       const saveOptions = {
         notes: dayNotesRef.current || undefined,
@@ -508,10 +514,24 @@ const WorkoutDay = () => {
         ...(requiresFinalSync && { completed: true }),
         ...(finalDurationSec !== undefined && { durationSec: finalDurationSec }),
         ...(requiresFinalSync && startedAt ? { startedAt } : {}),
+        ...(finalizedAt !== undefined && { completedAt: finalizedAt }),
         expectedUpdatedAt: currentDraft?.cloudUpdatedAt ?? null,
       };
       const exercisesPayload = buildExercisesPayload();
-      const result = await batchSaveWorkout(targetSessionId, exercisesPayload, saveOptions);
+      const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
+      const existingFinalWorkout = requiresFinalSync
+        ? await getWorkoutSessionFromServer(targetSessionId)
+        : null;
+      // Odpowiedź poprzedniego zapisu mogła zginąć po przejściu appki do tła.
+      // Jeżeli finalna treść już jest w chmurze, nie nadpisujemy jej starym revisionem.
+      const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
+      const result = alreadyFinalized
+        ? {
+          success: true,
+          updatedAt: existingFinalWorkout?.updatedAt,
+          revision: existingFinalWorkout?.revision,
+        }
+        : await batchSaveWorkout(targetSessionId, exercisesPayload, saveOptions);
 
       if (!result.success) {
         if (result.error === 'WORKOUT_CONFLICT') {
@@ -531,11 +551,12 @@ const WorkoutDay = () => {
       setSaveError(null);
 
       if (requiresFinalSync) {
-        const confirmedWorkout = await getWorkoutSessionFromServer(targetSessionId);
-        const validation = validateWorkoutCloudWrite(
-          confirmedWorkout,
-          buildWorkoutWriteExpectation(exercisesPayload, saveOptions)
-        );
+        const confirmedWorkout = alreadyFinalized
+          ? existingFinalWorkout
+          : await getWorkoutSessionFromServer(targetSessionId);
+        const validation = alreadyFinalized
+          ? { ok: true }
+          : validateWorkoutCloudWrite(confirmedWorkout, expectation);
 
         if (!validation.ok) {
           const errorMessage = t('workout.err.cloudIncomplete', { reason: validation.reason ?? 'unknown' });
@@ -577,16 +598,15 @@ const WorkoutDay = () => {
       }
       workoutSyncQueue.remove(uid, targetSessionId);
       if (usesActiveDraftStore) {
-        setActiveDraft(prev => prev && prev.userId === uid
-          ? {
-            ...prev,
-            dirty: false,
-            lastFirebaseSyncAt: syncedAt,
-            ...(result.updatedAt !== undefined && { cloudUpdatedAt: result.updatedAt }),
-            ...(result.revision !== undefined && { cloudRevision: result.revision }),
-          }
-          : prev
-        );
+        const syncedDraft = {
+          ...currentDraft!,
+          dirty: false,
+          lastFirebaseSyncAt: syncedAt,
+          ...(result.updatedAt !== undefined && { cloudUpdatedAt: result.updatedAt }),
+          ...(result.revision !== undefined && { cloudRevision: result.revision }),
+        };
+        activeDraftRef.current = syncedDraft;
+        setActiveDraft(prev => prev && prev.sessionId === syncedDraft.sessionId ? syncedDraft : prev);
       }
       queueAutoSaveStatus('synced', 'idle', 2200);
       trackTelemetryEvent(uid, 'sync_success');
@@ -1244,6 +1264,9 @@ const WorkoutDay = () => {
   }, [saveDraftSnapshot]);
 
   const handleSkipExercise = useCallback((exerciseId: string) => {
+    if (isExerciseFullyCompleted(exerciseSetsRef.current[exerciseId])) {
+      return;
+    }
     setSkippedExercises(prev => {
       if (prev.includes(exerciseId)) return prev;
       const newSkipped = [...prev, exerciseId];
@@ -1287,7 +1310,9 @@ const WorkoutDay = () => {
     setIsExplicitSaving(true);
     setSaveError(null);
 
-    const flushedDraft = await persistDraftSnapshot({}, { showStatus: false });
+    const finalizedAt = activeDraftRef.current?.finalizedAt ?? Date.now();
+
+    const flushedDraft = await persistDraftSnapshot({ finalizedAt }, { showStatus: false });
     if (!flushedDraft) {
       setIsExplicitSaving(false);
       toast({
@@ -1313,6 +1338,7 @@ const WorkoutDay = () => {
         }),
         completedLocally: true,
         finalSyncPending: true,
+        finalizedAt,
         dirty: true,
         updatedAt: now,
       }, { showStatus: false });
@@ -1854,6 +1880,7 @@ const WorkoutDay = () => {
               onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
               isBodyweight={isBodyweightExercise(exercise.name)}
               isEditable={isWorkoutStarted && !isCompleted}
+              enforceWorkingSetCount={isWorkoutStarted && !isCompleted}
               nextAdvice={getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
                 isBodyweight: isBodyweightExercise(exercise.name),
                 isSuperset: exercise.isSuperset,
@@ -1866,7 +1893,7 @@ const WorkoutDay = () => {
               onRestTimerStart={startRestTimer}
             />
             {/* AI Swap & Skip buttons — only in active workout */}
-            {isWorkoutStarted && !isCompleted && (
+            {isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id]) && (
               <div className="flex justify-end gap-1">
                 <Button
                   variant="ghost"

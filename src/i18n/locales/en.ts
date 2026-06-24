@@ -212,6 +212,8 @@ export const en: Record<keyof typeof pl, string> = {
   'settings.notif.enabled': 'Notifications enabled',
   'settings.notif.denied': 'Not enabled',
   'settings.notif.deniedDesc': 'You can enable them in iOS Settings → Strength Save → Notifications.',
+  'settings.notif.registrationFailed': 'Notification registration failed',
+  'settings.notif.registrationFailedDesc': 'System permission is enabled, but this phone was not registered yet. Try again when online.',
   'settings.notif.deniedSettings': 'Notifications are off. Enable them in your phone system settings.',
   'settings.notif.daily': 'Morning training reminder',
   'settings.notif.dailyDesc': 'Only on days you have a workout scheduled (around 7:00).',

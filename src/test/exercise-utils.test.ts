@@ -133,6 +133,21 @@ describe('sanitizeSets', () => {
     expect(sets[0].reps).toBe(5);
   });
 
+  it('enforces exactly the planned working-set count while keeping one warmup', () => {
+    const input = [
+      { reps: 5, weight: 20, completed: false, isWarmup: true },
+      { reps: 8, weight: 40, completed: true },
+      { reps: 8, weight: 40, completed: true },
+      { reps: 8, weight: 40, completed: false },
+      { reps: 8, weight: 40, completed: false },
+    ];
+    const sets = sanitizeSets(input, 3, true);
+
+    expect(sets).toHaveLength(4);
+    expect(sets.filter(set => set.isWarmup)).toHaveLength(1);
+    expect(sets.filter(set => !set.isWarmup)).toHaveLength(3);
+  });
+
   it('replaces undefined values with 0/false', () => {
     const input = [
       { reps: undefined as unknown as number, weight: undefined as unknown as number, completed: undefined as unknown as boolean, isWarmup: true },

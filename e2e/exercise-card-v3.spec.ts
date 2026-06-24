@@ -136,34 +136,24 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
 
     // Click "Rozpocznij trening" to start workout and make cards editable
     const startBtn = page.getByRole('button', { name: /Rozpocznij trening/i });
-    if (await startBtn.isVisible()) {
-      await startBtn.click();
+    await expect(startBtn).toBeVisible();
+    await startBtn.click();
 
-      // Wait for editable state
-      const firstCard = page.locator('.exercise-card').first();
+    // Wait for editable state
+    const firstCard = page.locator('.exercise-card').first();
 
-      // "Dodaj serię" should now be visible
-      const addBtn = firstCard.getByText('Dodaj serię');
-      await expect(addBtn).toBeVisible({ timeout: 5000 });
+    // Working sets are fixed to the plan during an active workout, but their
+    // inputs and completion controls must become available.
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    await expect(firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first()).toBeEnabled();
 
-      // Count inputs before adding
-      const inputsBefore = await firstCard.locator('input.exercise-card-input').count();
+    // "Notatka" button should be visible
+    const notesBtn = firstCard.getByText('Notatka');
+    await expect(notesBtn).toBeVisible();
 
-      // Click add set
-      await addBtn.click();
-
-      // Should have more inputs now
-      const inputsAfter = await firstCard.locator('input.exercise-card-input').count();
-      expect(inputsAfter).toBeGreaterThan(inputsBefore);
-
-      // "Notatka" button should be visible
-      const notesBtn = firstCard.getByText('Notatka');
-      await expect(notesBtn).toBeVisible();
-
-      // Click to show textarea
-      await notesBtn.click();
-      await expect(firstCard.locator('textarea')).toBeVisible();
-    }
+    // Click to show textarea
+    await notesBtn.click();
+    await expect(firstCard.locator('textarea')).toBeVisible();
   });
 
   test('rest timer starts globally after a working set and can be closed', async ({ page }) => {
@@ -179,7 +169,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await startBtn.click();
 
     const firstCard = page.locator('.exercise-card').first();
-    await expect(firstCard.getByText(/Dodaj serię|Add set/i)).toBeVisible({ timeout: 5000 });
+    await expect(firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i }).first()).toBeEnabled({ timeout: 5000 });
 
     const checkButtons = firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i });
     await checkButtons.nth(1).click();

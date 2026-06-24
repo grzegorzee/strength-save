@@ -11,7 +11,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
-import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/lib/sync-center-payload';
 import { dateLocale } from '@/i18n';
@@ -129,7 +129,18 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
       const exercisesPayload = buildSyncCenterExercisesPayload(workingDraft);
       const saveOptions = buildSyncCenterSaveOptions(workingDraft);
-      const result = await batchSaveWorkout(workingDraft.sessionId, exercisesPayload, saveOptions);
+      const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
+      const existingFinalWorkout = workingDraft.finalSyncPending
+        ? await getWorkoutSessionFromServer(workingDraft.sessionId)
+        : null;
+      const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
+      const result = alreadyFinalized
+        ? {
+          success: true,
+          updatedAt: existingFinalWorkout?.updatedAt,
+          revision: existingFinalWorkout?.revision,
+        }
+        : await batchSaveWorkout(workingDraft.sessionId, exercisesPayload, saveOptions);
 
       if (!result.success) {
         toast({
@@ -145,11 +156,12 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       }
 
       if (workingDraft.finalSyncPending) {
-        const confirmedWorkout = await getWorkoutSessionFromServer(workingDraft.sessionId);
-        const validation = validateWorkoutCloudWrite(
-          confirmedWorkout,
-          buildWorkoutWriteExpectation(exercisesPayload, saveOptions)
-        );
+        const confirmedWorkout = alreadyFinalized
+          ? existingFinalWorkout
+          : await getWorkoutSessionFromServer(workingDraft.sessionId);
+        const validation = alreadyFinalized
+          ? { ok: true }
+          : validateWorkoutCloudWrite(confirmedWorkout, expectation);
 
         if (!validation.ok) {
           const errorMessage = t('strava.cloudNotConfirmed', { reason: validation.reason ?? 'unknown' });

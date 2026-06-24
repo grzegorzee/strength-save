@@ -2,7 +2,7 @@
 // z autostart=true; eventy nie-dzisiejsze i inne typy ignorowane; brak podwójnej
 // nawigacji dla tego samego eventu (dedup po `at`).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { formatLocalDate } from '@/lib/utils';
 import type { WatchEvent } from '@/lib/watch-bridge';
@@ -54,7 +54,9 @@ describe('WatchEventRouter', () => {
     renderRouter((p) => { path = p; });
     await waitFor(() => expect(listeners.length).toBe(1));
 
-    listeners[0]({ type: 'startWorkout', date: today, dayId: 'day-2', at: 111 });
+    await act(async () => {
+      listeners[0]({ type: 'startWorkout', date: today, dayId: 'day-2', at: 111 });
+    });
 
     await waitFor(() =>
       expect(path).toBe(`/workout/day-2?date=${today}&autostart=true`)
@@ -80,7 +82,6 @@ describe('WatchEventRouter', () => {
     renderRouter((p) => { path = p; });
     await waitFor(() => expect(listeners.length).toBe(1));
 
-    await new Promise((r) => setTimeout(r, 50));
     expect(path).toBe('/');
   });
 
@@ -94,12 +95,15 @@ describe('WatchEventRouter', () => {
     await waitFor(() => expect(listeners.length).toBe(1));
 
     const event: WatchEvent = { type: 'startWorkout', date: today, dayId: 'day-3', at: 555 };
-    listeners[0](event);
+    await act(async () => {
+      listeners[0](event);
+    });
     await waitFor(() => expect(path).toContain('/workout/day-3'));
     const countAfterFirst = navCount;
 
-    listeners[0](event);
-    await new Promise((r) => setTimeout(r, 50));
+    await act(async () => {
+      listeners[0](event);
+    });
     expect(navCount).toBe(countAfterFirst);
   });
 });

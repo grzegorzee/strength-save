@@ -45,6 +45,7 @@ await seedUser({ enabled: true });
 add('getDoc nieistniejacy workout (access=true) — REGRESJA', true, await ok(() => getDoc(doc(db, 'workouts', WORKOUT_ID))));
 add('create workout (access=true)', true, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
 add('read wlasny istniejacy workout (access=true)', true, await ok(() => getDoc(doc(db, 'workouts', WORKOUT_ID))));
+add('update workout ze zmiana userId zablokowane', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { userId: OTHER_UID })));
 add('write training_plans (access=true)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { days: [], durationWeeks: 12, startDate: '2026-06-08', updatedAt: 'x' })));
 
 // cross-user + admin na tych samych danych
@@ -134,6 +135,7 @@ await seedUser({ enabled: true });
 add('user update estimatedMaxHR zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 190 })));
 add('user update maxHRManualOverride zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { maxHRManualOverride: true })));
 add('user update zwyklego pola profilu (displayName)', true, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'G' })));
+add('user update subscription zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { subscription: { tier: 'yearly', status: 'active' } })));
 add('zapis Max HR przez admin SDK (sciezka callable saveMaxHR)', true, await ok(() => env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(ctx.firestore(), 'users', UID), { estimatedMaxHR: 190, maxHRManualOverride: true }, { merge: true });
 })));

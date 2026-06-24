@@ -63,6 +63,8 @@ export {
   adminSendPush,
   adminDeleteUser,
   deleteOwnAccount,
+  registerPushToken,
+  unregisterPushToken,
 } from "./registration";
 
 admin.initializeApp();

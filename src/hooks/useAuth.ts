@@ -17,6 +17,7 @@ import { Capacitor } from '@capacitor/core';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { auth, googleProvider, appleProvider } from '@/lib/firebase';
 import { logInPurchases, logOutPurchases } from '@/lib/purchases';
+import { unregisterPushForUser } from '@/lib/push-notifications';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { useTranslation } from '@/contexts/LanguageContext';
 
@@ -153,6 +154,7 @@ export const useAuth = () => {
 
   const logout = async () => {
     try {
+      await unregisterPushForUser();
       await signOut(auth);
     } catch (err) {
       console.error('Logout error:', err instanceof Error ? err.message : err);

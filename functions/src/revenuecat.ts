@@ -13,6 +13,7 @@ const webhookAuth = defineSecret("REVENUECAT_WEBHOOK_AUTH");
 const USERS_COLLECTION = "users";
 
 interface RcEvent {
+  id?: string;
   type?: string;
   app_user_id?: string;
   original_app_user_id?: string;
@@ -20,6 +21,7 @@ interface RcEvent {
   product_id?: string;
   period_type?: string;
   expiration_at_ms?: number;
+  event_timestamp_ms?: number;
   store?: string;
   environment?: string;
   cancel_reason?: string;
@@ -45,6 +47,8 @@ export interface SubscriptionWrite {
   productId: string | null;
   willRenew: boolean;
   updatedAt: string;
+  eventId: string | null;
+  eventTimestamp: number;
   store?: string;
   environment?: string;
 }
@@ -57,11 +61,14 @@ export const mapEventToSubscription = (event: RcEvent, nowIso: string): Subscrip
   const baseTier: SubscriptionWrite["tier"] = event.period_type === "TRIAL"
     ? "trial"
     : productId?.includes("yearly") ? "yearly" : "monthly";
+  const eventTimestamp = Number.isFinite(event.event_timestamp_ms) ? Number(event.event_timestamp_ms) : Date.parse(nowIso);
   const base = {
     tier: baseTier,
     expiresAt,
     productId,
-    updatedAt: nowIso,
+    updatedAt: new Date(eventTimestamp).toISOString(),
+    eventId: typeof event.id === "string" && event.id.length > 0 ? event.id : null,
+    eventTimestamp,
     ...(event.store && { store: event.store }),
     ...(event.environment && { environment: event.environment }),
   };
@@ -83,6 +90,17 @@ export const mapEventToSubscription = (event: RcEvent, nowIso: string): Subscrip
     default:
       return null; // TEST, SUBSCRIBER_ALIAS itd. — bez zmiany stanu
   }
+};
+
+/** Duplicate event IDs and events older than the committed state are harmless no-ops. */
+export const shouldApplySubscriptionEvent = (
+  current: { tier?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
+  next: SubscriptionWrite,
+): boolean => {
+  if (current?.tier === "comp") return false;
+  if (next.eventId && current?.eventId === next.eventId) return false;
+  const currentTimestamp = typeof current?.eventTimestamp === "number" ? current.eventTimestamp : 0;
+  return next.eventTimestamp >= currentTimestamp;
 };
 
 export const revenuecatWebhook = onRequest(
@@ -116,20 +134,19 @@ export const revenuecatWebhook = onRequest(
     try {
       const db = admin.firestore();
       const userRef = db.collection(USERS_COLLECTION).doc(uid);
-      const snap = await userRef.get();
-      if (!snap.exists) {
-        logger.warn(`[revenuecat] Event ${event.type}: brak users/${uid}`);
-        res.status(200).json({ ok: true, skipped: "no-user" });
+      const result = await db.runTransaction(async (transaction) => {
+        const snap = await transaction.get(userRef);
+        if (!snap.exists) return "no-user";
+        const current = snap.data()?.subscription as { tier?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined;
+        if (!shouldApplySubscriptionEvent(current, subscription)) return current?.tier === "comp" ? "comp" : "stale-or-duplicate";
+        transaction.set(userRef, { subscription }, { merge: true });
+        return "applied";
+      });
+      if (result !== "applied") {
+        logger.info(`[revenuecat] Event ${event.type} pominięty: ${result}`);
+        res.status(200).json({ ok: true, skipped: result });
         return;
       }
-      // Tier 'comp' nadaje admin — webhook NIE może go nadpisać.
-      const current = snap.data()?.subscription as { tier?: string } | undefined;
-      if (current?.tier === "comp") {
-        logger.info(`[revenuecat] users/${uid} ma tier comp — webhook nie nadpisuje`);
-        res.status(200).json({ ok: true, skipped: "comp" });
-        return;
-      }
-      await userRef.set({ subscription }, { merge: true });
       logger.info(`[revenuecat] ${event.type} → users/${uid}: ${subscription.tier}/${subscription.status} do ${subscription.expiresAt}`);
       res.status(200).json({ ok: true });
     } catch (error) {

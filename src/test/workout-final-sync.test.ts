@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWorkoutWriteExpectation, hasWorkoutWriteConflict, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { buildWorkoutWriteExpectation, hasWorkoutWriteConflict, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import type { WorkoutSession } from '@/types';
 
 const workout = (overrides: Partial<WorkoutSession> = {}): WorkoutSession => ({
@@ -113,5 +113,16 @@ describe('workout final sync validation', () => {
     expect(hasWorkoutWriteConflict(workout({ updatedAt: 3000 }), 2000)).toBe(true);
     expect(hasWorkoutWriteConflict(workout({ updatedAt: 2000 }), 2000)).toBe(false);
     expect(hasWorkoutWriteConflict(workout({ updatedAt: 3000 }), null)).toBe(false);
+  });
+
+  it('recognizes an already-finalized legacy workout despite a retried duration', () => {
+    const expectation = buildWorkoutWriteExpectation([
+      { exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] },
+    ], { completed: true, durationSec: 86_400, startedAt: 1000 });
+
+    expect(matchesFinalWorkoutContent(workout({
+      durationSec: 1800,
+      exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] }],
+    }), expectation)).toBe(true);
   });
 });

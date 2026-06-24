@@ -607,7 +607,7 @@ export const useFirebaseWorkoutActions = (
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }[],
-    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; expectedUpdatedAt?: number | null }
+    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedUpdatedAt?: number | null }
   ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
@@ -630,7 +630,7 @@ export const useFirebaseWorkoutActions = (
       if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
       if (options?.completed) {
         updateData.completed = true;
-        updateData.completedAt = Date.now(); // zawsze przy zakończeniu — backup do liczenia czasu
+        updateData.completedAt = options.completedAt ?? Date.now(); // stabilny przy retry finalnego syncu
       }
       if (options?.dayName) updateData.dayName = String(options.dayName).slice(0, 200);
       if (options?.dayFocus) updateData.dayFocus = String(options.dayFocus).slice(0, 200);

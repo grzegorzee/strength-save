@@ -16,9 +16,10 @@ export const buildSyncCenterSaveOptions = (draft: ActiveWorkoutDraft, now = Date
   dayName: draft.dayName || undefined,
   dayFocus: draft.dayFocus || undefined,
   durationSec: draft.finalSyncPending && draft.startedAt
-    ? Math.max(0, Math.floor((now - draft.startedAt) / 1000))
+    ? Math.max(0, Math.floor(((draft.finalizedAt ?? now) - draft.startedAt) / 1000))
     : undefined,
   startedAt: draft.finalSyncPending ? draft.startedAt : undefined,
+  completedAt: draft.finalSyncPending ? draft.finalizedAt : undefined,
   ...(draft.finalSyncPending && { completed: true }),
   expectedUpdatedAt: draft.cloudUpdatedAt ?? null,
 });

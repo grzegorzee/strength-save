@@ -9,7 +9,7 @@ import { Bell, BellOff, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { getPushPermission, requestPushPermission, type PushPermission } from '@/lib/push-notifications';
+import { getPushPermission, registerPushForUser, requestPushPermission, type PushPermission } from '@/lib/push-notifications';
 
 // Ustawienia powiadomień: zgoda na push + przełącznik porannego przypomnienia o treningu.
 export const NotificationSettings = () => {
@@ -19,19 +19,34 @@ export const NotificationSettings = () => {
   const isNative = Capacitor.isNativePlatform();
   const [perm, setPerm] = useState<PushPermission>('prompt');
   const [requesting, setRequesting] = useState(false);
+  const [registrationFailed, setRegistrationFailed] = useState(false);
   const prefs = (profile as { notificationPrefs?: { dailyReminder?: boolean } } | null)?.notificationPrefs;
   const [dailyReminder, setDailyReminder] = useState(prefs?.dailyReminder ?? true);
 
-  useEffect(() => { void getPushPermission().then(setPerm); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    void getPushPermission().then(async (permission) => {
+      if (cancelled) return;
+      setPerm(permission);
+      if (permission !== 'granted') return;
+      const result = await registerPushForUser(uid);
+      if (!cancelled) setRegistrationFailed(result.status !== 'registered');
+    });
+    return () => { cancelled = true; };
+  }, [uid]);
 
   const enable = async () => {
     setRequesting(true);
     const ok = await requestPushPermission(uid);
-    setPerm(await getPushPermission());
+    const permission = await getPushPermission();
+    setPerm(permission);
+    setRegistrationFailed(!ok && permission === 'granted');
     setRequesting(false);
     toast(ok
       ? { title: t('settings.notif.enabled') }
-      : { title: t('settings.notif.denied'), description: t('settings.notif.deniedDesc'), variant: 'destructive' });
+      : permission === 'granted'
+        ? { title: t('settings.notif.registrationFailed'), description: t('settings.notif.registrationFailedDesc'), variant: 'destructive' }
+        : { title: t('settings.notif.denied'), description: t('settings.notif.deniedDesc'), variant: 'destructive' });
   };
 
   const toggleDaily = async (value: boolean) => {
@@ -57,9 +72,18 @@ export const NotificationSettings = () => {
           <p className="text-sm text-muted-foreground">{t('settings.notif.mobileOnly')}</p>
         ) : perm === 'granted' ? (
           <>
-            <div className="flex items-center gap-2 text-sm text-fitness-success">
-              <Bell className="h-4 w-4" />{t('settings.notif.on')}
-            </div>
+            {registrationFailed ? (
+              <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <p className="text-sm text-destructive">{t('settings.notif.registrationFailed')}</p>
+                <Button variant="outline" size="sm" onClick={enable} disabled={requesting}>
+                  {t('settings.notif.enableBtn')}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-fitness-success">
+                <Bell className="h-4 w-4" />{t('settings.notif.on')}
+              </div>
+            )}
             <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-low p-3">
               <div>
                 <p className="text-sm font-medium">{t('settings.notif.daily')}</p>

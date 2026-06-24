@@ -6,7 +6,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/lib/sync-center-payload';
-import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 
 // Po powrocie online (i na starcie sesji) automatycznie domyka zaległe final-synci
@@ -54,14 +54,23 @@ export const AutoSyncOnReconnect = () => {
 
           const payload = buildSyncCenterExercisesPayload(working);
           const options = buildSyncCenterSaveOptions(working);
-          const result = await batchSaveWorkout(working.sessionId, payload, options);
+          const expectation = buildWorkoutWriteExpectation(payload, options);
+          const existingFinalWorkout = await getWorkoutSessionFromServer(working.sessionId);
+          const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
+          const result = alreadyFinalized
+            ? { success: true }
+            : await batchSaveWorkout(working.sessionId, payload, options);
           if (!result.success) {
             workoutSyncQueue.markRetry(uid, working.sessionId, result.error || 'SYNC_FAILED');
             continue;
           }
 
-          const confirmed = await getWorkoutSessionFromServer(working.sessionId);
-          const validation = validateWorkoutCloudWrite(confirmed, buildWorkoutWriteExpectation(payload, options));
+          const confirmed = alreadyFinalized
+            ? existingFinalWorkout
+            : await getWorkoutSessionFromServer(working.sessionId);
+          const validation = alreadyFinalized
+            ? { ok: true }
+            : validateWorkoutCloudWrite(confirmed, expectation);
           if (!validation.ok) {
             workoutSyncQueue.markRetry(uid, working.sessionId, validation.reason ?? 'VALIDATION_FAILED');
             trackTelemetryEvent(uid, 'sync_validation_failed');

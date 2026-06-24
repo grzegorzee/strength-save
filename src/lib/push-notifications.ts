@@ -1,8 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import type { Notification } from '@capacitor-firebase/messaging';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { db } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase';
 
 // Rejestracja tokenu FCM użytkownika do powiadomień push (admin wysyła przez adminSendPush,
 // codzienne przypomnienie przez dailyTrainingReminder). Web push = osobny temat (VAPID + SW).
@@ -18,11 +18,25 @@ export interface PushRegistrationResult {
   error?: string;
 }
 
-async function saveToken(uid: string, token: string): Promise<void> {
+async function saveToken(token: string): Promise<boolean> {
   try {
-    await updateDoc(doc(db, 'users', uid), { fcmTokens: arrayUnion(token) });
+    await httpsCallable<{ token: string }, { success: boolean }>(functions, 'registerPushToken')({ token });
+    return true;
   } catch (e) {
     console.error('[push] save token error', e);
+    return false;
+  }
+}
+
+/** Usuń token przypisany do bieżącego urządzenia przed zmianą konta. */
+export async function unregisterPushForUser(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const { token } = await FirebaseMessaging.getToken();
+    if (!token) return;
+    await httpsCallable<{ token: string }, { success: boolean }>(functions, 'unregisterPushToken')({ token });
+  } catch (error) {
+    console.warn('[push] token unregister failed', error);
   }
 }
 
@@ -51,7 +65,15 @@ export async function registerPushForUser(uid: string): Promise<PushRegistration
     if (!token) {
       return { status: 'no-token', permission: 'granted', tokenSaved: false };
     }
-    await saveToken(uid, token);
+    const tokenSaved = await saveToken(token);
+    if (!tokenSaved) {
+      return {
+        status: 'error',
+        permission: 'granted',
+        tokenSaved: false,
+        error: 'TOKEN_SAVE_FAILED',
+      };
+    }
     return { status: 'registered', permission: 'granted', tokenSaved: true, tokenSuffix: token.slice(-8) };
   } catch (e) {
     console.error('[push] register error', e);
@@ -71,8 +93,7 @@ export async function requestPushPermission(uid: string): Promise<boolean> {
     const { receive } = await FirebaseMessaging.requestPermissions();
     if (receive !== 'granted') return false;
     const { token } = await FirebaseMessaging.getToken();
-    if (token) await saveToken(uid, token);
-    return true;
+    return !!token && await saveToken(token);
   } catch (e) {
     console.error('[push] request error', e);
     return false;
@@ -83,7 +104,11 @@ export function listenPushTokenRefresh(uid: string): () => void {
   if (!Capacitor.isNativePlatform()) return () => {};
   let handle: { remove: () => void } | null = null;
   void FirebaseMessaging.addListener('tokenReceived', (event: { token?: string }) => {
-    if (event?.token) void saveToken(uid, event.token);
+    if (event?.token) {
+      void saveToken(event.token).then((saved) => {
+        if (!saved) console.warn('[push] refreshed token was not saved');
+      });
+    }
   }).then((h) => { handle = h; });
   return () => { handle?.remove(); };
 }
