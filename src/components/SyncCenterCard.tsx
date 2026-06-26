@@ -14,6 +14,7 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/lib/sync-center-payload';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
 import { dateLocale } from '@/i18n';
 
 interface SyncCenterCardProps {
@@ -54,9 +55,11 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     };
     window.addEventListener('focus', handleFocus);
     window.addEventListener('online', handleFocus);
+    window.addEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleFocus);
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('online', handleFocus);
+      window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleFocus);
     };
   }, [loadDraft]);
 
@@ -107,18 +110,33 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
           return false;
         }
 
-        workingDraft = {
-          ...workingDraft,
-          sessionId: promoteResult.session.id,
-          sessionOrigin: 'remote',
-          remoteSessionId: promoteResult.session.id,
-          updatedAt: Date.now(),
-          version: workingDraft.version + 1,
-        };
-
         if (source === 'active') {
-          await workoutDraftDb.saveActiveDraft(workingDraft);
+          await workoutDraftDb.markPromotedToRemote(uid, promoteResult.session.id, targetDraft.sessionId, {
+            updatedAt: promoteResult.session.updatedAt,
+            revision: promoteResult.session.revision,
+          });
+          workingDraft = await workoutDraftDb.loadDraft(uid, promoteResult.session.id) ?? {
+            ...workingDraft,
+            sessionId: promoteResult.session.id,
+            sessionOrigin: 'remote',
+            remoteSessionId: promoteResult.session.id,
+            updatedAt: Date.now(),
+            version: workingDraft.version + 1,
+            cloudUpdatedAt: promoteResult.session.updatedAt,
+            cloudRevision: promoteResult.session.revision,
+          };
           setDrafts(current => current.map(draft => draft.sessionId === targetDraft.sessionId ? workingDraft : draft));
+        } else {
+          workingDraft = {
+            ...workingDraft,
+            sessionId: promoteResult.session.id,
+            sessionOrigin: 'remote',
+            remoteSessionId: promoteResult.session.id,
+            updatedAt: Date.now(),
+            version: workingDraft.version + 1,
+            cloudUpdatedAt: promoteResult.session.updatedAt,
+            cloudRevision: promoteResult.session.revision,
+          };
         }
         workoutSyncQueue.remove(uid, targetDraft.sessionId);
         if (workingDraft.finalSyncPending) {
@@ -182,6 +200,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         workoutSyncQueue.remove(uid, targetDraft.sessionId);
         workoutSyncQueue.remove(uid, workingDraft.sessionId);
         setQueueEntries(workoutSyncQueue.list(uid));
+        window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
         toast({
           title: t('strava.toastWorkoutSyncedTitle'),
           description: t('strava.toastWorkoutSyncedDesc'),
@@ -191,13 +210,14 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       }
 
       if (source === 'active') {
-        await workoutDraftDb.markDraftSynced(uid, Date.now(), workingDraft.sessionId, {
+        await workoutDraftDb.markDraftSynced(uid, Date.now(), workingDraft.version, workingDraft.sessionId, {
           updatedAt: result.updatedAt,
           revision: result.revision,
         });
       }
       workoutSyncQueue.remove(uid, targetDraft.sessionId);
       await loadDraft();
+      window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
       toast({
         title: t('strava.toastSyncDoneTitle'),
         description: t('strava.toastSyncDoneDesc'),
@@ -233,15 +253,15 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   };
 
   const handleRetryAll = async () => {
-    const retryTargets = listedEntries.filter(entry => entry.dirty || entry.finalSyncPending || entry.sessionOrigin === 'provisional');
+    const retryTargets = collectRetryableSyncEntries(drafts, queueEntries);
     if (retryTargets.length === 0) return;
 
     trackTelemetryEvent(uid, 'sync_retry_batch', retryTargets.length);
 
-    for (const entry of retryTargets) {
+    for (const { entry, source } of retryTargets) {
       setSyncingSessionIds(prev => [...prev, entry.sessionId]);
       try {
-        await syncOne(entry, drafts.some(draft => draft.sessionId === entry.sessionId) ? 'active' : 'queue');
+        await syncOne(entry, source);
       } finally {
         setSyncingSessionIds(prev => prev.filter(sessionId => sessionId !== entry.sessionId));
       }
@@ -259,6 +279,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       }
       workoutSyncQueue.remove(uid, targetDraft.sessionId);
       setQueueEntries(workoutSyncQueue.list(uid));
+      window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
       toast({
         title: t('strava.toastDraftDiscardedTitle'),
         description: t('strava.toastDraftDiscardedDesc'),

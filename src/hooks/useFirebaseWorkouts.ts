@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import {
   collection,
   doc,
@@ -8,9 +8,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  onSnapshot,
   query,
-  orderBy,
   where,
   runTransaction,
   writeBatch,
@@ -18,6 +16,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
+import { MEASUREMENT_LIMITS, validateMeasurement } from '@/lib/measurement-validation';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -29,6 +28,7 @@ import {
 import { useTranslation } from '@/contexts/LanguageContext';
 import { hasWorkoutWriteConflict } from '@/lib/workout-final-sync';
 import { clampSet } from '@/lib/workout-sanitizers';
+import { getWorkoutReadSnapshot, subscribeWorkoutReads } from '@/lib/workout-read-store';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
@@ -54,72 +54,15 @@ const cleanMetrics = (ex: { rpe?: number; pain?: number; quality?: number }): Re
 };
 
 export const useFirebaseWorkoutReads = (userId: string) => {
-  const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
-  const [measurements, setMeasurements] = useState<BodyMeasurement[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const subscribe = useCallback((listener: () => void) => subscribeWorkoutReads(userId, listener), [userId]);
+  const getSnapshot = useCallback(() => getWorkoutReadSnapshot(userId), [userId]);
+  const getServerSnapshot = useCallback(() => getWorkoutReadSnapshot(''), []);
 
-  // Subscribe to workouts collection filtered by userId
-  useEffect(() => {
-    if (!userId) return;
-
-    const workoutsQuery = query(
-      collection(db, WORKOUTS_COLLECTION),
-      where('userId', '==', userId),
-      orderBy('date', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(workoutsQuery,
-      (snapshot) => {
-        const workoutsData: WorkoutSession[] = [];
-        snapshot.forEach((doc) => {
-          workoutsData.push({ id: doc.id, ...doc.data() } as WorkoutSession);
-        });
-        setWorkouts(workoutsData);
-        setIsLoaded(true);
-      },
-      (err) => {
-        console.error('Error fetching workouts:', err);
-        setError(err.message);
-        setIsLoaded(true);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [userId]);
-
-  // Subscribe to measurements collection filtered by userId
-  useEffect(() => {
-    if (!userId) return;
-
-    const measurementsQuery = query(
-      collection(db, MEASUREMENTS_COLLECTION),
-      where('userId', '==', userId),
-      orderBy('date', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(measurementsQuery,
-      (snapshot) => {
-        const measurementsData: BodyMeasurement[] = [];
-        snapshot.forEach((doc) => {
-          measurementsData.push({ id: doc.id, ...doc.data() } as BodyMeasurement);
-        });
-        setMeasurements(measurementsData);
-      },
-      (err) => {
-        console.error('Error fetching measurements:', err);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [userId]);
-
-  return {
-    workouts,
-    measurements,
-    isLoaded,
-    error,
-  };
+  return useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
 };
 
 type FirebaseWorkoutReads = ReturnType<typeof useFirebaseWorkoutReads>;
@@ -313,6 +256,7 @@ export const useFirebaseWorkoutActions = (
 
   const addMeasurement = useCallback(async (measurement: Omit<BodyMeasurement, 'id' | 'userId'>): Promise<{ measurement: BodyMeasurement | null; error?: string }> => {
     const id = `measurement-${Date.now()}`;
+    if (!validateMeasurement(measurement).valid) return { measurement: null, error: 'INVALID_MEASUREMENT' };
 
     // Sanitize: remove undefined values (Firebase doesn't accept them)
     const sanitized: Record<string, string | number> = { id, userId, date: measurement.date };
@@ -436,12 +380,10 @@ export const useFirebaseWorkoutActions = (
             userId,
             date: String(m.date).slice(0, 10),
           };
-          const numFields = ['weight', 'armLeft', 'armRight', 'chest', 'waist', 'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight'];
-          for (const field of numFields) {
-            if (m[field] !== undefined && typeof m[field] === 'number') {
-              safe[field] = Math.max(0, Math.min(999, m[field] as number));
-            }
+          for (const field of Object.keys(MEASUREMENT_LIMITS)) {
+            if (m[field] !== undefined) safe[field] = m[field] as number;
           }
+          if (!validateMeasurement({ ...safe, date: String(safe.date) }).valid) continue;
           ops.push({ collection: MEASUREMENTS_COLLECTION, id: safe.id as string, data: safe });
         }
       }
@@ -607,7 +549,7 @@ export const useFirebaseWorkoutActions = (
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }[],
-    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedUpdatedAt?: number | null }
+    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision?: number | null }
   ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
@@ -644,7 +586,7 @@ export const useFirebaseWorkoutActions = (
         }
 
         const current = snapshot.data() as WorkoutSession;
-        if (hasWorkoutWriteConflict(current, options?.expectedUpdatedAt)) {
+        if (hasWorkoutWriteConflict(current, options?.expectedRevision)) {
           throw new Error('WORKOUT_CONFLICT');
         }
 

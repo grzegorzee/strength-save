@@ -8,6 +8,7 @@ const AUTH_EMULATOR = 'http://127.0.0.1:9099';
 const FIRESTORE_EMULATOR = 'http://127.0.0.1:8081';
 const PROJECT_ID = 'fittracker-workouts';
 const PASSWORD = 'e2e-test-password-123';
+const APP_URL = 'http://localhost:8090/strength-save/';
 
 async function createAuthUser(email: string): Promise<string> {
   const res = await fetch(
@@ -71,6 +72,13 @@ async function seedDoc(path: string, data: Record<string, unknown>): Promise<voi
   }
 }
 
+async function seedDocs(entries: Array<[string, Record<string, unknown>]>): Promise<void> {
+  const concurrency = 30;
+  for (let index = 0; index < entries.length; index += concurrency) {
+    await Promise.all(entries.slice(index, index + concurrency).map(([path, data]) => seedDoc(path, data)));
+  }
+}
+
 async function readDoc(path: string): Promise<Record<string, unknown> | null> {
   const res = await fetch(
     `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/${path}`,
@@ -92,7 +100,7 @@ async function listDocs(collection: string): Promise<Array<{ name: string; field
 }
 
 async function loginThroughUi(page: Page, email: string): Promise<void> {
-  await page.goto('./#/login');
+  await page.goto(`${APP_URL}#/login`);
   await page.waitForLoadState('domcontentloaded');
   await page.getByRole('tab', { name: 'Email + hasło' }).click();
   const panel = page.getByRole('tabpanel', { name: 'Email + hasło' });
@@ -159,7 +167,9 @@ test.describe('Emulator: cykl życia planu', () => {
 
     const cycleDocs = await listDocs('plan_cycles');
     const userCycles = cycleDocs.filter(d => JSON.stringify(d.fields.userId).includes(uid));
-    expect(userCycles.length).toBeGreaterThan(0);
+    expect(userCycles).toHaveLength(1);
+    expect(userCycles[0].name).toContain(`cycle-${uid}-`);
+    expect(JSON.stringify(planDoc?.fields ?? {})).toContain('revision');
     expect(pickedName.length).toBeGreaterThan(0);
   });
 
@@ -217,4 +227,60 @@ test.describe('Emulator: cykl życia planu', () => {
       return JSON.stringify(cycle?.fields ?? {});
     }, { timeout: 10000 }).toContain('completed');
   });
+
+  test('merge 501 treningów dzieli zapis na batchy i kończy checkpoint', async ({ page }) => {
+    const email = `merge-501-${Date.now()}@e2e.test`;
+    const uid = await createAuthUser(email);
+    const days = [{
+      id: 'day-1', dayName: 'Poniedziałek', weekday: 'monday', focus: 'Push',
+      exercises: [{ id: 'ex-1', name: 'Bench', sets: '3 x 5', instructions: [] }],
+    }];
+    await seedDoc(`users/${uid}`, {
+      uid, email, displayName: 'E2E Merge', role: 'user', status: 'active',
+      onboardingCompleted: true, access: { enabled: true }, registration: { source: 'email' },
+    });
+    await seedDoc(`plan_cycles/merge-primary-${uid}`, {
+      userId: uid, days, durationWeeks: 4, startDate: '2026-03-02', endDate: '2026-03-28',
+      status: 'completed', createdAt: new Date().toISOString(),
+      stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+    });
+    await seedDoc(`plan_cycles/merge-rest-${uid}`, {
+      userId: uid, days, durationWeeks: 4, startDate: '2026-03-30', endDate: '2026-04-26',
+      status: 'completed', createdAt: new Date().toISOString(),
+      stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+    });
+    await seedDocs(Array.from({ length: 501 }, (_, index) => [`workouts/merge-${uid}-${index}`, {
+      id: `merge-${uid}-${index}`, userId: uid, dayId: 'day-1', date: '2026-04-01', completed: true,
+      // First batch was already committed before a simulated process failure.
+      cycleId: index < 450 ? `merge-primary-${uid}` : `merge-rest-${uid}`,
+      exercises: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    }]));
+    await seedDoc(`plan_cycle_operations/merge-merge-primary-${uid}`, {
+      userId: uid,
+      kind: 'merge_cycles',
+      primaryCycleId: `merge-primary-${uid}`,
+      restCycleIds: [`merge-rest-${uid}`],
+      workoutIds: Array.from({ length: 501 }, (_, index) => `merge-${uid}-${index}`),
+      newStart: '2026-03-02', newEnd: '2026-04-26', newDuration: 8,
+      phase: 'remapping', nextWorkoutIndex: 450, nextCycleIndex: 0,
+    });
+
+    await loginThroughUi(page, email);
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
+    await page.goto('./#/settings');
+    const mergeButton = page.getByRole('button', { name: 'Połącz przerwane cykle' });
+    await expect(mergeButton).toBeEnabled({ timeout: 20000 });
+    await mergeButton.click();
+    await page.getByRole('button', { name: 'Połącz przerwane cykle' }).last().click();
+
+    await expect.poll(async () => readDoc(`plan_cycles/merge-rest-${uid}`), { timeout: 30000 }).toBeNull();
+    await expect.poll(async () => JSON.stringify((await readDoc(`workouts/merge-${uid}-500`))?.fields ?? {}), {
+      timeout: 10000,
+    }).toContain(`merge-primary-${uid}`);
+    await expect.poll(async () => {
+      const operations = await listDocs('plan_cycle_operations');
+      return operations.filter(operation => JSON.stringify(operation.fields.userId).includes(uid)).length;
+    }, { timeout: 10000 }).toBe(0);
+  });
+
 });

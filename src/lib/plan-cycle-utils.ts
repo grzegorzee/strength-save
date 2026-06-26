@@ -1,6 +1,6 @@
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { calendarDayDiff, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 
 export const WEEKDAY_ORDER: Weekday[] = [
@@ -89,9 +89,7 @@ export const planTemplateHash = (days: TrainingDay[]): string =>
 
 export const shouldMergeContinuousCycles = (previous: PlanCycle, next: PlanCycle): boolean => {
   if (!previous.endDate || !next.startDate || next.startDate < previous.endDate) return false;
-  const daysBetween = Math.round(
-    (parseLocalDate(next.startDate).getTime() - parseLocalDate(previous.endDate).getTime()) / 86_400_000,
-  );
+  const daysBetween = calendarDayDiff(previous.endDate, next.startDate);
   if (daysBetween > 14) return false;
 
   const previousTemplateId = (previous as PlanCycle & { templateId?: string }).templateId;
@@ -110,3 +108,10 @@ export const buildActiveCyclePlanPatch = (
   durationWeeks,
   ...(startDate ? { startDate } : {}),
 });
+
+/** Firestore allows 500 writes per batch; reserve headroom for future metadata writes. */
+export const chunkForFirestoreWrite = <T>(items: T[], size = 450): T[][] => {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size));
+  return chunks;
+};

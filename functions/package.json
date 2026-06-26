@@ -2,6 +2,7 @@
   "name": "strength-save-functions",
   "scripts": {
     "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "serve": "npm run build && firebase emulators:start --only functions",
     "deploy": "firebase deploy --only functions",
     "test": "vitest run"

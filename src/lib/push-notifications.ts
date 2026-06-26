@@ -18,9 +18,18 @@ export interface PushRegistrationResult {
   error?: string;
 }
 
+const deviceId = (): string => {
+  const key = 'strength-save:push-device-id';
+  const existing = localStorage.getItem(key);
+  if (existing) return existing;
+  const next = crypto.randomUUID();
+  localStorage.setItem(key, next);
+  return next;
+};
+
 async function saveToken(token: string): Promise<boolean> {
   try {
-    await httpsCallable<{ token: string }, { success: boolean }>(functions, 'registerPushToken')({ token });
+    await httpsCallable<{ token: string; deviceId: string }, { success: boolean }>(functions, 'registerPushToken')({ token, deviceId: deviceId() });
     return true;
   } catch (e) {
     console.error('[push] save token error', e);
@@ -36,7 +45,7 @@ export async function unregisterPushForUser(): Promise<void> {
     if (!token) return;
     await httpsCallable<{ token: string }, { success: boolean }>(functions, 'unregisterPushToken')({ token });
   } catch (error) {
-    console.warn('[push] token unregister failed', error);
+    throw new Error(`PUSH_TOKEN_REVOKE_FAILED: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

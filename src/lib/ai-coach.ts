@@ -152,18 +152,27 @@ export function prepareCoachData(
 export async function callOpenAI(
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
 ): Promise<string> {
+  const requestId = globalThis.crypto?.randomUUID?.() ?? `ai-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const fn = httpsCallable<
-    { messages: typeof messages; model?: string; maxTokens?: number },
+    { messages: typeof messages; model?: string; maxTokens?: number; requestId?: string },
     { text: string }
   >(functions, 'proxyOpenAI');
 
-  const result = await fn({ messages });
+  const result = await fn({ messages, requestId });
   return result.data.text || '[]';
 }
 
 // --- Streaming OpenAI call (SSE) ---
 
-const STREAM_URL = 'https://us-central1-fittracker-workouts.cloudfunctions.net/streamOpenAI';
+const streamUrl = (): string => {
+  const configured = import.meta.env.VITE_AI_STREAM_URL as string | undefined;
+  if (configured) return configured;
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined;
+  if (import.meta.env.VITE_USE_EMULATORS === 'true') {
+    return `http://127.0.0.1:5001/${projectId}/us-central1/streamOpenAI`;
+  }
+  return `https://us-central1-${projectId}.cloudfunctions.net/streamOpenAI`;
+};
 
 export interface StreamCallbacks {
   onChunk: (text: string) => void;
@@ -177,6 +186,7 @@ export async function callOpenAIStream(
   lang: LanguageCode = 'pl',
 ): Promise<AbortController> {
   const controller = new AbortController();
+  const requestId = globalThis.crypto?.randomUUID?.() ?? `stream-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   const user = auth.currentUser;
   if (!user) {
@@ -189,13 +199,13 @@ export async function callOpenAIStream(
 
   let response: Response;
   try {
-    response = await fetch(STREAM_URL, {
+    response = await fetch(streamUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, requestId }),
       signal: controller.signal,
     });
   } catch (err) {

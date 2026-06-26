@@ -11,6 +11,7 @@ import {
   isWatchBridgeSupported,
   peekWatchEvents,
   type WatchEvent,
+  watchEventId,
 } from '@/lib/watch-bridge';
 
 export const WatchEventRouter = () => {
@@ -20,22 +21,23 @@ export const WatchEventRouter = () => {
   navigateRef.current = navigate;
   const locationRef = useRef(location);
   locationRef.current = location;
-  const handledRef = useRef<Set<number>>(new Set());
+  const handledRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isWatchBridgeSupported()) return;
 
     const handle = (event: WatchEvent) => {
       if (event.type !== 'startWorkout') return;
-      if (handledRef.current.has(event.at)) return;
+      const id = watchEventId(event);
+      if (handledRef.current.has(id)) return;
       const today = formatLocalDate(new Date());
       if (event.date !== today) return;
-      handledRef.current.add(event.at);
+      handledRef.current.add(id);
 
       const target = `/workout/${event.dayId}`;
       // Trening już otwarty? Nie nawiguj ponownie (zresetowałoby stan strony).
       if (locationRef.current.pathname === target) return;
-      navigateRef.current(`${target}?date=${event.date}&autostart=true`);
+      navigateRef.current(`${target}?date=${event.date}&autostart=true&watchEventId=${encodeURIComponent(id)}`);
     };
 
     const peek = () => {

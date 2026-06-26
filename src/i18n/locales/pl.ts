@@ -6,6 +6,7 @@ export const pl = {
   'common.cancel': 'Anuluj',
   'common.back': 'Wstecz',
   'common.loading': 'Ładowanie...',
+  'common.loadMore': 'Załaduj więcej',
   'common.results': 'wyników',
 
   // nawigacja

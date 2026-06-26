@@ -2,11 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Purchases, type PurchasesPackage } from '@revenuecat/purchases-capacitor';
-import { signOut } from 'firebase/auth';
 import { ArrowLeft, Check, Crown, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { auth } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -29,7 +27,7 @@ const LEGAL_BASE = 'https://strengthsave.app/legal';
 
 type PlanKey = 'yearly' | 'monthly';
 
-export default function Paywall() {
+export default function Paywall({ onLogout }: { onLogout: () => Promise<void> }) {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -235,7 +233,7 @@ export default function Paywall() {
           >
             {t('paywall.teaser.cta')}
           </Button>
-          <button onClick={() => void signOut(auth)} className="mt-4 text-center text-xs text-muted-foreground underline underline-offset-2">
+          <button onClick={() => void onLogout()} className="mt-4 text-center text-xs text-muted-foreground underline underline-offset-2">
             {t('paywall.logout')}
           </button>
         </div>
@@ -328,7 +326,7 @@ export default function Paywall() {
         {/* Hard mode: jedyna ucieczka z paywalla to wylogowanie. */}
         {hard && (
           <div className="mt-5 text-center">
-            <button onClick={() => void signOut(auth)} className="text-xs text-muted-foreground underline underline-offset-2">
+            <button onClick={() => void onLogout()} className="text-xs text-muted-foreground underline underline-offset-2">
               {t('paywall.logout')}
             </button>
           </div>

@@ -49,19 +49,9 @@ final class PhoneWatchSessionManager: NSObject {
         queue.sync {
             var pending = UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
             pending.append(eventJSON)
-            // Bezpiecznik na rozmiar kolejki.
-            if pending.count > 500 { pending.removeFirst(pending.count - 500) }
             UserDefaults.standard.set(pending, forKey: pendingKey)
         }
         NotificationCenter.default.post(name: Self.eventReceivedNotification, object: nil, userInfo: ["event": eventJSON])
-    }
-
-    func drainEvents() -> [String] {
-        queue.sync {
-            let pending = UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
-            UserDefaults.standard.removeObject(forKey: pendingKey)
-            return pending
-        }
     }
 
     /// Podgląd kolejki bez kasowania — dla globalnego routera (np. startWorkout),
@@ -69,6 +59,21 @@ final class PhoneWatchSessionManager: NSObject {
     func peekEvents() -> [String] {
         queue.sync {
             UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
+        }
+    }
+
+    func ackEvents(ids: [String]) {
+        guard !ids.isEmpty else { return }
+        queue.sync {
+            let acknowledged = Set(ids)
+            let pending = UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
+            let remaining = pending.filter { eventJSON in
+                guard let data = eventJSON.data(using: .utf8),
+                      let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let id = object["id"] as? String else { return true }
+                return !acknowledged.contains(id)
+            }
+            UserDefaults.standard.set(remaining, forKey: pendingKey)
         }
     }
 

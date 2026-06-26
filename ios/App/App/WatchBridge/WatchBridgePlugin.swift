@@ -10,8 +10,8 @@ public class WatchBridgePlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "sendWorkout", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "drainEvents", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "peekEvents", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "ackEvents", returnType: CAPPluginReturnPromise),
     ]
 
     public override func load() {
@@ -50,11 +50,12 @@ public class WatchBridgePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    @objc func drainEvents(_ call: CAPPluginCall) {
-        call.resolve(["events": PhoneWatchSessionManager.shared.drainEvents()])
-    }
-
     @objc func peekEvents(_ call: CAPPluginCall) {
         call.resolve(["events": PhoneWatchSessionManager.shared.peekEvents()])
+    }
+
+    @objc func ackEvents(_ call: CAPPluginCall) {
+        PhoneWatchSessionManager.shared.ackEvents(ids: call.getArray("ids", String.self) ?? [])
+        call.resolve()
     }
 }

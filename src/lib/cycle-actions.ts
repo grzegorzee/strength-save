@@ -93,15 +93,18 @@ export async function completeOnboardingPlan(
   try {
     const planStartDate = getCycleStartPreview(choice.startDate).cycleStartDate;
     const days = assignCycleDayIds(choice.days, planStartDate);
+    // The deterministic cycle is the workflow anchor. If the plan write loses a
+    // response, a retry observes this same cycle instead of creating a duplicate.
+    const activeCycleId = await deps.createActiveCycle(days, choice.durationWeeks, planStartDate);
+    if (!activeCycleId) return { success: false, error: 'Active cycle was not created' };
+
     const result = await deps.savePlan(days, {
       durationWeeks: choice.durationWeeks,
       startDate: planStartDate,
-      syncActiveCycle: false,
+      // Update the just-created active-cycle snapshot in the same plan write.
+      syncActiveCycle: true,
     });
     if (!result.success) return result;
-
-    const activeCycleId = await deps.createActiveCycle(days, choice.durationWeeks, planStartDate);
-    if (!activeCycleId) return { success: false, error: 'Active cycle was not created' };
 
     await deps.markOnboardingComplete(choice, days, planStartDate);
     return { success: true };

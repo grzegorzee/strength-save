@@ -27,6 +27,7 @@ export const getExerciseBest1RM = (
   let bestDate = '';
 
   workouts.forEach(w => {
+    if (!w.completed) return;
     w.exercises.forEach(ex => {
       if (ex.exerciseId !== exerciseId) return;
       ex.sets.forEach(set => {
@@ -52,6 +53,7 @@ export const getExerciseBestReps = (
 ): number => {
   let maxReps = 0;
   workouts.forEach(w => {
+    if (!w.completed) return;
     w.exercises.forEach(ex => {
       if (ex.exerciseId !== exerciseId) return;
       ex.sets.forEach(set => {
@@ -78,6 +80,7 @@ export const detectNewPRs = (
   bodyweightExerciseIds?: Set<string>,
 ): PRComparison[] => {
   const prs: PRComparison[] = [];
+  if (!currentWorkout.completed) return prs;
 
   currentWorkout.exercises.forEach(ex => {
     const name = exerciseNames.get(ex.exerciseId) || ex.exerciseId;

@@ -6,6 +6,8 @@ export const WORKOUT_DRAFT_DB_NAME = 'strength-save-db';
 export const WORKOUT_DRAFT_STORE_NAME = 'workoutDrafts';
 
 const DB_VERSION = 2;
+const writeChains = new Map<string, Promise<void>>();
+const latestWriteVersions = new Map<string, number>();
 
 export interface ActiveWorkoutDraft {
   sessionId: string;
@@ -401,27 +403,41 @@ export const workoutDraftDb = {
   async saveActiveDraft(draft: ActiveWorkoutDraft): Promise<void> {
     const normalized = normalizeDraft(draft, draft.userId);
     if (!normalized) return;
-    try {
-      await runWrite(normalized, normalized.userId);
-    } catch {
-      // IndexedDB w WKWebView potrafi stracić połączenie po powrocie z tła — jedna ponowna
-      // próba (openDatabase otwiera świeże połączenie), a gdy i ta padnie, awaryjny zapis
-      // do localStorage, żeby user nie stracił treningu. Błąd leci dalej tylko gdy oba padną.
+    const key = getWorkoutDraftKey(normalized.userId, normalized.sessionId);
+    const highestVersion = latestWriteVersions.get(key) ?? 0;
+    if (normalized.version < highestVersion) return;
+    latestWriteVersions.set(key, normalized.version);
+    const previous = writeChains.get(key) ?? Promise.resolve();
+    const write = previous.then(async () => {
+      if (normalized.version < (latestWriteVersions.get(key) ?? normalized.version)) return;
       try {
         await runWrite(normalized, normalized.userId);
       } catch {
-        withFallbackSave(normalized);
+        // IndexedDB w WKWebView potrafi stracić połączenie po powrocie z tła — jedna ponowna
+        // próba, potem localStorage. Błąd pozostaje widoczny tylko gdy fallback zawiedzie.
+        try {
+          await runWrite(normalized, normalized.userId);
+        } catch {
+          withFallbackSave(normalized);
+        }
       }
-    }
+    });
+    const chain = write.finally(() => {
+      if (writeChains.get(key) === chain) writeChains.delete(key);
+      if (latestWriteVersions.get(key) === normalized.version) latestWriteVersions.delete(key);
+    });
+    writeChains.set(key, chain);
+    await chain;
   },
 
   async markDraftSynced(
     userId: string,
     syncedAt: number,
+    expectedDraftVersion: number,
     sessionId?: string,
     cloudState?: { updatedAt?: number; revision?: number }
   ): Promise<void> {
-    await updateDraft(userId, sessionId, draft => ({
+    await updateDraft(userId, sessionId, draft => draft.version !== expectedDraftVersion ? draft : ({
       ...draft,
       dirty: false,
       lastFirebaseSyncAt: syncedAt,
@@ -441,7 +457,12 @@ export const workoutDraftDb = {
     }));
   },
 
-  async markPromotedToRemote(userId: string, remoteSessionId: string, sessionId?: string): Promise<void> {
+  async markPromotedToRemote(
+    userId: string,
+    remoteSessionId: string,
+    sessionId?: string,
+    cloudState?: { updatedAt?: number; revision?: number },
+  ): Promise<void> {
     await updateDraft(userId, sessionId, draft => ({
       ...draft,
       sessionId: remoteSessionId,
@@ -449,6 +470,8 @@ export const workoutDraftDb = {
       remoteSessionId,
       updatedAt: Date.now(),
       version: draft.version + 1,
+      ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+      ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
     }));
   },
 

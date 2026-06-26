@@ -23,9 +23,10 @@ export const calculateTRIMP = (
   restHR: number,
   maxHR: number,
 ): number => {
-  if (!avgHR || avgHR <= restHR || maxHR <= restHR || durationSeconds <= 0) return 0;
+  if (![avgHR, durationSeconds, restHR, maxHR].every(Number.isFinite)) return 0;
+  if (avgHR <= restHR || maxHR <= restHR || durationSeconds <= 0) return 0;
 
-  const hrr = (avgHR - restHR) / (maxHR - restHR);
+  const hrr = Math.min(1, (avgHR - restHR) / (maxHR - restHR));
   const durationMin = durationSeconds / 60;
   return Math.round(durationMin * hrr * 0.64 * Math.exp(1.92 * hrr));
 };

@@ -3,7 +3,7 @@ import { trainingPlan as defaultPlan } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle, PlanCycleStats } from '@/types/cycles';
 import { calculate1RM, detectNewPRs } from '@/lib/pr-utils';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { addCalendarDays, calendarDayDiff, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { translate, type LanguageCode } from '@/i18n';
 
 export interface CycleRecommendation {
@@ -21,6 +21,47 @@ export interface CycleComparison {
   tonnageDelta: number;
   prDelta: number;
 }
+
+const weekdayOffset: Record<TrainingDay['weekday'], number> = {
+  monday: 0,
+  tuesday: 1,
+  wednesday: 2,
+  thursday: 3,
+  friday: 4,
+  saturday: 5,
+  sunday: 6,
+};
+
+const countExpectedPlanSessions = (
+  planDays: TrainingDay[],
+  startDate: string,
+  endDate: string,
+  durationWeeks: number,
+): number => {
+  if (planDays.length === 0 || durationWeeks <= 0 || startDate > endDate) return 0;
+
+  let expected = 0;
+  const sortedOffsets = planDays
+    .map(day => weekdayOffset[day.weekday])
+    .filter((offset): offset is number => Number.isInteger(offset))
+    .sort((a, b) => a - b);
+  const start = parseLocalDate(startDate);
+  const dayOfWeek = start.getDay();
+  const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const firstWeekMonday = addCalendarDays(startDate, -daysSinceMonday);
+
+  for (let week = 0; week < durationWeeks; week += 1) {
+    const weekStart = addCalendarDays(firstWeekMonday, week * 7);
+    for (const offset of sortedOffsets) {
+      const sessionDate = addCalendarDays(weekStart, offset);
+      if (sessionDate >= startDate && sessionDate <= endDate) {
+        expected += 1;
+      }
+    }
+  }
+
+  return expected;
+};
 
 export const computeCycleStats = (
   workouts: WorkoutSession[],
@@ -109,12 +150,7 @@ export const computeCycleStats = (
   }
   // Active cycles persist endDate='' — treat empty/future end as today (avoids parseLocalDate NaN).
   const effectiveEndStr = (endDate && endDate < todayStr) ? endDate : todayStr; // min(endDate, today)
-  const elapsedDays = Math.floor(
-    (parseLocalDate(effectiveEndStr).getTime() - parseLocalDate(startDate).getTime()) / 86_400_000,
-  );
-  const elapsedWeeks = elapsedDays < 0 ? 0 : Math.floor(elapsedDays / 7) + 1;
-  const effectiveWeeks = Math.min(elapsedWeeks, durationWeeks);
-  const expectedWorkouts = Math.max(planDays.length * effectiveWeeks, 0);
+  const expectedWorkouts = countExpectedPlanSessions(planDays, startDate, effectiveEndStr, durationWeeks);
   const completionRate = expectedWorkouts > 0 ? Math.round((totalWorkouts / expectedWorkouts) * 100) : 0;
   const missedWorkouts = Math.max(expectedWorkouts - totalWorkouts, 0);
 
@@ -149,7 +185,7 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
   // Aktywny cykl uznajemy za "wygasły" (czas na closeout) DOPIERO gdy minął jego planowany
   // koniec (startDate + durationWeeks), a NIE na podstawie endDate — bo buildActiveCyclePreview
   // ustawia endDate=dziś, co fałszywie wyzwalało closeout dla świeżo rozpoczętych cykli.
-  const plannedEnd = new Date(parseLocalDate(cycle.startDate).getTime() + cycle.durationWeeks * 7 * 86_400_000);
+  const plannedEnd = parseLocalDate(addCalendarDays(cycle.startDate, cycle.durationWeeks * 7));
   const isExpired = cycle.status === 'completed'
     ? (!!cycle.endDate && parseLocalDate(cycle.endDate) <= now)
     : plannedEnd <= now;
@@ -160,7 +196,7 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
 
   // Ile dni minęło od startu cyklu. Pierwszy tydzień = okres karencji:
   // nie oceniamy frekwencji (świeży cykl po onboardingu zawsze miałby 0% i fałszywy alarm).
-  const elapsedDays = Math.floor((now.getTime() - parseLocalDate(cycle.startDate).getTime()) / 86_400_000);
+  const elapsedDays = calendarDayDiff(cycle.startDate, formatLocalDate(now));
   const inFirstWeek = elapsedDays < 7;
 
   // Świeży, aktywny cykl bez treningów → POWITANIE (kick-off), a nie ostrzeżenie o frekwencji.

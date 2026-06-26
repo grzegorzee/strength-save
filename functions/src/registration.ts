@@ -1,5 +1,6 @@
 import { randomInt, randomUUID, createHash } from "crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
@@ -35,6 +36,8 @@ const WAITLIST_COLLECTION = "waitlist_entries";
 const VERIFICATION_CODES_COLLECTION = "email_verification_codes";
 const AUTH_AUDIT_COLLECTION = "auth_audit_logs";
 const NOTIFICATION_LOGS_COLLECTION = "notification_logs";
+const FCM_TOKEN_REGISTRATIONS_COLLECTION = "fcm_token_registrations";
+const DELETION_OPERATIONS_COLLECTION = "deletion_operations";
 
 type UserStatus = "pending_verification" | "active" | "suspended" | "deleted";
 type InviteStatus = "active" | "redeemed" | "revoked" | "expired";
@@ -634,23 +637,59 @@ export const registerPushToken = onCall(async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   const token = normalizeOptionalString(request.data?.token, 4096);
   if (!token) throw new HttpsError("invalid-argument", "Push token is required");
-  await getDb().collection(USERS_COLLECTION).doc(request.auth.uid).set({
-    fcmTokens: admin.firestore.FieldValue.arrayUnion(token),
-    fcmTokensLastSeenAt: nowIso(),
-  }, { merge: true });
+  const deviceId = normalizeOptionalString(request.data?.deviceId, 120) || "unknown";
+  await registerPushTokenForUser(request.auth.uid, token, deviceId);
   return { success: true };
 });
+
+export function fcmTokenRegistrationDocId(token: string): string {
+  return sanitizedIdentifierHash(token);
+}
+
+export async function registerPushTokenForUser(uid: string, token: string, deviceId = "unknown"): Promise<void> {
+  const db = getDb();
+  const tokenRef = db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).doc(fcmTokenRegistrationDocId(token));
+  const timestamp = nowIso();
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(tokenRef);
+    const previousOwner = existing.data()?.userId;
+    if (typeof previousOwner === "string" && previousOwner !== uid) {
+      // Wyczyść poprzedni format od razu przy reassign, aby stary owner nie dostał push.
+      transaction.set(db.collection(USERS_COLLECTION).doc(previousOwner), {
+        fcmTokens: admin.firestore.FieldValue.arrayRemove(token),
+      }, { merge: true });
+    }
+    transaction.set(tokenRef, {
+      userId: uid,
+      token,
+      tokenHash: sanitizedIdentifierHash(token),
+      deviceId,
+      createdAt: existing.data()?.createdAt || timestamp,
+      lastSeenAt: timestamp,
+    });
+  });
+}
 
 export const unregisterPushToken = onCall(async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   const token = normalizeOptionalString(request.data?.token, 4096);
   if (!token) throw new HttpsError("invalid-argument", "Push token is required");
-  await getDb().collection(USERS_COLLECTION).doc(request.auth.uid).set({
-    fcmTokens: admin.firestore.FieldValue.arrayRemove(token),
-    fcmTokensLastSeenAt: nowIso(),
-  }, { merge: true });
+  await unregisterPushTokenForUser(request.auth.uid, token);
   return { success: true };
 });
+
+export async function unregisterPushTokenForUser(uid: string, token: string): Promise<void> {
+  const db = getDb();
+  const tokenRef = db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).doc(fcmTokenRegistrationDocId(token));
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(tokenRef);
+    if (existing.data()?.userId === uid) transaction.delete(tokenRef);
+    // Kompatybilność z klientem przed migracją; nie wpływa na registry jako source of truth.
+    transaction.set(db.collection(USERS_COLLECTION).doc(uid), {
+      fcmTokens: admin.firestore.FieldValue.arrayRemove(token),
+    }, { merge: true });
+  });
+}
 
 export const createInvite = onCall({ secrets: [resendApiKey] }, async (request) => {
   if (!request.auth) {
@@ -997,7 +1036,7 @@ export const adminBroadcastEmail = onCall({ secrets: [resendApiKey] }, async (re
   return { success: true, sent, total: recipients.length };
 });
 
-// Push (FCM) do wszystkich lub do cohorty. Tokeny w users/{uid}.fcmTokens.
+// Push (FCM) do wszystkich lub do cohorty. Registry tokenów jest jedynym source of truth.
 export const adminSendPush = onCall(async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   await assertAdmin(request.auth.uid);
@@ -1010,16 +1049,14 @@ export const adminSendPush = onCall(async (request) => {
   if (target !== "all") query = query.where("cohorts", "array-contains", target);
   const snap = await query.get();
 
+  const eligibleUserIds = new Set(snap.docs.map((doc) => doc.id));
+  const registrations = await getDb().collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).get();
   const tokenOwners = new Map<string, FirebaseFirestore.DocumentReference[]>();
-  snap.docs.forEach((d) => {
-    const t = (d.data() as { fcmTokens?: unknown }).fcmTokens;
-    if (!Array.isArray(t)) return;
-    t.forEach((tok) => {
-      if (typeof tok !== "string" || !tok) return;
-      const owners = tokenOwners.get(tok) || [];
-      owners.push(d.ref);
-      tokenOwners.set(tok, owners);
-    });
+  registrations.docs.forEach((doc) => {
+    const registration = doc.data() as { userId?: unknown; token?: unknown };
+    if (typeof registration.userId !== "string" || !eligibleUserIds.has(registration.userId)) return;
+    if (typeof registration.token !== "string" || !registration.token) return;
+    tokenOwners.set(registration.token, [doc.ref]);
   });
   const unique = Array.from(tokenOwners.keys());
   if (unique.length === 0) {
@@ -1063,7 +1100,7 @@ export const adminSendPush = onCall(async (request) => {
   invalidTokens.forEach((token) => {
     const owners = tokenOwners.get(token) || [];
     owners.forEach((ref) => {
-      cleanupWrites.push(ref.update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(token) }));
+      cleanupWrites.push(ref.delete());
     });
   });
   await Promise.allSettled(cleanupWrites);
@@ -1085,7 +1122,15 @@ export const adminSendPush = onCall(async (request) => {
 // Usuń użytkownika: konto Auth + dane Firestore (GDPR). Operacja nieodwracalna.
 // Pełne usunięcie konta i danych użytkownika (Auth + wszystkie kolekcje + avatary Storage).
 // Wspólne dla adminDeleteUser i deleteOwnAccount (wymóg Apple 5.1.1(v): self-service delete).
-async function purgeUserData(uid: string): Promise<Record<string, number>> {
+interface DeletionOperationDeps {
+  deleteAvatarFiles?: (uid: string) => Promise<void>;
+}
+
+async function deleteAvatarFilesForUser(uid: string): Promise<void> {
+  await admin.storage().bucket().deleteFiles({ prefix: `avatars/${uid}/` });
+}
+
+async function purgeUserData(uid: string, deps: DeletionOperationDeps = {}): Promise<Record<string, number>> {
   const db = getDb();
 
   const deletedCounts: Record<string, number> = {};
@@ -1108,31 +1153,61 @@ async function purgeUserData(uid: string): Promise<Record<string, number>> {
 
   for (const coll of GDPR_DIRECT_DOC_COLLECTIONS) {
     if (coll === USERS_COLLECTION) continue;
-    await db.collection(coll).doc(uid).delete().catch(() => {});
+    await db.collection(coll).doc(uid).delete();
   }
+
+  deletedCounts.fcm_token_registrations = await deleteCollectionByField(FCM_TOKEN_REGISTRATIONS_COLLECTION, "userId", uid);
 
   // Avatary w Storage (avatars/{uid}/...) — bez tego pliki zostają po usunięciu konta.
-  try {
-    await admin.storage().bucket().deleteFiles({ prefix: `avatars/${uid}/` });
-  } catch (error) {
-    console.error("Failed to delete user avatars from Storage", error);
-  }
+  await (deps.deleteAvatarFiles || deleteAvatarFilesForUser)(uid);
 
-  // Auth zostaje do końca: jeśli którykolwiek purge wyżej padnie, użytkownik
-  // może bezpiecznie ponowić żądanie z deletionPending już zapisanym w profilu.
+  return deletedCounts;
+}
+
+export async function processDeletionOperation(uid: string, deps: DeletionOperationDeps = {}): Promise<Record<string, number>> {
+  const db = getDb();
+  const operationRef = db.collection(DELETION_OPERATIONS_COLLECTION).doc(uid);
+  const startedAt = nowIso();
+  await operationRef.set({ state: "running", startedAt, updatedAt: startedAt }, { merge: true });
+
   try {
+    const deletedCounts = await purgeUserData(uid, deps);
+
     await admin.auth().deleteUser(uid);
+    await db.collection(USERS_COLLECTION).doc(uid).delete();
+    await operationRef.set({ state: "completed", completedAt: nowIso(), updatedAt: nowIso(), deletedCounts }, { merge: true });
+    return deletedCounts;
   } catch (error) {
     const code = typeof error === "object" && error !== null && "code" in error
       ? String((error as { code?: unknown }).code)
       : "";
-    if (code !== "auth/user-not-found") {
-      throw new HttpsError("internal", "Nie udało się usunąć konta Auth użytkownika.");
+    if (code === "auth/user-not-found") {
+      await db.collection(USERS_COLLECTION).doc(uid).delete();
+      await operationRef.set({ state: "completed", completedAt: nowIso(), updatedAt: nowIso() }, { merge: true });
+      return {};
     }
+    await operationRef.set({
+      state: "failed",
+      updatedAt: nowIso(),
+      lastError: error instanceof Error ? error.message.slice(0, 500) : "unknown",
+      attempts: admin.firestore.FieldValue.increment(1),
+    }, { merge: true });
+    throw error;
   }
-  await db.collection(USERS_COLLECTION).doc(uid).delete();
+}
 
-  return deletedCounts;
+export async function requestDeletionOperation(uid: string, requestedBy: string, deps: DeletionOperationDeps = {}): Promise<Record<string, number>> {
+  const timestamp = nowIso();
+  await getDb().collection(DELETION_OPERATIONS_COLLECTION).doc(uid).set({
+    uid,
+    state: "pending",
+    requestedAt: timestamp,
+    requestedBy,
+    updatedAt: timestamp,
+    attempts: 0,
+  }, { merge: true });
+  await getDb().collection(USERS_COLLECTION).doc(uid).set({ deletionPending: { requestedAt: timestamp, requestedBy } }, { merge: true });
+  return processDeletionOperation(uid, deps);
 }
 
 export const adminDeleteUser = onCall(async (request) => {
@@ -1142,8 +1217,7 @@ export const adminDeleteUser = onCall(async (request) => {
   if (!uid) throw new HttpsError("invalid-argument", "uid required");
   if (uid === request.auth.uid) throw new HttpsError("failed-precondition", "Nie można usunąć własnego konta admina.");
 
-  await getDb().collection(USERS_COLLECTION).doc(uid).set({ deletionPending: { requestedAt: nowIso(), requestedBy: request.auth.uid } }, { merge: true });
-  const deletedCounts = await purgeUserData(uid);
+  const deletedCounts = await requestDeletionOperation(uid, request.auth.uid);
 
   await writeAuthAuditLog({
     eventType: "admin_user_deleted",
@@ -1171,8 +1245,7 @@ export const deleteOwnAccount = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "Konto admina nie może usunąć samo siebie.");
   }
 
-  await getDb().collection(USERS_COLLECTION).doc(uid).set({ deletionPending: { requestedAt: nowIso(), requestedBy: uid } }, { merge: true });
-  const deletedCounts = await purgeUserData(uid);
+  const deletedCounts = await requestDeletionOperation(uid, uid);
 
   await writeAuthAuditLog({
     eventType: "user_self_deleted",
@@ -1188,4 +1261,17 @@ export const deleteOwnAccount = onCall(async (request) => {
     console.error("Failed to write sanitized self delete audit log", error);
   });
   return { success: true };
+});
+
+// Worker uprzywilejowany: kończy operacje przerwane po częściowym purge lub po usunięciu Auth.
+export const resumeDeletionOperations = onSchedule("every 5 minutes", async () => {
+  const pending = await getDb().collection(DELETION_OPERATIONS_COLLECTION)
+    .where("state", "in", ["pending", "failed"]).limit(25).get();
+  for (const operation of pending.docs) {
+    try {
+      await processDeletionOperation(operation.id);
+    } catch (error) {
+      console.error("Deletion operation retry failed", { uidHash: sanitizedIdentifierHash(operation.id), error });
+    }
+  }
 });

@@ -4,6 +4,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
   doc,
 } from 'firebase/firestore';
@@ -13,6 +14,7 @@ import type { StravaActivity, StravaConnection } from '@/types/strava';
 import { useTranslation } from '@/contexts/LanguageContext';
 
 const STRAVA_ACTIVITIES_COLLECTION = 'strava_activities';
+const STRAVA_ACTIVITY_LISTENER_LIMIT = 500;
 
 const EMPTY_ACTIVITIES: StravaActivity[] = [];
 const EMPTY_CONNECTION: StravaConnection = { connected: false };
@@ -37,7 +39,8 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     const activitiesQuery = query(
       collection(db, STRAVA_ACTIVITIES_COLLECTION),
       where('userId', '==', userId),
-      orderBy('date', 'desc')
+      orderBy('date', 'desc'),
+      limit(STRAVA_ACTIVITY_LISTENER_LIMIT)
     );
 
     const unsubscribe = onSnapshot(activitiesQuery,

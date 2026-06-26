@@ -53,7 +53,7 @@ describe('Sync Center retry payload', () => {
       startedAt: 1000,
       completedAt: 61_000,
       completed: true,
-      expectedUpdatedAt: 1500,
+      expectedRevision: 2,
     });
   });
 });

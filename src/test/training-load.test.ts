@@ -19,6 +19,11 @@ describe('calculateTRIMP', () => {
   it('no duration → 0', () => {
     expect(calculateTRIMP(150, 0, 60, 190)).toBe(0);
   });
+
+  it('clamps heart rate above max and rejects non-finite input', () => {
+    expect(calculateTRIMP(250, 3600, 60, 190)).toBe(calculateTRIMP(190, 3600, 60, 190));
+    expect(calculateTRIMP(Number.NaN, 3600, 60, 190)).toBe(0);
+  });
 });
 
 describe('computeDailyLoad', () => {

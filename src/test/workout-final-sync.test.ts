@@ -109,10 +109,10 @@ describe('workout final sync validation', () => {
     }), expectation)).toEqual({ ok: false, reason: 'set-mismatch:ex-1:1' });
   });
 
-  it('detects an offline draft conflict when cloud was updated after the draft baseline', () => {
-    expect(hasWorkoutWriteConflict(workout({ updatedAt: 3000 }), 2000)).toBe(true);
-    expect(hasWorkoutWriteConflict(workout({ updatedAt: 2000 }), 2000)).toBe(false);
-    expect(hasWorkoutWriteConflict(workout({ updatedAt: 3000 }), null)).toBe(false);
+  it('rejects a concurrent write by revision even when client clocks are skewed', () => {
+    expect(hasWorkoutWriteConflict(workout({ updatedAt: 5000, revision: 3 }), 2)).toBe(true);
+    expect(hasWorkoutWriteConflict(workout({ updatedAt: 5000, revision: 2 }), 2)).toBe(false);
+    expect(hasWorkoutWriteConflict(workout({ updatedAt: 1, revision: undefined }), null)).toBe(false);
   });
 
   it('recognizes an already-finalized legacy workout despite a retried duration', () => {

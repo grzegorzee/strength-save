@@ -191,6 +191,35 @@ describe('computeCycleStats — cycle attribution (regression: new cycle stealin
     expect(stats.completionRate).toBe(0);
     expect(stats.missedWorkouts).toBe(0);
   });
+
+  it('nie liczy przyszłych sesji z bieżącego tygodnia jako opuszczonych', () => {
+    const days: TrainingDay[] = [
+      { id: 'mon', dayName: 'Poniedziałek', weekday: 'monday', focus: 'A', exercises: [] },
+      { id: 'wed', dayName: 'Środa', weekday: 'wednesday', focus: 'B', exercises: [] },
+      { id: 'sun', dayName: 'Niedziela', weekday: 'sunday', focus: 'C', exercises: [] },
+    ];
+    const completed: WorkoutSession[] = [
+      mk('w-mon', '2026-06-01', 'NEW'),
+      mk('w-wed', '2026-06-03', 'NEW'),
+    ];
+
+    const stats = computeCycleStats(completed, days, '2026-06-01', '2026-06-05', 12, 'NEW');
+    expect(stats.expectedWorkouts).toBe(2);
+    expect(stats.missedWorkouts).toBe(0);
+    expect(stats.completionRate).toBe(100);
+  });
+
+  it('nie liczy dni planu sprzed startDate w pierwszym tygodniu cyklu', () => {
+    const days: TrainingDay[] = [
+      { id: 'mon', dayName: 'Poniedziałek', weekday: 'monday', focus: 'A', exercises: [] },
+      { id: 'fri', dayName: 'Piątek', weekday: 'friday', focus: 'B', exercises: [] },
+    ];
+    const completed = [mk('w-fri', '2026-06-19', 'NEW')];
+
+    const stats = computeCycleStats(completed, days, '2026-06-19', '2026-06-19', 12, 'NEW');
+    expect(stats.expectedWorkouts).toBe(1);
+    expect(stats.missedWorkouts).toBe(0);
+  });
 });
 
 describe('buildCycleComparison — świeży cykl nie pokazuje ujemnych delt', () => {

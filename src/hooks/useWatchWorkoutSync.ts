@@ -9,14 +9,16 @@ import type { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 import {
   addWatchEventListener,
-  drainWatchEvents,
+  ackWatchEvents,
   getRestDefaultSeconds,
   getUnitSystemForWatch,
   isWatchBridgeSupported,
+  peekWatchEvents,
   sendWorkoutToWatch,
   type WatchEvent,
   type WatchSetLoggedEvent,
   type WatchWorkoutPayload,
+  watchEventId,
 } from '@/lib/watch-bridge';
 
 interface UseWatchWorkoutSyncOptions {
@@ -28,8 +30,8 @@ interface UseWatchWorkoutSyncOptions {
   focus?: string;
   exercises?: Exercise[];
   exerciseSets: Record<string, SetData[]>;
-  onSetLogged: (event: WatchSetLoggedEvent) => void;
-  onWorkoutFinished: () => void;
+  onSetLogged: (event: WatchSetLoggedEvent) => void | Promise<void>;
+  onWorkoutFinished: () => void | Promise<void>;
 }
 
 const SEND_DEBOUNCE_MS = 800;
@@ -77,33 +79,34 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
   useEffect(() => {
     if (!isWatchBridgeSupported()) return;
 
-    const applyEvent = (event: WatchEvent) => {
+    const applyEvent = async (event: WatchEvent) => {
       const ctx = contextRef.current;
       if (!ctx.enabled) return;
       if (event.date !== ctx.date || event.dayId !== ctx.dayId) return;
 
       if (event.type === 'setLogged') {
-        const key = `${event.at}-${event.exerciseId}-${event.setIndex}`;
+        const key = watchEventId(event);
         if (appliedRef.current.has(key)) return;
         appliedRef.current.add(key);
-        handlersRef.current.onSetLogged(event);
+        await handlersRef.current.onSetLogged(event);
+        await ackWatchEvents([key]);
       } else if (event.type === 'workoutFinished') {
-        const key = `finished-${event.at}`;
+        const key = watchEventId(event);
         if (appliedRef.current.has(key)) return;
         appliedRef.current.add(key);
-        handlersRef.current.onWorkoutFinished();
+        await handlersRef.current.onWorkoutFinished();
+        await ackWatchEvents([key]);
       }
     };
 
     const drain = () => {
-      // Kolejkę opróżniamy tylko gdy jest aktywny trening, żeby nie zgubić
-      // eventów zalogowanych zanim user wystartował sesję na telefonie.
+      // Tylko peek: trwały ACK następuje po zapisaniu zmiany do draftu.
       if (!contextRef.current.enabled) return;
-      void drainWatchEvents().then((events) => events.forEach(applyEvent));
+      void peekWatchEvents().then((events) => events.forEach(event => { void applyEvent(event); }));
     };
 
     let handle: PluginListenerHandle | null = null;
-    void addWatchEventListener(applyEvent).then((h) => {
+    void addWatchEventListener(event => { void applyEvent(event); }).then((h) => {
       handle = h;
     });
     drain();

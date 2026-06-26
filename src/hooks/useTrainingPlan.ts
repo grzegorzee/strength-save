@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   doc,
   getDoc,
-  setDoc,
   updateDoc,
   onSnapshot,
   collection,
@@ -15,11 +14,10 @@ import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { buildActiveCyclePlanPatch } from '@/lib/plan-cycle-utils';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
+import { saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
 
 const PLAN_COLLECTION = 'training_plans';
-const CYCLES_COLLECTION = 'plan_cycles';
 
 export const useTrainingPlan = (userId: string) => {
   const { t } = useTranslation();
@@ -28,6 +26,7 @@ export const useTrainingPlan = (userId: string) => {
   const [isCustom, setIsCustom] = useState(false);
   const [planDurationWeeks, setPlanDurationWeeks] = useState(12);
   const [planStartDate, setPlanStartDate] = useState<string | null>(null);
+  const [planRevision, setPlanRevision] = useState(0);
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
@@ -45,10 +44,12 @@ export const useTrainingPlan = (userId: string) => {
           }
           if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
           if (data.startDate) setPlanStartDate(data.startDate);
+          setPlanRevision(typeof data.revision === 'number' ? Math.max(0, Math.floor(data.revision)) : 0);
         } else {
           // No custom plan, use default
           setPlan(defaultPlan);
           setIsCustom(false);
+          setPlanRevision(0);
         }
         setIsLoaded(true);
       },
@@ -129,27 +130,14 @@ export const useTrainingPlan = (userId: string) => {
     if (!isLoaded) return { success: false, error: t('err.planNotLoaded') };
     try {
       const nextDurationWeeks = options?.durationWeeks ?? planDurationWeeks;
-      const nextStartDate = options?.startDate !== undefined ? options.startDate : planStartDate;
-      // merge: true — pola pominięte (np. startDate, gdy stan go jeszcze nie ma) zostają w dokumencie.
-      await setDoc(doc(db, PLAN_COLLECTION, userId), {
-        days: newPlan,
-        updatedAt: new Date().toISOString(),
+      await saveTrainingPlanWithRevision(db, {
+        userId,
+        newPlan,
+        expectedRevision: planRevision,
         durationWeeks: nextDurationWeeks,
-        ...(options?.startDate !== undefined
-          ? { startDate: options.startDate }
-          : planStartDate ? { startDate: planStartDate } : {}),
-      }, { merge: true });
-
-      if (options?.syncActiveCycle !== false) {
-        const activeCyclesQuery = query(
-          collection(db, CYCLES_COLLECTION),
-          where('userId', '==', userId),
-          where('status', '==', 'active'),
-        );
-        const activeCycles = await getDocs(activeCyclesQuery);
-        const patch = buildActiveCyclePlanPatch(newPlan, nextDurationWeeks, nextStartDate);
-        await Promise.all(activeCycles.docs.map(activeCycle => updateDoc(activeCycle.ref, patch)));
-      }
+        startDate: options?.startDate !== undefined ? options.startDate : planStartDate,
+        syncActiveCycle: options?.syncActiveCycle,
+      });
 
       return { success: true };
     } catch (err) {
@@ -157,7 +145,7 @@ export const useTrainingPlan = (userId: string) => {
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, [userId, isLoaded, planDurationWeeks, planStartDate, t]);
+  }, [userId, isLoaded, planDurationWeeks, planStartDate, planRevision, t]);
 
   const swapExercise = useCallback(async (
     dayId: string,

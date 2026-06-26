@@ -33,7 +33,10 @@ const LocationProbe = ({ onLocation }: { onLocation: (path: string) => void }) =
 
 const renderRouter = (onLocation: (path: string) => void) =>
   render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter
+      initialEntries={['/']}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       <WatchEventRouter />
       <Routes>
         <Route path="*" element={<LocationProbe onLocation={onLocation} />} />
@@ -59,7 +62,7 @@ describe('WatchEventRouter', () => {
     });
 
     await waitFor(() =>
-      expect(path).toBe(`/workout/day-2?date=${today}&autostart=true`)
+      expect(path).toBe(`/workout/day-2?date=${today}&autostart=true&watchEventId=legacy-startWorkout-111`)
     );
   });
 
@@ -69,7 +72,7 @@ describe('WatchEventRouter', () => {
     renderRouter((p) => { path = p; });
 
     await waitFor(() =>
-      expect(path).toBe(`/workout/day-1?date=${today}&autostart=true`)
+      expect(path).toBe(`/workout/day-1?date=${today}&autostart=true&watchEventId=legacy-startWorkout-222`)
     );
   });
 

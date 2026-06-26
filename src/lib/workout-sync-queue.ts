@@ -31,7 +31,7 @@ const normalizeQueueEntry = (value: unknown): WorkoutSyncQueueEntry | null => {
     exerciseSets: isRecord(value.exerciseSets) ? value.exerciseSets as ActiveWorkoutDraft['exerciseSets'] : {},
     exerciseNotes: isRecord(value.exerciseNotes) ? value.exerciseNotes as ActiveWorkoutDraft['exerciseNotes'] : {},
     // Snapshoty nazw i znaczniki chmury MUSZĄ przeżyć roundtrip localStorage:
-    // bez cloudUpdatedAt detekcja konfliktów (expectedUpdatedAt) jest wyłączona przy retry,
+    // bez cloudRevision precondition konfliktu jest wyłączony przy retry,
     // bez exerciseNames/dayName historia traci odporność na zmianę planu.
     ...(isRecord(value.exerciseNames) ? { exerciseNames: value.exerciseNames as ActiveWorkoutDraft['exerciseNames'] } : {}),
     exerciseMetrics: isRecord(value.exerciseMetrics) ? value.exerciseMetrics as ActiveWorkoutDraft['exerciseMetrics'] : {},

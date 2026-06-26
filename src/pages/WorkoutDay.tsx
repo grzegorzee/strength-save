@@ -49,7 +49,7 @@ import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
-import { sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
+import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
@@ -88,6 +88,7 @@ const WorkoutDay = () => {
   const targetDate = searchParams.get('date') || today;
   const routeSessionId = searchParams.get('session');
   const autostart = searchParams.get('autostart') === 'true';
+  const watchStartEventId = searchParams.get('watchEventId');
   const isViewingPastWorkout = targetDate !== today;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -134,8 +135,8 @@ const WorkoutDay = () => {
   const isSyncingRef = useRef(false);
   const completedSessionLockRef = useRef<string | null>(null);
   // Znacznik wersji dokumentu w chmurze dla sesji wczytanej z Firestore (bez draftu).
-  // Bez tego seeda draft tworzony nad istniejącym workoutem ma cloudUpdatedAt=undefined,
-  // czyli expectedUpdatedAt=null i detekcja konfliktów jest wyłączona.
+  // Bez tego seeda draft tworzony nad istniejącym workoutem ma cloudRevision=undefined,
+  // czyli precondition rewizji byłaby utracona.
   const cloudMetaRef = useRef<{ sessionId: string; updatedAt?: number; revision?: number } | null>(null);
 
   // Refs that mirror state for stable callback identity
@@ -476,19 +477,12 @@ const WorkoutDay = () => {
           return { success: false, error: errorMessage };
         }
 
-        const now = Date.now();
-        const promotedDraft: ActiveWorkoutDraft = {
-          ...currentDraft,
-          sessionId: promoteResult.session.id,
-          sessionOrigin: 'remote',
-          remoteSessionId: promoteResult.session.id,
-          updatedAt: now,
-          cloudUpdatedAt: promoteResult.session.updatedAt,
-          cloudRevision: promoteResult.session.revision,
-          version: currentDraft.version + 1,
-        };
-
-        await workoutDraftDb.saveActiveDraft(promotedDraft);
+        await workoutDraftDb.markPromotedToRemote(uid, promoteResult.session.id, currentDraft.sessionId, {
+          updatedAt: promoteResult.session.updatedAt,
+          revision: promoteResult.session.revision,
+        });
+        const promotedDraft = await workoutDraftDb.loadDraft(uid, promoteResult.session.id);
+        if (!promotedDraft) throw new Error('PROMOTED_DRAFT_NOT_FOUND');
         setActiveDraft(promotedDraft);
         activeDraftRef.current = promotedDraft;
         currentDraft = promotedDraft;
@@ -515,7 +509,7 @@ const WorkoutDay = () => {
         ...(finalDurationSec !== undefined && { durationSec: finalDurationSec }),
         ...(requiresFinalSync && startedAt ? { startedAt } : {}),
         ...(finalizedAt !== undefined && { completedAt: finalizedAt }),
-        expectedUpdatedAt: currentDraft?.cloudUpdatedAt ?? null,
+        expectedRevision: currentDraft?.cloudRevision ?? 0,
       };
       const exercisesPayload = buildExercisesPayload();
       const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
@@ -588,7 +582,7 @@ const WorkoutDay = () => {
 
       if (usesActiveDraftStore) {
         try {
-          await workoutDraftDb.markDraftSynced(uid, syncedAt, targetSessionId, {
+          await workoutDraftDb.markDraftSynced(uid, syncedAt, currentDraft!.version, targetSessionId, {
             updatedAt: result.updatedAt,
             revision: result.revision,
           });
@@ -1086,6 +1080,7 @@ const WorkoutDay = () => {
         };
         setSessionId(result.session.id);
         setIsCompleted(false);
+        if (watchStartEventId) await ackWatchEvents([watchStartEventId]);
         toast({
           title: t('workout.toast.continueTitle'),
           description: t('workout.toast.continueDesc'),
@@ -1143,6 +1138,9 @@ const WorkoutDay = () => {
 
         setSessionId(result.session.id);
         setIsCompleted(false);
+        // startWorkout is acknowledged only after the phone owns a durable
+        // session/draft. A crash before this point leaves it in the Watch queue.
+        if (watchStartEventId) await ackWatchEvents([watchStartEventId]);
         if (result.provisional) {
           trackTelemetryEvent(uid, 'provisional_session_started');
         }
@@ -1207,7 +1205,7 @@ const WorkoutDay = () => {
   }, [saveDraftSnapshot]);
 
   // Apple Watch: serie zalogowane na zegarku trafiają do draftu jak ręczne zmiany.
-  const handleWatchSetLogged = useCallback((event: WatchSetLoggedEvent) => {
+  const handleWatchSetLogged = useCallback(async (event: WatchSetLoggedEvent) => {
     const current = exerciseSetsRef.current[event.exerciseId];
     if (!current || event.setIndex < 0 || event.setIndex >= current.length) return;
     const next = current.map((set, i) =>
@@ -1215,22 +1213,24 @@ const WorkoutDay = () => {
         ? { ...set, reps: event.reps, weight: event.weight, completed: event.completed }
         : set
     );
-    handleSetsChange(event.exerciseId, next);
+    setExerciseSets(nextSets => ({ ...nextSets, [event.exerciseId]: next }));
+    const saved = await persistDraftSnapshot({ exerciseSets: { ...exerciseSetsRef.current, [event.exerciseId]: next } });
+    if (!saved) throw new Error('WATCH_DRAFT_PERSIST_FAILED');
     toast({
       title: t('workout.toast.watchSetLoggedTitle'),
       description: t('workout.toast.watchSetLoggedDesc'),
     });
-  }, [handleSetsChange, toast, t]);
+  }, [persistDraftSnapshot, toast, t]);
 
   // handleCompleteWorkout jest zdefiniowany niżej — ref omija TDZ i exhaustive-deps.
   const completeWorkoutRef = useRef<(() => Promise<void>) | null>(null);
-  const handleWatchWorkoutFinished = useCallback(() => {
+  const handleWatchWorkoutFinished = useCallback(async () => {
     toast({
       title: t('workout.toast.watchFinishedTitle'),
       description: t('workout.toast.watchFinishedDesc'),
     });
     // User potwierdził zakończenie na zegarku — finalizujemy bez drugiego dialogu.
-    void completeWorkoutRef.current?.();
+    await completeWorkoutRef.current?.();
   }, [toast, t]);
 
   useWatchWorkoutSync({

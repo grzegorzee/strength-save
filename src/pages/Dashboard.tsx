@@ -25,6 +25,7 @@ import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrai
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
@@ -428,11 +429,13 @@ const Dashboard = () => {
     };
     window.addEventListener('focus', handleFocus);
     window.addEventListener('online', handleFocus);
+    window.addEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleFocus);
 
     return () => {
       cancelled = true;
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('online', handleFocus);
+      window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleFocus);
     };
   }, [uid]);
 

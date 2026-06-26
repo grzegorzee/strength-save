@@ -9,6 +9,7 @@ import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
+import { validateMeasurement } from '@/lib/measurement-validation';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
@@ -32,14 +33,16 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
     calfLeft: latestMeasurement?.calfLeft != null ? String(Number(toDisplayLength(latestMeasurement.calfLeft).toFixed(1))) : '',
     calfRight: latestMeasurement?.calfRight != null ? String(Number(toDisplayLength(latestMeasurement.calfRight).toFixed(1))) : '',
   });
+  const [validationError, setValidationError] = useState(false);
 
   const handleChange = (field: string, value: string) => {
+    setValidationError(false);
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    const measurement = {
       date: formatLocalDate(new Date()),
       weight: formData.weight ? fromInput(Number(formData.weight)) : undefined,
       armLeft: formData.armLeft ? fromInputLength(Number(formData.armLeft)) : undefined,
@@ -51,7 +54,12 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
       thighRight: formData.thighRight ? fromInputLength(Number(formData.thighRight)) : undefined,
       calfLeft: formData.calfLeft ? fromInputLength(Number(formData.calfLeft)) : undefined,
       calfRight: formData.calfRight ? fromInputLength(Number(formData.calfRight)) : undefined,
-    });
+    };
+    if (!validateMeasurement(measurement).valid) {
+      setValidationError(true);
+      return;
+    }
+    onSave(measurement);
   };
 
   const measurementFields = [
@@ -110,6 +118,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
               </div>
             ))}
           </div>
+          {validationError && <p role="alert" className="text-sm text-destructive">{t('measurements.saveErrorDesc')}</p>}
           <Button type="submit" className="w-full" size="lg">
             <Save className="h-4 w-4 mr-2" />
             {t('measurements.saveButton')}

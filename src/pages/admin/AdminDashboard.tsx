@@ -53,6 +53,9 @@ const AVAILABLE_FEATURES = [
   { key: 'ai', label: 'AI', description: 'Dostęp do funkcji AI (Coach, plany)', defaultOn: true },
   { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą', defaultOn: false },
 ] as const;
+const ADMIN_USERS_LISTENER_LIMIT = 200;
+const ADMIN_AI_USAGE_LIMIT = 500;
+const ADMIN_TELEMETRY_LIMIT = 1000;
 
 type UserFilter = 'all' | 'active' | 'suspended' | 'no-access' | 'unverified';
 type UserSort = 'recent' | 'name';
@@ -174,6 +177,7 @@ const AdminDashboard = () => {
     const q = query(
       collection(db, 'ai_usage'),
       where('month', '==', currentMonth),
+      limit(ADMIN_AI_USAGE_LIMIT),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data: AIUsageDoc[] = [];
@@ -201,6 +205,7 @@ const AdminDashboard = () => {
     const q = query(
       collection(db, 'app_telemetry_daily'),
       where('date', '>=', dateKey),
+      limit(ADMIN_TELEMETRY_LIMIT),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -221,7 +226,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      collection(db, 'users'),
+      query(collection(db, 'users'), limit(ADMIN_USERS_LISTENER_LIMIT)),
       (snapshot) => {
         const data: AdminUser[] = [];
         snapshot.forEach((d) => {

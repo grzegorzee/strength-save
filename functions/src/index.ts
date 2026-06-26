@@ -65,6 +65,7 @@ export {
   deleteOwnAccount,
   registerPushToken,
   unregisterPushToken,
+  resumeDeletionOperations,
 } from "./registration";
 
 admin.initializeApp();
@@ -102,6 +103,14 @@ const sanitizeOpenAIParams = (model: string | undefined, messages: unknown[], ma
   messages: (messages as unknown[]).slice(-MAX_MESSAGES),
   maxTokens: Math.min(Math.max(1, maxTokens || MAX_TOKENS_CAP), MAX_TOKENS_CAP),
 });
+
+const normalizeUsageOperationId = (value: unknown, prefix: string): string => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^[A-Za-z0-9:_-]{8,160}$/.test(trimmed)) return `${prefix}:${trimmed}`;
+  }
+  return `${prefix}:${randomBytes(16).toString("hex")}`;
+};
 
 interface StravaTokenPayload {
   access_token: string;
@@ -564,7 +573,7 @@ export const generateWeeklySummary = onCall(
     // Ta sama bramka co proxyOpenAI/streamOpenAI — bez niej wyłącznik AI admina nie działał na tę ścieżkę.
     await assertAiEnabled(request.auth.uid);
 
-    const { stats } = request.data;
+    const { stats, requestId } = request.data;
     if (!stats) {
       throw new HttpsError("invalid-argument", "stats is required");
     }
@@ -598,9 +607,10 @@ Zasady:
       { role: "user", content: prompt },
     ];
     const reservedCostUsd = estimateUsageCost(summaryMessages, 500, "gpt-5-mini");
+    const usageOperationId = normalizeUsageOperationId(requestId, "weekly-summary");
     try {
       await checkUsageLimit(userId);
-      await reserveUsageBudget(userId, reservedCostUsd);
+      await reserveUsageBudget(userId, reservedCostUsd, usageOperationId);
     } catch (limitErr) {
       if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
         throw new HttpsError("resource-exhausted", limitErr);
@@ -640,14 +650,15 @@ Zasady:
           data.usage.completion_tokens || 0,
           "gpt-5-mini",
           reservedCostUsd,
+          usageOperationId,
         );
       } else {
-        await releaseUsageBudget(userId, reservedCostUsd);
+        await releaseUsageBudget(userId, reservedCostUsd, usageOperationId);
       }
 
       return { text };
     } catch (error) {
-      await releaseUsageBudget(userId, reservedCostUsd);
+      await releaseUsageBudget(userId, reservedCostUsd, usageOperationId);
       throw error;
     }
   },
@@ -665,7 +676,7 @@ export const proxyOpenAI = onCall(
     await assertAppAccess(request.auth.uid);
     await assertAiEnabled(request.auth.uid);
 
-    const { messages, model, maxTokens } = request.data;
+    const { messages, model, maxTokens, requestId } = request.data;
     if (!messages || !Array.isArray(messages)) {
       throw new HttpsError("invalid-argument", "messages array is required");
     }
@@ -679,13 +690,14 @@ export const proxyOpenAI = onCall(
     const userId = request.auth.uid;
     const { model: usedModel, messages: safeMessages, maxTokens: cappedTokens } = sanitizeOpenAIParams(model, messages, maxTokens);
     const reservedCostUsd = estimateUsageCost(safeMessages, cappedTokens, usedModel);
+    const usageOperationId = normalizeUsageOperationId(requestId, "proxy-openai");
 
     if (messages.length > MAX_MESSAGES) {
       throw new HttpsError("invalid-argument", `Too many messages (max ${MAX_MESSAGES})`);
     }
     try {
       await checkUsageLimit(userId);
-      await reserveUsageBudget(userId, reservedCostUsd);
+      await reserveUsageBudget(userId, reservedCostUsd, usageOperationId);
     } catch (limitErr) {
       if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
         throw new HttpsError("resource-exhausted", limitErr);
@@ -725,14 +737,15 @@ export const proxyOpenAI = onCall(
           data.usage.completion_tokens || 0,
           usedModel,
           reservedCostUsd,
+          usageOperationId,
         );
       } else {
-        await releaseUsageBudget(userId, reservedCostUsd);
+        await releaseUsageBudget(userId, reservedCostUsd, usageOperationId);
       }
 
       return { text };
     } catch (error) {
-      await releaseUsageBudget(userId, reservedCostUsd);
+      await releaseUsageBudget(userId, reservedCostUsd, usageOperationId);
       throw error;
     }
   },
@@ -782,7 +795,7 @@ export const streamOpenAI = onRequest(
       return;
     }
 
-    const { messages, model, maxTokens } = req.body;
+    const { messages, model, maxTokens, requestId } = req.body;
     if (!messages || !Array.isArray(messages)) {
       res.status(400).json({ error: "messages array is required" });
       return;
@@ -797,10 +810,11 @@ export const streamOpenAI = onRequest(
     // Enforce allowed models, token cap, message limit
     const { model: usedModel, messages: safeMessages, maxTokens: cappedTokens } = sanitizeOpenAIParams(model, messages, maxTokens);
     let reservedCostUsd = 0;
+    const usageOperationId = normalizeUsageOperationId(requestId, "stream-openai");
     try {
       await checkUsageLimit(userId);
       reservedCostUsd = estimateUsageCost(safeMessages, cappedTokens, usedModel);
-      await reserveUsageBudget(userId, reservedCostUsd);
+      await reserveUsageBudget(userId, reservedCostUsd, usageOperationId);
     } catch (limitErr) {
       if (typeof limitErr === "string" && limitErr.startsWith("LIMIT_EXCEEDED")) {
         res.status(429).json({ error: limitErr });
@@ -810,6 +824,10 @@ export const streamOpenAI = onRequest(
       return;
     }
 
+    const upstreamController = new AbortController();
+    const abortUpstream = () => upstreamController.abort();
+    req.once("aborted", abortUpstream);
+    res.once("close", abortUpstream);
     let openaiRes: Response;
     try {
       openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -825,16 +843,17 @@ export const streamOpenAI = onRequest(
           stream: true,
           stream_options: { include_usage: true },
         }),
+        signal: upstreamController.signal,
       });
     } catch (error) {
-      await releaseUsageBudget(userId, reservedCostUsd);
+      await releaseUsageBudget(userId, reservedCostUsd, usageOperationId);
       throw error;
     }
 
     if (!openaiRes.ok) {
       const errBody = await openaiRes.text();
       logger.error(`[StreamOpenAI] OpenAI error ${openaiRes.status}: ${errBody}`);
-      await releaseUsageBudget(userId, reservedCostUsd);
+      await releaseUsageBudget(userId, reservedCostUsd, usageOperationId);
       res.status(502).json({ error: `OpenAI API error: ${openaiRes.status}` });
       return;
     }
@@ -856,7 +875,7 @@ export const streamOpenAI = onRequest(
     try {
       const body = openaiRes.body;
       if (!body) {
-        await releaseUsageBudget(userId, reservedCostUsd);
+        await releaseUsageBudget(userId, reservedCostUsd, usageOperationId);
         res.status(502).json({ error: "No response body from OpenAI" });
         return;
       }
@@ -903,21 +922,22 @@ export const streamOpenAI = onRequest(
     // Record usage after stream completes
     if (totalPromptTokens > 0 || totalCompletionTokens > 0) {
       try {
-        await recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel, reservedCostUsd);
-        usageRecorded = true;
+        usageRecorded = await recordUsage(userId, totalPromptTokens, totalCompletionTokens, usedModel, reservedCostUsd, usageOperationId);
       } catch (err) {
         logger.error("[StreamOpenAI] Failed to record usage:", err);
       }
     }
 
     if (!usageRecorded) {
-      await releaseUsageBudget(userId, reservedCostUsd);
+      await releaseUsageBudget(userId, reservedCostUsd, usageOperationId);
     }
 
     if (!res.writableEnded) {
       res.write("data: [DONE]\n\n");
       res.end();
     }
+    req.off("aborted", abortUpstream);
+    res.off("close", abortUpstream);
   },
 );
 

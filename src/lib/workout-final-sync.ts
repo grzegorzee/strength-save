@@ -27,12 +27,11 @@ export interface WorkoutWriteValidation {
 }
 
 export const hasWorkoutWriteConflict = (
-  current: Pick<WorkoutSession, 'updatedAt'>,
-  expectedUpdatedAt?: number | null
+  current: Pick<WorkoutSession, 'revision'>,
+  expectedRevision?: number | null
 ): boolean => (
-  typeof expectedUpdatedAt === 'number'
-  && typeof current.updatedAt === 'number'
-  && current.updatedAt > expectedUpdatedAt
+  Math.max(0, Math.floor(current.revision ?? 0))
+  !== Math.max(0, Math.floor(expectedRevision ?? 0))
 );
 
 const normalizeSet = (set: Partial<SetData>): SetData => ({

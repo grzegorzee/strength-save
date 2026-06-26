@@ -18,7 +18,9 @@ export const generateHeatmapData = (
 ): HeatmapDay[] => {
   // Build date → tonnage map from workouts
   const tonnageMap = new Map<string, number>();
+  const workoutDates = new Set<string>();
   workouts.filter(w => w.completed).forEach(w => {
+    workoutDates.add(w.date);
     const tonnage = w.exercises.reduce((sum, ex) =>
       sum + ex.sets.filter(s => s.completed && !s.isWarmup).reduce((s, set) => s + set.reps * set.weight, 0),
     0);
@@ -50,7 +52,7 @@ export const generateHeatmapData = (
     const dateStr = formatLocalDate(date);
     const strengthTonnage = tonnageMap.get(dateStr) || 0;
     const cardioKm = Math.round((cardioMap.get(dateStr) || 0) * 10) / 10;
-    const hasWorkout = strengthTonnage > 0;
+    const hasWorkout = workoutDates.has(dateStr);
     const hasCardio = cardioKm > 0;
 
     days.push({

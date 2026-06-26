@@ -12,6 +12,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
 
 WHATS_NEW="${1:-Poprawki i testy.}"
+npm run preflight:ios-release
 export ASC_KEY_ID="${ASC_KEY_ID:-UD43687FB9}"
 export ASC_ISSUER_ID="${ASC_ISSUER_ID:-c7dc0c6f-bae0-43ee-a96c-fbb0eabab7b9}"
 export ASC_KEY_PATH="${ASC_KEY_PATH:-/Users/grzegorzjasionowicz/FIRMA/_secrets/oauth/AuthKey_UD43687FB9.p8}"

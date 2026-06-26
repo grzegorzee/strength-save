@@ -32,12 +32,14 @@ type FirestoreValue =
   | { stringValue: string }
   | { booleanValue: boolean }
   | { integerValue: string }
+  | { arrayValue: { values: FirestoreValue[] } }
   | { mapValue: { fields: Record<string, FirestoreValue> } };
 
 function toFirestoreValue(value: unknown): FirestoreValue {
   if (typeof value === 'string') return { stringValue: value };
   if (typeof value === 'boolean') return { booleanValue: value };
   if (typeof value === 'number') return { integerValue: String(value) };
+  if (Array.isArray(value)) return { arrayValue: { values: value.map(toFirestoreValue) } };
   if (value !== null && typeof value === 'object') {
     return {
       mapValue: {
@@ -69,6 +71,31 @@ async function seedUserProfile(uid: string, profile: Record<string, unknown>): P
   if (!res.ok) {
     throw new Error(`Firestore emulator seed failed: ${res.status} ${await res.text()}`);
   }
+}
+
+async function seedDoc(path: string, data: Record<string, unknown>): Promise<void> {
+  const fields = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, toFirestoreValue(v)]),
+  );
+  const res = await fetch(
+    `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/${path}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer owner' },
+      body: JSON.stringify({ fields }),
+    },
+  );
+  if (!res.ok) throw new Error(`Firestore emulator seed failed (${path}): ${res.status} ${await res.text()}`);
+}
+
+async function readDoc(path: string): Promise<Record<string, unknown> | null> {
+  const res = await fetch(
+    `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/${path}`,
+    { headers: { Authorization: 'Bearer owner' } },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Firestore emulator read failed (${path}): ${res.status}`);
+  return await res.json() as Record<string, unknown>;
 }
 
 async function loginThroughUi(page: Page, email: string): Promise<void> {
@@ -121,5 +148,39 @@ test.describe('Emulator critical: auth + rules', () => {
 
     await expect(page.getByText('Potwierdź adres email')).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toHaveCount(0);
+  });
+
+  test('start treningu zapisuje sesję przez realne Firestore Rules', async ({ page }) => {
+    const email = `workout-start-${Date.now()}@e2e.test`;
+    const uid = await createAuthUser(email);
+    const today = new Date().toISOString().slice(0, 10);
+    const dayId = 'day-e2e';
+    const days = [{
+      id: dayId,
+      dayName: 'E2E workout',
+      weekday: 'monday',
+      focus: 'Push',
+      exercises: [{ id: 'exercise-e2e', name: 'Przysiad', sets: '3 x 5', instructions: [] }],
+    }];
+
+    await seedUserProfile(uid, {
+      uid, email, displayName: 'E2E Workout', role: 'user', status: 'active',
+      onboardingCompleted: true, access: { enabled: true }, registration: { source: 'email' },
+    });
+    await seedDoc(`training_plans/${uid}`, { days, durationWeeks: 12, startDate: today, updatedAt: new Date().toISOString() });
+    await seedDoc(`plan_cycles/cycle-${uid}`, {
+      userId: uid, days, durationWeeks: 12, startDate: today, status: 'active', createdAt: new Date().toISOString(),
+      stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+    });
+
+    await loginThroughUi(page, email);
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
+    await page.goto(`./#/workout/${dayId}?date=${today}&autostart=true`);
+    await expect(page.getByText('Trening rozpoczęty!', { exact: true })).toBeVisible({ timeout: 15000 });
+
+    const workoutId = `workout-${uid}-${dayId}-${today}`;
+    await expect.poll(async () => JSON.stringify((await readDoc(`workouts/${workoutId}`))?.fields ?? {}), {
+      timeout: 10000,
+    }).toContain(uid);
   });
 });

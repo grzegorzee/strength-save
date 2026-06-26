@@ -99,4 +99,26 @@ describe('cycle lifecycle actions', () => {
     expect(result.success).toBe(false);
     expect(markOnboardingComplete).not.toHaveBeenCalled();
   });
+
+  it('retries onboarding after a plan-write failure without creating a second active cycle', async () => {
+    const createActiveCycle = vi.fn().mockResolvedValue('cycle-u1-2026-06-08');
+    const savePlan = vi.fn()
+      .mockResolvedValueOnce({ success: false, error: 'offline' })
+      .mockResolvedValueOnce({ success: true });
+    const markOnboardingComplete = vi.fn().mockResolvedValue(undefined);
+    const choice = {
+      days,
+      durationWeeks: 8,
+      startDate: '2026-06-10',
+      level: 'beginner',
+      objective: 'build_muscle',
+      daysPerWeek: 3,
+    };
+
+    expect((await completeOnboardingPlan(choice, { savePlan, createActiveCycle, markOnboardingComplete })).success).toBe(false);
+    expect((await completeOnboardingPlan(choice, { savePlan, createActiveCycle, markOnboardingComplete })).success).toBe(true);
+    expect(createActiveCycle).toHaveBeenCalledTimes(2);
+    expect(createActiveCycle).toHaveBeenNthCalledWith(1, expect.any(Array), 8, '2026-06-08');
+    expect(markOnboardingComplete).toHaveBeenCalledTimes(1);
+  });
 });

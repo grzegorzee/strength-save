@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -36,7 +36,6 @@ const WorkoutHistory = () => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
-  const { workouts, isLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,6 +44,11 @@ const WorkoutHistory = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const { workouts, isLoaded, isLoadingMore, hasMore, loadMore } = useWorkoutHistoryPage(uid, {
+    fromDate: fromDate || undefined,
+    toDate: toDate || undefined,
+    completed: selectedStatus === 'all' ? undefined : selectedStatus === 'completed',
+  });
 
   // Resolver radzi sobie z treningami ze starych planów (snapshot → cykl → plan → id).
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
@@ -302,6 +306,14 @@ const WorkoutHistory = () => {
             })}
           </div>
         ))}
+
+        {hasMore && (
+          <div className="flex justify-center">
+            <Button variant="outline" onClick={loadMore} disabled={isLoadingMore}>
+              {isLoadingMore ? t('common.loading') : t('common.loadMore')}
+            </Button>
+          </div>
+        )}
 
         {filteredWorkouts.length === 0 && (
           <Card>

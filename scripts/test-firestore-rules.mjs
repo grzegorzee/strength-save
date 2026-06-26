@@ -92,6 +92,11 @@ add('create plan_cycle (active)', true, await ok(() => setDoc(doc(db, 'plan_cycl
 await seedUser(undefined, 'active', OTHER_UID);
 add('read cudzego plan_cycle zablokowane', false, await ok(() => getDoc(doc(otherDb, 'plan_cycles', 'c1'))));
 
+const mergeOperation = { userId: UID, kind: 'merge_cycles', phase: 'remapping', nextWorkoutIndex: 0, nextCycleIndex: 0 };
+add('create prywatnego checkpointu merge cycles (active)', true, await ok(() => setDoc(doc(db, 'plan_cycle_operations', 'merge-c1'), mergeOperation)));
+add('read cudzego checkpointu merge cycles zablokowane', false, await ok(() => getDoc(doc(otherDb, 'plan_cycle_operations', 'merge-c1'))));
+add('update checkpointu ze zmiana userId zablokowane', false, await ok(() => updateDoc(doc(db, 'plan_cycle_operations', 'merge-c1'), { userId: OTHER_UID })));
+
 await env.clearFirestore();
 await seedUser({ enabled: true }, 'pending_verification');
 add('create plan_cycle (pending_verification) zablokowane', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c2'), cycle)));
@@ -135,6 +140,7 @@ await seedUser({ enabled: true });
 add('user update estimatedMaxHR zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 190 })));
 add('user update maxHRManualOverride zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { maxHRManualOverride: true })));
 add('user update zwyklego pola profilu (displayName)', true, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'G' })));
+add('user update trainingProfile podczas onboardingu', true, await ok(() => updateDoc(doc(db, 'users', UID), { trainingProfile: { level: 'beginner', objective: 'build_muscle', daysPerWeek: 3 } })));
 add('user update subscription zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { subscription: { tier: 'yearly', status: 'active' } })));
 add('zapis Max HR przez admin SDK (sciezka callable saveMaxHR)', true, await ok(() => env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(ctx.firestore(), 'users', UID), { estimatedMaxHR: 190, maxHRManualOverride: true }, { merge: true });

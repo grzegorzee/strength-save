@@ -65,6 +65,7 @@ enum WeightUnit: String {
 enum WatchEvent {
     static func setLogged(date: String, dayId: String, exerciseId: String, setIndex: Int, reps: Int, weight: Double, completed: Bool) -> [String: Any] {
         [
+            "id": UUID().uuidString,
             "type": "setLogged",
             "date": date,
             "dayId": dayId,
@@ -79,6 +80,7 @@ enum WatchEvent {
 
     static func workoutFinished(date: String, dayId: String) -> [String: Any] {
         [
+            "id": UUID().uuidString,
             "type": "workoutFinished",
             "date": date,
             "dayId": dayId,
@@ -88,6 +90,7 @@ enum WatchEvent {
 
     static func startWorkout(date: String, dayId: String) -> [String: Any] {
         [
+            "id": UUID().uuidString,
             "type": "startWorkout",
             "date": date,
             "dayId": dayId,

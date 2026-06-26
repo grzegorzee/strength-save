@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
   doc,
-  addDoc,
   getDoc,
+  getDocs,
+  runTransaction,
+  setDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   query,
   where,
   orderBy,
@@ -15,14 +18,29 @@ import { db } from '@/lib/firebase';
 import type { PlanCycle, PlanCycleStats } from '@/types/cycles';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { calendarDayDiff, formatLocalDate } from '@/lib/utils';
 import { computeCycleStats } from '@/lib/cycle-insights';
-import { shouldMergeContinuousCycles } from '@/lib/plan-cycle-utils';
+import { chunkForFirestoreWrite, shouldMergeContinuousCycles } from '@/lib/plan-cycle-utils';
 
 const CYCLES_COLLECTION = 'plan_cycles';
+const CYCLE_OPERATIONS_COLLECTION = 'plan_cycle_operations';
+
+interface MergeOperation {
+  userId: string;
+  kind: 'merge_cycles';
+  primaryCycleId: string;
+  restCycleIds: string[];
+  workoutIds: string[];
+  newStart: string;
+  newEnd: string;
+  newDuration: number;
+  phase: 'remapping' | 'updating_primary' | 'deleting';
+  nextWorkoutIndex: number;
+  nextCycleIndex: number;
+}
 
 const archivedDurationWeeks = (startDate: string, endDate: string, plannedWeeks: number): number => {
-  const elapsedDays = Math.floor((parseLocalDate(endDate).getTime() - parseLocalDate(startDate).getTime()) / 86_400_000) + 1;
+  const elapsedDays = calendarDayDiff(startDate, endDate) + 1;
   const elapsedWeeks = Math.max(1, Math.ceil(elapsedDays / 7));
   return Math.max(1, Math.min(plannedWeeks, elapsedWeeks));
 };
@@ -131,8 +149,13 @@ export const usePlanCycles = (userId: string) => {
         stats,
       };
 
-      const docRef = await addDoc(collection(db, CYCLES_COLLECTION), cycle);
-      return docRef.id;
+      const cycleId = `cycle-${userId}-${startDate}`;
+      const cycleRef = doc(db, CYCLES_COLLECTION, cycleId);
+      await runTransaction(db, async transaction => {
+        const existing = await transaction.get(cycleRef);
+        if (!existing.exists()) transaction.set(cycleRef, cycle);
+      });
+      return cycleId;
     } catch (err) {
       console.error('[usePlanCycles] Archive error:', err);
       return null;
@@ -158,8 +181,15 @@ export const usePlanCycles = (userId: string) => {
         stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
       };
 
-      const docRef = await addDoc(collection(db, CYCLES_COLLECTION), cycle);
-      return docRef.id;
+      // The start date is the operation key. Retrying after a lost response must
+      // observe the same cycle rather than create another active one.
+      const cycleId = `cycle-${userId}-${startDate}`;
+      const cycleRef = doc(db, CYCLES_COLLECTION, cycleId);
+      await runTransaction(db, async transaction => {
+        const existing = await transaction.get(cycleRef);
+        if (!existing.exists()) transaction.set(cycleRef, cycle);
+      });
+      return cycleId;
     } catch (err) {
       console.error('[usePlanCycles] Create active cycle error:', err);
       return null;
@@ -183,16 +213,83 @@ export const usePlanCycles = (userId: string) => {
     return null;
   }, [cycles]);
 
-  // Naprawa: scala zakończone cykle, które są kontynuacją tego samego planu bez
-  // wyboru nowego (kolejny zaczyna się ≤14 dni po końcu poprzedniego). Remapuje
-  // treningi na cykl główny, rozszerza jego zakres i przelicza statystyki.
+  const runMergeOperation = useCallback(async (
+    operationId: string,
+    operation: MergeOperation,
+    workouts: WorkoutSession[],
+  ): Promise<number> => {
+    const operationRef = doc(db, CYCLE_OPERATIONS_COLLECTION, operationId);
+    const primaryRef = doc(db, CYCLES_COLLECTION, operation.primaryCycleId);
+    const primarySnapshot = await getDoc(primaryRef);
+    if (!primarySnapshot.exists()) throw new Error(`Missing primary cycle ${operation.primaryCycleId}`);
+    const primary = { id: primarySnapshot.id, ...primarySnapshot.data() } as PlanCycle;
+    const restIds = new Set(operation.restCycleIds);
+
+    let nextWorkoutIndex = operation.nextWorkoutIndex;
+    if (operation.phase === 'remapping') {
+      const workoutById = new Map(workouts.map(workout => [workout.id, workout]));
+      const pendingIds = operation.workoutIds.slice(nextWorkoutIndex);
+      for (const ids of chunkForFirestoreWrite(pendingIds)) {
+        const batch = writeBatch(db);
+        ids.forEach(id => {
+          // A previously committed batch can be replayed safely if the checkpoint
+          // write was the step that failed.
+          if (workoutById.has(id)) batch.update(doc(db, 'workouts', id), { cycleId: primary.id });
+        });
+        await batch.commit();
+        nextWorkoutIndex += ids.length;
+        await updateDoc(operationRef, { nextWorkoutIndex });
+      }
+      await updateDoc(operationRef, { phase: 'updating_primary' });
+      operation = { ...operation, phase: 'updating_primary', nextWorkoutIndex };
+    }
+
+    if (operation.phase === 'updating_primary') {
+      const remapped = workouts.map(workout =>
+        restIds.has(workout.cycleId ?? '') ? { ...workout, cycleId: primary.id } : workout,
+      );
+      const stats = computeCycleStats(remapped, primary.days, operation.newStart, operation.newEnd, operation.newDuration, primary.id);
+      await updateDoc(primaryRef, { endDate: operation.newEnd, durationWeeks: operation.newDuration, stats });
+      await updateDoc(operationRef, { phase: 'deleting' });
+      operation = { ...operation, phase: 'deleting' };
+    }
+
+    let nextCycleIndex = operation.nextCycleIndex;
+    if (operation.phase === 'deleting') {
+      for (const cycleIds of chunkForFirestoreWrite(operation.restCycleIds.slice(nextCycleIndex))) {
+        const batch = writeBatch(db);
+        cycleIds.forEach(cycleId => batch.delete(doc(db, CYCLES_COLLECTION, cycleId)));
+        await batch.commit();
+        nextCycleIndex += cycleIds.length;
+        await updateDoc(operationRef, { nextCycleIndex });
+      }
+      await deleteDoc(operationRef);
+    }
+    return operation.restCycleIds.length;
+  }, []);
+
+  // Scala zakończone cykle, które są kontynuacją tego samego planu. Stan operacji
+  // jest trwały, więc 501+ treningów można dokończyć po reloadzie lub partial failure.
   const mergeContinuousCycles = useCallback(async (workouts: WorkoutSession[]): Promise<number> => {
+    if (!userId) return 0;
+    const pending = await getDocs(query(
+      collection(db, CYCLE_OPERATIONS_COLLECTION),
+      where('userId', '==', userId),
+      where('kind', '==', 'merge_cycles'),
+    ));
+    let removed = 0;
+    for (const pendingOperation of pending.docs) {
+      removed += await runMergeOperation(pendingOperation.id, pendingOperation.data() as MergeOperation, workouts);
+    }
+    // Snapshot state can still contain cycles just deleted by a resumed operation.
+    // Let the listener refresh before discovering new merge groups.
+    if (!pending.empty) return removed;
+
     const completed = cycles
       .filter((c) => c.status === 'completed' && c.startDate && c.endDate)
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
-    const daysBetween = (a: string, b: string) =>
-      Math.round((parseLocalDate(b).getTime() - parseLocalDate(a).getTime()) / 86_400_000);
+    const daysBetween = (a: string, b: string) => calendarDayDiff(a, b);
     const weeksBetween = (a: string, b: string) =>
       Math.max(1, Math.ceil((daysBetween(a, b) + 1) / 7));
 
@@ -207,7 +304,6 @@ export const usePlanCycles = (userId: string) => {
       }
     }
 
-    let removed = 0;
     for (const group of groups) {
       if (group.length < 2) continue;
       const primary = group[0];
@@ -217,22 +313,25 @@ export const usePlanCycles = (userId: string) => {
       const newEnd = group[group.length - 1].endDate;
       const newDuration = weeksBetween(newStart, newEnd);
 
-      const toRemap = workouts.filter((w) => w.cycleId && restIds.has(w.cycleId));
-      for (const w of toRemap) {
-        await updateDoc(doc(db, 'workouts', w.id), { cycleId: primary.id });
-      }
-
-      const remapped = workouts.map((w) => (w.cycleId && restIds.has(w.cycleId) ? { ...w, cycleId: primary.id } : w));
-      const stats = computeCycleStats(remapped, primary.days, newStart, newEnd, newDuration, primary.id);
-      await updateDoc(doc(db, CYCLES_COLLECTION, primary.id), { endDate: newEnd, durationWeeks: newDuration, stats });
-
-      for (const c of rest) {
-        await deleteDoc(doc(db, CYCLES_COLLECTION, c.id));
-        removed += 1;
-      }
+      const operationId = `merge-${primary.id}`;
+      const operation: MergeOperation = {
+        userId,
+        kind: 'merge_cycles',
+        primaryCycleId: primary.id,
+        restCycleIds: rest.map(cycle => cycle.id),
+        workoutIds: workouts.filter(workout => workout.cycleId && restIds.has(workout.cycleId)).map(workout => workout.id),
+        newStart,
+        newEnd,
+        newDuration,
+        phase: 'remapping',
+        nextWorkoutIndex: 0,
+        nextCycleIndex: 0,
+      };
+      await setDoc(doc(db, CYCLE_OPERATIONS_COLLECTION, operationId), operation, { merge: true });
+      removed += await runMergeOperation(operationId, operation, workouts);
     }
     return removed;
-  }, [cycles]);
+  }, [cycles, runMergeOperation, userId]);
 
   // Usuwa pojedynczy cykl (np. błędny/fantomowy). Treningi NIE są kasowane —
   // odtagowujemy je z cycleId, żeby nie zostały osierocone pod nieistniejącym cyklem.
@@ -240,8 +339,10 @@ export const usePlanCycles = (userId: string) => {
     if (!userId || !cycleId) return false;
     try {
       const tagged = workouts.filter((w) => w.cycleId === cycleId);
-      for (const w of tagged) {
-        await updateDoc(doc(db, 'workouts', w.id), { cycleId: null });
+      for (let index = 0; index < tagged.length; index += 450) {
+        const batch = writeBatch(db);
+        tagged.slice(index, index + 450).forEach(workout => batch.update(doc(db, 'workouts', workout.id), { cycleId: null }));
+        await batch.commit();
       }
       await deleteDoc(doc(db, CYCLES_COLLECTION, cycleId));
       return true;

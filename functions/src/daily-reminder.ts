@@ -1,6 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { forEachWithConcurrency } from "./bounded-concurrency";
 
 // Codzienne poranne przypomnienie o treningu (push). Spersonalizowane: imię + dzisiejszy focus.
 // Wysyłamy TYLKO gdy: user ma token, nie wyłączył przypomnień, ma dostęp i dziś jest dzień treningowy.
@@ -15,6 +16,9 @@ const INVALID_TOKEN_CODES = new Set([
   "messaging/registration-token-not-registered",
   "messaging/invalid-registration-token",
 ]);
+const FCM_TOKEN_REGISTRATIONS_COLLECTION = "fcm_token_registrations";
+const USER_PAGE_SIZE = 100;
+const REMINDER_CONCURRENCY = 10;
 
 export const getInvalidFcmTokens = (tokens: string[], responses: DeliveryResponse[]): string[] => (
   responses.flatMap((response, index) => (
@@ -36,32 +40,32 @@ export const dailyTrainingReminder = onSchedule(
     const today = WEEKDAYS[new Date().getDay()];
     logger.info(`[dailyReminder] start, dzień: ${today}`);
 
-    const usersSnap = await db.collection("users").get();
     let candidates = 0;
     let sent = 0;
     let failed = 0;
     let invalidTokens = 0;
 
-    for (const doc of usersSnap.docs) {
+    const processUser = async (doc: admin.firestore.QueryDocumentSnapshot) => {
       const u = doc.data() as {
         displayName?: string;
-        fcmTokens?: unknown;
         status?: string;
         access?: { enabled?: boolean };
         notificationPrefs?: { dailyReminder?: boolean };
       };
 
-      if (u.notificationPrefs?.dailyReminder === false) continue;
-      if (u.access?.enabled === false || u.status === "suspended") continue;
-      const tokens = Array.isArray(u.fcmTokens)
-        ? u.fcmTokens.filter((t): t is string => typeof t === "string" && !!t)
-        : [];
-      if (tokens.length === 0) continue;
+      if (u.notificationPrefs?.dailyReminder === false) return;
+      if (u.access?.enabled === false || u.status === "suspended") return;
+      const registrationSnap = await db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION)
+        .where("userId", "==", doc.id).get();
+      const tokens = registrationSnap.docs
+        .map((registration) => registration.data().token)
+        .filter((token): token is string => typeof token === "string" && !!token);
+      if (tokens.length === 0) return;
 
       const planSnap = await db.collection("training_plans").doc(doc.id).get();
       const days: PlanDay[] = planSnap.exists ? ((planSnap.data()?.days as PlanDay[]) || []) : [];
       const todayDay = days.find((d) => d.weekday === today);
-      if (!todayDay) continue; // dziś dzień wolny — nie przypominamy
+      if (!todayDay) return; // dziś dzień wolny — nie przypominamy
 
       candidates += 1;
 
@@ -84,13 +88,26 @@ export const dailyTrainingReminder = onSchedule(
           const invalid = getInvalidFcmTokens(tokenBatch, res.responses);
           if (invalid.length > 0) {
             invalidTokens += invalid.length;
-            await doc.ref.update({ fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalid) });
+            const deletes = registrationSnap.docs
+              .filter((registration) => invalid.includes(registration.data().token))
+              .map((registration) => registration.ref.delete());
+            await Promise.all(deletes);
           }
         }
       } catch (e) {
         logger.error(`[dailyReminder] send failed for ${doc.id}`, e);
       }
-    }
+    };
+
+    let last: admin.firestore.QueryDocumentSnapshot | undefined;
+    do {
+      let usersQuery = db.collection("users").orderBy(admin.firestore.FieldPath.documentId()).limit(USER_PAGE_SIZE);
+      if (last) usersQuery = usersQuery.startAfter(last);
+      const usersSnap = await usersQuery.get();
+      if (usersSnap.empty) break;
+      await forEachWithConcurrency(usersSnap.docs, REMINDER_CONCURRENCY, processUser);
+      last = usersSnap.docs[usersSnap.docs.length - 1];
+    } while (last);
 
     logger.info("[dailyReminder] done", { candidates, sent, failed, invalidTokens });
   },

@@ -10,6 +10,42 @@ class FakeRequest<T> {
   public onupgradeneeded: ((event: Event) => void) | null = null;
 }
 
+const enqueue = (callback: () => void | Promise<void>): void => {
+  queueMicrotask(() => {
+    void Promise.resolve(callback());
+  });
+};
+
+type Deferred<T = void> = {
+  promise: Promise<T>;
+  resolve: (value?: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+};
+
+const deferred = <T = void>(): Deferred<T> => {
+  let resolve!: (value?: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res as (value?: T | PromiseLike<T>) => void;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+let nextPutGate: Deferred | null = null;
+let nextPutStarted: Deferred | null = null;
+
+const blockNextPut = () => {
+  const gate = deferred();
+  const started = deferred();
+  nextPutGate = gate;
+  nextPutStarted = started;
+  return {
+    started: started.promise,
+    release: () => gate.resolve(),
+  };
+};
+
 class FakeObjectStore {
   constructor(
     private readonly data: Map<string, unknown>,
@@ -19,42 +55,50 @@ class FakeObjectStore {
 
   get(key: string) {
     const request = new FakeRequest<unknown>();
-    setTimeout(() => {
+    enqueue(() => {
       request.result = this.data.get(key);
       request.onsuccess?.(new Event('success'));
-    }, 0);
+    });
     return request as unknown as IDBRequest;
   }
 
   getAll() {
     const request = new FakeRequest<unknown[]>();
-    setTimeout(() => {
+    enqueue(() => {
       request.result = Array.from(this.data.values());
       request.onsuccess?.(new Event('success'));
-    }, 0);
+    });
     return request as unknown as IDBRequest;
   }
 
   put(value: { userId: string; sessionId?: string }, key?: IDBValidKey) {
     const request = new FakeRequest<string>();
-    setTimeout(() => {
+    const gate = nextPutGate;
+    const started = nextPutStarted;
+    nextPutGate = null;
+    nextPutStarted = null;
+    enqueue(async () => {
+      if (gate) {
+        started?.resolve();
+        await gate.promise;
+      }
       const resolvedKey = String(key ?? value.userId);
       this.data.set(resolvedKey, JSON.parse(JSON.stringify(value)));
       request.result = resolvedKey;
       request.onsuccess?.(new Event('success'));
       this.tx?.complete();
-    }, 0);
+    });
     return request as unknown as IDBRequest;
   }
 
   delete(key: string) {
     const request = new FakeRequest<undefined>();
-    setTimeout(() => {
+    enqueue(() => {
       this.data.delete(key);
       request.result = undefined;
       request.onsuccess?.(new Event('success'));
       this.tx?.complete();
-    }, 0);
+    });
     return request as unknown as IDBRequest;
   }
 }
@@ -74,9 +118,9 @@ class FakeTransaction {
   }
 
   complete() {
-    setTimeout(() => {
+    enqueue(() => {
       this.oncomplete?.(new Event('complete'));
-    }, 0);
+    });
   }
 }
 
@@ -111,7 +155,7 @@ class FakeIndexedDbFactory {
   open(name: string, version?: number) {
     const request = new FakeRequest<IDBDatabase>();
 
-    setTimeout(() => {
+    enqueue(() => {
       let entry = this.databases.get(name);
       if (!entry) {
         entry = { version: version ?? 1, stores: new Map() };
@@ -128,7 +172,7 @@ class FakeIndexedDbFactory {
 
       request.result = db;
       request.onsuccess?.(new Event('success'));
-    }, 0);
+    });
 
     return request as unknown as IDBOpenDBRequest;
   }
@@ -164,6 +208,8 @@ const baseDraft: ActiveWorkoutDraft = {
 describe('workoutDraftDb', () => {
   beforeEach(() => {
     localStorage.clear();
+    nextPutGate = null;
+    nextPutStarted = null;
     Object.defineProperty(window, 'indexedDB', {
       configurable: true,
       writable: true,
@@ -199,10 +245,41 @@ describe('workoutDraftDb', () => {
 
   it('markDraftSynced clears dirty flag and sets timestamp', async () => {
     await workoutDraftDb.saveActiveDraft(baseDraft);
-    await workoutDraftDb.markDraftSynced('user-1', 999);
+    await workoutDraftDb.markDraftSynced('user-1', 999, baseDraft.version);
     const loaded = await workoutDraftDb.loadActiveDraft('user-1');
     expect(loaded?.dirty).toBe(false);
     expect(loaded?.lastFirebaseSyncAt).toBe(999);
+  });
+
+  it('does not clear a newer local draft when an older cloud ACK arrives', async () => {
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 2, dayNotes: 'newer local edit' });
+    await workoutDraftDb.markDraftSynced('user-1', 999, 1);
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.dirty).toBe(true);
+    expect(loaded?.version).toBe(2);
+  });
+
+  it('serializes draft writes and keeps the newer version after a delayed older completion', async () => {
+    const gate = blockNextPut();
+    const firstWrite = workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 1, dayNotes: 'older edit' });
+    await gate.started;
+
+    const secondWrite = workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 2, dayNotes: 'newer edit' });
+
+    let secondWriteCompleted = false;
+    void secondWrite.then(() => {
+      secondWriteCompleted = true;
+    });
+    await Promise.resolve();
+    expect(secondWriteCompleted).toBe(false);
+
+    gate.release();
+    await Promise.all([firstWrite, secondWrite]);
+
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.version).toBe(2);
+    expect(loaded?.dayNotes).toBe('newer edit');
   });
 
   it('markCompletedLocally keeps draft and marks final sync pending', async () => {

@@ -5,6 +5,7 @@ import { defineConfig } from '@playwright/test';
 // playwright.emulator.config.ts (npm run e2e:emulator).
 export default defineConfig({
   testDir: './e2e',
+  outputDir: './tmp/playwright-results',
   testIgnore: '**/emulator/**',
   timeout: 30000,
   retries: process.env.CI ? 2 : 0,

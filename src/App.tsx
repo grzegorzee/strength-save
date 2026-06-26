@@ -23,8 +23,6 @@ import { PushRegistrar } from "./components/PushRegistrar";
 import { IosSwipeBack } from "./components/IosSwipeBack";
 import { Loader2, ShieldOff } from "lucide-react";
 import { lazyWithRetry } from "./lib/lazy-with-retry";
-import { auth } from "./lib/firebase";
-import { signOut } from "firebase/auth";
 import { EmailVerificationGate } from "./components/EmailVerificationGate";
 
 const queryClient = new QueryClient();
@@ -78,11 +76,13 @@ const AccessRestrictedView = ({
   accessEnabled,
   suspended,
   loadError,
+  onLogout,
 }: {
   email: string;
   accessEnabled: boolean;
   suspended?: boolean;
   loadError?: boolean;
+  onLogout: () => Promise<void>;
 }) => {
   const { t } = useTranslation();
   return (
@@ -116,7 +116,7 @@ const AccessRestrictedView = ({
         <Button variant="outline" onClick={() => window.location.reload()}>
           {t('gate.refresh')}
         </Button>
-        <Button variant="secondary" onClick={() => void signOut(auth)}>
+        <Button variant="secondary" onClick={() => void onLogout()}>
           {t('profile.logout')}
         </Button>
       </div>
@@ -125,7 +125,7 @@ const AccessRestrictedView = ({
   );
 };
 
-const AppRoutes = () => {
+const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
   const { isNewUser, profileLoaded, hasAppAccess, profile, needsEmailVerification, isSuspended, profileLoadError } = useCurrentUser();
 
   if (!profileLoaded) {
@@ -133,7 +133,7 @@ const AppRoutes = () => {
   }
 
   if (needsEmailVerification) {
-    return <EmailVerificationGate email={profile?.email || ''} />;
+    return <EmailVerificationGate email={profile?.email || ''} onLogout={onLogout} />;
   }
 
   if (!hasAppAccess) {
@@ -143,6 +143,7 @@ const AppRoutes = () => {
         accessEnabled={profile?.accessEnabled ?? false}
         suspended={isSuspended}
         loadError={!!profileLoadError && !profile}
+        onLogout={onLogout}
       />
     );
   }
@@ -182,7 +183,7 @@ const AppRoutes = () => {
                 <Route path="/exercise/:slug" element={<ExerciseDetail />} />
                 <Route path="/measurements" element={<Measurements />} />
                 <Route path="/new-plan" element={<NewPlan />} />
-                <Route path="/paywall" element={<Paywall />} />
+                <Route path="/paywall" element={<Paywall onLogout={onLogout} />} />
                 <Route path="/cycles" element={<Cycles />} />
                 <Route path="/history" element={<WorkoutHistory />} />
                 <Route path="/strava/callback" element={<StravaCallback />} />
@@ -204,7 +205,7 @@ const AppRoutes = () => {
 };
 
 const AuthenticatedApp = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, logout } = useAuth();
 
   if (loading) {
     return <AppLoader />;
@@ -230,7 +231,7 @@ const AuthenticatedApp = () => {
       <PushRegistrar />
       <AutoSyncOnReconnect />
       <PreferenceSync />
-      <AppRoutes />
+      <AppRoutes onLogout={logout} />
     </UserProvider>
   );
 };

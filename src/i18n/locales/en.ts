@@ -6,6 +6,7 @@ export const en: Record<keyof typeof pl, string> = {
   'common.cancel': 'Cancel',
   'common.back': 'Back',
   'common.loading': 'Loading...',
+  'common.loadMore': 'Load more',
   'common.results': 'results',
 
   'nav.dashboard': 'Dashboard',

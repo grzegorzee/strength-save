@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useWorkoutRange } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -19,7 +20,7 @@ import {
   filterWorkoutsByPeriod,
 } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
@@ -43,7 +44,7 @@ type Period = 'week' | 'month';
 
 const SummaryTab = () => {
   const { uid } = useCurrentUser();
-  const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
+  const { workouts: liveWorkouts, measurements, isLoaded: liveLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const { toast } = useToast();
@@ -63,6 +64,20 @@ const SummaryTab = () => {
       : getMonthBounds(new Date(bounds.start.getFullYear(), bounds.start.getMonth() - 1, 1))
   ), [bounds, period]);
   const boundsStartMs = bounds.start.getTime();
+  const rangeFromDate = formatLocalDate(previousBounds.start);
+  const rangeToDate = formatLocalDate(bounds.end);
+  const { workouts: periodRangeWorkouts, isLoaded: rangeLoaded } = useWorkoutRange(uid, {
+    fromDate: rangeFromDate,
+    toDate: rangeToDate,
+    pageSize: 250,
+    maxPages: 4,
+  });
+  const workouts = useMemo(() => {
+    const byId = new Map(liveWorkouts.map(workout => [workout.id, workout]));
+    periodRangeWorkouts.forEach(workout => byId.set(workout.id, workout));
+    return Array.from(byId.values());
+  }, [liveWorkouts, periodRangeWorkouts]);
+  const isLoaded = liveLoaded && rangeLoaded;
 
   const currentWorkouts = useMemo(
     () => filterWorkoutsByPeriod(workouts, bounds),

@@ -35,16 +35,28 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         }
     }
 
+    /// watchOS wywołuje recovery handler po relaunchu rozszerzenia podczas
+    /// aktywnego workoutu. Odtwarzamy parę session/builder zanim UI spróbuje
+    /// wznowić synchronizację z telefonem.
+    func recover(configuration: HKWorkoutConfiguration) {
+        guard HKHealthStore.isHealthDataAvailable(), session == nil else { return }
+        beginSession(configuration: configuration)
+    }
+
     private func beginSession() {
-        guard session == nil else { return }
         let config = HKWorkoutConfiguration()
         config.activityType = .traditionalStrengthTraining
         config.locationType = .indoor
+        beginSession(configuration: config)
+    }
+
+    private func beginSession(configuration: HKWorkoutConfiguration) {
+        guard session == nil else { return }
 
         do {
-            let session = try HKWorkoutSession(healthStore: store, configuration: config)
+            let session = try HKWorkoutSession(healthStore: store, configuration: configuration)
             let builder = session.associatedWorkoutBuilder()
-            builder.dataSource = HKLiveWorkoutDataSource(healthStore: store, workoutConfiguration: config)
+            builder.dataSource = HKLiveWorkoutDataSource(healthStore: store, workoutConfiguration: configuration)
             session.delegate = self
             builder.delegate = self
 

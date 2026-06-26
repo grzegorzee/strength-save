@@ -4,6 +4,8 @@ import type { PlanCycle } from '@/types/cycles';
 import {
   applyWeekdaysToPlanDays,
   buildActiveCyclePlanPatch,
+  chunkForFirestoreWrite,
+  getCycleStartPreview,
   hasExactWeekdaySelection,
   nextExerciseIdForDay,
   planExerciseOverlap,
@@ -89,5 +91,25 @@ describe('plan cycle utilities', () => {
     expect(planExerciseOverlap(first.days, samePlan.days)).toBe(1);
     expect(shouldMergeContinuousCycles(first, samePlan)).toBe(true);
     expect(shouldMergeContinuousCycles(first, differentPlan)).toBe(false);
+  });
+
+  it('treats the 2026-03-29 DST boundary as consecutive calendar days', () => {
+    const first = cycle('c1', '2026-03-02', '2026-03-28', [day('day-1')]);
+    const next = cycle('c2', '2026-03-30', '2026-04-26', [day('day-1')]);
+
+    expect(shouldMergeContinuousCycles(first, next)).toBe(true);
+  });
+
+  it('anchors a Wednesday start to that calendar week’s Monday', () => {
+    expect(getCycleStartPreview('2026-03-25')).toEqual({
+      selectedDate: '2026-03-25',
+      cycleStartDate: '2026-03-23',
+    });
+  });
+
+  it('splits a 501-workout remap into resumable Firestore-sized batches', () => {
+    const chunks = chunkForFirestoreWrite(Array.from({ length: 501 }, (_, index) => index));
+    expect(chunks.map(chunk => chunk.length)).toEqual([450, 51]);
+    expect(chunks.flat()).toHaveLength(501);
   });
 });

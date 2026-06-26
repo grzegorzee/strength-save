@@ -26,6 +26,7 @@
 		98DC6BAA8DF16448159670B3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC2C74C4F56CE93A4F37EF1 /* Foundation.framework */; };
 		B7E2F02E8A12508DB7EBA802 /* StrengthWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56060A252E81A9E253DCF097 /* StrengthWidgets.swift */; };
 		BFD820486A52B866B2D956CE /* WorkoutSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553AE42606DFFEAD2C43D706 /* WorkoutSessionManager.swift */; };
+		C8D03C12A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D03C11A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift */; };
 		C125BF53EEBADD9D37296307 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6FC2C74C4F56CE93A4F37EF1 /* Foundation.framework */; };
 		D49107F0D0A6DADA86650CFD /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C03062003363EC390CFA58 /* WorkoutStore.swift */; };
 		DE2119989E46C6CE74169801 /* BridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E6AF113A4DF6B15EE3C518 /* BridgeViewController.swift */; };
@@ -98,6 +99,7 @@
 		A84DA980A7D4CDB27985A666 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhoneWatchSessionManager.swift; sourceTree = "<group>"; };
 		B7A5C154A80546659595207D /* WatchBridgePlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchBridgePlugin.swift; sourceTree = "<group>"; };
+		C8D03C11A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchExtensionDelegate.swift; sourceTree = "<group>"; };
 		D1BBD2AE4E8CC17D105D4944 /* ExerciseDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExerciseDetailView.swift; sourceTree = "<group>"; };
 		E6C03062003363EC390CFA58 /* WorkoutStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
 		E83CF5EFFE95E2A5977E9A2B /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -200,6 +202,7 @@
 				E6C03062003363EC390CFA58 /* WorkoutStore.swift */,
 				31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */,
 				553AE42606DFFEAD2C43D706 /* WorkoutSessionManager.swift */,
+				C8D03C11A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift */,
 			);
 			name = WatchApp;
 			path = WatchApp;
@@ -385,6 +388,7 @@
 				792329F990DF8EC8CC529017 /* WorkoutModels.swift in Sources */,
 				D49107F0D0A6DADA86650CFD /* WorkoutStore.swift in Sources */,
 				BFD820486A52B866B2D956CE /* WorkoutSessionManager.swift in Sources */,
+				C8D03C12A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -432,7 +436,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WatchApp/StrengthWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -445,7 +449,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.0.1;
+				MARKETING_VERSION = 6.12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -573,7 +577,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -581,7 +585,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.0.1;
+				MARKETING_VERSION = 6.12.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -597,7 +601,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -605,7 +609,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.0.1;
+				MARKETING_VERSION = 6.12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
@@ -621,7 +625,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = WatchApp/StrengthWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -634,7 +638,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.0.1;
+				MARKETING_VERSION = 6.12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -649,7 +653,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WatchWidgets/Info.plist;
@@ -658,7 +662,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.0.1;
+				MARKETING_VERSION = 6.12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave.watchkitapp.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
@@ -673,7 +677,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 42;
+				CURRENT_PROJECT_VERSION = 43;
 				DEVELOPMENT_TEAM = J4CRD2SA6D;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = WatchWidgets/Info.plist;
@@ -682,7 +686,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 0.0.1;
+				MARKETING_VERSION = 6.12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.grzegorzjasionowicz.strengthsave.watchkitapp.widgets;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;

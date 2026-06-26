@@ -6,6 +6,7 @@ import { defineConfig } from '@playwright/test';
 // żeby nie kolidować z mockową suite ani z emulatorem.
 export default defineConfig({
   testDir: './e2e/emulator',
+  outputDir: './tmp/playwright-emulator-results',
   timeout: 45000,
   retries: process.env.CI ? 2 : 0,
   use: {

@@ -8,11 +8,13 @@ import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/lib/sync-center-payload';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
 
 // Po powrocie online (i na starcie sesji) automatycznie domyka zaległe final-synci
 // z kolejki — wcześniej wymagało to ręcznego "Ponów" w Sync Center w Ustawieniach.
-// Przetwarza WYŁĄCZNIE wpisy finalSyncPending (ukończone treningi); aktywne drafty
-// w trakcie treningu obsługuje WorkoutDay. Konflikt wersji (WORKOUT_CONFLICT) zostaje
+// Przetwarza WYŁĄCZNIE wpisy finalSyncPending (ukończone treningi), także aktywny
+// draft widoczny na Dashboardzie. Aktywne drafty w trakcie treningu obsługuje WorkoutDay.
+// Konflikt wersji (WORKOUT_CONFLICT) zostaje
 // w kolejce do ręcznego rozwiązania dialogiem w treningu.
 export const AutoSyncOnReconnect = () => {
   const { uid } = useCurrentUser();
@@ -26,13 +28,18 @@ export const AutoSyncOnReconnect = () => {
 
     const processQueue = async () => {
       if (runningRef.current || !navigator.onLine) return;
-      const entries = workoutSyncQueue.list(uid).filter((entry) => entry.finalSyncPending);
+      const [activeDrafts, queueEntries] = await Promise.all([
+        workoutDraftDb.listDrafts(uid),
+        Promise.resolve(workoutSyncQueue.list(uid)),
+      ]);
+      const entries = collectRetryableSyncEntries(activeDrafts, queueEntries)
+        .filter(({ entry }) => entry.finalSyncPending);
       if (entries.length === 0) return;
 
       runningRef.current = true;
       let synced = 0;
       try {
-        for (const entry of entries) {
+        for (const { entry, source } of entries) {
           let working = entry;
 
           if (working.sessionOrigin === 'provisional') {
@@ -42,11 +49,17 @@ export const AutoSyncOnReconnect = () => {
               continue;
             }
             workoutSyncQueue.remove(uid, entry.sessionId);
-            working = {
+            await workoutDraftDb.markPromotedToRemote(uid, promo.session.id, working.sessionId, {
+              updatedAt: promo.session.updatedAt,
+              revision: promo.session.revision,
+            });
+            working = await workoutDraftDb.loadDraft(uid, promo.session.id) ?? {
               ...working,
               sessionId: promo.session.id,
               sessionOrigin: 'remote',
               remoteSessionId: promo.session.id,
+              cloudUpdatedAt: promo.session.updatedAt,
+              cloudRevision: promo.session.revision,
             };
             workoutSyncQueue.upsertFromDraft(working);
             trackTelemetryEvent(uid, 'provisional_session_promoted');
@@ -78,7 +91,9 @@ export const AutoSyncOnReconnect = () => {
           }
 
           try {
-            await workoutDraftDb.clearActiveDraft(uid, working.sessionId);
+            if (source === 'active') {
+              await workoutDraftDb.clearActiveDraft(uid, working.sessionId);
+            }
           } catch {
             // Draft lokalny mógł już nie istnieć — wpis kolejki i tak czyścimy niżej.
           }
@@ -91,6 +106,7 @@ export const AutoSyncOnReconnect = () => {
       }
 
       if (synced > 0) {
+        window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
         trackTelemetryEvent(uid, 'sync_retry_auto', synced);
         toast({
           title: t('sync.autoSyncedTitle'),

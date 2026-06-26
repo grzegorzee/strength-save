@@ -81,7 +81,8 @@ export function prepareWeeklyData(
 // --- Generate summary text via Cloud Function (OpenAI key stays server-side) ---
 
 export async function generateWeeklySummaryText(stats: WeeklySummaryStats): Promise<string> {
-  const fn = httpsCallable<{ stats: WeeklySummaryStats }, { text: string }>(functions, 'generateWeeklySummary');
-  const result = await fn({ stats });
+  const requestId = globalThis.crypto?.randomUUID?.() ?? `weekly-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const fn = httpsCallable<{ stats: WeeklySummaryStats; requestId?: string }, { text: string }>(functions, 'generateWeeklySummary');
+  const result = await fn({ stats, requestId });
   return result.data.text;
 }

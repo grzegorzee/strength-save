@@ -13,8 +13,8 @@ export interface WatchAvailability {
 interface WatchBridgePluginApi {
   isAvailable(): Promise<WatchAvailability>;
   sendWorkout(options: { payload: string }): Promise<void>;
-  drainEvents(): Promise<{ events: string[] }>;
   peekEvents(): Promise<{ events: string[] }>;
+  ackEvents(options: { ids: string[] }): Promise<void>;
   addListener(
     eventName: 'watchEvent',
     listener: (data: { payload: string }) => void
@@ -69,6 +69,7 @@ export function getRestDefaultSeconds(): number {
 }
 
 export interface WatchSetLoggedEvent {
+  id?: string;
   type: 'setLogged';
   date: string;
   dayId: string;
@@ -81,6 +82,7 @@ export interface WatchSetLoggedEvent {
 }
 
 export interface WatchWorkoutFinishedEvent {
+  id?: string;
   type: 'workoutFinished';
   date: string;
   dayId: string;
@@ -88,6 +90,7 @@ export interface WatchWorkoutFinishedEvent {
 }
 
 export interface WatchStartWorkoutEvent {
+  id?: string;
   type: 'startWorkout';
   date: string;
   dayId: string;
@@ -126,14 +129,11 @@ export async function getWatchAvailability(): Promise<WatchAvailability | null> 
   }
 }
 
-export async function drainWatchEvents(): Promise<WatchEvent[]> {
-  if (!isWatchBridgeSupported()) return [];
-  try {
-    const { events } = await WatchBridge.drainEvents();
-    return events.map(parseWatchEvent).filter((e): e is WatchEvent => e !== null);
-  } catch {
-    return [];
-  }
+export const watchEventId = (event: WatchEvent): string => event.id ?? `legacy-${event.type}-${event.at}`;
+
+export async function ackWatchEvents(ids: string[]): Promise<void> {
+  if (!isWatchBridgeSupported() || ids.length === 0) return;
+  await WatchBridge.ackEvents({ ids });
 }
 
 /** Podgląd kolejki BEZ kasowania — dla globalnego routera (startWorkout). */

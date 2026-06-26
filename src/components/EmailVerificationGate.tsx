@@ -7,18 +7,17 @@ import { Loader2, MailCheck, AlertCircle, ExternalLink } from 'lucide-react';
 import { requestEmailVerificationCode, verifyEmailCode } from '@/lib/registration-api';
 import { getInboxProviders } from '@/lib/inbox-links';
 import { useToast } from '@/hooks/use-toast';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
 import { useTranslation } from '@/contexts/LanguageContext';
 
 interface EmailVerificationGateProps {
   email: string;
+  onLogout: () => Promise<void>;
 }
 
 // Po wysłaniu kodu blokujemy ponowne wysłanie na 60 s.
 const RESEND_COOLDOWN_SEC = 60;
 
-export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => {
+export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGateProps) => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [code, setCode] = useState('');
@@ -166,7 +165,7 @@ export const EmailVerificationGate = ({ email }: EmailVerificationGateProps) => 
           </div>
 
           <div className="flex gap-2">
-            <Button variant="secondary" className="w-full" onClick={() => void signOut(auth)}>
+            <Button variant="secondary" className="w-full" onClick={() => void onLogout()}>
               {t('profile.logout')}
             </Button>
           </div>

@@ -3,8 +3,10 @@ import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
+import { forEachWithConcurrency } from "./bounded-concurrency";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
+const DIGEST_CONCURRENCY = 10;
 
 interface WorkoutDoc {
   userId: string;
@@ -33,31 +35,6 @@ function escapeHtmlStr(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-async function listAllAuthUsers(): Promise<Array<{ uid: string; email: string }>> {
-  const users: Array<{ uid: string; email: string }> = [];
-  let pageToken: string | undefined;
-
-  do {
-    const result = await admin.auth().listUsers(1000, pageToken);
-    users.push(
-      ...result.users
-        .filter(user => user.email)
-        .map(user => ({ uid: user.uid, email: user.email! })),
-    );
-    pageToken = result.pageToken;
-  } while (pageToken);
-
-  return users;
-}
-
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
-}
-
 export const weeklyDigest = onSchedule(
   {
     schedule: "every monday 08:00",
@@ -77,14 +54,6 @@ export const weeklyDigest = onSchedule(
 
     const resend = new Resend(apiKey);
 
-    // Get all user emails from Firebase Auth
-    const userEmails = await listAllAuthUsers();
-
-    if (userEmails.length === 0) {
-      logger.info("[WeeklyDigest] No users with email found, skipping.");
-      return;
-    }
-
     // Get last Monday-Sunday range
     const now = new Date();
     const lastMonday = new Date(now);
@@ -102,7 +71,11 @@ export const weeklyDigest = onSchedule(
 
     logger.info(`[WeeklyDigest] Period: ${startStr} - ${endStr}`);
 
+    let processed = 0;
+    let sent = 0;
+    let failed = 0;
     const processUser = async (user: { uid: string; email: string }) => {
+      processed += 1;
       try {
         // Query workouts for this user
         const workoutsSnap = await db
@@ -226,19 +199,28 @@ export const weeklyDigest = onSchedule(
         });
         // Resend SDK nie rzuca przy odrzuceniu — błąd wraca w response.error.
         if (response.error) {
+          failed += 1;
           logger.error(`[WeeklyDigest] Provider rejected for ${user.email}: ${response.error.message}`);
           return;
         }
+        sent += 1;
         logger.info(`[WeeklyDigest] Email sent to ${user.email}`);
       } catch (error) {
+        failed += 1;
         logger.error(`[WeeklyDigest] Failed for ${user.email}:`, error);
       }
     };
 
-    for (const batch of chunkArray(userEmails, 10)) {
-      await Promise.allSettled(batch.map(processUser));
-    }
+    let pageToken: string | undefined;
+    do {
+      const result = await admin.auth().listUsers(1000, pageToken);
+      const pageUsers = result.users
+        .filter(user => user.email)
+        .map(user => ({ uid: user.uid, email: user.email! }));
+      await forEachWithConcurrency(pageUsers, DIGEST_CONCURRENCY, processUser);
+      pageToken = result.pageToken;
+    } while (pageToken);
 
-    logger.info("[WeeklyDigest] Done.");
+    logger.info("[WeeklyDigest] Done.", { processed, sent, failed });
   },
 );

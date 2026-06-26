@@ -21,5 +21,5 @@ export const buildSyncCenterSaveOptions = (draft: ActiveWorkoutDraft, now = Date
   startedAt: draft.finalSyncPending ? draft.startedAt : undefined,
   completedAt: draft.finalSyncPending ? draft.finalizedAt : undefined,
   ...(draft.finalSyncPending && { completed: true }),
-  expectedUpdatedAt: draft.cloudUpdatedAt ?? null,
+  expectedRevision: draft.cloudRevision ?? 0,
 });
