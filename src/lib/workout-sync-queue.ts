@@ -7,6 +7,7 @@ export interface WorkoutSyncQueueEntry extends ActiveWorkoutDraft {
   enqueuedAt: number;
   retryCount: number;
   lastError: string | null;
+  lastErrorAt: number | null;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -51,6 +52,7 @@ const normalizeQueueEntry = (value: unknown): WorkoutSyncQueueEntry | null => {
     enqueuedAt: Number(value.enqueuedAt) || Date.now(),
     retryCount: Number(value.retryCount) || 0,
     lastError: value.lastError == null ? null : String(value.lastError),
+    lastErrorAt: value.lastErrorAt == null ? null : Number(value.lastErrorAt),
   };
 };
 
@@ -102,6 +104,9 @@ export const workoutSyncQueue = {
       enqueuedAt: existing?.enqueuedAt ?? Date.now(),
       retryCount: existing?.retryCount ?? 0,
       lastError: options.lastError ?? existing?.lastError ?? null,
+      lastErrorAt: options.lastError
+        ? Date.now()
+        : existing?.lastErrorAt ?? null,
     };
 
     const nextEntries = existing
@@ -132,6 +137,7 @@ export const workoutSyncQueue = {
         ...entry,
         retryCount: entry.retryCount + 1,
         lastError: error,
+        lastErrorAt: error ? Date.now() : entry.lastErrorAt,
       };
       return updatedEntry;
     });

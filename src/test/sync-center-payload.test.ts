@@ -45,6 +45,7 @@ describe('Sync Center retry payload', () => {
     ]);
 
     expect(buildSyncCenterSaveOptions(draft, 61_000)).toEqual({
+      cycleId: 'cycle-1',
       notes: 'good session',
       skippedExercises: ['ex-2'],
       dayName: 'Push',

@@ -32,6 +32,7 @@ const queueEntry = (overrides: Partial<WorkoutSyncQueueEntry> = {}): WorkoutSync
   enqueuedAt: 3,
   retryCount: 0,
   lastError: null,
+  lastErrorAt: null,
   ...overrides,
 });
 

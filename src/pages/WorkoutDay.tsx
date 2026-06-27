@@ -51,6 +51,12 @@ import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorko
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
 import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
+import { FEATURE_FLAGS } from '@/lib/feature-flags';
+import {
+  areWorkoutStartSourcesReady,
+  buildWorkoutStartSnapshot,
+  findUniqueCycleForDate,
+} from '@/lib/workout-start';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -78,10 +84,10 @@ const WorkoutDay = () => {
     createOfflineWorkoutSession,
     batchSaveWorkout,
     getWorkoutSessionFromServer,
-    isLoaded
+    isLoaded: workoutsLoaded
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, swapExercise } = useTrainingPlan(uid);
-  const { getActiveCycle, cycles } = usePlanCycles(uid);
+  const { plan: trainingPlan, swapExercise, isLoaded: planLoaded } = useTrainingPlan(uid);
+  const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const today = formatLocalDate(new Date());
@@ -134,6 +140,7 @@ const WorkoutDay = () => {
   const draftRecoveryDone = useRef<string | null>(null);
   const isSyncingRef = useRef(false);
   const completedSessionLockRef = useRef<string | null>(null);
+  const cycleRepairAttemptRef = useRef<string | null>(null);
   // Znacznik wersji dokumentu w chmurze dla sesji wczytanej z Firestore (bez draftu).
   // Bez tego seeda draft tworzony nad istniejącym workoutem ma cloudRevision=undefined,
   // czyli precondition rewizji byłaby utracona.
@@ -185,6 +192,11 @@ const WorkoutDay = () => {
   const daySnapshotRef = useRef<{ dayName: string; focus: string; names: Record<string, string> }>({ dayName: '', focus: '', names: {} });
 
   const baseDay = trainingPlan.find(d => d.id === dayId);
+  const draftForDaySnapshot = activeDraft && activeDraft.dayId === dayId && activeDraft.date === targetDate
+    ? activeDraft
+    : queuedDraft && queuedDraft.dayId === dayId && queuedDraft.date === targetDate
+      ? queuedDraft
+      : null;
 
   // Zapisany trening dla oglądanej daty (jeśli istnieje).
   const workoutForDate = useMemo(
@@ -222,6 +234,27 @@ const WorkoutDay = () => {
       return snapshotDay;
     }
 
+    if (draftForDaySnapshot && Object.keys(draftForDaySnapshot.exerciseSets).length > 0) {
+      const exerciseNames = draftForDaySnapshot.exerciseNames ?? {};
+      const snapshotDay: TrainingDay = {
+        id: draftForDaySnapshot.dayId,
+        dayName: draftForDaySnapshot.dayName || baseDay?.dayName || draftForDaySnapshot.dayId,
+        weekday: baseDay?.weekday ?? 'monday',
+        focus: draftForDaySnapshot.dayFocus || baseDay?.focus || '',
+        exercises: Object.entries(draftForDaySnapshot.exerciseSets).map(([exerciseId, sets]) => {
+          const baseExercise = baseDay?.exercises.find((exercise) => exercise.id === exerciseId);
+          return {
+            ...baseExercise,
+            id: exerciseId,
+            name: exerciseNames[exerciseId] || baseExercise?.name || exerciseId,
+            sets: `${sets.filter((set) => !set.isWarmup).length} serii`,
+            instructions: baseExercise?.instructions ?? [],
+          };
+        }),
+      };
+      return snapshotDay;
+    }
+
     if (!baseDay || Object.keys(sessionSwaps).length === 0) return baseDay;
     return {
       ...baseDay,
@@ -230,7 +263,7 @@ const WorkoutDay = () => {
         return ov ? { ...ex, id: ov.id, name: ov.name, sets: ov.sets, videoUrl: ov.videoUrl, instructions: [] } : ex;
       }),
     };
-  }, [baseDay, sessionSwaps, workoutForDate, isViewingPastWorkout, resolver, dayId]);
+  }, [baseDay, draftForDaySnapshot, sessionSwaps, workoutForDate, isViewingPastWorkout, resolver, dayId]);
 
   useEffect(() => {
     daySnapshotRef.current = day
@@ -285,6 +318,12 @@ const WorkoutDay = () => {
     : queuedDraft && queuedDraft.dayId === dayId && queuedDraft.date === targetDate
       ? queuedDraft
       : null);
+  const startSourcesReady = areWorkoutStartSourcesReady({
+    workoutsLoaded,
+    planLoaded,
+    cyclesLoaded,
+    draftLoaded: isDraftLoaded,
+  });
 
   // Find previous workout for this day (for weight hints)
   const previousWorkout = workouts.find(w =>
@@ -321,6 +360,7 @@ const WorkoutDay = () => {
   }, []);
 
   const startRestTimer = useCallback((payload: { seconds: number; exerciseLabel: string }) => {
+    if (!FEATURE_FLAGS.workoutTimers) return;
     setRestTimer((current) => ({
       open: true,
       seconds: payload.seconds,
@@ -418,7 +458,8 @@ const WorkoutDay = () => {
       exerciseId,
       sets,
       ...(exerciseNotesRef.current[exerciseId] && { notes: exerciseNotesRef.current[exerciseId] }),
-      ...(daySnapshotRef.current.names[exerciseId] && { name: daySnapshotRef.current.names[exerciseId] }),
+      ...((activeDraftRef.current?.exerciseNames?.[exerciseId] ?? daySnapshotRef.current.names[exerciseId])
+        && { name: activeDraftRef.current?.exerciseNames?.[exerciseId] ?? daySnapshotRef.current.names[exerciseId] }),
       ...(exerciseMetricsRef.current[exerciseId] ?? {}),
     }))
   ), []);
@@ -501,10 +542,11 @@ const WorkoutDay = () => {
         ? Math.max(0, Math.floor((finalizedAt - startedAt) / 1000))
         : undefined;
       const saveOptions = {
+        cycleId: currentDraft?.cycleId ?? undefined,
         notes: dayNotesRef.current || undefined,
         skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
-        dayName: daySnapshotRef.current.dayName || undefined,
-        dayFocus: daySnapshotRef.current.focus || undefined,
+        dayName: currentDraft?.dayName || daySnapshotRef.current.dayName || undefined,
+        dayFocus: currentDraft?.dayFocus || daySnapshotRef.current.focus || undefined,
         ...(requiresFinalSync && { completed: true }),
         ...(finalDurationSec !== undefined && { durationSec: finalDurationSec }),
         ...(requiresFinalSync && startedAt ? { startedAt } : {}),
@@ -710,7 +752,7 @@ const WorkoutDay = () => {
   }, [sessionId]);
 
   useEffect(() => {
-    if (!isLoaded || !isDraftLoaded || !dayId) return;
+    if (!startSourcesReady || !dayId) return;
 
     const workoutForDate = findWorkoutForRoute(workouts, {
       dayId,
@@ -844,11 +886,46 @@ const WorkoutDay = () => {
     });
     // t pominięte celowo: użyte tylko w toaście; dodanie zresetowałoby stan treningu przy zmianie języka
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isDraftLoaded, dayId, workouts, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid, today]);
+  }, [startSourcesReady, dayId, workouts, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid, today]);
+
+  // Naprawia wyłącznie jednoznaczne osierocenie: dokładnie jeden cykl obejmuje datę
+  // istniejącej sesji. Transakcja w createWorkoutSession chroni przed zmianą tożsamości.
+  useEffect(() => {
+    if (!startSourcesReady || !uid || !dayId || !workoutForDate || workoutForDate.cycleId) return;
+    const matchingCycle = findUniqueCycleForDate(cycles, workoutForDate.date);
+    if (!matchingCycle) return;
+    const repairKey = `${workoutForDate.id}:${matchingCycle.id}`;
+    if (cycleRepairAttemptRef.current === repairKey) return;
+    cycleRepairAttemptRef.current = repairKey;
+
+    void createWorkoutSession(dayId, workoutForDate.date, matchingCycle.id).then(async (result) => {
+      if (!result.session || result.session.cycleId !== matchingCycle.id) return;
+      cloudMetaRef.current = {
+        sessionId: result.session.id,
+        updatedAt: result.session.updatedAt,
+        revision: result.session.revision,
+      };
+      if (activeDraftRef.current?.sessionId === result.session.id) {
+        await persistDraftSnapshot({
+          cycleId: matchingCycle.id,
+          cloudUpdatedAt: result.session.updatedAt,
+          cloudRevision: result.session.revision,
+        }, { showStatus: false });
+      }
+    });
+  }, [
+    startSourcesReady,
+    uid,
+    dayId,
+    workoutForDate,
+    cycles,
+    createWorkoutSession,
+    persistDraftSnapshot,
+  ]);
 
   // Autostart workout when navigating with ?autostart=true
   useEffect(() => {
-    if (!autostart || autostartDone.current || !isLoaded || !day) return;
+    if (!autostart || autostartDone.current || !startSourcesReady || !day) return;
     if (isViewingPastWorkout || isCompleted) return;
 
     autostartDone.current = true;
@@ -868,7 +945,7 @@ const WorkoutDay = () => {
       }, 300);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autostart, isLoaded, day, isViewingPastWorkout, isCompleted, sessionId]);
+  }, [autostart, startSourcesReady, day, isViewingPastWorkout, isCompleted, sessionId]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -935,7 +1012,7 @@ const WorkoutDay = () => {
   // Pojedynczy scrollTo po 250ms zawodził: lista ćwiczeń po reloadzie jeszcze się renderuje,
   // strona jest za niska i scroll clampuje do zera — dlatego ponawiamy, aż strona urośnie.
   useEffect(() => {
-    if (!sessionId || !isLoaded || isCompleted || !scrollStorageKey) return;
+    if (!sessionId || !workoutsLoaded || isCompleted || !scrollStorageKey) return;
 
     const readSavedY = (): number | null => {
       try {
@@ -972,7 +1049,7 @@ const WorkoutDay = () => {
       timeouts.forEach(clearTimeout);
       document.removeEventListener('visibilitychange', handleVisible);
     };
-  }, [sessionId, isLoaded, isCompleted, scrollStorageKey]);
+  }, [sessionId, workoutsLoaded, isCompleted, scrollStorageKey]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -1015,7 +1092,7 @@ const WorkoutDay = () => {
   }, [sessionId, isCompleted]);
 
   const handleStartWorkout = async () => {
-    if (!day || !uid) return;
+    if (!day || !uid || !startSourcesReady) return;
     // Hard paywall (iOS): start treningu wymaga PRO/trialu; historia zostaje do odczytu.
     if (requiresPaywall) {
       navigate('/paywall');
@@ -1034,16 +1111,24 @@ const WorkoutDay = () => {
     setSaveError(null);
 
     try {
-      const activeCycle = getActiveCycle();
+      const startSnapshot = buildWorkoutStartSnapshot(day, targetDate, cycles);
       const shouldStartOffline = !navigator.onLine;
       const createRemoteWorkoutSession = () => Promise.race([
-        createWorkoutSession(day.id, targetDate, activeCycle?.id),
+        createWorkoutSession(startSnapshot.day.id, startSnapshot.date, startSnapshot.activeCycleId ?? undefined),
         new Promise<{ session: null; error: string }>(resolve => {
           setTimeout(() => resolve({ session: null, error: 'network-timeout' }), 2000);
         }),
       ]);
       let result = shouldStartOffline
-        ? { session: createOfflineWorkoutSession(day.id, targetDate, activeCycle?.id), existing: false, provisional: true }
+        ? {
+          session: createOfflineWorkoutSession(
+            startSnapshot.day.id,
+            startSnapshot.date,
+            startSnapshot.activeCycleId ?? undefined,
+          ),
+          existing: false,
+          provisional: true,
+        }
         : await createRemoteWorkoutSession();
 
       if (!shouldStartOffline && (result.error || !result.session)) {
@@ -1055,7 +1140,11 @@ const WorkoutDay = () => {
 
         if (canFallbackToOffline) {
           result = {
-            session: createOfflineWorkoutSession(day.id, targetDate, activeCycle?.id),
+            session: createOfflineWorkoutSession(
+              startSnapshot.day.id,
+              startSnapshot.date,
+              startSnapshot.activeCycleId ?? undefined,
+            ),
             existing: false,
             provisional: true,
           };
@@ -1088,7 +1177,7 @@ const WorkoutDay = () => {
       } else {
         // Pre-fill with progression from previous workout
         const prefilled: Record<string, SetData[]> = {};
-        day.exercises.forEach((exercise) => {
+        startSnapshot.day.exercises.forEach((exercise) => {
           const prevSets = getPreviousSets(exercise.id, exercise.name);
           const count = parseSetCount(exercise.sets);
           prefilled[exercise.id] = createPrefilledSets(
@@ -1104,17 +1193,22 @@ const WorkoutDay = () => {
         const initialDraft: ActiveWorkoutDraft = {
           sessionId: result.session.id,
           userId: uid,
-          dayId: day.id,
-          date: targetDate,
-          cycleId: activeCycle?.id ?? null,
+          dayId: startSnapshot.day.id,
+          date: startSnapshot.date,
+          cycleId: startSnapshot.activeCycleId,
           sessionOrigin: result.provisional ? 'provisional' : 'remote',
           remoteSessionId: result.provisional ? null : result.session.id,
           cloudUpdatedAt: result.session.updatedAt,
           cloudRevision: result.session.revision,
           exerciseSets: prefilled,
           exerciseNotes: {},
+          exerciseNames: Object.fromEntries(
+            startSnapshot.day.exercises.map((exercise) => [exercise.id, exercise.name]),
+          ),
           exerciseMetrics: {},
           dayNotes: '',
+          dayName: startSnapshot.day.dayName,
+          dayFocus: startSnapshot.day.focus,
           skippedExercises: [],
           startedAt: now,
           updatedAt: now,
@@ -1147,8 +1241,11 @@ const WorkoutDay = () => {
         toast({
           title: result.provisional ? t('workout.toast.startedOfflineTitle') : t('workout.toast.startedTitle'),
           description: result.provisional
-            ? t('workout.toast.startedOfflineDesc', { day: localizeDayName(day.dayName, lang), focus: localizeFocus(day.focus, lang) })
-            : `${localizeDayName(day.dayName, lang)} - ${localizeFocus(day.focus, lang)}`,
+            ? t('workout.toast.startedOfflineDesc', {
+              day: localizeDayName(startSnapshot.day.dayName, lang),
+              focus: localizeFocus(startSnapshot.day.focus, lang),
+            })
+            : `${localizeDayName(startSnapshot.day.dayName, lang)} - ${localizeFocus(startSnapshot.day.focus, lang)}`,
         });
       }
     } catch (err) {
@@ -1459,6 +1556,14 @@ const WorkoutDay = () => {
     // Nowy cykl = nowe id — dopasuj po nazwie (snapshot w historii).
     return exerciseName ? previousSetsByName.get(exerciseName) : undefined;
   };
+
+  if (!startSourcesReady) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!day) {
     return (
@@ -2005,7 +2110,7 @@ const WorkoutDay = () => {
         </div>
       )}
 
-      {isWorkoutStarted && !isCompleted && restTimer.open && (
+      {FEATURE_FLAGS.workoutTimers && isWorkoutStarted && !isCompleted && restTimer.open && (
         <RestTimer
           key={restTimer.runId}
           defaultSeconds={restTimer.seconds}
@@ -2056,7 +2161,7 @@ const WorkoutDay = () => {
             size="lg"
             className="kinetic-primary-button w-full py-6 text-base hover:brightness-105"
             onClick={handleStartWorkout}
-            disabled={isExplicitSaving}
+            disabled={isExplicitSaving || !startSourcesReady}
           >
             {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Play className="h-5 w-5 mr-2 fill-current" />}
             {t('dash.startWorkout')}

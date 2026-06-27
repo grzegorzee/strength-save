@@ -9,6 +9,7 @@ import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/l
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
+import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
 
 // Po powrocie online (i na starcie sesji) automatycznie domyka zaległe final-synci
 // z kolejki — wcześniej wymagało to ręcznego "Ponów" w Sync Center w Ustawieniach.
@@ -32,8 +33,13 @@ export const AutoSyncOnReconnect = () => {
         workoutDraftDb.listDrafts(uid),
         Promise.resolve(workoutSyncQueue.list(uid)),
       ]);
+      const conflictSessionIds = new Set(
+        queueEntries
+          .filter((entry) => isRevisionConflictError(entry.lastError))
+          .map((entry) => entry.sessionId),
+      );
       const entries = collectRetryableSyncEntries(activeDrafts, queueEntries)
-        .filter(({ entry }) => entry.finalSyncPending);
+        .filter(({ entry }) => entry.finalSyncPending && !conflictSessionIds.has(entry.sessionId));
       if (entries.length === 0) return;
 
       runningRef.current = true;
@@ -70,11 +76,19 @@ export const AutoSyncOnReconnect = () => {
           const expectation = buildWorkoutWriteExpectation(payload, options);
           const existingFinalWorkout = await getWorkoutSessionFromServer(working.sessionId);
           const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
+          if (working.cloudRevision === undefined && !alreadyFinalized) {
+            workoutSyncQueue.upsertFromDraft(working, { lastError: 'WORKOUT_REVISION_UNKNOWN' });
+            trackTelemetryEvent(uid, 'revision_conflict');
+            continue;
+          }
           const result = alreadyFinalized
             ? { success: true }
             : await batchSaveWorkout(working.sessionId, payload, options);
           if (!result.success) {
             workoutSyncQueue.markRetry(uid, working.sessionId, result.error || 'SYNC_FAILED');
+            if (isRevisionConflictError(result.error)) {
+              trackTelemetryEvent(uid, 'revision_conflict');
+            }
             continue;
           }
 

@@ -29,6 +29,10 @@ import { useUnit } from '@/contexts/UnitContext';
 import { formatLocalDate } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { isCycleVisible } from '@/lib/cycle-visibility';
+import { workoutDraftDb } from '@/lib/workout-draft-db';
+import { workoutSyncQueue } from '@/lib/workout-sync-queue';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 
 const Cycles = () => {
   const navigate = useNavigate();
@@ -43,7 +47,9 @@ const Cycles = () => {
   const [isRepeating, setIsRepeating] = useState(false);
   const [endPlanOpen, setEndPlanOpen] = useState(false);
   const [isEndingPlan, setIsEndingPlan] = useState(false);
-  const activeCycle = cycles.find(cycle => cycle.status === 'active') || null;
+  const visibleCycles = cycles.filter(isCycleVisible);
+  const activeCycle = visibleCycles.find(cycle => cycle.status === 'active') || null;
+  const [hasPendingFinalSync, setHasPendingFinalSync] = useState(false);
 
   const handleRepeatPlan = async () => {
     const days = activeCycle?.days?.length ? activeCycle.days : trainingPlan;
@@ -111,11 +117,29 @@ const Cycles = () => {
     console.log('[Cycles] Auto-repair: creating missing active cycle for existing plan');
     createActiveCycle(trainingPlan, planDurationWeeks, planStartDate);
   }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle, cycles, uid]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadSyncState = async () => {
+      const drafts = await workoutDraftDb.listDrafts(uid);
+      const pending = drafts.some((draft) => draft.finalSyncPending)
+        || workoutSyncQueue.list(uid).some((entry) => entry.finalSyncPending);
+      if (!cancelled) setHasPendingFinalSync(pending);
+    };
+    void loadSyncState();
+    window.addEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, loadSyncState);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, loadSyncState);
+    };
+  }, [uid]);
   const liveActiveCycle = buildActiveCyclePreview(activeCycle, workouts);
-  const visibleStoredCycles = cycles.filter(cycle => cycle.status === 'active' || cycle.stats.totalWorkouts > 0);
+  const visibleStoredCycles = visibleCycles.filter(cycle => cycle.status === 'active' || cycle.stats.totalWorkouts > 0);
   const previousCompletedCycle = visibleStoredCycles.find(cycle => cycle.status === 'completed') || null;
   const comparison = liveActiveCycle ? buildCycleComparison(liveActiveCycle, previousCompletedCycle) : null;
-  const recommendation = liveActiveCycle ? buildCycleRecommendation(liveActiveCycle, previousCompletedCycle, new Date(), lang) : null;
+  const recommendation = liveActiveCycle
+    ? buildCycleRecommendation(liveActiveCycle, previousCompletedCycle, new Date(), lang, { hasPendingFinalSync })
+    : null;
   const listedCycles = liveActiveCycle
     ? [liveActiveCycle, ...visibleStoredCycles.filter(cycle => cycle.id !== liveActiveCycle.id)]
     : visibleStoredCycles;

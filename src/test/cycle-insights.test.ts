@@ -36,7 +36,7 @@ const workouts: WorkoutSession[] = [
     id: 'w1',
     userId: 'user-1',
     dayId: 'day-1',
-    date: '2026-04-01',
+    date: '2026-03-30',
     completed: true,
     cycleId: 'cycle-current',
     exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 6, weight: 60, completed: true }] }],
@@ -45,7 +45,7 @@ const workouts: WorkoutSession[] = [
     id: 'w2',
     userId: 'user-1',
     dayId: 'day-2',
-    date: '2026-04-03',
+    date: '2026-04-01',
     completed: true,
     cycleId: 'cycle-current',
     exercises: [{ exerciseId: 'ex-2', sets: [{ reps: 6, weight: 70, completed: true }] }],
@@ -148,6 +148,26 @@ describe('cycle-insights', () => {
     expect(rec.tone).toBe('warning');
     expect(rec.title).toBe(translate('pl', 'cyclerec.stabilize.title'));
   });
+
+  it('problem integralności zastępuje coaching neutralnym komunikatem synchronizacji', () => {
+    const cycle: PlanCycle = {
+      id: 'orphaned', userId: 'u1', days: planDays, durationWeeks: 8,
+      startDate: '2026-05-25', endDate: '',
+      status: 'active', createdAt: '2026-05-25T00:00:00.000Z',
+      stats: {
+        totalWorkouts: 1,
+        totalTonnage: 1000,
+        prs: [],
+        completionRate: 20,
+        orphanWorkoutCount: 1,
+      },
+    };
+
+    const rec = buildCycleRecommendation(cycle, null, new Date('2026-06-08'));
+    expect(rec.tone).toBe('info');
+    expect(rec.title).toBe(translate('pl', 'cyclerec.sync.title'));
+    expect(rec.title).not.toBe(translate('pl', 'cyclerec.stabilize.title'));
+  });
 });
 
 describe('computeCycleStats — cycle attribution (regression: new cycle stealing workouts)', () => {
@@ -199,8 +219,8 @@ describe('computeCycleStats — cycle attribution (regression: new cycle stealin
       { id: 'sun', dayName: 'Niedziela', weekday: 'sunday', focus: 'C', exercises: [] },
     ];
     const completed: WorkoutSession[] = [
-      mk('w-mon', '2026-06-01', 'NEW'),
-      mk('w-wed', '2026-06-03', 'NEW'),
+      { ...mk('w-mon', '2026-06-01', 'NEW'), dayId: 'mon' },
+      { ...mk('w-wed', '2026-06-03', 'NEW'), dayId: 'wed' },
     ];
 
     const stats = computeCycleStats(completed, days, '2026-06-01', '2026-06-05', 12, 'NEW');
@@ -214,11 +234,45 @@ describe('computeCycleStats — cycle attribution (regression: new cycle stealin
       { id: 'mon', dayName: 'Poniedziałek', weekday: 'monday', focus: 'A', exercises: [] },
       { id: 'fri', dayName: 'Piątek', weekday: 'friday', focus: 'B', exercises: [] },
     ];
-    const completed = [mk('w-fri', '2026-06-19', 'NEW')];
+    const completed = [{ ...mk('w-fri', '2026-06-19', 'NEW'), dayId: 'fri' }];
 
     const stats = computeCycleStats(completed, days, '2026-06-19', '2026-06-19', 12, 'NEW');
     expect(stats.expectedWorkouts).toBe(1);
     expect(stats.missedWorkouts).toBe(0);
+  });
+
+  it('orphan w dokładnym slocie potwierdza obecność, ale zgłasza problem integralności', () => {
+    const orphan = { ...mk('orphan', '2026-06-01'), dayId: 'mon' };
+    const stats = computeCycleStats(
+      [orphan],
+      [{ id: 'mon', dayName: 'Poniedziałek', weekday: 'monday', focus: 'A', exercises: [] }],
+      '2026-06-01',
+      '2026-06-01',
+      12,
+      'NEW',
+    );
+
+    expect(stats.totalWorkouts).toBe(1);
+    expect(stats.completionRate).toBe(100);
+    expect(stats.missedWorkouts).toBe(0);
+    expect(stats.orphanWorkoutCount).toBe(1);
+  });
+
+  it('duplikat tego samego slotu nie podnosi frekwencji ponad 100%', () => {
+    const first = { ...mk('first', '2026-06-01', 'NEW'), dayId: 'mon' };
+    const duplicate = { ...mk('duplicate', '2026-06-01', 'NEW'), dayId: 'mon' };
+    const stats = computeCycleStats(
+      [first, duplicate],
+      [{ id: 'mon', dayName: 'Poniedziałek', weekday: 'monday', focus: 'A', exercises: [] }],
+      '2026-06-01',
+      '2026-06-01',
+      12,
+      'NEW',
+    );
+
+    expect(stats.totalWorkouts).toBe(1);
+    expect(stats.completionRate).toBe(100);
+    expect(stats.duplicateWorkoutsIgnored).toBe(1);
   });
 });
 

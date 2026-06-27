@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cloud, CloudOff, Download, ExternalLink, Loader2, RefreshCw, Trash2, Layers3 } from 'lucide-react';
+import { AlertTriangle, Cloud, CloudOff, Download, ExternalLink, Loader2, RefreshCw, Trash2, Layers3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,13 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/lib/sync-center-payload';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
 import { dateLocale } from '@/i18n';
+import type { WorkoutSession } from '@/types';
+import {
+  classifyWorkoutSyncError,
+  isRevisionConflictError,
+  summarizeCloudWorkout,
+  summarizeLocalDraft,
+} from '@/lib/workout-sync-conflict';
 
 interface SyncCenterCardProps {
   uid: string;
@@ -23,7 +30,14 @@ interface SyncCenterCardProps {
 
 // Active draft (no retry metadata) and queued entries are rendered in one list.
 // Queue-only fields are optional so the active draft is assignable too.
-type ListedSyncEntry = ActiveWorkoutDraft & Partial<Pick<WorkoutSyncQueueEntry, 'retryCount' | 'lastError'>>;
+type ListedSyncEntry = ActiveWorkoutDraft & Partial<Pick<WorkoutSyncQueueEntry, 'retryCount' | 'lastError' | 'lastErrorAt'>>;
+
+interface SyncConflict {
+  draft: ActiveWorkoutDraft;
+  source: 'active' | 'queue';
+  cloud: WorkoutSession | null;
+  error: string;
+}
 
 export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   const navigate = useNavigate();
@@ -36,6 +50,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [syncingSessionIds, setSyncingSessionIds] = useState<string[]>([]);
   const [discardingSessionIds, setDiscardingSessionIds] = useState<string[]>([]);
+  const [conflicts, setConflicts] = useState<Record<string, SyncConflict>>({});
 
   const loadDraft = useCallback(async () => {
     if (!uid) return;
@@ -78,6 +93,24 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     const dedupedQueue = queueEntries.filter(entry => !draftSessionIds.has(entry.sessionId));
     return [...drafts, ...dedupedQueue];
   }, [drafts, queueEntries]);
+
+  const registerConflict = useCallback(async (
+    targetDraft: ActiveWorkoutDraft,
+    source: 'active' | 'queue',
+    error: string,
+    knownCloud?: WorkoutSession | null,
+  ) => {
+    const cloud = knownCloud === undefined
+      ? await getWorkoutSessionFromServer(targetDraft.sessionId)
+      : knownCloud;
+    workoutSyncQueue.upsertFromDraft(targetDraft, { lastError: error });
+    setQueueEntries(workoutSyncQueue.list(uid));
+    setConflicts((current) => ({
+      ...current,
+      [targetDraft.sessionId]: { draft: targetDraft, source, cloud, error },
+    }));
+    trackTelemetryEvent(uid, 'revision_conflict');
+  }, [getWorkoutSessionFromServer, uid]);
 
   const syncOne = useCallback(async (targetDraft: ActiveWorkoutDraft, source: 'active' | 'queue') => {
     let workingDraft = targetDraft;
@@ -148,10 +181,25 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       const exercisesPayload = buildSyncCenterExercisesPayload(workingDraft);
       const saveOptions = buildSyncCenterSaveOptions(workingDraft);
       const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
-      const existingFinalWorkout = workingDraft.finalSyncPending
+      const shouldReadServerFirst = workingDraft.finalSyncPending
+        || (workingDraft.sessionOrigin === 'remote' && workingDraft.cloudRevision === undefined);
+      const existingFinalWorkout = shouldReadServerFirst
         ? await getWorkoutSessionFromServer(workingDraft.sessionId)
         : null;
       const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
+      if (
+        workingDraft.sessionOrigin === 'remote'
+        && workingDraft.cloudRevision === undefined
+        && !alreadyFinalized
+      ) {
+        await registerConflict(
+          workingDraft,
+          source,
+          existingFinalWorkout ? 'WORKOUT_REVISION_UNKNOWN' : 'WORKOUT_NOT_FOUND',
+          existingFinalWorkout,
+        );
+        return false;
+      }
       const result = alreadyFinalized
         ? {
           success: true,
@@ -161,6 +209,10 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         : await batchSaveWorkout(workingDraft.sessionId, exercisesPayload, saveOptions);
 
       if (!result.success) {
+        if (isRevisionConflictError(result.error)) {
+          await registerConflict(workingDraft, source, result.error || 'WORKOUT_CONFLICT');
+          return false;
+        }
         toast({
           title: t('strava.toastSyncFailTitle'),
           description: result.error || t('strava.tryAgainShortly'),
@@ -239,7 +291,124 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     } finally {
       setQueueEntries(workoutSyncQueue.list(uid));
     }
-  }, [batchSaveWorkout, createWorkoutSession, getWorkoutSessionFromServer, isOnline, loadDraft, toast, uid, t]);
+  }, [batchSaveWorkout, createWorkoutSession, getWorkoutSessionFromServer, isOnline, loadDraft, registerConflict, toast, uid, t]);
+
+  const handleKeepLocal = useCallback(async (conflict: SyncConflict) => {
+    const sessionId = conflict.draft.sessionId;
+    if (syncingSessionIds.includes(sessionId)) return;
+    setSyncingSessionIds((current) => [...current, sessionId]);
+    try {
+      const cloud = await getWorkoutSessionFromServer(sessionId);
+      if (!cloud) {
+        await registerConflict(conflict.draft, conflict.source, 'WORKOUT_NOT_FOUND', null);
+        return;
+      }
+
+      const exercises = buildSyncCenterExercisesPayload(conflict.draft);
+      const options = {
+        ...buildSyncCenterSaveOptions(conflict.draft),
+        expectedRevision: cloud.revision ?? 0,
+      };
+      const expectation = buildWorkoutWriteExpectation(exercises, options);
+      const result = await batchSaveWorkout(sessionId, exercises, options);
+      if (!result.success) {
+        if (isRevisionConflictError(result.error)) {
+          await registerConflict(conflict.draft, conflict.source, result.error || 'WORKOUT_CONFLICT');
+        } else {
+          workoutSyncQueue.upsertFromDraft(conflict.draft, { lastError: result.error || 'SYNC_FAILED' });
+        }
+        return;
+      }
+
+      if (conflict.draft.finalSyncPending) {
+        const confirmed = await getWorkoutSessionFromServer(sessionId);
+        const validation = validateWorkoutCloudWrite(confirmed, expectation);
+        if (!validation.ok) {
+          workoutSyncQueue.upsertFromDraft(conflict.draft, {
+            lastError: `VALIDATION_FAILED:${validation.reason ?? 'unknown'}`,
+          });
+          trackTelemetryEvent(uid, 'sync_validation_failed');
+          return;
+        }
+        if (conflict.source === 'active') {
+          await workoutDraftDb.clearActiveDraft(uid, sessionId);
+        }
+      } else if (conflict.source === 'active') {
+        await workoutDraftDb.markDraftSynced(
+          uid,
+          Date.now(),
+          conflict.draft.version,
+          sessionId,
+          { updatedAt: result.updatedAt, revision: result.revision },
+        );
+      }
+
+      workoutSyncQueue.remove(uid, sessionId);
+      setConflicts((current) => {
+        const next = { ...current };
+        delete next[sessionId];
+        return next;
+      });
+      await loadDraft();
+      window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
+      trackTelemetryEvent(uid, 'sync_success');
+      toast({
+        title: t('strava.toastWorkoutSyncedTitle'),
+        description: t('strava.toastWorkoutSyncedDesc'),
+      });
+    } finally {
+      setSyncingSessionIds((current) => current.filter((id) => id !== sessionId));
+      setQueueEntries(workoutSyncQueue.list(uid));
+    }
+  }, [
+    batchSaveWorkout,
+    getWorkoutSessionFromServer,
+    loadDraft,
+    registerConflict,
+    syncingSessionIds,
+    t,
+    toast,
+    uid,
+  ]);
+
+  const handleKeepCloud = useCallback(async (conflict: SyncConflict) => {
+    const sessionId = conflict.draft.sessionId;
+    if (discardingSessionIds.includes(sessionId)) return;
+    setDiscardingSessionIds((current) => [...current, sessionId]);
+    try {
+      const confirmedCloud = await getWorkoutSessionFromServer(sessionId);
+      if (!confirmedCloud) {
+        await registerConflict(conflict.draft, conflict.source, 'WORKOUT_NOT_FOUND', null);
+        return;
+      }
+      if (conflict.source === 'active') {
+        await workoutDraftDb.clearActiveDraft(uid, sessionId);
+      }
+      workoutSyncQueue.remove(uid, sessionId);
+      setConflicts((current) => {
+        const next = { ...current };
+        delete next[sessionId];
+        return next;
+      });
+      await loadDraft();
+      window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
+      toast({
+        title: t('strava.cloudVersionKeptTitle'),
+        description: t('strava.cloudVersionKeptDesc'),
+      });
+    } finally {
+      setDiscardingSessionIds((current) => current.filter((id) => id !== sessionId));
+      setQueueEntries(workoutSyncQueue.list(uid));
+    }
+  }, [
+    discardingSessionIds,
+    getWorkoutSessionFromServer,
+    loadDraft,
+    registerConflict,
+    t,
+    toast,
+    uid,
+  ]);
 
   const handleRetrySync = async (targetDraft: ActiveWorkoutDraft, source: 'active' | 'queue') => {
     if (syncingSessionIds.includes(targetDraft.sessionId)) return;
@@ -398,8 +567,66 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                     </p>
 
                     {entry.lastError && (
-                      <p className="text-xs text-destructive">{t('strava.lastError', { msg: entry.lastError })}</p>
+                      <div className="space-y-1 text-xs text-destructive">
+                        <p>{t('strava.lastError', { msg: entry.lastError })}</p>
+                        <p>
+                          {t('strava.errorCode', { code: classifyWorkoutSyncError(entry.lastError) })}
+                          {entry.lastErrorAt
+                            ? ` · ${new Date(entry.lastErrorAt).toLocaleString(dateLocale(lang))}`
+                            : ''}
+                        </p>
+                      </div>
                     )}
+
+                    {conflicts[entry.sessionId] && (() => {
+                      const conflict = conflicts[entry.sessionId];
+                      const localSummary = summarizeLocalDraft(conflict.draft);
+                      const cloudSummary = summarizeCloudWorkout(conflict.cloud);
+                      return (
+                        <div className="space-y-3 rounded-lg border border-fitness-warning/40 bg-fitness-warning/5 p-3">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-fitness-warning" />
+                            <div>
+                              <p className="text-sm font-medium">{t('strava.conflictTitle')}</p>
+                              <p className="text-xs text-muted-foreground">{t('strava.conflictDesc')}</p>
+                            </div>
+                          </div>
+                          <div className="grid gap-2 text-xs sm:grid-cols-2">
+                            <div className="rounded border bg-background p-2">
+                              <p className="font-medium">{t('strava.localVersion')}</p>
+                              <p>{t('strava.versionSummary', {
+                                exercises: localSummary.exercises,
+                                sets: localSummary.completedSets,
+                              })}</p>
+                            </div>
+                            <div className="rounded border bg-background p-2">
+                              <p className="font-medium">{t('strava.cloudVersion')}</p>
+                              <p>{cloudSummary
+                                ? t('strava.versionSummary', {
+                                  exercises: cloudSummary.exercises,
+                                  sets: cloudSummary.completedSets,
+                                })
+                                : t('strava.cloudVersionMissing')}</p>
+                            </div>
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <Button
+                              onClick={() => void handleKeepLocal(conflict)}
+                              disabled={isSyncing || !conflict.cloud}
+                            >
+                              {t('workout.conflict.keepMine')}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => void handleKeepCloud(conflict)}
+                              disabled={isDiscarding || !conflict.cloud}
+                            >
+                              {t('workout.conflict.useCloud')}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <div className="grid gap-2 sm:grid-cols-4">
                       <Button variant="outline" onClick={() => handleOpenWorkout(entry)}>

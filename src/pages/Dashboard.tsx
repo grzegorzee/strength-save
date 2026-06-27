@@ -33,6 +33,7 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
+import { isCycleVisible } from '@/lib/cycle-visibility';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
@@ -180,7 +181,8 @@ const Dashboard = () => {
     }).length;
     return thisWeekCompleted < 2 ? 2 - thisWeekCompleted : 0;
   }, [streak, workouts]);
-  const activeCycle = useMemo(() => cycles.find(cycle => cycle.status === 'active') ?? null, [cycles]);
+  const visibleCycles = useMemo(() => cycles.filter(isCycleVisible), [cycles]);
+  const activeCycle = useMemo(() => visibleCycles.find(cycle => cycle.status === 'active') ?? null, [visibleCycles]);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
   const workoutToDay = useMemo(() => (workout: typeof workouts[number]): TrainingDay => {
     const label = resolver.resolveDayLabel(workout);
@@ -198,13 +200,13 @@ const Dashboard = () => {
     };
   }, [resolver, t]);
   const previousCompletedCycle = useMemo(() => (
-    cycles
+    visibleCycles
       .filter(cycle => cycle.status === 'completed')
       .sort((a, b) => b.endDate.localeCompare(a.endDate))[0] ?? null
-  ), [cycles]);
+  ), [visibleCycles]);
   const currentPlanArchived = useMemo(() => (
-    !activeCycle && !!planStartDate && cycles.some(cycle => cycle.status === 'completed' && cycle.startDate === planStartDate)
-  ), [activeCycle, cycles, planStartDate]);
+    !activeCycle && !!planStartDate && visibleCycles.some(cycle => cycle.status === 'completed' && cycle.startDate === planStartDate)
+  ), [activeCycle, visibleCycles, planStartDate]);
   // Jeden jawny stan "plan się skończył": wygasł czasowo LUB user zakończył go wcześniej.
   const planEnded = isPlanExpired || currentPlanArchived;
 
@@ -249,7 +251,22 @@ const Dashboard = () => {
     previousCompletedCycle,
     today,
     lang,
-  }), [currentPlanArchived, currentWeek, isPlanExpired, liveActiveCycle, planDurationWeeks, previousCompletedCycle, today, trainingPlan.length, weeksRemaining, lang]);
+    hasPendingFinalSync: !!localDraft?.finalSyncPending
+      || pendingSyncCount > 0,
+  }), [
+    currentPlanArchived,
+    currentWeek,
+    isPlanExpired,
+    lang,
+    liveActiveCycle,
+    localDraft?.finalSyncPending,
+    pendingSyncCount,
+    planDurationWeeks,
+    previousCompletedCycle,
+    today,
+    trainingPlan.length,
+    weeksRemaining,
+  ]);
 
   // Dismissable "co dalej z planem?" card — hidden per plan (reappears when a new plan starts).
   const NEXT_STEP_DISMISS_KEY = 'fittracker_nextstep_dismissed';

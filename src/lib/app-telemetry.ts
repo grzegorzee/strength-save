@@ -16,7 +16,10 @@ export type TelemetryEventName =
   | 'sync_failure'
   | 'sync_validation_failed'
   | 'final_sync_pending'
-  | 'sync_queue_enqueued';
+  | 'sync_queue_enqueued'
+  | 'revision_conflict'
+  | 'orphan_workout'
+  | 'mixed_plan_exercise_set';
 
 type PendingTelemetry = Record<string, Record<TelemetryEventName, number>>;
 
@@ -69,7 +72,7 @@ export const flushTelemetryEvents = async (userId: string) => {
   for (const [dateKey, counters] of dateEntries) {
     const increments = Object.entries(counters).reduce<Record<string, ReturnType<typeof increment>>>((acc, [eventName, value]) => {
       if (typeof value === 'number' && value > 0) {
-        acc[`counters.${eventName}`] = increment(value);
+        acc[eventName] = increment(value);
       }
       return acc;
     }, {});
@@ -84,7 +87,7 @@ export const flushTelemetryEvents = async (userId: string) => {
         userId,
         date: dateKey,
         updatedAt: new Date().toISOString(),
-        ...increments,
+        counters: increments,
       }, { merge: true });
       successfullyFlushed.push(dateKey);
     } catch {

@@ -11,6 +11,7 @@ export const buildSyncCenterExercisesPayload = (draft: ActiveWorkoutDraft) => (
 );
 
 export const buildSyncCenterSaveOptions = (draft: ActiveWorkoutDraft, now = Date.now()) => ({
+  cycleId: draft.cycleId ?? undefined,
   notes: draft.dayNotes || undefined,
   skippedExercises: draft.skippedExercises.length > 0 ? draft.skippedExercises : undefined,
   dayName: draft.dayName || undefined,

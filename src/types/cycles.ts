@@ -9,6 +9,8 @@ export interface PlanCycleStats {
   missedWorkouts?: number;
   averageWorkoutsPerWeek?: number;
   averageTonnagePerWorkout?: number;
+  orphanWorkoutCount?: number;
+  duplicateWorkoutsIgnored?: number;
 }
 
 export interface PlanCycle {
@@ -21,4 +23,6 @@ export interface PlanCycle {
   status: 'active' | 'completed';
   createdAt: string;
   stats: PlanCycleStats;
+  technical?: boolean;
+  hiddenFromInsights?: boolean;
 }

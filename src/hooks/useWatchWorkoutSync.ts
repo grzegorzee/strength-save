@@ -20,6 +20,7 @@ import {
   type WatchWorkoutPayload,
   watchEventId,
 } from '@/lib/watch-bridge';
+import { FEATURE_FLAGS } from '@/lib/feature-flags';
 
 interface UseWatchWorkoutSyncOptions {
   /** Wysyłka i aplikowanie eventów tylko przy aktywnym treningu. */
@@ -60,7 +61,8 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         focus,
         sentAt: Date.now(),
         active: true,
-        restSeconds: getRestDefaultSeconds(),
+        timersEnabled: FEATURE_FLAGS.workoutTimers,
+        ...(FEATURE_FLAGS.workoutTimers && { restSeconds: getRestDefaultSeconds() }),
         unit: getUnitSystemForWatch(),
         exercises: exercises.map((exercise) => ({
           id: exercise.id,

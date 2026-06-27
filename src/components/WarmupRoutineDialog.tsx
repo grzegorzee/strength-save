@@ -13,6 +13,7 @@ import { Check, Timer, Flame } from 'lucide-react';
 import { warmupExercises, getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { FEATURE_FLAGS } from '@/lib/feature-flags';
 
 interface Props {
   focus: string;
@@ -45,6 +46,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
   };
 
   const startTimer = useCallback(() => {
+    if (!FEATURE_FLAGS.workoutTimers) return;
     setTimerSeconds(30);
     setTimerActive(true);
   }, []);
@@ -81,7 +83,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
         <Progress value={progress} className="h-2" />
 
         {/* Timer */}
-        {timerActive && (
+        {FEATURE_FLAGS.workoutTimers && timerActive && (
           <div className="flex items-center justify-center gap-3 py-3 bg-muted/30 rounded-lg">
             <Timer className="h-5 w-5 text-primary animate-pulse" />
             <span className="text-2xl font-bold tabular-nums">{timerSeconds}s</span>
@@ -141,7 +143,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
         </div>
 
         {/* Timer button */}
-        {!timerActive && (
+        {FEATURE_FLAGS.workoutTimers && !timerActive && (
           <Button variant="outline" size="sm" className="w-full" onClick={startTimer}>
             <Timer className="h-4 w-4 mr-2" /> {t('comp.warmup.timer30')}
           </Button>

@@ -35,6 +35,8 @@ struct WatchWorkoutPayload: Codable {
     var active: Bool?
     // Domyślny odpoczynek między seriami (z ustawień telefonu), sekundy.
     var restSeconds: Int?
+    // Globalna flaga timerów treningowych. Brak/false = timer wyłączony.
+    var timersEnabled: Bool?
     // Jednostka WYŚWIETLANIA ("kg"/"lbs"). Model i eventy zawsze trzymają kg.
     var unit: String?
     var exercises: [WatchExercise]?

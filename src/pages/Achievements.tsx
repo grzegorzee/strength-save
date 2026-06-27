@@ -22,6 +22,7 @@ import {
   type SpecialBadgeId,
 } from '@/lib/achievements-utils';
 import { medalForCompletionRate } from '@/lib/season-medals';
+import { isCycleVisible } from '@/lib/cycle-visibility';
 import { tooltipStyle } from '@/lib/chart-config';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
@@ -188,7 +189,7 @@ const Achievements = () => {
   // Półka medali: ukończone cykle (sezony) z medalem wg frekwencji, najnowsze pierwsze.
   const seasonShelf = useMemo(
     () => cycles
-      .filter(c => c.status === 'completed')
+      .filter(c => c.status === 'completed' && isCycleVisible(c) && c.stats.totalWorkouts > 0)
       .sort((a, b) => b.endDate.localeCompare(a.endDate))
       .map(c => ({ cycle: c, medal: medalForCompletionRate(c.stats.completionRate) })),
     [cycles],

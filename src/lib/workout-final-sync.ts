@@ -13,6 +13,7 @@ export interface WorkoutWriteExercise {
 export interface WorkoutWriteExpectation {
   completed: boolean;
   exercises: WorkoutWriteExercise[];
+  cycleId?: string;
   notes?: string;
   skippedExercises?: string[];
   dayName?: string;
@@ -67,6 +68,7 @@ export const buildWorkoutWriteExpectation = (
   exercises: WorkoutWriteExercise[],
   options: {
     completed?: boolean;
+    cycleId?: string;
     notes?: string;
     skippedExercises?: string[];
     dayName?: string;
@@ -85,6 +87,7 @@ export const buildWorkoutWriteExpectation = (
     ...(exercise.pain !== undefined && { pain: exercise.pain }),
     ...(exercise.quality !== undefined && { quality: exercise.quality }),
   })),
+  ...(options.cycleId !== undefined && { cycleId: options.cycleId }),
   ...(options.notes !== undefined && { notes: options.notes }),
   ...(options.skippedExercises !== undefined && { skippedExercises: options.skippedExercises }),
   ...(options.dayName !== undefined && { dayName: options.dayName }),
@@ -103,6 +106,10 @@ export const validateWorkoutCloudWrite = (
 
   if (expectation.completed && workout.completed !== true) {
     return { ok: false, reason: 'not-completed' };
+  }
+
+  if (expectation.cycleId !== undefined && workout.cycleId !== expectation.cycleId) {
+    return { ok: false, reason: 'cycle-id-mismatch' };
   }
 
   if (!stringMatches(workout.notes, expectation.notes)) {

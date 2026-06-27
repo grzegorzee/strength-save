@@ -156,7 +156,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(firstCard.locator('textarea')).toBeVisible();
   });
 
-  test('rest timer starts globally after a working set and can be closed', async ({ page }) => {
+  test('rest timer is globally unavailable while the feature flag is disabled', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('app-language', 'pl');
       localStorage.setItem('rest-timer-default', '30');
@@ -174,15 +174,6 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     const checkButtons = firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i });
     await checkButtons.nth(1).click();
 
-    const timer = page.getByTestId('rest-timer');
-    await expect(timer).toBeVisible();
-    await expect(timer.getByText(/Odpoczynek|Rest/i)).toBeVisible();
-    await expect(timer.getByText('0:30')).toBeVisible();
-
-    await checkButtons.nth(2).click();
-    await expect(page.getByTestId('rest-timer')).toHaveCount(1);
-
-    await timer.getByRole('button', { name: /Zamknij|Close/i }).click();
     await expect(page.getByTestId('rest-timer')).toHaveCount(0);
   });
 

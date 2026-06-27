@@ -82,9 +82,25 @@ export const useFirebaseWorkoutActions = (
     if (existingWorkout) {
       if (cycleId && !existingWorkout.cycleId) {
         try {
-          await updateDoc(doc(db, WORKOUTS_COLLECTION, existingWorkout.id), { cycleId });
+          const workoutRef = doc(db, WORKOUTS_COLLECTION, existingWorkout.id);
+          const repaired = await runTransaction(db, async (transaction) => {
+            const snapshot = await transaction.get(workoutRef);
+            if (!snapshot.exists()) throw new Error('WORKOUT_NOT_FOUND');
+            const current = { id: snapshot.id, ...snapshot.data() } as WorkoutSession;
+            if (current.userId !== userId || current.dayId !== dayId || current.date !== workoutDate) {
+              throw new Error('WORKOUT_IDENTITY_MISMATCH');
+            }
+            if (current.cycleId && current.cycleId !== cycleId) {
+              throw new Error('WORKOUT_CYCLE_CONFLICT');
+            }
+            if (current.cycleId === cycleId) return current;
+
+            const revision = Math.max(0, Math.floor(current.revision ?? 0)) + 1;
+            transaction.update(workoutRef, { cycleId, revision });
+            return { ...current, cycleId, revision };
+          });
           return {
-            session: { ...existingWorkout, cycleId },
+            session: repaired,
             existing: true,
           };
         } catch (err) {
@@ -549,7 +565,7 @@ export const useFirebaseWorkoutActions = (
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }[],
-    options?: { notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision?: number | null }
+    options?: { cycleId?: string; notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision?: number | null }
   ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
@@ -568,6 +584,7 @@ export const useFirebaseWorkoutActions = (
 
       const updateTime = Date.now();
       const updateData: Record<string, unknown> = { exercises: cleanExercises, updatedAt: updateTime };
+      if (options?.cycleId) updateData.cycleId = options.cycleId;
       if (options?.notes !== undefined) updateData.notes = String(options.notes).slice(0, 5000);
       if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
       if (options?.completed) {

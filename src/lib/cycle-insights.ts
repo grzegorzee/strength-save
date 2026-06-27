@@ -32,19 +32,24 @@ const weekdayOffset: Record<TrainingDay['weekday'], number> = {
   sunday: 6,
 };
 
-const countExpectedPlanSessions = (
+interface ExpectedPlanSession {
+  date: string;
+  dayId: string;
+}
+
+const buildExpectedPlanSessions = (
   planDays: TrainingDay[],
   startDate: string,
   endDate: string,
   durationWeeks: number,
-): number => {
-  if (planDays.length === 0 || durationWeeks <= 0 || startDate > endDate) return 0;
+): ExpectedPlanSession[] => {
+  if (planDays.length === 0 || durationWeeks <= 0 || startDate > endDate) return [];
 
-  let expected = 0;
-  const sortedOffsets = planDays
-    .map(day => weekdayOffset[day.weekday])
-    .filter((offset): offset is number => Number.isInteger(offset))
-    .sort((a, b) => a - b);
+  const expected: ExpectedPlanSession[] = [];
+  const scheduledDays = planDays
+    .map(day => ({ dayId: day.id, offset: weekdayOffset[day.weekday] }))
+    .filter((entry) => Number.isInteger(entry.offset))
+    .sort((left, right) => left.offset - right.offset);
   const start = parseLocalDate(startDate);
   const dayOfWeek = start.getDay();
   const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
@@ -52,10 +57,10 @@ const countExpectedPlanSessions = (
 
   for (let week = 0; week < durationWeeks; week += 1) {
     const weekStart = addCalendarDays(firstWeekMonday, week * 7);
-    for (const offset of sortedOffsets) {
-      const sessionDate = addCalendarDays(weekStart, offset);
+    for (const scheduledDay of scheduledDays) {
+      const sessionDate = addCalendarDays(weekStart, scheduledDay.offset);
       if (sessionDate >= startDate && sessionDate <= endDate) {
-        expected += 1;
+        expected.push({ date: sessionDate, dayId: scheduledDay.dayId });
       }
     }
   }
@@ -71,16 +76,37 @@ export const computeCycleStats = (
   durationWeeks: number,
   cycleId?: string | null,
 ): PlanCycleStats => {
-  const cycleWorkouts = workouts.filter(
-    (workout) => {
-      if (!workout.completed) return false;
-      // With a real cycleId, count ONLY workouts tagged with it — a fresh cycle starts empty
-      // and must not retroactively claim untagged workouts that fall in its date range.
-      if (cycleId) return workout.cycleId === cycleId;
-      // Legacy/aggregate path (no cycleId supplied): attribute untagged workouts by date range.
-      return !workout.cycleId && workout.date >= startDate && workout.date <= endDate;
-    },
+  const todayStr = formatLocalDate(new Date());
+  const effectiveEndStr = (endDate && endDate < todayStr) ? endDate : todayStr;
+  const expectedSessions = buildExpectedPlanSessions(planDays, startDate, effectiveEndStr, durationWeeks);
+  const expectedSlotKeys = new Set(
+    expectedSessions.map((session) => `${session.date}:${session.dayId}`),
   );
+  const eligibleWorkouts = workouts.filter((workout) => {
+    if (!workout.completed || workout.date < startDate || workout.date > effectiveEndStr) return false;
+    if (!cycleId) return !workout.cycleId;
+    if (workout.cycleId === cycleId) return true;
+    // Ukończony orphan może potwierdzić obecność tylko w dokładnym slocie planu.
+    return !workout.cycleId && expectedSlotKeys.has(`${workout.date}:${workout.dayId}`);
+  });
+
+  const completedSetCount = (workout: WorkoutSession) => workout.exercises.reduce(
+    (total, exercise) => total + exercise.sets.filter((set) => set.completed).length,
+    0,
+  );
+  const uniqueWorkouts = new Map<string, WorkoutSession>();
+  eligibleWorkouts.forEach((workout) => {
+    const key = `${workout.date}:${workout.dayId}`;
+    const current = uniqueWorkouts.get(key);
+    if (
+      !current
+      || (workout.cycleId === cycleId && current.cycleId !== cycleId)
+      || completedSetCount(workout) > completedSetCount(current)
+    ) {
+      uniqueWorkouts.set(key, workout);
+    }
+  });
+  const cycleWorkouts = [...uniqueWorkouts.values()];
 
   const totalWorkouts = cycleWorkouts.length;
   const totalTonnage = cycleWorkouts.reduce((sum, workout) =>
@@ -134,7 +160,6 @@ export const computeCycleStats = (
 
   // Expected sessions are based on time ELAPSED so far (capped at plan length),
   // not the whole plan — a fresh/active cycle shouldn't show all future sessions as "missed".
-  const todayStr = formatLocalDate(new Date());
   // Plan startujący w przyszłości jeszcze nie ruszył → 0 oczekiwanych sesji, 0% (nic nie "ominięte").
   if (startDate > todayStr) {
     return {
@@ -146,13 +171,23 @@ export const computeCycleStats = (
       missedWorkouts: 0,
       averageWorkoutsPerWeek: 0,
       averageTonnagePerWorkout: totalWorkouts > 0 ? Math.round(totalTonnage / totalWorkouts) : 0,
+      orphanWorkoutCount: 0,
+      duplicateWorkoutsIgnored: 0,
     };
   }
-  // Active cycles persist endDate='' — treat empty/future end as today (avoids parseLocalDate NaN).
-  const effectiveEndStr = (endDate && endDate < todayStr) ? endDate : todayStr; // min(endDate, today)
-  const expectedWorkouts = countExpectedPlanSessions(planDays, startDate, effectiveEndStr, durationWeeks);
-  const completionRate = expectedWorkouts > 0 ? Math.round((totalWorkouts / expectedWorkouts) * 100) : 0;
-  const missedWorkouts = Math.max(expectedWorkouts - totalWorkouts, 0);
+  const expectedWorkouts = expectedSessions.length;
+  const attendedSlots = new Set(
+    cycleWorkouts
+      .map((workout) => `${workout.date}:${workout.dayId}`)
+      .filter((key) => expectedSlotKeys.has(key)),
+  ).size;
+  const completionRate = expectedWorkouts > 0
+    ? Math.min(100, Math.round((attendedSlots / expectedWorkouts) * 100))
+    : 0;
+  const missedWorkouts = Math.max(expectedWorkouts - attendedSlots, 0);
+  const orphanWorkoutCount = cycleId
+    ? cycleWorkouts.filter((workout) => !workout.cycleId).length
+    : 0;
 
   return {
     totalWorkouts,
@@ -163,6 +198,8 @@ export const computeCycleStats = (
     missedWorkouts,
     averageWorkoutsPerWeek: durationWeeks > 0 ? Math.round((totalWorkouts / durationWeeks) * 10) / 10 : 0,
     averageTonnagePerWorkout: totalWorkouts > 0 ? Math.round(totalTonnage / totalWorkouts) : 0,
+    orphanWorkoutCount,
+    duplicateWorkoutsIgnored: Math.max(0, eligibleWorkouts.length - cycleWorkouts.length),
   };
 };
 
@@ -181,7 +218,13 @@ export const buildCycleComparison = (cycle: PlanCycle, previousCycle: PlanCycle 
   };
 };
 
-export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCycle | null, now = new Date(), lang: LanguageCode = 'pl'): CycleRecommendation => {
+export const buildCycleRecommendation = (
+  cycle: PlanCycle,
+  previousCycle: PlanCycle | null,
+  now = new Date(),
+  lang: LanguageCode = 'pl',
+  options: { hasPendingFinalSync?: boolean } = {},
+): CycleRecommendation => {
   // Aktywny cykl uznajemy za "wygasły" (czas na closeout) DOPIERO gdy minął jego planowany
   // koniec (startDate + durationWeeks), a NIE na podstawie endDate — bo buildActiveCyclePreview
   // ustawia endDate=dziś, co fałszywie wyzwalało closeout dla świeżo rozpoczętych cykli.
@@ -198,6 +241,15 @@ export const buildCycleRecommendation = (cycle: PlanCycle, previousCycle: PlanCy
   // nie oceniamy frekwencji (świeży cykl po onboardingu zawsze miałby 0% i fałszywy alarm).
   const elapsedDays = calendarDayDiff(cycle.startDate, formatLocalDate(now));
   const inFirstWeek = elapsedDays < 7;
+
+  if ((cycle.stats.orphanWorkoutCount ?? 0) > 0 || options.hasPendingFinalSync) {
+    return {
+      title: translate(lang, 'cyclerec.sync.title'),
+      description: translate(lang, 'cyclerec.sync.desc'),
+      tone: 'info',
+      canCloseout: false,
+    };
+  }
 
   // Świeży, aktywny cykl bez treningów → POWITANIE (kick-off), a nie ostrzeżenie o frekwencji.
   if (cycle.status === 'active' && cycle.stats.totalWorkouts === 0 && inFirstWeek) {

@@ -26,6 +26,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import {
   User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
@@ -178,18 +179,20 @@ const Profile = () => {
 
       {/* WORKOUT PREFERENCES */}
       <SectionCard label={t('profile.section.preferences')} labelAccent="secondary">
-        <SettingRow
-          icon={Timer}
-          label={t('profile.pref.restTimer')}
-          right={(
-            <Select value={restTimer} onValueChange={handleRestChange}>
-              <SelectTrigger className="h-9 w-24 border-0 bg-surface-highest" aria-label={t('profile.pref.restTimer')}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {REST_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}s</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-        />
+        {FEATURE_FLAGS.workoutTimers && (
+          <SettingRow
+            icon={Timer}
+            label={t('profile.pref.restTimer')}
+            right={(
+              <Select value={restTimer} onValueChange={handleRestChange}>
+                <SelectTrigger className="h-9 w-24 border-0 bg-surface-highest" aria-label={t('profile.pref.restTimer')}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {REST_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}s</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        )}
         <SettingRow
           icon={Scale}
           label={t('profile.pref.units')}
@@ -218,7 +221,9 @@ const Profile = () => {
       {/* APP SETTINGS */}
       <SectionCard label={t('profile.section.app')}>
         <SettingRow icon={Bell} label={t('profile.app.notifications')} onClick={() => navigate('/settings?section=notifications')} />
-        <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
+        {FEATURE_FLAGS.workoutTimers && (
+          <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
+        )}
         <SettingRow
           icon={Globe}
           label={t('profile.app.language')}

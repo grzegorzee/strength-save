@@ -19,6 +19,7 @@ import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exerci
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 import type { ExerciseBest } from '@/lib/pr-utils';
 import type { RzaAdvice } from '@/lib/rza-progression';
+import { FEATURE_FLAGS } from '@/lib/feature-flags';
 
 // Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
 // Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
@@ -186,7 +187,10 @@ const ExerciseCardInner = ({
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   // Timer interwałowy (EMOM/AMRAP) — tylko gdy ćwiczenie ma rozpoznany zapis interwału.
-  const intervalSpec = useMemo(() => resolveExerciseInterval(exercise), [exercise]);
+  const intervalSpec = useMemo(
+    () => FEATURE_FLAGS.workoutTimers ? resolveExerciseInterval(exercise) : null,
+    [exercise],
+  );
   const [intervalRun, setIntervalRun] = useState<{ open: boolean; runId: number }>({ open: false, runId: 0 });
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
@@ -279,7 +283,7 @@ const ExerciseCardInner = ({
         unlockTimerSound();
         exerciseCompleteHaptic();
         playTimerSound('complete');
-      } else if (!intervalSpec) {
+      } else if (FEATURE_FLAGS.workoutTimers && !intervalSpec) {
         // Kolejna seria robocza → kołowy timer odpoczynku.
         // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
         const seconds = getRestDefaultSeconds();
@@ -506,7 +510,7 @@ const ExerciseCardInner = ({
                 </span>
               )}
               {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} /> : nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
-              {intervalSpec && (
+              {FEATURE_FLAGS.workoutTimers && intervalSpec && (
                 <button
                   onClick={() => setIntervalRun(r => ({ open: true, runId: r.runId + 1 }))}
                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
@@ -690,7 +694,7 @@ const ExerciseCardInner = ({
         </Dialog>
       )}
 
-      {intervalSpec && intervalRun.open && (
+      {FEATURE_FLAGS.workoutTimers && intervalSpec && intervalRun.open && (
         <IntervalTimer
           key={intervalRun.runId}
           spec={intervalSpec}

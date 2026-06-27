@@ -7,6 +7,7 @@ const workout = (overrides: Partial<WorkoutSession> = {}): WorkoutSession => ({
   userId: 'user-1',
   dayId: 'day-1',
   date: '2026-05-30',
+  cycleId: 'cycle-1',
   completed: true,
   exercises: [
     {
@@ -48,6 +49,7 @@ describe('workout final sync validation', () => {
       },
     ], {
       completed: true,
+      cycleId: 'cycle-1',
       notes: 'good day',
       skippedExercises: ['ex-2'],
       dayName: 'Push',
@@ -73,6 +75,17 @@ describe('workout final sync validation', () => {
       dayName: undefined,
       exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }], name: 'Bench press' }],
     }), expectation)).toEqual({ ok: false, reason: 'day-name-mismatch' });
+  });
+
+  it('rejects final sync when the workout is attached to a different cycle', () => {
+    const expectation = buildWorkoutWriteExpectation([
+      { exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] },
+    ], { completed: true, cycleId: 'cycle-1' });
+
+    expect(validateWorkoutCloudWrite(
+      workout({ cycleId: undefined }),
+      expectation,
+    )).toEqual({ ok: false, reason: 'cycle-id-mismatch' });
   });
 
   it('rejects final sync when Firestore has no workout document', () => {

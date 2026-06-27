@@ -11,6 +11,34 @@
 
 ## DECYZJE
 
+### 2026-06-27 — Stabilizacja treningów: wyścig startu, konflikt Sync Center, odporne statystyki, naprawa danych (build 44 / 6.13.0)
+
+**Objaw:** banner „Ustabilizuj realizację planu" + frekwencja 9/16 (56%) i 7 „opuszczonych",
+mimo że właściciel zrobił 16 treningów. Pełna analiza: `docs/ANALIZA_I_PLAN_STABILIZACJI_TRENINGOW_2026-06-27.md`.
+
+**Root cause (2 defekty danych + 4 defekty kodu):**
+1. 6 ukończonych sesji (16–26.06) bez `cycleId` → statystyki cyklu ich nie liczyły.
+2. Sesja 19.06 miała 13 zaliczonych serii, ale `completed=false` (utknęła między draftem a chmurą).
+3. Wyścig startu: `WorkoutDay` autostartował po `isLoaded` listy treningów, nie czekając na plan + cykle + draft → sesje bez `cycleId` i mieszanie ćwiczeń planu domyślnego z właściwym.
+4. Sync Center nie rozróżniał typów błędów ani nie oferował rozwiązania konfliktu rewizji.
+5. Statystyki liczyły `treningi/oczekiwane` zamiast slotów kalendarza; brak `cycleId` zamieniał obecność w nieobecność; pusty techniczny cykl trafiał na półkę medali (fałszywy „Sezon 0%").
+6. Telemetria pisała liczniki jako literalne klucze `counters.x` zamiast mapy `counters`.
+
+**Zrobione (kod):**
+- Faza 2: `src/lib/workout-start.ts` (gate `areWorkoutStartSourcesReady` na workouts+plan+cykle+draft, `buildWorkoutStartSnapshot`, `findUniqueCycleForDate`). Autostart i przycisk startu zablokowane do załadowania wszystkich źródeł; bezpieczny backfill `cycleId` przez transakcję `createWorkoutSession` tylko gdy dokładnie jeden cykl pasuje do daty.
+- Faza 3: `src/lib/workout-sync-conflict.ts` (`classifyWorkoutSyncError`, `summarizeLocalDraft/Cloud`); SyncCenterCard pokazuje konflikt z porównaniem (ćwiczenia/serie), nie ponawia konfliktu automatycznie; AutoSyncOnReconnect pomija konflikty rewizji.
+- Faza 4: `cycle-insights.ts` liczy frekwencję wg slotów kalendarza, dedup duplikatów, cap 100%, `orphanWorkoutCount`; przy orphanie/pending-final pokazuje neutralne „Statystyki wymagają synchronizacji" zamiast coachingu. `cycle-visibility.ts` (`isCycleVisible`) ukrywa cykle `technical`/`hiddenFromInsights` w Dashboard/Cycles/Achievements/usePlanCycles.
+- Faza 5: telemetria zapisuje prawdziwą mapę `counters`; nowe metryki `revision_conflict`, `orphan_workout`, `mixed_plan_exercise_set`. Narzędzie `scripts/audit-repair-training-data.mjs` (backup → preview → apply --confirm → verify, backup z SHA256 przed zapisem).
+- Feature flag `VITE_FEATURE_WORKOUT_TIMERS=false` (`src/lib/feature-flags.ts`): timery odpoczynku/EMOM/AMRAP/rozgrzewki + ich UI i timer na Watch wyłączone domyślnie; pomiar czasu sesji zostaje.
+
+**Zrobione (dane produkcyjne, konto `g.jasionowicz@gmail.com`, uid U6GDdfg7...):**
+- Faza 0: 3 backupy z SHA256 w `private-backups/` (gitignored).
+- Faza 1 (zweryfikowane porównaniem snapshotów przed/po): 6 sesji dostało `cycleId=otL65epGl1lQ9eyKIZrO`; ćwiczenia oczyszczone do 5/7/6/5/7 (usunięte puste obce wpisy); 19.06 `completed=true`; techniczny cykl `lkjSbPbc3suvlhEBtFYK` oznaczony `technical=true, hiddenFromInsights=true`.
+
+**Weryfikacja:** `typecheck`, `lint`, `test` (48 plików / 420 testów), `build` web + mobile — wszystkie zielone. Preflight wersji: 6.13.0 / build 44 spójne (Info.plist + 6× MARKETING_VERSION + CURRENT_PROJECT_VERSION).
+
+**Zostaje (Faza 6, ręczne):** test na fizycznym iPhonie (zgaszony ekran, resume, finalizacja, słaby zasięg) i Watch; te bramki realizuje TestFlight. Pełny scenariusz Sync Center (reload bez nawrotu draftu) do potwierdzenia na urządzeniu. `test:rules`/`e2e:emulator` nieuruchomione w tej sesji (reguły Firestore niezmienione).
+
 ### 2026-06-18/24 — Pusty paywall IAP: root cause = brak App Review pierwszej subskrypcji (WSTRZYMANE, czeka na usera)
 
 **Objaw:** natywny paywall iOS nie ładuje pakietów (`getOfferings()` → `code=23`, puste pakiety).

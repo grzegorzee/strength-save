@@ -23,6 +23,7 @@ interface BuildPlanNextStepParams {
   previousCompletedCycle: PlanCycle | null;
   today?: Date;
   lang?: LanguageCode;
+  hasPendingFinalSync?: boolean;
 }
 
 export const buildPlanNextStep = ({
@@ -35,6 +36,7 @@ export const buildPlanNextStep = ({
   previousCompletedCycle,
   today = new Date(),
   lang = 'pl',
+  hasPendingFinalSync = false,
 }: BuildPlanNextStepParams): PlanNextStepAction | null => {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params);
 
@@ -81,7 +83,13 @@ export const buildPlanNextStep = ({
     return null;
   }
 
-  const recommendation = buildCycleRecommendation(activeCycle, previousCompletedCycle, today, lang);
+  const recommendation = buildCycleRecommendation(
+    activeCycle,
+    previousCompletedCycle,
+    today,
+    lang,
+    { hasPendingFinalSync },
+  );
 
   // Świeży cykl tuż po onboardingu → pozytywna karta startowa bez metryk frekwencji
   // (żeby nie straszyć "0% frekwencji / 0 ominiętych" zanim user w ogóle zacznie).

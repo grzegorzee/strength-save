@@ -21,6 +21,7 @@ import type { WorkoutSession } from '@/types';
 import { calendarDayDiff, formatLocalDate } from '@/lib/utils';
 import { computeCycleStats } from '@/lib/cycle-insights';
 import { chunkForFirestoreWrite, shouldMergeContinuousCycles } from '@/lib/plan-cycle-utils';
+import { isCycleVisible } from '@/lib/cycle-visibility';
 
 const CYCLES_COLLECTION = 'plan_cycles';
 const CYCLE_OPERATIONS_COLLECTION = 'plan_cycle_operations';
@@ -286,7 +287,7 @@ export const usePlanCycles = (userId: string) => {
     if (!pending.empty) return removed;
 
     const completed = cycles
-      .filter((c) => c.status === 'completed' && c.startDate && c.endDate)
+      .filter((c) => c.status === 'completed' && c.startDate && c.endDate && isCycleVisible(c))
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
     const daysBetween = (a: string, b: string) => calendarDayDiff(a, b);

@@ -44,6 +44,8 @@ export interface WatchWorkoutPayload {
   active?: boolean;
   /** Domyślny odpoczynek między seriami (sekundy) — zegarek odpala timer po zaliczeniu serii. */
   restSeconds?: number;
+  /** Globalna flaga timerów treningowych. Brak lub false wyłącza timer na zegarku. */
+  timersEnabled?: boolean;
   /** Jednostka wyświetlania ciężaru na zegarku (model i eventy zawsze w kg). */
   unit?: 'kg' | 'lbs';
   exercises?: WatchExercisePayload[];

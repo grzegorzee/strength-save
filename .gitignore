@@ -22,6 +22,12 @@ test-results/
 # Logs
 *.log
 
+# Production user-data snapshots (contain private account data)
+private-backups/
+
+# Local scratch / test artifacts
+tmp/
+
 # Functions compiled output
 functions/lib/
 

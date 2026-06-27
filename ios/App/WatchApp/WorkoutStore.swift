@@ -200,7 +200,7 @@ final class WorkoutStore: NSObject, ObservableObject {
         // Rest timer: tylko gdy w ćwiczeniu zostały serie do zrobienia.
         let exercise = exercises[exIndex]
         let workingLeft = exercise.workingSets.contains { !$0.completed }
-        if workingLeft {
+        if workingLeft && payload.timersEnabled == true {
             startRestTimer(seconds: payload.restSeconds ?? 90)
         } else {
             cancelRestTimer()
