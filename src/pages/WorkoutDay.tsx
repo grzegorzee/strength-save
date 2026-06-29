@@ -1985,7 +1985,6 @@ const WorkoutDay = () => {
               onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
               isBodyweight={isBodyweightExercise(exercise.name)}
               isEditable={isWorkoutStarted && !isCompleted}
-              enforceWorkingSetCount={isWorkoutStarted && !isCompleted}
               nextAdvice={getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
                 isBodyweight: isBodyweightExercise(exercise.name),
                 isSuperset: exercise.isSuperset,

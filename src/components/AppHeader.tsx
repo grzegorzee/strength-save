@@ -1,4 +1,4 @@
-import { ArrowLeft, Dumbbell, Menu, WifiOff } from 'lucide-react';
+import { ArrowLeft, Dumbbell, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -7,11 +7,10 @@ import { useTranslation } from '@/contexts/LanguageContext';
 
 interface AppHeaderProps {
   title: string;
-  onMenuClick?: () => void;
   onBack?: () => void;
 }
 
-export const AppHeader = ({ title, onMenuClick, onBack }: AppHeaderProps) => {
+export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
   const { uid } = useCurrentUser();
   const { workouts, isLoaded } = useFirebaseWorkoutReads(uid);
@@ -22,13 +21,9 @@ export const AppHeader = ({ title, onMenuClick, onBack }: AppHeaderProps) => {
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between h-16 px-5 md:px-6 max-w-4xl mx-auto">
         <div className="flex items-center gap-3">
-          {onBack ? (
+          {onBack && (
             <Button variant="ghost" size="icon" onClick={onBack} aria-label={t('comp.header.back')}>
               <ArrowLeft className="h-5 w-5" />
-            </Button>
-          ) : onMenuClick && (
-            <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden" aria-label={t('nav.ariaMain')}>
-              <Menu className="h-5 w-5" />
             </Button>
           )}
           <h1 className="text-lg font-heading font-bold uppercase text-foreground tracking-[0.08em]">{title}</h1>

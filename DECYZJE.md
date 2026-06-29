@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-06-29 — Przywrócono swobodne dodawanie/usuwanie serii + usunięto niedziałający hamburger (build 46)
+
+**Serie:** podczas aktywnego treningu nie dało się dodać/usunąć serii roboczej (tylko rozgrzewkowe). Przyczyna: `enforceWorkingSetCount` (regresja z hardeningu `880cb9e`) wymuszał liczbę serii z planu, ukrywając przyciski +/× (`ExerciseCard` linie 451, 597). Fix: usunięto prop `enforceWorkingSetCount` z wywołania `ExerciseCard` w `WorkoutDay.tsx` (default false) → pełna swoboda jak przed hardeningiem. Reszta logiki (`sanitizeSets`) działa w trybie niewymuszonym.
+
+**Hamburger:** przycisk menu (top-left, `AppHeader`) otwierał mobilny boczny Sheet, który nie działał na iOS (WKWebView). Usunięty: `AppHeader` bez `Menu`/`onMenuClick`, `Layout` nie przekazuje `onMenuClick`. Nawigacja mobilna w całości na dolnym pasku (`AppNavigation` bottom-nav, niezależny). Desktopowy sidebar bez zmian.
+
+Obie to regresje z pakietu hardeningu, nie z builda 44. 421 testów, typecheck, lint, build zielone.
+
 ### 2026-06-29 — Zastój/PR pokazywały surowe exerciseId (ex-1-2) zamiast nazw legacy ćwiczeń
 
 **Objaw:** sekcja "Zastój" na Osiągnięciach pokazywała `ex-1-2`, `ex-2-3` zamiast nazw (część ćwiczeń, np. "Uginanie nóg", rozwiązywała się poprawnie).

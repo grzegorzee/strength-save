@@ -63,7 +63,6 @@ export const Layout = () => {
         {!isFocusedFlow && (
           <AppHeader
             title={title}
-            onMenuClick={isRootPage ? () => setSidebarOpen(true) : undefined}
             onBack={isRootPage ? undefined : handleBack}
           />
         )}
