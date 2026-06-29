@@ -127,7 +127,7 @@ Wszystkie poniższe spełnione jednocześnie:
 - Z6 P1 sync konflikt: [ZROBIONE] d46080b — markDraftSynced zapisuje cloudRevision ZAWSZE; ⚠ wymaga ręcznego testu background/resume na realnym urządzeniu przed iOS release
 - Z7 asymetria status: [ZROBIONE] 86f02be — hasCallableAppAccess: brak status = aktywny (symetria z regułami), undefined nadal blokowany; ⚠ ŚWIADOMIE odwraca wcześniejszą decyzję „{} odrzucane"; wymaga `firebase deploy --only functions` (osobna zgoda)
 - Z8 spinner timeout: [ZROBIONE] ae3a1da — pusty uid = "puste, ale gotowe" w plan/cykle/read-store (jak draft loader)
-- Z9 multiple active cycles: [ZROBIONE] — deterministyczny wybór najnowszego cyklu zamiast throw (commit nast.)
-- Z10 interval timer bg: [ ]
+- Z9 multiple active cycles: [ZROBIONE] b6101cd — deterministyczny wybór najnowszego cyklu zamiast throw
+- Z10 interval timer bg: [ODŁOŻONE: flaga VITE_FEATURE_WORKOUT_TIMERS=false (IntervalTimer nie montuje się w prod); poprawność = systemowe powiadomienie przy zgaszonym ekranie, weryfikowalna tylko na realnym urządzeniu z włączoną flagą, poza zakresem loop; analog rest-notification.ts też bez unit testu (side-effecty Capacitora). Do zrobienia razem z włączeniem timerów: schedule local notification na koniec bloku (+ granice rund EMOM) wzorem scheduleRestEndNotification, z anulowaniem przy pauzie/reset/close/finish-foreground.]
 - Z11 ai-coach resolver: [ ]
 - Z12 preflight + CLAUDE.md: [ ]
