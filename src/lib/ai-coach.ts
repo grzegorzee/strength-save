@@ -84,6 +84,9 @@ export function prepareCoachData(
   eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
 
   // Build exercise name map
+  // TODO(Z11/#11): mapa budowana plan-first — pomija cykle/defaultPlan. Gdy coach zostanie
+  // wpięty (dziś prepareCoachData jest nieużywane), przekazać `cycles` i użyć resolveExerciseName
+  // (snapshot-first) jak Analytics/Achievements. Obecny fallback `|| ex.name` chroni realne dane.
   const exerciseNames = new Map<string, string>();
   plan.forEach(day => {
     day.exercises.forEach(ex => {
@@ -452,6 +455,8 @@ export async function generateWorkoutSummary(
   plan: TrainingDay[],
   lang: LanguageCode = 'pl',
 ): Promise<WorkoutSummaryResult> {
+  // TODO(Z11/#11): jw. — mapa plan-first; przy wpięciu coacha (dziś generateWorkoutSummary
+  // nieużywane) przekazać cykle + resolveExerciseName (snapshot-first). Fallback `|| ex.name` chroni realne dane.
   const exerciseNames = new Map<string, string>();
   plan.forEach(day => {
     day.exercises.forEach(ex => {

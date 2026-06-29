@@ -129,5 +129,5 @@ Wszystkie poniższe spełnione jednocześnie:
 - Z8 spinner timeout: [ZROBIONE] ae3a1da — pusty uid = "puste, ale gotowe" w plan/cykle/read-store (jak draft loader)
 - Z9 multiple active cycles: [ZROBIONE] b6101cd — deterministyczny wybór najnowszego cyklu zamiast throw
 - Z10 interval timer bg: [ODŁOŻONE: flaga VITE_FEATURE_WORKOUT_TIMERS=false (IntervalTimer nie montuje się w prod); poprawność = systemowe powiadomienie przy zgaszonym ekranie, weryfikowalna tylko na realnym urządzeniu z włączoną flagą, poza zakresem loop; analog rest-notification.ts też bez unit testu (side-effecty Capacitora). Do zrobienia razem z włączeniem timerów: schedule local notification na koniec bloku (+ granice rund EMOM) wzorem scheduleRestEndNotification, z anulowaniem przy pauzie/reset/close/finish-foreground.]
-- Z11 ai-coach resolver: [ ]
+- Z11 ai-coach resolver: [ODŁOŻONE: prepareCoachData/generateWorkoutSummary są martwym kodem (nigdzie nieimportowane, coach niewpięty); istniejący fallback `|| ex.name` (snapshot) chroni realne dane przed surowym id. Refactor sygnatur dead-code'u pod resolver = praca spekulatywna (Karpathy: nie ruszać martwego kodu). Dodano noty TODO przy obu funkcjach: przy wpięciu coacha przekazać `cycles` + resolveExerciseName (snapshot-first) jak Analytics/Achievements.]
 - Z12 preflight + CLAUDE.md: [ ]
