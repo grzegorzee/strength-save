@@ -119,8 +119,8 @@ Wszystkie poniższe spełnione jednocześnie:
 
 ## Status (uzupełniać w trakcie)
 
-- Z1 e2e nawigacja: [ZROBIONE] — testy zaktualizowane do nawigacji bez mobilnego drawera (commit nast.)
-- Z2 tonaż rozgrzewki: [ ]
+- Z1 e2e nawigacja: [ZROBIONE] e8c4a71 — testy zaktualizowane do nawigacji bez mobilnego drawera
+- Z2 tonaż rozgrzewki: [ZROBIONE] — dodano `&& !set.isWarmup` w cycle-insights tonażu (commit nast.)
 - Z3 cleanup martwego kodu: [ ]
 - Z4 widoczność cykli: [ ]
 - Z5 stale staty completed: [ ]

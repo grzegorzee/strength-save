@@ -111,7 +111,7 @@ export const computeCycleStats = (
   const totalWorkouts = cycleWorkouts.length;
   const totalTonnage = cycleWorkouts.reduce((sum, workout) =>
     sum + workout.exercises.reduce((exerciseSum, exercise) =>
-      exerciseSum + exercise.sets.reduce((setSum, set) => setSum + (set.completed ? set.reps * set.weight : 0), 0), 0), 0);
+      exerciseSum + exercise.sets.reduce((setSum, set) => setSum + (set.completed && !set.isWarmup ? set.reps * set.weight : 0), 0), 0), 0);
 
   const exerciseBests = new Map<string, { weight: number; estimated1RM: number }>();
   // Resolve names from this cycle's days first, then fall back to the default plan

@@ -15,6 +15,8 @@
 
 Wykonanie zadań Z1-Z12 metodą TDD (test odtwarzający → minimalny surgical fix), osobny commit per zadanie. Bez push/deploy/iOS/functions deploy (czeka na zgodę usera). Poniżej per zadanie.
 
+**Z2 — Tonaż cyklu wliczał serie rozgrzewkowe (#3, P2).** `cycle-insights.ts:114` sumował tonaż bez filtra `!set.isWarmup`, podczas gdy `summary-utils.calculateTonnage` (:30) i obliczanie PR-ów w tym samym pliku (:132) rozgrzewki pomijają → tonaż cyklu zawyżony, niespójny. Root cause: pominięty warunek `isWarmup` przy tonażu. Fix (surgical, 1 linia): dodano `&& !set.isWarmup` w reduktorze tonażu. Test regresji w `cycle-insights.test.ts` (rozgrzewka 1000 kg + robocza 360 kg → tonaż 360, było 1360). Weryfikacja: vitest 422 zielone (+1), typecheck/lint OK.
+
 **Z1 — e2e: 2 czerwone testy nawigacji (#12, P2).** Build 46 (`938aadb`) usunął mobilny hamburger/drawer; `sidebarOpen` w `Layout.tsx` nigdy nie jest ustawiane na `true`, więc `Sheet` (boczne menu) na mobile nie da się otworzyć. Dwa testy klikały nieistniejący `button 'Nawigacja główna'` → TimeoutError. Root cause: testy zakładały drawer usunięty w build 46. Fix (tylko `e2e/`): `nav-analytics.spec.ts` — usunięto część otwierającą boczne menu i szukającą Historii (na mobile Historia nie jest już w nawigacji), zachowano pokrycie dolnego paska (Analityka jest, Historia nie); `ui-improvements.spec.ts` — usunięto klik hamburgera + Escape, zachowano asercję braku sidebara na mobile i pętlę Tab sprawdzającą, że linki tylko-sidebarowe (history/measurements/achievements/cycles) nie łapią fokusa. Weryfikacja: `e2e:mock` 116 passed (było 2 failed), typecheck/lint/test 421 zielone.
 
 

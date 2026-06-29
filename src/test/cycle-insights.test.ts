@@ -62,6 +62,28 @@ describe('cycle-insights', () => {
     expect(stats.prs.length).toBeGreaterThan(0);
   });
 
+  it('totalTonnage pomija serie rozgrzewkowe (spójność z summary-utils i PR-ami)', () => {
+    // Regresja #3: tonaż cyklu zawyżony o rozgrzewki. PR-y (set.isWarmup) je pomijają,
+    // summary-utils.calculateTonnage też — cycle-insights musi być spójny.
+    const ws: WorkoutSession[] = [
+      {
+        id: 'w-warm', userId: 'user-1', dayId: 'day-1', date: '2026-03-31', completed: true,
+        cycleId: 'cycle-current',
+        exercises: [
+          {
+            exerciseId: 'ex-1',
+            sets: [
+              { reps: 10, weight: 100, completed: true, isWarmup: true }, // 1000 kg rozgrzewka → NIE liczone
+              { reps: 6, weight: 60, completed: true },                    // 360 kg robocza → liczone
+            ],
+          },
+        ],
+      },
+    ];
+    const stats = computeCycleStats(ws, planDays, '2026-03-30', '2026-04-13', 2, 'cycle-current');
+    expect(stats.totalTonnage).toBe(360);
+  });
+
   it('builds recommendation based on current and previous cycle', () => {
     const currentCycle: PlanCycle = {
       id: 'cycle-current',
