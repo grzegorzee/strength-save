@@ -38,7 +38,7 @@ Każdy fix dotyka tylko swojego obszaru. N bugów = N izolowanych zmian, opis pe
 - [ ] Zmiany dotykają timerów / autozapisu / scrolla / cyklu życia apki? → scenariusz **background/resume**: zgaś ekran, odczekaj, wróć (realne urządzenie)
 - [ ] Commit + push na `main`
 - [ ] **Web:** `npm run deploy` (gh-pages; sam push NIE aktualizuje strony live)
-- [ ] **iOS:** bump `CURRENT_PROJECT_VERSION` w `ios/App/App.xcodeproj/project.pbxproj` (4 wystąpienia), potem `scripts/release-ios.sh "co testować"` (build + TestFlight + auto Beta App Review; Robert dostaje build automatycznie)
+- [ ] **iOS:** bump `CURRENT_PROJECT_VERSION` w `ios/App/App.xcodeproj/project.pbxproj` (6 wystąpień, wszystkie równe; pilnuje tego `release-ios-preflight.mjs`), potem `scripts/release-ios.sh "co testować"` (build + TestFlight + auto Beta App Review; Robert dostaje build automatycznie)
 - [ ] Wpis do `DECYZJE.md` (co, dlaczego, root cause, weryfikacja)
 
 ## Pułapki specyficzne dla projektu (skrót)
