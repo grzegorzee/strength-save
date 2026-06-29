@@ -194,7 +194,6 @@ export const createPrefilledSets = (
 export const sanitizeSets = (
   sets: SetData[] | undefined,
   expectedCount: number,
-  enforceWorkingSetCount = false,
 ): SetData[] => {
   if (!sets || sets.length === 0) {
     return createEmptySets(expectedCount);
@@ -206,22 +205,6 @@ export const sanitizeSets = (
     ...(set?.isWarmup && { isWarmup: true }),
   }));
 
-  if (!enforceWorkingSetCount) {
-    if (sanitized.some(s => s.isWarmup)) return sanitized;
-    return [{ reps: 0, weight: 0, completed: false, isWarmup: true }, ...sanitized];
-  }
-
-  // Aktywny trening wykonuje dokładnie liczbę serii roboczych z planu.
-  // Rozgrzewka jest dodatkowa, domyślna i może zostać usunięta przez użytkownika.
-  const warmup = sanitized.find(set => set.isWarmup) ?? {
-    reps: 0,
-    weight: 0,
-    completed: false,
-    isWarmup: true,
-  };
-  const working = sanitized.filter(set => !set.isWarmup).slice(0, expectedCount);
-  while (working.length < expectedCount) {
-    working.push({ reps: 0, weight: 0, completed: false });
-  }
-  return [warmup, ...working];
+  if (sanitized.some(s => s.isWarmup)) return sanitized;
+  return [{ reps: 0, weight: 0, completed: false, isWarmup: true }, ...sanitized];
 };

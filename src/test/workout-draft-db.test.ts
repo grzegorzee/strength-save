@@ -282,15 +282,6 @@ describe('workoutDraftDb', () => {
     expect(loaded?.dayNotes).toBe('newer edit');
   });
 
-  it('markCompletedLocally keeps draft and marks final sync pending', async () => {
-    await workoutDraftDb.saveActiveDraft(baseDraft);
-    await workoutDraftDb.markCompletedLocally('user-1');
-    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
-    expect(loaded?.completedLocally).toBe(true);
-    expect(loaded?.finalSyncPending).toBe(true);
-    expect(loaded?.dirty).toBe(true);
-  });
-
   it('markPromotedToRemote rewrites provisional draft as remote session', async () => {
     await workoutDraftDb.saveActiveDraft({
       ...baseDraft,

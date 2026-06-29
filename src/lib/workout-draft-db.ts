@@ -446,17 +446,6 @@ export const workoutDraftDb = {
     }));
   },
 
-  async markCompletedLocally(userId: string, sessionId?: string): Promise<void> {
-    await updateDraft(userId, sessionId, draft => ({
-      ...draft,
-      completedLocally: true,
-      finalSyncPending: true,
-      dirty: true,
-      updatedAt: Date.now(),
-      version: draft.version + 1,
-    }));
-  },
-
   async markPromotedToRemote(
     userId: string,
     remoteSessionId: string,

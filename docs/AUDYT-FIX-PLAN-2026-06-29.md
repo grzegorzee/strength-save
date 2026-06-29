@@ -120,8 +120,8 @@ Wszystkie poniższe spełnione jednocześnie:
 ## Status (uzupełniać w trakcie)
 
 - Z1 e2e nawigacja: [ZROBIONE] e8c4a71 — testy zaktualizowane do nawigacji bez mobilnego drawera
-- Z2 tonaż rozgrzewki: [ZROBIONE] — dodano `&& !set.isWarmup` w cycle-insights tonażu (commit nast.)
-- Z3 cleanup martwego kodu: [ ]
+- Z2 tonaż rozgrzewki: [ZROBIONE] 90810c8 — dodano `&& !set.isWarmup` w cycle-insights tonażu
+- Z3 cleanup martwego kodu: [ZROBIONE] — usunięto enforceWorkingSetCount, offline-queue, markCompletedLocally (commit nast.)
 - Z4 widoczność cykli: [ ]
 - Z5 stale staty completed: [ ]
 - Z6 P1 sync konflikt: [ ]
