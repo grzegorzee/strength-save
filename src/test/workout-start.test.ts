@@ -65,6 +65,14 @@ describe('workout start readiness', () => {
     expect(snapshot.day.exercises.map((exercise) => exercise.name)).toEqual(['Custom exercise']);
   });
 
+  it('przy 2 aktywnych cyklach na datę wybiera deterministycznie najnowszy zamiast rzucać (#7)', () => {
+    const older = cycle({ id: 'older', createdAt: '2026-06-01T00:00:00.000Z' });
+    const newer = cycle({ id: 'newer', createdAt: '2026-06-10T00:00:00.000Z' });
+    // Wynik niezależny od kolejności wejścia (determinizm), bez wyjątku blokującego start.
+    expect(buildWorkoutStartSnapshot(day, '2026-06-27', [older, newer]).activeCycleId).toBe('newer');
+    expect(buildWorkoutStartSnapshot(day, '2026-06-27', [newer, older]).activeCycleId).toBe('newer');
+  });
+
   it('does not silently choose between overlapping cycles', () => {
     expect(findUniqueCycleForDate([
       cycle(),

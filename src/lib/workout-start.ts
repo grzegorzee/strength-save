@@ -52,13 +52,21 @@ export const buildWorkoutStartSnapshot = (
   const activeCycles = cycles.filter(
     (cycle) => cycle.status === 'active' && cycleContainsDate(cycle, date),
   );
+  // Anomalia danych (2 aktywne cykle na tę datę) nie może BLOKOWAĆ startu treningu.
+  // Wybierz deterministycznie najnowszy (createdAt, tie-break po id) i ostrzeż w logu.
   if (activeCycles.length > 1) {
-    throw new Error('MULTIPLE_ACTIVE_CYCLES');
+    console.warn(
+      `[workout-start] ${activeCycles.length} aktywne cykle na ${date}; wybrano najnowszy deterministycznie`,
+      activeCycles.map((cycle) => cycle.id),
+    );
   }
+  const chosenCycle = [...activeCycles].sort(
+    (a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id),
+  )[0] ?? null;
 
   return {
     date,
-    activeCycleId: activeCycles[0]?.id ?? null,
+    activeCycleId: chosenCycle?.id ?? null,
     day: {
       ...day,
       exercises: day.exercises.map((exercise) => ({
