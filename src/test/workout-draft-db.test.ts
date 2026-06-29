@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY, getScopedWorkoutDraftKey } from '@/lib/workout-draft';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+import { hasWorkoutWriteConflict } from '@/lib/workout-final-sync';
 
 class FakeRequest<T> {
   public result!: T;
@@ -258,6 +259,41 @@ describe('workoutDraftDb', () => {
     const loaded = await workoutDraftDb.loadActiveDraft('user-1');
     expect(loaded?.dirty).toBe(true);
     expect(loaded?.version).toBe(2);
+  });
+
+  it('persists cloudRevision even when an edit bumped version during sync (#1 P1 false conflict)', async () => {
+    // draft v1 z cloudRevision=5; sync rusza z expectedDraftVersion=1
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 1, cloudRevision: 5 });
+    // użytkownik edytuje serię W TRAKCIE syncu → version podbita do 2
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 2, cloudRevision: 5, dayNotes: 'edit during sync' });
+    // sync kończy się: serwer ma revision 6; ACK dotyczy wersji v1 (expected)
+    await workoutDraftDb.markDraftSynced('user-1', 999, 1, undefined, { updatedAt: 777, revision: 6 });
+
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    // Fakt serwera (cloudRevision/cloudUpdatedAt) MUSI trafić do IDB — inaczej po purge
+    // WKWebView kolejny sync ma stale expectedRevision i fałszywie wykrywa WORKOUT_CONFLICT.
+    expect(loaded?.cloudRevision).toBe(6);
+    expect(loaded?.cloudUpdatedAt).toBe(777);
+    // Edycja w trakcie syncu zachowana: dirty pozostaje true, treść/wersja nietknięte.
+    expect(loaded?.dirty).toBe(true);
+    expect(loaded?.version).toBe(2);
+    expect(loaded?.dayNotes).toBe('edit during sync');
+  });
+
+  it('after resume from purge persisted cloudRevision avoids false conflict (#1 P1 integration)', async () => {
+    // Sync z edycją w trakcie: serwer ma revision 6, mimo podbitej wersji draftu cloudRevision
+    // zostaje zapisany do IDB.
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 1, cloudRevision: 5 });
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 2, cloudRevision: 5 });
+    await workoutDraftDb.markDraftSynced('user-1', 999, 1, undefined, { revision: 6 });
+
+    // Reload z IDB (symulacja powrotu po purge WKWebView) — expectedRevision z draftu.
+    const reloaded = await workoutDraftDb.loadActiveDraft('user-1');
+    const serverWorkout = { revision: 6 };
+    // Serwer zgodny z zapisanym cloudRevision → BRAK konfliktu.
+    expect(hasWorkoutWriteConflict(serverWorkout, reloaded?.cloudRevision)).toBe(false);
+    // Kontrola negatywna: ze stale cloudRevision (5) konflikt BYŁBY fałszywie zgłoszony.
+    expect(hasWorkoutWriteConflict(serverWorkout, 5)).toBe(true);
   });
 
   it('serializes draft writes and keeps the newer version after a delayed older completion', async () => {

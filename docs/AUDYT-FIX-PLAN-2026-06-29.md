@@ -123,8 +123,8 @@ Wszystkie poniższe spełnione jednocześnie:
 - Z2 tonaż rozgrzewki: [ZROBIONE] 90810c8 — dodano `&& !set.isWarmup` w cycle-insights tonażu
 - Z3 cleanup martwego kodu: [ZROBIONE] 05a42b9 — usunięto enforceWorkingSetCount, offline-queue, markCompletedLocally
 - Z4 widoczność cykli: [ZROBIONE] d88df6f — helper isCycleVisibleWithData w Dashboard/Cycles/Achievements
-- Z5 stale staty completed: [ZROBIONE] — withLiveCompletedStats (live z treningów) w Dashboard/Cycles/Achievements (commit nast.)
-- Z6 P1 sync konflikt: [ ]
+- Z5 stale staty completed: [ZROBIONE] 9d2b89e — withLiveCompletedStats (live z treningów) w Dashboard/Cycles/Achievements
+- Z6 P1 sync konflikt: [ZROBIONE] — markDraftSynced zapisuje cloudRevision ZAWSZE (commit nast.); ⚠ wymaga ręcznego testu background/resume na realnym urządzeniu przed iOS release
 - Z7 asymetria status: [ ]
 - Z8 spinner timeout: [ ]
 - Z9 multiple active cycles: [ ]

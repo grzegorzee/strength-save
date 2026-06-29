@@ -437,13 +437,27 @@ export const workoutDraftDb = {
     sessionId?: string,
     cloudState?: { updatedAt?: number; revision?: number }
   ): Promise<void> {
-    await updateDraft(userId, sessionId, draft => draft.version !== expectedDraftVersion ? draft : ({
-      ...draft,
-      dirty: false,
-      lastFirebaseSyncAt: syncedAt,
-      ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
-      ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
-    }));
+    await updateDraft(userId, sessionId, draft => {
+      // cloudUpdatedAt/cloudRevision to FAKT serwera, niezależny od edycji draftu w trakcie
+      // syncu — zapisz je ZAWSZE. Inaczej, gdy edycja podbije version w trakcie syncu, po
+      // purge WKWebView IDB ma stale cloudRevision i kolejny sync fałszywie wykrywa
+      // WORKOUT_CONFLICT (#1 P1: "Trening edytowany na innym urządzeniu").
+      const cloudMarkers = {
+        ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+        ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
+      };
+      // Edycja w trakcie syncu podbiła version: zaktualizuj WYŁĄCZNIE znaczniki chmury,
+      // NIE czyść dirty ani nie ruszaj treści (lokalna edycja czeka na własny sync).
+      if (draft.version !== expectedDraftVersion) {
+        return { ...draft, ...cloudMarkers };
+      }
+      return {
+        ...draft,
+        dirty: false,
+        lastFirebaseSyncAt: syncedAt,
+        ...cloudMarkers,
+      };
+    });
   },
 
   async markPromotedToRemote(
