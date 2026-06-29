@@ -23,6 +23,7 @@ import {
 } from '@/lib/achievements-utils';
 import { medalForCompletionRate } from '@/lib/season-medals';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
+import { withLiveCompletedStats } from '@/lib/cycle-insights';
 import { tooltipStyle } from '@/lib/chart-config';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
@@ -189,10 +190,12 @@ const Achievements = () => {
   // Półka medali: ukończone cykle (sezony) z medalem wg frekwencji, najnowsze pierwsze.
   const seasonShelf = useMemo(
     () => cycles
-      .filter(c => c.status === 'completed' && isCycleVisibleWithData(c))
+      .filter(c => c.status === 'completed')
+      .map(c => withLiveCompletedStats(c, workouts))
+      .filter(isCycleVisibleWithData)
       .sort((a, b) => b.endDate.localeCompare(a.endDate))
       .map(c => ({ cycle: c, medal: medalForCompletionRate(c.stats.completionRate) })),
-    [cycles],
+    [cycles, workouts],
   );
 
   const milestoneLabel = (m: Milestone) => {

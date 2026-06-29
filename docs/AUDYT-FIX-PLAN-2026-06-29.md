@@ -122,8 +122,8 @@ Wszystkie poniższe spełnione jednocześnie:
 - Z1 e2e nawigacja: [ZROBIONE] e8c4a71 — testy zaktualizowane do nawigacji bez mobilnego drawera
 - Z2 tonaż rozgrzewki: [ZROBIONE] 90810c8 — dodano `&& !set.isWarmup` w cycle-insights tonażu
 - Z3 cleanup martwego kodu: [ZROBIONE] 05a42b9 — usunięto enforceWorkingSetCount, offline-queue, markCompletedLocally
-- Z4 widoczność cykli: [ZROBIONE] — helper isCycleVisibleWithData w Dashboard/Cycles/Achievements (commit nast.)
-- Z5 stale staty completed: [ ]
+- Z4 widoczność cykli: [ZROBIONE] d88df6f — helper isCycleVisibleWithData w Dashboard/Cycles/Achievements
+- Z5 stale staty completed: [ZROBIONE] — withLiveCompletedStats (live z treningów) w Dashboard/Cycles/Achievements (commit nast.)
 - Z6 P1 sync konflikt: [ ]
 - Z7 asymetria status: [ ]
 - Z8 spinner timeout: [ ]

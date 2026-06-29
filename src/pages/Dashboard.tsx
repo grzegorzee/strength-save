@@ -26,7 +26,7 @@ import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db'
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
-import { buildActiveCyclePreview } from '@/lib/cycle-insights';
+import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -181,7 +181,9 @@ const Dashboard = () => {
     }).length;
     return thisWeekCompleted < 2 ? 2 - thisWeekCompleted : 0;
   }, [streak, workouts]);
-  const visibleCycles = useMemo(() => cycles.filter(isCycleVisibleWithData), [cycles]);
+  const visibleCycles = useMemo(() => cycles
+    .map(c => c.status === 'completed' ? withLiveCompletedStats(c, workouts) : c)
+    .filter(isCycleVisibleWithData), [cycles, workouts]);
   const activeCycle = useMemo(() => visibleCycles.find(cycle => cycle.status === 'active') ?? null, [visibleCycles]);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
   const workoutToDay = useMemo(() => (workout: typeof workouts[number]): TrainingDay => {

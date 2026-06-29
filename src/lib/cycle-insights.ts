@@ -302,6 +302,27 @@ export const buildCycleRecommendation = (
   };
 };
 
+/**
+ * Completed cykl ze statystykami liczonymi LIVE z treningów (analog buildActiveCyclePreview
+ * dla aktywnego, ale z zachowanym endDate cyklu). Naprawia stale stats zapisane jednorazowo
+ * przy archiwizacji (computeStats raz w archiveCurrentPlan), gdy trening dojdzie/zmieni się
+ * później. Zapisane cycle.stats traktujemy odtąd jako cache; jedno źródło prawdy = treningi.
+ */
+export const withLiveCompletedStats = (
+  cycle: PlanCycle,
+  workouts: WorkoutSession[],
+): PlanCycle => ({
+  ...cycle,
+  stats: computeCycleStats(
+    workouts,
+    cycle.days,
+    cycle.startDate,
+    cycle.endDate,
+    cycle.durationWeeks,
+    cycle.id,
+  ),
+});
+
 export const buildActiveCyclePreview = (
   activeCycle: PlanCycle | null,
   workouts: WorkoutSession[],

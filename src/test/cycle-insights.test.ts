@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildCycleComparison, buildCycleRecommendation, computeCycleStats } from '@/lib/cycle-insights';
+import { buildCycleComparison, buildCycleRecommendation, computeCycleStats, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { translate } from '@/i18n';
 import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
@@ -295,6 +295,41 @@ describe('computeCycleStats — cycle attribution (regression: new cycle stealin
     expect(stats.totalWorkouts).toBe(1);
     expect(stats.completionRate).toBe(100);
     expect(stats.duplicateWorkoutsIgnored).toBe(1);
+  });
+});
+
+describe('withLiveCompletedStats — staty completed cyklu liczone live z treningów (#5)', () => {
+  const days: TrainingDay[] = [
+    { id: 'd1', dayName: 'Poniedziałek', weekday: 'monday', focus: 'A', exercises: [{ id: 'e1', name: 'X', sets: '3x8', instructions: [] }] },
+  ];
+  const completedCycleStaleStats: PlanCycle = {
+    id: 'C-stale', userId: 'u1', days, durationWeeks: 2,
+    startDate: '2026-05-25', endDate: '2026-06-08',
+    status: 'completed', createdAt: '2026-05-25T00:00:00.000Z',
+    // Staty zapisane jednorazowo przy archiwizacji — przestarzałe (0 treningów).
+    stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+  };
+
+  it('przelicza totalWorkouts z treningów otagowanych cyklem, ignorując stale cycle.stats', () => {
+    // Trening dołożony/zsynchronizowany PO archiwizacji — tag cycleId zgadza się z cyklem.
+    const workouts: WorkoutSession[] = [
+      {
+        id: 'w-late', userId: 'u1', dayId: 'd1', date: '2026-05-25', completed: true,
+        cycleId: 'C-stale',
+        exercises: [{ exerciseId: 'e1', sets: [{ reps: 8, weight: 50, completed: true }] }],
+      },
+    ];
+    const live = withLiveCompletedStats(completedCycleStaleStats, workouts);
+    expect(live.stats.totalWorkouts).toBe(1);
+    expect(live.stats.completionRate).toBeGreaterThan(0);
+    expect(live.stats.totalTonnage).toBe(400);
+    // endDate completed cyklu zostaje (nie przesuwamy na dziś jak w active preview).
+    expect(live.endDate).toBe('2026-06-08');
+  });
+
+  it('bez pasujących treningów staty są zerowe (cykl naprawdę pusty)', () => {
+    const live = withLiveCompletedStats(completedCycleStaleStats, []);
+    expect(live.stats.totalWorkouts).toBe(0);
   });
 });
 

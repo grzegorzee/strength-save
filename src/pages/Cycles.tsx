@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CycleCard } from '@/components/CycleCard';
 import { CycleDetail } from '@/components/CycleDetail';
 import type { PlanCycle } from '@/types/cycles';
-import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation } from '@/lib/cycle-insights';
+import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -47,7 +47,9 @@ const Cycles = () => {
   const [isRepeating, setIsRepeating] = useState(false);
   const [endPlanOpen, setEndPlanOpen] = useState(false);
   const [isEndingPlan, setIsEndingPlan] = useState(false);
-  const visibleCycles = cycles.filter(isCycleVisible);
+  const visibleCycles = cycles
+    .map(cycle => cycle.status === 'completed' ? withLiveCompletedStats(cycle, workouts) : cycle)
+    .filter(isCycleVisible);
   const activeCycle = visibleCycles.find(cycle => cycle.status === 'active') || null;
   const [hasPendingFinalSync, setHasPendingFinalSync] = useState(false);
 
