@@ -74,8 +74,13 @@ export function providerGetsImmediateAccess(provider: AuthProvider): boolean {
 }
 
 export function hasCallableAppAccess(profile: AccessProfile | undefined): boolean {
-  if (profile?.role === "admin") return true;
-  return profile?.status === "active" && profile.access?.enabled !== false;
+  // Brak dokumentu profilu = brak dostępu (jak get() nieistniejącego doca w regułach).
+  if (!profile) return false;
+  if (profile.role === "admin") return true;
+  // Symetria z firestore.rules hasSelfAccess: brak pola status (konta Google/legacy) = aktywny;
+  // jawnie nieaktywni (pending_verification/suspended) nadal blokowani, access.enabled !== false.
+  const statusActive = profile.status === undefined || profile.status === "active";
+  return statusActive && profile.access?.enabled !== false;
 }
 
 export function canUseApiExport(profile: AccessProfile | undefined): boolean {

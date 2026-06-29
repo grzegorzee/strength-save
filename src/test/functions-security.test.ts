@@ -28,6 +28,12 @@ describe('functions security helpers', () => {
     expect(hasCallableAppAccess({ role: 'user', status: 'pending_verification', access: { enabled: true } })).toBe(false);
     expect(hasCallableAppAccess({ role: 'user', status: 'active', access: { enabled: false } })).toBe(false);
     expect(hasCallableAppAccess({ role: 'admin', status: 'suspended', access: { enabled: false } })).toBe(true);
+    // Symetria z firestore.rules: brak pola status (konta Google/legacy) = aktywny,
+    // o ile dokument profilu istnieje i access.enabled !== false.
+    expect(hasCallableAppAccess({ role: 'user', access: { enabled: true } })).toBe(true);
+    expect(hasCallableAppAccess({})).toBe(true);
+    expect(hasCallableAppAccess({ access: { enabled: false } })).toBe(false);
+    expect(hasCallableAppAccess(undefined)).toBe(false);
   });
 
   it('requires active admin owner for API export keys', () => {

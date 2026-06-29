@@ -124,8 +124,8 @@ Wszystkie poniższe spełnione jednocześnie:
 - Z3 cleanup martwego kodu: [ZROBIONE] 05a42b9 — usunięto enforceWorkingSetCount, offline-queue, markCompletedLocally
 - Z4 widoczność cykli: [ZROBIONE] d88df6f — helper isCycleVisibleWithData w Dashboard/Cycles/Achievements
 - Z5 stale staty completed: [ZROBIONE] 9d2b89e — withLiveCompletedStats (live z treningów) w Dashboard/Cycles/Achievements
-- Z6 P1 sync konflikt: [ZROBIONE] — markDraftSynced zapisuje cloudRevision ZAWSZE (commit nast.); ⚠ wymaga ręcznego testu background/resume na realnym urządzeniu przed iOS release
-- Z7 asymetria status: [ ]
+- Z6 P1 sync konflikt: [ZROBIONE] d46080b — markDraftSynced zapisuje cloudRevision ZAWSZE; ⚠ wymaga ręcznego testu background/resume na realnym urządzeniu przed iOS release
+- Z7 asymetria status: [ZROBIONE] — hasCallableAppAccess: brak status = aktywny (symetria z regułami), undefined nadal blokowany (commit nast.); ⚠ ŚWIADOMIE odwraca wcześniejszą decyzję „{} odrzucane"; wymaga `firebase deploy --only functions` (osobna zgoda)
 - Z8 spinner timeout: [ ]
 - Z9 multiple active cycles: [ ]
 - Z10 interval timer bg: [ ]

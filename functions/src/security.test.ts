@@ -55,10 +55,22 @@ describe("hasCallableAppAccess", () => {
     expect(hasCallableAppAccess(pendingUser)).toBe(false);
   });
 
-  it("blocks disabled access and missing profile", () => {
+  it("blocks disabled access and missing profile DOC (undefined)", () => {
     expect(hasCallableAppAccess({ status: "active", access: { enabled: false } })).toBe(false);
+    // Brak dokumentu profilu = brak dostępu (jak get() nieistniejącego doca w regułach).
     expect(hasCallableAppAccess(undefined)).toBe(false);
-    expect(hasCallableAppAccess({})).toBe(false);
+  });
+
+  it("treats missing status as active — symetria z firestore.rules (#2)", () => {
+    // Konta Google/legacy bez pola status: reguły pozwalają na zapis treningu,
+    // callable (AI/Strava) musi traktować je tak samo, byle dokument profilu istniał.
+    expect(hasCallableAppAccess({})).toBe(true);
+    expect(hasCallableAppAccess({ role: "user", access: { enabled: true } })).toBe(true);
+    // access.enabled === false nadal blokuje, nawet bez pola status.
+    expect(hasCallableAppAccess({ access: { enabled: false } })).toBe(false);
+    // jawnie nieaktywni nadal blokowani.
+    expect(hasCallableAppAccess({ status: "pending_verification" })).toBe(false);
+    expect(hasCallableAppAccess({ status: "suspended" })).toBe(false);
   });
 });
 
