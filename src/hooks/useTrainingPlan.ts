@@ -30,7 +30,12 @@ export const useTrainingPlan = (userId: string) => {
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
-    if (!userId) return;
+    // Brak userId (np. odświeżanie tokena): nie ma czego ładować → "puste, ale gotowe".
+    // Inaczej isLoaded zostaje false i gate startu treningu wisi w spinnerze (#6).
+    if (!userId) {
+      setIsLoaded(true);
+      return;
+    }
 
     const docRef = doc(db, PLAN_COLLECTION, userId);
 

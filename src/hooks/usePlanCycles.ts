@@ -63,7 +63,12 @@ export const usePlanCycles = (userId: string) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (!userId) return;
+    // Brak userId (np. odświeżanie tokena): nie ma czego ładować → "puste, ale gotowe".
+    // Inaczej isLoaded zostaje false i gate startu treningu wisi w spinnerze (#6).
+    if (!userId) {
+      setIsLoaded(true);
+      return;
+    }
 
     if (import.meta.env.VITE_E2E_MODE === 'true') {
       setIsLoaded(true);

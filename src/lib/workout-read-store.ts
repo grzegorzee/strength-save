@@ -50,6 +50,15 @@ const EMPTY_SNAPSHOT: WorkoutReadSnapshot = {
   error: null,
 };
 
+// Brak userId (np. odświeżanie tokena) = nie ma czego ładować → "puste, ale gotowe".
+// Stabilna referencja wymagana przez useSyncExternalStore (inaczej pętla renderów).
+const EMPTY_LOADED_SNAPSHOT: WorkoutReadSnapshot = {
+  workouts: [],
+  measurements: [],
+  isLoaded: true,
+  error: null,
+};
+
 type Listener = () => void;
 
 interface StoreEntry {
@@ -155,7 +164,7 @@ export const subscribeWorkoutReads = (userId: string, listener: Listener): Unsub
 };
 
 export const getWorkoutReadSnapshot = (userId: string): WorkoutReadSnapshot => {
-  if (!userId) return EMPTY_SNAPSHOT;
+  if (!userId) return EMPTY_LOADED_SNAPSHOT;
   return getOrCreateStore(userId).snapshot;
 };
 
