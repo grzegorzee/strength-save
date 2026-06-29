@@ -33,7 +33,7 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
-import { isCycleVisible } from '@/lib/cycle-visibility';
+import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
@@ -181,7 +181,7 @@ const Dashboard = () => {
     }).length;
     return thisWeekCompleted < 2 ? 2 - thisWeekCompleted : 0;
   }, [streak, workouts]);
-  const visibleCycles = useMemo(() => cycles.filter(isCycleVisible), [cycles]);
+  const visibleCycles = useMemo(() => cycles.filter(isCycleVisibleWithData), [cycles]);
   const activeCycle = useMemo(() => visibleCycles.find(cycle => cycle.status === 'active') ?? null, [visibleCycles]);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
   const workoutToDay = useMemo(() => (workout: typeof workouts[number]): TrainingDay => {

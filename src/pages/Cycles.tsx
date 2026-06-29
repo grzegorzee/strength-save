@@ -29,7 +29,7 @@ import { useUnit } from '@/contexts/UnitContext';
 import { formatLocalDate } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
-import { isCycleVisible } from '@/lib/cycle-visibility';
+import { isCycleVisible, isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
@@ -134,7 +134,7 @@ const Cycles = () => {
     };
   }, [uid]);
   const liveActiveCycle = buildActiveCyclePreview(activeCycle, workouts);
-  const visibleStoredCycles = visibleCycles.filter(cycle => cycle.status === 'active' || cycle.stats.totalWorkouts > 0);
+  const visibleStoredCycles = visibleCycles.filter(isCycleVisibleWithData);
   const previousCompletedCycle = visibleStoredCycles.find(cycle => cycle.status === 'completed') || null;
   const comparison = liveActiveCycle ? buildCycleComparison(liveActiveCycle, previousCompletedCycle) : null;
   const recommendation = liveActiveCycle
