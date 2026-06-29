@@ -35,25 +35,21 @@ test.describe('Navigation', () => {
     expect(joinedLabels).not.toContain('AI Coach');
   });
 
-  test('closed mobile drawer does not expose sidebar links to keyboard focus', async ({ page }) => {
+  test('mobile has no sidebar drawer and keeps sidebar-only links out of keyboard focus', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
     await expectPageRendered(page);
 
-    await expect(page.getByRole('navigation', { name: 'Nawigacja główna' })).toHaveCount(0);
-
-    await page.getByRole('button', { name: 'Nawigacja główna' }).click();
-    await expect(page.getByRole('navigation', { name: 'Nawigacja główna' })).toBeVisible();
-
-    await page.keyboard.press('Escape');
+    // Od build 46 (938aadb) nie ma już mobilnego hamburgera/drawera — sidebar
+    // 'Nawigacja główna' renderuje się wyłącznie na desktopie (md+).
     await expect(page.getByRole('navigation', { name: 'Nawigacja główna' })).toHaveCount(0);
 
     for (let i = 0; i < 8; i += 1) {
       await page.keyboard.press('Tab');
       const focusedHref = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
-      // Linki tylko-sidebarowe (history/measurements/achievements/cycles) nie mogą
-      // łapać fokusa przy zamkniętym drawerze; analytics jest teraz w dolnym pasku.
+      // Linki tylko-sidebarowe (history/measurements/achievements/cycles) nie istnieją
+      // na mobile; analytics jest teraz w dolnym pasku.
       expect(focusedHref).not.toBe('#/history');
       expect(focusedHref).not.toBe('#/measurements');
       expect(focusedHref).not.toBe('#/achievements');

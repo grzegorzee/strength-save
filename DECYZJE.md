@@ -11,7 +11,13 @@
 
 ## DECYZJE
 
-### 2026-06-29 — Przywrócono swobodne dodawanie/usuwanie serii + usunięto niedziałający hamburger (build 46)
+### 2026-06-29 — Realizacja planu naprawy po audycie (docs/AUDYT-FIX-PLAN-2026-06-29.md)
+
+Wykonanie zadań Z1-Z12 metodą TDD (test odtwarzający → minimalny surgical fix), osobny commit per zadanie. Bez push/deploy/iOS/functions deploy (czeka na zgodę usera). Poniżej per zadanie.
+
+**Z1 — e2e: 2 czerwone testy nawigacji (#12, P2).** Build 46 (`938aadb`) usunął mobilny hamburger/drawer; `sidebarOpen` w `Layout.tsx` nigdy nie jest ustawiane na `true`, więc `Sheet` (boczne menu) na mobile nie da się otworzyć. Dwa testy klikały nieistniejący `button 'Nawigacja główna'` → TimeoutError. Root cause: testy zakładały drawer usunięty w build 46. Fix (tylko `e2e/`): `nav-analytics.spec.ts` — usunięto część otwierającą boczne menu i szukającą Historii (na mobile Historia nie jest już w nawigacji), zachowano pokrycie dolnego paska (Analityka jest, Historia nie); `ui-improvements.spec.ts` — usunięto klik hamburgera + Escape, zachowano asercję braku sidebara na mobile i pętlę Tab sprawdzającą, że linki tylko-sidebarowe (history/measurements/achievements/cycles) nie łapią fokusa. Weryfikacja: `e2e:mock` 116 passed (było 2 failed), typecheck/lint/test 421 zielone.
+
+
 
 **Serie:** podczas aktywnego treningu nie dało się dodać/usunąć serii roboczej (tylko rozgrzewkowe). Przyczyna: `enforceWorkingSetCount` (regresja z hardeningu `880cb9e`) wymuszał liczbę serii z planu, ukrywając przyciski +/× (`ExerciseCard` linie 451, 597). Fix: usunięto prop `enforceWorkingSetCount` z wywołania `ExerciseCard` w `WorkoutDay.tsx` (default false) → pełna swoboda jak przed hardeningiem. Reszta logiki (`sanitizeSets`) działa w trybie niewymuszonym.
 
