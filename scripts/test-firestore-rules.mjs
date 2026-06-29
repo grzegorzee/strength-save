@@ -70,6 +70,15 @@ add('read training_plans (pending_verification) zablokowane', false, await ok(()
 await env.clearFirestore();
 add('create workout (brak users doc) zablokowane', false, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
 
+// === Legacy/Google: dokument users BEZ pola status = traktowany jak aktywny ===
+// REGRESJA 2026-06-29: hardening reguł wymagał status=='active', a konta z logowania Google
+// nigdy nie dostały tego pola → zapis treningu padał "Missing or insufficient permissions".
+await env.clearFirestore();
+await seedDoc('users', UID, { uid: UID, email: `${UID}@b.c`, role: 'user', onboardingCompleted: true });
+add('create workout (users bez pola status) dozwolone — REGRESJA', true, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
+add('update workout (users bez pola status) dozwolone', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { completed: true })));
+add('write training_plans (users bez pola status) dozwolone', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { days: [], durationWeeks: 12, startDate: '2026-06-08', updatedAt: 'x' })));
+
 // === Measurements ===
 await env.clearFirestore();
 await seedUser({ enabled: true });

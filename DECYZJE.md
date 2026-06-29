@@ -11,6 +11,23 @@
 
 ## DECYZJE
 
+### 2026-06-29 — "Missing or insufficient permissions" przy starcie treningu: reguły wymagały status=='active', którego nie mają konta Google
+
+**Objaw:** user nie mógł rozpocząć/zapisać treningu — czerwony błąd "Missing or insufficient permissions". Strona renderowała się (odczyty działały), padał dopiero zapis.
+
+**Root cause (systematic-debugging, potwierdzony na danych prod read-only):** hardening reguł (`880cb9e`, `1aede0f`) dodał `hasSelfAccess`, które do KAŻDEGO zapisu (create/update workouts, plan_cycles, measurements, telemetry) wymaga `users/{uid}.status == 'active'`. Reguły read mają bypass `isAdmin()`, ale write NIE — dlatego odczyty działały, a zapisy padały. Konta z logowania Google (i sprzed flow rejestracji) NIGDY nie dostały pola `status` — gałąź logowania w `registration.ts` aktualizuje `lastLoginAt`, ale nie ustawia `status`. Skala: 2 z 5 userów bez `status` (g.jasionowicz/admin + realna userka joannawojtun32). Dla nie-admina blokowane były nawet odczyty.
+
+**Dlaczego test:rules tego nie złapał:** harness `seedUser` ZAWSZE ustawiał `status` — przypadek dokumentu BEZ pola `status` nie był pokryty.
+
+**Fix (pełny):**
+1. Reguła `hasSelfAccess` backward-compat: brak pola `status` = traktuj jak aktywny; jawnie nieaktywni (`pending_verification`, `suspended`) nadal blokowani. Plik `firestore.rules`. Wdrożone na prod (`firebase deploy --only firestore:rules`).
+2. Regresja w `scripts/test-firestore-rules.mjs`: dokument users bez `status` → zapis dozwolony (red→green; 46/46 testów reguł przechodzi). `pending_verification` nadal blokowany.
+3. Backfill `status:'active'` + `access:{enabled:true}` na 2 kontach (admin SDK, merge, idempotentnie) — naprawia też dostęp do Cloud Functions callable (`hasCallableAppAccess` wymaga status=='active'). Zweryfikowane.
+
+**Źródło dla nowych kont jest OK:** `registerUser` (registration.ts:350-351) ustawia `status`/`access` dla nowych userów. Incydent dotyczył wyłącznie kont legacy. Świadomie NIE ruszano `hasCallableAppAccess` (pusty profil `{}` ma dalej być odrzucany — istniejąca intencja bezpieczeństwa; wszystkie obecne konta mają już status po backfillu).
+
+**To NIE był błąd kodu builda 44** (stabilizacja treningów) — czysto warstwa reguł + dane legacy.
+
 ### 2026-06-27 — Stabilizacja treningów: wyścig startu, konflikt Sync Center, odporne statystyki, naprawa danych (build 44 / 6.13.0)
 
 **Objaw:** banner „Ustabilizuj realizację planu" + frekwencja 9/16 (56%) i 7 „opuszczonych",

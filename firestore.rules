@@ -21,7 +21,12 @@ service cloud.firestore {
       return request.auth != null
              && request.auth.uid == userId
              && exists(/databases/$(database)/documents/users/$(userId))
-             && get(/databases/$(database)/documents/users/$(userId)).data.status == 'active'
+             // Brak pola status (konta z logowania Google / sprzed hardeningu) = traktuj jak aktywny.
+             // Jawnie nieaktywni (pending_verification, suspended) nadal zablokowani.
+             && (
+               !('status' in get(/databases/$(database)/documents/users/$(userId)).data)
+               || get(/databases/$(database)/documents/users/$(userId)).data.status == 'active'
+             )
              && (
                !('access' in get(/databases/$(database)/documents/users/$(userId)).data)
                || !('enabled' in get(/databases/$(database)/documents/users/$(userId)).data.access)
