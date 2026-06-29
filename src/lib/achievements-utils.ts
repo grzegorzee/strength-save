@@ -104,8 +104,12 @@ export const detectPlateaus = (
 
   // exId -> (date -> najlepszy 1RM tego dnia)
   const byExercise = new Map<string, Map<string, number>>();
+  // Nazwa ze snapshotu treningu — fallback dla legacy id spoza aktualnego planu
+  // (mapa exerciseNames bywa zdeduplikowana po nazwie i gubi część id).
+  const snapshotNames = new Map<string, string>();
   workouts.forEach(w => {
     w.exercises.forEach(ex => {
+      if (ex.name && !snapshotNames.has(ex.exerciseId)) snapshotNames.set(ex.exerciseId, ex.name);
       ex.sets.forEach(set => {
         if (!set.completed || set.isWarmup || set.weight <= 0) return;
         const est = calculate1RM(set.weight, set.reps);
@@ -129,7 +133,7 @@ export const detectPlateaus = (
     if (recentMax < overallBest) {
       plateaus.push({
         exerciseId: exId,
-        name: exerciseNames.get(exId) ?? exId,
+        name: exerciseNames.get(exId) ?? snapshotNames.get(exId) ?? exId,
         sessionCount: sessions.length,
         best1RM: overallBest,
         bestDate: bestSession[0],

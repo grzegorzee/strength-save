@@ -104,6 +104,21 @@ describe('detectPlateaus', () => {
     ];
     expect(detectPlateaus(workouts, names)).toHaveLength(0);
   });
+
+  it('używa nazwy ze snapshotu treningu gdy mapa nazw nie zna legacy id', () => {
+    // Regresja: legacy id (np. ex-1-2) spoza aktualnego planu pokazywał się jako surowe id.
+    const named = (id: string, date: string, weight: number): WorkoutSession => ({
+      id, userId: 'u', dayId: 'd', date, completed: true,
+      exercises: [{ exerciseId: 'ex-1-2', name: 'Przysiad ze sztangą (High Bar)', sets: [{ reps: 1, weight, completed: true }] }],
+    });
+    const workouts = [
+      named('w1', '2026-01-01', 100), named('w2', '2026-01-08', 95),
+      named('w3', '2026-01-15', 95), named('w4', '2026-01-22', 95),
+    ];
+    const res = detectPlateaus(workouts, new Map()); // pusta mapa — id nie jest w planie
+    expect(res).toHaveLength(1);
+    expect(res[0].name).toBe('Przysiad ze sztangą (High Bar)');
+  });
 });
 
 describe('computeMilestones', () => {

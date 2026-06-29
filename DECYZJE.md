@@ -11,6 +11,22 @@
 
 ## DECYZJE
 
+### 2026-06-29 — Zastój/PR pokazywały surowe exerciseId (ex-1-2) zamiast nazw legacy ćwiczeń
+
+**Objaw:** sekcja "Zastój" na Osiągnięciach pokazywała `ex-1-2`, `ex-2-3` zamiast nazw (część ćwiczeń, np. "Uginanie nóg", rozwiązywała się poprawnie).
+
+**Root cause:** mapa `exerciseNames` przekazywana do `detectPlateaus` (Achievements.tsx) jest budowana z `oneRMRecords`, które są **deduplikowane po nazwie** — gdy legacy id (`ex-1-2` = "Przysiad ze sztangą") ma tę samą nazwę co aktualny `tpl-ex-35`, dedup zostawia jeden id i wyrzuca drugi z mapy. `detectPlateaus`/`detectNewPRs` grupują po surowym exerciseId (wszystkie), więc wyrzucony legacy id → `map.get(id) ?? id` → surowe id. Dane są OK: każdy wpis treningu MA zapisane `ex.name`.
+
+**Fix (u źródła, fallback do snapshotu, dane już istnieją):**
+- `achievements-utils.ts` `detectPlateaus`: zbiera `ex.name` per id, `exerciseNames.get(exId) ?? snapshotNames.get(exId) ?? exId`.
+- `pr-utils.ts` `detectNewPRs`: `... || ex.name || ex.exerciseId`.
+- `ai-coach.ts` (kontekst dla AI): `... || ex.name || ex.exerciseId` (AI widziało surowe id).
+- Test regresji w `achievements-utils.test.ts` (legacy id + pusta mapa → nazwa ze snapshotu).
+
+**Audyt innych miejsc:** `cycle-insights.ts` już miał fallback do snapshotu; `AnalyticsChartsTab`, Rekordy w Achievements i ExerciseProgression używają `resolver.resolveExerciseName` (snapshot-first) — OK.
+
+421 testów, typecheck, lint zielone. Fix kliencki: web zdeployowany; iOS wymaga builda 45.
+
 ### 2026-06-29 — "Missing or insufficient permissions" przy starcie treningu: reguły wymagały status=='active', którego nie mają konta Google
 
 **Objaw:** user nie mógł rozpocząć/zapisać treningu — czerwony błąd "Missing or insufficient permissions". Strona renderowała się (odczyty działały), padał dopiero zapis.

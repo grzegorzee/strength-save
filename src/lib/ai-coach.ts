@@ -100,7 +100,7 @@ export function prepareCoachData(
     date: w.date,
     dayId: w.dayId,
     exercises: w.exercises.map(ex => ({
-      name: exerciseNames.get(ex.exerciseId) || ex.exerciseId,
+      name: exerciseNames.get(ex.exerciseId) || ex.name || ex.exerciseId,
       sets: ex.sets
         .filter(s => s.completed && !s.isWarmup)
         .map(s => ({ reps: s.reps, weight: s.weight })),
@@ -463,7 +463,7 @@ export async function generateWorkoutSummary(
     date: w.date,
     dayId: w.dayId,
     exercises: w.exercises.map(ex => ({
-      name: exerciseNames.get(ex.exerciseId) || ex.exerciseId,
+      name: exerciseNames.get(ex.exerciseId) || ex.name || ex.exerciseId,
       sets: ex.sets
         .filter(s => s.completed)
         .map(s => ({

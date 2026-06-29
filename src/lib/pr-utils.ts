@@ -83,7 +83,7 @@ export const detectNewPRs = (
   if (!currentWorkout.completed) return prs;
 
   currentWorkout.exercises.forEach(ex => {
-    const name = exerciseNames.get(ex.exerciseId) || ex.exerciseId;
+    const name = exerciseNames.get(ex.exerciseId) || ex.name || ex.exerciseId;
     const isBw = bodyweightExerciseIds?.has(ex.exerciseId) ?? false;
 
     if (isBw) {
