@@ -1386,6 +1386,10 @@ const WorkoutDay = () => {
     const result = await syncDraftToFirebase('final');
     setIsExplicitSaving(false);
 
+    if (!result.success && result.skipped) {
+      return; // inny sync w toku; nie strasz usera, kolejny checkpoint dokończy
+    }
+
     if (!result.success) {
       toast({
         title: t('workout.toast.noSyncTitle'),
@@ -1422,6 +1426,12 @@ const WorkoutDay = () => {
     }
 
     const result = await syncDraftToFirebase('final');
+
+    if (!result.success && result.skipped) {
+      // Inny sync w toku (mutex zajęty) — to nie błąd; user może ponowić.
+      setIsExplicitSaving(false);
+      return;
+    }
 
     if (!result.success) {
       const now = Date.now();
