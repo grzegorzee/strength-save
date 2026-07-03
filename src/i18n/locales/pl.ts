@@ -598,6 +598,10 @@ export const pl = {
   'planbuilder.compound': 'Złożone',
   'planbuilder.isolation': 'Izolacja',
   'planbuilder.noExercisesFound': 'Nie znaleziono ćwiczeń',
+  'planbuilder.startScratch': 'Zacznij od zera',
+  'planbuilder.startScratchDesc': 'Pusty plan: sam dodajesz dni i ćwiczenia.',
+  'planbuilder.startTemplate': 'Zacznij od szablonu',
+  'planbuilder.startTemplateDesc': 'Skopiuj gotowy plan i dostosuj go do siebie.',
 
   // wspólny picker ćwiczeń (Z69)
   'picker.title': 'Wybierz ćwiczenie',

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario } from './helpers';
 
 // =====================================================
 // 1. ALL PAGES LOAD WITHOUT CRASHES
@@ -464,6 +464,53 @@ test.describe('ExercisePicker (Z69)', () => {
 });
 
 // =====================================================
+// 11t. ONBOARDING Z PODGLĄDEM (Z73)
+// =====================================================
+test.describe('Onboarding z podglądem (Z73)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+    await setE2EAuthScenario(page, 'new-user');
+  });
+
+  test('wybór planu w onboardingu pokazuje podgląd PRZED zapisem, swap działa', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByRole('button', { name: 'Następny krok' }).click();
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+
+    // Krok 5: zatwierdzenie prowadzi do PODGLĄDU planu, nie od razu do zapisu.
+    await page.getByRole('button', { name: 'Podgląd planu' }).click();
+    await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
+
+    // Swap w podglądzie otwiera picker.
+    await page.getByRole('button', { name: 'Zamień', exact: true }).first().click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+});
+
+// =====================================================
+// 11t2. BUILDER STARTUJE Z SZABLONU (Z73b)
+// =====================================================
+test.describe('Builder z szablonu (Z73)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('Zacznij od szablonu kopiuje dni szablonu do buildera', async ({ page }) => {
+    await navigateAndWait(page, '/new-plan');
+    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await page.getByRole('button', { name: 'Zacznij od szablonu' }).click();
+    await page.getByText('Żelazny Fundament').click();
+
+    // Dni szablonu 2-dniowego wylądowały w edytorze buildera.
+    await expect(page.getByText('Dzień 1')).toBeVisible();
+    await expect(page.getByText('Dzień 2')).toBeVisible();
+    await expect(page.getByText('Przysiad goblet').first()).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11u. WYBÓR 6 DNI (Z72)
 // =====================================================
 test.describe('Wybór 6 dni (Z72)', () => {
@@ -503,6 +550,7 @@ test.describe('Własne ćwiczenia (Z71)', () => {
   test('formularz w pickerze tworzy własne ćwiczenie i dodaje je do planu (builder)', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
     await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await page.getByRole('button', { name: 'Zacznij od zera' }).click();
     await page.getByRole('button', { name: /Dodaj dzień/ }).click();
     await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click();
 
@@ -542,6 +590,7 @@ test.describe('PlanDaysEditor (Z70)', () => {
     await navigateAndWait(page, '/new-plan');
     await page.getByRole('button', { name: 'Ułóż własny' }).click();
     await expect(page.getByRole('heading', { name: 'Twój własny plan' })).toBeVisible();
+    await page.getByRole('button', { name: 'Zacznij od zera' }).click();
 
     // Dodaj dzień 1 (pierwszy wolny weekday = poniedziałek).
     await page.getByRole('button', { name: /Dodaj dzień/ }).click();

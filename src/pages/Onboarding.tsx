@@ -7,10 +7,13 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
+import { PlanPreview } from '@/components/PlanPreview';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
+import type { TrainingDay } from '@/data/trainingPlan';
 
-// Onboarding nowego użytkownika = wspólny PlanWizard (z ekranem Welcome) + zapis planu.
+// Onboarding nowego użytkownika = wspólny PlanWizard (z ekranem Welcome) + podgląd planu
+// (ten sam ekran co NewPlan, Z73) + zapis planu.
 const Onboarding = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -19,15 +22,27 @@ const Onboarding = () => {
   const { createActiveCycle } = usePlanCycles(uid);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [choice, setChoice] = useState<PlanWizardChoice | null>(null);
+  const [reviewDays, setReviewDays] = useState<TrainingDay[]>([]);
+  const [showPreview, setShowPreview] = useState(false);
   const requiresPaywall = useRequiresPaywall();
 
-  const handleConfirm = async (choice: PlanWizardChoice) => {
+  const handleWizardConfirm = (c: PlanWizardChoice) => {
+    setChoice(c);
+    setReviewDays(c.days);
+    setShowPreview(true);
+    setError(null);
+  };
+
+  const handleConfirm = async () => {
+    if (!choice) return;
     setIsSaving(true);
     setError(null);
-    const result = await completeOnboardingPlan(choice, {
+    const confirmed: PlanWizardChoice = { ...choice, days: reviewDays };
+    const result = await completeOnboardingPlan(confirmed, {
       savePlan,
       createActiveCycle,
-      markOnboardingComplete: async (confirmed) => updateDoc(doc(db, 'users', uid), {
+      markOnboardingComplete: async () => updateDoc(doc(db, 'users', uid), {
         onboardingCompleted: true,
         onboarding: { state: 'completed', version: 2 },
         trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
@@ -49,14 +64,29 @@ const Onboarding = () => {
     }
   };
 
+  if (choice && showPreview) {
+    return (
+      <PlanPreview
+        days={reviewDays}
+        onDaysChange={setReviewDays}
+        onBack={() => setShowPreview(false)}
+        onConfirm={handleConfirm}
+        confirmLabel={t('ob.precision.confirm')}
+        isSaving={isSaving}
+        error={error}
+      />
+    );
+  }
+
   return (
     <PlanWizard
       showWelcome
       socialProof
       trialNotice={requiresPaywall}
+      resume={choice ?? undefined}
       builderDraftKey={`ss-plan-builder-draft_${uid}`}
-      confirmLabelKey="ob.precision.confirm"
-      onConfirm={handleConfirm}
+      confirmLabelKey="newplan.toReview"
+      onConfirm={handleWizardConfirm}
       isSaving={isSaving}
       error={error}
     />

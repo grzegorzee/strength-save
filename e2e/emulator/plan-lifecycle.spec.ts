@@ -140,8 +140,9 @@ test.describe('Emulator: cykl życia planu', () => {
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
 
-    // Krok 5: ścieżka "Ułóż własny" → PlanBuilder
+    // Krok 5: ścieżka "Ułóż własny" → PlanBuilder (Z73: najpierw wybór startu)
     await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await page.getByRole('button', { name: 'Zacznij od zera' }).click();
 
     // Dodaj dzień + pojedyncze ćwiczenie z biblioteki (search)
     await page.getByRole('button', { name: /Dodaj dzień/ }).click();
@@ -154,8 +155,10 @@ test.describe('Emulator: cykl życia planu', () => {
     // Ćwiczenie widoczne na liście dnia
     await expect(page.getByText(/martwy/i).first()).toBeVisible();
 
-    // Zapis własnego planu (w onboardingu submit od razu zapisuje)
+    // Z73: submit buildera prowadzi do PODGLĄDU planu, zapis dopiero po zatwierdzeniu.
     await page.getByRole('button', { name: 'Dalej do podglądu' }).click();
+    await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
+    await page.getByRole('button', { name: 'Zatwierdź i zacznij' }).click();
 
     // Ląduje na Dashboardzie
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 20000 });

@@ -592,6 +592,10 @@ export const en: Record<keyof typeof pl, string> = {
   'planbuilder.compound': 'Compound',
   'planbuilder.isolation': 'Isolation',
   'planbuilder.noExercisesFound': 'No exercises found',
+  'planbuilder.startScratch': 'Start from scratch',
+  'planbuilder.startScratchDesc': 'Empty plan: you add days and exercises yourself.',
+  'planbuilder.startTemplate': 'Start from a template',
+  'planbuilder.startTemplateDesc': 'Copy a ready-made plan and make it yours.',
 
   'picker.title': 'Pick an exercise',
   'picker.description': 'Search by name or filter by muscle group.',

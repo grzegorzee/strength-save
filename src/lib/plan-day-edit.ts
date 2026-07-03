@@ -73,3 +73,19 @@ export const setPlanDayWeekday = (days: TrainingDay[], dayId: string, weekday: W
 
 export const setPlanDayFocus = (days: TrainingDay[], dayId: string, focus: string): TrainingDay[] =>
   days.map((d) => (d.id === dayId ? { ...d, focus } : d));
+
+/** Głęboka kopia dni szablonu z nowymi id (dni i ćwiczeń) — start buildera z szablonu (Z73). */
+export const clonePlanDays = (days: TrainingDay[]): TrainingDay[] =>
+  days.map((d, dayIndex) => {
+    const newId = `day-${dayIndex + 1}`;
+    const prefix = exercisePrefixForDayId(newId);
+    return {
+      ...d,
+      id: newId,
+      exercises: d.exercises.map((ex, i) => ({
+        ...ex,
+        id: `${prefix}-${i + 1}`,
+        instructions: ex.instructions.map((inst) => ({ ...inst })),
+      })),
+    };
+  });

@@ -6,6 +6,7 @@ import {
   duplicatePlanDay,
   setPlanDayWeekday,
   setPlanDayFocus,
+  clonePlanDays,
 } from '@/lib/plan-day-edit';
 
 const day = (id: string, weekday: TrainingDay['weekday'], focus = 'Focus', exercises: TrainingDay['exercises'] = []): TrainingDay => ({
@@ -101,5 +102,24 @@ describe('plan-day-edit (Z70)', () => {
     const result = setPlanDayFocus(twoDays(), 'day-2', 'Nogi');
     expect(result[1].focus).toBe('Nogi');
     expect(result[0].focus).toBe('Klatka');
+  });
+
+  it('clonePlanDays: nowe id, głęboka kopia, brak współdzielenia referencji (Z73)', () => {
+    const source = [
+      day('tpl-day-a', 'monday', 'Push', [
+        { id: 'tpl-ex-1', name: 'Wyciskanie sztangi na ławce płaskiej', sets: '4 x 6-8', instructions: [{ title: 'T', content: 'C' }] },
+      ]),
+      day('tpl-day-b', 'thursday', 'Pull'),
+    ];
+    const cloned = clonePlanDays(source);
+    expect(cloned).toHaveLength(2);
+    expect(cloned[0].id).not.toBe('tpl-day-a');
+    expect(cloned[0].exercises[0].id).not.toBe('tpl-ex-1');
+    expect(cloned[0].exercises[0].name).toBe('Wyciskanie sztangi na ławce płaskiej');
+    expect(cloned[0].weekday).toBe('monday');
+    cloned[0].exercises[0].sets = '5 x 5';
+    cloned[0].exercises[0].instructions[0].content = 'zmienione';
+    expect(source[0].exercises[0].sets).toBe('4 x 6-8');
+    expect(source[0].exercises[0].instructions[0].content).toBe('C');
   });
 });

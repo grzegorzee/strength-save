@@ -3,9 +3,12 @@ import { Button } from '@/components/ui/button';
 import { PlanDaysEditor } from '@/components/PlanDaysEditor';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
 import type { TrainingDay } from '@/data/trainingPlan';
-import { ChevronLeft, Check } from 'lucide-react';
+import { planTemplates } from '@/data/planTemplates';
+import { ChevronLeft, Check, Pencil, Copy } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizePlanName } from '@/lib/plan-i18n';
 import { defaultSetsForType } from '@/lib/plan-cycle-utils';
+import { clonePlanDays } from '@/lib/plan-day-edit';
 
 let scratchCounter = 0;
 const nextId = (prefix: string) => `${prefix}-${(scratchCounter += 1)}`;
@@ -35,7 +38,7 @@ const readBuilderDraft = (key: string | undefined): { days: TrainingDay[]; durat
 // Ręczny kreator planu treningowego od zera (bez AI). Dni i ćwiczenia edytuje
 // wspólny PlanDaysEditor (Z70) na stanie lokalnym; zapis dopiero przy submit.
 export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStorageKey, onSubmit, onCancel }: PlanBuilderProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   // initialDays (powrót z preview) ma pierwszeństwo przed szkicem z localStorage.
   const [restoredDraft] = useState(() =>
     initialDays && initialDays.length > 0 ? null : readBuilderDraft(draftStorageKey));
@@ -45,6 +48,17 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
       : restoredDraft?.days ?? [],
   );
   const [durationWeeks, setDurationWeeks] = useState(restoredDraft?.durationWeeks ?? initialDurationWeeks);
+  // Start buildera (Z73): przy pustym stanie user wybiera "od zera" albo "z szablonu".
+  const [starterMode, setStarterMode] = useState<'choice' | 'templates' | 'editor'>(() =>
+    (initialDays && initialDays.length > 0) || restoredDraft ? 'editor' : 'choice');
+
+  const startFromTemplate = (templateId: string) => {
+    const tpl = planTemplates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    setDays(clonePlanDays(tpl.days));
+    setDurationWeeks(tpl.durationWeeks);
+    setStarterMode('editor');
+  };
 
   // Autozapis szkicu przy każdej zmianie; pusty plan czyści wpis.
   useEffect(() => {
@@ -125,6 +139,66 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
     }
     onSubmit(finalized, durationWeeks);
   };
+
+  if (starterMode !== 'editor') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => (starterMode === 'templates' ? setStarterMode('choice') : onCancel())}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold">{t('planbuilder.title')}</h1>
+            <p className="text-sm text-muted-foreground">{t('planbuilder.subtitle')}</p>
+          </div>
+        </div>
+
+        {starterMode === 'choice' ? (
+          <div className="space-y-3">
+            <button
+              onClick={() => setStarterMode('editor')}
+              className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-high transition-colors p-4 flex items-center gap-3"
+            >
+              <span className="h-10 w-10 shrink-0 rounded-xl bg-surface-highest flex items-center justify-center text-fitness-cyan">
+                <Pencil className="h-4.5 w-4.5" />
+              </span>
+              <span>
+                <span className="block font-medium">{t('planbuilder.startScratch')}</span>
+                <span className="block text-xs text-muted-foreground">{t('planbuilder.startScratchDesc')}</span>
+              </span>
+            </button>
+            <button
+              onClick={() => setStarterMode('templates')}
+              className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-high transition-colors p-4 flex items-center gap-3"
+            >
+              <span className="h-10 w-10 shrink-0 rounded-xl bg-surface-highest flex items-center justify-center text-fitness-cyan">
+                <Copy className="h-4.5 w-4.5" />
+              </span>
+              <span>
+                <span className="block font-medium">{t('planbuilder.startTemplate')}</span>
+                <span className="block text-xs text-muted-foreground">{t('planbuilder.startTemplateDesc')}</span>
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {planTemplates.map((tpl) => (
+              <button
+                key={tpl.id}
+                onClick={() => startFromTemplate(tpl.id)}
+                className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-high transition-colors p-4"
+              >
+                <p className="font-medium">{localizePlanName(tpl.id, tpl.name, lang)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {tpl.daysPerWeek} {t('ob.precision.daysWk')} · {t('planbuilder.weeksShort', { n: tpl.durationWeeks })}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

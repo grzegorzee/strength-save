@@ -72,6 +72,7 @@ const PLAN_NAME: Record<string, PlanText> = {
   'tpl-fullbody-2': { pl: 'Żelazny Fundament', en: 'Iron Foundation' },
   'tpl-fullbody-3': { pl: 'Zrównoważony Rozwój', en: 'Balanced Builder' },
   'tpl-ppl-3': { pl: 'Pchanie / Ciągnięcie / Nogi', en: 'Push Pull Legs Engine' },
+  'tpl-ppl-6': { pl: 'Push Pull Legs ×2', en: 'Push Pull Legs ×2' },
   'tpl-upper-lower-4': { pl: 'Góra / Dół', en: 'Upper / Lower Forge' },
   'tpl-split-5': { pl: 'Split Hipertroficzny', en: 'Hypertrophy Split' },
   'tpl-push-pull-4': { pl: 'Protokół Napięcia', en: 'Tension Protocol' },
@@ -97,6 +98,10 @@ const PLAN_DESC: Record<string, PlanText> = {
   'tpl-upper-lower-4': {
     pl: 'Góra/dół dwa razy w tygodniu. Świetny balans siły i masy przy 4 treningach.',
     en: 'Upper/lower twice a week. A great balance of strength and size on 4 sessions.',
+  },
+  'tpl-ppl-6': {
+    pl: 'Pełny cykl PPL dwa razy w tygodniu: 6 treningów pon-sob, każda partia trenowana 2×. Maksymalna objętość dla budowy masy przy wysokiej dyspozycyjności.',
+    en: 'Full PPL cycle twice a week: 6 sessions Mon-Sat, every muscle group trained 2×. Maximum volume for building mass with high availability.',
   },
   'tpl-split-5': {
     pl: 'Klasyczny split na partie: klatka, plecy, nogi, barki, ramiona. Dla zaawansowanych z dużą objętością.',
