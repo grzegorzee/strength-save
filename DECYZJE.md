@@ -11,6 +11,18 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X10 FAZA 6: Adaptive Coach (Z63-Z64)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 560/560 (67 plików), typecheck 0, lint 0, build OK, e2e:mock 121/121.
+
+**Wyróżnik rynkowy:** trener reagujący na RPE/ból + gotowość łącząca siłownię z bieganiem (Strava), 100% offline, zero Functions.
+
+**Silnik (`src/lib/adaptive-coach.ts`, 14 testów TDD) — reguły i strojenie:**
+1. `buildExerciseRecommendation` (ostatnia ukończona sesja z ćwiczeniem): ból >= 3 → **deload** (delta -10% max ciężaru roboczego, zaokrąglone do 0.5 kg; bodyweight: delta 0); RPE >= 9 LUB completionRate < 0.8 → **hold**; RPE <= 7.5 I completionRate == 1 → **progress** (+5 kg dla dużych bojów dolnej połowy po nazwie: przysiad/martwy/prasa/hip thrust/hack squat, inaczej +2.5 kg). Priorytet: ból > ciężka sesja > progres. Brak metryk (rpe i pain undefined) LUB strefa środkowa (np. RPE 8) → **null** — coach mówi tylko przy jasnym sygnale, UI spada na nextAdvice. Progi = stałe na górze pliku (PAIN_DELOAD_THRESHOLD itd.) — strojenie w jednym miejscu.
+2. `buildReadiness`: ratio = suma obciążenia z 7 dni / (suma z 28 dni / 4), liczona osobno dla tonażu siłowego i TRIMP (istniejące `computeDailyLoad` z training-load.ts, bez duplikacji), uśredniona z dostępnych domen; brak danych → ratio 1. Progi: <0.8 fresh, <=1.2 ok, <=1.5 loaded, >1.5 overreached; score = clamp(100 - ratio*50, 0, 100) — monotoniczny.
+
+**UI (Z64), wszystko za flagą `FEATURE_FLAGS.adaptiveCoach` (kill-switch: `VITE_FEATURE_ADAPTIVE_COACH=false`):** karta Coach na Dashboardzie (pasek readiness + JEDNA najważniejsza rekomendacja dnia, priorytet deload > hold > progress); badge 🧠 na karcie ćwiczenia w treningu (nad nextAdvice, tooltip z powodem); sekcja "Następnym razem" w podsumowaniu ukończonego treningu (lista rekomendacji per ćwiczenie). Klucze i18n `coachx.*` w OBU locale (prefiks coachx, nie coach.* — tamte usunięto w Z39). Nowy hak testowy `fittracker_e2e_workouts` w workout-read-store (tylko mock E2E, wzorzec fittracker_e2e_cycles).
+
 ### 2026-07-03 — X10 FAZA 5: higiena i zaległości z FAZY 7 planu R2 (Z58-Z61)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 546/546, typecheck 0, lint 0, build OK, test:rules 95/95, functions 82 passed / 4 skipped + build OK, e2e:mock 119/119.
