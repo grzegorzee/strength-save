@@ -4,7 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { Layout } from "./components/Layout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
@@ -53,6 +53,30 @@ const Paywall = lazyWithRetry(() => import("./pages/Paywall"), "lazy-retry:paywa
 const AuthRedirect = () => {
   const location = useLocation();
   return <Navigate to={`/login${location.search || ''}`} replace />;
+};
+
+// Fallback boundary per trasa (Z56): crash jednej strony nie wywala całej apki —
+// user wraca na Dashboard, a boundary topowy zostaje ostatnią linią obrony.
+const RouteCrashFallback = ({ onReset }: { onReset: () => void }) => {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center">
+        <h1 className="text-lg font-semibold">{t('errors.routeCrashTitle')}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{t('errors.routeCrashDesc')}</p>
+        <Button
+          className="mt-6"
+          onClick={() => {
+            onReset();
+            navigate('/');
+          }}
+        >
+          {t('errors.backToDashboard')}
+        </Button>
+      </div>
+    </div>
+  );
 };
 
 const AuthenticatedRouteRedirect = ({ isNewUser }: { isNewUser: boolean }) => {
@@ -127,7 +151,7 @@ const AccessRestrictedView = ({
 };
 
 const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
-  const { isNewUser, profileLoaded, hasAppAccess, profile, needsEmailVerification, isSuspended, profileLoadError } = useCurrentUser();
+  const { uid, isNewUser, profileLoaded, hasAppAccess, profile, needsEmailVerification, isSuspended, profileLoadError } = useCurrentUser();
 
   if (!profileLoaded) {
     return <AppLoader />;
@@ -155,6 +179,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
       <IosSwipeBack />
       {!isNewUser && <WatchEventRouter />}
       {!isNewUser && <ActiveWorkoutResume />}
+      <ErrorBoundary uid={uid} fallback={(reset) => <RouteCrashFallback onReset={reset} />}>
       <Suspense fallback={<AppLoader />}>
         <Routes>
           {isNewUser ? (
@@ -201,6 +226,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
           )}
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </HashRouter>
   );
 };

@@ -2,9 +2,14 @@ import { Component, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { reportClientError } from '@/lib/error-telemetry';
 
 interface Props {
   children: ReactNode;
+  /** Crashe renderu raportują do client_errors tylko z uid (telemetria go wymaga). */
+  uid?: string;
+  /** Własny fallback (np. karta per trasa); reset czyści stan błędu boundary. */
+  fallback?: (reset: () => void) => ReactNode;
 }
 
 interface State {
@@ -24,10 +29,25 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    if (this.props.uid) {
+      const stackFirstLine = (error.stack ?? '').split('\n').find(line => line.includes('at ')) ?? '';
+      void reportClientError(this.props.uid, {
+        code: 'render-crash',
+        phase: 'other',
+        detail: `${error.message} ${stackFirstLine}`.trim(),
+      });
+    }
   }
+
+  reset = () => {
+    this.setState({ hasError: false, error: null });
+  };
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback(this.reset);
+      }
       // Klasa zywie poza LanguageProvider, wiec jezyk czytamy bezposrednio z localStorage.
       let isEN = false;
       try {

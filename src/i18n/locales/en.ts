@@ -4,6 +4,9 @@ import type { pl } from './pl';
 export const en: Record<keyof typeof pl, string> = {
   'common.save': 'Save',
   'common.cancel': 'Cancel',
+  'errors.routeCrashTitle': 'Something went wrong',
+  'errors.routeCrashDesc': 'This page hit an unexpected error. Your workout data is safe.',
+  'errors.backToDashboard': 'Back to Dashboard',
   'common.back': 'Back',
   'common.loading': 'Loading...',
   'common.loadMore': 'Load more',

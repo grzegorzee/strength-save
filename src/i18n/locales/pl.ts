@@ -4,6 +4,9 @@ export const pl = {
   // wspólne
   'common.save': 'Zapisz',
   'common.cancel': 'Anuluj',
+  'errors.routeCrashTitle': 'Coś poszło nie tak',
+  'errors.routeCrashDesc': 'Ta strona napotkała nieoczekiwany błąd. Twoje dane treningowe są bezpieczne.',
+  'errors.backToDashboard': 'Wróć na Dashboard',
   'common.back': 'Wstecz',
   'common.loading': 'Ładowanie...',
   'common.loadMore': 'Załaduj więcej',
