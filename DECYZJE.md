@@ -11,6 +11,20 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X10 FAZA 1: powrót do aktywnego treningu (Z47-Z49)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 515/515 (61 plików), typecheck 0, lint 0, build OK, e2e:mock 119/119, e2e:emulator 12/12 (JDK21).
+
+**Co i dlaczego:** po zabiciu apki / zimnym starcie user ZAWSZE lądował na Dashboardzie mimo żywego draftu w IndexedDB; karta dzisiejszego treningu pokazywała "Start treningu" w połowie sesji, a karta statusu sync kierowała do Settings zamiast do treningu.
+
+1. **Z47 — draft pamięta ostatnie ćwiczenie:** nowe opcjonalne pole `lastTouchedExerciseId` w `ActiveWorkoutDraft` (additive, bez bumpu DB_VERSION, normalizacja wzorcem exerciseMetrics); snapshot przenosi je z previousDraft (overrides mogą nadpisać); handlery `handleSetsChange`/`handleMetricsChange`/`handleWatchSetLogged` ustawiają je przy każdym dotknięciu. Po hydracji draftu WorkoutDay przewija kartę tego ćwiczenia (`scrollIntoView`, retry 300/900 ms), ale TYLKO gdy scroll-restore nie ma świeżej pozycji (<15 min) — zapisana pozycja ma pierwszeństwo. Ref-guard scrolla po stabilnym kluczu `uid:date` (NIE sessionId — promocja provisional→remote zmienia go w trakcie).
+2. **Z48 — natywny cykl życia iOS:** nowy plugin `@capacitor/app` + moduł `src/lib/app-lifecycle.ts` (`addAppStateListener`): natywnie `appStateChange` (dynamiczny import, guard na brak pluginu), na webie fallback visibilitychange. WorkoutDay flushuje draft dodatkowo przez ten kanał; webowe handlery zostają (duplikat flusha = no-op przez latestWriteVersions).
+3. **Z49 — auto-resume:** czysta funkcja `shouldResumeWorkoutDraft` (`src/lib/workout-resume.ts`): resume gdy draft żywy (dirty lub provisional), nieukończony (!completedLocally && !finalSyncPending) i świeży (dzisiejszy LUB dotykany <12h). Komponent `ActiveWorkoutResume` (App.tsx, obok WatchEventRouter): nawiguje na mount i na przejście background→active (ref-guard; świadome wyjście usera z treningu nie wraca), telemetria `workout_auto_resume` (rules OK — counters to mapa bez per-event hasOnly). Dashboard: karta dzisiejszego treningu przy żywym drafcie = "Kontynuuj trening" + licznik odhaczonych serii i link z `session=`; karta statusu sync przy żywym drafcie prowadzi do treningu (Settings zostaje dla wpisów kolejki bez draftu).
+
+**Root cause klasy problemu:** draft był bezpieczny w IndexedDB, ale żadna warstwa nawigacji go nie otwierała — brakowało decyzji "resume" jako czystej funkcji i komponentu, który ją wykonuje.
+
+**Zmiana w testach e2e:** scenariusz "dashboard highlights offline state" dostał draft nieświeży (>12h) — świeży provisional jest teraz z definicji auto-wznawiany (nowy test Auto-resume Z49 pokrywa oba warianty).
+
 ### 2026-07-03 — R2 FAZA 6: release train (Z46) — checkpoint R2
 
 **Bramki przed wdrożeniem (wszystkie zielone):** vitest 501/501, typecheck 0, lint 0, build OK, test:rules 93/93, functions 85+4 (2 nowe integracyjne waitlisty na emulatorze), e2e:mock 116/116, e2e:emulator 12/12, bundle-budget OK.
