@@ -87,11 +87,10 @@ test.describe('Page Load Smoke Tests', () => {
     await expect(page.getByRole('link', { name: /Wróć do strony głównej|Return to Home/i })).toBeVisible();
   });
 
-  test('Legacy routes redirect to analytics', async ({ page }) => {
+  test('martwe aliasy tras usunięte (Z60): /stats /summary /progress => 404', async ({ page }) => {
     for (const path of ['/stats', '/summary', '/progress']) {
       await navigateAndWait(page, path);
-      await expectPageRendered(page);
-      await expect(page.getByRole('main').getByRole('heading', { name: 'Analityka' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
     }
   });
 });

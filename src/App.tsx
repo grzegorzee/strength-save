@@ -216,10 +216,6 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
                 <Route path="/strava/callback" element={<StravaCallback />} />
                 <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
                 <Route path="/admin/plans/:userId" element={<AdminRoute><UserPlanEditor /></AdminRoute>} />
-                {/* Redirects from old routes */}
-                <Route path="/stats" element={<Analytics />} />
-                <Route path="/summary" element={<Analytics />} />
-                <Route path="/progress" element={<Analytics />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Route>
