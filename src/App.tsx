@@ -193,7 +193,6 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
                 <Route path="/stats" element={<Analytics />} />
                 <Route path="/summary" element={<Analytics />} />
                 <Route path="/progress" element={<Analytics />} />
-                <Route path="/measurements" element={<Analytics />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Route>

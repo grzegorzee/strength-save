@@ -86,7 +86,9 @@ const Profile = () => {
     if (!file) return;
     setUploadingAvatar(true);
     try {
-      const r = storageRef(storage, `avatars/${uid}/${Date.now()}-${file.name}`);
+      // Stała ścieżka = nadpisywanie: bez osieroconych plików po każdej zmianie (R2-29).
+      // Nowy upload generuje nowy download token, więc URL i tak się zmienia (brak stale cache).
+      const r = storageRef(storage, `avatars/${uid}/avatar`);
       await uploadBytes(r, file);
       const url = await getDownloadURL(r);
       await updateDoc(doc(db, 'users', uid), { photoURL: url });

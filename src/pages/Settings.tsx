@@ -20,7 +20,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
-import { doc, updateDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, collection, getDocs, limit, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { DataManagement } from '@/components/DataManagement';
@@ -33,6 +33,7 @@ import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 
+const FEATURE_PANEL_USERS_LIMIT = 200;
 const SUMMARY_HOUR_KEY = 'summary-hour';
 
 const AVAILABLE_FEATURES = [
@@ -58,7 +59,8 @@ const FeatureFlagsPanel = () => {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, 'users'));
+      // Limit spójny z listenerami admina — panel flag nie czyta całej kolekcji (R2-29).
+      const snap = await getDocs(query(collection(db, 'users'), limit(FEATURE_PANEL_USERS_LIMIT)));
       const rows: UserFeatureRow[] = [];
       snap.forEach((d) => {
         const data = d.data();
