@@ -38,6 +38,25 @@ export const classifyWorkoutSyncError = (error: unknown): WorkoutSyncErrorCode =
   return 'unknown';
 };
 
+export type WorkoutSyncErrorMessageKey =
+  | 'workout.err.conflict'
+  | 'workout.err.permission'
+  | 'workout.err.notFound'
+  | 'workout.err.validation'
+  | 'workout.err.offline'
+  | 'workout.err.unknown';
+
+export const workoutSyncErrorMessageKey = (error: unknown): WorkoutSyncErrorMessageKey => {
+  switch (classifyWorkoutSyncError(error instanceof Error ? error.message : error)) {
+    case 'revision-conflict': return 'workout.err.conflict';
+    case 'permission': return 'workout.err.permission';
+    case 'not-found': return 'workout.err.notFound';
+    case 'validation': return 'workout.err.validation';
+    case 'offline': return 'workout.err.offline';
+    default: return 'workout.err.unknown';
+  }
+};
+
 export const isRevisionConflictError = (error: unknown): boolean => (
   classifyWorkoutSyncError(error) === 'revision-conflict'
 );

@@ -48,6 +48,7 @@ import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
 import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
@@ -578,7 +579,7 @@ const WorkoutDay = () => {
           return { success: false, error: result.error };
         }
         const errorMessage = result.error || t('workout.err.syncFailed');
-        setSaveError(errorMessage);
+        setSaveError(t(workoutSyncErrorMessageKey(result.error)));
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
         return { success: false, error: errorMessage };
       }
@@ -649,7 +650,7 @@ const WorkoutDay = () => {
       return { success: true };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('workout.err.syncFailed');
-      setSaveError(errorMessage);
+      setSaveError(t(workoutSyncErrorMessageKey(err)));
       setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
       trackTelemetryEvent(uid, 'sync_failure');
       return { success: false, error: errorMessage };

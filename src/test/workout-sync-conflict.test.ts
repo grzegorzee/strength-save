@@ -3,6 +3,7 @@ import {
   classifyWorkoutSyncError,
   summarizeCloudWorkout,
   summarizeLocalDraft,
+  workoutSyncErrorMessageKey,
 } from '@/lib/workout-sync-conflict';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSession } from '@/types';
@@ -28,6 +29,15 @@ describe('workout sync conflicts', () => {
     ['unexpected', 'unknown'],
   ] as const)('classifies %s', (message, expected) => {
     expect(classifyWorkoutSyncError(message)).toBe(expected);
+  });
+
+  it('maps raw sync errors to i18n keys', () => {
+    expect(workoutSyncErrorMessageKey('WORKOUT_CONFLICT')).toBe('workout.err.conflict');
+    expect(workoutSyncErrorMessageKey(new Error('permission-denied: Missing or insufficient permissions'))).toBe('workout.err.permission');
+    expect(workoutSyncErrorMessageKey('WORKOUT_NOT_FOUND')).toBe('workout.err.notFound');
+    expect(workoutSyncErrorMessageKey(new Error('Failed to get document because the client is offline.'))).toBe('workout.err.offline');
+    expect(workoutSyncErrorMessageKey('CLOUD_NOT_CONFIRMED: sets mismatch')).toBe('workout.err.validation');
+    expect(workoutSyncErrorMessageKey('cokolwiek innego')).toBe('workout.err.unknown');
   });
 
   it('compares exercise and completed-set counts without changing either version', () => {
