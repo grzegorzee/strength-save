@@ -22,6 +22,7 @@ import { AlertTriangle, TrendingUp } from 'lucide-react';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { getExerciseHistory, detectPlateau, getProgressionSummary } from '@/lib/exercise-progression';
+import { getExerciseNoteHistory } from '@/lib/exercise-notes';
 import { tooltipStyle } from '@/lib/chart-config';
 import { parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -67,6 +68,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   [history, isBodyweight, labelMaxReps, labelTotalReps, labelMaxKg, toDisplay, lang]);
 
   const recentSessions = useMemo(() => history.slice(-5).reverse(), [history]);
+  const noteHistory = useMemo(() => getExerciseNoteHistory(workouts, exerciseId), [workouts, exerciseId]);
 
   if (history.length === 0) {
     return (
@@ -174,6 +176,21 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
             </div>
           ))}
         </div>
+
+        {/* Notatki z poprzednich sesji (Z74) */}
+        {noteHistory.length > 0 && (
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-muted-foreground">{t('notes.yourNotes')}</h4>
+            {noteHistory.map((n, i) => (
+              <div key={`${n.date}-${i}`} className="p-2.5 rounded-lg bg-muted/30">
+                <p className="text-[11px] text-muted-foreground">
+                  {parseLocalDate(n.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+                <p className="text-sm mt-0.5">{n.note}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

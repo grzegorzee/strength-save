@@ -186,6 +186,8 @@ interface ExerciseCardProps {
   isEditable?: boolean;
   isBodyweight?: boolean;
   nextAdvice?: NextSetAdvice | null;
+  /** Ostatnia notatka z poprzedniej sesji tego ćwiczenia (Z74). */
+  lastNote?: string;
   /** Rekomendacja Adaptive Coach (Z64) — badge z akcją nad nextAdvice. */
   coachRecommendation?: ExerciseRecommendation | null;
   /** Najlepszy historyczny wynik (1RM) tego ćwiczenia — badge BEST w nagłówku. */
@@ -212,6 +214,7 @@ const ExerciseCardInner = ({
   isEditable = true,
   isBodyweight = false,
   nextAdvice,
+  lastNote,
   coachRecommendation,
   historicalBest,
   metrics,
@@ -580,6 +583,12 @@ const ExerciseCardInner = ({
             </div>
             {nextAdvice && completedSets === 0 && (
               <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-snug">{nextAdvice.reason}</p>
+            )}
+            {lastNote && (
+              <p className="text-[11px] text-fitness-cyan/90 mt-1 leading-snug flex items-start gap-1">
+                <StickyNote className="h-3 w-3 shrink-0 mt-0.5" />
+                {t('notes.lastNote', { note: lastNote })}
+              </p>
             )}
           </div>
         </div>

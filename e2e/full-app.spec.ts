@@ -679,6 +679,56 @@ test.describe('Linki krzyżowe (Z67)', () => {
 });
 
 // =====================================================
+// 11s. NOTATKI WRACAJĄ DO USERA (Z74)
+// =====================================================
+test.describe('Notatki (Z74)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('ostatnia notatka z poprzedniej sesji widoczna na karcie ćwiczenia', async ({ page }) => {
+    await setE2EWorkouts(page, [{
+      id: 'notes-history-1',
+      userId: 'e2e-test-user',
+      dayId: 'day-1',
+      date: '2026-06-30',
+      completed: true,
+      exercises: [{
+        exerciseId: 'ex-1-1',
+        name: 'Wyciskanie hantli (Lekki skos)',
+        notes: 'pas za luźny',
+        sets: [{ reps: 8, weight: 30, completed: true }],
+      }],
+    }]);
+
+    await navigateAndWait(page, '/workout/day-1');
+    await expect(page.getByText(/Ostatnio: „pas za luźny”/).first()).toBeVisible({ timeout: 7000 });
+  });
+
+  test('rozwinięcie wpisu historii pokazuje notatkę dnia i notatki ćwiczeń', async ({ page }) => {
+    await setE2EWorkouts(page, [{
+      id: 'notes-history-2',
+      userId: 'e2e-test-user',
+      dayId: 'day-1',
+      date: '2026-06-30',
+      completed: true,
+      notes: 'ciężki dzień, mało snu',
+      exercises: [{
+        exerciseId: 'ex-1-1',
+        name: 'Wyciskanie hantli (Lekki skos)',
+        notes: 'pas za luźny',
+        sets: [{ reps: 8, weight: 30, completed: true }],
+      }],
+    }]);
+
+    await navigateAndWait(page, '/history');
+    await page.getByRole('button', { name: 'Szczegóły' }).first().click();
+    await expect(page.getByText('ciężki dzień, mało snu')).toBeVisible();
+    await expect(page.getByText('pas za luźny')).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11a. ADAPTIVE COACH (Z64)
 // =====================================================
 test.describe('Adaptive Coach (Z64)', () => {

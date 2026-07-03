@@ -597,6 +597,11 @@ export const en: Record<keyof typeof pl, string> = {
   'planbuilder.startTemplate': 'Start from a template',
   'planbuilder.startTemplateDesc': 'Copy a ready-made plan and make it yours.',
 
+  'notes.yourNotes': 'Your notes',
+  'notes.lastNote': 'Last time: "{note}"',
+  'notes.dayNote': 'Day note',
+  'notes.noneInSession': 'No notes in this session.',
+  'history.details': 'Details',
   'picker.title': 'Pick an exercise',
   'picker.description': 'Search by name or filter by muscle group.',
   'picker.bodyweight': 'Bodyweight',

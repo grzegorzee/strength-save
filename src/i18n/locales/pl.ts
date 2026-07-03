@@ -604,6 +604,12 @@ export const pl = {
   'planbuilder.startTemplateDesc': 'Skopiuj gotowy plan i dostosuj go do siebie.',
 
   // wspólny picker ćwiczeń (Z69)
+  // notatki (Z74)
+  'notes.yourNotes': 'Twoje notatki',
+  'notes.lastNote': 'Ostatnio: „{note}”',
+  'notes.dayNote': 'Notatka dnia',
+  'notes.noneInSession': 'Brak notatek w tej sesji.',
+  'history.details': 'Szczegóły',
   'picker.title': 'Wybierz ćwiczenie',
   'picker.description': 'Szukaj po nazwie albo filtruj po partii mięśniowej.',
   'picker.bodyweight': 'Masa ciała',

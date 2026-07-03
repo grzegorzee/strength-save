@@ -218,7 +218,15 @@ export const fetchWorkoutHistoryPage = async (
   } = {},
 ): Promise<WorkoutHistoryPage> => {
   if (!userId) return { workouts: [], nextCursor: null };
-  if (isBackendDisabledForMockE2E()) return { workouts: [], nextCursor: null };
+  if (isBackendDisabledForMockE2E()) {
+    // E2E mock: historia z haka fittracker_e2e_workouts (filtry jak w zapytaniu, bez paginacji).
+    const injected = readE2EWorkouts()
+      .filter((w) => (options.completed === undefined || w.completed === options.completed)
+        && (!options.fromDate || w.date >= options.fromDate)
+        && (!options.toDate || w.date <= options.toDate))
+      .sort((a, b) => b.date.localeCompare(a.date));
+    return { workouts: injected, nextCursor: null };
+  }
 
   const pageSize = Math.max(1, Math.min(options.pageSize ?? WORKOUT_HISTORY_PAGE_SIZE, 250));
   const snapshot = await getDocs(query(

@@ -30,6 +30,7 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { getNextSetAdvice } from '@/lib/next-set-advice';
+import { getExerciseNoteHistory } from '@/lib/exercise-notes';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
@@ -405,6 +406,7 @@ const WorkoutDay = () => {
       historicalBest: ReturnType<typeof getExerciseBest1RM>;
       rzaAdvice: ReturnType<typeof getRzaAdvice>;
       coachRecommendation: ReturnType<typeof buildExerciseRecommendation>;
+      lastNote?: string;
     }>();
     (day?.exercises ?? []).forEach((exercise, index) => {
       const prev = previousWorkout?.exercises.find(e => e.exerciseId === exercise.id);
@@ -427,6 +429,8 @@ const WorkoutDay = () => {
             isBodyweight: resolveIsBodyweight(exercise.name),
           })
           : null,
+        // Z74: ostatnia notatka z poprzedniej sesji tego ćwiczenia.
+        lastNote: getExerciseNoteHistory(workouts, exercise.id, 1)[0]?.note,
       });
     });
     return map;
@@ -2202,6 +2206,7 @@ const WorkoutDay = () => {
               isBodyweight={resolveIsBodyweight(exercise.name)}
               isEditable={isWorkoutStarted && !isCompleted}
               nextAdvice={exerciseInsights.get(exercise.id)?.nextAdvice}
+              lastNote={exerciseInsights.get(exercise.id)?.lastNote}
               coachRecommendation={exerciseInsights.get(exercise.id)?.coachRecommendation}
               historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
               metrics={exerciseMetrics[exercise.id]}

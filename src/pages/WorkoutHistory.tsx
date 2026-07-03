@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightLeft, CalendarRange, History, Search } from 'lucide-react';
+import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, History, Search, StickyNote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,9 @@ const WorkoutHistory = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const toggleExpanded = (id: string) =>
+    setExpandedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const { workouts, isLoaded, isLoadingMore, hasMore, loadMore } = useWorkoutHistoryPage(uid, {
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
@@ -260,6 +263,7 @@ const WorkoutHistory = () => {
               );
               const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
               const isSelected = compareIds.includes(workout.id);
+              const isExpanded = expandedIds.includes(workout.id);
               return (
                 <div
                   key={workout.id}
@@ -300,7 +304,37 @@ const WorkoutHistory = () => {
                     <Button variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => toggleCompare(workout.id)}>
                       {isSelected ? t('history.removeFromCompare') : t('history.compare')}
                     </Button>
+                    <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => toggleExpanded(workout.id)}>
+                      {t('history.details')}
+                      {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </Button>
                   </div>
+
+                  {/* Rozwinięcie (Z74): notatka dnia + notatki per ćwiczenie */}
+                  {isExpanded && (
+                    <div className="space-y-2 rounded-xl bg-surface-lowest p-3">
+                      {workout.notes?.trim() && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                            <StickyNote className="h-3 w-3" />
+                            {t('notes.dayNote')}
+                          </p>
+                          <p className="text-sm mt-0.5">{workout.notes}</p>
+                        </div>
+                      )}
+                      {workout.exercises.filter((e) => e.notes?.trim()).map((e) => (
+                        <div key={e.exerciseId}>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {resolver.resolveExerciseName(workout, e.exerciseId)}
+                          </p>
+                          <p className="text-sm mt-0.5">{e.notes}</p>
+                        </div>
+                      ))}
+                      {!workout.notes?.trim() && workout.exercises.every((e) => !e.notes?.trim()) && (
+                        <p className="text-sm text-muted-foreground">{t('notes.noneInSession')}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
