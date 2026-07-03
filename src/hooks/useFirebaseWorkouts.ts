@@ -27,7 +27,7 @@ import {
   isProvisionalWorkoutSessionId,
 } from '@/lib/workout-session';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { resolveWriteAttempt } from '@/lib/workout-write-attempt';
+import { saveWorkoutBatchWithRevision } from '@/lib/workout-save';
 import { clampSet } from '@/lib/workout-sanitizers';
 import { getWorkoutReadSnapshot, subscribeWorkoutReads } from '@/lib/workout-read-store';
 
@@ -483,56 +483,7 @@ export const useFirebaseWorkoutActions = (
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
     try {
-      const workoutRef = doc(db, WORKOUTS_COLLECTION, sessionId);
-
-      const cleanExercises = exercises.map(ex => ({
-        exerciseId: ex.exerciseId,
-        sets: ex.sets.map(clampSet),
-        ...(ex.notes !== undefined && ex.notes !== '' && { notes: String(ex.notes).slice(0, 2000) }),
-        // Snapshot nazwy — odporność historii na zmianę planu.
-        ...(ex.name && { name: String(ex.name).slice(0, 200) }),
-        // Metryki autoregulacji (RPE/ból/jakość) — tylko zdefiniowane.
-        ...cleanMetrics(ex),
-      }));
-
-      const updateTime = Date.now();
-      const updateData: Record<string, unknown> = { exercises: cleanExercises, updatedAt: updateTime };
-      if (options?.cycleId) updateData.cycleId = options.cycleId;
-      if (options?.notes !== undefined) updateData.notes = String(options.notes).slice(0, 5000);
-      if (options?.skippedExercises) updateData.skippedExercises = options.skippedExercises;
-      if (options?.completed) {
-        updateData.completed = true;
-        updateData.completedAt = options.completedAt ?? Date.now(); // stabilny przy retry finalnego syncu
-      }
-      if (options?.dayName) updateData.dayName = String(options.dayName).slice(0, 200);
-      if (options?.dayFocus) updateData.dayFocus = String(options.dayFocus).slice(0, 200);
-      if (typeof options?.durationSec === 'number' && options.durationSec > 0) updateData.durationSec = Math.floor(options.durationSec);
-      if (typeof options?.startedAt === 'number' && options.startedAt > 0) updateData.startedAt = options.startedAt;
-
-      const syncState = await runTransaction(db, async (transaction) => {
-        const snapshot = await transaction.get(workoutRef);
-        if (!snapshot.exists()) {
-          throw new Error('WORKOUT_NOT_FOUND');
-        }
-
-        const current = snapshot.data() as WorkoutSession;
-        const attempt = resolveWriteAttempt(current, options.expectedRevision, options.writeId);
-        if (attempt === 'conflict') {
-          throw new Error('WORKOUT_CONFLICT');
-        }
-        if (attempt === 'already-applied') {
-          // Mój poprzedni zapis doszedł, odpowiedź zginęła — sukces no-op bez update.
-          return {
-            updatedAt: current.updatedAt ?? updateTime,
-            revision: typeof current.revision === 'number' ? current.revision : 0,
-            alreadyApplied: true as const,
-          };
-        }
-
-        const revision = (typeof current.revision === 'number' ? current.revision : 0) + 1;
-        transaction.update(workoutRef, { ...updateData, revision, lastWriteId: options.writeId } as UpdateData<Record<string, unknown>>);
-        return { updatedAt: updateTime, revision };
-      });
+      const syncState = await saveWorkoutBatchWithRevision(db, sessionId, exercises, options);
       return { success: true, ...syncState };
     } catch (err) {
       console.error('Error batch saving workout:', err);
