@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { auth } from '@/lib/firebase';
 
 export const useOnlineStatus = () => {
@@ -20,22 +21,36 @@ export const useOnlineStatus = () => {
     };
   }, []);
 
-  // Poll pending ops count
+  // Licznik pending sterowany zdarzeniami (R2-28): polling IndexedDB co 2 s konkurował
+  // z zapisami draftu w trakcie treningu. Zmiany stanu syncu emitują
+  // WORKOUT_SYNC_STATE_CHANGED_EVENT; focus/online łapią powrót do appki.
   useEffect(() => {
-    const interval = setInterval(() => {
+    let cancelled = false;
+
+    const refresh = () => {
       const userId = auth.currentUser?.uid;
-      const queueCount = userId ? workoutSyncQueue.pendingCount(userId) : 0;
       if (!userId) {
         setPendingOps(0);
         return;
       }
-
+      const queueCount = workoutSyncQueue.pendingCount(userId);
       void workoutDraftDb.loadActiveDraft(userId).then((draft) => {
+        if (cancelled) return;
         const activeCount = draft && (draft.dirty || draft.finalSyncPending || draft.sessionOrigin === 'provisional') ? 1 : 0;
         setPendingOps(queueCount + activeCount);
       });
-    }, 2000);
-    return () => clearInterval(interval);
+    };
+
+    refresh();
+    window.addEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, refresh);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, refresh);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+    };
   }, []);
 
   const refreshPendingOps = useCallback(() => {
