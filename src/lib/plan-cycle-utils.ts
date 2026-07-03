@@ -59,6 +59,16 @@ export const applyWeekdaysToPlanDays = (days: TrainingDay[], weekdays: Weekday[]
   });
 };
 
+/**
+ * Rozjazd liczby dni planu i wyboru usera (Z72): null gdy zgodne, inaczej para do
+ * ostrzeżenia w wizardzie — user widzi prawdę zamiast cichej degradacji (slice).
+ */
+export const planDaysMismatch = (
+  plan: { days: TrainingDay[] },
+  daysPerWeek: number,
+): { planDays: number; selectedDays: number } | null =>
+  plan.days.length === daysPerWeek ? null : { planDays: plan.days.length, selectedDays: daysPerWeek };
+
 export const getCycleStartPreview = (selectedDate: string): { selectedDate: string; cycleStartDate: string } => ({
   selectedDate,
   cycleStartDate: formatLocalDate(getStartOfPlanWeek(parseLocalDate(selectedDate))),

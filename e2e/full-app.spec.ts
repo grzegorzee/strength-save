@@ -464,6 +464,35 @@ test.describe('ExercisePicker (Z69)', () => {
 });
 
 // =====================================================
+// 11u. WYBÓR 6 DNI (Z72)
+// =====================================================
+test.describe('Wybór 6 dni (Z72)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('wizard z 6 dniami rekomenduje plan 6-dniowy bez ostrzeżenia', async ({ page }) => {
+    await navigateAndWait(page, '/new-plan');
+    await page.getByRole('button', { name: 'Zmień ustawienia' }).click();
+    await page.getByRole('button', { name: 'Następny krok' }).click();
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByRole('button', { name: '6', exact: true }).click();
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+
+    await expect(page.getByText('Push Pull Legs ×2').first()).toBeVisible();
+    await expect(page.getByText('Legs B', { exact: false })).toBeVisible();
+    await expect(page.getByText(/Ten plan ma \d+ dni treningowych/)).toBeHidden();
+  });
+
+  test('poziom elite nie istnieje w wizardzie', async ({ page }) => {
+    await navigateAndWait(page, '/new-plan');
+    await page.getByRole('button', { name: 'Zmień ustawienia' }).click();
+    await expect(page.getByText('Elita')).toBeHidden();
+    await expect(page.getByText('Zaawansowany', { exact: false }).first()).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11v. WŁASNE ĆWICZENIA (Z71)
 // =====================================================
 test.describe('Własne ćwiczenia (Z71)', () => {

@@ -67,6 +67,12 @@ describe('planTemplates', () => {
     }
   });
 
+  it('szablon 6-dniowy PPL×2 istnieje: wybór 6 dni daje plan 6-dniowy (Z72)', () => {
+    const plan = getRecommendedPlan('build_muscle', 'intermediate', 6);
+    expect(plan.days.length).toBe(6);
+    expect(plan.daysPerWeek).toBe(6);
+  });
+
   it('przy tej samej częstotliwości preferuje dopasowanie celu', () => {
     // Wśród planów 4-dniowych: peak_strength → plan o objective peak_strength.
     expect(getRecommendedPlan('peak_strength', 'advanced', 4).objective).toBe('peak_strength');

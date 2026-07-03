@@ -8,6 +8,7 @@ import {
   getCycleStartPreview,
   hasExactWeekdaySelection,
   nextExerciseIdForDay,
+  planDaysMismatch,
   planExerciseOverlap,
   shouldMergeContinuousCycles,
 } from '@/lib/plan-cycle-utils';
@@ -50,6 +51,12 @@ describe('plan cycle utilities', () => {
     expect(result).toHaveLength(3);
     expect(result.map(d => d.weekday)).toEqual(['monday', 'wednesday', 'friday']);
     expect(new Set(result.map(d => d.weekday)).size).toBe(3);
+  });
+
+  it('planDaysMismatch wykrywa rozjazd liczby dni planu i wyboru usera (Z72)', () => {
+    const plan = { days: [day('d1'), day('d2'), day('d3'), day('d4'), day('d5')] };
+    expect(planDaysMismatch(plan, 6)).toEqual({ planDays: 5, selectedDays: 6 });
+    expect(planDaysMismatch(plan, 5)).toBeNull();
   });
 
   it('generates a non-duplicate exercise id after removing a middle exercise', () => {

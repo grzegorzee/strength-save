@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Medal, Calendar, Check, Pencil, ListChecks, SlidersHorizontal } from 'lucide-react';
+import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Calendar, Check, Pencil, ListChecks, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
@@ -8,9 +8,16 @@ import { PlanBuilder } from '@/components/PlanBuilder';
 import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, WEEKDAYS } from '@/lib/plan-cycle-utils';
+import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, planDaysMismatch, WEEKDAYS } from '@/lib/plan-cycle-utils';
 
-export type WizardLevel = 'beginner' | 'intermediate' | 'advanced' | 'elite';
+// 'elite' usunięte (Z72): mapowało się na advanced — iluzoryczny wybór. Legacy wartości
+// zapisane w trainingProfile sanityzuje sanitizeWizardLevel.
+export type WizardLevel = 'beginner' | 'intermediate' | 'advanced';
+
+const sanitizeWizardLevel = (level?: string): WizardLevel | undefined => {
+  if (level === 'elite') return 'advanced';
+  return level === 'beginner' || level === 'intermediate' || level === 'advanced' ? level : undefined;
+};
 
 /** Wynik wizarda: gotowy plan + metadane profilu (dni z weekdayami już przypisanymi). */
 export interface PlanWizardChoice {
@@ -35,7 +42,6 @@ const LEVELS: { value: WizardLevel; labelKey: TranslationKey; descKey: Translati
   { value: 'beginner', labelKey: 'ob.level.beginner', descKey: 'ob.level.beginner.desc', icon: ArrowUpRight },
   { value: 'intermediate', labelKey: 'ob.level.intermediate', descKey: 'ob.level.intermediate.desc', icon: Link2 },
   { value: 'advanced', labelKey: 'ob.level.advanced', descKey: 'ob.level.advanced.desc', icon: Weight },
-  { value: 'elite', labelKey: 'ob.level.elite', descKey: 'ob.level.elite.desc', icon: Medal },
 ];
 
 const OBJECTIVES: { value: PlanObjective; labelKey: TranslationKey; descKey: TranslationKey; icon: typeof Dumbbell }[] = [
@@ -51,8 +57,6 @@ const OBJECTIVE_TAGS: Record<PlanObjective, TranslationKey[]> = {
   fat_loss: ['ob.tag.conditioning'],
   athletic: ['ob.tag.power', 'ob.tag.conditioning'],
 };
-
-const mapLevel = (l: WizardLevel): PlanTemplate['level'] => (l === 'elite' ? 'advanced' : l);
 
 const estimateMonthlyVolume = (tpl: { days: TrainingDay[] }): number => {
   let weeklySets = 0;
@@ -146,7 +150,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
   const initialDays = resume?.daysPerWeek ?? initial?.daysPerWeek ?? 4;
   const resumedCustomPlan = resume && !resume.templateId ? resume : null;
   const [step, setStep] = useState(showWelcome ? 1 : startAtPrecision ? 5 : 2);
-  const [level, setLevel] = useState<WizardLevel>(resume?.level ?? initial?.level ?? 'beginner');
+  const [level, setLevel] = useState<WizardLevel>(sanitizeWizardLevel(resume?.level ?? initial?.level) ?? 'beginner');
   const [objective, setObjective] = useState<PlanObjective>(resume?.objective ?? initial?.objective ?? 'build_muscle');
   const [daysPerWeek, setDaysPerWeek] = useState(initialDays);
   const [trainingDays, setTrainingDays] = useState<Weekday[]>(() => {
@@ -159,7 +163,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
     resume?.templateId ? planTemplates.find((p) => p.id === resume.templateId) ?? null : null);
   const [reachedViaSteps, setReachedViaSteps] = useState(!startAtPrecision);
 
-  const recommended = useMemo(() => getRecommendedPlan(objective, mapLevel(level), daysPerWeek), [objective, level, daysPerWeek]);
+  const recommended = useMemo(() => getRecommendedPlan(objective, level, daysPerWeek), [objective, level, daysPerWeek]);
   const chosen = picked ?? recommended;
   const weekdaySelectionValid = hasExactWeekdaySelection(trainingDays, daysPerWeek);
   const startPreview = getCycleStartPreview(startDate);
@@ -359,6 +363,15 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
                   </div>
                 ))}
               </div>
+              {(() => {
+                // Z72: user widzi prawdę zamiast cichej degradacji (slice w applyWeekdaysToPlanDays).
+                const mismatch = planDaysMismatch(chosen, daysPerWeek);
+                return mismatch ? (
+                  <p className="rounded-2xl border border-fitness-warning/30 bg-fitness-warning/10 p-3 text-[13px] text-fitness-warning">
+                    {t('wizard.daysMismatch', { n: mismatch.planDays, m: mismatch.selectedDays })}
+                  </p>
+                ) : null;
+              })()}
               <div className="flex gap-2">
                 <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-3 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-fitness-cyan" />{t('ob.precision.browse')}</button>
                 <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-3 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-fitness-cyan" />{t('ob.precision.own')}</button>
