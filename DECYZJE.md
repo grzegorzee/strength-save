@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X11 FAZA 4: postępy bez duplikatów (Z78-Z80)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 612/612 (75 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 924 KB / 1200 KB), e2e:mock 138/138.
+
+1. **Z78 — koniec zombie-danych Weekly:** `AnalyticsWeeklyTab` liczy tygodnie client-side (`buildLocalWeeklySummaries` w weekly-summary.ts — 12 tygodni wstecz przez istniejące `prepareWeeklyData`, tygodnie bez danych pomijane); `useWeeklySummary.ts` usunięty; kolekcja `weekly_summaries` w rules zostaje (stare dane, admin), klient przestaje jej dotykać (0 czytań). Tekst AI `summary` i `generatedAt` znikają z UI — pochodziły z zamrożonej kolekcji i nigdy nie powstaną dla nowych tygodni.
+2. **Z79 — rekordy w jednym miejscu:** bezpiecznik potwierdził, że zakładka progression NIE dubluje list rekordów z Achievements (ma tylko wykresy progresji per ćwiczenie), więc zakres ograniczony do linków: karta "Nowe PR" w Analytics Summary klikalna → `/achievements` (świeżość zostaje); link "Wszystkie rekordy" w progression dodany w Z67(e); Dashboard "Ostatni PR" linkował od dawna. **ZASADA:** agregaty (tonaż, liczba treningów) wolno powtarzać między przeglądem a szczegółem — LISTY rekordów żyją wyłącznie w Achievements.
+3. **Z80 — historia jako archiwum:** `history-stats.ts` (buildHistoryRowMeta — PR per sesja liczone RAZ chronologicznie względem wcześniejszych sesji, semantyka detectNewPRs: pierwsza sesja nie ma czego pobić; formatDurationCompact "1h 12m"); wiersz historii: badge czasu trwania + badge liczby PR; rozwinięcie (z Z74) rozszerzone o serie per ćwiczenie (nieukończone przekreślone) i metryki RPE/ból/technika; filtr "Tylko z PR".
+
 ### 2026-07-03 — X11 FAZA 3: dane, które mamy, zaczynają pracować (Z74-Z77)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 604/604 (73 pliki), typecheck 0, lint 0, build OK, bundle-budget OK (initial 924 KB / 1200 KB), e2e:mock 138/138.
