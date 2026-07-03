@@ -3,7 +3,6 @@
 // Dopóki ćwiczenie nie ma wpisu, ekran szczegółów korzysta z fallbacku (instructions + kategoria).
 
 import type { LanguageCode } from '@/i18n';
-import { exerciseDetailsEn } from './exercise-details-en';
 
 export type PrimaryMuscle =
   | 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'forearms'
@@ -1728,9 +1727,19 @@ export const exerciseDetails: Record<string, ExerciseDetails> = {
   },
 };
 
+// Słownik EN ładowany dynamicznie (Z54): PL jest kanoniczny i zostaje statyczny,
+// EN (~140K) dociąga się tylko w trybie EN. Synchroniczny cache po pierwszym load.
+let exerciseDetailsEnCache: Record<string, ExerciseDetails> | null = null;
+
+export const preloadExerciseDetailsEn = async (): Promise<void> => {
+  if (exerciseDetailsEnCache) return;
+  const mod = await import('./exercise-details-en');
+  exerciseDetailsEnCache = mod.exerciseDetailsEn;
+};
+
 export const getExerciseDetails = (name?: string, lang: LanguageCode = 'pl'): ExerciseDetails | null => {
   if (!name) return null;
-  if (lang === 'en') return exerciseDetailsEn[name] ?? exerciseDetails[name] ?? null;
+  if (lang === 'en') return exerciseDetailsEnCache?.[name] ?? exerciseDetails[name] ?? null;
   return exerciseDetails[name] ?? null;
 };
 

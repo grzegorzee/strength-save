@@ -120,7 +120,13 @@ export default defineConfig(({ mode }) => {
             // Keep only the heaviest, low-risk libraries in dedicated chunks.
             // Over-splitting React/Radix internals created circular vendor chunks in production.
             if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/")) return "react-vendor";
-            if (id.includes("firebase")) return "firebase";
+            // Firebase per produkt (Z54): mniejsze chunki = lepsze cache'owanie
+            // i mniej parsowania na starcie (auth/core wchodzą do initial, firestore osobno).
+            if (id.includes("firebase")) {
+              if (id.includes("firestore")) return "firebase-firestore";
+              if (id.includes("auth")) return "firebase-auth";
+              return "firebase-core";
+            }
 
             return undefined;
           },

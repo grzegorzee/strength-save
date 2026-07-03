@@ -1,10 +1,9 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Lock, Sunrise, RotateCcw, Swords, CalendarCheck, Medal } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -24,10 +23,11 @@ import {
 import { medalForCompletionRate } from '@/lib/season-medals';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { withLiveCompletedStats } from '@/lib/cycle-insights';
-import { tooltipStyle } from '@/lib/chart-config';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+
+const TonnageTrendChart = lazy(() => import('@/components/achievements/TonnageTrendChart'));
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
 import { cn, parseLocalDate } from '@/lib/utils';
@@ -300,15 +300,9 @@ const Achievements = () => {
         </CardHeader>
         <CardContent>
           {hasTrendData ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-                <YAxis tick={{ fontSize: 11 }} className="fill-muted-foreground" domain={[0, 'auto']} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(value: number) => [`${value}${unit === 'lbs' ? ' k lbs' : ' t'}`, t('achievements.totalTonnage')]} />
-                <Bar dataKey="tonnes" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <Suspense fallback={<div className="h-[220px]" />}>
+              <TonnageTrendChart data={trendData} />
+            </Suspense>
           ) : (
             <p className="text-center text-muted-foreground py-8">{t('achievements.trendEmpty')}</p>
           )}

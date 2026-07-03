@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { trainingPlan } from '@/data/trainingPlan';
 import { slugifyExercise, getExerciseAnimationUrl } from '@/lib/exercise-media';
-import { getExerciseDetails, categoryToPrimaryMuscle } from '@/data/exercise-details';
+import { getExerciseDetails, preloadExerciseDetailsEn, categoryToPrimaryMuscle } from '@/data/exercise-details';
 import { localizeExerciseName, localizeExerciseInstruction, localizeCategory } from '@/data/exercise-i18n';
 import { MuscleMap } from '@/components/MuscleMap';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,14 @@ const ExerciseDetail = () => {
   );
 
   const [bookmarked, setBookmarked] = useState(() => (exercise ? readBookmarks().includes(exercise.name) : false));
+
+  // Z54: słownik EN dociągany dynamicznie; bump stanu wymusza rerender po załadowaniu
+  // (do tego czasu getExerciseDetails zwraca fallback PL).
+  const [, setEnDetailsReady] = useState(false);
+  useEffect(() => {
+    if (lang !== 'en') return;
+    void preloadExerciseDetailsEn().then(() => setEnDetailsReady(true));
+  }, [lang]);
 
   if (!exercise) {
     return (
