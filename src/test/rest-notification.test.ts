@@ -39,6 +39,23 @@ describe('rest-notification: uprawnienia (R2-24)', () => {
     expect(schedule).toHaveBeenCalledTimes(1);
   });
 
+  it('cancel w trakcie trwajacego schedule wygrywa: notyfikacja NIE odpala mimo pauzy (R2-25)', async () => {
+    const { scheduleRestEndNotification, cancelRestEndNotification } = await import('@/lib/rest-notification');
+
+    let releasePermissions!: (value: { display: string }) => void;
+    checkPermissions.mockReturnValueOnce(new Promise((resolve) => {
+      releasePermissions = resolve;
+    }));
+
+    const scheduling = scheduleRestEndNotification(90, 'Koniec przerwy', 'Wracaj');
+    // Pauza timera, zanim schedule przeszedl przez swoje awaity.
+    const cancelling = cancelRestEndNotification();
+    releasePermissions({ display: 'granted' });
+    await Promise.all([scheduling, cancelling]);
+
+    expect(schedule).not.toHaveBeenCalled();
+  });
+
   it('wynik pozytywny jest cache-owany (bez odpytywania przy kazdej serii)', async () => {
     const { scheduleRestEndNotification } = await import('@/lib/rest-notification');
 

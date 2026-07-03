@@ -26,6 +26,12 @@ const ensurePermission = async (): Promise<boolean> => {
   return permissionGranted === true;
 };
 
+// Wyścig schedule vs cancel (R2-25): schedule ma w środku awaity (uprawnienia, cancel
+// poprzedniego) — pauza w tym oknie nie może przegrać z dokończeniem schedule.
+// Token generacji unieważnia trwający schedule, wspólny chain serializuje operacje.
+let operationGeneration = 0;
+let operationChain: Promise<void> = Promise.resolve();
+
 /** Zaplanuj systemowe powiadomienie (dźwięk + wibracja) na koniec przerwy za `seconds` sekund. */
 export const scheduleRestEndNotification = async (
   seconds: number,
@@ -33,31 +39,45 @@ export const scheduleRestEndNotification = async (
   body: string
 ): Promise<void> => {
   if (!Capacitor.isNativePlatform() || seconds <= 0) return;
-  if (!(await ensurePermission())) return;
+  operationGeneration += 1;
+  const myGeneration = operationGeneration;
 
-  try {
-    // Nadpisz ewentualne wcześniejsze (jeden aktywny timer przerwy naraz).
-    await cancelRestEndNotification();
-    await LocalNotifications.schedule({
-      notifications: [{
-        id: REST_NOTIFICATION_ID,
-        title,
-        body,
-        schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true },
-        sound: 'default',
-      }],
-    });
-  } catch {
-    // Brak local notifications — koniec przerwy zasygnalizuje tylko in-app dźwięk/haptic.
-  }
+  operationChain = operationChain.then(async () => {
+    if (myGeneration !== operationGeneration) return;
+    if (!(await ensurePermission())) return;
+    if (myGeneration !== operationGeneration) return;
+
+    try {
+      // Nadpisz ewentualne wcześniejsze (jeden aktywny timer przerwy naraz).
+      await LocalNotifications.cancel({ notifications: [{ id: REST_NOTIFICATION_ID }] });
+      if (myGeneration !== operationGeneration) return;
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: REST_NOTIFICATION_ID,
+          title,
+          body,
+          schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true },
+          sound: 'default',
+        }],
+      });
+    } catch {
+      // Brak local notifications — koniec przerwy zasygnalizuje tylko in-app dźwięk/haptic.
+    }
+  });
+  await operationChain;
 };
 
 /** Anuluj zaplanowane powiadomienie końca przerwy (pauza/reset/zamknięcie/koniec w foreground). */
 export const cancelRestEndNotification = async (): Promise<void> => {
   if (!Capacitor.isNativePlatform()) return;
-  try {
-    await LocalNotifications.cancel({ notifications: [{ id: REST_NOTIFICATION_ID }] });
-  } catch {
-    // Nic do anulowania.
-  }
+  // Unieważnij trwający schedule i dołącz do chaina (cancel czeka na jego zakończenie).
+  operationGeneration += 1;
+  operationChain = operationChain.then(async () => {
+    try {
+      await LocalNotifications.cancel({ notifications: [{ id: REST_NOTIFICATION_ID }] });
+    } catch {
+      // Nic do anulowania.
+    }
+  });
+  await operationChain;
 };
