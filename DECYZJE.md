@@ -11,6 +11,13 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X11 FAZA 6: polish pod App Store (Z82-Z83)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 620/620 (77 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 925 KB / 1200 KB), e2e:mock 139/139.
+
+1. **Z82 — empty states (audyt bez danych):** puste bez zaproszenia były: `/achievements` (same zera, sekcje ukryte), `/history` (komunikat o filtrach nawet przy zerze sesji), `/measurements` (strona kończyła się po formularzu bez słowa), `/analytics` (pusty okres bez CTA). Wszystkie dostały EmptyState (wspólny komponent, wzorzec z Cycles: ikona + 1 zdanie + CTA); `/cycles` miał już wzorzec, `/exercises` zawsze pełne (biblioteka). Haptyka: `src/lib/haptics.ts` (guard `Capacitor.isNativePlatform`, web no-op, 3 testy z mockiem Capacitora) — lekki impact przy odhaczeniu KAŻDEJ serii (ExerciseCard; mocna wibracja końca ćwiczenia zostaje bez zmian) + notification-success przy ukończeniu treningu (WorkoutDay).
+2. **Z83 — natywna prośba o ocenę:** `review-prompt.ts` (`shouldRequestReview`: kamienie 5/15/30/50/100 ukończonych treningów, min 60 dni między prośbami, znacznik w localStorage `fittracker_review_prompt`; 5 testów TDD). Plugin `@capacitor-community/in-app-review` 8.0.0 (peer `@capacitor/core>=8` — kompatybilny z naszym 8.4; `cap sync ios` wykona release-ios.sh w FAZIE 7). Wywołanie przy finalizacji treningu, fire-and-forget z catch, guard natywny (web nigdy nie woła). Licznik = ukończone z historii bez bieżącej sesji + 1 (listener może jeszcze nie widzieć finalizowanej sesji jako completed). ZERO własnych modali "oceń nas" (wymóg Apple — system sam decyduje, czy dialog pokazać).
+
 ### 2026-07-03 — X11 FAZA 5: porządek Profil vs Ustawienia (Z81)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 612/612 (75 plików), typecheck 0, lint 0, build OK, e2e:mock 139/139.
