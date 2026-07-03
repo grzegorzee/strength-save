@@ -11,6 +11,15 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X10 FAZA 5: higiena i zaległości z FAZY 7 planu R2 (Z58-Z61)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 546/546, typecheck 0, lint 0, build OK, test:rules 95/95, functions 82 passed / 4 skipped + build OK, e2e:mock 119/119.
+
+1. **Z58 — vitest 4.x w functions:** bump 2.1.9 → 4.1.9 bez breaking changes (testy przechodzą bez modyfikacji); `npm --prefix functions audit`: 0 podatności.
+2. **Z59 — saveMaxHR przez rules (-1 kontener):** rules users dopuszczają `estimatedMaxHR` (int, 100-230) i `maxHRManualOverride` (bool) w update usera; klient (`useStrava.saveMaxHR`) pisze `updateDoc(users/{uid})` bezpośrednio z walidacją widełek przed zapisem; funkcja usunięta z index.ts wraz z osieroconym `max-hr.ts` (+test) — walidacja żyje w rules i ma 4 przypadki w test-firestore-rules (ALLOWED w widełkach, DENIED 300, DENIED 'wysoki', DENIED zły typ bool). Stare przypadki "zablokowane" zaktualizowane. `firebase functions:delete saveMaxHR` = krok FAZY 7.
+3. **Z60 — martwe aliasy tras:** `/stats` `/summary` `/progress` usunięte z App.tsx (rg: zero linków w src/); test e2e zaktualizowany na oczekiwane 404.
+4. **Z61 — App Check: ŚWIADOMIE POMINIĘTE (ścieżka STOP z planu).** Rejestracja reCAPTCHA v3 (web) i App Attest (iOS) wymaga kroków w konsolach (reCAPTCHA admin / Firebase console / App Store Connect), niedostępnych z CLI; wartość przy dostępie 1 usera na TestFlight niska, ryzyko odcięcia przy złej konfiguracji realne. Kroki dla usera przed przyszłym wdrożeniem (tryb MONITOR, bez enforce): (a) Firebase console → App Check → zarejestruj appkę web z reCAPTCHA v3 (utwórz klucz na google.com/recaptcha, domena grzegorzee.github.io) i appkę iOS z App Attest; (b) w kliencie `initializeAppCheck` z `isTokenAutoRefreshEnabled: true`, BEZ enforce na żadnej usłudze; (c) po 2-4 tygodniach sprawdź metryki App Check (odsetek zweryfikowanych żądań) zanim włączysz enforce.
+
 ### 2026-07-03 — X10 FAZA 4: maszyna stanów sesji + hydracja jako czysta funkcja (Z57)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 546/546 (66 plików), typecheck 0, lint 0, build OK, e2e:mock 119/119, e2e:emulator 12/12.
