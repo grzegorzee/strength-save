@@ -99,7 +99,6 @@ export const pl = {
   'detail.proTip': 'Pro Tip',
   'detail.muscles': 'Zaangażowane mięśnie',
   'detail.equipment': 'Sprzęt',
-  'detail.addToWorkout': 'Dodaj do treningu',
 
   // === i18n pełne PL/EN (wygenerowane) ===
   'login.subtitle.registerGoogle': 'Załóż konto przez Google albo email i hasło',
@@ -1070,9 +1069,6 @@ export const pl = {
   'profile.about.desc': 'Aplikacja do śledzenia treningów siłowych.',
   'detail.notFound': 'Nie znaleziono ćwiczenia.',
   'detail.backToLibrary': 'Wróć do biblioteki',
-  'detail.added': 'Dodano',
-  'detail.addedSoon': '{name} — dodawanie do treningu pojawi się wkrótce.',
-  'detail.bookmark': 'Zapisz ćwiczenie',
   'exercises.type.bodyweight': 'Masa ciała',
   'exercises.type.compound': 'Wielostawowe',
   'exercises.type.isolation': 'Izolacja',

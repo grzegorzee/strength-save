@@ -94,7 +94,6 @@ export const en: Record<keyof typeof pl, string> = {
   'detail.proTip': 'Pro Tip',
   'detail.muscles': 'Target muscles',
   'detail.equipment': 'Equipment',
-  'detail.addToWorkout': 'Add to workout',
   // === i18n pełne PL/EN (wygenerowane) ===
   'login.subtitle.registerGoogle': 'Create an account with Google or email and password',
   'login.subtitle.registerEmail': 'Create an account with email and password',
@@ -1064,9 +1063,6 @@ export const en: Record<keyof typeof pl, string> = {
   'profile.about.desc': 'An app for tracking strength workouts.',
   'detail.notFound': 'Exercise not found.',
   'detail.backToLibrary': 'Back to library',
-  'detail.added': 'Added',
-  'detail.addedSoon': '{name} — adding to a workout is coming soon.',
-  'detail.bookmark': 'Bookmark exercise',
   'exercises.type.bodyweight': 'Bodyweight',
   'exercises.type.compound': 'Compound',
   'exercises.type.isolation': 'Isolation',

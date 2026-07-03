@@ -7,21 +7,12 @@ import { getExerciseDetails, preloadExerciseDetailsEn, categoryToPrimaryMuscle }
 import { localizeExerciseName, localizeExerciseInstruction, localizeCategory } from '@/data/exercise-i18n';
 import { MuscleMap } from '@/components/MuscleMap';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { cn } from '@/lib/utils';
-import { ArrowLeft, Play, Bookmark, Dumbbell, Plus } from 'lucide-react';
-
-const BOOKMARK_KEY = 'bookmarked-exercises';
-
-const readBookmarks = (): string[] => {
-  try { return JSON.parse(localStorage.getItem(BOOKMARK_KEY) || '[]'); } catch { return []; }
-};
+import { ArrowLeft, Play, Dumbbell } from 'lucide-react';
 
 const ExerciseDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { t, lang } = useTranslation();
 
   const exercise = useMemo(
@@ -33,8 +24,6 @@ const ExerciseDetail = () => {
     () => trainingPlan.flatMap((d) => d.exercises).find((e) => e.name === exercise?.name),
     [exercise],
   );
-
-  const [bookmarked, setBookmarked] = useState(() => (exercise ? readBookmarks().includes(exercise.name) : false));
 
   // Z54: słownik EN dociągany dynamicznie; bump stanu wymusza rerender po załadowaniu
   // (do tego czasu getExerciseDetails zwraca fallback PL).
@@ -65,13 +54,6 @@ const ExerciseDetail = () => {
   const typeText = exercise.isBodyweight
     ? t('exercises.type.bodyweight')
     : exercise.type === 'compound' ? t('exercises.type.compound') : t('exercises.type.isolation');
-
-  const toggleBookmark = () => {
-    const list = readBookmarks();
-    const next = list.includes(exercise.name) ? list.filter((n) => n !== exercise.name) : [...list, exercise.name];
-    try { localStorage.setItem(BOOKMARK_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-    setBookmarked(next.includes(exercise.name));
-  };
 
   return (
     <div className="-mx-5 -mt-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))]">
@@ -155,26 +137,6 @@ const ExerciseDetail = () => {
         )}
       </div>
 
-      {/* Akcje — pływające na dole nad bottom navem */}
-      <div className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 flex gap-3 px-5">
-        <Button
-          onClick={() => toast({ title: t('detail.added'), description: t('detail.addedSoon', { name: localizeExerciseName(exercise.name, lang) }) })}
-          className="kinetic-primary-button h-14 flex-1 text-base"
-        >
-          <Plus className="mr-2 h-5 w-5" /> {t('detail.addToWorkout')}
-        </Button>
-        <button
-          type="button"
-          onClick={toggleBookmark}
-          className={cn(
-            'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl transition-colors',
-            bookmarked ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
-          )}
-          aria-label={t('detail.bookmark')}
-        >
-          <Bookmark className={cn('h-5 w-5', bookmarked && 'fill-current')} />
-        </button>
-      </div>
     </div>
   );
 };
