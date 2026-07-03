@@ -50,11 +50,9 @@ import {
 } from '@/lib/registration-api';
 
 const AVAILABLE_FEATURES = [
-  { key: 'ai', label: 'AI', description: 'Dostęp do funkcji AI (Coach, plany)', defaultOn: true },
   { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą', defaultOn: false },
 ] as const;
 const ADMIN_USERS_LISTENER_LIMIT = 200;
-const ADMIN_AI_USAGE_LIMIT = 500;
 const ADMIN_TELEMETRY_LIMIT = 1000;
 
 type UserFilter = 'all' | 'active' | 'suspended' | 'no-access' | 'unverified';
@@ -108,14 +106,6 @@ interface AdminUserDetails {
   }>;
 }
 
-interface AIUsageDoc {
-  userId: string;
-  month: string;
-  promptTokens: number;
-  completionTokens: number;
-  estimatedCostUsd: number;
-  callCount: number;
-}
 
 interface TelemetryDoc {
   userId: string;
@@ -158,7 +148,6 @@ const AdminDashboard = () => {
   const { t, lang } = useTranslation();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [expandedUid, setExpandedUid] = useState<string | null>(null);
-  const [aiUsage, setAiUsage] = useState<AIUsageDoc[]>([]);
   const [detailsByUser, setDetailsByUser] = useState<Record<string, AdminUserDetails | null>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
   const [telemetry, setTelemetry] = useState<TelemetryDoc[]>([]);
@@ -181,34 +170,6 @@ const AdminDashboard = () => {
   const [suspendReason, setSuspendReason] = useState('');
   const [emailDialog, setEmailDialog] = useState<{ uid: string; subject: string; body: string } | null>(null);
   const [cohortsDialog, setCohortsDialog] = useState<{ uid: string; cohorts: string } | null>(null);
-
-  // Current month key for AI usage query
-  const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-
-  // Subscribe to AI usage for current month
-  useEffect(() => {
-    const q = query(
-      collection(db, 'ai_usage'),
-      where('month', '==', currentMonth),
-      limit(ADMIN_AI_USAGE_LIMIT),
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data: AIUsageDoc[] = [];
-      snapshot.forEach((d) => {
-        const u = d.data();
-        data.push({
-          userId: u.userId,
-          month: u.month,
-          promptTokens: u.promptTokens || 0,
-          completionTokens: u.completionTokens || 0,
-          estimatedCostUsd: u.estimatedCostUsd || 0,
-          callCount: u.callCount || 0,
-        });
-      });
-      setAiUsage(data);
-    });
-    return () => unsubscribe();
-  }, [currentMonth]);
 
   useEffect(() => {
     const sevenDaysAgo = new Date();
@@ -666,7 +627,6 @@ const AdminDashboard = () => {
             const noAccess = users.filter(u => !u.accessEnabled && u.status !== 'suspended').length;
             const unverified = users.filter(u => !u.emailVerifiedAt).length;
             const activeInvites = invites.filter(i => i.status === 'active').length;
-            const aiCost = aiUsage.reduce((s, u) => s + u.estimatedCostUsd, 0);
             const stats: { label: string; value: string | number }[] = [
               { label: 'Użytkownicy', value: users.length },
               { label: 'Aktywni 7 dni', value: activeLast7 },
@@ -677,7 +637,6 @@ const AdminDashboard = () => {
               { label: 'Niezweryfikowani', value: unverified },
               { label: 'Waitlista', value: waitlistEntries.length },
               { label: 'Zaproszenia akt.', value: activeInvites },
-              { label: 'Koszt AI/mies', value: `$${aiCost.toFixed(2)}` },
             ];
             return (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -692,30 +651,6 @@ const AdminDashboard = () => {
           })()}
         </CardContent>
       </Card>
-
-      {/* AI Cost Summary */}
-      {(() => {
-        const totalCost = aiUsage.reduce((sum, u) => sum + u.estimatedCostUsd, 0);
-        const totalCalls = aiUsage.reduce((sum, u) => sum + u.callCount, 0);
-        const costColor = totalCost < 2 ? 'text-green-600' : totalCost < 4 ? 'text-yellow-600' : 'text-red-600';
-        return totalCalls > 0 ? (
-          <Card>
-            <CardContent className="py-4">
-              <div className="flex items-center gap-3">
-                <DollarSign className={cn('h-5 w-5', costColor)} />
-                <div>
-                  <p className={cn('font-semibold text-sm', costColor)}>
-                    {t('admin.aiCosts', { month: currentMonth, cost: totalCost.toFixed(2) })}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t('admin.callsUsers', { calls: totalCalls, users: aiUsage.length })}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null;
-      })()}
 
       {telemetry.length > 0 && (() => {
         const aggregate = telemetry.reduce<Record<string, number>>((acc, doc) => {
@@ -1083,26 +1018,6 @@ const AdminDashboard = () => {
                         </div>
                       )}
                     </div>
-
-                    {/* AI Usage */}
-                    {(() => {
-                      const usage = aiUsage.find(u => u.userId === user.uid);
-                      if (!usage || usage.callCount === 0) return null;
-                      const totalTokens = usage.promptTokens + usage.completionTokens;
-                      const tokenStr = totalTokens >= 1000 ? `${(totalTokens / 1000).toFixed(1)}K` : `${totalTokens}`;
-                      const costColor = usage.estimatedCostUsd < 2 ? 'text-green-600' : usage.estimatedCostUsd < 4 ? 'text-yellow-600' : 'text-red-600';
-                      return (
-                        <div className="rounded-lg bg-muted/20 p-3">
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">{t('admin.aiUsage', { month: currentMonth })}</p>
-                          <p className={cn('text-sm font-semibold', costColor)}>
-                            ${usage.estimatedCostUsd.toFixed(2)} / $5.00
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {t('admin.aiUsageDetail', { calls: usage.callCount, tokens: tokenStr })}
-                          </p>
-                        </div>
-                      );
-                    })()}
 
                     {/* Logi per-użytkownik */}
                     <div className="space-y-2">

@@ -3,8 +3,6 @@ import type { StravaActivity } from '@/types/strava';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { getWeekBounds, calculateTonnage, filterWorkoutsByPeriod } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 // --- Types ---
@@ -76,13 +74,4 @@ export function prepareWeeklyData(
   const hasData = weekWorkouts.length > 0 || weekStrava.length > 0;
 
   return { stats, weekStart, weekEnd, hasData };
-}
-
-// --- Generate summary text via Cloud Function (OpenAI key stays server-side) ---
-
-export async function generateWeeklySummaryText(stats: WeeklySummaryStats): Promise<string> {
-  const requestId = globalThis.crypto?.randomUUID?.() ?? `weekly-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const fn = httpsCallable<{ stats: WeeklySummaryStats; requestId?: string }, { text: string }>(functions, 'generateWeeklySummary');
-  const result = await fn({ stats, requestId });
-  return result.data.text;
 }

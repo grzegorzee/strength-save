@@ -251,9 +251,9 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Fix:** zamiast pełnej kwerendy: `db.getAll(...)` po deterministycznych ID (`strava-{uid}-{activityId}`) WYŁĄCZNIE dla aktywności właśnie pobranych ze Stravy w tym runie. Initial sync (365 dni) może zostać na pełnej kwerendzie (jednorazowy). Upsert po deterministycznym ID i logika REFRESHABLE_ACTIVITY_FIELDS bez zmian.
 
 **Workflow:**
-- [ ] Krok 1: failing test w `functions/src/strava-activity.test.ts` (lub nowy plik): sync inkrementalny z 3 pobranymi aktywnościami wykonuje odczyt tylko 3 dokumentów (mock db: zlicz odczyty), nie kolekcji.
-- [ ] Krok 2: implementacja; testy functions + build functions.
-- [ ] Krok 3: commit `perf(functions): strava sync czyta tylko pobrane aktywności przez getAll (Z36)`.
+- [x] Krok 1: failing test w `functions/src/strava-activity.test.ts` (lub nowy plik): sync inkrementalny z 3 pobranymi aktywnościami wykonuje odczyt tylko 3 dokumentów (mock db: zlicz odczyty), nie kolekcji.
+- [x] Krok 2: implementacja; testy functions + build functions.
+- [x] Krok 3: commit `perf(functions): strava sync czyta tylko pobrane aktywności przez getAll (Z36)`.
 
 ### Zadanie Z37: resumeDeletionOperations co 60 minut (R2-09)
 
@@ -262,8 +262,8 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Fix:** `functions/src/registration.ts`: `onSchedule("every 5 minutes")` -> `onSchedule("every 60 minutes")`. Usunięcia i tak biegną synchronicznie w adminDeleteUser/deleteOwnAccount; cron to worker naprawczy po crashu; dokończenie do 1 h później jest OK (GDPR bez zmian).
 
 **Workflow:**
-- [ ] Krok 1: zmiana + `npm --prefix functions test` + build.
-- [ ] Krok 2: commit `perf(functions): resumeDeletionOperations co 60 min zamiast 5 (Z37)`.
+- [x] Krok 1: zmiana + `npm --prefix functions test` + build.
+- [x] Krok 2: commit `perf(functions): resumeDeletionOperations co 60 min zamiast 5 (Z37)`.
 
 ### Zadanie Z38: weeklyDigest z opt-out i zbiorczą kwerendą (R2-10)
 
@@ -274,10 +274,10 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Fix:** (a) źródłem odbiorców jest kolekcja `users` (paginowana), filtr w pamięci: `status == 'active'` ORAZ `notificationPrefs.weeklyDigest !== false` (opt-out, default wysyłaj); (b) zamiast 2 kwerend per user: JEDNA zbiorcza kwerenda `workouts` where `completed == true` and `date >= start` and `date <= end`, grupowanie po `userId` w pamięci; analogicznie jedna kwerenda `strava_activities` po dacie; mail tylko do userów z >= 1 treningiem; (c) toggle w ustawieniach klienta: pole `notificationPrefs.weeklyDigest` (boolean) w miejscu, gdzie już jest UI preferencji powiadomień (wzorzec dailyReminder); klucze i18n do OBU plików; sprawdź, że whitelist update `users` w rules dopuszcza `notificationPrefs` (dailyReminder już z niego korzysta).
 
 **Workflow:**
-- [ ] Krok 1: failing testy functions: (1) user ze `status: 'suspended'` nie dostaje maila; (2) user z `notificationPrefs.weeklyDigest === false` nie dostaje; (3) brak pola = dostaje; (4) liczba kwerend workouts niezależna od liczby userów (mock: 1 kwerenda).
-- [ ] Krok 2: implementacja digest + composite index jeśli kwerenda go wymaga (`firestore.indexes.json`: workouts completed+date; sprawdź istniejące indeksy).
-- [ ] Krok 3: toggle UI + i18n + test komponentu ustawień (jeśli sekcja ma testy; minimum: typecheck/lint).
-- [ ] Krok 4: commit `perf(functions): weeklyDigest opt-out + zbiorcza kwerenda (Z38)` (+ osobny commit UI `feat(settings): toggle weekly digest (Z38)`).
+- [x] Krok 1: failing testy functions: (1) user ze `status: 'suspended'` nie dostaje maila; (2) user z `notificationPrefs.weeklyDigest === false` nie dostaje; (3) brak pola = dostaje; (4) liczba kwerend workouts niezależna od liczby userów (mock: 1 kwerenda).
+- [x] Krok 2: implementacja digest + composite index jeśli kwerenda go wymaga (`firestore.indexes.json`: workouts completed+date; sprawdź istniejące indeksy).
+- [x] Krok 3: toggle UI + i18n + test komponentu ustawień (jeśli sekcja ma testy; minimum: typecheck/lint).
+- [x] Krok 4: commit `perf(functions): weeklyDigest opt-out + zbiorcza kwerenda (Z38)` (+ osobny commit UI `feat(settings): toggle weekly digest (Z38)`).
 
 ### Zadanie Z39: usunięcie martwego stacku AI (R2-11)
 
@@ -288,9 +288,9 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Fix:** Functions: usuń eksporty `streamOpenAI`, `proxyOpenAI`, `generateWeeklySummary` z `functions/src/index.ts` + moduł `ai-usage.ts` (z testami) + zależność od sekretu `openai-api-key`. Klient: usuń `src/lib/ai-coach.ts`, `src/hooks/useAISwap.ts`, `src/components/TypingIndicator.tsx`, generator w weekly-summary lib (odczyt `weekly_summaries` w useWeeklySummary ZOSTAJE); usuń martwe klucze i18n z OBU plików: `coach.err.*` (9), `workout.coach.*` (4), `card.coachAi`. AdminDashboard: usuń kartę/odczyt `ai_usage` (flaga `aiEnabled` w users może zostać w danych, UI do usunięcia). `firestore.indexes.json`: usuń composite index `chat_messages`. UWAGA: NIE usuwaj kolekcji ani danych; NIE zmieniaj rules w tym zadaniu (rules domyka Z41). Kasowanie funkcji z GCP dopiero w FAZIE 6 (release train): `firebase functions:delete streamOpenAI proxyOpenAI generateWeeklySummary --force` (albo deploy z potwierdzeniem usunięcia).
 
 **Workflow:**
-- [ ] Krok 1: przed usunięciem każdego pliku: `rg` po jego eksportach (potwierdź zero importerów; bezpiecznik z ograniczeń globalnych pkt 3).
-- [ ] Krok 2: usuń kod; `npm run test`, `npm run typecheck` (wykryje wiszące importy), `npm --prefix functions test` i build.
-- [ ] Krok 3: commit `chore(cleanup): usunięcie martwego stacku AI, functions + klient + i18n + indeks (Z39)`.
+- [x] Krok 1: przed usunięciem każdego pliku: `rg` po jego eksportach (potwierdź zero importerów; bezpiecznik z ograniczeń globalnych pkt 3).
+- [x] Krok 2: usuń kod; `npm run test`, `npm run typecheck` (wykryje wiszące importy), `npm --prefix functions test` i build.
+- [x] Krok 3: commit `chore(cleanup): usunięcie martwego stacku AI, functions + klient + i18n + indeks (Z39)`.
 
 ### Zadanie Z40: reminder odwrócony + audit log 1x/dzień + TTL (R2-12)
 

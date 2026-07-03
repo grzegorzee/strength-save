@@ -22,7 +22,7 @@
     "preflight:jdk21": "node scripts/require-jdk21.mjs",
     "preflight:webkit": "node scripts/require-playwright-webkit.mjs",
     "test:rules": "npm run preflight:jdk21 && firebase emulators:exec --only firestore --project rules-repro \"node scripts/test-firestore-rules.mjs\"",
-    "test:functions:emulator": "npm run preflight:jdk21 && firebase emulators:exec --only auth,firestore --project functions-m1-repro \"npm --prefix functions test -- registration.integration ai-usage.integration\"",
+    "test:functions:emulator": "npm run preflight:jdk21 && firebase emulators:exec --only auth,firestore --project functions-m1-repro \"npm --prefix functions test -- registration.integration\"",
     "prebuild": "npm run typecheck",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
