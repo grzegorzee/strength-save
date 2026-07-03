@@ -318,6 +318,47 @@ describe('workoutDraftDb', () => {
     expect(loaded?.dayNotes).toBe('newer edit');
   });
 
+  it('markDraftSynced nie cofa treści zapisanej równolegle przez saveActiveDraft (R2-02)', async () => {
+    // Wyścig RMW: markDraftSynced czyta v1, w oknie przed jego putem user odhacza
+    // serię (saveActiveDraft v2). Bez serializacji przez writeChains put markDraftSynced
+    // nadpisuje v2 obiektem zbudowanym na v1 i seria znika z IDB.
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 1 });
+
+    const gate = blockNextPut();
+    const syncMark = workoutDraftDb.markDraftSynced('user-1', 999, 1, baseDraft.sessionId, { revision: 6 });
+    await gate.started;
+
+    // Odhaczenie serii w trakcie markDraftSynced.
+    const save = workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      version: 2,
+      exerciseSets: {
+        'ex-1': [
+          { reps: 10, weight: 50, completed: true },
+          { reps: 8, weight: 50, completed: true },
+          { reps: 6, weight: 55, completed: true },
+        ],
+      },
+    });
+
+    // Serializacja przez writeChains: zapis v2 czeka, aż markDraftSynced skończy.
+    let saveCompleted = false;
+    void save.then(() => {
+      saveCompleted = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(saveCompleted).toBe(false);
+
+    gate.release();
+    await Promise.all([syncMark, save]);
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+    expect(loaded?.version).toBe(2);
+    expect(loaded?.exerciseSets['ex-1']).toHaveLength(3);
+  });
+
   it('markPromotedToRemote rewrites provisional draft as remote session', async () => {
     await workoutDraftDb.saveActiveDraft({
       ...baseDraft,

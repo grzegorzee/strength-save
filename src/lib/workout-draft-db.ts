@@ -371,18 +371,82 @@ const runWrite = async (value: ActiveWorkoutDraft | null, userId: string, sessio
   }
 };
 
+// RMW w JEDNEJ transakcji readwrite: get + put bez okna, w którym równoległy
+// saveActiveDraft mógłby zostać nadpisany obiektem zbudowanym na starszym odczycie
+// (R2-02). Mutator MUSI być synchroniczny — transakcja IDB auto-commituje po
+// opróżnieniu kolejki mikrotasków.
+const runUpdate = async (
+  userId: string,
+  sessionId: string,
+  updater: (draft: ActiveWorkoutDraft) => ActiveWorkoutDraft | null
+): Promise<void> => {
+  let db: IDBDatabase | null = null;
+  try {
+    db = await openDatabase();
+  } catch {
+    db = null;
+  }
+
+  if (!db) {
+    const current = withFallbackLoad(userId);
+    if (!current || current.sessionId !== sessionId) return;
+    const next = updater(current);
+    if (next) {
+      withFallbackSave(next);
+    } else if (!workoutDraft.clear(userId)) {
+      throw new Error('LOCAL_STORAGE_CLEAR_FAILED');
+    }
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
+    const key = getWorkoutDraftKey(userId, sessionId);
+    const request = store.get(key);
+
+    request.onsuccess = () => {
+      const current = normalizeDraft(request.result, userId);
+      if (!current || current.userId !== userId) return;
+      const next = updater(current);
+      if (!next) {
+        store.delete(key);
+        return;
+      }
+      if (next.sessionId !== current.sessionId) {
+        // Zmiana tożsamości sesji (promocja provisional -> remote): stary klucz znika.
+        store.delete(key);
+      }
+      store.put(next, getWorkoutDraftKey(next.userId, next.sessionId));
+    };
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+};
+
 const updateDraft = async (
   userId: string,
   sessionId: string | undefined,
   updater: (draft: ActiveWorkoutDraft) => ActiveWorkoutDraft | null
 ): Promise<void> => {
-  const current = sessionId
-    ? await workoutDraftDb.loadDraft(userId, sessionId)
-    : await workoutDraftDb.loadActiveDraft(userId);
-  if (!current) return;
+  let targetSessionId = sessionId;
+  if (!targetSessionId) {
+    const current = await workoutDraftDb.loadActiveDraft(userId);
+    if (!current) return;
+    targetSessionId = current.sessionId;
+  }
 
-  const next = updater(current);
-  await runWrite(next, userId, current.sessionId);
+  // Serializacja z saveActiveDraft per klucz draftu.
+  const key = getWorkoutDraftKey(userId, targetSessionId);
+  const previous = writeChains.get(key) ?? Promise.resolve();
+  const run = previous.catch(() => undefined).then(() => runUpdate(userId, targetSessionId, updater));
+  const chain = run.catch(() => undefined).finally(() => {
+    if (writeChains.get(key) === chain) writeChains.delete(key);
+  });
+  writeChains.set(key, chain);
+  await run;
 };
 
 export const workoutDraftDb = {
