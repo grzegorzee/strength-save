@@ -11,6 +11,22 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X11 FAZA 7: release train (Z84) — checkpoint X11
+
+**Bramki przed wdrożeniem (wszystkie zielone):** vitest 620/620 (77 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 925 KB / 1200 KB), test:rules 110/110, functions 82 passed / 4 skipped + build OK (nieruszone), e2e:mock 139/139 (jeden flaky exercise-card-v3 w pierwszym runie — w izolacji i powtórce zielony), e2e:emulator 12/12.
+
+**Wdrożone na produkcję (w kolejności checklisty):**
+1. **Git:** 26 commitów X11 wypchniętych na origin/main (e608ed1..e9bbd90).
+2. **Rules:** `firebase deploy --only firestore:rules` — nowa kolekcja `custom_exercises` (zamknięty schemat, Z71).
+3. **Functions:** NIE deployowane — nieruszone w X11 (zgodnie z planem).
+4. **Web:** `npm run deploy` — hash `index-BOBq35aR.js` na https://grzegorzee.github.io/strength-save/ zgodny z dist/index.html.
+5. **iOS:** bump CURRENT_PROJECT_VERSION 49 → 50 (6 wystąpień) + `scripts/release-ios.sh` — UPLOAD SUCCEEDED, build 50 VALID, podpięty do grup (internal + external), whatsNew ustawiony, **Beta App Review: APPROVED** (Robert dostaje build po zatwierdzeniu Apple ~24h; internal od razu).
+6. **Weryfikacja produkcji:** web wstaje z nowym hashem; `gcloud functions logs read` — zero nowych błędów (standardowa aktywność listapikeys/resumedeletionoperations).
+
+**Zakres release'u X11 (web + rules + iOS build 50):** nawigacja bez ślepych zaułków (Z66-Z68), jeden system planów i ćwiczeń + custom exercises (Z69-Z73), dane w akcji (Z74-Z77), postępy bez duplikatów (Z78-Z80), Profil vs Ustawienia (Z81), polish App Store (Z82-Z83). Nowy plugin: `@capacitor-community/in-app-review` 8.0.0 (cap sync wykonany przez release-ios.sh).
+
+**Świadomie pominięte/odłożone:** dodatkowe szablony fat_loss/athletic (Z72d — oba cele mają po jednym szablonie; wróci po teście terenowym); pełny merge Profile+Settings, drag&drop w edytorze, strukturalny model serii — poza zakresem planu (sekcja "Poza zakresem").
+
 ### 2026-07-03 — X11 FAZA 6: polish pod App Store (Z82-Z83)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 620/620 (77 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 925 KB / 1200 KB), e2e:mock 139/139.
