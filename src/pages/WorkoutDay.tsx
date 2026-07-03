@@ -45,6 +45,7 @@ import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
+import { addAppStateListener } from '@/lib/app-lifecycle';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
@@ -1041,9 +1042,19 @@ const WorkoutDay = () => {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pagehide', handlePageHide);
+    // Z48: na natywnym iOS webowe eventy bywają zawodne — appStateChange z @capacitor/app
+    // jest źródłem prawdy o tle. Webowe handlery zostają (PWA); duplikat flusha to no-op
+    // (saveActiveDraft z tą samą wersją gate'owany przez latestWriteVersions).
+    const removeAppStateListener = addAppStateListener((isActive) => {
+      if (isActive || !sessionId) return;
+      saveScroll();
+      void persistDraftSnapshot({}, { showStatus: false });
+      void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
+    });
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handlePageHide);
+      removeAppStateListener();
     };
   }, [sessionId, scrollStorageKey, currentPageDraft?.finalSyncPending, persistDraftSnapshot, syncDraftToFirebase]);
 
