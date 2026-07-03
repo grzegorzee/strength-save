@@ -37,7 +37,8 @@ export const AutoSyncOnReconnect = () => {
       workoutDraftDb.setCloudBaseline(ownerId, sessionId, cloudState),
     setPendingWrite: (ownerId, sessionId, pending) =>
       workoutDraftDb.setPendingWrite(ownerId, sessionId, pending),
-    clearDraft: (ownerId, sessionId) => workoutDraftDb.clearActiveDraft(ownerId, sessionId),
+    clearDraftIfVersion: (ownerId, sessionId, expectedVersion) =>
+      workoutDraftDb.clearActiveDraftIfVersion(ownerId, sessionId, expectedVersion),
     queue: workoutSyncQueue,
   }), [batchSaveWorkout, getWorkoutSessionFromServer, createWorkoutSession]);
 

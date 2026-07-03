@@ -384,6 +384,31 @@ describe('workoutDraftDb', () => {
     expect(loaded).toBeNull();
   });
 
+  it('clearActiveDraftIfVersion kasuje przy równej lub starszej wersji (R2-03)', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 4 });
+
+    const cleared = await workoutDraftDb.clearActiveDraftIfVersion('user-1', baseDraft.sessionId, 4);
+
+    expect(cleared).toBe(true);
+    expect(await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId)).toBeNull();
+  });
+
+  it('clearActiveDraftIfVersion odmawia przy nowszej wersji draftu (R2-03)', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 5, dayNotes: 'seria z finalnego RTT' });
+
+    const cleared = await workoutDraftDb.clearActiveDraftIfVersion('user-1', baseDraft.sessionId, 4);
+
+    expect(cleared).toBe(false);
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+    expect(loaded?.version).toBe(5);
+    expect(loaded?.dayNotes).toBe('seria z finalnego RTT');
+  });
+
+  it('clearActiveDraftIfVersion zwraca true, gdy draft już nie istnieje', async () => {
+    const cleared = await workoutDraftDb.clearActiveDraftIfVersion('user-1', 'workout-nieistniejacy', 4);
+    expect(cleared).toBe(true);
+  });
+
   it('migrates legacy localStorage draft into IndexedDB', async () => {
     localStorage.setItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY, JSON.stringify({
       sessionId: 'legacy-1',

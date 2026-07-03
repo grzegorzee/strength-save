@@ -576,6 +576,81 @@ export const workoutDraftDb = {
     await runWrite(null, userId, sessionId);
   },
 
+  // Warunkowe czyszczenie po finalnym syncu: draft z NOWSZĄ wersją (seria odhaczona
+  // w trakcie finalnego RTT) zostaje jako dirty i idzie kolejnym checkpointem (R2-03).
+  // Zwraca true, gdy draft skasowany lub już nie istniał; false = odmowa (nowsza wersja).
+  async clearActiveDraftIfVersion(
+    userId: string,
+    sessionId: string,
+    expectedVersion: number,
+  ): Promise<boolean> {
+    const key = getWorkoutDraftKey(userId, sessionId);
+    let cleared = false;
+
+    const clear = async (): Promise<void> => {
+      let db: IDBDatabase | null = null;
+      try {
+        db = await openDatabase();
+      } catch {
+        db = null;
+      }
+
+      if (!db) {
+        const current = withFallbackLoad(userId);
+        if (!current || current.sessionId !== sessionId) {
+          cleared = true;
+          return;
+        }
+        if (current.version > expectedVersion) {
+          cleared = false;
+          return;
+        }
+        if (!workoutDraft.clear(userId)) {
+          throw new Error('LOCAL_STORAGE_CLEAR_FAILED');
+        }
+        cleared = true;
+        return;
+      }
+
+      cleared = await new Promise<boolean>((resolve, reject) => {
+        const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
+        const request = store.get(key);
+
+        request.onsuccess = () => {
+          const current = normalizeDraft(request.result, userId);
+          if (!current || current.userId !== userId) {
+            // Nic do skasowania — nie czekamy na commit pustej transakcji.
+            resolve(true);
+            return;
+          }
+          if (current.version > expectedVersion) {
+            resolve(false);
+            return;
+          }
+          store.delete(key);
+          tx.oncomplete = () => resolve(true);
+        };
+        request.onerror = () => reject(request.error);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+
+      if (cleared) {
+        clearFallbackCopyIfMatches(userId, sessionId);
+      }
+    };
+
+    const previous = writeChains.get(key) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(clear);
+    const chain = run.catch(() => undefined).finally(() => {
+      if (writeChains.get(key) === chain) writeChains.delete(key);
+    });
+    writeChains.set(key, chain);
+    await run;
+    return cleared;
+  },
+
   // Utrwala fakt serwera (revision/updatedAt) bez ruszania dirty/wersji/treści.
   async setCloudBaseline(
     userId: string,

@@ -76,7 +76,9 @@ export interface WorkoutSyncDeps {
     sessionId: string,
     pending: { writeId: string; version: number } | null,
   ) => Promise<void>;
-  clearDraft: (userId: string, sessionId: string) => Promise<void>;
+  // Czyści draft TYLKO gdy jego wersja <= expectedVersion (guard R2-03);
+  // zwraca false, gdy draft ma nowszą treść i musi zostać (dirty).
+  clearDraftIfVersion: (userId: string, sessionId: string, expectedVersion: number) => Promise<boolean>;
   queue: {
     remove: (userId: string, sessionId: string) => void;
   };
@@ -97,6 +99,7 @@ export interface SyncOutcome {
   syncedDraftVersion?: number; // wersja draftu objęta tym zapisem (dla applySyncMarkers)
   markSyncedFailed?: boolean; // chmura OK, lokalny status nieodświeżony
   cleanupFailed?: boolean;    // chmura OK, lokalny draft nieusunięty
+  draftRetained?: boolean;    // final OK, ale draft ma nowszą treść — zostaje na follow-up
 }
 
 const inFlight = new Map<string, Promise<SyncOutcome>>();
@@ -265,13 +268,30 @@ const runSync = async (
       }
 
       let cleanupFailed: boolean | undefined;
+      let draftRetained: boolean | undefined;
       try {
-        await deps.clearDraft(userId, targetSessionId);
+        const cleared = await deps.clearDraftIfVersion(userId, targetSessionId, draft.version);
+        if (!cleared) draftRetained = true;
       } catch {
         cleanupFailed = true;
       }
-      deps.queue.remove(userId, sessionId);
-      deps.queue.remove(userId, targetSessionId);
+      if (draftRetained) {
+        // Seria odhaczona w trakcie finalnego RTT: draft (dirty) i wpis kolejki zostają
+        // na checkpoint follow-up. Fakt serwera musi trafić na draft, inaczej kolejny
+        // zapis idzie ze stale expectedRevision i kończy się fałszywym konfliktem —
+        // markSynced przy niezgodnej wersji zapisuje wyłącznie znaczniki chmury.
+        try {
+          await deps.markSynced(userId, now(), draft.version, targetSessionId, {
+            updatedAt: result.updatedAt,
+            revision: result.revision,
+          });
+        } catch {
+          // best-effort: brak markerów nie unieważnia zapisu w chmurze
+        }
+      } else {
+        deps.queue.remove(userId, sessionId);
+        deps.queue.remove(userId, targetSessionId);
+      }
       return {
         success: true,
         ...(alreadyFinalized && { alreadyFinalized: true }),
@@ -281,6 +301,7 @@ const runSync = async (
         promotedSessionId,
         syncedDraftVersion: draft.version,
         ...(cleanupFailed && { cleanupFailed }),
+        ...(draftRetained && { draftRetained }),
       };
     }
 

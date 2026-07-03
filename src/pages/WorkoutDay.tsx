@@ -460,11 +460,12 @@ const WorkoutDay = () => {
       workoutDraftDb.setCloudBaseline(ownerId, draftSessionId, cloudState),
     setPendingWrite: (ownerId, draftSessionId, pending) =>
       workoutDraftDb.setPendingWrite(ownerId, draftSessionId, pending),
-    clearDraft: (ownerId, draftSessionId) => workoutDraftDb.clearActiveDraft(ownerId, draftSessionId),
+    clearDraftIfVersion: (ownerId, draftSessionId, expectedVersion) =>
+      workoutDraftDb.clearActiveDraftIfVersion(ownerId, draftSessionId, expectedVersion),
     queue: workoutSyncQueue,
   }), [batchSaveWorkout, getWorkoutSessionFromServer, createWorkoutSession]);
 
-  const syncDraftToFirebase = useCallback(async (mode: 'checkpoint' | 'final'): Promise<{ success: boolean; skipped?: boolean; error?: string }> => {
+  const syncDraftToFirebase = useCallback(async (mode: 'checkpoint' | 'final'): Promise<{ success: boolean; skipped?: boolean; error?: string; draftRetained?: boolean }> => {
     if (!uid || !sessionId) {
       return { success: false, skipped: true };
     }
@@ -555,6 +556,20 @@ const WorkoutDay = () => {
     }
 
     if (requiresFinalSync) {
+      if (outcome.draftRetained) {
+        // Trening zapisany w chmurze, ale seria odhaczona w trakcie finalnego RTT
+        // została w drafcie (dirty). Stan sesji zostaje; nadwyżkę dosyła kolejny
+        // checkpoint albo ponowne "Zakończ trening".
+        const retainedDraft = await workoutDraftDb.loadDraft(uid, targetSessionId);
+        if (retainedDraft) {
+          activeDraftRef.current = retainedDraft;
+          setActiveDraft(retainedDraft);
+          workoutSyncQueue.upsertFromDraft(retainedDraft, { lastError: 'DRAFT_RETAINED' });
+        }
+        setAutoSaveStatus('sync-pending');
+        trackTelemetryEvent(uid, 'sync_success');
+        return { success: true, draftRetained: true };
+      }
       if (outcome.cleanupFailed) {
         setSaveError(t('workout.err.cloudSavedLocalCleanupFailed'));
       }
@@ -1366,6 +1381,15 @@ const WorkoutDay = () => {
       return;
     }
 
+    if (result.draftRetained) {
+      // Treść dopisana w trakcie zapisu została w drafcie — dosyłka kolejnym syncem.
+      toast({
+        title: t('workout.toast.savedLocallyTitle'),
+        description: t('workout.toast.savedLocallyDesc'),
+      });
+      return;
+    }
+
     toast({
       title: t('workout.toast.syncDoneTitle'),
       description: t('workout.toast.syncDoneDesc'),
@@ -1397,6 +1421,18 @@ const WorkoutDay = () => {
     if (!result.success && result.skipped) {
       // Inny sync w toku (mutex zajęty) — to nie błąd; user może ponowić.
       setIsExplicitSaving(false);
+      return;
+    }
+
+    if (result.success && result.draftRetained) {
+      // Seria odhaczona w trakcie zapisu końcowego: sesja zostaje aktywna,
+      // user domyka trening ponownym "Zakończ trening" (nadwyżka nie ginie).
+      setIsExplicitSaving(false);
+      setShowCompleteConfirm(false);
+      toast({
+        title: t('workout.toast.savedLocallyTitle'),
+        description: t('workout.toast.savedLocallyDesc'),
+      });
       return;
     }
 
