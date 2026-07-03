@@ -394,6 +394,77 @@ test.describe('Mobile Responsiveness', () => {
 });
 
 // =====================================================
+// 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
+// =====================================================
+test.describe('Auto-resume (Z49)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('żywy draft przekierowuje z Dashboardu do treningu', async ({ page }) => {
+    await navigateAndWait(page, '/');
+
+    const today = new Date().toISOString().split('T')[0];
+    await writeWorkoutDraftDb(page, {
+      sessionId: `workout-e2e-test-user-day-1-${today}`,
+      userId: 'e2e-test-user',
+      dayId: 'day-1',
+      date: today,
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: `workout-e2e-test-user-day-1-${today}`,
+      exerciseSets: { 'ex-1-1': [{ reps: 8, weight: 60, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 2,
+    });
+
+    // Zimny start: mount apki z żywym draftem = auto-resume do treningu.
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page).toHaveURL(/#\/workout\/day-1\?.*session=/, { timeout: 7000 });
+  });
+
+  test('draft finalSyncPending zostaje na Dashboardzie z kartą sync', async ({ page }) => {
+    await navigateAndWait(page, '/');
+
+    const today = new Date().toISOString().split('T')[0];
+    await writeWorkoutDraftDb(page, {
+      sessionId: `workout-e2e-test-user-day-1-${today}`,
+      userId: 'e2e-test-user',
+      dayId: 'day-1',
+      date: today,
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: `workout-e2e-test-user-day-1-${today}`,
+      exerciseSets: { 'ex-1-1': [{ reps: 8, weight: 60, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: true,
+      finalSyncPending: true,
+      version: 3,
+    });
+
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByText('Trening zakończony lokalnie')).toBeVisible({ timeout: 7000 });
+    await expect(page).toHaveURL(/#\/?$/);
+  });
+});
+
+// =====================================================
 // 12. ERROR HANDLING
 // =====================================================
 test.describe('Error Handling', () => {

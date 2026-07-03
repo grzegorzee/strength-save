@@ -131,6 +131,8 @@ export const pl = {
   'dash.exercisesCount': '{n} ćwiczeń',
   'dash.details': 'Szczegóły',
   'dash.startWorkout': 'Rozpocznij trening',
+  'dash.today.continue': 'Kontynuuj trening',
+  'dash.today.continueSets': 'Odhaczone serie: {n}',
   'dash.workoutCompleted': 'Trening ukończony!',
   'dash.view': 'Zobacz',
   'dash.restDay': 'Dzisiaj wolne',

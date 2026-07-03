@@ -8,6 +8,7 @@ export type TelemetryEventName =
   | 'provisional_session_started'
   | 'provisional_session_promoted'
   | 'draft_recovered'
+  | 'workout_auto_resume'
   | 'local_save_failed'
   | 'sync_retry_manual'
   | 'sync_retry_batch'

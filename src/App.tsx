@@ -16,6 +16,7 @@ import { UnitProvider } from "./contexts/UnitContext";
 import { LanguageProvider, useTranslation } from "./contexts/LanguageContext";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { WatchEventRouter } from "./components/WatchEventRouter";
+import { ActiveWorkoutResume } from "./components/ActiveWorkoutResume";
 import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
 import { AutoSyncOnReconnect } from "./components/AutoSyncOnReconnect";
 import { PreferenceSync } from "./components/PreferenceSync";
@@ -153,6 +154,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <IosSwipeBack />
       {!isNewUser && <WatchEventRouter />}
+      {!isNewUser && <ActiveWorkoutResume />}
       <Suspense fallback={<AppLoader />}>
         <Routes>
           {isNewUser ? (

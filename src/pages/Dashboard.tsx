@@ -23,6 +23,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+import { shouldResumeWorkoutDraft } from '@/lib/workout-resume';
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
@@ -282,6 +283,12 @@ const Dashboard = () => {
     try { localStorage.setItem(NEXT_STEP_DISMISS_KEY, planSignature); } catch { /* ignore */ }
   };
 
+  // Z49: żywy draft = trening w toku. Decyzja wspólna z auto-resume (workout-resume.ts).
+  const draftResume = useMemo(
+    () => shouldResumeWorkoutDraft(localDraft, formatLocalDate(today), Date.now()),
+    [localDraft, today],
+  );
+
   // Determine today's training context
   const todayTraining = useMemo(() => {
     const todayKey = formatLocalDate(today);
@@ -533,34 +540,59 @@ const Dashboard = () => {
                 </p>
               </div>
             </div>
-            <Button variant="outline" onClick={() => navigate('/settings')}>
-              {t('dash.sync.openCenter')}
+            <Button
+              variant="outline"
+              onClick={() => navigate(draftResume.resume ? draftResume.target : '/settings')}
+            >
+              {draftResume.resume ? t('dash.today.continue') : t('dash.sync.openCenter')}
             </Button>
           </CardContent>
         </Card>
       ) : null}
 
       {/* Today's training card */}
-      {todayTraining.type === 'training' && (
+      {todayTraining.type === 'training' && (() => {
+        // Z49: żywy draft dzisiejszego dnia = "Kontynuuj trening" z postępem zamiast "Start".
+        const continueDraft = draftResume.resume
+          && localDraft
+          && localDraft.dayId === todayTraining.dayId
+          && localDraft.date === todayTraining.dateStr
+          ? {
+            target: draftResume.target,
+            completedSets: Object.values(localDraft.exerciseSets).flat().filter(s => s.completed).length,
+          }
+          : null;
+        return (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-5">
             <div className="flex items-center gap-3 mb-3">
               <Dumbbell className="h-5 w-5 text-primary shrink-0" />
               <div className="min-w-0">
                 <p className="font-semibold text-sm">{localizeDayName(todayTraining.day.dayName, lang)}</p>
-                <p className="text-xs text-muted-foreground truncate">{localizeFocus(todayTraining.day.focus, lang)} · {t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {continueDraft
+                    ? t('dash.today.continueSets', { n: continueDraft.completedSets })
+                    : `${localizeFocus(todayTraining.day.focus, lang)} · ${t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}`}
+                </p>
               </div>
             </div>
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => navigate('/day')}>{t('dash.details')}</Button>
-              <Button size="sm" className="gap-1.5 flex-1" onClick={() => navigate(`/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}>
+              <Button
+                size="sm"
+                className="gap-1.5 flex-1"
+                onClick={() => navigate(continueDraft
+                  ? continueDraft.target
+                  : `/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}
+              >
                 <Play className="h-3.5 w-3.5" />
-                {t('dash.startWorkout')}
+                {continueDraft ? t('dash.today.continue') : t('dash.startWorkout')}
               </Button>
             </div>
           </CardContent>
         </Card>
-      )}
+        );
+      })()}
 
       {todayTraining.type === 'completed' && (
         <Card className="border-fitness-success/40 bg-fitness-success/5">

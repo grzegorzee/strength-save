@@ -125,6 +125,8 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.exercisesCount': '{n} exercises',
   'dash.details': 'Details',
   'dash.startWorkout': 'Start workout',
+  'dash.today.continue': 'Continue workout',
+  'dash.today.continueSets': 'Completed sets: {n}',
   'dash.workoutCompleted': 'Workout completed!',
   'dash.view': 'View',
   'dash.restDay': 'Day off today',

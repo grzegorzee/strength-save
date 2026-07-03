@@ -281,6 +281,9 @@ test.describe('Batch Save Workflow', () => {
   test('dashboard highlights offline or pending local workout state', async ({ page }) => {
     await navigateAndWait(page, '/');
 
+    // Draft nieświeży (>12h, inna data): auto-resume (Z49) go NIE wznawia,
+    // ale karta statusu sync na Dashboardzie nadal go pokazuje.
+    const staleUpdatedAt = Date.now() - 13 * 60 * 60 * 1000;
     await writeWorkoutDraftDb(page, {
       sessionId: 'local-workout-e2e-test-user-day-1-2026-04-03',
       userId: E2E_USER_ID,
@@ -295,8 +298,8 @@ test.describe('Batch Save Workflow', () => {
       exerciseNotes: {},
       dayNotes: 'pending sync',
       skippedExercises: [],
-      startedAt: Date.now(),
-      updatedAt: Date.now(),
+      startedAt: staleUpdatedAt,
+      updatedAt: staleUpdatedAt,
       lastFirebaseSyncAt: null,
       dirty: true,
       completedLocally: false,
