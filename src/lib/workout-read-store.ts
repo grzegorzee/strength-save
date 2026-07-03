@@ -26,6 +26,16 @@ const isBackendDisabledForMockE2E = (): boolean => (
   import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true'
 );
 
+// Wywoływane wyłącznie w trybie mock E2E (gałąź isBackendDisabledForMockE2E).
+const readE2EWorkouts = (): WorkoutSession[] => {
+  try {
+    const raw = window.localStorage.getItem('fittracker_e2e_workouts');
+    return raw ? (JSON.parse(raw) as WorkoutSession[]) : [];
+  } catch {
+    return [];
+  }
+};
+
 export interface WorkoutReadSnapshot {
   workouts: WorkoutSession[];
   measurements: BodyMeasurement[];
@@ -101,7 +111,8 @@ const startStore = (userId: string, entry: StoreEntry): void => {
   if (entry.unsubscribeWorkouts || entry.unsubscribeMeasurements) return;
 
   if (isBackendDisabledForMockE2E()) {
-    entry.snapshot = { workouts: [], measurements: [], isLoaded: true, error: null, workoutsFromCache: false };
+    // E2E mock: historia treningów wstrzykiwana z localStorage (wzorzec fittracker_e2e_cycles).
+    entry.snapshot = { workouts: readE2EWorkouts(), measurements: [], isLoaded: true, error: null, workoutsFromCache: false };
     return;
   }
 

@@ -24,6 +24,9 @@ import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { shouldResumeWorkoutDraft } from '@/lib/workout-resume';
+import { buildExerciseRecommendation, buildReadiness, type ExerciseRecommendation } from '@/lib/adaptive-coach';
+import { isBodyweightExercise } from '@/lib/exercise-utils';
+import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
@@ -332,6 +335,29 @@ const Dashboard = () => {
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
   }, [trainingPlan, today, workouts, planStartDate, workoutToDay]);
 
+  // Adaptive Coach (Z64): readiness siła+kardio i JEDNA najważniejsza rekomendacja
+  // dnia (deload > hold > progress) — czyste heurystyki, zero kosztów.
+  const coach = useMemo(() => {
+    if (!FEATURE_FLAGS.adaptiveCoach) return null;
+    const readiness = buildReadiness({ workouts, stravaActivities, now: today });
+    let topRec: { rec: ExerciseRecommendation; exerciseName: string } | null = null;
+    if (todayTraining.type === 'training') {
+      const priority: Record<ExerciseRecommendation['action'], number> = { deload: 3, hold: 2, progress: 1 };
+      todayTraining.day.exercises.forEach((exercise) => {
+        const rec = buildExerciseRecommendation({
+          history: workouts,
+          exerciseId: exercise.id,
+          exerciseName: exercise.name,
+          isBodyweight: isBodyweightExercise(exercise.name),
+        });
+        if (rec && (!topRec || priority[rec.action] > priority[topRec.rec.action])) {
+          topRec = { rec, exerciseName: exercise.name };
+        }
+      });
+    }
+    return { readiness, topRec: topRec as { rec: ExerciseRecommendation; exerciseName: string } | null };
+  }, [workouts, stravaActivities, today, todayTraining]);
+
   // Apple Watch: podgląd dzisiejszego planu na zegarku zanim sesja wystartuje.
   useWatchPlanPreview({
     uid,
@@ -620,6 +646,58 @@ const Dashboard = () => {
                 {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
               </p>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Adaptive Coach (Z64): gotowość + najważniejsza rekomendacja dnia. */}
+      {coach && (
+        <Card>
+          <CardContent className="p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                🧠 {t('coachx.title')}
+              </p>
+              <span className="text-xs font-bold tabular-nums">{coach.readiness.score}/100</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all',
+                  coach.readiness.level === 'fresh' && 'bg-fitness-success',
+                  coach.readiness.level === 'ok' && 'bg-fitness-cyan',
+                  coach.readiness.level === 'loaded' && 'bg-fitness-warning',
+                  coach.readiness.level === 'overreached' && 'bg-destructive',
+                )}
+                style={{ width: `${coach.readiness.score}%` }}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">{t(coach.readiness.reasonKey)}</p>
+            {coach.topRec && (() => {
+              const { rec, exerciseName } = coach.topRec;
+              const deltaDisplay = Math.round(toDisplay(Math.abs(rec.weightDeltaKg)) * 10) / 10;
+              const actionLabel = rec.action === 'progress'
+                ? (rec.weightDeltaKg > 0 ? t('coachx.action.progress', { kg: deltaDisplay, unit }) : t('coachx.action.progressBw'))
+                : rec.action === 'hold'
+                  ? t('coachx.action.hold')
+                  : t('coachx.action.deload', { kg: deltaDisplay, unit });
+              return (
+                <div className="flex items-start justify-between gap-3 border-t border-border/50 pt-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{localizeExerciseName(exerciseName, lang)}</p>
+                    <p className="text-xs text-muted-foreground">{t(rec.reasonKey)}</p>
+                  </div>
+                  <span className={cn(
+                    'shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+                    rec.action === 'progress' && 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
+                    rec.action === 'hold' && 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
+                    rec.action === 'deload' && 'border-destructive/40 text-destructive bg-destructive/10',
+                  )}>
+                    {actionLabel}
+                  </span>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       )}

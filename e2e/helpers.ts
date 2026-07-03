@@ -173,3 +173,10 @@ export const setE2ECycles = async (page: Page, cycles: unknown[]) => {
     window.localStorage.setItem(key, JSON.stringify(data));
   }, { key: 'fittracker_e2e_cycles', data: cycles });
 };
+
+// Wstrzykuje historię treningów (czytana przez workout-read-store w trybie mock E2E).
+export const setE2EWorkouts = async (page: Page, workouts: unknown[]) => {
+  await page.addInitScript(({ key, data }) => {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  }, { key: 'fittracker_e2e_workouts', data: workouts });
+};
