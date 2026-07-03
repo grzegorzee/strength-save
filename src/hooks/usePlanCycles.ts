@@ -12,6 +12,7 @@ import {
   query,
   where,
   orderBy,
+  limit,
   onSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -25,6 +26,7 @@ import { isCycleVisible } from '@/lib/cycle-visibility';
 
 const CYCLES_COLLECTION = 'plan_cycles';
 const CYCLE_OPERATIONS_COLLECTION = 'plan_cycle_operations';
+const CYCLES_LISTENER_LIMIT = 60;
 
 interface MergeOperation {
   userId: string;
@@ -75,10 +77,13 @@ export const usePlanCycles = (userId: string) => {
       return;
     }
 
+    // Limit (Z55): 60 najnowszych cykli = 5 lat historii przy miesięcznych cyklach.
+    // orderBy startDate desc gwarantuje, że tniemy najstarsze.
     const q = query(
       collection(db, CYCLES_COLLECTION),
       where('userId', '==', userId),
       orderBy('startDate', 'desc'),
+      limit(CYCLES_LISTENER_LIMIT),
     );
 
     const unsubscribe = onSnapshot(q,
