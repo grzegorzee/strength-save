@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY, getScopedWorkoutDraftKey } from '@/lib/workout-draft';
+import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY, getScopedWorkoutDraftKey, workoutDraft } from '@/lib/workout-draft';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { hasWorkoutWriteConflict } from '@/lib/workout-final-sync';
 
@@ -352,7 +352,8 @@ describe('workoutDraftDb', () => {
       exerciseNotes: {},
       dayNotes: '',
       skippedExercises: [],
-      savedAt: 123,
+      // Świeży draft (bezpiecznik 48h odrzuca starsze).
+      savedAt: Date.now() - 1000,
     }));
 
     const migrated = await workoutDraftDb.migrateFromLocalStorage('user-1');
@@ -375,6 +376,46 @@ describe('workoutDraftDb', () => {
 
     expect(loaded?.sessionId).toBe(baseDraft.sessionId);
     expect(localStorage.getItem(getScopedWorkoutDraftKey('user-1'))).not.toBeNull();
+  });
+
+  it('clearActiveDraft usuwa też kopię fallback z localStorage', async () => {
+    // Działające (fake) IDB + osierocona kopia fallback tej samej sesji.
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: baseDraft.exerciseSets,
+      exerciseNotes: baseDraft.exerciseNotes,
+      dayNotes: baseDraft.dayNotes,
+      skippedExercises: baseDraft.skippedExercises,
+      savedAt: baseDraft.updatedAt,
+    }, 'user-1');
+
+    await workoutDraftDb.clearActiveDraft('user-1', baseDraft.sessionId);
+
+    expect(workoutDraft.load('user-1')).toBeNull();
+    expect(await workoutDraftDb.loadActiveDraft('user-1')).toBeNull();
+  });
+
+  it('migrateFromLocalStorage pomija i usuwa drafty starsze niż 48h', async () => {
+    localStorage.setItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY, JSON.stringify({
+      sessionId: 'legacy-old',
+      dayId: 'day-1',
+      date: '2026-04-01',
+      exerciseSets: { 'ex-1': [{ reps: 5, weight: 50, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      savedAt: Date.now() - 49 * 60 * 60 * 1000,
+    }));
+
+    const migrated = await workoutDraftDb.migrateFromLocalStorage('user-1');
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(migrated).toBeNull();
+    expect(loaded).toBeNull();
+    expect(localStorage.getItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY)).toBeNull();
   });
 
   it('fallback localStorage zachowuje cloudRevision i version draftu', async () => {
@@ -405,5 +446,14 @@ describe('hasDraftContent', () => {
     expect(hasDraftContent({}, { 'ex-1': 'note' }, '', [])).toBe(true);
     expect(hasDraftContent({}, {}, 'day note', [])).toBe(true);
     expect(hasDraftContent({}, {}, '', ['ex-2'])).toBe(true);
+  });
+
+  it('ignoruje prefilowane serie bez completed (porzucony start to nie treść)', () => {
+    expect(hasDraftContent({ 'ex-1': [{ reps: 10, weight: 50, completed: false }] }, {}, '', [])).toBe(false);
+  });
+
+  it('widzi odhaczoną serię lub notatkę', () => {
+    expect(hasDraftContent({ 'ex-1': [{ reps: 10, weight: 50, completed: true }] }, {}, '', [])).toBe(true);
+    expect(hasDraftContent({ 'ex-1': [{ reps: 10, weight: 50, completed: false }] }, {}, 'notatka dnia', [])).toBe(true);
   });
 });

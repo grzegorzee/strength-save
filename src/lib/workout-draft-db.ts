@@ -157,8 +157,9 @@ export const hasDraftContent = (
   dayNotes: string,
   skippedExercises: string[]
 ): boolean => {
-  const hasSetData = Object.keys(exerciseSets).length > 0 &&
-    Object.values(exerciseSets).some(sets => sets.some(set => set.reps > 0 || set.weight > 0 || set.completed));
+  // Prefill startowy kopiuje reps/weight z poprzedniego treningu — treścią draftu
+  // jest dopiero odhaczona seria, nie same prefilowane wartości.
+  const hasSetData = Object.values(exerciseSets).some(sets => sets.some(set => set.completed === true));
   const hasNotes = Object.values(exerciseNotes).some(note => note.trim().length > 0) || dayNotes.trim().length > 0;
   return hasSetData || hasNotes || skippedExercises.length > 0;
 };
@@ -300,6 +301,18 @@ const runRead = async (userId: string, sessionId?: string): Promise<ActiveWorkou
   });
 };
 
+const clearFallbackCopyIfMatches = (userId: string, sessionId?: string): void => {
+  try {
+    const copy = workoutDraft.load(userId);
+    if (!copy) return;
+    if (!sessionId || copy.sessionId === sessionId) {
+      workoutDraft.clear(userId);
+    }
+  } catch {
+    // best-effort: brak dostępu do localStorage nie może blokować sprzątania IDB
+  }
+};
+
 const runWrite = async (value: ActiveWorkoutDraft | null, userId: string, sessionId?: string): Promise<void> => {
   const db = await openDatabase();
   if (!db) {
@@ -344,6 +357,12 @@ const runWrite = async (value: ActiveWorkoutDraft | null, userId: string, sessio
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
   });
+
+  if (!value) {
+    // Usunięcie draftu przez działające IDB musi sprzątnąć też kopię fallback,
+    // inaczej pierwszy błąd odczytu IDB wskrzesza starego drafta z localStorage.
+    clearFallbackCopyIfMatches(userId, sessionId);
+  }
 };
 
 const updateDraft = async (
@@ -493,6 +512,13 @@ export const workoutDraftDb = {
 
     const legacyDraft = workoutDraft.load();
     if (!legacyDraft) return null;
+
+    // Draft starszy niż 48h nie wraca do życia; klucz usuwamy, żeby nie wracał nigdy.
+    const MAX_LEGACY_DRAFT_AGE_MS = 48 * 60 * 60 * 1000;
+    if (legacyDraft.savedAt && Date.now() - legacyDraft.savedAt > MAX_LEGACY_DRAFT_AGE_MS) {
+      workoutDraft.clear();
+      return null;
+    }
 
     const migrated = normalizeDraft({
       ...legacyDraft,
