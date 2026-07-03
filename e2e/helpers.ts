@@ -180,3 +180,10 @@ export const setE2EWorkouts = async (page: Page, workouts: unknown[]) => {
     window.localStorage.setItem(key, JSON.stringify(data));
   }, { key: 'fittracker_e2e_workouts', data: workouts });
 };
+
+// Wstrzykuje własne ćwiczenia usera (czytane przez useCustomExercises w trybie mock E2E).
+export const setE2ECustomExercises = async (page: Page, exercises: unknown[]) => {
+  await page.addInitScript(({ key, data }) => {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  }, { key: 'fittracker_e2e_custom_exercises', data: exercises });
+};

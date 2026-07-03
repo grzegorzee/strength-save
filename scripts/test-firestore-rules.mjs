@@ -301,6 +301,30 @@ await seedUser({ enabled: true });
 await seedDoc('chat_messages', 'cm-1', { userId: UID, role: 'user', content: 'hi' });
 add('chat_messages: delete przez klienta DENIED', false, await ok(() => deleteDoc(doc(db, 'chat_messages', 'cm-1'))));
 
+// === Custom exercises (Z71): wlasne cwiczenia usera, zamkniety schemat ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser(undefined, 'active', OTHER_UID);
+await seedUser(undefined, 'active', ADMIN_UID, 'admin');
+const validCustomExercise = {
+  userId: UID, name: 'Moje wioslowanie', category: 'back', isBodyweight: false, type: 'compound', createdAt: Date.now(),
+};
+add('custom_exercises: create wlasnego ALLOWED', true, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-1'), validCustomExercise)));
+add('custom_exercises: create z cudzym userId DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-2'), { ...validCustomExercise, userId: OTHER_UID })));
+add('custom_exercises: category spoza listy DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-3'), { ...validCustomExercise, category: 'cardio' })));
+add('custom_exercises: nazwa 200 znakow DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-4'), { ...validCustomExercise, name: 'x'.repeat(200) })));
+add('custom_exercises: nazwa 1 znak DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-5'), { ...validCustomExercise, name: 'x' })));
+add('custom_exercises: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-6'), { ...validCustomExercise, evil: 1 })));
+add('custom_exercises: type spoza listy DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-7'), { ...validCustomExercise, type: 'cardio' })));
+add('custom_exercises: isBodyweight nie-bool DENIED', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-8'), { ...validCustomExercise, isBodyweight: 'tak' })));
+add('custom_exercises: read wlasnego ALLOWED', true, await ok(() => getDoc(doc(db, 'custom_exercises', 'cx-1'))));
+add('custom_exercises: read cudzego DENIED', false, await ok(() => getDoc(doc(otherDb, 'custom_exercises', 'cx-1'))));
+add('custom_exercises: read admin ALLOWED', true, await ok(() => getDoc(doc(adminDb, 'custom_exercises', 'cx-1'))));
+add('custom_exercises: update wlasnego ALLOWED', true, await ok(() => updateDoc(doc(db, 'custom_exercises', 'cx-1'), { name: 'Moje wioslowanie v2' })));
+add('custom_exercises: update cudzego DENIED', false, await ok(() => updateDoc(doc(otherDb, 'custom_exercises', 'cx-1'), { name: 'przejete' })));
+add('custom_exercises: update ze zmiana userId DENIED', false, await ok(() => updateDoc(doc(db, 'custom_exercises', 'cx-1'), { userId: OTHER_UID })));
+add('custom_exercises: delete wlasnego ALLOWED', true, await ok(() => deleteDoc(doc(db, 'custom_exercises', 'cx-1'))));
+
 await env.cleanup();
 
 let failed = 0;

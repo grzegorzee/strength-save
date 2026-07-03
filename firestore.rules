@@ -369,6 +369,35 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Własne ćwiczenia usera (Z71): zamknięty schemat, pełny CRUD tylko właściciel,
+    // odczyt dodatkowo admin. Kategorie = 8 kluczy categoryLabels z biblioteki klienta.
+    function validCustomExerciseShape() {
+      return request.resource.data.keys().hasOnly([
+        'userId', 'name', 'category', 'isBodyweight', 'type', 'createdAt'
+      ])
+      && request.resource.data.name is string
+      && request.resource.data.name.size() >= 2
+      && request.resource.data.name.size() <= 80
+      && request.resource.data.category in ['chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves']
+      && request.resource.data.isBodyweight is bool
+      && request.resource.data.type in ['compound', 'isolation']
+      && request.resource.data.createdAt is int;
+    }
+
+    match /custom_exercises/{exerciseId} {
+      allow read: if request.auth != null
+                  && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
+      allow create: if userIdMatchesAuth()
+                    && hasSelfAccess(request.resource.data.userId)
+                    && validCustomExerciseShape();
+      allow update: if request.auth != null
+                    && hasSelfAccess(resource.data.userId)
+                    && keepsOwner()
+                    && validCustomExerciseShape();
+      allow delete: if request.auth != null
+                    && hasSelfAccess(resource.data.userId);
+    }
+
     // Globalne flagi funkcji — każdy zalogowany czyta, tylko admin zapisuje.
     // Zawężone do feature_flags: przyszłe dokumenty configu nie wyciekają domyślnie.
     match /config/feature_flags {

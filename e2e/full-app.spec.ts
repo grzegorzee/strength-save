@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises } from './helpers';
 
 // =====================================================
 // 1. ALL PAGES LOAD WITHOUT CRASHES
@@ -460,6 +460,44 @@ test.describe('ExercisePicker (Z69)', () => {
     await dialog.getByRole('button', { name: 'Tylko dziś' }).click();
 
     await expect(page.getByRole('heading', { name: 'Wyciskanie sztangi na ławce płaskiej' })).toBeVisible();
+  });
+});
+
+// =====================================================
+// 11v. WŁASNE ĆWICZENIA (Z71)
+// =====================================================
+test.describe('Własne ćwiczenia (Z71)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('formularz w pickerze tworzy własne ćwiczenie i dodaje je do planu (builder)', async ({ page }) => {
+    await navigateAndWait(page, '/new-plan');
+    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await page.getByRole('button', { name: /Dodaj dzień/ }).click();
+    await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Dodaj własne ćwiczenie' }).click();
+    await dialog.getByPlaceholder(/Nazwa ćwiczenia/).fill('Moje wiosłowanie');
+    // exact + .last(): "Plecy" to też chip filtra kategorii nad formularzem, a bez exact
+    // substring-match łapie itemy listy (kategoria w opisie pozycji).
+    await dialog.getByRole('button', { name: 'Plecy', exact: true }).last().click();
+    await dialog.getByRole('button', { name: 'Zapisz i wybierz' }).click();
+
+    // Własne ćwiczenie wylądowało w dniu planu (.first(): portal dialogu może jeszcze wisieć w DOM).
+    await expect(page.getByText('Moje wiosłowanie').first()).toBeVisible();
+  });
+
+  test('wstrzyknięte własne ćwiczenia widoczne w sekcji Twoje ćwiczenia (PlanEditor)', async ({ page }) => {
+    await setE2ECustomExercises(page, [
+      { id: 'custom-e2e-1', name: 'Moja maszyna do barków', category: 'shoulders', type: 'isolation', isBodyweight: false, instructions: [] },
+    ]);
+    await navigateAndWait(page, '/plan/edit');
+    await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Twoje ćwiczenia')).toBeVisible();
+    await expect(dialog.getByText('Moja maszyna do barków')).toBeVisible();
   });
 });
 

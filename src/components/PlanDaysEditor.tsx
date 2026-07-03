@@ -9,6 +9,8 @@ import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useCurrentUser } from '@/contexts/UserContext';
+import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { localizeWeekdayShort } from '@/lib/plan-i18n';
 import { WEEKDAYS } from '@/lib/plan-cycle-utils';
@@ -44,6 +46,9 @@ export const PlanDaysEditor = ({
   onDurationWeeksChange,
 }: PlanDaysEditorProps) => {
   const { t, lang } = useTranslation();
+  // Własne ćwiczenia zalogowanego usera (Z71) — jeden system we wszystkich edytorach.
+  const { uid } = useCurrentUser();
+  const { customExercises, addCustomExercise } = useCustomExercises(uid);
   const [pickerDayId, setPickerDayId] = useState<string | null>(null);
   const [swapDialog, setSwapDialog] = useState<{ dayId: string; exerciseId: string; exerciseName: string } | null>(null);
   const [editingSets, setEditingSets] = useState<{ dayId: string; exerciseId: string; value: string } | null>(null);
@@ -244,6 +249,8 @@ export const PlanDaysEditor = ({
         description={swapDialog
           ? t('planeditor.swappingExercise', { name: localizeExerciseName(swapDialog.exerciseName, lang) })
           : t('planeditor.pickFromLibrary')}
+        customExercises={customExercises}
+        onCreateCustomExercise={addCustomExercise}
       />
     </div>
   );

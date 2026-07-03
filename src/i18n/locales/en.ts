@@ -597,6 +597,11 @@ export const en: Record<keyof typeof pl, string> = {
   'picker.description': 'Search by name or filter by muscle group.',
   'picker.bodyweight': 'Bodyweight',
 
+  'custom.section': 'Your exercises',
+  'custom.addButton': 'Add custom exercise',
+  'custom.namePlaceholder': 'Exercise name (min 2 characters)',
+  'custom.save': 'Save and pick',
+
   'daysedit.duplicateDay': 'Duplicate day',
   'daysedit.removeDay': 'Remove day',
   'daysedit.moveUp': 'Move up',

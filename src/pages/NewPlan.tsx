@@ -16,6 +16,7 @@ import { useRequiresPaywall } from '@/hooks/useSubscription';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { PlanWizard, type PlanWizardChoice, type WizardLevel } from '@/components/PlanWizard';
 import { ExercisePicker } from '@/components/ExercisePicker';
+import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
@@ -67,6 +68,7 @@ const NewPlan = () => {
   const { t, lang } = useTranslation();
   const { fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
+  const { customExercises, addCustomExercise } = useCustomExercises(uid);
   const { plan: currentPlan, planDurationWeeks, planStartDate, savePlan } = useTrainingPlan(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { archiveCurrentPlan, createActiveCycle, getCycleById } = usePlanCycles(uid);
@@ -310,6 +312,8 @@ const NewPlan = () => {
         title={t('comp.swap.title')}
         description={t('planeditor.swappingExercise', { name: localizeExerciseName(swap.exerciseName, lang) })}
         initialCategory={swap.category ?? undefined}
+        customExercises={customExercises}
+        onCreateCustomExercise={addCustomExercise}
       />
     </div>
   );

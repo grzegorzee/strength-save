@@ -604,6 +604,12 @@ export const pl = {
   'picker.description': 'Szukaj po nazwie albo filtruj po partii mięśniowej.',
   'picker.bodyweight': 'Masa ciała',
 
+  // własne ćwiczenia (Z71)
+  'custom.section': 'Twoje ćwiczenia',
+  'custom.addButton': 'Dodaj własne ćwiczenie',
+  'custom.namePlaceholder': 'Nazwa ćwiczenia (min 2 znaki)',
+  'custom.save': 'Zapisz i wybierz',
+
   // wspólny edytor dni planu (Z70)
   'daysedit.duplicateDay': 'Duplikuj dzień',
   'daysedit.removeDay': 'Usuń dzień',

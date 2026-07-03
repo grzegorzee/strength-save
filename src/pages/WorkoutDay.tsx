@@ -33,6 +33,7 @@ import { getNextSetAdvice } from '@/lib/next-set-advice';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
+import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import type { SetData, ExerciseMetrics } from '@/types';
@@ -118,6 +119,13 @@ const WorkoutDay = () => {
     workoutsFromCache,
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, swapExercise, isLoaded: planLoaded } = useTrainingPlan(uid);
+  const { customExercises, addCustomExercise } = useCustomExercises(uid);
+  // Dla własnych ćwiczeń źródłem prawdy o bodyweight jest pole z pickera,
+  // nie heurystyka po nazwie (Z71d).
+  const resolveIsBodyweight = useCallback((name: string): boolean => {
+    const custom = customExercises.find((ex) => ex.name === name);
+    return custom ? custom.isBodyweight === true : isBodyweightExercise(name);
+  }, [customExercises]);
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
@@ -405,7 +413,7 @@ const WorkoutDay = () => {
           ? prev.sets
           : (exercise.name ? previousSetsByName.get(exercise.name) : undefined),
         nextAdvice: getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
-          isBodyweight: isBodyweightExercise(exercise.name),
+          isBodyweight: resolveIsBodyweight(exercise.name),
           isSuperset: exercise.isSuperset,
         }, lang, unit),
         historicalBest: getExerciseBest1RM(workouts, exercise.id),
@@ -416,13 +424,13 @@ const WorkoutDay = () => {
             history: workouts,
             exerciseId: exercise.id,
             exerciseName: exercise.name,
-            isBodyweight: isBodyweightExercise(exercise.name),
+            isBodyweight: resolveIsBodyweight(exercise.name),
           })
           : null,
       });
     });
     return map;
-  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit]);
+  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight]);
 
   const queueAutoSaveStatus = useCallback((status: AutoSaveStatus, nextStatus?: AutoSaveStatus, delay = 1600) => {
     setAutoSaveStatus(status);
@@ -1259,7 +1267,7 @@ const WorkoutDay = () => {
           const prevSets = getPreviousSets(exercise.id, exercise.name);
           const count = parseSetCount(exercise.sets);
           prefilled[exercise.id] = createPrefilledSets(
-            count, prevSets, isBodyweightExercise(exercise.name)
+            count, prevSets, resolveIsBodyweight(exercise.name)
           );
         });
         setExerciseSets(prefilled);
@@ -1607,7 +1615,7 @@ const WorkoutDay = () => {
     if (currentWorkoutData && day) {
       const previousWorkoutsForPR = workouts.filter(w => w.id !== sessionId && w.completed);
       const exerciseNames = new Map(day.exercises.map(e => [e.id, e.name]));
-      const bodyweightIds = new Set(day.exercises.filter(e => isBodyweightExercise(e.name)).map(e => e.id));
+      const bodyweightIds = new Set(day.exercises.filter(e => resolveIsBodyweight(e.name)).map(e => e.id));
       const newPRs = detectNewPRs(
         { ...currentWorkoutData, exercises: Object.entries(exerciseSets).map(([id, sets]) => ({ exerciseId: id, sets })) },
         previousWorkoutsForPR,
@@ -2092,7 +2100,7 @@ const WorkoutDay = () => {
               savedNotes={exerciseNotes[exercise.id]}
               onSetsChange={handleSetsChangeLocal}
               isEditable={true}
-              isBodyweight={isBodyweightExercise(exercise.name)}
+              isBodyweight={resolveIsBodyweight(exercise.name)}
               historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
               metrics={exerciseMetrics[exercise.id]}
               onMetricsChange={handleMetricsChangeLocal}
@@ -2191,7 +2199,7 @@ const WorkoutDay = () => {
               savedNotes={exerciseNotes[exercise.id]}
               previousSets={exerciseInsights.get(exercise.id)?.previousSets}
               onSetsChange={handleSetsChange}
-              isBodyweight={isBodyweightExercise(exercise.name)}
+              isBodyweight={resolveIsBodyweight(exercise.name)}
               isEditable={isWorkoutStarted && !isCompleted}
               nextAdvice={exerciseInsights.get(exercise.id)?.nextAdvice}
               coachRecommendation={exerciseInsights.get(exercise.id)?.coachRecommendation}
@@ -2236,6 +2244,8 @@ const WorkoutDay = () => {
             onOpenChange={(open) => { if (!open) setSwapExerciseId(null); }}
             title={t('planeditor.swapExercise')}
             description={swapTarget ? t('planeditor.swappingExercise', { name: swapTarget.name }) : undefined}
+            customExercises={customExercises}
+            onCreateCustomExercise={addCustomExercise}
             renderFooter={(picked) => (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">{t('workout.swapHowLong')}</p>
