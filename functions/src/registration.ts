@@ -1268,7 +1268,10 @@ export const deleteOwnAccount = onCall(async (request) => {
 });
 
 // Worker uprzywilejowany: kończy operacje przerwane po częściowym purge lub po usunięciu Auth.
-export const resumeDeletionOperations = onSchedule("every 5 minutes", async () => {
+// Co 60 min (nie 5): usunięcia biegną synchronicznie w adminDeleteUser/deleteOwnAccount,
+// cron to tylko naprawa po crashu — dokończenie do 1 h później jest OK (GDPR bez zmian),
+// a 8640 inwokacji/mies. spada do ~720 (R2-09).
+export const resumeDeletionOperations = onSchedule("every 60 minutes", async () => {
   const pending = await getDb().collection(DELETION_OPERATIONS_COLLECTION)
     .where("state", "in", ["pending", "failed"]).limit(25).get();
   for (const operation of pending.docs) {
