@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Dumbbell, Play, Moon, Sun, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Dumbbell, Info, Play, Moon, Sun, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { getTrainingRules } from '@/data/trainingPlan';
+import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { slugifyExercise } from '@/lib/exercise-media';
 import { warmupExercises, getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useStrava } from '@/hooks/useStrava';
@@ -269,6 +271,21 @@ const DayPlan = () => {
                       {t('dayplan.superset')}
                     </Badge>
                   )}
+                  {(() => {
+                    // Link do instrukcji tylko dla ćwiczeń z biblioteki (slug-match).
+                    const slug = slugifyExercise(exercise.name);
+                    const hasDetail = slug && exerciseLibrary.some((e) => slugifyExercise(e.name) === slug);
+                    return hasDetail ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/exercise/${slug}`)}
+                        aria-label={t('card.details')}
+                        className="shrink-0 p-1 text-muted-foreground/60 hover:text-primary transition-colors"
+                      >
+                        <Info className="h-4 w-4" />
+                      </button>
+                    ) : null;
+                  })()}
                 </div>
               ))}
             </div>

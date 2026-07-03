@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -33,7 +34,8 @@ import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { tooltipStyle, axisProps } from '@/lib/chart-config';
 import { getTrainingDayForDate, startOfLocalDay } from '@/lib/plan-schedule';
-import { Dumbbell, Flame, Scale, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
+import { ChevronRight, Dumbbell, Flame, Scale, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { dateLocale } from '@/i18n';
 import type { LanguageCode, TranslationKey } from '@/i18n';
 
@@ -90,6 +92,7 @@ const formatDateShort = (date: string, lang: LanguageCode): string =>
 
 const AnalyticsChartsTab = () => {
   const { uid } = useCurrentUser();
+  const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
   const { workouts, measurements, isLoaded } = useFirebaseWorkouts(uid);
@@ -455,6 +458,17 @@ const AnalyticsChartsTab = () => {
               ))}
             </div>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-1"
+            onClick={() => navigate('/achievements')}
+          >
+            <Trophy className="h-3.5 w-3.5" />
+            {t('charts.allRecords')}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
         </div>
       )}
     </div>

@@ -798,7 +798,7 @@ const Dashboard = () => {
           trend={trends.weight}
           trendSuffix={` ${unit}`}
           iconColor="bg-muted text-muted-foreground"
-          onClick={() => navigate('/analytics?tab=charts')}
+          onClick={() => navigate('/measurements')}
         />
         <DashboardStatCard
           title={t('dash.stat.streak')}
@@ -856,15 +856,25 @@ const Dashboard = () => {
                 <Calendar className="h-4 w-4 text-primary" />
                 <h2 className="font-heading font-bold text-base uppercase tracking-tight">{t('dash.yourPlan')}</h2>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs text-muted-foreground h-7 gap-1"
-                onClick={() => navigate('/plan/edit')}
-              >
-                <Pencil className="h-3 w-3" />
-                {t('dash.edit')}
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground h-7 gap-1"
+                  onClick={() => navigate('/cycles')}
+                >
+                  {t('dash.cycles')}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-muted-foreground h-7 gap-1"
+                  onClick={() => navigate('/plan/edit')}
+                >
+                  <Pencil className="h-3 w-3" />
+                  {t('dash.edit')}
+                </Button>
+              </div>
             </div>
 
             {/* Plan meta */}
@@ -997,6 +1007,15 @@ const Dashboard = () => {
             });
           })()}
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs text-muted-foreground gap-1"
+          onClick={() => navigate('/history')}
+        >
+          {t('dash.fullHistory')}
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
       </div>
 
       {/* Analytics link */}

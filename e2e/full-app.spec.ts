@@ -430,6 +430,53 @@ test.describe('Mobile drawer (Z66)', () => {
 });
 
 // =====================================================
+// 11y. LINKI KRZYŻOWE (Z67)
+// =====================================================
+test.describe('Linki krzyżowe (Z67)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('ikona info przy ćwiczeniu otwiera instrukcje i wraca bez utraty treningu', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Szczegóły ćwiczenia' }).first().click();
+    await expect(page).toHaveURL(/#\/exercise\//);
+    await expect(page.getByRole('heading', { name: 'Instrukcje' })).toBeVisible();
+
+    await page.goBack();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page).toHaveURL(/#\/workout\/day-1/);
+    await expect(page.locator('.exercise-card').first()).toBeVisible();
+  });
+
+  test('Dashboard: waga prowadzi do pomiarów', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await page.getByText('Waga', { exact: true }).first().click();
+    await expect(page).toHaveURL(/#\/measurements$/);
+  });
+
+  test('Dashboard: pełna historia i cykle', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await page.getByRole('button', { name: 'Pełna historia' }).click();
+    await expect(page).toHaveURL(/#\/history$/);
+
+    await navigateAndWait(page, '/');
+    await page.getByRole('button', { name: 'Cykle', exact: true }).click();
+    await expect(page).toHaveURL(/#\/cycles$/);
+  });
+
+  test('Analytics progresja: link Wszystkie rekordy', async ({ page }) => {
+    await navigateAndWait(page, '/analytics');
+    await page.getByRole('tab', { name: 'Wykresy' }).click();
+    await page.getByText('Progresja', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Wszystkie rekordy' }).click();
+    await expect(page).toHaveURL(/#\/achievements$/);
+  });
+});
+
+// =====================================================
 // 11a. ADAPTIVE COACH (Z64)
 // =====================================================
 test.describe('Adaptive Coach (Z64)', () => {

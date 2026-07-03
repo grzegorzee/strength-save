@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef, memo, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Dumbbell, Flame, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer } from 'lucide-react';
+import { Dumbbell, Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
+import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
-import { getExerciseAnimationUrl } from '@/lib/exercise-media';
+import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { IntervalTimer } from './IntervalTimer';
 import { Haptics, NotificationType } from '@capacitor/haptics';
@@ -219,6 +221,12 @@ const ExerciseCardInner = ({
   onRestTimerStart,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
+  const navigate = useNavigate();
+  // Link do instrukcji tylko dla ćwiczeń z biblioteki (custom/nieznane nie mają strony szczegółów).
+  const detailSlug = useMemo(() => {
+    const slug = slugifyExercise(exercise.name);
+    return slug && exerciseLibrary.some((e) => slugifyExercise(e.name) === slug) ? slug : null;
+  }, [exercise.name]);
   // Timer interwałowy (EMOM/AMRAP) — tylko gdy ćwiczenie ma rozpoznany zapis interwału.
   const intervalSpec = useMemo(
     () => FEATURE_FLAGS.workoutTimers ? resolveExerciseInterval(exercise) : null,
@@ -524,7 +532,19 @@ const ExerciseCardInner = ({
           </button>
 
           <div className="min-w-0">
-            <h3 className="font-bold text-[16px] leading-tight">{localizedName}</h3>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h3 className="font-bold text-[16px] leading-tight">{localizedName}</h3>
+              {detailSlug && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/exercise/${detailSlug}`)}
+                  aria-label={t('card.details')}
+                  className="shrink-0 p-1 -m-1 text-muted-foreground/60 hover:text-primary transition-colors"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
               <span className="text-sm font-medium text-muted-foreground">
                 {t('card.setsCount', { n: workingSets.length })}
