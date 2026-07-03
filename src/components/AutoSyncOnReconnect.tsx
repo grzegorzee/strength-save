@@ -10,6 +10,7 @@ import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries, recordWo
 import { classifyWorkoutSyncError, isRevisionConflictError } from '@/lib/workout-sync-conflict';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 import { reportClientError } from '@/lib/error-telemetry';
+import { cleanupLegacySyncLeftovers } from '@/lib/workout-sync-cleanup';
 
 // Po powrocie online (i na starcie sesji) automatycznie domyka zaległe final-synci
 // z kolejki — wcześniej wymagało to ręcznego "Ponów" w Sync Center w Ustawieniach.
@@ -19,10 +20,17 @@ import { reportClientError } from '@/lib/error-telemetry';
 // w kolejce do ręcznego rozwiązania dialogiem w treningu.
 export const AutoSyncOnReconnect = () => {
   const { uid } = useCurrentUser();
-  const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer } = useFirebaseWorkouts(uid);
+  const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer, workouts, isLoaded: workoutsLoaded } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
   const { t } = useTranslation();
   const runningRef = useRef(false);
+
+  // Z53: jednorazowe sprzątanie pozostałości sprzed R2 (guard w localStorage,
+  // ustawiany po sukcesie). Fire-and-forget: porażka = retry przy kolejnym starcie.
+  useEffect(() => {
+    if (!uid || !workoutsLoaded) return;
+    cleanupLegacySyncLeftovers(uid, workouts).catch(() => {});
+  }, [uid, workoutsLoaded, workouts]);
 
   const syncDeps = useMemo<WorkoutSyncDeps>(() => ({
     loadDraft: (ownerId, sessionId) => workoutDraftDb.loadDraft(ownerId, sessionId),
