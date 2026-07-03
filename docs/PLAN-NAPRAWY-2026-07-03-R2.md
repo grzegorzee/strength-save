@@ -108,9 +108,9 @@ Sprawdzone i CZYSTE (nie ruszać): jednostki kg kanoniczne (zero ścieżek zapis
 **Goal:** Potwierdzić zielony main przed zmianami, żeby regresje były przypisywalne.
 
 **Workflow:**
-- [ ] Krok 1: `git status` (czyste drzewo, branch main), `git log --oneline -3` (HEAD = db8d15e lub nowszy).
-- [ ] Krok 2: `npm run test` oczekiwane 458/458. Jeśli nie: STOP, zgłoś userowi.
-- [ ] Krok 3: `npm run typecheck && npm run lint && npm run build` bez błędów.
+- [x] Krok 1: `git status` (czyste drzewo, branch main), `git log --oneline -3` (HEAD = db8d15e lub nowszy).
+- [x] Krok 2: `npm run test` oczekiwane 458/458. Jeśli nie: STOP, zgłoś userowi.
+- [x] Krok 3: `npm run typecheck && npm run lint && npm run build` bez błędów.
 
 ---
 
@@ -125,11 +125,11 @@ Sprawdzone i CZYSTE (nie ruszać): jednostki kg kanoniczne (zero ścieżek zapis
 **Fix:** Wyekstrahuj `buildDraftSnapshot` do czystej funkcji w `src/lib/workout-draft-snapshot.ts` (wejście: obecne wartości refów + previousDraft + overrides; wzorzec ekstrakcji jak Z17/Z26). W funkcji: (a) przenoś `pendingWriteId` i `pendingWriteVersion` z previousDraft (overrides mogą nadpisać), (b) podbijaj `version` TYLKO gdy treść (exerciseSets, exerciseNotes, exerciseMetrics, dayNotes, skippedExercises) różni się od previousDraft; przy identycznej treści zachowaj `version` previousDraft. Komponent woła funkcję.
 
 **Workflow:**
-- [ ] Krok 1: failing testy w `src/lib/workout-draft-snapshot.test.ts`: (1) snapshot z previousDraft z `pendingWriteId='W', pendingWriteVersion=6` zachowuje oba pola; (2) identyczna treść -> version bez zmian; (3) zmieniona treść -> version+1 i pendingWriteId NADAL przeniesiony (kasuje go dopiero silnik po sukcesie); (4) previousDraft o innym sessionId -> zachowanie jak dotychczas (od zera).
-- [ ] Krok 2: implementacja ekstrakcji + podpięcie w WorkoutDay (buildDraftSnapshot zostaje cienkim wrapperem przekazującym refy).
-- [ ] Krok 3: test integracyjny scenariusza lost-ack na poziomie silnika (rozszerz istniejące testy workout-sync-engine): checkpoint -> commit bez acku -> flush -> retry checkpointu używa TEGO SAMEGO writeId -> wynik alreadyApplied.
-- [ ] Krok 4: `npm run test`, typecheck, lint.
-- [ ] Krok 5: commit `fix(sync): writeId przeżywa flush draftu, version bez podbicia przy identycznej treści (Z29)`.
+- [x] Krok 1: failing testy w `src/lib/workout-draft-snapshot.test.ts`: (1) snapshot z previousDraft z `pendingWriteId='W', pendingWriteVersion=6` zachowuje oba pola; (2) identyczna treść -> version bez zmian; (3) zmieniona treść -> version+1 i pendingWriteId NADAL przeniesiony (kasuje go dopiero silnik po sukcesie); (4) previousDraft o innym sessionId -> zachowanie jak dotychczas (od zera).
+- [x] Krok 2: implementacja ekstrakcji + podpięcie w WorkoutDay (buildDraftSnapshot zostaje cienkim wrapperem przekazującym refy).
+- [x] Krok 3: test integracyjny scenariusza lost-ack na poziomie silnika (rozszerz istniejące testy workout-sync-engine): checkpoint -> commit bez acku -> flush -> retry checkpointu używa TEGO SAMEGO writeId -> wynik alreadyApplied.
+- [x] Krok 4: `npm run test`, typecheck, lint.
+- [x] Krok 5: commit `fix(sync): writeId przeżywa flush draftu, version bez podbicia przy identycznej treści (Z29)`.
 
 ### Zadanie Z30: updateDraft atomowe (R2-02)
 
@@ -140,10 +140,10 @@ Sprawdzone i CZYSTE (nie ruszać): jednostki kg kanoniczne (zero ścieżek zapis
 **Fix:** RMW w JEDNEJ transakcji IDB readwrite (get + put w tym samym `IDBTransaction`) oraz przepuszczenie `updateDraft` przez `writeChains` per klucz (serializacja z saveActiveDraft). Mutator dostaje świeży rekord z tej samej transakcji.
 
 **Workflow:**
-- [ ] Krok 1: failing test w `src/lib/workout-draft-db.test.ts` (fake-indexeddb): wystartuj `updateDraft` (markDraftSynced) i W TRAKCIE jego microtasków wykonaj `saveActiveDraft` v6 z nową serią; po obu operacjach draft w IDB ma serię z v6 (dziś: znika).
-- [ ] Krok 2: implementacja (jedna transakcja + writeChains). Uważaj: transakcja IDB auto-commituje po opróżnieniu kolejki mikrotasków; mutator musi być synchroniczny wewnątrz transakcji.
-- [ ] Krok 3: pełne testy draft-db (regresje kontraktu: "does not clear a newer local draft", fallback roundtrip).
-- [ ] Krok 4: commit `fix(sync): updateDraft w jednej transakcji IDB przez writeChains (Z30)`.
+- [x] Krok 1: failing test w `src/lib/workout-draft-db.test.ts` (fake-indexeddb): wystartuj `updateDraft` (markDraftSynced) i W TRAKCIE jego microtasków wykonaj `saveActiveDraft` v6 z nową serią; po obu operacjach draft w IDB ma serię z v6 (dziś: znika).
+- [x] Krok 2: implementacja (jedna transakcja + writeChains). Uważaj: transakcja IDB auto-commituje po opróżnieniu kolejki mikrotasków; mutator musi być synchroniczny wewnątrz transakcji.
+- [x] Krok 3: pełne testy draft-db (regresje kontraktu: "does not clear a newer local draft", fallback roundtrip).
+- [x] Krok 4: commit `fix(sync): updateDraft w jednej transakcji IDB przez writeChains (Z30)`.
 
 ### Zadanie Z31: finalny clearDraft z guardem wersji (R2-03)
 
@@ -154,10 +154,10 @@ Sprawdzone i CZYSTE (nie ruszać): jednostki kg kanoniczne (zero ścieżek zapis
 **Fix:** `clearActiveDraft` w `workout-draft-db.ts` dostaje wariant warunkowy `clearActiveDraftIfVersion(userId, sessionId, expectedVersion)` (w writeChains, w jednej transakcji: delete tylko gdy `version <= expectedVersion`, zwraca boolean). Silnik woła wariant warunkowy z `draft.version` sync-runu; przy odmowie ustawia w wyniku `draftRetained: true`, NIE kasuje wpisu kolejki dla checkpointu follow-up, a adapter WorkoutDay traktuje to jak pending (nie sukces całkowity: status 'pending', bez czyszczenia stanu sesji).
 
 **Workflow:**
-- [ ] Krok 1: failing test silnika (fake deps): final na drafcie v k, w trakcie `deps.save` draft w store podbity do v k+1; oczekiwane: draft NIE skasowany, outcome z draftRetained, wpis kolejki zachowany.
-- [ ] Krok 2: implementacja clearActiveDraftIfVersion + zmiana silnika + adapter WorkoutDay (obsługa draftRetained).
-- [ ] Krok 3: test draft-db dla wariantu warunkowego (delete przy równej/starszej wersji, odmowa przy nowszej).
-- [ ] Krok 4: commit `fix(sync): finalny clearDraft z guardem wersji, draftRetained (Z31)`.
+- [x] Krok 1: failing test silnika (fake deps): final na drafcie v k, w trakcie `deps.save` draft w store podbity do v k+1; oczekiwane: draft NIE skasowany, outcome z draftRetained, wpis kolejki zachowany.
+- [x] Krok 2: implementacja clearActiveDraftIfVersion + zmiana silnika + adapter WorkoutDay (obsługa draftRetained).
+- [x] Krok 3: test draft-db dla wariantu warunkowego (delete przy równej/starszej wersji, odmowa przy nowszej).
+- [x] Krok 4: commit `fix(sync): finalny clearDraft z guardem wersji, draftRetained (Z31)`.
 
 ### Zadanie Z32: tombstone promocji provisional->remote (R2-04)
 
@@ -168,15 +168,15 @@ Sprawdzone i CZYSTE (nie ruszać): jednostki kg kanoniczne (zero ścieżek zapis
 **Fix:** (a) Przy `markPromotedToRemote` zapisz tombstone w localStorage (`fittracker_promoted:{uid}:{provisionalId}` -> `{remoteId, at}`, sprzątany po 7 dniach). (b) `saveActiveDraft`: jeśli klucz docelowy ma tombstone, przekieruj zapis pod klucz remote (sessionId=remoteId, sessionOrigin='remote', merge: zachowaj cloudRevision/cloudUpdatedAt/pendingWrite* z istniejącego rekordu remote, treść i version z zapisywanego draftu tylko gdy version nowsza). (c) `markPromotedToRemote` przy istniejącym drafcie remote NIE nadpisuje ślepo: scala po `version` (nowsza treść wygrywa), znaczniki chmury zawsze świeże.
 
 **Workflow:**
-- [ ] Krok 1: failing testy draft-db: (1) po markPromotedToRemote zapis pod provisional ląduje pod remote (jeden draft w IDB, sessionId=remoteId); (2) markPromotedToRemote nie cofa treści, gdy draft remote ma nowszą version; (3) tombstone starszy niż 7 dni ignorowany i czyszczony.
-- [ ] Krok 2: implementacja tombstone + przekierowania + merge.
-- [ ] Krok 3: rozszerz test E2E emulatora `e2e/emulator/workout-conflict.spec.ts` scenariusz 4 (promocja): edycja w trakcie promocji nie tworzy drugiego draftu i nie nadpisuje nowszej treści.
-- [ ] Krok 4: commit `fix(sync): tombstone promocji provisional->remote, zapisy przekierowane (Z32)`.
+- [x] Krok 1: failing testy draft-db: (1) po markPromotedToRemote zapis pod provisional ląduje pod remote (jeden draft w IDB, sessionId=remoteId); (2) markPromotedToRemote nie cofa treści, gdy draft remote ma nowszą version; (3) tombstone starszy niż 7 dni ignorowany i czyszczony.
+- [x] Krok 2: implementacja tombstone + przekierowania + merge.
+- [x] Krok 3: rozszerz test E2E emulatora `e2e/emulator/workout-conflict.spec.ts` scenariusz 4 (promocja): edycja w trakcie promocji nie tworzy drugiego draftu i nie nadpisuje nowszej treści.
+- [x] Krok 4: commit `fix(sync): tombstone promocji provisional->remote, zapisy przekierowane (Z32)`.
 
 ### CHECKPOINT FAZY 1
-- [ ] `npm run test` (wszystkie + nowe), `npm run typecheck`, `npm run lint`, `npm run build`.
-- [ ] `npm run e2e:mock` oraz `npm run e2e:emulator` (JDK21).
-- [ ] Wpis do DECYZJE.md (FAZA 1 R2: co, root cause per zadanie, weryfikacja).
+- [x] `npm run test` (wszystkie + nowe), `npm run typecheck`, `npm run lint`, `npm run build`.
+- [x] `npm run e2e:mock` oraz `npm run e2e:emulator` (JDK21).
+- [x] Wpis do DECYZJE.md (FAZA 1 R2: co, root cause per zadanie, weryfikacja).
 
 ---
 
@@ -439,3 +439,7 @@ Nie wykonuj bez osobnej zgody usera. Backlog z audytu R2 i R1:
 
 1. Błąd zapisu/utraty treningu: przerwij bieżące zadanie po commicie, diagnozuj z telemetrią `client_errors` (AdminDashboard, sekcja "Błędy klienta"), wróć do planu po hotfixie.
 2. Błąd niekrytyczny: dopisz do rejestru na końcu tego pliku, nie zmieniaj kolejności faz.
+
+## Rejestr uzupełnień (w trakcie wykonania)
+
+- R2-33 (wykryte na bramce F1, NAPRAWIONE hotfixem): `validWorkoutShape()` z Z28 nie dopuszczał legacy pola `createdAt` w workouts — każdy update dokumentu z tym polem padał PERMISSION_DENIED (m.in. merge cykli, e2e plan-lifecycle). Fail pre-istniejący na baseline 19def99 (bramki startowe audytu nie obejmowały e2e:emulator). Fix: `createdAt` w hasOnly + test rules regresyjny. Szczegóły w DECYZJE.md (R2 FAZA 1).
