@@ -2,15 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ChipButton } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,14 +13,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ExercisePicker } from '@/components/ExercisePicker';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
+import type { LibraryExercise } from '@/data/exerciseLibrary';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
-import { nextExerciseIdForDay } from '@/lib/plan-cycle-utils';
+import { nextExerciseIdForDay, defaultSetsForType } from '@/lib/plan-cycle-utils';
 import {
   ArrowUp,
   ArrowDown,
@@ -39,7 +32,6 @@ import {
   Pencil,
   Check,
   X,
-  Search,
 } from 'lucide-react';
 
 const PlanEditor = () => {
@@ -72,17 +64,7 @@ const PlanEditor = () => {
     value: string;
   } | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<LibraryExercise['category'] | 'all'>('all');
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-
-  const filteredExercises = exerciseLibrary.filter(ex => {
-    const q = searchQuery.toLowerCase();
-    // Wyszukiwanie po nazwie PL (kanonicznej) ORAZ po nazwie EN, niezaleznie od jezyka UI.
-    const matchesSearch = searchQuery === '' || ex.name.toLowerCase().includes(q) || localizeExerciseName(ex.name, 'en').toLowerCase().includes(q);
-    const matchesCategory = selectedCategory === 'all' || ex.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
 
   const handleSwap = async (newName: string) => {
     if (!swapDialog) return;
@@ -102,7 +84,7 @@ const PlanEditor = () => {
     const result = await addExercise(dayId, {
       id: nextExerciseIdForDay(day),
       name: ex.name,
-      sets: ex.type === 'compound' ? '3 x 6-8' : '3 x 10-12',
+      sets: defaultSetsForType(ex.type),
       instructions: [],
     });
 
@@ -155,84 +137,6 @@ const PlanEditor = () => {
     );
   }
 
-  const ExerciseSwapDialog = () => (
-    <Dialog open={!!swapDialog || !!addDialog} onOpenChange={() => { setSwapDialog(null); setAddDialog(null); setSearchQuery(''); setSelectedCategory('all'); }}>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{swapDialog ? t('planeditor.swapExercise') : t('planeditor.addExercise')}</DialogTitle>
-          <DialogDescription>
-            {swapDialog
-              ? t('planeditor.swappingExercise', { name: swapDialog.exerciseName })
-              : t('planeditor.pickFromLibrary')}
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t('exercises.search')}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        {/* Category filter */}
-        <div className="flex flex-wrap gap-1.5">
-          <ChipButton
-            variant={selectedCategory === 'all' ? 'default' : 'outline'}
-            pressed={selectedCategory === 'all'}
-            className="text-xs"
-            onClick={() => setSelectedCategory('all')}
-          >
-            {t('exercises.all')}
-          </ChipButton>
-          {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
-            <ChipButton
-              key={key}
-              variant={selectedCategory === key ? 'default' : 'outline'}
-              pressed={selectedCategory === key}
-              className="text-xs"
-              onClick={() => setSelectedCategory(key)}
-            >
-              {localizeCategory(key, lang)}
-            </ChipButton>
-          ))}
-        </div>
-
-        {/* Exercise list */}
-        <div className="space-y-1 max-h-[40vh] overflow-y-auto">
-          {filteredExercises.map((ex, i) => (
-            <button
-              key={i}
-              className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors flex items-center justify-between"
-              onClick={() => {
-                if (swapDialog) {
-                  handleSwap(ex.name);
-                } else if (addDialog) {
-                  handleAdd(addDialog, ex);
-                }
-              }}
-            >
-              <div>
-                <p className="font-medium text-sm">{localizeExerciseName(ex.name, lang)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {localizeCategory(ex.category, lang)} · {ex.type === 'compound' ? t('planeditor.compound') : t('planeditor.isolation')}
-                </p>
-              </div>
-            </button>
-          ))}
-          {filteredExercises.length === 0 && (
-            <p className="text-center text-muted-foreground py-4 text-sm">
-              {t('planeditor.noExercisesFound')}
-            </p>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-
   return (
     <div className="space-y-6 pb-6">
       <div className="flex items-center justify-between">
@@ -256,7 +160,7 @@ const PlanEditor = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setAddDialog(day.id); setSearchQuery(''); setSelectedCategory('all'); }}
+                onClick={() => setAddDialog(day.id)}
               >
                 <Plus className="h-4 w-4 mr-1" />
                 {t('planeditor.add')}
@@ -321,7 +225,7 @@ const PlanEditor = () => {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={() => { setSwapDialog({ dayId: day.id, exerciseId: exercise.id, exerciseName: exercise.name }); setSearchQuery(''); setSelectedCategory('all'); }}
+                    onClick={() => setSwapDialog({ dayId: day.id, exerciseId: exercise.id, exerciseName: exercise.name })}
                   >
                     <Replace className="h-3 w-3" />
                   </Button>
@@ -340,7 +244,18 @@ const PlanEditor = () => {
         </Card>
       ))}
 
-      <ExerciseSwapDialog />
+      <ExercisePicker
+        open={!!swapDialog || !!addDialog}
+        onOpenChange={(open) => { if (!open) { setSwapDialog(null); setAddDialog(null); } }}
+        onPick={(ex: LibraryExercise) => {
+          if (swapDialog) handleSwap(ex.name);
+          else if (addDialog) handleAdd(addDialog, ex);
+        }}
+        title={swapDialog ? t('planeditor.swapExercise') : t('planeditor.addExercise')}
+        description={swapDialog
+          ? t('planeditor.swappingExercise', { name: localizeExerciseName(swapDialog.exerciseName, lang) })
+          : t('planeditor.pickFromLibrary')}
+      />
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>

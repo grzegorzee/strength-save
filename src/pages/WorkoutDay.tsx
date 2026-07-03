@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, Search, ChevronDown, X } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, ChevronDown, X } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { RestTimer } from '@/components/RestTimer';
@@ -20,8 +20,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ExerciseCard } from '@/components/ExerciseCard';
+import { ExercisePicker } from '@/components/ExercisePicker';
 import type { TrainingDay, Exercise } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -32,8 +32,8 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { getNextSetAdvice } from '@/lib/next-set-advice';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
-import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
-import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
+import type { LibraryExercise } from '@/data/exerciseLibrary';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { useToast } from '@/hooks/use-toast';
@@ -159,8 +159,6 @@ const WorkoutDay = () => {
 
   // Exercise swap (search library, no AI)
   const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
-  const [swapQuery, setSwapQuery] = useState('');
-  const [swapPick, setSwapPick] = useState<LibraryExercise | null>(null);
   // Session-only swaps ("tylko dziś") keyed by exerciseId — not persisted to the plan.
   const [sessionSwaps, setSessionSwaps] = useState<Record<string, { id: string; name: string; sets: string; videoUrl?: string }>>({});
 
@@ -292,20 +290,20 @@ const WorkoutDay = () => {
   }, [day]);
 
   // Apply an exercise swap chosen from the library — either for this session only or permanently.
-  const handleApplySwap = async (exerciseId: string, currentSets: string, scope: 'today' | 'plan') => {
-    if (!swapPick || !day) return;
+  const handleApplySwap = async (pick: LibraryExercise, exerciseId: string, currentSets: string, scope: 'today' | 'plan') => {
+    if (!day) return;
     const currentExercise = day.exercises.find(ex => ex.id === exerciseId);
     if (!currentExercise) return;
 
     if (scope === 'plan') {
-      await swapExercise(day.id, exerciseId, swapPick.name, currentSets, swapPick.videoUrl);
+      await swapExercise(day.id, exerciseId, pick.name, currentSets, pick.videoUrl);
     } else {
-      const swappedId = buildSwappedExerciseId(exerciseId, swapPick.name, day.exercises.map(ex => ex.id));
+      const swappedId = buildSwappedExerciseId(exerciseId, pick.name, day.exercises.map(ex => ex.id));
       const nextExerciseSets = { ...exerciseSetsRef.current };
       nextExerciseSets[swappedId] = resetSetsForExerciseSwap(
         nextExerciseSets[exerciseId] ?? createEmptySets(parseSetCount(currentSets)),
         currentExercise.name,
-        swapPick.name,
+        pick.name,
       );
       delete nextExerciseSets[exerciseId];
       exerciseSetsRef.current = nextExerciseSets;
@@ -326,12 +324,21 @@ const WorkoutDay = () => {
       setSkippedExercises(prev => prev.filter(id => id !== exerciseId));
       setSessionSwaps(prev => ({
         ...prev,
-        [exerciseId]: { id: swappedId, name: swapPick.name, sets: currentSets, videoUrl: swapPick.videoUrl },
+        [exerciseId]: { id: swappedId, name: pick.name, sets: currentSets, videoUrl: pick.videoUrl },
       }));
+
+      // Utrwal swap w drafcie od razu (istniejąca ścieżka autozapisu, wzorzec handleSkipExercise).
+      // Bez tego draft z prefilled exerciseSets pokazywał stare ćwiczenie do następnego odhaczenia,
+      // a swap ginął przy odświeżeniu apki.
+      saveDraftSnapshot({
+        exerciseNames: {
+          ...(activeDraftRef.current?.exerciseNames ?? daySnapshotRef.current.names),
+          [swappedId]: pick.name,
+        },
+        lastTouchedExerciseId: swappedId,
+      });
     }
     setSwapExerciseId(null);
-    setSwapPick(null);
-    setSwapQuery('');
   };
   const currentPageDraft = (activeDraft && activeDraft.dayId === dayId && activeDraft.date === targetDate
     ? activeDraft
@@ -2210,76 +2217,48 @@ const WorkoutDay = () => {
                   variant="ghost"
                   size="sm"
                   className="text-xs text-muted-foreground gap-1"
-                  onClick={() => {
-                    setSwapExerciseId(exercise.id);
-                    setSwapQuery('');
-                    setSwapPick(null);
-                  }}
+                  onClick={() => setSwapExerciseId(exercise.id)}
                 >
                   <ArrowRightLeft className="h-3.5 w-3.5" />{t('newplan.swap')}
                 </Button>
               </div>
             )}
-
-            {/* Exercise swap dialog — search the library, no AI */}
-            {swapExerciseId === exercise.id && (
-              <Card className="border-primary/30 bg-primary/[0.04]">
-                <CardContent className="pt-4 pb-4 space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-medium text-sm min-w-0 truncate">{t('planeditor.swappingExercise', { name: exercise.name })}</p>
-                    <Button variant="ghost" size="sm" className="text-xs shrink-0" onClick={() => { setSwapExerciseId(null); setSwapPick(null); setSwapQuery(''); }}>{t('workout.close')}</Button>
-                  </div>
-
-                  {!swapPick ? (
-                    <>
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <input
-                          type="text"
-                          value={swapQuery}
-                          onChange={e => setSwapQuery(e.target.value)}
-                          placeholder={t('workout.swapSearchPlaceholder')}
-                          autoFocus
-                          className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-2 text-sm"
-                        />
-                      </div>
-                      <div className="max-h-64 overflow-y-auto space-y-1">
-                        {exerciseLibrary
-                          .filter(e => e.name.toLowerCase().includes(swapQuery.trim().toLowerCase()))
-                          .slice(0, 40)
-                          .map(libEx => (
-                            <button
-                              key={libEx.name}
-                              onClick={() => setSwapPick(libEx)}
-                              className="w-full text-left flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-primary/5 border border-transparent hover:border-primary/20 transition-colors"
-                            >
-                              <span className="text-sm font-medium min-w-0 truncate">{libEx.name}</span>
-                              <Badge variant="outline" className="text-[10px] shrink-0">{localizeCategory(libEx.category, lang)}</Badge>
-                            </button>
-                          ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm">{t('workout.swapTo')} <span className="font-semibold text-primary">{swapPick.name}</span></p>
-                      <p className="text-xs text-muted-foreground">{t('workout.swapHowLong')}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button variant="outline" size="sm" onClick={() => handleApplySwap(exercise.id, exercise.sets, 'today')}>
-                          {t('workout.swapToday')}
-                        </Button>
-                        <Button size="sm" onClick={() => handleApplySwap(exercise.id, exercise.sets, 'plan')}>
-                          {t('workout.swapPermanent')}
-                        </Button>
-                      </div>
-                      <Button variant="ghost" size="sm" className="text-xs w-full" onClick={() => setSwapPick(null)}>{t('workout.swapPickOther')}</Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </div>
         ))}
       </div>
+
+      {/* Exercise swap picker (Z69) — wspólny ExercisePicker z wyborem zakresu w footerze */}
+      {(() => {
+        const swapTarget = swapExerciseId && day ? day.exercises.find(ex => ex.id === swapExerciseId) ?? null : null;
+        return (
+          <ExercisePicker
+            open={!!swapTarget}
+            onOpenChange={(open) => { if (!open) setSwapExerciseId(null); }}
+            title={t('planeditor.swapExercise')}
+            description={swapTarget ? t('planeditor.swappingExercise', { name: swapTarget.name }) : undefined}
+            renderFooter={(picked) => (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">{t('workout.swapHowLong')}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => swapTarget && handleApplySwap(picked, swapTarget.id, swapTarget.sets, 'today')}
+                  >
+                    {t('workout.swapToday')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => swapTarget && handleApplySwap(picked, swapTarget.id, swapTarget.sets, 'plan')}
+                  >
+                    {t('workout.swapPermanent')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          />
+        );
+      })()}
 
       {/* Edit plan button */}
       <Button

@@ -430,6 +430,40 @@ test.describe('Mobile drawer (Z66)', () => {
 });
 
 // =====================================================
+// 11x. WSPÓLNY EXERCISE PICKER (Z69)
+// =====================================================
+test.describe('ExercisePicker (Z69)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('PlanEditor: picker otwiera się z szukajką i chipami kategorii', async ({ page }) => {
+    await navigateAndWait(page, '/plan/edit');
+    await page.getByRole('button', { name: 'Dodaj', exact: true }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByPlaceholder(/Szukaj|Find/).fill('wioslowanie');
+    await expect(dialog.getByText('Wiosłowanie hantlami na ławce (przodem)')).toBeVisible();
+    await expect(dialog.getByText('Wyciskanie sztangi na ławce płaskiej')).toBeHidden();
+  });
+
+  test('WorkoutDay: swap "tylko dziś" przez picker podmienia ćwiczenie lokalnie', async ({ page }) => {
+    const today = new Date().toISOString().split('T')[0];
+    await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    await expect(page.locator('.exercise-card').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Zamień' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByPlaceholder(/Szukaj|Find/).fill('wyciskanie sztangi na lawce plaskiej');
+    await dialog.getByText('Wyciskanie sztangi na ławce płaskiej').click();
+    await dialog.getByRole('button', { name: 'Tylko dziś' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Wyciskanie sztangi na ławce płaskiej' })).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11y. LINKI KRZYŻOWE (Z67)
 // =====================================================
 test.describe('Linki krzyżowe (Z67)', () => {

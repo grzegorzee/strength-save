@@ -8,7 +8,7 @@ import { PlanBuilder } from '@/components/PlanBuilder';
 import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection } from '@/lib/plan-cycle-utils';
+import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, WEEKDAYS } from '@/lib/plan-cycle-utils';
 
 export type WizardLevel = 'beginner' | 'intermediate' | 'advanced' | 'elite';
 
@@ -22,16 +22,6 @@ export interface PlanWizardChoice {
   daysPerWeek: number;
   templateId?: string;      // undefined = plan własny (PlanBuilder)
 }
-
-const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
-  { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
-  { value: 'tuesday', short: 'Wt', long: 'Wtorek' },
-  { value: 'wednesday', short: 'Śr', long: 'Środa' },
-  { value: 'thursday', short: 'Cz', long: 'Czwartek' },
-  { value: 'friday', short: 'Pt', long: 'Piątek' },
-  { value: 'saturday', short: 'So', long: 'Sobota' },
-  { value: 'sunday', short: 'Nd', long: 'Niedziela' },
-];
 
 const DEFAULT_DAYS: Record<number, Weekday[]> = {
   2: ['monday', 'thursday'],

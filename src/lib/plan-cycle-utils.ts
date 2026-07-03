@@ -23,6 +23,26 @@ const weekdayLabel: Record<Weekday, string> = {
   sunday: 'Niedziela',
 };
 
+const weekdayShortLabel: Record<Weekday, string> = {
+  monday: 'Pn',
+  tuesday: 'Wt',
+  wednesday: 'Śr',
+  thursday: 'Cz',
+  friday: 'Pt',
+  saturday: 'So',
+  sunday: 'Nd',
+};
+
+/** Jedna wspólna lista dni tygodnia dla buildera/wizarda/edytora (Z69 — koniec duplikacji). */
+export const WEEKDAYS: { value: Weekday; short: string; long: string }[] =
+  WEEKDAY_ORDER.map((value) => ({ value, short: weekdayShortLabel[value], long: weekdayLabel[value] }));
+
+export const weekdayLong = (value: Weekday): string => weekdayLabel[value];
+
+/** Jedna para domyślnych serii dla nowo dodawanych ćwiczeń (Z69 — koniec duplikacji). */
+export const defaultSetsForType = (type: 'compound' | 'isolation'): string =>
+  type === 'compound' ? '3 x 6-8' : '3 x 10-12';
+
 export const uniqueSortedWeekdays = (weekdays: Weekday[]): Weekday[] => {
   const selected = new Set(weekdays);
   return WEEKDAY_ORDER.filter(day => selected.has(day));

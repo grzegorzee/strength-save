@@ -3,33 +3,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChipButton } from '@/components/ui/chip-button';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { exerciseLibrary, categoryLabels, type LibraryExercise } from '@/data/exerciseLibrary';
+import { ExercisePicker } from '@/components/ExercisePicker';
+import type { LibraryExercise } from '@/data/exerciseLibrary';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
-import { ChevronLeft, Plus, Trash2, Search, Check, Pencil, Dumbbell } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Check, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeCategory, localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import { localizeWeekdayShort } from '@/lib/plan-i18n';
-import { matchesQuery } from '@/lib/search-utils';
-
-const WEEKDAYS: { value: Weekday; short: string; long: string }[] = [
-  { value: 'monday', short: 'Pn', long: 'Poniedziałek' },
-  { value: 'tuesday', short: 'Wt', long: 'Wtorek' },
-  { value: 'wednesday', short: 'Śr', long: 'Środa' },
-  { value: 'thursday', short: 'Cz', long: 'Czwartek' },
-  { value: 'friday', short: 'Pt', long: 'Piątek' },
-  { value: 'saturday', short: 'So', long: 'Sobota' },
-  { value: 'sunday', short: 'Nd', long: 'Niedziela' },
-];
-
-const weekdayLong = (value: Weekday) => WEEKDAYS.find(w => w.value === value)?.long ?? value;
+import { WEEKDAYS, weekdayLong, defaultSetsForType } from '@/lib/plan-cycle-utils';
 
 const DURATIONS = [8, 10, 12, 16];
 
@@ -83,8 +65,6 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
     }
   }, [draftStorageKey, days, durationWeeks]);
   const [pickerDayId, setPickerDayId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<LibraryExercise['category'] | 'all'>('all');
   const [editingSets, setEditingSets] = useState<{ dayId: string; exerciseId: string; value: string } | null>(null);
 
   const usedWeekdays = new Set(days.map(d => d.weekday));
@@ -130,14 +110,12 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
       exercises: [...d.exercises, {
         id: nextId('scratch-ex'),
         name: ex.name,
-        sets: ex.type === 'compound' ? '3 x 6-8' : '3 x 10-12',
+        sets: defaultSetsForType(ex.type),
         instructions: ex.instructions ?? [],
         ...(ex.videoUrl ? { videoUrl: ex.videoUrl } : {}),
       }],
     } : d));
     setPickerDayId(null);
-    setSearch('');
-    setCategory('all');
   };
 
   const removeExercise = (dayId: string, exerciseId: string) =>
@@ -153,13 +131,6 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
     } : d));
     setEditingSets(null);
   };
-
-  const filteredExercises = exerciseLibrary.filter(ex => {
-    const matchesCategory = category === 'all' || ex.category === category;
-    // Szukamy bez polskich znaków po nazwie PL, EN oraz kategorii.
-    const matchesSearch = matchesQuery(search, [ex.name, localizeExerciseName(ex.name, 'en'), localizeCategory(ex.category, lang)]);
-    return matchesSearch && matchesCategory;
-  });
 
   // Walidacja: min 1 dzień, każdy dzień ma min 1 ćwiczenie. Cel dnia jest opcjonalny
   // (uzupełniany domyślną nazwą przy zapisie) — wcześniej blokował przycisk przy pustym polu.
@@ -265,7 +236,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
                   variant="outline"
                   size="sm"
                   className="w-full"
-                  onClick={() => { setPickerDayId(day.id); setSearch(''); setCategory('all'); }}
+                  onClick={() => setPickerDayId(day.id)}
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   {t('planbuilder.addExercise')}
@@ -316,74 +287,13 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
       )}
 
       {/* Exercise picker */}
-      <Dialog open={!!pickerDayId} onOpenChange={(open) => { if (!open) { setPickerDayId(null); setSearch(''); setCategory('all'); } }}>
-        <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] max-h-[88vh] flex flex-col gap-0 p-0 overflow-hidden">
-          <DialogHeader className="px-5 pt-5 pb-3">
-            <DialogTitle className="font-heading font-bold uppercase tracking-tight">{t('planbuilder.addExercise')}</DialogTitle>
-            <DialogDescription>{t('planbuilder.pickFromLibrary')}</DialogDescription>
-          </DialogHeader>
-
-          <div className="px-5 pb-3 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t('exercises.search')}
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 h-11 rounded-xl bg-surface-lowest border-0"
-                autoFocus
-              />
-            </div>
-
-            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-              <button
-                onClick={() => setCategory('all')}
-                className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                  category === 'all' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
-              >
-                {t('exercises.all')}
-              </button>
-              {(Object.keys(categoryLabels) as LibraryExercise['category'][]).map((key) => (
-                <button
-                  key={key}
-                  onClick={() => setCategory(key)}
-                  className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                    category === key ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
-                >
-                  {localizeCategory(key, lang)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2">
-            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
-              {t('planbuilder.resultsCount', { n: filteredExercises.length })}
-            </p>
-            {filteredExercises.map((ex, i) => (
-              <button
-                key={i}
-                className="w-full text-left flex items-center gap-3 p-3 rounded-xl bg-surface-low hover:bg-surface-high transition-colors"
-                onClick={() => pickerDayId && addExercise(pickerDayId, ex)}
-              >
-                <span className="h-9 w-9 shrink-0 rounded-lg bg-surface-highest flex items-center justify-center text-fitness-cyan">
-                  <Dumbbell className="h-4 w-4" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium text-sm truncate">{localizeExerciseName(ex.name, lang)}</span>
-                  <span className="block text-xs text-muted-foreground truncate">
-                    {localizeCategory(ex.category, lang)} · {ex.type === 'compound' ? t('planbuilder.compound') : t('planbuilder.isolation')}
-                  </span>
-                </span>
-                <Plus className="h-4 w-4 shrink-0 text-primary" />
-              </button>
-            ))}
-            {filteredExercises.length === 0 && (
-              <p className="text-center text-muted-foreground py-8 text-sm">{t('planbuilder.noExercisesFound')}</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ExercisePicker
+        open={!!pickerDayId}
+        onOpenChange={(open) => { if (!open) setPickerDayId(null); }}
+        onPick={(ex) => pickerDayId && addExercise(pickerDayId, ex)}
+        title={t('planbuilder.addExercise')}
+        description={t('planbuilder.pickFromLibrary')}
+      />
     </div>
   );
 };

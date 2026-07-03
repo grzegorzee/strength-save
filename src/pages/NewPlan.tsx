@@ -15,7 +15,7 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { PlanWizard, type PlanWizardChoice, type WizardLevel } from '@/components/PlanWizard';
-import { ExerciseSwapDialog } from '@/components/ExerciseSwapDialog';
+import { ExercisePicker } from '@/components/ExercisePicker';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
@@ -302,14 +302,14 @@ const NewPlan = () => {
         </div>
       </div>
 
-      <ExerciseSwapDialog
+      <ExercisePicker
         open={swap.open}
         onOpenChange={(open) => setSwap((prev) => ({ ...prev, open }))}
-        category={swap.category}
-        currentExerciseName={swap.exerciseName}
-        usedExerciseNames={usedNames(reviewDays)}
-        originalSets={swap.sets}
-        onSwap={confirmSwap}
+        onPick={(ex) => confirmSwap({ name: ex.name, sets: swap.sets, videoUrl: ex.videoUrl, category: ex.category })}
+        excludeNames={usedNames(reviewDays)}
+        title={t('comp.swap.title')}
+        description={t('planeditor.swappingExercise', { name: localizeExerciseName(swap.exerciseName, lang) })}
+        initialCategory={swap.category ?? undefined}
       />
     </div>
   );
