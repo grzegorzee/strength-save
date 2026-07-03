@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-03 — FAZA 5 planu naprawy: telemetria błędów + E2E konfliktów (Z25-Z26)
+
+Weryfikacja checkpointu: vitest 458/458 (55 plików), typecheck 0, lint 0, test:rules 54/54 (8 nowych dla client_errors), e2e:emulator 11/11 (4 nowe).
+
+**Z25 — telemetria błędów produkcyjnych (wariant A: własna kolekcja, bez zewnętrznego serwisu).** Root cause (audyt 3.6): zero telemetrii błędów, każda iteracja napraw opierała się na screenshotach usera. Fix: `src/lib/error-telemetry.ts` z `reportClientError(uid, {code, phase, detail, sessionId})` — addDoc do `client_errors` z polami {userId, code, phase, detail<=500, sessionHash (8 znaków SHA-256, nie surowe id), appVersion, platform, createdAt}; best-effort (nigdy nie rzuca), throttling 20 wpisów/sesję appki. Rules: create tylko własny wpis z zamkniętym schematem (keys().hasOnly), read tylko admin, update/delete zablokowane. Raportowanie podpięte w adapterach: WorkoutDay (konflikt, błąd syncu, błąd edycji, catch keepMine), SyncCenterCard (registerConflict, błąd syncu), AutoSyncOnReconnect (błędy finali). Podgląd admina: sekcja "Błędy klienta (ostatnie 50)" w AdminDashboard (onSnapshot orderBy createdAt desc limit 50).
+
+**Z26 — E2E emulator dla konfliktów treningu.** Warunek konieczny: transakcja zapisu wyekstrahowana z hooka do `src/lib/workout-save.ts` (`saveWorkoutBatchWithRevision`, wzorzec training-plan-save.ts) — testy E2E wykonują DOKŁADNIE ten sam kod co produkcja, hook jest cienkim wrapperem błędów. 4 scenariusze w `e2e/emulator/workout-conflict.spec.ts` (wzorzec plan-conflict): (1) dwóch klientów, stale revision → WORKOUT_CONFLICT, treść zwycięzcy nietknięta; (2) lost-ack retry z tym samym writeId → alreadyApplied bez podbicia revision, lastWriteId w dokumencie; (3) edycja po finalu z expectedRevision z serwera → przechodzi (wzorzec Z13); (4) promocja provisional->remote przez silnik syncu (in-memory draft store + realny Firestore), retry nie duplikuje dokumentu (skipped, createSession wywołane raz).
+
 ### 2026-07-03 — FAZA 4 planu naprawy: jeden silnik syncu (Z23-Z24)
 
 Weryfikacja checkpointu: vitest 454/454 (54 pliki), typecheck 0, lint 0, build OK, e2e mock 10/10 batch-save (1 test zaktualizowany do nowego kontraktu, patrz niżej).
