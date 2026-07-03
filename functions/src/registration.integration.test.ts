@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import * as admin from "firebase-admin";
 import {
+  createWaitlistEntryCore,
   fcmTokenRegistrationDocId,
   processDeletionOperation,
   registerPushTokenForUser,
@@ -15,6 +16,8 @@ const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_CONFIG
 
 const collectionsToClean = [
   "users",
+  "waitlist_entries",
+  "waitlist_rate_limits",
   "fcm_token_registrations",
   "deletion_operations",
   "workouts",
@@ -127,5 +130,43 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
       expect(admin.firestore().collection("strava_connections").doc(uid).get()).resolves.toMatchObject({ exists: false }),
     ]);
     expect((await admin.firestore().collection("deletion_operations").doc(uid).get()).data()?.state).toBe("completed");
+  });
+});
+
+describeWithEmulators("createWaitlistEntryCore (R2-05 smoke)", () => {
+  beforeAll(() => {
+    if (admin.apps.length === 0) {
+      admin.initializeApp({ projectId });
+    }
+  });
+
+  beforeEach(async () => {
+    await Promise.all(["waitlist_entries", "waitlist_rate_limits"].map(cleanCollection));
+  });
+
+  it("zapis na waitliste przechodzi (transakcja: wszystkie ready przed zapisami)", async () => {
+    const result = await createWaitlistEntryCore({
+      email: "waitlist-repro@test.pl",
+      displayName: "",
+      note: "",
+      source: "login",
+    });
+
+    expect(result.existing).toBe(false);
+    const saved = await admin.firestore().collection("waitlist_entries").doc(result.entryId).get();
+    expect(saved.exists).toBe(true);
+    expect(saved.data()?.email).toBe("waitlist-repro@test.pl");
+  });
+
+  it("drugi zapis tym samym mailem po cooldownie zwraca existing", async () => {
+    const first = await createWaitlistEntryCore({ email: "waitlist-dup@test.pl", displayName: "", note: "", source: "login" });
+    // Omin cooldown 60 s: cofnij lastRequestAt w dokumencie rate limitu.
+    const rates = await admin.firestore().collection("waitlist_rate_limits").get();
+    await Promise.all(rates.docs.map((doc) => doc.ref.set({ lastRequestAt: new Date(Date.now() - 120_000).toISOString() }, { merge: true })));
+
+    const second = await createWaitlistEntryCore({ email: "waitlist-dup@test.pl", displayName: "", note: "", source: "login" });
+
+    expect(second.existing).toBe(true);
+    expect(second.entryId).toBe(first.entryId);
   });
 });

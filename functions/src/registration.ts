@@ -612,16 +612,18 @@ export const verifyEmailCode = onCall({ secrets: [resendApiKey, authPepper] }, a
   return { verified: true };
 });
 
-// Bez enforceAppCheck: klient NIE inicjalizuje App Check (zero initializeAppCheck w src/),
-// więc każdy produkcyjny request był odrzucany — martwa waitlista (R2-05). Anti-abuse
-// zapewnia transakcyjny rate limit (60 s per email) + walidacje + cooldown poniżej.
-// Pełny App Check (reCAPTCHA v3 + App Attest) odłożony do publicznego launchu.
-export const createWaitlistEntry = onCall(async (request) => {
-  const email = normalizeEmail(request.data?.email);
-  const displayName = normalizeOptionalString(request.data?.displayName, 120);
-  const note = normalizeOptionalString(request.data?.note, 500);
-  const source = normalizeOptionalString(request.data?.source, 60) || "login";
-
+// Rdzeń zapisu na waitlistę (eksport dla testów integracyjnych na emulatorze).
+// UWAGA na kolejność w transakcji: Firestore wymaga WSZYSTKICH odczytów przed
+// pierwszym zapisem — get(rate) i get(existing) muszą poprzedzać set(rate).
+// Odwrotna kolejność wysadzała każdy produkcyjny zapis błędem INTERNAL
+// (defekt maskowany wcześniej przez enforceAppCheck, wykryty w smoke teście R2).
+export async function createWaitlistEntryCore(input: {
+  email: string;
+  displayName: string | null;
+  note: string | null;
+  source: string;
+}): Promise<{ entryId: string; existing: boolean }> {
+  const { email, displayName, note, source } = input;
   const db = getDb();
   const rateRef = db.collection("waitlist_rate_limits").doc(sanitizedIdentifierHash(email));
   const timestamp = nowIso();
@@ -631,8 +633,8 @@ export const createWaitlistEntry = onCall(async (request) => {
     if (Number.isFinite(lastRequestAt) && Date.now() - lastRequestAt < 60_000) {
       throw new HttpsError("resource-exhausted", "Odczekaj chwilę przed ponownym zgłoszeniem.");
     }
-    transaction.set(rateRef, { lastRequestAt: timestamp, expiresAt: ttlTimestamp(7) }, { merge: true });
     const existing = await transaction.get(db.collection(WAITLIST_COLLECTION).where("email", "==", email).limit(1));
+    transaction.set(rateRef, { lastRequestAt: timestamp, expiresAt: ttlTimestamp(7) }, { merge: true });
     if (!existing.empty) return { entryId: existing.docs[0].id, existing: true };
 
     const docRef = db.collection(WAITLIST_COLLECTION).doc();
@@ -660,6 +662,18 @@ export const createWaitlistEntry = onCall(async (request) => {
   });
 
   return result;
+}
+
+// Bez enforceAppCheck: klient NIE inicjalizuje App Check (zero initializeAppCheck w src/),
+// więc każdy produkcyjny request był odrzucany — martwa waitlista (R2-05). Anti-abuse
+// zapewnia transakcyjny rate limit (60 s per email) + walidacje + cooldown poniżej.
+// Pełny App Check (reCAPTCHA v3 + App Attest) odłożony do publicznego launchu.
+export const createWaitlistEntry = onCall(async (request) => {
+  const email = normalizeEmail(request.data?.email);
+  const displayName = normalizeOptionalString(request.data?.displayName, 120);
+  const note = normalizeOptionalString(request.data?.note, 500);
+  const source = normalizeOptionalString(request.data?.source, 60) || "login";
+  return createWaitlistEntryCore({ email, displayName, note, source });
 });
 
 export const registerPushToken = onCall(async (request) => {
