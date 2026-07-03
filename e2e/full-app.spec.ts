@@ -464,6 +464,58 @@ test.describe('ExercisePicker (Z69)', () => {
 });
 
 // =====================================================
+// 11w. PLAN DAYS EDITOR (Z70)
+// =====================================================
+test.describe('PlanDaysEditor (Z70)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('builder: dodaj dzień, zmień weekday, zduplikuj, usuń', async ({ page }) => {
+    await navigateAndWait(page, '/new-plan');
+    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await expect(page.getByRole('heading', { name: 'Twój własny plan' })).toBeVisible();
+
+    // Dodaj dzień 1 (pierwszy wolny weekday = poniedziałek).
+    await page.getByRole('button', { name: /Dodaj dzień/ }).click();
+    await expect(page.getByText('Dzień 1')).toBeVisible();
+
+    // Zmień weekday na Śr.
+    await page.getByRole('button', { name: 'Śr', exact: true }).click();
+
+    // Dodaj ćwiczenie, żeby dzień miał treść do duplikacji.
+    await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByPlaceholder(/Szukaj|Find/).fill('przysiad ze sztanga (high');
+    await dialog.getByText('Przysiad ze sztangą (High Bar)').click();
+
+    // Duplikuj dzień — kopia z tym samym ćwiczeniem.
+    await page.getByRole('button', { name: 'Duplikuj dzień' }).first().click();
+    await expect(page.getByText('Dzień 2')).toBeVisible();
+    await expect(page.getByText('Przysiad ze sztangą (High Bar)')).toHaveCount(2);
+
+    // Reorder działa w builderze (luka nr 4): dodaj drugie ćwiczenie i przesuń je w górę.
+    await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).first().click();
+    await dialog.getByPlaceholder(/Szukaj|Find/).fill('martwy ciag rumunski');
+    await dialog.getByText('Martwy Ciąg Rumuński (RDL)').click();
+    await page.getByRole('button', { name: 'Przesuń w górę' }).nth(1).click();
+
+    // Usuń zduplikowany dzień.
+    await page.getByRole('button', { name: 'Usuń dzień' }).nth(1).click();
+    await expect(page.getByText('Dzień 2')).toBeHidden();
+    await expect(page.getByText('Przysiad ze sztangą (High Bar)')).toHaveCount(1);
+  });
+
+  test('PlanEditor: zarządzanie dniami dostępne (duplikuj/usuń/dodaj dzień, czas trwania)', async ({ page }) => {
+    await navigateAndWait(page, '/plan/edit');
+    await expect(page.getByRole('button', { name: 'Duplikuj dzień' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Usuń dzień' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /Dodaj dzień/ })).toBeVisible();
+    await expect(page.getByText('Czas trwania planu')).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11y. LINKI KRZYŻOWE (Z67)
 // =====================================================
 test.describe('Linki krzyżowe (Z67)', () => {

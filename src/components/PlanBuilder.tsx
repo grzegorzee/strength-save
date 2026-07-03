@@ -1,19 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChipButton } from '@/components/ui/chip-button';
-import { Input } from '@/components/ui/input';
-import { ExercisePicker } from '@/components/ExercisePicker';
+import { PlanDaysEditor } from '@/components/PlanDaysEditor';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
-import type { TrainingDay, Weekday } from '@/data/trainingPlan';
-import { ChevronLeft, Plus, Trash2, Check, Pencil } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import type { TrainingDay } from '@/data/trainingPlan';
+import { ChevronLeft, Check } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeExerciseName } from '@/data/exercise-i18n';
-import { localizeWeekdayShort } from '@/lib/plan-i18n';
-import { WEEKDAYS, weekdayLong, defaultSetsForType } from '@/lib/plan-cycle-utils';
-
-const DURATIONS = [8, 10, 12, 16];
+import { defaultSetsForType } from '@/lib/plan-cycle-utils';
 
 let scratchCounter = 0;
 const nextId = (prefix: string) => `${prefix}-${(scratchCounter += 1)}`;
@@ -40,10 +32,10 @@ const readBuilderDraft = (key: string | undefined): { days: TrainingDay[]; durat
   }
 };
 
-// Ręczny kreator planu treningowego od zera (bez AI). Użytkownik definiuje dni
-// (dzień tygodnia + focus), dodaje ćwiczenia z biblioteki i ustawia serie.
+// Ręczny kreator planu treningowego od zera (bez AI). Dni i ćwiczenia edytuje
+// wspólny PlanDaysEditor (Z70) na stanie lokalnym; zapis dopiero przy submit.
 export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStorageKey, onSubmit, onCancel }: PlanBuilderProps) => {
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
   // initialDays (powrót z preview) ma pierwszeństwo przed szkicem z localStorage.
   const [restoredDraft] = useState(() =>
     initialDays && initialDays.length > 0 ? null : readBuilderDraft(draftStorageKey));
@@ -64,45 +56,6 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
       // Brak miejsca w localStorage — szkic to bonus, nie blokujemy buildera.
     }
   }, [draftStorageKey, days, durationWeeks]);
-  const [pickerDayId, setPickerDayId] = useState<string | null>(null);
-  const [editingSets, setEditingSets] = useState<{ dayId: string; exerciseId: string; value: string } | null>(null);
-
-  const usedWeekdays = new Set(days.map(d => d.weekday));
-
-  const firstFreeWeekday = (): Weekday =>
-    WEEKDAYS.find(w => !usedWeekdays.has(w.value))?.value ?? 'monday';
-
-  const addDay = () => {
-    if (days.length >= 6) return;
-    const weekday = firstFreeWeekday();
-    setDays(prev => [...prev, {
-      id: nextId('scratch-d'),
-      dayName: weekdayLong(weekday),
-      weekday,
-      focus: '',
-      exercises: [],
-    }]);
-  };
-
-  const removeDay = (dayId: string) => setDays(prev => prev.filter(d => d.id !== dayId));
-
-  const setWeekday = (dayId: string, weekday: Weekday) => {
-    setDays(prev => {
-      const clash = prev.find(d => d.id !== dayId && d.weekday === weekday);
-      return prev.map(d => {
-        if (d.id === dayId) return { ...d, weekday, dayName: weekdayLong(weekday) };
-        // Zamiana, żeby nie było dwóch dni w tym samym dniu tygodnia.
-        if (clash && d.id === clash.id) {
-          const old = prev.find(x => x.id === dayId)!.weekday;
-          return { ...d, weekday: old, dayName: weekdayLong(old) };
-        }
-        return d;
-      });
-    });
-  };
-
-  const setFocus = (dayId: string, focus: string) =>
-    setDays(prev => prev.map(d => d.id === dayId ? { ...d, focus } : d));
 
   const addExercise = (dayId: string, ex: LibraryExercise) => {
     setDays(prev => prev.map(d => d.id === dayId ? {
@@ -115,7 +68,24 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
         ...(ex.videoUrl ? { videoUrl: ex.videoUrl } : {}),
       }],
     } : d));
-    setPickerDayId(null);
+  };
+
+  const swapExercise = (dayId: string, exerciseId: string, ex: LibraryExercise) => {
+    setDays(prev => prev.map(d => d.id === dayId ? {
+      ...d,
+      exercises: d.exercises.map(e => {
+        if (e.id !== exerciseId) return e;
+        // Bez klucza videoUrl gdy zamiennik go nie ma — undefined wywala setDoc w Firestore.
+        const { videoUrl: _omit, ...rest } = e;
+        void _omit;
+        return {
+          ...rest,
+          name: ex.name,
+          instructions: ex.instructions ?? [],
+          ...(ex.videoUrl ? { videoUrl: ex.videoUrl } : {}),
+        };
+      }),
+    } : d));
   };
 
   const removeExercise = (dayId: string, exerciseId: string) =>
@@ -123,14 +93,23 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
       ? { ...d, exercises: d.exercises.filter(e => e.id !== exerciseId) }
       : d));
 
-  const saveSets = () => {
-    if (!editingSets) return;
-    setDays(prev => prev.map(d => d.id === editingSets.dayId ? {
-      ...d,
-      exercises: d.exercises.map(e => e.id === editingSets.exerciseId ? { ...e, sets: editingSets.value } : e),
-    } : d));
-    setEditingSets(null);
+  const moveExercise = (dayId: string, exerciseId: string, direction: 'up' | 'down') => {
+    setDays(prev => prev.map(d => {
+      if (d.id !== dayId) return d;
+      const index = d.exercises.findIndex(e => e.id === exerciseId);
+      const target = direction === 'up' ? index - 1 : index + 1;
+      if (index < 0 || target < 0 || target >= d.exercises.length) return d;
+      const exercises = [...d.exercises];
+      [exercises[index], exercises[target]] = [exercises[target], exercises[index]];
+      return { ...d, exercises };
+    }));
   };
+
+  const updateSets = (dayId: string, exerciseId: string, sets: string) =>
+    setDays(prev => prev.map(d => d.id === dayId ? {
+      ...d,
+      exercises: d.exercises.map(e => e.id === exerciseId ? { ...e, sets } : e),
+    } : d));
 
   // Walidacja: min 1 dzień, każdy dzień ma min 1 ćwiczenie. Cel dnia jest opcjonalny
   // (uzupełniany domyślną nazwą przy zapisie) — wcześniej blokował przycisk przy pustym polu.
@@ -159,118 +138,17 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
         </div>
       </div>
 
-      {days.map((day, i) => {
-        const taken = new Set(days.filter(d => d.id !== day.id).map(d => d.weekday));
-        return (
-          <Card key={day.id}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-base">{t('planbuilder.day', { n: i + 1 })}</CardTitle>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeDay(day.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-1.5">
-                {WEEKDAYS.map(w => {
-                  const selected = day.weekday === w.value;
-                  return (
-                    <ChipButton
-                      key={w.value}
-                      variant={selected ? 'default' : 'outline'}
-                      pressed={selected}
-                      className={cn(!selected && taken.has(w.value) && 'opacity-40')}
-                      onClick={() => setWeekday(day.id, w.value)}
-                    >
-                      {localizeWeekdayShort(w.short, lang)}
-                    </ChipButton>
-                  );
-                })}
-              </div>
-
-              <Input
-                placeholder={t('planbuilder.focusPlaceholderOptional')}
-                value={day.focus}
-                onChange={e => setFocus(day.id, e.target.value)}
-                className="text-sm"
-              />
-
-              <div className="space-y-1">
-                {day.exercises.map(ex => (
-                  <div key={ex.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
-                      {editingSets?.dayId === day.id && editingSets?.exerciseId === ex.id ? (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Input
-                            value={editingSets.value}
-                            onChange={e => setEditingSets({ ...editingSets, value: e.target.value })}
-                            className="h-7 text-xs w-28"
-                          />
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveSets}>
-                            <Check className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <button
-                          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5"
-                          onClick={() => setEditingSets({ dayId: day.id, exerciseId: ex.id, value: ex.sets })}
-                        >
-                          {ex.sets}
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive shrink-0"
-                      onClick={() => removeExercise(day.id, ex.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => setPickerDayId(day.id)}
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t('planbuilder.addExercise')}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-
-      <Button variant="outline" className="w-full" onClick={addDay} disabled={days.length >= 6}>
-        <Plus className="h-4 w-4 mr-2" />
-        {t('planbuilder.addDay')} {days.length >= 6 && t('planbuilder.maxDays')}
-      </Button>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('planbuilder.planDuration')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            {DURATIONS.map(n => (
-              <ChipButton
-                key={n}
-                variant={durationWeeks === n ? 'default' : 'outline'}
-                pressed={durationWeeks === n}
-                onClick={() => setDurationWeeks(n)}
-              >
-                {t('planbuilder.weeksShort', { n })}
-              </ChipButton>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <PlanDaysEditor
+        days={days}
+        onDaysChange={setDays}
+        onAddExercise={addExercise}
+        onSwapExercise={swapExercise}
+        onRemoveExercise={removeExercise}
+        onMoveExercise={moveExercise}
+        onUpdateSets={updateSets}
+        durationWeeks={durationWeeks}
+        onDurationWeeksChange={setDurationWeeks}
+      />
 
       <div className="flex gap-2">
         <Button variant="outline" className="flex-1" onClick={onCancel}>
@@ -285,15 +163,6 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
           {t('planbuilder.validationExercises')}
         </p>
       )}
-
-      {/* Exercise picker */}
-      <ExercisePicker
-        open={!!pickerDayId}
-        onOpenChange={(open) => { if (!open) setPickerDayId(null); }}
-        onPick={(ex) => pickerDayId && addExercise(pickerDayId, ex)}
-        title={t('planbuilder.addExercise')}
-        description={t('planbuilder.pickFromLibrary')}
-      />
     </div>
   );
 };
