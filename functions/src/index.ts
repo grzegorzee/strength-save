@@ -38,8 +38,10 @@ import {
 import { deleteQueryInBatches } from "./firestore-batch";
 import {
   diffRefreshableFields,
+  loadExistingActivities,
   mapStravaActivityToDoc,
   REFRESHABLE_ACTIVITY_FIELDS,
+  type ExistingActivitiesSource,
   type StravaActivityDoc,
 } from "./strava-activity";
 import { disconnectStravaForUser } from "./strava-disconnect";
@@ -1438,21 +1440,37 @@ async function syncUserActivities(userId: string, accessToken: string, fullSync 
   let synced = 0;
   let refreshed = 0;
   let alreadyExisted = 0;
-  // Select stravaId + every refreshable field so we can update activities that
-  // Strava backfilled later (description, calories, kudos, HR) instead of
-  // blindly skipping known ids.
-  const existingActivities = new Map<number, Partial<StravaActivityDoc>>();
-  const existingActivitiesSnapshot = await db
-    .collection(STRAVA_ACTIVITIES_COLLECTION)
-    .where("userId", "==", userId)
-    .select("stravaId", ...REFRESHABLE_ACTIVITY_FIELDS)
-    .get();
-  existingActivitiesSnapshot.docs.forEach((doc) => {
-    const data = doc.data() as Partial<StravaActivityDoc> & { stravaId?: unknown };
-    if (typeof data.stravaId === "number") {
-      existingActivities.set(data.stravaId, data);
-    }
-  });
+  // R2-08: sync inkrementalny czyta TYLKO dokumenty pobranych w tym runie aktywności
+  // (deterministyczne ID strava-{uid}-{activityId}, db.getAll) — O(pobranych), nie
+  // O(całej historii). Pełny skan zostaje wyłącznie dla jednorazowego initial syncu.
+  const useFullScan = fullSync || !lastSync;
+  const existingSource: ExistingActivitiesSource = {
+    queryAllForUser: async () => {
+      const snapshot = await db
+        .collection(STRAVA_ACTIVITIES_COLLECTION)
+        .where("userId", "==", userId)
+        .select("stravaId", ...REFRESHABLE_ACTIVITY_FIELDS)
+        .get();
+      return snapshot.docs.map((doc) => doc.data() as Partial<StravaActivityDoc>);
+    },
+    getByIds: async (activityIds) => {
+      const results: Array<Partial<StravaActivityDoc> | null> = [];
+      // getAll przyjmuje setki refów; chunk 300 trzyma bezpieczny margines.
+      for (let i = 0; i < activityIds.length; i += 300) {
+        const chunk = activityIds.slice(i, i + 300);
+        const snapshots = await db.getAll(...chunk.map((id) => getStravaActivityRef(userId, id)));
+        snapshots.forEach((snapshot) => {
+          results.push(snapshot.exists ? (snapshot.data() as Partial<StravaActivityDoc>) : null);
+        });
+      }
+      return results;
+    },
+  };
+  const existingActivities = await loadExistingActivities(
+    existingSource,
+    activities.map((activity) => activity.id),
+    useFullScan,
+  );
 
   let batch = db.batch();
   let pendingWrites = 0;

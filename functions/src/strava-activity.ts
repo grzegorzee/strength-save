@@ -112,6 +112,41 @@ export function mapStravaActivityToDoc(
 }
 
 /**
+ * Source of already-stored activities. `getByIds` reads only the documents with
+ * deterministic IDs for the activities fetched in THIS run (O(fetched) reads);
+ * `queryAllForUser` is the legacy full-collection scan, kept for the one-off
+ * initial sync (R2-08: incremental nightly sync must not bill the whole history).
+ */
+export interface ExistingActivitiesSource {
+  queryAllForUser: () => Promise<Array<Partial<StravaActivityDoc>>>;
+  getByIds: (activityIds: number[]) => Promise<Array<Partial<StravaActivityDoc> | null>>;
+}
+
+export async function loadExistingActivities(
+  source: ExistingActivitiesSource,
+  fetchedActivityIds: number[],
+  useFullScan: boolean,
+): Promise<Map<number, Partial<StravaActivityDoc>>> {
+  const existing = new Map<number, Partial<StravaActivityDoc>>();
+
+  if (useFullScan) {
+    const docs = await source.queryAllForUser();
+    docs.forEach((data) => {
+      if (typeof data.stravaId === "number") existing.set(data.stravaId, data);
+    });
+    return existing;
+  }
+
+  if (fetchedActivityIds.length === 0) return existing;
+
+  const docs = await source.getByIds(fetchedActivityIds);
+  docs.forEach((data) => {
+    if (data && typeof data.stravaId === "number") existing.set(data.stravaId, data);
+  });
+  return existing;
+}
+
+/**
  * Compare the refreshable fields of an incoming activity doc against the data
  * already stored. Returns a partial doc with only the changed fields (plus a
  * fresh `syncedAt`) for a merge write, or `null` when nothing changed.

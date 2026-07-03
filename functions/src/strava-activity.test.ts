@@ -1,8 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   activityDateStr,
   diffRefreshableFields,
+  loadExistingActivities,
   mapStravaActivityToDoc,
+  type ExistingActivitiesSource,
   type StravaApiActivityInput,
   type StravaActivityDoc,
 } from "./strava-activity";
@@ -101,5 +103,50 @@ describe("diffRefreshableFields", () => {
     delete existing.calories;
     existing.syncedAt = "older";
     expect(diffRefreshableFields(existing, incomingNullCalories)).toBeNull();
+  });
+});
+
+describe("loadExistingActivities (R2-08)", () => {
+  const doc = (id: number): Partial<StravaActivityDoc> => ({ stravaId: id, name: `a-${id}` });
+
+  it("sync inkrementalny czyta TYLKO pobrane aktywnosci (getByIds), nie cala kolekcje", async () => {
+    const source: ExistingActivitiesSource = {
+      queryAllForUser: vi.fn(async () => [doc(1), doc(2), doc(3), doc(999)]),
+      getByIds: vi.fn(async (ids: number[]) => ids.map((id) => (id === 2 ? doc(2) : null))),
+    };
+
+    const existing = await loadExistingActivities(source, [1, 2, 7], false);
+
+    expect(source.queryAllForUser).not.toHaveBeenCalled();
+    expect(source.getByIds).toHaveBeenCalledTimes(1);
+    expect(source.getByIds).toHaveBeenCalledWith([1, 2, 7]);
+    expect(existing.size).toBe(1);
+    expect(existing.get(2)).toEqual(doc(2));
+  });
+
+  it("initial/full sync uzywa pelnej kwerendy (jednorazowo)", async () => {
+    const source: ExistingActivitiesSource = {
+      queryAllForUser: vi.fn(async () => [doc(1), doc(2)]),
+      getByIds: vi.fn(async () => []),
+    };
+
+    const existing = await loadExistingActivities(source, [1, 2, 3], true);
+
+    expect(source.queryAllForUser).toHaveBeenCalledTimes(1);
+    expect(source.getByIds).not.toHaveBeenCalled();
+    expect(existing.size).toBe(2);
+  });
+
+  it("brak pobranych aktywnosci = zero odczytow", async () => {
+    const source: ExistingActivitiesSource = {
+      queryAllForUser: vi.fn(async () => []),
+      getByIds: vi.fn(async () => []),
+    };
+
+    const existing = await loadExistingActivities(source, [], false);
+
+    expect(source.queryAllForUser).not.toHaveBeenCalled();
+    expect(source.getByIds).not.toHaveBeenCalled();
+    expect(existing.size).toBe(0);
   });
 });
