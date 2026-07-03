@@ -7,7 +7,8 @@ import { MeasurementsForm } from '@/components/MeasurementsForm';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus, ChevronRight, Database } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ChevronRight, Database, Ruler } from 'lucide-react';
+import { EmptyState } from '@/components/EmptyState';
 import { cn, parseLocalDate } from '@/lib/utils';
 import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -85,6 +86,17 @@ const Measurements = () => {
         </span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </Button>
+
+      {/* Z82: bez pomiarów strona kończyła się po formularzu bez słowa — zaproszenie. */}
+      {measurements.length === 0 && (
+        <EmptyState
+          icon={Ruler}
+          title={t('measurements.emptyTitle')}
+          hint={t('measurements.emptyHint')}
+          ctaLabel={t('measurements.emptyCta')}
+          onCta={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        />
+      )}
 
       {measurements.length > 0 && (
         <Suspense fallback={null}>

@@ -276,8 +276,12 @@ const SummaryTab = () => {
 
       {currentWorkouts.length === 0 && (
         <Card className="bg-muted/30">
-          <CardContent className="py-8 text-center">
+          <CardContent className="py-8 text-center space-y-3">
             <p className="text-muted-foreground">{period === 'week' ? t('analytics.noWorkouts.week') : t('analytics.noWorkouts.month')}</p>
+            {/* Z82: pusty okres dostaje zaproszenie zamiast samego komunikatu. */}
+            <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+              {t('empty.startFirstWorkout')}
+            </Button>
           </CardContent>
         </Card>
       )}

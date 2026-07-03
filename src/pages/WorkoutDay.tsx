@@ -31,6 +31,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { getNextSetAdvice } from '@/lib/next-set-advice';
 import { getExerciseNoteHistory } from '@/lib/exercise-notes';
+import { hapticSuccess } from '@/lib/haptics';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
@@ -1613,6 +1614,8 @@ const WorkoutDay = () => {
     completedSessionLockRef.current = sessionId;
     setIsExplicitSaving(false);
     setShowCompleteConfirm(false);
+    // Z82: notification-success przy ukończeniu treningu (natywnie; web no-op).
+    void hapticSuccess();
 
     // Detect new PRs
     const currentWorkoutData = workouts.find(w => w.id === sessionId);

@@ -15,6 +15,7 @@ import { IntervalTimer } from './IntervalTimer';
 import { Haptics, NotificationType } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
+import { hapticImpactLight } from '@/lib/haptics';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
@@ -314,6 +315,9 @@ const ExerciseCardInner = ({
     const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
+
+    // Z82: lekki impact przy każdym odhaczeniu (natywnie; web no-op).
+    if (turningOn) void hapticImpactLight();
 
     if (turningOn && !currentSet.isWarmup) {
       const workingAfter = newSets.filter(s => !s.isWarmup);

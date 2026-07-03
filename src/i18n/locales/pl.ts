@@ -40,6 +40,7 @@ export const pl = {
   'nav.settings': 'Ustawienia',
   'nav.measurements': 'Pomiary ciała',
   'nav.openMenu': 'Otwórz menu',
+  'empty.startFirstWorkout': 'Zacznij pierwszy trening',
 
   // profil
   'profile.title': 'Profil',
@@ -446,6 +447,7 @@ export const pl = {
   'history.allShort': 'Wszystkie',
   'history.dateRange': 'Zakres dat',
   'achievements.title': 'Osiągnięcia',
+  'achievements.emptyTitle': 'Rekordy pojawią się po pierwszych treningach.',
   'achievements.subtitle': 'Rekordy, tonaż i progresja ćwiczeń w jednym miejscu.',
   'achievements.completedWorkouts': 'Ukończone treningi',
   'achievements.totalTonnage': 'Tonaż całkowity',
@@ -622,6 +624,7 @@ export const pl = {
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
   'history.details': 'Szczegóły',
+  'history.emptyNoWorkouts': 'Nie masz jeszcze zapisanych treningów.',
   'history.onlyPRs': 'Tylko z PR',
   'history.bodyweightSet': 'BW',
   'picker.title': 'Wybierz ćwiczenie',
@@ -736,6 +739,9 @@ export const pl = {
   'measurements.saveSuccessTitle': 'Pomiary zapisane!',
   'measurements.saveSuccessDesc': 'Dane z dnia {date} zostały zapisane.',
   'measurements.historyTitle': 'Historia pomiarów',
+  'measurements.emptyTitle': 'Brak zapisanych pomiarów.',
+  'measurements.emptyHint': 'Regularne pomiary pokażą trend sylwetki na wykresie.',
+  'measurements.emptyCta': 'Dodaj pierwszy pomiar',
   'measurements.backupLink': 'Kopia zapasowa danych',
   'measurements.chartTitle': 'Wykres pomiarów',
   'measurements.needTwoEntries': 'Potrzeba co najmniej 2 pomiarów tego pola, żeby narysować wykres.',

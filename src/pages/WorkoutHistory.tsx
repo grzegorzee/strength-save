@@ -11,6 +11,7 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildHistoryRowMeta } from '@/lib/history-stats';
+import { EmptyState } from '@/components/EmptyState';
 import { parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { cn } from '@/lib/utils';
@@ -396,11 +397,21 @@ const WorkoutHistory = () => {
         )}
 
         {filteredWorkouts.length === 0 && (
-          <Card>
-            <CardContent className="p-8 text-center text-muted-foreground">
-              {t('history.empty')}
-            </CardContent>
-          </Card>
+          workouts.length === 0 ? (
+            // Z82: zero sesji w ogóle = zaproszenie do pierwszego treningu, nie komunikat o filtrach.
+            <EmptyState
+              icon={History}
+              title={t('history.emptyNoWorkouts')}
+              ctaLabel={t('empty.startFirstWorkout')}
+              onCta={() => navigate('/')}
+            />
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                {t('history.empty')}
+              </CardContent>
+            </Card>
+          )
         )}
       </div>
     </div>

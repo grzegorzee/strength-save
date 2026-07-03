@@ -1,4 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { EmptyState } from '@/components/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -81,6 +83,7 @@ const medalLabelKey: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
 
 const Achievements = () => {
   const { t, lang } = useTranslation();
+  const navigate = useNavigate();
   const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
   const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid);
@@ -220,6 +223,24 @@ const Achievements = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
+      </div>
+    );
+  }
+
+  // Z82: bez treningów strona pokazywała same zera i pustkę — zaproszenie zamiast tego.
+  if (completedWorkouts === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('achievements.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('achievements.subtitle')}</p>
+        </div>
+        <EmptyState
+          icon={Trophy}
+          title={t('achievements.emptyTitle')}
+          ctaLabel={t('empty.startFirstWorkout')}
+          onCta={() => navigate('/')}
+        />
       </div>
     );
   }
