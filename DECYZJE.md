@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-03 — FAZA 6 planu naprawy + release train: security (Z27-Z28), zamknięcie planu Z13-Z28
+
+**Z27 — zależności.** Root: `npm audit fix` → prod deps 0 podatności, react-router-dom 6.30.4 (cel >= 6.30.3). Functions: prod deps (`npm audit --omit=dev`) 0 HIGH/CRITICAL (zostało 9 moderate bez dostępnego niełamiącego fixa). Świadomie odłożone: HIGH/CRITICAL w DEV deps functions (vitest/vite, fix wymaga major bump vitest 4.x — nie dotyka produkcji, do zrobienia przy okazji aktualizacji toolchainu). Testy functions po bumpach: 68 passed / 4 skipped.
+
+**Z28 — utwardzenia punktowe.** (1) CORS streamOpenAI: originy localhost tylko przy `FUNCTIONS_EMULATOR=true`, produkcja wyłącznie GitHub Pages. (2) revenuecatWebhook: porównanie sekretu timing-safe (SHA-256 obu wartości + `timingSafeEqual`, wzorzec safeHashEquals z admin-api.ts). (3) `config/{docId}` zawężone do `config/feature_flags`. (4) Schemat workouts w rules: `validWorkoutShape()` = `keys().hasOnly([17 znanych pól, w tym lastWriteId z Z21])` + `notes <= 5000` na create i update (per-exercise notes clampowane w kodzie — rules nie iterują po tablicach). (5) chat_messages: `create: if false` — ODSTĘPSTWO od planu (plan chciał hasOnly): feature AI Chat usunięty w v6.7.0, klient nie pisze wcale (rg: zero użyć), jedyny writer to admin SDK w Functions, który omija rules; zamknięcie jest prostsze i mocniejsze. Testy rules: 63/63, w tym obowiązkowy przypadek "konto bez pola status zapisuje workout" (lekcja ef8b8d5), workout z lastWriteId ALLOWED, nadmiarowe pole DENIED, config/secret_settings DENIED.
+
+**Release train (Z19 + finalny).** Web: gh-pages ec42f2c (komplet Faz 1-6; wcześniej 1581b59 z Fazami 1-4). Functions: deploy 2x (Fazy 1-4 rano, Z28 po południu). Rules: deploy z client_errors + schematem workouts. iOS: build 47 (Fazy 1-4) na TestFlight z Beta App Review APPROVED (Robert dostaje builda), build 48 (komplet z telemetrią) wysłany tuż po. Pułapki infrastrukturalne rozwiązane po drodze: Xcode 26.6 bez platform iOS 26.5/watchOS 26.5 (fix: `xcodebuild -downloadPlatform iOS` i `watchOS`, ~12.5 GB), skrypty release nie ładują `.env` (fix: `set -a && source .env` przed `release-ios.sh`), JDK21 dla emulatorów w `/opt/homebrew/opt/openjdk@21`.
+
 ### 2026-07-03 — FAZA 5 planu naprawy: telemetria błędów + E2E konfliktów (Z25-Z26)
 
 Weryfikacja checkpointu: vitest 458/458 (55 plików), typecheck 0, lint 0, test:rules 54/54 (8 nowych dla client_errors), e2e:emulator 11/11 (4 nowe).
