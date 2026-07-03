@@ -63,17 +63,17 @@ Multi-user aplikacja PWA (React + Firebase + Strava) do śledzenia treningów si
 - `src/`
 
 **Ostatnia sesja (kiedy/co zrobione):**
-2026-07-03: plan naprawy R2 (Z29-Z46) wykonany i wdrożony — integralność zapisu treningów (P0/P1), reanimacja waitlisty, redukcja kosztów Functions (~10x przy skali), rules z zamkniętymi schematami, TTL, higiena repo. Web + functions + rules + TTL na produkcji; iOS build 49 zbumpowany (release-ios.sh czeka na potwierdzenie). Szczegóły w DECYZJE.md.
+2026-07-03 (wieczór): plan X10 (Z47-Z65) wykonany i wdrożony w CAŁOŚCI — auto-resume aktywnego treningu, porządki Settings, bundle split, maszyna stanów sesji, Adaptive Coach (wyróżnik: RPE/ból + readiness siła+kardio, offline). Release train: git push + rules + functions (saveMaxHR skasowany) + web (index-C3ZFOS2E) + iOS build 49 na TestFlight (Beta App Review APPROVED) + sekrety VITE_ALLOWED_* usunięte z GitHub. Szczegóły per faza w DECYZJE.md.
 
 ---
 
 ## 🧭 OSTATNIE DECYZJE (TOP 5)
 
-1. **Plan naprawy R2 (Z29-Z46) WYKONANY i WDROŻONY** (2026-07-03): writeId przeżywa flush draftu, updateDraft atomowe, finalny clearDraft z guardem wersji, tombstone promocji provisional->remote; waitlista działa (enforceAppCheck zdjęty + fix kolejności transakcji); koszty Functions ~22-25 -> ~2-3 USD/mies. przy 1000 userów; TTL na 7 kolekcjach operacyjnych.
-2. **Serverless jako zasada architektoniczna** (2026-07-03): klient -> Firestore + rules domyślnie; Functions tylko dla sekretów/admin SDK/webhooków; scheduled O(aktywnych), nie O(wszystkich); kolekcje operacyjne z TTL (plan R2, sekcja 2).
-3. **Martwy stack AI usunięty** (2026-07-03): streamOpenAI, proxyOpenAI, generateWeeklySummary skasowane z GCP; klienckie ai-coach/useAISwap/TypingIndicator + indeksy chat_* usunięte.
-4. **Telemetria client_errors + jeden silnik syncu** (Z13-Z28, wdrożone build 48; R2 domknął dziury silnika).
-5. **Timery treningowe nadal za flagą** VITE_FEATURE_WORKOUT_TIMERS=false (Z10 odłożony do Fazy 7).
+1. **Plan X10 (Z47-Z65) WYKONANY i WDROŻONY** (2026-07-03): auto-resume aktywnego treningu (zimny start + background→active przez @capacitor/app, scroll do ostatnio dotykanego ćwiczenia), Dashboard "Kontynuuj trening", Sync Center tylko przy zaległościach + narzędzia naprawcze w akordeonie, maszyna stanów sesji + hydracja jako czyste funkcje, bundle split (initial 919 KB), **Adaptive Coach** (RPE/ból → progress/hold/deload + readiness siła+kardio, offline, flaga adaptiveCoach). Web (index-C3ZFOS2E) + functions + rules + iOS build 49 TestFlight (Beta App Review APPROVED).
+2. **Plan naprawy R2 (Z29-Z46) WYKONANY i WDROŻONY** (2026-07-03): kontrakty draftu (snapshot/tombstone/permanent), waitlista naprawiona; koszty Functions ~22-25 -> ~2-3 USD/mies. przy 1000 userów; TTL na 7 kolekcjach.
+3. **Serverless jako zasada architektoniczna** (2026-07-03): klient -> Firestore + rules domyślnie (saveMaxHR przez rules od Z59, -1 kontener); Functions tylko dla sekretów/admin SDK/webhooków; scheduled O(aktywnych).
+4. **Telemetria client_errors + jeden silnik syncu** (Z13-Z28, build 48; R2 domknął dziury; Z56 dodał crashe renderu przez ErrorBoundary + boundary per trasa).
+5. **Timery treningowe nadal za flagą** VITE_FEATURE_WORKOUT_TIMERS=false; App Check świadomie pominięty (kroki dla usera w DECYZJE.md, checkpoint FAZY 5 X10).
 
 **Pełna historia:** `DECYZJE.md` (25.2K — bogata historia)
 

@@ -11,6 +11,23 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X10 FAZA 7: release train (Z65) — checkpoint X10
+
+**Bramki przed wdrożeniem (wszystkie zielone):** vitest 560/560 (67 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 921 KB / 1200 KB), test:rules 95/95, functions 82 passed / 4 skipped + build, e2e:mock 121/121, e2e:emulator 12/12.
+
+**Wdrożone na produkcję (w kolejności checklisty):**
+1. **Git:** 20 commitów X10 wypchniętych na origin/main (6d0d325..44c1805).
+2. **Rules:** `firebase deploy --only firestore:rules` — whitelist estimatedMaxHR/maxHRManualOverride (Z59). Indeksy nietykane (bez zmian).
+3. **Functions:** `firebase deploy --only functions --force` — komplet; saveMaxHR usunięty z GCP przez deploy (functions:delete zwrócił "not found" = już skasowany, potwierdzone functions:list).
+4. **Web:** `npm run deploy` — hash `index-C3ZFOS2E.js` na https://grzegorzee.github.io/strength-save/ zgodny z dist/index.html.
+5. **iOS:** build 49 (bez bumpu — 49 nie był w ASC) przez `scripts/release-ios.sh` — UPLOAD SUCCEEDED, build VALID, podpięty do grup, **Beta App Review: APPROVED** (Robert dostaje build automatycznie).
+6. **Sekrety GitHub:** VITE_ALLOWED_EMAIL i VITE_ALLOWED_EMAILS usunięte (`gh secret delete`, zaległość R2/Z45); zostały tylko VITE_FIREBASE_*.
+7. **Weryfikacja produkcji:** web wstaje z nowym hashem, logi functions bez błędów po deployu (gcloud functions logs read, 30 wpisów).
+
+**Zakres release'u X10 (web + iOS build 49):** auto-resume treningu (Z47-Z49), porządki Settings (Z50-Z53), wydajność startu (Z54-Z56), maszyna stanów sesji (Z57), higiena (Z58-Z60), Adaptive Coach (Z63-Z64). Z61 (App Check) świadomie pominięty — kroki w checkpoincie FAZY 5.
+
+**Uwaga do iOS:** build 49 zawiera ŁĄCZNIE zmiany R2 (Z29-Z46, nie wysłane wcześniej) + X10 — to pierwszy build w TestFlight od build 48.
+
 ### 2026-07-03 — X10 FAZA 6: Adaptive Coach (Z63-Z64)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 560/560 (67 plików), typecheck 0, lint 0, build OK, e2e:mock 121/121.
