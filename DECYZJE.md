@@ -11,6 +11,17 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X10 FAZA 2: porządki w Settings i narzędziach (Z50-Z53)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 523/523 (63 pliki), typecheck 0, lint 0, build OK, e2e:mock 119/119.
+
+1. **Z50 — martwe ustawienie usunięte:** Select "godzina podsumowania" zapisywał `summary-hour` do localStorage, którego NIC nie czytało (digest chodzi cronem o stałej porze). Bezpiecznik rg potwierdził zero konsumentów; karta + stała + stan + 3 osierocone klucze i18n usunięte z obu locale.
+2. **Z51 — ODSTĘPSTWO OD PLANU (świadome):** plan kazał PRZENIEŚĆ FeatureFlagsPanel z Settings do AdminDashboard, ale AdminDashboard JUŻ MA per-user feature flags w rozwijanych szczegółach usera (sekcja `admin.features`, label zawsze widoczny, ten sam zapis `features.strava`). Przeniesienie tworzyłoby DUPLIKAT — panel w Settings usunięty w całości (140 linii), klucze `settings.features.*`/`settings.feature.*` usunięte jako osierocone. Intencja zadania (back-office poza Settings, label widoczny na telefonie) spełniona lepiej niż literalny fix.
+3. **Z52 — Sync Center jako deska ratunkowa:** stan wpisów wydzielony do hooka `useSyncCenterEntries` (dedup drafty+kolejka po sessionId, ekstrakcja 1:1); Settings renderuje kartę TYLKO przy `listedEntries.length > 0` — zdrowy user nie widzi pustego Sync Center. Surowy kod błędu zszedł do tooltipa (`title=`), user widzi komunikat po ludzku (mapowanie `workoutSyncErrorMessageKey` już istniało). Narzędzia serwisowe (naprawa cykli, napraw dane, wyczyść duplikaty, reset planu) w JEDNYM zwijanym bloku "Narzędzia naprawcze" (Collapsible, domyślnie zwinięty, hint kiedy używać); przyciski naprawcze wydzielone z DataManagement do eksportowanego `DataRepairTools` (Measurements nadal dostaje je przez DataManagement — bez zmiany API).
+4. **Z53 — jednorazowe sprzątanie sprzed R2:** `cleanupLegacySyncLeftovers(uid, workouts)` w `src/lib/workout-sync-cleanup.ts`: (1) wpisy kolejki bez draftu w IDB → remove (kolejka referencyjna, bez treści nie ma czego syncować); (2) czyste (nie-dirty, nie-finalSyncPending) drafty provisional z ukończonym odpowiednikiem dzień+data w chmurze → `clearActiveDraftIfVersion` (respektuje wersjonowanie — kontrakt R2 nietknięty); guard `fittracker_legacy_cleanup_v1:{uid}` ustawiany PO sukcesie (porażka = retry). Podpięte w AutoSyncOnReconnect po załadowaniu workouts, fire-and-forget.
+
+**Root cause klasy problemu:** Settings zbierał przez lata funkcje serwisowe i adminowe bez miejsca docelowego; "stary trening wisiał w Sync Center", bo mechanizmy sprzątania R2 (tombstone Z32, kolejka Z23) nie działają wstecz.
+
 ### 2026-07-03 — X10 FAZA 1: powrót do aktywnego treningu (Z47-Z49)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 515/515 (61 plików), typecheck 0, lint 0, build OK, e2e:mock 119/119, e2e:emulator 12/12 (JDK21).
