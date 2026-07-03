@@ -11,6 +11,34 @@
 
 ## DECYZJE
 
+### 2026-07-03 — R2 FAZA 3: koszty Functions / serverless (Z36-Z40)
+
+Weryfikacja checkpointu: vitest 474/474, typecheck 0, lint 0, build OK, functions 85 passed / 2 skipped + build OK. Efekt zbiorczy: przy 1000 aktywnych userów koszt zmienny spada z ~22-25 USD/mies. do ~2-3 USD/mies. (model w planie R2, sekcja 2).
+
+| Funkcja | Zmiana | Efekt kosztowy |
+|---------|--------|----------------|
+| stravaScheduledSync / manualny sync (Z36) | sync inkrementalny czyta TYLKO pobrane w runie aktywności (`db.getAll` po deterministycznych ID, chunk 300); pełny skan zostaje wyłącznie dla initial syncu; ekstrakcja `loadExistingActivities` (testowalna) | ~99% redukcja reads największego drivera (300 userów x 300 aktywności x 30 dni = ~2.7M reads/mies. -> O(pobranych), typowo 0-5/user/noc) |
+| resumeDeletionOperations (Z37) | cron co 60 min zamiast co 5 (worker naprawczy po crashu; usunięcia i tak biegną synchronicznie) | 8640 -> ~720 inwokacji/mies. (-97%) |
+| weeklyDigest (Z38) | odbiorcy z kolekcji users (status active + opt-out `notificationPrefs.weeklyDigest`, brak pola = wysyłaj); 2 kwerendy zbiorcze (workouts completed+date, strava date) zamiast 2 per user; toggle w ustawieniach (web i native) + i18n; nowy composite index workouts (completed ASC, date ASC); ekstrakcja `runWeeklyDigest(deps)` (testowalna) | maile tylko do realnych subskrybentów z treningiem (dominujący koszt Resend ~20 USD/mies. przy 1000 userów spada do realnej frakcji); reads O(treningów tygodnia + userów), nie O(2x userów) |
+| streamOpenAI, proxyOpenAI, generateWeeklySummary (Z39) | usunięte z kodu (deploy skasuje kontenery w Fazie 6) + moduł ai-usage.ts, kliencki ai-coach.ts/useAISwap/TypingIndicator, generator weekly-summary, karta ai_usage w adminie, 18 kluczy i18n, indeks chat_messages; GDPR purge kolekcji ai_usage ZOSTAJE (dane istnieją) | -3 kontenery (w tym publiczny endpoint HTTP), -1 sekret (openai-api-key przestaje być montowany), mniejsza powierzchnia ataku |
+| dailyTrainingReminder (Z40a) | iteracja po fcm_token_registrations -> getAll tylko userów z tokenem i ich planów; ekstrakcja `runDailyReminder(deps)` (testowalna) | przy 1000 userów / 100 z tokenem: ~3k -> ~300 reads/dzień |
+| syncUserProfile (Z40b) | `shouldLogLoginSuccess`: wpis login_success do auth_audit_logs tylko gdy poprzedni login starszy niż 20 h (inne typy zdarzeń bez zmian) | zapis 1x/dzień zamiast przy każdym otwarciu apki |
+| TTL (Z40c) | `expiresAt` (Timestamp) przy zapisie: auth_audit_logs (90 dni), notification_logs (90), api_audit_logs (180), api_rate_limits (7), waitlist_rate_limits (7), client_errors (30, pisze klient — pole dopuszczone w rules w Z41); email_verification_codes dostaje `ttlExpiresAt` (1 dzień) — ODSTĘPSTWO od planu: istniejące pole `expiresAt` to string ISO w logice 10-minutowej ważności kodu, zmiana typu łamałaby weryfikację | storage kolekcji operacyjnych przestaje rosnąć bez sufitu |
+
+**Komendy TTL do wykonania w FAZIE 6 (Z46 krok 5), po deployu functions:**
+
+```bash
+gcloud firestore fields ttls update expiresAt --collection-group=auth_audit_logs --enable-ttl --project fittracker-workouts
+gcloud firestore fields ttls update expiresAt --collection-group=notification_logs --enable-ttl --project fittracker-workouts
+gcloud firestore fields ttls update expiresAt --collection-group=api_audit_logs --enable-ttl --project fittracker-workouts
+gcloud firestore fields ttls update expiresAt --collection-group=api_rate_limits --enable-ttl --project fittracker-workouts
+gcloud firestore fields ttls update ttlExpiresAt --collection-group=email_verification_codes --enable-ttl --project fittracker-workouts
+gcloud firestore fields ttls update expiresAt --collection-group=waitlist_rate_limits --enable-ttl --project fittracker-workouts
+gcloud firestore fields ttls update expiresAt --collection-group=client_errors --enable-ttl --project fittracker-workouts
+```
+
+Uwaga: TTL kasuje tylko dokumenty z ustawionym polem — wpisy sprzed R2 (bez expiresAt) zostaną; ewentualne jednorazowe doczyszczenie starych logów można zrobić skryptem admin SDK później (nie blokuje niczego).
+
 ### 2026-07-03 — R2 FAZA 2: waitlista, release script, wydajność WorkoutDay (Z33-Z35)
 
 Weryfikacja checkpointu: vitest 474/474, typecheck 0, lint 0, build OK, functions 68 passed / 4 skipped. Scenariusz background/resume na realnym urządzeniu ODŁOŻONY do testu terenowego usera w Z46 (zmiany Z35 są czysto renderowe: zegar liczy od startedAt przy każdym ticku, więc po resume pokazuje poprawny czas; logika zapisu draftu nietknięta — pokryta testami F1).

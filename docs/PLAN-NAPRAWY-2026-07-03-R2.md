@@ -299,13 +299,13 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Fix:** (a) `functions/src/daily-reminder.ts:102-110`: iteruj po `fcm_token_registrations` (grupuj po userId), czytaj tylko tych userów i ich plany (przy 1000 userów / 100 z tokenem: ~3k -> ~300 reads/dzień). (b) `syncUserProfile` w `functions/src/registration.ts`: wpis `login_success` do `auth_audit_logs` tylko gdy poprzedni login (pole lastLoginAt profilu, które funkcja i tak czyta/pisze) starszy niż 20 h; inne typy zdarzeń bez zmian. (c) TTL: dodaj pole `expiresAt` (Timestamp) przy zapisie do kolekcji: `auth_audit_logs` (90 dni), `notification_logs` (90), `api_audit_logs` (180), `api_rate_limits` (7), `email_verification_codes` (1), `waitlist_rate_limits` (7), `client_errors` (30); polityki TTL włącza się w konsoli/gcloud (`gcloud firestore fields ttls update expiresAt --collection-group=<nazwa> --enable-ttl`), zapisz dokładne komendy w DECYZJE.md, wykonanie w FAZIE 6.
 
 **Workflow:**
-- [ ] Krok 1: failing testy: reminder z 2 tokenami i 10 userami czyta tylko 2 userów; syncUserProfile drugi raz tego samego dnia nie pisze audit logu.
-- [ ] Krok 2: implementacja + pole expiresAt w writerach wymienionych kolekcji (client_errors pisze klient: dodaj expiresAt w `src/lib/error-telemetry.ts` i dopuść pole w rules w Z41).
-- [ ] Krok 3: testy functions + build; commit `perf(functions): reminder po tokenach, audit log 1x/dzień, TTL expiresAt (Z40)`.
+- [x] Krok 1: failing testy: reminder z 2 tokenami i 10 userami czyta tylko 2 userów; syncUserProfile drugi raz tego samego dnia nie pisze audit logu.
+- [x] Krok 2: implementacja + pole expiresAt w writerach wymienionych kolekcji (client_errors pisze klient: dodaj expiresAt w `src/lib/error-telemetry.ts` i dopuść pole w rules w Z41).
+- [x] Krok 3: testy functions + build; commit `perf(functions): reminder po tokenach, audit log 1x/dzień, TTL expiresAt (Z40)`.
 
 ### CHECKPOINT FAZY 3
-- [ ] `npm run test`, typecheck, lint, build; `npm --prefix functions test` i `npm --prefix functions run build`.
-- [ ] Wpis do DECYZJE.md (w tym tabela: funkcja -> zmiana -> efekt kosztowy; komendy TTL do wykonania w FAZIE 6).
+- [x] `npm run test`, typecheck, lint, build; `npm --prefix functions test` i `npm --prefix functions run build`.
+- [x] Wpis do DECYZJE.md (w tym tabela: funkcja -> zmiana -> efekt kosztowy; komendy TTL do wykonania w FAZIE 6).
 
 ---
 
