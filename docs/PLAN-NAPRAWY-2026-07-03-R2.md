@@ -336,9 +336,9 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Fix:** (1) `AutoSyncOnReconnect.tsx:71`, `SyncCenterCard.tsx:173,182,236`: `markRetry`/upsert na `outcome.sessionId` (po promocji NOWY id), nie na `entry.sessionId`. (2) `workout-sync-queue.ts`: wpis dostaje flagę `permanent` ustawianą, gdy `classifyWorkoutSyncError` zwraca not-found/permission; AutoSync pomija takie wpisy, SyncCenter pokazuje z akcją ręczną (usuń/ponów). (3) `WorkoutDay.tsx:553`: gałąź offline przez `classifyWorkoutSyncError(outcome.error) === 'offline'` zamiast `=== 'OFFLINE'` (silnik zwraca 'OFFLINE' tylko dla provisional; remote offline leci surowym błędem Firestore). (4) `SyncCenterCard.tsx:142-147,187-192`: przekazuj rzeczywisty `kind` do telemetrii (checkpoint vs final), konflikt wykryty podczas syncu raportuj jako phase syncu, nie 'conflict-resolve'. (5) R2-32 martwy kod po Z23: usuń `src/lib/sync-center-payload.ts` wraz z jego testem (pułapka `expectedRevision: draft.cloudRevision ?? 0` sprzeczna z kontraktem, brak writeId; zero użyć poza testem — potwierdź rg), nieużywany `isSyncingRef` (`WorkoutDay.tsx:146`) i import `matchesFinalWorkoutContent` (`WorkoutDay.tsx:50`); gałęzie `!result.success && result.skipped` w `WorkoutDay.tsx:1381-1383,1422-1426` dostosuj do kontraktu Z23 (skipped przychodzi z success:true; w `handleRetrySync` skipped-sukces NIE pokazuje toastu "zsynchronizowano").
 
 **Workflow:**
-- [ ] Krok 1: failing testy: (1) unit kolejki: permanent nie wraca w getRetryable; (2) test adaptera (istniejące wzorce testów AutoSync/SyncCenter, jeśli brak: testy funkcji pomocniczych wyekstrahowanych przy fixie); (3) unit klasyfikacji gałęzi offline.
-- [ ] Krok 2: implementacja + testy zielone.
-- [ ] Krok 3: commit `fix(sync): markRetry po promocji, cap permanent, offline przez taksonomię, telemetria phase (Z42)`.
+- [x] Krok 1: failing testy: (1) unit kolejki: permanent nie wraca w getRetryable; (2) test adaptera (istniejące wzorce testów AutoSync/SyncCenter, jeśli brak: testy funkcji pomocniczych wyekstrahowanych przy fixie); (3) unit klasyfikacji gałęzi offline.
+- [x] Krok 2: implementacja + testy zielone.
+- [x] Krok 3: commit `fix(sync): markRetry po promocji, cap permanent, offline przez taksonomię, telemetria phase (Z42)`.
 
 ### Zadanie Z43: sync P2 pakiet B: baseline i hydracja (R2-20..R2-23)
 

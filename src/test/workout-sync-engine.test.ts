@@ -312,6 +312,62 @@ describe('syncWorkoutSession', () => {
     expect(server.revision).toBe(2);
   });
 
+  it('promocja na ISTNIEJĄCĄ sesję pobiera baseline z serwera, nie z cache createSession (R2-20)', async () => {
+    // createWorkoutSession przy istniejącym dokumencie zwraca kopię z pamięci
+    // (onSnapshot/persistentLocalCache) — revision może być stale. Precondition
+    // zapisu musi bazować na odpowiedzi serwera.
+    const provisionalDraft = makeDraft({
+      sessionId: 'local-s1',
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      cloudRevision: undefined,
+      version: 2,
+    });
+    const store: { draft: ActiveWorkoutDraft | null } = { draft: provisionalDraft };
+
+    const deps = {
+      loadDraft: vi.fn(async (_userId: string, sessionId: string) => (
+        store.draft && store.draft.sessionId === sessionId ? store.draft : null
+      )),
+      saveWorkout: vi.fn(async (
+        _sessionId: string,
+        _exercises: unknown[],
+        _options: { expectedRevision: number | null; writeId: string },
+      ) => ({ success: true, updatedAt: 999, revision: 6 })),
+      // Serwer ma revision 5 (świeże) — cache createSession twierdzi, że 2 (stale).
+      getFromServer: vi.fn(async () => makeCloudWorkout({ revision: 5, updatedAt: 800 })),
+      createSession: vi.fn(async () => ({
+        session: makeCloudWorkout({ revision: 2, updatedAt: 300 }) as unknown as WorkoutSession,
+        existing: true,
+      })),
+      markPromoted: vi.fn(async (_userId: string, remoteSessionId: string, _sessionId?: string, cloudState?: { updatedAt?: number; revision?: number }) => {
+        store.draft = store.draft && {
+          ...store.draft,
+          sessionId: remoteSessionId,
+          sessionOrigin: 'remote',
+          remoteSessionId,
+          version: store.draft.version + 1,
+          ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+          ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
+        };
+      }),
+      markSynced: vi.fn(async () => undefined),
+      setCloudBaseline: vi.fn(async () => undefined),
+      setPendingWrite: vi.fn(async () => undefined),
+      clearDraftIfVersion: vi.fn(async () => true),
+      queue: { remove: vi.fn() },
+      isOnline: () => true,
+      now: () => 5000,
+    } satisfies WorkoutSyncDeps;
+
+    const outcome = await syncWorkoutSession('u1', 'local-s1', 'checkpoint', deps);
+
+    expect(outcome.success).toBe(true);
+    const saveOptions = deps.saveWorkout.mock.calls[0][2];
+    expect(saveOptions.expectedRevision).toBe(5);
+    expect(deps.setCloudBaseline).toHaveBeenCalledWith('u1', 's1', { revision: 5, updatedAt: 800 });
+  });
+
   it('final wymuszony kind=final zapisuje completed nawet bez finalSyncPending na drafcie', async () => {
     const draft = makeDraft({ finalSyncPending: false, finalizedAt: 4000 });
     const deps = makeDeps({

@@ -13,6 +13,9 @@ export interface DraftSnapshotContext {
   dayId: string | null | undefined;
   date: string;
   previousDraft: ActiveWorkoutDraft | null;
+  // Baza kolejkowa (R2-21): przy hydracji z kolejki activeDraft bywa pusty/cudzy —
+  // bez fallbacku snapshot rolowałby version do 1 i gubił startedAt/cycleId.
+  queuedDraft?: ActiveWorkoutDraft | null;
   exerciseSets: Record<string, SetData[]>;
   exerciseNotes: Record<string, string>;
   exerciseMetrics: Record<string, ExerciseMetrics>;
@@ -92,7 +95,9 @@ export const buildWorkoutDraftSnapshot = (
   const now = context.now ?? Date.now();
   const previousDraft = context.previousDraft?.sessionId === draftSessionId
     ? context.previousDraft
-    : null;
+    : context.queuedDraft?.sessionId === draftSessionId
+      ? context.queuedDraft
+      : null;
 
   const content = {
     exerciseSets: overrides.exerciseSets ?? context.exerciseSets,

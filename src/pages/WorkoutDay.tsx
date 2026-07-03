@@ -47,7 +47,7 @@ import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
-import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { classifyWorkoutSyncError, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
 import { reportClientError } from '@/lib/error-telemetry';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
@@ -417,6 +417,7 @@ const WorkoutDay = () => {
       dayId,
       date: targetDate,
       previousDraft: activeDraftRef.current,
+      queuedDraft: queuedDraftRef.current,
       exerciseSets: exerciseSetsRef.current,
       exerciseNotes: exerciseNotesRef.current,
       exerciseMetrics: exerciseMetricsRef.current,
@@ -775,14 +776,10 @@ const WorkoutDay = () => {
       )
       : false;
 
+    // Porównanie draft vs chmura obejmuje też notatkę dnia i skipy (R2-22):
+    // draft z niedosłaną notatką zostaje jako dirty zamiast zniknąć.
     const completedWorkoutValidation = workoutForDate?.completed && currentPageDraft
-      ? validateWorkoutCloudWrite(
-        workoutForDate,
-        buildWorkoutWriteExpectation(
-          Object.entries(currentPageDraft.exerciseSets).map(([exerciseId, sets]) => ({ exerciseId, sets })),
-          { completed: true }
-        )
-      )
+      ? validateWorkoutCloudWrite(workoutForDate, buildDraftFinalExpectation(currentPageDraft))
       : null;
 
     if (workoutForDate?.completed && currentPageDraft && !currentPageDraft.finalSyncPending && completedWorkoutValidation?.ok) {

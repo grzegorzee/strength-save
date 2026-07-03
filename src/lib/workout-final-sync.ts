@@ -96,6 +96,23 @@ export const buildWorkoutWriteExpectation = (
   ...(options.startedAt !== undefined && { startedAt: options.startedAt }),
 });
 
+// Ekspektacja finalna z draftu do porównania z chmurą (hydracja, R2-22): oprócz serii
+// porównuje też notatkę dnia i pominięte ćwiczenia — draft z niedosłaną notatką/skipem
+// NIE może zostać skasowany jako "już w chmurze". Semantyka pól jak w zapisie silnika
+// (puste = nie wysyłane = nie porównywane).
+export const buildDraftFinalExpectation = (draft: {
+  exerciseSets: Record<string, SetData[]>;
+  dayNotes: string;
+  skippedExercises: string[];
+}): WorkoutWriteExpectation => buildWorkoutWriteExpectation(
+  Object.entries(draft.exerciseSets).map(([exerciseId, sets]) => ({ exerciseId, sets })),
+  {
+    completed: true,
+    notes: draft.dayNotes || undefined,
+    skippedExercises: draft.skippedExercises.length > 0 ? draft.skippedExercises : undefined,
+  },
+);
+
 export const validateWorkoutCloudWrite = (
   workout: WorkoutSession | null,
   expectation: WorkoutWriteExpectation

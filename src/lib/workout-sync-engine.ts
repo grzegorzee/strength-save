@@ -51,7 +51,7 @@ export interface WorkoutSyncDeps {
     dayId: string,
     date?: string,
     cycleId?: string,
-  ) => Promise<{ session: WorkoutSession | null; error?: string }>;
+  ) => Promise<{ session: WorkoutSession | null; error?: string; existing?: boolean }>;
   markPromoted: (
     userId: string,
     remoteSessionId: string,
@@ -176,10 +176,24 @@ const runSync = async (
       if (promo.error || !promo.session) {
         return { success: false, error: promo.error || 'PROMOTE_FAILED', sessionId };
       }
-      await deps.markPromoted(userId, promo.session.id, draft.sessionId, {
-        updatedAt: promo.session.updatedAt,
-        revision: promo.session.revision,
-      });
+      // Promocja na ISTNIEJĄCĄ sesję: createSession zwraca kopię z pamięci
+      // (onSnapshot/persistentLocalCache) — revision może być stale. Baseline
+      // precondition musi pochodzić z serwera (R2-20).
+      let promoCloudState: { updatedAt?: number; revision?: number } = {
+        ...(promo.session.updatedAt !== undefined && { updatedAt: promo.session.updatedAt }),
+        ...(promo.session.revision !== undefined && { revision: promo.session.revision }),
+      };
+      if (promo.existing) {
+        const serverSession = await deps.getFromServer(promo.session.id);
+        if (serverSession) {
+          promoCloudState = {
+            revision: Math.max(0, Math.floor(serverSession.revision ?? 0)),
+            ...(serverSession.updatedAt !== undefined && { updatedAt: serverSession.updatedAt }),
+          };
+          await deps.setCloudBaseline(userId, promo.session.id, promoCloudState);
+        }
+      }
+      await deps.markPromoted(userId, promo.session.id, draft.sessionId, promoCloudState);
       deps.queue.remove(userId, sessionId);
       const promoted = await deps.loadDraft(userId, promo.session.id);
       if (!promoted) {

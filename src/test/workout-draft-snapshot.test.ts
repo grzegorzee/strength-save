@@ -132,3 +132,39 @@ describe('buildWorkoutDraftSnapshot', () => {
     expect(buildWorkoutDraftSnapshot(makeContext({ exerciseNotes: { 'ex-1': 'ciężko' } }))?.version).toBe(7);
   });
 });
+
+describe('queuedDraft jako baza snapshotu (R2-21)', () => {
+  it('gdy activeDraft nie pasuje do sesji, bazą jest queuedDraft o zgodnym sessionId', () => {
+    const queued = makePreviousDraft({
+      version: 7,
+      startedAt: 500,
+      cycleId: 'cycle-queued',
+      pendingWriteId: 'W',
+      pendingWriteVersion: 7,
+    });
+    const context = makeContext({
+      previousDraft: makePreviousDraft({ sessionId: 'inna-sesja' }),
+      queuedDraft: queued,
+    });
+
+    const snapshot = buildWorkoutDraftSnapshot(context);
+
+    // Identyczna treść: wersja i startedAt z bazy kolejkowej (bez rollbacku do 1).
+    expect(snapshot?.version).toBe(7);
+    expect(snapshot?.startedAt).toBe(500);
+    expect(snapshot?.cycleId).toBe('cycle-queued');
+    expect(snapshot?.pendingWriteId).toBe('W');
+  });
+
+  it('activeDraft o zgodnym sessionId ma pierwszeństwo przed queuedDraft', () => {
+    const context = makeContext({
+      previousDraft: makePreviousDraft({ version: 9, startedAt: 111 }),
+      queuedDraft: makePreviousDraft({ version: 4, startedAt: 999 }),
+    });
+
+    const snapshot = buildWorkoutDraftSnapshot(context);
+
+    expect(snapshot?.version).toBe(9);
+    expect(snapshot?.startedAt).toBe(111);
+  });
+});

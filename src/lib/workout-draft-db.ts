@@ -271,7 +271,38 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
   }
 };
 
-const openDatabase = (): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
+// Singleton połączenia IDB (R2-23): open per operacja mnożył połączenia i pracę
+// przeglądarki. Po powrocie z tła iOS potrafi zerwać połączenie — handlery
+// onclose/onversionchange czyszczą cache, następna operacja otwiera świeże.
+let cachedDatabase: IDBDatabase | null = null;
+let cachedDatabasePromise: Promise<IDBDatabase | null> | null = null;
+
+const resetDatabaseConnection = (): void => {
+  cachedDatabase = null;
+  cachedDatabasePromise = null;
+};
+
+export const __resetWorkoutDraftDbConnectionForTests = resetDatabaseConnection;
+
+const resetCachedDatabase = (db: IDBDatabase): void => {
+  if (cachedDatabase === db) cachedDatabase = null;
+};
+
+const openDatabase = (): Promise<IDBDatabase | null> => {
+  if (cachedDatabase) return Promise.resolve(cachedDatabase);
+  if (cachedDatabasePromise) return cachedDatabasePromise;
+  cachedDatabasePromise = openDatabaseConnection().then((db) => {
+    cachedDatabasePromise = null;
+    if (db) cachedDatabase = db;
+    return db;
+  }, (error) => {
+    cachedDatabasePromise = null;
+    throw error;
+  });
+  return cachedDatabasePromise;
+};
+
+const openDatabaseConnection = (): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
   const indexedDb = getIndexedDb();
   if (!indexedDb) {
     resolve(null);
@@ -307,7 +338,19 @@ const openDatabase = (): Promise<IDBDatabase | null> => new Promise((resolve, re
     };
   };
 
-  request.onsuccess = () => resolve(request.result);
+  request.onsuccess = () => {
+    const db = request.result;
+    db.onclose = () => resetCachedDatabase(db);
+    db.onversionchange = () => {
+      resetCachedDatabase(db);
+      try {
+        db.close();
+      } catch {
+        // połączenie mogło już zostać zamknięte przez przeglądarkę
+      }
+    };
+    resolve(db);
+  };
   request.onerror = () => reject(request.error);
 });
 
@@ -742,7 +785,9 @@ export const workoutDraftDb = {
         await runWrite(normalized, normalized.userId);
       } catch {
         // IndexedDB w WKWebView potrafi stracić połączenie po powrocie z tła — jedna ponowna
-        // próba, potem localStorage. Błąd pozostaje widoczny tylko gdy fallback zawiedzie.
+        // próba na ŚWIEŻYM połączeniu, potem localStorage. Błąd pozostaje widoczny tylko
+        // gdy fallback zawiedzie.
+        resetDatabaseConnection();
         try {
           await runWrite(normalized, normalized.userId);
         } catch {

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY, getScopedWorkoutDraftKey, workoutDraft } from '@/lib/workout-draft';
 import {
+  __resetWorkoutDraftDbConnectionForTests,
   getPromotionTombstoneKey,
   hasDraftContent,
   workoutDraftDb,
@@ -132,6 +133,9 @@ class FakeTransaction {
 
 class FakeDatabase {
   public version = 1;
+  public onclose: (() => void) | null = null;
+  public onversionchange: (() => void) | null = null;
+  close() {}
   public readonly objectStoreNames = {
     contains: (name: string) => this.stores.has(name),
   } as DOMStringList;
@@ -157,6 +161,7 @@ class FakeDatabase {
 
 class FakeIndexedDbFactory {
   private readonly databases = new Map<string, { version: number; stores: Map<string, { data: Map<string, unknown>; keyPath: string | string[] | null }> }>();
+  public lastDb: IDBDatabase | null = null;
 
   open(name: string, version?: number) {
     const request = new FakeRequest<IDBDatabase>();
@@ -169,6 +174,7 @@ class FakeIndexedDbFactory {
       }
 
       const db = new FakeDatabase(entry.stores) as unknown as IDBDatabase;
+      this.lastDb = db;
       const needsUpgrade = (version ?? 1) > entry.version || entry.stores.size === 0;
       if (needsUpgrade) {
         entry.version = version ?? 1;
@@ -216,6 +222,7 @@ describe('workoutDraftDb', () => {
     localStorage.clear();
     nextPutGate = null;
     nextPutStarted = null;
+    __resetWorkoutDraftDbConnectionForTests();
     Object.defineProperty(window, 'indexedDB', {
       configurable: true,
       writable: true,
@@ -610,5 +617,43 @@ describe('hasDraftContent', () => {
   it('widzi odhaczoną serię lub notatkę', () => {
     expect(hasDraftContent({ 'ex-1': [{ reps: 10, weight: 50, completed: true }] }, {}, '', [])).toBe(true);
     expect(hasDraftContent({ 'ex-1': [{ reps: 10, weight: 50, completed: false }] }, {}, 'notatka dnia', [])).toBe(true);
+  });
+});
+
+describe('singleton polaczenia IDB (R2-23)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    __resetWorkoutDraftDbConnectionForTests();
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: new FakeIndexedDbFactory(),
+    });
+  });
+
+  it('kolejne operacje uzywaja jednego polaczenia (open raz)', async () => {
+    const factory = window.indexedDB as unknown as { open: (name: string, version?: number) => IDBOpenDBRequest };
+    const openSpy = vi.spyOn(factory, 'open');
+
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    await workoutDraftDb.loadActiveDraft('user-1');
+    await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('po zerwaniu polaczenia (onclose) nastepna operacja otwiera nowe', async () => {
+    const factory = window.indexedDB as unknown as { open: (name: string, version?: number) => IDBOpenDBRequest; lastDb?: { onclose?: (() => void) | null } };
+    const openSpy = vi.spyOn(factory, 'open');
+
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    expect(openSpy).toHaveBeenCalledTimes(1);
+
+    // iOS potrafi zerwac polaczenie po powrocie z tla.
+    factory.lastDb?.onclose?.();
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+    expect(loaded?.sessionId).toBe(baseDraft.sessionId);
+    expect(openSpy).toHaveBeenCalledTimes(2);
   });
 });

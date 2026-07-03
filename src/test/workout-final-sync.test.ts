@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildWorkoutWriteExpectation, hasWorkoutWriteConflict, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, hasWorkoutWriteConflict, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import type { WorkoutSession } from '@/types';
 
 const workout = (overrides: Partial<WorkoutSession> = {}): WorkoutSession => ({
@@ -142,5 +142,37 @@ describe('workout final sync validation', () => {
       durationSec: 1800,
       exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] }],
     }), expectation)).toBe(true);
+  });
+});
+
+describe('buildDraftFinalExpectation (R2-22)', () => {
+  const draft = {
+    exerciseSets: { 'ex-1': [{ reps: 8, weight: 100, completed: true }] },
+    dayNotes: 'notatka dnia',
+    skippedExercises: ['ex-2'],
+  };
+
+  it('ekspektacja z draftu zawiera notes i skippedExercises', () => {
+    const expectation = buildDraftFinalExpectation(draft);
+    expect(expectation.notes).toBe('notatka dnia');
+    expect(expectation.skippedExercises).toEqual(['ex-2']);
+  });
+
+  it('chmura bez notatki draftu = walidacja pada (draft zostaje, nie jest kasowany)', () => {
+    const expectation = buildDraftFinalExpectation(draft);
+    const cloud = {
+      id: 's1', userId: 'u1', dayId: 'd1', date: '2026-07-03',
+      exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] }],
+      completed: true,
+      skippedExercises: ['ex-2'],
+    } as unknown as Parameters<typeof validateWorkoutCloudWrite>[0];
+
+    expect(validateWorkoutCloudWrite(cloud, expectation).ok).toBe(false);
+  });
+
+  it('pusta notatka i brak skipow nie wchodza do porownania', () => {
+    const expectation = buildDraftFinalExpectation({ exerciseSets: draft.exerciseSets, dayNotes: '', skippedExercises: [] });
+    expect(expectation.notes).toBeUndefined();
+    expect(expectation.skippedExercises).toBeUndefined();
   });
 });
