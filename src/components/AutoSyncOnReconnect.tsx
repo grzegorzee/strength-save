@@ -7,8 +7,9 @@ import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
-import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
+import { classifyWorkoutSyncError, isRevisionConflictError } from '@/lib/workout-sync-conflict';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
+import { reportClientError } from '@/lib/error-telemetry';
 
 // Po powrocie online (i na starcie sesji) automatycznie domyka zaległe final-synci
 // z kolejki — wcześniej wymagało to ręcznego "Ponów" w Sync Center w Ustawieniach.
@@ -73,6 +74,12 @@ export const AutoSyncOnReconnect = () => {
             } else if (outcome.error?.startsWith('CLOUD_NOT_CONFIRMED')) {
               trackTelemetryEvent(uid, 'sync_validation_failed');
             }
+            void reportClientError(uid, {
+              code: classifyWorkoutSyncError(outcome.error),
+              phase: 'final',
+              detail: outcome.error,
+              sessionId: entry.sessionId,
+            });
             continue;
           }
           if (!outcome.skipped) {

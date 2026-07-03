@@ -1198,6 +1198,7 @@ export const pl = {
   'admin.aiCosts': 'AI koszty ({month}): ${cost}',
   'admin.callsUsers': '{calls} wywołań, {users} użytkowników',
   'admin.healthTelemetry': 'Health telemetry (7 dni)',
+  'admin.clientErrors': 'Błędy klienta (ostatnie 50)',
   'admin.syncFailures': 'Sync failures',
   'admin.retryManual': 'Retry manual',
   'admin.draftRecovered': 'Draft recovered',

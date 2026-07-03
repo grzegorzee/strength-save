@@ -118,6 +118,23 @@ add('create app_telemetry_daily (active)', true, await ok(() => setDoc(doc(db, '
 add('delete app_telemetry_daily zablokowane', false, await ok(() => deleteDoc(doc(db, 'app_telemetry_daily', `t-${UID}`))));
 add('create app_telemetry_daily z cudzym userId zablokowane', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', 't-x'), { ...telemetry, userId: OTHER_UID })));
 
+// === Client errors: append-only, wlasne wpisy, odczyt tylko admin ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser(undefined, 'active', ADMIN_UID, 'admin');
+const clientError = {
+  userId: UID, code: 'revision-conflict', phase: 'checkpoint', detail: 'WORKOUT_CONFLICT',
+  sessionHash: 'ab12cd34', appVersion: '6.13.0', platform: 'ios', createdAt: 1751500000000,
+};
+add('create client_errors wlasny wpis', true, await ok(() => setDoc(doc(db, 'client_errors', 'ce-1'), clientError)));
+add('create client_errors z cudzym userId zablokowane', false, await ok(() => setDoc(doc(db, 'client_errors', 'ce-2'), { ...clientError, userId: OTHER_UID })));
+add('create client_errors z nadmiarowym polem zablokowane', false, await ok(() => setDoc(doc(db, 'client_errors', 'ce-3'), { ...clientError, extra: 'x' })));
+add('create client_errors z detail > 500 znakow zablokowane', false, await ok(() => setDoc(doc(db, 'client_errors', 'ce-4'), { ...clientError, detail: 'x'.repeat(501) })));
+add('read client_errors jako zwykly user zablokowane', false, await ok(() => getDoc(doc(db, 'client_errors', 'ce-1'))));
+add('read client_errors jako admin', true, await ok(() => getDoc(doc(adminDb, 'client_errors', 'ce-1'))));
+add('update client_errors zablokowane', false, await ok(() => updateDoc(doc(db, 'client_errors', 'ce-1'), { detail: 'edit' })));
+add('delete client_errors zablokowane', false, await ok(() => deleteDoc(doc(db, 'client_errors', 'ce-1'))));
+
 // === Strava activities: zapis tylko Cloud Functions, odczyt tylko wlasciciel ===
 await env.clearFirestore();
 await seedUser({ enabled: true });

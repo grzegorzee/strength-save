@@ -48,7 +48,8 @@ import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
-import { workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
+import { classifyWorkoutSyncError, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
+import { reportClientError } from '@/lib/error-telemetry';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
@@ -541,6 +542,12 @@ const WorkoutDay = () => {
         setConflictDialogOpen(true);
         setSaveError(null);
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
+        void reportClientError(uid, {
+          code: 'revision-conflict',
+          phase: requiresFinalSync ? 'final' : 'checkpoint',
+          detail: outcome.error,
+          sessionId: targetSessionId,
+        });
         return { success: false, error: outcome.error };
       }
       if (outcome.error === 'OFFLINE') {
@@ -554,6 +561,12 @@ const WorkoutDay = () => {
       }
       setSaveError(t(workoutSyncErrorMessageKey(outcome.error)));
       setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
+      void reportClientError(uid, {
+        code: classifyWorkoutSyncError(outcome.error),
+        phase: requiresFinalSync ? 'final' : 'checkpoint',
+        detail: outcome.error,
+        sessionId: targetSessionId,
+      });
       return { success: false, error: outcome.error || t('workout.err.syncFailed') };
     }
 
@@ -620,6 +633,12 @@ const WorkoutDay = () => {
     } catch (err) {
       // Offline/timeout: dialog zostaje otwarty, user widzi komunikat i może ponowić.
       setSaveError(t(workoutSyncErrorMessageKey(err)));
+      void reportClientError(uid, {
+        code: classifyWorkoutSyncError(err),
+        phase: 'conflict-resolve',
+        detail: err instanceof Error ? err.message : String(err),
+        sessionId,
+      });
     }
   }, [uid, sessionId, getWorkoutSessionFromServer, persistDraftSnapshot, syncDraftToFirebase, t]);
 
@@ -1541,6 +1560,12 @@ const WorkoutDay = () => {
 
     if (!result.success) {
       setSaveError(t(workoutSyncErrorMessageKey(result.error)));
+      void reportClientError(uid, {
+        code: classifyWorkoutSyncError(result.error),
+        phase: 'edit',
+        detail: result.error,
+        sessionId,
+      });
       toast({
         title: t('workout.toast.errorTitle'),
         description: t('workout.toast.saveChangesFailedDesc'),

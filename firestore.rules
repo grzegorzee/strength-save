@@ -211,6 +211,18 @@ service cloud.firestore {
       allow read: if request.auth != null && isAdmin();
     }
 
+    // Rejestr błędów produkcyjnych klienta (append-only): user tworzy własne
+    // wpisy, czyta wyłącznie admin. Schemat zamknięty + limit rozmiaru detail.
+    match /client_errors/{errorId} {
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasOnly(['userId', 'code', 'phase', 'detail', 'sessionHash', 'appVersion', 'platform', 'createdAt'])
+        && request.resource.data.detail is string
+        && request.resource.data.detail.size() <= 500;
+      allow read: if request.auth != null && isAdmin();
+      allow update, delete: if false;
+    }
+
     // Globalne flagi funkcji — każdy zalogowany czyta, tylko admin zapisuje.
     match /config/{docId} {
       allow read: if request.auth != null;

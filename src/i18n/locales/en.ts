@@ -1192,6 +1192,7 @@ export const en: Record<keyof typeof pl, string> = {
   'admin.aiCosts': 'AI costs ({month}): ${cost}',
   'admin.callsUsers': '{calls} calls, {users} users',
   'admin.healthTelemetry': 'Health telemetry (7 days)',
+  'admin.clientErrors': 'Client errors (latest 50)',
   'admin.syncFailures': 'Sync failures',
   'admin.retryManual': 'Retry manual',
   'admin.draftRecovered': 'Draft recovered',

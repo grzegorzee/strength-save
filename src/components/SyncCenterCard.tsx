@@ -22,6 +22,7 @@ import {
   workoutSyncErrorMessageKey,
 } from '@/lib/workout-sync-conflict';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
+import { reportClientError } from '@/lib/error-telemetry';
 
 interface SyncCenterCardProps {
   uid: string;
@@ -138,6 +139,12 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       [targetDraft.sessionId]: { draft: targetDraft, source, cloud, error },
     }));
     trackTelemetryEvent(uid, 'revision_conflict');
+    void reportClientError(uid, {
+      code: classifyWorkoutSyncError(error),
+      phase: 'conflict-resolve',
+      detail: error,
+      sessionId: targetDraft.sessionId,
+    });
   }, [getWorkoutSessionFromServer, uid]);
 
   const syncOne = useCallback(async (entry: ListedSyncEntry, source: 'active' | 'queue') => {
@@ -177,6 +184,12 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
           uid,
           outcome.error?.startsWith('CLOUD_NOT_CONFIRMED') ? 'sync_validation_failed' : 'sync_failure',
         );
+        void reportClientError(uid, {
+          code: classifyWorkoutSyncError(outcome.error),
+          phase: 'final',
+          detail: outcome.error,
+          sessionId: entry.sessionId,
+        });
         return false;
       }
 

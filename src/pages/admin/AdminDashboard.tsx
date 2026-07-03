@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, getDocs, getCountFromServer, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, getDocs, getCountFromServer, limit, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -123,6 +123,18 @@ interface TelemetryDoc {
   counters?: Record<string, number>;
 }
 
+interface ClientErrorDoc {
+  id: string;
+  userId: string;
+  code: string;
+  phase: string;
+  detail: string;
+  sessionHash?: string;
+  appVersion?: string;
+  platform?: string;
+  createdAt: number;
+}
+
 // Loose shapes for raw Firestore docs (spreading an index-signature-only type
 // drops its properties, so we cast data() to an explicit named shape).
 interface CycleDocData {
@@ -150,6 +162,7 @@ const AdminDashboard = () => {
   const [detailsByUser, setDetailsByUser] = useState<Record<string, AdminUserDetails | null>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
   const [telemetry, setTelemetry] = useState<TelemetryDoc[]>([]);
+  const [clientErrors, setClientErrors] = useState<ClientErrorDoc[]>([]);
   const [invites, setInvites] = useState<InviteRecord[]>([]);
   const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntryRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuthAuditLogRecord[]>([]);
@@ -221,6 +234,32 @@ const AdminDashboard = () => {
       setTelemetry(rows);
     });
 
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      query(collection(db, 'client_errors'), orderBy('createdAt', 'desc'), limit(50)),
+      (snapshot) => {
+        const rows: ClientErrorDoc[] = [];
+        snapshot.forEach((d) => {
+          const data = d.data();
+          rows.push({
+            id: d.id,
+            userId: data.userId || '',
+            code: data.code || '',
+            phase: data.phase || '',
+            detail: data.detail || '',
+            sessionHash: data.sessionHash,
+            appVersion: data.appVersion,
+            platform: data.platform,
+            createdAt: Number(data.createdAt) || 0,
+          });
+        });
+        setClientErrors(rows);
+      },
+      () => setClientErrors([]),
+    );
     return () => unsubscribe();
   }, []);
 
@@ -712,6 +751,34 @@ const AdminDashboard = () => {
           </Card>
         );
       })()}
+
+      {clientErrors.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{t('admin.clientErrors')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="max-h-96 space-y-2 overflow-y-auto">
+              {clientErrors.map((entry) => (
+                <div key={entry.id} className="rounded-lg border bg-muted/20 p-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="destructive">{entry.code}</Badge>
+                    <Badge variant="secondary">{entry.phase}</Badge>
+                    {entry.platform && <Badge variant="outline">{entry.platform} {entry.appVersion}</Badge>}
+                    <span className="text-muted-foreground">
+                      {entry.createdAt ? new Date(entry.createdAt).toLocaleString(dateLocale(lang)) : ''}
+                    </span>
+                  </div>
+                  <p className="mt-1 break-all font-mono text-muted-foreground">
+                    {entry.userId.slice(0, 8)}… {entry.sessionHash ? `sesja ${entry.sessionHash}` : ''}
+                  </p>
+                  {entry.detail && <p className="mt-1 break-all">{entry.detail}</p>}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <ApiKeysCard />
 
