@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Link2, Unlink, RefreshCw, Loader2, Clock, Shield, RotateCcw } from 'lucide-react';
+import { Link2, Unlink, RefreshCw, Loader2, Shield, RotateCcw } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { useStrava } from '@/hooks/useStrava';
@@ -34,7 +33,6 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 
 const FEATURE_PANEL_USERS_LIMIT = 200;
-const SUMMARY_HOUR_KEY = 'summary-hour';
 
 const AVAILABLE_FEATURES = [
   { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą (aktywności, wykresy, analityka)' },
@@ -159,23 +157,6 @@ const Settings = () => {
   const { connection, isSyncing, error, connectStrava, syncActivities, saveMaxHR, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
   const { t, lang } = useTranslation();
-
-  const [summaryHour, setSummaryHour] = useState(() => {
-    try {
-      return localStorage.getItem(SUMMARY_HOUR_KEY) || '20';
-    } catch {
-      return '20';
-    }
-  });
-
-  const handleSummaryHourChange = (value: string) => {
-    setSummaryHour(value);
-    try {
-      localStorage.setItem(SUMMARY_HOUR_KEY, value);
-    } catch {
-      // ignore
-    }
-  };
 
   const [maxHRInput, setMaxHRInput] = useState('');
   const [maxHRSaving, setMaxHRSaving] = useState(false);
@@ -314,36 +295,6 @@ const Settings = () => {
             <Badge variant={profile?.role === 'admin' ? 'default' : 'secondary'}>
               {profile?.role || 'user'}
             </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Weekly summary preference */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            {t('settings.summary.title')}
-          </CardTitle>
-          <CardDescription>
-            {t('settings.summary.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">{t('settings.summary.hour')}</span>
-            <Select value={summaryHour} onValueChange={handleSummaryHourChange}>
-              <SelectTrigger className="w-32" aria-label={t('settings.summary.hour')}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 8 }, (_, i) => i + 16).map(h => (
-                  <SelectItem key={h} value={String(h)}>
-                    {String(h).padStart(2, '0')}:00
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
