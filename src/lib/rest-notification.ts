@@ -8,20 +8,22 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 
 const REST_NOTIFICATION_ID = 90001;
 
+// Cache TYLKO wyniku pozytywnego (R2-24): user może włączyć uprawnienia w Ustawieniach
+// systemu w trakcie życia appki — odmowa weryfikowana ponownie przy każdej próbie.
 let permissionGranted: boolean | null = null;
 
 const ensurePermission = async (): Promise<boolean> => {
-  if (permissionGranted !== null) return permissionGranted;
+  if (permissionGranted === true) return true;
   try {
     let status = await LocalNotifications.checkPermissions();
     if (status.display === 'prompt' || status.display === 'prompt-with-rationale') {
       status = await LocalNotifications.requestPermissions();
     }
-    permissionGranted = status.display === 'granted';
+    permissionGranted = status.display === 'granted' ? true : null;
   } catch {
-    permissionGranted = false;
+    permissionGranted = null;
   }
-  return permissionGranted;
+  return permissionGranted === true;
 };
 
 /** Zaplanuj systemowe powiadomienie (dźwięk + wibracja) na koniec przerwy za `seconds` sekund. */
