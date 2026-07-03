@@ -13,7 +13,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Link2, Unlink, RefreshCw, Loader2, RotateCcw } from 'lucide-react';
+import { Link2, Unlink, RefreshCw, Loader2, RotateCcw, Wrench, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { useStrava } from '@/hooks/useStrava';
@@ -21,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { SyncCenterCard } from '@/components/SyncCenterCard';
-import { DataManagement } from '@/components/DataManagement';
+import { DataManagement, DataRepairTools } from '@/components/DataManagement';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -39,6 +41,7 @@ const Settings = () => {
   const { connection, isSyncing, error, connectStrava, syncActivities, saveMaxHR, disconnectStrava } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
   const { t, lang } = useTranslation();
+  const syncEntries = useSyncCenterEntries(uid);
 
   const [maxHRInput, setMaxHRInput] = useState('');
   const [maxHRSaving, setMaxHRSaving] = useState(false);
@@ -190,70 +193,81 @@ const Settings = () => {
           planCycles: cycles,
         })}
         onImport={importData}
-        onCleanup={cleanupEmptyWorkouts}
-        onRepair={() => backfillHistoricalWorkouts(cycles)}
         existingWorkoutIds={workouts.map((w) => w.id)}
         disabled={!workoutsLoaded}
         title={t('settings.backup.title')}
         description={t('settings.backup.description')}
         exportLabel={t('settings.backup.export')}
         importLabel={t('settings.backup.import')}
-        cleanupLabel={t('settings.backup.cleanup')}
       />
       </div>
 
+      {/* Narzędzia naprawcze (Z52): domyślnie zwinięte — żargon serwisowy nie straszy na co dzień. */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <RefreshCw className="h-5 w-5 text-primary" />
-            {t('settings.repairCycles.title')}
-          </CardTitle>
-          <CardDescription>
-            {t('settings.repairCycles.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* disabled do załadowania workouts: merge na pustej liście remapowałby zero treningów, a cykle i tak by skasował */}
-          <Button variant="outline" className="w-full" onClick={() => setMergeConfirmOpen(true)} disabled={mergingCycles || !workoutsLoaded}>
-            {mergingCycles ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            {t('settings.repairCycles.button')}
-          </Button>
-          <ConfirmDialog
-            open={mergeConfirmOpen}
-            onOpenChange={setMergeConfirmOpen}
-            title={t('settings.repairCycles.title')}
-            description={t('settings.merge.confirmDesc')}
-            confirmLabel={t('settings.repairCycles.button')}
-            onConfirm={() => void handleMergeCycles()}
-          />
-        </CardContent>
-      </Card>
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <button type="button" className="w-full text-left">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5 text-primary" />
+                    {t('settings.tools.title')}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </CardTitle>
+                <CardDescription>
+                  {t('settings.tools.hint')}
+                </CardDescription>
+              </CardHeader>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-3">
+              {/* disabled do załadowania workouts: merge na pustej liście remapowałby zero treningów, a cykle i tak by skasował */}
+              <div>
+                <p className="text-sm font-medium mb-1">{t('settings.repairCycles.title')}</p>
+                <p className="text-xs text-muted-foreground mb-2">{t('settings.repairCycles.description')}</p>
+                <Button variant="outline" className="w-full" onClick={() => setMergeConfirmOpen(true)} disabled={mergingCycles || !workoutsLoaded}>
+                  {mergingCycles ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  {t('settings.repairCycles.button')}
+                </Button>
+                <ConfirmDialog
+                  open={mergeConfirmOpen}
+                  onOpenChange={setMergeConfirmOpen}
+                  title={t('settings.repairCycles.title')}
+                  description={t('settings.merge.confirmDesc')}
+                  confirmLabel={t('settings.repairCycles.button')}
+                  onConfirm={() => void handleMergeCycles()}
+                />
+              </div>
 
-      <Card className="border-fitness-warning/30">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <RotateCcw className="h-5 w-5 text-fitness-warning" />
-            {t('settings.resetPlan.title')}
-          </CardTitle>
-          <CardDescription>
-            {t('settings.resetPlan.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            variant="outline"
-            className="w-full border-fitness-warning text-fitness-warning hover:bg-fitness-warning/10"
-            onClick={() => setResetConfirmOpen(true)}
-            disabled={isResettingOnboarding}
-          >
-            {isResettingOnboarding ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RotateCcw className="h-4 w-4 mr-2" />
-            )}
-            {t('settings.resetPlan.button')}
-          </Button>
-        </CardContent>
+              <DataRepairTools
+                onCleanup={cleanupEmptyWorkouts}
+                onRepair={() => backfillHistoricalWorkouts(cycles)}
+                cleanupLabel={t('settings.backup.cleanup')}
+                disabled={!workoutsLoaded}
+              />
+
+              <div>
+                <p className="text-sm font-medium mb-1">{t('settings.resetPlan.title')}</p>
+                <p className="text-xs text-muted-foreground mb-2">{t('settings.resetPlan.description')}</p>
+                <Button
+                  variant="outline"
+                  className="w-full border-fitness-warning text-fitness-warning hover:bg-fitness-warning/10"
+                  onClick={() => setResetConfirmOpen(true)}
+                  disabled={isResettingOnboarding}
+                >
+                  {isResettingOnboarding ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                  )}
+                  {t('settings.resetPlan.button')}
+                </Button>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
@@ -356,8 +370,8 @@ const Settings = () => {
         </CardContent>
       </Card>}
 
-      {/* Sync Center */}
-      <SyncCenterCard uid={uid} />
+      {/* Sync Center — tylko przy zaległościach (Z52); zdrowy user nie widzi pustej karty. */}
+      {syncEntries.listedEntries.length > 0 && <SyncCenterCard uid={uid} />}
 
     </div>
   );

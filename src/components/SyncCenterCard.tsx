@@ -13,6 +13,7 @@ import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries, recordWorkoutSyncFailure } from '@/lib/workout-sync-entries';
+import { useSyncCenterEntries, type ListedSyncEntry } from '@/hooks/useSyncCenterEntries';
 import { dateLocale } from '@/i18n';
 import type { WorkoutSession } from '@/types';
 import {
@@ -28,21 +29,6 @@ interface SyncCenterCardProps {
   uid: string;
 }
 
-// Active draft (no retry metadata) and queued entries are rendered in one list.
-// Wspólne pola obu kształtów; treść (serie/notatki) żyje wyłącznie w drafcie.
-type ListedSyncEntry = {
-  sessionId: string;
-  dayId: string;
-  date: string;
-  sessionOrigin: 'remote' | 'provisional';
-  dirty: boolean;
-  finalSyncPending: boolean;
-  updatedAt: number;
-  retryCount?: number;
-  lastError?: string | null;
-  lastErrorAt?: number | null;
-};
-
 interface SyncConflict {
   draft: ActiveWorkoutDraft;
   source: 'active' | 'queue';
@@ -56,38 +42,11 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   const { toast } = useToast();
   const { isOnline } = useOnlineStatus();
   const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer } = useFirebaseWorkouts(uid);
-  const [drafts, setDrafts] = useState<ActiveWorkoutDraft[]>([]);
-  const [queueEntries, setQueueEntries] = useState<WorkoutSyncQueueEntry[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  // Stan wpisów wydzielony do hooka (Z52) — Settings używa go do decyzji o renderze karty.
+  const { isLoaded, drafts, queueEntries, setDrafts, setQueueEntries, listedEntries, reload: loadDraft } = useSyncCenterEntries(uid);
   const [syncingSessionIds, setSyncingSessionIds] = useState<string[]>([]);
   const [discardingSessionIds, setDiscardingSessionIds] = useState<string[]>([]);
   const [conflicts, setConflicts] = useState<Record<string, SyncConflict>>({});
-
-  const loadDraft = useCallback(async () => {
-    if (!uid) return;
-    const loadedDrafts = await workoutDraftDb.listDrafts(uid);
-    setDrafts(loadedDrafts);
-    setQueueEntries(workoutSyncQueue.list(uid));
-    setIsLoaded(true);
-  }, [uid]);
-
-  useEffect(() => {
-    void loadDraft();
-  }, [loadDraft]);
-
-  useEffect(() => {
-    const handleFocus = () => {
-      void loadDraft();
-    };
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('online', handleFocus);
-    window.addEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('online', handleFocus);
-      window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleFocus);
-    };
-  }, [loadDraft]);
 
   // Zależności silnika syncu — Sync Center jest tylko adapterem UI.
   const syncDeps = useMemo<WorkoutSyncDeps>(() => ({
@@ -118,12 +77,6 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
           : { label: t('strava.statusSynced'), tone: 'bg-fitness-success/15 text-fitness-success border-fitness-success/30' }
   ), [t]);
 
-  const listedEntries = useMemo<ListedSyncEntry[]>(() => {
-    const draftSessionIds = new Set(drafts.map(draft => draft.sessionId));
-    const dedupedQueue = queueEntries.filter(entry => !draftSessionIds.has(entry.sessionId));
-    return [...drafts, ...dedupedQueue];
-  }, [drafts, queueEntries]);
-
   const registerConflict = useCallback(async (
     targetDraft: ActiveWorkoutDraft,
     source: 'active' | 'queue',
@@ -149,7 +102,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       detail: error,
       sessionId: targetDraft.sessionId,
     });
-  }, [getWorkoutSessionFromServer, uid]);
+  }, [getWorkoutSessionFromServer, setQueueEntries, uid]);
 
   const syncOne = useCallback(async (entry: ListedSyncEntry, source: 'active' | 'queue') => {
     try {
@@ -216,7 +169,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     } finally {
       setQueueEntries(workoutSyncQueue.list(uid));
     }
-  }, [isOnline, loadDraft, registerConflict, syncDeps, toast, uid, t]);
+  }, [isOnline, loadDraft, registerConflict, setQueueEntries, syncDeps, toast, uid, t]);
 
   const handleKeepLocal = useCallback(async (conflict: SyncConflict) => {
     const sessionId = conflict.draft.sessionId;
@@ -276,6 +229,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     getWorkoutSessionFromServer,
     loadDraft,
     registerConflict,
+    setQueueEntries,
     syncDeps,
     syncingSessionIds,
     t,
@@ -317,6 +271,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     getWorkoutSessionFromServer,
     loadDraft,
     registerConflict,
+    setQueueEntries,
     t,
     toast,
     uid,
@@ -490,14 +445,12 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                     </p>
 
                     {entry.lastError && (
-                      <div className="space-y-1 text-xs text-destructive">
+                      // Surowy kod błędu tylko w tooltipie (Z52) — user widzi komunikat po ludzku.
+                      <div className="space-y-1 text-xs text-destructive" title={classifyWorkoutSyncError(entry.lastError)}>
                         <p>{t('strava.lastError', { msg: t(workoutSyncErrorMessageKey(entry.lastError)) })}</p>
-                        <p>
-                          {t('strava.errorCode', { code: classifyWorkoutSyncError(entry.lastError) })}
-                          {entry.lastErrorAt
-                            ? ` · ${new Date(entry.lastErrorAt).toLocaleString(dateLocale(lang))}`
-                            : ''}
-                        </p>
+                        {entry.lastErrorAt && (
+                          <p>{new Date(entry.lastErrorAt).toLocaleString(dateLocale(lang))}</p>
+                        )}
                       </div>
                     )}
 

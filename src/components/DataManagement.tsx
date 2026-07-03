@@ -44,6 +44,140 @@ interface PendingImport {
   overwrites: number;
 }
 
+
+// Narzędzia naprawcze (Z52): przyciski "Napraw dane historyczne" / "Wyczyść duplikaty"
+// z własnymi dialogami. Używane przez DataManagement oraz bezpośrednio w Settings
+// (akordeon "Narzędzia naprawcze").
+export const DataRepairTools = ({
+  onCleanup,
+  onRepair,
+  cleanupLabel,
+  repairLabel,
+  disabled,
+}: {
+  onCleanup?: () => Promise<{ deleted: number; error?: string }>;
+  onRepair?: () => Promise<{ updated: number; scanned: number; error?: string }>;
+  cleanupLabel?: string;
+  repairLabel?: string;
+  disabled?: boolean;
+}) => {
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
+  const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
+  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
+
+  const handleCleanup = async () => {
+    if (!onCleanup) return;
+
+    setIsCleaningUp(true);
+    const result = await onCleanup();
+    setIsCleaningUp(false);
+
+    if (result.error) {
+      toast({
+        title: t('data.error'),
+        description: result.error,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (result.deleted === 0) {
+      toast({
+        title: t('data.cleanup.none'),
+        description: t('data.cleanup.noneDesc'),
+      });
+    } else {
+      toast({
+        title: t('data.cleanup.done'),
+        description: t('data.cleanup.doneDesc', { count: result.deleted }),
+      });
+    }
+  };
+
+  const handleRepair = async () => {
+    if (!onRepair) return;
+
+    setIsRepairing(true);
+    const result = await onRepair();
+    setIsRepairing(false);
+
+    if (result.error) {
+      toast({ title: t('data.repair.error'), description: result.error, variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: result.updated === 0 ? t('data.repair.none') : t('data.repair.done'),
+      description: result.updated === 0
+        ? t('data.repair.noneDesc', { scanned: result.scanned })
+        : t('data.repair.doneDesc', { updated: result.updated, scanned: result.scanned }),
+    });
+  };
+
+  return (
+    <>
+      {onRepair && (
+        <Button
+          onClick={() => setRepairConfirmOpen(true)}
+          variant="outline"
+          className="w-full text-fitness-cyan border-fitness-cyan/40 hover:bg-fitness-cyan/10"
+          disabled={isRepairing || disabled}
+        >
+          {isRepairing ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Wrench className="h-4 w-4 mr-2" />
+          )}
+          {repairLabel ?? t('data.repairLabel')}
+        </Button>
+      )}
+
+      {onCleanup && (
+        <Button
+          onClick={() => setCleanupConfirmOpen(true)}
+          variant="outline"
+          className="w-full text-fitness-warning border-fitness-warning/40 hover:bg-fitness-warning/10"
+          disabled={isCleaningUp || disabled}
+        >
+          {isCleaningUp ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Trash2 className="h-4 w-4 mr-2" />
+          )}
+          {cleanupLabel ?? t('data.cleanupLabel')}
+        </Button>
+      )}
+
+      <ConfirmDialog
+        open={cleanupConfirmOpen}
+        onOpenChange={setCleanupConfirmOpen}
+        title={cleanupLabel ?? t('data.cleanupLabel')}
+        description={t('data.cleanup.confirmDesc')}
+        confirmLabel={cleanupLabel ?? t('data.cleanupLabel')}
+        destructive
+        onConfirm={() => void handleCleanup()}
+      />
+
+      <AlertDialog open={repairConfirmOpen} onOpenChange={setRepairConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{repairLabel ?? t('data.repairLabel')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('data.repair.confirm')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRepairing}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); setRepairConfirmOpen(false); void handleRepair(); }} disabled={isRepairing}>
+              {repairLabel ?? t('data.repairLabel')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+};
+
 export const DataManagement = ({
   onExport,
   onImport,
@@ -61,10 +195,6 @@ export const DataManagement = ({
   const { toast } = useToast();
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isCleaningUp, setIsCleaningUp] = useState(false);
-  const [isRepairing, setIsRepairing] = useState(false);
-  const [repairConfirmOpen, setRepairConfirmOpen] = useState(false);
-  const [cleanupConfirmOpen, setCleanupConfirmOpen] = useState(false);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
@@ -145,54 +275,6 @@ export const DataManagement = ({
     });
   };
 
-  const handleCleanup = async () => {
-    if (!onCleanup) return;
-
-    setIsCleaningUp(true);
-    const result = await onCleanup();
-    setIsCleaningUp(false);
-
-    if (result.error) {
-      toast({
-        title: t('data.error'),
-        description: result.error,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (result.deleted === 0) {
-      toast({
-        title: t('data.cleanup.none'),
-        description: t('data.cleanup.noneDesc'),
-      });
-    } else {
-      toast({
-        title: t('data.cleanup.done'),
-        description: t('data.cleanup.doneDesc', { count: result.deleted }),
-      });
-    }
-  };
-
-  const handleRepair = async () => {
-    if (!onRepair) return;
-
-    setIsRepairing(true);
-    const result = await onRepair();
-    setIsRepairing(false);
-
-    if (result.error) {
-      toast({ title: t('data.repair.error'), description: result.error, variant: 'destructive' });
-      return;
-    }
-    toast({
-      title: result.updated === 0 ? t('data.repair.none') : t('data.repair.done'),
-      description: result.updated === 0
-        ? t('data.repair.noneDesc', { scanned: result.scanned })
-        : t('data.repair.doneDesc', { updated: result.updated, scanned: result.scanned }),
-    });
-  };
-
   return (
     <>
       <Card>
@@ -219,49 +301,15 @@ export const DataManagement = ({
             />
           </div>
 
-          {onRepair && (
-            <Button
-              onClick={() => setRepairConfirmOpen(true)}
-              variant="outline"
-              className="w-full text-fitness-cyan border-fitness-cyan/40 hover:bg-fitness-cyan/10"
-              disabled={isRepairing || disabled}
-            >
-              {isRepairing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Wrench className="h-4 w-4 mr-2" />
-              )}
-              {repairLabel ?? t('data.repairLabel')}
-            </Button>
-          )}
-
-          {onCleanup && (
-            <Button
-              onClick={() => setCleanupConfirmOpen(true)}
-              variant="outline"
-              className="w-full text-fitness-warning border-fitness-warning/40 hover:bg-fitness-warning/10"
-              disabled={isCleaningUp || disabled}
-            >
-              {isCleaningUp ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
-              {cleanupLabel ?? t('data.cleanupLabel')}
-            </Button>
-          )}
+          <DataRepairTools
+            onCleanup={onCleanup}
+            onRepair={onRepair}
+            cleanupLabel={cleanupLabel}
+            repairLabel={repairLabel}
+            disabled={disabled}
+          />
         </CardContent>
       </Card>
-
-      <ConfirmDialog
-        open={cleanupConfirmOpen}
-        onOpenChange={setCleanupConfirmOpen}
-        title={cleanupLabel ?? t('data.cleanupLabel')}
-        description={t('data.cleanup.confirmDesc')}
-        confirmLabel={cleanupLabel ?? t('data.cleanupLabel')}
-        destructive
-        onConfirm={() => void handleCleanup()}
-      />
 
       <AlertDialog open={!!pendingImport} onOpenChange={(open) => { if (!open && !isImporting) setPendingImport(null); }}>
         <AlertDialogContent>
@@ -283,21 +331,6 @@ export const DataManagement = ({
             <AlertDialogAction onClick={(event) => { event.preventDefault(); void handleConfirmImport(); }} disabled={isImporting}>
               {isImporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {importLabel ?? t('data.importLabel')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={repairConfirmOpen} onOpenChange={setRepairConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{repairLabel ?? t('data.repairLabel')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('data.repair.confirm')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isRepairing}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={(event) => { event.preventDefault(); setRepairConfirmOpen(false); void handleRepair(); }} disabled={isRepairing}>
-              {repairLabel ?? t('data.repairLabel')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
