@@ -439,7 +439,7 @@ test.describe('ExercisePicker (Z69)', () => {
 
   test('PlanEditor: picker otwiera się z szukajką i chipami kategorii', async ({ page }) => {
     await navigateAndWait(page, '/plan/edit');
-    await page.getByRole('button', { name: 'Dodaj', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).first().click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByPlaceholder(/Szukaj|Find/).fill('wioslowanie');

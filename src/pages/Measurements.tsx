@@ -1,12 +1,13 @@
 import { Suspense, lazy, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { MeasurementsForm } from '@/components/MeasurementsForm';
-import { DataManagement } from '@/components/DataManagement';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ChevronRight, Database } from 'lucide-react';
 import { cn, parseLocalDate } from '@/lib/utils';
 import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -26,7 +27,8 @@ const deltaClass = (field: MeasurementField, delta: number): string => {
 // Osobny ekran „Pomiary ciała" (przeniesiony z zakładki w Analityce do menu).
 const Measurements = () => {
   const { uid } = useCurrentUser();
-  const { measurements, addMeasurement, getLatestMeasurement, exportData, importData, cleanupEmptyWorkouts } = useFirebaseWorkouts(uid);
+  const navigate = useNavigate();
+  const { measurements, addMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const { fmt, fmtLength } = useUnit();
@@ -70,7 +72,19 @@ const Measurements = () => {
   return (
     <div className="space-y-6">
       <MeasurementsForm latestMeasurement={latestMeasurement} onSave={handleSave} />
-      <DataManagement onExport={exportData} onImport={importData} onCleanup={cleanupEmptyWorkouts} />
+
+      {/* Backup mieszka w Ustawieniach (Z81) — tu tylko drogowskaz, koniec zdublowanej sekcji. */}
+      <Button
+        variant="outline"
+        className="w-full justify-between"
+        onClick={() => navigate('/settings?section=data')}
+      >
+        <span className="flex items-center gap-2">
+          <Database className="h-4 w-4 text-primary" />
+          {t('measurements.backupLink')}
+        </span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </Button>
 
       {measurements.length > 0 && (
         <Suspense fallback={null}>

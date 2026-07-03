@@ -34,7 +34,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 
 const Settings = () => {
-  const { uid, profile, canUseStrava } = useCurrentUser();
+  const { uid, canUseStrava } = useCurrentUser();
   const { workouts, isLoaded: workoutsLoaded, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { plan, isCustom, planDurationWeeks, planStartDate } = useTrainingPlan(uid);
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
@@ -154,35 +154,14 @@ const Settings = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('nav.settings')}</h1>
-        <p className="text-muted-foreground text-sm">{profile?.email}</p>
+        {/* Kryterium podziału (Z81): Ustawienia = dane i integracje; kim jestem i jak apka
+            się zachowuje mieszka w Profilu. Karta "Konto" read-only usunięta (duplikat Profilu). */}
+        <p className="text-muted-foreground text-sm">{t('settings.subtitle')}</p>
       </div>
 
       <div id="settings-notifications" className="scroll-mt-20">
         <NotificationSettings />
       </div>
-
-      {/* Account info */}
-      <Card id="settings-account" className="scroll-mt-20">
-        <CardHeader>
-          <CardTitle>{t('profile.section.account')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">{t('profile.nameLabel')}</span>
-            <span className="font-medium">{profile?.displayName}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">{t('login.email')}</span>
-            <span className="font-medium">{profile?.email}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">{t('settings.account.role')}</span>
-            <Badge variant={profile?.role === 'admin' ? 'default' : 'secondary'}>
-              {profile?.role || 'user'}
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
 
       <div id="settings-data" className="scroll-mt-20">
       <DataManagement
