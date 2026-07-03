@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X10 FAZA 4: maszyna stanów sesji + hydracja jako czysta funkcja (Z57)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 546/546 (66 plików), typecheck 0, lint 0, build OK, e2e:mock 119/119, e2e:emulator 12/12.
+
+**Co:** dwa czyste moduły — `src/lib/workout-session-state.ts` (`deriveWorkoutSessionPhase`: idle/active-provisional/active-remote/completing/final-pending/completed/editing/conflict + helper `isActiveTrainingPhase`) i `src/lib/workout-hydration.ts` (`resolveWorkoutHydration`: DOSŁOWNE przeniesienie 9 gałęzi shouldUseDraft + warunek czyszczenia draftu). WorkoutDay: efekt hydracji woła resolveWorkoutHydration i wykonuje skutki; `sessionPhase` liczona useMemo, użyta w AutoSaveIndicator i w `enabled` synca zegarka (isActiveTrainingPhase = dawne `!!sessionId && !isCompleted && !isEditing` — mapowanie dokładne, bo editing i final-pending wymagają ukończonej sesji).
+
+**Świadome ograniczenie zakresu:** gate'y widoków completed/editing (`isCompleted && !isEditing` itd.) ZOSTAŁY na flagach — stany nakładają się (editing+isExplicitSaving podczas zapisu edycji, completed+isExplicitSaving podczas retry finalnego syncu), więc liniowa faza ich nie odwzorowuje 1:1; wymuszenie = zmiana zachowania, wbrew kontraktowi zadania. Root cause klasy bugów R1/R2 (heurystyki hydracji w komponencie z eslint-disable) jest wyjęty do funkcji z 12 testami.
+
+**Naprawa testu przy okazji (nie kodu):** e2e emulator merge-501 klika "Połącz przerwane cykle", który po Z52 żyje w domyślnie zwiniętym akordeonie — test najpierw rozwija "Narzędzia naprawcze". Jednorazowy fail suity emulatora po fixie okazał się flakiem (rerun 12/12).
+
 ### 2026-07-03 — X10 FAZA 3: wydajność startu i danych (Z54-Z56)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 526/526 (64 pliki), typecheck 0, lint 0, build OK, check:bundle-budget OK (initial 919 KB / limit 1200 KB), e2e:mock 119/119 (1 pre-existing flake exercise-card-v3 "multiple workout days", przechodzi przy powtórce 6/6).
