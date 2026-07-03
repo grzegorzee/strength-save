@@ -1,0 +1,1 @@
+import{W as e}from"./firebase-auth-BR0mv8MV.js";import"./firebase-core-935b67bD.js";class m extends e{async requestReview(){throw this.unimplemented("Not implemented on web.")}}export{m as InAppReviewWeb};
