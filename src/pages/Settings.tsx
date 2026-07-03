@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,12 +13,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Link2, Unlink, RefreshCw, Loader2, Shield, RotateCcw } from 'lucide-react';
+import { Link2, Unlink, RefreshCw, Loader2, RotateCcw } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
-import { doc, updateDoc, collection, getDocs, limit, query } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { SyncCenterCard } from '@/components/SyncCenterCard';
 import { DataManagement } from '@/components/DataManagement';
@@ -32,125 +31,8 @@ import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 
-const FEATURE_PANEL_USERS_LIMIT = 200;
-
-const AVAILABLE_FEATURES = [
-  { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą (aktywności, wykresy, analityka)' },
-] as const;
-
-type FeatureKey = typeof AVAILABLE_FEATURES[number]['key'];
-
-interface UserFeatureRow {
-  uid: string;
-  displayName: string;
-  email: string;
-  role: string;
-  features: Record<string, boolean>;
-}
-
-const FeatureFlagsPanel = () => {
-  const [users, setUsers] = useState<UserFeatureRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-  const { t } = useTranslation();
-
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Limit spójny z listenerami admina — panel flag nie czyta całej kolekcji (R2-29).
-      const snap = await getDocs(query(collection(db, 'users'), limit(FEATURE_PANEL_USERS_LIMIT)));
-      const rows: UserFeatureRow[] = [];
-      snap.forEach((d) => {
-        const data = d.data();
-        rows.push({
-          uid: d.id,
-          displayName: data.displayName || data.email || d.id,
-          email: data.email || '',
-          role: data.role || 'user',
-          features: data.features || {},
-        });
-      });
-      rows.sort((a, b) => (a.role === 'admin' ? -1 : 1) - (b.role === 'admin' ? -1 : 1));
-      setUsers(rows);
-    } catch (err) {
-      console.error('Failed to load users:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadUsers(); }, [loadUsers]);
-
-  const toggleFeature = async (uid: string, feature: FeatureKey, enabled: boolean) => {
-    try {
-      const userRef = doc(db, 'users', uid);
-      await updateDoc(userRef, { [`features.${feature}`]: enabled });
-      setUsers(prev => prev.map(u =>
-        u.uid === uid ? { ...u, features: { ...u.features, [feature]: enabled } } : u
-      ));
-      toast({ title: enabled ? t('settings.feature.enabled') : t('settings.feature.disabled'), description: t('settings.feature.forUser', { feature, user: users.find(u => u.uid === uid)?.displayName ?? uid }) });
-    } catch (err) {
-      toast({ title: t('settings.toast.error'), description: t('settings.toast.saveFailed'), variant: 'destructive' });
-    }
-  };
-
-  if (loading) {
-    return (
-      <Card>
-        <CardContent className="py-8 flex justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-primary" />
-          {t('settings.features.title')}
-        </CardTitle>
-        <CardDescription>
-          {t('settings.features.description')}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 px-3 sm:px-6">
-        {users.map(user => (
-          <div key={user.uid} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium truncate">{user.displayName}</p>
-                {user.role === 'admin' && (
-                  <Badge variant="default" className="text-[10px] h-5 shrink-0">admin</Badge>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              {AVAILABLE_FEATURES.map(feat => (
-                <div key={feat.key} className="flex items-center gap-1.5">
-                  <span className="text-xs text-muted-foreground hidden sm:inline">{feat.label}</span>
-                  <Switch
-                    checked={user.features[feat.key] ?? user.role === 'admin'}
-                    onCheckedChange={(checked) => toggleFeature(user.uid, feat.key, checked)}
-                    aria-label={`${feat.label}: ${user.displayName}`}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-        {users.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">{t('settings.features.noUsers')}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
 const Settings = () => {
-  const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
+  const { uid, profile, canUseStrava } = useCurrentUser();
   const { workouts, isLoaded: workoutsLoaded, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { plan, isCustom, planDurationWeeks, planStartDate } = useTrainingPlan(uid);
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
@@ -477,8 +359,6 @@ const Settings = () => {
       {/* Sync Center */}
       <SyncCenterCard uid={uid} />
 
-      {/* Feature Flags — admin only */}
-      {isAdmin && <FeatureFlagsPanel />}
     </div>
   );
 };
