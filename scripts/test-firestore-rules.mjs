@@ -149,6 +149,14 @@ await env.clearFirestore();
 await seedDoc('users', UID, { uid: UID, email: `${UID}@b.c`, role: 'user', onboardingCompleted: true });
 add('create workout na koncie BEZ pola status (schemat zamkniety)', true, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
 
+// Dokument legacy z polem createdAt (sprzed schematu Z28): update MUSI przechodzic,
+// inaczej checkpoint/edycja takiego treningu pada PERMISSION_DENIED (lekcja 880cb9e:
+// kazda zmiana regul musi miec przypadek z danymi w ksztalcie sprzed hardeningu).
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedDoc('workouts', WORKOUT_ID, { ...newWorkout, createdAt: 1751000000000 });
+add('update workouta LEGACY z polem createdAt dozwolony — REGRESJA', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { completed: true })));
+
 // === Chat messages: create zamkniete (feature usuniety v6.7.0, pisze tylko admin SDK) ===
 await env.clearFirestore();
 await seedUser({ enabled: true });

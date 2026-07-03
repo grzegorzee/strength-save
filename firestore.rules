@@ -56,10 +56,12 @@ service cloud.firestore {
     // dokumentach tylko znane pola (audyt 4.3: koszty/integralność, nie cross-user).
     // Per-exercise notes są clampowane w kodzie (rules nie iterują po tablicach).
     function validWorkoutShape() {
+      // createdAt: pole legacy (dokumenty sprzed schematu Z28) — bez niego update
+      // takiego treningu pada PERMISSION_DENIED (hasOnly widzi CAŁY dokument po merge).
       return request.resource.data.keys().hasOnly([
         'id', 'userId', 'dayId', 'date', 'exercises', 'completed', 'completedAt',
         'notes', 'cycleId', 'skippedExercises', 'dayName', 'dayFocus',
-        'durationSec', 'startedAt', 'updatedAt', 'revision', 'lastWriteId'
+        'durationSec', 'startedAt', 'updatedAt', 'revision', 'lastWriteId', 'createdAt'
       ])
       && (!('notes' in request.resource.data)
           || (request.resource.data.notes is string && request.resource.data.notes.size() <= 5000));
