@@ -11,6 +11,17 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X11 FAZA 3: dane, które mamy, zaczynają pracować (Z74-Z77)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 604/604 (73 pliki), typecheck 0, lint 0, build OK, bundle-budget OK (initial 924 KB / 1200 KB), e2e:mock 138/138.
+
+**Root cause znalezisk:** apka zbierała notatki, metryki RZA (RPE/ból/technika), durationSec, skippedExercises i 7 pól obwodów ciała — i nic z tego nie pokazywała. Inwestycja usera w dane szła na darmo.
+
+1. **Z74 — notatki wracają:** `exercise-notes.ts` (getExerciseNoteHistory — ukończone sesje, najnowsze pierwsze, limit 5); sekcja "Twoje notatki" w dialogu progresji; "Ostatnio: „…”" na karcie ćwiczenia w aktywnym treningu (lastNote przez exerciseInsights); WorkoutHistory dostała ROZWINIĘCIE wpisu (Szczegóły) z notatką dnia i notatkami ćwiczeń (Z80 je rozszerzy). Hak mock E2E w workout-read-store obsługuje teraz też paginowaną historię (wcześniej zwracał pustkę — testy /history były niemożliwe).
+2. **Z75 — ból i technika jako trend:** `getExerciseMetricHistory` + `getPainWatchlist` (ból >= 3, okno 4 tyg., snapshot nazwy) + `getAvgQuality` w rza-metrics; 3 sparkline'y RPE/Ból/Technika w dialogu progresji; RzaMetricsCard: podsumowanie 4 tygodni (objętość, śr. RPE, śr. technika) + watchlist bólu z klikiem do dialogu progresji.
+3. **Z76 — czas i pomijane:** `workout-time-stats.ts` (getDurationTrend — miesiące, śr. minuty, gęstość kg/min z tonażu bez rozgrzewek; getSkippedStats — id→nazwa przez resolver); wykres "Czas i gęstość" + lista "Najczęściej pomijane" z linkiem do edytora planu w subzakładce Treningi (bez nowej zakładki); Cycles pokazuje `averageWorkoutsPerWeek` (liczone od dawna w cycle-insights, nigdy nie renderowane).
+4. **Z77 — obwody widoczne (pokazujemy, nie usuwamy):** `measurement-stats.ts` (buildMeasurementSeries + MEASUREMENT_FIELD_GOALS: talia/biodra w dół = zielone, mięśnie w górę = zielone, waga neutralna — komentarz w kodzie); lazy MeasurementTrendChart z chipami 10 pól (pola bez wpisów ukryte); lista pomiarów pokazuje WSZYSTKIE wypełnione pola + delty vs poprzedni pomiar POLA (nie poprzedni wpis).
+
 ### 2026-07-03 — X11 FAZA 2: plany i ćwiczenia — jeden system (Z69-Z73)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 583/583 (70 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 921 KB / 1200 KB), test:rules 110/110, e2e:mock 136/136, e2e:emulator 12/12.
