@@ -2,7 +2,7 @@
 // treningu zwracał PERMISSION_DENIED i blokował rozpoczęcie pierwszego treningu nowego planu.
 // Uruchom: npm run test:rules  (wymaga JDK 21 + firebase-tools)
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Timestamp, deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 
 const env = await initializeTestEnvironment({
@@ -113,7 +113,7 @@ add('create plan_cycle (pending_verification) zablokowane', false, await ok(() =
 // === Telemetry ===
 await env.clearFirestore();
 await seedUser({ enabled: true });
-const telemetry = { userId: UID, date: '2026-06-08', opens: 1 };
+const telemetry = { userId: UID, date: '2026-06-08', updatedAt: '2026-06-08T00:00:00.000Z', counters: { app_open: 1 } };
 add('create app_telemetry_daily (active)', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), telemetry)));
 add('delete app_telemetry_daily zablokowane', false, await ok(() => deleteDoc(doc(db, 'app_telemetry_daily', `t-${UID}`))));
 add('create app_telemetry_daily z cudzym userId zablokowane', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', 't-x'), { ...telemetry, userId: OTHER_UID })));
@@ -124,7 +124,7 @@ await seedUser({ enabled: true });
 await seedUser(undefined, 'active', ADMIN_UID, 'admin');
 const clientError = {
   userId: UID, code: 'revision-conflict', phase: 'checkpoint', detail: 'WORKOUT_CONFLICT',
-  sessionHash: 'ab12cd34', appVersion: '6.13.0', platform: 'ios', createdAt: 1751500000000,
+  sessionHash: 'ab12cd34', appVersion: '6.13.0', platform: 'ios', createdAt: Date.now(),
 };
 add('create client_errors wlasny wpis', true, await ok(() => setDoc(doc(db, 'client_errors', 'ce-1'), clientError)));
 add('create client_errors z cudzym userId zablokowane', false, await ok(() => setDoc(doc(db, 'client_errors', 'ce-2'), { ...clientError, userId: OTHER_UID })));
@@ -206,6 +206,98 @@ add('user update subscription zablokowane', false, await ok(() => updateDoc(doc(
 add('zapis Max HR przez admin SDK (sciezka callable saveMaxHR)', true, await ok(() => env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(ctx.firestore(), 'users', UID), { estimatedMaxHR: 190, maxHRManualOverride: true }, { merge: true });
 })));
+
+// === Z41: zamkniete schematy kolekcji klienckich (R2-13, R2-14, R2-15) ===
+
+// client_errors: pelna walidacja pol + widelki createdAt
+await env.clearFirestore();
+await seedUser({ enabled: true });
+const validClientError = {
+  userId: UID, code: 'revision-conflict', phase: 'checkpoint', detail: 'WORKOUT_CONFLICT',
+  sessionHash: 'ab12cd34', appVersion: '6.13.0', platform: 'ios', createdAt: Date.now(),
+  expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+};
+add('client_errors: zgodny wpis z expiresAt ALLOWED', true, await ok(() => setDoc(doc(db, 'client_errors', 'z41-1'), validClientError)));
+const legacyClientError = { ...validClientError };
+delete legacyClientError.expiresAt;
+add('client_errors: wpis BEZ expiresAt (klient build <= 48) ALLOWED', true, await ok(() => setDoc(doc(db, 'client_errors', 'z41-2'), legacyClientError)));
+add('client_errors: platform spoza listy DENIED', false, await ok(() => setDoc(doc(db, 'client_errors', 'z41-3'), { ...validClientError, platform: 'windows' })));
+add('client_errors: createdAt poza widelkami DENIED', false, await ok(() => setDoc(doc(db, 'client_errors', 'z41-4'), { ...validClientError, createdAt: Date.now() - 60 * 60 * 1000 })));
+add('client_errors: sessionHash o zlej dlugosci DENIED', false, await ok(() => setDoc(doc(db, 'client_errors', 'z41-5'), { ...validClientError, sessionHash: 'za-krotki-za-dlugi' })));
+add('client_errors: code > 64 znakow DENIED', false, await ok(() => setDoc(doc(db, 'client_errors', 'z41-6'), { ...validClientError, code: 'x'.repeat(65) })));
+add('client_errors: expiresAt nie-timestamp DENIED', false, await ok(() => setDoc(doc(db, 'client_errors', 'z41-7'), { ...validClientError, expiresAt: 12345 })));
+
+// training_plans: zamkniety schemat
+await env.clearFirestore();
+await seedUser({ enabled: true });
+const validPlan = { days: [], durationWeeks: 12, startDate: '2026-06-08', updatedAt: '2026-06-08T00:00:00.000Z', revision: 1 };
+add('training_plans: zgodny dokument ALLOWED', true, await ok(() => setDoc(doc(db, 'training_plans', UID), validPlan)));
+add('training_plans: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, blob: 'x'.repeat(10) })));
+add('training_plans: days nie-lista DENIED', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, days: 'oops' })));
+
+// measurements: zamkniety schemat + typy
+await env.clearFirestore();
+await seedUser({ enabled: true });
+const validMeasurement = { id: 'm-1', userId: UID, date: '2026-06-08', weight: 82.5, waist: 90 };
+add('measurements: zgodny pomiar ALLOWED', true, await ok(() => setDoc(doc(db, 'measurements', 'm-1'), validMeasurement)));
+add('measurements: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-2'), { ...validMeasurement, id: 'm-2', notes: 'blob' })));
+add('measurements: weight nie-liczba DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-3'), { ...validMeasurement, id: 'm-3', weight: 'duzo' })));
+
+// plan_cycles: zamkniety schemat (dokument produkcyjny z technical/hiddenFromInsights przechodzi)
+await env.clearFirestore();
+await seedUser({ enabled: true });
+const validCycle = {
+  userId: UID, days: [], durationWeeks: 8, startDate: '2026-03-02', endDate: '2026-04-26',
+  status: 'completed', createdAt: '2026-03-02T00:00:00.000Z',
+  stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+  technical: true, hiddenFromInsights: true,
+};
+add('plan_cycles: zgodny cykl (z polami technical) ALLOWED', true, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-1'), validCycle)));
+add('plan_cycles: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-2'), { ...validCycle, evil: 1 })));
+add('plan_cycles: status nie-string DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycles', 'c-3'), { ...validCycle, status: 7 })));
+
+// plan_cycle_operations: zamkniety schemat
+await env.clearFirestore();
+await seedUser({ enabled: true });
+const validOperation = {
+  userId: UID, kind: 'merge_cycles', primaryCycleId: 'c-1', restCycleIds: ['c-2'],
+  workoutIds: ['w-1'], newStart: '2026-03-02', newEnd: '2026-04-26', newDuration: 8,
+  phase: 'remapping', nextWorkoutIndex: 0, nextCycleIndex: 0,
+};
+add('plan_cycle_operations: zgodna operacja ALLOWED', true, await ok(() => setDoc(doc(db, 'plan_cycle_operations', 'op-1'), validOperation)));
+add('plan_cycle_operations: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'plan_cycle_operations', 'op-2'), { ...validOperation, evil: 1 })));
+
+// app_telemetry_daily: zamkniety schemat + legacy plaskie klucze counters.*
+await env.clearFirestore();
+await seedUser({ enabled: true });
+const validTelemetry = { userId: UID, date: '2026-06-08', updatedAt: '2026-06-08T00:00:00.000Z', counters: { sync_success: 1 } };
+add('app_telemetry_daily: zgodny dokument ALLOWED', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `${UID}-2026-06-08`), validTelemetry)));
+add('app_telemetry_daily: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `${UID}-2026-06-09`), { ...validTelemetry, evil: 1 })));
+// Dokumenty legacy maja PLASKIE klucze "counters.xxx" (historyczny zapis) — update musi przechodzic.
+await seedDoc('app_telemetry_daily', `${UID}-2026-01-01`, { userId: UID, date: '2026-01-01', updatedAt: 'x', 'counters.draft_recovered': 1, 'counters.sync_success': 2 });
+add('app_telemetry_daily: merge na dokumencie legacy (plaskie counters.*) ALLOWED — REGRESJA', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `${UID}-2026-01-01`), validTelemetry, { merge: true })));
+
+// users: typy wartosci na whiteliscie update
+await env.clearFirestore();
+await seedUser({ enabled: true });
+add('users: notificationPrefs mapa ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: { weeklyDigest: false } })));
+add('users: notificationPrefs nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: 'wylacz' })));
+add('users: displayName > 200 znakow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'x'.repeat(201) })));
+add('users: preferences nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { preferences: 42 })));
+
+// weekly_summaries: martwe uprawnienia zamkniete (klient tylko czyta)
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedDoc('weekly_summaries', 'ws-1', { userId: UID, weekStart: '2026-06-01', weekEnd: '2026-06-07', summary: 's' });
+add('weekly_summaries: read wlasnego ALLOWED', true, await ok(() => getDoc(doc(db, 'weekly_summaries', 'ws-1'))));
+add('weekly_summaries: create przez klienta DENIED', false, await ok(() => setDoc(doc(db, 'weekly_summaries', 'ws-2'), { userId: UID, weekStart: '2026-06-08', weekEnd: '2026-06-14', summary: 'x' })));
+add('weekly_summaries: update przez klienta DENIED', false, await ok(() => updateDoc(doc(db, 'weekly_summaries', 'ws-1'), { summary: 'edit' })));
+
+// chat_messages: delete zamkniete (GDPR kasuje admin SDK)
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedDoc('chat_messages', 'cm-1', { userId: UID, role: 'user', content: 'hi' });
+add('chat_messages: delete przez klienta DENIED', false, await ok(() => deleteDoc(doc(db, 'chat_messages', 'cm-1'))));
 
 await env.cleanup();
 

@@ -40,12 +40,25 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       // Klient może zmieniać wyłącznie preferencje i dane prezentacyjne. Wszystkie
       // uprawnienia, statusy i tokeny są własnością zaufanego backendu.
+      // Typy wartości (Z41): walidacja na merged dokumencie — pole obecne musi mieć
+      // właściwy typ, brak pola jest OK (lekcja ef8b8d5/880cb9e).
       allow update: if request.auth != null && request.auth.uid == userId
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                       'displayName', 'photoURL', 'language', 'preferences',
                       'notificationPrefs', 'onboardingCompleted', 'onboarding',
                       'trainingProfile'
-                    ]);
+                    ])
+                    && (!('displayName' in request.resource.data)
+                        || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 200))
+                    && (!('photoURL' in request.resource.data)
+                        || (request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 1000))
+                    && (!('language' in request.resource.data)
+                        || (request.resource.data.language is string && request.resource.data.language.size() <= 10))
+                    && (!('preferences' in request.resource.data) || request.resource.data.preferences is map)
+                    && (!('notificationPrefs' in request.resource.data) || request.resource.data.notificationPrefs is map)
+                    && (!('onboardingCompleted' in request.resource.data) || request.resource.data.onboardingCompleted is bool)
+                    && (!('onboarding' in request.resource.data) || request.resource.data.onboarding is map)
+                    && (!('trainingProfile' in request.resource.data) || request.resource.data.trainingProfile is map);
       // Admin can read/write all user profiles
       allow read, write: if request.auth != null && isAdmin();
       // Profile creation happens through Cloud Functions
@@ -86,17 +99,52 @@ service cloud.firestore {
       allow read: if request.auth != null && isAdmin();
     }
 
+    // Zamknięty schemat pomiaru (Z41): znane pola liczbowe + identyfikatory.
+    function validMeasurementShape() {
+      return request.resource.data.keys().hasOnly([
+        'id', 'userId', 'date', 'weight', 'armLeft', 'armRight', 'chest', 'waist',
+        'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight'
+      ])
+      && (request.resource.data.date is string && request.resource.data.date.size() <= 10)
+      && (!('weight' in request.resource.data) || request.resource.data.weight is number)
+      && (!('armLeft' in request.resource.data) || request.resource.data.armLeft is number)
+      && (!('armRight' in request.resource.data) || request.resource.data.armRight is number)
+      && (!('chest' in request.resource.data) || request.resource.data.chest is number)
+      && (!('waist' in request.resource.data) || request.resource.data.waist is number)
+      && (!('hips' in request.resource.data) || request.resource.data.hips is number)
+      && (!('thighLeft' in request.resource.data) || request.resource.data.thighLeft is number)
+      && (!('thighRight' in request.resource.data) || request.resource.data.thighRight is number)
+      && (!('calfLeft' in request.resource.data) || request.resource.data.calfLeft is number)
+      && (!('calfRight' in request.resource.data) || request.resource.data.calfRight is number);
+    }
+
     // Measurements collection
     match /measurements/{measurementId} {
       allow read: if request.auth != null
                   && (isAdmin() || hasSelfAccess(resource.data.userId));
-      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
+      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId) && validMeasurementShape();
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
-                    && keepsOwner();
+                    && keepsOwner()
+                    && validMeasurementShape();
       allow delete: if request.auth != null
                     && hasSelfAccess(resource.data.userId);
       allow read: if request.auth != null && isAdmin();
+    }
+
+    // Zamknięty schemat planu (Z41). Głęboka walidacja days (tygodnie/dni/ćwiczenia)
+    // zostaje w kodzie — rules nie iterują po tablicach.
+    function validTrainingPlanShape() {
+      return request.resource.data.keys().hasOnly([
+        'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision'
+      ])
+      && (!('days' in request.resource.data) || request.resource.data.days is list)
+      && (!('durationWeeks' in request.resource.data) || request.resource.data.durationWeeks is number)
+      && (!('startDate' in request.resource.data)
+          || (request.resource.data.startDate is string && request.resource.data.startDate.size() <= 10))
+      && (!('updatedAt' in request.resource.data)
+          || (request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 40))
+      && (!('revision' in request.resource.data) || request.resource.data.revision is number);
     }
 
     // Training plans (doc ID = userId)
@@ -104,7 +152,7 @@ service cloud.firestore {
       // Users can read their own plan
       allow read: if request.auth != null && (isAdmin() || hasSelfAccess(planUserId));
       // Users can write their own plan
-      allow write: if request.auth != null && hasSelfAccess(planUserId);
+      allow write: if request.auth != null && hasSelfAccess(planUserId) && validTrainingPlanShape();
       // Admin can read/write all plans
       allow read, write: if request.auth != null && isAdmin();
     }
@@ -118,16 +166,12 @@ service cloud.firestore {
       allow read: if request.auth != null && isAdmin();
     }
 
-    // Weekly summaries
+    // Weekly summaries: klient TYLKO czyta (generator AI usunięty w Z39; functions
+    // nie zapisują wcale — martwe create/update zamknięte, Z41/R2-15).
     match /weekly_summaries/{summaryId} {
       allow read: if request.auth != null
                   && (isAdmin() || hasSelfAccess(resource.data.userId));
-      allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid
-                    && hasSelfAccess(request.resource.data.userId);
-      allow update: if request.auth != null
-                    && hasSelfAccess(resource.data.userId)
-                    && keepsOwner();
+      allow create, update: if false;
       // Admin can read/write all
       allow read, write: if request.auth != null && isAdmin();
     }
@@ -137,22 +181,68 @@ service cloud.firestore {
     match /chat_messages/{messageId} {
       allow read: if request.auth != null && (isAdmin() || hasSelfAccess(resource.data.userId));
       allow create: if false;
-      allow delete: if request.auth != null && hasSelfAccess(resource.data.userId);
+      // Delete zamknięte spójnie z create (Z41/R2-15): GDPR kasuje przez admin SDK.
+      allow delete: if false;
       allow update: if false;
       // Admin can read all
       allow read: if request.auth != null && isAdmin();
+    }
+
+    // Zamknięty schemat cyklu (Z41). Głęboka walidacja days zostaje w kodzie.
+    function validPlanCycleShape() {
+      return request.resource.data.keys().hasOnly([
+        'userId', 'days', 'durationWeeks', 'startDate', 'endDate', 'status',
+        'createdAt', 'stats', 'technical', 'hiddenFromInsights'
+      ])
+      && (!('days' in request.resource.data) || request.resource.data.days is list)
+      && (!('durationWeeks' in request.resource.data) || request.resource.data.durationWeeks is number)
+      && (!('startDate' in request.resource.data)
+          || (request.resource.data.startDate is string && request.resource.data.startDate.size() <= 10))
+      && (!('endDate' in request.resource.data)
+          || (request.resource.data.endDate is string && request.resource.data.endDate.size() <= 10))
+      && (!('status' in request.resource.data)
+          || (request.resource.data.status is string && request.resource.data.status.size() <= 20))
+      && (!('createdAt' in request.resource.data)
+          || (request.resource.data.createdAt is string && request.resource.data.createdAt.size() <= 40))
+      && (!('stats' in request.resource.data) || request.resource.data.stats is map)
+      && (!('technical' in request.resource.data) || request.resource.data.technical is bool)
+      && (!('hiddenFromInsights' in request.resource.data) || request.resource.data.hiddenFromInsights is bool);
     }
 
     // Plan cycles (training plan history)
     match /plan_cycles/{cycleId} {
       // resource == null: getCycleById po nieistniejącym ID nie wycieka danych (patrz workouts).
       allow read: if request.auth != null && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
-      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
+      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId) && validPlanCycleShape();
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
-                    && keepsOwner();
+                    && keepsOwner()
+                    && validPlanCycleShape();
       allow delete: if request.auth != null && hasSelfAccess(resource.data.userId);
       allow read: if request.auth != null && isAdmin();
+    }
+
+    // Zamknięty schemat operacji merge (Z41).
+    function validCycleOperationShape() {
+      return request.resource.data.keys().hasOnly([
+        'userId', 'kind', 'primaryCycleId', 'restCycleIds', 'workoutIds',
+        'newStart', 'newEnd', 'newDuration', 'phase', 'nextWorkoutIndex', 'nextCycleIndex'
+      ])
+      && (!('kind' in request.resource.data)
+          || (request.resource.data.kind is string && request.resource.data.kind.size() <= 30))
+      && (!('primaryCycleId' in request.resource.data)
+          || (request.resource.data.primaryCycleId is string && request.resource.data.primaryCycleId.size() <= 200))
+      && (!('restCycleIds' in request.resource.data) || request.resource.data.restCycleIds is list)
+      && (!('workoutIds' in request.resource.data) || request.resource.data.workoutIds is list)
+      && (!('newStart' in request.resource.data)
+          || (request.resource.data.newStart is string && request.resource.data.newStart.size() <= 10))
+      && (!('newEnd' in request.resource.data)
+          || (request.resource.data.newEnd is string && request.resource.data.newEnd.size() <= 10))
+      && (!('newDuration' in request.resource.data) || request.resource.data.newDuration is number)
+      && (!('phase' in request.resource.data)
+          || (request.resource.data.phase is string && request.resource.data.phase.size() <= 30))
+      && (!('nextWorkoutIndex' in request.resource.data) || request.resource.data.nextWorkoutIndex is number)
+      && (!('nextCycleIndex' in request.resource.data) || request.resource.data.nextCycleIndex is number);
     }
 
     // Checkpoints for client-side, resumable cycle merges. They are private to the
@@ -160,10 +250,11 @@ service cloud.firestore {
     match /plan_cycle_operations/{operationId} {
       allow read: if request.auth != null
                   && (isAdmin() || hasSelfAccess(resource.data.userId));
-      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
+      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId) && validCycleOperationShape();
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
-                    && keepsOwner();
+                    && keepsOwner()
+                    && validCycleOperationShape();
       allow delete: if request.auth != null && hasSelfAccess(resource.data.userId);
       allow read, write: if request.auth != null && isAdmin();
     }
@@ -213,27 +304,60 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Zamknięty schemat telemetrii (Z41). Dokumenty legacy mają PŁASKIE klucze
+    // "counters.xxx" (historyczny zapis dot-notation) — hasOnly musi je dopuszczać,
+    // inaczej merge na takim dokumencie pada (lekcja createdAt z workouts).
+    function validTelemetryShape() {
+      return request.resource.data.keys().hasOnly([
+        'userId', 'date', 'updatedAt', 'counters',
+        'counters.draft_recovered', 'counters.local_save_failed', 'counters.sync_success'
+      ])
+      && (request.resource.data.date is string && request.resource.data.date.size() <= 10)
+      && (!('updatedAt' in request.resource.data)
+          || (request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 40))
+      && (!('counters' in request.resource.data) || request.resource.data.counters is map);
+    }
+
     match /app_telemetry_daily/{docId} {
       allow read: if request.auth != null
                   && (isAdmin() || hasSelfAccess(resource.data.userId));
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid
-                    && hasSelfAccess(request.resource.data.userId);
+                    && hasSelfAccess(request.resource.data.userId)
+                    && validTelemetryShape();
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
-                    && keepsOwner();
+                    && keepsOwner()
+                    && validTelemetryShape();
       allow delete: if false;
       allow read: if request.auth != null && isAdmin();
     }
 
     // Rejestr błędów produkcyjnych klienta (append-only): user tworzy własne
-    // wpisy, czyta wyłącznie admin. Schemat zamknięty + limit rozmiaru detail.
+    // wpisy, czyta wyłącznie admin. Pełny schemat + widełki createdAt (Z41/R2-13):
+    // flood nieopłacalny, klienckie createdAt nie zasłoni realnych błędów w panelu.
+    // Create świadomie bez hasSelfAccess: telemetria ma działać też przy problemach
+    // z profilem; koszt get() w rules > zysk. expiresAt opcjonalne: klienty
+    // build <= 48 raportują bez TTL (pole doszło w Z40).
     match /client_errors/{errorId} {
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.keys().hasOnly(['userId', 'code', 'phase', 'detail', 'sessionHash', 'appVersion', 'platform', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['userId', 'code', 'phase', 'detail', 'sessionHash', 'appVersion', 'platform', 'createdAt', 'expiresAt'])
+        && request.resource.data.code is string
+        && request.resource.data.code.size() <= 64
+        && request.resource.data.phase is string
+        && request.resource.data.phase.size() <= 32
         && request.resource.data.detail is string
-        && request.resource.data.detail.size() <= 500;
+        && request.resource.data.detail.size() <= 500
+        && (!('sessionHash' in request.resource.data)
+            || (request.resource.data.sessionHash is string && request.resource.data.sessionHash.size() == 8))
+        && request.resource.data.appVersion is string
+        && request.resource.data.appVersion.size() <= 32
+        && request.resource.data.platform in ['web', 'ios', 'android']
+        && request.resource.data.createdAt is int
+        && request.resource.data.createdAt >= request.time.toMillis() - 10 * 60 * 1000
+        && request.resource.data.createdAt <= request.time.toMillis() + 10 * 60 * 1000
+        && (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is timestamp);
       allow read: if request.auth != null && isAdmin();
       allow update, delete: if false;
     }
