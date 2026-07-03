@@ -125,6 +125,26 @@ describe('buildWorkoutDraftSnapshot', () => {
     expect(snapshot?.dirty).toBe(false);
   });
 
+  it('przenosi lastTouchedExerciseId z previousDraft (Z47)', () => {
+    const context = makeContext({
+      previousDraft: makePreviousDraft({ lastTouchedExerciseId: 'ex-1' }),
+    });
+
+    const snapshot = buildWorkoutDraftSnapshot(context);
+
+    expect(snapshot?.lastTouchedExerciseId).toBe('ex-1');
+  });
+
+  it('overrides nadpisują lastTouchedExerciseId (Z47)', () => {
+    const context = makeContext({
+      previousDraft: makePreviousDraft({ lastTouchedExerciseId: 'ex-1' }),
+    });
+
+    const snapshot = buildWorkoutDraftSnapshot(context, { lastTouchedExerciseId: 'ex-2' });
+
+    expect(snapshot?.lastTouchedExerciseId).toBe('ex-2');
+  });
+
   it('zmiana dayNotes / skippedExercises / metrics liczy się jako zmiana treści', () => {
     expect(buildWorkoutDraftSnapshot(makeContext({ dayNotes: 'nowa notatka' }))?.version).toBe(7);
     expect(buildWorkoutDraftSnapshot(makeContext({ skippedExercises: ['ex-2'] }))?.version).toBe(7);

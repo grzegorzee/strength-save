@@ -165,6 +165,9 @@ const WorkoutDay = () => {
   const autostartDone = useRef(false);
   const draftRecoveryDone = useRef<string | null>(null);
   const completedSessionLockRef = useRef<string | null>(null);
+  // Z47: scroll do ostatnio dotykanego ćwiczenia — raz per mount per uid:date
+  // (NIE per sessionId: promocja provisional→remote zmienia go w trakcie treningu).
+  const lastTouchedScrollDone = useRef<string | null>(null);
   const cycleRepairAttemptRef = useRef<string | null>(null);
   // Znacznik wersji dokumentu w chmurze dla sesji wczytanej z Firestore (bez draftu).
   // Bez tego seeda draft tworzony nad istniejącym workoutem ma cloudRevision=undefined,
@@ -828,6 +831,30 @@ const WorkoutDay = () => {
       } else {
         setAutoSaveStatus(currentPageDraft.dirty ? 'sync-pending' : 'idle');
       }
+
+      // Z47: po hydracji przewiń do ostatnio dotykanego ćwiczenia — ale świeża
+      // zapisana pozycja scrolla ma pierwszeństwo (scroll-restore niżej).
+      const lastTouched = currentPageDraft.lastTouchedExerciseId;
+      const scrollGuardKey = uid ? `${uid}:${targetDate}` : null;
+      if (lastTouched && !currentPageDraft.completedLocally && scrollGuardKey
+        && lastTouchedScrollDone.current !== scrollGuardKey) {
+        lastTouchedScrollDone.current = scrollGuardKey;
+        const hasSavedScroll = (() => {
+          try {
+            const raw = localStorage.getItem(`workout-scroll:${scrollGuardKey}`);
+            if (!raw) return false;
+            const { y, t: savedAt } = JSON.parse(raw) as { y: number; t: number };
+            return typeof y === 'number' && y > 0 && Date.now() - savedAt <= 15 * 60 * 1000;
+          } catch { return false; }
+        })();
+        if (!hasSavedScroll) {
+          [300, 900].forEach(delay => {
+            setTimeout(() => {
+              document.getElementById(`exercise-card-${lastTouched}`)?.scrollIntoView({ block: 'center' });
+            }, delay);
+          });
+        }
+      }
       return;
     }
 
@@ -1309,6 +1336,7 @@ const WorkoutDay = () => {
     saveDraftSnapshot({
       exerciseSets: nextExerciseSets,
       exerciseNotes: nextExerciseNotes,
+      lastTouchedExerciseId: exerciseId,
     });
 
     setSaveError(null);
@@ -1324,7 +1352,10 @@ const WorkoutDay = () => {
         : set
     );
     setExerciseSets(nextSets => ({ ...nextSets, [event.exerciseId]: next }));
-    const saved = await persistDraftSnapshot({ exerciseSets: { ...exerciseSetsRef.current, [event.exerciseId]: next } });
+    const saved = await persistDraftSnapshot({
+      exerciseSets: { ...exerciseSetsRef.current, [event.exerciseId]: next },
+      lastTouchedExerciseId: event.exerciseId,
+    });
     if (!saved) {
       // Seria z zegarka nie może zniknąć po cichu (R2-26): user widzi błąd, telemetria
       // go rejestruje, a rzucony błąd zostawia event w natywnej kolejce do retry.
@@ -1379,7 +1410,7 @@ const WorkoutDay = () => {
   const handleMetricsChange = useCallback((exerciseId: string, metrics: ExerciseMetrics) => {
     const nextMetrics = { ...exerciseMetricsRef.current, [exerciseId]: metrics };
     setExerciseMetrics(nextMetrics);
-    saveDraftSnapshot({ exerciseMetrics: nextMetrics });
+    saveDraftSnapshot({ exerciseMetrics: nextMetrics, lastTouchedExerciseId: exerciseId });
     setSaveError(null);
   }, [saveDraftSnapshot]);
 
@@ -2073,7 +2104,7 @@ const WorkoutDay = () => {
       {/* Today without workout - show start button (nigdy na ukończonym treningu) */}
       <div className="space-y-4">
         {day.exercises.filter(ex => !(isWorkoutStarted && !isCompleted && skippedExercises.includes(ex.id))).map((exercise, index) => (
-          <div key={exercise.id} ref={index === 0 ? firstExerciseRef : undefined} className="space-y-2">
+          <div key={exercise.id} id={`exercise-card-${exercise.id}`} ref={index === 0 ? firstExerciseRef : undefined} className="space-y-2">
             <ExerciseCard
               exercise={exercise}
               index={index + 1}

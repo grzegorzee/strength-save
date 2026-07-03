@@ -194,6 +194,39 @@ test.describe('Workout Day', () => {
     await expect(page.getByText('Piątek', { exact: false })).toBeVisible();
   });
 
+  test('po hydracji draftu widok przewija do ostatnio dotykanego ćwiczenia (Z47)', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await navigateAndWait(page, '/workout/day-1');
+
+    const today = new Date().toISOString().split('T')[0];
+    await writeWorkoutDraftDb(page, {
+      sessionId: `workout-e2e-test-user-day-1-${today}`,
+      userId: 'e2e-test-user',
+      dayId: 'day-1',
+      date: today,
+      cycleId: 'cycle-1',
+      sessionOrigin: 'remote',
+      remoteSessionId: `workout-e2e-test-user-day-1-${today}`,
+      exerciseSets: { 'ex-1-3': [{ reps: 10, weight: 40, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      lastTouchedExerciseId: 'ex-1-3',
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
+    });
+
+    // Przeładowanie strony = zimny start z draftem w IndexedDB (hydracja).
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('#exercise-card-ex-1-3')).toBeInViewport({ timeout: 7000 });
+  });
+
   test('invalid day shows error message', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-999');
     await expectPageRendered(page);

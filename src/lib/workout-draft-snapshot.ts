@@ -121,6 +121,11 @@ export const buildWorkoutDraftSnapshot = (
     sessionOrigin: overrides.sessionOrigin ?? previousDraft?.sessionOrigin ?? (isProvisionalWorkoutSessionId(draftSessionId) ? 'provisional' : 'remote'),
     remoteSessionId: overrides.remoteSessionId ?? previousDraft?.remoteSessionId ?? null,
     ...content,
+    ...(overrides.lastTouchedExerciseId !== undefined
+      ? { lastTouchedExerciseId: overrides.lastTouchedExerciseId }
+      : previousDraft?.lastTouchedExerciseId !== undefined
+        ? { lastTouchedExerciseId: previousDraft.lastTouchedExerciseId }
+        : {}),
     exerciseNames: overrides.exerciseNames ?? previousDraft?.exerciseNames ?? context.dayNames,
     dayName: overrides.dayName ?? previousDraft?.dayName ?? context.dayName,
     dayFocus: overrides.dayFocus ?? previousDraft?.dayFocus ?? context.dayFocus,

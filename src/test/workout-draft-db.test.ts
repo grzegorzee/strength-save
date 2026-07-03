@@ -236,6 +236,12 @@ describe('workoutDraftDb', () => {
     expect(loaded).toEqual(baseDraft);
   });
 
+  it('roundtrip zachowuje lastTouchedExerciseId (Z47)', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, lastTouchedExerciseId: 'ex-1' });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.lastTouchedExerciseId).toBe('ex-1');
+  });
+
   it('keeps multiple dirty drafts for the same user keyed by session', async () => {
     await workoutDraftDb.saveActiveDraft(baseDraft);
     await workoutDraftDb.saveActiveDraft({

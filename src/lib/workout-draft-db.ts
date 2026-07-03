@@ -27,6 +27,9 @@ export interface ActiveWorkoutDraft {
   dayName?: string;
   dayFocus?: string;
   skippedExercises: string[];
+  // Ostatnio dotykane ćwiczenie (odhaczenie serii / metryki) — cel scrolla po hydracji.
+  // Opcjonalne pole additive, bez bumpu wersji IndexedDB.
+  lastTouchedExerciseId?: string;
   startedAt: number;
   /** Moment potwierdzenia zakończenia. Stabilizuje duration przy retry finalnego syncu. */
   finalizedAt?: number;
@@ -195,6 +198,7 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     ...(value.dayName !== undefined && { dayName: String(value.dayName) }),
     ...(value.dayFocus !== undefined && { dayFocus: String(value.dayFocus) }),
     skippedExercises: normalizeStringArray(value.skippedExercises),
+    ...(typeof value.lastTouchedExerciseId === 'string' && { lastTouchedExerciseId: value.lastTouchedExerciseId }),
     startedAt: toNumberOr(value.startedAt, now),
     ...(value.finalizedAt !== undefined && { finalizedAt: toNumberOr(value.finalizedAt, now) }),
     updatedAt: toNumberOr(value.updatedAt, now),
