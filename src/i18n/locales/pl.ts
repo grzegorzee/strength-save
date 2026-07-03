@@ -224,6 +224,8 @@ export const pl = {
   'settings.notif.deniedSettings': 'Powiadomienia są wyłączone. Włącz je w Ustawieniach systemu telefonu.',
   'settings.notif.daily': 'Poranne przypomnienie o treningu',
   'settings.notif.dailyDesc': 'Tylko w dni, gdy masz zaplanowany trening (ok. 7:00).',
+  'settings.notif.weeklyDigest': 'Cotygodniowe podsumowanie e-mail',
+  'settings.notif.weeklyDigestDesc': 'W poniedziałek rano: treningi, tonaż i biegi z minionego tygodnia.',
   'settings.feature.enabled': 'Włączono',
   'settings.feature.disabled': 'Wyłączono',
   'settings.feature.forUser': '{feature} dla {user}',

@@ -20,8 +20,9 @@ export const NotificationSettings = () => {
   const [perm, setPerm] = useState<PushPermission>('prompt');
   const [requesting, setRequesting] = useState(false);
   const [registrationFailed, setRegistrationFailed] = useState(false);
-  const prefs = (profile as { notificationPrefs?: { dailyReminder?: boolean } } | null)?.notificationPrefs;
+  const prefs = (profile as { notificationPrefs?: { dailyReminder?: boolean; weeklyDigest?: boolean } } | null)?.notificationPrefs;
   const [dailyReminder, setDailyReminder] = useState(prefs?.dailyReminder ?? true);
+  const [weeklyDigest, setWeeklyDigest] = useState(prefs?.weeklyDigest ?? true);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +60,16 @@ export const NotificationSettings = () => {
     }
   };
 
+  const toggleWeeklyDigest = async (value: boolean) => {
+    setWeeklyDigest(value);
+    try {
+      await updateDoc(doc(db, 'users', uid), { 'notificationPrefs.weeklyDigest': value });
+    } catch {
+      setWeeklyDigest(!value);
+      toast({ title: t('admin.error'), variant: 'destructive' });
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -68,6 +79,14 @@ export const NotificationSettings = () => {
         <CardDescription>{t('settings.notif.desc')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Digest e-mail nie wymaga push: dostępny też na webie. */}
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-low p-3">
+          <div>
+            <p className="text-sm font-medium">{t('settings.notif.weeklyDigest')}</p>
+            <p className="text-xs text-muted-foreground">{t('settings.notif.weeklyDigestDesc')}</p>
+          </div>
+          <Switch checked={weeklyDigest} onCheckedChange={toggleWeeklyDigest} aria-label={t('settings.notif.weeklyDigest')} />
+        </div>
         {!isNative ? (
           <p className="text-sm text-muted-foreground">{t('settings.notif.mobileOnly')}</p>
         ) : perm === 'granted' ? (

@@ -218,6 +218,8 @@ export const en: Record<keyof typeof pl, string> = {
   'settings.notif.deniedSettings': 'Notifications are off. Enable them in your phone system settings.',
   'settings.notif.daily': 'Morning training reminder',
   'settings.notif.dailyDesc': 'Only on days you have a workout scheduled (around 7:00).',
+  'settings.notif.weeklyDigest': 'Weekly email digest',
+  'settings.notif.weeklyDigestDesc': 'Monday morning: workouts, tonnage and runs from the past week.',
   'settings.feature.enabled': 'Enabled',
   'settings.feature.disabled': 'Disabled',
   'settings.feature.forUser': '{feature} for {user}',
