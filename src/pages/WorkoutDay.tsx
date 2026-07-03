@@ -49,6 +49,7 @@ import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
+import { applySyncMarkers } from '@/lib/workout-sync-markers';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
 import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
@@ -635,13 +636,12 @@ const WorkoutDay = () => {
       }
       workoutSyncQueue.remove(uid, targetSessionId);
       if (usesActiveDraftStore) {
-        const syncedDraft = {
-          ...currentDraft!,
-          dirty: false,
-          lastFirebaseSyncAt: syncedAt,
-          ...(result.updatedAt !== undefined && { cloudUpdatedAt: result.updatedAt }),
-          ...(result.revision !== undefined && { cloudRevision: result.revision }),
-        };
+        // Znaczniki nakładamy na BIEŻĄCY draft (edycje w trakcie syncu), nie na
+        // snapshot sprzed syncu — inaczej cofnięta wersja cicho blokuje zapisy.
+        const base = activeDraftRef.current?.sessionId === targetSessionId
+          ? activeDraftRef.current
+          : currentDraft!;
+        const syncedDraft = applySyncMarkers(base, currentDraft!.version, syncedAt, result);
         activeDraftRef.current = syncedDraft;
         setActiveDraft(prev => prev && prev.sessionId === syncedDraft.sessionId ? syncedDraft : prev);
       }
