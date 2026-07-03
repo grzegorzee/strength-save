@@ -376,6 +376,26 @@ describe('workoutDraftDb', () => {
     expect(loaded?.sessionId).toBe(baseDraft.sessionId);
     expect(localStorage.getItem(getScopedWorkoutDraftKey('user-1'))).not.toBeNull();
   });
+
+  it('fallback localStorage zachowuje cloudRevision i version draftu', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      cloudRevision: 5,
+      cloudUpdatedAt: 1730000000000,
+      version: 7,
+    });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(loaded?.cloudRevision).toBe(5);
+    expect(loaded?.cloudUpdatedAt).toBe(1730000000000);
+    expect(loaded?.version).toBe(7);
+  });
 });
 
 describe('hasDraftContent', () => {

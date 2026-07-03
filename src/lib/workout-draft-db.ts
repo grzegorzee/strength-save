@@ -186,7 +186,9 @@ const withFallbackLoad = (userId: string): ActiveWorkoutDraft | null => {
     dirty: true,
     completedLocally: false,
     finalSyncPending: false,
-    version: 1,
+    version: draft.version ?? 1,
+    ...(draft.cloudRevision != null && { cloudRevision: draft.cloudRevision }),
+    ...(draft.cloudUpdatedAt != null && { cloudUpdatedAt: draft.cloudUpdatedAt }),
   });
 };
 
@@ -200,6 +202,9 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     dayNotes: draft.dayNotes,
     skippedExercises: draft.skippedExercises,
     savedAt: draft.updatedAt,
+    ...(draft.cloudRevision != null && { cloudRevision: draft.cloudRevision }),
+    ...(draft.cloudUpdatedAt != null && { cloudUpdatedAt: draft.cloudUpdatedAt }),
+    version: draft.version,
   }, draft.userId);
   if (!saved) {
     throw new Error('LOCAL_STORAGE_SAVE_FAILED');

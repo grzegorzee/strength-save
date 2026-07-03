@@ -14,6 +14,11 @@ export interface WorkoutDraft {
   dayNotes: string;
   skippedExercises: string[];
   savedAt: number;
+  // Znaczniki chmury i wersja draftu — bez nich roundtrip przez fallback
+  // gubi baseline rewizji i produkuje fałszywe konflikty.
+  cloudRevision?: number;
+  cloudUpdatedAt?: number;
+  version?: number;
 }
 
 export const workoutDraft = {
