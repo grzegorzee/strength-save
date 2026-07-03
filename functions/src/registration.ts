@@ -587,7 +587,11 @@ export const verifyEmailCode = onCall({ secrets: [resendApiKey, authPepper] }, a
   return { verified: true };
 });
 
-export const createWaitlistEntry = onCall({ enforceAppCheck: true }, async (request) => {
+// Bez enforceAppCheck: klient NIE inicjalizuje App Check (zero initializeAppCheck w src/),
+// więc każdy produkcyjny request był odrzucany — martwa waitlista (R2-05). Anti-abuse
+// zapewnia transakcyjny rate limit (60 s per email) + walidacje + cooldown poniżej.
+// Pełny App Check (reCAPTCHA v3 + App Attest) odłożony do publicznego launchu.
+export const createWaitlistEntry = onCall(async (request) => {
   const email = normalizeEmail(request.data?.email);
   const displayName = normalizeOptionalString(request.data?.displayName, 120);
   const note = normalizeOptionalString(request.data?.note, 500);
