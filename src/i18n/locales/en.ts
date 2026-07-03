@@ -614,6 +614,8 @@ export const en: Record<keyof typeof pl, string> = {
   'notes.dayNote': 'Day note',
   'notes.noneInSession': 'No notes in this session.',
   'history.details': 'Details',
+  'history.onlyPRs': 'PRs only',
+  'history.bodyweightSet': 'BW',
   'picker.title': 'Pick an exercise',
   'picker.description': 'Search by name or filter by muscle group.',
   'picker.bodyweight': 'Bodyweight',

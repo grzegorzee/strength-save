@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, History, Search, StickyNote } from 'lucide-react';
+import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, History, Search, StickyNote, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
+import { buildHistoryRowMeta } from '@/lib/history-stats';
 import { parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { cn } from '@/lib/utils';
@@ -45,6 +46,7 @@ const WorkoutHistory = () => {
   const [toDate, setToDate] = useState('');
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const [onlyPRs, setOnlyPRs] = useState(false);
   const toggleExpanded = (id: string) =>
     setExpandedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const { workouts, isLoaded, isLoadingMore, hasMore, loadMore } = useWorkoutHistoryPage(uid, {
@@ -56,6 +58,9 @@ const WorkoutHistory = () => {
   // Resolver radzi sobie z treningami ze starych planów (snapshot → cykl → plan → id).
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
+  // Czas trwania + PR per sesja liczone RAZ dla listy (Z80), nie per wiersz w renderze.
+  const rowMeta = useMemo(() => buildHistoryRowMeta(workouts), [workouts]);
+
   const filteredWorkouts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return workouts
@@ -63,6 +68,7 @@ const WorkoutHistory = () => {
         if (selectedDay !== 'all' && workout.dayId !== selectedDay) return false;
         if (selectedStatus === 'completed' && !workout.completed) return false;
         if (selectedStatus === 'draft' && workout.completed) return false;
+        if (onlyPRs && (rowMeta.get(workout.id)?.prCount ?? 0) === 0) return false;
         if (fromDate && workout.date < fromDate) return false;
         if (toDate && workout.date > toDate) return false;
         if (!query) return true;
@@ -79,7 +85,7 @@ const WorkoutHistory = () => {
         return haystack.includes(query);
       })
       .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
-  }, [resolver, fromDate, searchQuery, selectedDay, selectedStatus, toDate, workouts]);
+  }, [resolver, fromDate, onlyPRs, rowMeta, searchQuery, selectedDay, selectedStatus, toDate, workouts]);
 
   const comparison = useMemo(() => {
     if (compareIds.length !== 2) return null;
@@ -187,6 +193,7 @@ const WorkoutHistory = () => {
             <FilterChip active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</FilterChip>
             <FilterChip active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</FilterChip>
             <FilterChip active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</FilterChip>
+            <FilterChip active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</FilterChip>
           </div>
 
           {/* Dzień planu — chipy */}
@@ -264,6 +271,7 @@ const WorkoutHistory = () => {
               const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
               const isSelected = compareIds.includes(workout.id);
               const isExpanded = expandedIds.includes(workout.id);
+              const meta = rowMeta.get(workout.id);
               return (
                 <div
                   key={workout.id}
@@ -273,11 +281,23 @@ const WorkoutHistory = () => {
                   )}
                 >
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-heading font-bold tabular-nums">{workout.date}</p>
                       <Badge variant={workout.completed ? 'default' : 'secondary'}>
                         {workout.completed ? t('history.badgeCompleted') : t('history.badgeDraft')}
                       </Badge>
+                      {meta?.durationLabel && (
+                        <Badge variant="outline" className="gap-1 font-normal tabular-nums">
+                          <Clock className="h-3 w-3" />
+                          {meta.durationLabel}
+                        </Badge>
+                      )}
+                      {(meta?.prCount ?? 0) > 0 && (
+                        <Badge className="gap-1 bg-fitness-warning/10 text-fitness-warning border-fitness-warning/30">
+                          <Trophy className="h-3 w-3" />
+                          {meta?.prCount} PR
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
                       {localizeDayName(dayLabel.dayName, lang)} · {localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}
@@ -310,9 +330,46 @@ const WorkoutHistory = () => {
                     </Button>
                   </div>
 
-                  {/* Rozwinięcie (Z74): notatka dnia + notatki per ćwiczenie */}
+                  {/* Rozwinięcie (Z74+Z80): serie per ćwiczenie, metryki RPE/ból/technika, notatki */}
                   {isExpanded && (
-                    <div className="space-y-2 rounded-xl bg-surface-lowest p-3">
+                    <div className="space-y-3 rounded-xl bg-surface-lowest p-3">
+                      {workout.exercises.map((e) => {
+                        const workingSets = e.sets.filter((s) => !s.isWarmup);
+                        const hasMetrics = e.rpe !== undefined || e.pain !== undefined || e.quality !== undefined;
+                        return (
+                          <div key={e.exerciseId} className="space-y-1">
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                              {resolver.resolveExerciseName(workout, e.exerciseId)}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {workingSets.map((s, i) => (
+                                <span
+                                  key={i}
+                                  className={cn(
+                                    'rounded-md px-2 py-0.5 text-xs tabular-nums',
+                                    s.completed ? 'bg-muted/60 text-foreground' : 'bg-muted/30 text-muted-foreground line-through',
+                                  )}
+                                >
+                                  {s.reps}×{s.weight > 0 ? `${Math.round(toDisplay(s.weight) * 10) / 10} ${unit}` : t('history.bodyweightSet')}
+                                </span>
+                              ))}
+                            </div>
+                            {hasMetrics && (
+                              <p className="text-xs text-muted-foreground tabular-nums">
+                                {e.rpe !== undefined && <>{t('card.rpe')}: <strong>{e.rpe}</strong>{'  '}</>}
+                                {e.pain !== undefined && <>{t('card.pain')}: <strong>{e.pain}</strong>{'  '}</>}
+                                {e.quality !== undefined && <>{t('card.quality')}: <strong>{e.quality}</strong></>}
+                              </p>
+                            )}
+                            {e.notes?.trim() && (
+                              <p className="text-sm flex items-start gap-1">
+                                <StickyNote className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                                {e.notes}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                       {workout.notes?.trim() && (
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -321,17 +378,6 @@ const WorkoutHistory = () => {
                           </p>
                           <p className="text-sm mt-0.5">{workout.notes}</p>
                         </div>
-                      )}
-                      {workout.exercises.filter((e) => e.notes?.trim()).map((e) => (
-                        <div key={e.exerciseId}>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            {resolver.resolveExerciseName(workout, e.exerciseId)}
-                          </p>
-                          <p className="text-sm mt-0.5">{e.notes}</p>
-                        </div>
-                      ))}
-                      {!workout.notes?.trim() && workout.exercises.every((e) => !e.notes?.trim()) && (
-                        <p className="text-sm text-muted-foreground">{t('notes.noneInSession')}</p>
                       )}
                     </div>
                   )}

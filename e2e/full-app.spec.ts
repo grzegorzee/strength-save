@@ -705,7 +705,7 @@ test.describe('Notatki (Z74)', () => {
     await expect(page.getByText(/Ostatnio: „pas za luźny”/).first()).toBeVisible({ timeout: 7000 });
   });
 
-  test('rozwinięcie wpisu historii pokazuje notatkę dnia i notatki ćwiczeń', async ({ page }) => {
+  test('rozwinięcie wpisu historii pokazuje serie, metryki, notatki i czas trwania (Z74+Z80)', async ({ page }) => {
     await setE2EWorkouts(page, [{
       id: 'notes-history-2',
       userId: 'e2e-test-user',
@@ -713,18 +713,26 @@ test.describe('Notatki (Z74)', () => {
       date: '2026-06-30',
       completed: true,
       notes: 'ciężki dzień, mało snu',
+      durationSec: 4320,
       exercises: [{
         exerciseId: 'ex-1-1',
         name: 'Wyciskanie hantli (Lekki skos)',
         notes: 'pas za luźny',
+        rpe: 8.5,
+        pain: 2,
         sets: [{ reps: 8, weight: 30, completed: true }],
       }],
     }]);
 
     await navigateAndWait(page, '/history');
+    // Wiersz: czas trwania widoczny od razu (Z80).
+    await expect(page.getByText('1h 12m')).toBeVisible();
+
     await page.getByRole('button', { name: 'Szczegóły' }).first().click();
     await expect(page.getByText('ciężki dzień, mało snu')).toBeVisible();
     await expect(page.getByText('pas za luźny')).toBeVisible();
+    await expect(page.getByText(/RPE:/)).toBeVisible();
+    await expect(page.getByText(/8×30/)).toBeVisible();
   });
 });
 

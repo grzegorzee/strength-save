@@ -622,6 +622,8 @@ export const pl = {
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
   'history.details': 'Szczegóły',
+  'history.onlyPRs': 'Tylko z PR',
+  'history.bodyweightSet': 'BW',
   'picker.title': 'Wybierz ćwiczenie',
   'picker.description': 'Szukaj po nazwie albo filtruj po partii mięśniowej.',
   'picker.bodyweight': 'Masa ciała',
