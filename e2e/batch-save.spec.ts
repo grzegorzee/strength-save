@@ -224,8 +224,9 @@ test.describe('Batch Save Workflow', () => {
       version: 1,
     });
 
-    await writeWorkoutSyncQueue(page, E2E_USER_ID, [{
-      queueId: 'queued-1',
+    // Kolejka jest referencyjna: treść sesji z kolejki musi istnieć jako draft w IDB
+    // (wpis kolejki bez draftu jest sprzątany przez silnik syncu jako martwa referencja).
+    await writeWorkoutDraftDb(page, {
       sessionId: 'queued-session-1',
       userId: E2E_USER_ID,
       dayId: 'day-1',
@@ -241,14 +242,28 @@ test.describe('Batch Save Workflow', () => {
       skippedExercises: [],
       startedAt: Date.now(),
       updatedAt: Date.now(),
+      cloudRevision: 1,
       lastFirebaseSyncAt: null,
       dirty: true,
       completedLocally: true,
       finalSyncPending: true,
       version: 1,
+    });
+
+    await writeWorkoutSyncQueue(page, E2E_USER_ID, [{
+      queueId: 'queued-1',
+      sessionId: 'queued-session-1',
+      userId: E2E_USER_ID,
+      dayId: 'day-1',
+      date: '2026-04-03',
+      sessionOrigin: 'remote',
+      dirty: true,
+      finalSyncPending: true,
+      updatedAt: Date.now(),
       enqueuedAt: Date.now(),
       retryCount: 0,
       lastError: null,
+      lastErrorAt: null,
     }]);
 
     await page.reload();
