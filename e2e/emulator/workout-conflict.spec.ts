@@ -3,7 +3,7 @@ import { initializeApp, deleteApp, type FirebaseApp } from 'firebase/app';
 import { connectAuthEmulator, getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { connectFirestoreEmulator, doc, getDoc, getFirestore, setDoc } from 'firebase/firestore';
 import type { WorkoutSession } from '../../src/types';
-import type { ActiveWorkoutDraft } from '../../src/lib/workout-draft-db';
+import { mergePromotedDraft, type ActiveWorkoutDraft } from '../../src/lib/workout-draft-db';
 import { saveWorkoutBatchWithRevision } from '../../src/lib/workout-save';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '../../src/lib/workout-sync-engine';
 
@@ -287,8 +287,11 @@ test('Emulator: promocja provisional->remote przez silnik; retry nie duplikuje d
         pendingWriteVersion: pending ? pending.version : null,
       });
     },
-    clearDraft: async (_ownerId, sessionId) => {
+    clearDraftIfVersion: async (_ownerId, sessionId, expectedVersion) => {
+      const current = drafts.get(sessionId);
+      if (current && current.version > expectedVersion) return false;
       drafts.delete(sessionId);
+      return true;
     },
     queue: { remove: () => undefined },
     isOnline: () => true,
@@ -315,6 +318,127 @@ test('Emulator: promocja provisional->remote przez silnik; retry nie duplikuje d
 
     const provisionalDoc = await getDoc(doc(db, 'workouts', provisionalId));
     expect(provisionalDoc.exists()).toBe(false);
+  } finally {
+    await deleteApp(client.app);
+  }
+});
+
+test('Emulator: sync orphana po promocji nie nadpisuje nowszej treści treningu (R2-04)', async () => {
+  const email = `workout-orphan-${Date.now()}@e2e.test`;
+  const uid = await createAuthUser(email);
+  await seedActiveUser(uid, email);
+  const provisionalId = `local-workout-${uid}-day-1-2026-07-03`;
+  const remoteId = `workout-${uid}-day-1-2026-07-03`;
+  // Chmura ma nowszą treść (reps=12, revision 3) — wynik trwającego treningu.
+  await seedDoc(`workouts/${remoteId}`, workoutSeed(uid, {
+    exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 12, weight: 100, completed: true }] }],
+    revision: 3,
+    updatedAt: 5000,
+  }));
+
+  const client = await connectClient(email, `wo-${Date.now()}`);
+  const db = client.db;
+
+  const baseDraft: Omit<ActiveWorkoutDraft, 'sessionId' | 'sessionOrigin' | 'remoteSessionId' | 'version' | 'exerciseSets'> = {
+    userId: uid,
+    dayId: 'day-1',
+    date: '2026-07-03',
+    cycleId: null,
+    exerciseNotes: {},
+    exerciseMetrics: {},
+    dayNotes: '',
+    skippedExercises: [],
+    startedAt: 1000,
+    updatedAt: 2000,
+    lastFirebaseSyncAt: null,
+    dirty: true,
+    completedLocally: false,
+    finalSyncPending: false,
+  };
+
+  // Lokalne drafty: nowszy remote (odzwierciedla trwający trening) + stary orphan provisional.
+  const drafts = new Map<string, ActiveWorkoutDraft>();
+  drafts.set(remoteId, {
+    ...baseDraft,
+    sessionId: remoteId,
+    sessionOrigin: 'remote',
+    remoteSessionId: remoteId,
+    version: 10,
+    cloudRevision: 3,
+    exerciseSets: { 'ex-1': [{ reps: 12, weight: 100, completed: true }] },
+  });
+  drafts.set(provisionalId, {
+    ...baseDraft,
+    sessionId: provisionalId,
+    sessionOrigin: 'provisional',
+    remoteSessionId: null,
+    version: 2,
+    exerciseSets: { 'ex-1': [{ reps: 5, weight: 50, completed: true }] },
+  });
+
+  const deps: WorkoutSyncDeps = {
+    loadDraft: async (_ownerId, sessionId) => drafts.get(sessionId) ?? null,
+    saveWorkout: async (sessionId, exercises, options) => {
+      try {
+        const state = await saveWorkoutBatchWithRevision(db, sessionId, exercises, options);
+        return { success: true, ...state };
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    getFromServer: async (sessionId) => {
+      const snapshot = await getDoc(doc(db, 'workouts', sessionId));
+      return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as WorkoutSession) : null;
+    },
+    createSession: async (dayId, date) => {
+      // Deterministyczny id: sesja już istnieje, createWorkoutSession zwraca istniejącą.
+      const snapshot = await getDoc(doc(db, 'workouts', remoteId));
+      return {
+        session: {
+          id: remoteId,
+          userId: uid,
+          dayId,
+          date: date ?? '2026-07-03',
+          exercises: (snapshot.data()?.exercises ?? []) as WorkoutSession['exercises'],
+          completed: false,
+          updatedAt: Number(snapshot.data()?.updatedAt ?? 0),
+          revision: Number(snapshot.data()?.revision ?? 0),
+        },
+      };
+    },
+    // REALNA logika merge promocji z draft-db (Z32): nowsza treść wygrywa.
+    markPromoted: async (_ownerId, remoteSessionId, sessionId, cloudState) => {
+      const fromDraft = sessionId ? drafts.get(sessionId) ?? null : null;
+      const remoteDraft = drafts.get(remoteSessionId) ?? null;
+      const next = mergePromotedDraft(fromDraft, remoteDraft, remoteSessionId, cloudState);
+      if (sessionId) drafts.delete(sessionId);
+      if (next) drafts.set(remoteSessionId, next);
+    },
+    markSynced: async () => undefined,
+    setCloudBaseline: async () => undefined,
+    setPendingWrite: async () => undefined,
+    clearDraftIfVersion: async (_ownerId, sessionId, expectedVersion) => {
+      const current = drafts.get(sessionId);
+      if (current && current.version > expectedVersion) return false;
+      drafts.delete(sessionId);
+      return true;
+    },
+    queue: { remove: () => undefined },
+    isOnline: () => true,
+  };
+
+  try {
+    const outcome = await syncWorkoutSession(uid, provisionalId, 'checkpoint', deps);
+    expect(outcome.success).toBe(true);
+    expect(outcome.promotedSessionId).toBe(remoteId);
+
+    // Chmura NIE cofnięta do treści orphana: nowsza treść (reps=12) przetrwała.
+    const saved = await getDoc(doc(db, 'workouts', remoteId));
+    expect((saved.data()?.exercises as { sets: { reps: number }[] }[])[0].sets[0].reps).toBe(12);
+
+    // Jeden draft lokalnie (remote), orphan nie wskrzeszony.
+    expect(drafts.size).toBe(1);
+    expect(drafts.get(remoteId)?.exerciseSets['ex-1'][0].reps).toBe(12);
   } finally {
     await deleteApp(client.app);
   }

@@ -112,6 +112,59 @@ const toNumberOr = (value: unknown, fallback: number): number => {
 
 export const getWorkoutDraftKey = (userId: string, sessionId: string): string => `${userId}::${sessionId}`;
 
+// Tombstone promocji provisional -> remote (R2-04): zapisy trafiające pod stary klucz
+// provisional w oknie promocji (sessionId w React aktualizuje się dopiero po outcome)
+// są przekierowywane pod klucz remote zamiast wskrzeszać osierocony draft.
+const PROMOTION_TOMBSTONE_PREFIX = 'fittracker_promoted';
+const PROMOTION_TOMBSTONE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+export const getPromotionTombstoneKey = (userId: string, provisionalSessionId: string): string => (
+  `${PROMOTION_TOMBSTONE_PREFIX}:${userId}:${provisionalSessionId}`
+);
+
+const writePromotionTombstone = (userId: string, provisionalSessionId: string, remoteSessionId: string): void => {
+  try {
+    localStorage.setItem(
+      getPromotionTombstoneKey(userId, provisionalSessionId),
+      JSON.stringify({ remoteId: remoteSessionId, at: Date.now() }),
+    );
+    // Sprzątanie przeterminowanych tombstone'ów przy okazji zapisu nowego.
+    const stale: string[] = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(`${PROMOTION_TOMBSTONE_PREFIX}:`)) continue;
+      try {
+        const parsed = JSON.parse(localStorage.getItem(key) ?? '');
+        if (!parsed || typeof parsed.at !== 'number' || Date.now() - parsed.at > PROMOTION_TOMBSTONE_TTL_MS) {
+          stale.push(key);
+        }
+      } catch {
+        stale.push(key);
+      }
+    }
+    stale.forEach(key => localStorage.removeItem(key));
+  } catch {
+    // best-effort: brak tombstone'a nie blokuje promocji
+  }
+};
+
+const readPromotionTombstone = (userId: string, provisionalSessionId: string): { remoteId: string } | null => {
+  try {
+    const key = getPromotionTombstoneKey(userId, provisionalSessionId);
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.remoteId !== 'string' || typeof parsed.at !== 'number'
+      || Date.now() - parsed.at > PROMOTION_TOMBSTONE_TTL_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return { remoteId: parsed.remoteId };
+  } catch {
+    return null;
+  }
+};
+
 const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutDraft | null => {
   if (!isRecord(value)) return null;
   if (!value.sessionId || !value.dayId || !value.date) return null;
@@ -449,6 +502,169 @@ const updateDraft = async (
   await run;
 };
 
+// Czysta logika merge promocji: nowsza treść wygrywa (orphan nie cofa trwającego
+// treningu), znaczniki chmury zawsze świeże (R2-04). Używana w runPromote i testach E2E.
+export const mergePromotedDraft = (
+  fromDraft: ActiveWorkoutDraft | null,
+  remoteDraft: ActiveWorkoutDraft | null,
+  remoteSessionId: string,
+  cloudState?: { updatedAt?: number; revision?: number },
+): ActiveWorkoutDraft | null => {
+  const cloudMarkers = {
+    ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+    ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
+  };
+  if (!fromDraft && !remoteDraft) return null;
+  if (fromDraft && remoteDraft && remoteDraft.version > fromDraft.version) {
+    return { ...remoteDraft, ...cloudMarkers };
+  }
+  if (fromDraft) {
+    return {
+      ...fromDraft,
+      sessionId: remoteSessionId,
+      sessionOrigin: 'remote',
+      remoteSessionId,
+      updatedAt: Date.now(),
+      version: (remoteDraft ? Math.max(remoteDraft.version, fromDraft.version) : fromDraft.version) + 1,
+      ...cloudMarkers,
+    };
+  }
+  return { ...(remoteDraft as ActiveWorkoutDraft), ...cloudMarkers };
+};
+
+// Promocja provisional -> remote w JEDNEJ transakcji na obu kluczach: nowsza treść
+// wygrywa (orphan nie cofa trwającego treningu), znaczniki chmury zawsze świeże (R2-04).
+const runPromote = async (
+  userId: string,
+  fromSessionId: string,
+  remoteSessionId: string,
+  cloudState?: { updatedAt?: number; revision?: number },
+): Promise<void> => {
+  const cloudMarkers = {
+    ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+    ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
+  };
+
+  let db: IDBDatabase | null = null;
+  try {
+    db = await openDatabase();
+  } catch {
+    db = null;
+  }
+
+  if (!db) {
+    const current = withFallbackLoad(userId);
+    if (!current) return;
+    if (current.sessionId === fromSessionId) {
+      withFallbackSave({
+        ...current,
+        sessionId: remoteSessionId,
+        sessionOrigin: 'remote',
+        remoteSessionId,
+        updatedAt: Date.now(),
+        version: current.version + 1,
+        ...cloudMarkers,
+      });
+    } else if (current.sessionId === remoteSessionId) {
+      withFallbackSave({ ...current, ...cloudMarkers });
+    }
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
+    const fromKey = getWorkoutDraftKey(userId, fromSessionId);
+    const remoteKey = getWorkoutDraftKey(userId, remoteSessionId);
+
+    const fromRequest = store.get(fromKey);
+    fromRequest.onsuccess = () => {
+      const fromDraft = normalizeDraft(fromRequest.result, userId);
+      const remoteRequest = store.get(remoteKey);
+      remoteRequest.onsuccess = () => {
+        const remoteDraft = normalizeDraft(remoteRequest.result, userId);
+        const next = mergePromotedDraft(fromDraft, remoteDraft, remoteSessionId, cloudState);
+        if (!next) {
+          resolve();
+          return;
+        }
+        if (fromDraft) store.delete(fromKey);
+        store.put(next, remoteKey);
+        tx.oncomplete = () => resolve();
+      };
+      remoteRequest.onerror = () => reject(remoteRequest.error);
+    };
+    fromRequest.onerror = () => reject(fromRequest.error);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+};
+
+// Zapis pod klucz provisional po promocji: przekierowanie pod klucz remote z merge
+// po version (stale zapis sprzed promocji nie cofa treści; brak rekordu remote =
+// sesja domknięta, nie wskrzeszamy draftu).
+const redirectDraftSave = async (incoming: ActiveWorkoutDraft, remoteSessionId: string): Promise<void> => {
+  let db: IDBDatabase | null = null;
+  try {
+    db = await openDatabase();
+  } catch {
+    db = null;
+  }
+
+  if (!db) {
+    const current = withFallbackLoad(incoming.userId);
+    if (current && current.sessionId === remoteSessionId && current.version > incoming.version) return;
+    withFallbackSave({
+      ...incoming,
+      sessionId: remoteSessionId,
+      sessionOrigin: 'remote',
+      remoteSessionId,
+      ...(current && current.sessionId === remoteSessionId && {
+        ...(current.cloudRevision !== undefined && { cloudRevision: current.cloudRevision }),
+        ...(current.cloudUpdatedAt !== undefined && { cloudUpdatedAt: current.cloudUpdatedAt }),
+      }),
+    });
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(WORKOUT_DRAFT_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(WORKOUT_DRAFT_STORE_NAME);
+    const remoteKey = getWorkoutDraftKey(incoming.userId, remoteSessionId);
+    const request = store.get(remoteKey);
+
+    request.onsuccess = () => {
+      const existing = normalizeDraft(request.result, incoming.userId);
+      if (!existing || incoming.version < existing.version) {
+        resolve();
+        return;
+      }
+      const next: ActiveWorkoutDraft = {
+        ...existing,
+        exerciseSets: incoming.exerciseSets,
+        exerciseNotes: incoming.exerciseNotes,
+        exerciseMetrics: incoming.exerciseMetrics,
+        ...(incoming.exerciseNames !== undefined && { exerciseNames: incoming.exerciseNames }),
+        dayNotes: incoming.dayNotes,
+        ...(incoming.dayName !== undefined && { dayName: incoming.dayName }),
+        ...(incoming.dayFocus !== undefined && { dayFocus: incoming.dayFocus }),
+        skippedExercises: incoming.skippedExercises,
+        completedLocally: incoming.completedLocally || existing.completedLocally,
+        finalSyncPending: incoming.finalSyncPending || existing.finalSyncPending,
+        ...(incoming.finalizedAt !== undefined && { finalizedAt: incoming.finalizedAt }),
+        updatedAt: incoming.updatedAt,
+        dirty: true,
+        version: Math.max(existing.version, incoming.version) + 1,
+      };
+      store.put(next, remoteKey);
+      tx.oncomplete = () => resolve();
+    };
+    request.onerror = () => reject(request.error);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+};
+
 export const workoutDraftDb = {
   isSupported(): boolean {
     return getIndexedDb() !== null;
@@ -497,6 +713,24 @@ export const workoutDraftDb = {
   async saveActiveDraft(draft: ActiveWorkoutDraft): Promise<void> {
     const normalized = normalizeDraft(draft, draft.userId);
     if (!normalized) return;
+
+    // Okno promocji provisional -> remote: zapis pod stary klucz przekierowany
+    // pod klucz remote (tombstone), zamiast wskrzeszać osierocony draft (R2-04).
+    if (normalized.sessionOrigin === 'provisional' || isProvisionalWorkoutSessionId(normalized.sessionId)) {
+      const tombstone = readPromotionTombstone(normalized.userId, normalized.sessionId);
+      if (tombstone && tombstone.remoteId !== normalized.sessionId) {
+        const remoteKey = getWorkoutDraftKey(normalized.userId, tombstone.remoteId);
+        const previous = writeChains.get(remoteKey) ?? Promise.resolve();
+        const run = previous.catch(() => undefined).then(() => redirectDraftSave(normalized, tombstone.remoteId));
+        const chain = run.catch(() => undefined).finally(() => {
+          if (writeChains.get(remoteKey) === chain) writeChains.delete(remoteKey);
+        });
+        writeChains.set(remoteKey, chain);
+        await run;
+        return;
+      }
+    }
+
     const key = getWorkoutDraftKey(normalized.userId, normalized.sessionId);
     const highestVersion = latestWriteVersions.get(key) ?? 0;
     if (normalized.version < highestVersion) return;
@@ -560,16 +794,41 @@ export const workoutDraftDb = {
     sessionId?: string,
     cloudState?: { updatedAt?: number; revision?: number },
   ): Promise<void> {
-    await updateDraft(userId, sessionId, draft => ({
-      ...draft,
-      sessionId: remoteSessionId,
-      sessionOrigin: 'remote',
-      remoteSessionId,
-      updatedAt: Date.now(),
-      version: draft.version + 1,
-      ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
-      ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
-    }));
+    let fromSessionId = sessionId;
+    if (!fromSessionId) {
+      const current = await this.loadActiveDraft(userId);
+      if (!current) return;
+      fromSessionId = current.sessionId;
+    }
+
+    if (fromSessionId === remoteSessionId) {
+      await updateDraft(userId, remoteSessionId, draft => ({
+        ...draft,
+        sessionOrigin: 'remote',
+        remoteSessionId,
+        ...(cloudState?.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+        ...(cloudState?.revision !== undefined && { cloudRevision: cloudState.revision }),
+      }));
+      return;
+    }
+
+    // Serializacja z zapisami OBU kluczy (provisional i remote).
+    const fromKey = getWorkoutDraftKey(userId, fromSessionId);
+    const remoteKey = getWorkoutDraftKey(userId, remoteSessionId);
+    const previous = Promise.all([
+      (writeChains.get(fromKey) ?? Promise.resolve()).catch(() => undefined),
+      (writeChains.get(remoteKey) ?? Promise.resolve()).catch(() => undefined),
+    ]);
+    const run = previous.then(() => runPromote(userId, fromSessionId, remoteSessionId, cloudState));
+    const chain = run.catch(() => undefined).finally(() => {
+      if (writeChains.get(fromKey) === chain) writeChains.delete(fromKey);
+      if (writeChains.get(remoteKey) === chain) writeChains.delete(remoteKey);
+    });
+    writeChains.set(fromKey, chain);
+    writeChains.set(remoteKey, chain);
+    await run;
+
+    writePromotionTombstone(userId, fromSessionId, remoteSessionId);
   },
 
   async clearActiveDraft(userId: string, sessionId?: string): Promise<void> {

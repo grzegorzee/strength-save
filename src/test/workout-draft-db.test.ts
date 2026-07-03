@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY, getScopedWorkoutDraftKey, workoutDraft } from '@/lib/workout-draft';
-import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+import {
+  getPromotionTombstoneKey,
+  hasDraftContent,
+  workoutDraftDb,
+  type ActiveWorkoutDraft,
+} from '@/lib/workout-draft-db';
 import { hasWorkoutWriteConflict } from '@/lib/workout-final-sync';
 
 class FakeRequest<T> {
@@ -375,6 +380,90 @@ describe('workoutDraftDb', () => {
     expect(loaded?.sessionOrigin).toBe('remote');
     expect(loaded?.remoteSessionId).toBe('workout-user-1-day-1-2026-04-03');
     expect(oldDraft).toBeNull();
+  });
+
+  it('po markPromotedToRemote zapis pod stary klucz provisional ląduje pod remote (R2-04)', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId, { revision: 0, updatedAt: 500 });
+
+    // Edycja w oknie promocji: WorkoutDay ma jeszcze stary sessionId i pisze pod provisional.
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 4,
+      dayNotes: 'edycja w oknie promocji',
+    });
+
+    const drafts = await workoutDraftDb.listDrafts('user-1');
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].sessionId).toBe(remoteId);
+    expect(drafts[0].sessionOrigin).toBe('remote');
+    expect(drafts[0].dayNotes).toBe('edycja w oknie promocji');
+    // Znaczniki chmury z rekordu remote (promocja) zachowane mimo przekierowania.
+    expect(drafts[0].cloudRevision).toBe(0);
+    expect(drafts[0].cloudUpdatedAt).toBe(500);
+  });
+
+  it('markPromotedToRemote nie cofa treści, gdy draft remote ma nowszą version (R2-04)', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    // Nowszy draft remote (trwający/ukończony trening) + osierocony stary provisional.
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: remoteId,
+      remoteSessionId: remoteId,
+      version: 10,
+      dayNotes: 'nowsza tresc remote',
+    });
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 2,
+      dayNotes: 'stary orphan',
+    });
+
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId, { revision: 7, updatedAt: 900 });
+
+    const remote = await workoutDraftDb.loadDraft('user-1', remoteId);
+    const orphan = await workoutDraftDb.loadDraft('user-1', provisionalId);
+    expect(orphan).toBeNull();
+    expect(remote?.dayNotes).toBe('nowsza tresc remote');
+    // Znaczniki chmury zawsze świeże (fakt serwera).
+    expect(remote?.cloudRevision).toBe(7);
+    expect(remote?.cloudUpdatedAt).toBe(900);
+  });
+
+  it('tombstone starszy niż 7 dni jest ignorowany i czyszczony (R2-04)', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const key = getPromotionTombstoneKey('user-1', provisionalId);
+    localStorage.setItem(key, JSON.stringify({
+      remoteId: 'workout-user-1-day-1-2026-04-03',
+      at: Date.now() - 8 * 24 * 60 * 60 * 1000,
+    }));
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+    });
+
+    const drafts = await workoutDraftDb.listDrafts('user-1');
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].sessionId).toBe(provisionalId);
+    expect(localStorage.getItem(key)).toBeNull();
   });
 
   it('clearActiveDraft removes stored record', async () => {
