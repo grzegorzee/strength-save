@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-03 — FAZA 3 planu naprawy: idempotencja zapisu (Z21-Z22)
+
+Weryfikacja checkpointu: vitest 445/445 (53 pliki), typecheck 0, lint czysty, build OK. Scenariusz utraty sieci w trakcie checkpointu pokryty testem E2E emulatora w Z26 (lost-ack retry) + test terenowy usera.
+
+**Z21 — idempotentny zapis przez writeId.** Root cause (S3 mechanizm A): transakcja checkpointu nieidempotentna; lost-ack (suspend przy gaszeniu ekranu, słaby zasięg) = commit doszedł, odpowiedź zginęła, retry rzucał WORKOUT_CONFLICT z samym sobą. Fix: `resolveWriteAttempt(current, expectedRevision, writeId)` w `workout-write-attempt.ts`; dokument dostaje `lastWriteId`; retry z tym samym writeId przy niezgodnej rewizji = sukces no-op ('already-applied', zwraca aktualne updatedAt/revision bez update). `writeId` WYMAGANE w options batchSaveWorkout; 5 call site'ów wpiętych (typecheck wymusił). ISTOTNE ODSTĘPSTWO OD PLANU: obok `pendingWriteId` w drafcie persystowane też `pendingWriteVersion` — reuse writeId dozwolony TYLKO gdy wersja draftu się zgadza. Bez tego retry z NOWĄ treścią i starym writeId dawałby fałszywy "already-applied" i utratę nowej treści (checkpoint markowałby dirty=false bez zapisu treści v2 do chmury). Helper `draftWriteId(draft)` egzekwuje tę regułę we wszystkich konsumentach.
+
+**Z22 — baseline nigdy ze stale cache.** Root cause (audyt 3.5): onSnapshot nie odróżniał snapshotu z persistentLocalCache od serwera; po zimnym starcie stale rewizja seedowała `cloudMetaRef`/draft → fałszywy konflikt. Fix: `WorkoutReadSnapshot.workoutsFromCache` (z `snapshot.metadata.fromCache`, konserwatywnie true przed pierwszym snapshotem); seed `cloudMetaRef` w hydracji WorkoutDay tylko przy `workoutsFromCache === false`; draft bez `cloudRevision` (sessionOrigin remote) dostaje baseline z `getWorkoutSessionFromServer` przed checkpointem, utrwalany nowym `workoutDraftDb.setCloudBaseline` (fakt serwera bez ruszania dirty/wersji/treści).
+
 ### 2026-07-03 — FAZA 1 planu naprawy (docs/PLAN-NAPRAWY-2026-07-03.md): hotfixy P0 zapisu treningów (Z13-Z18)
 
 Wykonanie metodą TDD (failing test → fix), osobny commit per zadanie. Kolejność Z14 przed Z13 (Z13 używa `workoutSyncErrorMessageKey` z Z14). Weryfikacja checkpointu: vitest 437/437 (51 plików), typecheck 0 błędów, lint czysty, build OK, e2e mock 116/116, e2e emulator PASS (JDK21 z homebrew: `/opt/homebrew/opt/openjdk@21`).
