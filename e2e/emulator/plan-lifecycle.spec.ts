@@ -268,6 +268,8 @@ test.describe('Emulator: cykl życia planu', () => {
     await loginThroughUi(page, email);
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 15000 });
     await page.goto('./#/settings');
+    // Z52: narzędzia naprawcze żyją w domyślnie zwiniętym akordeonie.
+    await page.getByText('Narzędzia naprawcze').click();
     const mergeButton = page.getByRole('button', { name: 'Połącz przerwane cykle' });
     await expect(mergeButton).toBeEnabled({ timeout: 20000 });
     await mergeButton.click();

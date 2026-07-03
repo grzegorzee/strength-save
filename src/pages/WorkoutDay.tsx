@@ -46,6 +46,8 @@ import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { addAppStateListener } from '@/lib/app-lifecycle';
+import { deriveWorkoutSessionPhase, isActiveTrainingPhase } from '@/lib/workout-session-state';
+import { resolveWorkoutHydration } from '@/lib/workout-hydration';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
@@ -341,6 +343,17 @@ const WorkoutDay = () => {
     cyclesLoaded,
     draftLoaded: isDraftLoaded,
   });
+
+  // Jawna faza sesji (Z57): jedno źródło prawdy dla renderu zamiast kombinacji flag.
+  const sessionPhase = useMemo(() => deriveWorkoutSessionPhase({
+    sessionId,
+    sessionOrigin: currentPageDraft?.sessionOrigin,
+    isCompleted,
+    isEditing,
+    conflictDialogOpen,
+    finalSyncPending: !!currentPageDraft?.finalSyncPending,
+    isExplicitSaving,
+  }), [sessionId, currentPageDraft?.sessionOrigin, currentPageDraft?.finalSyncPending, isCompleted, isEditing, conflictDialogOpen, isExplicitSaving]);
 
   // Find previous workout for this day (for weight hints)
   const previousWorkout = workouts.find(w =>
@@ -786,24 +799,20 @@ const WorkoutDay = () => {
       ? validateWorkoutCloudWrite(workoutForDate, buildDraftFinalExpectation(currentPageDraft))
       : null;
 
-    if (workoutForDate?.completed && currentPageDraft && !currentPageDraft.finalSyncPending && completedWorkoutValidation?.ok) {
+    // Decyzja hydracji w czystej funkcji (Z57) — efekt tylko wykonuje skutki.
+    const hydration = resolveWorkoutHydration({
+      workoutForDate: workoutForDate ?? null,
+      draft: currentPageDraft,
+      draftHasData,
+      completedValidationOk: completedWorkoutValidation ? completedWorkoutValidation.ok : null,
+    });
+
+    if (hydration.clearDraft && currentPageDraft) {
       void workoutDraftDb.clearActiveDraft(uid, currentPageDraft.sessionId);
       setActiveDraft(null);
     }
 
-    const shouldUseDraft = (() => {
-      if (!currentPageDraft) return false;
-      if (workoutForDate && currentPageDraft.sessionId !== workoutForDate.id) return false;
-      if (!workoutForDate) return draftHasData || currentPageDraft.finalSyncPending || Object.keys(currentPageDraft.exerciseSets).length > 0;
-      if (workoutForDate.completed && !currentPageDraft.finalSyncPending) return completedWorkoutValidation?.ok === false && draftHasData;
-      if (currentPageDraft.finalSyncPending) return true;
-      if (currentPageDraft.dirty) return true;
-      if (workoutForDate.exercises.length === 0 && draftHasData) return true;
-      if (currentPageDraft.lastFirebaseSyncAt == null) return draftHasData;
-      return currentPageDraft.updatedAt > currentPageDraft.lastFirebaseSyncAt;
-    })();
-
-    if (shouldUseDraft && currentPageDraft) {
+    if (hydration.useDraft && currentPageDraft) {
       applyWorkoutState({
         sessionId: currentPageDraft.sessionId,
         completed: currentPageDraft.completedLocally || !!workoutForDate?.completed,
@@ -1401,7 +1410,7 @@ const WorkoutDay = () => {
   }, [toast, t]);
 
   useWatchWorkoutSync({
-    enabled: !!sessionId && !isCompleted && !isEditing && !isViewingPastWorkout,
+    enabled: isActiveTrainingPhase(sessionPhase) && !isViewingPastWorkout,
     date: targetDate,
     dayId: day?.id,
     dayName: day?.dayName,
@@ -1762,7 +1771,7 @@ const WorkoutDay = () => {
         </div>
       );
     }
-    if (!isWorkoutStarted || isCompleted) return null;
+    if (!isActiveTrainingPhase(sessionPhase)) return null;
     const lastCloudSync = activeDraft?.lastFirebaseSyncAt ?? null;
     const cloudCurrent = !!lastCloudSync && !activeDraft?.dirty;
     return (
