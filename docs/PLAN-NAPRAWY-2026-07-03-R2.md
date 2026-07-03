@@ -191,9 +191,9 @@ Sprawdzone i CZYSTE (nie ruszać): jednostki kg kanoniczne (zero ścieżek zapis
 **Fix (wariant A, rekomendowany):** zdejmij `enforceAppCheck: true` z tego jednego callable; zostaje istniejący transakcyjny rate limit + walidacje + cooldown. Pełny App Check (reCAPTCHA v3 web + App Attest iOS) pozostaje odłożony do publicznego launchu (decyzja w DECYZJE.md:342, PLAN_RELEASE_1.0.md:100). **Wariant B** (jeśli user zdecyduje inaczej): wdrożyć App Check w kliencie; to osobny projekt, nie wciskaj go w to zadanie.
 
 **Workflow:**
-- [ ] Krok 1: potwierdź znalezisko w logach produkcji: `gcloud functions logs read createwaitlistentry --project fittracker-workouts --limit 50` (szukaj failed-precondition/unauthenticated). Jeśli logów brak (nikt nie próbował), znalezisko i tak stoi (kod).
-- [ ] Krok 2: usuń `{ enforceAppCheck: true }` z createWaitlistEntry; test functions: `npm --prefix functions test`.
-- [ ] Krok 3: commit `fix(functions): waitlista bez enforceAppCheck (klient nie ma App Check) (Z33)`.
+- [x] Krok 1: potwierdź znalezisko w logach produkcji: `gcloud functions logs read createwaitlistentry --project fittracker-workouts --limit 50` (szukaj failed-precondition/unauthenticated). Jeśli logów brak (nikt nie próbował), znalezisko i tak stoi (kod).
+- [x] Krok 2: usuń `{ enforceAppCheck: true }` z createWaitlistEntry; test functions: `npm --prefix functions test`.
+- [x] Krok 3: commit `fix(functions): waitlista bez enforceAppCheck (klient nie ma App Check) (Z33)`.
 
 ### Zadanie Z34: release-ios.sh ładuje .env (R2-06)
 
@@ -215,8 +215,8 @@ fi
 Semantyka bez zmian: `.env` ma tylko `VITE_*`/`STRENGTHSAVE_*`, defaulty `ASC_*` przez `${VAR:-...}` nietknięte. Przy okazji (to samo zadanie, ten sam plik): popraw stale komentarz "CURRENT_PROJECT_VERSION, 2 wystapienia" na 6 wystąpień (zgodnie z preflight i CLAUDE.md) i dodaj walidację istnienia pliku klucza `.p8` z czytelnym komunikatem błędu przed startem builda.
 
 **Workflow:**
-- [ ] Krok 1: wprowadź zmiany; `bash -n scripts/release-ios.sh` (syntaks) i test na sucho: `env -i bash -c 'cd <root> && source scripts/... ' NIE uruchamiaj pełnego release; wystarczy sprawdzić, że preflight przechodzi bez ręcznego source: `node scripts/release-ios-preflight.mjs` w czystym env po załadowaniu bloku.
-- [ ] Krok 2: commit `fix(scripts): release-ios.sh ładuje .env, walidacja .p8, poprawiony komentarz (Z34)`.
+- [x] Krok 1: wprowadź zmiany; `bash -n scripts/release-ios.sh` (syntaks) i test na sucho: `env -i bash -c 'cd <root> && source scripts/... ' NIE uruchamiaj pełnego release; wystarczy sprawdzić, że preflight przechodzi bez ręcznego source: `node scripts/release-ios-preflight.mjs` w czystym env po załadowaniu bloku.
+- [x] Krok 2: commit `fix(scripts): release-ios.sh ładuje .env, walidacja .p8, poprawiony komentarz (Z34)`.
 
 ### Zadanie Z35: WorkoutDay bez re-render bomby (R2-07)
 
@@ -227,14 +227,14 @@ Semantyka bez zmian: `.env` ma tylko `VITE_*`/`STRENGTHSAVE_*`, defaulty `ASC_*`
 **Fix:** (a) wydziel zegar do małego komponentu `SessionClock` (props: startedAt; własny setInterval; renderuje tylko elapsed) i usuń `elapsedSec` ze stanu WorkoutDay; (b) `useMemo` dla danych per ćwiczenie zależny od `[workouts, dayId]` (mapa exerciseId -> {best1RM, advice, previousSets}); (c) stabilne callbacki `useCallback` przyjmujące `exerciseId` (karta przekazuje swój id), bez lambd inline w mapie renderującej.
 
 **Workflow:**
-- [ ] Krok 1: zmiany chirurgiczne, bez ruszania logiki syncu (Z29-Z32 już scommitowane; nie przesuwaj ich kodu).
-- [ ] Krok 2: weryfikacja: istniejące testy zielone; ręcznie w dev: `console.count` w ExerciseCard (albo React Profiler) pokazuje brak re-renderu kart na tick zegara przy otwartym treningu.
-- [ ] Krok 3: commit `perf(workout): zegar sesji wydzielony, memoizacja advice/1RM, stabilne callbacki (Z35)`.
+- [x] Krok 1: zmiany chirurgiczne, bez ruszania logiki syncu (Z29-Z32 już scommitowane; nie przesuwaj ich kodu).
+- [x] Krok 2: weryfikacja: istniejące testy zielone; ręcznie w dev: `console.count` w ExerciseCard (albo React Profiler) pokazuje brak re-renderu kart na tick zegara przy otwartym treningu.
+- [x] Krok 3: commit `perf(workout): zegar sesji wydzielony, memoizacja advice/1RM, stabilne callbacki (Z35)`.
 
 ### CHECKPOINT FAZY 2
-- [ ] `npm run test`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm --prefix functions test`.
-- [ ] Scenariusz background/resume na realnym urządzeniu lub symulatorze (zmiany dotykały WorkoutDay): zgaś ekran w trakcie treningu, odczekaj, wróć; odhaczenia zachowane, zegar poprawny.
-- [ ] Wpis do DECYZJE.md.
+- [x] `npm run test`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm --prefix functions test`.
+- [x] Scenariusz background/resume na realnym urządzeniu lub symulatorze (zmiany dotykały WorkoutDay): zgaś ekran w trakcie treningu, odczekaj, wróć; odhaczenia zachowane, zegar poprawny.
+- [x] Wpis do DECYZJE.md.
 
 ---
 

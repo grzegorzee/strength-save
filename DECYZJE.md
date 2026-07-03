@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-03 — R2 FAZA 2: waitlista, release script, wydajność WorkoutDay (Z33-Z35)
+
+Weryfikacja checkpointu: vitest 474/474, typecheck 0, lint 0, build OK, functions 68 passed / 4 skipped. Scenariusz background/resume na realnym urządzeniu ODŁOŻONY do testu terenowego usera w Z46 (zmiany Z35 są czysto renderowe: zegar liczy od startedAt przy każdym ticku, więc po resume pokazuje poprawny czas; logika zapisu draftu nietknięta — pokryta testami F1).
+
+**Z33 — reanimacja waitlisty, wariant A (R2-05).** Root cause: `createWaitlistEntry` z `enforceAppCheck: true`, a klient NIGDZIE nie inicjalizuje App Check (rg: zero `initializeAppCheck` w src/) — Functions v2 odrzuca każdy produkcyjny request, każdy lead z ekranu logowania przepada; emulator pomija App Check, więc E2E tego nie widziało. Logi produkcyjne: wywołania z 2026-06-27 z WARNING. Fix (wariant A, potwierdzony przez usera): zdjęty enforceAppCheck; anti-abuse zapewnia transakcyjny rate limit 60 s per email + walidacje + cooldown. Pełny App Check (reCAPTCHA v3 + App Attest) świadomie odłożony do publicznego launchu (FAZA 7 pkt 7).
+
+**Z34 — release-ios.sh ładuje .env (R2-06).** Root cause: preflight (proces node) wymaga `VITE_REVENUECAT_APPLE_API_KEY` w env, a skrypt nie ładował `.env` (vite czyta go sam, node nie) — release padał bez ręcznego `set -a && source .env` (pułapka z release trainu R1). Fix: blok `source .env` po cd do ROOT + walidacja istnienia klucza `.p8` z czytelnym błędem + poprawiony stale komentarz (6 wystąpień CURRENT_PROJECT_VERSION, nie 2). Weryfikacja: `bash -n` + preflight przechodzi w czystym env (`env -i`).
+
+**Z35 — WorkoutDay bez re-render bomby (R2-07).** Root cause: `setElapsedSec` w setInterval(1000) re-renderował cały 2100-liniowy komponent co sekundę przez cały trening, a w renderze per ćwiczenie liczone były pełne skany historii (getNextSetAdvice, getExerciseBest1RM, getRzaAdvice, getPreviousSets); memo na ExerciseCard bezużyteczne przez świeże lambdy onSetsChange/onMetricsChange. Fix: (a) zegar wydzielony do `SessionClock` (własny stan, tick re-renderuje tylko kafelek; liczy od startedAt, więc odporny na suspend iOS), elapsedSec usunięty ze stanu strony (fallback duration podsumowania liczony z finalizedAt/startedAt draftu); (b) `exerciseInsights` = useMemo mapa exerciseId -> {previousSets, nextAdvice, historicalBest, rzaAdvice} zależna od [day, workouts, previousWorkout, previousSetsByName, lang, unit]; (c) ExerciseCard callbacki przyjmują exerciseId (onSetsChange(exerciseId, sets, notes)) — strona przekazuje stabilne useCallback bez lambd inline. Weryfikacja POMIAREM (tymczasowa instrumentacja + jednorazowy spec Playwright w trybie mock, usunięte po pomiarze): 5 sekund ticków zegara przy aktywnym treningu = 0 re-renderów ExerciseCard.
+
 ### 2026-07-03 — R2 FAZA 1: integralność zapisu P0/P1 (Z29-Z32) + hotfix rules
 
 Weryfikacja checkpointu: vitest 474/474 (56 plików, 16 nowych testów), typecheck 0, lint 0, build OK, e2e:mock 116/116, e2e:emulator 12/12 (1 nowy scenariusz orphan), test:rules 64/64 (JDK21).
