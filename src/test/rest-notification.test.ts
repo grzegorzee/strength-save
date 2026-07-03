@@ -2,18 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const checkPermissions = vi.fn();
 const requestPermissions = vi.fn();
-const schedule = vi.fn(async () => undefined);
-const cancel = vi.fn(async () => undefined);
+const schedule = vi.fn(async (_options: unknown) => undefined);
+const cancel = vi.fn(async (_options: unknown) => undefined);
 
 vi.mock('@capacitor/core', () => ({
   Capacitor: { isNativePlatform: () => true },
 }));
 vi.mock('@capacitor/local-notifications', () => ({
   LocalNotifications: {
-    checkPermissions: (...args: unknown[]) => checkPermissions.apply(null, args),
-    requestPermissions: (...args: unknown[]) => requestPermissions.apply(null, args),
-    schedule: (...args: unknown[]) => schedule.apply(null, args),
-    cancel: (...args: unknown[]) => cancel.apply(null, args),
+    checkPermissions: () => checkPermissions(),
+    requestPermissions: () => requestPermissions(),
+    schedule: (options: unknown) => schedule(options),
+    cancel: (options: unknown) => cancel(options),
   },
 }));
 

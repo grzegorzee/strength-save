@@ -347,9 +347,9 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Fix:** (1) `workout-sync-engine.ts:165-168`: po promocji na ISTNIEJĄCĄ sesję pobierz baseline `getWorkoutSessionFromServer` (deps już istnieją po Z22) zamiast ufać revision z wyniku createSession (może być z cache onSnapshot). (2) `WorkoutDay.tsx:387-389`: `previousDraft` z fallbackiem na `queuedDraftRef` przy zgodnym sessionId (chroni version/startedAt/cycleId przy hydracji z kolejki); to zmiana w wyekstrahowanym w Z29 `workout-draft-snapshot.ts`. (3) `WorkoutDay.tsx:755-768`: `buildWorkoutWriteExpectation` przy czyszczeniu draftu po ukończonym treningu porównuje też `notes`/`skippedExercises`; przy rozjeździe draft ZOSTAJE (dirty), nie jest kasowany. (4) `workout-draft-db.ts:221-259`: singleton połączenia IDB z handlerami `onversionchange`/`onclose` (reopen przy zerwaniu po tle), zamiast open per operacja.
 
 **Workflow:**
-- [ ] Krok 1: failing testy per punkt (silnik: baseline z fake serwera przy istniejącej sesji; snapshot: baza z queuedDraft; draft-db: reuse połączenia i reopen po symulowanym close; ekspektacja: notes w porównaniu).
-- [ ] Krok 2: implementacja + testy.
-- [ ] Krok 3: commit `fix(sync): baseline promocji z serwera, queuedDraft jako baza, hydracja z notes, singleton IDB (Z43)`.
+- [x] Krok 1: failing testy per punkt (silnik: baseline z fake serwera przy istniejącej sesji; snapshot: baza z queuedDraft; draft-db: reuse połączenia i reopen po symulowanym close; ekspektacja: notes w porównaniu).
+- [x] Krok 2: implementacja + testy.
+- [x] Krok 3: commit `fix(sync): baseline promocji z serwera, queuedDraft jako baza, hydracja z notes, singleton IDB (Z43)`.
 
 ### Zadanie Z44: frontend P2 (R2-24..R2-29)
 

@@ -112,3 +112,16 @@ export async function completeOnboardingPlan(
     return { success: false, error: err instanceof Error ? err.message : 'Could not complete onboarding' };
   }
 }
+
+// Auto-repair cyklu (R2-27): guard trwały ustawiany PRZED create (chroni okno async
+// przed remountem), ale czyszczony przy porażce (offline) — naprawa ponowi się,
+// zamiast zostać wypalona na zawsze.
+export const runCycleAutoRepair = async (opts: {
+  guard: { get: () => boolean; set: () => void; clear: () => void };
+  create: () => Promise<string | null>;
+}): Promise<void> => {
+  if (opts.guard.get()) return;
+  opts.guard.set();
+  const cycleId = await opts.create();
+  if (cycleId == null) opts.guard.clear();
+};

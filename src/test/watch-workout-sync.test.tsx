@@ -6,7 +6,7 @@ import type { WatchEvent } from '@/lib/watch-bridge';
 
 const listeners: Array<(e: WatchEvent) => void> = [];
 let peekedEvents: WatchEvent[] = [];
-const ackWatchEvents = vi.fn(async () => undefined);
+const ackWatchEvents = vi.fn(async (_keys: string[]) => undefined);
 
 vi.mock('@/lib/watch-bridge', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/watch-bridge')>();
@@ -18,7 +18,7 @@ vi.mock('@/lib/watch-bridge', async (importOriginal) => {
       return { remove: async () => {} };
     }),
     peekWatchEvents: vi.fn(async () => peekedEvents),
-    ackWatchEvents: (...args: unknown[]) => ackWatchEvents.apply(null, args),
+    ackWatchEvents: (keys: string[]) => ackWatchEvents(keys),
     sendWorkoutToWatch: vi.fn(async () => undefined),
   };
 });

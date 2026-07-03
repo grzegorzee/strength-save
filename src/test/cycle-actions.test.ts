@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TrainingDay } from '@/data/trainingPlan';
-import { completeOnboardingPlan, startCycleWithPlan } from '@/lib/cycle-actions';
+import { completeOnboardingPlan, runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
 
 const days: TrainingDay[] = [{
   id: 'day-1',
@@ -120,5 +120,52 @@ describe('cycle lifecycle actions', () => {
     expect(createActiveCycle).toHaveBeenCalledTimes(2);
     expect(createActiveCycle).toHaveBeenNthCalledWith(1, expect.any(Array), 8, '2026-06-08');
     expect(markOnboardingComplete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('runCycleAutoRepair (R2-27)', () => {
+  const makeGuard = () => {
+    let value = false;
+    return {
+      get: vi.fn(() => value),
+      set: vi.fn(() => { value = true; }),
+      clear: vi.fn(() => { value = false; }),
+    };
+  };
+
+  it('porazka create (np. offline) czysci guard - auto-naprawa ponowi sie po powrocie', async () => {
+    const guard = makeGuard();
+    const create = vi.fn(async () => null);
+
+    await runCycleAutoRepair({ guard, create });
+    expect(guard.clear).toHaveBeenCalledTimes(1);
+
+    // Powrot online: druga proba NIE jest zablokowana wypalonym guardem.
+    await runCycleAutoRepair({ guard, create });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('sukces create zostawia guard (remount nie tworzy duplikatu)', async () => {
+    const guard = makeGuard();
+    const create = vi.fn(async () => 'cycle-1');
+
+    await runCycleAutoRepair({ guard, create });
+    await runCycleAutoRepair({ guard, create });
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(guard.clear).not.toHaveBeenCalled();
+  });
+
+  it('guard ustawiany PRZED create (okno async chronione przed remountem)', async () => {
+    const guard = makeGuard();
+    let guardAtCreate = false;
+    const create = vi.fn(async () => {
+      guardAtCreate = guard.get();
+      return 'cycle-1';
+    });
+
+    await runCycleAutoRepair({ guard, create });
+
+    expect(guardAtCreate).toBe(true);
   });
 });

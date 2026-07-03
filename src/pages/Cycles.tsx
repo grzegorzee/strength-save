@@ -22,7 +22,7 @@ import { CycleCard } from '@/components/CycleCard';
 import { CycleDetail } from '@/components/CycleDetail';
 import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation, withLiveCompletedStats } from '@/lib/cycle-insights';
-import { startCycleWithPlan } from '@/lib/cycle-actions';
+import { runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -111,13 +111,32 @@ const Cycles = () => {
     if (!isLoaded || activeCycle || !planStartDate || trainingPlan.length === 0 || isPlanExpired) return;
     // Plan ma już swój cykl (np. zarchiwizowany po wygaśnięciu) — nie dubluj.
     if (cycles.some(c => c.startDate === planStartDate)) return;
+    // Guard czyszczony przy porażce (R2-27): offline nie wypala naprawy na zawsze.
     const repairKey = `cycle-repair:${uid}:${planStartDate}`;
-    try {
-      if (localStorage.getItem(repairKey)) return;
-      localStorage.setItem(repairKey, '1');
-    } catch { /* localStorage niedostępny — kontynuuj, guard startDate wystarcza */ }
+    const guard = {
+      get: () => {
+        try {
+          return !!localStorage.getItem(repairKey);
+        } catch {
+          return false; // localStorage niedostępny — guard startDate wystarcza
+        }
+      },
+      set: () => {
+        try {
+          localStorage.setItem(repairKey, '1');
+        } catch { /* jw. */ }
+      },
+      clear: () => {
+        try {
+          localStorage.removeItem(repairKey);
+        } catch { /* jw. */ }
+      },
+    };
     console.log('[Cycles] Auto-repair: creating missing active cycle for existing plan');
-    createActiveCycle(trainingPlan, planDurationWeeks, planStartDate);
+    void runCycleAutoRepair({
+      guard,
+      create: () => createActiveCycle(trainingPlan, planDurationWeeks, planStartDate),
+    });
   }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle, cycles, uid]);
 
   useEffect(() => {
