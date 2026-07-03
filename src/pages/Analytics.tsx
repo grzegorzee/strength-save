@@ -223,12 +223,16 @@ const SummaryTab = () => {
         </CardContent></Card>
       </div>
 
+      {/* Świeżość PR zostaje tu, ale dom rekordów to Achievements (Z79) — klik prowadzi tam. */}
       {periodPRs.length > 0 && (
-        <Card>
+        <Card className="cursor-pointer hover:border-primary/30 transition-all duration-200" onClick={() => navigate('/achievements')}>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Trophy className="h-5 w-5 text-fitness-warning" />
-              {period === 'week' ? t('analytics.newPRs.week') : t('analytics.newPRs.month')}
+            <CardTitle className="flex items-center justify-between gap-2 text-base">
+              <span className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-fitness-warning" />
+                {period === 'week' ? t('analytics.newPRs.week') : t('analytics.newPRs.month')}
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent>
