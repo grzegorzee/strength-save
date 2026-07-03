@@ -11,6 +11,22 @@
 
 ## DECYZJE
 
+### 2026-07-03 — FAZA 1 planu naprawy (docs/PLAN-NAPRAWY-2026-07-03.md): hotfixy P0 zapisu treningów (Z13-Z18)
+
+Wykonanie metodą TDD (failing test → fix), osobny commit per zadanie. Kolejność Z14 przed Z13 (Z13 używa `workoutSyncErrorMessageKey` z Z14). Weryfikacja checkpointu: vitest 437/437 (51 plików), typecheck 0 błędów, lint czysty, build OK, e2e mock 116/116, e2e emulator PASS (JDK21 z homebrew: `/opt/homebrew/opt/openjdk@21`).
+
+**Z14 — komunikaty błędów syncu przez taksonomię i18n.** Root cause: `setSaveError(result.error)` wstawiał surowe kody ('WORKOUT_CONFLICT', angielskie komunikaty Firestore) do bannera. Fix: `workoutSyncErrorMessageKey(error)` w `workout-sync-conflict.ts` mapuje przez `classifyWorkoutSyncError` na klucze i18n (typ zwrotu zawężony do unii kluczy, bo `t()` wymaga literalnych); 4 nowe klucze w pl.ts i en.ts (conflict/permission/notFound/validation); podpięte w WorkoutDay (linie ~580, ~651). Surowy kod błędu nadal wraca do wywołujących, mapowanie tylko na granicy UI.
+
+**Z13 — edycja treningu z expectedRevision z serwera.** Root cause (S1/S2, deterministyczny): `handleFinishEditing` wołał `batchSaveWorkout` bez `expectedRevision`; `hasWorkoutWriteConflict` traktuje `undefined` jak 0, więc KAŻDA edycja treningu z revision >= 1 rzucała WORKOUT_CONFLICT. Fix: `expectedRevision` jest teraz WYMAGANE w options `batchSaveWorkout` (null = świadome pominięcie, tylko migracje); typecheck wskazał dokładnie 1 call site bez pola (handleFinishEditing) — naprawiony odczytem baseline z serwera (`getWorkoutSessionFromServer`) w momencie zapisu + aktualizacja `cloudMetaRef` po sukcesie. Test strażnik: `hasWorkoutWriteConflict({revision:1}, undefined) === true`.
+
+**Z15 — fallback localStorage przenosi cloudRevision/cloudUpdatedAt/version.** Root cause (S3 mechanizm B): `withFallbackLoad`/`withFallbackSave` odbudowywały draft bez znaczników chmury i z `version: 1`, więc awaryjna ścieżka sama produkowała fałszywe konflikty. Fix: `WorkoutDraft` (format legacy) dostał opcjonalne pola, roundtrip przez fallback je zachowuje. Test: zapis/odczyt przy niedostępnym IDB zachowuje cloudRevision=5, cloudUpdatedAt, version=7.
+
+**Z16 — sprzątanie kopii fallback + bezpiecznik migracji + prefill to nie treść.** Root cause (S4): (1) `clearActiveDraft` przy działającym IDB nie czyścił kopii `fittracker_workout_draft:<uid>` — stara kopia wskrzeszała się przy pierwszym błędzie odczytu IDB; (2) `migrateFromLocalStorage` wskrzeszał dowolnie stary legacy draft; (3) `hasDraftContent` uznawał prefilowane `weight>0` za realną treść, więc porzucony start wisiał jako "niezapisane zmiany" na zawsze. Fix: `clearFallbackCopyIfMatches` po delete w runWrite; bezpiecznik 48h w migracji (starszy draft = usunięcie klucza); treść draftu = odhaczona seria LUB notatka LUB skip (istniejący test migracji dostał świeży savedAt, bo 123 ms epoki podpadał pod bezpiecznik).
+
+**Z17 — znaczniki syncu na bieżącym drafcie.** Root cause (S5, cichy zjadacz serii): po udanym checkpoincie WorkoutDay odbudowywał `activeDraftRef.current` ze STALE snapshotu sprzed syncu; cofnięta wersja powodowała ciche odrzucanie zapisów przez `latestWriteVersions`, a `dirty=false` wyłączał kolejne checkpointy. Fix: czysta funkcja `applySyncMarkers` (`workout-sync-markers.ts`, lustrzana semantyka `markDraftSynced`): znaczniki chmury zawsze, `dirty` czyszczone tylko gdy `base.version === syncedVersion`; baza = bieżący `activeDraftRef.current`.
+
+**Z18 — skipped nie jest błędem.** Root cause: `syncDraftToFirebase` zwraca `{success:false, skipped:true}` przy zajętym mutexie, a `handleCompleteWorkout`/`handleRetrySync` pokazywały toast błędu i ustawiały finalSyncPending. Fix: wcześniejszy return dla `skipped` (bez toastu, bez kolejki).
+
 ### 2026-06-29 — Realizacja planu naprawy po audycie (docs/AUDYT-FIX-PLAN-2026-06-29.md)
 
 Wykonanie zadań Z1-Z12 metodą TDD (test odtwarzający → minimalny surgical fix), osobny commit per zadanie. Bez push/deploy/iOS/functions deploy (czeka na zgodę usera). Poniżej per zadanie.
