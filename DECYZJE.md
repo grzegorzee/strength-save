@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-03 — FAZA 4 planu naprawy: jeden silnik syncu (Z23-Z24)
+
+Weryfikacja checkpointu: vitest 454/454 (54 pliki), typecheck 0, lint 0, build OK, e2e mock 10/10 batch-save (1 test zaktualizowany do nowego kontraktu, patrz niżej).
+
+**Z23 — workout-sync-engine.** Root cause (audyt 3.2-3.3): trzy równoległe egzekutory syncu (WorkoutDay, SyncCenterCard, AutoSyncOnReconnect) z mutexami per komponent, sekwencja finalna skopiowana 3 razy, AutoSync synchronizował treść z KOPII w kolejce zamiast z draftu — rozjazd kopii = wzajemne podbijanie revision. Fix: `src/lib/workout-sync-engine.ts` z `syncWorkoutSession(userId, sessionId, kind, deps)`: cała sekwencja promote -> alreadyFinalized -> save -> validate -> cleanup w jednym module; blokada in-flight per `${userId}::${sessionId}` (równoległe wywołanie tego samego rodzaju dostaje TĘ SAMĄ obietnicę; `final` żądany w trakcie checkpointu dołącza PO nim, żeby nie został połknięty); treść ZAWSZE z draftu IDB; baseline z serwera gdy brak (Z22); writeId per treść (Z21). Trzej konsumenci to cienkie adaptery UI. Kolejka (`workout-sync-queue.ts`) jest REFERENCYJNA: wpis = sessionId + metadane retry/UI, zero treści; stare wpisy z treścią migrowane przy odczycie (treść ignorowana). Konsekwencja kontraktu: wpis kolejki bez draftu w IDB to martwa referencja i jest sprzątany przez silnik (test e2e sync center zaktualizowany: sesja z kolejki musi mieć draft w IDB). Testy silnika na wstrzykiwanych fake'ach: pojedynczy zapis przy równoległych wywołaniach, alreadyFinalized bez zapisu, propagacja konfliktu, markSynced z revision wyniku, sprzątanie martwej referencji, baseline z serwera, final wymuszony kind=final.
+
+**Z24 — boczne ścieżki zapisu.** (1) Usunięte martwe writery omijające revision: `updateExerciseProgress`, `completeWorkout`, `updateWorkoutNotes`, `updateSkippedExercises` (potwierdzone rg: zero użyć poza definicją i return hooka). (2) `backfillHistoricalWorkouts`: updateDoc podbija `revision: increment(1)` + `updatedAt` (inwariant "każdy zapis podbija revision"). (3) Naprawa cyklu w tle: `.catch` z console.error + po sukcesie świeży baseline draftu przez `setCloudBaseline` także gdy sesja czeka w kolejce. (4) Timer sesji używa `activeDraft.startedAt` tylko gdy `activeDraft.sessionId === sessionId`. (5) `resolveConflictKeepMine`: try/catch, przy błędzie dialog zostaje otwarty i user widzi zmapowany komunikat.
+
 ### 2026-07-03 — FAZA 3 planu naprawy: idempotencja zapisu (Z21-Z22)
 
 Weryfikacja checkpointu: vitest 445/445 (53 pliki), typecheck 0, lint czysty, build OK. Scenariusz utraty sieci w trakcie checkpointu pokryty testem E2E emulatora w Z26 (lost-ack retry) + test terenowy usera.
