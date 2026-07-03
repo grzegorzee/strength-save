@@ -35,84 +35,91 @@ function escapeHtmlStr(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export const weeklyDigest = onSchedule(
-  {
-    schedule: "every monday 08:00",
-    timeZone: "Europe/Warsaw",
-    timeoutSeconds: 300,
-    secrets: [resendApiKey],
-  },
-  async () => {
-    const db = admin.firestore();
-    logger.info("[WeeklyDigest] Starting...");
+// R2-10: odbiorcy z kolekcji users (status active + opt-out weeklyDigest), a odczyty
+// proporcjonalne do treningów tygodnia (2 kwerendy zbiorcze), nie 2 kwerendy per user.
+// Zależności wstrzykiwane, żeby logika była testowalna bez emulatora.
+export interface DigestUser {
+  uid: string;
+  email?: string;
+  status?: string;
+  notificationPrefs?: { weeklyDigest?: boolean };
+}
 
-    const apiKey = resendApiKey.value();
-    if (!apiKey) {
-      logger.error("[WeeklyDigest] Missing secret: resend-api-key");
-      return;
-    }
+export interface WeeklyDigestDeps {
+  listUsers: () => Promise<DigestUser[]>;
+  queryCompletedWorkouts: (startStr: string, endStr: string) => Promise<WorkoutDoc[]>;
+  queryStravaActivities: (startStr: string, endStr: string) => Promise<Array<StravaDoc & { userId: string }>>;
+  sendEmail: (to: string, subject: string, html: string) => Promise<{ error?: { message: string } }>;
+  now?: () => Date;
+}
 
-    const resend = new Resend(apiKey);
+export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ processed: number; sent: number; failed: number }> {
+  // Get last Monday-Sunday range
+  const now = deps.now ? deps.now() : new Date();
+  const lastMonday = new Date(now);
+  const day = lastMonday.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  lastMonday.setDate(lastMonday.getDate() - diff - 7);
+  lastMonday.setHours(0, 0, 0, 0);
 
-    // Get last Monday-Sunday range
-    const now = new Date();
-    const lastMonday = new Date(now);
-    const day = lastMonday.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    lastMonday.setDate(lastMonday.getDate() - diff - 7);
-    lastMonday.setHours(0, 0, 0, 0);
+  const lastSunday = new Date(lastMonday);
+  lastSunday.setDate(lastMonday.getDate() + 6);
+  lastSunday.setHours(23, 59, 59, 999);
 
-    const lastSunday = new Date(lastMonday);
-    lastSunday.setDate(lastMonday.getDate() + 6);
-    lastSunday.setHours(23, 59, 59, 999);
+  const startStr = lastMonday.toISOString().split("T")[0];
+  const endStr = lastSunday.toISOString().split("T")[0];
 
-    const startStr = lastMonday.toISOString().split("T")[0];
-    const endStr = lastSunday.toISOString().split("T")[0];
+  logger.info(`[WeeklyDigest] Period: ${startStr} - ${endStr}`);
 
-    logger.info(`[WeeklyDigest] Period: ${startStr} - ${endStr}`);
+  const recipients = (await deps.listUsers()).filter((user) => (
+    !!user.email
+    // Brak pola status (konta sprzed hardeningu) = aktywny; jawnie nieaktywni pomijani.
+    && (user.status === undefined || user.status === "active")
+    // Opt-out: brak pola = wysyłaj.
+    && user.notificationPrefs?.weeklyDigest !== false
+  ));
 
-    let processed = 0;
-    let sent = 0;
-    let failed = 0;
-    const processUser = async (user: { uid: string; email: string }) => {
-      processed += 1;
-      try {
-        // Query workouts for this user
-        const workoutsSnap = await db
-          .collection("workouts")
-          .where("userId", "==", user.uid)
-          .where("completed", "==", true)
-          .where("date", ">=", startStr)
-          .where("date", "<=", endStr)
-          .get();
+  const [allWorkouts, allStrava] = await Promise.all([
+    deps.queryCompletedWorkouts(startStr, endStr),
+    deps.queryStravaActivities(startStr, endStr),
+  ]);
+  const workoutsByUser = new Map<string, WorkoutDoc[]>();
+  allWorkouts.forEach((workoutDoc) => {
+    const list = workoutsByUser.get(workoutDoc.userId) ?? [];
+    list.push(workoutDoc);
+    workoutsByUser.set(workoutDoc.userId, list);
+  });
+  const stravaByUser = new Map<string, StravaDoc[]>();
+  allStrava.forEach((activity) => {
+    const list = stravaByUser.get(activity.userId) ?? [];
+    list.push(activity);
+    stravaByUser.set(activity.userId, list);
+  });
 
-        const workouts = workoutsSnap.docs.map(d => d.data() as WorkoutDoc);
-        const sessionCount = workouts.length;
+  let processed = 0;
+  let sent = 0;
+  let failed = 0;
+  const processUser = async (user: { uid: string; email: string }) => {
+    processed += 1;
+    try {
+      const workouts = workoutsByUser.get(user.uid) ?? [];
+      const sessionCount = workouts.length;
 
-        if (sessionCount === 0) {
-          logger.info(`[WeeklyDigest] No workouts for ${user.email}, skipping.`);
-          return;
-        }
+      if (sessionCount === 0) {
+        return;
+      }
 
-        // Calculate tonnage
-        const tonnage = workouts.reduce((total, w) =>
-          total + w.exercises.reduce((exTotal, ex) =>
-            exTotal + ex.sets
-              .filter(s => s.completed && !s.isWarmup)
-              .reduce((s, set) => s + set.reps * set.weight, 0),
-          0),
-        0);
+      // Calculate tonnage
+      const tonnage = workouts.reduce((total, w) =>
+        total + w.exercises.reduce((exTotal, ex) =>
+          exTotal + ex.sets
+            .filter(s => s.completed && !s.isWarmup)
+            .reduce((s, set) => s + set.reps * set.weight, 0),
+        0),
+      0);
 
-        // Query strava activities for this user
-        const stravaSnap = await db
-          .collection("strava_activities")
-          .where("userId", "==", user.uid)
-          .where("date", ">=", startStr)
-          .where("date", "<=", endStr)
-          .get();
-
-        const stravaActivities = stravaSnap.docs.map(d => d.data() as StravaDoc);
-        const runs = stravaActivities.filter(a => a.type === "Run");
+      const stravaActivities = stravaByUser.get(user.uid) ?? [];
+      const runs = stravaActivities.filter(a => a.type === "Run");
         const totalRunKm = Math.round(
           runs.reduce((sum, a) => sum + ((a.distance || 0) / 1000), 0) * 10
         ) / 10;
@@ -191,36 +198,96 @@ export const weeklyDigest = onSchedule(
 </body>
 </html>`;
 
+      // Resend SDK nie rzuca przy odrzuceniu — błąd wraca w response.error.
+      const response = await deps.sendEmail(user.email, subject, html);
+      if (response.error) {
+        failed += 1;
+        logger.error(`[WeeklyDigest] Provider rejected for ${user.email}: ${response.error.message}`);
+        return;
+      }
+      sent += 1;
+      logger.info(`[WeeklyDigest] Email sent to ${user.email}`);
+    } catch (error) {
+      failed += 1;
+      logger.error(`[WeeklyDigest] Failed for ${user.email}:`, error);
+    }
+  };
+
+  await forEachWithConcurrency(
+    recipients.map((user) => ({ uid: user.uid, email: user.email as string })),
+    DIGEST_CONCURRENCY,
+    processUser,
+  );
+
+  logger.info("[WeeklyDigest] Done.", { processed, sent, failed });
+  return { processed, sent, failed };
+}
+
+export const weeklyDigest = onSchedule(
+  {
+    schedule: "every monday 08:00",
+    timeZone: "Europe/Warsaw",
+    timeoutSeconds: 300,
+    secrets: [resendApiKey],
+  },
+  async () => {
+    const db = admin.firestore();
+    logger.info("[WeeklyDigest] Starting...");
+
+    const apiKey = resendApiKey.value();
+    if (!apiKey) {
+      logger.error("[WeeklyDigest] Missing secret: resend-api-key");
+      return;
+    }
+
+    const resend = new Resend(apiKey);
+
+    await runWeeklyDigest({
+      listUsers: async () => {
+        // Paginacja po kolekcji users (1 read/user) zamiast listUsers z Auth —
+        // profil niesie status i notificationPrefs potrzebne do filtrowania.
+        const users: DigestUser[] = [];
+        let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+        for (;;) {
+          let query = db.collection("users")
+            .select("email", "status", "notificationPrefs")
+            .orderBy("__name__")
+            .limit(1000);
+          if (last) query = query.startAfter(last);
+          const page = await query.get();
+          page.docs.forEach((doc) => {
+            const data = doc.data() as { email?: string; status?: string; notificationPrefs?: { weeklyDigest?: boolean } };
+            users.push({ uid: doc.id, email: data.email, status: data.status, notificationPrefs: data.notificationPrefs });
+          });
+          if (page.docs.length < 1000) break;
+          last = page.docs[page.docs.length - 1];
+        }
+        return users;
+      },
+      queryCompletedWorkouts: async (startStr, endStr) => {
+        const snapshot = await db.collection("workouts")
+          .where("completed", "==", true)
+          .where("date", ">=", startStr)
+          .where("date", "<=", endStr)
+          .get();
+        return snapshot.docs.map((doc) => doc.data() as WorkoutDoc);
+      },
+      queryStravaActivities: async (startStr, endStr) => {
+        const snapshot = await db.collection("strava_activities")
+          .where("date", ">=", startStr)
+          .where("date", "<=", endStr)
+          .get();
+        return snapshot.docs.map((doc) => doc.data() as StravaDoc & { userId: string });
+      },
+      sendEmail: async (to, subject, html) => {
         const response = await resend.emails.send({
           from: "Strength Save <noreply@strengthsave.app>",
-          to: user.email,
+          to,
           subject,
           html,
         });
-        // Resend SDK nie rzuca przy odrzuceniu — błąd wraca w response.error.
-        if (response.error) {
-          failed += 1;
-          logger.error(`[WeeklyDigest] Provider rejected for ${user.email}: ${response.error.message}`);
-          return;
-        }
-        sent += 1;
-        logger.info(`[WeeklyDigest] Email sent to ${user.email}`);
-      } catch (error) {
-        failed += 1;
-        logger.error(`[WeeklyDigest] Failed for ${user.email}:`, error);
-      }
-    };
-
-    let pageToken: string | undefined;
-    do {
-      const result = await admin.auth().listUsers(1000, pageToken);
-      const pageUsers = result.users
-        .filter(user => user.email)
-        .map(user => ({ uid: user.uid, email: user.email! }));
-      await forEachWithConcurrency(pageUsers, DIGEST_CONCURRENCY, processUser);
-      pageToken = result.pageToken;
-    } while (pageToken);
-
-    logger.info("[WeeklyDigest] Done.", { processed, sent, failed });
+        return response.error ? { error: { message: response.error.message } } : {};
+      },
+    });
   },
 );
