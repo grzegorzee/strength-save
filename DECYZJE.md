@@ -11,6 +11,30 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X10 FAZA 3: wydajność startu i danych (Z54-Z56)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 526/526 (64 pliki), typecheck 0, lint 0, build OK, check:bundle-budget OK (initial 919 KB / limit 1200 KB), e2e:mock 119/119 (1 pre-existing flake exercise-card-v3 "multiple workout days", przechodzi przy powtórce 6/6).
+
+**Z54 — bundle (rozmiary dist/assets, KB):**
+
+| Chunk | PRZED | PO | Uwagi |
+|---|---|---|---|
+| firebase | 716 | — | rozbity na 3 poniżej |
+| firebase-firestore | — | 352 | osobny chunk = bump SDK nie unieważnia auth/core w cache |
+| firebase-core | — | 192 | |
+| firebase-auth | — | 180 | |
+| index | 568 | 568 | bez zmian |
+| ExerciseDetail | 272 | 144 | słownik EN (128 KB) dociągany dynamicznie tylko w trybie EN |
+| exercise-details-en | — | 128 | lazy |
+| chart-config (recharts) | 364 | 364 | ładowany dopiero przy wykresie w Achievements (lazy TonnageTrendChart, wzorzec AnalyticsChartsTab) |
+| react-vendor | 140 | 140 | |
+
+Budżet zaostrzony: per-chunk 800→600 KB + NOWY limit sumy initial (index + firebase-core + react-vendor) 1200 KB (obecnie 919 KB). Dynamiczny import EN tylko dla `exercise-details-en` (1 konsument produkcyjny: ExerciseDetail, bump stanu po preload); PL kanoniczny zostaje statyczny — zgodnie z bezpiecznikiem planu (limit 5 plików nie przekroczony).
+
+**Z55 — limity listenerów:** `plan_cycles` limit(60) (5 lat historii, orderBy startDate desc tnie najstarsze); `weekly_summaries` limit(26) — kolekcja zamrożona (generator usunięty w R2), limit to czapka kosztowa, nie selektor.
+
+**Z56 — obserwowalność crashy renderu:** ErrorBoundary.componentDidCatch raportuje `render-crash` (phase 'other', message + pierwsza linia stacka) do client_errors, tylko przy przekazanym uid; NOWY boundary per trasa wokół `<Suspense>` drzewa tras (uid z useCurrentUser) z kartą "Coś poszło nie tak" + "Wróć na Dashboard" (reset + navigate) — crash strony nie wywala apki; boundary topowy zostaje ostatnią linią obrony.
+
 ### 2026-07-03 — X10 FAZA 2: porządki w Settings i narzędziach (Z50-Z53)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 523/523 (63 pliki), typecheck 0, lint 0, build OK, e2e:mock 119/119.
