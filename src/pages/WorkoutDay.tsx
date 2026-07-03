@@ -44,7 +44,7 @@ import { createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExerci
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
-import { isProvisionalWorkoutSessionId } from '@/lib/workout-session';
+import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
@@ -376,50 +376,25 @@ const WorkoutDay = () => {
     }));
   }, []);
 
-  const buildDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}): ActiveWorkoutDraft | null => {
-    const draftUserId = overrides.userId ?? uid;
-    const draftSessionId = overrides.sessionId ?? sessionId;
-    const draftDayId = overrides.dayId ?? dayId;
-    const draftDate = overrides.date ?? targetDate;
-    if (!draftUserId || !draftSessionId || !draftDayId) return null;
-
-    const now = Date.now();
-    const previousDraft = activeDraftRef.current?.sessionId === draftSessionId
-      ? activeDraftRef.current
-      : null;
-
-    return {
-      sessionId: draftSessionId,
-      userId: draftUserId,
-      dayId: draftDayId,
-      date: draftDate,
-      cycleId: overrides.cycleId ?? previousDraft?.cycleId ?? null,
-      sessionOrigin: overrides.sessionOrigin ?? previousDraft?.sessionOrigin ?? (isProvisionalWorkoutSessionId(draftSessionId) ? 'provisional' : 'remote'),
-      remoteSessionId: overrides.remoteSessionId ?? previousDraft?.remoteSessionId ?? null,
-      exerciseSets: overrides.exerciseSets ?? exerciseSetsRef.current,
-      exerciseNotes: overrides.exerciseNotes ?? exerciseNotesRef.current,
-      exerciseNames: overrides.exerciseNames ?? previousDraft?.exerciseNames ?? daySnapshotRef.current.names,
-      exerciseMetrics: overrides.exerciseMetrics ?? exerciseMetricsRef.current,
-      dayNotes: overrides.dayNotes ?? dayNotesRef.current,
-      dayName: overrides.dayName ?? previousDraft?.dayName ?? daySnapshotRef.current.dayName,
-      dayFocus: overrides.dayFocus ?? previousDraft?.dayFocus ?? daySnapshotRef.current.focus,
-      skippedExercises: overrides.skippedExercises ?? skippedExercisesRef.current,
-      startedAt: overrides.startedAt ?? previousDraft?.startedAt ?? now,
-      finalizedAt: overrides.finalizedAt ?? previousDraft?.finalizedAt,
-      updatedAt: overrides.updatedAt ?? now,
-      cloudUpdatedAt: overrides.cloudUpdatedAt
-        ?? previousDraft?.cloudUpdatedAt
-        ?? (cloudMetaRef.current?.sessionId === draftSessionId ? cloudMetaRef.current.updatedAt : undefined),
-      cloudRevision: overrides.cloudRevision
-        ?? previousDraft?.cloudRevision
-        ?? (cloudMetaRef.current?.sessionId === draftSessionId ? cloudMetaRef.current.revision : undefined),
-      lastFirebaseSyncAt: overrides.lastFirebaseSyncAt ?? previousDraft?.lastFirebaseSyncAt ?? null,
-      dirty: overrides.dirty ?? true,
-      completedLocally: overrides.completedLocally ?? previousDraft?.completedLocally ?? false,
-      finalSyncPending: overrides.finalSyncPending ?? previousDraft?.finalSyncPending ?? false,
-      version: overrides.version ?? ((previousDraft?.version ?? 0) + 1),
-    };
-  }, [uid, sessionId, dayId, targetDate]);
+  // Cienki wrapper: logika snapshotu w czystej funkcji (workout-draft-snapshot.ts, Z29).
+  const buildDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}): ActiveWorkoutDraft | null => (
+    buildWorkoutDraftSnapshot({
+      userId: uid,
+      sessionId,
+      dayId,
+      date: targetDate,
+      previousDraft: activeDraftRef.current,
+      exerciseSets: exerciseSetsRef.current,
+      exerciseNotes: exerciseNotesRef.current,
+      exerciseMetrics: exerciseMetricsRef.current,
+      dayNotes: dayNotesRef.current,
+      skippedExercises: skippedExercisesRef.current,
+      dayNames: daySnapshotRef.current.names,
+      dayName: daySnapshotRef.current.dayName,
+      dayFocus: daySnapshotRef.current.focus,
+      cloudMeta: cloudMetaRef.current,
+    }, overrides)
+  ), [uid, sessionId, dayId, targetDate]);
 
   const persistDraftSnapshot = useCallback(async (
     overrides: Partial<ActiveWorkoutDraft> = {},

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
+import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
+import { resolveWriteAttempt } from '@/lib/workout-write-attempt';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSession } from '@/types';
 
@@ -161,6 +163,92 @@ describe('syncWorkoutSession', () => {
     expect(deps.setCloudBaseline).toHaveBeenCalledWith('u1', 's1', { revision: 4, updatedAt: 700 });
     const saveOptions = deps.saveWorkout.mock.calls[0][2];
     expect(saveOptions.expectedRevision).toBe(4);
+  });
+
+  it('lost-ack checkpointu: flush draftu nie zmienia writeId, retry kończy się already-applied', async () => {
+    // Symulacja pełnej pętli R2-01: checkpoint dochodzi do serwera, ack ginie
+    // (suspend / słaby zasięg), WorkoutDay flushuje draft przed retry.
+    // Po Z29 flush przenosi pendingWriteId i nie podbija version, więc retry
+    // idzie z TYM SAMYM writeId i serwer rozpoznaje własny zapis (no-op).
+    let storedDraft: ActiveWorkoutDraft | null = makeDraft({ cloudRevision: 1, version: 6 });
+    const server = {
+      revision: 1,
+      lastWriteId: undefined as string | undefined,
+    };
+    let dropAck = true;
+    const seenWriteIds: string[] = [];
+
+    const deps = {
+      loadDraft: vi.fn(async () => storedDraft),
+      saveWorkout: vi.fn(async (
+        _sessionId: string,
+        _exercises: unknown[],
+        options: { expectedRevision: number | null; writeId: string },
+      ) => {
+        seenWriteIds.push(options.writeId);
+        const resolution = resolveWriteAttempt(server, options.expectedRevision, options.writeId);
+        if (resolution === 'conflict') {
+          return { success: false, error: 'WORKOUT_CONFLICT' };
+        }
+        if (resolution === 'ok') {
+          server.revision += 1;
+          server.lastWriteId = options.writeId;
+          if (dropAck) {
+            dropAck = false;
+            throw new Error('NETWORK_ACK_LOST');
+          }
+        }
+        return { success: true, updatedAt: 999, revision: server.revision, alreadyApplied: resolution === 'already-applied' };
+      }),
+      getFromServer: vi.fn(async () => null),
+      createSession: vi.fn(async () => ({ session: null as WorkoutSession | null, error: 'NOT_EXPECTED' })),
+      markPromoted: vi.fn(async () => undefined),
+      markSynced: vi.fn(async () => undefined),
+      setCloudBaseline: vi.fn(async () => undefined),
+      setPendingWrite: vi.fn(async (_userId: string, _sessionId: string, pending: { writeId: string; version: number } | null) => {
+        if (storedDraft) {
+          storedDraft = {
+            ...storedDraft,
+            pendingWriteId: pending ? pending.writeId : null,
+            pendingWriteVersion: pending ? pending.version : null,
+          };
+        }
+      }),
+      clearDraft: vi.fn(async () => undefined),
+      queue: { remove: vi.fn() },
+      isOnline: () => true,
+      now: () => 5000,
+    } satisfies WorkoutSyncDeps;
+
+    const first = await syncWorkoutSession('u1', 's1', 'checkpoint', deps);
+    expect(first.success).toBe(false);
+
+    // Flush stanu React do IDB przed retry (identyczna treść) — ścieżka WorkoutDay.
+    const flushed = buildWorkoutDraftSnapshot({
+      userId: 'u1',
+      sessionId: 's1',
+      dayId: 'd1',
+      date: '2026-07-03',
+      previousDraft: storedDraft,
+      exerciseSets: storedDraft!.exerciseSets,
+      exerciseNotes: storedDraft!.exerciseNotes,
+      exerciseMetrics: storedDraft!.exerciseMetrics,
+      dayNotes: storedDraft!.dayNotes,
+      skippedExercises: storedDraft!.skippedExercises,
+      dayNames: {},
+      cloudMeta: null,
+      now: 6000,
+    });
+    expect(flushed).not.toBeNull();
+    storedDraft = flushed;
+
+    const retry = await syncWorkoutSession('u1', 's1', 'checkpoint', deps);
+
+    expect(retry.success).toBe(true);
+    expect(retry.conflict).toBeUndefined();
+    expect(seenWriteIds).toHaveLength(2);
+    expect(seenWriteIds[0]).toBe(seenWriteIds[1]);
+    expect(server.revision).toBe(2);
   });
 
   it('final wymuszony kind=final zapisuje completed nawet bez finalSyncPending na drafcie', async () => {
