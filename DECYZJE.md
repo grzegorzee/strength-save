@@ -11,6 +11,17 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X11 FAZA 5: porządek Profil vs Ustawienia (Z81)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 612/612 (75 plików), typecheck 0, lint 0, build OK, e2e:mock 139/139.
+
+**Kryterium podziału (obowiązuje):** Profil = kim jestem i jak apka się zachowuje (konto, preferencje, język, jednostki, dźwięk, timer, launcher powiadomień); Ustawienia = dane i integracje (backup, Strava, sync, narzędzia naprawcze).
+
+1. Karta "Konto" read-only usunięta z Settings (duplikat Profilu pod TYM SAMYM tytułem i18n); email pokazany w Profilu pod nickiem; podtytuł Settings opisuje zawartość (`settings.subtitle`); osierocony klucz `settings.account.role` usunięty z obu locale.
+2. DataManagement renderowany TYLKO w Settings; na Pomiarach drogowskaz "Kopia zapasowa danych" → `/settings?section=data` (deep-scroll z X10).
+3. **Decyzja (wariant mniejszego diffu):** NotificationSettings ZOSTAJE w Settings — launcher z Profilu (`/settings?section=notifications`) działa; przeniesienie całej karty do Profilu nie zmienia osiągalności, a zwiększa diff.
+4. **Naprawa procesu weryfikacji:** test e2e pickera w PlanEditor failował w PEŁNYCH runach e2e:mock od Z70 (przycisk "Dodaj" → "Dodaj ćwiczenie"), a bramki raportowałem po samej liczbie "passed" (fail był niewidoczny w tail). Test naprawiony; od teraz bramka e2e sprawdzana jawnie po "failed" (139/139).
+
 ### 2026-07-03 — X11 FAZA 4: postępy bez duplikatów (Z78-Z80)
 
 **Bramki checkpointu (wszystkie zielone):** vitest 612/612 (75 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 924 KB / 1200 KB), e2e:mock 138/138.
