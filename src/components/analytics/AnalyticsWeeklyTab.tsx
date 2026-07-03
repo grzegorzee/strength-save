@@ -1,18 +1,31 @@
+import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
-import { useWeeklySummary } from '@/hooks/useWeeklySummary';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
+import { useStrava } from '@/hooks/useStrava';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { buildLocalWeeklySummaries } from '@/lib/weekly-summary';
 import { dateLocale } from '@/i18n';
 import { parseLocalDate } from '@/lib/utils';
 import { Dumbbell, Flame, Route, Trophy } from 'lucide-react';
 
+// Tygodnie liczone lokalnie (Z78) — koniec czytania zamrożonej kolekcji weekly_summaries
+// (generator usunięty w R2; kolekcja pokazywała wyłącznie stare dane).
 const AnalyticsWeeklyTab = () => {
-  const { uid } = useCurrentUser();
+  const { uid, canUseStrava } = useCurrentUser();
   const { t, lang } = useTranslation();
   const { fmt, fmtTonnage } = useUnit();
-  const { summaries } = useWeeklySummary(uid);
+  const { workouts } = useFirebaseWorkouts(uid);
+  const { activities: stravaActivities } = useStrava(uid, canUseStrava);
+  const { plan: trainingPlan } = useTrainingPlan(uid);
+
+  const summaries = useMemo(
+    () => buildLocalWeeklySummaries(workouts, stravaActivities, trainingPlan),
+    [workouts, stravaActivities, trainingPlan],
+  );
 
   return (
     <div className="space-y-4">
@@ -27,15 +40,12 @@ const AnalyticsWeeklyTab = () => {
       )}
 
       {summaries.map(s => (
-        <Card key={s.id} className="hover:border-primary/30 transition-all duration-200">
+        <Card key={s.weekStart} className="hover:border-primary/30 transition-all duration-200">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
               <Badge variant="outline" className="text-xs">
                 {parseLocalDate(s.weekStart).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })} - {parseLocalDate(s.weekEnd).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
               </Badge>
-              <span className="text-xs text-muted-foreground">
-                {new Date(s.generatedAt).toLocaleDateString(dateLocale(lang))}
-              </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
@@ -68,8 +78,6 @@ const AnalyticsWeeklyTab = () => {
                 <p className="text-xs text-muted-foreground">{t('analytics.stat.prs')}</p>
               </div>
             </div>
-
-            <p className="text-sm text-muted-foreground leading-relaxed">{s.summary}</p>
 
             {s.stats.prs.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-3">

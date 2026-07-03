@@ -25,6 +25,34 @@ export interface WeeklySummary {
   stats: WeeklySummaryStats;
 }
 
+export interface LocalWeeklySummary {
+  weekStart: string;
+  weekEnd: string;
+  stats: WeeklySummaryStats;
+}
+
+/**
+ * Tygodnie liczone lokalnie (Z78): zastępuje zamrożoną kolekcję weekly_summaries
+ * (generator usunięty w R2 — kolekcja nigdy nie pokaże nowych danych). Ostatnie
+ * `weeksBack` tygodni od `now`, tygodnie bez danych pomijane, najnowsze pierwsze.
+ */
+export function buildLocalWeeklySummaries(
+  workouts: WorkoutSession[],
+  stravaActivities: StravaActivity[],
+  trainingPlan: TrainingDay[],
+  now: Date = new Date(),
+  weeksBack = 12,
+): LocalWeeklySummary[] {
+  const summaries: LocalWeeklySummary[] = [];
+  for (let i = 0; i < weeksBack; i += 1) {
+    const weekDate = new Date(now);
+    weekDate.setDate(weekDate.getDate() - i * 7);
+    const { stats, weekStart, weekEnd, hasData } = prepareWeeklyData(weekDate, workouts, stravaActivities, trainingPlan);
+    if (hasData) summaries.push({ weekStart, weekEnd, stats });
+  }
+  return summaries;
+}
+
 // --- Prepare weekly data ---
 
 export function prepareWeeklyData(
