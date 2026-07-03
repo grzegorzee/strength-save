@@ -364,13 +364,13 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 6. `src/App.tsx:196`: usuń martwy duplikat trasy /measurements; `src/pages/Settings.tsx:60`: `limit(ADMIN_USERS_LISTENER_LIMIT)` na getDocs users; `src/pages/Profile.tsx:89`: po udanym uploadzie avatara usuń poprzedni plik (lub stała nazwa pliku = nadpisywanie).
 
 **Workflow:**
-- [ ] Krok 1: dla 1-5 failing test przed fixem (unit/hook testy; wzorce w istniejących testach hooków); dla 6 wystarczy typecheck/lint + istniejące testy.
-- [ ] Krok 2: implementacje, commit per punkt (`fix(...): ... (Z44)`).
+- [x] Krok 1: dla 1-5 failing test przed fixem (unit/hook testy; wzorce w istniejących testach hooków); dla 6 wystarczy typecheck/lint + istniejące testy.
+- [x] Krok 2: implementacje, commit per punkt (`fix(...): ... (Z44)`).
 
 ### CHECKPOINT FAZY 4
-- [ ] `npm run test`, typecheck, lint, build, `npm run test:rules`, `npm run e2e:mock`, `npm run e2e:emulator`.
-- [ ] Scenariusz background/resume na urządzeniu (zmiany dotykały notyfikacji i draftów).
-- [ ] Wpis do DECYZJE.md.
+- [x] `npm run test`, typecheck, lint, build, `npm run test:rules`, `npm run e2e:mock`, `npm run e2e:emulator`.
+- [x] Scenariusz background/resume na urządzeniu (zmiany dotykały notyfikacji i draftów).
+- [x] Wpis do DECYZJE.md.
 
 ---
 
