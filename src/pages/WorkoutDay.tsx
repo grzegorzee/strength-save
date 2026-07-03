@@ -168,14 +168,16 @@ const WorkoutDay = () => {
   useEffect(() => { queuedDraftRef.current = queuedDraft; }, [queuedDraft]);
 
   // Timer sesji (mockup [17]) — liczy od startedAt aktywnego treningu.
+  // startedAt tylko z draftu TEJ sesji — cudzy draft dawałby absurdalny czas.
   useEffect(() => {
     if (sessionId === null || isCompleted || !activeDraft?.startedAt) return;
+    if (activeDraft.sessionId !== sessionId) return;
     const start = activeDraft.startedAt;
     const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - start) / 1000)));
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [sessionId, isCompleted, activeDraft?.startedAt]);
+  }, [sessionId, isCompleted, activeDraft?.startedAt, activeDraft?.sessionId]);
 
   // Tonaż bieżącej sesji (kg) — serie ukończone, bez rozgrzewki.
   const sessionVolumeKg = useMemo(
@@ -603,15 +605,23 @@ const WorkoutDay = () => {
   // Konflikt urządzeń: zachowaj lokalną wersję — podbij znacznik chmury w drafcie
   // do stanu serwera i ponów zapis (świadome nadpisanie wersji z drugiego urządzenia).
   const resolveConflictKeepMine = useCallback(async () => {
-    setConflictDialogOpen(false);
-    if (!uid || !sessionId) return;
-    const server = await getWorkoutSessionFromServer(sessionId);
-    await persistDraftSnapshot({
-      ...(server?.updatedAt !== undefined ? { cloudUpdatedAt: server.updatedAt } : {}),
-      ...(server?.revision !== undefined ? { cloudRevision: server.revision } : {}),
-    }, { showStatus: false });
-    await syncDraftToFirebase(activeDraftRef.current?.finalSyncPending ? 'final' : 'checkpoint');
-  }, [uid, sessionId, getWorkoutSessionFromServer, persistDraftSnapshot, syncDraftToFirebase]);
+    if (!uid || !sessionId) {
+      setConflictDialogOpen(false);
+      return;
+    }
+    try {
+      const server = await getWorkoutSessionFromServer(sessionId);
+      await persistDraftSnapshot({
+        ...(server?.updatedAt !== undefined ? { cloudUpdatedAt: server.updatedAt } : {}),
+        ...(server?.revision !== undefined ? { cloudRevision: server.revision } : {}),
+      }, { showStatus: false });
+      setConflictDialogOpen(false);
+      await syncDraftToFirebase(activeDraftRef.current?.finalSyncPending ? 'final' : 'checkpoint');
+    } catch (err) {
+      // Offline/timeout: dialog zostaje otwarty, user widzi komunikat i może ponowić.
+      setSaveError(t(workoutSyncErrorMessageKey(err)));
+    }
+  }, [uid, sessionId, getWorkoutSessionFromServer, persistDraftSnapshot, syncDraftToFirebase, t]);
 
   // Konflikt urządzeń: pobierz wersję z chmury — porzuć lokalny draft i kolejkę;
   // efekt wczytywania załaduje stan serwera z onSnapshot (workouts).
@@ -868,8 +878,15 @@ const WorkoutDay = () => {
           cloudUpdatedAt: result.session.updatedAt,
           cloudRevision: result.session.revision,
         }, { showStatus: false });
+      } else if (workoutSyncQueue.findBySessionId(uid, result.session.id)) {
+        // Naprawa podbiła revision na serwerze — draft czekający w kolejce
+        // musi dostać świeży baseline, inaczej retry rzuci fałszywy konflikt.
+        await workoutDraftDb.setCloudBaseline(uid, result.session.id, {
+          revision: result.session.revision,
+          updatedAt: result.session.updatedAt,
+        }).catch(() => undefined);
       }
-    });
+    }).catch(err => console.error('cycle repair failed', err));
   }, [
     startSourcesReady,
     uid,

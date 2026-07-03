@@ -12,6 +12,7 @@ import {
   where,
   runTransaction,
   writeBatch,
+  increment,
   type UpdateData,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -146,100 +147,6 @@ export const useFirebaseWorkoutActions = (
     const workoutDate = date || formatLocalDate(new Date());
     return createProvisionalWorkoutSession(userId, dayId, workoutDate, cycleId);
   }, [userId]);
-
-  const updateExerciseProgress = useCallback(async (
-    sessionId: string,
-    exerciseId: string,
-    sets: SetData[],
-    notes?: string,
-    name?: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    if (!sessionId) {
-      return { success: false, error: t('err.noSession') };
-    }
-
-    try {
-      // Pobierz aktualny dokument z Firebase (nie z lokalnego state!)
-      const workoutRef = doc(db, WORKOUTS_COLLECTION, sessionId);
-      const workoutSnap = await getDoc(workoutRef);
-
-      if (!workoutSnap.exists()) {
-        console.error('Workout not found in Firebase:', sessionId);
-        return { success: false, error: t('err.workoutNotFound') };
-      }
-
-      const workout = workoutSnap.data() as WorkoutSession;
-
-      // Sanitize and clamp sets
-      const sanitizedSets = sets.map(clampSet);
-
-      // Firebase doesn't accept undefined values - only include notes if defined
-      const newExercise: ExerciseProgress = {
-        exerciseId,
-        sets: sanitizedSets,
-        ...(notes !== undefined && { notes }),
-        ...(name && { name }),
-      };
-
-      const existingIndex = workout.exercises.findIndex(e => e.exerciseId === exerciseId);
-      const newExercises = existingIndex >= 0
-        ? workout.exercises.map((e, i) => i === existingIndex ? newExercise : e)
-        : [...workout.exercises, newExercise];
-
-      // Sanitize and clamp entire exercises array (zachowaj snapshot nazwy każdego ćwiczenia)
-      const cleanExercises = newExercises.map(ex => ({
-        exerciseId: ex.exerciseId,
-        sets: ex.sets.map(clampSet),
-        ...(ex.notes !== undefined && { notes: String(ex.notes).slice(0, 2000) }),
-        ...(ex.name && { name: String(ex.name).slice(0, 200) }),
-        ...cleanMetrics(ex),
-      }));
-
-      await updateDoc(workoutRef, { exercises: cleanExercises });
-      return { success: true };
-    } catch (err) {
-      console.error('Error updating exercise:', err);
-      const errorMessage = err instanceof Error ? err.message : t('common.unknownSaveError');
-      return { success: false, error: errorMessage };
-    }
-  }, [t]);
-
-  const completeWorkout = useCallback(async (sessionId: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), {
-        completed: true
-      });
-      return { success: true };
-    } catch (err) {
-      console.error('Error completing workout:', err);
-      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
-      return { success: false, error: errorMessage };
-    }
-  }, [t]);
-
-  const updateSkippedExercises = useCallback(async (sessionId: string, skippedExercises: string[]): Promise<{ success: boolean; error?: string }> => {
-    if (!sessionId) return { success: false, error: t('err.noSessionId') };
-    try {
-      await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), { skippedExercises });
-      return { success: true };
-    } catch (err) {
-      console.error('Error updating skipped exercises:', err);
-      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
-      return { success: false, error: errorMessage };
-    }
-  }, [t]);
-
-  const updateWorkoutNotes = useCallback(async (sessionId: string, notes: string): Promise<{ success: boolean; error?: string }> => {
-    if (!sessionId) return { success: false, error: t('err.noSessionId') };
-    try {
-      await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), { notes });
-      return { success: true };
-    } catch (err) {
-      console.error('Error updating workout notes:', err);
-      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
-      return { success: false, error: errorMessage };
-    }
-  }, [t]);
 
   const getWorkoutsByDay = useCallback((dayId: string) => {
     return workouts.filter(w => w.dayId === dayId).sort((a, b) =>
@@ -551,6 +458,10 @@ export const useFirebaseWorkoutActions = (
         }
 
         if (Object.keys(update).length === 0) continue;
+        // Inwariant "każdy zapis podbija revision": zmiana musi być widoczna
+        // dla preconditionów optimistic concurrency (audyt 3.2).
+        update.revision = increment(1);
+        update.updatedAt = Date.now();
         await updateDoc(doc(db, WORKOUTS_COLLECTION, w.id), update as UpdateData<Record<string, unknown>>);
         updated += 1;
       }
@@ -644,8 +555,6 @@ export const useFirebaseWorkoutActions = (
   return {
     createWorkoutSession,
     createOfflineWorkoutSession,
-    updateExerciseProgress,
-    completeWorkout,
     batchSaveWorkout,
     getWorkoutSessionFromServer,
     getWorkoutsByDay,
@@ -655,8 +564,6 @@ export const useFirebaseWorkoutActions = (
     getLatestMeasurement,
     getTotalWeight,
     getCompletedWorkoutsCount,
-    updateWorkoutNotes,
-    updateSkippedExercises,
     exportData,
     importData,
     deleteWorkout,
