@@ -195,11 +195,13 @@ add('read email_verification_codes zablokowane', false, await ok(() => getDoc(do
 add('read auth_audit_logs zablokowane', false, await ok(() => getDoc(doc(db, 'auth_audit_logs', 'a1'))));
 add('read notification_logs zablokowane', false, await ok(() => getDoc(doc(db, 'notification_logs', 'n1'))));
 
-// === Pola Max HR: user nie pisze bezposrednio, callable (admin SDK) tak ===
+// === Pola Max HR (Z59): user pisze bezposrednio z walidacja typow i widelek ===
 await env.clearFirestore();
 await seedUser({ enabled: true });
-add('user update estimatedMaxHR zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 190 })));
-add('user update maxHRManualOverride zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { maxHRManualOverride: true })));
+add('user update estimatedMaxHR w widelkach ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 190, maxHRManualOverride: true })));
+add('user update estimatedMaxHR poza widelkami DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 300 })));
+add('user update estimatedMaxHR zly typ DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { estimatedMaxHR: 'wysoki' })));
+add('user update maxHRManualOverride zly typ DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { maxHRManualOverride: 'tak' })));
 add('user update zwyklego pola profilu (displayName)', true, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'G' })));
 add('user update trainingProfile podczas onboardingu', true, await ok(() => updateDoc(doc(db, 'users', UID), { trainingProfile: { level: 'beginner', objective: 'build_muscle', daysPerWeek: 3 } })));
 add('user update subscription zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { subscription: { tier: 'yearly', status: 'active' } })));

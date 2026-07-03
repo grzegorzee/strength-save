@@ -7,6 +7,7 @@ import {
   limit,
   onSnapshot,
   doc,
+  updateDoc,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
@@ -138,26 +139,34 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     }
   }, [t]);
 
+  // Z59: zapis bezpośredni przez rules (whitelist users z widełkami 100-230)
+  // zamiast callable saveMaxHR — o jeden kontener serverless mniej.
   const saveMaxHR = useCallback(async (value: number): Promise<
     | { ok: true; estimatedMaxHR: number }
     | { ok: false; message: string }
   > => {
     setError(null);
-    console.log(`[Strava] Saving max HR override: ${value}...`);
+    const maxHR = Math.round(value);
+    if (!Number.isFinite(maxHR) || maxHR < 100 || maxHR > 230) {
+      const message = t('strava.err.sync');
+      setError(message);
+      return { ok: false, message };
+    }
+    console.log(`[Strava] Saving max HR override: ${maxHR}...`);
     try {
-      const functions = getFunctions();
-      const save = httpsCallable(functions, 'saveMaxHR');
-      const result = await save({ maxHR: value });
-      const data = result.data as { estimatedMaxHR: number };
-      console.log(`[Strava] Max HR saved: ${data.estimatedMaxHR}`);
-      return { ok: true, ...data };
+      await updateDoc(doc(db, 'users', userId), {
+        estimatedMaxHR: maxHR,
+        maxHRManualOverride: true,
+      });
+      console.log(`[Strava] Max HR saved: ${maxHR}`);
+      return { ok: true, estimatedMaxHR: maxHR };
     } catch (err) {
       const message = err instanceof Error ? err.message : t('strava.err.sync');
       console.error('[Strava] Max HR save failed:', message);
       setError(message);
       return { ok: false, message };
     }
-  }, [t]);
+  }, [t, userId]);
 
   const disconnectStrava = useCallback(async () => {
     setError(null);

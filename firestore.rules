@@ -46,7 +46,7 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                       'displayName', 'photoURL', 'language', 'preferences',
                       'notificationPrefs', 'onboardingCompleted', 'onboarding',
-                      'trainingProfile'
+                      'trainingProfile', 'estimatedMaxHR', 'maxHRManualOverride'
                     ])
                     && (!('displayName' in request.resource.data)
                         || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 200))
@@ -58,7 +58,14 @@ service cloud.firestore {
                     && (!('notificationPrefs' in request.resource.data) || request.resource.data.notificationPrefs is map)
                     && (!('onboardingCompleted' in request.resource.data) || request.resource.data.onboardingCompleted is bool)
                     && (!('onboarding' in request.resource.data) || request.resource.data.onboarding is map)
-                    && (!('trainingProfile' in request.resource.data) || request.resource.data.trainingProfile is map);
+                    && (!('trainingProfile' in request.resource.data) || request.resource.data.trainingProfile is map)
+                    // Max HR (Z59): zapis bezpośredni zamiast callable saveMaxHR — widełki jak w funkcji.
+                    && (!('estimatedMaxHR' in request.resource.data)
+                        || (request.resource.data.estimatedMaxHR is int
+                            && request.resource.data.estimatedMaxHR >= 100
+                            && request.resource.data.estimatedMaxHR <= 230))
+                    && (!('maxHRManualOverride' in request.resource.data)
+                        || request.resource.data.maxHRManualOverride is bool);
       // Admin can read/write all user profiles
       allow read, write: if request.auth != null && isAdmin();
       // Profile creation happens through Cloud Functions

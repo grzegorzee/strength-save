@@ -42,7 +42,6 @@ import {
   type StravaActivityDoc,
 } from "./strava-activity";
 import { disconnectStravaForUser } from "./strava-disconnect";
-import { MAX_HR_MAX, MAX_HR_MIN, parseMaxHR } from "./max-hr";
 export {
   createInvite,
   createWaitlistEntry,
@@ -1173,31 +1172,5 @@ export const stravaDisconnect = onCall(async (request) => {
   logger.info(`[Strava] Disconnected ${userId}, removed ${deletedActivities} activities`);
 });
 
-/**
- * Manual Max HR override. Firestore rules block estimatedMaxHR /
- * maxHRManualOverride in direct profile updates (server-controlled fields),
- * so regular users save it through this callable instead.
- */
-export const saveMaxHR = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Must be logged in");
-  }
-
-  const userId = request.auth.uid;
-  await assertStravaAccess(userId);
-
-  const maxHR = parseMaxHR(request.data?.maxHR);
-  if (maxHR === null) {
-    throw new HttpsError(
-      "invalid-argument",
-      `maxHR must be an integer between ${MAX_HR_MIN} and ${MAX_HR_MAX}`,
-    );
-  }
-
-  await getUserRef(userId).set({
-    estimatedMaxHR: maxHR,
-    maxHRManualOverride: true,
-  }, { merge: true });
-
-  return { estimatedMaxHR: maxHR };
-});
+// saveMaxHR usunięte (Z59): zapis idzie bezpośrednio przez Firestore rules
+// (whitelist users: estimatedMaxHR 100-230 int, maxHRManualOverride bool).
