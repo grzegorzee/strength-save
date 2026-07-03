@@ -5,11 +5,29 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-06-11 (release-prep: closeout + weekly-digest, build 36)
+**Ostatnia aktualizacja:** 2026-07-03 (plan naprawy R2 Z29-Z46 wdrożony: web + functions + rules + TTL, iOS build 49 przygotowany)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-03 — R2 FAZA 6: release train (Z46) — checkpoint R2
+
+**Bramki przed wdrożeniem (wszystkie zielone):** vitest 501/501, typecheck 0, lint 0, build OK, test:rules 93/93, functions 85+4 (2 nowe integracyjne waitlisty na emulatorze), e2e:mock 116/116, e2e:emulator 12/12, bundle-budget OK.
+
+**Wdrożone na produkcję:**
+1. **Git:** 36 commitów R2 wypchnięte na origin/main (de85d78..fd16c89).
+2. **Functions:** `firebase deploy --only functions` — komplet; streamOpenAI, proxyOpenAI, generateWeeklySummary skasowane z GCP (`functions:delete`).
+3. **Rules + indeksy:** deploy `firestore:rules,firestore:indexes`; nowy composite index workouts (completed ASC, date ASC); skasowane 2 martwe indeksy chat_messages i chat_conversations (`gcloud firestore indexes composite delete`), stan w GCP = firestore.indexes.json (5 indeksów).
+4. **TTL:** 7 polityk ACTIVE (auth_audit_logs/notification_logs/api_audit_logs/api_rate_limits/waitlist_rate_limits/client_errors po `expiresAt`, email_verification_codes po `ttlExpiresAt`).
+5. **Web:** `npm run deploy` — hash bundla na gh-pages zgodny z lokalnym buildem (index-DKee537W.js).
+6. **iOS:** CURRENT_PROJECT_VERSION 48 -> 49 (6 wystąpień, preflight passed). `scripts/release-ios.sh` NIE odpalony — czeka na potwierdzenie usera przed wysyłką TestFlight (twarda zasada zlecenia).
+
+**HOTFIX wykryty smoke testem produkcyjnym (poza planem):** po zdjęciu enforceAppCheck (Z33) waitlista NADAL padała — transakcja `createWaitlistEntry` robiła odczyt PO zapisie (get(rate) -> set(rate) -> get(existing)), a Firestore wymaga wszystkich odczytów przed zapisami; defekt istniał od zawsze, maskowany przez App Check odrzucający requesty zanim doszło do transakcji (emulator w E2E też go nie łapał, bo scenariusze nie przechodziły przez tę ścieżkę). Fix: oba odczyty przed zapisem + ekstrakcja `createWaitlistEntryCore` + 2 testy integracyjne na emulatorze (`npm run test:functions:emulator`). Weryfikacja NA PRODUKCJI: `createWaitlistEntry` zwraca `{entryId, existing:false}`; testowy wpis i jego rate limit usunięte admin SDK.
+
+**Weryfikacja produkcji po wdrożeniu:** waitlista przechodzi end-to-end; jedyny błąd w logach functions po deployu to zapis sprzed hotfixu; TTL wszystkie ACTIVE.
+
+**Zostaje (poza zakresem automatu):** wysyłka builda 49 na TestFlight (`scripts/release-ios.sh "R2: stabilność zapisu + koszty"` — po Z34 bez ręcznego source .env), usunięcie sekretów VITE_ALLOWED_EMAIL/VITE_ALLOWED_EMAILS z GitHub Secrets (ręczne, konsola GitHub), test terenowy usera (scenariusz w raporcie końcowym R2 i w Z46 krok 10 planu).
 
 ### 2026-07-03 — R2 FAZA 5: higiena repo i zależności (Z45)
 

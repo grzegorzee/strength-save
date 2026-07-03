@@ -63,17 +63,17 @@ Multi-user aplikacja PWA (React + Firebase + Strava) do śledzenia treningów si
 - `src/`
 
 **Ostatnia sesja (kiedy/co zrobione):**
-2026-05-29 (v6.9.4): naprawa historii treningów po zmianie planu (resolver nazw + snapshot w modelu danych, guard dla planu startującego w przyszłości, naprawa cykli, przycisk "Napraw dane historyczne"). Szczegóły w DECYZJE.md.
+2026-07-03: plan naprawy R2 (Z29-Z46) wykonany i wdrożony — integralność zapisu treningów (P0/P1), reanimacja waitlisty, redukcja kosztów Functions (~10x przy skali), rules z zamkniętymi schematami, TTL, higiena repo. Web + functions + rules + TTL na produkcji; iOS build 49 zbumpowany (release-ios.sh czeka na potwierdzenie). Szczegóły w DECYZJE.md.
 
 ---
 
 ## 🧭 OSTATNIE DECYZJE (TOP 5)
 
-1. **[TO FILL]** v6.8.0 release (2026-04-03)
-2. **[TO FILL]** Strava integration
-3. **[TO FILL]** AI plany treningowe
-4. **[TO FILL]** Multi-user (admin + user roles)
-5. **[TO FILL]** [decyzja]
+1. **Plan naprawy R2 (Z29-Z46) WYKONANY i WDROŻONY** (2026-07-03): writeId przeżywa flush draftu, updateDraft atomowe, finalny clearDraft z guardem wersji, tombstone promocji provisional->remote; waitlista działa (enforceAppCheck zdjęty + fix kolejności transakcji); koszty Functions ~22-25 -> ~2-3 USD/mies. przy 1000 userów; TTL na 7 kolekcjach operacyjnych.
+2. **Serverless jako zasada architektoniczna** (2026-07-03): klient -> Firestore + rules domyślnie; Functions tylko dla sekretów/admin SDK/webhooków; scheduled O(aktywnych), nie O(wszystkich); kolekcje operacyjne z TTL (plan R2, sekcja 2).
+3. **Martwy stack AI usunięty** (2026-07-03): streamOpenAI, proxyOpenAI, generateWeeklySummary skasowane z GCP; klienckie ai-coach/useAISwap/TypingIndicator + indeksy chat_* usunięte.
+4. **Telemetria client_errors + jeden silnik syncu** (Z13-Z28, wdrożone build 48; R2 domknął dziury silnika).
+5. **Timery treningowe nadal za flagą** VITE_FEATURE_WORKOUT_TIMERS=false (Z10 odłożony do Fazy 7).
 
 **Pełna historia:** `DECYZJE.md` (25.2K — bogata historia)
 

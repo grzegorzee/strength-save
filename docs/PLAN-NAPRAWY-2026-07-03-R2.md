@@ -401,16 +401,16 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Goal:** Komplet R2 na produkcji: web + functions (z usunięciem martwych) + rules + iOS build 49; TTL włączone; test terenowy przygotowany.
 
 **Workflow (kolejność OBOWIĄZKOWA, checklist CLAUDE.md):**
-- [ ] Krok 1: pełne bramki: `npm run test`, typecheck, lint, build, `npm run test:rules`, `npm --prefix functions test`, `npm run e2e:mock`, `npm run e2e:emulator`.
-- [ ] Krok 2: commit + push na main.
-- [ ] Krok 3: functions: `firebase deploy --only functions` (potwierdź usunięcie streamOpenAI/proxyOpenAI/generateWeeklySummary przy prompt'cie lub wcześniej `firebase functions:delete streamOpenAI proxyOpenAI generateWeeklySummary --force`).
-- [ ] Krok 4: rules + indeksy: `firebase deploy --only firestore:rules,firestore:indexes` (usunięcie indeksu chat_messages + ewentualny nowy indeks digest).
-- [ ] Krok 5: TTL: wykonaj komendy `gcloud firestore fields ttls update ...` zapisane w DECYZJE.md (FAZA 3).
-- [ ] Krok 6: web: `npm run deploy` (sam push NIE aktualizuje strony). NIGDY `cap sync ios` po deployu (dist ma wtedy build webowy).
+- [x] Krok 1: pełne bramki: `npm run test`, typecheck, lint, build, `npm run test:rules`, `npm --prefix functions test`, `npm run e2e:mock`, `npm run e2e:emulator`.
+- [x] Krok 2: commit + push na main.
+- [x] Krok 3: functions: `firebase deploy --only functions` (potwierdź usunięcie streamOpenAI/proxyOpenAI/generateWeeklySummary przy prompt'cie lub wcześniej `firebase functions:delete streamOpenAI proxyOpenAI generateWeeklySummary --force`).
+- [x] Krok 4: rules + indeksy: `firebase deploy --only firestore:rules,firestore:indexes` (usunięcie indeksu chat_messages + ewentualny nowy indeks digest).
+- [x] Krok 5: TTL: wykonaj komendy `gcloud firestore fields ttls update ...` zapisane w DECYZJE.md (FAZA 3).
+- [x] Krok 6: web: `npm run deploy` (sam push NIE aktualizuje strony). NIGDY `cap sync ios` po deployu (dist ma wtedy build webowy).
 - [ ] Krok 7: iOS: bump `CURRENT_PROJECT_VERSION` 48 -> 49 w `ios/App/App.xcodeproj/project.pbxproj` (6 wystąpień, pilnuje preflight), potem `scripts/release-ios.sh "R2: stabilność zapisu + koszty"` (po Z34 bez ręcznego source .env). Jeśli sesja interaktywna: potwierdź z userem przed wysyłką TestFlight.
-- [ ] Krok 8: weryfikacja produkcji: waitlista na prod web (zapis przechodzi), logi functions bez błędów po 1. uruchomieniu cronów.
-- [ ] Krok 9: wpis do DECYZJE.md (checkpoint R2) + aktualizacja `CONTEXT.md` (OSTATNIE DECYZJE) i `PLAN.md` jeśli statusy się zmieniły.
-- [ ] Krok 10: scenariusz testu terenowego dla USERA (wypisz w raporcie): (1) trening z gaszeniem ekranu między seriami, po powrocie odhaczenia są; (2) "Zakończ trening" na słabym zasięgu, w trakcie zapisu odhacz jeszcze jedną serię, po syncu seria jest w historii; (3) edycja ukończonego treningu i zapis; (4) start treningu offline, włącz sieć w trakcie, dokończ; (5) zapis na waitlistę z niezalogowanej przeglądarki.
+- [x] Krok 8: weryfikacja produkcji: waitlista na prod web (zapis przechodzi), logi functions bez błędów po 1. uruchomieniu cronów.
+- [x] Krok 9: wpis do DECYZJE.md (checkpoint R2) + aktualizacja `CONTEXT.md` (OSTATNIE DECYZJE) i `PLAN.md` jeśli statusy się zmieniły.
+- [x] Krok 10: scenariusz testu terenowego dla USERA (wypisz w raporcie): (1) trening z gaszeniem ekranu między seriami, po powrocie odhaczenia są; (2) "Zakończ trening" na słabym zasięgu, w trakcie zapisu odhacz jeszcze jedną serię, po syncu seria jest w historii; (3) edycja ukończonego treningu i zapis; (4) start treningu offline, włącz sieć w trakcie, dokończ; (5) zapis na waitlistę z niezalogowanej przeglądarki.
 
 ---
 
