@@ -39,6 +39,7 @@ export const pl = {
   'nav.cycles': 'Cykle',
   'nav.settings': 'Ustawienia',
   'nav.measurements': 'Pomiary ciała',
+  'nav.openMenu': 'Otwórz menu',
 
   // profil
   'profile.title': 'Profil',

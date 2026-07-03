@@ -393,6 +393,43 @@ test.describe('Mobile Responsiveness', () => {
 });
 
 // =====================================================
+// 11z. MOBILE DRAWER (Z66)
+// =====================================================
+test.describe('Mobile drawer (Z66)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+    await page.setViewportSize({ width: 375, height: 667 });
+  });
+
+  test('hamburger otwiera drawer, Historia osiągalna na mobile', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    // Bottom nav ma tylko 5 pozycji — bez drawera Historia jest niewidoczna.
+    await expect(page.getByRole('link', { name: 'Historia', exact: true })).not.toBeVisible();
+
+    await page.getByRole('button', { name: 'Otwórz menu' }).click();
+    const drawer = page.getByRole('dialog');
+    const historyLink = drawer.getByRole('link', { name: 'Historia', exact: true });
+    await expect(historyLink).toBeVisible();
+    await historyLink.click();
+    await expect(page).toHaveURL(/#\/history$/);
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Historia treningów' })).toBeVisible();
+    // Drawer zamyka się po wyborze pozycji.
+    await expect(drawer).not.toBeVisible();
+  });
+
+  test('Pomiary i Cykle osiągalne z drawera', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await page.getByRole('button', { name: 'Otwórz menu' }).click();
+    await page.getByRole('dialog').getByRole('link', { name: 'Pomiary ciała' }).click();
+    await expect(page).toHaveURL(/#\/measurements$/);
+
+    await page.getByRole('button', { name: 'Otwórz menu' }).click();
+    await page.getByRole('dialog').getByRole('link', { name: 'Cykle', exact: true }).click();
+    await expect(page).toHaveURL(/#\/cycles$/);
+  });
+});
+
+// =====================================================
 // 11a. ADAPTIVE COACH (Z64)
 // =====================================================
 test.describe('Adaptive Coach (Z64)', () => {

@@ -64,6 +64,7 @@ export const Layout = () => {
           <AppHeader
             title={title}
             onBack={isRootPage ? undefined : handleBack}
+            onMenuClick={() => setSidebarOpen(true)}
           />
         )}
 
