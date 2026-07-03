@@ -11,27 +11,36 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { cn } from '@/lib/utils';
 import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
-import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/lib/sync-center-payload';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
 import { dateLocale } from '@/i18n';
 import type { WorkoutSession } from '@/types';
 import {
   classifyWorkoutSyncError,
-  isRevisionConflictError,
   summarizeCloudWorkout,
   summarizeLocalDraft,
+  workoutSyncErrorMessageKey,
 } from '@/lib/workout-sync-conflict';
-import { draftWriteId } from '@/lib/workout-write-attempt';
+import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 
 interface SyncCenterCardProps {
   uid: string;
 }
 
 // Active draft (no retry metadata) and queued entries are rendered in one list.
-// Queue-only fields are optional so the active draft is assignable too.
-type ListedSyncEntry = ActiveWorkoutDraft & Partial<Pick<WorkoutSyncQueueEntry, 'retryCount' | 'lastError' | 'lastErrorAt'>>;
+// Wspólne pola obu kształtów; treść (serie/notatki) żyje wyłącznie w drafcie.
+type ListedSyncEntry = {
+  sessionId: string;
+  dayId: string;
+  date: string;
+  sessionOrigin: 'remote' | 'provisional';
+  dirty: boolean;
+  finalSyncPending: boolean;
+  updatedAt: number;
+  retryCount?: number;
+  lastError?: string | null;
+  lastErrorAt?: number | null;
+};
 
 interface SyncConflict {
   draft: ActiveWorkoutDraft;
@@ -79,7 +88,25 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     };
   }, [loadDraft]);
 
-  const status = useCallback((targetDraft: ActiveWorkoutDraft) => (
+  // Zależności silnika syncu — Sync Center jest tylko adapterem UI.
+  const syncDeps = useMemo<WorkoutSyncDeps>(() => ({
+    loadDraft: (ownerId, sessionId) => workoutDraftDb.loadDraft(ownerId, sessionId),
+    saveWorkout: batchSaveWorkout,
+    getFromServer: getWorkoutSessionFromServer,
+    createSession: createWorkoutSession,
+    markPromoted: (ownerId, remoteSessionId, sessionId, cloudState) =>
+      workoutDraftDb.markPromotedToRemote(ownerId, remoteSessionId, sessionId, cloudState),
+    markSynced: (ownerId, syncedAt, expectedDraftVersion, sessionId, cloudState) =>
+      workoutDraftDb.markDraftSynced(ownerId, syncedAt, expectedDraftVersion, sessionId, cloudState),
+    setCloudBaseline: (ownerId, sessionId, cloudState) =>
+      workoutDraftDb.setCloudBaseline(ownerId, sessionId, cloudState),
+    setPendingWrite: (ownerId, sessionId, pending) =>
+      workoutDraftDb.setPendingWrite(ownerId, sessionId, pending),
+    clearDraft: (ownerId, sessionId) => workoutDraftDb.clearActiveDraft(ownerId, sessionId),
+    queue: workoutSyncQueue,
+  }), [batchSaveWorkout, getWorkoutSessionFromServer, createWorkoutSession]);
+
+  const status = useCallback((targetDraft: ListedSyncEntry) => (
     targetDraft.finalSyncPending
       ? { label: t('strava.statusCompletedLocally'), tone: 'bg-fitness-warning text-fitness-warning border-fitness-warning' }
       : targetDraft.sessionOrigin === 'provisional'
@@ -113,194 +140,60 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     trackTelemetryEvent(uid, 'revision_conflict');
   }, [getWorkoutSessionFromServer, uid]);
 
-  const syncOne = useCallback(async (targetDraft: ActiveWorkoutDraft, source: 'active' | 'queue') => {
-    let workingDraft = targetDraft;
-
+  const syncOne = useCallback(async (entry: ListedSyncEntry, source: 'active' | 'queue') => {
     try {
-      if (workingDraft.sessionOrigin === 'provisional') {
-        if (!isOnline) {
-          toast({
-            title: t('strava.toastNoInternetTitle'),
-            description: t('strava.toastNoInternetDesc'),
-            variant: 'destructive',
-          });
-          return false;
-        }
+      if (entry.sessionOrigin === 'provisional' && !isOnline) {
+        toast({
+          title: t('strava.toastNoInternetTitle'),
+          description: t('strava.toastNoInternetDesc'),
+          variant: 'destructive',
+        });
+        return false;
+      }
 
-        const promoteResult = await createWorkoutSession(
-          workingDraft.dayId,
-          workingDraft.date,
-          workingDraft.cycleId ?? undefined,
-        );
+      const outcome = await syncWorkoutSession(uid, entry.sessionId, 'checkpoint', syncDeps);
 
-        if (promoteResult.error || !promoteResult.session) {
-          toast({
-            title: t('strava.toastPromoteFailTitle'),
-            description: promoteResult.error || t('strava.tryAgainShortly'),
-            variant: 'destructive',
-          });
-          workoutSyncQueue.markRetry(uid, targetDraft.sessionId, promoteResult.error || 'PROMOTE_FAILED');
-          trackTelemetryEvent(uid, 'sync_failure');
-          return false;
-        }
-
-        if (source === 'active') {
-          await workoutDraftDb.markPromotedToRemote(uid, promoteResult.session.id, targetDraft.sessionId, {
-            updatedAt: promoteResult.session.updatedAt,
-            revision: promoteResult.session.revision,
-          });
-          workingDraft = await workoutDraftDb.loadDraft(uid, promoteResult.session.id) ?? {
-            ...workingDraft,
-            sessionId: promoteResult.session.id,
-            sessionOrigin: 'remote',
-            remoteSessionId: promoteResult.session.id,
-            updatedAt: Date.now(),
-            version: workingDraft.version + 1,
-            cloudUpdatedAt: promoteResult.session.updatedAt,
-            cloudRevision: promoteResult.session.revision,
-          };
-          setDrafts(current => current.map(draft => draft.sessionId === targetDraft.sessionId ? workingDraft : draft));
-        } else {
-          workingDraft = {
-            ...workingDraft,
-            sessionId: promoteResult.session.id,
-            sessionOrigin: 'remote',
-            remoteSessionId: promoteResult.session.id,
-            updatedAt: Date.now(),
-            version: workingDraft.version + 1,
-            cloudUpdatedAt: promoteResult.session.updatedAt,
-            cloudRevision: promoteResult.session.revision,
-          };
-        }
-        workoutSyncQueue.remove(uid, targetDraft.sessionId);
-        if (workingDraft.finalSyncPending) {
-          workoutSyncQueue.upsertFromDraft(workingDraft);
-        }
+      if (outcome.promotedSessionId) {
         trackTelemetryEvent(uid, 'provisional_session_promoted');
       }
 
-      const exercisesPayload = buildSyncCenterExercisesPayload(workingDraft);
-      const { writeId, reused: writeIdReused } = draftWriteId(workingDraft);
-      if (source === 'active' && !writeIdReused) {
-        try {
-          await workoutDraftDb.setPendingWrite(uid, workingDraft.sessionId, { writeId, version: workingDraft.version });
-        } catch {
-          // best-effort: brak persystencji pendingWriteId nie blokuje zapisu
-        }
-      }
-      const saveOptions = { ...buildSyncCenterSaveOptions(workingDraft), writeId };
-      const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
-      const shouldReadServerFirst = workingDraft.finalSyncPending
-        || (workingDraft.sessionOrigin === 'remote' && workingDraft.cloudRevision === undefined);
-      const existingFinalWorkout = shouldReadServerFirst
-        ? await getWorkoutSessionFromServer(workingDraft.sessionId)
-        : null;
-      const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
-      if (
-        workingDraft.sessionOrigin === 'remote'
-        && workingDraft.cloudRevision === undefined
-        && !alreadyFinalized
-      ) {
-        await registerConflict(
-          workingDraft,
-          source,
-          existingFinalWorkout ? 'WORKOUT_REVISION_UNKNOWN' : 'WORKOUT_NOT_FOUND',
-          existingFinalWorkout,
-        );
-        return false;
-      }
-      const result = alreadyFinalized
-        ? {
-          success: true,
-          updatedAt: existingFinalWorkout?.updatedAt,
-          revision: existingFinalWorkout?.revision,
-        }
-        : await batchSaveWorkout(workingDraft.sessionId, exercisesPayload, saveOptions);
-
-      if (!result.success) {
-        if (isRevisionConflictError(result.error)) {
-          await registerConflict(workingDraft, source, result.error || 'WORKOUT_CONFLICT');
+      if (!outcome.success) {
+        if (outcome.conflict) {
+          const conflictDraft = await workoutDraftDb.loadDraft(uid, outcome.sessionId);
+          if (conflictDraft) {
+            await registerConflict(conflictDraft, source, outcome.error || 'WORKOUT_CONFLICT');
+          } else {
+            workoutSyncQueue.markRetry(uid, entry.sessionId, outcome.error || 'WORKOUT_CONFLICT');
+          }
           return false;
         }
         toast({
           title: t('strava.toastSyncFailTitle'),
-          description: result.error || t('strava.tryAgainShortly'),
+          description: t(workoutSyncErrorMessageKey(outcome.error)),
           variant: 'destructive',
         });
-        if (source === 'queue') {
-          workoutSyncQueue.markRetry(uid, targetDraft.sessionId, result.error || 'SYNC_FAILED');
-        }
-        trackTelemetryEvent(uid, 'sync_failure');
+        workoutSyncQueue.markRetry(uid, entry.sessionId, outcome.error || 'SYNC_FAILED');
+        trackTelemetryEvent(
+          uid,
+          outcome.error?.startsWith('CLOUD_NOT_CONFIRMED') ? 'sync_validation_failed' : 'sync_failure',
+        );
         return false;
       }
 
-      if (workingDraft.finalSyncPending) {
-        const confirmedWorkout = alreadyFinalized
-          ? existingFinalWorkout
-          : await getWorkoutSessionFromServer(workingDraft.sessionId);
-        const validation = alreadyFinalized
-          ? { ok: true }
-          : validateWorkoutCloudWrite(confirmedWorkout, expectation);
-
-        if (!validation.ok) {
-          const errorMessage = t('strava.cloudNotConfirmed', { reason: validation.reason ?? 'unknown' });
-          toast({
-            title: t('strava.toastUnconfirmedTitle'),
-            description: t('strava.toastUnconfirmedDesc'),
-            variant: 'destructive',
-          });
-          workoutSyncQueue.upsertFromDraft(workingDraft, { lastError: errorMessage });
-          trackTelemetryEvent(uid, 'sync_validation_failed');
-          return false;
-        }
-
-        if (source === 'active') {
-          await workoutDraftDb.clearActiveDraft(uid, workingDraft.sessionId);
-          setDrafts(current => current.filter(draft => draft.sessionId !== workingDraft.sessionId));
-        }
-        workoutSyncQueue.remove(uid, targetDraft.sessionId);
-        workoutSyncQueue.remove(uid, workingDraft.sessionId);
-        setQueueEntries(workoutSyncQueue.list(uid));
-        window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
-        toast({
-          title: t('strava.toastWorkoutSyncedTitle'),
-          description: t('strava.toastWorkoutSyncedDesc'),
-        });
-        trackTelemetryEvent(uid, 'sync_success');
-        return true;
-      }
-
-      if (source === 'active') {
-        await workoutDraftDb.markDraftSynced(uid, Date.now(), workingDraft.version, workingDraft.sessionId, {
-          updatedAt: result.updatedAt,
-          revision: result.revision,
-        });
-      }
-      workoutSyncQueue.remove(uid, targetDraft.sessionId);
       await loadDraft();
       window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
-      toast({
-        title: t('strava.toastSyncDoneTitle'),
-        description: t('strava.toastSyncDoneDesc'),
-      });
-      trackTelemetryEvent(uid, 'sync_success');
-      return true;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : t('strava.syncDraftFailed');
-      toast({
-        title: t('strava.toastSyncErrorTitle'),
-        description: message,
-        variant: 'destructive',
-      });
-      if (source === 'queue') {
-        workoutSyncQueue.markRetry(uid, targetDraft.sessionId, message);
+      if (!outcome.skipped) {
+        toast({
+          title: t('strava.toastSyncDoneTitle'),
+          description: t('strava.toastSyncDoneDesc'),
+        });
+        trackTelemetryEvent(uid, 'sync_success');
       }
-      trackTelemetryEvent(uid, 'sync_failure');
-      return false;
+      return true;
     } finally {
       setQueueEntries(workoutSyncQueue.list(uid));
     }
-  }, [batchSaveWorkout, createWorkoutSession, getWorkoutSessionFromServer, isOnline, loadDraft, registerConflict, toast, uid, t]);
+  }, [isOnline, loadDraft, registerConflict, syncDeps, toast, uid, t]);
 
   const handleKeepLocal = useCallback(async (conflict: SyncConflict) => {
     const sessionId = conflict.draft.sessionId;
@@ -313,48 +206,33 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         return;
       }
 
-      const exercises = buildSyncCenterExercisesPayload(conflict.draft);
-      const options = {
-        ...buildSyncCenterSaveOptions(conflict.draft),
-        expectedRevision: cloud.revision ?? 0,
-        // keepLocal: baseline świeżo z serwera, świadome nadpisanie — nowa próba, nowy klucz.
-        writeId: crypto.randomUUID(),
-      };
-      const expectation = buildWorkoutWriteExpectation(exercises, options);
-      const result = await batchSaveWorkout(sessionId, exercises, options);
-      if (!result.success) {
-        if (isRevisionConflictError(result.error)) {
-          await registerConflict(conflict.draft, conflict.source, result.error || 'WORKOUT_CONFLICT');
+      // Świadome nadpisanie wersji z chmury: baseline draftu podbity do stanu
+      // serwera, potem zwykły sync silnikiem (precondition przechodzi).
+      await workoutDraftDb.setCloudBaseline(uid, sessionId, {
+        revision: Math.max(0, Math.floor(cloud.revision ?? 0)),
+        ...(cloud.updatedAt !== undefined && { updatedAt: cloud.updatedAt }),
+      });
+      const outcome = await syncWorkoutSession(uid, sessionId, 'checkpoint', syncDeps);
+      if (!outcome.success) {
+        if (outcome.conflict) {
+          const freshDraft = await workoutDraftDb.loadDraft(uid, sessionId);
+          if (freshDraft) {
+            await registerConflict(freshDraft, conflict.source, outcome.error || 'WORKOUT_CONFLICT');
+          }
         } else {
-          workoutSyncQueue.upsertFromDraft(conflict.draft, { lastError: result.error || 'SYNC_FAILED' });
+          workoutSyncQueue.markRetry(uid, sessionId, outcome.error || 'SYNC_FAILED');
+          toast({
+            title: t('strava.toastSyncFailTitle'),
+            description: t(workoutSyncErrorMessageKey(outcome.error)),
+            variant: 'destructive',
+          });
+          if (outcome.error?.startsWith('CLOUD_NOT_CONFIRMED')) {
+            trackTelemetryEvent(uid, 'sync_validation_failed');
+          }
         }
         return;
       }
 
-      if (conflict.draft.finalSyncPending) {
-        const confirmed = await getWorkoutSessionFromServer(sessionId);
-        const validation = validateWorkoutCloudWrite(confirmed, expectation);
-        if (!validation.ok) {
-          workoutSyncQueue.upsertFromDraft(conflict.draft, {
-            lastError: `VALIDATION_FAILED:${validation.reason ?? 'unknown'}`,
-          });
-          trackTelemetryEvent(uid, 'sync_validation_failed');
-          return;
-        }
-        if (conflict.source === 'active') {
-          await workoutDraftDb.clearActiveDraft(uid, sessionId);
-        }
-      } else if (conflict.source === 'active') {
-        await workoutDraftDb.markDraftSynced(
-          uid,
-          Date.now(),
-          conflict.draft.version,
-          sessionId,
-          { updatedAt: result.updatedAt, revision: result.revision },
-        );
-      }
-
-      workoutSyncQueue.remove(uid, sessionId);
       setConflicts((current) => {
         const next = { ...current };
         delete next[sessionId];
@@ -372,10 +250,10 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       setQueueEntries(workoutSyncQueue.list(uid));
     }
   }, [
-    batchSaveWorkout,
     getWorkoutSessionFromServer,
     loadDraft,
     registerConflict,
+    syncDeps,
     syncingSessionIds,
     t,
     toast,
@@ -421,14 +299,14 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     uid,
   ]);
 
-  const handleRetrySync = async (targetDraft: ActiveWorkoutDraft, source: 'active' | 'queue') => {
-    if (syncingSessionIds.includes(targetDraft.sessionId)) return;
-    setSyncingSessionIds(prev => [...prev, targetDraft.sessionId]);
+  const handleRetrySync = async (entry: ListedSyncEntry, source: 'active' | 'queue') => {
+    if (syncingSessionIds.includes(entry.sessionId)) return;
+    setSyncingSessionIds(prev => [...prev, entry.sessionId]);
     trackTelemetryEvent(uid, 'sync_retry_manual');
     try {
-      await syncOne(targetDraft, source);
+      await syncOne(entry, source);
     } finally {
-      setSyncingSessionIds(prev => prev.filter(sessionId => sessionId !== targetDraft.sessionId));
+      setSyncingSessionIds(prev => prev.filter(sessionId => sessionId !== entry.sessionId));
     }
   };
 
@@ -448,7 +326,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     }
   };
 
-  const handleDiscardDraft = async (targetDraft: ActiveWorkoutDraft, source: 'active' | 'queue') => {
+  const handleDiscardDraft = async (targetDraft: ListedSyncEntry, source: 'active' | 'queue') => {
     if (discardingSessionIds.includes(targetDraft.sessionId)) return;
 
     setDiscardingSessionIds(prev => [...prev, targetDraft.sessionId]);
@@ -475,21 +353,32 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     }
   };
 
-  const handleOpenWorkout = (targetDraft: ActiveWorkoutDraft) => {
-    navigate(`/workout/${targetDraft.dayId}?date=${targetDraft.date}&session=${targetDraft.sessionId}`);
+  const handleOpenWorkout = (entry: ListedSyncEntry) => {
+    navigate(`/workout/${entry.dayId}?date=${entry.date}&session=${entry.sessionId}`);
   };
 
-  const handleExportDraft = (targetDraft: ActiveWorkoutDraft) => {
+  const handleExportDraft = async (entry: ListedSyncEntry) => {
+    // Treść żyje w drafcie IndexedDB — wpis kolejki to tylko referencja.
+    const fullDraft = drafts.find(draft => draft.sessionId === entry.sessionId)
+      ?? await workoutDraftDb.loadDraft(uid, entry.sessionId);
+    if (!fullDraft) {
+      toast({
+        title: t('strava.toastDiscardFailTitle'),
+        description: t('strava.tryAgainShortly'),
+        variant: 'destructive',
+      });
+      return;
+    }
     const payload = JSON.stringify({
       exportedAt: new Date().toISOString(),
       source: 'strength-save-sync-center',
-      draft: targetDraft,
+      draft: fullDraft,
     }, null, 2);
     const blob = new Blob([payload], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `strength-save-draft-${targetDraft.date}-${targetDraft.sessionId}.json`;
+    link.download = `strength-save-draft-${fullDraft.date}-${fullDraft.sessionId}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -579,7 +468,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
                     {entry.lastError && (
                       <div className="space-y-1 text-xs text-destructive">
-                        <p>{t('strava.lastError', { msg: entry.lastError })}</p>
+                        <p>{t('strava.lastError', { msg: t(workoutSyncErrorMessageKey(entry.lastError)) })}</p>
                         <p>
                           {t('strava.errorCode', { code: classifyWorkoutSyncError(entry.lastError) })}
                           {entry.lastErrorAt
@@ -644,7 +533,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
                         <ExternalLink className="h-4 w-4 mr-2" />
                         {t('strava.openWorkout')}
                       </Button>
-                      <Button variant="outline" onClick={() => handleExportDraft(entry)}>
+                      <Button variant="outline" onClick={() => void handleExportDraft(entry)}>
                         <Download className="h-4 w-4 mr-2" />
                         {t('strava.exportJson')}
                       </Button>

@@ -50,7 +50,7 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
-import { draftWriteId } from '@/lib/workout-write-attempt';
+import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
 import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
@@ -468,13 +468,31 @@ const WorkoutDay = () => {
     }))
   ), []);
 
+  // Zależności silnika syncu — WorkoutDay jest tylko cienkim adapterem UI.
+  const workoutSyncDeps = useMemo<WorkoutSyncDeps>(() => ({
+    loadDraft: (ownerId, draftSessionId) => workoutDraftDb.loadDraft(ownerId, draftSessionId),
+    saveWorkout: batchSaveWorkout,
+    getFromServer: getWorkoutSessionFromServer,
+    createSession: createWorkoutSession,
+    markPromoted: (ownerId, remoteSessionId, fromSessionId, cloudState) =>
+      workoutDraftDb.markPromotedToRemote(ownerId, remoteSessionId, fromSessionId, cloudState),
+    markSynced: (ownerId, syncedAt, expectedDraftVersion, draftSessionId, cloudState) =>
+      workoutDraftDb.markDraftSynced(ownerId, syncedAt, expectedDraftVersion, draftSessionId, cloudState),
+    setCloudBaseline: (ownerId, draftSessionId, cloudState) =>
+      workoutDraftDb.setCloudBaseline(ownerId, draftSessionId, cloudState),
+    setPendingWrite: (ownerId, draftSessionId, pending) =>
+      workoutDraftDb.setPendingWrite(ownerId, draftSessionId, pending),
+    clearDraft: (ownerId, draftSessionId) => workoutDraftDb.clearActiveDraft(ownerId, draftSessionId),
+    queue: workoutSyncQueue,
+  }), [batchSaveWorkout, getWorkoutSessionFromServer, createWorkoutSession]);
+
   const syncDraftToFirebase = useCallback(async (mode: 'checkpoint' | 'final'): Promise<{ success: boolean; skipped?: boolean; error?: string }> => {
-    if (!uid || !sessionId || isSyncingRef.current) {
+    if (!uid || !sessionId) {
       return { success: false, skipped: true };
     }
 
     const usesActiveDraftStore = activeDraftRef.current?.sessionId === sessionId;
-    let currentDraft = usesActiveDraftStore
+    const currentDraft = usesActiveDraftStore
       ? activeDraftRef.current
       : queuedDraftRef.current?.sessionId === sessionId
         ? queuedDraftRef.current
@@ -491,215 +509,96 @@ const WorkoutDay = () => {
       if (!currentDraft?.dirty || !hasCurrentContent) {
         return { success: true, skipped: true };
       }
+      // Silnik czyta treść z draftu — najpierw flush stanu React do IndexedDB.
       const persistedDraft = await persistDraftSnapshot({}, { showStatus: false });
       if (!persistedDraft) {
         return { success: false, error: t('workout.err.localSaveBeforeSync') };
       }
     }
 
-    isSyncingRef.current = true;
     setAutoSaveStatus('syncing');
 
-    try {
-      let targetSessionId = sessionId;
+    const outcome = await syncWorkoutSession(uid, sessionId, mode, workoutSyncDeps);
 
-      if (currentDraft?.sessionOrigin === 'provisional') {
-        if (!navigator.onLine) {
-          setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'local-only');
-          return { success: false, error: t('workout.err.offline') };
-        }
-
-        const promoteResult = await createWorkoutSession(
-          currentDraft.dayId,
-          currentDraft.date,
-          currentDraft.cycleId ?? undefined
-        );
-
-        if (promoteResult.error || !promoteResult.session) {
-          const errorMessage = promoteResult.error || t('workout.err.createSessionFailed');
-          setSaveError(errorMessage);
-          setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'local-only');
-          return { success: false, error: errorMessage };
-        }
-
-        await workoutDraftDb.markPromotedToRemote(uid, promoteResult.session.id, currentDraft.sessionId, {
-          updatedAt: promoteResult.session.updatedAt,
-          revision: promoteResult.session.revision,
-        });
-        const promotedDraft = await workoutDraftDb.loadDraft(uid, promoteResult.session.id);
-        if (!promotedDraft) throw new Error('PROMOTED_DRAFT_NOT_FOUND');
-        setActiveDraft(promotedDraft);
+    // Promocja provisional -> remote: odśwież tożsamość sesji w UI.
+    if (outcome.promotedSessionId) {
+      const promotedDraft = await workoutDraftDb.loadDraft(uid, outcome.promotedSessionId);
+      if (promotedDraft) {
         activeDraftRef.current = promotedDraft;
-        currentDraft = promotedDraft;
-        targetSessionId = promoteResult.session.id;
-        setSessionId(promoteResult.session.id);
-        workoutSyncQueue.remove(uid, sessionId);
-        setQueuedDraft(prev => prev?.sessionId === sessionId ? null : prev);
-        trackTelemetryEvent(uid, 'provisional_session_promoted');
+        setActiveDraft(promotedDraft);
       }
+      setSessionId(outcome.promotedSessionId);
+      setQueuedDraft(prev => prev?.sessionId === sessionId ? null : prev);
+      trackTelemetryEvent(uid, 'provisional_session_promoted');
+    }
+    const targetSessionId = outcome.sessionId;
 
-      const startedAt = activeDraftRef.current?.startedAt;
-      const finalizedAt = requiresFinalSync
-        ? currentDraft?.finalizedAt ?? Date.now()
-        : undefined;
-      const finalDurationSec = requiresFinalSync && startedAt && finalizedAt
-        ? Math.max(0, Math.floor((finalizedAt - startedAt) / 1000))
-        : undefined;
-      // Draft bez baseline (np. odzyskany z fallbacku, snapshot tylko z cache):
-      // pobierz rewizję z serwera zamiast zakładać 0 (audyt 3.5).
-      if (currentDraft && currentDraft.sessionOrigin === 'remote' && currentDraft.cloudRevision === undefined) {
-        try {
-          const serverWorkout = await getWorkoutSessionFromServer(targetSessionId);
-          if (serverWorkout) {
-            const baseline = {
-              cloudRevision: Math.max(0, Math.floor(serverWorkout.revision ?? 0)),
-              ...(serverWorkout.updatedAt !== undefined && { cloudUpdatedAt: serverWorkout.updatedAt }),
-            };
-            await workoutDraftDb.setCloudBaseline(uid, targetSessionId, {
-              revision: baseline.cloudRevision,
-              updatedAt: serverWorkout.updatedAt,
-            });
-            currentDraft = { ...currentDraft, ...baseline };
-            if (activeDraftRef.current?.sessionId === targetSessionId) {
-              activeDraftRef.current = { ...activeDraftRef.current, ...baseline };
-            }
-          }
-        } catch {
-          // offline/timeout: zapis i tak padnie na transakcji, spójny komunikat niżej
-        }
-      }
-      // Klucz idempotencji: reuse przy retry tej samej treści, nowy przy nowej wersji draftu.
-      const { writeId, reused: writeIdReused } = currentDraft
-        ? draftWriteId(currentDraft)
-        : { writeId: crypto.randomUUID(), reused: false };
-      if (currentDraft && !writeIdReused) {
-        try {
-          await workoutDraftDb.setPendingWrite(uid, targetSessionId, { writeId, version: currentDraft.version });
-        } catch {
-          // best-effort: brak persystencji pendingWriteId nie blokuje zapisu
-        }
-        const pendingMarkers = { pendingWriteId: writeId, pendingWriteVersion: currentDraft.version };
-        currentDraft = { ...currentDraft, ...pendingMarkers };
-        if (activeDraftRef.current?.sessionId === targetSessionId) {
-          activeDraftRef.current = { ...activeDraftRef.current, ...pendingMarkers };
-        }
-      }
-      const saveOptions = {
-        cycleId: currentDraft?.cycleId ?? undefined,
-        notes: dayNotesRef.current || undefined,
-        skippedExercises: skippedExercisesRef.current.length > 0 ? skippedExercisesRef.current : undefined,
-        dayName: currentDraft?.dayName || daySnapshotRef.current.dayName || undefined,
-        dayFocus: currentDraft?.dayFocus || daySnapshotRef.current.focus || undefined,
-        ...(requiresFinalSync && { completed: true }),
-        ...(finalDurationSec !== undefined && { durationSec: finalDurationSec }),
-        ...(requiresFinalSync && startedAt ? { startedAt } : {}),
-        ...(finalizedAt !== undefined && { completedAt: finalizedAt }),
-        expectedRevision: currentDraft?.cloudRevision ?? 0,
-        writeId,
-      };
-      const exercisesPayload = buildExercisesPayload();
-      const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
-      const existingFinalWorkout = requiresFinalSync
-        ? await getWorkoutSessionFromServer(targetSessionId)
-        : null;
-      // Odpowiedź poprzedniego zapisu mogła zginąć po przejściu appki do tła.
-      // Jeżeli finalna treść już jest w chmurze, nie nadpisujemy jej starym revisionem.
-      const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
-      const result = alreadyFinalized
-        ? {
-          success: true,
-          updatedAt: existingFinalWorkout?.updatedAt,
-          revision: existingFinalWorkout?.revision,
-        }
-        : await batchSaveWorkout(targetSessionId, exercisesPayload, saveOptions);
-
-      if (!result.success) {
-        if (result.error === 'WORKOUT_CONFLICT') {
-          // Trening zmieniony na innym urządzeniu — user wybiera wersję zamiast cichego nadpisania.
-          setConflictDialogOpen(true);
-          setSaveError(null);
-          setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
-          return { success: false, error: result.error };
-        }
-        const errorMessage = result.error || t('workout.err.syncFailed');
-        setSaveError(t(workoutSyncErrorMessageKey(result.error)));
+    if (!outcome.success) {
+      if (outcome.conflict) {
+        // Trening zmieniony na innym urządzeniu — user wybiera wersję zamiast cichego nadpisania.
+        setConflictDialogOpen(true);
+        setSaveError(null);
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
-        return { success: false, error: errorMessage };
+        return { success: false, error: outcome.error };
       }
-
-      const syncedAt = Date.now();
-      setSaveError(null);
-
-      if (requiresFinalSync) {
-        const confirmedWorkout = alreadyFinalized
-          ? existingFinalWorkout
-          : await getWorkoutSessionFromServer(targetSessionId);
-        const validation = alreadyFinalized
-          ? { ok: true }
-          : validateWorkoutCloudWrite(confirmedWorkout, expectation);
-
-        if (!validation.ok) {
-          const errorMessage = t('workout.err.cloudIncomplete', { reason: validation.reason ?? 'unknown' });
-          setSaveError(errorMessage);
-          setAutoSaveStatus('final-sync-pending');
-          trackTelemetryEvent(uid, 'sync_validation_failed');
-          return { success: false, error: errorMessage };
-        }
-
-        if (usesActiveDraftStore) {
-          try {
-            await workoutDraftDb.clearActiveDraft(uid, targetSessionId);
-          } catch {
-            setSaveError(t('workout.err.cloudSavedLocalCleanupFailed'));
-          }
-        }
-        workoutSyncQueue.remove(uid, targetSessionId);
-        if (sessionId !== targetSessionId) {
-          workoutSyncQueue.remove(uid, sessionId);
-        }
-        setQueuedDraft(prev => prev?.sessionId === targetSessionId || prev?.sessionId === sessionId ? null : prev);
-        setActiveDraft(null);
-        setIsCompleted(true);
-        completedSessionLockRef.current = targetSessionId;
-        queueAutoSaveStatus('synced', 'idle', 2200);
-        trackTelemetryEvent(uid, 'sync_success');
-        return { success: true };
+      if (outcome.error === 'OFFLINE') {
+        setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'local-only');
+        return { success: false, error: t('workout.err.offline') };
       }
+      if (outcome.error?.startsWith('CLOUD_NOT_CONFIRMED')) {
+        trackTelemetryEvent(uid, 'sync_validation_failed');
+      } else {
+        trackTelemetryEvent(uid, 'sync_failure');
+      }
+      setSaveError(t(workoutSyncErrorMessageKey(outcome.error)));
+      setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
+      return { success: false, error: outcome.error || t('workout.err.syncFailed') };
+    }
 
-      if (usesActiveDraftStore) {
-        try {
-          await workoutDraftDb.markDraftSynced(uid, syncedAt, currentDraft!.version, targetSessionId, {
-            updatedAt: result.updatedAt,
-            revision: result.revision,
-          });
-        } catch {
-          setSaveError(t('workout.err.cloudSavedStatusStale'));
-        }
+    const syncedAt = Date.now();
+    setSaveError(null);
+
+    if (outcome.skipped) {
+      // Brak draftu w IndexedDB = nic do zapisania (silnik sprzątnął referencję z kolejki).
+      setAutoSaveStatus('idle');
+      return { success: true, skipped: true };
+    }
+
+    if (requiresFinalSync) {
+      if (outcome.cleanupFailed) {
+        setSaveError(t('workout.err.cloudSavedLocalCleanupFailed'));
       }
-      workoutSyncQueue.remove(uid, targetSessionId);
-      if (usesActiveDraftStore) {
-        // Znaczniki nakładamy na BIEŻĄCY draft (edycje w trakcie syncu), nie na
-        // snapshot sprzed syncu — inaczej cofnięta wersja cicho blokuje zapisy.
-        const base = activeDraftRef.current?.sessionId === targetSessionId
-          ? activeDraftRef.current
-          : currentDraft!;
-        const syncedDraft = applySyncMarkers(base, currentDraft!.version, syncedAt, result);
-        activeDraftRef.current = syncedDraft;
-        setActiveDraft(prev => prev && prev.sessionId === syncedDraft.sessionId ? syncedDraft : prev);
-      }
+      setQueuedDraft(prev => prev?.sessionId === targetSessionId || prev?.sessionId === sessionId ? null : prev);
+      setActiveDraft(null);
+      setIsCompleted(true);
+      completedSessionLockRef.current = targetSessionId;
       queueAutoSaveStatus('synced', 'idle', 2200);
       trackTelemetryEvent(uid, 'sync_success');
       return { success: true };
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('workout.err.syncFailed');
-      setSaveError(t(workoutSyncErrorMessageKey(err)));
-      setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
-      trackTelemetryEvent(uid, 'sync_failure');
-      return { success: false, error: errorMessage };
-    } finally {
-      isSyncingRef.current = false;
     }
-  }, [uid, sessionId, batchSaveWorkout, buildExercisesPayload, createWorkoutSession, getWorkoutSessionFromServer, persistDraftSnapshot, queueAutoSaveStatus, t]);
+
+    if (outcome.markSyncedFailed) {
+      setSaveError(t('workout.err.cloudSavedStatusStale'));
+    }
+    if (activeDraftRef.current?.sessionId === targetSessionId || (usesActiveDraftStore && currentDraft)) {
+      // Znaczniki nakładamy na BIEŻĄCY draft (edycje w trakcie syncu), nie na
+      // snapshot sprzed syncu — inaczej cofnięta wersja cicho blokuje zapisy.
+      const base = activeDraftRef.current?.sessionId === targetSessionId
+        ? activeDraftRef.current
+        : currentDraft!;
+      const syncedDraft = applySyncMarkers(
+        base,
+        outcome.syncedDraftVersion ?? base.version,
+        syncedAt,
+        { updatedAt: outcome.updatedAt, revision: outcome.revision },
+      );
+      activeDraftRef.current = syncedDraft;
+      setActiveDraft(prev => prev && prev.sessionId === syncedDraft.sessionId ? syncedDraft : prev);
+    }
+    queueAutoSaveStatus('synced', 'idle', 2200);
+    trackTelemetryEvent(uid, 'sync_success');
+    return { success: true };
+  }, [uid, sessionId, workoutSyncDeps, persistDraftSnapshot, queueAutoSaveStatus, t]);
 
   // Konflikt urządzeń: zachowaj lokalną wersję — podbij znacznik chmury w drafcie
   // do stanu serwera i ponów zapis (świadome nadpisanie wersji z drugiego urządzenia).
@@ -784,8 +683,19 @@ const WorkoutDay = () => {
       return;
     }
 
-    const queueDraft = workoutSyncQueue.findByDayDate(uid, dayId, targetDate);
-    setQueuedDraft(queueDraft);
+    // Kolejka jest referencyjna — treść draftu zawsze z IndexedDB.
+    const queueRef = workoutSyncQueue.findByDayDate(uid, dayId, targetDate);
+    if (!queueRef) {
+      setQueuedDraft(null);
+      return;
+    }
+    let cancelled = false;
+    void workoutDraftDb.loadDraft(uid, queueRef.sessionId).then(draftForRef => {
+      if (!cancelled) setQueuedDraft(draftForRef);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [uid, dayId, targetDate]);
 
   useEffect(() => {

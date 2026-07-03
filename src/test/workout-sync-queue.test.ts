@@ -51,14 +51,41 @@ describe('workoutSyncQueue', () => {
     workoutSyncQueue.upsertFromDraft(baseDraft);
     workoutSyncQueue.upsertFromDraft({
       ...baseDraft,
-      dayNotes: 'updated',
-      version: 2,
+      updatedAt: 500,
     });
 
     const queue = workoutSyncQueue.list('user-1');
     expect(queue).toHaveLength(1);
-    expect(queue[0].dayNotes).toBe('updated');
-    expect(queue[0].version).toBe(2);
+    expect(queue[0].updatedAt).toBe(500);
+  });
+
+  it('kolejka jest referencyjna: nie przechowuje treści draftu', () => {
+    workoutSyncQueue.upsertFromDraft(baseDraft);
+
+    const raw = JSON.parse(localStorage.getItem('fittracker_workout_sync_queue_v1_user-1') ?? '[]');
+    expect(raw).toHaveLength(1);
+    expect(raw[0].exerciseSets).toBeUndefined();
+    expect(raw[0].dayNotes).toBeUndefined();
+    expect(raw[0].sessionId).toBe(baseDraft.sessionId);
+    expect(raw[0].finalSyncPending).toBe(true);
+  });
+
+  it('migruje stare wpisy z treścią do referencji przy odczycie', () => {
+    localStorage.setItem('fittracker_workout_sync_queue_v1_user-1', JSON.stringify([{
+      ...baseDraft,
+      queueId: baseDraft.sessionId,
+      enqueuedAt: 3,
+      retryCount: 2,
+      lastError: 'SYNC_FAILED',
+      lastErrorAt: 4,
+    }]));
+
+    const entries = workoutSyncQueue.list('user-1');
+    expect(entries).toHaveLength(1);
+    expect(entries[0].sessionId).toBe(baseDraft.sessionId);
+    expect(entries[0].retryCount).toBe(2);
+    expect(entries[0].finalSyncPending).toBe(true);
+    expect('exerciseSets' in entries[0]).toBe(false);
   });
 
   it('marks retry count and stores last error', () => {

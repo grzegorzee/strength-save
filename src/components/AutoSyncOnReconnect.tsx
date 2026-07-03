@@ -1,16 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
-import { buildSyncCenterExercisesPayload, buildSyncCenterSaveOptions } from '@/lib/sync-center-payload';
-import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
 import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
-import { draftWriteId } from '@/lib/workout-write-attempt';
+import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 
 // Po powrocie online (i na starcie sesji) automatycznie domyka zaległe final-synci
 // z kolejki — wcześniej wymagało to ręcznego "Ponów" w Sync Center w Ustawieniach.
@@ -24,6 +22,23 @@ export const AutoSyncOnReconnect = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
   const runningRef = useRef(false);
+
+  const syncDeps = useMemo<WorkoutSyncDeps>(() => ({
+    loadDraft: (ownerId, sessionId) => workoutDraftDb.loadDraft(ownerId, sessionId),
+    saveWorkout: batchSaveWorkout,
+    getFromServer: getWorkoutSessionFromServer,
+    createSession: createWorkoutSession,
+    markPromoted: (ownerId, remoteSessionId, sessionId, cloudState) =>
+      workoutDraftDb.markPromotedToRemote(ownerId, remoteSessionId, sessionId, cloudState),
+    markSynced: (ownerId, syncedAt, expectedDraftVersion, sessionId, cloudState) =>
+      workoutDraftDb.markDraftSynced(ownerId, syncedAt, expectedDraftVersion, sessionId, cloudState),
+    setCloudBaseline: (ownerId, sessionId, cloudState) =>
+      workoutDraftDb.setCloudBaseline(ownerId, sessionId, cloudState),
+    setPendingWrite: (ownerId, sessionId, pending) =>
+      workoutDraftDb.setPendingWrite(ownerId, sessionId, pending),
+    clearDraft: (ownerId, sessionId) => workoutDraftDb.clearActiveDraft(ownerId, sessionId),
+    queue: workoutSyncQueue,
+  }), [batchSaveWorkout, getWorkoutSessionFromServer, createWorkoutSession]);
 
   useEffect(() => {
     if (!uid) return;
@@ -46,83 +61,23 @@ export const AutoSyncOnReconnect = () => {
       runningRef.current = true;
       let synced = 0;
       try {
-        for (const { entry, source } of entries) {
-          let working = entry;
-
-          if (working.sessionOrigin === 'provisional') {
-            const promo = await createWorkoutSession(working.dayId, working.date, working.cycleId ?? undefined);
-            if (promo.error || !promo.session) {
-              workoutSyncQueue.markRetry(uid, entry.sessionId, promo.error || 'PROMOTE_FAILED');
-              continue;
-            }
-            workoutSyncQueue.remove(uid, entry.sessionId);
-            await workoutDraftDb.markPromotedToRemote(uid, promo.session.id, working.sessionId, {
-              updatedAt: promo.session.updatedAt,
-              revision: promo.session.revision,
-            });
-            working = await workoutDraftDb.loadDraft(uid, promo.session.id) ?? {
-              ...working,
-              sessionId: promo.session.id,
-              sessionOrigin: 'remote',
-              remoteSessionId: promo.session.id,
-              cloudUpdatedAt: promo.session.updatedAt,
-              cloudRevision: promo.session.revision,
-            };
-            workoutSyncQueue.upsertFromDraft(working);
+        for (const { entry } of entries) {
+          const outcome = await syncWorkoutSession(uid, entry.sessionId, 'final', syncDeps);
+          if (outcome.promotedSessionId) {
             trackTelemetryEvent(uid, 'provisional_session_promoted');
           }
-
-          const payload = buildSyncCenterExercisesPayload(working);
-          const { writeId, reused: writeIdReused } = draftWriteId(working);
-          if (source === 'active' && !writeIdReused) {
-            try {
-              await workoutDraftDb.setPendingWrite(uid, working.sessionId, { writeId, version: working.version });
-            } catch {
-              // best-effort: brak persystencji pendingWriteId nie blokuje zapisu
-            }
-          }
-          const options = { ...buildSyncCenterSaveOptions(working), writeId };
-          const expectation = buildWorkoutWriteExpectation(payload, options);
-          const existingFinalWorkout = await getWorkoutSessionFromServer(working.sessionId);
-          const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);
-          if (working.cloudRevision === undefined && !alreadyFinalized) {
-            workoutSyncQueue.upsertFromDraft(working, { lastError: 'WORKOUT_REVISION_UNKNOWN' });
-            trackTelemetryEvent(uid, 'revision_conflict');
-            continue;
-          }
-          const result = alreadyFinalized
-            ? { success: true }
-            : await batchSaveWorkout(working.sessionId, payload, options);
-          if (!result.success) {
-            workoutSyncQueue.markRetry(uid, working.sessionId, result.error || 'SYNC_FAILED');
-            if (isRevisionConflictError(result.error)) {
+          if (!outcome.success) {
+            workoutSyncQueue.markRetry(uid, entry.sessionId, outcome.error || 'SYNC_FAILED');
+            if (outcome.conflict) {
               trackTelemetryEvent(uid, 'revision_conflict');
+            } else if (outcome.error?.startsWith('CLOUD_NOT_CONFIRMED')) {
+              trackTelemetryEvent(uid, 'sync_validation_failed');
             }
             continue;
           }
-
-          const confirmed = alreadyFinalized
-            ? existingFinalWorkout
-            : await getWorkoutSessionFromServer(working.sessionId);
-          const validation = alreadyFinalized
-            ? { ok: true }
-            : validateWorkoutCloudWrite(confirmed, expectation);
-          if (!validation.ok) {
-            workoutSyncQueue.markRetry(uid, working.sessionId, validation.reason ?? 'VALIDATION_FAILED');
-            trackTelemetryEvent(uid, 'sync_validation_failed');
-            continue;
+          if (!outcome.skipped) {
+            synced += 1;
           }
-
-          try {
-            if (source === 'active') {
-              await workoutDraftDb.clearActiveDraft(uid, working.sessionId);
-            }
-          } catch {
-            // Draft lokalny mógł już nie istnieć — wpis kolejki i tak czyścimy niżej.
-          }
-          workoutSyncQueue.remove(uid, entry.sessionId);
-          workoutSyncQueue.remove(uid, working.sessionId);
-          synced += 1;
         }
       } finally {
         runningRef.current = false;
@@ -142,7 +97,7 @@ export const AutoSyncOnReconnect = () => {
     window.addEventListener('online', onOnline);
     void processQueue();
     return () => window.removeEventListener('online', onOnline);
-  }, [uid, createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer, toast, t]);
+  }, [uid, syncDeps, toast, t]);
 
   return null;
 };

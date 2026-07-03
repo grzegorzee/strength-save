@@ -2,8 +2,19 @@ import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 
 const SYNC_QUEUE_KEY_PREFIX = 'fittracker_workout_sync_queue_v1';
 
-export interface WorkoutSyncQueueEntry extends ActiveWorkoutDraft {
+// Kolejka REFERENCYJNA: wpis wskazuje sesję do zsynchronizowania + metadane retry/UI.
+// Treść treningu żyje wyłącznie w drafcie IndexedDB — silnik syncu ładuje ją stamtąd.
+// Kopie treści w kolejce powodowały rozjazdy kolejka/draft i wojny rewizji (audyt 3.3).
+export interface WorkoutSyncQueueEntry {
   queueId: string;
+  userId: string;
+  sessionId: string;
+  dayId: string;
+  date: string;
+  sessionOrigin: 'remote' | 'provisional';
+  dirty: boolean;
+  finalSyncPending: boolean;
+  updatedAt: number;
   enqueuedAt: number;
   retryCount: number;
   lastError: string | null;
@@ -20,35 +31,18 @@ const normalizeQueueEntry = (value: unknown): WorkoutSyncQueueEntry | null => {
   if (!isRecord(value)) return null;
   if (!value.userId || !value.sessionId || !value.dayId || !value.date) return null;
 
+  // Stare wpisy niosły pełną kopię draftu — migracja przy odczycie:
+  // treść ignorowana, referencja i metadane zostają.
   return {
     queueId: String(value.queueId ?? `${value.sessionId}`),
-    sessionId: String(value.sessionId),
     userId: String(value.userId),
+    sessionId: String(value.sessionId),
     dayId: String(value.dayId),
     date: String(value.date),
-    cycleId: value.cycleId == null ? null : String(value.cycleId),
     sessionOrigin: value.sessionOrigin === 'provisional' ? 'provisional' : 'remote',
-    remoteSessionId: value.remoteSessionId == null ? null : String(value.remoteSessionId),
-    exerciseSets: isRecord(value.exerciseSets) ? value.exerciseSets as ActiveWorkoutDraft['exerciseSets'] : {},
-    exerciseNotes: isRecord(value.exerciseNotes) ? value.exerciseNotes as ActiveWorkoutDraft['exerciseNotes'] : {},
-    // Snapshoty nazw i znaczniki chmury MUSZĄ przeżyć roundtrip localStorage:
-    // bez cloudRevision precondition konfliktu jest wyłączony przy retry,
-    // bez exerciseNames/dayName historia traci odporność na zmianę planu.
-    ...(isRecord(value.exerciseNames) ? { exerciseNames: value.exerciseNames as ActiveWorkoutDraft['exerciseNames'] } : {}),
-    exerciseMetrics: isRecord(value.exerciseMetrics) ? value.exerciseMetrics as ActiveWorkoutDraft['exerciseMetrics'] : {},
-    dayNotes: String(value.dayNotes ?? ''),
-    ...(typeof value.dayName === 'string' && value.dayName ? { dayName: value.dayName } : {}),
-    ...(typeof value.dayFocus === 'string' && value.dayFocus ? { dayFocus: value.dayFocus } : {}),
-    skippedExercises: Array.isArray(value.skippedExercises) ? value.skippedExercises.map(item => String(item)) : [],
-    startedAt: Number(value.startedAt) || Date.now(),
-    updatedAt: Number(value.updatedAt) || Date.now(),
-    ...(typeof value.cloudUpdatedAt === 'number' ? { cloudUpdatedAt: value.cloudUpdatedAt } : {}),
-    ...(typeof value.cloudRevision === 'number' ? { cloudRevision: value.cloudRevision } : {}),
-    lastFirebaseSyncAt: value.lastFirebaseSyncAt == null ? null : Number(value.lastFirebaseSyncAt),
     dirty: value.dirty !== false,
-    completedLocally: !!value.completedLocally,
     finalSyncPending: !!value.finalSyncPending,
-    version: Number(value.version) || 1,
+    updatedAt: Number(value.updatedAt) || Date.now(),
     enqueuedAt: Number(value.enqueuedAt) || Date.now(),
     retryCount: Number(value.retryCount) || 0,
     lastError: value.lastError == null ? null : String(value.lastError),
@@ -99,8 +93,15 @@ export const workoutSyncQueue = {
     const entries = this.list(draft.userId);
     const existing = entries.find(entry => entry.sessionId === draft.sessionId);
     const nextEntry: WorkoutSyncQueueEntry = {
-      ...draft,
       queueId: existing?.queueId ?? `${draft.sessionId}`,
+      userId: draft.userId,
+      sessionId: draft.sessionId,
+      dayId: draft.dayId,
+      date: draft.date,
+      sessionOrigin: draft.sessionOrigin,
+      dirty: draft.dirty,
+      finalSyncPending: draft.finalSyncPending,
+      updatedAt: draft.updatedAt,
       enqueuedAt: existing?.enqueuedAt ?? Date.now(),
       retryCount: existing?.retryCount ?? 0,
       lastError: options.lastError ?? existing?.lastError ?? null,
