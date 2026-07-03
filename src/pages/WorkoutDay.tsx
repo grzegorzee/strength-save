@@ -87,7 +87,8 @@ const WorkoutDay = () => {
     createOfflineWorkoutSession,
     batchSaveWorkout,
     getWorkoutSessionFromServer,
-    isLoaded: workoutsLoaded
+    isLoaded: workoutsLoaded,
+    workoutsFromCache,
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, swapExercise, isLoaded: planLoaded } = useTrainingPlan(uid);
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
@@ -544,6 +545,29 @@ const WorkoutDay = () => {
       const finalDurationSec = requiresFinalSync && startedAt && finalizedAt
         ? Math.max(0, Math.floor((finalizedAt - startedAt) / 1000))
         : undefined;
+      // Draft bez baseline (np. odzyskany z fallbacku, snapshot tylko z cache):
+      // pobierz rewizję z serwera zamiast zakładać 0 (audyt 3.5).
+      if (currentDraft && currentDraft.sessionOrigin === 'remote' && currentDraft.cloudRevision === undefined) {
+        try {
+          const serverWorkout = await getWorkoutSessionFromServer(targetSessionId);
+          if (serverWorkout) {
+            const baseline = {
+              cloudRevision: Math.max(0, Math.floor(serverWorkout.revision ?? 0)),
+              ...(serverWorkout.updatedAt !== undefined && { cloudUpdatedAt: serverWorkout.updatedAt }),
+            };
+            await workoutDraftDb.setCloudBaseline(uid, targetSessionId, {
+              revision: baseline.cloudRevision,
+              updatedAt: serverWorkout.updatedAt,
+            });
+            currentDraft = { ...currentDraft, ...baseline };
+            if (activeDraftRef.current?.sessionId === targetSessionId) {
+              activeDraftRef.current = { ...activeDraftRef.current, ...baseline };
+            }
+          }
+        } catch {
+          // offline/timeout: zapis i tak padnie na transakcji, spójny komunikat niżej
+        }
+      }
       // Klucz idempotencji: reuse przy retry tej samej treści, nowy przy nowej wersji draftu.
       const { writeId, reused: writeIdReused } = currentDraft
         ? draftWriteId(currentDraft)
@@ -878,11 +902,15 @@ const WorkoutDay = () => {
         }
       });
 
-      cloudMetaRef.current = {
-        sessionId: workoutForDate.id,
-        updatedAt: workoutForDate.updatedAt,
-        revision: workoutForDate.revision,
-      };
+      if (!workoutsFromCache) {
+        // Baseline rewizji TYLKO z serwera — stale cache po zimnym starcie
+        // seedowałby konflikt z nowszą rewizją serwera (audyt 3.5).
+        cloudMetaRef.current = {
+          sessionId: workoutForDate.id,
+          updatedAt: workoutForDate.updatedAt,
+          revision: workoutForDate.revision,
+        };
+      }
       applyWorkoutState({
         sessionId: workoutForDate.id,
         completed: workoutForDate.completed,
@@ -905,7 +933,7 @@ const WorkoutDay = () => {
     });
     // t pominięte celowo: użyte tylko w toaście; dodanie zresetowałoby stan treningu przy zmianie języka
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startSourcesReady, dayId, workouts, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid, today]);
+  }, [startSourcesReady, dayId, workouts, workoutsFromCache, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid, today]);
 
   // Naprawia wyłącznie jednoznaczne osierocenie: dokładnie jeden cykl obejmuje datę
   // istniejącej sesji. Transakcja w createWorkoutSession chroni przed zmianą tożsamości.

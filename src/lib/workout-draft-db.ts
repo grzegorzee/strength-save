@@ -512,6 +512,19 @@ export const workoutDraftDb = {
     await runWrite(null, userId, sessionId);
   },
 
+  // Utrwala fakt serwera (revision/updatedAt) bez ruszania dirty/wersji/treści.
+  async setCloudBaseline(
+    userId: string,
+    sessionId: string,
+    cloudState: { updatedAt?: number; revision?: number },
+  ): Promise<void> {
+    await updateDraft(userId, sessionId, draft => ({
+      ...draft,
+      ...(cloudState.updatedAt !== undefined && { cloudUpdatedAt: cloudState.updatedAt }),
+      ...(cloudState.revision !== undefined && { cloudRevision: cloudState.revision }),
+    }));
+  },
+
   // Persystuje klucz idempotencji trwającej próby zapisu (null = ack otrzymany).
   async setPendingWrite(
     userId: string,

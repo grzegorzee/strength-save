@@ -31,6 +31,9 @@ export interface WorkoutReadSnapshot {
   measurements: BodyMeasurement[];
   isLoaded: boolean;
   error: string | null;
+  // true dopóki snapshot pochodzi z persistentLocalCache — stale rewizje z cache
+  // NIE mogą seedować baseline konfliktu (audyt 3.5).
+  workoutsFromCache: boolean;
 }
 
 export interface WorkoutHistoryCursor {
@@ -48,6 +51,7 @@ const EMPTY_SNAPSHOT: WorkoutReadSnapshot = {
   measurements: [],
   isLoaded: false,
   error: null,
+  workoutsFromCache: true,
 };
 
 // Brak userId (np. odświeżanie tokena) = nie ma czego ładować → "puste, ale gotowe".
@@ -57,6 +61,7 @@ const EMPTY_LOADED_SNAPSHOT: WorkoutReadSnapshot = {
   measurements: [],
   isLoaded: true,
   error: null,
+  workoutsFromCache: true,
 };
 
 type Listener = () => void;
@@ -96,7 +101,7 @@ const startStore = (userId: string, entry: StoreEntry): void => {
   if (entry.unsubscribeWorkouts || entry.unsubscribeMeasurements) return;
 
   if (isBackendDisabledForMockE2E()) {
-    entry.snapshot = { workouts: [], measurements: [], isLoaded: true, error: null };
+    entry.snapshot = { workouts: [], measurements: [], isLoaded: true, error: null, workoutsFromCache: false };
     return;
   }
 
@@ -114,6 +119,7 @@ const startStore = (userId: string, entry: StoreEntry): void => {
         workouts: snapshot.docs.map(workoutDoc => toWorkout(workoutDoc.id, workoutDoc.data())),
         isLoaded: true,
         error: null,
+        workoutsFromCache: snapshot.metadata.fromCache,
       });
     },
     (err) => {
