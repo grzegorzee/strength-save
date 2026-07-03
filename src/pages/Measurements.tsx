@@ -1,3 +1,4 @@
+import { Suspense, lazy, useMemo } from 'react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
@@ -6,10 +7,21 @@ import { DataManagement } from '@/components/DataManagement';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { parseLocalDate } from '@/lib/utils';
+import { cn, parseLocalDate } from '@/lib/utils';
+import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
+
+const MeasurementTrendChart = lazy(() => import('@/components/MeasurementTrendChart'));
+
+// Kolor delty wg celu pola (Z77): talia w dół = zielona, ramię w górę = zielone, waga neutralna.
+const deltaClass = (field: MeasurementField, delta: number): string => {
+  const goal = MEASUREMENT_FIELD_GOALS[field];
+  if (goal === 'neutral' || delta === 0) return 'text-muted-foreground';
+  const isGood = goal === 'up' ? delta > 0 : delta < 0;
+  return isGood ? 'text-fitness-success' : 'text-destructive';
+};
 
 // Osobny ekran „Pomiary ciała" (przeniesiony z zakładki w Analityce do menu).
 const Measurements = () => {
@@ -44,10 +56,27 @@ const Measurements = () => {
     .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
     .slice(0, 5);
 
+  // Delta per pole per data (Z77) — z serii, żeby "poprzedni" znaczyło poprzedni pomiar POLA.
+  const deltaByFieldDate = useMemo(() => {
+    const map = new Map<string, number | null>();
+    MEASUREMENT_FIELDS.forEach((field) => {
+      buildMeasurementSeries(measurements, field).forEach((point) => {
+        map.set(`${field}:${point.date}`, point.delta);
+      });
+    });
+    return map;
+  }, [measurements]);
+
   return (
     <div className="space-y-6">
       <MeasurementsForm latestMeasurement={latestMeasurement} onSave={handleSave} />
       <DataManagement onExport={exportData} onImport={importData} onCleanup={cleanupEmptyWorkouts} />
+
+      {measurements.length > 0 && (
+        <Suspense fallback={null}>
+          <MeasurementTrendChart measurements={measurements} />
+        </Suspense>
+      )}
 
       {measurements.length > 0 && (
         <Card>
@@ -67,14 +96,27 @@ const Measurements = () => {
           <CardContent>
             <div className="space-y-4">
               {recentMeasurements.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                <div key={m.id} className="rounded-lg bg-muted/50 p-3 space-y-2">
                   <span className="text-sm font-medium">
                     {parseLocalDate(m.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
                   </span>
-                  <div className="flex items-center gap-4 text-sm">
-                    {m.weight && <span>{t('measurements.weightShort')}: <strong>{fmt(m.weight)}</strong></span>}
-                    {m.chest && <span className="hidden sm:inline">{t('measurements.chestShort')}: <strong>{fmtLength(m.chest)}</strong></span>}
-                    {m.waist && <span className="hidden sm:inline">{t('measurements.waistShort')}: <strong>{fmtLength(m.waist)}</strong></span>}
+                  {/* Wszystkie wypełnione pola wpisu + delta vs poprzedni pomiar pola (Z77) */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+                    {MEASUREMENT_FIELDS.filter((field) => typeof m[field] === 'number').map((field) => {
+                      const value = m[field] as number;
+                      const delta = deltaByFieldDate.get(`${field}:${m.date}`) ?? null;
+                      return (
+                        <span key={field} className="whitespace-nowrap">
+                          {t(MEASUREMENT_FIELD_LABEL_KEYS[field])}:{' '}
+                          <strong>{field === 'weight' ? fmt(value) : fmtLength(value)}</strong>
+                          {delta !== null && delta !== 0 && (
+                            <span className={cn('ml-1 text-xs tabular-nums', deltaClass(field, delta))}>
+                              {delta > 0 ? '+' : ''}{field === 'weight' ? fmt(delta, { decimals: 1 }) : fmtLength(delta, { decimals: 1 })}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
