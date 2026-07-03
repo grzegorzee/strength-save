@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-03 — X11 FAZA 1: nawigacja bez ślepych zaułków (Z66-Z68)
+
+**Bramki checkpointu (wszystkie zielone):** vitest 560/560 (67 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 921 KB / 1200 KB), e2e:mock 127/127.
+
+**Root cause znalezisk:** mobilny drawer istniał w kodzie (Sheet w AppNavigation + stan `sidebarOpen` w Layout), ale nikt nie wołał `setSidebarOpen(true)` — AppHeader nie miał hamburgera. Skutek: na telefonie żyło tylko 5 pozycji dolnego paska, `/history`, `/measurements`, `/cycles` były sierotami bez linków wchodzących.
+
+1. **Z66 — hamburger + żywy drawer:** AppHeader dostał przycisk hamburger (ikona `Menu`, `md:hidden`, wzorzec `rounded-2xl bg-muted/60` z WorkoutDay, aria-label `nav.openMenu`); Layout przekazuje `onMenuClick={() => setSidebarOpen(true)}`. Sheet zamykał się już poprawnie (linki mają `onClick={onClose}`). Dolny pasek bez zmian (5 pozycji) — drawer uzupełnia, nie zastępuje. 2 nowe testy e2e (viewport 375x667: Historia/Pomiary/Cykle osiągalne, drawer zamyka się po wyborze).
+2. **Z67 — linki krzyżowe:** (a) trening → instrukcje ćwiczenia: ikona `Info` przy nazwie w ExerciseCard i w liście DayPlan, nawigacja do `/exercise/:slug` TYLKO gdy slug-match w exerciseLibrary (custom/nieznane bez ikony); celowo ikona zamiast klikalnego nagłówka — brak przypadkowych tapnięć przy odhaczaniu; nawigacja w środku sesji bezpieczna (draft w IndexedDB, kontrakt Z49 nietknięty, potwierdzone testem e2e z powrotem do treningu). (b) Dashboard stat "Waga" → `/measurements` (było: analytics charts). (c) Sekcja "Plan tygodnia" → link "Pełna historia" → `/history`. (d) Karta "Twój plan" → drugorzędny link "Cykle" → `/cycles`. (e) Analytics progresja → przycisk "Wszystkie rekordy" → `/achievements`. Klucze i18n: `card.details`, `dash.fullHistory`, `dash.cycles`, `charts.allRecords` w OBU locale. 4 nowe testy e2e.
+3. **Z68 — zero martwych przycisków:** z ExerciseDetail usunięte: przycisk "Dodaj do treningu" (toast "wkrótce" — stub od miesięcy; dodawanie ćwiczeń do planu wraca w Z71 we właściwym miejscu, edytorze planu) i zakładki (localStorage `bookmarked-exercises` — zapisywane, NIGDY nie czytane; rg potwierdził zero konsumentów). Osierocone i18n (`detail.added`, `detail.addedSoon`, `detail.addToWorkout`, `detail.bookmark`) usunięte z obu locale.
+
 ### 2026-07-03 — X10 FAZA 7: release train (Z65) — checkpoint X10
 
 **Bramki przed wdrożeniem (wszystkie zielone):** vitest 560/560 (67 plików), typecheck 0, lint 0, build OK, bundle-budget OK (initial 921 KB / 1200 KB), test:rules 95/95, functions 82 passed / 4 skipped + build, e2e:mock 121/121, e2e:emulator 12/12.
