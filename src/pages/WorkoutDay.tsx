@@ -32,6 +32,9 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { getNextSetAdvice } from '@/lib/next-set-advice';
 import { getExerciseNoteHistory } from '@/lib/exercise-notes';
 import { hapticSuccess } from '@/lib/haptics';
+import { Capacitor } from '@capacitor/core';
+import { InAppReview } from '@capacitor-community/in-app-review';
+import { shouldRequestReview, readLastReviewPromptAt, markReviewPromptShown } from '@/lib/review-prompt';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
@@ -1616,6 +1619,17 @@ const WorkoutDay = () => {
     setShowCompleteConfirm(false);
     // Z82: notification-success przy ukończeniu treningu (natywnie; web no-op).
     void hapticSuccess();
+
+    // Z83: natywna prośba o ocenę po kamieniach ukończonych treningów (5., 15., 30. ...),
+    // max raz na 60 dni. Fire-and-forget — system i tak sam decyduje, czy pokazać dialog.
+    if (Capacitor.isNativePlatform()) {
+      const completedCount = workouts.filter(w => w.completed && w.id !== sessionId).length + 1;
+      const nowMs = Date.now();
+      if (shouldRequestReview(completedCount, readLastReviewPromptAt(), nowMs)) {
+        markReviewPromptShown(nowMs);
+        void InAppReview.requestReview().catch(() => undefined);
+      }
+    }
 
     // Detect new PRs
     const currentWorkoutData = workouts.find(w => w.id === sessionId);
