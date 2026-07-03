@@ -74,6 +74,28 @@ type AutoSaveStatus =
   | 'final-sync-pending'
   | 'error';
 
+const fmtDuration = (s: number) => {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+};
+
+// Zegar sesji w osobnym komponencie: tick co sekundę re-renderuje TYLKO ten kafelek,
+// nie cały WorkoutDay z kartami ćwiczeń (R2-07). Liczy od startedAt przy każdym ticku,
+// więc po resume z tła (iOS wstrzymuje JS) pokazuje poprawny czas bez dryfu.
+const SessionClock = ({ startedAt }: { startedAt: number }) => {
+  const [elapsedSec, setElapsedSec] = useState(0);
+  useEffect(() => {
+    const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+  return <>{fmtDuration(elapsedSec)}</>;
+};
+
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
   const [searchParams] = useSearchParams();
@@ -129,7 +151,6 @@ const WorkoutDay = () => {
   });
   // Podsumowanie ukończonego treningu: które ćwiczenia mają rozwinięte serie.
   const [expandedSummaryIds, setExpandedSummaryIds] = useState<Set<string>>(new Set());
-  const [elapsedSec, setElapsedSec] = useState(0);
   const { unit, fmt, toDisplay } = useUnit();
 
   // Exercise swap (search library, no AI)
@@ -168,31 +189,17 @@ const WorkoutDay = () => {
   useEffect(() => { activeDraftRef.current = activeDraft; }, [activeDraft]);
   useEffect(() => { queuedDraftRef.current = queuedDraft; }, [queuedDraft]);
 
-  // Timer sesji (mockup [17]) — liczy od startedAt aktywnego treningu.
-  // startedAt tylko z draftu TEJ sesji — cudzy draft dawałby absurdalny czas.
-  useEffect(() => {
-    if (sessionId === null || isCompleted || !activeDraft?.startedAt) return;
-    if (activeDraft.sessionId !== sessionId) return;
-    const start = activeDraft.startedAt;
-    const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - start) / 1000)));
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [sessionId, isCompleted, activeDraft?.startedAt, activeDraft?.sessionId]);
+  // Timer sesji renderuje SessionClock (osobny komponent, Z35) — startedAt tylko
+  // z draftu TEJ sesji, bo cudzy draft dawałby absurdalny czas.
+  const sessionClockStartedAt = sessionId !== null && !isCompleted && activeDraft?.sessionId === sessionId
+    ? activeDraft?.startedAt ?? null
+    : null;
 
   // Tonaż bieżącej sesji (kg) — serie ukończone, bez rozgrzewki.
   const sessionVolumeKg = useMemo(
     () => Object.values(exerciseSets).flat().reduce((t, s) => t + (s.completed && !s.isWarmup ? s.reps * s.weight : 0), 0),
     [exerciseSets],
   );
-
-  const fmtDuration = (s: number) => {
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const sec = s % 60;
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
-  };
 
   // Snapshot etykiet bieżącego dnia (nazwy ćwiczeń + dnia) zapisywany wraz z treningiem,
   // żeby historia była odporna na przyszłe zmiany planu.
@@ -355,6 +362,33 @@ const WorkoutDay = () => {
     }
     return map;
   }, [workouts, targetDate]);
+
+  // Dane pochodne per ćwiczenie (1RM, porady, poprzednie serie) liczone raz per zmiana
+  // danych, nie w każdym renderze — skany historii w renderze co tick zegara sesji
+  // były głównym driverem re-render bomby (R2-07).
+  const exerciseInsights = useMemo(() => {
+    const map = new Map<string, {
+      previousSets?: SetData[];
+      nextAdvice: ReturnType<typeof getNextSetAdvice>;
+      historicalBest: ReturnType<typeof getExerciseBest1RM>;
+      rzaAdvice: ReturnType<typeof getRzaAdvice>;
+    }>();
+    (day?.exercises ?? []).forEach((exercise, index) => {
+      const prev = previousWorkout?.exercises.find(e => e.exerciseId === exercise.id);
+      map.set(exercise.id, {
+        previousSets: prev?.sets && prev.sets.length > 0
+          ? prev.sets
+          : (exercise.name ? previousSetsByName.get(exercise.name) : undefined),
+        nextAdvice: getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
+          isBodyweight: isBodyweightExercise(exercise.name),
+          isSuperset: exercise.isSuperset,
+        }, lang, unit),
+        historicalBest: getExerciseBest1RM(workouts, exercise.id),
+        rzaAdvice: getRzaAdvice(workouts, exercise.id, exercise.name),
+      });
+    });
+    return map;
+  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit]);
 
   const queueAutoSaveStatus = useCallback((status: AutoSaveStatus, nextStatus?: AutoSaveStatus, delay = 1600) => {
     setAutoSaveStatus(status);
@@ -1634,12 +1668,15 @@ const WorkoutDay = () => {
     0
   );
   // Czas trwania do podsumowania: trwały durationSec z zapisanej sesji, a dla świeżo
-  // zakończonego treningu fallback do licznika sesji (elapsedSec).
+  // zakończonego lokalnie treningu fallback ze znaczników draftu (finalizedAt/startedAt).
   const currentWorkoutForDuration = workouts.find(w => w.id === sessionId);
   const durationFromTimestamps = currentWorkoutForDuration?.completedAt && currentWorkoutForDuration?.startedAt
     ? Math.max(0, Math.floor((currentWorkoutForDuration.completedAt - currentWorkoutForDuration.startedAt) / 1000))
     : null;
-  const sessionDurationSec = currentWorkoutForDuration?.durationSec ?? durationFromTimestamps ?? (elapsedSec > 0 ? elapsedSec : null);
+  const draftDurationSec = currentPageDraft?.finalizedAt && currentPageDraft?.startedAt
+    ? Math.max(0, Math.floor((currentPageDraft.finalizedAt - currentPageDraft.startedAt) / 1000))
+    : null;
+  const sessionDurationSec = currentWorkoutForDuration?.durationSec ?? durationFromTimestamps ?? draftDurationSec;
 
   const ErrorBanner = () => saveError ? (
     <Card className="border-destructive bg-destructive/10">
@@ -1929,12 +1966,12 @@ const WorkoutDay = () => {
               index={index + 1}
               savedSets={exerciseSets[exercise.id]}
               savedNotes={exerciseNotes[exercise.id]}
-              onSetsChange={(sets, notes) => handleSetsChangeLocal(exercise.id, sets, notes)}
+              onSetsChange={handleSetsChangeLocal}
               isEditable={true}
               isBodyweight={isBodyweightExercise(exercise.name)}
-              historicalBest={getExerciseBest1RM(workouts, exercise.id)}
+              historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
               metrics={exerciseMetrics[exercise.id]}
-              onMetricsChange={(m) => handleMetricsChangeLocal(exercise.id, m)}
+              onMetricsChange={handleMetricsChangeLocal}
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
             />
           ))}
@@ -1990,7 +2027,11 @@ const WorkoutDay = () => {
       {isWorkoutStarted && !isCompleted && (
         <div className="grid grid-cols-2 gap-3">
           <StatCard label={t('dash.stat.tonnage')} value={fmt(sessionVolumeKg)} accent="secondary" />
-          <StatCard label={t('workout.statTime')} value={fmtDuration(elapsedSec)} accent="primary" />
+          <StatCard
+            label={t('workout.statTime')}
+            value={sessionClockStartedAt !== null ? <SessionClock startedAt={sessionClockStartedAt} /> : fmtDuration(0)}
+            accent="primary"
+          />
         </div>
       )}
 
@@ -2024,19 +2065,16 @@ const WorkoutDay = () => {
               index={index + 1}
               savedSets={exerciseSets[exercise.id]}
               savedNotes={exerciseNotes[exercise.id]}
-              previousSets={getPreviousSets(exercise.id, exercise.name)}
-              onSetsChange={(sets, notes) => handleSetsChange(exercise.id, sets, notes)}
+              previousSets={exerciseInsights.get(exercise.id)?.previousSets}
+              onSetsChange={handleSetsChange}
               isBodyweight={isBodyweightExercise(exercise.name)}
               isEditable={isWorkoutStarted && !isCompleted}
-              nextAdvice={getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
-                isBodyweight: isBodyweightExercise(exercise.name),
-                isSuperset: exercise.isSuperset,
-              }, lang, unit)}
-              historicalBest={getExerciseBest1RM(workouts, exercise.id)}
+              nextAdvice={exerciseInsights.get(exercise.id)?.nextAdvice}
+              historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
               metrics={exerciseMetrics[exercise.id]}
-              onMetricsChange={(m) => handleMetricsChange(exercise.id, m)}
+              onMetricsChange={handleMetricsChange}
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
-              rzaAdvice={getRzaAdvice(workouts, exercise.id, exercise.name)}
+              rzaAdvice={exerciseInsights.get(exercise.id)?.rzaAdvice}
               onRestTimerStart={startRestTimer}
             />
             {/* AI Swap & Skip buttons — only in active workout */}

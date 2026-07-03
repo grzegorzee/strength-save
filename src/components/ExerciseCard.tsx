@@ -147,7 +147,9 @@ interface ExerciseCardProps {
   savedSets?: SetData[];
   savedNotes?: string;
   previousSets?: SetData[];
-  onSetsChange?: (sets: SetData[], notes?: string) => void;
+  // exerciseId w callbackach: stabilna tożsamość funkcji w rodzicu (useCallback bez
+  // lambd inline per karta) — warunek działania memo() przy ticku zegara sesji (Z35).
+  onSetsChange?: (exerciseId: string, sets: SetData[], notes?: string) => void;
   isEditable?: boolean;
   isBodyweight?: boolean;
   nextAdvice?: NextSetAdvice | null;
@@ -155,7 +157,7 @@ interface ExerciseCardProps {
   historicalBest?: ExerciseBest;
   /** Metryki autoregulacji (RPE/ból/jakość) zapisane dla tego ćwiczenia. */
   metrics?: ExerciseMetrics;
-  onMetricsChange?: (metrics: ExerciseMetrics) => void;
+  onMetricsChange?: (exerciseId: string, metrics: ExerciseMetrics) => void;
   /** Pokaż wiersz metryk domyślnie (plany sterowane RPE, np. RZA). */
   defaultMetricsVisible?: boolean;
   /** Rekomendacja ciężaru z reguły RZA (ma priorytet nad nextAdvice gdy obecna). */
@@ -223,7 +225,7 @@ const ExerciseCardInner = ({
       next[field] = parseFloat(raw);
     }
     setMetricsState(next);
-    onMetricsChange?.(next);
+    onMetricsChange?.(exercise.id, next);
   };
 
   // ── Edit a set value (no auto-completion — completion is confirmed via the checkmark) ──
@@ -239,7 +241,7 @@ const ExerciseCardInner = ({
 
     const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
     setSets(newSets);
-    onSetsChange?.(newSets, notes);
+    onSetsChange?.(exercise.id, newSets, notes);
   };
 
   // ── Toggle a set as done. Confirms the (pre-filled) value without retyping. ──
@@ -266,7 +268,7 @@ const ExerciseCardInner = ({
     };
     const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
     setSets(newSets);
-    onSetsChange?.(newSets, notes);
+    onSetsChange?.(exercise.id, newSets, notes);
 
     if (turningOn && !currentSet.isWarmup) {
       const workingAfter = newSets.filter(s => !s.isWarmup);
@@ -289,7 +291,7 @@ const ExerciseCardInner = ({
   const handleNotesChange = (value: string) => {
     hasLocalChanges.current = true;
     setNotes(value);
-    onSetsChange?.(sets, value);
+    onSetsChange?.(exercise.id, sets, value);
   };
 
   const handleAddSet = () => {
@@ -302,14 +304,14 @@ const ExerciseCardInner = ({
     };
     const newSets = [...sets, newSet];
     setSets(newSets);
-    onSetsChange?.(newSets, notes);
+    onSetsChange?.(exercise.id, newSets, notes);
   };
 
   const handleRemoveSet = (setIndex: number) => {
     hasLocalChanges.current = true;
     const newSets = sets.filter((_, idx) => idx !== setIndex);
     setSets(newSets);
-    onSetsChange?.(newSets, notes);
+    onSetsChange?.(exercise.id, newSets, notes);
   };
 
   // ── Computed ──
