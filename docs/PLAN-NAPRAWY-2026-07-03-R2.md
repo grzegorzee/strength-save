@@ -381,16 +381,16 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 **Goal:** Repo bez śmieci, zależności bez martwego balastu, functions bez znanych moderate.
 
 **Workflow (commit per punkt):**
-- [ ] Krok 1: `git rm --cached test-results/.last-run.json` (gitignore już pokrywa, plik był trackowany wcześniej).
-- [ ] Krok 2: root `package.json`: `"engines": { "node": ">=22" }`.
-- [ ] Krok 3: functions: override `uuid` >= 11.1.1 w `functions/package.json` (sekcja overrides istnieje, wzorzec na miejscu); `npm --prefix functions install` + testy; jeśli override łamie firebase-admin, wycofaj i odnotuj w DECYZJE.md (czekamy na bump SDK).
-- [ ] Krok 4: usuń nieużywane zależności: `zod`, `@hookform/resolvers`, `react-hook-form` + `src/components/ui/form.tsx`; 11 sierot shadcn (`@radix-ui/react-menubar`, `react-navigation-menu`, `react-context-menu`, `react-hover-card`, `react-aspect-ratio`, `react-resizable-panels`, `embla-carousel-react`, `input-otp`, `cmdk`, `vaul`, `react-day-picker`) + odpowiadające pliki `src/components/ui/*`. PRZED usunięciem każdej: `rg` po importach (bezpiecznik). Po: test/typecheck/build.
-- [ ] Krok 5: usuń martwe `VITE_ALLOWED_EMAIL`/`VITE_ALLOWED_EMAILS` z `.github/workflows/deploy.yml:60-61,137-138` i `src/vite-env.d.ts:13`; poinformuj usera, żeby usunął sekrety z GitHub Secrets (ręczne).
-- [ ] Krok 6: usuń zweryfikowane martwe grupy kluczy i18n z OBU plików: `workout.status.{offline,syncPending,syncing,synced,finishedLocally}`, `newplan.level.*`, `onboarding.level.*` (PlanWizard używa `ob.level.*`); PRZED usunięciem każdej grupy `rg` po pełnym kluczu ORAZ po prefiksie dynamicznym (`t(\`` z prefiksem). Kluczy `coach.*` nie ruszaj tutaj, poszły w Z39.
-- [ ] Krok 7: wpis do DECYZJE.md: hardcoded PL w panelach admina uznane za "by design" (admin = właściciel, PL) LUB zadanie migracji do t() do backlogu; decyzja usera.
+- [x] Krok 1: `git rm --cached test-results/.last-run.json` (gitignore już pokrywa, plik był trackowany wcześniej).
+- [x] Krok 2: root `package.json`: `"engines": { "node": ">=22" }`.
+- [x] Krok 3: functions: override `uuid` >= 11.1.1 w `functions/package.json` (sekcja overrides istnieje, wzorzec na miejscu); `npm --prefix functions install` + testy; jeśli override łamie firebase-admin, wycofaj i odnotuj w DECYZJE.md (czekamy na bump SDK).
+- [x] Krok 4: usuń nieużywane zależności: `zod`, `@hookform/resolvers`, `react-hook-form` + `src/components/ui/form.tsx`; 11 sierot shadcn (`@radix-ui/react-menubar`, `react-navigation-menu`, `react-context-menu`, `react-hover-card`, `react-aspect-ratio`, `react-resizable-panels`, `embla-carousel-react`, `input-otp`, `cmdk`, `vaul`, `react-day-picker`) + odpowiadające pliki `src/components/ui/*`. PRZED usunięciem każdej: `rg` po importach (bezpiecznik). Po: test/typecheck/build.
+- [x] Krok 5: usuń martwe `VITE_ALLOWED_EMAIL`/`VITE_ALLOWED_EMAILS` z `.github/workflows/deploy.yml:60-61,137-138` i `src/vite-env.d.ts:13`; poinformuj usera, żeby usunął sekrety z GitHub Secrets (ręczne).
+- [x] Krok 6: usuń zweryfikowane martwe grupy kluczy i18n z OBU plików: `workout.status.{offline,syncPending,syncing,synced,finishedLocally}`, `newplan.level.*`, `onboarding.level.*` (PlanWizard używa `ob.level.*`); PRZED usunięciem każdej grupy `rg` po pełnym kluczu ORAZ po prefiksie dynamicznym (`t(\`` z prefiksem). Kluczy `coach.*` nie ruszaj tutaj, poszły w Z39.
+- [x] Krok 7: wpis do DECYZJE.md: hardcoded PL w panelach admina uznane za "by design" (admin = właściciel, PL) LUB zadanie migracji do t() do backlogu; decyzja usera.
 
 ### CHECKPOINT FAZY 5
-- [ ] `npm run test`, typecheck, lint, build, `npm run check:bundle-budget`, `npm --prefix functions test`.
+- [x] `npm run test`, typecheck, lint, build, `npm run check:bundle-budget`, `npm --prefix functions test`.
 
 ---
 

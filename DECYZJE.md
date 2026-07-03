@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-03 — R2 FAZA 5: higiena repo i zależności (Z45)
+
+Weryfikacja checkpointu: vitest 501/501, typecheck 0, lint 0, build OK, check:bundle-budget OK, functions 85 passed / 2 skipped.
+
+Zmiany (commit per punkt): (1) `test-results/.last-run.json` zdjęty z trackingu (gitignore już pokrywał). (2) `engines.node >= 22` w root package.json. (3) Override `uuid ^11.1.1` w functions — `npm audit --omit=dev` w functions: 0 podatności (wcześniej 8 moderate przez łańcuch firebase-admin), testy i build functions zielone. (4) Usunięte 14 nieużywanych zależności (zod, @hookform/resolvers, react-hook-form, 6 sierot @radix-ui, react-resizable-panels, embla-carousel-react, input-otp, cmdk, vaul, react-day-picker) + 12 plików `src/components/ui/*` bez ani jednego importera (każda pozycja zweryfikowana rg przed usunięciem). (5) Martwe `VITE_ALLOWED_EMAIL`/`VITE_ALLOWED_EMAILS` usunięte z `.github/workflows/deploy.yml` i `src/vite-env.d.ts` — **RĘCZNE dla usera: usunąć sekrety VITE_ALLOWED_EMAIL i VITE_ALLOWED_EMAILS z GitHub Secrets repo.** (6) Martwe grupy kluczy i18n usunięte z OBU locale (workout.status.{offline,syncPending,syncing,synced,finishedLocally}, newplan.level.*, onboarding.level.*; pozostałe workout.status.* są używane — zweryfikowane rg per klucz). (7) Hardcoded PL w panelach admina: przyjęte jako "by design" (admin = właściciel, pracuje po polsku); migracja do t() dopisana do backlogu jako opcja — user może zdecydować inaczej.
+
+Chunk firebase (~715K, 87% budżetu) pozostaje obserwacją (R2-31): rozbicie w manualChunks przy najbliższym bumpie SDK (FAZA 7 pkt 8).
+
 ### 2026-07-03 — R2 FAZA 4: rules hardening + pakiety P2 syncu i frontendu (Z41-Z44)
 
 Weryfikacja checkpointu: vitest 501/501 (+27 nowych testów), typecheck 0, lint 0, build OK, test:rules 93/93 (+29 nowych), e2e:mock 116/116, e2e:emulator 12/12. Scenariusz background/resume na urządzeniu odłożony do testu terenowego usera (Z46), jak w Fazie 2.
