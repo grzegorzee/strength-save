@@ -50,6 +50,7 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
+import { draftWriteId } from '@/lib/workout-write-attempt';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
 import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
@@ -543,6 +544,22 @@ const WorkoutDay = () => {
       const finalDurationSec = requiresFinalSync && startedAt && finalizedAt
         ? Math.max(0, Math.floor((finalizedAt - startedAt) / 1000))
         : undefined;
+      // Klucz idempotencji: reuse przy retry tej samej treści, nowy przy nowej wersji draftu.
+      const { writeId, reused: writeIdReused } = currentDraft
+        ? draftWriteId(currentDraft)
+        : { writeId: crypto.randomUUID(), reused: false };
+      if (currentDraft && !writeIdReused) {
+        try {
+          await workoutDraftDb.setPendingWrite(uid, targetSessionId, { writeId, version: currentDraft.version });
+        } catch {
+          // best-effort: brak persystencji pendingWriteId nie blokuje zapisu
+        }
+        const pendingMarkers = { pendingWriteId: writeId, pendingWriteVersion: currentDraft.version };
+        currentDraft = { ...currentDraft, ...pendingMarkers };
+        if (activeDraftRef.current?.sessionId === targetSessionId) {
+          activeDraftRef.current = { ...activeDraftRef.current, ...pendingMarkers };
+        }
+      }
       const saveOptions = {
         cycleId: currentDraft?.cycleId ?? undefined,
         notes: dayNotesRef.current || undefined,
@@ -554,6 +571,7 @@ const WorkoutDay = () => {
         ...(requiresFinalSync && startedAt ? { startedAt } : {}),
         ...(finalizedAt !== undefined && { completedAt: finalizedAt }),
         expectedRevision: currentDraft?.cloudRevision ?? 0,
+        writeId,
       };
       const exercisesPayload = buildExercisesPayload();
       const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
@@ -1560,6 +1578,8 @@ const WorkoutDay = () => {
       dayName: daySnapshotRef.current.dayName || undefined,
       dayFocus: daySnapshotRef.current.focus || undefined,
       expectedRevision,
+      // Edycja: baseline świeżo z serwera, każdy klik "Zapisz" to nowa treść.
+      writeId: crypto.randomUUID(),
     });
 
     setIsExplicitSaving(false);

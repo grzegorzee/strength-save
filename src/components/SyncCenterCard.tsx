@@ -23,6 +23,7 @@ import {
   summarizeCloudWorkout,
   summarizeLocalDraft,
 } from '@/lib/workout-sync-conflict';
+import { draftWriteId } from '@/lib/workout-write-attempt';
 
 interface SyncCenterCardProps {
   uid: string;
@@ -179,7 +180,15 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       }
 
       const exercisesPayload = buildSyncCenterExercisesPayload(workingDraft);
-      const saveOptions = buildSyncCenterSaveOptions(workingDraft);
+      const { writeId, reused: writeIdReused } = draftWriteId(workingDraft);
+      if (source === 'active' && !writeIdReused) {
+        try {
+          await workoutDraftDb.setPendingWrite(uid, workingDraft.sessionId, { writeId, version: workingDraft.version });
+        } catch {
+          // best-effort: brak persystencji pendingWriteId nie blokuje zapisu
+        }
+      }
+      const saveOptions = { ...buildSyncCenterSaveOptions(workingDraft), writeId };
       const expectation = buildWorkoutWriteExpectation(exercisesPayload, saveOptions);
       const shouldReadServerFirst = workingDraft.finalSyncPending
         || (workingDraft.sessionOrigin === 'remote' && workingDraft.cloudRevision === undefined);
@@ -308,6 +317,8 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       const options = {
         ...buildSyncCenterSaveOptions(conflict.draft),
         expectedRevision: cloud.revision ?? 0,
+        // keepLocal: baseline świeżo z serwera, świadome nadpisanie — nowa próba, nowy klucz.
+        writeId: crypto.randomUUID(),
       };
       const expectation = buildWorkoutWriteExpectation(exercises, options);
       const result = await batchSaveWorkout(sessionId, exercises, options);

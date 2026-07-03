@@ -26,7 +26,7 @@ import {
   isProvisionalWorkoutSessionId,
 } from '@/lib/workout-session';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { hasWorkoutWriteConflict } from '@/lib/workout-final-sync';
+import { resolveWriteAttempt } from '@/lib/workout-write-attempt';
 import { clampSet } from '@/lib/workout-sanitizers';
 import { getWorkoutReadSnapshot, subscribeWorkoutReads } from '@/lib/workout-read-store';
 
@@ -565,9 +565,10 @@ export const useFirebaseWorkoutActions = (
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }[],
-    // expectedRevision wymagane: null = świadome pominięcie preconditionu (tylko migracje/naprawy danych)
-    options: { cycleId?: string; notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision: number | null }
-  ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number }> => {
+    // expectedRevision wymagane: null = świadome pominięcie preconditionu (tylko migracje/naprawy danych).
+    // writeId wymagane: klucz idempotencji — ten sam przy retry tej samej treści, nowy przy nowej treści.
+    options: { cycleId?: string; notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision: number | null; writeId: string }
+  ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number; alreadyApplied?: boolean }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
     try {
@@ -604,12 +605,21 @@ export const useFirebaseWorkoutActions = (
         }
 
         const current = snapshot.data() as WorkoutSession;
-        if (hasWorkoutWriteConflict(current, options?.expectedRevision)) {
+        const attempt = resolveWriteAttempt(current, options.expectedRevision, options.writeId);
+        if (attempt === 'conflict') {
           throw new Error('WORKOUT_CONFLICT');
+        }
+        if (attempt === 'already-applied') {
+          // Mój poprzedni zapis doszedł, odpowiedź zginęła — sukces no-op bez update.
+          return {
+            updatedAt: current.updatedAt ?? updateTime,
+            revision: typeof current.revision === 'number' ? current.revision : 0,
+            alreadyApplied: true as const,
+          };
         }
 
         const revision = (typeof current.revision === 'number' ? current.revision : 0) + 1;
-        transaction.update(workoutRef, { ...updateData, revision } as UpdateData<Record<string, unknown>>);
+        transaction.update(workoutRef, { ...updateData, revision, lastWriteId: options.writeId } as UpdateData<Record<string, unknown>>);
         return { updatedAt: updateTime, revision };
       });
       return { success: true, ...syncState };

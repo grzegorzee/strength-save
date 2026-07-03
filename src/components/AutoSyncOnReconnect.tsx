@@ -10,6 +10,7 @@ import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorko
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
 import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
+import { draftWriteId } from '@/lib/workout-write-attempt';
 
 // Po powrocie online (i na starcie sesji) automatycznie domyka zaległe final-synci
 // z kolejki — wcześniej wymagało to ręcznego "Ponów" w Sync Center w Ustawieniach.
@@ -72,7 +73,15 @@ export const AutoSyncOnReconnect = () => {
           }
 
           const payload = buildSyncCenterExercisesPayload(working);
-          const options = buildSyncCenterSaveOptions(working);
+          const { writeId, reused: writeIdReused } = draftWriteId(working);
+          if (source === 'active' && !writeIdReused) {
+            try {
+              await workoutDraftDb.setPendingWrite(uid, working.sessionId, { writeId, version: working.version });
+            } catch {
+              // best-effort: brak persystencji pendingWriteId nie blokuje zapisu
+            }
+          }
+          const options = { ...buildSyncCenterSaveOptions(working), writeId };
           const expectation = buildWorkoutWriteExpectation(payload, options);
           const existingFinalWorkout = await getWorkoutSessionFromServer(working.sessionId);
           const alreadyFinalized = matchesFinalWorkoutContent(existingFinalWorkout, expectation);

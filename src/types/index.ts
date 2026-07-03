@@ -59,6 +59,8 @@ export interface WorkoutSession {
   // Optimistic concurrency fields used by offline draft sync.
   updatedAt?: number;
   revision?: number;
+  // Klucz idempotencji ostatniego zapisu — lost-ack retry rozpoznaje własny commit.
+  lastWriteId?: string;
 }
 
 export interface BodyMeasurement {

@@ -38,6 +38,10 @@ export interface ActiveWorkoutDraft {
   completedLocally: boolean;
   finalSyncPending: boolean;
   version: number;
+  // Klucz idempotencji trwającej próby zapisu + wersja treści, której dotyczy.
+  // Reuse writeId dozwolony TYLKO gdy pendingWriteVersion === version.
+  pendingWriteId?: string | null;
+  pendingWriteVersion?: number | null;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -148,6 +152,8 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     completedLocally: !!value.completedLocally,
     finalSyncPending: !!value.finalSyncPending,
     version: Math.max(1, Math.round(toNumberOr(value.version, 1))),
+    ...(value.pendingWriteId != null && { pendingWriteId: String(value.pendingWriteId) }),
+    ...(value.pendingWriteVersion != null && { pendingWriteVersion: Math.max(1, Math.round(toNumberOr(value.pendingWriteVersion, 1))) }),
   };
 };
 
@@ -504,6 +510,19 @@ export const workoutDraftDb = {
 
   async clearActiveDraft(userId: string, sessionId?: string): Promise<void> {
     await runWrite(null, userId, sessionId);
+  },
+
+  // Persystuje klucz idempotencji trwającej próby zapisu (null = ack otrzymany).
+  async setPendingWrite(
+    userId: string,
+    sessionId: string,
+    pending: { writeId: string; version: number } | null,
+  ): Promise<void> {
+    await updateDraft(userId, sessionId, draft => ({
+      ...draft,
+      pendingWriteId: pending ? pending.writeId : null,
+      pendingWriteVersion: pending ? pending.version : null,
+    }));
   },
 
   async migrateFromLocalStorage(userId: string): Promise<ActiveWorkoutDraft | null> {
