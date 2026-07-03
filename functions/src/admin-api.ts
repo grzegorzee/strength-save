@@ -1,5 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import * as admin from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 import type { Request } from "firebase-functions/v2/https";
 
 function getDb() {
@@ -292,6 +293,11 @@ export async function markApiKeyUsed(keyId: string): Promise<void> {
   );
 }
 
+// TTL Firestore (R2-12): logi/rate limity kasowane polityką TTL po expiresAt.
+function ttlTimestamp(days: number): Timestamp {
+  return Timestamp.fromDate(new Date(Date.now() + days * 24 * 60 * 60 * 1000));
+}
+
 export async function checkAndConsumeRateLimit(keyId: string, limit = API_RATE_LIMIT_PER_MINUTE): Promise<void> {
   const bucket = minuteBucket();
   const rateDocId = `${keyId}_${bucket}`;
@@ -310,6 +316,7 @@ export async function checkAndConsumeRateLimit(keyId: string, limit = API_RATE_L
         bucket,
         count: currentCount + 1,
         updatedAt: nowIso(),
+        expiresAt: ttlTimestamp(7),
       },
       { merge: true },
     );
@@ -331,6 +338,7 @@ export async function writeApiAuditLog(input: {
   const userAgent = input.request.get("user-agent") || "unknown";
 
   await getDb().collection(API_AUDIT_LOGS_COLLECTION).add({
+    expiresAt: ttlTimestamp(180),
     keyId: input.keyId,
     userId: input.userId,
     resource: input.resource,

@@ -6,6 +6,7 @@ vi.mock('@/lib/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(async () => undefined),
   collection: vi.fn(() => 'client-errors-collection'),
+  Timestamp: { fromMillis: (ms: number) => ({ toMillis: () => ms }) },
 }));
 vi.mock('@capacitor/core', () => ({
   Capacitor: { getPlatform: () => 'web' },

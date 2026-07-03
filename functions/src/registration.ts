@@ -3,6 +3,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 import { Resend } from "resend";
 import {
   type Lang,
@@ -118,6 +119,8 @@ interface VerificationCodeDoc {
   createdAt: string;
   sentAt?: string;
   expiresAt: string;
+  // TTL Firestore (Timestamp) — osobne od expiresAt (string ISO, logika 10 min kodu).
+  ttlExpiresAt?: Timestamp;
   attempts: number;
   status: "pending_send" | "pending" | "verified" | "expired";
 }
@@ -192,13 +195,32 @@ async function assertAdmin(userId: string): Promise<void> {
   }
 }
 
+// TTL Firestore (R2-12): kolekcje operacyjne nie rosną bez sufitu — polityki TTL
+// (gcloud firestore fields ttls update) kasują dokumenty po expiresAt/ttlExpiresAt.
+function ttlTimestamp(days: number): Timestamp {
+  return Timestamp.fromDate(new Date(Date.now() + days * 24 * 60 * 60 * 1000));
+}
+
 async function writeAuthAuditLog(payload: AuthAuditLogDoc): Promise<void> {
-  await getDb().collection(AUTH_AUDIT_COLLECTION).doc(randomUUID()).set(payload);
+  await getDb().collection(AUTH_AUDIT_COLLECTION).doc(randomUUID()).set({ ...payload, expiresAt: ttlTimestamp(90) });
+}
+
+// R2-12: login_success 1x/dzień — syncUserProfile odpala się przy każdym otwarciu apki,
+// a wpis o każdym otwarciu to czysty koszt bez wartości audytowej. Inne typy zdarzeń
+// logowane bez zmian. Eksport dla testów.
+const LOGIN_AUDIT_MIN_INTERVAL_MS = 20 * 60 * 60 * 1000;
+
+export function shouldLogLoginSuccess(lastLoginAt: string | undefined, now: Date): boolean {
+  if (!lastLoginAt) return true;
+  const parsed = Date.parse(lastLoginAt);
+  if (!Number.isFinite(parsed)) return true;
+  return now.getTime() - parsed >= LOGIN_AUDIT_MIN_INTERVAL_MS;
 }
 
 async function writeNotificationLog(payload: Record<string, unknown>): Promise<void> {
   await getDb().collection(NOTIFICATION_LOGS_COLLECTION).doc(randomUUID()).set({
     createdAt: nowIso(),
+    expiresAt: ttlTimestamp(90),
     ...payload,
   });
 }
@@ -409,14 +431,16 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
   };
 
   await userRef.set(nextProfile, { merge: true });
-  await writeAuthAuditLog({
-    eventType: "login_success",
-    uid,
-    email,
-    actorUid: uid,
-    createdAt: timestamp,
-    metadata: { provider },
-  });
+  if (shouldLogLoginSuccess(current.lastLogin ?? current.registration?.lastLoginAt, new Date())) {
+    await writeAuthAuditLog({
+      eventType: "login_success",
+      uid,
+      email,
+      actorUid: uid,
+      createdAt: timestamp,
+      metadata: { provider },
+    });
+  }
 
   if ((current.status || "active") === "active") {
     await maybeSendWelcomeEmail(userRef, { ...current, ...nextProfile } as UserProfileDoc);
@@ -467,6 +491,7 @@ export const requestEmailVerificationCode = onCall({ secrets: [resendApiKey, aut
     codeHash: hashCode(email, code, authPepper.value()),
     createdAt: timestamp,
     expiresAt,
+    ttlExpiresAt: ttlTimestamp(1),
     attempts: 0,
     status: "pending_send",
   } satisfies VerificationCodeDoc);
@@ -606,7 +631,7 @@ export const createWaitlistEntry = onCall(async (request) => {
     if (Number.isFinite(lastRequestAt) && Date.now() - lastRequestAt < 60_000) {
       throw new HttpsError("resource-exhausted", "Odczekaj chwilę przed ponownym zgłoszeniem.");
     }
-    transaction.set(rateRef, { lastRequestAt: timestamp }, { merge: true });
+    transaction.set(rateRef, { lastRequestAt: timestamp, expiresAt: ttlTimestamp(7) }, { merge: true });
     const existing = await transaction.get(db.collection(WAITLIST_COLLECTION).where("email", "==", email).limit(1));
     if (!existing.empty) return { entryId: existing.docs[0].id, existing: true };
 
@@ -1004,6 +1029,7 @@ export const adminResendVerification = onCall({ secrets: [resendApiKey, authPepp
     codeHash: hashCode(email, code, authPepper.value()),
     createdAt: timestamp, sentAt: timestamp,
     expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    ttlExpiresAt: ttlTimestamp(1),
     attempts: 0, status: "pending",
   } satisfies VerificationCodeDoc);
 

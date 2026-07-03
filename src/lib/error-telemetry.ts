@@ -1,4 +1,4 @@
-import { addDoc, collection } from 'firebase/firestore';
+import { Timestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Capacitor } from '@capacitor/core';
 import type { WorkoutSyncErrorCode } from '@/lib/workout-sync-conflict';
@@ -42,6 +42,8 @@ export const reportClientError = async (uid: string, entry: ClientErrorEntry): P
       appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown',
       platform: Capacitor.getPlatform(),
       createdAt: Date.now(),
+      // TTL Firestore (R2-12): wpisy telemetrii znikają po 30 dniach.
+      expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
   } catch {
     // best-effort: telemetria błędów nie może generować własnych błędów w UI
