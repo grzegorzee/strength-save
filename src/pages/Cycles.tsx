@@ -222,13 +222,18 @@ const Cycles = () => {
               )}
             </div>
 
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-5">
               <div className="rounded-lg bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.attendance')}</p>
                 <p className="mt-1 text-2xl font-bold">{liveActiveCycle.stats.completionRate}%</p>
                 <p className="text-xs text-muted-foreground">
                   {t('cycles.workoutsCount', { done: liveActiveCycle.stats.totalWorkouts, expected: liveActiveCycle.stats.expectedWorkouts || 0 })}
                 </p>
+              </div>
+              <div className="rounded-lg bg-background/70 p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.avgPerWeek')}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{liveActiveCycle.stats.averageWorkoutsPerWeek ?? 0}</p>
+                <p className="text-xs text-muted-foreground">{t('cycles.avgPerWeekHint')}</p>
               </div>
               <div className="rounded-lg bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('cycles.missed')}</p>

@@ -5,6 +5,8 @@ import {
   Bar,
   Area,
   AreaChart,
+  ComposedChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -34,8 +36,11 @@ import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { tooltipStyle, axisProps } from '@/lib/chart-config';
 import { getTrainingDayForDate, startOfLocalDay } from '@/lib/plan-schedule';
-import { ChevronRight, Dumbbell, Flame, Scale, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
+import { ChevronRight, Dumbbell, Flame, Scale, Timer, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { getDurationTrend, getSkippedStats } from '@/lib/workout-time-stats';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import type { LanguageCode, TranslationKey } from '@/i18n';
 
@@ -99,6 +104,9 @@ const AnalyticsChartsTab = () => {
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
+  // Z76: czas trwania / gęstość i najczęściej pomijane ćwiczenia.
+  const durationTrend = useMemo(() => getDurationTrend(workouts), [workouts]);
+  const skippedStats = useMemo(() => getSkippedStats(workouts, resolver), [workouts, resolver]);
   const [subTab, setSubTab] = useState<ChartsSubTab>('workouts');
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [weightMode, setWeightMode] = useState<WeightMode>('max');
@@ -290,6 +298,41 @@ const AnalyticsChartsTab = () => {
               { label: t('analytics.stat.avgPerWeek'), value: workoutsData.avgPerWeek },
               { label: t('analytics.stat.bestWeek'), value: workoutsData.bestWeek },
             ]} />
+
+            {/* Czas i gęstość (Z76) — dane z durationSec, bez nowej zakładki */}
+            {durationTrend.length > 0 && (
+              <div className="mt-6">
+                <ChartHeader icon={Timer} title={t('analytics.durationTitle')} />
+                <ResponsiveContainer width="100%" height={220}>
+                  <ComposedChart data={durationTrend}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
+                    <XAxis dataKey="month" tick={{ fontSize: 10 }} className="fill-muted-foreground" {...axisProps} />
+                    <YAxis yAxisId="min" tick={{ fontSize: 11 }} className="fill-muted-foreground" width={30} {...axisProps} />
+                    <YAxis yAxisId="density" orientation="right" tick={{ fontSize: 11 }} className="fill-muted-foreground" width={34} {...axisProps} />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'hsl(var(--primary) / 0.08)' }} />
+                    <Bar yAxisId="min" dataKey="avgMinutes" name={t('analytics.avgMinutes')} fill="hsl(var(--primary) / 0.35)" stroke="hsl(var(--primary))" strokeWidth={1} radius={[6, 6, 0, 0]} />
+                    <Line yAxisId="density" type="monotone" dataKey="densityKgPerMin" name={t('analytics.density', { unit })} stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 3 }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Najczęściej pomijane (Z76) — skippedExercises w akcji */}
+            {skippedStats.length > 0 && (
+              <div className="mt-6 space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground">{t('analytics.skippedTitle')}</h3>
+                {skippedStats.map((s) => (
+                  <div key={s.exerciseName} className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2">
+                    <span className="text-sm font-medium truncate">{localizeExerciseName(s.exerciseName, lang)}</span>
+                    <Badge variant="outline" className="shrink-0 text-xs tabular-nums">{s.count}×</Badge>
+                  </div>
+                ))}
+                <Button variant="ghost" size="sm" className="w-full gap-1 text-muted-foreground" onClick={() => navigate('/plan/edit')}>
+                  {t('analytics.skippedHint')}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
