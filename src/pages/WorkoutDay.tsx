@@ -1325,12 +1325,27 @@ const WorkoutDay = () => {
     );
     setExerciseSets(nextSets => ({ ...nextSets, [event.exerciseId]: next }));
     const saved = await persistDraftSnapshot({ exerciseSets: { ...exerciseSetsRef.current, [event.exerciseId]: next } });
-    if (!saved) throw new Error('WATCH_DRAFT_PERSIST_FAILED');
+    if (!saved) {
+      // Seria z zegarka nie może zniknąć po cichu (R2-26): user widzi błąd, telemetria
+      // go rejestruje, a rzucony błąd zostawia event w natywnej kolejce do retry.
+      toast({
+        title: t('workout.toast.watchSetErrorTitle'),
+        description: t('workout.toast.watchSetErrorDesc'),
+        variant: 'destructive',
+      });
+      void reportClientError(uid, {
+        code: 'watch-set-persist-failed',
+        phase: 'other',
+        detail: `exercise=${event.exerciseId} setIndex=${event.setIndex}`,
+        sessionId: sessionId ?? undefined,
+      });
+      throw new Error('WATCH_DRAFT_PERSIST_FAILED');
+    }
     toast({
       title: t('workout.toast.watchSetLoggedTitle'),
       description: t('workout.toast.watchSetLoggedDesc'),
     });
-  }, [persistDraftSnapshot, toast, t]);
+  }, [persistDraftSnapshot, toast, t, uid, sessionId]);
 
   // handleCompleteWorkout jest zdefiniowany niżej — ref omija TDZ i exhaustive-deps.
   const completeWorkoutRef = useRef<(() => Promise<void>) | null>(null);

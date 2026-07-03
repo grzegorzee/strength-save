@@ -86,18 +86,22 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
       if (!ctx.enabled) return;
       if (event.date !== ctx.date || event.dayId !== ctx.dayId) return;
 
-      if (event.type === 'setLogged') {
-        const key = watchEventId(event);
-        if (appliedRef.current.has(key)) return;
-        appliedRef.current.add(key);
-        await handlersRef.current.onSetLogged(event);
+      if (event.type !== 'setLogged' && event.type !== 'workoutFinished') return;
+      const key = watchEventId(event);
+      if (appliedRef.current.has(key)) return;
+      // Klucz dodany przed awaitem dedupuje równoległe dostarczenia (listener + drain),
+      // ale trwały jest dopiero PO sukcesie: błąd zapisu usuwa klucz, event zostaje
+      // w natywnej kolejce (bez ACK) i wraca kolejnym drainem (R2-26).
+      appliedRef.current.add(key);
+      try {
+        if (event.type === 'setLogged') {
+          await handlersRef.current.onSetLogged(event);
+        } else {
+          await handlersRef.current.onWorkoutFinished();
+        }
         await ackWatchEvents([key]);
-      } else if (event.type === 'workoutFinished') {
-        const key = watchEventId(event);
-        if (appliedRef.current.has(key)) return;
-        appliedRef.current.add(key);
-        await handlersRef.current.onWorkoutFinished();
-        await ackWatchEvents([key]);
+      } catch {
+        appliedRef.current.delete(key);
       }
     };
 

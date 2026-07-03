@@ -919,6 +919,8 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.cantStartPastDesc': 'You cannot start a workout for a past date.',
   'workout.toast.startFailedDesc': 'Failed to start the workout.',
   'workout.toast.continueTitle': 'Continuing workout',
+  'workout.toast.watchSetErrorTitle': 'Watch set not saved',
+  'workout.toast.watchSetErrorDesc': 'Local save failed. The set will come back automatically next time you open the app.',
   'workout.toast.watchSetLoggedTitle': 'Set from watch',
   'workout.toast.watchSetLoggedDesc': 'Saved a set logged on Apple Watch.',
   'workout.toast.watchFinishedTitle': 'Watch: workout finished',

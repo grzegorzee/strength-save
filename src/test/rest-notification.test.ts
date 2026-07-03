@@ -10,10 +10,10 @@ vi.mock('@capacitor/core', () => ({
 }));
 vi.mock('@capacitor/local-notifications', () => ({
   LocalNotifications: {
-    checkPermissions: (...args: unknown[]) => checkPermissions(...args),
-    requestPermissions: (...args: unknown[]) => requestPermissions(...args),
-    schedule: (...args: unknown[]) => schedule(...args),
-    cancel: (...args: unknown[]) => cancel(...args),
+    checkPermissions: (...args: unknown[]) => checkPermissions.apply(null, args),
+    requestPermissions: (...args: unknown[]) => requestPermissions.apply(null, args),
+    schedule: (...args: unknown[]) => schedule.apply(null, args),
+    cancel: (...args: unknown[]) => cancel.apply(null, args),
   },
 }));
 

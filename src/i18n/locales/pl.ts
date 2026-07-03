@@ -925,6 +925,8 @@ export const pl = {
   'workout.toast.cantStartPastDesc': 'Nie można rozpocząć treningu dla przeszłej daty.',
   'workout.toast.startFailedDesc': 'Nie udało się rozpocząć treningu.',
   'workout.toast.continueTitle': 'Kontynuujesz trening',
+  'workout.toast.watchSetErrorTitle': 'Nie zapisano serii z zegarka',
+  'workout.toast.watchSetErrorDesc': 'Zapis lokalny nie powiódł się. Seria wróci automatycznie przy następnym otwarciu apki.',
   'workout.toast.watchSetLoggedTitle': 'Seria z zegarka',
   'workout.toast.watchSetLoggedDesc': 'Zapisano serię zalogowaną na Apple Watch.',
   'workout.toast.watchFinishedTitle': 'Zegarek: trening ukończony',
