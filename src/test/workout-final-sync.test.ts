@@ -128,6 +128,11 @@ describe('workout final sync validation', () => {
     expect(hasWorkoutWriteConflict(workout({ updatedAt: 1, revision: undefined }), null)).toBe(false);
   });
 
+  it('treats missing expectedRevision as conflicting with any synced revision', () => {
+    expect(hasWorkoutWriteConflict(workout({ revision: 1 }), undefined)).toBe(true);
+    expect(hasWorkoutWriteConflict(workout({ revision: 1 }), 1)).toBe(false);
+  });
+
   it('recognizes an already-finalized legacy workout despite a retried duration', () => {
     const expectation = buildWorkoutWriteExpectation([
       { exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] },

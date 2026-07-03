@@ -1525,23 +1525,44 @@ const WorkoutDay = () => {
     setIsExplicitSaving(true);
     setSaveError(null);
 
+    // Baseline rewizji z serwera w momencie zapisu (edycja to jawna akcja,
+    // +1 RTT akceptowalny; eliminuje stale cache jako źródło konfliktu).
+    let expectedRevision = 0;
+    try {
+      const serverWorkout = await getWorkoutSessionFromServer(sessionId);
+      if (!serverWorkout) {
+        setIsExplicitSaving(false);
+        setSaveError(t(workoutSyncErrorMessageKey('WORKOUT_NOT_FOUND')));
+        toast({ title: t('workout.toast.errorTitle'), description: t('workout.toast.saveChangesFailedDesc'), variant: "destructive" });
+        return;
+      }
+      expectedRevision = Math.max(0, Math.floor(serverWorkout.revision ?? 0));
+    } catch (err) {
+      setIsExplicitSaving(false);
+      setSaveError(t(workoutSyncErrorMessageKey(err)));
+      toast({ title: t('workout.toast.errorTitle'), description: t('workout.toast.saveChangesFailedDesc'), variant: "destructive" });
+      return;
+    }
+
     const result = await batchSaveWorkout(sessionId, buildExercisesPayload(), {
       notes: dayNotes,
       skippedExercises: skippedExercises.length > 0 ? skippedExercises : undefined,
       dayName: daySnapshotRef.current.dayName || undefined,
       dayFocus: daySnapshotRef.current.focus || undefined,
+      expectedRevision,
     });
 
     setIsExplicitSaving(false);
 
     if (!result.success) {
-      setSaveError(result.error || t('workout.err.saveGeneric'));
+      setSaveError(t(workoutSyncErrorMessageKey(result.error)));
       toast({
         title: t('workout.toast.errorTitle'),
         description: t('workout.toast.saveChangesFailedDesc'),
         variant: "destructive",
       });
     } else {
+      cloudMetaRef.current = { sessionId, updatedAt: result.updatedAt, revision: result.revision };
       toast({
         title: t('workout.toast.savedShortTitle'),
         description: t('workout.toast.changesSavedDesc'),

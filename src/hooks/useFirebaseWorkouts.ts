@@ -565,7 +565,8 @@ export const useFirebaseWorkoutActions = (
   const batchSaveWorkout = useCallback(async (
     sessionId: string,
     exercises: { exerciseId: string; sets: SetData[]; notes?: string; name?: string; rpe?: number; pain?: number; quality?: number }[],
-    options?: { cycleId?: string; notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision?: number | null }
+    // expectedRevision wymagane: null = świadome pominięcie preconditionu (tylko migracje/naprawy danych)
+    options: { cycleId?: string; notes?: string; skippedExercises?: string[]; completed?: boolean; dayName?: string; dayFocus?: string; durationSec?: number; startedAt?: number; completedAt?: number; expectedRevision: number | null }
   ): Promise<{ success: boolean; error?: string; updatedAt?: number; revision?: number }> => {
     if (!sessionId) return { success: false, error: t('err.noSessionId') };
 
