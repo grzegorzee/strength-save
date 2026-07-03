@@ -111,3 +111,34 @@ describe('workoutSyncQueue', () => {
     expect(() => workoutSyncQueue.upsertFromDraft(baseDraft)).not.toThrow();
   });
 });
+
+describe('permanent (R2-17)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('markRetry z WORKOUT_NOT_FOUND oznacza wpis jako permanent', () => {
+    workoutSyncQueue.upsertFromDraft(baseDraft);
+    const updated = workoutSyncQueue.markRetry('user-1', baseDraft.sessionId, 'WORKOUT_NOT_FOUND');
+    expect(updated?.permanent).toBe(true);
+  });
+
+  it('markRetry z permission-denied oznacza wpis jako permanent', () => {
+    workoutSyncQueue.upsertFromDraft(baseDraft);
+    const updated = workoutSyncQueue.markRetry('user-1', baseDraft.sessionId, 'Missing or insufficient permissions (permission-denied)');
+    expect(updated?.permanent).toBe(true);
+  });
+
+  it('markRetry z konfliktem/offline NIE oznacza permanent', () => {
+    workoutSyncQueue.upsertFromDraft(baseDraft);
+    expect(workoutSyncQueue.markRetry('user-1', baseDraft.sessionId, 'WORKOUT_CONFLICT')?.permanent).toBeFalsy();
+    expect(workoutSyncQueue.markRetry('user-1', baseDraft.sessionId, 'OFFLINE')?.permanent).toBeFalsy();
+  });
+
+  it('flaga permanent przezywa roundtrip localStorage', () => {
+    workoutSyncQueue.upsertFromDraft(baseDraft);
+    workoutSyncQueue.markRetry('user-1', baseDraft.sessionId, 'WORKOUT_NOT_FOUND');
+    const listed = workoutSyncQueue.list('user-1');
+    expect(listed[0].permanent).toBe(true);
+  });
+});

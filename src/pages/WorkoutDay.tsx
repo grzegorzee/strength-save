@@ -47,7 +47,7 @@ import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
-import { buildWorkoutWriteExpectation, matchesFinalWorkoutContent, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
+import { buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { classifyWorkoutSyncError, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
 import { reportClientError } from '@/lib/error-telemetry';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
@@ -164,7 +164,6 @@ const WorkoutDay = () => {
   const firstExerciseRef = useRef<HTMLDivElement>(null);
   const autostartDone = useRef(false);
   const draftRecoveryDone = useRef<string | null>(null);
-  const isSyncingRef = useRef(false);
   const completedSessionLockRef = useRef<string | null>(null);
   const cycleRepairAttemptRef = useRef<string | null>(null);
   // Znacznik wersji dokumentu w chmurze dla sesji wczytanej z Firestore (bez draftu).
@@ -560,7 +559,7 @@ const WorkoutDay = () => {
         });
         return { success: false, error: outcome.error };
       }
-      if (outcome.error === 'OFFLINE') {
+      if (classifyWorkoutSyncError(outcome.error) === 'offline') {
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'local-only');
         return { success: false, error: t('workout.err.offline') };
       }
@@ -1402,8 +1401,10 @@ const WorkoutDay = () => {
     const result = await syncDraftToFirebase('final');
     setIsExplicitSaving(false);
 
-    if (!result.success && result.skipped) {
-      return; // inny sync w toku; nie strasz usera, kolejny checkpoint dokończy
+    if (result.skipped) {
+      // Kontrakt Z23: skipped przychodzi z success:true (nic do zrobienia / inny sync
+      // w toku). Bez toastu "zsynchronizowano" — nic nie zostało zapisane (R2-32).
+      return;
     }
 
     if (!result.success) {
@@ -1452,8 +1453,9 @@ const WorkoutDay = () => {
 
     const result = await syncDraftToFirebase('final');
 
-    if (!result.success && result.skipped) {
-      // Inny sync w toku (mutex zajęty) — to nie błąd; user może ponowić.
+    if (result.skipped) {
+      // Kontrakt Z23: skipped przychodzi z success:true (nic do zrobienia / inny
+      // sync w toku) — to nie błąd; user może ponowić (R2-32).
       setIsExplicitSaving(false);
       return;
     }

@@ -6,7 +6,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
-import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries, recordWorkoutSyncFailure } from '@/lib/workout-sync-entries';
 import { classifyWorkoutSyncError, isRevisionConflictError } from '@/lib/workout-sync-conflict';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 import { reportClientError } from '@/lib/error-telemetry';
@@ -69,7 +69,12 @@ export const AutoSyncOnReconnect = () => {
             trackTelemetryEvent(uid, 'provisional_session_promoted');
           }
           if (!outcome.success) {
-            workoutSyncQueue.markRetry(uid, entry.sessionId, outcome.error || 'SYNC_FAILED');
+            // Porażka zapisywana pod DOCELOWYM sessionId (po promocji NOWY id) —
+            // inaczej lastError ginie i filtr konfliktów nie zatrzymuje retry (R2-16).
+            await recordWorkoutSyncFailure(uid, outcome, outcome.error || 'SYNC_FAILED', {
+              queue: workoutSyncQueue,
+              loadDraft: (ownerId, sessionId) => workoutDraftDb.loadDraft(ownerId, sessionId),
+            });
             if (outcome.conflict) {
               trackTelemetryEvent(uid, 'revision_conflict');
             } else if (outcome.error?.startsWith('CLOUD_NOT_CONFIRMED')) {
@@ -79,7 +84,7 @@ export const AutoSyncOnReconnect = () => {
               code: classifyWorkoutSyncError(outcome.error),
               phase: 'final',
               detail: outcome.error,
-              sessionId: entry.sessionId,
+              sessionId: outcome.sessionId,
             });
             continue;
           }

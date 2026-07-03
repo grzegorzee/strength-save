@@ -1,4 +1,5 @@
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
 
 const SYNC_QUEUE_KEY_PREFIX = 'fittracker_workout_sync_queue_v1';
 
@@ -19,6 +20,9 @@ export interface WorkoutSyncQueueEntry {
   retryCount: number;
   lastError: string | null;
   lastErrorAt: number | null;
+  // Blad trwaly (not-found/permission): auto-retry go nie ponawia, wpis czeka na
+  // decyzje usera w Sync Center (R2-17).
+  permanent?: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
@@ -47,6 +51,7 @@ const normalizeQueueEntry = (value: unknown): WorkoutSyncQueueEntry | null => {
     retryCount: Number(value.retryCount) || 0,
     lastError: value.lastError == null ? null : String(value.lastError),
     lastErrorAt: value.lastErrorAt == null ? null : Number(value.lastErrorAt),
+    ...(value.permanent === true && { permanent: true }),
   };
 };
 
@@ -134,11 +139,13 @@ export const workoutSyncQueue = {
     let updatedEntry: WorkoutSyncQueueEntry | null = null;
     const nextEntries = entries.map(entry => {
       if (entry.sessionId !== sessionId) return entry;
+      const errorClass = error ? classifyWorkoutSyncError(error) : null;
       updatedEntry = {
         ...entry,
         retryCount: entry.retryCount + 1,
         lastError: error,
         lastErrorAt: error ? Date.now() : entry.lastErrorAt,
+        ...((entry.permanent || errorClass === 'not-found' || errorClass === 'permission') && { permanent: true }),
       };
       return updatedEntry;
     });

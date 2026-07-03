@@ -324,10 +324,10 @@ Kolejność wg stosunku efekt/wysiłek: Z36 -> Z37 -> Z38 -> Z39 -> Z40.
 - `chat_messages`: `allow delete: if false` (spójnie z Z28; GDPR kasuje przez admin SDK).
 
 **Workflow:**
-- [ ] Krok 1: failing testy rules per zmiana (wzorzec istniejących 63 testów): dokument zgodny ALLOWED, nadmiarowe pole DENIED, zły typ DENIED, createdAt poza widełkami DENIED, weekly_summaries create DENIED, chat_messages delete DENIED. OBOWIĄZKOWO regresja: "konto bez pola status zapisuje workout" (lekcja ef8b8d5) i wszystkie 63 istniejące zielone.
-- [ ] Krok 2: implementacja w `firestore.rules`; `npm run test:rules` (JDK21).
-- [ ] Krok 3: sprawdź, że klient przechodzi: `npm run e2e:emulator` (rules na emulatorze) + rg po writerach każdej zmienianej kolekcji (czy nie zapisują pól spoza hasOnly).
-- [ ] Krok 4: commit `chore(security): zamknięte schematy rules dla kolekcji klienta (Z41)`.
+- [x] Krok 1: failing testy rules per zmiana (wzorzec istniejących 63 testów): dokument zgodny ALLOWED, nadmiarowe pole DENIED, zły typ DENIED, createdAt poza widełkami DENIED, weekly_summaries create DENIED, chat_messages delete DENIED. OBOWIĄZKOWO regresja: "konto bez pola status zapisuje workout" (lekcja ef8b8d5) i wszystkie 63 istniejące zielone.
+- [x] Krok 2: implementacja w `firestore.rules`; `npm run test:rules` (JDK21).
+- [x] Krok 3: sprawdź, że klient przechodzi: `npm run e2e:emulator` (rules na emulatorze) + rg po writerach każdej zmienianej kolekcji (czy nie zapisują pól spoza hasOnly).
+- [x] Krok 4: commit `chore(security): zamknięte schematy rules dla kolekcji klienta (Z41)`.
 
 ### Zadanie Z42: sync P2 pakiet A: kolejka i klasyfikacja (R2-16..R2-19)
 

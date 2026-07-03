@@ -1,6 +1,5 @@
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSession, SetData } from '@/types';
-import { buildSyncCenterExercisesPayload } from '@/lib/sync-center-payload';
 import {
   buildWorkoutWriteExpectation,
   matchesFinalWorkoutContent,
@@ -106,6 +105,18 @@ const inFlight = new Map<string, Promise<SyncOutcome>>();
 
 const lockKey = (userId: string, sessionId: string): string => `${userId}::${sessionId}`;
 
+// Payload ćwiczeń budowany z draftu (jedyne źródło treści). Przeniesione z martwego
+// modułu sync-center-payload.ts (R2-32) — silnik jest jedynym konsumentem.
+export const buildDraftExercisesPayload = (draft: ActiveWorkoutDraft): WorkoutSaveExercise[] => (
+  Object.entries(draft.exerciseSets).map(([exerciseId, sets]) => ({
+    exerciseId,
+    sets,
+    ...(draft.exerciseNotes[exerciseId] && { notes: draft.exerciseNotes[exerciseId] }),
+    ...(draft.exerciseNames?.[exerciseId] && { name: draft.exerciseNames[exerciseId] }),
+    ...(draft.exerciseMetrics[exerciseId] ?? {}),
+  }))
+);
+
 export const syncWorkoutSession = (
   userId: string,
   sessionId: string,
@@ -210,7 +221,7 @@ const runSync = async (
       }
     }
 
-    const exercisesPayload = buildSyncCenterExercisesPayload(draft);
+    const exercisesPayload = buildDraftExercisesPayload(draft);
     const finalizedAt = requiresFinal ? draft.finalizedAt ?? now() : undefined;
     const durationSec = requiresFinal && draft.startedAt && finalizedAt
       ? Math.max(0, Math.floor((finalizedAt - draft.startedAt) / 1000))

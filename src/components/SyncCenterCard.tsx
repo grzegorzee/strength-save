@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { workoutSyncQueue, type WorkoutSyncQueueEntry } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries } from '@/lib/workout-sync-entries';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT, collectRetryableSyncEntries, recordWorkoutSyncFailure } from '@/lib/workout-sync-entries';
 import { dateLocale } from '@/i18n';
 import type { WorkoutSession } from '@/types';
 import {
@@ -129,6 +129,9 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     source: 'active' | 'queue',
     error: string,
     knownCloud?: WorkoutSession | null,
+    // Konflikt wykryty PODCZAS syncu raportuje fazę tego syncu; 'conflict-resolve'
+    // zostaje dla akcji rozwiązywania konfliktu przez usera (R2-19).
+    phase: 'checkpoint' | 'final' | 'conflict-resolve' = 'conflict-resolve',
   ) => {
     const cloud = knownCloud === undefined
       ? await getWorkoutSessionFromServer(targetDraft.sessionId)
@@ -142,7 +145,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     trackTelemetryEvent(uid, 'revision_conflict');
     void reportClientError(uid, {
       code: classifyWorkoutSyncError(error),
-      phase: 'conflict-resolve',
+      phase,
       detail: error,
       sessionId: targetDraft.sessionId,
     });
@@ -169,9 +172,10 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
         if (outcome.conflict) {
           const conflictDraft = await workoutDraftDb.loadDraft(uid, outcome.sessionId);
           if (conflictDraft) {
-            await registerConflict(conflictDraft, source, outcome.error || 'WORKOUT_CONFLICT');
+            // Konflikt wykryty w trakcie syncu (kind=checkpoint), nie przy resolve.
+            await registerConflict(conflictDraft, source, outcome.error || 'WORKOUT_CONFLICT', undefined, 'checkpoint');
           } else {
-            workoutSyncQueue.markRetry(uid, entry.sessionId, outcome.error || 'WORKOUT_CONFLICT');
+            workoutSyncQueue.markRetry(uid, outcome.sessionId, outcome.error || 'WORKOUT_CONFLICT');
           }
           return false;
         }
@@ -180,16 +184,21 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
           description: t(workoutSyncErrorMessageKey(outcome.error)),
           variant: 'destructive',
         });
-        workoutSyncQueue.markRetry(uid, entry.sessionId, outcome.error || 'SYNC_FAILED');
+        // Porażka pod DOCELOWYM sessionId (po promocji NOWY id, R2-16).
+        await recordWorkoutSyncFailure(uid, outcome, outcome.error || 'SYNC_FAILED', {
+          queue: workoutSyncQueue,
+          loadDraft: (ownerId, sessionId) => workoutDraftDb.loadDraft(ownerId, sessionId),
+        });
         trackTelemetryEvent(
           uid,
           outcome.error?.startsWith('CLOUD_NOT_CONFIRMED') ? 'sync_validation_failed' : 'sync_failure',
         );
         void reportClientError(uid, {
           code: classifyWorkoutSyncError(outcome.error),
-          phase: 'final',
+          // syncOne wykonuje checkpoint — raportuj rzeczywisty kind (R2-19).
+          phase: 'checkpoint',
           detail: outcome.error,
-          sessionId: entry.sessionId,
+          sessionId: outcome.sessionId,
         });
         return false;
       }
@@ -234,7 +243,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
             await registerConflict(freshDraft, conflict.source, outcome.error || 'WORKOUT_CONFLICT');
           }
         } else {
-          workoutSyncQueue.markRetry(uid, sessionId, outcome.error || 'SYNC_FAILED');
+          workoutSyncQueue.markRetry(uid, outcome.sessionId, outcome.error || 'SYNC_FAILED');
           toast({
             title: t('strava.toastSyncFailTitle'),
             description: t(workoutSyncErrorMessageKey(outcome.error)),
