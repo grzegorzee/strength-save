@@ -23,6 +23,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { getExerciseHistory, detectPlateau, getProgressionSummary } from '@/lib/exercise-progression';
 import { getExerciseNoteHistory } from '@/lib/exercise-notes';
+import { getExerciseMetricHistory } from '@/lib/rza-metrics';
 import { tooltipStyle } from '@/lib/chart-config';
 import { parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -69,6 +70,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
 
   const recentSessions = useMemo(() => history.slice(-5).reverse(), [history]);
   const noteHistory = useMemo(() => getExerciseNoteHistory(workouts, exerciseId), [workouts, exerciseId]);
+  const metricHistory = useMemo(() => getExerciseMetricHistory(workouts, exerciseId), [workouts, exerciseId]);
 
   if (history.length === 0) {
     return (
@@ -116,6 +118,34 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
               )}
             </LineChart>
           </ResponsiveContainer>
+        )}
+
+        {/* Trend RPE / Ból / Technika (Z75) — sparkline'y z metryk autoregulacji */}
+        {metricHistory.length >= 2 && (
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { key: 'rpe' as const, labelKey: 'card.rpe' as const, color: 'hsl(var(--primary))' },
+              { key: 'pain' as const, labelKey: 'card.pain' as const, color: 'hsl(var(--destructive))' },
+              { key: 'quality' as const, labelKey: 'card.quality' as const, color: 'hsl(var(--chart-2))' },
+            ]).map((s) => {
+              const values = metricHistory.filter((m) => m[s.key] !== undefined);
+              if (values.length === 0) return null;
+              const last = values[values.length - 1][s.key];
+              return (
+                <div key={s.key} className="rounded-lg bg-muted/30 p-2">
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t(s.labelKey)}</p>
+                    <p className="text-sm font-bold tabular-nums">{last}</p>
+                  </div>
+                  <ResponsiveContainer width="100%" height={36}>
+                    <LineChart data={metricHistory} margin={{ top: 4, right: 2, bottom: 0, left: 2 }}>
+                      <Line type="monotone" dataKey={s.key} stroke={s.color} strokeWidth={2} dot={false} connectNulls />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })}
+          </div>
         )}
 
         {/* Stats row */}

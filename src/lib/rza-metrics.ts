@@ -31,6 +31,101 @@ const mondayOf = (dateStr: string): string => {
   return `${date.getFullYear()}-${mm}-${dd}`;
 };
 
+export interface ExerciseMetricEntry {
+  date: string;
+  rpe?: number;
+  pain?: number;
+  quality?: number;
+}
+
+/** Historia metryk RZA per ćwiczenie (Z75): ukończone sesje, chronologicznie, bez pustych wpisów. */
+export const getExerciseMetricHistory = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+): ExerciseMetricEntry[] =>
+  workouts
+    .filter((w) => w.completed)
+    .flatMap((w) => {
+      const ex = w.exercises.find((e) => e.exerciseId === exerciseId);
+      if (!ex || (ex.rpe === undefined && ex.pain === undefined && ex.quality === undefined)) return [];
+      return [{
+        date: w.date,
+        ...(ex.rpe !== undefined ? { rpe: ex.rpe } : {}),
+        ...(ex.pain !== undefined ? { pain: ex.pain } : {}),
+        ...(ex.quality !== undefined ? { quality: ex.quality } : {}),
+      }];
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+const windowStart = (now: Date | string, weeks: number): string => {
+  const base = typeof now === 'string' ? new Date(`${now}T00:00:00`) : new Date(now);
+  base.setDate(base.getDate() - weeks * 7);
+  const mm = String(base.getMonth() + 1).padStart(2, '0');
+  const dd = String(base.getDate()).padStart(2, '0');
+  return `${base.getFullYear()}-${mm}-${dd}`;
+};
+
+export interface PainWatchlistEntry {
+  exerciseId: string;
+  exerciseName: string;
+  maxPain: number;
+  sessionsWithPain: number;
+}
+
+const PAIN_WATCHLIST_THRESHOLD = 3;
+
+/** Lista ćwiczeń z bólem >= 3 w ostatnich `weeks` tygodniach (Z75), najwyższy ból pierwszy. */
+export const getPainWatchlist = (
+  workouts: WorkoutSession[],
+  now: Date | string,
+  weeks = 4,
+): PainWatchlistEntry[] => {
+  const from = windowStart(now, weeks);
+  const byExercise = new Map<string, PainWatchlistEntry>();
+
+  workouts
+    .filter((w) => w.completed && w.date >= from)
+    .forEach((w) => {
+      w.exercises.forEach((ex) => {
+        if (ex.pain === undefined || ex.pain < PAIN_WATCHLIST_THRESHOLD) return;
+        const entry = byExercise.get(ex.exerciseId) ?? {
+          exerciseId: ex.exerciseId,
+          exerciseName: ex.name ?? ex.exerciseId,
+          maxPain: 0,
+          sessionsWithPain: 0,
+        };
+        entry.maxPain = Math.max(entry.maxPain, ex.pain);
+        entry.sessionsWithPain += 1;
+        if (ex.name) entry.exerciseName = ex.name;
+        byExercise.set(ex.exerciseId, entry);
+      });
+    });
+
+  return Array.from(byExercise.values())
+    .sort((a, b) => b.maxPain - a.maxPain || b.sessionsWithPain - a.sessionsWithPain);
+};
+
+/** Średnia jakość techniki (1-5) z ćwiczeń mających quality w ostatnich `weeks` tygodniach; null gdy brak. */
+export const getAvgQuality = (
+  workouts: WorkoutSession[],
+  now: Date | string,
+  weeks = 4,
+): number | null => {
+  const from = windowStart(now, weeks);
+  let sum = 0;
+  let n = 0;
+  workouts
+    .filter((w) => w.completed && w.date >= from)
+    .forEach((w) => {
+      w.exercises.forEach((ex) => {
+        if (ex.quality === undefined) return;
+        sum += ex.quality;
+        n += 1;
+      });
+    });
+  return n > 0 ? Math.round((sum / n) * 10) / 10 : null;
+};
+
 export const getWeeklyMetrics = (workouts: WorkoutSession[]): WeeklyMetric[] => {
   const byWeek = new Map<string, {
     workouts: Set<string>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getWeeklyMetrics } from '@/lib/rza-metrics';
+import { getWeeklyMetrics, getExerciseMetricHistory, getPainWatchlist, getAvgQuality } from '@/lib/rza-metrics';
 import type { WorkoutSession } from '@/types';
 
 const mk = (
@@ -70,5 +70,75 @@ describe('getWeeklyMetrics', () => {
       mk('a', '2026-06-01', true, [{ exerciseId: 'sq', weight: 90, reps: 5 }]),
     ]);
     expect(weeks.map(w => w.weekStart)).toEqual(['2026-06-01', '2026-06-15']);
+  });
+});
+
+describe('getExerciseMetricHistory (Z75)', () => {
+  it('zwraca metryki ćwiczenia z ukończonych sesji, chronologicznie', () => {
+    const history = getExerciseMetricHistory([
+      mk('a', '2026-06-08', true, [{ exerciseId: 'sq', weight: 100, reps: 5, rpe: 8, pain: 1, quality: 4 }]),
+      mk('b', '2026-06-01', true, [{ exerciseId: 'sq', weight: 95, reps: 5, rpe: 7 }]),
+      mk('c', '2026-06-15', false, [{ exerciseId: 'sq', weight: 100, reps: 5, rpe: 9 }]),
+    ], 'sq');
+    expect(history).toEqual([
+      { date: '2026-06-01', rpe: 7 },
+      { date: '2026-06-08', rpe: 8, pain: 1, quality: 4 },
+    ]);
+  });
+
+  it('pomija sesje bez żadnej metryki tego ćwiczenia', () => {
+    const history = getExerciseMetricHistory([
+      mk('a', '2026-06-01', true, [{ exerciseId: 'sq', weight: 100, reps: 5 }]),
+      mk('b', '2026-06-08', true, [{ exerciseId: 'bp', weight: 80, reps: 5, rpe: 8 }]),
+    ], 'sq');
+    expect(history).toEqual([]);
+  });
+});
+
+describe('getPainWatchlist (Z75)', () => {
+  const now = '2026-07-01';
+
+  it('zbiera tylko ćwiczenia z bólem >= 3 w oknie 4 tygodni', () => {
+    const list = getPainWatchlist([
+      mk('a', '2026-06-20', true, [{ exerciseId: 'sq', weight: 100, reps: 5, pain: 4 }]),
+      mk('b', '2026-06-25', true, [{ exerciseId: 'sq', weight: 100, reps: 5, pain: 3 }]),
+      mk('c', '2026-06-26', true, [{ exerciseId: 'bp', weight: 80, reps: 5, pain: 2 }]),
+      mk('d', '2026-04-01', true, [{ exerciseId: 'dl', weight: 140, reps: 5, pain: 5 }]),
+    ], now);
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ exerciseId: 'sq', maxPain: 4, sessionsWithPain: 2 });
+  });
+
+  it('sortuje po maksymalnym bólu malejąco i używa snapshotu nazwy', () => {
+    const withName = mk('a', '2026-06-20', true, [{ exerciseId: 'sq', weight: 100, reps: 5, pain: 3 }]);
+    withName.exercises[0].name = 'Przysiad ze sztangą (High Bar)';
+    const list = getPainWatchlist([
+      withName,
+      mk('b', '2026-06-21', true, [{ exerciseId: 'ohp', weight: 40, reps: 5, pain: 5 }]),
+    ], now);
+    expect(list.map((e) => e.exerciseId)).toEqual(['ohp', 'sq']);
+    expect(list[1].exerciseName).toBe('Przysiad ze sztangą (High Bar)');
+  });
+
+  it('pusta historia → []', () => {
+    expect(getPainWatchlist([], now)).toEqual([]);
+  });
+});
+
+describe('getAvgQuality (Z75)', () => {
+  const now = '2026-07-01';
+
+  it('liczy średnią techniki tylko z ćwiczeń, które mają quality, w oknie 4 tygodni', () => {
+    const avg = getAvgQuality([
+      mk('a', '2026-06-20', true, [{ exerciseId: 'sq', weight: 100, reps: 5, quality: 4 }]),
+      mk('b', '2026-06-25', true, [{ exerciseId: 'bp', weight: 80, reps: 5, quality: 3 }]),
+      mk('c', '2026-06-26', true, [{ exerciseId: 'dl', weight: 140, reps: 5 }]),
+      mk('d', '2026-04-01', true, [{ exerciseId: 'sq', weight: 100, reps: 5, quality: 1 }]),
+    ], now);
+    expect(avg).toBe(3.5);
+  });
+
+  it('brak quality w oknie → null', () => {
+    expect(getAvgQuality([mk('a', '2026-06-20', true, [{ exerciseId: 'sq', weight: 100, reps: 5 }])], now)).toBeNull();
   });
 });
