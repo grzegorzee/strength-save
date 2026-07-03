@@ -2,6 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 // Webhook RevenueCat → users/{uid}.subscription (źródło prawdy entitlementu w Firestore).
 // appUserID w RC = uid Firebase (Purchases.logIn w apce), więc event.app_user_id wskazuje
@@ -26,6 +27,15 @@ interface RcEvent {
   environment?: string;
   cancel_reason?: string;
 }
+
+// Timing-safe porównanie sekretu (wzorzec safeHashEquals z admin-api.ts);
+// porównujemy hashe SHA-256, co załatwia różne długości wejść.
+const secretsMatch = (provided: string | undefined, expected: string): boolean => {
+  if (!provided) return false;
+  const providedHash = createHash("sha256").update(provided).digest();
+  const expectedHash = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(providedHash, expectedHash);
+};
 
 const isFirebaseUid = (id: string | undefined): id is string =>
   !!id && !id.startsWith("$RCAnonymousID:") && id.length <= 128;
@@ -110,7 +120,7 @@ export const revenuecatWebhook = onRequest(
       res.status(405).send("Method Not Allowed");
       return;
     }
-    if (req.headers.authorization !== webhookAuth.value()) {
+    if (!secretsMatch(req.headers.authorization, webhookAuth.value())) {
       logger.warn("[revenuecat] Odrzucony webhook: zły Authorization header");
       res.status(401).send("Unauthorized");
       return;

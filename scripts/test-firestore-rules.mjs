@@ -135,6 +135,33 @@ add('read client_errors jako admin', true, await ok(() => getDoc(doc(adminDb, 'c
 add('update client_errors zablokowane', false, await ok(() => updateDoc(doc(db, 'client_errors', 'ce-1'), { detail: 'edit' })));
 add('delete client_errors zablokowane', false, await ok(() => deleteDoc(doc(db, 'client_errors', 'ce-1'))));
 
+// === Schemat workouts (Z28): hasOnly + limity + lekcja ef8b8d5 (pole nie istnieje) ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+add('create workout z lastWriteId (schemat zamkniety)', true, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), { ...newWorkout, revision: 0, updatedAt: 1, lastWriteId: 'w-1' })));
+add('update workout z nadmiarowym polem zablokowane', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { hackedField: 'x' })));
+add('create workout z nadmiarowym polem zablokowane', false, await ok(() => setDoc(doc(db, 'workouts', `${WORKOUT_ID}-x`), { ...newWorkout, id: `${WORKOUT_ID}-x`, blob: 'y' })));
+add('update workout z notes > 5000 znakow zablokowane', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { notes: 'x'.repeat(5001) })));
+add('update workout z notes <= 5000 znakow', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { notes: 'dobra sesja' })));
+
+// Konto bez pola status (Google sprzed hardeningu) nadal zapisuje trening (lekcja ef8b8d5).
+await env.clearFirestore();
+await seedDoc('users', UID, { uid: UID, email: `${UID}@b.c`, role: 'user', onboardingCompleted: true });
+add('create workout na koncie BEZ pola status (schemat zamkniety)', true, await ok(() => setDoc(doc(db, 'workouts', WORKOUT_ID), newWorkout)));
+
+// === Chat messages: create zamkniete (feature usuniety v6.7.0, pisze tylko admin SDK) ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+add('create chat_messages przez klienta zablokowane', false, await ok(() => setDoc(doc(db, 'chat_messages', 'm1'), { userId: UID, role: 'user', content: 'hi' })));
+
+// === Config zawezone do feature_flags ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedDoc('config', 'feature_flags', { workoutTimers: false });
+await seedDoc('config', 'secret_settings', { apiUrl: 'x' });
+add('read config/feature_flags przez zalogowanego', true, await ok(() => getDoc(doc(db, 'config', 'feature_flags'))));
+add('read config/secret_settings zablokowane', false, await ok(() => getDoc(doc(db, 'config', 'secret_settings'))));
+
 // === Strava activities: zapis tylko Cloud Functions, odczyt tylko wlasciciel ===
 await env.clearFirestore();
 await seedUser({ enabled: true });

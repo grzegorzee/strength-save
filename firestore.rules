@@ -52,6 +52,19 @@ service cloud.firestore {
       allow create: if false;
     }
 
+    // Zamknięty schemat dokumentu treningu — user może zapisywać we WŁASNYCH
+    // dokumentach tylko znane pola (audyt 4.3: koszty/integralność, nie cross-user).
+    // Per-exercise notes są clampowane w kodzie (rules nie iterują po tablicach).
+    function validWorkoutShape() {
+      return request.resource.data.keys().hasOnly([
+        'id', 'userId', 'dayId', 'date', 'exercises', 'completed', 'completedAt',
+        'notes', 'cycleId', 'skippedExercises', 'dayName', 'dayFocus',
+        'durationSec', 'startedAt', 'updatedAt', 'revision', 'lastWriteId'
+      ])
+      && (!('notes' in request.resource.data)
+          || (request.resource.data.notes is string && request.resource.data.notes.size() <= 5000));
+    }
+
     // Workouts collection
     match /workouts/{workoutId} {
       // Users can only read/write their own workouts (by userId field).
@@ -60,10 +73,11 @@ service cloud.firestore {
       // rozpocząć treningu (resource.data.userId na nieistniejącym dokumencie to błąd ewaluacji).
       allow read: if request.auth != null
                   && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
-      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId);
+      allow create: if userIdMatchesAuth() && hasSelfAccess(request.resource.data.userId) && validWorkoutShape();
       allow update: if request.auth != null
                     && hasSelfAccess(resource.data.userId)
-                    && keepsOwner();
+                    && keepsOwner()
+                    && validWorkoutShape();
       allow delete: if request.auth != null
                     && hasSelfAccess(resource.data.userId);
       // Admin can read all
@@ -116,12 +130,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && isAdmin();
     }
 
-    // Chat messages (per-user, Firestore-persisted)
+    // Chat messages: feature AI Chat usunięty w v6.7.0 — jedynym writerem jest
+    // admin SDK w Functions (omija rules). Klient nie tworzy nowych wpisów.
     match /chat_messages/{messageId} {
       allow read: if request.auth != null && (isAdmin() || hasSelfAccess(resource.data.userId));
-      allow create: if request.auth != null
-                    && request.resource.data.userId == request.auth.uid
-                    && hasSelfAccess(request.resource.data.userId);
+      allow create: if false;
       allow delete: if request.auth != null && hasSelfAccess(resource.data.userId);
       allow update: if false;
       // Admin can read all
@@ -224,7 +237,8 @@ service cloud.firestore {
     }
 
     // Globalne flagi funkcji — każdy zalogowany czyta, tylko admin zapisuje.
-    match /config/{docId} {
+    // Zawężone do feature_flags: przyszłe dokumenty configu nie wyciekają domyślnie.
+    match /config/feature_flags {
       allow read: if request.auth != null;
       allow write: if request.auth != null && isAdmin();
     }

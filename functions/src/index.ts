@@ -758,7 +758,10 @@ export const proxyOpenAI = onCall(
 export const streamOpenAI = onRequest(
   {
     secrets: [openaiApiKey],
-    cors: ["https://grzegorzee.github.io", "http://localhost:5173", "http://localhost:4173"],
+    // Originy localhost tylko na emulatorze — produkcja wyłącznie GitHub Pages.
+    cors: process.env.FUNCTIONS_EMULATOR === "true"
+      ? ["https://grzegorzee.github.io", "http://localhost:5173", "http://localhost:4173"]
+      : ["https://grzegorzee.github.io"],
     timeoutSeconds: 120,
     memory: "256MiB",
   },
