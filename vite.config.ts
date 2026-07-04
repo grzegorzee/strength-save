@@ -120,13 +120,10 @@ export default defineConfig(({ mode }) => {
             // Keep only the heaviest, low-risk libraries in dedicated chunks.
             // Over-splitting React/Radix internals created circular vendor chunks in production.
             if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/")) return "react-vendor";
-            // Firebase per produkt (Z54): mniejsze chunki = lepsze cache'owanie
-            // i mniej parsowania na starcie (auth/core wchodzą do initial, firestore osobno).
-            if (id.includes("firebase")) {
-              if (id.includes("firestore")) return "firebase-firestore";
-              if (id.includes("auth")) return "firebase-auth";
-              return "firebase-core";
-            }
+            // Firebase w JEDNYM chunku. Split per produkt (Z54) tworzył cykl
+            // firebase-core <-> firebase-auth i TDZ ReferenceError na starcie
+            // (biały ekran na iOS build 50 i prod web, Z85).
+            if (id.includes("firebase")) return "firebase";
 
             return undefined;
           },

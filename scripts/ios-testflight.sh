@@ -38,6 +38,11 @@ cp "$ASC_KEY_PATH" "$KEY_STORE/AuthKey_${ASC_KEY_ID}.p8"
 echo "==> 1/5 web build (mobile base ./)"
 npm run build:mobile
 
+# Bramka po incydencie Z85 (biały ekran build 50): bundle musi realnie wystartować
+# w przeglądarce, nie tylko się zbudować.
+echo "==> 1.5/5 smoke test dist"
+npm run check:dist-smoke
+
 echo "==> 2/5 cap sync ios"
 ./node_modules/.bin/cap sync ios
 
