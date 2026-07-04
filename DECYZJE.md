@@ -5,11 +5,27 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-03 (plan naprawy R2 Z29-Z46 wdrożony: web + functions + rules + TTL, iOS build 49 przygotowany)
+**Ostatnia aktualizacja:** 2026-07-04 (Z85 hotfix białego ekranu: firebase w jednym chunku, smoke test dist jako bramka, web + iOS build 51)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-04 — Z85 HOTFIX: biały ekran na starcie (iOS build 50 + prod web) — cykliczne chunki firebase
+
+**Objaw:** TestFlight build 50 po otwarciu pokazywał tylko biały ekran. Ten sam objaw na prod web (index-BOBq35aR na gh-pages) — release X11 wywalił OBA kanały, mimo że wszystkie bramki (vitest 620, typecheck, lint, e2e 139) były zielone.
+
+**Root cause:** split firebase per produkt z Z54 (`manualChunks`: firebase-core / firebase-auth / firebase-firestore) wygenerował CYKLICZNY import między chunkami: `firebase-core` importował z `firebase-auth` i odwrotnie. W runtime dawało to TDZ `ReferenceError: Cannot access 'uo' before initialization` w firebase-core przy starcie → React nigdy nie montował `#root` → biały ekran. Błąd istnieje TYLKO w produkcyjnym bundlu (dev/vitest/typecheck go nie widzą); cykl jest wrażliwy na graf importów, więc zmaterializował się dopiero po zmianach X11. To drugi raz, gdy over-splitting chunków tworzy cykl (pierwszy: React/Radix — komentarz w vite.config).
+
+**Diagnoza (reprodukcja przed fixem):** dist mobilny serwowany lokalnie w Chromium → `#root` pusty + pageerror; symulator iPhone 17 Pro → biały ekran identyczny z TestFlight; prod web → ten sam ReferenceError.
+
+**Fix (minimalny):** `vite.config.ts` — firebase w JEDNYM chunku (`if (id.includes("firebase")) return "firebase"`), ~732 KB. Zero możliwości cyklu wewnątrz firebase. Realny initial się NIE pogorszył: index importował auth i firestore statycznie już przed fixem, więc te bajty i tak ładowały się na starcie.
+
+**Nowa bramka (odtwarza tę klasę błędów):** `scripts/check-dist-smoke.mjs` (`npm run check:dist-smoke`) — serwuje dist, otwiera w headless Chromium, FAIL gdy `#root` pusty po 15 s lub jakikolwiek pageerror. Wpięta w `ios-testflight.sh` po `build:mobile`, przed archive. Przed fixem: FAIL (odtwarzał buga), po fixie: PASS. Lekcja: „build przechodzi" ≠ „bundle startuje" — bramki muszą wykonać bundle produkcyjny w przeglądarce.
+
+**Budżet bundle (uczciwa korekta):** per chunk 800 KB (scalony firebase), initial 1500 KB liczony z prefixem `firebase-` — poprzedni pomiar (925 KB / 1200 KB) liczył tylko firebase-core, a index importował też auth+firestore statycznie; realny initial wynosił ~1430 KB już przed Z85.
+
+**Wdrożenie:** web `npm run deploy` (naprawa prod) + iOS build 51 przez `release-ios.sh` (bump 50→51, 6 wystąpień). Weryfikacja: vitest/lint/typecheck/budżet zielone, smoke PASS na dist mobilnym, symulator renderuje ekran logowania, prod web sprawdzony po deployu.
 
 ### 2026-07-03 — X11 FAZA 7: release train (Z84) — checkpoint X11
 
