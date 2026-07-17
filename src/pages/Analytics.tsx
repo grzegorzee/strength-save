@@ -26,6 +26,7 @@ import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
   ChevronRight,
 } from 'lucide-react';
+import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -167,6 +168,9 @@ const SummaryTab = () => {
 
   return (
     <div className="space-y-6">
+      {/* Z93: przegląd miesięcy na górze Podsumowania (liczba treningów, czas, tonaż). */}
+      <MonthlyOverviewCard workouts={workouts} />
+
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           <Button variant={period === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('week')}>
