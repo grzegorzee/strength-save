@@ -17,6 +17,7 @@ import { Link2, Unlink, RefreshCw, Loader2, RotateCcw, Wrench, ChevronDown } fro
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
 import { useCurrentUser } from '@/contexts/UserContext';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
@@ -165,12 +166,15 @@ const Settings = () => {
 
       <div id="settings-data" className="scroll-mt-20">
       <DataManagement
-        onExport={() => exportData({
+        onExport={() => {
+          trackTelemetryEvent(uid, 'action_export_data');
+          return exportData({
           trainingPlan: isCustom
             ? { days: plan, durationWeeks: planDurationWeeks, ...(planStartDate ? { startDate: planStartDate } : {}) }
             : undefined,
           planCycles: cycles,
-        })}
+          });
+        }}
         onImport={importData}
         existingWorkoutIds={workouts.map((w) => w.id)}
         disabled={!workoutsLoaded}

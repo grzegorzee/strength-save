@@ -658,6 +658,7 @@ const WorkoutDay = () => {
       completedSessionLockRef.current = targetSessionId;
       queueAutoSaveStatus('synced', 'idle', 2200);
       trackTelemetryEvent(uid, 'sync_success');
+      trackTelemetryEvent(uid, 'action_workout_completed');
       return { success: true };
     }
 
@@ -1179,6 +1180,7 @@ const WorkoutDay = () => {
 
     setIsExplicitSaving(true);
     setSaveError(null);
+    trackTelemetryEvent(uid, 'action_workout_started');
 
     try {
       const startSnapshot = buildWorkoutStartSnapshot(day, targetDate, cycles);

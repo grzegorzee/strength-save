@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard';
 import { buildTrainingReportModel, generateTrainingReportPdf } from '@/lib/pdf-report';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -336,7 +337,7 @@ const SummaryTab = () => {
 
 const Analytics = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { canUseStrava } = useCurrentUser();
+  const { uid, canUseStrava } = useCurrentUser();
   const { t } = useTranslation();
   const tabParam = searchParams.get('tab') as AnalyticsTab | null;
   const validTabs: AnalyticsTab[] = canUseStrava
@@ -352,7 +353,10 @@ const Analytics = () => {
         <p className="text-sm text-muted-foreground">{t('analytics.subtitle')}</p>
       </div>
 
-      <Tabs value={currentTab} onValueChange={(value) => setSearchParams({ tab: value })}>
+      <Tabs value={currentTab} onValueChange={(value) => {
+        if (value === 'strava') trackTelemetryEvent(uid, 'action_strava_opened');
+        setSearchParams({ tab: value });
+      }}>
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">{t('analytics.tab.summary')}</TabsTrigger>
           <TabsTrigger value="charts" className="flex-1 text-xs min-w-0">{t('analytics.tab.charts')}</TabsTrigger>

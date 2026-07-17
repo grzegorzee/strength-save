@@ -18,6 +18,7 @@ import type { PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { medalForCompletionRate, type SeasonMedal } from '@/lib/season-medals';
 import type { TranslationKey } from '@/i18n';
 
@@ -151,6 +152,7 @@ const NewPlan = () => {
         backfillHistoricalWorkouts,
       });
       if (!result.success) { setError(result.error || t('onboarding.error.saveFailed')); setIsSaving(false); return; }
+      trackTelemetryEvent(uid, 'action_replan_completed');
       clearPlanDrafts(uid);
       navigate('/');
     } catch (err) {

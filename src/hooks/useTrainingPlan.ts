@@ -19,6 +19,7 @@ import { saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
 import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
 import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
 
 const PLAN_COLLECTION = 'training_plans';
 
@@ -154,6 +155,7 @@ export const useTrainingPlan = (userId: string) => {
         syncActiveCycle: options?.syncActiveCycle,
       });
 
+      trackTelemetryEvent(userId, 'action_plan_edited');
       return { success: true };
     } catch (err) {
       console.error('Error saving training plan:', err);

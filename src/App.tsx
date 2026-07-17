@@ -18,6 +18,7 @@ import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { WatchEventRouter } from "./components/WatchEventRouter";
 import { ActiveWorkoutResume } from "./components/ActiveWorkoutResume";
 import { TelemetryHeartbeat } from "./components/TelemetryHeartbeat";
+import { ProductTelemetry } from "./components/ProductTelemetry";
 import { AutoSyncOnReconnect } from "./components/AutoSyncOnReconnect";
 import { PreferenceSync } from "./components/PreferenceSync";
 import { PushRegistrar } from "./components/PushRegistrar";
@@ -176,6 +177,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
   return (
     <HashRouter>
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
+      <ProductTelemetry />
       <IosSwipeBack />
       {!isNewUser && <WatchEventRouter />}
       {!isNewUser && <ActiveWorkoutResume />}

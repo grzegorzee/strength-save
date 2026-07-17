@@ -23,6 +23,8 @@ import type { NextSetAdvice } from '@/lib/next-set-advice';
 import type { ExerciseBest } from '@/lib/pr-utils';
 import type { RzaAdvice } from '@/lib/rza-progression';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
+import { useCurrentUser } from '@/contexts/UserContext';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
 
 // Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
 // Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
@@ -192,6 +194,7 @@ const ExerciseCardInner = ({
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
+  const { uid } = useCurrentUser();
   // Link do instrukcji tylko dla ćwiczeń z biblioteki (custom/nieznane nie mają strony szczegółów).
   const detailSlug = useMemo(() => {
     const slug = slugifyExercise(exercise.name);
@@ -284,6 +287,7 @@ const ExerciseCardInner = ({
 
     // Z82: lekki impact przy każdym odhaczeniu (natywnie; web no-op).
     if (turningOn) void hapticImpactLight();
+    if (turningOn && uid) trackTelemetryEvent(uid, 'action_set_checked');
 
     if (turningOn && !currentSet.isWarmup) {
       const workingAfter = newSets.filter(s => !s.isWarmup);
