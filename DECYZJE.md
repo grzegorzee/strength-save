@@ -5,11 +5,21 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12B release train B: wersja 1.0.0, web index-OvoGHMd8 + iOS build 53 TestFlight)
+**Ostatnia aktualizacja:** 2026-07-17 (X12C fazy 1-2: agregacja miesięczna + karta Miesiące w Analityce)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12C FAZY 1-2 (Z92-Z93): statystyki miesięczne w Analityce
+
+**Zgłoszenie usera:** "ile treningów zrobiłem w miesiącu oraz ile czasu poświęciłem... loguję wszystkie treningi od początku roku, każdy ma mieć do tego dostęp".
+
+**Z92 (commit 9f54766):** czysta agregacja `src/lib/monthly-stats.ts`: `workoutDurationSec` (durationSec, fallback completedAt-startedAt, null dla treningów sprzed M32), `aggregateMonthlyStats` (klucz miesiąca z pola `date` — czas lokalny, tylko completed, okno monthsBack, sortowanie od najnowszego; tonaż ISTNIEJĄCYM helperem `calculateTonnage` — ukończone serie bez rozgrzewkowych), `formatDurationHM` ("1 h 23 min" / "49 min"). TDD: 12 testów (granice miesięcy, przełom roku, braki czasu, tonaż z warmup/nieukończonymi).
+
+**Z93 (commity 2b3fc5f, 9a70f53):** karta "Miesiące" na GÓRZE zakładki Podsumowanie w Analityce (bez 5. zakładki, bez gate'ów — dostępna dla każdego zalogowanego). Wiersz per miesiąc: etykieta (Intl toLocaleDateString + dateLocale, spójnie z resztą pliku), "{n} treningów", czas `formatDurationHM` + dopisek "{n} bez zmierzonego czasu" (dane sprzed M32 nie zaniżają sumy), tonaż `fmtTonnage` (spójny z Historią). Źródło danych: `workouts` SummaryTab (listener 500 najnowszych — pokrywa 12 miesięcy z zapasem). Pusty stan: karta nie renderuje się. Liczba mnoga "{n} treningów" zgodna z konwencją sąsiednich kluczy ('{n} serii').
+
+**Weryfikacja:** vitest 630, typecheck, lint, e2e:mock 143 (nowy spec z dynamicznymi datami: bieżący + poprzedni miesiąc); screenshot karty (Lipiec 2026: 2 treningi, 1 h 0 min, 1 bez zmierzonego czasu, 1.0 t). Pułapka e2e: Analytics domyślnie otwiera zakładkę Tygodnie — spec wchodzi przez ?tab=summary.
 
 ### 2026-07-17 — X12B RELEASE TRAIN B: aplikacja w wersji 1.0.0 (web + iOS build 53)
 
