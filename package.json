@@ -11,6 +11,7 @@
     "build": "vite build",
     "check:bundle-budget": "node scripts/check-bundle-budget.mjs",
     "check:dist-smoke": "node scripts/check-dist-smoke.mjs",
+    "check:dist-offline": "node scripts/check-dist-offline.mjs",
     "build:mobile": "vite build --mode mobile",
     "build:dev": "vite build --mode development",
     "mobile:sync": "npm run build:mobile && cap sync",

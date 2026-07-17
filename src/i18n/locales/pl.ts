@@ -1396,6 +1396,7 @@ export const pl = {
   'err.workoutNotFound': 'Nie znaleziono treningu w bazie danych',
   'err.noUserId': 'Brak userId',
   'err.planNotLoaded': 'Plan jeszcze się ładuje. Spróbuj za chwilę.',
+  'err.planOffline': 'Brak połączenia z internetem. Zmiany planu wymagają sieci, spróbuj po odzyskaniu zasięgu.',
   'weekly.noData': 'Brak danych treningowych w tym tygodniu.',
   // === onboarding v2 (ob.*) ===
   'ob.brand': 'STRENGTH SAVE',

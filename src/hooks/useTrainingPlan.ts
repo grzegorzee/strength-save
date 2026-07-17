@@ -18,6 +18,7 @@ import { swapExerciseIdentity } from '@/lib/exercise-swap';
 import { saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
 import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
+import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
 
 const PLAN_COLLECTION = 'training_plans';
 
@@ -156,6 +157,11 @@ export const useTrainingPlan = (userId: string) => {
       return { success: true };
     } catch (err) {
       console.error('Error saving training plan:', err);
+      // M19: transakcja zapisu planu wymaga sieci — offline dostaje ludzki
+      // komunikat zamiast surowego błędu Firestore.
+      if (classifyWorkoutSyncError(err) === 'offline') {
+        return { success: false, error: t('err.planOffline') };
+      }
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
