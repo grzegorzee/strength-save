@@ -30,6 +30,7 @@ import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import {
   User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
+  ScrollText, Ruler, Trophy, Shield,
 } from 'lucide-react';
 
 const REST_TIMER_KEY = 'rest-timer-default';
@@ -38,7 +39,7 @@ const REST_OPTIONS = ['30', '45', '60', '90', '120', '180'];
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { uid, profile } = useCurrentUser();
+  const { uid, profile, isAdmin } = useCurrentUser();
   const { unit, setUnit } = useUnit();
   const { logout, resetPassword } = useAuth();
   const { workouts } = useFirebaseWorkouts(uid);
@@ -173,6 +174,13 @@ const Profile = () => {
         <TierBadge label={tier.label} />
       </div>
 
+      {/* TWOJE DANE (Z90): dojścia do sekcji sprzed wycinki mobilnego drawera */}
+      <SectionCard label={t('profile.section.data')}>
+        <SettingRow icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
+        <SettingRow icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
+        <SettingRow icon={Trophy} label={t('nav.achievements')} onClick={() => navigate('/achievements')} />
+      </SectionCard>
+
       {/* ACCOUNT */}
       <SectionCard label={t('profile.section.account')}>
         <SettingRow icon={User} label={t('profile.account.edit')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
@@ -244,6 +252,7 @@ const Profile = () => {
 
       {/* SUPPORT */}
       <SectionCard label={t('profile.section.support')}>
+        {isAdmin && <SettingRow icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
         <SettingRow icon={SlidersHorizontal} label={t('profile.support.advanced')} onClick={() => navigate('/settings')} />
         <SettingRow icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://grzegorzee.github.io/strength-save/', '_blank')} />
         <SettingRow icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:kontakt@gjasionowicz.pl'; }} />
