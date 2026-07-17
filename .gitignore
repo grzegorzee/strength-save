@@ -46,3 +46,7 @@ ios/ExportOptions-manual.plist
 
 # Python cache (skrypty pomocnicze)
 scripts/__pycache__/
+
+# Android release signing (sekret, patrz FIRMA/_secrets/android)
+android/key.properties
+*.keystore
