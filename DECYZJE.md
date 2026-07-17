@@ -5,11 +5,23 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12B faza 1: Adaptive Coach usunięty)
+**Ostatnia aktualizacja:** 2026-07-17 (X12B faza 2: mobile bez hamburgera, narzędzia naprawcze za isAdmin)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12B FAZA 2 (Z90): mobile bez hamburgera i drawera + narzędzia naprawcze tylko dla admina
+
+**Decyzja usera (2026-07-17):** hamburger na mobile "zupełnie niepotrzebny". Kolejność twarda zachowana: najpierw dojścia (Z90.1) i e2e osiągalności (Z90.2, PRZED wycinką), potem wycinka (Z90.3).
+
+**Dojścia po zmianie (tabela):** bottom nav: Dashboard/Plan/Analityka/Ćwiczenia/Profil; Profil sekcja "Twoje dane": Historia, Pomiary, Osiągnięcia (+ wiersz Admin dla isAdmin w sekcji Wsparcie; wcześniej /admin nie miał ŻADNEGO dojścia mobilnego poza drawerem); /cykle z karty planu na Dashboardzie; /settings z Profilu (jak dotąd). Desktop sidebar bez zmian.
+
+**Wycinka (commit a228e33):** AppHeader bez przycisku Menu i propa onMenuClick; Layout bez stanu sidebarOpen; AppNavigation bez Sheet i propsów isOpen/onClose; klucz nav.openMenu usunięty z OBU locale; stary blok e2e "Mobile drawer (Z66)" usunięty, zastąpiony spec'em `mobile-nav-reachability` (przechodził PRZED i PO wycince) + asercja braku hamburgera.
+
+**Z90.4 (commit 13901fa, decyzja usera z aktualizacji planu):** akordeon "Narzędzia naprawcze" w Ustawieniach widoczny TYLKO dla admina (isAdmin); Eksport/Import kopii zostaje dla wszystkich. E2E: active-user bez sekcji, active-admin z sekcją (pułapka: zmiana hasha nie przeładowuje dokumentu, initScript wymaga reload). Przenosiny napraw do panelu admina = osobne plany X13.
+
+**Weryfikacja:** typecheck, lint, unit 618, e2e:mock 142, build, budget (initial 1 459 386 B, dalszy spadek po wycince drawera). Wizualnie: mobile header bez hamburgera + bottom nav (screenshot), desktop sidebar z pełną nawigacją (screenshot).
 
 ### 2026-07-17 — X12B FAZA 1 (Z89): usunięcie Adaptive Coach
 
