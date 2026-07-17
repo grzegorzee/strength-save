@@ -5,11 +5,19 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (backlog P0-Android domknięty: web push w kodzie, Android release-ready; iOS build 1.0.0 (55) VALID)
+**Ostatnia aktualizacja:** 2026-07-17 (X13A faza 1: telemetria produktowa po stronie klienta)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X13A FAZA 1 (Z94): telemetria produktowa (sesje, ekrany, akcje)
+
+**Kształt (rozszerzenie ISTNIEJĄCEGO mechanizmu, zero nowych kolekcji):** `app_telemetry_daily/{uid}-{YYYY-MM-DD}`: `{ userId, date, updatedAt, counters: { <TelemetryEventName>: number } }`; bufor localStorage + flush co 30 s (TelemetryHeartbeat) — koszt bez zmian (1 zapis per flush). Nowe liczniki (zamknięta unia TS): `session_active`, 11x `screen_*` (whitelist tras, admin poza), 7x `action_*` (started/completed/set_checked/plan_edited/replan_completed/export_data/strava_opened). Prywatność: liczniki bez treści, zero clickstreamu.
+
+**Wpięcia:** ProductTelemetry w HashRouter (session_active raz dziennie z guardem localStorage + visibilitychange dla zmiany dnia po powrocie z tła; screen_* przy zmianie trasy, ta sama trasa pod rząd raz), akcje po 1 linii w istniejących handlerach. Testy: product-telemetry (mapowanie tras, guard dnia per user); 650 unit, e2e 144, typecheck, lint.
+
+**ZNALEZISKO (do Z95.1):** whitelist `counters.*` w validTelemetryShape (rules) ma tylko 3 nazwy z ~17 istniejących w unii TS — flush dokumentów z innymi licznikami jest po cichu odrzucany (catch w flushTelemetryEvents trzyma je wiecznie w localStorage). Z95.1 dopisze WSZYSTKIE nazwy (stare + nowe).
 
 ### 2026-07-17 — Web push (commit c6430fc) + Android release prep (commit 8dfa261) + build 55
 
