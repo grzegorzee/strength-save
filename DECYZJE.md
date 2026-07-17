@@ -5,11 +5,19 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X13A faza 1: telemetria produktowa po stronie klienta)
+**Ostatnia aktualizacja:** 2026-07-17 (X13A faza 2: rules liczników + retencja + nocny rollup aktywności)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X13A FAZA 2 (Z95-Z96): rules, retencja 180 dni, rollup do users.activitySummary
+
+**Z95 rules (commit po b352e6e):** schemat liczników domknięty WŁAŚCIWIE: `counters.keys().hasOnly(pełna unia TelemetryEventName)`; odkryte przy okazji, że historyczne wpisy 'counters.xxx' w top-level hasOnly nigdy nie walidowały nazw (pola dokumentów legacy) — zachowane dla merge na starych dokumentach. Retencja: flush dopisuje `expiresAt` (+180 dni); polityka TTL gcloud w release train. Testy rules 117+ PASS (nowe: liczniki allow/deny, expiresAt, cudzy dokument, klient nie zapisze activitySummary).
+
+**Z96 rollup (commit 064da40):** `computeActivitySummary` (czysta, testy: okna 7/30, topScreens z remisem alfabetycznym, puste wejście) + `runActivityRollup` (O(aktywnych wczoraj): query date==wczoraj -> per user 30 dni dokumentów -> merge `users/{uid}.activitySummary`, bounded concurrency 8) + scheduled 03:30 Europe/Warsaw. Typ `ActivitySummary` w UserProfile (odczyt klienta; zapis tylko Admin SDK, rules deny potwierdzone testem). Koszt: przy N aktywnych wczoraj ~N+N*30 odczytów i N zapisów raz dziennie.
+
+**Bramki:** unit 650, functions 87, rules 0 FAIL, e2e 144, build/budget (initial 1 466 058 B).
 
 ### 2026-07-17 — X13A FAZA 1 (Z94): telemetria produktowa (sesje, ekrany, akcje)
 
