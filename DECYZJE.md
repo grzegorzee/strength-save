@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-17 — X13B (Z97-Z99): panel admina 2.0 (przełącznik, lista z aktywnością, szczegół usera)
+
+**Z97:** sticky pasek "PANEL ADMINA" (fitness-warning) + "Wróć do aplikacji" nad panelem; wejścia bez zmian (Profil + dropdown sidebara). **Z98:** `UsersActivityTable` — wiersz+ekspander przeniesione 1:1 z AdminDashboard (handlery propsami, zero zmian logiki), nowe kolumny: badge active/idle/dormant, ostatnia aktywność, dni aktywne 7/30, treningi 7/30 z `users.activitySummary`; sort domyślnie po aktywności. **Z99:** strona `/admin/users/:uid` (lazy): wykres 30 dni (recharts), staty, top ekrany/akcje (etykiety i18n), plan + link do edytora, uprawnienia przez wspólny hook `useAdminUserActions` (lista i szczegół używają tej samej logiki), błędy klienta; odczyty on-demand ~43 max, zero odczytów kolekcji workouts.
+
+**Weryfikacja end-to-end rollupu na PRODUKCJI:** ręczne uruchomienie `firebase-schedule-activityRollup` (gcloud scheduler jobs run) po dodaniu brakującego composite index (userId+date; pierwotny run padł na FAILED_PRECONDITION) zapisało realne `users/{admin}.activitySummary`: lastActiveAt 2026-07-17, activeDays30=19, activeDays7=5 (z historycznych liczników sync_*); workouts/topScreens wypełnią się z nowej wersji apki. Lekcja: gcloud na tym projekcie wymaga `--account g.jasionowicz@gmail.com`.
+
+**Bramki:** unit 654, e2e:mock 147 (admin-switch: redirect nie-admina, pasek+powrót, szczegół z pustymi danymi bez crasha), rules 0 FAIL, budget (initial 1 469 499 B, szczegół w lazy chunku).
+
 ### 2026-07-17 — X13A RELEASE TRAIN: telemetria produktowa wdrożona (rules + functions + web + iOS 56)
 
 **Wdrożone:** firestore.rules (zamknięte liczniki + expiresAt), functions (scheduled activityRollup 03:30 Europe/Warsaw), web index-BtD9oq7c (ProductTelemetry aktywna), iOS build 1.0.0 (56) VALID w grupie Wewnętrzni. Polityka TTL 180 dni na app_telemetry_daily przez gcloud (konto g.jasionowicz@gmail.com; konto grzegorzee@ nie ma uprawnień - zapisana lekcja: gcloud --account).
