@@ -5,11 +5,21 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12C release train C: web index-C7jDc1gn + iOS build 1.0.0 (54) TestFlight; CAŁY pakiet X12 wdrożony)
+**Ostatnia aktualizacja:** 2026-07-17 (P0: walidacja dokumentów Firestore przy hydracji)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — P0: walidacja danych z Firebase w onSnapshot (commit 5fd39f9)
+
+**Problem:** hydracja z Firestore rzutowała dokumenty bez walidacji (`as WorkoutSession` itd.) — uszkodzony dokument (NaN w seriach, brak date, zły status cyklu, zepsute days planu) renderował śmieci albo wywracał widoki.
+
+**Rozwiązanie:** czysty moduł `firestore-doc-guards.ts`. Kontrakty: uszkodzony DOKUMENT = odrzucony z hydracji + raport do client_errors (code `invalid-doc`, detail `kolekcja/id`, limit sesyjny 20 z error-telemetry); uszkodzony FRAGMENT (seria, ćwiczenie) = odfiltrowany, reszta treningu zostaje. Dni planu: uszkodzony dzień unieważnia całą listę (null) — hydracja NIE nadpisuje wtedy dobrego stanu w UI (plan bez jednego dnia jest groźniejszy niż zatrzymanie odświeżenia). Koercje bezpieczne: liczby stringowe -> Number (finite), completed -> bool, nie-finite opcjonalne pola znikają.
+
+**Wpięcia (całość odczytów treningowych):** workout-read-store (listener 500 + paginacja historii; pełność strony liczona z SUROWEGO snapshotu, żeby odfiltrowany dokument nie przerywał paginacji w środku), usePlanCycles (per cykl), useTrainingPlan (days).
+
+**Decyzja release:** P0/M19/M20 to jeden pociąg iOS (build 55 po ukończeniu paczki) — web deployowany po każdej pozycji (tani), TestFlight nie jest mnożony per drobny krok. **Weryfikacja:** vitest 644 (14 nowych), typecheck, lint, build, budget (initial 1 463 248 B), e2e:mock 143.
 
 ### 2026-07-17 — X12C RELEASE TRAIN C: karta Miesiące na produkcji (web + iOS build 54)
 
