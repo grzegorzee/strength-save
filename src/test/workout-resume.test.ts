@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldResumeWorkoutDraft } from '@/lib/workout-resume';
+import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 
 const TODAY = '2026-07-03';
@@ -101,5 +101,29 @@ describe('shouldResumeWorkoutDraft (Z49)', () => {
     );
 
     expect(decision.resume).toBe(false);
+  });
+});
+
+describe('isDraftContinuableToday (Z88)', () => {
+  it('w pełni zsynchronizowany dzisiejszy szkic JEST kontynuowalny (dirty=false, remote)', () => {
+    const draft = makeDraft({ dirty: false, sessionOrigin: 'remote', lastFirebaseSyncAt: NOW });
+    expect(isDraftContinuableToday(draft, TODAY)).toBe(true);
+  });
+  it('szkic ukończony lokalnie NIE jest kontynuowalny', () => {
+    expect(isDraftContinuableToday(makeDraft({ completedLocally: true }), TODAY)).toBe(false);
+  });
+  it('szkic czekający na finalny sync NIE jest kontynuowalny', () => {
+    expect(isDraftContinuableToday(makeDraft({ finalSyncPending: true }), TODAY)).toBe(false);
+  });
+  it('szkic z innego dnia NIE jest kontynuowalny', () => {
+    expect(isDraftContinuableToday(makeDraft({ date: '2026-07-02' }), TODAY)).toBe(false);
+  });
+  it('brak szkicu = false', () => {
+    expect(isDraftContinuableToday(null, TODAY)).toBe(false);
+  });
+  it('target prowadzi do treningu z sesją szkicu', () => {
+    expect(continuableDraftTarget(makeDraft())).toBe(
+      `/workout/day-1?date=${TODAY}&session=workout-u1-day-1-2026-07-03`,
+    );
   });
 });

@@ -9,6 +9,21 @@ export type WorkoutResumeDecision =
   | { resume: true; target: string }
   | { resume: false; target?: undefined };
 
+// Z88: warunek karty "Dzisiejszy trening" na Dashboardzie. Łagodniejszy niż auto-resume:
+// KAŻDY nieukończony dzisiejszy szkic jest kontynuowalny, także w pełni zsynchronizowany
+// (dirty=false). Auto-nawigacja (shouldResumeWorkoutDraft) celowo zostaje ostrzejsza.
+export const isDraftContinuableToday = (
+  draft: ActiveWorkoutDraft | null,
+  todayStr: string,
+): draft is ActiveWorkoutDraft => {
+  if (!draft) return false;
+  if (draft.completedLocally || draft.finalSyncPending) return false;
+  return draft.date === todayStr;
+};
+
+export const continuableDraftTarget = (draft: ActiveWorkoutDraft): string =>
+  `/workout/${draft.dayId}?date=${draft.date}&session=${draft.sessionId}`;
+
 export const shouldResumeWorkoutDraft = (
   draft: ActiveWorkoutDraft | null,
   todayStr: string,
