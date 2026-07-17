@@ -5,11 +5,29 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-04 (Z85 hotfix białego ekranu: firebase w jednym chunku, smoke test dist jako bramka, web + iOS build 51)
+**Ostatnia aktualizacja:** 2026-07-17 (X12A faza 1: root cause wskrzeszonego planu + fix repeatPlanSource)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12A FAZA 1 (Z86): wskrzeszony stary plan + PLAN_CONFLICT — root cause i fix
+
+**Objaw (incydent ~2026-07-04/05):** po treningu aktywny zrobił się STARY plan trzydniowy z poprzedniego cyklu, Dashboard pokazywał "Tydzień 1 z 12", wyskoczył błąd konfliktu planu (PLAN_CONFLICT).
+
+**Diagnoza (read-only, tmp/x12-diagnoza.mjs, firebase-admin + ADC):** stan konta admina DZIŚ poprawny: plan 4-dniowy (revision 4, updatedAt 2026-07-05 15:25 UTC = moment ręcznej naprawy przez usera), 3 cykle, jeden active (4-dniowy, startDate 2026-06-01), zero cykli utworzonych w lipcu. Telemetria client_errors: zero wpisów PLAN_CONFLICT (ten błąd nie jest raportowany), za to 12x revision-conflict treningu (WORKOUT_CONFLICT, iOS, phase=checkpoint) w 4 poranki treningowe (6/7, 7/7, 9/7, 16/7), zawsze PODWÓJNY wpis w tej samej ms — potwierdza zasadność Z87 (local-wins).
+
+**Root cause (H1+H3 potwierdzone lekturą kodu):**
+1. `handleRepeatPlan` (Dashboard.tsx i Cycles.tsx) brał dni ze snapshotu aktywnego CYKLU (`active?.days`), nie z bieżącego planu; Dashboard szukał active przez `cycles.find()` na surowej liście.
+2. Karta "Przedłuż plan" (`extendOffer`, następca auto-przedłużenia M33) gate'owała wyłącznie na `isLoaded` WORKOUTS — nie czekała na załadowanie planu ani cykli. Po wybudzeniu z tła / na starej karcie PWA klik padał na stale stanie: `active` wskazywał stary 3-dniowy cykl, `startCycleWithPlan` zapisywał STARE dni ze świeżym startDate (stąd "Tydzień 1 z 12") i tworzył świeży aktywny cykl ze starych dni.
+3. PLAN_CONFLICT widziany przez usera to KOLEJNY zapis odrzucony przez revision guard (drugi klik / drugie urządzenie na stale rewizji). Wariant wejścia bez konfliktu: stara karta webowa PWA z kodem sprzed R1 (revision guard istnieje dopiero od 2026-07-03; revision=4 potwierdza młody licznik).
+4. `startCycleWithPlan` sam jest bezpieczny: savePlan przed createActiveCycle, przy PLAN_CONFLICT cykl nie powstaje (regresja potwierdzona testem).
+
+**Fix (minimalny, commit d8f92f6):** czysta funkcja `repeatPlanSource` w `cycle-actions.ts` — źródłem dni i durationWeeks dla "Powtórz/Przedłuż plan" jest ZAWSZE bieżący plan (chroniony rewizją), snapshot cyklu tylko fallbackiem przy pustym planie; oba komponenty przepięte; `extendOffer` czeka na `isLoaded` planu ORAZ cykli. Testy: 4 nowe w cycle-actions.test.ts (TDD: FAIL przed fixem, PASS po), łącznie 624 zielone.
+
+**Naprawa danych usera (Z86.5): POMINIĘTA — stan konta już poprawny** (user naprawił ręcznie przez UI ~2026-07-05 17:25 PL). Żadnych zapisów produkcyjnych nie wykonano (diagnoza wyłącznie read-only).
+
+**Uwaga procesowa:** plik planu X12A został w trakcie sesji zmodyfikowany na dysku (Z86.5 przepisane z "za jawną zgodą" na "autonomicznie z backupem"). Wykonawca trzymał się dyrektywy z promptu startowego (zgoda wymagana); konflikt bez skutków, bo naprawa okazała się zbędna.
 
 ### 2026-07-04 — Z85 HOTFIX: biały ekran na starcie (iOS build 50 + prod web) — cykliczne chunki firebase
 
