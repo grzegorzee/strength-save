@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useToast } from '@/hooks/use-toast';
-import { startCycleWithPlan } from '@/lib/cycle-actions';
+import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
 import { trainingPlan as defaultPlanData, type TrainingDay } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useStrava } from '@/hooks/useStrava';
@@ -126,18 +126,19 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
-  const { cycles, archiveCurrentPlan, createActiveCycle } = usePlanCycles(uid);
+  const { cycles, isLoaded: cyclesLoaded, archiveCurrentPlan, createActiveCycle } = usePlanCycles(uid);
   const { toast } = useToast();
   const [isRepeating, setIsRepeating] = useState(false);
 
   const handleRepeatPlan = async () => {
     const active = cycles.find((c) => c.status === 'active') || null;
-    const days = active?.days?.length ? active.days : trainingPlan;
-    if (days.length === 0) return;
+    // Z86: dni zawsze z bieżącego planu; snapshot cyklu bywał stale i wskrzeszał stary plan.
+    const source = repeatPlanSource(trainingPlan, planDurationWeeks, active);
+    if (source.days.length === 0) return;
     setIsRepeating(true);
-    const res = await startCycleWithPlan(days, active?.durationWeeks ?? planDurationWeeks, {
+    const res = await startCycleWithPlan(source.days, source.durationWeeks, {
       uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
       archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
     });
@@ -220,7 +221,10 @@ const Dashboard = () => {
   // user nic nie wybrał i nie zakończył planu jawnie — pytamy o zgodę.
   const [extendOfferDismissed, setExtendOfferDismissed] = useState(false);
   const extendOffer = useMemo(() => {
-    if (!isLoaded || trainingPlan.length === 0 || !planStartDate || !uid || currentPlanArchived) return null;
+    // Z86: czekaj na ZAŁADOWANY plan i cykle. Oferta liczona na stale stanie
+    // (iOS po wybudzeniu z tła) potrafiła wystartować cykl ze starymi danymi.
+    if (!isLoaded || !planIsLoaded || !cyclesLoaded) return null;
+    if (trainingPlan.length === 0 || !planStartDate || !uid || currentPlanArchived) return null;
     const plannedEnd = parseLocalDate(planStartDate).getTime() + planDurationWeeks * 7 * 86_400_000;
     const daysSinceEnd = Math.floor((Date.now() - plannedEnd) / 86_400_000);
     if (daysSinceEnd < 7) return null;
@@ -231,7 +235,7 @@ const Dashboard = () => {
       return null;
     }
     return { daysSinceEnd, guardKey };
-  }, [isLoaded, trainingPlan.length, planStartDate, uid, currentPlanArchived, planDurationWeeks]);
+  }, [isLoaded, planIsLoaded, cyclesLoaded, trainingPlan.length, planStartDate, uid, currentPlanArchived, planDurationWeeks]);
 
   const handleExtendPlan = async () => {
     if (!extendOffer) return;

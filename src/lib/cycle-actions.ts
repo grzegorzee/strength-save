@@ -33,6 +33,28 @@ export interface CompleteOnboardingDeps {
   markOnboardingComplete: (choice: CompleteOnboardingChoice, days: TrainingDay[], startDate: string) => Promise<void>;
 }
 
+// Z86: źródłem dni dla "Powtórz plan"/przedłużenia jest ZAWSZE bieżący plan
+// (training_plans, chroniony rewizją). Snapshot cyklu bywa stale (iOS po wybudzeniu
+// z tła, stara karta PWA) i potrafił wskrzesić plan z poprzedniego cyklu.
+export interface RepeatPlanSource {
+  days: TrainingDay[];
+  durationWeeks: number;
+}
+
+export const repeatPlanSource = (
+  currentPlan: TrainingDay[],
+  planDurationWeeks: number,
+  activeCycle: Pick<PlanCycle, 'days' | 'durationWeeks'> | null,
+): RepeatPlanSource => {
+  if (currentPlan.length > 0) {
+    return { days: currentPlan, durationWeeks: planDurationWeeks };
+  }
+  if (activeCycle?.days?.length) {
+    return { days: activeCycle.days, durationWeeks: activeCycle.durationWeeks };
+  }
+  return { days: [], durationWeeks: planDurationWeeks };
+};
+
 /**
  * Rozpoczyna nowy cykl z podanym planem: archiwizuje bieżący aktywny cykl (status completed
  * + dotagowanie historii), zapisuje plan i tworzy świeży aktywny cykl od najbliższego

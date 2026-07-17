@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TrainingDay } from '@/data/trainingPlan';
-import { completeOnboardingPlan, runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
+import { completeOnboardingPlan, repeatPlanSource, runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
 
 const days: TrainingDay[] = [{
   id: 'day-1',
@@ -120,6 +120,86 @@ describe('cycle lifecycle actions', () => {
     expect(createActiveCycle).toHaveBeenCalledTimes(2);
     expect(createActiveCycle).toHaveBeenNthCalledWith(1, expect.any(Array), 8, '2026-06-08');
     expect(markOnboardingComplete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Z86: wskrzeszenie starego planu', () => {
+  const currentPlan: TrainingDay[] = ['A', 'B', 'C', 'D'].map((name, i) => ({
+    id: `day-${i + 1}`,
+    dayName: name,
+    weekday: 'monday' as const,
+    focus: 'Push',
+    exercises: [{ id: `ex-${i + 1}`, name: `Ćwiczenie ${name}`, sets: '3 x 5', instructions: [] }],
+  }));
+  const staleCycleDays: TrainingDay[] = ['stary1', 'stary2', 'stary3'].map((name, i) => ({
+    id: `old-day-${i + 1}`,
+    dayName: name,
+    weekday: 'monday' as const,
+    focus: 'Pull',
+    exercises: [{ id: `old-ex-${i + 1}`, name, sets: '3 x 8', instructions: [] }],
+  }));
+
+  it('źródłem powtórzenia planu jest BIEŻĄCY plan, nie snapshot przeterminowanego cyklu', () => {
+    const source = repeatPlanSource(currentPlan, 12, { days: staleCycleDays, durationWeeks: 8 });
+    expect(source.days).toBe(currentPlan);
+    expect(source.durationWeeks).toBe(12);
+  });
+
+  it('snapshot cyklu jest fallbackiem wyłącznie przy pustym planie', () => {
+    const source = repeatPlanSource([], 12, { days: staleCycleDays, durationWeeks: 8 });
+    expect(source.days).toBe(staleCycleDays);
+    expect(source.durationWeeks).toBe(8);
+
+    expect(repeatPlanSource([], 12, null).days).toEqual([]);
+  });
+
+  it('auto-przedłużenie zapisuje dni BIEŻĄCEGO planu, nie dni przeterminowanego cyklu', async () => {
+    const savePlan = vi.fn().mockResolvedValue({ success: true });
+    const source = repeatPlanSource(currentPlan, 12, { days: staleCycleDays, durationWeeks: 8 });
+
+    await startCycleWithPlan(source.days, source.durationWeeks, {
+      uid: 'u1',
+      currentPlan,
+      planStartDate: '2026-01-26',
+      planDurationWeeks: 12,
+      workouts: [],
+      startDate: '2026-07-06',
+      archiveCurrentPlan: vi.fn().mockResolvedValue('archived-id'),
+      savePlan,
+      createActiveCycle: vi.fn().mockResolvedValue('new-cycle-id'),
+      backfillHistoricalWorkouts: vi.fn(),
+    });
+
+    const savedDays = savePlan.mock.calls[0][0] as TrainingDay[];
+    expect(savedDays.map(day => day.dayName)).toEqual(['A', 'B', 'C', 'D']);
+    expect(savedDays.map(day => day.dayName)).not.toContain('stary1');
+  });
+
+  it('drugi równoległy start cyklu nie nadpisuje planu po PLAN_CONFLICT', async () => {
+    const savePlan = vi.fn()
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce({ success: false, error: 'PLAN_CONFLICT' });
+    const createActiveCycle = vi.fn().mockResolvedValue('new-cycle-id');
+    const deps = {
+      uid: 'u1',
+      currentPlan,
+      planStartDate: '2026-06-01',
+      planDurationWeeks: 12,
+      workouts: [],
+      archiveCurrentPlan: vi.fn().mockResolvedValue(null),
+      savePlan,
+      createActiveCycle,
+      backfillHistoricalWorkouts: vi.fn(),
+    };
+
+    const first = await startCycleWithPlan(currentPlan, 12, deps);
+    const second = await startCycleWithPlan(currentPlan, 12, deps);
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(false);
+    expect(second.error).toBe('PLAN_CONFLICT');
+    // Przegrany wyścig NIE tworzy drugiego aktywnego cyklu.
+    expect(createActiveCycle).toHaveBeenCalledTimes(1);
   });
 });
 

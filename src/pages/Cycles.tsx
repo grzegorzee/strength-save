@@ -22,7 +22,7 @@ import { CycleCard } from '@/components/CycleCard';
 import { CycleDetail } from '@/components/CycleDetail';
 import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation, withLiveCompletedStats } from '@/lib/cycle-insights';
-import { runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
+import { repeatPlanSource, runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -54,10 +54,11 @@ const Cycles = () => {
   const [hasPendingFinalSync, setHasPendingFinalSync] = useState(false);
 
   const handleRepeatPlan = async () => {
-    const days = activeCycle?.days?.length ? activeCycle.days : trainingPlan;
-    if (days.length === 0) return;
+    // Z86: dni zawsze z bieżącego planu; snapshot cyklu bywał stale i wskrzeszał stary plan.
+    const source = repeatPlanSource(trainingPlan, planDurationWeeks, activeCycle);
+    if (source.days.length === 0) return;
     setIsRepeating(true);
-    const res = await startCycleWithPlan(days, activeCycle?.durationWeeks ?? planDurationWeeks, {
+    const res = await startCycleWithPlan(source.days, source.durationWeeks, {
       uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
       archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
     });
