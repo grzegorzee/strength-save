@@ -291,6 +291,8 @@ add('app_telemetry_daily: merge na dokumencie legacy (plaskie counters.*) ALLOWE
 await env.clearFirestore();
 await seedUser({ enabled: true });
 add('users: notificationPrefs mapa ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: { weeklyDigest: false } })));
+// Z96: activitySummary pisze wyłącznie Admin SDK (rollup) — klient DENIED.
+add('users: klient nie zapisze activitySummary DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { activitySummary: { lastActiveAt: '2026-07-17' } })));
 add('users: notificationPrefs nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { notificationPrefs: 'wylacz' })));
 add('users: displayName > 200 znakow DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'x'.repeat(201) })));
 add('users: preferences nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { preferences: 42 })));

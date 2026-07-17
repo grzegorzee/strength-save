@@ -35,6 +35,18 @@ export const isSubscriptionActive = (sub: SubscriptionState | null, now = Date.n
   return !!sub.expiresAt && new Date(sub.expiresAt).getTime() > now;
 };
 
+// Z96: rollup aktywności pisany WYŁĄCZNIE przez scheduled function (Admin SDK);
+// klient tylko czyta (rules: activitySummary poza whitelistą update usera).
+export interface ActivitySummary {
+  lastActiveAt: string;
+  activeDays7: number;
+  activeDays30: number;
+  workouts7: number;
+  workouts30: number;
+  topScreens30: Array<{ key: string; count: number }>;
+  updatedAt: string;
+}
+
 export interface UserProfile {
   uid: string;
   email: string;
@@ -51,6 +63,7 @@ export interface UserProfile {
   cohorts: string[];
   features?: Record<string, boolean>;
   subscription?: SubscriptionState | null;
+  activitySummary?: ActivitySummary;
   preferences?: {
     unit?: 'kg' | 'lbs';
     language?: 'pl' | 'en';
