@@ -5,11 +5,21 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12B faza 2: mobile bez hamburgera, narzędzia naprawcze za isAdmin)
+**Ostatnia aktualizacja:** 2026-07-17 (X12B release train B: wersja 1.0.0, web index-OvoGHMd8 + iOS build 53 TestFlight)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12B RELEASE TRAIN B: aplikacja w wersji 1.0.0 (web + iOS build 53)
+
+**Zakres:** Z89 (Adaptive Coach out), Z90 (hamburger/drawer out + dojścia przez Profil, narzędzia naprawcze za isAdmin), Z91 (wersja 1.0.0 zamrożona do launchu).
+
+**Wersjonowanie (decyzja usera 2026-07-17):** MARKETING_VERSION + package.json + Android versionName = 1.0.0 NA SZTYWNO do launchu; bump tylko CURRENT_PROJECT_VERSION. Zasada dopisana do CLAUDE.md projektu. Naprawiony przy okazji rozjazd: Info.plist miał zahardcodowane CFBundleShortVersionString=6.13.0, teraz $(MARKETING_VERSION) (jedno źródło prawdy w pbxproj).
+
+**Bramki:** vitest 618, typecheck, lint, build, budget (initial 1 459 383 B; łącznie -4 428 B po wycinkach X12B), e2e:mock 142, dist-smoke PASS (build:mobile).
+
+**Wdrożenie:** git push, web `npm run deploy` zweryfikowany na live (index-OvoGHMd8.js, UI pokazuje v1.0.0), iOS build 53 (52->53) przez ios-testflight.sh: UPLOAD SUCCEEDED, ASC pokazuje **build 1.0.0 (53) state=VALID**, podpięty do grupy Wewnętrzni. Pierwsza wysyłka z nową MARKETING_VERSION utworzyła wersję 1.0.0 w App Store Connect bez problemów.
 
 ### 2026-07-17 — X12B FAZA 2 (Z90): mobile bez hamburgera i drawera + narzędzia naprawcze tylko dla admina
 
