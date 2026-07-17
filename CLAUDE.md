@@ -39,6 +39,7 @@ Każdy fix dotyka tylko swojego obszaru. N bugów = N izolowanych zmian, opis pe
 - [ ] Commit + push na `main`
 - [ ] **Web:** `npm run deploy` (gh-pages; sam push NIE aktualizuje strony live)
 - [ ] **iOS:** bump `CURRENT_PROJECT_VERSION` w `ios/App/App.xcodeproj/project.pbxproj` (6 wystąpień, wszystkie równe; pilnuje tego `release-ios-preflight.mjs`), potem `scripts/release-ios.sh "co testować"` (build + TestFlight + auto Beta App Review; Robert dostaje build automatycznie)
+- [ ] **Wersja aplikacji:** MARKETING_VERSION (iOS), `version` w package.json i versionName (Android) = **1.0.0 na sztywno do launchu** (decyzja 2026-07-17). Bump TYLKO `CURRENT_PROJECT_VERSION` (+1 per build TestFlight). Zmiana 1.0.0 wymaga jawnej decyzji usera.
 - [ ] Wpis do `DECYZJE.md` (co, dlaczego, root cause, weryfikacja)
 
 ## Pułapki specyficzne dla projektu (skrót)
