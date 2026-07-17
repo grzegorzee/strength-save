@@ -155,7 +155,20 @@ test.describe('Dashboard Features', () => {
     await expect(page.getByRole('heading', { name: 'Plan tygodnia' })).toBeVisible();
   });
 
-  test('settings allow self-service export for regular user flow', async ({ page }) => {
+    test('narzedzia naprawcze widoczne tylko dla admina (Z90.4)', async ({ page }) => {
+    await setE2EAuthScenario(page, 'active-user');
+    await navigateAndWait(page, '/settings');
+    await expectPageRendered(page);
+    await expect(page.getByText('Backup i przywracanie')).toBeVisible();
+    await expect(page.getByText('Narzędzia naprawcze')).toHaveCount(0);
+
+    await setE2EAuthScenario(page, 'active-admin');
+    // Zmiana samego hasha nie przeładowuje dokumentu — reload wykonuje initScript admina.
+    await page.reload();
+    await expect(page.getByText('Narzędzia naprawcze')).toBeVisible();
+  });
+
+test('settings allow self-service export for regular user flow', async ({ page }) => {
     await navigateAndWait(page, '/settings');
     await expectPageRendered(page);
 

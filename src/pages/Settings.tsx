@@ -34,7 +34,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 
 const Settings = () => {
-  const { uid, canUseStrava } = useCurrentUser();
+  const { uid, canUseStrava, isAdmin } = useCurrentUser();
   const { workouts, isLoaded: workoutsLoaded, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { plan, isCustom, planDurationWeeks, planStartDate } = useTrainingPlan(uid);
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
@@ -181,7 +181,10 @@ const Settings = () => {
       />
       </div>
 
-      {/* Narzędzia naprawcze (Z52): domyślnie zwinięte — żargon serwisowy nie straszy na co dzień. */}
+      {/* Narzędzia naprawcze (Z52): domyślnie zwinięte. Z90.4: widzi je tylko admin —
+          przyciski destrukcyjne to sygnał "apka się psuje"; po X12A potrzeba napraw spada
+          do zera. Eksport/Import (wyżej) zostaje dla wszystkich. */}
+      {isAdmin && (
       <Card>
         <Collapsible>
           <CollapsibleTrigger asChild>
@@ -248,6 +251,7 @@ const Settings = () => {
           </CollapsibleContent>
         </Collapsible>
       </Card>
+      )}
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>
