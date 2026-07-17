@@ -5,11 +5,23 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (P0: walidacja dokumentów Firestore przy hydracji)
+**Ostatnia aktualizacja:** 2026-07-17 (M19 offline mode + M20 eksport PDF)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — M19: PWA offline mode (commit 6167c64)
+
+**Zakres świadomie minimalny (większość offline JUŻ działała):** treningi offline = drafty IndexedDB + kolejka syncu (R1/R2), pomiary offline = mutation queue persistentLocalCache, iOS startuje offline natywnie (SW celowo wyłączony w build:mobile — Capacitor trzyma pliki lokalnie). Brakowało: (1) DOWODU, że web startuje offline (zimny start z SW cache), (2) ludzkiego komunikatu przy zapisie planu offline (transakcje Firestore wymagają sieci).
+
+**Zrobione:** nowa stała bramka `npm run check:dist-offline` (load online rejestruje SW + precache, potem zimny start OFFLINE musi wyrenderować aplikację; wymaga builda WEB) — przechodzi na obecnej konfiguracji VitePWA (precache **/*.{js,css,html,...} obejmuje lazy chunki). `useTrainingPlan.savePlan`: błąd offline mapowany na `err.planOffline` (obie locale). Kolejki edycji planu offline NIE budujemy (kontrakt rewizji wymagałby merge'a konfliktów planu — koszt/ryzyko nieproporcjonalne do częstości edycji planu na siłowni).
+
+### 2026-07-17 — M20: eksport raportu treningowego do PDF (commit c0ae48a)
+
+**Decyzja techniczna:** zamiast wbudowywać fonty TTF w jsPDF (polskie znaki!), raport renderowany jako HTML (fonty przeglądarki, wzorzec share-utils z escapeHtml), zdejmowany html2canvas i osadzany w jsPDF jako obraz A4 (multi-page slicing). jsPDF (381 KB) + html2canvas (198 KB) to LAZY chunki ładowane przy kliku — initial bundle bez zmian (1 464 105 B). Treść: nagłówek (user, data), sumy 12 miesięcy (treningi, czas, tonaż) + tabela miesięcy (reuse `aggregateMonthlyStats` z Z92). Dystrybucja: navigator.share z plikiem (iOS/Android), fallback download (desktop); AbortError ignorowany.
+
+**Weryfikacja:** vitest 646 (model raportu), e2e:mock 144 (pobranie pliku + nagłówek %PDF), typecheck, lint, budget.
 
 ### 2026-07-17 — P0: walidacja danych z Firebase w onSnapshot (commit 5fd39f9)
 
