@@ -12,6 +12,8 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { sanitizeMeasurementDoc, sanitizeWorkoutDoc } from '@/lib/firestore-doc-guards';
+import { reportClientError } from '@/lib/error-telemetry';
 import type { BodyMeasurement, WorkoutSession } from '@/types';
 
 export const WORKOUT_LISTENER_LIMIT = 500;
@@ -85,8 +87,22 @@ interface StoreEntry {
 
 const stores = new Map<string, StoreEntry>();
 
-const toWorkout = (id: string, data: unknown): WorkoutSession => ({ id, ...(data as Record<string, unknown>) } as WorkoutSession);
-const toMeasurement = (id: string, data: unknown): BodyMeasurement => ({ id, ...(data as Record<string, unknown>) } as BodyMeasurement);
+// P0: uszkodzony dokument = odrzucony i zaraportowany (limit sesyjny w telemetrii),
+// zamiast renderowania śmieci (NaN w seriach, brak date wywracał widoki).
+const toWorkout = (userId: string, id: string, data: unknown): WorkoutSession | null => {
+  const workout = sanitizeWorkoutDoc(id, data);
+  if (workout === null) {
+    void reportClientError(userId, { code: 'invalid-doc', phase: 'other', detail: `workouts/${id}` });
+  }
+  return workout;
+};
+const toMeasurement = (userId: string, id: string, data: unknown): BodyMeasurement | null => {
+  const measurement = sanitizeMeasurementDoc(id, data);
+  if (measurement === null) {
+    void reportClientError(userId, { code: 'invalid-doc', phase: 'other', detail: `measurements/${id}` });
+  }
+  return measurement;
+};
 
 const getOrCreateStore = (userId: string): StoreEntry => {
   const existing = stores.get(userId);
@@ -127,7 +143,9 @@ const startStore = (userId: string, entry: StoreEntry): void => {
     workoutsQuery,
     (snapshot) => {
       emit(entry, {
-        workouts: snapshot.docs.map(workoutDoc => toWorkout(workoutDoc.id, workoutDoc.data())),
+        workouts: snapshot.docs
+          .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
+          .filter((workout): workout is WorkoutSession => workout !== null),
         isLoaded: true,
         error: null,
         workoutsFromCache: snapshot.metadata.fromCache,
@@ -150,7 +168,9 @@ const startStore = (userId: string, entry: StoreEntry): void => {
     measurementsQuery,
     (snapshot) => {
       emit(entry, {
-        measurements: snapshot.docs.map(measurementDoc => toMeasurement(measurementDoc.id, measurementDoc.data())),
+        measurements: snapshot.docs
+          .map(measurementDoc => toMeasurement(userId, measurementDoc.id, measurementDoc.data()))
+          .filter((measurement): measurement is BodyMeasurement => measurement !== null),
       });
     },
     (err) => {
@@ -233,11 +253,15 @@ export const fetchWorkoutHistoryPage = async (
     collection(db, WORKOUTS_COLLECTION),
     ...buildWorkoutHistoryConstraints(userId, { ...options, pageSize }),
   ));
-  const workouts = snapshot.docs.map(workoutDoc => toWorkout(workoutDoc.id, workoutDoc.data()));
+  const workouts = snapshot.docs
+    .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
+    .filter((workout): workout is WorkoutSession => workout !== null);
   const last = workouts.at(-1);
   return {
     workouts,
-    nextCursor: workouts.length === pageSize && last ? { date: last.date, id: last.id } : null,
+    // Pełność strony po SUROWYM snapshotcie: odfiltrowany uszkodzony dokument
+    // nie może przerwać paginacji w środku historii (P0).
+    nextCursor: snapshot.docs.length === pageSize && last ? { date: last.date, id: last.id } : null,
   };
 };
 

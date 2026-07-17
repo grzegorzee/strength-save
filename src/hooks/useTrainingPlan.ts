@@ -16,6 +16,8 @@ import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
 import { saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
+import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
+import { reportClientError } from '@/lib/error-telemetry';
 
 const PLAN_COLLECTION = 'training_plans';
 
@@ -43,9 +45,16 @@ export const useTrainingPlan = (userId: string) => {
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data();
-          if (data.days && Array.isArray(data.days)) {
-            setPlan(data.days as TrainingDay[]);
-            setIsCustom(true);
+          if (data.days !== undefined) {
+            // P0: uszkodzone days NIE nadpisują stanu (zostaje poprzedni dobry
+            // plan lub default) — raport zamiast renderowania śmieci.
+            const days = sanitizeTrainingPlanDays(data.days);
+            if (days !== null) {
+              setPlan(days);
+              setIsCustom(true);
+            } else {
+              void reportClientError(userId, { code: 'invalid-doc', phase: 'other', detail: `training_plans/${userId}:days` });
+            }
           }
           if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
           if (data.startDate) setPlanStartDate(data.startDate);

@@ -27,7 +27,7 @@ vi.mock('firebase/firestore', () => ({
 const emitWorkoutsSnapshot = (fromCache: boolean) => {
   // Pierwszy zarejestrowany handler to listener kolekcji workouts.
   snapshotHandlers[0]({
-    docs: [{ id: 'w-1', data: () => ({ userId: 'user-1', date: '2026-07-03', revision: 5 }) }],
+    docs: [{ id: 'w-1', data: () => ({ userId: 'user-1', dayId: 'day-1', date: '2026-07-03', exercises: [], revision: 5 }) }],
     metadata: { fromCache },
   });
 };
@@ -60,6 +60,22 @@ describe('workout read store cache provenance', () => {
   it('przed pierwszym snapshotem traktuje dane jako cache', () => {
     const unsubscribe = subscribeWorkoutReads('user-1', () => undefined);
     expect(getWorkoutReadSnapshot('user-1').workoutsFromCache).toBe(true);
+    unsubscribe();
+  });
+
+  it('uszkodzony dokument odpada z hydracji, poprawne zostają (P0)', () => {
+    const unsubscribe = subscribeWorkoutReads('user-1', () => undefined);
+    snapshotHandlers[0]({
+      docs: [
+        { id: 'w-ok', data: () => ({ userId: 'user-1', dayId: 'day-1', date: '2026-07-03', exercises: [], completed: true }) },
+        { id: 'w-bad-date', data: () => ({ userId: 'user-1', dayId: 'day-1', date: 'wczoraj', exercises: [] }) },
+        { id: 'w-bad-shape', data: () => ({ userId: 'user-1' }) },
+      ],
+      metadata: { fromCache: false },
+    });
+
+    const snapshot = getWorkoutReadSnapshot('user-1');
+    expect(snapshot.workouts.map(w => w.id)).toEqual(['w-ok']);
     unsubscribe();
   });
 });

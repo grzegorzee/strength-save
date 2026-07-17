@@ -23,6 +23,8 @@ import { calendarDayDiff, formatLocalDate } from '@/lib/utils';
 import { computeCycleStats } from '@/lib/cycle-insights';
 import { chunkForFirestoreWrite, shouldMergeContinuousCycles } from '@/lib/plan-cycle-utils';
 import { isCycleVisible } from '@/lib/cycle-visibility';
+import { sanitizePlanCycleDoc } from '@/lib/firestore-doc-guards';
+import { reportClientError } from '@/lib/error-telemetry';
 
 const CYCLES_COLLECTION = 'plan_cycles';
 const CYCLE_OPERATIONS_COLLECTION = 'plan_cycle_operations';
@@ -90,7 +92,14 @@ export const usePlanCycles = (userId: string) => {
       (snapshot) => {
         const data: PlanCycle[] = [];
         snapshot.forEach((doc) => {
-          data.push({ id: doc.id, ...doc.data() } as PlanCycle);
+          // P0: uszkodzony cykl odpada z hydracji i jest raportowany zamiast
+          // renderować śmieci (zły status/days wywracał logikę aktywnego cyklu).
+          const cycle = sanitizePlanCycleDoc(doc.id, doc.data());
+          if (cycle === null) {
+            void reportClientError(userId, { code: 'invalid-doc', phase: 'other', detail: `plan_cycles/${doc.id}` });
+            return;
+          }
+          data.push(cycle);
         });
         setCycles(data);
         setIsLoaded(true);
