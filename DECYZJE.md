@@ -5,11 +5,21 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12A faza 2: local-wins konfliktu rewizji treningu, bez dialogu)
+**Ostatnia aktualizacja:** 2026-07-17 (X12A faza 3: Kontynuuj trening dla każdego nieukończonego dzisiejszego szkicu)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12A FAZA 3 (Z88): "Kontynuuj trening" także dla w pełni zsynchronizowanego szkicu
+
+**Objaw:** po przypadkowym wyjściu z aplikacji w trakcie treningu Dashboard pokazywał "Rozpocznij trening" zamiast "Kontynuuj trening".
+
+**Root cause (potwierdzony w kodzie):** karta Dashboardu używała decyzji auto-resume (`shouldResumeWorkoutDraft`, Z49), która wymaga szkicu "żywego" (`dirty || provisional`). Szkic w pełni zsynchronizowany (autosave zdążył: dirty=false, origin remote) nie był "żywy", więc karta wracała do "Rozpocznij".
+
+**Fix (commity d7af3c3, 77e2a22, 1d08d14):** nowa czysta funkcja `isDraftContinuableToday` + `continuableDraftTarget` w `workout-resume.ts`: KAŻDY nieukończony dzisiejszy szkic (bez completedLocally/finalSyncPending) jest kontynuowalny, niezależnie od dirty. Karta Dashboardu przepięta; auto-nawigacja (`shouldResumeWorkoutDraft`) celowo zostaje ostrzejsza (nie porywa usera, który świadomie wyszedł); karta Sync Center nietknięta (dalej używa draftResume). E2E `continue-workout.spec.ts` (zegar strony zamrożony na poniedziałek przez page.clock): szkic dirty=false remote -> przycisk "Kontynuuj trening" + powrót do sesji; szkic completedLocally -> brak przycisku.
+
+**Weryfikacja:** unit 632 zielone, e2e:mock 141 zielone (139 + 2 nowe).
 
 ### 2026-07-17 — X12A FAZA 2 (Z87): konflikt rewizji treningu rozwiązywany automatycznie local-wins
 
