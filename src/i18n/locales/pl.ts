@@ -26,7 +26,6 @@ export const pl = {
   'nav.cycles': 'Cykle',
   'nav.settings': 'Ustawienia',
   'nav.measurements': 'Pomiary ciała',
-  'nav.openMenu': 'Otwórz menu',
   'empty.startFirstWorkout': 'Zacznij pierwszy trening',
 
   // profil

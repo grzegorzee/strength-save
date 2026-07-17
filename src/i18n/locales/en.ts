@@ -25,7 +25,6 @@ export const en: Record<keyof typeof pl, string> = {
   'nav.cycles': 'Cycles',
   'nav.settings': 'Settings',
   'nav.measurements': 'Body measurements',
-  'nav.openMenu': 'Open menu',
   'empty.startFirstWorkout': 'Start your first workout',
 
   'profile.title': 'Profile',

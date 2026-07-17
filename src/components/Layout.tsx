@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
 import { AppNavigation } from './AppNavigation';
@@ -25,7 +24,6 @@ const pageTitleKeys: Record<string, TranslationKey> = {
 const rootPaths = new Set(['/', '/plan', '/history', '/exercises', '/profile']);
 
 export const Layout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -57,14 +55,13 @@ export const Layout = () => {
 
   return (
     <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-hidden md:overflow-hidden">
-      <AppNavigation isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} hideMobileNav={isFocusedFlow} />
+      <AppNavigation hideMobileNav={isFocusedFlow} />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden md:h-[100dvh] md:overflow-hidden">
         {!isFocusedFlow && (
           <AppHeader
             title={title}
             onBack={isRootPage ? undefined : handleBack}
-            onMenuClick={() => setSidebarOpen(true)}
           />
         )}
 

@@ -65,6 +65,10 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/cycles');
   });
 
-  // TODO(Z90.3): po wycince hamburgera dodać asercję, że przycisk otwarcia menu
-  // nie istnieje w headerze na viewport mobilnym.
+  test('header bez hamburgera na mobile (Z90.3)', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await expectPageRendered(page);
+    await expect(page.locator('header button svg.lucide-menu')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Otwórz menu' })).toHaveCount(0);
+  });
 });

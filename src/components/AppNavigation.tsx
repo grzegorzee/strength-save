@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,8 +17,6 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import appIcon from '@/assets/app-icon.png';
 
 interface AppNavigationProps {
-  isOpen?: boolean;
-  onClose?: () => void;
   hideMobileNav?: boolean;
 }
 
@@ -46,7 +43,7 @@ const NAV_GROUPS = [
 
 const STORAGE_KEY = 'sidebar-collapsed';
 
-export const AppNavigation = ({ isOpen, onClose, hideMobileNav = false }: AppNavigationProps) => {
+export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => {
   const navigate = useNavigate();
   const { profile, isAdmin } = useCurrentUser();
   const { logout } = useAuth();
@@ -83,7 +80,6 @@ export const AppNavigation = ({ isOpen, onClose, hideMobileNav = false }: AppNav
       <NavLink
         key={item.to}
         to={item.to}
-        onClick={onClose}
         className={({ isActive }) => cn(
           "flex items-center gap-3 rounded-lg transition-all duration-200 text-sm font-medium",
           collapsed ? "md:justify-center md:px-0 md:py-2.5 px-3 py-2.5" : "px-3 py-2.5",
@@ -189,12 +185,12 @@ export const AppNavigation = ({ isOpen, onClose, hideMobileNav = false }: AppNav
                     )}
                     <p className="text-[10px] text-muted-foreground mt-0.5">v{__APP_VERSION__}</p>
                   </div>
-                  <DropdownMenuItem onClick={() => { onClose?.(); navigate('/settings'); }} className="cursor-pointer">
+                  <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
                     <Settings className="h-4 w-4 mr-2" />
                     {t('nav.settings')}
                   </DropdownMenuItem>
                   {isAdmin && (
-                    <DropdownMenuItem onClick={() => { onClose?.(); navigate('/admin'); }} className="cursor-pointer">
+                    <DropdownMenuItem onClick={() => navigate('/admin')} className="cursor-pointer">
                       <Shield className="h-4 w-4 mr-2" />
                       {t('nav.admin')}
                     </DropdownMenuItem>
@@ -222,13 +218,6 @@ export const AppNavigation = ({ isOpen, onClose, hideMobileNav = false }: AppNav
       >
         {sidebarBody}
       </aside>
-
-      <Sheet open={!!isOpen} onOpenChange={(open) => { if (!open) onClose?.(); }}>
-        <SheetContent side="left" className="w-64 border-sidebar-border bg-sidebar p-0 md:hidden">
-          <SheetTitle className="sr-only">{t('nav.ariaMain')}</SheetTitle>
-          {sidebarBody}
-        </SheetContent>
-      </Sheet>
 
       {/* Tło wypełniające dół ekranu pod floating navem — żeby treść nie prześwitywała w szczelinie nad home indicatorem */}
       {!hideMobileNav && <div aria-hidden className="fixed inset-x-0 bottom-0 z-30 h-[calc(1.5rem+env(safe-area-inset-bottom))] bg-background md:hidden" />}
