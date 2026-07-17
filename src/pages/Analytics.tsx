@@ -24,9 +24,10 @@ import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
-  ChevronRight,
+  ChevronRight, FileDown, Loader2,
 } from 'lucide-react';
 import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard';
+import { buildTrainingReportModel, generateTrainingReportPdf } from '@/lib/pdf-report';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -44,7 +45,7 @@ const StravaTab = lazy(() => import('@/components/strava/StravaTab').then((mod) 
 type Period = 'week' | 'month';
 
 const SummaryTab = () => {
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
   const { workouts: liveWorkouts, measurements, isLoaded: liveLoaded } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
@@ -54,6 +55,7 @@ const SummaryTab = () => {
   const navigate = useNavigate();
   const [period, setPeriod] = useState<Period>('week');
   const [copied, setCopied] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const bounds = useMemo(() => {
     const now = new Date();
@@ -162,6 +164,34 @@ const SummaryTab = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // M20: raport PDF (12 miesięcy) generowany lokalnie; jsPDF+html2canvas to lazy chunk.
+  const handlePdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const now = new Date();
+      const model = buildTrainingReportModel(workouts, now);
+      const blob = await generateTrainingReportPdf(model, lang, unit, profile?.displayName || '', now);
+      const file = new File([blob], `strength-save-raport-${formatLocalDate(now)}.pdf`, { type: 'application/pdf' });
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: t('report.title'), files: [file] });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      // Anulowanie systemowego share to nie błąd.
+      if (!(err instanceof Error && err.name === 'AbortError')) {
+        toast({ title: t('report.error'), variant: 'destructive' });
+      }
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   if (!isLoaded) {
     return <div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>;
   }
@@ -180,10 +210,16 @@ const SummaryTab = () => {
             <BarChart3 className="h-4 w-4 mr-2" />{t('analytics.period.month')}
           </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={handleCopy}>
-          {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-          {copied ? t('analytics.copied') : t('analytics.copy')}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => void handlePdf()} disabled={isGeneratingPdf}>
+            {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+            {t('report.download')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleCopy}>
+            {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+            {copied ? t('analytics.copied') : t('analytics.copy')}
+          </Button>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">
