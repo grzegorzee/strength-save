@@ -5,11 +5,19 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X13A faza 2: rules liczników + retencja + nocny rollup aktywności)
+**Ostatnia aktualizacja:** 2026-07-17 (X13A RELEASE: telemetria produktowa na prod; web index-BtD9oq7c + iOS build 1.0.0 (56))
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X13A RELEASE TRAIN: telemetria produktowa wdrożona (rules + functions + web + iOS 56)
+
+**Wdrożone:** firestore.rules (zamknięte liczniki + expiresAt), functions (scheduled activityRollup 03:30 Europe/Warsaw), web index-BtD9oq7c (ProductTelemetry aktywna), iOS build 1.0.0 (56) VALID w grupie Wewnętrzni. Polityka TTL 180 dni na app_telemetry_daily przez gcloud (konto g.jasionowicz@gmail.com; konto grzegorzee@ nie ma uprawnień - zapisana lekcja: gcloud --account).
+
+**Weryfikacja end-to-end:** ścieżka kliencka potwierdzona e2e (nawigacja po 3 ekranach zostawia w buforze localStorage session_active=1 + screen_dashboard/analytics/profile; flush wymaga realnego auth, więc dokument produkcyjny pojawi się przy pierwszym użyciu apki przez usera, a users.activitySummary po pierwszym nocnym rollupie ~03:30). Skrypt read-only tmp/x12-diagnoza.mjs pozwala to sprawdzić następnego dnia.
+
+**Koszt:** bez zmian po stronie klienta (1 zapis per flush 30 s przy aktywności); rollup raz dziennie ~N+30N odczytów, N zapisów dla N userów aktywnych wczoraj. **App Privacy (przed publicznym launchem):** dodać "Product Interaction" w App Store Connect; na TestFlight internal wystarczy obecna nota.
 
 ### 2026-07-17 — X13A FAZA 2 (Z95-Z96): rules, retencja 180 dni, rollup do users.activitySummary
 
