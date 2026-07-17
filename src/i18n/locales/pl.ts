@@ -1237,6 +1237,8 @@ export const pl = {
   'admin.syncFailures': 'Sync failures',
   'admin.retryManual': 'Retry manual',
   'admin.draftRecovered': 'Draft recovered',
+  'admin.bar.title': 'Panel admina',
+  'admin.bar.backToApp': 'Wróć do aplikacji',
   'admin.offlineStarts': 'Offline starts',
   'admin.invite': 'Invite',
   'admin.emailOptional': 'Email (opcjonalnie)',

@@ -25,7 +25,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2, MailPlus, Ticket, ClipboardList, History, Mail, Ban, Search, Trash2, RotateCcw, Send } from 'lucide-react';
+import {
+  ArrowLeft, Users, Dumbbell, ChevronDown, ChevronUp, DollarSign, ShieldCheck, ShieldOff, Loader2, MailPlus, Ticket, ClipboardList, History, Mail, Ban, Search, Trash2, RotateCcw, Send } from 'lucide-react';
 import { ApiKeysCard } from '@/components/admin/ApiKeysCard';
 import { AdminUserLogs } from '@/components/admin/AdminUserLogs';
 import { AdminCommsCard } from '@/components/admin/AdminCommsCard';
@@ -611,6 +612,16 @@ const AdminDashboard = () => {
   return (
     <>
     <div className="space-y-6">
+      {/* Z97: orientacja + symetryczne wyjście z panelu (wejście: Profil / dropdown sidebara). */}
+      <div className="sticky top-16 z-30 -mx-5 flex items-center justify-between bg-background/80 px-5 py-2 backdrop-blur-xl md:-mx-6 md:px-6">
+        <span className="font-heading text-xs font-bold uppercase tracking-[0.18em] text-fitness-warning">
+          {t('admin.bar.title')}
+        </span>
+        <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {t('admin.bar.backToApp')}
+        </Button>
+      </div>
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('admin.title')}</h1>
         <p className="text-muted-foreground text-sm">{t('admin.subtitle')}</p>

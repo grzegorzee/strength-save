@@ -1227,6 +1227,8 @@ export const en: Record<keyof typeof pl, string> = {
   'admin.syncFailures': 'Sync failures',
   'admin.retryManual': 'Retry manual',
   'admin.draftRecovered': 'Draft recovered',
+  'admin.bar.title': 'Admin panel',
+  'admin.bar.backToApp': 'Back to the app',
   'admin.offlineStarts': 'Offline starts',
   'admin.invite': 'Invite',
   'admin.emailOptional': 'Email (optional)',
