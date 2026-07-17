@@ -23,7 +23,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
-import { shouldResumeWorkoutDraft } from '@/lib/workout-resume';
+import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
 import { buildExerciseRecommendation, buildReadiness, type ExerciseRecommendation } from '@/lib/adaptive-coach';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
@@ -582,13 +582,12 @@ const Dashboard = () => {
 
       {/* Today's training card */}
       {todayTraining.type === 'training' && (() => {
-        // Z49: żywy draft dzisiejszego dnia = "Kontynuuj trening" z postępem zamiast "Start".
-        const continueDraft = draftResume.resume
-          && localDraft
+        // Z88: KAŻDY nieukończony dzisiejszy szkic = "Kontynuuj trening", także w pełni
+        // zsynchronizowany (dirty=false). Auto-nawigacja (Z49) celowo zostaje ostrzejsza.
+        const continueDraft = isDraftContinuableToday(localDraft, todayTraining.dateStr)
           && localDraft.dayId === todayTraining.dayId
-          && localDraft.date === todayTraining.dateStr
           ? {
-            target: draftResume.target,
+            target: continuableDraftTarget(localDraft),
             completedSets: Object.values(localDraft.exerciseSets).flat().filter(s => s.completed).length,
           }
           : null;
