@@ -17,7 +17,7 @@
 
 **Wpięcia:** ProductTelemetry w HashRouter (session_active raz dziennie z guardem localStorage + visibilitychange dla zmiany dnia po powrocie z tła; screen_* przy zmianie trasy, ta sama trasa pod rząd raz), akcje po 1 linii w istniejących handlerach. Testy: product-telemetry (mapowanie tras, guard dnia per user); 650 unit, e2e 144, typecheck, lint.
 
-**ZNALEZISKO (do Z95.1):** whitelist `counters.*` w validTelemetryShape (rules) ma tylko 3 nazwy z ~17 istniejących w unii TS — flush dokumentów z innymi licznikami jest po cichu odrzucany (catch w flushTelemetryEvents trzyma je wiecznie w localStorage). Z95.1 dopisze WSZYSTKIE nazwy (stare + nowe).
+**ZNALEZISKO (naprawione w Z95.1):** wpisy `counters.*` w top-level hasOnly NIGDY nie walidowały nazw liczników (to pola dokumentów LEGACY z płaskim zapisem, nie walidacja dot-notation) — nazwy liczników były w praktyce niezamknięte (flush działał, ale rules nie zamykały schematu). Z95.1 domknął schemat właściwie: `counters.keys().hasOnly(pełna unia)`, legacy płaskie klucze zachowane dla merge na starych dokumentach.
 
 ### 2026-07-17 — Web push (commit c6430fc) + Android release prep (commit 8dfa261) + build 55
 
