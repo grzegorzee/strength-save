@@ -5,11 +5,23 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12A faza 3: Kontynuuj trening dla każdego nieukończonego dzisiejszego szkicu)
+**Ostatnia aktualizacja:** 2026-07-17 (X12A release train A: web index-D6h0uwMg + iOS build 52 TestFlight)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12A RELEASE TRAIN A: web + iOS build 52 na TestFlight
+
+**Zakres:** Z86 (repeatPlanSource + gate isLoaded oferty przedłużenia), Z87 (local-wins konfliktu rewizji), Z88 (Kontynuuj trening dla zsynchronizowanego szkicu).
+
+**Bramki przed wdrożeniem:** vitest 632 zielone, typecheck, lint, build, bundle budget (initial 1 463 811 B / limit 1 536 000), e2e:mock 141, e2e:emulator 13, check:dist-smoke PASS (na build:mobile: smoke serwuje dist z korzenia, web build z base /strength-save/ zawsze da w nim biały ekran; kolejność build:mobile -> smoke, jak w ios-testflight.sh).
+
+**Wdrożenie:** git push (main), web `npm run deploy` zweryfikowany na live (index-D6h0uwMg.js), iOS build 52 (CURRENT_PROJECT_VERSION 51->52) przez scripts/ios-testflight.sh: UPLOAD SUCCEEDED, processing VALID, podpięty do grupy Wewnętrzni.
+
+**Incydent po drodze (nie kodowy):** upload blokowany przez `FORBIDDEN.REQUIRED_AGREEMENTS_MISSING_OR_EXPIRED` (wygasła umowa Apple; między 2026-07-04 a 2026-07-17). User zaakceptował umowę w App Store Connect; propagacja do usługi uploadu ~10 min, potem sukces bez zmian w konfiguracji. Klucz ASC UD43687FB9 działa; nowy AuthKey_YSXY39JA8Q.p8 przeniesiony do _secrets/oauth (nieużywany w env). Lekcja: "Cannot determine the Apple ID from Bundle ID" z altool = najpierw sprawdź agreements (`asc_api.py whoami`), nie klucz.
+
+**Lekcja narzędziowa:** dwa równoległe uruchomienia ios-testflight.sh kolidują (drugi robi rm -rf na archiwum pierwszego); pipeline odpalać ZAWSZE pojedynczo.
 
 ### 2026-07-17 — X12A FAZA 3 (Z88): "Kontynuuj trening" także dla w pełni zsynchronizowanego szkicu
 
