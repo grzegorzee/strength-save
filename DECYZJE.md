@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-17 (wieczór) — LEKCJA TestFlight: internal-setup nie wystarcza dla Roberta
+
+**Objaw:** user widział w TestFlight build 52; buildy 53-58 (wersja 1.0.0) nie docierały do grupy zewnętrznej. **Przyczyna:** release trainy X12B-X13C podpinały buildy TYLKO do grupy wewnętrznej (`asc_api.py internal-setup`); grupa "Testerzy zewnętrzni" (Robert) wymaga per build: podpięcia + zgłoszenia do Beta App Review (`testflight_external.py`), czego pipeline nie robił. Dodatkowo 1.0.0 to NOWA wersja marketingowa = pełny Beta App Review.
+
+**Naprawa:** `testflight_external.py 58` (uv --with pyjwt[crypto] --with requests): build 58 podpięty do obu grup, What to Test ustawione, zgłoszony (WAITING_FOR_REVIEW; Robert dostanie po approvalu ~24h). Internal widzi build 58 od razu — w aplikacji TestFlight buildy 1.0.0 są NOWĄ sekcją nad 6.13.0 (52), czasem trzeba odświeżyć listę.
+
+**Reguła na przyszłość (checklist):** po każdym buildzie TestFlight odpalać `testflight_external.py <build> --whats-new "..."` ZAMIAST samego internal-setup (robi oba podpięcia + review); przy serii buildów jednego dnia wystarczy zgłosić OSTATNI.
+
 ### 2026-07-17 — X13C (Z100-Z102): zdalne naprawy kont + dziennik akcji admina
 
 **Architektura:** klient admina NIGDY nie pisze w cudzych dokumentach — naprawy wykonuje callable `adminUserRepair` (serwerowa weryfikacja roli), zawsze: dry-run (zero zapisów) -> apply z automatycznym backupem dokumentów `before` do `admin_repair_backups` (TTL 90 dni) -> operacje batched -> wpis audytu. Algorytmy 4 napraw jako czyste funkcje operacji z testami PARYTETU klient<->functions na wspólnych fixtures JSON (kopia pliku po obu stronach, dryf łapią testy).
