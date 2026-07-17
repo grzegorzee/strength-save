@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_CONFLICT_AUTO_RESOLVES,
   classifyWorkoutSyncError,
+  shouldAutoResolveConflict,
   summarizeCloudWorkout,
   summarizeLocalDraft,
   workoutSyncErrorMessageKey,
@@ -54,5 +56,16 @@ describe('workout sync conflicts', () => {
     expect(summarizeLocalDraft(draft)).toEqual({ exercises: 2, completedSets: 2 });
     expect(summarizeCloudWorkout(cloud)).toEqual({ exercises: 1, completedSets: 2 });
     expect(summarizeCloudWorkout(null)).toBeNull();
+  });
+});
+
+describe('Z87: local-wins auto-resolve', () => {
+  it('pozwala na auto-resolve poniżej limitu', () => {
+    expect(shouldAutoResolveConflict(0)).toBe(true);
+    expect(shouldAutoResolveConflict(MAX_CONFLICT_AUTO_RESOLVES - 1)).toBe(true);
+  });
+  it('blokuje po wyczerpaniu limitu', () => {
+    expect(shouldAutoResolveConflict(MAX_CONFLICT_AUTO_RESOLVES)).toBe(false);
+    expect(shouldAutoResolveConflict(MAX_CONFLICT_AUTO_RESOLVES + 5)).toBe(false);
   });
 });

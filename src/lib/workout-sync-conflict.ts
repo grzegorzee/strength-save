@@ -61,6 +61,14 @@ export const isRevisionConflictError = (error: unknown): boolean => (
   classifyWorkoutSyncError(error) === 'revision-conflict'
 );
 
+// Local-wins (Z87): konflikt rewizji rozwiązujemy automatycznie na korzyść wersji
+// lokalnej. Limit chroni przed pętlą, gdy drugie urządzenie aktywnie pisze; po
+// wyczerpaniu zostajemy przy lokalnym drafcie (kolejny checkpoint dośle dane).
+export const MAX_CONFLICT_AUTO_RESOLVES = 2;
+
+export const shouldAutoResolveConflict = (attemptsSoFar: number): boolean =>
+  attemptsSoFar < MAX_CONFLICT_AUTO_RESOLVES;
+
 export const summarizeLocalDraft = (draft: ActiveWorkoutDraft): WorkoutContentSummary => ({
   exercises: Object.keys(draft.exerciseSets).length,
   completedSets: Object.values(draft.exerciseSets).reduce(
