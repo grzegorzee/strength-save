@@ -1,0 +1,50 @@
+{
+  "dedupe": {
+    "workouts": [
+      { "id": "w-empty", "date": "2026-07-01", "dayId": "day-1", "completed": false, "exercises": [] },
+      { "id": "w-full", "date": "2026-07-01", "dayId": "day-1", "completed": true, "exercises": [{ "exerciseId": "ex-1", "sets": [{ "reps": 5, "weight": 100, "completed": true }] }] },
+      { "id": "w-unique", "date": "2026-07-02", "dayId": "day-1", "completed": true, "exercises": [{ "exerciseId": "ex-1", "sets": [] }] }
+    ]
+  },
+  "repairHistory": {
+    "workouts": [
+      { "id": "w-nocycle", "date": "2026-06-05", "dayId": "day-1", "completed": true, "exercises": [] },
+      { "id": "w-ok", "date": "2026-06-06", "dayId": "day-1", "completed": true, "cycleId": "c-1", "dayName": "Poniedziałek", "exercises": [] }
+    ],
+    "cycles": [
+      {
+        "id": "c-1", "startDate": "2026-06-01", "endDate": "2026-06-30", "status": "completed",
+        "days": [{ "id": "day-1", "dayName": "Poniedziałek", "focus": "Push", "exercises": [{ "id": "ex-1", "name": "Wyciskanie" }] }]
+      }
+    ]
+  },
+  "mergeCycles": {
+    "cycles": [
+      {
+        "id": "c-a", "startDate": "2026-05-01", "endDate": "2026-05-14", "status": "completed", "durationWeeks": 2,
+        "days": [{ "id": "day-1", "dayName": "Poniedziałek", "focus": "Push", "exercises": [{ "id": "ex-1", "name": "Wyciskanie", "sets": "3 x 5" }] }]
+      },
+      {
+        "id": "c-b", "startDate": "2026-05-15", "endDate": "2026-05-28", "status": "completed", "durationWeeks": 2,
+        "days": [{ "id": "day-1", "dayName": "Poniedziałek", "focus": "Push", "exercises": [{ "id": "ex-1", "name": "Wyciskanie", "sets": "3 x 5" }] }]
+      },
+      {
+        "id": "c-other", "startDate": "2026-07-01", "endDate": "2026-07-10", "status": "completed", "durationWeeks": 2,
+        "days": [{ "id": "day-1", "dayName": "Środa", "focus": "Nogi", "exercises": [{ "id": "ex-9", "name": "Przysiad", "sets": "5 x 5" }] }]
+      }
+    ],
+    "workouts": [
+      { "id": "w-b1", "date": "2026-05-16", "dayId": "day-1", "cycleId": "c-b", "exercises": [] },
+      { "id": "w-a1", "date": "2026-05-02", "dayId": "day-1", "cycleId": "c-a", "exercises": [] }
+    ]
+  },
+  "resetOnboarding": {
+    "userId": "u-target",
+    "userDoc": { "onboardingCompleted": true },
+    "today": "2026-07-17",
+    "cycles": [
+      { "id": "c-active", "startDate": "2026-07-01", "endDate": "", "status": "active", "days": [] },
+      { "id": "c-done", "startDate": "2026-05-01", "endDate": "2026-06-01", "status": "completed", "days": [] }
+    ]
+  }
+}
