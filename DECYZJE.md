@@ -5,11 +5,19 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12C fazy 1-2: agregacja miesięczna + karta Miesiące w Analityce)
+**Ostatnia aktualizacja:** 2026-07-17 (X12C release train C: web index-C7jDc1gn + iOS build 1.0.0 (54) TestFlight; CAŁY pakiet X12 wdrożony)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12C RELEASE TRAIN C: karta Miesiące na produkcji (web + iOS build 54)
+
+**Bramki:** vitest 630, typecheck, lint, build, budget (initial 1 459 649 B), e2e:mock 143, dist-smoke PASS (build:mobile).
+
+**Wdrożenie:** git push, web `npm run deploy` zweryfikowany na live (index-C7jDc1gn.js), iOS build 54 (53->54, MARKETING_VERSION zostaje 1.0.0) przez ios-testflight.sh: UPLOAD SUCCEEDED, ASC **build 1.0.0 (54) state=VALID**, grupa Wewnętrzni. Backlog uporządkowany w PLAN.md: P0 walidacja danych z Firebase w onSnapshot -> M19 PWA offline -> M20 eksport PDF -> web push -> Android Google Play.
+
+**Pakiet X12 (A+B+C) w całości wdrożony jednego dnia:** 3 release trainy (web x3 + iOS buildy 52, 53, 54), zero regresji w bramkach.
 
 ### 2026-07-17 — X12C FAZY 1-2 (Z92-Z93): statystyki miesięczne w Analityce
 
