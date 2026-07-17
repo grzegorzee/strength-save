@@ -5,11 +5,23 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12A faza 1: root cause wskrzeszonego planu + fix repeatPlanSource)
+**Ostatnia aktualizacja:** 2026-07-17 (X12A faza 2: local-wins konfliktu rewizji treningu, bez dialogu)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12A FAZA 2 (Z87): konflikt rewizji treningu rozwiązywany automatycznie local-wins
+
+**Decyzja produktowa usera (2026-07-17), jawnie COFA decyzję M18 o dialogu wyboru wersji:** dialog "Trening edytowany na innym urządzeniu" wyskoczył w trakcie treningu na siłowni; user nie chce żadnych dialogów o konfliktach. Wersja LOKALNA wygrywa ZAWSZE.
+
+**Skala zjawiska (telemetria):** 12x revision-conflict (iOS, checkpoint) w 4 poranki treningowe lipca — konflikt to normalny stan przy iPhone+web, nie wyjątek.
+
+**Implementacja (commity 5023cfd, 40e12e7):** gałąź `outcome.conflict` w WorkoutDay bez dialogu: `shouldAutoResolveConflict` (limit `MAX_CONFLICT_AUTO_RESOLVES=2` na sesję zapisu, reset po udanym syncu) + `keepLocalOnConflict` (baseline serwera na draft + retry) wołany przez ref. Po wyczerpaniu limitu (drugie urządzenie aktywnie pisze): zostajemy przy lokalnym drafcie, komunikat `workout.err.conflict`, kolejny checkpoint dosyła. Telemetria zostaje (`revision_conflict` + nowy `revision_conflict_auto_resolved`), żeby widzieć skalę po wyłączeniu dialogu.
+
+**Usunięte:** AlertDialog konfliktu, stan `conflictDialogOpen`, `resolveConflictUseCloud`, klucze `workout.conflict.title/desc`. **Zostaje:** `workout.conflict.keepMine/useCloud` (używa ich Sync Center — zaległości syncu to inny przypadek, świadoma decyzja per plan X12A), maszyna stanów sesji nietykalna (wejście `conflictDialogOpen: false`, faza 'conflict' nieosiągalna).
+
+**Weryfikacja:** unit 626 zielone; nowy test emulatorowy (auth+firestore, realne rules): dwóch klientów, drugi na stale rewizji dostaje konflikt, sekwencja local-wins dosyła wersję lokalną bez udziału usera (reps lokalne w chmurze, revision podbita). e2e:mock 139 zielone.
 
 ### 2026-07-17 — X12A FAZA 1 (Z86): wskrzeszony stary plan + PLAN_CONFLICT — root cause i fix
 
