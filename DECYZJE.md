@@ -11,6 +11,18 @@
 
 ## DECYZJE
 
+### 2026-07-17 — X13C (Z100-Z102): zdalne naprawy kont + dziennik akcji admina
+
+**Architektura:** klient admina NIGDY nie pisze w cudzych dokumentach — naprawy wykonuje callable `adminUserRepair` (serwerowa weryfikacja roli), zawsze: dry-run (zero zapisów) -> apply z automatycznym backupem dokumentów `before` do `admin_repair_backups` (TTL 90 dni) -> operacje batched -> wpis audytu. Algorytmy 4 napraw jako czyste funkcje operacji z testami PARYTETU klient<->functions na wspólnych fixtures JSON (kopia pliku po obu stronach, dryf łapią testy).
+
+**Świadome zawężenia server-side (vs naprawy z Ustawień):** mergeCycles bez maszyny wznawialnej R2 (Admin SDK batch atomowo, do 400 op/batch); repairHistory dopisuje TYLKO brakujący cycleId i etykiety dnia ze snapshotu cyklu (bez przepisywania serii/nazw ćwiczeń — rzadki legacy case zostaje naprawialny z Ustawień). Backlog: konsolidacja napraw z Ustawień na te same Functions.
+
+**Dziennik (Z101):** `admin_audit_log` create-only dla admina (schemat zamknięty hasOnly, update/delete nikt, TTL 365 dni); `logAdminAction` wpięty we WSZYSTKIE akcje admina (toggles/suspend przez hook, reset/resend/email/kohorty/delete w AdminDashboard); naprawy dopisuje Admin SDK. Widok: AdminAuditLog (50 wpisów) w panelu.
+
+**UI (Z102):** sekcja NAPRAWY KONTA w szczególe usera: 4 akcje, "Wykonaj" aktywne dopiero po świeżym dry-run, ConfirmDialog z liczbą operacji, wynik z backupId, po apply automatyczny ponowny dry-run.
+
+**Weryfikacja integracyjna na EMULATORZE (konto testowe, tmp/x13c-emulator-verify.mjs):** dry-run merge pokazał 3 operacje bez żadnego zapisu; nie-admin odrzucony; apply połączył 2 cykle w 1 (endDate 2026-05-28, trening przepięty na cykl pierwotny), backup zawierał 3 dokumenty before, wpis audytu `repair:mergeCycles`; dedupe usunął pusty duplikat. Rules: 0 FAIL (backupy: klient nie pisze; audyt: create-only, bez edycji).
+
 ### 2026-07-17 — X13B (Z97-Z99): panel admina 2.0 (przełącznik, lista z aktywnością, szczegół usera)
 
 **Z97:** sticky pasek "PANEL ADMINA" (fitness-warning) + "Wróć do aplikacji" nad panelem; wejścia bez zmian (Profil + dropdown sidebara). **Z98:** `UsersActivityTable` — wiersz+ekspander przeniesione 1:1 z AdminDashboard (handlery propsami, zero zmian logiki), nowe kolumny: badge active/idle/dormant, ostatnia aktywność, dni aktywne 7/30, treningi 7/30 z `users.activitySummary`; sort domyślnie po aktywności. **Z99:** strona `/admin/users/:uid` (lazy): wykres 30 dni (recharts), staty, top ekrany/akcje (etykiety i18n), plan + link do edytora, uprawnienia przez wspólny hook `useAdminUserActions` (lista i szczegół używają tej samej logiki), błędy klienta; odczyty on-demand ~43 max, zero odczytów kolekcji workouts.
