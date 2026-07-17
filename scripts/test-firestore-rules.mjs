@@ -124,6 +124,10 @@ add('update licznika screen_dashboard przechodzi', true, await ok(() => updateDo
 add('update licznika revision_conflict (stara unia) przechodzi', true, await ok(() => updateDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), { 'counters.revision_conflict': increment(1), updatedAt: '2026-07-17T00:00:00.000Z' })));
 add('update licznika spoza listy zablokowane', false, await ok(() => updateDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), { 'counters.evil_counter': increment(1) })));
 add('update cudzego dokumentu telemetrii zablokowane', false, await ok(() => updateDoc(doc(otherDb, 'app_telemetry_daily', `t-${UID}`), { 'counters.session_active': increment(1) })));
+// Z99: szczegół usera w panelu admina czyta cudzą telemetrię i plan.
+await seedUser(undefined, 'active', ADMIN_UID, 'admin');
+add('read cudzej telemetrii jako admin', true, await ok(() => getDoc(doc(adminDb, 'app_telemetry_daily', `t-${UID}`))));
+add('read cudzej telemetrii jako zwykly user zablokowane', false, await ok(() => getDoc(doc(otherDb, 'app_telemetry_daily', `t-${UID}`))));
 
 // === Client errors: append-only, wlasne wpisy, odczyt tylko admin ===
 await env.clearFirestore();
