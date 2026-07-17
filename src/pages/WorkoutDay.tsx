@@ -44,7 +44,6 @@ import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { addAppStateListener } from '@/lib/app-lifecycle';
 import { deriveWorkoutSessionPhase, isActiveTrainingPhase } from '@/lib/workout-session-state';
 import { resolveWorkoutHydration } from '@/lib/workout-hydration';
-import { buildExerciseRecommendation } from '@/lib/adaptive-coach';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
@@ -402,7 +401,6 @@ const WorkoutDay = () => {
       nextAdvice: ReturnType<typeof getNextSetAdvice>;
       historicalBest: ReturnType<typeof getExerciseBest1RM>;
       rzaAdvice: ReturnType<typeof getRzaAdvice>;
-      coachRecommendation: ReturnType<typeof buildExerciseRecommendation>;
       lastNote?: string;
     }>();
     (day?.exercises ?? []).forEach((exercise, index) => {
@@ -417,15 +415,6 @@ const WorkoutDay = () => {
         }, lang, unit),
         historicalBest: getExerciseBest1RM(workouts, exercise.id),
         rzaAdvice: getRzaAdvice(workouts, exercise.id, exercise.name),
-        // Z64: rekomendacja Adaptive Coach z metryk RPE/bólu ostatniej sesji.
-        coachRecommendation: FEATURE_FLAGS.adaptiveCoach
-          ? buildExerciseRecommendation({
-            history: workouts,
-            exerciseId: exercise.id,
-            exerciseName: exercise.name,
-            isBodyweight: resolveIsBodyweight(exercise.name),
-          })
-          : null,
         // Z74: ostatnia notatka z poprzedniej sesji tego ćwiczenia.
         lastNote: getExerciseNoteHistory(workouts, exercise.id, 1)[0]?.note,
       });
@@ -2007,47 +1996,6 @@ const WorkoutDay = () => {
           })}
         </div>
 
-        {/* Adaptive Coach (Z64): rekomendacje na następny raz per ćwiczenie. */}
-        {FEATURE_FLAGS.adaptiveCoach && (() => {
-          const recommendations = day.exercises
-            .map((exercise) => ({ exercise, rec: exerciseInsights.get(exercise.id)?.coachRecommendation }))
-            .filter((item): item is { exercise: typeof item.exercise; rec: NonNullable<typeof item.rec> } => !!item.rec);
-          if (recommendations.length === 0) return null;
-          return (
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="py-4 space-y-2.5">
-                <h3 className="font-semibold flex items-center gap-2 text-sm">
-                  🧠 {t('coachx.nextTime')}
-                </h3>
-                {recommendations.map(({ exercise, rec }) => {
-                  const deltaDisplay = Math.round(toDisplay(Math.abs(rec.weightDeltaKg)) * 10) / 10;
-                  const actionLabel = rec.action === 'progress'
-                    ? (rec.weightDeltaKg > 0 ? t('coachx.action.progress', { kg: deltaDisplay, unit }) : t('coachx.action.progressBw'))
-                    : rec.action === 'hold'
-                      ? t('coachx.action.hold')
-                      : t('coachx.action.deload', { kg: deltaDisplay, unit });
-                  return (
-                    <div key={exercise.id} className="flex items-start justify-between gap-3 text-sm">
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{localizeExerciseName(exercise.name, lang)}</p>
-                        <p className="text-xs text-muted-foreground">{t(rec.reasonKey)}</p>
-                      </div>
-                      <span className={cn(
-                        'shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-                        rec.action === 'progress' && 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
-                        rec.action === 'hold' && 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
-                        rec.action === 'deload' && 'border-destructive/40 text-destructive bg-destructive/10',
-                      )}>
-                        {actionLabel}
-                      </span>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          );
-        })()}
-
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={() => setShowShare(true)}>
             <Share2 className="h-4 w-4 mr-2" />
@@ -2211,7 +2159,6 @@ const WorkoutDay = () => {
               isEditable={isWorkoutStarted && !isCompleted}
               nextAdvice={exerciseInsights.get(exercise.id)?.nextAdvice}
               lastNote={exerciseInsights.get(exercise.id)?.lastNote}
-              coachRecommendation={exerciseInsights.get(exercise.id)?.coachRecommendation}
               historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
               metrics={exerciseMetrics[exercise.id]}
               onMetricsChange={handleMetricsChange}

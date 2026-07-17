@@ -20,7 +20,6 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
-import type { ExerciseRecommendation } from '@/lib/adaptive-coach';
 import type { ExerciseBest } from '@/lib/pr-utils';
 import type { RzaAdvice } from '@/lib/rza-progression';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
@@ -115,36 +114,6 @@ const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
   );
 };
 
-// ── Adaptive Coach badge (Z64): akcja z RPE/bólu ostatniej sesji ──
-const CoachBadge = ({ rec }: { rec: ExerciseRecommendation }) => {
-  const { t } = useTranslation();
-  const { unit, toDisplay } = useUnit();
-  const styles: Record<ExerciseRecommendation['action'], string> = {
-    progress: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
-    hold: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
-    deload: 'border-destructive/40 text-destructive bg-destructive/10',
-  };
-  const deltaDisplay = Math.round(toDisplay(Math.abs(rec.weightDeltaKg)) * 10) / 10;
-  const label = rec.action === 'progress'
-    ? (rec.weightDeltaKg > 0
-      ? t('coachx.action.progress', { kg: deltaDisplay, unit })
-      : t('coachx.action.progressBw'))
-    : rec.action === 'hold'
-      ? t('coachx.action.hold')
-      : t('coachx.action.deload', { kg: deltaDisplay, unit });
-  return (
-    <span
-      title={t(rec.reasonKey)}
-      className={cn(
-        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
-        styles[rec.action],
-      )}
-    >
-      🧠 {label}
-    </span>
-  );
-};
-
 // ── RZA autoregulation badge (next weight from RPE/ból/jakość) ──
 const RzaAdviceBadge = ({ advice }: { advice: RzaAdvice }) => {
   const { t } = useTranslation();
@@ -189,8 +158,6 @@ interface ExerciseCardProps {
   nextAdvice?: NextSetAdvice | null;
   /** Ostatnia notatka z poprzedniej sesji tego ćwiczenia (Z74). */
   lastNote?: string;
-  /** Rekomendacja Adaptive Coach (Z64) — badge z akcją nad nextAdvice. */
-  coachRecommendation?: ExerciseRecommendation | null;
   /** Najlepszy historyczny wynik (1RM) tego ćwiczenia — badge BEST w nagłówku. */
   historicalBest?: ExerciseBest;
   /** Metryki autoregulacji (RPE/ból/jakość) zapisane dla tego ćwiczenia. */
@@ -216,7 +183,6 @@ const ExerciseCardInner = ({
   isBodyweight = false,
   nextAdvice,
   lastNote,
-  coachRecommendation,
   historicalBest,
   metrics,
   onMetricsChange,
@@ -565,7 +531,6 @@ const ExerciseCardInner = ({
                   {t('card.best')} {Math.round(toDisplay(historicalBest.best1RM))} {unit}
                 </span>
               )}
-              {coachRecommendation && <CoachBadge rec={coachRecommendation} />}
               {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} /> : nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
               {FEATURE_FLAGS.workoutTimers && intervalSpec && (
                 <button

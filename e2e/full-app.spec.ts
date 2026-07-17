@@ -737,44 +737,6 @@ test.describe('Notatki (Z74)', () => {
 });
 
 // =====================================================
-// 11a. ADAPTIVE COACH (Z64)
-// =====================================================
-test.describe('Adaptive Coach (Z64)', () => {
-  test.beforeEach(async ({ page }) => {
-    await blockFirebase(page);
-  });
-
-  test('wysokie RPE w historii => badge "Utrzymaj ciężar" na karcie ćwiczenia', async ({ page }) => {
-    await setE2EWorkouts(page, [{
-      id: 'coach-history-1',
-      userId: 'e2e-test-user',
-      dayId: 'day-1',
-      date: '2026-06-30',
-      completed: true,
-      exercises: [{
-        exerciseId: 'ex-1-1',
-        name: 'Wyciskanie hantli (Lekki skos)',
-        rpe: 9.5,
-        sets: [
-          { reps: 8, weight: 30, completed: true },
-          { reps: 8, weight: 30, completed: true },
-          { reps: 8, weight: 30, completed: true },
-        ],
-      }],
-    }]);
-
-    await navigateAndWait(page, '/workout/day-1');
-    await expect(page.getByText('Utrzymaj ciężar').first()).toBeVisible({ timeout: 7000 });
-  });
-
-  test('karta Coach z readiness renderuje się na Dashboardzie', async ({ page }) => {
-    await navigateAndWait(page, '/');
-    await expect(page.getByText(/Coach/).first()).toBeVisible();
-    await expect(page.getByText(/Forma w normie|Świeżość|Spore obciążenie|Przeciążenie/).first()).toBeVisible();
-  });
-});
-
-// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {
