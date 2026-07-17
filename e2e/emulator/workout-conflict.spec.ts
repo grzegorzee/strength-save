@@ -135,6 +135,114 @@ test('Emulator: dwóch klientów, ten sam trening — stale revision dostaje WOR
   }
 });
 
+test('Emulator Z87: local-wins po konflikcie rewizji dosyła wersję lokalną bez udziału usera', async () => {
+  const email = `workout-localwins-${Date.now()}@e2e.test`;
+  const uid = await createAuthUser(email);
+  await seedActiveUser(uid, email);
+  const sessionId = `workout-${uid}-day-1-2026-07-03`;
+  await seedDoc(`workouts/${sessionId}`, workoutSeed(uid));
+
+  const other = await connectClient(email, `wlw-other-${Date.now()}`);
+  const mine = await connectClient(email, `wlw-mine-${Date.now()}`);
+
+  // Draft "mojego" urządzenia: treść lokalna (reps=7), baseline chmury stale (revision 1).
+  const drafts = new Map<string, ActiveWorkoutDraft>();
+  drafts.set(sessionId, {
+    sessionId,
+    userId: uid,
+    dayId: 'day-1',
+    date: '2026-07-03',
+    cycleId: null,
+    sessionOrigin: 'remote',
+    remoteSessionId: sessionId,
+    exerciseSets: { 'ex-1': [{ reps: 7, weight: 100, completed: true }] },
+    exerciseNotes: {},
+    exerciseMetrics: {},
+    dayNotes: '',
+    skippedExercises: [],
+    startedAt: 1000,
+    updatedAt: 2000,
+    lastFirebaseSyncAt: null,
+    dirty: true,
+    completedLocally: false,
+    finalSyncPending: false,
+    version: 3,
+    cloudRevision: 1,
+    cloudUpdatedAt: 1000,
+  });
+
+  const deps: WorkoutSyncDeps = {
+    loadDraft: async (_ownerId, id) => drafts.get(id) ?? null,
+    saveWorkout: async (id, exercises, options) => {
+      try {
+        const state = await saveWorkoutBatchWithRevision(mine.db, id, exercises, options);
+        return { success: true, ...state };
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    getFromServer: async (id) => {
+      const snapshot = await getDoc(doc(mine.db, 'workouts', id));
+      return snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as WorkoutSession) : null;
+    },
+    createSession: async () => { throw new Error('not expected'); },
+    markPromoted: async () => undefined,
+    markSynced: async () => undefined,
+    setCloudBaseline: async () => undefined,
+    setPendingWrite: async (_ownerId, id, pending) => {
+      const current = drafts.get(id);
+      if (!current) return;
+      drafts.set(id, {
+        ...current,
+        pendingWriteId: pending ? pending.writeId : null,
+        pendingWriteVersion: pending ? pending.version : null,
+      });
+    },
+    clearDraftIfVersion: async (_ownerId, id, expectedVersion) => {
+      const current = drafts.get(id);
+      if (current && current.version > expectedVersion) return false;
+      drafts.delete(id);
+      return true;
+    },
+    queue: { remove: () => undefined },
+    isOnline: () => true,
+  };
+
+  try {
+    // Drugie urządzenie zapisuje w międzyczasie (revision 1 -> 2): klasyczny poranek z iPhone+web.
+    const otherWrite = await saveWorkoutBatchWithRevision(other.db, sessionId, payload(9), {
+      expectedRevision: 1,
+      writeId: 'write-other',
+    });
+    expect(otherWrite.revision).toBe(2);
+
+    // Mój checkpoint na stale baseline: realny konflikt rewizji.
+    const conflictOutcome = await syncWorkoutSession(uid, sessionId, 'checkpoint', deps);
+    expect(conflictOutcome.success).toBe(false);
+    expect(conflictOutcome.conflict).toBe(true);
+
+    // Local-wins (Z87) = sekwencja keepLocalOnConflict z WorkoutDay:
+    // baseline z serwera na draft, potem retry syncu. Zero dialogu, zero wyboru usera.
+    const server = await getDoc(doc(mine.db, 'workouts', sessionId));
+    const current = drafts.get(sessionId)!;
+    drafts.set(sessionId, {
+      ...current,
+      cloudRevision: Number(server.data()?.revision),
+      cloudUpdatedAt: Number(server.data()?.updatedAt),
+      version: current.version + 1,
+    });
+    const retryOutcome = await syncWorkoutSession(uid, sessionId, 'checkpoint', deps);
+    expect(retryOutcome.success).toBe(true);
+
+    // Wersja lokalna wygrała: chmura ma reps=7, rewizja podbita nad zapis drugiego urządzenia.
+    const saved = await getDoc(doc(mine.db, 'workouts', sessionId));
+    expect((saved.data()?.exercises as { sets: { reps: number }[] }[])[0].sets[0].reps).toBe(7);
+    expect(Number(saved.data()?.revision)).toBeGreaterThanOrEqual(3);
+  } finally {
+    await Promise.all([deleteApp(other.app), deleteApp(mine.app)]);
+  }
+});
+
 test('Emulator: lost-ack retry z tym samym writeId = sukces alreadyApplied bez podbicia revision', async () => {
   const email = `workout-lostack-${Date.now()}@e2e.test`;
   const uid = await createAuthUser(email);
