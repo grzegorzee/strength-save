@@ -73,6 +73,7 @@ export { weeklyDigest } from "./weekly-digest";
 // Codzienne poranne przypomnienie o treningu (tylko w dni treningowe).
 export { dailyTrainingReminder } from "./daily-reminder";
 export { activityRollup } from "./activity-rollup";
+export { adminUserRepair } from "./repairs/admin-user-repair";
 // Webhook RevenueCat → users/{uid}.subscription (entitlement PRO).
 export { revenuecatWebhook } from "./revenuecat";
 

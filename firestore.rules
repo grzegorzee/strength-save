@@ -373,6 +373,27 @@ service cloud.firestore {
     // Create świadomie bez hasSelfAccess: telemetria ma działać też przy problemach
     // z profilem; koszt get() w rules > zysk. expiresAt opcjonalne: klienty
     // build <= 48 raportują bez TTL (pole doszło w Z40).
+    // Z100/Z101: backupy napraw i dziennik akcji admina.
+    // Backupy pisze wyłącznie Admin SDK (adminUserRepair); klient nigdy.
+    match /admin_repair_backups/{backupId} {
+      allow read: if request.auth != null && isAdmin();
+      allow create, update, delete: if false;
+    }
+    // Dziennik akcji: create-only dla admina (akcje klienckie: toggles, edycje);
+    // wpisów nie da się zmienić ani usunąć. Wpisy napraw dopisuje Admin SDK.
+    match /admin_audit_log/{entryId} {
+      allow read: if request.auth != null && isAdmin();
+      allow create: if request.auth != null && isAdmin()
+                    && request.resource.data.keys().hasOnly(['adminUid', 'action', 'targetUid', 'detail', 'createdAt', 'expiresAt'])
+                    && request.resource.data.adminUid == request.auth.uid
+                    && (request.resource.data.action is string && request.resource.data.action.size() <= 100)
+                    && (request.resource.data.targetUid is string && request.resource.data.targetUid.size() <= 128)
+                    && (!('detail' in request.resource.data)
+                        || (request.resource.data.detail is string && request.resource.data.detail.size() <= 500))
+                    && (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is timestamp);
+      allow update, delete: if false;
+    }
+
     match /client_errors/{errorId} {
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid
