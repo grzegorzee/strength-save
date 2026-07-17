@@ -21,7 +21,27 @@ export type TelemetryEventName =
   | 'revision_conflict'
   | 'revision_conflict_auto_resolved'
   | 'orphan_workout'
-  | 'mixed_plan_exercise_set';
+  | 'mixed_plan_exercise_set'
+  // Z94: telemetria produktowa (liczniki bez treści, whitelist też w rules).
+  | 'session_active'
+  | 'screen_dashboard'
+  | 'screen_plan'
+  | 'screen_analytics'
+  | 'screen_exercises'
+  | 'screen_profile'
+  | 'screen_history'
+  | 'screen_measurements'
+  | 'screen_achievements'
+  | 'screen_cycles'
+  | 'screen_settings'
+  | 'screen_workout'
+  | 'action_workout_started'
+  | 'action_workout_completed'
+  | 'action_set_checked'
+  | 'action_plan_edited'
+  | 'action_replan_completed'
+  | 'action_export_data'
+  | 'action_strava_opened';
 
 type PendingTelemetry = Record<string, Record<TelemetryEventName, number>>;
 
