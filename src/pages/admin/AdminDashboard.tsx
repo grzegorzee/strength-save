@@ -52,6 +52,9 @@ import {
 import { UsersActivityTable } from './UsersActivityTable';
 import { AVAILABLE_FEATURES, type AdminUser, type AdminUserDetails, type FeatureKey } from './admin-user-types';
 import { sortUsersByActivity } from '@/lib/admin-activity';
+import { logAdminAction } from '@/lib/admin-audit';
+import { AdminAuditLog } from './AdminAuditLog';
+import { useCurrentUser } from '@/contexts/UserContext';
 
 const ADMIN_USERS_LISTENER_LIMIT = 200;
 const ADMIN_TELEMETRY_LIMIT = 1000;
@@ -105,6 +108,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t, lang } = useTranslation();
+  const { uid: adminUid } = useCurrentUser();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [expandedUid, setExpandedUid] = useState<string | null>(null);
   const [detailsByUser, setDetailsByUser] = useState<Record<string, AdminUserDetails | null>>({});
@@ -248,6 +252,7 @@ const AdminDashboard = () => {
       setUsers(prev => prev.map(u =>
         u.uid === uid ? { ...u, features: { ...u.features, [feature]: enabled } } : u
       ));
+      void logAdminAction(adminUid, { action: `feature:${feature}:${enabled ? 'on' : 'off'}`, targetUid: uid });
       const userName = users.find(u => u.uid === uid)?.displayName || uid;
       toast({ title: enabled ? t('admin.toggleEnabled') : t('admin.toggleDisabled'), description: `${feature} — ${userName}` });
     } catch {
@@ -266,6 +271,7 @@ const AdminDashboard = () => {
       setUsers(prev => prev.map(u =>
         u.uid === uid ? { ...u, accessEnabled: enabled } : u
       ));
+      void logAdminAction(adminUid, { action: `access:${enabled ? 'on' : 'off'}`, targetUid: uid });
       const userName = users.find(u => u.uid === uid)?.displayName || uid;
       toast({
         title: enabled ? t('admin.accessEnabledTitle') : t('admin.accessDisabledTitle'),
@@ -295,6 +301,7 @@ const AdminDashboard = () => {
           : user
       )));
       const userName = users.find(u => u.uid === uid)?.displayName || uid;
+      void logAdminAction(adminUid, { action: suspended ? 'suspend' : 'restore', targetUid: uid, detail: reason });
       toast({
         title: suspended ? t('admin.accountSuspended') : t('admin.accountRestored'),
         description: userName,
@@ -475,6 +482,7 @@ const AdminDashboard = () => {
       onConfirm: async () => {
         try {
           await updateDoc(doc(db, 'users', uid), { onboardingCompleted: false, 'onboarding.state': 'not_started' });
+          void logAdminAction(adminUid, { action: 'resetOnboarding', targetUid: uid });
           toast({ title: 'Onboarding zresetowany' });
         } catch {
           toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
@@ -491,6 +499,7 @@ const AdminDashboard = () => {
       onConfirm: async () => {
         try {
           await adminResendVerification(uid);
+          void logAdminAction(adminUid, { action: 'resendVerification', targetUid: uid });
           toast({ title: 'Kod wysłany' });
         } catch (e) {
           toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
@@ -516,6 +525,7 @@ const AdminDashboard = () => {
       onConfirm: async () => {
         try {
           await adminDeleteUser(uid);
+          void logAdminAction(adminUid, { action: 'deleteUser', targetUid: uid, detail: name });
           setUsers(prev => prev.filter(u => u.uid !== uid));
           setExpandedUid(null);
           toast({ title: 'Konto usunięte', description: name });
@@ -550,6 +560,7 @@ const AdminDashboard = () => {
     setEmailDialog(null);
     try {
       await adminSendUserEmail({ uid: payload.uid, subject: payload.subject.trim(), body: payload.body.trim() });
+      void logAdminAction(adminUid, { action: 'sendEmail', targetUid: payload.uid, detail: payload.subject.trim() });
       toast({ title: 'Mail wysłany' });
     } catch (e) {
       toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
@@ -563,6 +574,7 @@ const AdminDashboard = () => {
     setCohortsDialog(null);
     try {
       await updateDoc(doc(db, 'users', payload.uid), { cohorts });
+      void logAdminAction(adminUid, { action: 'editCohorts', targetUid: payload.uid, detail: cohorts.join(', ') });
       setUsers(prev => prev.map(u => u.uid === payload.uid ? { ...u, cohorts } : u));
       toast({ title: 'Cohorty zapisane', description: cohorts.join(', ') || 'brak' });
     } catch {
@@ -809,6 +821,9 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Z101: dziennik akcji administracyjnych */}
+      <AdminAuditLog userEmailByUid={Object.fromEntries(users.map((u) => [u.uid, u.email]))} />
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">

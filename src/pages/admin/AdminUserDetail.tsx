@@ -8,9 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, BarChart3, Bug, Dumbbell, Loader2, MousePointerClick } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bug, Dumbbell, Loader2, MousePointerClick, Wrench } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { EmptyState } from '@/components/EmptyState';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
+import { formatRepairOperations, type RepairOperationLike } from '@/lib/admin-audit';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
 import { buildDailyActivitySeries, activityBadge } from '@/lib/admin-activity';
@@ -94,6 +98,10 @@ const AdminUserDetail = () => {
   const [plan, setPlan] = useState<{ dayCount: number; durationWeeks: number; startDate: string | null } | null | 'missing'>(null);
   const [errors, setErrors] = useState<ClientErrorRow[] | null>(null);
   const [loading, setLoading] = useState(true);
+  // Z102: naprawy z dry-run; Wykonaj aktywne dopiero po świeżym dry-run tej akcji.
+  const [repairBusy, setRepairBusy] = useState<string | null>(null);
+  const [dryRunResults, setDryRunResults] = useState<Record<string, RepairOperationLike[]>>({});
+  const [confirmRepair, setConfirmRepair] = useState<string | null>(null);
 
   const actions = useAdminUserActions({
     getUserMeta: () => user ?? undefined,
@@ -188,6 +196,39 @@ const AdminUserDetail = () => {
     const labelKey = COUNTER_LABEL_KEYS[key];
     return labelKey ? t(labelKey) : key;
   };
+
+  const REPAIR_ACTIONS: Array<{ action: string; titleKey: TranslationKey; descKey: TranslationKey }> = [
+    { action: 'mergeCycles', titleKey: 'settings.repairCycles.title', descKey: 'settings.repairCycles.description' },
+    { action: 'repairHistory', titleKey: 'admin.repair.historyTitle', descKey: 'admin.repair.historyDesc' },
+    { action: 'dedupeWorkouts', titleKey: 'admin.repair.dedupeTitle', descKey: 'admin.repair.dedupeDesc' },
+    { action: 'resetOnboarding', titleKey: 'settings.resetPlan.title', descKey: 'settings.resetPlan.description' },
+  ];
+
+  const callRepair = async (action: string, dryRun: boolean) => {
+    setRepairBusy(action);
+    try {
+      const callable = httpsCallable<
+        { targetUid: string; action: string; dryRun: boolean },
+        { dryRun: boolean; operations?: RepairOperationLike[]; applied?: number; backupId?: string }
+      >(functions, 'adminUserRepair');
+      const { data } = await callable({ targetUid: userId, action, dryRun });
+      if (dryRun) {
+        setDryRunResults((prev) => ({ ...prev, [action]: data.operations ?? [] }));
+      } else {
+        toastRepair(t('admin.repair.applied', { n: data.applied ?? 0, backupId: data.backupId ?? '—' }));
+        setDryRunResults((prev) => ({ ...prev, [action]: [] }));
+        void callRepair(action, true);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toastRepair(`${t('admin.repair.error')}: ${message}`);
+    } finally {
+      setRepairBusy(null);
+    }
+  };
+
+  const [repairToast, setRepairToast] = useState<string | null>(null);
+  const toastRepair = (message: string) => setRepairToast(message);
 
   if (loading) {
     return (
@@ -383,6 +424,68 @@ const AdminUserDetail = () => {
               disabled={user.role === 'admin'}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* NAPRAWY KONTA (Z102): dry-run -> apply z backupem po stronie Functions. */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+            <Wrench className="h-4 w-4 text-primary" />
+            {t('admin.repair.title')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {repairToast && <p className="rounded-lg bg-muted/30 p-2 text-xs">{repairToast}</p>}
+          {REPAIR_ACTIONS.map(({ action, titleKey, descKey }) => {
+            const preview = dryRunResults[action];
+            return (
+              <div key={action} className="rounded-lg bg-muted/20 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium">{t(titleKey)}</p>
+                    <p className="text-xs text-muted-foreground">{t(descKey)}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button variant="outline" size="sm" disabled={repairBusy !== null} onClick={() => void callRepair(action, true)}>
+                      {repairBusy === action ? <Loader2 className="h-4 w-4 animate-spin" /> : t('admin.repair.dryRun')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={repairBusy !== null || !preview || preview.length === 0}
+                      onClick={() => setConfirmRepair(action)}
+                    >
+                      {t('admin.repair.apply')}
+                    </Button>
+                  </div>
+                </div>
+                {preview && (
+                  preview.length === 0
+                    ? <p className="text-xs text-fitness-success">{t('admin.repair.nothing')}</p>
+                    : (
+                      <ul className="space-y-0.5 text-xs text-muted-foreground">
+                        {formatRepairOperations(preview).slice(0, 20).map((line, index) => (
+                          <li key={index} className="break-all">{line}</li>
+                        ))}
+                        {preview.length > 20 && <li>… +{preview.length - 20}</li>}
+                      </ul>
+                    )
+                )}
+              </div>
+            );
+          })}
+          <ConfirmDialog
+            open={confirmRepair !== null}
+            onOpenChange={(open) => { if (!open) setConfirmRepair(null); }}
+            title={t('admin.repair.confirmTitle')}
+            description={t('admin.repair.confirmDesc', { n: confirmRepair ? (dryRunResults[confirmRepair]?.length ?? 0) : 0 })}
+            confirmLabel={t('admin.repair.apply')}
+            onConfirm={() => {
+              const action = confirmRepair;
+              setConfirmRepair(null);
+              if (action) void callRepair(action, false);
+            }}
+          />
         </CardContent>
       </Card>
 
