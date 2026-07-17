@@ -44,6 +44,7 @@ const WorkoutHistory = lazyWithRetry(() => import("./pages/WorkoutHistory"), "la
 const StravaCallback = lazyWithRetry(() => import("./pages/StravaCallback"), "lazy-retry:strava-callback");
 const AdminDashboard = lazyWithRetry(() => import("./pages/admin/AdminDashboard"), "lazy-retry:admin-dashboard");
 const UserPlanEditor = lazyWithRetry(() => import("./pages/admin/UserPlanEditor"), "lazy-retry:user-plan-editor");
+const AdminUserDetail = lazyWithRetry(() => import("./pages/admin/AdminUserDetail"), "lazy-retry:admin-user-detail");
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"), "lazy-retry:not-found");
 const Login = lazyWithRetry(() => import("./pages/Login"), "lazy-retry:login");
 const Profile = lazyWithRetry(() => import("./pages/Profile"), "lazy-retry:profile");
@@ -217,6 +218,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
                 <Route path="/history" element={<WorkoutHistory />} />
                 <Route path="/strava/callback" element={<StravaCallback />} />
                 <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+                <Route path="/admin/users/:userId" element={<AdminRoute><AdminUserDetail /></AdminRoute>} />
                 <Route path="/admin/plans/:userId" element={<AdminRoute><UserPlanEditor /></AdminRoute>} />
               </Route>
               <Route path="*" element={<NotFound />} />
