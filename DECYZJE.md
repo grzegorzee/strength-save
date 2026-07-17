@@ -5,11 +5,19 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X12A release train A: web index-D6h0uwMg + iOS build 52 TestFlight)
+**Ostatnia aktualizacja:** 2026-07-17 (X12B faza 1: Adaptive Coach usunięty)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — X12B FAZA 1 (Z89): usunięcie Adaptive Coach
+
+**Decyzja usera (2026-07-17), wycofuje feature Z60-Z65 z X10:** "belka na dashboardzie nic nie robi". Usunięte: belka readiness na Dashboardzie, badge CoachBadge w ExerciseCard, karta "Następnym razem" w podsumowaniu WorkoutDay, moduł `adaptive-coach.ts` + testy, flaga `adaptiveCoach` (`VITE_FEATURE_ADAPTIVE_COACH`), 13 kluczy `coachx.*` z OBU locale, spec e2e. ZOSTAJE (granica wycinki wg planu): coach następnej serii (`next-set-advice`), RzaAdviceBadge, zbieranie i wyświetlanie metryk RPE/ból/jakość.
+
+**Weryfikacja:** rg adaptive|coachx w src/ = 0; vitest 618 zielone (16 testów adaptive usuniętych), typecheck, lint, build, e2e:mock 139; bundle initial 1 463 811 -> 1 462 322 B. Wizualnie (Playwright, screenshoty): Dashboard bez belki, karta ćwiczenia z celem następnej serii (🎯) i rekordem, zero 🧠.
+
+**Nota środowiskowa:** w trakcie bramek load average maszyny sięgał 180 (Screen Studio) i wywoływał timeouty testu exercise-picker także na czystym HEAD; po spadku obciążenia test zielony bez zmian w kodzie. Commity: a4bde25, 7cf93e0 (+ ec430cc dojścia Profilu pod Z90).
 
 ### 2026-07-17 — X12A RELEASE TRAIN A: web + iOS build 52 na TestFlight
 
