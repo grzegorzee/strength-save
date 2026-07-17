@@ -315,6 +315,11 @@ service cloud.firestore {
     // "counters.xxx" (historyczny zapis dot-notation) — hasOnly musi je dopuszczać,
     // inaczej merge na takim dokumencie pada (lekcja createdAt z workouts).
     function validTelemetryShape() {
+      // Zamknięta lista liczników = unia TelemetryEventName w src/lib/app-telemetry.ts.
+      // X13A: walidacja przez counters.keys().hasOnly (dot-notation w top-level hasOnly
+      // nigdy nie działała: stan końcowy ma tylko klucz 'counters').
+      // Płaskie klucze 'counters.xxx' to TOP-LEVEL pola dokumentów legacy (historyczny
+      // zapis) — merge na takim dokumencie widzi je w stanie końcowym (lekcja R2).
       return request.resource.data.keys().hasOnly([
         'userId', 'date', 'updatedAt', 'counters',
         'counters.draft_recovered', 'counters.local_save_failed', 'counters.sync_success'
@@ -322,7 +327,28 @@ service cloud.firestore {
       && (request.resource.data.date is string && request.resource.data.date.size() <= 10)
       && (!('updatedAt' in request.resource.data)
           || (request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 40))
-      && (!('counters' in request.resource.data) || request.resource.data.counters is map);
+      && (!('counters' in request.resource.data)
+          || (request.resource.data.counters is map
+              && request.resource.data.counters.keys().hasOnly([
+        'provisional_session_started', 'provisional_session_promoted',
+        'draft_recovered', 'workout_auto_resume',
+        'local_save_failed', 'sync_retry_manual',
+        'sync_retry_batch', 'sync_retry_auto',
+        'sync_success', 'sync_failure',
+        'sync_validation_failed', 'final_sync_pending',
+        'sync_queue_enqueued', 'revision_conflict',
+        'revision_conflict_auto_resolved', 'orphan_workout',
+        'mixed_plan_exercise_set',
+        'session_active',
+        'screen_dashboard', 'screen_plan', 'screen_analytics',
+        'screen_exercises', 'screen_profile', 'screen_history',
+        'screen_measurements', 'screen_achievements', 'screen_cycles',
+        'screen_settings', 'screen_workout',
+        'action_workout_started', 'action_workout_completed',
+        'action_set_checked', 'action_plan_edited',
+        'action_replan_completed', 'action_export_data',
+        'action_strava_opened'
+              ])));
     }
 
     match /app_telemetry_daily/{docId} {

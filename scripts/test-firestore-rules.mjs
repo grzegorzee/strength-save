@@ -2,7 +2,7 @@
 // treningu zwracał PERMISSION_DENIED i blokował rozpoczęcie pierwszego treningu nowego planu.
 // Uruchom: npm run test:rules  (wymaga JDK 21 + firebase-tools)
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing';
-import { Timestamp, deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { Timestamp, deleteDoc, doc, getDoc, increment, setDoc, updateDoc } from 'firebase/firestore';
 import { readFileSync } from 'node:fs';
 
 const env = await initializeTestEnvironment({
@@ -113,10 +113,17 @@ add('create plan_cycle (pending_verification) zablokowane', false, await ok(() =
 // === Telemetry ===
 await env.clearFirestore();
 await seedUser({ enabled: true });
-const telemetry = { userId: UID, date: '2026-06-08', updatedAt: '2026-06-08T00:00:00.000Z', counters: { app_open: 1 } };
+const telemetry = { userId: UID, date: '2026-06-08', updatedAt: '2026-06-08T00:00:00.000Z', counters: { sync_success: 1 } };
 add('create app_telemetry_daily (active)', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), telemetry)));
+add('create app_telemetry_daily z licznikiem spoza listy zablokowane', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', 't-evil'), { ...telemetry, counters: { evil_counter: 1 } })));
 add('delete app_telemetry_daily zablokowane', false, await ok(() => deleteDoc(doc(db, 'app_telemetry_daily', `t-${UID}`))));
 add('create app_telemetry_daily z cudzym userId zablokowane', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', 't-x'), { ...telemetry, userId: OTHER_UID })));
+// X13A: merge-update liczników (dot-notation) = hasOnly z pełną listą nazw.
+add('update licznika produktowego (session_active) przechodzi', true, await ok(() => updateDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), { 'counters.session_active': increment(1), updatedAt: '2026-07-17T00:00:00.000Z' })));
+add('update licznika screen_dashboard przechodzi', true, await ok(() => updateDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), { 'counters.screen_dashboard': increment(2), updatedAt: '2026-07-17T00:00:00.000Z' })));
+add('update licznika revision_conflict (stara unia) przechodzi', true, await ok(() => updateDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), { 'counters.revision_conflict': increment(1), updatedAt: '2026-07-17T00:00:00.000Z' })));
+add('update licznika spoza listy zablokowane', false, await ok(() => updateDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), { 'counters.evil_counter': increment(1) })));
+add('update cudzego dokumentu telemetrii zablokowane', false, await ok(() => updateDoc(doc(otherDb, 'app_telemetry_daily', `t-${UID}`), { 'counters.session_active': increment(1) })));
 
 // === Client errors: append-only, wlasne wpisy, odczyt tylko admin ===
 await env.clearFirestore();
