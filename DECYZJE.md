@@ -5,11 +5,19 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (M19 offline mode + M20 eksport PDF)
+**Ostatnia aktualizacja:** 2026-07-17 (backlog P0-Android domknięty: web push w kodzie, Android release-ready; iOS build 1.0.0 (55) VALID)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-17 — Web push (commit c6430fc) + Android release prep (commit 8dfa261) + build 55
+
+**Web push:** cały kod wdrożony: `public/firebase-messaging-sw.js` (SW powiadomień w tle, config Firebase w query stringu rejestracji, własny scope `fcm/` obok SW workboxa — gh-pages nie kontroluje roota domeny, więc jawna rejestracja spod base), gałęzie web w `push-notifications.ts` (Notification API + FirebaseMessaging.getToken z vapidKey i własną rejestracją SW). Backend gotowy od dawna (registerPushToken/adminSendPush/dailyTrainingReminder — tokeny web obsługiwane bez zmian). **ODŁOŻONY 1 KROK (wymaga konsoli):** wygenerowanie klucza VAPID (Firebase Console -> Project settings -> Cloud Messaging -> Web Push certificates -> Generate key pair) i wpisanie do `.env` jako `VITE_FIREBASE_VAPID_KEY` + redeploy web. Bez klucza web zachowuje się jak dotąd (push 'unsupported', zero regresji). Konsola nie ma API na VAPID, a rozszerzenie Chrome nie było podłączone w tej sesji.
+
+**Android:** keystore release wygenerowany (`FIRMA/_secrets/android/strength-save-release.keystore` + properties, chmod 600), SHA-1 release dodany do Firebase (apps:android:sha:create), signing config w build.gradle (czyta gitignorowane `android/key.properties` -> _secrets; brak pliku = build bez podpisu jak dotąd), `app-release.aab` (14.6 MB) zbudowany i zweryfikowany (jarsigner: jar verified). **ODŁOŻONE (wymaga płatności/konta usera):** rejestracja Google Play Console (25 USD), store listing, upload AAB.
+
+**iOS build 1.0.0 (55)** (P0 walidacja + M19 offline + M20 PDF) VALID na TestFlight, grupa Wewnętrzni.
 
 ### 2026-07-17 — M19: PWA offline mode (commit 6167c64)
 
