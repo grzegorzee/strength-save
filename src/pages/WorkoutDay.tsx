@@ -9,16 +9,6 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { Button } from '@/components/ui/button';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { ExercisePicker } from '@/components/ExercisePicker';
@@ -58,7 +48,7 @@ import { buildExerciseRecommendation } from '@/lib/adaptive-coach';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
-import { classifyWorkoutSyncError, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
+import { classifyWorkoutSyncError, shouldAutoResolveConflict, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
 import { reportClientError } from '@/lib/error-telemetry';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
@@ -156,8 +146,10 @@ const WorkoutDay = () => {
   const [queuedDraft, setQueuedDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
-  // Konflikt wersji między urządzeniami: dialog wyboru zamiast cichego nadpisania.
-  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  // Local-wins (Z87): konflikt wersji rozwiązujemy automatycznie na korzyść lokalnej.
+  // Limit prób per sesja zapisu chroni przed pętlą, gdy drugie urządzenie aktywnie pisze.
+  const conflictAutoResolveAttemptsRef = useRef(0);
+  const keepLocalOnConflictRef = useRef<null | (() => Promise<void>)>(null);
   const [showWarmup, setShowWarmup] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [restTimer, setRestTimer] = useState<{ open: boolean; seconds: number; exerciseLabel: string; runId: number }>({
@@ -371,10 +363,11 @@ const WorkoutDay = () => {
     sessionOrigin: currentPageDraft?.sessionOrigin,
     isCompleted,
     isEditing,
-    conflictDialogOpen,
+    // Local-wins (Z87): dialog konfliktu nie istnieje, faza 'conflict' nieosiągalna.
+    conflictDialogOpen: false,
     finalSyncPending: !!currentPageDraft?.finalSyncPending,
     isExplicitSaving,
-  }), [sessionId, currentPageDraft?.sessionOrigin, currentPageDraft?.finalSyncPending, isCompleted, isEditing, conflictDialogOpen, isExplicitSaving]);
+  }), [sessionId, currentPageDraft?.sessionOrigin, currentPageDraft?.finalSyncPending, isCompleted, isEditing, isExplicitSaving]);
 
   // Find previous workout for this day (for weight hints)
   const previousWorkout = workouts.find(w =>
@@ -599,16 +592,26 @@ const WorkoutDay = () => {
 
     if (!outcome.success) {
       if (outcome.conflict) {
-        // Trening zmieniony na innym urządzeniu — user wybiera wersję zamiast cichego nadpisania.
-        setConflictDialogOpen(true);
-        setSaveError(null);
-        setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
+        // Local-wins (Z87): wersja lokalna zawsze wygrywa. Telemetria zostaje,
+        // żeby widzieć skalę zjawiska po wyłączeniu dialogu.
         void reportClientError(uid, {
           code: 'revision-conflict',
           phase: requiresFinalSync ? 'final' : 'checkpoint',
           detail: outcome.error,
           sessionId: targetSessionId,
         });
+        if (shouldAutoResolveConflict(conflictAutoResolveAttemptsRef.current)) {
+          conflictAutoResolveAttemptsRef.current += 1;
+          trackTelemetryEvent(uid, 'revision_conflict_auto_resolved');
+          setSaveError(null);
+          setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'syncing');
+          void keepLocalOnConflictRef.current?.();
+          return { success: false, error: outcome.error };
+        }
+        // Limit wyczerpany (drugie urządzenie aktywnie pisze): zostajemy przy lokalnym
+        // drafcie, danych nie tracimy, kolejny checkpoint ponowi zapis.
+        setSaveError(t('workout.err.conflict'));
+        setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
         return { success: false, error: outcome.error };
       }
       if (classifyWorkoutSyncError(outcome.error) === 'offline') {
@@ -633,6 +636,8 @@ const WorkoutDay = () => {
 
     const syncedAt = Date.now();
     setSaveError(null);
+    // Udany sync domyka sesję zapisu: limit auto-resolve liczy się od nowa.
+    conflictAutoResolveAttemptsRef.current = 0;
 
     if (outcome.skipped) {
       // Brak draftu w IndexedDB = nic do zapisania (silnik sprzątnął referencję z kolejki).
@@ -690,23 +695,20 @@ const WorkoutDay = () => {
     return { success: true };
   }, [uid, sessionId, workoutSyncDeps, persistDraftSnapshot, queueAutoSaveStatus, t]);
 
-  // Konflikt urządzeń: zachowaj lokalną wersję — podbij znacznik chmury w drafcie
+  // Local-wins (Z87): zachowaj lokalną wersję — podbij znacznik chmury w drafcie
   // do stanu serwera i ponów zapis (świadome nadpisanie wersji z drugiego urządzenia).
-  const resolveConflictKeepMine = useCallback(async () => {
-    if (!uid || !sessionId) {
-      setConflictDialogOpen(false);
-      return;
-    }
+  const keepLocalOnConflict = useCallback(async () => {
+    if (!uid || !sessionId) return;
     try {
       const server = await getWorkoutSessionFromServer(sessionId);
       await persistDraftSnapshot({
         ...(server?.updatedAt !== undefined ? { cloudUpdatedAt: server.updatedAt } : {}),
         ...(server?.revision !== undefined ? { cloudRevision: server.revision } : {}),
       }, { showStatus: false });
-      setConflictDialogOpen(false);
       await syncDraftToFirebase(activeDraftRef.current?.finalSyncPending ? 'final' : 'checkpoint');
     } catch (err) {
-      // Offline/timeout: dialog zostaje otwarty, user widzi komunikat i może ponowić.
+      // Offline/timeout: zostajemy przy lokalnym drafcie, user widzi komunikat,
+      // kolejny checkpoint ponowi zapis.
       setSaveError(t(workoutSyncErrorMessageKey(err)));
       void reportClientError(uid, {
         code: classifyWorkoutSyncError(err),
@@ -716,23 +718,8 @@ const WorkoutDay = () => {
       });
     }
   }, [uid, sessionId, getWorkoutSessionFromServer, persistDraftSnapshot, syncDraftToFirebase, t]);
-
-  // Konflikt urządzeń: pobierz wersję z chmury — porzuć lokalny draft i kolejkę;
-  // efekt wczytywania załaduje stan serwera z onSnapshot (workouts).
-  const resolveConflictUseCloud = useCallback(async () => {
-    setConflictDialogOpen(false);
-    if (!uid || !sessionId) return;
-    try {
-      await workoutDraftDb.clearActiveDraft(uid, sessionId);
-    } catch {
-      // Draft lokalny może już nie istnieć — stan i tak załadujemy z chmury.
-    }
-    workoutSyncQueue.remove(uid, sessionId);
-    setQueuedDraft(prev => prev?.sessionId === sessionId ? null : prev);
-    setActiveDraft(null);
-    setSaveError(null);
-    setAutoSaveStatus('idle');
-  }, [uid, sessionId]);
+  // Funkcja jest zdefiniowana PO syncDraftToFirebase — gałąź konfliktu woła ją przez ref.
+  keepLocalOnConflictRef.current = keepLocalOnConflict;
 
   const applyWorkoutState = useCallback((next: {
     sessionId: string | null;
@@ -2378,22 +2365,6 @@ const WorkoutDay = () => {
         </div>
       )}
 
-      <AlertDialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('workout.conflict.title')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('workout.conflict.desc')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => void resolveConflictUseCloud()}>
-              {t('workout.conflict.useCloud')}
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={() => void resolveConflictKeepMine()}>
-              {t('workout.conflict.keepMine')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

@@ -19,6 +19,7 @@ export type TelemetryEventName =
   | 'final_sync_pending'
   | 'sync_queue_enqueued'
   | 'revision_conflict'
+  | 'revision_conflict_auto_resolved'
   | 'orphan_workout'
   | 'mixed_plan_exercise_set';
 
