@@ -281,6 +281,7 @@ await env.clearFirestore();
 await seedUser({ enabled: true });
 const validTelemetry = { userId: UID, date: '2026-06-08', updatedAt: '2026-06-08T00:00:00.000Z', counters: { sync_success: 1 } };
 add('app_telemetry_daily: zgodny dokument ALLOWED', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `${UID}-2026-06-08`), validTelemetry)));
+add('app_telemetry_daily: expiresAt (TTL 180 dni) ALLOWED', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `${UID}-2026-06-10`), { ...validTelemetry, expiresAt: Timestamp.fromMillis(Date.now() + 180 * 24 * 60 * 60 * 1000) })));
 add('app_telemetry_daily: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `${UID}-2026-06-09`), { ...validTelemetry, evil: 1 })));
 // Dokumenty legacy maja PLASKIE klucze "counters.xxx" (historyczny zapis) — update musi przechodzic.
 await seedDoc('app_telemetry_daily', `${UID}-2026-01-01`, { userId: UID, date: '2026-01-01', updatedAt: 'x', 'counters.draft_recovered': 1, 'counters.sync_success': 2 });

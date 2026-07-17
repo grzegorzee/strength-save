@@ -1,4 +1,4 @@
-import { doc, increment, setDoc } from 'firebase/firestore';
+import { Timestamp, doc, increment, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 const TELEMETRY_STORAGE_KEY_PREFIX = 'fittracker_telemetry_v1';
@@ -110,6 +110,8 @@ export const flushTelemetryEvents = async (userId: string) => {
         date: dateKey,
         updatedAt: new Date().toISOString(),
         counters: increments,
+        // Retencja 180 dni (X13A): polityka TTL Firestore na polu expiresAt.
+        expiresAt: Timestamp.fromMillis(Date.now() + 180 * 24 * 60 * 60 * 1000),
       }, { merge: true });
       successfullyFlushed.push(dateKey);
     } catch {

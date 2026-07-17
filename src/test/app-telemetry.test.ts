@@ -7,6 +7,7 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => 'telemetry-document'),
   increment: vi.fn((value: number) => ({ increment: value })),
   setDoc: vi.fn(async () => undefined),
+  Timestamp: { fromMillis: (ms: number) => ({ toMillis: () => ms }) },
 }));
 
 describe('app telemetry Firestore shape', () => {

@@ -321,9 +321,10 @@ service cloud.firestore {
       // Płaskie klucze 'counters.xxx' to TOP-LEVEL pola dokumentów legacy (historyczny
       // zapis) — merge na takim dokumencie widzi je w stanie końcowym (lekcja R2).
       return request.resource.data.keys().hasOnly([
-        'userId', 'date', 'updatedAt', 'counters',
+        'userId', 'date', 'updatedAt', 'counters', 'expiresAt',
         'counters.draft_recovered', 'counters.local_save_failed', 'counters.sync_success'
       ])
+      && (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is timestamp)
       && (request.resource.data.date is string && request.resource.data.date.size() <= 10)
       && (!('updatedAt' in request.resource.data)
           || (request.resource.data.updatedAt is string && request.resource.data.updatedAt.size() <= 40))
