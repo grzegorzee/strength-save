@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-20 — RELEASE X16A (Z119-Z121): progresja programowa v1 + audyt prototypu watch (X16B FAZA 0)
+
+**Co:** X16A w całości na prod: web index-BP5paMV1 + rules (update progression) + iOS build 65 (upload OK, poll VALID/external w tle). Z121: DeloadBanner na Dashboardzie ([Zastosuj]/[Pomiń] → progression.deloadDecisions, punktowy updateDoc bez rewizji planu), suggestEarlyDeload (>=2 plateau lub powtarzalny ból >=4 w 2 ostatnich sesjach; cooldown 3 tyg. od zastosowanego; nigdy w tygodniu programowym), WeekReportCard (raport ostatniego ZAKOŃCZONEGO tygodnia: cele liczone z historii sprzed niego → % realizacji + do 3 rozjazdów z faktycznym wynikiem). Decyzja 'applied' aktywuje wariant deloadowy też poza harmonogramem (wcześniejszy deload). ODŁOŻONE: "sekcja w AI podsumowaniu tygodnia" — w kodzie nie ma AI podsumowania (chat usunięty w X12B); ewentualne rozszerzenie weekly digest o raport = backlog v2 (digest w functions nie ma dostępu do silnika klienta).
+
+**Audyt prototypu Apple Watch (X16B FAZA 0):** prototyp pokrywa ~80% scope v1 (most, kolejka transferUserInfo, rest timer z haptyką, steppery+crown, HKWorkoutSession z HR na zegarku, router startWorkout). Braki: etykieta celu tygodnia i przypięta notatka w payloadzie, wskaźnik niezsynchronizowanych, i18n zegarka, DEDUPLIKACJA zapisu Health (zegarek i telefon zapisują OBA — do rozwiązania w X16B FAZA 1). Szczegóły w docs/PLAN-X16B-2026-07-19.md (FAZA 0).
+
+**Weryfikacja:** vitest 843/843 (silnik 21 testów), rules 162/162 (2 nowe update progression), e2e 327 (5 nowych scen Z120-Z121), symulacja 2 tygodni + deload w tygodniu 5 przez e2e mock (zero realnych kont). Tooling: preflight akceptuje $(MARKETING_VERSION).
+
 ### 2026-07-20 — RELEASE X15C (Z116-Z118): Apple Health / Health Connect + fix signing iOS
 
 **Co:** cały release train X15C na prod: web index-Y_2d8C3i (health-bridge no-op w web), iOS build 64 (VALID, obie grupy TestFlight, Beta App Review APPROVED), Android AAB release-ready z Health Connect. Do buildu 64 weszły też gotowe Z119-Z120 (progresja: konfiguracja + cele tygodnia).
