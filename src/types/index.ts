@@ -67,6 +67,8 @@ export interface WorkoutSession {
   revision?: number;
   // Klucz idempotencji ostatniego zapisu — lost-ack retry rozpoznaje własny commit.
   lastWriteId?: string;
+  /** Tag wsadu importu CSV (Z110) — hash pliku; cofnięcie importu = delete wg tego pola. */
+  importBatchId?: string;
 }
 
 export interface BodyMeasurement {

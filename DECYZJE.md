@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X14C FAZA 1 (Z109): parser CSV Strong/Hevy + mapowanie nazw
+
+**Formaty (zweryfikowane na realnych eksportach z GitHuba, nie z pamięci):** Strong `Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE` (data "YYYY-MM-DD HH:MM:SS", warmup Set Order=W, jednostka wagi NIEZAPISANA w pliku => opcja strongWeightUnit w wizardzie, default kg); Hevy `title,start_time,...,exercise_title,...,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe` (daty ISO albo "30 Jun 2025, 19:56"; set_type normal/warmup/dropset/failure albo 1/2/3/4; starszy wariant weight_lbs/distance_miles => auto-wykrycie kolumny z danymi). Parser: własny splitter CSV (quoted fields), przecinek dziesiętny PL, uszkodzone wiersze pomijane z licznikiem, grupowanie sesji po (data+nazwa treningu).
+
+**Mapowanie nazw:** kolejność prób custom usera -> exact PL -> alias Strong/Hevy (~55 pozycji, tylko gdy cel istnieje w bibliotece) -> odwrócona mapa EXERCISE_NAME_EN (241 par za darmo) -> transformacja "X (Equipment)" -> "Equipment X". Nieznane nazwy NIE są zgadywane (unmapped => ręczny mapper w UI). `buildImportedSessions`: id=dayId=`imported-<batchId>-<n>`, snapshot nazw, completed, tag `importBatchId` (nowe opcjonalne pole WorkoutSession), RPE ćwiczenia = max z serii, sanityzacja clampSet (zero undefined).
+
+**Weryfikacja:** vitest 775/775 (13 parser + 10 mapper na fixtures wiernych strukturze), e2e 155/155, bramki komplet.
+
 ### 2026-07-19 — RELEASE X14B (Z105-Z108) na prod
 
 **Wdrożone:** rules (custom_exercises + tracking) na cloud.firestore; web index-DwKIaJCS na gh-pages (live zweryfikowane po propagacji CDN ~60 s); iOS 1.0.0 build 60 + testflight_external.py (obie grupy, Beta App Review APPROVED od razu). Bramki: vitest 752, e2e 155, rules 141, dist-smoke (build:mobile) i dist-offline (build web!) PASS.
