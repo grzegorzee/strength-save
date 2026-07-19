@@ -14,6 +14,8 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
 import { HybridWeekStrip } from '@/components/HybridWeekStrip';
+import { DeloadBanner } from '@/components/DeloadBanner';
+import { WeekReportCard } from '@/components/WeekReportCard';
 import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -128,7 +130,7 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   const {
@@ -931,6 +933,25 @@ const Dashboard = () => {
           weekStart={getStartOfPlanWeek(today)}
           maxHR={stravaConnection.estimatedMaxHR}
         />
+        {/* Z121: decyzja deload + raport target vs actual (tylko plany z włączoną progresją) */}
+        {planStarted && (
+          <DeloadBanner
+            planDays={trainingPlan}
+            workouts={workouts}
+            currentWeek={currentWeek}
+            progression={progression}
+            onDecision={saveDeloadDecision}
+          />
+        )}
+        {planStarted && (
+          <WeekReportCard
+            planDays={trainingPlan}
+            workouts={workouts}
+            currentWeek={currentWeek}
+            planStartDate={planStartDate}
+            progression={progression}
+          />
+        )}
         <div className="grid gap-3">
           {(() => {
             // Build unified timeline: training days + cardio (Strava + manualne, Z112)

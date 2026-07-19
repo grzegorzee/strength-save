@@ -16,7 +16,7 @@ import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
 import { saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
-import { sanitizeProgressionConfig, type ProgressionConfig } from '@/lib/progression-engine';
+import { sanitizeProgressionConfig, type ProgressionConfig, type DeloadDecision } from '@/lib/progression-engine';
 import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
 import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
@@ -280,6 +280,39 @@ export const useTrainingPlan = (userId: string) => {
     return savePlan(defaultPlan);
   }, [savePlan]);
 
+  // Z121: decyzja deload usera ([Zastosuj]/[Pomiń]) — punktowy update pola progression,
+  // bez podbijania rewizji planu (dni się nie zmieniają).
+  const saveDeloadDecision = useCallback(async (
+    weekIndex: number,
+    decision: DeloadDecision,
+  ): Promise<{ success: boolean }> => {
+    if (!userId || !progression) return { success: false };
+    const next: ProgressionConfig = {
+      ...progression,
+      deloadDecisions: { ...progression.deloadDecisions, [String(weekIndex)]: decision },
+    };
+    if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+      try {
+        const raw = window.localStorage.getItem('fittracker_e2e_plan');
+        const data = raw ? JSON.parse(raw) : {};
+        window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify({ ...data, progression: next }));
+      } catch { /* noop */ }
+      setProgression(next);
+      return { success: true };
+    }
+    try {
+      await updateDoc(doc(db, PLAN_COLLECTION, userId), {
+        progression: next,
+        updatedAt: new Date().toISOString(),
+      });
+      setProgression(next);
+      return { success: true };
+    } catch (err) {
+      console.error('Error saving deload decision:', err);
+      return { success: false };
+    }
+  }, [userId, progression]);
+
   return {
     plan,
     isLoaded,
@@ -292,6 +325,7 @@ export const useTrainingPlan = (userId: string) => {
     weeksRemaining,
     planStarted,
     savePlan,
+    saveDeloadDecision,
     swapExercise,
     updateExerciseSets,
     removeExercise,

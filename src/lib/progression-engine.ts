@@ -171,6 +171,156 @@ const lastSessionPain = (workouts: WorkoutSession[], exerciseId: string): number
   return pain;
 };
 
+// ===== Z121: propozycja wcześniejszego deloadu (plateau / powtarzalny ból) =====
+
+export interface EarlyDeloadSuggestion {
+  suggest: boolean;
+  reason: 'plateau' | 'pain' | null;
+  /** Nazwy ćwiczeń, które wywołały propozycję. */
+  exercises: string[];
+}
+
+const EARLY_DELOAD_COOLDOWN_WEEKS = 3;
+
+/**
+ * Propozycja WCZEŚNIEJSZEGO deloadu: >=2 ćwiczenia planu w plateau albo ból >=4
+ * w dwóch ostatnich sesjach tego samego ćwiczenia. Nie sugeruje w tygodniu
+ * programowego deloadu ani przez 3 tygodnie od ostatniego zastosowanego.
+ */
+export const suggestEarlyDeload = (
+  planDays: TrainingDay[],
+  workouts: WorkoutSession[],
+  currentWeek: number,
+  config: ProgressionConfig,
+): EarlyDeloadSuggestion => {
+  const none: EarlyDeloadSuggestion = { suggest: false, reason: null, exercises: [] };
+  if (!config.enabled) return none;
+  if (isDeloadWeek(currentWeek, config)) return none;
+
+  const lastApplied = Object.entries(config.deloadDecisions ?? {})
+    .filter(([, decision]) => decision === 'applied')
+    .map(([week]) => Number(week))
+    .filter((week) => Number.isFinite(week) && week < currentWeek)
+    .sort((a, b) => b - a)[0];
+  if (lastApplied !== undefined && currentWeek - lastApplied < EARLY_DELOAD_COOLDOWN_WEEKS) return none;
+
+  const painExercises: string[] = [];
+  const plateauExercises: string[] = [];
+  for (const day of planDays) {
+    for (const exercise of day.exercises) {
+      // Powtarzalny ból: >=4 w DWÓCH ostatnich sesjach tego ćwiczenia.
+      const pains = workouts
+        .filter((w) => w.completed && w.exercises.some((ex) => ex.exerciseId === exercise.id))
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(-2)
+        .map((w) => w.exercises.find((ex) => ex.exerciseId === exercise.id)?.pain ?? 0);
+      if (pains.length === 2 && pains.every((p) => p >= PAIN_THRESHOLD)) {
+        painExercises.push(exercise.name);
+      }
+
+      const isBodyweight = isBodyweightExercise(exercise.name);
+      const history = getExerciseHistory(workouts, exercise.id, isBodyweight);
+      if (detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight).isPlateau) {
+        plateauExercises.push(exercise.name);
+      }
+    }
+  }
+
+  if (painExercises.length > 0) return { suggest: true, reason: 'pain', exercises: painExercises };
+  if (plateauExercises.length >= 2) return { suggest: true, reason: 'plateau', exercises: plateauExercises };
+  return none;
+};
+
+// ===== Z121: raport target vs actual =====
+
+export interface WeekReportEntry {
+  dayId: string;
+  exerciseId: string;
+  exerciseName: string;
+  targetWeight: number | null;
+  targetReps: number | null;
+  targetDurationSec: number | null;
+  achieved: boolean;
+  actualWeight: number | null;
+  actualReps: number | null;
+  actualDurationSec: number | null;
+}
+
+export interface WeekReport {
+  total: number;
+  achieved: number;
+  percent: number;
+  misses: WeekReportEntry[];
+}
+
+/**
+ * Realizacja celów tygodnia: dla każdego celu z liczbami sprawdza, czy w zakresie dat
+ * [weekStart, weekEnd] (włącznie) padł working set spełniający cel. 'start' nie liczy się.
+ */
+export const computeWeekReport = (
+  targets: Record<string, Record<string, WeeklyTarget>>,
+  workouts: WorkoutSession[],
+  weekStart: string,
+  weekEnd: string,
+): WeekReport => {
+  const inRange = workouts.filter((w) => w.completed && w.date >= weekStart && w.date <= weekEnd);
+  let total = 0;
+  let achievedCount = 0;
+  const misses: WeekReportEntry[] = [];
+
+  for (const [dayId, dayTargets] of Object.entries(targets)) {
+    for (const target of Object.values(dayTargets)) {
+      const hasNumericTarget = target.kind !== 'start'
+        && (target.targetDurationSec != null || target.targetReps != null || target.targetWeight != null);
+      if (!hasNumericTarget) continue;
+      total++;
+
+      let best: { weight: number; reps: number; durationSec: number } | null = null;
+      let achieved = false;
+      for (const w of inRange) {
+        for (const ex of w.exercises) {
+          if (ex.exerciseId !== target.exerciseId) continue;
+          for (const set of ex.sets) {
+            if (!set.completed || set.isWarmup) continue;
+            const duration = set.durationSec ?? 0;
+            if (!best || set.weight > best.weight || (set.weight === best.weight && set.reps > best.reps) || duration > best.durationSec) {
+              best = { weight: set.weight, reps: set.reps, durationSec: duration };
+            }
+            const weightOk = target.targetWeight == null || set.weight >= target.targetWeight;
+            const repsOk = target.targetReps == null || set.reps >= target.targetReps;
+            const durationOk = target.targetDurationSec == null || duration >= target.targetDurationSec;
+            if (weightOk && repsOk && durationOk) achieved = true;
+          }
+        }
+      }
+
+      if (achieved) {
+        achievedCount++;
+      } else {
+        misses.push({
+          dayId,
+          exerciseId: target.exerciseId,
+          exerciseName: target.exerciseName,
+          targetWeight: target.targetWeight,
+          targetReps: target.targetReps,
+          targetDurationSec: target.targetDurationSec,
+          achieved: false,
+          actualWeight: best ? best.weight : null,
+          actualReps: best ? best.reps : null,
+          actualDurationSec: best ? best.durationSec : null,
+        });
+      }
+    }
+  }
+
+  return {
+    total,
+    achieved: achievedCount,
+    percent: total > 0 ? Math.round((achievedCount / total) * 100) : 0,
+    misses,
+  };
+};
+
 /**
  * Cele tygodnia (1-based weekIndex) dla całego planu: per dzień, per ćwiczenie.
  * Priorytety: deload-week (zastosowany) > ból > plateau > double progression.
@@ -186,7 +336,9 @@ export const computeWeeklyTargets = (
   const result: Record<string, Record<string, WeeklyTarget>> = {};
   if (!config.enabled) return result;
 
-  const deloadWeekActive = isDeloadWeek(weekIndex, config) && options?.deloadApplied === true;
+  // Decyzja 'applied' (banner: programowy tydzień ALBO propozycja wcześniejsza)
+  // aktywuje wariant deloadowy — nie wymaga zgodności z harmonogramem.
+  const deloadWeekActive = options?.deloadApplied === true;
 
   for (const day of planDays) {
     const dayTargets: Record<string, WeeklyTarget> = {};

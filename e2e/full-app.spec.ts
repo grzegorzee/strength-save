@@ -1288,6 +1288,43 @@ test.describe('Cele tygodnia (Z120)', () => {
     await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
     await expect(page.getByText(/Cel tygodnia:/)).toHaveCount(0);
   });
+
+  test('Z121: programowy tydzień deload — banner [Zastosuj] => badge aktywny i cele deloadowe w treningu', async ({ page }) => {
+    // Start 4 tygodnie temu => bieżący tydzień = 5 = programowy deload (co 5).
+    await setE2EPlanMeta(page, {
+      startDate: mondayOfWeek(-28),
+      progression: { enabled: true, deloadEveryWeeks: 5 },
+    });
+    await setE2EWorkouts(page, [historyWorkout(localDaysAgo(7), 8)]);
+
+    await navigateAndWait(page, '/');
+    await expect(page.getByTestId('deload-banner')).toBeVisible();
+    await page.getByTestId('deload-apply').click();
+    await expect(page.getByTestId('deload-active-badge')).toBeVisible();
+    await expect(page.getByTestId('deload-banner')).toHaveCount(0);
+
+    // Trening: badge wariantu deloadowego (mniej serii, lżej).
+    await navigateAndWait(page, '/workout/day-1');
+    await expect(page.getByText(/Tydzień deload:/).first()).toBeVisible();
+  });
+
+  test('Z121: raport target vs actual za zeszły tydzień na Dashboardzie', async ({ page }) => {
+    // Start 2 tygodnie temu => bieżący tydzień = 3, raport za tydzień 2.
+    // Tydzień 1: 3x8@60 (góra zakresu) => cel tygodnia 2 = 62.5 ×6; tydzień 2: 60×8 => rozjazd.
+    await setE2EPlanMeta(page, {
+      startDate: mondayOfWeek(-14),
+      progression: { enabled: true, deloadEveryWeeks: 5 },
+    });
+    await setE2EWorkouts(page, [
+      historyWorkout(localDaysAgo(14), 8),
+      { ...historyWorkout(localDaysAgo(7), 8), id: 'prog-week2' },
+    ]);
+
+    await navigateAndWait(page, '/');
+    await expect(page.getByTestId('week-report-card')).toBeVisible();
+    await expect(page.getByTestId('week-report-summary')).toContainText('(0/1)');
+    await expect(page.getByText(/62.5.*×6/).first()).toBeVisible();
+  });
 });
 
 // =====================================================

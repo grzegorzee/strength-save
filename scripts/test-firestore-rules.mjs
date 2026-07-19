@@ -379,6 +379,14 @@ add('training_plans: progression.enabled nie-bool DENIED (Z119)', false, await o
 add('training_plans: progression z deloadDecisions ALLOWED (Z119)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), {
   days: [], durationWeeks: 12, progression: { enabled: true, deloadEveryWeeks: 5, deloadDecisions: { '5': 'applied' } },
 })));
+// Z121: banner deload robi punktowy update progression (bez dni i rewizji).
+add('training_plans: update samej progression z decyzja ALLOWED (Z121)', true, await ok(() => updateDoc(doc(db, 'training_plans', UID), {
+  progression: { enabled: true, deloadEveryWeeks: 5, deloadDecisions: { '5': 'applied', '8': 'skipped' } },
+  updatedAt: new Date().toISOString(),
+})));
+add('training_plans: update progression z polem spoza schematu DENIED (Z121)', false, await ok(() => updateDoc(doc(db, 'training_plans', UID), {
+  progression: { enabled: true, evil: 1 },
+})));
 
 // === Manual activities (Z111): reczne wpisy cardio, zamkniety schemat ===
 await env.clearFirestore();
