@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkoutSession } from '@/types';
-import { getExerciseNoteHistory } from '@/lib/exercise-notes';
+import { exerciseNoteDocId, getExerciseNoteHistory, sanitizeExerciseNote } from '@/lib/exercise-notes';
 
 const session = (id: string, date: string, completed: boolean, exercises: WorkoutSession['exercises']): WorkoutSession => ({
   id,
@@ -51,5 +51,52 @@ describe('getExerciseNoteHistory (Z74)', () => {
 
   it('pusta historia → []', () => {
     expect(getExerciseNoteHistory([], 'ex-1')).toEqual([]);
+  });
+});
+
+describe('exerciseNoteDocId (Z103)', () => {
+  it('jest deterministyczny: ta sama para (user, nazwa) daje ten sam id', () => {
+    expect(exerciseNoteDocId('u1', 'Przysiad ze sztangą (Low Bar)'))
+      .toBe(exerciseNoteDocId('u1', 'Przysiad ze sztangą (Low Bar)'));
+  });
+
+  it('normalizuje polskie znaki, wielkość liter i spacje', () => {
+    expect(exerciseNoteDocId('u1', 'Przysiad ze sztangą')).toBe('u1_przysiad-ze-sztanga');
+    expect(exerciseNoteDocId('u1', '  WYCISKANIE   Żołnierskie  ')).toBe('u1_wyciskanie-zolnierskie');
+  });
+
+  it('rozróżnia userów i ćwiczenia', () => {
+    expect(exerciseNoteDocId('u1', 'Przysiad')).not.toBe(exerciseNoteDocId('u2', 'Przysiad'));
+    expect(exerciseNoteDocId('u1', 'Przysiad')).not.toBe(exerciseNoteDocId('u1', 'Martwy ciąg'));
+  });
+
+  it('ogranicza długość id (slug obcięty do 150 znaków)', () => {
+    const longName = 'a'.repeat(400);
+    const id = exerciseNoteDocId('u1', longName);
+    expect(id.length).toBeLessThanOrEqual('u1_'.length + 150);
+  });
+});
+
+describe('sanitizeExerciseNote (Z103)', () => {
+  it('trimuje note i machineSettings', () => {
+    expect(sanitizeExerciseNote({ note: '  pas na 3 dziurkę  ', machineSettings: ' siedzisko 4 ' }))
+      .toEqual({ note: 'pas na 3 dziurkę', machineSettings: 'siedzisko 4' });
+  });
+
+  it('obcina note do 500 i machineSettings do 200 znaków', () => {
+    const out = sanitizeExerciseNote({ note: 'x'.repeat(600), machineSettings: 'y'.repeat(300) });
+    expect(out.note).toHaveLength(500);
+    expect(out.machineSettings).toHaveLength(200);
+  });
+
+  it('puste machineSettings pomija (bez undefined w obiekcie dla Firestore)', () => {
+    const out = sanitizeExerciseNote({ note: 'tylko notatka', machineSettings: '   ' });
+    expect(out).toEqual({ note: 'tylko notatka' });
+    expect(Object.keys(out)).not.toContain('machineSettings');
+    expect(Object.values(out).every((v) => v !== undefined)).toBe(true);
+  });
+
+  it('brak note → pusty string (nie undefined)', () => {
+    expect(sanitizeExerciseNote({})).toEqual({ note: '' });
   });
 });
