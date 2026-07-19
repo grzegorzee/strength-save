@@ -16,6 +16,7 @@ import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
 import { saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
+import { sanitizeProgressionConfig, type ProgressionConfig } from '@/lib/progression-engine';
 import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
 import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
@@ -31,6 +32,8 @@ export const useTrainingPlan = (userId: string) => {
   const [planDurationWeeks, setPlanDurationWeeks] = useState(12);
   const [planStartDate, setPlanStartDate] = useState<string | null>(null);
   const [planRevision, setPlanRevision] = useState(0);
+  // Progresja programowa (Z119): null = pole nieustawione (stare plany, silnik wyłączony).
+  const [progression, setProgression] = useState<ProgressionConfig | null>(null);
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
@@ -60,6 +63,7 @@ export const useTrainingPlan = (userId: string) => {
           }
           if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
           if (data.startDate) setPlanStartDate(data.startDate);
+          setProgression(sanitizeProgressionConfig(data.progression));
           setPlanRevision(typeof data.revision === 'number' ? Math.max(0, Math.floor(data.revision)) : 0);
         } else {
           // No custom plan, use default
@@ -138,7 +142,7 @@ export const useTrainingPlan = (userId: string) => {
 
   const savePlan = useCallback(async (
     newPlan: TrainingDay[],
-    options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean },
+    options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig },
   ): Promise<{ success: boolean; error?: string }> => {
     if (!userId) return { success: false, error: t('err.noUserId') };
     // Zapis przed załadowaniem snapshotu nadpisałby istniejący plan domyślnym stanem
@@ -153,6 +157,7 @@ export const useTrainingPlan = (userId: string) => {
         durationWeeks: nextDurationWeeks,
         startDate: options?.startDate !== undefined ? options.startDate : planStartDate,
         syncActiveCycle: options?.syncActiveCycle,
+        ...(options?.progression !== undefined ? { progression: options.progression } : {}),
       });
 
       trackTelemetryEvent(userId, 'action_plan_edited');
@@ -268,6 +273,7 @@ export const useTrainingPlan = (userId: string) => {
     isCustom,
     planDurationWeeks,
     planStartDate,
+    progression,
     currentWeek,
     isPlanExpired,
     weeksRemaining,

@@ -364,6 +364,22 @@ add('workouts: import z cudzym userId DENIED (Z110)', false, await ok(() => setD
 add('workouts: importBatchId nie-string DENIED (Z110)', false, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-3'), { ...importedWorkout, id: 'imported-abc123-3', importBatchId: 42 })));
 add('workouts: delete wlasnego importowanego ALLOWED (cofniecie importu, Z110)', true, await ok(() => deleteDoc(doc(db, 'workouts', 'imported-abc123-1'))));
 
+// === Progresja programowa (Z119): pole progression w training_plans ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+add('training_plans: zapis z progression ALLOWED (Z119)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), {
+  days: [], durationWeeks: 12, progression: { enabled: true, deloadEveryWeeks: 5 },
+})));
+add('training_plans: progression z polem spoza schematu DENIED (Z119)', false, await ok(() => setDoc(doc(db, 'training_plans', UID), {
+  days: [], durationWeeks: 12, progression: { enabled: true, evil: 1 },
+})));
+add('training_plans: progression.enabled nie-bool DENIED (Z119)', false, await ok(() => setDoc(doc(db, 'training_plans', UID), {
+  days: [], durationWeeks: 12, progression: { enabled: 'tak' },
+})));
+add('training_plans: progression z deloadDecisions ALLOWED (Z119)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), {
+  days: [], durationWeeks: 12, progression: { enabled: true, deloadEveryWeeks: 5, deloadDecisions: { '5': 'applied' } },
+})));
+
 // === Manual activities (Z111): reczne wpisy cardio, zamkniety schemat ===
 await env.clearFirestore();
 await seedUser({ enabled: true });

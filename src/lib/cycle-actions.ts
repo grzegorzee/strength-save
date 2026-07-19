@@ -4,6 +4,7 @@ import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { assignCycleDayIds, getCycleStartPreview } from '@/lib/plan-cycle-utils';
+import { DEFAULT_PROGRESSION, type ProgressionConfig } from '@/lib/progression-engine';
 
 export interface StartCycleDeps {
   uid: string;
@@ -13,7 +14,7 @@ export interface StartCycleDeps {
   workouts: WorkoutSession[];
   startDate?: string;
   archiveCurrentPlan: (days: TrainingDay[], weeks: number, start: string, workouts: WorkoutSession[]) => Promise<string | null>;
-  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
 }
@@ -28,7 +29,7 @@ export interface CompleteOnboardingChoice {
 }
 
 export interface CompleteOnboardingDeps {
-  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean }) => Promise<{ success: boolean; error?: string }>;
+  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   markOnboardingComplete: (choice: CompleteOnboardingChoice, days: TrainingDay[], startDate: string) => Promise<void>;
 }
@@ -125,6 +126,8 @@ export async function completeOnboardingPlan(
       startDate: planStartDate,
       // Update the just-created active-cycle snapshot in the same plan write.
       syncActiveCycle: true,
+      // Z119: nowe plany z kreatora startują z włączoną progresją programową.
+      progression: DEFAULT_PROGRESSION,
     });
     if (!result.success) return result;
 

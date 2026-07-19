@@ -8,6 +8,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import type { TrainingDay } from '../data/trainingPlan';
+import type { ProgressionConfig } from './progression-engine';
 import { buildActiveCyclePlanPatch } from './plan-cycle-utils';
 
 const PLAN_COLLECTION = 'training_plans';
@@ -20,6 +21,8 @@ export interface SaveTrainingPlanWithRevisionParams {
   durationWeeks: number;
   startDate: string | null;
   syncActiveCycle?: boolean;
+  /** Progresja programowa (Z119): undefined = nie ruszaj pola, null = brak zmiany też. */
+  progression?: ProgressionConfig;
 }
 
 export const saveTrainingPlanWithRevision = async (
@@ -58,6 +61,7 @@ export const saveTrainingPlanWithRevision = async (
       durationWeeks: params.durationWeeks,
       revision: currentRevision + 1,
       ...(params.startDate ? { startDate: params.startDate } : {}),
+      ...(params.progression !== undefined ? { progression: params.progression } : {}),
     }, { merge: true });
 
     if (params.syncActiveCycle !== false) {

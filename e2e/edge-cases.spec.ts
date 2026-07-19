@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait } from './helpers';
+import { blockFirebase, navigateAndWait , localToday } from './helpers';
 
 // =====================================================
 // EDGE CASES & BOUNDARY CONDITIONS
@@ -155,10 +155,12 @@ test.describe('Edge Cases: Data Boundaries', () => {
     await navigateAndWait(page, '/');
     const result = await page.evaluate(() => {
       const KEY = 'fittracker_workout_draft';
+      const d = new Date();
+      const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const draft = {
         sessionId: 'zero-test',
         dayId: 'day-1',
-        date: new Date().toISOString().split('T')[0],
+        date: today,
         exerciseSets: {
           'ex-1': [
             { reps: 0, weight: 0, completed: false, isWarmup: true },
@@ -185,7 +187,7 @@ test.describe('Edge Cases: Data Boundaries', () => {
       const draft = {
         sessionId: 'max-test',
         dayId: 'day-1',
-        date: new Date().toISOString().split('T')[0],
+        date: (() => { const x = new Date(); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; })(),
         exerciseSets: {
           'ex-1': [
             { reps: 999, weight: 999, completed: true },

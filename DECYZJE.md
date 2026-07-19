@@ -11,6 +11,12 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X16A FAZA 1 (Z119): konfiguracja progresji + testy charakteryzujące
+
+**Model:** `ProgressionConfig { enabled, deloadEveryWeeks (2-12, default 5), deloadDecisions? }` w polu `progression` dokumentu planu (brak pola = silnik wyłączony dla starych planów; NOWE plany z kreatora/onboardingu: DEFAULT_PROGRESSION enabled). `sanitizeProgressionConfig` + `isDeloadWeek` (1-based, co N tygodni) z testami. Rules: `progression` w validTrainingPlanShape (zamknięta mapa, 4 testy — 160/160). Edycja: sekcja "Progresja" w PlanEditor (toggle + select 3/4/5/6/8 tyg., zapis przez savePlan z syncActiveCycle: false). Testy charakteryzujące coacha serii dopisane PRZED refaktorem (+3 gałęzie bodyweight: progress/hold/deload).
+
+**LEKCJA NOCNA (klasa błędu: daty UTC vs lokalne w testach):** po północy CEST `new Date().toISOString()` daje WCZORAJ (UTC) — 4 testy strava-utils i 8 e2e nagle czerwone (autostart blokowany jako "przeszłość", tygodnie przesunięte). Fix systemowy: `formatLocalDate` w unit testach, helper `localToday()` w e2e/helpers (w page.evaluate inline — funkcje node niedostępne w przeglądarce). Reguła: testy dat ZAWSZE liczą lokalnie jak apka.
+
 ### 2026-07-19 — X15C FAZA 2 (Z117+Z118): Health Connect (Android) + ustawienia i propozycja wagi
 
 **Z117 Android:** własny `HealthSyncPlugin.kt` (Kotlin WŁĄCZONY w projekcie: kotlin-gradle-plugin 2.0.21 + connect-client 1.1.0-alpha07 + coroutines; rejestracja w MainActivity.registerPlugin przed super.onCreate; uprawnienia health.WRITE_EXERCISE/READ_WEIGHT w manifeście). **minSdk 24 -> 26** (wymóg connect-client; Android nieopublikowany, zero userów — decyzja w ramach autonomii). Flow zgód v1: brak pełnego ActivityResult — przy braku zgód otwieramy ustawienia Health Connect (ACTION_HEALTH_CONNECT_SETTINGS), user nadaje tam; kolejne wywołanie zwraca granted. Rename metody na `requestHealthPermissions` (kolizja z bazową Plugin.requestPermissions na OBU platformach). Weryfikacja: `gradlew :app:compileDebugKotlin` BUILD SUCCESSFUL. **ODŁOŻONE: scenariusz na emulatorze** — SDK bez emulatora/AVD na tej maszynie (KROK USERA albo przyszła sesja z emulatorem).

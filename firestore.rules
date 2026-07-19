@@ -148,8 +148,21 @@ service cloud.firestore {
     // zostaje w kodzie — rules nie iterują po tablicach.
     function validTrainingPlanShape() {
       return request.resource.data.keys().hasOnly([
-        'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision'
+        'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision', 'progression'
       ])
+      // Progresja programowa (Z119): zamknięta mapa {enabled, deloadEveryWeeks?, deloadDecisions?}.
+      && (
+        !('progression' in request.resource.data)
+        || (
+          request.resource.data.progression is map
+          && request.resource.data.progression.keys().hasOnly(['enabled', 'deloadEveryWeeks', 'deloadDecisions'])
+          && request.resource.data.progression.enabled is bool
+          && (!('deloadEveryWeeks' in request.resource.data.progression)
+              || request.resource.data.progression.deloadEveryWeeks is number)
+          && (!('deloadDecisions' in request.resource.data.progression)
+              || request.resource.data.progression.deloadDecisions is map)
+        )
+      )
       && (!('days' in request.resource.data) || request.resource.data.days is list)
       && (!('durationWeeks' in request.resource.data) || request.resource.data.durationWeeks is number)
       && (!('startDate' in request.resource.data)

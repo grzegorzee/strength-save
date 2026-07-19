@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday } from './helpers';
 
 // =====================================================
 // 1. ALL PAGES LOAD WITHOUT CRASHES
@@ -212,7 +212,7 @@ test.describe('Workout Day', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await navigateAndWait(page, '/workout/day-1');
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await writeWorkoutDraftDb(page, {
       sessionId: `workout-e2e-test-user-day-1-${today}`,
       userId: 'e2e-test-user',
@@ -430,7 +430,7 @@ test.describe('ExercisePicker (Z69)', () => {
   });
 
   test('WorkoutDay: swap "tylko dziś" przez picker podmienia ćwiczenie lokalnie', async ({ page }) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
     await expect(page.locator('.exercise-card').first()).toBeVisible();
 
@@ -835,7 +835,7 @@ test.describe('Szybki trening (Z104)', () => {
 
   test('szkic ad-hoc przeżywa zimny start i wraca do treningu (auto-resume)', async ({ page }) => {
     await navigateAndWait(page, '/');
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     const adhocDayId = `adhoc-${today}-1752130000001`;
     await writeWorkoutDraftDb(page, {
       sessionId: `local-workout-e2e-test-user-${adhocDayId}-${today}`,
@@ -974,7 +974,7 @@ test.describe('Kalkulator talerzy (Z107)', () => {
   });
 
   test('otwiera się z karty ćwiczenia i pokazuje poprawny rozkład na stronę', async ({ page }) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
     const firstCard = page.locator('.exercise-card').first();
     await firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first().fill('100');
@@ -986,7 +986,7 @@ test.describe('Kalkulator talerzy (Z107)', () => {
   });
 
   test('generator rozgrzewki %1RM wstawia serie rozgrzewkowe i nie duplikuje się (Z108)', async ({ page }) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
     const firstCard = page.locator('.exercise-card').first();
     await firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first().fill('100');
@@ -1132,7 +1132,7 @@ test.describe('Manualne cardio w analityce (Z113)', () => {
   });
 
   test('bieg manualny 5 km wchodzi do podsumowania tygodnia', async ({ page }) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await page.addInitScript(({ key, data }) => {
       window.localStorage.setItem(key, JSON.stringify(data));
     }, {
@@ -1174,7 +1174,7 @@ test.describe('Obciążenie hybrydowe (Z115)', () => {
   });
 
   test('siła + manual cardio: karta hybrydowa, pasek dnia i wskazówka interferencji z dismiss', async ({ page }) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await setE2EWorkouts(page, [strengthSeed(today)]);
     await page.addInitScript(({ key, data }) => {
       window.localStorage.setItem(key, JSON.stringify(data));
@@ -1206,7 +1206,7 @@ test.describe('Obciążenie hybrydowe (Z115)', () => {
   });
 
   test('konto tylko-siłowe: karta hybrydowa z samą siłą, bez crasha', async ({ page }) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await setE2EWorkouts(page, [strengthSeed(today)]);
     await navigateAndWait(page, '/analytics');
     await page.getByRole('tab', { name: 'Podsum.' }).click();
@@ -1226,7 +1226,7 @@ test.describe('Auto-resume (Z49)', () => {
   test('żywy draft przekierowuje z Dashboardu do treningu', async ({ page }) => {
     await navigateAndWait(page, '/');
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await writeWorkoutDraftDb(page, {
       sessionId: `workout-e2e-test-user-day-1-${today}`,
       userId: 'e2e-test-user',
@@ -1257,7 +1257,7 @@ test.describe('Auto-resume (Z49)', () => {
   test('draft finalSyncPending zostaje na Dashboardzie z kartą sync', async ({ page }) => {
     await navigateAndWait(page, '/');
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await writeWorkoutDraftDb(page, {
       sessionId: `workout-e2e-test-user-day-1-${today}`,
       userId: 'e2e-test-user',

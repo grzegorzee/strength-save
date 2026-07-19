@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { StravaActivity } from '@/types/strava';
+import { formatLocalDate } from '@/lib/utils';
 import {
   filterByYear,
   getAvailableYears,
@@ -187,7 +188,7 @@ describe('computePaceTrendData', () => {
 
   it('computes average pace from multiple activities in a week', () => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = formatLocalDate(now);
     const acts = [
       makeActivity({ date: today, averageSpeed: 3.33, type: 'Run' }), // ~300s/km
       makeActivity({ date: today, averageSpeed: 4.0, type: 'Run' }),  // 250s/km
@@ -201,7 +202,7 @@ describe('computePaceTrendData', () => {
 
   it('ignores non-pace activities', () => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = formatLocalDate(now);
     const acts = [
       makeActivity({ date: today, averageSpeed: 8.0, type: 'Ride' }),
     ];
@@ -273,7 +274,7 @@ describe('computeWeeklyElevation', () => {
 
   it('sums elevation per week', () => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = formatLocalDate(now);
     const acts = [
       makeActivity({ date: today, totalElevationGain: 100 }),
       makeActivity({ date: today, totalElevationGain: 50 }),
@@ -293,7 +294,7 @@ describe('computeWeeklyElevation', () => {
       const elev = i < 4 ? 200 : 100; // recent 4 weeks: 200m, older 4 weeks: 100m
       acts.push(makeActivity({
         id: `act-${i}`,
-        date: d.toISOString().split('T')[0],
+        date: formatLocalDate(d),
         totalElevationGain: elev,
       }));
     }
@@ -320,7 +321,7 @@ describe('computeWeeklyCalories', () => {
 
   it('sums calories per week', () => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = formatLocalDate(now);
     const acts = [
       makeActivity({ date: today, calories: 500 }),
       makeActivity({ date: today, calories: 300 }),
@@ -332,7 +333,7 @@ describe('computeWeeklyCalories', () => {
 
   it('returns 0 when no calories data', () => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = formatLocalDate(now);
     const acts = [
       makeActivity({ date: today, calories: undefined }),
     ];

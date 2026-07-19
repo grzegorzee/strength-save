@@ -187,3 +187,10 @@ export const setE2ECustomExercises = async (page: Page, exercises: unknown[]) =>
     window.localStorage.setItem(key, JSON.stringify(data));
   }, { key: 'fittracker_e2e_custom_exercises', data: exercises });
 };
+
+// Lokalna data YYYY-MM-DD — testy dat MUSZĄ liczyć lokalnie jak apka;
+// new Date().toISOString() daje UTC i po północy CET/CEST cofa dzień (nocne flaki).
+export const localToday = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};

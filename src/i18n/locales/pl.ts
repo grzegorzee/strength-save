@@ -622,6 +622,12 @@ export const pl = {
   'notes.lastNote': 'Ostatnio: „{note}”',
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
+  // progresja programowa (Z119-Z121)
+  'progression.sectionTitle': 'Progresja programowa',
+  'progression.sectionDesc': 'Cele tygodniowe liczone z Twojej historii (double progression) + programowany tydzień odciążenia.',
+  'progression.enable': 'Włącz cele tygodniowe',
+  'progression.deloadEvery': 'Deload co',
+  'progression.everyNWeeks': 'co {n} tyg.',
   // Apple Health / Health Connect (Z116-Z118)
   'health.title': 'Zdrowie',
   'health.description': 'Połączenie z Apple Health (iOS) lub Health Connect (Android). Dane zdrowotne nie opuszczają Twojego urządzenia.',

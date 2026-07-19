@@ -19,6 +19,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { nextExerciseIdForDay, defaultSetsForType } from '@/lib/plan-cycle-utils';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { DEFAULT_PROGRESSION, type ProgressionConfig } from '@/lib/progression-engine';
 import { RefreshCcw } from 'lucide-react';
 
 const PlanEditor = () => {
@@ -30,6 +33,7 @@ const PlanEditor = () => {
     isLoaded,
     isCustom,
     planDurationWeeks,
+    progression,
     savePlan,
     swapExercise,
     updateExerciseSets,
@@ -103,6 +107,12 @@ const PlanEditor = () => {
     if (!result.success) reportError(result.error);
   };
 
+  // Z119: zmiana konfiguracji progresji = zapis planu z nowym polem progression.
+  const handleProgressionChange = async (next: ProgressionConfig) => {
+    const result = await savePlan(plan, { progression: next, syncActiveCycle: false });
+    if (!result.success) reportError(result.error);
+  };
+
   const handleReset = async () => {
     setResetConfirmOpen(false);
     const result = await resetToDefault();
@@ -147,6 +157,45 @@ const PlanEditor = () => {
         durationWeeks={planDurationWeeks}
         onDurationWeeksChange={handleDurationChange}
       />
+
+      {/* Progresja programowa (Z119): 2 kontrolki, zapis od razu przy zmianie */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">{t('progression.sectionTitle')}</CardTitle>
+          <CardDescription>{t('progression.sectionDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium">{t('progression.enable')}</p>
+            <Switch
+              checked={progression?.enabled ?? false}
+              onCheckedChange={(next) => void handleProgressionChange({
+                ...(progression ?? DEFAULT_PROGRESSION),
+                enabled: next,
+              })}
+              data-testid="progression-toggle"
+            />
+          </div>
+          {progression?.enabled && (
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">{t('progression.deloadEvery')}</p>
+              <select
+                className="h-9 rounded-md bg-surface-highest px-2 text-sm"
+                value={progression.deloadEveryWeeks}
+                data-testid="progression-deload-weeks"
+                onChange={(e) => void handleProgressionChange({
+                  ...progression,
+                  deloadEveryWeeks: parseInt(e.target.value, 10),
+                })}
+              >
+                {[3, 4, 5, 6, 8].map((weeks) => (
+                  <option key={weeks} value={weeks}>{t('progression.everyNWeeks', { n: weeks })}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>

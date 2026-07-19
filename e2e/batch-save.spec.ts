@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, clearWorkoutDraftDb, navigateAndWait, readWorkoutDraftDb, writeWorkoutDraftDb, writeWorkoutSyncQueue } from './helpers';
+import { blockFirebase, clearWorkoutDraftDb, navigateAndWait, readWorkoutDraftDb, writeWorkoutDraftDb, writeWorkoutSyncQueue , localToday } from './helpers';
 
 const E2E_USER_ID = 'e2e-test-user';
 
@@ -50,7 +50,7 @@ test.describe('Batch Save Workflow', () => {
       sessionId: 'reload-test-123',
       userId: E2E_USER_ID,
       dayId: 'day-1',
-      date: new Date().toISOString().split('T')[0],
+      date: localToday(),
       cycleId: 'cycle-1',
       sessionOrigin: 'remote',
       remoteSessionId: 'reload-test-123',
@@ -164,7 +164,7 @@ test.describe('Batch Save Workflow', () => {
     await page.goto('./#/');
     await page.waitForLoadState('domcontentloaded');
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     await writeWorkoutDraftDb(page, {
       sessionId: `workout-${E2E_USER_ID}-day-1-${today}`,
       userId: E2E_USER_ID,
@@ -339,7 +339,7 @@ test.describe('Batch Save Workflow', () => {
   test('starting a second workout does not delete an existing dirty draft', async ({ page }) => {
     await navigateAndWait(page, '/');
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = localToday();
     const existingSessionId = `local-workout-${E2E_USER_ID}-day-1-${today}`;
     await writeWorkoutDraftDb(page, {
       sessionId: existingSessionId,
