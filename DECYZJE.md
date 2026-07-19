@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X14B FAZA 2 (Z106): PR, tonaż i progresja per typ (asysta = wyróżnik)
+
+**Obciążenie efektywne:** `computeEffectiveLoad` (effective-load.ts): assisted = masa ciała MINUS asysta (clamp 0 gdy asysta > waga), bodyweight = masa ciała, duration = null. **Skąd waga ciała:** najnowszy pomiar z `measurements` (`getLatestMeasurement`); **brak pomiaru** = PR asysty tylko po powtórzeniach + hint w dialogu progresji "dodaj pomiar wagi". Uproszczenie v1 (odnotowane): jedna AKTUALNA waga do obu stron porównania historycznego (nie mamy wagi per trening) — różnice effectiveLoad = różnice asysty, więc detekcja PR poprawna.
+
+**PR per typ (`detectNewPRs` + opcjonalny 5. parametr, stare wywołania bez zmian):** assisted -> PR gdy effectiveLoad rośnie przy >= powtórzeniach (test wprost odtwarza skargę z r/Hevy: te same powtórzenia, mniejsza asysta => JEST PR); duration -> PR czasu; wdd -> PR iloczynu kg x m. WorkoutDay przekazuje trackingByExerciseId + bodyWeightKg (toast PR po treningu).
+
+**Tonaż (twarda zasada 4, zapisana testami):** duration i assisted NIE wchodzą (weight=0); wdd wchodzi jako ciężar x 1 na serię (`setTonnage` w summary-utils). **Wykresy:** `getTrackedExerciseHistory` (duration: czas; assisted: effectiveLoad — malejąca asysta daje ROSNĄCĄ linię, fallback reps bez wagi; wdd: kg·m) + dedykowany widok w ExerciseProgressionDialog (resolwuje tracking z customExercises/biblioteki). **Achievements:** wariant prostszy — serie weight=0 nie generują rekordu 1RM (test), rekordy kg czyste; wartości typowane widać w dialogu progresji i historii.
+
+**Weryfikacja:** vitest 740/740 (29 pr-utils, 13 progression, 20 summary, 7 effective-load, 18 achievements), e2e 153/153 (+utwardzenie flaky testu count bez auto-wait), typecheck/lint/build/budget zielone.
+
 ### 2026-07-19 — X14B FAZA 1 (Z105): silnik typów serii (czas/dystans/asysta)
 
 **Model:** `SetData` rozszerzone TYLKO polami opcjonalnymi `durationSec`/`distanceM`/`assistWeight` (zero migracji). Typ per ćwiczenie: `LibraryExercise.tracking` + `getTrackingType`/`visibleSetFields` w `src/lib/set-tracking.ts` (brak pola = weight_reps, isBodyweight = bodyweight_reps, jawne pole wygrywa). Biblioteka: 3 planki -> duration, Farmer's Hold -> weight_distance_duration, Podciąganie wspomagane -> assisted_bodyweight + NOWE: Spacer farmera (wdd) i Dipy wspomagane (assisted) z tłumaczeniami EN. Własne ćwiczenia: wybór typu w formularzu pickera (chipy Standard/Na czas/Ciężar+dystans+czas/Z asystą), pole `tracking` w custom_exercises (rules: opcjonalne, zamknięta lista, 2 nowe testy).

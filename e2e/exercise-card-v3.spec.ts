@@ -66,6 +66,8 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     const firstCard = page.locator('.exercise-card').first();
     const inputs = firstCard.locator('input.exercise-card-input');
 
+    // count() nie czeka — najpierw auto-wait na wyrenderowane inputy (flake przy pełnym runie).
+    await expect(inputs.first()).toBeVisible();
     // At least 2 inputs per set (reps + weight), warmup + working sets
     const count = await inputs.count();
     expect(count).toBeGreaterThanOrEqual(4);

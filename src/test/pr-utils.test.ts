@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { calculate1RM, getExerciseBest1RM, getExerciseBestReps, detectNewPRs } from '@/lib/pr-utils';
+import {
+  calculate1RM,
+  detectNewPRs,
+  getExerciseBest1RM,
+  getExerciseBestDuration,
+  getExerciseBestEffectiveLoad,
+  getExerciseBestReps,
+  getExerciseBestWeightDistance,
+} from '@/lib/pr-utils';
 import type { WorkoutSession } from '@/types';
 
 describe('calculate1RM', () => {
@@ -257,5 +265,137 @@ describe('detectNewPRs with bodyweight', () => {
     };
     const prs = detectNewPRs(current, previousWorkouts, names, bodyweightIds);
     expect(prs).toHaveLength(0);
+  });
+});
+
+// ===== Z106: PR per typ śledzenia =====
+
+const trackedWorkout = (id: string, date: string, exerciseId: string, sets: WorkoutSession['exercises'][number]['sets']): WorkoutSession => ({
+  id, userId: 'u1', dayId: 'd1', date, completed: true,
+  exercises: [{ exerciseId, sets }],
+});
+
+describe('getExerciseBestDuration (Z106)', () => {
+  it('zwraca najdłuższy czas ukończonej serii roboczej', () => {
+    const ws = [
+      trackedWorkout('w1', '2026-07-01', 'plank', [{ reps: 0, weight: 0, completed: true, durationSec: 60 }]),
+      trackedWorkout('w2', '2026-07-05', 'plank', [{ reps: 0, weight: 0, completed: true, durationSec: 90 }]),
+      trackedWorkout('w3', '2026-07-08', 'plank', [{ reps: 0, weight: 0, completed: false, durationSec: 300 }]),
+    ];
+    expect(getExerciseBestDuration(ws, 'plank')).toBe(90);
+  });
+
+  it('brak serii czasowych => 0', () => {
+    expect(getExerciseBestDuration([], 'plank')).toBe(0);
+  });
+});
+
+describe('getExerciseBestWeightDistance (Z106)', () => {
+  it('zwraca najlepszy iloczyn ciężar x dystans z komponentami', () => {
+    const ws = [
+      trackedWorkout('w1', '2026-07-01', 'farmer', [{ reps: 0, weight: 24, completed: true, distanceM: 40 }]),
+      trackedWorkout('w2', '2026-07-05', 'farmer', [{ reps: 0, weight: 32, completed: true, distanceM: 20 }]),
+    ];
+    const best = getExerciseBestWeightDistance(ws, 'farmer');
+    expect(best.score).toBe(960);
+    expect(best.weight).toBe(24);
+    expect(best.distanceM).toBe(40);
+  });
+});
+
+describe('getExerciseBestEffectiveLoad (Z106)', () => {
+  const ws = [
+    trackedWorkout('w1', '2026-07-01', 'apu', [{ reps: 8, weight: 0, completed: true, assistWeight: 30 }]),
+    trackedWorkout('w2', '2026-07-05', 'apu', [{ reps: 8, weight: 0, completed: true, assistWeight: 25 }]),
+  ];
+
+  it('najlepsze obciążenie efektywne = waga ciała minus najmniejsza asysta', () => {
+    const best = getExerciseBestEffectiveLoad(ws, 'apu', 80);
+    expect(best).toEqual({ effectiveLoad: 55, reps: 8 });
+  });
+
+  it('brak wagi ciała => null', () => {
+    expect(getExerciseBestEffectiveLoad(ws, 'apu', null)).toBeNull();
+  });
+});
+
+describe('detectNewPRs — assisted_bodyweight (Z106, skarga z r/Hevy)', () => {
+  const tracking = new Map([['apu', 'assisted_bodyweight' as const]]);
+  const prev = [
+    trackedWorkout('p1', '2026-07-01', 'apu', [{ reps: 8, weight: 0, completed: true, assistWeight: 30 }]),
+  ];
+
+  it('TA SAMA liczba powtórzeń, MNIEJSZA asysta => PR (effective load)', () => {
+    const current = trackedWorkout('c1', '2026-07-10', 'apu', [{ reps: 8, weight: 0, completed: true, assistWeight: 25 }]);
+    const prs = detectNewPRs(current, prev, new Map([['apu', 'Podciąganie wspomagane']]), undefined, {
+      trackingByExerciseId: tracking,
+      bodyWeightKg: 80,
+    });
+    expect(prs).toHaveLength(1);
+    expect(prs[0].type).toBe('effective_load');
+    expect(prs[0].newValue).toBe(55);
+    expect(prs[0].oldValue).toBe(50);
+  });
+
+  it('większa asysta => brak PR', () => {
+    const current = trackedWorkout('c2', '2026-07-10', 'apu', [{ reps: 8, weight: 0, completed: true, assistWeight: 35 }]);
+    const prs = detectNewPRs(current, prev, new Map([['apu', 'Podciąganie wspomagane']]), undefined, {
+      trackingByExerciseId: tracking,
+      bodyWeightKg: 80,
+    });
+    expect(prs).toHaveLength(0);
+  });
+
+  it('mniejsza asysta ale mniej powtórzeń => brak PR', () => {
+    const current = trackedWorkout('c3', '2026-07-10', 'apu', [{ reps: 5, weight: 0, completed: true, assistWeight: 25 }]);
+    const prs = detectNewPRs(current, prev, new Map([['apu', 'Podciąganie wspomagane']]), undefined, {
+      trackingByExerciseId: tracking,
+      bodyWeightKg: 80,
+    });
+    expect(prs).toHaveLength(0);
+  });
+
+  it('brak wagi ciała => fallback: PR po powtórzeniach', () => {
+    const current = trackedWorkout('c4', '2026-07-10', 'apu', [{ reps: 10, weight: 0, completed: true, assistWeight: 30 }]);
+    const prs = detectNewPRs(current, prev, new Map([['apu', 'Podciąganie wspomagane']]), undefined, {
+      trackingByExerciseId: tracking,
+      bodyWeightKg: null,
+    });
+    expect(prs).toHaveLength(1);
+    expect(prs[0].type).toBe('reps');
+    expect(prs[0].newValue).toBe(10);
+  });
+});
+
+describe('detectNewPRs — duration i weight_distance_duration (Z106)', () => {
+  it('duration: dłuższy czas => PR czasu', () => {
+    const prev = [trackedWorkout('p1', '2026-07-01', 'plank', [{ reps: 0, weight: 0, completed: true, durationSec: 60 }])];
+    const current = trackedWorkout('c1', '2026-07-10', 'plank', [{ reps: 0, weight: 0, completed: true, durationSec: 90 }]);
+    const prs = detectNewPRs(current, prev, new Map([['plank', 'Plank']]), undefined, {
+      trackingByExerciseId: new Map([['plank', 'duration' as const]]),
+    });
+    expect(prs).toHaveLength(1);
+    expect(prs[0].type).toBe('duration');
+    expect(prs[0].newValue).toBe(90);
+    expect(prs[0].oldValue).toBe(60);
+  });
+
+  it('weight_distance_duration: większy iloczyn kg x m => PR', () => {
+    const prev = [trackedWorkout('p1', '2026-07-01', 'farmer', [{ reps: 0, weight: 24, completed: true, distanceM: 40 }])];
+    const current = trackedWorkout('c1', '2026-07-10', 'farmer', [{ reps: 0, weight: 28, completed: true, distanceM: 40 }]);
+    const prs = detectNewPRs(current, prev, new Map([['farmer', 'Spacer farmera']]), undefined, {
+      trackingByExerciseId: new Map([['farmer', 'weight_distance_duration' as const]]),
+    });
+    expect(prs).toHaveLength(1);
+    expect(prs[0].type).toBe('weight_distance');
+    expect(prs[0].newValue).toBe(1120);
+  });
+
+  it('bez opcji trackingu: dotychczasowe zachowanie (regresja)', () => {
+    const prev = [trackedWorkout('p1', '2026-07-01', 'bench', [{ reps: 8, weight: 100, completed: true }])];
+    const current = trackedWorkout('c1', '2026-07-10', 'bench', [{ reps: 8, weight: 105, completed: true }]);
+    const prs = detectNewPRs(current, prev, new Map([['bench', 'Wyciskanie']]));
+    expect(prs).toHaveLength(1);
+    expect(['weight', '1rm', 'both']).toContain(prs[0].type);
   });
 });

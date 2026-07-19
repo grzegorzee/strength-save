@@ -17,6 +17,36 @@ const fullWeek = (weeksBack: number): WorkoutSession[] => [
   workoutOn(`w${weeksBack}-b`, weeksBack, 1),
 ];
 
+describe('calculateTonnage — typy serii (Z106, twarda zasada 4)', () => {
+  const tw = (sets: WorkoutSession['exercises'][number]['sets']): WorkoutSession[] => [{
+    id: 't1', userId: 'u1', dayId: 'd1', date: '2026-07-10', completed: true,
+    exercises: [{ exerciseId: 'e1', sets }],
+  }];
+
+  it('zwykła seria: reps x weight (bez zmian)', () => {
+    expect(calculateTonnage(tw([{ reps: 8, weight: 60, completed: true }]))).toBe(480);
+  });
+
+  it('seria czysto czasowa (duration) NIE wchodzi do tonażu', () => {
+    expect(calculateTonnage(tw([{ reps: 0, weight: 0, completed: true, durationSec: 90 }]))).toBe(0);
+  });
+
+  it('seria z asystą NIE wchodzi do tonażu (weight=0)', () => {
+    expect(calculateTonnage(tw([{ reps: 8, weight: 0, completed: true, assistWeight: 25 }]))).toBe(0);
+  });
+
+  it('ciężar+dystans+czas wchodzi jako ciężar x 1 na serię', () => {
+    expect(calculateTonnage(tw([{ reps: 0, weight: 24, completed: true, distanceM: 40, durationSec: 60 }]))).toBe(24);
+  });
+
+  it('nieukończona/rozgrzewkowa nie wchodzi (regresja)', () => {
+    expect(calculateTonnage(tw([
+      { reps: 8, weight: 60, completed: false },
+      { reps: 10, weight: 20, completed: true, isWarmup: true },
+    ]))).toBe(0);
+  });
+});
+
 describe('getWeekBounds', () => {
   it('returns Monday to Sunday for a Wednesday', () => {
     const wed = new Date('2026-02-25'); // Wednesday

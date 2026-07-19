@@ -196,3 +196,17 @@ describe('medalForCompletionRate', () => {
     expect(medalForCompletionRate(0)).toBeNull();
   });
 });
+
+describe('getExercise1RMProgress — nowe typy serii (Z106)', () => {
+  it('serie czasowe i z asystą (weight=0) nie generują rekordu 1RM w kg', () => {
+    const ws: WorkoutSession[] = [{
+      id: 'w1', userId: 'u1', dayId: 'd1', date: '2026-07-10', completed: true,
+      exercises: [
+        { exerciseId: 'plank', sets: [{ reps: 0, weight: 0, completed: true, durationSec: 90 }] },
+        { exerciseId: 'apu', sets: [{ reps: 8, weight: 0, completed: true, assistWeight: 25 }] },
+      ],
+    }];
+    expect(getExercise1RMProgress(ws, 'plank').best1RM).toBe(0);
+    expect(getExercise1RMProgress(ws, 'apu').best1RM).toBe(0);
+  });
+});

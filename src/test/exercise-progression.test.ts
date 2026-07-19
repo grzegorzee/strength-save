@@ -1,6 +1,55 @@
 import { describe, it, expect } from 'vitest';
-import { getExerciseHistory, detectPlateau, getProgressionSummary } from '@/lib/exercise-progression';
+import { getTrackedExerciseHistory } from '@/lib/exercise-progression';
 import type { WorkoutSession } from '@/types';
+
+const trackedW = (id: string, date: string, exerciseId: string, sets: WorkoutSession['exercises'][number]['sets']): WorkoutSession => ({
+  id, userId: 'u1', dayId: 'd1', date, completed: true,
+  exercises: [{ exerciseId, sets }],
+});
+
+describe('getTrackedExerciseHistory (Z106)', () => {
+  it('duration: wartość = najlepszy czas serii w dniu', () => {
+    const ws = [
+      trackedW('w1', '2026-07-01', 'plank', [{ reps: 0, weight: 0, completed: true, durationSec: 60 }]),
+      trackedW('w2', '2026-07-05', 'plank', [
+        { reps: 0, weight: 0, completed: true, durationSec: 75 },
+        { reps: 0, weight: 0, completed: true, durationSec: 90 },
+      ]),
+    ];
+    expect(getTrackedExerciseHistory(ws, 'plank', 'duration', null)).toEqual([
+      { date: '2026-07-01', value: 60 },
+      { date: '2026-07-05', value: 90 },
+    ]);
+  });
+
+  it('assisted: wartość = obciążenie efektywne — malejąca asysta daje ROSNĄCĄ linię', () => {
+    const ws = [
+      trackedW('w1', '2026-07-01', 'apu', [{ reps: 8, weight: 0, completed: true, assistWeight: 30 }]),
+      trackedW('w2', '2026-07-08', 'apu', [{ reps: 8, weight: 0, completed: true, assistWeight: 25 }]),
+    ];
+    const points = getTrackedExerciseHistory(ws, 'apu', 'assisted_bodyweight', 80);
+    expect(points).toEqual([
+      { date: '2026-07-01', value: 50 },
+      { date: '2026-07-08', value: 55 },
+    ]);
+    expect(points[1].value).toBeGreaterThan(points[0].value);
+  });
+
+  it('assisted bez wagi ciała: fallback do powtórzeń', () => {
+    const ws = [trackedW('w1', '2026-07-01', 'apu', [{ reps: 8, weight: 0, completed: true, assistWeight: 30 }])];
+    expect(getTrackedExerciseHistory(ws, 'apu', 'assisted_bodyweight', null)).toEqual([
+      { date: '2026-07-01', value: 8 },
+    ]);
+  });
+
+  it('weight_distance_duration: wartość = najlepszy iloczyn kg x m', () => {
+    const ws = [trackedW('w1', '2026-07-01', 'farmer', [{ reps: 0, weight: 24, completed: true, distanceM: 40 }])];
+    expect(getTrackedExerciseHistory(ws, 'farmer', 'weight_distance_duration', null)).toEqual([
+      { date: '2026-07-01', value: 960 },
+    ]);
+  });
+});
+import { getExerciseHistory, detectPlateau, getProgressionSummary } from '@/lib/exercise-progression';
 
 const makeWorkout = (date: string, exerciseId: string, sets: { weight: number; reps: number }[]): WorkoutSession => ({
   id: `w-${date}`,

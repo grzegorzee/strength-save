@@ -622,6 +622,11 @@ export const pl = {
   'notes.lastNote': 'Ostatnio: „{note}”',
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
+  // progresja nowych typów (Z106)
+  'comp.progression.bestTime': 'Najlepszy czas',
+  'comp.progression.weightDistance': 'Ciężar x dystans (kg·m)',
+  'comp.progression.effectiveLoad': 'Obciążenie efektywne (kg)',
+  'comp.progression.noBodyWeightHint': 'Dodaj pomiar wagi ciała, aby zobaczyć obciążenie efektywne (waga ciała minus asysta).',
   // typy śledzenia serii (Z105)
   'custom.trackingLabel': 'Sposób logowania',
   'tracking.standard': 'Standard',

@@ -21,7 +21,10 @@ import {
 import { AlertTriangle, TrendingUp } from 'lucide-react';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { getExerciseHistory, detectPlateau, getProgressionSummary } from '@/lib/exercise-progression';
+import { useCustomExercises } from '@/hooks/useCustomExercises';
+import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { getTrackingType, formatDurationSec, type TrackingType } from '@/lib/set-tracking';
+import { getExerciseHistory, detectPlateau, getProgressionSummary, getTrackedExerciseHistory } from '@/lib/exercise-progression';
 import { getExerciseNoteHistory } from '@/lib/exercise-notes';
 import { getExerciseMetricHistory } from '@/lib/rza-metrics';
 import { tooltipStyle } from '@/lib/chart-config';
@@ -42,9 +45,33 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const { t, lang } = useTranslation();
   const { unit, fmt, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
-  const { workouts } = useFirebaseWorkouts(uid);
+  const { workouts, getLatestMeasurement } = useFirebaseWorkouts(uid);
+  const { customExercises } = useCustomExercises(uid);
   // Ciężar wagowy → jednostka usera; bodyweight pokazuje powtórzenia (bez konwersji).
   const dispVal = (v: number): number => (isBodyweight ? v : Math.round(toDisplay(v)));
+
+  // Z106: nowe typy śledzenia mają własny wykres (czas / obciążenie efektywne / kg x m).
+  const tracking: TrackingType = useMemo(() => {
+    const custom = customExercises.find((ex) => ex.name === exerciseName);
+    if (custom) return getTrackingType(custom);
+    const lib = exerciseLibrary.find((e) => e.name === exerciseName);
+    if (lib) return getTrackingType(lib);
+    return getTrackingType({ isBodyweight });
+  }, [customExercises, exerciseName, isBodyweight]);
+  const isTracked = tracking === 'duration' || tracking === 'weight_distance_duration' || tracking === 'assisted_bodyweight';
+  const bodyWeightKg = getLatestMeasurement()?.weight ?? null;
+  const trackedHistory = useMemo(
+    () => (isTracked ? getTrackedExerciseHistory(workouts, exerciseId, tracking, bodyWeightKg) : []),
+    [isTracked, workouts, exerciseId, tracking, bodyWeightKg],
+  );
+  const trackedLabel = tracking === 'duration'
+    ? t('comp.progression.bestTime')
+    : tracking === 'weight_distance_duration'
+      ? t('comp.progression.weightDistance')
+      : bodyWeightKg !== null ? t('comp.progression.effectiveLoad') : t('comp.progression.maxReps');
+  const formatTrackedValue = (value: number): string => (
+    tracking === 'duration' ? formatDurationSec(value) || '0:00' : `${Math.round(value * 10) / 10}`
+  );
 
   const labelMaxReps = t('comp.progression.maxReps');
   const labelTotalReps = t('comp.progression.totalReps');
@@ -72,7 +99,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const noteHistory = useMemo(() => getExerciseNoteHistory(workouts, exerciseId), [workouts, exerciseId]);
   const metricHistory = useMemo(() => getExerciseMetricHistory(workouts, exerciseId), [workouts, exerciseId]);
 
-  if (history.length === 0) {
+  if (history.length === 0 && trackedHistory.length === 0) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
@@ -80,6 +107,69 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
             <DialogTitle>{exerciseName}</DialogTitle>
             <DialogDescription>{t('comp.progression.noHistory')}</DialogDescription>
           </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Z106: dedykowany widok dla nowych typów — jedna linia wartości + ostatnie sesje.
+  if (isTracked && trackedHistory.length > 0) {
+    const trackedChart = trackedHistory.map((p) => ({
+      date: parseLocalDate(p.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+      [trackedLabel]: tracking === 'duration' ? p.value : Math.round(p.value * 10) / 10,
+    }));
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              {exerciseName}
+            </DialogTitle>
+            <DialogDescription>{trackedLabel}</DialogDescription>
+          </DialogHeader>
+
+          {trackedChart.length >= 2 && (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={trackedChart}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+                <YAxis tick={{ fontSize: 10 }} className="fill-muted-foreground" />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Line type="monotone" dataKey={trackedLabel} stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+
+          {tracking === 'assisted_bodyweight' && bodyWeightKg === null && (
+            <p className="text-xs text-muted-foreground">{t('comp.progression.noBodyWeightHint')}</p>
+          )}
+
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-muted-foreground">{t('comp.progression.recentSessions')}</h4>
+            {trackedHistory.slice(-5).reverse().map((p) => (
+              <div key={p.date} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30">
+                <span className="text-sm">
+                  {parseLocalDate(p.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}
+                </span>
+                <Badge variant="secondary" className="text-xs">{formatTrackedValue(p.value)}</Badge>
+              </div>
+            ))}
+          </div>
+
+          {noteHistory.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-muted-foreground">{t('notes.yourNotes')}</h4>
+              {noteHistory.map((n, i) => (
+                <div key={`${n.date}-${i}`} className="p-2.5 rounded-lg bg-muted/30">
+                  <p className="text-[11px] text-muted-foreground">
+                    {parseLocalDate(n.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  <p className="text-sm mt-0.5">{n.note}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     );

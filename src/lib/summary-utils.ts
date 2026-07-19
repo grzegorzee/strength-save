@@ -23,12 +23,20 @@ export const getMonthBounds = (date: Date = new Date()): { start: Date; end: Dat
   return { start, end };
 };
 
+// Tonaż pojedynczej serii (Z106, reguła zapisana testem): zwykłe serie reps x weight;
+// czas/asysta NIE wchodzą (fałszowałyby trend sztangowy); ciężar+dystans+czas wchodzi
+// jako ciężar x 1 (reps=0, ale przenoszony ciężar jest realną pracą).
+const setTonnage = (set: WorkoutSession['exercises'][number]['sets'][number]): number => {
+  if (!set.completed || set.isWarmup) return 0;
+  if (set.reps > 0) return set.reps * set.weight;
+  if (((set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0) && set.weight > 0) return set.weight;
+  return 0;
+};
+
 export const calculateTonnage = (workouts: WorkoutSession[]): number => {
   return workouts.reduce((total, w) => {
     return total + w.exercises.reduce((exTotal, ex) => {
-      return exTotal + ex.sets.reduce((setTotal, set) => {
-        return setTotal + (set.completed && !set.isWarmup ? set.reps * set.weight : 0);
-      }, 0);
+      return exTotal + ex.sets.reduce((setTotal, set) => setTotal + setTonnage(set), 0);
     }, 0);
   }, 0);
 };

@@ -1,5 +1,6 @@
 import type { WorkoutSession } from '@/types';
 import { calculate1RM } from '@/lib/pr-utils';
+import type { TrackingType } from '@/lib/set-tracking';
 
 export interface ExerciseHistoryPoint {
   date: string;
@@ -58,6 +59,56 @@ export const getExerciseHistory = (
     });
 
   return Array.from(dayMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+};
+
+export interface TrackedHistoryPoint {
+  date: string;
+  value: number;
+}
+
+/**
+ * Historia do wykresu dla nowych typów śledzenia (Z106):
+ * - duration: najlepszy czas serii w dniu (sek),
+ * - assisted_bodyweight: obciążenie efektywne (masa ciała - najmniejsza asysta) —
+ *   malejąca asysta daje ROSNĄCĄ linię; bez pomiaru wagi fallback do powtórzeń,
+ * - weight_distance_duration: najlepszy iloczyn kg x m.
+ */
+export const getTrackedExerciseHistory = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+  tracking: TrackingType,
+  bodyWeightKg: number | null,
+): TrackedHistoryPoint[] => {
+  const dayMap = new Map<string, number>();
+
+  workouts
+    .filter(w => w.completed)
+    .forEach(w => {
+      w.exercises.forEach(ex => {
+        if (ex.exerciseId !== exerciseId) return;
+        const workingSets = ex.sets.filter(s => s.completed && !s.isWarmup);
+        if (workingSets.length === 0) return;
+
+        let value = 0;
+        if (tracking === 'duration') {
+          value = Math.max(...workingSets.map(s => s.durationSec ?? 0));
+        } else if (tracking === 'assisted_bodyweight') {
+          value = bodyWeightKg !== null
+            ? Math.max(...workingSets.map(s => Math.max(0, bodyWeightKg - (s.assistWeight ?? 0))))
+            : Math.max(...workingSets.map(s => s.reps));
+        } else if (tracking === 'weight_distance_duration') {
+          value = Math.max(...workingSets.map(s => (s.weight || 0) * (s.distanceM ?? 0)));
+        }
+        if (value <= 0) return;
+
+        const existing = dayMap.get(w.date) ?? 0;
+        if (value > existing) dayMap.set(w.date, value);
+      });
+    });
+
+  return Array.from(dayMap.entries())
+    .map(([date, value]) => ({ date, value }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 };
 
 export const detectPlateau = (

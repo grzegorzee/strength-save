@@ -112,6 +112,7 @@ const WorkoutDay = () => {
     createOfflineWorkoutSession,
     batchSaveWorkout,
     getWorkoutSessionFromServer,
+    getLatestMeasurement,
     isLoaded: workoutsLoaded,
     workoutsFromCache,
   } = useFirebaseWorkouts(uid);
@@ -1673,6 +1674,11 @@ const WorkoutDay = () => {
         previousWorkoutsForPR,
         exerciseNames,
         bodyweightIds,
+        // Z106: PR per typ śledzenia (asysta = obciążenie efektywne z masą ciała).
+        {
+          trackingByExerciseId: new Map(day.exercises.map(e => [e.id, resolveTracking(e.name)])),
+          bodyWeightKg: getLatestMeasurement()?.weight ?? null,
+        },
       );
       if (newPRs.length > 0) {
         const prNames = newPRs.map(pr => pr.exerciseName).join(', ');

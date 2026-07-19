@@ -1,4 +1,5 @@
 import type { SetData, WorkoutSession } from '@/types';
+import type { TrackingType } from '@/lib/set-tracking';
 
 // Epley formula: 1RM = weight × (1 + reps / 30)
 export const calculate1RM = (weight: number, reps: number): number => {
@@ -65,12 +66,90 @@ export const getExerciseBestReps = (
   return maxReps;
 };
 
+// ===== Z106: rekordy dla nowych typów śledzenia =====
+
+/** Najdłuższy czas ukończonej serii roboczej (typ 'duration'). */
+export const getExerciseBestDuration = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+): number => {
+  let best = 0;
+  workouts.forEach(w => {
+    if (!w.completed) return;
+    w.exercises.forEach(ex => {
+      if (ex.exerciseId !== exerciseId) return;
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup) return;
+        if ((set.durationSec ?? 0) > best) best = set.durationSec!;
+      });
+    });
+  });
+  return best;
+};
+
+/** Najlepszy iloczyn ciężar x dystans (typ 'weight_distance_duration'). */
+export const getExerciseBestWeightDistance = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+): { score: number; weight: number; distanceM: number } => {
+  let best = { score: 0, weight: 0, distanceM: 0 };
+  workouts.forEach(w => {
+    if (!w.completed) return;
+    w.exercises.forEach(ex => {
+      if (ex.exerciseId !== exerciseId) return;
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup) return;
+        const score = (set.weight || 0) * (set.distanceM ?? 0);
+        if (score > best.score) best = { score, weight: set.weight, distanceM: set.distanceM ?? 0 };
+      });
+    });
+  });
+  return best;
+};
+
+/**
+ * Najlepsze obciążenie efektywne dla asysty (typ 'assisted_bodyweight'):
+ * masa ciała minus NAJMNIEJSZA asysta + powtórzenia przy tym obciążeniu.
+ * null gdy brak pomiaru wagi ciała (wtedy PR tylko po powtórzeniach).
+ */
+export const getExerciseBestEffectiveLoad = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+  bodyWeightKg: number | null,
+): { effectiveLoad: number; reps: number } | null => {
+  if (bodyWeightKg === null) return null;
+  let best: { effectiveLoad: number; reps: number } | null = null;
+  workouts.forEach(w => {
+    if (!w.completed) return;
+    w.exercises.forEach(ex => {
+      if (ex.exerciseId !== exerciseId) return;
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup || set.reps <= 0) return;
+        const effectiveLoad = Math.max(0, bodyWeightKg - (set.assistWeight ?? 0));
+        if (!best
+          || effectiveLoad > best.effectiveLoad
+          || (effectiveLoad === best.effectiveLoad && set.reps > best.reps)) {
+          best = { effectiveLoad, reps: set.reps };
+        }
+      });
+    });
+  });
+  return best;
+};
+
 export interface PRComparison {
   exerciseId: string;
   exerciseName: string;
-  type: 'weight' | '1rm' | 'both' | 'reps';
+  type: 'weight' | '1rm' | 'both' | 'reps' | 'duration' | 'weight_distance' | 'effective_load';
   newValue: number;
   oldValue: number;
+}
+
+export interface DetectPROptions {
+  /** Typ śledzenia per exerciseId (Z106) — brak wpisu = dotychczasowa logika weight/bodyweight. */
+  trackingByExerciseId?: Map<string, TrackingType>;
+  /** Masa ciała w kg (najnowszy pomiar) do obciążenia efektywnego asysty. */
+  bodyWeightKg?: number | null;
 }
 
 export const detectNewPRs = (
@@ -78,13 +157,80 @@ export const detectNewPRs = (
   previousWorkouts: WorkoutSession[],
   exerciseNames: Map<string, string>,
   bodyweightExerciseIds?: Set<string>,
+  options?: DetectPROptions,
 ): PRComparison[] => {
   const prs: PRComparison[] = [];
   if (!currentWorkout.completed) return prs;
 
   currentWorkout.exercises.forEach(ex => {
     const name = exerciseNames.get(ex.exerciseId) || ex.name || ex.exerciseId;
-    const isBw = bodyweightExerciseIds?.has(ex.exerciseId) ?? false;
+    const tracking = options?.trackingByExerciseId?.get(ex.exerciseId);
+
+    // Z106: PR czasu — dłuższa ukończona seria niż kiedykolwiek.
+    if (tracking === 'duration') {
+      let currentBest = 0;
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup) return;
+        if ((set.durationSec ?? 0) > currentBest) currentBest = set.durationSec!;
+      });
+      if (currentBest === 0) return;
+      const historicalBest = getExerciseBestDuration(previousWorkouts, ex.exerciseId);
+      if (currentBest > historicalBest && historicalBest > 0) {
+        prs.push({ exerciseId: ex.exerciseId, exerciseName: name, type: 'duration', newValue: currentBest, oldValue: historicalBest });
+      }
+      return;
+    }
+
+    // Z106: PR ciężar x dystans.
+    if (tracking === 'weight_distance_duration') {
+      let currentBest = 0;
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup) return;
+        const score = (set.weight || 0) * (set.distanceM ?? 0);
+        if (score > currentBest) currentBest = score;
+      });
+      if (currentBest === 0) return;
+      const historicalBest = getExerciseBestWeightDistance(previousWorkouts, ex.exerciseId);
+      if (currentBest > historicalBest.score && historicalBest.score > 0) {
+        prs.push({ exerciseId: ex.exerciseId, exerciseName: name, type: 'weight_distance', newValue: currentBest, oldValue: historicalBest.score });
+      }
+      return;
+    }
+
+    // Z106 (wyróżnik kategorii): asysta — mniejsza asysta przy >= powtórzeniach = NOWY PR.
+    if (tracking === 'assisted_bodyweight') {
+      const bodyWeightKg = options?.bodyWeightKg ?? null;
+      if (bodyWeightKg !== null) {
+        const historicalBest = getExerciseBestEffectiveLoad(previousWorkouts, ex.exerciseId, bodyWeightKg);
+        let bestPr: PRComparison | null = null;
+        ex.sets.forEach(set => {
+          if (!set.completed || set.isWarmup || set.reps <= 0) return;
+          const effectiveLoad = Math.max(0, bodyWeightKg - (set.assistWeight ?? 0));
+          if (historicalBest
+            && effectiveLoad > historicalBest.effectiveLoad
+            && set.reps >= historicalBest.reps
+            && (!bestPr || effectiveLoad > bestPr.newValue)) {
+            bestPr = { exerciseId: ex.exerciseId, exerciseName: name, type: 'effective_load', newValue: effectiveLoad, oldValue: historicalBest.effectiveLoad };
+          }
+        });
+        if (bestPr) prs.push(bestPr);
+        return;
+      }
+      // Brak pomiaru wagi ciała: PR tylko po powtórzeniach (zachęta do uzupełnienia w UI).
+      let currentMaxReps = 0;
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup) return;
+        if (set.reps > currentMaxReps) currentMaxReps = set.reps;
+      });
+      if (currentMaxReps === 0) return;
+      const historicalMaxReps = getExerciseBestReps(previousWorkouts, ex.exerciseId);
+      if (currentMaxReps > historicalMaxReps && historicalMaxReps > 0) {
+        prs.push({ exerciseId: ex.exerciseId, exerciseName: name, type: 'reps', newValue: currentMaxReps, oldValue: historicalMaxReps });
+      }
+      return;
+    }
+
+    const isBw = tracking === 'bodyweight_reps' || (bodyweightExerciseIds?.has(ex.exerciseId) ?? false);
 
     if (isBw) {
       // Bodyweight: PR based on max reps
