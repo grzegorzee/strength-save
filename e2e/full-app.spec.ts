@@ -717,6 +717,37 @@ test.describe('Notatki (Z74)', () => {
 });
 
 // =====================================================
+// 11a2. PRZYPIĘTE NOTATKI PER ĆWICZENIE (Z103)
+// =====================================================
+test.describe('Przypięte notatki (Z103)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('notatka przypięta w treningu jest widoczna w kolejnej sesji i w szczegółach ćwiczenia', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1?autostart=true');
+    await clearWorkoutDraftDb(page);
+
+    const firstSection = page.getByTestId('pinned-note-section').first();
+    await firstSection.getByTestId('pinned-note-edit').click();
+    await page.getByTestId('pinned-note-input').fill('pas na 3 dziurkę');
+    await page.getByTestId('pinned-note-machine-input').fill('siedzisko 4');
+    await page.getByTestId('pinned-note-save').click();
+    await expect(firstSection.getByTestId('pinned-note-text')).toHaveText('pas na 3 dziurkę');
+
+    // "Kolejny trening" z tym ćwiczeniem: czysty draft + zimny start strony treningu.
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByTestId('pinned-note-text').first()).toHaveText('pas na 3 dziurkę');
+    await expect(page.getByTestId('pinned-note-machine').first()).toContainText('siedzisko 4');
+
+    // Trwała także w szczegółach ćwiczenia (biblioteka).
+    await navigateAndWait(page, '/exercise/wyciskanie-hantli-lekki-skos');
+    await expect(page.getByTestId('pinned-note-text')).toHaveText('pas na 3 dziurkę');
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {

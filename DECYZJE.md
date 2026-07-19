@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X14A FAZA 1 (Z103): przypięte notatki per ćwiczenie
+
+**Co:** trwała notatka per ćwiczenie (technika + ustawienia maszyny), widoczna i edytowalna w każdej sesji z tym ćwiczeniem, niezależnie od planu. Nowa kolekcja `exercise_notes` (doc id deterministyczny `${userId}_${slug(nazwa)}`, reuse `slugifyExercise` z exercise-media), model+sanityzacja w `src/lib/exercise-notes.ts` (rozszerzenie istniejącego pliku Z74, nie nowy plik), hook `useExerciseNotes` (wzorzec useCustomExercises: jedna subskrypcja per user, limit 300, E2E fallback localStorage), współdzielony `PinnedNoteSection` w ExerciseCard (nad notatką sesyjną, podgląd zawsze gdy istnieje, zapis TYLKO po zatwierdzeniu) i w ExerciseDetail.
+
+**Decyzje w ramach autonomii:** (1) plan wskazywał "ExerciseLibrary.tsx (szczegół ćwiczenia)" — faktyczny szczegół ćwiczenia to `ExerciseDetail.tsx` (ExerciseLibrary tylko listuje i nawiguje), sekcję wpięto tam; (2) pusta notatka bez ustawień maszyny = delete dokumentu (nie trzymamy pustych docków); (3) klucz mapy notatek = slug nazwy (odporność na spacje/wielkość liter).
+
+**Rules:** zamknięty schemat `validExerciseNoteShape` (hasOnly 5 pól, note<=500, machineSettings<=200, exerciseName 2-120), CRUD tylko właściciel ze statusem active, read także admin; 13 nowych przypadków w test:rules (139/139 zielone).
+
+**Weryfikacja:** vitest 669/669 (12 testów exercise-notes), e2e 148/148 (nowy scenariusz: przypnij w treningu -> zimny start -> notatka widoczna -> widoczna też w szczegółach ćwiczenia). Fix przy okazji: selektor `getByText('Notatka')` w exercise-card-v3.spec doprecyzowany do getByRole (kolizja substring z "Przypięta notatka").
+
 ### 2026-07-19 (wieczór) — X16C wersja 2: aplikacja Garmin Connect IQ zamiast Health API
 
 **Decyzja usera:** ścieżką Garmin jest dedykowana aplikacja Connect IQ (device app na zegarku), nie server-side Health/Activity API. **Powody:** (1) Health API wymaga akceptacji Garmin Connect Developer Program (gatekeeper, tygodnie, możliwa odmowa solo-devowi), Connect IQ nie ma gatekeepera (SDK darmowe, dystrybucja przez Connect IQ Store ze zwykłą recenzją); (2) import cardio od userów Garmina w większości pokrywa już Strava (auto-sync Garmin→Strava); (3) CIQ daje więcej: logowanie serii z nadgarstka na Garminie (nie ma tego NIKT w kategorii) + trening siłowy natywnie w Garmin Connect (sesja FIT z HR nagrywana na zegarku, bez żadnego API).

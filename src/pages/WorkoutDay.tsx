@@ -29,6 +29,7 @@ import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
+import { useExerciseNotes } from '@/hooks/useExerciseNotes';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import type { SetData, ExerciseMetrics } from '@/types';
@@ -121,6 +122,8 @@ const WorkoutDay = () => {
     return custom ? custom.isBodyweight === true : isBodyweightExercise(name);
   }, [customExercises]);
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
+  // Przypięte notatki per ćwiczenie (Z103): trwałe, klucz = kanoniczna nazwa.
+  const { getPinnedNote, savePinnedNote } = useExerciseNotes(uid);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const today = formatLocalDate(new Date());
@@ -2063,6 +2066,8 @@ const WorkoutDay = () => {
               metrics={exerciseMetrics[exercise.id]}
               onMetricsChange={handleMetricsChangeLocal}
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
+              pinnedNote={getPinnedNote(exercise.name)}
+              onPinnedNoteSave={savePinnedNote}
             />
           ))}
         </div>
@@ -2167,6 +2172,8 @@ const WorkoutDay = () => {
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
               rzaAdvice={exerciseInsights.get(exercise.id)?.rzaAdvice}
               onRestTimerStart={startRestTimer}
+              pinnedNote={getPinnedNote(exercise.name)}
+              onPinnedNoteSave={savePinnedNote}
             />
             {/* AI Swap & Skip buttons — only in active workout */}
             {isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id]) && (

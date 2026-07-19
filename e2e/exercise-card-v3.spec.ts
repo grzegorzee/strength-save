@@ -147,8 +147,8 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
     await expect(firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first()).toBeEnabled();
 
-    // "Notatka" button should be visible
-    const notesBtn = firstCard.getByText('Notatka');
+    // "Notatka" button should be visible (exact: sekcja "Przypięta notatka" (Z103) też zawiera to słowo)
+    const notesBtn = firstCard.getByRole('button', { name: 'Notatka', exact: true });
     await expect(notesBtn).toBeVisible();
 
     // Click to show textarea

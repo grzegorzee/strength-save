@@ -25,6 +25,8 @@ import type { RzaAdvice } from '@/lib/rza-progression';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { PinnedNoteSection, type PinnedNoteSaveInput } from '@/components/PinnedNoteSection';
+import type { ExerciseNote } from '@/lib/exercise-notes';
 
 // Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
 // Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
@@ -171,6 +173,9 @@ interface ExerciseCardProps {
   rzaAdvice?: RzaAdvice | null;
   /** Startuje globalny timer przerwy na poziomie strony treningu. */
   onRestTimerStart?: (payload: { seconds: number; exerciseLabel: string }) => void;
+  /** Przypięta notatka per ćwiczenie (Z103) — trwała, niezależna od planu i sesji. */
+  pinnedNote?: ExerciseNote;
+  onPinnedNoteSave?: (exerciseName: string, input: PinnedNoteSaveInput) => Promise<void> | void;
 }
 
 // ── Main Component ──
@@ -191,6 +196,8 @@ const ExerciseCardInner = ({
   defaultMetricsVisible = false,
   rzaAdvice,
   onRestTimerStart,
+  pinnedNote,
+  onPinnedNoteSave,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
@@ -620,6 +627,17 @@ const ExerciseCardInner = ({
           return renderSetRow(set, globalIndex, wi + 1, false, wi);
         })}
       </div>
+
+      {/* ── Pinned note (Z103): trwała notatka nad notatką sesyjną ── */}
+      {(pinnedNote || (isEditable && onPinnedNoteSave)) && (
+        <div className={cn('px-5', !isEditable && 'pb-5')}>
+          <PinnedNoteSection
+            exerciseName={exercise.name}
+            pinnedNote={pinnedNote}
+            onSave={isEditable ? onPinnedNoteSave : undefined}
+          />
+        </div>
+      )}
 
       {/* ── Footer ── */}
       {isEditable && (

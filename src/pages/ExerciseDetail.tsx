@@ -8,12 +8,18 @@ import { localizeExerciseName, localizeExerciseInstruction, localizeCategory } f
 import { MuscleMap } from '@/components/MuscleMap';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useCurrentUser } from '@/contexts/UserContext';
+import { useExerciseNotes } from '@/hooks/useExerciseNotes';
+import { PinnedNoteSection } from '@/components/PinnedNoteSection';
 import { ArrowLeft, Play, Dumbbell } from 'lucide-react';
 
 const ExerciseDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
+  const { uid } = useCurrentUser();
+  // Przypięta notatka per ćwiczenie (Z103) — ta sama sekcja co w karcie treningu.
+  const { getPinnedNote, savePinnedNote } = useExerciseNotes(uid);
 
   const exercise = useMemo(
     () => exerciseLibrary.find((e) => slugifyExercise(e.name) === slug),
@@ -87,6 +93,13 @@ const ExerciseDetail = () => {
       </div>
 
       <div className="space-y-8 px-5 pt-6">
+        {/* Pinned note (Z103) */}
+        <PinnedNoteSection
+          exerciseName={exercise.name}
+          pinnedNote={getPinnedNote(exercise.name)}
+          onSave={savePinnedNote}
+        />
+
         {/* Instructions */}
         {steps.length > 0 && (
           <section>
