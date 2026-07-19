@@ -446,6 +446,40 @@ service cloud.firestore {
                     && hasSelfAccess(resource.data.userId);
     }
 
+    // Przypięte notatki per ćwiczenie (Z103): zamknięty schemat, doc id deterministyczny
+    // `${userId}_${slug(nazwa)}`, pełny CRUD tylko właściciel, odczyt dodatkowo admin.
+    function validExerciseNoteShape() {
+      return request.resource.data.keys().hasOnly([
+        'userId', 'exerciseName', 'note', 'machineSettings', 'updatedAt'
+      ])
+      && request.resource.data.userId is string
+      && request.resource.data.exerciseName is string
+      && request.resource.data.exerciseName.size() >= 2
+      && request.resource.data.exerciseName.size() <= 120
+      && request.resource.data.note is string
+      && request.resource.data.note.size() <= 500
+      && (
+        !('machineSettings' in request.resource.data)
+        || (request.resource.data.machineSettings is string
+            && request.resource.data.machineSettings.size() <= 200)
+      )
+      && request.resource.data.updatedAt is int;
+    }
+
+    match /exercise_notes/{noteId} {
+      allow read: if request.auth != null
+                  && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
+      allow create: if userIdMatchesAuth()
+                    && hasSelfAccess(request.resource.data.userId)
+                    && validExerciseNoteShape();
+      allow update: if request.auth != null
+                    && hasSelfAccess(resource.data.userId)
+                    && keepsOwner()
+                    && validExerciseNoteShape();
+      allow delete: if request.auth != null
+                    && hasSelfAccess(resource.data.userId);
+    }
+
     // Globalne flagi funkcji — każdy zalogowany czyta, tylko admin zapisuje.
     // Zawężone do feature_flags: przyszłe dokumenty configu nie wyciekają domyślnie.
     match /config/feature_flags {

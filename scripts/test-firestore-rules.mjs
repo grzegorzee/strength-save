@@ -348,6 +348,28 @@ add('custom_exercises: update cudzego DENIED', false, await ok(() => updateDoc(d
 add('custom_exercises: update ze zmiana userId DENIED', false, await ok(() => updateDoc(doc(db, 'custom_exercises', 'cx-1'), { userId: OTHER_UID })));
 add('custom_exercises: delete wlasnego ALLOWED', true, await ok(() => deleteDoc(doc(db, 'custom_exercises', 'cx-1'))));
 
+// === Exercise notes (Z103): przypieta notatka per cwiczenie, zamkniety schemat ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser(undefined, 'active', OTHER_UID);
+await seedUser(undefined, 'active', ADMIN_UID, 'admin');
+const validExerciseNote = {
+  userId: UID, exerciseName: 'Przysiad ze sztangą', note: 'pas na 3 dziurkę', machineSettings: 'siedzisko 4', updatedAt: Date.now(),
+};
+add('exercise_notes: create wlasnej ALLOWED', true, await ok(() => setDoc(doc(db, 'exercise_notes', `${UID}_przysiad-ze-sztanga`), validExerciseNote)));
+add('exercise_notes: create z cudzym userId DENIED', false, await ok(() => setDoc(doc(db, 'exercise_notes', `${OTHER_UID}_przysiad`), { ...validExerciseNote, userId: OTHER_UID })));
+add('exercise_notes: pole spoza schematu DENIED', false, await ok(() => setDoc(doc(db, 'exercise_notes', `${UID}_x1`), { ...validExerciseNote, evil: 1 })));
+add('exercise_notes: note 501 znakow DENIED', false, await ok(() => setDoc(doc(db, 'exercise_notes', `${UID}_x2`), { ...validExerciseNote, note: 'x'.repeat(501) })));
+add('exercise_notes: machineSettings 201 znakow DENIED', false, await ok(() => setDoc(doc(db, 'exercise_notes', `${UID}_x3`), { ...validExerciseNote, machineSettings: 'x'.repeat(201) })));
+add('exercise_notes: bez machineSettings ALLOWED', true, await ok(() => setDoc(doc(db, 'exercise_notes', `${UID}_x4`), { userId: UID, exerciseName: 'Martwy ciąg', note: 'hak nisko', updatedAt: Date.now() })));
+add('exercise_notes: overwrite wlasnej (setDoc) ALLOWED', true, await ok(() => setDoc(doc(db, 'exercise_notes', `${UID}_przysiad-ze-sztanga`), { ...validExerciseNote, note: 'nowa notatka' })));
+add('exercise_notes: update ze zmiana userId DENIED', false, await ok(() => setDoc(doc(db, 'exercise_notes', `${UID}_przysiad-ze-sztanga`), { ...validExerciseNote, userId: OTHER_UID })));
+add('exercise_notes: read wlasnej ALLOWED', true, await ok(() => getDoc(doc(db, 'exercise_notes', `${UID}_przysiad-ze-sztanga`))));
+add('exercise_notes: read cudzej DENIED', false, await ok(() => getDoc(doc(otherDb, 'exercise_notes', `${UID}_przysiad-ze-sztanga`))));
+add('exercise_notes: read admin ALLOWED', true, await ok(() => getDoc(doc(adminDb, 'exercise_notes', `${UID}_przysiad-ze-sztanga`))));
+add('exercise_notes: delete wlasnej ALLOWED', true, await ok(() => deleteDoc(doc(db, 'exercise_notes', `${UID}_przysiad-ze-sztanga`))));
+add('exercise_notes: delete cudzej DENIED', false, await ok(() => deleteDoc(doc(otherDb, 'exercise_notes', `${UID}_x4`))));
+
 await env.cleanup();
 
 let failed = 0;
