@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adhocDayFromId, createAdhocDay, isAdhocDayId, parseAdhocDate } from '@/lib/adhoc-workout';
+import { adhocDayFromId, buildAdhocExerciseId, createAdhocDay, isAdhocDayId, parseAdhocDate } from '@/lib/adhoc-workout';
 import { translate } from '@/i18n';
 
 const t = (key: string) => translate('pl', key as Parameters<typeof translate>[1]);
@@ -57,5 +57,24 @@ describe('adhocDayFromId (Z104)', () => {
 
   it('zwraca null dla nie-adhoc id', () => {
     expect(adhocDayFromId('day-1', t)).toBeNull();
+  });
+});
+
+describe('buildAdhocExerciseId (Z104)', () => {
+  it('buduje id ze slugu nazwy', () => {
+    expect(buildAdhocExerciseId('Wyciskanie hantli (Lekki skos)', []))
+      .toBe('adhoc-ex-wyciskanie-hantli-lekki-skos');
+  });
+
+  it('unika kolizji z istniejącymi id (suffiks -2, -3...)', () => {
+    const first = buildAdhocExerciseId('Przysiad', []);
+    const second = buildAdhocExerciseId('Przysiad', [first]);
+    const third = buildAdhocExerciseId('Przysiad', [first, second]);
+    expect(second).toBe(`${first}-2`);
+    expect(third).toBe(`${first}-3`);
+  });
+
+  it('pusta nazwa dostaje fallback', () => {
+    expect(buildAdhocExerciseId('', [])).toBe('adhoc-ex-exercise');
   });
 });

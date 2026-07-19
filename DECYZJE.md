@@ -11,6 +11,18 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X14A FAZA 2 (Z104): szybki trening bez planu (empty workout)
+
+**Co:** przycisk "Szybki trening" na Dashboardzie (widoczny ZAWSZE, także bez planu), syntetyczny dzień `adhoc-<YYYY-MM-DD>-<ts>` (`src/lib/adhoc-workout.ts`: createAdhocDay/adhocDayFromId/isAdhocDayId/buildAdhocExerciseId), w WorkoutDay fallback `baseDay` z adhocDayFromId + przycisk "Dodaj ćwiczenie" (wspólny ExercisePicker Z69) tylko dla ad-hoc. Trening idzie ISTNIEJĄCĄ ścieżką (handleStartWorkout, draft-db, maszyna stanów, batchSaveWorkout) — zero równoległej ścieżki. Pre-fill serii dodanego ćwiczenia działa po nazwie (zweryfikowane: `getPreviousSets` fallback `previousSetsByName`).
+
+**Root cause fix (hydracja):** świeży draft ad-hoc ma 0 ćwiczeń — `resolveWorkoutHydration` uznawał go za pusty i resetował sesję zaraz po starcie (UI wracało do "Rozpocznij trening"). Fix: `draft.dirty && isAdhocDayId(draft.dayId)` => hydratowalny (test w workout-hydration.test.ts).
+
+**Ograniczenie e2e mock (świadome):** finalny sync w mock e2e wisi (Firestore zablokowany, silnik bez timeoutu), więc scenariusz e2e weryfikuje start->dodanie 2 ćwiczeń->odhaczenie serii roboczej->draft w IndexedDB + widoczność "Zakończ trening"; ścieżkę finalSyncPending pokrywa istniejący test Z49, historię ad-hoc test z seedem setE2EWorkouts (snapshot dayName "Szybki trening" renderuje się w Historii bez zmian w widokach), background/resume test zimnego startu z auto-resume do ad-hoc.
+
+**Decyzje w ramach autonomii:** (1) id dodanego ćwiczenia = `adhoc-ex-<slug>` (slugifyExercise, sufiks -N przy kolizji) zamiast reuse buildSwappedExerciseId (mylący format `__swap`); (2) monotoniczny ts w adhoc id (dwa starty w tym samym ms); (3) przycisk "Edytuj plan dnia" ukryty dla ad-hoc (nie ma go w planie); (4) domyślnie 3 serie dla dodanego ćwiczenia.
+
+**Weryfikacja:** vitest 681/681, e2e 151/151 (3 nowe Z104), typecheck/lint/build/bundle zielone.
+
 ### 2026-07-19 — X14A FAZA 1 (Z103): przypięte notatki per ćwiczenie
 
 **Co:** trwała notatka per ćwiczenie (technika + ustawienia maszyny), widoczna i edytowalna w każdej sesji z tym ćwiczeniem, niezależnie od planu. Nowa kolekcja `exercise_notes` (doc id deterministyczny `${userId}_${slug(nazwa)}`, reuse `slugifyExercise` z exercise-media), model+sanityzacja w `src/lib/exercise-notes.ts` (rozszerzenie istniejącego pliku Z74, nie nowy plik), hook `useExerciseNotes` (wzorzec useCustomExercises: jedna subskrypcja per user, limit 300, E2E fallback localStorage), współdzielony `PinnedNoteSection` w ExerciseCard (nad notatką sesyjną, podgląd zawsze gdy istnieje, zapis TYLKO po zatwierdzeniu) i w ExerciseDetail.

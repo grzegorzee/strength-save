@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, ChevronDown, X } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, ChevronDown, X, Plus } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { RestTimer } from '@/components/RestTimer';
@@ -27,6 +27,7 @@ import { InAppReview } from '@capacitor-community/in-app-review';
 import { shouldRequestReview, readLastReviewPromptAt, markReviewPromptShown } from '@/lib/review-prompt';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
+import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId } from '@/lib/adhoc-workout';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useExerciseNotes } from '@/hooks/useExerciseNotes';
@@ -166,6 +167,8 @@ const WorkoutDay = () => {
 
   // Exercise swap (search library, no AI)
   const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
+  // Z104: picker dodawania ćwiczenia w locie (tylko trening ad-hoc).
+  const [showAddExercise, setShowAddExercise] = useState(false);
   // Session-only swaps ("tylko dziś") keyed by exerciseId — not persisted to the plan.
   const [sessionSwaps, setSessionSwaps] = useState<Record<string, { id: string; name: string; sets: string; videoUrl?: string }>>({});
 
@@ -216,7 +219,14 @@ const WorkoutDay = () => {
   // żeby historia była odporna na przyszłe zmiany planu.
   const daySnapshotRef = useRef<{ dayName: string; focus: string; names: Record<string, string> }>({ dayName: '', focus: '', names: {} });
 
-  const baseDay = trainingPlan.find(d => d.id === dayId);
+  // Szybki trening (Z104): syntetyczny dzień ad-hoc nie istnieje w planie — odtwarzamy go z dayId.
+  const isAdhocDay = !!dayId && isAdhocDayId(dayId);
+  const baseDay = useMemo(() => {
+    const fromPlan = trainingPlan.find(d => d.id === dayId);
+    if (fromPlan) return fromPlan;
+    if (dayId && isAdhocDayId(dayId)) return adhocDayFromId(dayId, (key) => t(key as Parameters<typeof t>[0])) ?? undefined;
+    return undefined;
+  }, [trainingPlan, dayId, t]);
   const draftForDaySnapshot = activeDraft && activeDraft.dayId === dayId && activeDraft.date === targetDate
     ? activeDraft
     : queuedDraft && queuedDraft.dayId === dayId && queuedDraft.date === targetDate
@@ -295,6 +305,29 @@ const WorkoutDay = () => {
       ? { dayName: day.dayName, focus: day.focus, names: Object.fromEntries(day.exercises.map(e => [e.id, e.name])) }
       : { dayName: '', focus: '', names: {} };
   }, [day]);
+
+  // Z104: dodanie ćwiczenia w locie do treningu ad-hoc. Serie pre-fillowane z historii
+  // po nazwie (previousSetsByName), snapshot nazwy trafia do draftu (historia odporna na plan).
+  const handleAddAdhocExercise = (pick: LibraryExercise) => {
+    if (!day) return;
+    const existingIds = [...Object.keys(exerciseSetsRef.current), ...day.exercises.map((ex) => ex.id)];
+    const newId = buildAdhocExerciseId(pick.name, existingIds);
+    const prevSets = getPreviousSets(newId, pick.name);
+    const sets = createPrefilledSets(3, prevSets, resolveIsBodyweight(pick.name));
+
+    const nextSets = { ...exerciseSetsRef.current, [newId]: sets };
+    exerciseSetsRef.current = nextSets;
+    setExerciseSets(nextSets);
+
+    saveDraftSnapshot({
+      exerciseNames: {
+        ...(activeDraftRef.current?.exerciseNames ?? daySnapshotRef.current.names),
+        [newId]: pick.name,
+      },
+      lastTouchedExerciseId: newId,
+    });
+    setShowAddExercise(false);
+  };
 
   // Apply an exercise swap chosen from the library — either for this session only or permanently.
   const handleApplySwap = async (pick: LibraryExercise, exerciseId: string, currentSets: string, scope: 'today' | 'plan') => {
@@ -2200,6 +2233,30 @@ const WorkoutDay = () => {
         ))}
       </div>
 
+      {/* Z104: dodawanie ćwiczeń w locie — tylko szybki trening (ad-hoc) */}
+      {isAdhocDay && isWorkoutStarted && !isCompleted && (
+        <Button
+          variant="outline"
+          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+          onClick={() => setShowAddExercise(true)}
+          data-testid="adhoc-add-exercise"
+        >
+          <Plus className="h-4 w-4 text-primary" />
+          {t('adhoc.addExercise')}
+        </Button>
+      )}
+
+      {isAdhocDay && (
+        <ExercisePicker
+          open={showAddExercise}
+          onOpenChange={setShowAddExercise}
+          title={t('adhoc.addExercise')}
+          customExercises={customExercises}
+          onCreateCustomExercise={addCustomExercise}
+          onPick={handleAddAdhocExercise}
+        />
+      )}
+
       {/* Exercise swap picker (Z69) — wspólny ExercisePicker z wyborem zakresu w footerze */}
       {(() => {
         const swapTarget = swapExerciseId && day ? day.exercises.find(ex => ex.id === swapExerciseId) ?? null : null;
@@ -2235,16 +2292,18 @@ const WorkoutDay = () => {
         );
       })()}
 
-      {/* Edit plan button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full text-muted-foreground"
-        onClick={() => navigate('/plan/edit')}
-      >
-        <Pencil className="h-4 w-4 mr-2" />
-        {t('workout.editDayPlan')}
-      </Button>
+      {/* Edit plan button — nie dotyczy treningu ad-hoc (nie ma go w planie) */}
+      {!isAdhocDay && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full text-muted-foreground"
+          onClick={() => navigate('/plan/edit')}
+        >
+          <Pencil className="h-4 w-4 mr-2" />
+          {t('workout.editDayPlan')}
+        </Button>
+      )}
 
       {/* Day notes - at the end of workout */}
       {isWorkoutStarted && !isCompleted && (

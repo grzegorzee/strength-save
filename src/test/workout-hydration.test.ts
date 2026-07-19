@@ -142,6 +142,25 @@ describe('resolveWorkoutHydration (Z57)', () => {
     expect(result.useDraft).toBe(true);
   });
 
+  it('świeży draft ad-hoc (puste exerciseSets, brak workoutu) => true (Z104)', () => {
+    // Szybki trening startuje z ZEREM ćwiczeń — pusty draft nie może być
+    // uznany za martwy, inaczej hydracja resetuje sesję zaraz po starcie.
+    const result = resolveWorkoutHydration({
+      workoutForDate: null,
+      draft: makeDraft({
+        dayId: 'adhoc-2026-07-19-1752130000000',
+        sessionId: 'local-workout-u1-adhoc-2026-07-19-1752130000000-2026-07-19',
+        sessionOrigin: 'provisional',
+        remoteSessionId: null,
+        exerciseSets: {},
+        dirty: true,
+      }),
+      draftHasData: false,
+      completedValidationOk: null,
+    });
+    expect(result.useDraft).toBe(true);
+  });
+
   it('updatedAt > lastFirebaseSyncAt => true; updatedAt <= lastFirebaseSyncAt => false', () => {
     const newer = resolveWorkoutHydration({
       workoutForDate: makeWorkout(),

@@ -1,4 +1,5 @@
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
+import { slugifyExercise } from '@/lib/exercise-media';
 
 // Szybki trening bez planu (Z104): syntetyczny dzień `adhoc-<YYYY-MM-DD>-<ts>`.
 // Dzięki architekturze snapshot+resolver trening ad-hoc nie potrzebuje wpisu w planie —
@@ -37,6 +38,16 @@ export const createAdhocDay = (date: string, t: TranslateFn): TrainingDay => ({
   focus: '',
   exercises: [],
 });
+
+/** Id ćwiczenia dodanego w locie do treningu ad-hoc; unikalne wśród istniejących id sesji. */
+export const buildAdhocExerciseId = (name: string, existingIds: Iterable<string>): string => {
+  const taken = new Set(existingIds);
+  const base = `adhoc-ex-${slugifyExercise(name).slice(0, 32) || 'exercise'}`;
+  if (!taken.has(base)) return base;
+  let index = 2;
+  while (taken.has(`${base}-${index}`)) index += 1;
+  return `${base}-${index}`;
+};
 
 /** Odtwarza TrainingDay z istniejącego ad-hoc dayId (deep-link, resume po zimnym starcie). */
 export const adhocDayFromId = (dayId: string, t: TranslateFn): TrainingDay | null => {

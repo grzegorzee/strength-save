@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
+import { createAdhocDay } from '@/lib/adhoc-workout';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { localizeExerciseName } from '@/data/exercise-i18n';
@@ -627,6 +628,20 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Szybki trening bez planu (Z104) — zawsze dostępny, także bez aktywnego planu */}
+      <Button
+        variant="outline"
+        className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+        onClick={() => {
+          const adhocDay = createAdhocDay(formatLocalDate(today), (key) => t(key as Parameters<typeof t>[0]));
+          navigate(`/workout/${adhocDay.id}?date=${formatLocalDate(today)}&autostart=true`);
+        }}
+        data-testid="quick-workout-start"
+      >
+        <Zap className="h-4 w-4 text-primary" />
+        {t('adhoc.start')}
+      </Button>
 
       {showNextStep && planNextStep && (
       <Card className={planNextStepTone[planNextStep.tone]}>

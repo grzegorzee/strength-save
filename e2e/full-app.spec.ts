@@ -726,7 +726,7 @@ test.describe('Przypięte notatki (Z103)', () => {
 
   test('notatka przypięta w treningu jest widoczna w kolejnej sesji i w szczegółach ćwiczenia', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1?autostart=true');
-    await clearWorkoutDraftDb(page);
+    await clearWorkoutDraftDb(page, 'e2e-test-user');
 
     const firstSection = page.getByTestId('pinned-note-section').first();
     await firstSection.getByTestId('pinned-note-edit').click();
@@ -744,6 +744,128 @@ test.describe('Przypięte notatki (Z103)', () => {
     // Trwała także w szczegółach ćwiczenia (biblioteka).
     await navigateAndWait(page, '/exercise/wyciskanie-hantli-lekki-skos');
     await expect(page.getByTestId('pinned-note-text')).toHaveText('pas na 3 dziurkę');
+  });
+});
+
+// =====================================================
+// 11a3. SZYBKI TRENING BEZ PLANU (Z104)
+// =====================================================
+test.describe('Szybki trening (Z104)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('start z Dashboardu, dodanie 2 ćwiczeń, serie i zakończenie lokalne', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await clearWorkoutDraftDb(page, 'e2e-test-user');
+
+    await page.getByTestId('quick-workout-start').click();
+    await expect(page).toHaveURL(/adhoc-/);
+    await expect(page.getByRole('heading', { name: /Szybki trening/i }).first()).toBeVisible();
+
+    // Dodaj 2 ćwiczenia w locie przez wspólny picker (Z69).
+    await page.getByTestId('adhoc-add-exercise').click();
+    const dialog1 = page.getByRole('dialog');
+    await dialog1.getByPlaceholder(/Szukaj|Find/).fill('wyciskanie sztangi na lawce plaskiej');
+    await dialog1.getByText('Wyciskanie sztangi na ławce płaskiej').click();
+    await expect(page.getByRole('heading', { name: 'Wyciskanie sztangi na ławce płaskiej' })).toBeVisible();
+
+    await page.getByTestId('adhoc-add-exercise').click();
+    const dialog2 = page.getByRole('dialog');
+    await dialog2.getByPlaceholder(/Szukaj|Find/).fill('wioslowanie hantlami');
+    await dialog2.getByText('Wiosłowanie hantlami na ławce (przodem)').click();
+    await expect(page.getByRole('heading', { name: 'Wiosłowanie hantlami na ławce (przodem)' })).toBeVisible();
+
+    // Odhacz pierwszą serię ROBOCZĄ (nie warmup) pierwszego ćwiczenia.
+    await page.getByRole('spinbutton', { name: 'Wyciskanie sztangi na ławce płaskiej, Set 1, kg' }).fill('60');
+    await page.getByRole('spinbutton', { name: 'Wyciskanie sztangi na ławce płaskiej, Set 1, Powt.' }).fill('8');
+    // Kolejność checkmarków w karcie: [0]=rozgrzewka W, [1]=Set 1.
+    const firstCard = page.locator('.exercise-card').first();
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+
+    // Przycisk "Zakończ trening" dostępny (finalny sync w mock e2e nie domknie się —
+    // Firestore zablokowany bez timeoutu — ścieżkę finalSyncPending pokrywa test Z49).
+    await expect(page.getByRole('button', { name: 'Zakończ trening' })).toBeVisible();
+
+    // Draft w IndexedDB: 2 ćwiczenia, snapshot nazw i dnia, odhaczona seria robocza
+    // (zapis draftu jest asynchroniczny — poll).
+    type DraftShape = {
+      dayId?: string; dayName?: string;
+      exerciseSets?: Record<string, { completed: boolean; isWarmup?: boolean }[]>;
+      exerciseNames?: Record<string, string>;
+    } | null;
+    await expect.poll(async () => {
+      const draft = await readWorkoutDraftDb(page, 'e2e-test-user') as DraftShape;
+      return Object.values(draft?.exerciseSets ?? {}).flat().filter((s) => s.completed && !s.isWarmup).length;
+    }, { timeout: 10000 }).toBeGreaterThanOrEqual(1);
+
+    const draft = await readWorkoutDraftDb(page, 'e2e-test-user') as DraftShape;
+    expect(draft).not.toBeNull();
+    expect(draft!.dayId).toMatch(/^adhoc-/);
+    expect(draft!.dayName).toBe('Szybki trening');
+    expect(Object.keys(draft!.exerciseSets ?? {})).toHaveLength(2);
+    expect(Object.values(draft!.exerciseNames ?? {})).toContain('Wyciskanie sztangi na ławce płaskiej');
+    expect(Object.values(draft!.exerciseNames ?? {})).toContain('Wiosłowanie hantlami na ławce (przodem)');
+  });
+
+  test('trening ad-hoc widoczny w historii z nazwą "Szybki trening" (snapshot+resolver)', async ({ page }) => {
+    await setE2EWorkouts(page, [{
+      id: 'adhoc-history-1',
+      userId: 'e2e-test-user',
+      dayId: 'adhoc-2026-07-10-1752130000000',
+      dayName: 'Szybki trening',
+      dayFocus: '',
+      date: '2026-07-10',
+      completed: true,
+      durationSec: 1800,
+      exercises: [{
+        exerciseId: 'adhoc-ex-wyciskanie-sztangi-na-lawce-plaskiej',
+        name: 'Wyciskanie sztangi na ławce płaskiej',
+        sets: [{ reps: 8, weight: 60, completed: true }],
+      }],
+    }]);
+
+    await navigateAndWait(page, '/history');
+    await expect(page.getByText('Szybki trening').first()).toBeVisible();
+    await page.getByRole('button', { name: 'Szczegóły' }).first().click();
+    await expect(page.getByText('Wyciskanie sztangi na ławce płaskiej')).toBeVisible();
+  });
+
+  test('szkic ad-hoc przeżywa zimny start i wraca do treningu (auto-resume)', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    const today = new Date().toISOString().split('T')[0];
+    const adhocDayId = `adhoc-${today}-1752130000001`;
+    await writeWorkoutDraftDb(page, {
+      sessionId: `local-workout-e2e-test-user-${adhocDayId}-${today}`,
+      userId: 'e2e-test-user',
+      dayId: adhocDayId,
+      date: today,
+      cycleId: null,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      exerciseSets: { 'adhoc-ex-przysiad': [{ reps: 5, weight: 100, completed: true }] },
+      exerciseNames: { 'adhoc-ex-przysiad': 'Przysiad ze sztangą (High Bar)' },
+      exerciseNotes: {},
+      dayNotes: '',
+      dayName: 'Szybki trening',
+      dayFocus: '',
+      skippedExercises: [],
+      lastTouchedExerciseId: 'adhoc-ex-przysiad',
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
+    });
+
+    // Zimny start Dashboardu = auto-resume (Z49) do treningu ad-hoc.
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page).toHaveURL(new RegExp(adhocDayId), { timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /Szybki trening/i }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Przysiad ze sztangą (High Bar)' })).toBeVisible();
   });
 });
 

@@ -1,5 +1,6 @@
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import type { WorkoutSession } from '@/types';
+import { isAdhocDayId } from '@/lib/adhoc-workout';
 
 // Decyzja hydracji draftu (Z57): DOSŁOWNE przeniesienie gałęzi shouldUseDraft
 // + warunku czyszczenia draftu z efektu hydracji WorkoutDay. Czysta funkcja —
@@ -27,7 +28,12 @@ export const resolveWorkoutHydration = (input: WorkoutHydrationInput): WorkoutHy
   const useDraft = (() => {
     if (!draft) return false;
     if (workoutForDate && draft.sessionId !== workoutForDate.id) return false;
-    if (!workoutForDate) return draftHasData || draft.finalSyncPending || Object.keys(draft.exerciseSets).length > 0;
+    // Z104: szybki trening startuje z zerem ćwiczeń — żywy (dirty) pusty draft
+    // ad-hoc jest hydratowalny, inaczej reset sesji zaraz po starcie.
+    if (!workoutForDate) {
+      return draftHasData || draft.finalSyncPending || Object.keys(draft.exerciseSets).length > 0
+        || (draft.dirty && isAdhocDayId(draft.dayId));
+    }
     if (workoutForDate.completed && !draft.finalSyncPending) return completedValidationOk === false && draftHasData;
     if (draft.finalSyncPending) return true;
     if (draft.dirty) return true;
