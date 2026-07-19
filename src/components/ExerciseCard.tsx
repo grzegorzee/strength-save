@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Dumbbell, Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer } from 'lucide-react';
+import { Dumbbell, Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { SetData, ExerciseMetrics } from '@/types';
@@ -28,6 +28,7 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { PinnedNoteSection, type PinnedNoteSaveInput } from '@/components/PinnedNoteSection';
 import type { ExerciseNote } from '@/lib/exercise-notes';
 import { formatDistanceM, formatDurationSec, parseDurationInput, type TrackingType } from '@/lib/set-tracking';
+import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
 
 // Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
 // Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
@@ -247,6 +248,8 @@ const ExerciseCardInner = ({
     [exercise],
   );
   const [intervalRun, setIntervalRun] = useState<{ open: boolean; runId: number }>({ open: false, runId: 0 });
+  // Kalkulator talerzy (Z107): tylko weight_reps, ciężar z aktywnej/ostatniej serii roboczej.
+  const [showPlates, setShowPlates] = useState(false);
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
@@ -894,6 +897,22 @@ const ExerciseCardInner = ({
               <Plus className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-1.5">
+              {(() => {
+                // Z107: ciężar dla kalkulatora — aktywna seria, fallback ostatnia robocza z ciężarem.
+                const plateWeight = tracking === 'weight_reps'
+                  ? (sets[activeSetIndex]?.weight || [...sets].reverse().find((s) => !s.isWarmup && s.weight > 0)?.weight || 0)
+                  : 0;
+                return tracking === 'weight_reps' && plateWeight > 0 ? (
+                  <button
+                    onClick={() => setShowPlates(true)}
+                    aria-label={t('plates.openCalculator')}
+                    data-testid="plate-calculator-open"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] font-semibold text-foreground/80 transition-colors hover:text-foreground"
+                  >
+                    <Disc className="h-3.5 w-3.5" />
+                  </button>
+                ) : null;
+              })()}
               {onMetricsChange && (
                 <button
                   onClick={() => setShowMetrics(v => !v)}
@@ -988,6 +1007,14 @@ const ExerciseCardInner = ({
           spec={intervalSpec}
           exerciseLabel={localizedName}
           onClose={() => setIntervalRun(r => ({ ...r, open: false }))}
+        />
+      )}
+
+      {showPlates && (
+        <PlateCalculatorSheet
+          open={showPlates}
+          onOpenChange={setShowPlates}
+          targetKg={sets[activeSetIndex]?.weight || [...sets].reverse().find((s) => !s.isWarmup && s.weight > 0)?.weight || 0}
         />
       )}
     </div>

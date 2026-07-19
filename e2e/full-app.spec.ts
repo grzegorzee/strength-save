@@ -964,6 +964,27 @@ test.describe('Typy serii (Z105)', () => {
 });
 
 // =====================================================
+// 11a5. KALKULATOR TALERZY (Z107)
+// =====================================================
+test.describe('Kalkulator talerzy (Z107)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('otwiera się z karty ćwiczenia i pokazuje poprawny rozkład na stronę', async ({ page }) => {
+    const today = new Date().toISOString().split('T')[0];
+    await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    const firstCard = page.locator('.exercise-card').first();
+    await firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first().fill('100');
+
+    await firstCard.getByTestId('plate-calculator-open').click();
+    // 100 kg na gryfie 20: 40 kg na stronę = 25 + 15 (default inventory).
+    await expect(page.getByTestId('plates-summary')).toContainText('1×25 + 1×15');
+    await expect(page.getByTestId('plates-visual')).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {

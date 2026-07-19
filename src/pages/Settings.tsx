@@ -19,6 +19,7 @@ import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { NotificationSettings } from '@/components/NotificationSettings';
+import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -163,6 +164,9 @@ const Settings = () => {
       <div id="settings-notifications" className="scroll-mt-20">
         <NotificationSettings />
       </div>
+
+      {/* Kalkulator talerzy (Z107): inwentarz per urządzenie */}
+      <PlateInventorySettings />
 
       <div id="settings-data" className="scroll-mt-20">
       <DataManagement

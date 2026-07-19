@@ -622,6 +622,18 @@ export const pl = {
   'notes.lastNote': 'Ostatnio: „{note}”',
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
+  // kalkulator talerzy (Z107)
+  'plates.title': 'Kalkulator talerzy',
+  'plates.target': 'Cel',
+  'plates.bar': 'Gryf',
+  'plates.perSide': 'Na stronę',
+  'plates.emptyBar': 'Pusty gryf, bez talerzy.',
+  'plates.belowBar': 'Cel jest mniejszy niż gryf ({bar} kg). Użyj lżejszego gryfu albo hantli.',
+  'plates.closest': 'Dokładny rozkład niemożliwy. Najbliżej: {weight}.',
+  'plates.openCalculator': 'Kalkulator talerzy',
+  'plates.settingsTitle': 'Kalkulator talerzy',
+  'plates.settingsDesc': 'Gryf i talerze dostępne na Twojej siłowni (zapisywane na tym urządzeniu).',
+  'plates.availablePlates': 'Dostępne talerze (kg)',
   // progresja nowych typów (Z106)
   'comp.progression.bestTime': 'Najlepszy czas',
   'comp.progression.weightDistance': 'Ciężar x dystans (kg·m)',
