@@ -18,6 +18,7 @@ import {
   type ManualActivityInput,
   type ManualActivityType,
 } from '@/lib/manual-activity';
+import { syncCardioToHealth } from '@/lib/health-bridge';
 
 const MANUAL_ACTIVITIES_COLLECTION = 'manual_activities';
 // Rok codziennego cardio z zapasem; limit chroni koszty czytań.
@@ -100,8 +101,15 @@ export const useManualActivities = (userId: string) => {
     }
 
     try {
-      await addDoc(collection(db, MANUAL_ACTIVITIES_COLLECTION), {
+      const ref = await addDoc(collection(db, MANUAL_ACTIVITIES_COLLECTION), {
         ...sanitized,
+        userId,
+        createdAt: Date.now(),
+      });
+      // Z116: zapis do Apple Health (fire-and-forget, no-op poza iOS / gdy wyłączone).
+      syncCardioToHealth(userId, {
+        ...(sanitized as ManualActivityInput & { type: ManualActivityType }),
+        id: ref.id,
         userId,
         createdAt: Date.now(),
       });

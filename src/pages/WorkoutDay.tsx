@@ -28,6 +28,7 @@ import { shouldRequestReview, readLastReviewPromptAt, markReviewPromptShown } fr
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId } from '@/lib/adhoc-workout';
+import { syncWorkoutToHealth } from '@/lib/health-bridge';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { getTrackingType, type TrackingType } from '@/lib/set-tracking';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
@@ -1651,6 +1652,18 @@ const WorkoutDay = () => {
     setShowCompleteConfirm(false);
     // Z82: notification-success przy ukończeniu treningu (natywnie; web no-op).
     void hapticSuccess();
+
+    // Z116: zapis do Apple Health (fire-and-forget, no-op poza iOS / gdy wyłączone).
+    syncWorkoutToHealth(uid, {
+      id: sessionId,
+      userId: uid,
+      dayId: dayId ?? '',
+      date: targetDate,
+      completed: true,
+      exercises: [],
+      ...(activeDraftRef.current?.startedAt && { startedAt: activeDraftRef.current.startedAt }),
+      completedAt: Date.now(),
+    });
 
     // Z83: natywna prośba o ocenę po kamieniach ukończonych treningów (5., 15., 30. ...),
     // max raz na 60 dni. Fire-and-forget — system i tak sam decyduje, czy pokazać dialog.

@@ -20,6 +20,7 @@
 		545CDF57AF87E812BA03C516 /* StrengthWatchWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 766952A716CBDE96B97FFEDD /* StrengthWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		60C701771DD97B4AFFDB5E87 /* ExerciseDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1BBD2AE4E8CC17D105D4944 /* ExerciseDetailView.swift */; };
 		635BE1BB948AD66020178891 /* WatchBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A5C154A80546659595207D /* WatchBridgePlugin.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* HealthSyncPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5D6E7F8091A2B3C4D5E6F70 /* HealthSyncPlugin.swift */; };
 		792329F990DF8EC8CC529017 /* WorkoutModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882B980C9939C416BF0A0055 /* WorkoutModels.swift */; };
 		7E2786085D17F7C9B994BCB1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E83CF5EFFE95E2A5977E9A2B /* ContentView.swift */; };
 		82238AF82748ED978CDC26FD /* StrengthWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3604679A7761D6AF0C11BB5E /* StrengthWatchApp.swift */; };
@@ -99,6 +100,7 @@
 		A84DA980A7D4CDB27985A666 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhoneWatchSessionManager.swift; sourceTree = "<group>"; };
 		B7A5C154A80546659595207D /* WatchBridgePlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchBridgePlugin.swift; sourceTree = "<group>"; };
+		C5D6E7F8091A2B3C4D5E6F70 /* HealthSyncPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthSyncPlugin.swift; sourceTree = "<group>"; };
 		C8D03C11A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchExtensionDelegate.swift; sourceTree = "<group>"; };
 		D1BBD2AE4E8CC17D105D4944 /* ExerciseDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExerciseDetailView.swift; sourceTree = "<group>"; };
 		E6C03062003363EC390CFA58 /* WorkoutStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
@@ -169,6 +171,7 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 				957D18FA556717B27228D48F /* GoogleService-Info.plist */,
 				62355E2FA3AF3CC20BBEB336 /* WatchBridge */,
+				D7E8F90A1B2C3D4E5F607182 /* HealthSync */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -179,6 +182,15 @@
 				F963B273E5808F0B6754F5F0 /* watchOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D7E8F90A1B2C3D4E5F607182 /* HealthSync */ = {
+			isa = PBXGroup;
+			children = (
+				C5D6E7F8091A2B3C4D5E6F70 /* HealthSyncPlugin.swift */,
+			);
+			name = HealthSync;
+			path = HealthSync;
 			sourceTree = "<group>";
 		};
 		62355E2FA3AF3CC20BBEB336 /* WatchBridge */ = {
@@ -366,6 +378,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				1250B630B6A80D5E7EDCE5DE /* PhoneWatchSessionManager.swift in Sources */,
 				635BE1BB948AD66020178891 /* WatchBridgePlugin.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* HealthSyncPlugin.swift in Sources */,
 				DE2119989E46C6CE74169801 /* BridgeViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
