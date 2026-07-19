@@ -1,0 +1,11 @@
+"title","start_time","end_time","description","exercise_title","superset_id","exercise_notes","set_index","set_type","weight_kg","reps","distance_km","duration_seconds","rpe"
+"Poniedziałek góra","4 May 2026, 17:31","4 May 2026, 18:43","Ciężki dzień","Bench Press (Barbell)",,"pas na 3 dziurkę",0,"warmup",40,10,,,
+"Poniedziałek góra","4 May 2026, 17:31","4 May 2026, 18:43","Ciężki dzień","Bench Press (Barbell)",,"",1,"normal",80,8,,,8
+"Poniedziałek góra","4 May 2026, 17:31","4 May 2026, 18:43","Ciężki dzień","Bench Press (Barbell)",,"",2,"normal",82.5,6,,,8.5
+"Poniedziałek góra","4 May 2026, 17:31","4 May 2026, 18:43","","Pull Up",,"",0,"normal",,10,,,
+"Poniedziałek góra","4 May 2026, 17:31","4 May 2026, 18:43","","Plank",,"",0,"normal",,,,"90",
+"Środa dół","2026-05-06T18:02:44Z","2026-05-06T19:00:44Z","","Squat (Barbell)",,"",0,"normal",102.5,5,,,9
+"Środa dół","2026-05-06T18:02:44Z","2026-05-06T19:00:44Z","","Farmer's Walk",,"",0,"normal",24,,0.04,"60",
+"Środa dół","2026-05-06T18:02:44Z","2026-05-06T19:00:44Z","","Deadlift (Barbell)",,"",0,"failure",140,3,,,
+"Piątek FBW","8 May 2026, 17:45","8 May 2026, 18:34","","Overhead Press (Barbell)",,"",0,"normal",50,5,,,
+"Piątek FBW","8 May 2026, 17:45","8 May 2026, 18:34","","Overhead Press (Barbell)",,"",1,"normal",50,5,,,

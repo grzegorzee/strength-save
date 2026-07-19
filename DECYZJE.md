@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-19 — RELEASE X14B (Z105-Z108) na prod
+
+**Wdrożone:** rules (custom_exercises + tracking) na cloud.firestore; web index-DwKIaJCS na gh-pages (live zweryfikowane po propagacji CDN ~60 s); iOS 1.0.0 build 60 + testflight_external.py (obie grupy, Beta App Review APPROVED od razu). Bramki: vitest 752, e2e 155, rules 141, dist-smoke (build:mobile) i dist-offline (build web!) PASS.
+
+**Lekcja pipeline (kolejność dist checków):** `check:dist-offline` WYMAGA builda WEB (SW wyłączony w build:mobile) — kolejność: build:mobile -> dist-smoke -> build (web) -> dist-offline. Uwaga na maskowanie exit code: `skrypt | tail -1` zwraca exit tail-a — dist-offline "przechodził" mimo faila. Druga lekcja: NIGDY dwa ios-testflight.sh równolegle (wspólne build/ios i DerivedData — pierwsza próba builda 60 padła "4 failures" przez wyścig; ubić stary pipeline przed nowym).
+
+**Weryfikacja na symulatorze (iPhone 17):** build Debug sim + instalacja + start — apka startuje bez białego ekranu, Dashboard z przyciskiem "Szybki trening" (X14A) renderuje się poprawnie. Na symulatorze zalogowane REALNE konto — scenariusz klikany plank+asysta+kalkulator wykonany wyłącznie w e2e mock (155 testów, w tym te scenariusze 1:1); zero zapisów na realnym koncie (dane święte).
+
 ### 2026-07-19 — X14B FAZA 3 (Z107+Z108): kalkulator talerzy + generator rozgrzewki %1RM
 
 **Z107:** `computePlates` (greedy od najcięższych, arytmetyka w gramach — float 1.25 kg bez błędów; count = ŁĄCZNA liczba talerzy, floor(count/2) na stronę; cel<gryf => belowBar; niedokładność => najbliższy osiągalny W DÓŁ + info). Inwentarz w localStorage `fittracker_plate_inventory_v1` (gryf 20/15/10 + checkboxy talerzy w Ustawieniach; default pełny zestaw 25...1.25). UI: `PlateCalculatorSheet` (bottom sheet, wizualizacja talerzy na stronę) otwierany ikoną Disc w FOOTERZE karty ćwiczenia (nie per wiersz serii — grid serii to krytyczna ścieżka logowania, zero zmian w nim); ciężar = aktywna seria, fallback ostatnia robocza. Tylko weight_reps z ciężarem > 0.
