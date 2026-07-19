@@ -1,11 +1,13 @@
 import type { WorkoutSession } from '@/types';
 import { getExerciseHistory, detectPlateau } from '@/lib/exercise-progression';
 import { parseRepRange, isIsolationExercise, type RepRange } from '@/lib/exercise-utils';
+import { decideNextSet, type NextSetDecision } from '@/lib/progression-engine';
 import { translate, type LanguageCode } from '@/i18n';
 import { formatWeight, type UnitSystem } from '@/lib/units';
 
 // Sugestia następnej serii: konkretny cel (ciężar × powtórzenia) z TRENDU całej historii,
 // nie tylko ostatniego treningu. Deterministyczna i darmowa — AI dokłada się tylko on-demand.
+// Z120: sama decyzja żyje w progression-engine (decideNextSet) — tu tylko historia + i18n.
 
 export type NextSetKind = 'progress' | 'hold' | 'deload';
 
@@ -20,6 +22,39 @@ export interface NextSetAdvice {
 // Ile dni zastoju traktujemy jako plateau (próg deload).
 const PLATEAU_MIN_SESSIONS = 4;
 
+const reasonText = (
+  decision: NextSetDecision,
+  ctx: {
+    lang: LanguageCode;
+    unit: UnitSystem;
+    lastWeight: number;
+    lastReps: number;
+    repRange: RepRange;
+    increment: number;
+    sessionsSinceProgress: number;
+  },
+): string => {
+  const { lang, unit, lastWeight, lastReps, repRange, increment, sessionsSinceProgress } = ctx;
+  // Wartości wag w treści podpowiedzi w jednostce użytkownika (sam ciężar w modelu = kg).
+  const disp = (kg: number): string => formatWeight(kg, unit, { withUnit: false });
+  switch (decision.reasonKey) {
+    case 'deload.bw':
+      return translate(lang, 'nsadvice.deload.bw', { sessions: sessionsSinceProgress });
+    case 'deload.weight':
+      return translate(lang, 'nsadvice.deload.weight', { sessions: sessionsSinceProgress, weight: disp(decision.targetWeight), unit });
+    case 'bw.progress':
+      return translate(lang, 'nsadvice.bw.progress', { reps: lastReps });
+    case 'bw.hold':
+      return translate(lang, 'nsadvice.bw.hold', { max: repRange.max });
+    case 'progress':
+      return translate(lang, 'nsadvice.progress', { reps: lastReps, increment: disp(increment), target: disp(lastWeight + increment), min: repRange.min, unit });
+    case 'hold.below':
+      return translate(lang, 'nsadvice.hold.below', { weight: disp(lastWeight), min: repRange.min, unit });
+    case 'hold.inrange':
+      return translate(lang, 'nsadvice.hold.inrange', { max: repRange.max });
+  }
+};
+
 export const getNextSetAdvice = (
   workouts: WorkoutSession[],
   exerciseId: string,
@@ -30,8 +65,6 @@ export const getNextSetAdvice = (
   unit: UnitSystem = 'kg',
 ): NextSetAdvice | null => {
   const isBodyweight = !!options?.isBodyweight;
-  // Wartości wag w treści podpowiedzi w jednostce użytkownika (sam ciężar w modelu = kg).
-  const disp = (kg: number): string => formatWeight(kg, unit, { withUnit: false });
   const repRange: RepRange = parseRepRange(setsStr);
   // Przy zakresie "do upadku" (max) nie ma sensownego celu liczbowego.
   if (repRange.isMax) return null;
@@ -44,67 +77,25 @@ export const getNextSetAdvice = (
   const lastReps = last.bestReps;
 
   const plateau = detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight);
-
-  // Deload ma priorytet: jeśli wynik stoi od kilku sesji, odpuść i wróć z impetem.
-  if (plateau.isPlateau) {
-    if (isBodyweight) {
-      return {
-        kind: 'deload',
-        targetWeight: 0,
-        targetReps: Math.max(repRange.min, lastReps),
-        reason: translate(lang, 'nsadvice.deload.bw', { sessions: plateau.sessionsSinceProgress }),
-        isBodyweight,
-      };
-    }
-    const deloadWeight = Math.max(0, Math.round(lastWeight * 0.9 * 2) / 2); // -10%, do 0.5 kg
-    return {
-      kind: 'deload',
-      targetWeight: deloadWeight,
-      targetReps: repRange.max,
-      reason: translate(lang, 'nsadvice.deload.weight', { sessions: plateau.sessionsSinceProgress, weight: disp(deloadWeight), unit }),
-      isBodyweight,
-    };
-  }
-
-  // Bodyweight: progresja przez powtórzenia.
-  if (isBodyweight) {
-    if (lastReps >= repRange.max) {
-      return { kind: 'progress', targetWeight: 0, targetReps: lastReps + 1, reason: translate(lang, 'nsadvice.bw.progress', { reps: lastReps }), isBodyweight };
-    }
-    return { kind: 'hold', targetWeight: 0, targetReps: Math.min(lastReps + 1, repRange.max), reason: translate(lang, 'nsadvice.bw.hold', { max: repRange.max }), isBodyweight };
-  }
-
-  // Z obciążeniem.
   const increment = isIsolationExercise(exerciseIndex, options?.isSuperset) ? 1 : 2.5;
 
-  if (lastReps >= repRange.max) {
-    // Dowiozłeś górę zakresu → dołóż ciężar, zresetuj powtórzenia do dołu zakresu.
-    return {
-      kind: 'progress',
-      targetWeight: lastWeight + increment,
-      targetReps: repRange.min,
-      reason: translate(lang, 'nsadvice.progress', { reps: lastReps, increment: disp(increment), target: disp(lastWeight + increment), min: repRange.min, unit }),
-      isBodyweight,
-    };
-  }
+  const decision = decideNextSet({
+    lastWeight,
+    lastReps,
+    repRange,
+    isBodyweight,
+    increment,
+    isPlateau: plateau.isPlateau,
+  });
 
-  if (lastReps < repRange.min) {
-    // Poniżej zakresu → utrzymaj ciężar, wejdź w zakres.
-    return {
-      kind: 'hold',
-      targetWeight: lastWeight,
-      targetReps: repRange.min,
-      reason: translate(lang, 'nsadvice.hold.below', { weight: disp(lastWeight), min: repRange.min, unit }),
-      isBodyweight,
-    };
-  }
-
-  // W zakresie → dobij powtórzenia przy tym samym ciężarze.
   return {
-    kind: 'hold',
-    targetWeight: lastWeight,
-    targetReps: Math.min(lastReps + 1, repRange.max),
-    reason: translate(lang, 'nsadvice.hold.inrange', { max: repRange.max }),
+    kind: decision.kind,
+    targetWeight: decision.targetWeight,
+    targetReps: decision.targetReps,
+    reason: reasonText(decision, {
+      lang, unit, lastWeight, lastReps, repRange, increment,
+      sessionsSinceProgress: plateau.sessionsSinceProgress,
+    }),
     isBodyweight,
   };
 };
