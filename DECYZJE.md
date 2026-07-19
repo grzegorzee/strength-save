@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-19 — RELEASE X14C (Z109-Z110) na prod — X14 KOMPLETNY
+
+**Wdrożone:** rules (workouts.importBatchId) + NOWY composite index workouts(userId, importBatchId) na cloud.firestore; web index-OskchBvM na gh-pages (live zweryfikowane pętlą aż nowy hash); iOS 1.0.0 build 61 + testflight_external.py (obie grupy, Beta App Review APPROVED). Bramki: vitest 776, e2e 157, rules 145, dist-smoke/dist-offline PASS.
+
+**Weryfikacja end-to-end importu:** wykonana na KONCIE TESTOWYM e2e (mock, zero dotykania realnych kont): pełny scenariusz importu fixture Strong (3 treningi, 1 uszkodzony wiersz zliczony, auto-mapowanie 7/7) -> historia ze snapshotami nazw -> idempotencja (2x ten sam plik = nadal 3) -> cofnięcie (0 treningów). Screenshot wizarda w scratchpadzie sesji (import-wizard.png). Statystyka auto-mapowania na fixtures: Strong 7/7, Hevy analogiczne nazwy pokryte aliasami+mapą EN.
+
+**X14 (A+B+C) DOMKNIĘTY:** wszystkie 3 plany wykonane i wdrożone tego samego dnia (buildy 59/60/61, web index-CNXBdODL -> DwKIaJCS -> OskchBvM). Następny: X15A (ręczne cardio).
+
 ### 2026-07-19 — X14C FAZA 2 (Z110): kreator importu + zapis + cofnięcie
 
 **Bezpieczeństwo danych (dane usera święte):** zapis WYŁĄCZNIE nowych dokumentów `imported-<batchId>-<n>` (istniejące treningi niedotykane — test rules na cudzy userId), zero zapisów bez jawnego checkboxa potwierdzenia w kroku podglądu (N treningów, zakres dat, M serii), cofnięcie jednym przyciskiem = delete po `importBatchId` (query userId+importBatchId, NOWY composite index w firestore.indexes.json), idempotencja = batchId z hasha pliku (FNV-1a x2, 16 hex — decyzja: synchroniczny hash zamiast async crypto.subtle, wystarczający per user).
