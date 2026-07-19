@@ -347,6 +347,8 @@ add('custom_exercises: update wlasnego ALLOWED', true, await ok(() => updateDoc(
 add('custom_exercises: update cudzego DENIED', false, await ok(() => updateDoc(doc(otherDb, 'custom_exercises', 'cx-1'), { name: 'przejete' })));
 add('custom_exercises: update ze zmiana userId DENIED', false, await ok(() => updateDoc(doc(db, 'custom_exercises', 'cx-1'), { userId: OTHER_UID })));
 add('custom_exercises: delete wlasnego ALLOWED', true, await ok(() => deleteDoc(doc(db, 'custom_exercises', 'cx-1'))));
+add('custom_exercises: tracking z listy ALLOWED (Z105)', true, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-t1'), { ...validCustomExercise, tracking: 'assisted_bodyweight' })));
+add('custom_exercises: tracking spoza listy DENIED (Z105)', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-t2'), { ...validCustomExercise, tracking: 'cardio' })));
 
 // === Exercise notes (Z103): przypieta notatka per cwiczenie, zamkniety schemat ===
 await env.clearFirestore();

@@ -622,6 +622,12 @@ export const pl = {
   'notes.lastNote': 'Ostatnio: „{note}”',
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
+  // typy śledzenia serii (Z105)
+  'custom.trackingLabel': 'Sposób logowania',
+  'tracking.standard': 'Standard',
+  'tracking.duration': 'Na czas',
+  'tracking.weightDistanceDuration': 'Ciężar + dystans + czas',
+  'tracking.assistedBodyweight': 'Z asystą',
   // szybki trening bez planu (Z104)
   'adhoc.dayName': 'Szybki trening',
   'adhoc.start': 'Szybki trening',

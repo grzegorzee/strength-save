@@ -236,6 +236,27 @@ export const ExercisePicker = ({
                   {t('picker.bodyweight')}
                 </button>
               </div>
+              {/* Typ śledzenia serii (Z105): brak wyboru = standard (ciężar x powt. / masa ciała) */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground">{t('custom.trackingLabel')}</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {([
+                    [undefined, t('tracking.standard')],
+                    ['duration', t('tracking.duration')],
+                    ['weight_distance_duration', t('tracking.weightDistanceDuration')],
+                    ['assisted_bodyweight', t('tracking.assistedBodyweight')],
+                  ] as Array<[CustomExerciseInput['tracking'], string]>).map(([value, label]) => (
+                    <button
+                      key={label}
+                      onClick={() => setCustomForm({ ...customForm, tracking: value })}
+                      className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                        customForm.tracking === value ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => setCustomForm(null)}>
                   {t('common.cancel')}

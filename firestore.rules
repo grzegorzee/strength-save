@@ -421,7 +421,7 @@ service cloud.firestore {
     // odczyt dodatkowo admin. Kategorie = 8 kluczy categoryLabels z biblioteki klienta.
     function validCustomExerciseShape() {
       return request.resource.data.keys().hasOnly([
-        'userId', 'name', 'category', 'isBodyweight', 'type', 'createdAt'
+        'userId', 'name', 'category', 'isBodyweight', 'type', 'createdAt', 'tracking'
       ])
       && request.resource.data.name is string
       && request.resource.data.name.size() >= 2
@@ -429,7 +429,15 @@ service cloud.firestore {
       && request.resource.data.category in ['chest', 'back', 'shoulders', 'legs', 'arms', 'core', 'glutes', 'calves']
       && request.resource.data.isBodyweight is bool
       && request.resource.data.type in ['compound', 'isolation']
-      && request.resource.data.createdAt is int;
+      && request.resource.data.createdAt is int
+      // Typ śledzenia serii (Z105) — opcjonalny, z zamkniętej listy.
+      && (
+        !('tracking' in request.resource.data)
+        || request.resource.data.tracking in [
+          'weight_reps', 'bodyweight_reps', 'duration',
+          'weight_distance_duration', 'assisted_bodyweight'
+        ]
+      );
     }
 
     match /custom_exercises/{exerciseId} {

@@ -1,3 +1,5 @@
+import type { TrackingType } from '@/lib/set-tracking';
+
 export interface LibraryExercise {
   name: string;
   category: 'chest' | 'back' | 'shoulders' | 'legs' | 'arms' | 'core' | 'glutes' | 'calves';
@@ -5,6 +7,8 @@ export interface LibraryExercise {
   /** @deprecated YouTube usunięte (Error 153 w WebView) — animacje przez exercise-media. Pole zostaje tymczasowo dla logiki swap, do usunięcia przy redesignie modelu ćwiczenia. */
   videoUrl?: string;
   isBodyweight?: boolean;
+  /** Typ śledzenia serii (Z105). Brak = weight_reps (isBodyweight => bodyweight_reps). */
+  tracking?: TrackingType;
   instructions?: { title: string; content: string }[];
 }
 
@@ -74,7 +78,7 @@ export const exerciseLibrary: LibraryExercise[] = [
 
   // Core
   { name: 'Dead Bug (Robak - Brzuch)', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Plecy wciśnięte w podłogę przez cały ruch. Powoli wyprostuj przeciwną rękę i nogę.' }] },
-  { name: 'Plank', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Ciało proste od głowy do pięt. Brzuch mocno napięty, biodra nie opadają. Oddychaj normalnie.' }] },
+  { name: 'Plank', category: 'core', type: 'isolation', isBodyweight: true, tracking: 'duration', instructions: [{ title: '💡 Technika', content: 'Ciało proste od głowy do pięt. Brzuch mocno napięty, biodra nie opadają. Oddychaj normalnie.' }] },
   { name: 'Ab Rollout', category: 'core', type: 'isolation', instructions: [{ title: '💡 Technika', content: 'Start z kolan. Wyjeżdżaj kółkiem do przodu napinając brzuch. Nie wyginaj pleców w łuk.' }] },
   { name: 'Unoszenie nóg w zwisie', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Zwis na drążku. Unoś kolana do klatki (łatwiej) lub proste nogi (trudniej). Nie huśtaj się.' }] },
   { name: 'Skręty rosyjskie', category: 'core', type: 'isolation', isBodyweight: true, instructions: [{ title: '💡 Technika', content: 'Siedząc z uniesionymi nogami. Obracaj tułów ze strony na stronę. Kontroluj ruch, nie pędź.' }] },
@@ -178,7 +182,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   // back (added)
   { name: "Ściąganie drążka podchwytem (wąsko)", category: "back", type: "compound", instructions: [{ title: "💡 Technika", content: "Ściąganie drążka podchwytem do klatki, łokcie blisko ciała." }] },
   { name: "Ściąganie drążka neutralnym chwytem", category: "back", type: "compound", instructions: [{ title: "💡 Technika", content: "Ściąganie uchwytu V do mostka, łokcie w dół." }] },
-  { name: "Podciąganie wspomagane na maszynie", category: "back", type: "compound", instructions: [{ title: "💡 Technika", content: "Podciąganie z przeciwwagą maszyny, klatka do uchwytów." }] },
+  { name: "Podciąganie wspomagane na maszynie", category: "back", type: "compound", tracking: "assisted_bodyweight", instructions: [{ title: "💡 Technika", content: "Podciąganie z przeciwwagą maszyny, klatka do uchwytów." }] },
   { name: "Wiosłowanie T-bar wąskim chwytem (uchwyt V)", category: "back", type: "compound", instructions: [{ title: "💡 Technika", content: "Wiosłowanie T-bar wąskim uchwytem do brzucha." }] },
   { name: "Wiosłowanie na maszynie jednorącz (plate-loaded)", category: "back", type: "compound", instructions: [{ title: "💡 Technika", content: "Wiosłowanie jednorącz na maszynie, łokieć do biodra." }] },
   { name: "Wiosłowanie w podporze na ławce skośnej (chest-supported)", category: "back", type: "compound", instructions: [{ title: "💡 Technika", content: "Wiosłowanie hantlami leżąc na skośnej ławce, łokcie do bioder." }] },
@@ -271,7 +275,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: "Prostowanie ramion zza głowy z hantlą oburącz (Overhead DB Extension)", category: "arms", type: "isolation", instructions: [{ title: "💡 Technika", content: "Hantla oburącz nad głową, opuszczaj za głowę z łokciami przy głowie." }] },
   { name: "Uginanie nadgarstków ze sztangą (Wrist Curl)", category: "arms", type: "isolation", instructions: [{ title: "💡 Technika", content: "Przedramiona na udach dłońmi w górę, zwijaj nadgarstki ze sztangą." }] },
   { name: "Odwrotne uginanie nadgarstków ze sztangą (Reverse Wrist Curl)", category: "arms", type: "isolation", instructions: [{ title: "💡 Technika", content: "Przedramiona na udach dłońmi w dół, prostuj nadgarstki ze sztangą." }] },
-  { name: "Izometryczny chwyt farmera (Farmer's Hold)", category: "arms", type: "isolation", instructions: [{ title: "💡 Technika", content: "Trzymaj ciężkie hantle po bokach przez czas, mocny chwyt, plecy proste." }] },
+  { name: "Izometryczny chwyt farmera (Farmer's Hold)", category: "arms", type: "isolation", tracking: "weight_distance_duration", instructions: [{ title: "💡 Technika", content: "Trzymaj ciężkie hantle po bokach przez czas, mocny chwyt, plecy proste." }] },
   { name: "Uginanie hammer na wyciągu z liną (Cable Rope Hammer Curl)", category: "arms", type: "isolation", instructions: [{ title: "💡 Technika", content: "Lina na dolnym wyciągu, chwyt neutralny, uginaj łokcie w górę." }] },
   { name: "Wyciskanie wąsko w maszynie Smitha (Smith Close-Grip Press)", category: "arms", type: "compound", instructions: [{ title: "💡 Technika", content: "Wąski chwyt w maszynie Smitha, łokcie przy ciele, do dołu klatki." }] },
 
@@ -279,7 +283,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: "Brzuszki klasyczne (Crunch)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Unieś łopatki zwijając tułów, nie ciągnij za szyję." }] },
   { name: "Pełne spięcie brzucha (Sit-up)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Unieś cały tułów do siadu, kontroluj opadanie." }] },
   { name: "Brzuszki rowerek (Bicycle Crunch)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Naprzemienny łokieć do przeciwnego kolana, plecy na podłodze." }] },
-  { name: "Plank boczny (Side Plank)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Oparcie na przedramieniu, biodra w górę, prosta linia ciała." }] },
+  { name: "Plank boczny (Side Plank)", category: "core", type: "isolation", isBodyweight: true, tracking: "duration", instructions: [{ title: "💡 Technika", content: "Oparcie na przedramieniu, biodra w górę, prosta linia ciała." }] },
   { name: "Hollow Rock (Bujanie w łódce)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Pozycja łódki, bujaj się utrzymując napięty brzuch." }] },
   { name: "V-up (Scyzoryk)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Unieś tułów i nogi jednocześnie do kształtu V." }] },
   { name: "Nogi do drążka (Toes to Bar)", category: "core", type: "compound", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Zwis na drążku, unieś proste nogi aż palce dotkną drążka." }] },
@@ -292,7 +296,7 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: "Pallof Press w przysiadzie (warianty)", category: "core", type: "isolation", instructions: [{ title: "💡 Technika", content: "Wyciskaj uchwyt przed siebie w półprzysiadzie, opieraj się rotacji." }] },
   { name: "Dragon Flag (Flaga Smoka)", category: "core", type: "compound", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Opuszczaj sztywne ciało jako jedną linię, oparcie na łopatkach." }] },
   { name: "L-sit (Podpór kątowy)", category: "core", type: "compound", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Podpór na poręczach, unieś proste nogi do poziomu w kształt L." }] },
-  { name: "Plank z dotykaniem barków", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Plank na prostych rękach, dotykaj przeciwnego barku bez ruchu bioder." }] },
+  { name: "Plank z dotykaniem barków", category: "core", type: "isolation", isBodyweight: true, tracking: "duration", instructions: [{ title: "💡 Technika", content: "Plank na prostych rękach, dotykaj przeciwnego barku bez ruchu bioder." }] },
   { name: "Superman (Unoszenie tułowia leżąc na brzuchu)", category: "core", type: "isolation", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Unieś ramiona i nogi leżąc na brzuchu, napnij grzbiet i pośladki." }] },
   { name: "Burpees", category: "core", type: "compound", isBodyweight: true, instructions: [{ title: "💡 Technika", content: "Pełny ruch całego ciała: przysiad, deska, pompka, wyskok. Tempo kontrolowane, miękkie lądowanie." }] },
 
@@ -307,6 +311,9 @@ export const exerciseLibrary: LibraryExercise[] = [
   { name: "Wspięcia na palce z kettlebell stojąc", category: "calves", type: "isolation", instructions: [{ title: "💡 Technika", content: "Kettlebell w dłoniach, śródstopia na podwyższeniu, pełen zakres ruchu w kostce." }] },
   { name: "Wspięcia na palce na hack squacie", category: "calves", type: "isolation", instructions: [{ title: "💡 Technika", content: "Śródstopia na dolnej krawędzi platformy, nogi proste, pełen zakres w kostce." }] },
   { name: "Wspięcia na palce na suwnicy siedząc (zgięte kolana)", category: "calves", type: "isolation", instructions: [{ title: "💡 Technika", content: "Gryf suwnicy na udach nad kolanami, śródstopia na krążku, pełen zakres w kostce." }] },
+  // Nowe typy śledzenia (Z105): ciężar + dystans + czas oraz asysta.
+  { name: "Spacer farmera (Farmer's Walk)", category: "core", type: "compound", tracking: "weight_distance_duration", instructions: [{ title: "💡 Technika", content: "Ciężkie hantle lub uchwyty po bokach, plecy proste, mocny chwyt, krótkie stabilne kroki na dystans lub czas." }] },
+  { name: "Dipy wspomagane na maszynie", category: "chest", type: "compound", tracking: "assisted_bodyweight", instructions: [{ title: "💡 Technika", content: "Dipy z przeciwwagą maszyny — im mniejsza asysta, tym trudniej. Pochyl tułów lekko do przodu na klatkę." }] },
 ];
 
 export const categoryLabels: Record<LibraryExercise['category'], string> = {

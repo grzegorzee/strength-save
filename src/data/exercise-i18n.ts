@@ -132,6 +132,8 @@ export const EXERCISE_NAME_EN: Record<string, string> = {
   "Ściąganie drążka podchwytem (wąsko)": "Underhand Lat Pulldown",
   "Ściąganie drążka neutralnym chwytem": "Neutral-Grip Lat Pulldown",
   "Podciąganie wspomagane na maszynie": "Assisted Pull-Up Machine",
+  "Spacer farmera (Farmer's Walk)": "Farmer's Walk",
+  "Dipy wspomagane na maszynie": "Assisted Dip Machine",
   "Wiosłowanie T-bar wąskim chwytem (uchwyt V)": "Close-Grip T-Bar Row",
   "Wiosłowanie na maszynie jednorącz (plate-loaded)": "Single-Arm Plate-Loaded Row",
   "Wiosłowanie w podporze na ławce skośnej (chest-supported)": "Chest-Supported Dumbbell Row",

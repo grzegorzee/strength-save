@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
+import { isTrackingType } from '@/lib/set-tracking';
 
 const CUSTOM_EXERCISES_COLLECTION = 'custom_exercises';
 // 100 własnych ćwiczeń wystarcza na lata; limit chroni koszty czytań.
@@ -26,6 +27,8 @@ export interface CustomExerciseInput {
   category: LibraryExercise['category'];
   isBodyweight: boolean;
   type: 'compound' | 'isolation';
+  /** Typ śledzenia serii (Z105). Brak = weight_reps (isBodyweight => bodyweight_reps). */
+  tracking?: LibraryExercise['tracking'];
 }
 
 const E2E_KEY = 'fittracker_e2e_custom_exercises';
@@ -48,6 +51,7 @@ const toCustomExercise = (docId: string, data: Record<string, unknown>): CustomE
   category: data.category as LibraryExercise['category'],
   type: data.type === 'isolation' ? 'isolation' : 'compound',
   isBodyweight: data.isBodyweight === true,
+  ...(isTrackingType(data.tracking) ? { tracking: data.tracking } : {}),
   instructions: [],
 });
 
@@ -102,6 +106,7 @@ export const useCustomExercises = (userId: string) => {
         category: input.category,
         type: input.type,
         isBodyweight: input.isBodyweight,
+        ...(input.tracking ? { tracking: input.tracking } : {}),
         instructions: [],
       };
       setCustomExercises((prev) => {
@@ -118,6 +123,7 @@ export const useCustomExercises = (userId: string) => {
       category: input.category,
       isBodyweight: input.isBodyweight,
       type: input.type,
+      ...(input.tracking ? { tracking: input.tracking } : {}),
       createdAt: Date.now(),
     });
     return {
@@ -126,6 +132,7 @@ export const useCustomExercises = (userId: string) => {
       category: input.category,
       type: input.type,
       isBodyweight: input.isBodyweight,
+      ...(input.tracking ? { tracking: input.tracking } : {}),
       instructions: [],
     };
   }, [userId]);

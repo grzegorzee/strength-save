@@ -12,6 +12,12 @@ export interface SetData {
   weight: number;
   completed: boolean;
   isWarmup?: boolean;
+  /** Czas trwania serii w sekundach (typy 'duration' i 'weight_distance_duration', Z105). */
+  durationSec?: number;
+  /** Dystans w metrach (typ 'weight_distance_duration', Z105). */
+  distanceM?: number;
+  /** Odciążenie asysty w kg (typ 'assisted_bodyweight', Z105) — efektywne obciążenie = masa ciała minus asysta. */
+  assistWeight?: number;
 }
 
 // Metryki autoregulacji per ćwiczenie (Faza 2 — model RZA). Wszystkie opcjonalne:
