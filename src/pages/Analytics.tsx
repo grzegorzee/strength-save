@@ -27,6 +27,7 @@ import {
   ChevronRight, FileDown, Loader2,
 } from 'lucide-react';
 import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard';
+import { HybridLoadCard } from '@/components/analytics/HybridLoadCard';
 import { buildTrainingReportModel, generateTrainingReportPdf } from '@/lib/pdf-report';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -201,6 +202,9 @@ const SummaryTab = () => {
     <div className="space-y-6">
       {/* Z93: przegląd miesięcy na górze Podsumowania (liczba treningów, czas, tonaż). */}
       <MonthlyOverviewCard workouts={workouts} />
+
+      {/* Z115: obciążenie hybrydowe (siła + cardio na jednej osi tygodniowej). */}
+      <HybridLoadCard />
 
       <div className="flex items-center justify-between">
         <div className="flex gap-2">

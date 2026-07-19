@@ -14,8 +14,10 @@ import {
 } from 'recharts';
 import { Activity } from 'lucide-react';
 import { computeDailyLoad, computeFitnessFatigue } from '@/lib/training-load';
+import { computeDailyLoads } from '@/lib/hybrid-load';
 import { tooltipStyle } from '@/lib/chart-config';
-import type { StravaActivity } from '@/types/strava';
+import type { StravaActivity, UnifiedActivity } from '@/types/strava';
+import type { WorkoutSession } from '@/types';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { parseLocalDate } from '@/lib/utils';
@@ -23,19 +25,26 @@ import { parseLocalDate } from '@/lib/utils';
 interface Props {
   activities: StravaActivity[];
   estimatedMaxHR?: number;
+  /** Z115: sesje siłowe (sTRIMP) karmią CTL/ATL/TSB razem z cardio. */
+  workouts?: WorkoutSession[];
 }
 
-export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
+export const TrainingLoadChart = ({ activities, estimatedMaxHR, workouts }: Props) => {
   const { t, lang } = useTranslation();
   const data = useMemo(() => {
     const maxHR = estimatedMaxHR || 190;
-    const daily = computeDailyLoad(activities, 60, maxHR);
+    // Z115: łączny load (siła + cardio) gdy przekazano workouts; inaczej jak dotąd.
+    const daily = workouts && workouts.length > 0
+      ? computeDailyLoads(workouts, activities as UnifiedActivity[], 60, maxHR)
+        .map((d) => ({ date: d.date, trimp: d.totalLoad }))
+      : computeDailyLoad(activities, 60, maxHR);
     return computeFitnessFatigue(daily, 90);
-  }, [activities, estimatedMaxHR]);
+  }, [activities, estimatedMaxHR, workouts]);
 
   // Need at least some data points
   const hrActivities = activities.filter(a => a.averageHeartrate);
-  if (hrActivities.length < 7 || data.length === 0) return null;
+  const hasStrength = (workouts?.length ?? 0) > 0;
+  if ((hrActivities.length < 7 && !hasStrength) || data.length === 0) return null;
 
   const chartData = data.map(d => ({
     date: parseLocalDate(d.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'numeric' }),
@@ -51,7 +60,10 @@ export const TrainingLoadChart = ({ activities, estimatedMaxHR }: Props) => {
           <Activity className="h-5 w-5 text-blue-500" />
           {t('strava.trainingLoad')}
         </CardTitle>
-        <CardDescription>{t('strava.trainingLoadDesc')}</CardDescription>
+        <CardDescription>
+          {t('strava.trainingLoadDesc')}
+          {(workouts?.length ?? 0) > 0 && ` ${t('hybrid.loadIncludesStrength')}`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={250}>

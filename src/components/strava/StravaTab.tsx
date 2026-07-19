@@ -15,6 +15,7 @@ import { RefreshCw, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useManualActivities } from '@/hooks/useManualActivities';
+import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { mergeActivities } from '@/lib/manual-activity';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { filterByMonthYear, getAvailableYears } from '@/lib/strava-utils';
@@ -36,6 +37,8 @@ export const StravaTab = () => {
   const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
   // Z113: Training Load liczy też ręczne cardio (intensywność zastępuje HR).
   const { activities: manualActivities } = useManualActivities(uid);
+  // Z115: sesje siłowe karmią CTL/ATL/TSB (sTRIMP).
+  const { workouts } = useFirebaseWorkouts(uid);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | 'all'>(new Date().getMonth() + 1);
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
@@ -153,6 +156,7 @@ export const StravaTab = () => {
       <TrainingLoadChart
         activities={loadActivities}
         estimatedMaxHR={connection.estimatedMaxHR}
+        workouts={workouts}
       />
 
       {/* HR zones */}

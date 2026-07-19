@@ -138,3 +138,17 @@ describe('detectInterference (Z114) — nogi + intensywne cardio <24h', () => {
     expect(detectInterference([legsDay], [cardio({ date: '2026-07-14', type: 'HIIT', perceivedIntensity: 'hard' })])).toHaveLength(1);
   });
 });
+
+describe('CTL/ATL/TSB na łącznym loadzie (Z115)', () => {
+  it('dodanie sesji siłowej podnosi ATL względem samego cardio', async () => {
+    const { computeFitnessFatigue } = await import('@/lib/training-load');
+    const run = cardio({ date: '2026-07-14' });
+    const onlyCardio = computeDailyLoads([], [run])
+      .map((d) => ({ date: d.date, trimp: d.totalLoad }));
+    const withStrength = computeDailyLoads([strengthWorkout({ date: '2026-07-14' })], [run])
+      .map((d) => ({ date: d.date, trimp: d.totalLoad }));
+    const atlCardio = computeFitnessFatigue(onlyCardio).at(-1)!.atl;
+    const atlBoth = computeFitnessFatigue(withStrength).at(-1)!.atl;
+    expect(atlBoth).toBeGreaterThan(atlCardio);
+  });
+});

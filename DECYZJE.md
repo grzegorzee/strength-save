@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X15B FAZA 2 (Z115): UI tygodnia hybrydowego
+
+**Wdrożone:** HybridWeekStrip na Dashboardzie (7 mini słupków pon-nd siła/cardio + dismissowalny banner interferencji, dismiss per para w localStorage `fittracker_interference_dismissed_v1`, przeżywa reload); HybridLoadCard w Analytics zakładka Podsumowanie (12 tygodni stacked bar siła+cardio + linia total + % split bieżącego tygodnia + hint interferencji z 7 dni); TrainingLoadChart z opcjonalnym prop workouts — CTL/ATL/TSB karmione ŁĄCZNYM loadem (test: dodanie sesji siłowej podnosi ATL), etykieta "obejmuje siłę i cardio".
+
+**Odstępstwo (ODŁOŻONE):** "wpis w podsumowaniu tygodnia AI (prompt dostaje detectInterference)" — AI podsumowanie tygodnia NIE ISTNIEJE już w kliencie (AI Chat/Coach usunięte w v6.7.0/X12B). Interferencja trafia do UI (banner Dashboard + hint w karcie hybrydowej). Ewentualne rozszerzenie weekly digest (functions) o interferencję = backlog.
+
+**Pułapka odkryta:** domyślna zakładka Analytics to 'weekly' (nie 'summary') — testy klikają "Podsum.".
+
+**Weryfikacja:** vitest 801/801 (14 hybrid-load z testem ATL), e2e 161/161 (2 nowe Z115: hybryda z interferencją i dismissem po reloadzie; konto tylko-siłowe 100% bez crasha), bramki komplet.
+
 ### 2026-07-19 — X15B FAZA 1 (Z114): silnik obciążenia hybrydowego
 
 **sTRIMP (Foster session-RPE):** load siłowy = minuty x RPE sesji (średnia ważona liczbą ukończonych serii roboczych z exercises[].rpe; fallback RPE 6.0; brak durationSec => serie x 3 min). **Kalibracja do skali TRIMP:** STRENGTH_TO_TRIMP_CALIBRATION = 0.23 — godzinna sesja RPE 6 (sTRIMP 360) zrównana z godzinnym biegiem moderate (~75% HRmax => TRIMP ~83 przy rest 60/max 190); stała jawna, przybita testem (test kalibracyjny: ratio siła/cardio w przedziale 0.8-1.2). UI dostanie etykietę "obciążenie szacunkowe".

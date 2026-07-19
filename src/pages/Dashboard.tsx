@@ -13,6 +13,7 @@ import { trainingPlan as defaultPlanData, type TrainingDay } from '@/data/traini
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
+import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -922,6 +923,14 @@ const Dashboard = () => {
       {/* This week's training — merged timeline */}
       <div className="space-y-3">
         <h2 className="font-heading font-bold text-base uppercase tracking-tight">{t('dash.weekPlan')}</h2>
+
+        {/* Z115: pasek łącznego obciążenia dnia (siła + cardio) + wskazówka interferencji */}
+        <HybridWeekStrip
+          workouts={workouts}
+          activities={unifiedActivities.filter(a => a.source === 'manual' || stravaConnection.connected)}
+          weekStart={getStartOfPlanWeek(today)}
+          maxHR={stravaConnection.estimatedMaxHR}
+        />
         <div className="grid gap-3">
           {(() => {
             // Build unified timeline: training days + cardio (Strava + manualne, Z112)

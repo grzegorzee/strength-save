@@ -622,6 +622,16 @@ export const pl = {
   'notes.lastNote': 'Ostatnio: „{note}”',
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
+  // obciążenie hybrydowe (Z114-Z115)
+  'hybrid.cardTitle': 'Obciążenie hybrydowe',
+  'hybrid.cardDesc': 'Siła i cardio jako jedno obciążenie tygodniowe (szacunkowe: sesje siłowe wg czasu i RPE, cardio wg tętna lub intensywności).',
+  'hybrid.strength': 'Siła',
+  'hybrid.cardio': 'Cardio',
+  'hybrid.total': 'Łącznie',
+  'hybrid.currentWeekSplit': 'Bieżący tydzień: siła / cardio',
+  'hybrid.interferenceHint': 'Interferencja: {n} para(y) ciężkie nogi + intensywne cardio w ostatnich 7 dniach.',
+  'hybrid.interferenceBanner': 'Ciężkie nogi i intensywne cardio blisko siebie ({date}). Jeśli priorytetem jest siła nóg, rozważ lżejsze cardio lub większy odstęp.',
+  'hybrid.loadIncludesStrength': 'Obejmuje siłę (czas x RPE) i cardio.',
   // ręczne cardio (Z112)
   'cardio.addTitle': 'Dodaj cardio',
   'cardio.editTitle': 'Edytuj wpis cardio',

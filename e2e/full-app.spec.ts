@@ -1148,6 +1148,72 @@ test.describe('Manualne cardio w analityce (Z113)', () => {
 });
 
 // =====================================================
+// 11a9. OBCIĄŻENIE HYBRYDOWE (Z115)
+// =====================================================
+test.describe('Obciążenie hybrydowe (Z115)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  const strengthSeed = (date: string) => ({
+    id: `hyb-${date}`, userId: 'e2e-test-user', dayId: `hyb-${date}`, date,
+    completed: true, dayName: 'Nogi', durationSec: 3600,
+    exercises: [{
+      exerciseId: 'ex-legs',
+      name: 'Przysiad ze sztangą (High Bar)',
+      rpe: 8,
+      sets: [
+        { reps: 5, weight: 100, completed: true },
+        { reps: 5, weight: 100, completed: true },
+        { reps: 5, weight: 100, completed: true },
+        { reps: 5, weight: 100, completed: true },
+      ],
+    }],
+  });
+
+  test('siła + manual cardio: karta hybrydowa, pasek dnia i wskazówka interferencji z dismiss', async ({ page }) => {
+    const today = new Date().toISOString().split('T')[0];
+    await setE2EWorkouts(page, [strengthSeed(today)]);
+    await page.addInitScript(({ key, data }) => {
+      window.localStorage.setItem(key, JSON.stringify(data));
+    }, {
+      key: 'fittracker_e2e_manual_activities',
+      data: [{
+        id: 'ma-hyb', userId: 'e2e-test-user', type: 'Run', date: today,
+        movingTime: 2400, perceivedIntensity: 'hard', createdAt: 1,
+      }],
+    });
+
+    // Dashboard: pasek tygodnia + banner interferencji (nogi + intensywny bieg tego samego dnia).
+    await navigateAndWait(page, '/');
+    await expect(page.getByTestId('hybrid-week-strip')).toBeVisible();
+    await expect(page.getByTestId('interference-banner')).toBeVisible();
+    await page.getByTestId('interference-dismiss').click();
+    await expect(page.getByTestId('interference-banner')).toHaveCount(0);
+    // Dismiss przeżywa reload (localStorage per para).
+    await page.reload();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByTestId('hybrid-week-strip')).toBeVisible();
+    await expect(page.getByTestId('interference-banner')).toHaveCount(0);
+
+    // Analytics: karta hybrydowa z podziałem procentowym (zakładka Podsumowanie).
+    await navigateAndWait(page, '/analytics');
+    await page.getByRole('tab', { name: 'Podsum.' }).click();
+    await expect(page.getByTestId('hybrid-load-card')).toBeVisible();
+    await expect(page.getByTestId('hybrid-week-split')).toBeVisible();
+  });
+
+  test('konto tylko-siłowe: karta hybrydowa z samą siłą, bez crasha', async ({ page }) => {
+    const today = new Date().toISOString().split('T')[0];
+    await setE2EWorkouts(page, [strengthSeed(today)]);
+    await navigateAndWait(page, '/analytics');
+    await page.getByRole('tab', { name: 'Podsum.' }).click();
+    await expect(page.getByTestId('hybrid-load-card')).toBeVisible();
+    await expect(page.getByTestId('hybrid-week-split')).toContainText('100%');
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {
