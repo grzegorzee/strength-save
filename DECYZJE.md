@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X14C FAZA 2 (Z110): kreator importu + zapis + cofnięcie
+
+**Bezpieczeństwo danych (dane usera święte):** zapis WYŁĄCZNIE nowych dokumentów `imported-<batchId>-<n>` (istniejące treningi niedotykane — test rules na cudzy userId), zero zapisów bez jawnego checkboxa potwierdzenia w kroku podglądu (N treningów, zakres dat, M serii), cofnięcie jednym przyciskiem = delete po `importBatchId` (query userId+importBatchId, NOWY composite index w firestore.indexes.json), idempotencja = batchId z hasha pliku (FNV-1a x2, 16 hex — decyzja: synchroniczny hash zamiast async crypto.subtle, wystarczający per user).
+
+**Implementacja:** rules: `importBatchId` dopisany do validWorkoutShape (string<=64) + 4 testy (145/145); hook: `importCsvSessions` (batched po 400, progress callback, gałąź E2E na localStorage fittracker_e2e_workouts) + `deleteImportBatch`; `WorkoutImportWizard` w Ustawieniach -> Twoje dane (kroki: plik -> podsumowanie+mapper (select 241+custom, "jako własne" przez useCustomExercises, wybór kg/lbs dla Strong) -> checkbox -> zapis z progress -> sukces; Historia importów w localStorage `fittracker_import_history_v1`, max 20 wpisów).
+
+**Weryfikacja skutków:** PRy/rekordy/wykresy/heatmapa liczą z całej historii — imported wchodzą z DATAMI HISTORYCZNYMI z CSV (getExerciseBest1RM.bestDate = w.date; brak fałszywych "dzisiejszych" PR — import nie triggeruje detectNewPRs, ta ścieżka działa tylko przy kończeniu treningu). E2E: pełny scenariusz (import fixture -> historia z snapshotem dayName -> idempotencja 2x = nadal 3 treningi -> cofnięcie = 0) + rekordy w Achievements z importu.
+
+**Weryfikacja:** vitest 776/776, e2e 157/157, rules 145/145, bramki komplet. Flaki e2e w pełnych runach (3 różne testy, zawsze pass w izolacji) = obciążenie maszyny przy równoległości, nie regresja.
+
 ### 2026-07-19 — X14C FAZA 1 (Z109): parser CSV Strong/Hevy + mapowanie nazw
 
 **Formaty (zweryfikowane na realnych eksportach z GitHuba, nie z pamięci):** Strong `Date,Workout Name,Duration,Exercise Name,Set Order,Weight,Reps,Distance,Seconds,Notes,Workout Notes,RPE` (data "YYYY-MM-DD HH:MM:SS", warmup Set Order=W, jednostka wagi NIEZAPISANA w pliku => opcja strongWeightUnit w wizardzie, default kg); Hevy `title,start_time,...,exercise_title,...,set_index,set_type,weight_kg,reps,distance_km,duration_seconds,rpe` (daty ISO albo "30 Jun 2025, 19:56"; set_type normal/warmup/dropset/failure albo 1/2/3/4; starszy wariant weight_lbs/distance_miles => auto-wykrycie kolumny z danymi). Parser: własny splitter CSV (quoted fields), przecinek dziesiętny PL, uszkodzone wiersze pomijane z licznikiem, grupowanie sesji po (data+nazwa treningu).

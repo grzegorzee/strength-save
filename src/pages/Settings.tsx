@@ -20,6 +20,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
+import { WorkoutImportWizard } from '@/components/WorkoutImportWizard';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -187,6 +188,10 @@ const Settings = () => {
         exportLabel={t('settings.backup.export')}
         importLabel={t('settings.backup.import')}
       />
+      {/* Import CSV Strong/Hevy (Z110) */}
+      <div className="mt-3">
+        <WorkoutImportWizard />
+      </div>
       </div>
 
       {/* Narzędzia naprawcze (Z52): domyślnie zwinięte. Z90.4: widzi je tylko admin —

@@ -345,6 +345,77 @@ export const useFirebaseWorkoutActions = (
     }
   }, [userId, t]);
 
+  // === Import CSV Strong/Hevy (Z110) — dane usera święte: zapis wyłącznie NOWYCH
+  // dokumentów imported-*, idempotentny (te same id), cofnięcie po importBatchId. ===
+
+  const isMockE2E = import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true';
+
+  const importCsvSessions = useCallback(async (
+    sessions: WorkoutSession[],
+    onProgress?: (written: number, total: number) => void,
+  ): Promise<{ success: boolean; written: number; error?: string }> => {
+    if (sessions.length === 0) return { success: true, written: 0 };
+    try {
+      if (isMockE2E) {
+        // E2E mock: historia żyje w localStorage (fittracker_e2e_workouts) — merge po id.
+        const raw = window.localStorage.getItem('fittracker_e2e_workouts');
+        const existing: WorkoutSession[] = raw ? JSON.parse(raw) : [];
+        const byId = new Map(existing.map((w) => [w.id, w]));
+        sessions.forEach((s) => byId.set(s.id, s));
+        window.localStorage.setItem('fittracker_e2e_workouts', JSON.stringify(Array.from(byId.values())));
+        onProgress?.(sessions.length, sessions.length);
+        return { success: true, written: sessions.length };
+      }
+
+      let written = 0;
+      // Chunkowane batche (limit Firestore 500 operacji).
+      for (let i = 0; i < sessions.length; i += 400) {
+        const batch = writeBatch(db);
+        const chunk = sessions.slice(i, i + 400);
+        chunk.forEach((session) => batch.set(doc(db, WORKOUTS_COLLECTION, session.id), session));
+        await batch.commit();
+        written += chunk.length;
+        onProgress?.(written, sessions.length);
+      }
+      return { success: true, written };
+    } catch (err) {
+      console.error('[importCsvSessions] Error:', err);
+      return { success: false, written: 0, error: err instanceof Error ? err.message : String(err) };
+    }
+  }, [isMockE2E]);
+
+  const deleteImportBatch = useCallback(async (
+    batchId: string,
+  ): Promise<{ success: boolean; deleted: number; error?: string }> => {
+    try {
+      if (isMockE2E) {
+        const raw = window.localStorage.getItem('fittracker_e2e_workouts');
+        const existing: WorkoutSession[] = raw ? JSON.parse(raw) : [];
+        const remaining = existing.filter((w) => w.importBatchId !== batchId);
+        window.localStorage.setItem('fittracker_e2e_workouts', JSON.stringify(remaining));
+        return { success: true, deleted: existing.length - remaining.length };
+      }
+
+      const snapshot = await getDocs(query(
+        collection(db, WORKOUTS_COLLECTION),
+        where('userId', '==', userId),
+        where('importBatchId', '==', batchId),
+      ));
+      let deleted = 0;
+      const docs = snapshot.docs;
+      for (let i = 0; i < docs.length; i += 400) {
+        const batch = writeBatch(db);
+        docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+        deleted += Math.min(400, docs.length - i);
+      }
+      return { success: true, deleted };
+    } catch (err) {
+      console.error('[deleteImportBatch] Error:', err);
+      return { success: false, deleted: 0, error: err instanceof Error ? err.message : String(err) };
+    }
+  }, [isMockE2E, userId]);
+
   // Delete a specific workout (for cleanup)
   const deleteWorkout = useCallback(async (workoutId: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -517,6 +588,8 @@ export const useFirebaseWorkoutActions = (
     getCompletedWorkoutsCount,
     exportData,
     importData,
+    importCsvSessions,
+    deleteImportBatch,
     deleteWorkout,
     cleanupEmptyWorkouts,
     backfillHistoricalWorkouts,

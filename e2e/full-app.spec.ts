@@ -998,6 +998,89 @@ test.describe('Kalkulator talerzy (Z107)', () => {
 });
 
 // =====================================================
+// 11a6. IMPORT CSV STRONG/HEVY (Z110)
+// =====================================================
+test.describe('Import CSV (Z110)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('pełny scenariusz: import fixture Strong, idempotencja 2x, historia, cofnięcie', async ({ page }) => {
+    await navigateAndWait(page, '/settings');
+
+    // Krok 1: wybór pliku
+    await page.getByTestId('import-wizard-open').click();
+    await page.getByTestId('import-file-input').setInputFiles('src/test/fixtures/strong-sample.csv');
+
+    // Krok 2: podsumowanie + auto-mapowanie (fixture: 3 treningi, 1 uszkodzony wiersz)
+    await expect(page.getByTestId('import-summary')).toContainText('3');
+    await expect(page.getByTestId('import-summary')).toContainText('Strong');
+    await expect(page.getByTestId('import-summary')).toContainText('Pominięto 1');
+    await expect(page.getByTestId('import-mapping-stats')).toContainText('Auto-zmapowano 7 z 7');
+    await page.getByTestId('import-to-confirm').click();
+
+    // Krok 3: potwierdzenie z checkboxem (zero zapisów bez zgody)
+    const writeBtn = page.getByTestId('import-write');
+    await expect(writeBtn).toBeDisabled();
+    await page.getByTestId('import-confirm-checkbox').click();
+    await writeBtn.click();
+    await expect(page.getByTestId('import-done')).toContainText('3');
+    await page.getByRole('button', { name: 'Zamknij' }).click();
+
+    // Historia pokazuje zaimportowane treningi ze snapshotem nazwy dnia.
+    await navigateAndWait(page, '/history');
+    await expect(page.getByText('Poniedziałek — Góra')).toBeVisible();
+    await expect(page.getByText('Środa — Dół')).toBeVisible();
+
+    // Idempotencja: ten sam plik drugi raz => te same id, liczba treningów bez zmian.
+    await navigateAndWait(page, '/settings');
+    await page.getByTestId('import-wizard-open').click();
+    await page.getByTestId('import-file-input').setInputFiles('src/test/fixtures/strong-sample.csv');
+    await page.getByTestId('import-to-confirm').click();
+    await page.getByTestId('import-confirm-checkbox').click();
+    await page.getByTestId('import-write').click();
+    await expect(page.getByTestId('import-done')).toBeVisible();
+    const workoutsAfterSecond = await page.evaluate(() => {
+      const raw = window.localStorage.getItem('fittracker_e2e_workouts');
+      return raw ? (JSON.parse(raw) as unknown[]).length : 0;
+    });
+    expect(workoutsAfterSecond).toBe(3);
+    await page.getByRole('button', { name: 'Zamknij' }).click();
+
+    // Cofnięcie: historia importów -> Cofnij -> treningi znikają.
+    await page.getByTestId('import-wizard-open').click();
+    await expect(page.getByTestId('import-history-entry').first()).toBeVisible();
+    await page.getByTestId('import-undo').first().click();
+    await expect(page.getByTestId('import-history-entry')).toHaveCount(0);
+    const workoutsAfterUndo = await page.evaluate(() => {
+      const raw = window.localStorage.getItem('fittracker_e2e_workouts');
+      return raw ? (JSON.parse(raw) as unknown[]).length : 0;
+    });
+    expect(workoutsAfterUndo).toBe(0);
+  });
+
+  test('zaimportowane treningi zasilają rekordy i heatmapę (snapshot+resolver)', async ({ page }) => {
+    // Seed przez mechanizm E2E — kształt identyczny jak buildImportedSessions.
+    await setE2EWorkouts(page, [{
+      id: 'imported-testbatch-1',
+      userId: 'e2e-test-user',
+      dayId: 'imported-testbatch-1',
+      date: '2026-05-04',
+      completed: true,
+      dayName: 'Import — Góra',
+      importBatchId: 'testbatch',
+      exercises: [{
+        exerciseId: 'imported-ex-1',
+        name: 'Wyciskanie sztangi na ławce płaskiej',
+        sets: [{ reps: 8, weight: 80, completed: true }],
+      }],
+    }]);
+    await navigateAndWait(page, '/achievements');
+    await expect(page.getByText('Wyciskanie sztangi na ławce płaskiej').first()).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {

@@ -350,6 +350,20 @@ add('custom_exercises: delete wlasnego ALLOWED', true, await ok(() => deleteDoc(
 add('custom_exercises: tracking z listy ALLOWED (Z105)', true, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-t1'), { ...validCustomExercise, tracking: 'assisted_bodyweight' })));
 add('custom_exercises: tracking spoza listy DENIED (Z105)', false, await ok(() => setDoc(doc(db, 'custom_exercises', 'cx-t2'), { ...validCustomExercise, tracking: 'cardio' })));
 
+// === Import CSV (Z110): tag importBatchId w workouts ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser(undefined, 'active', OTHER_UID);
+const importedWorkout = {
+  id: 'imported-abc123-1', userId: UID, dayId: 'imported-abc123-1', date: '2026-05-04',
+  completed: true, dayName: 'Import test', importBatchId: 'abc123',
+  exercises: [{ exerciseId: 'imported-ex-1', name: 'Plank', sets: [{ reps: 0, weight: 0, completed: true, durationSec: 90 }] }],
+};
+add('workouts: create importowanego z importBatchId ALLOWED (Z110)', true, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-1'), importedWorkout)));
+add('workouts: import z cudzym userId DENIED (Z110)', false, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-2'), { ...importedWorkout, id: 'imported-abc123-2', userId: OTHER_UID })));
+add('workouts: importBatchId nie-string DENIED (Z110)', false, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-3'), { ...importedWorkout, id: 'imported-abc123-3', importBatchId: 42 })));
+add('workouts: delete wlasnego importowanego ALLOWED (cofniecie importu, Z110)', true, await ok(() => deleteDoc(doc(db, 'workouts', 'imported-abc123-1'))));
+
 // === Exercise notes (Z103): przypieta notatka per cwiczenie, zamkniety schemat ===
 await env.clearFirestore();
 await seedUser({ enabled: true });

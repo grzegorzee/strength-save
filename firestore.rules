@@ -81,10 +81,15 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
         'id', 'userId', 'dayId', 'date', 'exercises', 'completed', 'completedAt',
         'notes', 'cycleId', 'skippedExercises', 'dayName', 'dayFocus',
-        'durationSec', 'startedAt', 'updatedAt', 'revision', 'lastWriteId', 'createdAt'
+        'durationSec', 'startedAt', 'updatedAt', 'revision', 'lastWriteId', 'createdAt',
+        'importBatchId'
       ])
       && (!('notes' in request.resource.data)
-          || (request.resource.data.notes is string && request.resource.data.notes.size() <= 5000));
+          || (request.resource.data.notes is string && request.resource.data.notes.size() <= 5000))
+      // Tag wsadu importu CSV (Z110) — opcjonalny string (hash pliku).
+      && (!('importBatchId' in request.resource.data)
+          || (request.resource.data.importBatchId is string
+              && request.resource.data.importBatchId.size() <= 64));
     }
 
     // Workouts collection

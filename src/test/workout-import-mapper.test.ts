@@ -123,3 +123,13 @@ describe('buildImportedSessions (Z109)', () => {
     }
   });
 });
+
+describe('computeImportBatchId (Z110)', () => {
+  it('deterministyczny i wrażliwy na treść', async () => {
+    const { computeImportBatchId } = await import('@/lib/workout-import/batch');
+    const a = computeImportBatchId('plik A');
+    expect(computeImportBatchId('plik A')).toBe(a);
+    expect(computeImportBatchId('plik B')).not.toBe(a);
+    expect(a).toMatch(/^[0-9a-f]{16}$/);
+  });
+});
