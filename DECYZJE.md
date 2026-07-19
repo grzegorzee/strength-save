@@ -11,6 +11,12 @@
 
 ## DECYZJE
 
+### 2026-07-19 (wieczór) — X16C wersja 2: aplikacja Garmin Connect IQ zamiast Health API
+
+**Decyzja usera:** ścieżką Garmin jest dedykowana aplikacja Connect IQ (device app na zegarku), nie server-side Health/Activity API. **Powody:** (1) Health API wymaga akceptacji Garmin Connect Developer Program (gatekeeper, tygodnie, możliwa odmowa solo-devowi), Connect IQ nie ma gatekeepera (SDK darmowe, dystrybucja przez Connect IQ Store ze zwykłą recenzją); (2) import cardio od userów Garmina w większości pokrywa już Strava (auto-sync Garmin→Strava); (3) CIQ daje więcej: logowanie serii z nadgarstka na Garminie (nie ma tego NIKT w kategorii) + trening siłowy natywnie w Garmin Connect (sesja FIT z HR nagrywana na zegarku, bez żadnego API).
+
+**Architektura (plan `docs/PLAN-X16C-2026-07-19.md` wersja 2, Z125-Z127):** zegarek rozmawia z naszym backendem (nie z telefonem): parowanie 6-cyfrowym kodem (`device_pair_codes` TTL 10 min → token urządzenia, hash w `device_tokens`), `garminDay` (kontekst dnia, REUŻYCIE `watch-contract.ts` z X16B), `garminIngest` (idempotentne zdarzenia, zapis WorkoutSession ze snapshotami przez Admin SDK). Zegarek równolegle nagrywa natywną sesję strength (FIT). V1 standalone: bez live-syncu z draftem telefonu (guard jednoczesności: osobna sesja, zero mergowania). Health API import → backlog (opcja, gdyby Garmin przyznał dostęp).
+
 ### 2026-07-19 — Kierunek rozwoju X14-X16: synteza 3 deep researchy (Gemini, Claude, ChatGPT)
 
 **Decyzja usera:** pełna sekwencja X14 (parytet + quick wins) -> X15 (hybryda siła+cardio = moat) -> X16 (warstwa premium: progresja, Watch, Garmin). Wykonanie w pełni autonomiczne wg `docs/PROMPT-WDROZENIE-X14-X16.md`.

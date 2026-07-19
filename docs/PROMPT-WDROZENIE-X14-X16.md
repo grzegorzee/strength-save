@@ -16,14 +16,14 @@ Przeczytaj najpierw, w tej kolejności:
    - docs/PLAN-X15C-2026-07-19.md (Z116-Z118: Apple Health + Health Connect)
    - docs/PLAN-X16A-2026-07-19.md (Z119-Z121: progresja programowa + deload)
    - docs/PLAN-X16B-2026-07-19.md (Z122-Z124: Apple Watch v1)
-   - docs/PLAN-X16C-2026-07-19.md (Z125-Z126: Garmin; ma BLOKADĘ ZEWNĘTRZNĄ, patrz plan)
+   - docs/PLAN-X16C-2026-07-19.md (Z125-Z127: aplikacja Garmin Connect IQ: logowanie serii z zegarka Garmin + natywny zapis do Garmin Connect; wersja 2 planu, Health API przeniesione do backlogu)
 3. docs/DESIGN.md (Kinetic Precision; nowy UI wyłącznie tokenami).
 4. START.md sekcja "Historia odporna na zmianę planu" (snapshot + resolver; X14A/X14C na tym stoją).
 5. NEXT_AGENT.md WYŁĄCZNIE sekcje o pułapkach buildu iOS i pipeline TestFlight (numery buildów NIEAKTUALNE, pułapki aktualne: build:mobile vs web base, npm run deploy nadpisuje dist, RTK przepisuje npx cap, używaj ./node_modules/.bin/cap).
 
 WARUNEK WSTĘPNY: X13 wdrożone (wpisy release X13A/B/C w DECYZJE.md, wersja 1.0.0 w package.json). Sprawdź i działaj, nie pytaj.
 
-GOAL: wykonać WSZYSTKIE plany w kolejności X14A -> X14B -> X14C -> X15A -> X15B -> X15C -> X16A -> X16B -> X16C, zadanie po zadaniu, każdy plan aż do wdrożonego release (web + rules + functions gdy dotyczone + iOS TestFlight z dystrybucją external przez testflight_external.py) i raportu. Definicja done całości: wszystkie checkboxy dziewięciu planów odhaczone (albo jawnie ODŁOŻONE z uzasadnieniem), dziewięć release trainów wykonanych, a w apce działa: przypięte notatki, szybki trening, serie na czas/dystans/asystę z poprawnymi PR, kalkulator talerzy i rozgrzewki, import CSV z cofaniem, ręczne cardio widoczne w kalendarzu i TRIMP, karta obciążenia hybrydowego, sync Apple Health, cele tygodniowe z deloadem, trening z Apple Watch, połączenie Garmin (w zakresie odblokowanym przez Garmin).
+GOAL: wykonać WSZYSTKIE plany w kolejności X14A -> X14B -> X14C -> X15A -> X15B -> X15C -> X16A -> X16B -> X16C, zadanie po zadaniu, każdy plan aż do wdrożonego release (web + rules + functions gdy dotyczone + iOS TestFlight z dystrybucją external przez testflight_external.py) i raportu. Definicja done całości: wszystkie checkboxy dziewięciu planów odhaczone (albo jawnie ODŁOŻONE z uzasadnieniem), dziewięć release trainów wykonanych, a w apce działa: przypięte notatki, szybki trening, serie na czas/dystans/asystę z poprawnymi PR, kalkulator talerzy i rozgrzewki, import CSV z cofaniem, ręczne cardio widoczne w kalendarzu i TRIMP, karta obciążenia hybrydowego, sync Apple Health, cele tygodniowe z deloadem, trening z Apple Watch, trening z zegarka Garmin przez aplikację Connect IQ (backend + apka CIQ zweryfikowane na symulatorze; test na fizycznym zegarku i publikacja w Connect IQ Store mogą zostać jako KROKI USERA).
 
 TRYB: 100% AUTONOMICZNY, PRACA DO WYCZERPANIA LIMITÓW SESJI. User zatwierdził całość 2026-07-19 i NIE podejmuje decyzji w trakcie. NIE zatrzymuj się, NIE zadawaj pytań, NIE czekaj na potwierdzenia. Każdą decyzję podejmij sam wg planów; gdy plan nie rozstrzyga, wybierz wariant prostszy i zgodny z zasadami projektu, wybór z uzasadnieniem wpisz do DECYZJE.md. Bezpieczniki zamiast pytań: TDD, dry-run przed zapisami do danych, import testowany wyłącznie na koncie testowym, zero zapisów testowych na realnych kontach userów.
 
@@ -43,7 +43,7 @@ LOOP (powtarzaj, aż wszystkie checkboxy dziewięciu planów są odhaczone lub O
 Pętli NIE przerywasz. Obsługa przeszkód zamiast zatrzymania:
 (a) bezpiecznik TDD (znalezisko niepotwierdzone testem) = wpis do DECYZJE.md i następne zadanie;
 (b) bramka czerwona = debuguj systematycznie aż zielona; jeśli po rzetelnych próbach fix wykracza poza zakres zadania: oznacz zadanie ODŁOŻONE w pliku planu z opisem, wpis do DECYZJE.md, kontynuuj (release train wykonaj tylko przy pełnych zielonych bramkach; inaczej dokończ resztę planu bez deployu i wypisz w raporcie jako TOP priorytet);
-(c) BLOKADA ZEWNĘTRZNA (klucze Garmin niewydane, deklaracje Health w App Store Connect wymagające konta usera, brak fizycznego Apple Watch) = wykonaj wszystko co możliwe bez blokera (architektura, testy, fixtures, symulatory), oznacz pozostałość ODŁOŻONE z dokładnymi krokami dokończenia i listą KROKÓW USERA, kontynuuj następne zadanie;
+(c) BLOKADA ZEWNĘTRZNA (recenzja Connect IQ Store, konto developerskie Garmin na dane usera, deklaracje Health w App Store Connect wymagające konta usera, brak fizycznego Apple Watch lub zegarka Garmin) = wykonaj wszystko co możliwe bez blokera (architektura, testy, fixtures, symulatory), oznacz pozostałość ODŁOŻONE z dokładnymi krokami dokończenia i listą KROKÓW USERA, kontynuuj następne zadanie;
 (d) brak dostępu/credentials = spróbuj wszystkich udokumentowanych ścieżek (_secrets, gcloud application-default, skrypty projektu), dopiero po wyczerpaniu odłóż KROK i jedź dalej.
 
 Twarde zasady:
@@ -62,5 +62,5 @@ Twarde zasady:
 - Po każdej fazie wpis do DECYZJE.md (co, dlaczego, root cause przy naprawach, weryfikacja).
 
 Raport końcowy każdego PLANU: co wdrożono (web index-hash, build iOS), wyniki bramek, scenariusze użytkownika z wynikami, zadania ODŁOŻONE + KROKI USERA, koszty (Firestore/Functions), następny plan.
-Raport końcowy CAŁOŚCI (po X16C): tabela 9 planów ze statusami, lista wszystkich KROKÓW USERA (wniosek Garmin, deklaracje App Privacy Health, test na fizycznym Watch, decyzja premium gating progresji/watch), propozycja kolejnych kroków (backlog v2: Wear OS, wideo techniki top 50, heatmapa mięśni, tryb wielu siłowni).
+Raport końcowy CAŁOŚCI (po X16C): tabela 9 planów ze statusami, lista wszystkich KROKÓW USERA (publikacja Connect IQ Store + test na fizycznym zegarku Garmin, deklaracje App Privacy Health, test na fizycznym Apple Watch, decyzja premium gating progresji/watch), propozycja kolejnych kroków (backlog v2: Wear OS, wideo techniki top 50, heatmapa mięśni, tryb wielu siłowni, import z Garmin Health API gdyby Garmin przyznał dostęp).
 ```
