@@ -81,7 +81,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR }: Hybr
                 title={`${label}: ${t('hybrid.strength')} ${Math.round(d.strengthLoad)} + ${t('hybrid.cardio')} ${Math.round(d.cardioLoad)}`}
               >
                 <div className="flex h-11 w-full max-w-[26px] flex-col justify-end overflow-hidden rounded-sm">
-                  <div className="w-full bg-[hsl(var(--chart-2))]/85" style={{ height: cardioH }} />
+                  <div className="w-full bg-[#00e3fd]/85" style={{ height: cardioH }} />
                   <div className="w-full bg-primary" style={{ height: strengthH }} />
                 </div>
                 <span className="text-[9px] font-bold uppercase text-muted-foreground/60">{label}</span>
