@@ -622,6 +622,10 @@ export const pl = {
   'notes.lastNote': 'Ostatnio: „{note}”',
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
+  // szybki trening bez planu (Z104)
+  'adhoc.dayName': 'Szybki trening',
+  'adhoc.start': 'Szybki trening',
+  'adhoc.addExercise': 'Dodaj ćwiczenie',
   // przypięta notatka per ćwiczenie (Z103)
   'notes.pinnedTitle': 'Przypięta notatka',
   'notes.pinnedAlways': '(zawsze przy tym ćwiczeniu)',
