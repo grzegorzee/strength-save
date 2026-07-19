@@ -3,13 +3,15 @@ import { getTrainingRules } from '@/data/trainingPlan';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
-import { useStrava } from '@/hooks/useStrava';
+import { useActivities } from '@/hooks/useActivities';
+import { AddCardioDialog } from '@/components/AddCardioDialog';
+import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarDays, Dumbbell, Pencil, CheckCircle } from 'lucide-react';
+import { CalendarDays, Dumbbell, Pencil, CheckCircle, HeartPulse } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -144,8 +146,20 @@ const TrainingPlan = () => {
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
-  const { activities: stravaActivities } = useStrava(uid, canUseStrava);
+  // Z112: zunifikowane cardio (Strava + wpisy manualne) w kalendarzu.
+  const {
+    activities: unifiedActivities,
+    connection: stravaConnection,
+    addActivity,
+    updateActivity,
+    deleteActivity,
+  } = useActivities(uid, canUseStrava);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [cardioDialog, setCardioDialog] = useState<{ open: boolean; edit: ManualActivity | null; defaultDate?: string }>({ open: false, edit: null });
+  const visibleActivities = useMemo(
+    () => unifiedActivities.filter(a => a.source === 'manual' || stravaConnection.connected),
+    [unifiedActivities, stravaConnection.connected],
+  );
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const completedDates = workouts
@@ -153,8 +167,8 @@ const TrainingPlan = () => {
     .map(w => parseLocalDate(w.date));
 
   const stravaDates = useMemo(() =>
-    stravaActivities.map(a => parseLocalDate(a.date)),
-    [stravaActivities]
+    visibleActivities.map(a => parseLocalDate(a.date)),
+    [visibleActivities]
   );
 
   const today = useMemo(() => new Date(), []);
@@ -333,7 +347,7 @@ const TrainingPlan = () => {
               type TimelineItem =
                 | { type: 'training'; scheduleItem: typeof selectedWeekTrainingDates[number]; dateStr: string }
                 | { type: 'workout'; workout: typeof workouts[number]; dateStr: string }
-                | { type: 'strava'; activity: typeof stravaActivities[number]; dateStr: string };
+                | { type: 'strava'; activity: typeof visibleActivities[number]; dateStr: string };
 
               const items: TimelineItem[] = [];
 
@@ -353,7 +367,7 @@ const TrainingPlan = () => {
                   items.push({ type: 'workout', workout, dateStr: workout.date });
                 });
 
-              stravaActivities
+              visibleActivities
                 .filter(a => a.date >= weekStartStr && a.date <= weekEndStr)
                 .forEach(activity => {
                   items.push({ type: 'strava', activity, dateStr: activity.date });
@@ -384,21 +398,37 @@ const TrainingPlan = () => {
                         <span className="capitalize sm:hidden">{dayName.short}</span>
                         <span className="capitalize hidden sm:inline">{dayName.long}</span>, {dateLabel}
                       </span>
-                      {trainingItem && (
+                      <div className="flex items-center gap-3">
+                        {/* Z112: wpis cardio na wybranym dniu (także wstecz) */}
                         <button
-                          onClick={(e) => { e.stopPropagation(); navigate('/plan/edit'); }}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground/40 hover:text-primary transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setCardioDialog({ open: true, edit: null, defaultDate: dateStr }); }}
+                          className="flex items-center gap-1 text-[11px] text-muted-foreground/40 hover:text-fitness-cyan transition-colors"
+                          data-testid={`add-cardio-day-${dateStr}`}
                         >
-                          <Pencil className="h-3 w-3" />
-                          {t('trainingplan.edit')}
+                          <HeartPulse className="h-3 w-3" />
+                          {t('cardio.addShort')}
                         </button>
-                      )}
+                        {trainingItem && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate('/plan/edit'); }}
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground/40 hover:text-primary transition-colors"
+                          >
+                            <Pencil className="h-3 w-3" />
+                            {t('trainingplan.edit')}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Strava activities */}
+                    {/* Cardio: Strava + wpisy manualne (Z112) */}
                     {stravaItems.map(({ activity }) => (
-                      <div key={`strava-${activity.id}`} className="mb-2">
-                        <StravaActivityCard activity={activity} />
+                      <div key={`activity-${activity.id}`} className="mb-2">
+                        <StravaActivityCard
+                          activity={activity}
+                          onEdit={activity.source === 'manual'
+                            ? () => setCardioDialog({ open: true, edit: unifiedToManual(activity) })
+                            : undefined}
+                        />
                       </div>
                     ))}
 
@@ -489,7 +519,7 @@ const TrainingPlan = () => {
             {selectedDate && (() => {
               const selectedDateStr = formatLocalDate(selectedDate);
               const scheduleEntry = schedule.find(s => formatLocalDate(s.date) === selectedDateStr);
-              const stravaOnDate = stravaActivities.filter(a => a.date === selectedDateStr);
+              const stravaOnDate = visibleActivities.filter(a => a.date === selectedDateStr);
               const workoutForDate = getWorkoutForDate(selectedDate, scheduleEntry?.dayId);
               if (!scheduleEntry && !workoutForDate && stravaOnDate.length === 0) return null;
 
@@ -553,6 +583,17 @@ const TrainingPlan = () => {
           </div>
         </div>
       </div>
+
+      {/* Z112: dialog wpisu cardio (nowy z defaultDate albo edycja) */}
+      <AddCardioDialog
+        open={cardioDialog.open}
+        onOpenChange={(open) => setCardioDialog((prev) => ({ ...prev, open }))}
+        defaultDate={cardioDialog.defaultDate}
+        editActivity={cardioDialog.edit}
+        onAdd={addActivity}
+        onUpdate={updateActivity}
+        onDelete={deleteActivity}
+      />
     </div>
   );
 };

@@ -101,6 +101,22 @@ export const stravaToUnified = (activity: StravaActivity): UnifiedActivity => ({
   source: 'strava',
 });
 
+/** Odzyskanie ManualActivity ze strumienia zunifikowanego (edycja wpisu z listy). */
+export const unifiedToManual = (activity: UnifiedActivity): ManualActivity => ({
+  id: activity.id,
+  userId: activity.userId,
+  type: activity.type as ManualActivityType,
+  date: activity.date,
+  movingTime: activity.movingTime ?? 0,
+  ...(activity.name && { name: activity.name }),
+  ...(activity.distance !== undefined && { distance: activity.distance }),
+  ...(activity.averageHeartrate !== undefined && { averageHeartrate: activity.averageHeartrate }),
+  ...(activity.calories !== undefined && { calories: activity.calories }),
+  ...(activity.perceivedIntensity && { perceivedIntensity: activity.perceivedIntensity }),
+  ...(activity.description && { description: activity.description }),
+  createdAt: 0,
+});
+
 /** Scalony strumień aktywności: Strava + manual, malejąco po dacie (stabilnie po id). */
 export const mergeActivities = (
   strava: StravaActivity[],

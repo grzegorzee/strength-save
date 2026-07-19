@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
 import { trainingPlan as defaultPlanData, type TrainingDay } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
-import { useStrava } from '@/hooks/useStrava';
+import { useActivities } from '@/hooks/useActivities';
+import { AddCardioDialog } from '@/components/AddCardioDialog';
+import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -126,10 +128,20 @@ const Dashboard = () => {
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid);
   const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan } = useTrainingPlan(uid);
-  const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
+  // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
+  // czysto-Stravowe dalej liczą ze stravaActivities.
+  const {
+    activities: unifiedActivities,
+    stravaActivities,
+    connection: stravaConnection,
+    addActivity,
+    updateActivity,
+    deleteActivity,
+  } = useActivities(uid, canUseStrava);
   const { cycles, isLoaded: cyclesLoaded, archiveCurrentPlan, createActiveCycle } = usePlanCycles(uid);
   const { toast } = useToast();
   const [isRepeating, setIsRepeating] = useState(false);
+  const [cardioDialog, setCardioDialog] = useState<{ open: boolean; edit: ManualActivity | null }>({ open: false, edit: null });
 
   const handleRepeatPlan = async () => {
     const active = cycles.find((c) => c.status === 'active') || null;
@@ -629,19 +641,39 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Szybki trening bez planu (Z104) — zawsze dostępny, także bez aktywnego planu */}
-      <Button
-        variant="outline"
-        className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
-        onClick={() => {
-          const adhocDay = createAdhocDay(formatLocalDate(today), (key) => t(key as Parameters<typeof t>[0]));
-          navigate(`/workout/${adhocDay.id}?date=${formatLocalDate(today)}&autostart=true`);
-        }}
-        data-testid="quick-workout-start"
-      >
-        <Zap className="h-4 w-4 text-primary" />
-        {t('adhoc.start')}
-      </Button>
+      {/* Z104 szybki trening + Z112 ręczne cardio — zawsze dostępne */}
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          variant="outline"
+          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+          onClick={() => {
+            const adhocDay = createAdhocDay(formatLocalDate(today), (key) => t(key as Parameters<typeof t>[0]));
+            navigate(`/workout/${adhocDay.id}?date=${formatLocalDate(today)}&autostart=true`);
+          }}
+          data-testid="quick-workout-start"
+        >
+          <Zap className="h-4 w-4 text-primary" />
+          {t('adhoc.start')}
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+          onClick={() => setCardioDialog({ open: true, edit: null })}
+          data-testid="add-cardio-open"
+        >
+          <HeartPulse className="h-4 w-4 text-fitness-cyan" />
+          {t('cardio.addButton')}
+        </Button>
+      </div>
+
+      <AddCardioDialog
+        open={cardioDialog.open}
+        onOpenChange={(open) => setCardioDialog((prev) => ({ ...prev, open }))}
+        editActivity={cardioDialog.edit}
+        onAdd={addActivity}
+        onUpdate={updateActivity}
+        onDelete={deleteActivity}
+      />
 
       {showNextStep && planNextStep && (
       <Card className={planNextStepTone[planNextStep.tone]}>
@@ -892,10 +924,10 @@ const Dashboard = () => {
         <h2 className="font-heading font-bold text-base uppercase tracking-tight">{t('dash.weekPlan')}</h2>
         <div className="grid gap-3">
           {(() => {
-            // Build unified timeline: training days + Strava activities
+            // Build unified timeline: training days + cardio (Strava + manualne, Z112)
             type TimelineItem =
               | { type: 'training'; dayId: string; date: Date; dateStr: string }
-              | { type: 'strava'; activity: typeof stravaActivities[number]; dateStr: string };
+              | { type: 'activity'; activity: typeof unifiedActivities[number]; dateStr: string };
 
             const items: TimelineItem[] = [];
 
@@ -904,18 +936,19 @@ const Dashboard = () => {
               items.push({ type: 'training', dayId: day.id, date, dateStr: dateKey });
             });
 
-            // Add Strava activities for this week
-            if (stravaConnection.connected && thisWeek.length > 0) {
+            // Cardio bieżącego tygodnia: wpisy manualne ZAWSZE, Strava gdy połączona.
+            if (thisWeek.length > 0) {
               const mondayDate = getStartOfPlanWeek(today);
               const mondayStr = formatLocalDate(mondayDate);
               const sundayDate = new Date(mondayDate);
               sundayDate.setDate(sundayDate.getDate() + 6);
               const sundayStr = formatLocalDate(sundayDate);
 
-              stravaActivities
+              unifiedActivities
+                .filter(a => a.source === 'manual' || stravaConnection.connected)
                 .filter(a => a.date >= mondayStr && a.date <= sundayStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit')
                 .forEach(activity => {
-                  items.push({ type: 'strava', activity, dateStr: activity.date });
+                  items.push({ type: 'activity', activity, dateStr: activity.date });
                 });
             }
 
@@ -943,7 +976,14 @@ const Dashboard = () => {
                 );
               }
               return (
-                <StravaActivityCard key={`strava-${item.activity.id}`} activity={item.activity} maxHR={stravaConnection.estimatedMaxHR} />
+                <StravaActivityCard
+                  key={`activity-${item.activity.id}`}
+                  activity={item.activity}
+                  maxHR={stravaConnection.estimatedMaxHR}
+                  onEdit={item.activity.source === 'manual'
+                    ? () => setCardioDialog({ open: true, edit: unifiedToManual(item.activity) })
+                    : undefined}
+                />
               );
             });
           })()}

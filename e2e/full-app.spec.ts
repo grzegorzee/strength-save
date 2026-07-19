@@ -1081,6 +1081,47 @@ test.describe('Import CSV (Z110)', () => {
 });
 
 // =====================================================
+// 11a7. RĘCZNE CARDIO (Z112)
+// =====================================================
+test.describe('Ręczne cardio (Z112)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('dodaj Bieżnia 30 min z Dashboardu, widoczny w kalendarzu, edytuj czas, usuń', async ({ page }) => {
+    await navigateAndWait(page, '/');
+
+    // Dodanie: typ Bieżnia + 30 minut (default typ = Treadmill).
+    await page.getByTestId('add-cardio-open').click();
+    await page.getByTestId('cardio-minutes').fill('30');
+    await page.getByTestId('cardio-save').click();
+
+    // Widoczny na Dashboardzie (karta manualna z badge Ręczny).
+    const card = page.getByTestId('manual-activity-card').first();
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('Bieżnia');
+    await expect(card).toContainText('Ręczny');
+    await expect(card).toContainText('30m');
+
+    // Widoczny w kalendarzu (TrainingPlan).
+    await navigateAndWait(page, '/plan');
+    await expect(page.getByTestId('manual-activity-card').first()).toBeVisible();
+
+    // Edycja czasu z karty (klik otwiera dialog edycji).
+    await page.getByTestId('manual-activity-card').first().click();
+    await page.getByTestId('cardio-minutes').fill('45');
+    await page.getByTestId('cardio-save').click();
+    await expect(page.getByTestId('manual-activity-card').first()).toContainText('45m');
+
+    // Usunięcie z potwierdzeniem.
+    await page.getByTestId('manual-activity-card').first().click();
+    await page.getByTestId('cardio-delete').click();
+    await page.getByRole('button', { name: 'Usuń', exact: true }).last().click();
+    await expect(page.getByTestId('manual-activity-card')).toHaveCount(0);
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {

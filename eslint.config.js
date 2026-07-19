@@ -7,7 +7,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
-      "build/ios/**",
+      "build/**",
       "dist/**",
       "coverage/**",
       "playwright-report/**",

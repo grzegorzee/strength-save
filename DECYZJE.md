@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X15A FAZA 2 (Z112): UI logowania cardio
+
+**AddCardioDialog:** typ (grid 10 chipów z ikonami) + czas w MINUTACH obowiązkowe (decyzja: minuty zamiast mm:ss — cardio loguje się w minutach, mniej tarcia niż parser), data edytowalna (wpisy wsteczne), reszta pod Collapsible "więcej" (dystans km->m, HR, kalorie, intensywność easy/moderate/hard, notatka). Wejścia: Dashboard (przycisk obok "Szybki trening", grid 2 kolumny) i kalendarz TrainingPlan (przycisk "Cardio" przy każdym dniu z defaultDate). Edycja: klik karty manualnej otwiera dialog z przyciskiem Usuń (ConfirmDialog); wpisy Strava read-only (klik = szczegóły Strava jak dotąd).
+
+**StravaActivityCard rozszerzona chirurgicznie:** opcjonalny prop onEdit; wpis manualny = badge "Ręczny" + kolor fitness-cyan (Strava zostaje pomarańczowa brandowo); brak propa = render identyczny jak dotąd (zero regresji Strava). Dashboard i TrainingPlan przeszły na useActivities (manual ZAWSZE widoczne, Strava gate connected jak dotąd); weeklyKm i komponenty czysto-Stravowe nietknięte.
+
+**Fix przy okazji (lint):** build/sim (build symulatorowy z weryfikacji X14B) nie był w ignores eslinta — lint failował od tamtej pory, maskowane przez `| tail` (exit code tail-a). Fix: ignores "build/**". Lekcja: bramki bez pipe albo z pipefail.
+
+**Weryfikacja:** vitest 785/785, e2e 158/158 (nowy: dodaj Bieżnia 30 min -> Dashboard+kalendarz -> edycja 45 min -> usunięcie z potwierdzeniem), bramki komplet.
+
 ### 2026-07-19 — X15A FAZA 1 (Z111): model i hooki manual_activities
 
 **Architektura:** osobna kolekcja `manual_activities` (kształt podzbioru StravaActivity + source='manual'; NIE dotykamy strava_activities — sync nadpisuje). Zamknięta lista 10 typów (Run/Ride/Walk/Hike/Swim/Treadmill/IndoorRide/JumpRope/HIIT/Other), jednostki kanoniczne (metry/sekundy). `sanitizeManualActivity`: typ+data+czas obowiązkowe, śmieciowe wartości opcjonalne POMIJANE (nie unieważniają wpisu), zero undefined. `UnifiedActivity = StravaActivity & { source, perceivedIntensity? }` + `mergeActivities` (sort desc po dacie, stabilny po id). Hooki: `useManualActivities` (CRUD, onSnapshot userId+date desc limit 500, E2E localStorage) + `useActivities` (warstwa scalająca; Strava zostaje read-only).
