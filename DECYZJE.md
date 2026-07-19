@@ -5,11 +5,21 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-17 (X13A RELEASE: telemetria produktowa na prod; web index-BtD9oq7c + iOS build 1.0.0 (56))
+**Ostatnia aktualizacja:** 2026-07-19 (kierunek X14-X16 z syntezy 3 deep researchy; plany Z103-Z126 + prompt autonomicznego wdrożenia)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-19 — Kierunek rozwoju X14-X16: synteza 3 deep researchy (Gemini, Claude, ChatGPT)
+
+**Decyzja usera:** pełna sekwencja X14 (parytet + quick wins) -> X15 (hybryda siła+cardio = moat) -> X16 (warstwa premium: progresja, Watch, Garmin). Wykonanie w pełni autonomiczne wg `docs/PROMPT-WDROZENIE-X14-X16.md`.
+
+**Podstawa:** 3 niezależne deep researche (2026-07-19) zgodne co do: (1) table stakes, których brak wywołuje churn: przypięte notatki/ustawienia maszyn (pain point nr 1 kategorii, migracje Hevy<->Strong), empty workout, import CSV, typy serii czas/dystans/asysta, kalkulatory; (2) niszy-zwycięzcy: hybrydowcy (Garmin +23% r/r userów łączących bieg i siłę; mamy już Strava+TRIMP+Race Predictor = więcej infrastruktury hybrydowej niż Hevy/Strong, brakuje ręcznego cardio i wspólnego obciążenia); (3) czego NIE budować: feed społecznościowy z lajkami, własna baza żywieniowa, HRV/readiness jako silnik rekomendacji, sztywny cycle syncing, VBT, AI analiza techniki. Wyróżnik techniczny: poprawny PR dla ćwiczeń z asystą (waga ciała minus odciążenie), czego nie liczy dobrze NIKT z konkurencji. Wideo techniki: spór raportów (2:1 za), odłożone do backlogu v2 (top 50 ćwiczeń, etapami).
+
+**Monetyzacja (kierunkowo, gating = osobna decyzja przy launchu):** X14 w całości FREE (broń akwizycyjna: Strong gate'uje kalkulatory), premium = progresja programowa + analityka hybrydowa + Watch. Rynek PL: rozważyć lifetime 99-149 zł (alergia PL na subskrypcje, sygnał SFD/Wykop). Benchmark: Hevy Pro $23.99/rok przy 14 mln userów = darmowy rdzeń musi być hojny.
+
+**Artefakty:** plany `docs/PLAN-X14A/B/C`, `PLAN-X15A/B/C`, `PLAN-X16A/B/C` (wszystkie 2026-07-19, zadania Z103-Z126) + prompt agenta `docs/PROMPT-WDROZENIE-X14-X16.md` (odporny na urwanie sesji: checkboxy planów = źródło prawdy, wznowienie tym samym promptem). Kamienie M51-M53 w PLAN.md.
 
 ### 2026-07-17 (wieczór) — LEKCJA TestFlight: internal-setup nie wystarcza dla Roberta
 
