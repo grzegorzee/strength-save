@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-20 — RELEASE X15C (Z116-Z118): Apple Health / Health Connect + fix signing iOS
+
+**Co:** cały release train X15C na prod: web index-Y_2d8C3i (health-bridge no-op w web), iOS build 64 (VALID, obie grupy TestFlight, Beta App Review APPROVED), Android AAB release-ready z Health Connect. Do buildu 64 weszły też gotowe Z119-Z120 (progresja: konfiguracja + cele tygodnia).
+
+**Incydent buildu 64 i fix systemowy signingu:** pierwszy upload padł na flaky iTMSTransporter ("Defaults.properties"), retry ujawnił altool 90166: StrengthWatch.app w IPA z PUSTYMI entitlements. Root cause GŁĘBSZY: pipeline archiwizował BEZ podpisu (CODE_SIGNING_ALLOWED=NO), a re-sign przy eksporcie nadaje tylko minimalne entitlements z profilu — główna apka na TestFlight (buildy 47-63) NIE MIAŁA healthkit/applesignin/aps-environment, czyli Sign in with Apple i push były martwe w binarce. Fix: manual signing w Release configach 3 targetów (Apple Distribution + PROVISIONING_PROFILE_SPECIFIER), profile watch/widgets przez scripts/watch_signing.py (idempotentny, aktualizuje ExportOptions-manual.plist), archive podpisuje pełne App.entitlements. Weryfikacja: codesign -d --entitlements na IPA — App: healthkit+applesignin+aps; Watch: healthkit; Widgets: bazowe.
+
+**KROKI USERA (X15C):** pełna pętla Health na realnym iPhone; App Privacy kategoria Health w ASC; test Sign in with Apple + push na buildzie 64 (pierwszy build z działającymi entitlements); emulator Android z Health Connect.
+
 ### 2026-07-20 — X16A FAZA 2 (Z120): silnik celów tygodniowych + cele w UI treningu
 
 **Co:** `computeWeeklyTargets(planDays, workouts, weekIndex, config, options)` w `progression-engine.ts`: per dzień / per ćwiczenie cel `{kind, targetWeight, targetReps, targetSets, targetDurationSec, reasonKey}`. Priorytety: deload-week (tylko z decyzją `deloadApplied`) > ból (pain>=4 w ostatniej sesji, -10% do 2.5 kg) > plateau (>=4 sesje, -10%) > double progression (góra zakresu → +2.5 compound / +1 isolation, reps do dołu; w zakresie → hold +1 powt.). Typ duration: best +10% do 5 s. Deload-week: -40% serii (ceil, min 1), -10% ciężaru do 2.5 kg. UI: badge "Cel tygodnia" w ExerciseCard (priorytet RZA > weeklyTarget > nextAdvice), reason pod nagłówkiem; pre-fill startu treningu bierze cel (`createPrefilledSets` z opcjonalnym targetem), deload-week redukuje też liczbę pre-fillowanych serii.
