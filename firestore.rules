@@ -493,6 +493,49 @@ service cloud.firestore {
                     && hasSelfAccess(resource.data.userId);
     }
 
+    // Ręczne wpisy cardio (Z111): zamknięty schemat, CRUD tylko właściciel.
+    // Jednostki kanoniczne: metry, sekundy. Osobna kolekcja od strava_activities (sync nadpisuje swoją).
+    function validManualActivityShape() {
+      return request.resource.data.keys().hasOnly([
+        'userId', 'type', 'date', 'movingTime', 'name', 'distance',
+        'averageHeartrate', 'calories', 'perceivedIntensity', 'description', 'createdAt'
+      ])
+      && request.resource.data.userId is string
+      && request.resource.data.type in [
+        'Run', 'Ride', 'Walk', 'Hike', 'Swim',
+        'Treadmill', 'IndoorRide', 'JumpRope', 'HIIT', 'Other'
+      ]
+      && request.resource.data.date is string
+      && request.resource.data.date.size() == 10
+      && request.resource.data.movingTime is number
+      && request.resource.data.movingTime > 0
+      && request.resource.data.movingTime <= 86400
+      && (!('name' in request.resource.data)
+          || (request.resource.data.name is string && request.resource.data.name.size() <= 120))
+      && (!('distance' in request.resource.data) || request.resource.data.distance is number)
+      && (!('averageHeartrate' in request.resource.data) || request.resource.data.averageHeartrate is number)
+      && (!('calories' in request.resource.data) || request.resource.data.calories is number)
+      && (!('perceivedIntensity' in request.resource.data)
+          || request.resource.data.perceivedIntensity in ['easy', 'moderate', 'hard'])
+      && (!('description' in request.resource.data)
+          || (request.resource.data.description is string && request.resource.data.description.size() <= 2000))
+      && request.resource.data.createdAt is int;
+    }
+
+    match /manual_activities/{activityId} {
+      allow read: if request.auth != null
+                  && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
+      allow create: if userIdMatchesAuth()
+                    && hasSelfAccess(request.resource.data.userId)
+                    && validManualActivityShape();
+      allow update: if request.auth != null
+                    && hasSelfAccess(resource.data.userId)
+                    && keepsOwner()
+                    && validManualActivityShape();
+      allow delete: if request.auth != null
+                    && hasSelfAccess(resource.data.userId);
+    }
+
     // Globalne flagi funkcji — każdy zalogowany czyta, tylko admin zapisuje.
     // Zawężone do feature_flags: przyszłe dokumenty configu nie wyciekają domyślnie.
     match /config/feature_flags {

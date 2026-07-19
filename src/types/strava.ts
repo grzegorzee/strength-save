@@ -23,6 +23,16 @@ export interface StravaActivity {
   syncedAt: string;     // ISO timestamp
 }
 
+/**
+ * Aktywność zunifikowana (Z111): Strava + wpisy manualne w jednym strumieniu.
+ * Komponenty listujące cardio przechodzą na ten typ; czysto-Stravowe zostają na StravaActivity.
+ */
+export interface UnifiedActivity extends StravaActivity {
+  source: 'strava' | 'manual';
+  /** Intensywność odczuwana wpisu manualnego bez HR (TRIMP: easy/moderate/hard -> 60/75/88 %HRmax). */
+  perceivedIntensity?: 'easy' | 'moderate' | 'hard';
+}
+
 export interface StravaConnection {
   connected: boolean;
   athleteId?: number;

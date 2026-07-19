@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X15A FAZA 1 (Z111): model i hooki manual_activities
+
+**Architektura:** osobna kolekcja `manual_activities` (kształt podzbioru StravaActivity + source='manual'; NIE dotykamy strava_activities — sync nadpisuje). Zamknięta lista 10 typów (Run/Ride/Walk/Hike/Swim/Treadmill/IndoorRide/JumpRope/HIIT/Other), jednostki kanoniczne (metry/sekundy). `sanitizeManualActivity`: typ+data+czas obowiązkowe, śmieciowe wartości opcjonalne POMIJANE (nie unieważniają wpisu), zero undefined. `UnifiedActivity = StravaActivity & { source, perceivedIntensity? }` + `mergeActivities` (sort desc po dacie, stabilny po id). Hooki: `useManualActivities` (CRUD, onSnapshot userId+date desc limit 500, E2E localStorage) + `useActivities` (warstwa scalająca; Strava zostaje read-only).
+
+**Rules:** zamknięty schemat validManualActivityShape (11 testów, 156/156) + composite index manual_activities(userId, date desc). `perceivedIntensity` easy/moderate/hard = wejście TRIMP bez HR (mapowanie 60/75/88 %HRmax w FAZIE 3).
+
+**Weryfikacja:** vitest 785/785 (9 manual-activity), e2e 157 (1 flake w pierwszym runie, retry czysty), bramki komplet.
+
 ### 2026-07-19 — RELEASE X14C (Z109-Z110) na prod — X14 KOMPLETNY
 
 **Wdrożone:** rules (workouts.importBatchId) + NOWY composite index workouts(userId, importBatchId) na cloud.firestore; web index-OskchBvM na gh-pages (live zweryfikowane pętlą aż nowy hash); iOS 1.0.0 build 61 + testflight_external.py (obie grupy, Beta App Review APPROVED). Bramki: vitest 776, e2e 157, rules 145, dist-smoke/dist-offline PASS.

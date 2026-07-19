@@ -364,6 +364,26 @@ add('workouts: import z cudzym userId DENIED (Z110)', false, await ok(() => setD
 add('workouts: importBatchId nie-string DENIED (Z110)', false, await ok(() => setDoc(doc(db, 'workouts', 'imported-abc123-3'), { ...importedWorkout, id: 'imported-abc123-3', importBatchId: 42 })));
 add('workouts: delete wlasnego importowanego ALLOWED (cofniecie importu, Z110)', true, await ok(() => deleteDoc(doc(db, 'workouts', 'imported-abc123-1'))));
 
+// === Manual activities (Z111): reczne wpisy cardio, zamkniety schemat ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser(undefined, 'active', OTHER_UID);
+const validManualActivity = {
+  userId: UID, type: 'Treadmill', date: '2026-07-19', movingTime: 1800,
+  name: 'Bieżnia po treningu', perceivedIntensity: 'moderate', createdAt: Date.now(),
+};
+add('manual_activities: create wlasnego ALLOWED', true, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-1'), validManualActivity)));
+add('manual_activities: create z cudzym userId DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-2'), { ...validManualActivity, userId: OTHER_UID })));
+add('manual_activities: typ spoza listy DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-3'), { ...validManualActivity, type: 'KravMaga' })));
+add('manual_activities: pole spoza schematu DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-4'), { ...validManualActivity, evil: 1 })));
+add('manual_activities: movingTime 0 DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-5'), { ...validManualActivity, movingTime: 0 })));
+add('manual_activities: intensity spoza listy DENIED', false, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-6'), { ...validManualActivity, perceivedIntensity: 'ultra' })));
+add('manual_activities: update wlasnego ALLOWED', true, await ok(() => setDoc(doc(db, 'manual_activities', 'ma-1'), { ...validManualActivity, movingTime: 2400 })));
+add('manual_activities: update cudzego DENIED', false, await ok(() => setDoc(doc(otherDb, 'manual_activities', 'ma-1'), { ...validManualActivity, userId: OTHER_UID })));
+add('manual_activities: read wlasnego ALLOWED', true, await ok(() => getDoc(doc(db, 'manual_activities', 'ma-1'))));
+add('manual_activities: read cudzego DENIED', false, await ok(() => getDoc(doc(otherDb, 'manual_activities', 'ma-1'))));
+add('manual_activities: delete wlasnego ALLOWED', true, await ok(() => deleteDoc(doc(db, 'manual_activities', 'ma-1'))));
+
 // === Exercise notes (Z103): przypieta notatka per cwiczenie, zamkniety schemat ===
 await env.clearFirestore();
 await seedUser({ enabled: true });
