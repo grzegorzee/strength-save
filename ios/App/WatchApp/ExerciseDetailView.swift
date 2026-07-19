@@ -19,6 +19,21 @@ struct ExerciseDetailView: View {
                             RestTimerRow()
                         }
                     }
+                    // Z122: cel tygodnia + przypięta notatka (ustawienia maszyny itp.).
+                    if exercise.targetLabel != nil || exercise.pinnedNote != nil {
+                        Section {
+                            if let target = exercise.targetLabel {
+                                Label(target, systemImage: "target")
+                                    .font(.caption)
+                                    .foregroundStyle(.green)
+                            }
+                            if let note = exercise.pinnedNote {
+                                Label(note, systemImage: "pin.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(.yellow)
+                            }
+                        }
+                    }
                     if let suggestion = store.nextSet(in: exercise) {
                         Section {
                             QuickLogButton(suggestion: suggestion, showExerciseName: false)
@@ -34,7 +49,7 @@ struct ExerciseDetailView: View {
                 }
                 .navigationTitle(exercise.name)
             } else {
-                Text("Brak ćwiczenia")
+                Text(L10n.noExercise)
             }
         }
     }
@@ -47,9 +62,9 @@ struct SetRow: View {
     let sets: [WatchSet]
 
     private var label: String {
-        if set.isWarmup == true { return "Rozgrzewka" }
+        if set.isWarmup == true { return L10n.warmup }
         let warmupCount = sets.prefix(index).filter { $0.isWarmup == true }.count
-        return "Seria \(index - warmupCount + 1)"
+        return L10n.series(index - warmupCount + 1)
     }
 
     var body: some View {
@@ -93,18 +108,18 @@ struct SetEditorView: View {
 
     private var title: String {
         guard let exercise = store.payload?.exercises?.first(where: { $0.id == exerciseId }) else {
-            return "Seria"
+            return L10n.series(1)
         }
-        if exercise.sets[safe: setIndex]?.isWarmup == true { return "Rozgrzewka" }
+        if exercise.sets[safe: setIndex]?.isWarmup == true { return L10n.warmup }
         let warmupCount = exercise.sets.prefix(setIndex).filter { $0.isWarmup == true }.count
-        return "Seria \(setIndex - warmupCount + 1)"
+        return L10n.series(setIndex - warmupCount + 1)
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 10) {
                 HStack {
-                    Text("Powt.")
+                    Text(L10n.reps)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -115,7 +130,7 @@ struct SetEditorView: View {
                 }
 
                 HStack {
-                    Text("Ciężar")
+                    Text(L10n.weight)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -139,7 +154,7 @@ struct SetEditorView: View {
                     )
                     dismiss()
                 } label: {
-                    Label("Zalicz serię", systemImage: "checkmark")
+                    Label(L10n.logSet, systemImage: "checkmark")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)

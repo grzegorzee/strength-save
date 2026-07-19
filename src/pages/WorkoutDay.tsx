@@ -30,7 +30,7 @@ import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId } from '@/lib/adhoc-workout';
 import { syncWorkoutToHealth } from '@/lib/health-bridge';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
-import { getTrackingType, type TrackingType } from '@/lib/set-tracking';
+import { formatDurationSec, getTrackingType, type TrackingType } from '@/lib/set-tracking';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useExerciseNotes } from '@/hooks/useExerciseNotes';
 import { localizeExerciseName } from '@/data/exercise-i18n';
@@ -145,6 +145,8 @@ const WorkoutDay = () => {
   const routeSessionId = searchParams.get('session');
   const autostart = searchParams.get('autostart') === 'true';
   const watchStartEventId = searchParams.get('watchEventId');
+  // Z122: true gdy zegarek zgłosił aktywną sesję HKWorkout w tym treningu.
+  const watchHkSessionRef = useRef(false);
   const isViewingPastWorkout = targetDate !== today;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -1446,6 +1448,8 @@ const WorkoutDay = () => {
 
   // Apple Watch: serie zalogowane na zegarku trafiają do draftu jak ręczne zmiany.
   const handleWatchSetLogged = useCallback(async (event: WatchSetLoggedEvent) => {
+    // Z122: zegarek prowadzi sesję HKWorkout (z tętnem) — telefon nie dubluje zapisu Health.
+    if (event.hkSession) watchHkSessionRef.current = true;
     const current = exerciseSetsRef.current[event.exerciseId];
     if (!current || event.setIndex < 0 || event.setIndex >= current.length) return;
     const next = current.map((set, i) =>
@@ -1482,7 +1486,8 @@ const WorkoutDay = () => {
 
   // handleCompleteWorkout jest zdefiniowany niżej — ref omija TDZ i exhaustive-deps.
   const completeWorkoutRef = useRef<(() => Promise<void>) | null>(null);
-  const handleWatchWorkoutFinished = useCallback(async () => {
+  const handleWatchWorkoutFinished = useCallback(async (event?: { hkSession?: boolean }) => {
+    if (event?.hkSession) watchHkSessionRef.current = true;
     toast({
       title: t('workout.toast.watchFinishedTitle'),
       description: t('workout.toast.watchFinishedDesc'),
@@ -1490,6 +1495,40 @@ const WorkoutDay = () => {
     // User potwierdził zakończenie na zegarku — finalizujemy bez drugiego dialogu.
     await completeWorkoutRef.current?.();
   }, [toast, t]);
+
+  // Z122: etykiety celu tygodnia i przypięte notatki dla zegarka (gotowe stringi,
+  // zegarek nie liczy nic sam).
+  const watchTargetLabels = useMemo(() => {
+    if (!weeklyTargets || !day) return undefined;
+    const out: Record<string, string> = {};
+    for (const ex of day.exercises) {
+      const target = weeklyTargets[ex.id];
+      if (!target || target.kind === 'start') continue;
+      const head = target.targetSets != null && target.targetReps != null
+        ? `${target.targetSets}×${target.targetReps}`
+        : target.targetReps != null ? `×${target.targetReps}` : '';
+      const value = [
+        head,
+        target.targetWeight != null && target.targetWeight > 0
+          ? `${Math.round(toDisplay(target.targetWeight) * 10) / 10} ${unit}`
+          : null,
+        target.targetDurationSec != null ? formatDurationSec(target.targetDurationSec) : null,
+      ].filter(Boolean).join(' · ');
+      if (value) out[ex.id] = `${t('card.weekTarget')}: ${value}`;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  }, [weeklyTargets, day, toDisplay, unit, t]);
+
+  const watchPinnedNotes = useMemo(() => {
+    if (!day) return undefined;
+    const out: Record<string, string> = {};
+    for (const ex of day.exercises) {
+      const note = getPinnedNote(ex.name);
+      const text = [note?.note, note?.machineSettings].filter(Boolean).join(' · ');
+      if (text) out[ex.id] = text;
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+  }, [day, getPinnedNote]);
 
   useWatchWorkoutSync({
     enabled: isActiveTrainingPhase(sessionPhase) && !isViewingPastWorkout,
@@ -1499,6 +1538,9 @@ const WorkoutDay = () => {
     focus: day?.focus,
     exercises: day?.exercises,
     exerciseSets,
+    targetLabels: watchTargetLabels,
+    pinnedNotes: watchPinnedNotes,
+    lang,
     onSetLogged: handleWatchSetLogged,
     onWorkoutFinished: handleWatchWorkoutFinished,
   });
@@ -1669,16 +1711,19 @@ const WorkoutDay = () => {
     void hapticSuccess();
 
     // Z116: zapis do Apple Health (fire-and-forget, no-op poza iOS / gdy wyłączone).
-    syncWorkoutToHealth(uid, {
-      id: sessionId,
-      userId: uid,
-      dayId: dayId ?? '',
-      date: targetDate,
-      completed: true,
-      exercises: [],
-      ...(activeDraftRef.current?.startedAt && { startedAt: activeDraftRef.current.startedAt }),
-      completedAt: Date.now(),
-    });
+    // Z122: gdy sesję HKWorkout prowadził zegarek (tętno, kalorie), telefon nie dubluje wpisu.
+    if (!watchHkSessionRef.current) {
+      syncWorkoutToHealth(uid, {
+        id: sessionId,
+        userId: uid,
+        dayId: dayId ?? '',
+        date: targetDate,
+        completed: true,
+        exercises: [],
+        ...(activeDraftRef.current?.startedAt && { startedAt: activeDraftRef.current.startedAt }),
+        completedAt: Date.now(),
+      });
+    }
 
     // Z83: natywna prośba o ocenę po kamieniach ukończonych treningów (5., 15., 30. ...),
     // max raz na 60 dni. Fire-and-forget — system i tak sam decyduje, czy pokazać dialog.

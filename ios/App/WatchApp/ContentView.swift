@@ -29,7 +29,7 @@ struct ContentView: View {
             Image(systemName: "iphone.gen3.radiowaves.left.and.right")
                 .font(.title2)
                 .foregroundStyle(.secondary)
-            Text("Otwórz Strength Save na iPhonie, żeby wysłać trening na zegarek.")
+            Text(L10n.openPhone)
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
@@ -43,9 +43,9 @@ struct ContentView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.title)
                 .foregroundStyle(.green)
-            Text("Trening zakończony")
+            Text(L10n.workoutDone)
                 .font(.headline)
-            Text("Zaliczone serie: \(done). Szczegóły na iPhonie.")
+            Text(L10n.doneSets(done))
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
@@ -58,7 +58,7 @@ struct ContentView: View {
             Image(systemName: "moon.zzz.fill")
                 .font(.title)
                 .foregroundStyle(.teal)
-            Text("Dziś odpoczynek")
+            Text(L10n.restDay)
                 .font(.headline)
             Text(date)
                 .font(.footnote)
@@ -91,6 +91,15 @@ struct WorkoutListView: View {
                 }
             }
 
+            // Z122: kolejka transferUserInfo nie jest pusta = serie czekają na telefon.
+            if store.pendingEventCount > 0 && !store.isPhoneReachable {
+                Section {
+                    Label(L10n.pendingSync, systemImage: "arrow.triangle.2.circlepath")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
+
             if let suggestion = store.nextSetSuggestion {
                 Section {
                     QuickLogButton(suggestion: suggestion, showExerciseName: true)
@@ -101,13 +110,13 @@ struct WorkoutListView: View {
                     Button {
                         store.startWorkout()
                     } label: {
-                        Label("Rozpocznij trening", systemImage: "play.fill")
+                        Label(L10n.startWorkout, systemImage: "play.fill")
                             .frame(maxWidth: .infinity)
                             .foregroundStyle(.black)
                     }
                     .listRowBackground(RoundedRectangle(cornerRadius: 12).fill(.green))
                 } footer: {
-                    Text("Możesz też od razu zaliczyć serię — trening wystartuje sam.")
+                    Text(L10n.startFooter)
                 }
             }
 
@@ -136,23 +145,23 @@ struct WorkoutListView: View {
                     Button {
                         confirmFinish = true
                     } label: {
-                        Label("Zakończ trening", systemImage: "flag.checkered")
+                        Label(L10n.finishWorkout, systemImage: "flag.checkered")
                             .foregroundStyle(allDone ? .green : .primary)
                     }
                 } footer: {
-                    Text("Serie zapisują się na iPhonie na bieżąco.")
+                    Text(L10n.finishFooter)
                 }
             }
         }
         .confirmationDialog(
-            "Zakończyć trening? Zaliczone serie: \(doneCount).",
+            L10n.confirmFinish(doneCount),
             isPresented: $confirmFinish,
             titleVisibility: .visible
         ) {
-            Button("Zakończ i zapisz", role: .destructive) {
+            Button(L10n.finishAndSave, role: .destructive) {
                 store.finishWorkout()
             }
-            Button("Wróć", role: .cancel) {}
+            Button(L10n.back, role: .cancel) {}
         }
         .navigationDestination(for: String.self) { exerciseId in
             if let exercise = store.payload?.exercises?.first(where: { $0.id == exerciseId }) {
@@ -207,7 +216,7 @@ struct RestTimerRow: View {
                     HStack {
                         Image(systemName: "timer")
                             .foregroundStyle(.orange)
-                        Text("Odpoczynek")
+                        Text(L10n.rest)
                             .font(.caption)
                         Spacer()
                         Text(String(format: "%d:%02d", left / 60, left % 60))
@@ -229,7 +238,13 @@ struct ExerciseRow: View {
                 Text(exercise.name)
                     .font(.body)
                     .lineLimit(2)
-                if let label = exercise.setsLabel {
+                // Z122: cel tygodnia (silnik progresji) ma pierwszeństwo nad surowym "3 x 6-8".
+                if let target = exercise.targetLabel {
+                    Text(target)
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                        .lineLimit(1)
+                } else if let label = exercise.setsLabel {
                     Text(label)
                         .font(.caption2)
                         .foregroundStyle(.secondary)

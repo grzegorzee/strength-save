@@ -31,6 +31,35 @@ export interface WatchExercisePayload {
   name: string;
   setsLabel?: string;
   sets: SetData[];
+  /** Z122: cel tygodnia z silnika progresji — gotowy string w języku usera. */
+  targetLabel?: string;
+  /** Z122: przypięta notatka (X14A), przycięta do ekranu zegarka. */
+  pinnedNote?: string;
+}
+
+const WATCH_NOTE_MAX = 140;
+
+/** Zwarty payload ćwiczeń dla zegarka (limit application context ~256KB). */
+export function buildWatchExercises(
+  exercises: Array<{ id: string; name: string; sets: string }>,
+  exerciseSets: Record<string, SetData[]>,
+  extras?: {
+    targetLabelByExerciseId?: Record<string, string>;
+    pinnedNoteByExerciseId?: Record<string, string>;
+  },
+): WatchExercisePayload[] {
+  return exercises.map((exercise) => {
+    const targetLabel = extras?.targetLabelByExerciseId?.[exercise.id];
+    const note = extras?.pinnedNoteByExerciseId?.[exercise.id];
+    return {
+      id: exercise.id,
+      name: exercise.name,
+      setsLabel: exercise.sets,
+      sets: exerciseSets[exercise.id] ?? [],
+      ...(targetLabel ? { targetLabel } : {}),
+      ...(note ? { pinnedNote: note.slice(0, WATCH_NOTE_MAX) } : {}),
+    };
+  });
 }
 
 export interface WatchWorkoutPayload {
@@ -48,6 +77,8 @@ export interface WatchWorkoutPayload {
   timersEnabled?: boolean;
   /** Jednostka wyświetlania ciężaru na zegarku (model i eventy zawsze w kg). */
   unit?: 'kg' | 'lbs';
+  /** Język UI zegarka (Z122): 'pl' | 'en' — spójny z telefonem. */
+  lang?: string;
   exercises?: WatchExercisePayload[];
 }
 
@@ -81,6 +112,8 @@ export interface WatchSetLoggedEvent {
   weight: number;
   completed: boolean;
   at: number;
+  /** Z122: zegarek prowadzi sesję HKWorkout — telefon NIE zapisuje drugiego treningu do Health. */
+  hkSession?: boolean;
 }
 
 export interface WatchWorkoutFinishedEvent {
@@ -89,6 +122,8 @@ export interface WatchWorkoutFinishedEvent {
   date: string;
   dayId: string;
   at: number;
+  /** Z122: jak wyżej — deduplikacja zapisu Health. */
+  hkSession?: boolean;
 }
 
 export interface WatchStartWorkoutEvent {

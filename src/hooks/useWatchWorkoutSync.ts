@@ -10,6 +10,7 @@ import type { SetData } from '@/types';
 import {
   addWatchEventListener,
   ackWatchEvents,
+  buildWatchExercises,
   getRestDefaultSeconds,
   getUnitSystemForWatch,
   isWatchBridgeSupported,
@@ -17,6 +18,7 @@ import {
   sendWorkoutToWatch,
   type WatchEvent,
   type WatchSetLoggedEvent,
+  type WatchWorkoutFinishedEvent,
   type WatchWorkoutPayload,
   watchEventId,
 } from '@/lib/watch-bridge';
@@ -31,14 +33,20 @@ interface UseWatchWorkoutSyncOptions {
   focus?: string;
   exercises?: Exercise[];
   exerciseSets: Record<string, SetData[]>;
+  /** Z122: etykiety celu tygodnia per exerciseId (gotowe stringi w języku usera). */
+  targetLabels?: Record<string, string>;
+  /** Z122: przypięte notatki per exerciseId. */
+  pinnedNotes?: Record<string, string>;
+  /** Z122: język UI zegarka. */
+  lang?: string;
   onSetLogged: (event: WatchSetLoggedEvent) => void | Promise<void>;
-  onWorkoutFinished: () => void | Promise<void>;
+  onWorkoutFinished: (event: WatchWorkoutFinishedEvent) => void | Promise<void>;
 }
 
 const SEND_DEBOUNCE_MS = 800;
 
 export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
-  const { enabled, date, dayId, dayName, focus, exercises, exerciseSets, onSetLogged, onWorkoutFinished } = options;
+  const { enabled, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, lang, onSetLogged, onWorkoutFinished } = options;
 
   // Najnowsze callbacki bez restartu listenera.
   const handlersRef = useRef({ onSetLogged, onWorkoutFinished });
@@ -64,18 +72,17 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         timersEnabled: FEATURE_FLAGS.workoutTimers,
         ...(FEATURE_FLAGS.workoutTimers && { restSeconds: getRestDefaultSeconds() }),
         unit: getUnitSystemForWatch(),
-        exercises: exercises.map((exercise) => ({
-          id: exercise.id,
-          name: exercise.name,
-          setsLabel: exercise.sets,
-          sets: exerciseSets[exercise.id] ?? [],
-        })),
+        ...(lang ? { lang } : {}),
+        exercises: buildWatchExercises(exercises, exerciseSets, {
+          targetLabelByExerciseId: targetLabels,
+          pinnedNoteByExerciseId: pinnedNotes,
+        }),
       };
       void sendWorkoutToWatch(payload);
     }, SEND_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [enabled, date, dayId, dayName, focus, exercises, exerciseSets]);
+  }, [enabled, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, lang]);
 
   // Odbiór eventów: listener live + drain kolejki przy starcie i powrocie do foreground.
   useEffect(() => {
@@ -97,7 +104,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         if (event.type === 'setLogged') {
           await handlersRef.current.onSetLogged(event);
         } else {
-          await handlersRef.current.onWorkoutFinished();
+          await handlersRef.current.onWorkoutFinished(event);
         }
         await ackWatchEvents([key]);
       } catch {

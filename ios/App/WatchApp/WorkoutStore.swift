@@ -13,6 +13,8 @@ final class WorkoutStore: NSObject, ObservableObject {
     @Published var isPhoneReachable = false
     /// Koniec bieżącego odpoczynku między seriami (nil = brak timera).
     @Published var restEndsAt: Date?
+    /// Z122: liczba zdarzeń w systemowej kolejce transferUserInfo (wskaźnik "niezsynchronizowane").
+    @Published var pendingEventCount = 0
     private var restTask: Task<Void, Never>?
 
     private let defaults = UserDefaults.standard
@@ -57,10 +59,10 @@ final class WorkoutStore: NSObject, ObservableObject {
 
         let label: String
         if set.isWarmup == true {
-            label = "Rozgrzewka"
+            label = L10n.warmup
         } else {
             let warmupCount = exercise.sets.prefix(index).filter { $0.isWarmup == true }.count
-            label = "Seria \(index - warmupCount + 1)"
+            label = L10n.series(index - warmupCount + 1)
         }
         return NextSetSuggestion(
             exerciseId: exercise.id, exerciseName: exercise.name,
@@ -115,6 +117,12 @@ final class WorkoutStore: NSObject, ObservableObject {
     private func loadCached() {
         guard let data = defaults.data(forKey: storageKey) else { return }
         payload = try? JSONDecoder().decode(WatchWorkoutPayload.self, from: data)
+        if let lang = payload?.lang { L10n.lang = lang }
+    }
+
+    /// Z122: odśwież licznik niezsynchronizowanych zdarzeń z kolejki systemowej.
+    func refreshPendingCount() {
+        pendingEventCount = WCSession.default.outstandingUserInfoTransfers.count
     }
 
     private func persist() {
@@ -155,6 +163,7 @@ final class WorkoutStore: NSObject, ObservableObject {
             merged.exercises = incomingExercises
         }
         payload = merged
+        if let lang = merged.lang { L10n.lang = lang }
         persist()
         syncHealthSession()
     }
@@ -209,7 +218,8 @@ final class WorkoutStore: NSObject, ObservableObject {
         if let dayId = payload.dayId {
             sendEvent(WatchEvent.setLogged(
                 date: payload.date, dayId: dayId, exerciseId: exerciseId,
-                setIndex: setIndex, reps: reps, weight: weight, completed: true
+                setIndex: setIndex, reps: reps, weight: weight, completed: true,
+                hkSession: WorkoutSessionManager.shared.isSessionRunning
             ))
         }
     }
@@ -220,7 +230,10 @@ final class WorkoutStore: NSObject, ObservableObject {
         defaults.set("\(payload.date)|\(dayId)", forKey: localFinishKey)
         objectWillChange.send()
         WKInterfaceDevice.current().play(.notification)
-        sendEvent(WatchEvent.workoutFinished(date: payload.date, dayId: dayId))
+        sendEvent(WatchEvent.workoutFinished(
+            date: payload.date, dayId: dayId,
+            hkSession: WorkoutSessionManager.shared.isSessionRunning
+        ))
         WorkoutSessionManager.shared.stop()
     }
 
@@ -259,6 +272,7 @@ final class WorkoutStore: NSObject, ObservableObject {
         } else {
             session.transferUserInfo(userInfo)
         }
+        refreshPendingCount()
     }
 }
 
@@ -281,6 +295,14 @@ extension WorkoutStore: WCSessionDelegate {
         let reachable = session.isReachable
         Task { @MainActor in
             self.isPhoneReachable = reachable
+            self.refreshPendingCount()
+        }
+    }
+
+    // Z122: kolejka systemowa dostarczyła zdarzenie — odśwież wskaźnik.
+    nonisolated func session(_ session: WCSession, didFinish userInfoTransfer: WCSessionUserInfoTransfer, error: Error?) {
+        Task { @MainActor in
+            self.refreshPendingCount()
         }
     }
 
