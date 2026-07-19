@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X15C FAZA 1 (Z116): warstwa health-sync + HealthKit (iOS)
+
+**Wybór pluginu (research 2026-07-19):** ekosystem NIE wspiera zapisu workoutów (@capgo/capacitor-health: workouts read-only; @perfood/capacitor-healthkit: iOS-only, zapis niepotwierdzony, luty 2025) => WŁASNY minimalny plugin `HealthSyncPlugin.swift` (wzorzec lokalnego WatchBridgePlugin z prototypu X16B; auto-rejestracja CAPBridgedPlugin, 4 metody: isAvailable/requestPermissions/writeWorkout/readLatestWeight; HKWorkoutBuilder + bodyMass HKSampleQuery).
+
+**Warstwa abstrakcji:** `health-sync.ts` (interfejs HealthBridge + czyste mapowania: mapWorkoutToHealth ze znaczników startedAt/completedAt i fallbackiem date+durationSec, mapCardioToHealth z pełną mapą 10 typów X15A, shouldSyncWorkout idempotentny po endMs, newerHealthWeight z epsilonem 0.1 kg) — 14 testów. `health-bridge.ts`: platform guard (iOS native / no-op), retry x3 z backoffem, log client_errors przy porażce, stan syncu i ustawienia w localStorage (natura uprawnień systemowych = per urządzenie).
+
+**Formalności wykonane przez API:** capability HEALTHKIT dodana do App ID + stary profil usunięty + nowy profil provisioning zainstalowany + ExportOptions-manual.plist zaktualizowany (`scripts/asc_healthkit_capability.py`). Entitlement com.apple.developer.healthkit + NSHealthShare/UpdateUsageDescription (uczciwe opisy PL).
+
+**Weryfikacja:** vitest 815/815, e2e 161/161, bundle web BEZ regresji (1 483 476 B — identyczny). Scenariusz ręczny na symulatorze po Z118 (wymaga toggle w Ustawieniach).
+
 ### 2026-07-19 — RELEASE X15B (Z114-Z115) na prod
 
 **Wdrożone:** web index-E0HlxZjB (z fixem: cardio na wykresach #00e3fd zamiast niezdefiniowanego --chart-2 renderującego się na czarno — jawny kolor design systemu jak wykresy Strava); iOS 1.0.0 build 63 + external (APPROVED). Rules bez zmian. Bramki: vitest 801, e2e 161, dist-smoke/offline PASS. Lekcja: pierwszy pipeline 63 ubity PRZED uploadem (fix cyan wszedł do tego samego numeru builda — czysto, bez marnowania numeru).
