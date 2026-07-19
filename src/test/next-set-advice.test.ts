@@ -63,6 +63,36 @@ describe('getNextSetAdvice', () => {
     expect(advice.targetWeight).toBe(90);
   });
 
+  // Testy charakteryzujące gałęzi bodyweight (Z119) — baseline PRZED refaktorem silnika.
+  it('bodyweight: dowiózł górę zakresu → progress +1 powtórzenie (charakteryzujący)', () => {
+    const ws = [wk('w1', '2026-05-01', 0, 12)];
+    const advice = getNextSetAdvice(ws, 'bench', '3 x 8-12', 0, { isBodyweight: true })!;
+    expect(advice.kind).toBe('progress');
+    expect(advice.targetWeight).toBe(0);
+    expect(advice.targetReps).toBe(13);
+  });
+
+  it('bodyweight: w zakresie → hold, cel +1 do maks zakresu (charakteryzujący)', () => {
+    const ws = [wk('w1', '2026-05-01', 0, 9)];
+    const advice = getNextSetAdvice(ws, 'bench', '3 x 8-12', 0, { isBodyweight: true })!;
+    expect(advice.kind).toBe('hold');
+    expect(advice.targetReps).toBe(10);
+  });
+
+  it('bodyweight: plateau → deload utrzymuje powtórzenia, waga 0 (charakteryzujący)', () => {
+    const ws = [
+      wk('w1', '2026-05-01', 0, 10),
+      wk('w2', '2026-05-04', 0, 10),
+      wk('w3', '2026-05-07', 0, 10),
+      wk('w4', '2026-05-10', 0, 10),
+      wk('w5', '2026-05-13', 0, 10),
+    ];
+    const advice = getNextSetAdvice(ws, 'bench', '3 x 8-12', 0, { isBodyweight: true })!;
+    expect(advice.kind).toBe('deload');
+    expect(advice.targetWeight).toBe(0);
+    expect(advice.targetReps).toBe(10);
+  });
+
   it('serie czysto czasowe (weight=0, reps=0) nie crashują coacha (Z105)', () => {
     const ws = [
       {
