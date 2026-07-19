@@ -44,6 +44,19 @@ export const useTrainingPlan = (userId: string) => {
       return;
     }
 
+    // E2E mock (Z120): Firestore zablokowany, więc startDate/progression planu
+    // czytamy z localStorage — pozwala testować silnik progresji end-to-end.
+    if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+      try {
+        const raw = window.localStorage.getItem('fittracker_e2e_plan');
+        if (raw) {
+          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown };
+          if (data.startDate) setPlanStartDate(data.startDate);
+          setProgression(sanitizeProgressionConfig(data.progression));
+        }
+      } catch { /* uszkodzony wpis e2e — zostaje default */ }
+    }
+
     const docRef = doc(db, PLAN_COLLECTION, userId);
 
     const unsubscribe = onSnapshot(docRef,

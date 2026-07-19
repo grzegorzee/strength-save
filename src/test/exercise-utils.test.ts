@@ -444,6 +444,40 @@ describe('createPrefilledSets with bodyweight', () => {
   });
 });
 
+describe('createPrefilledSets z celem tygodniowym (Z120)', () => {
+  const prev = [
+    { reps: 5, weight: 40, completed: false, isWarmup: true },
+    { reps: 8, weight: 60, completed: true },
+    { reps: 8, weight: 60, completed: true },
+  ];
+
+  it('cel nadpisuje wagę i powtórzenia working setów (warmup bez zmian)', () => {
+    const result = createPrefilledSets(2, prev, false, { weight: 62.5, reps: 6 });
+    expect(result[0].isWarmup).toBe(true);
+    expect(result[0].weight).toBe(40);
+    expect(result[1]).toMatchObject({ weight: 62.5, reps: 6, completed: false });
+    expect(result[2]).toMatchObject({ weight: 62.5, reps: 6 });
+  });
+
+  it('cel tylko z powtórzeniami (bodyweight): waga zostaje 0', () => {
+    const bwPrev = [{ reps: 10, weight: 0, completed: true }];
+    const result = createPrefilledSets(2, bwPrev, true, { weight: null, reps: 11 });
+    expect(result[1].weight).toBe(0);
+    expect(result[1].reps).toBe(11);
+  });
+
+  it('bez celu zachowanie jak dotychczas (powtórzenie poprzedniego treningu)', () => {
+    const result = createPrefilledSets(2, prev, false, null);
+    expect(result[1].weight).toBe(60);
+    expect(result[1].reps).toBe(8);
+  });
+
+  it('cel nie wypełnia serii, gdy nie ma poprzednich (start = puste sety)', () => {
+    const result = createPrefilledSets(2, undefined, false, { weight: 60, reps: 8 });
+    expect(result.every(s => s.weight === 0 && s.reps === 0)).toBe(true);
+  });
+});
+
 describe('sanitizeSets — nowe pola typów serii (Z105)', () => {
   it('przenosi durationSec/distanceM/assistWeight (hydracja karty nie gubi danych)', () => {
     const input = [

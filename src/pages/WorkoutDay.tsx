@@ -41,6 +41,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
+import { computeWeeklyTargets } from '@/lib/progression-engine';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -117,7 +118,7 @@ const WorkoutDay = () => {
     isLoaded: workoutsLoaded,
     workoutsFromCache,
   } = useFirebaseWorkouts(uid);
-  const { plan: trainingPlan, swapExercise, isLoaded: planLoaded } = useTrainingPlan(uid);
+  const { plan: trainingPlan, swapExercise, isLoaded: planLoaded, progression, currentWeek } = useTrainingPlan(uid);
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
   // Dla własnych ćwiczeń źródłem prawdy o bodyweight jest pole z pickera,
   // nie heurystyka po nazwie (Z71d).
@@ -474,6 +475,16 @@ const WorkoutDay = () => {
     });
     return map;
   }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight, resolveTracking]);
+
+  // Z120: cele tygodnia z silnika progresji — tylko dla planu z włączoną progresją
+  // (ad-hoc nie ma tygodnia planu). Czysta kalkulacja, zero zapisów.
+  const weeklyTargets = useMemo(() => {
+    if (!progression?.enabled || !day || isAdhocDay) return null;
+    const week = Math.max(1, currentWeek);
+    const trackingByName = Object.fromEntries(day.exercises.map((e) => [e.name, resolveTracking(e.name)]));
+    const deloadApplied = progression.deloadDecisions?.[String(week)] === 'applied';
+    return computeWeeklyTargets([day], workouts, week, progression, { deloadApplied, trackingByName })[day.id] ?? null;
+  }, [progression, day, isAdhocDay, workouts, currentWeek, resolveTracking]);
 
   const queueAutoSaveStatus = useCallback((status: AutoSaveStatus, nextStatus?: AutoSaveStatus, delay = 1600) => {
     setAutoSaveStatus(status);
@@ -1304,9 +1315,13 @@ const WorkoutDay = () => {
         const prefilled: Record<string, SetData[]> = {};
         startSnapshot.day.exercises.forEach((exercise) => {
           const prevSets = getPreviousSets(exercise.id, exercise.name);
-          const count = parseSetCount(exercise.sets);
+          // Z120: przy włączonym silniku progresji pre-fill z celu tygodnia
+          // (deload-week redukuje też liczbę serii).
+          const target = weeklyTargets?.[exercise.id];
+          const count = target?.targetSets ?? parseSetCount(exercise.sets);
           prefilled[exercise.id] = createPrefilledSets(
-            count, prevSets, resolveIsBodyweight(exercise.name)
+            count, prevSets, resolveIsBodyweight(exercise.name),
+            target ? { weight: target.targetWeight, reps: target.targetReps } : null,
           );
         });
         setExerciseSets(prefilled);
@@ -2235,6 +2250,7 @@ const WorkoutDay = () => {
               isBodyweight={resolveIsBodyweight(exercise.name)}
               isEditable={isWorkoutStarted && !isCompleted}
               nextAdvice={exerciseInsights.get(exercise.id)?.nextAdvice}
+              weeklyTarget={weeklyTargets?.[exercise.id]}
               lastNote={exerciseInsights.get(exercise.id)?.lastNote}
               historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
               metrics={exerciseMetrics[exercise.id]}

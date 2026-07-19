@@ -11,7 +11,13 @@
 
 ## DECYZJE
 
-### 2026-07-20 — X16A FAZA 1 (Z119): konfiguracja progresji + testy charakteryzujące
+### 2026-07-20 — X16A FAZA 2 (Z120): silnik celów tygodniowych + cele w UI treningu
+
+**Co:** `computeWeeklyTargets(planDays, workouts, weekIndex, config, options)` w `progression-engine.ts`: per dzień / per ćwiczenie cel `{kind, targetWeight, targetReps, targetSets, targetDurationSec, reasonKey}`. Priorytety: deload-week (tylko z decyzją `deloadApplied`) > ból (pain>=4 w ostatniej sesji, -10% do 2.5 kg) > plateau (>=4 sesje, -10%) > double progression (góra zakresu → +2.5 compound / +1 isolation, reps do dołu; w zakresie → hold +1 powt.). Typ duration: best +10% do 5 s. Deload-week: -40% serii (ceil, min 1), -10% ciężaru do 2.5 kg. UI: badge "Cel tygodnia" w ExerciseCard (priorytet RZA > weeklyTarget > nextAdvice), reason pod nagłówkiem; pre-fill startu treningu bierze cel (`createPrefilledSets` z opcjonalnym targetem), deload-week redukuje też liczbę pre-fillowanych serii.
+
+**Dlaczego tak:** wspólna funkcja `decideNextSet` wydzielona z `next-set-advice.ts` — coach serii i silnik tygodniowy liczą IDENTYCZNĄ decyzją (testy charakteryzujące z Z119 zielone bez modyfikacji, i18n zostało w next-set-advice). Silnik czysty, zero zapisów. E2E mock: nowy klucz `fittracker_e2e_plan` (startDate+progression w useTrainingPlan) — bez tego mock nie ma jak włączyć silnika.
+
+**Weryfikacja:** vitest 835/835 (13 nowych silnika + 4 pre-fill z celem), e2e 325 passed (3 nowe sceny Z120: badge progress 62.5×6 + pre-fill z celu, badge hold, brak badge bez configu), typecheck/lint/build/bundle-budget zielone. Webkit 5 failed w drugim pełnym runie = flaki obciążeniowe (za każdym runem inne stare testy; solo-run przechodzi).
 
 **Model:** `ProgressionConfig { enabled, deloadEveryWeeks (2-12, default 5), deloadDecisions? }` w polu `progression` dokumentu planu (brak pola = silnik wyłączony dla starych planów; NOWE plany z kreatora/onboardingu: DEFAULT_PROGRESSION enabled). `sanitizeProgressionConfig` + `isDeloadWeek` (1-based, co N tygodni) z testami. Rules: `progression` w validTrainingPlanShape (zamknięta mapa, 4 testy — 160/160). Edycja: sekcja "Progresja" w PlanEditor (toggle + select 3/4/5/6/8 tyg., zapis przez savePlan z syncActiveCycle: false). Testy charakteryzujące coacha serii dopisane PRZED refaktorem (+3 gałęzie bodyweight: progress/hold/deload).
 

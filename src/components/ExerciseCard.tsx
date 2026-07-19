@@ -20,6 +20,8 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
+import type { WeeklyTarget } from '@/lib/progression-engine';
+import type { TranslationKey } from '@/i18n';
 import type { ExerciseBest } from '@/lib/pr-utils';
 import type { RzaAdvice } from '@/lib/rza-progression';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
@@ -122,6 +124,49 @@ const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
   );
 };
 
+// ── Weekly target badge (Z120: silnik progresji programowej) ──
+const WeeklyTargetBadge = ({ target }: { target: WeeklyTarget }) => {
+  const { t } = useTranslation();
+  const { unit, toDisplay } = useUnit();
+  const styles: Record<WeeklyTarget['kind'], string> = {
+    start: 'border-muted-foreground/30 text-muted-foreground bg-muted/30',
+    progress: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
+    hold: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
+    deload: 'border-fitness-warning/40 text-fitness-warning bg-fitness-warning/10',
+    pain: 'border-destructive/40 text-destructive bg-destructive/10',
+    'deload-week': 'border-fitness-cyan/40 text-fitness-cyan bg-fitness-cyan/10',
+  };
+  const labels: Record<WeeklyTarget['kind'], string> = {
+    start: t('card.weekTarget'),
+    progress: t('card.weekTarget'),
+    hold: t('card.weekTarget'),
+    deload: t('card.deload'),
+    pain: t('card.weekPain'),
+    'deload-week': t('card.weekDeload'),
+  };
+  const disp = (kg: number) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`;
+  const head = target.targetSets != null && target.targetReps != null
+    ? `${target.targetSets}×${target.targetReps}`
+    : target.targetReps != null ? `×${target.targetReps}` : '';
+  const value = [
+    head,
+    target.targetWeight != null && target.targetWeight > 0 ? disp(target.targetWeight) : null,
+    target.targetDurationSec != null ? formatDurationSec(target.targetDurationSec) : null,
+  ].filter(Boolean).join(' · ');
+  if (!value) return null;
+  return (
+    <span
+      title={t(target.reasonKey as TranslationKey)}
+      className={cn(
+        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
+        styles[target.kind],
+      )}
+    >
+      📅 {labels[target.kind]}: {value}
+    </span>
+  );
+};
+
 // ── RZA autoregulation badge (next weight from RPE/ból/jakość) ──
 const RzaAdviceBadge = ({ advice }: { advice: RzaAdvice }) => {
   const { t } = useTranslation();
@@ -164,6 +209,8 @@ interface ExerciseCardProps {
   isEditable?: boolean;
   isBodyweight?: boolean;
   nextAdvice?: NextSetAdvice | null;
+  /** Cel tygodnia z silnika progresji (Z120) — priorytet nad nextAdvice, poniżej RZA. */
+  weeklyTarget?: WeeklyTarget | null;
   /** Ostatnia notatka z poprzedniej sesji tego ćwiczenia (Z74). */
   lastNote?: string;
   /** Najlepszy historyczny wynik (1RM) tego ćwiczenia — badge BEST w nagłówku. */
@@ -225,6 +272,7 @@ const ExerciseCardInner = ({
   isEditable = true,
   isBodyweight = false,
   nextAdvice,
+  weeklyTarget,
   lastNote,
   historicalBest,
   metrics,
@@ -774,7 +822,10 @@ const ExerciseCardInner = ({
                   {t('card.best')} {Math.round(toDisplay(historicalBest.best1RM))} {unit}
                 </span>
               )}
-              {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} /> : nextAdvice ? <NextTargetBadge advice={nextAdvice} /> : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
+              {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} />
+                : weeklyTarget && weeklyTarget.kind !== 'start' ? <WeeklyTargetBadge target={weeklyTarget} />
+                : nextAdvice ? <NextTargetBadge advice={nextAdvice} />
+                : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
               {FEATURE_FLAGS.workoutTimers && intervalSpec && (
                 <button
                   onClick={() => setIntervalRun(r => ({ open: true, runId: r.runId + 1 }))}
@@ -793,7 +844,9 @@ const ExerciseCardInner = ({
                 </span>
               )}
             </div>
-            {nextAdvice && completedSets === 0 && (
+            {weeklyTarget && weeklyTarget.kind !== 'start' && completedSets === 0 ? (
+              <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-snug">{t(weeklyTarget.reasonKey as TranslationKey)}</p>
+            ) : nextAdvice && completedSets === 0 && (
               <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-snug">{nextAdvice.reason}</p>
             )}
             {lastNote && (

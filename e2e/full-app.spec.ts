@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta } from './helpers';
 
 // =====================================================
 // 1. ALL PAGES LOAD WITHOUT CRASHES
@@ -1212,6 +1212,81 @@ test.describe('Obciążenie hybrydowe (Z115)', () => {
     await page.getByRole('tab', { name: 'Podsum.' }).click();
     await expect(page.getByTestId('hybrid-load-card')).toBeVisible();
     await expect(page.getByTestId('hybrid-week-split')).toContainText('100%');
+  });
+});
+
+// =====================================================
+// 11a10. PROGRESJA PROGRAMOWA — CELE TYGODNIA (Z120)
+// =====================================================
+test.describe('Cele tygodnia (Z120)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  // Poniedziałek tygodnia przesuniętego o shiftDays od dziś (lokalnie, jak apka).
+  const mondayOfWeek = (shiftDays: number): string => {
+    const d = new Date();
+    d.setDate(d.getDate() + shiftDays);
+    const day = d.getDay();
+    d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const historyWorkout = (date: string, reps: number) => ({
+    id: `prog-${date}`, userId: 'e2e-test-user', dayId: 'day-1', date,
+    completed: true, dayName: 'Poniedziałek',
+    exercises: [{
+      exerciseId: 'ex-1-1',
+      name: 'Wyciskanie hantli (Lekki skos)',
+      sets: [
+        { reps, weight: 60, completed: true },
+        { reps, weight: 60, completed: true },
+        { reps, weight: 60, completed: true },
+      ],
+    }],
+  });
+
+  test('dowieziona góra zakresu => badge celu tygodnia z podbitym ciężarem i pre-fill z celu', async ({ page }) => {
+    // Plan wystartował tydzień temu (bieżący tydzień = 2), historia z zeszłego tygodnia: 3x8@60 (góra zakresu 6-8).
+    await setE2EPlanMeta(page, {
+      startDate: mondayOfWeek(-7),
+      progression: { enabled: true, deloadEveryWeeks: 5 },
+    });
+    await setE2EWorkouts(page, [historyWorkout(localDaysAgo(7), 8)]);
+
+    await navigateAndWait(page, '/workout/day-1');
+    // Badge "Cel tygodnia" z celem double progression: +2.5 kg (compound), reps do dołu zakresu.
+    const badge = page.getByText(/Cel tygodnia:/).first();
+    await expect(badge).toBeVisible();
+    await expect(badge).toContainText('62.5 kg');
+    await expect(badge).toContainText('×6');
+
+    // Pre-fill startu treningu używa celu (waga 62.5, powtórzenia 6), nie kopii poprzedniego (60×8).
+    await page.getByRole('button', { name: /Rozpocznij trening/ }).click();
+    const card = page.locator('.exercise-card').first();
+    await expect(card.getByRole('spinbutton', { name: /Set 2, kg/ })).toHaveValue('62.5');
+    await expect(card.getByRole('spinbutton', { name: /Set 2, Powt\./ })).toHaveValue('6');
+  });
+
+  test('wynik w środku zakresu => cel utrzymania (ten sam ciężar, +1 powtórzenie)', async ({ page }) => {
+    await setE2EPlanMeta(page, {
+      startDate: mondayOfWeek(-7),
+      progression: { enabled: true, deloadEveryWeeks: 5 },
+    });
+    await setE2EWorkouts(page, [historyWorkout(localDaysAgo(7), 7)]);
+
+    await navigateAndWait(page, '/workout/day-1');
+    const badge = page.getByText(/Cel tygodnia:/).first();
+    await expect(badge).toBeVisible();
+    await expect(badge).toContainText('60 kg');
+    await expect(badge).toContainText('×8');
+  });
+
+  test('bez konfiguracji progresji brak badge celu tygodnia (silnik wyłączony)', async ({ page }) => {
+    await setE2EWorkouts(page, [historyWorkout(localDaysAgo(7), 8)]);
+    await navigateAndWait(page, '/workout/day-1');
+    await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
+    await expect(page.getByText(/Cel tygodnia:/)).toHaveCount(0);
   });
 });
 

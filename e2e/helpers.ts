@@ -194,3 +194,17 @@ export const localToday = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+
+// Lokalna data sprzed N dni (ta sama zasada co localToday).
+export const localDaysAgo = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Wstrzykuje metadane planu (startDate + progression) czytane przez useTrainingPlan w mock E2E (Z120).
+export const setE2EPlanMeta = async (page: Page, meta: { startDate?: string; progression?: unknown }) => {
+  await page.addInitScript(({ key, data }) => {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  }, { key: 'fittracker_e2e_plan', data: meta });
+};

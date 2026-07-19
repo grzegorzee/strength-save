@@ -168,6 +168,8 @@ export const createPrefilledSets = (
   setCount: number,
   previousSets: SetData[] | undefined,
   isBodyweight?: boolean,
+  // Z120: cel tygodniowy silnika progresji — nadpisuje wagę/powtórzenia working setów.
+  target?: { weight?: number | null; reps?: number | null } | null,
 ): SetData[] => {
   if (!previousSets || previousSets.length === 0) {
     return createEmptySets(setCount);
@@ -191,8 +193,8 @@ export const createPrefilledSets = (
     const prevSet = prevWorking[i] || prevWorking[prevWorking.length - 1];
     if (prevSet && setHasAnyValue(prevSet)) {
       workingSets.push({
-        reps: prevSet.reps,
-        weight: isBodyweight ? 0 : prevSet.weight,
+        reps: typeof target?.reps === 'number' ? target.reps : prevSet.reps,
+        weight: isBodyweight ? 0 : (typeof target?.weight === 'number' ? target.weight : prevSet.weight),
         completed: false,
         ...carrySetExtras(prevSet),
       });
