@@ -7,7 +7,9 @@ const project = readFileSync('ios/App/App.xcodeproj/project.pbxproj', 'utf8');
 const plistVersion = info.match(/CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/)?.[1];
 const projectVersions = [...project.matchAll(/MARKETING_VERSION = ([^;]+);/g)].map((match) => match[1]);
 
-if (plistVersion !== version || projectVersions.length === 0 || projectVersions.some((candidate) => candidate !== version)) {
+// Od X12B Info.plist trzyma placeholder $(MARKETING_VERSION) — źródłem prawdy jest pbxproj.
+const plistOk = plistVersion === version || plistVersion === '$(MARKETING_VERSION)';
+if (!plistOk || projectVersions.length === 0 || projectVersions.some((candidate) => candidate !== version)) {
   throw new Error(`iOS/Watch marketing version must equal package.json (${version}).`);
 }
 
