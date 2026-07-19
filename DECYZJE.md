@@ -11,6 +11,10 @@
 
 ## DECYZJE
 
+### 2026-07-19 — RELEASE X15A (Z111-Z113) na prod
+
+**Wdrożone:** rules (manual_activities) + composite index manual_activities(userId, date desc); web index-CyMOYXXe (live zweryfikowane); iOS 1.0.0 build 62 + testflight_external.py (Beta App Review APPROVED). Bramki: vitest 787, e2e 159, rules 156, dist-smoke/offline PASS. Weryfikacja klikana na realnym koncie = KROK USERA (scenariusze pokryte e2e mock; screenshot dialogu cardio w scratchpadzie).
+
 ### 2026-07-19 — X15A FAZA 3 (Z113): manualne cardio w widokach + TRIMP
 
 **TRIMP bez HR:** `computeDailyLoad` — realny pomiar HR WYGRYWA; bez HR intensywność odczuwana mapowana na reprezentatywny %HRmax (easy 60 / moderate 75 / hard 88); bez HR i bez intensywności aktywność pominięta (jak dotąd nieobecna). Testy obu ścieżek. TrainingLoadChart w StravaTab dostaje strumień zunifikowany (merge Strava+manual).
