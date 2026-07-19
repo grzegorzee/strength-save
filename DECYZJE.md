@@ -11,6 +11,10 @@
 
 ## DECYZJE
 
+### 2026-07-19 — RELEASE X15B (Z114-Z115) na prod
+
+**Wdrożone:** web index-E0HlxZjB (z fixem: cardio na wykresach #00e3fd zamiast niezdefiniowanego --chart-2 renderującego się na czarno — jawny kolor design systemu jak wykresy Strava); iOS 1.0.0 build 63 + external (APPROVED). Rules bez zmian. Bramki: vitest 801, e2e 161, dist-smoke/offline PASS. Lekcja: pierwszy pipeline 63 ubity PRZED uploadem (fix cyan wszedł do tego samego numeru builda — czysto, bez marnowania numeru).
+
 ### 2026-07-19 — X15B FAZA 2 (Z115): UI tygodnia hybrydowego
 
 **Wdrożone:** HybridWeekStrip na Dashboardzie (7 mini słupków pon-nd siła/cardio + dismissowalny banner interferencji, dismiss per para w localStorage `fittracker_interference_dismissed_v1`, przeżywa reload); HybridLoadCard w Analytics zakładka Podsumowanie (12 tygodni stacked bar siła+cardio + linia total + % split bieżącego tygodnia + hint interferencji z 7 dni); TrainingLoadChart z opcjonalnym prop workouts — CTL/ATL/TSB karmione ŁĄCZNYM loadem (test: dodanie sesji siłowej podnosi ATL), etykieta "obejmuje siłę i cardio".
