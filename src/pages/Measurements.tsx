@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { cn, parseLocalDate } from '@/lib/utils';
 import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { HealthWeightSuggestion } from '@/components/HealthWeightSuggestion';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 
@@ -72,6 +73,14 @@ const Measurements = () => {
 
   return (
     <div className="space-y-6">
+      {/* Z118: propozycja wagi ze Zdrowia (istniejąca ścieżka zapisu, zawsze za zgodą) */}
+      <HealthWeightSuggestion
+        measurements={measurements}
+        onAccept={async (sample) => {
+          await handleSave({ date: sample.date, weight: Math.round(sample.kg * 10) / 10 });
+        }}
+      />
+
       <MeasurementsForm latestMeasurement={latestMeasurement} onSave={handleSave} />
 
       {/* Backup mieszka w Ustawieniach (Z81) — tu tylko drogowskaz, koniec zdublowanej sekcji. */}

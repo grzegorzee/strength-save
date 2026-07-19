@@ -19,7 +19,7 @@ import { reportClientError } from '@/lib/error-telemetry';
 
 interface HealthSyncPluginApi {
   isAvailable(): Promise<{ available: boolean }>;
-  requestPermissions(): Promise<{ granted: boolean }>;
+  requestHealthPermissions(): Promise<{ granted: boolean }>;
   writeWorkout(payload: HealthWorkoutPayload): Promise<{ ok: boolean }>;
   readLatestWeight(): Promise<{ sample: HealthWeightSample | null }>;
 }
@@ -73,7 +73,7 @@ const buildIosBridge = (): HealthBridge => {
       try { return (await plugin.isAvailable()).available; } catch { return false; }
     },
     requestPermissions: async () => {
-      try { return (await plugin.requestPermissions()).granted; } catch { return false; }
+      try { return (await plugin.requestHealthPermissions()).granted; } catch { return false; }
     },
     writeWorkout: async (payload) => {
       try {

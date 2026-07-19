@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X15C FAZA 2 (Z117+Z118): Health Connect (Android) + ustawienia i propozycja wagi
+
+**Z117 Android:** własny `HealthSyncPlugin.kt` (Kotlin WŁĄCZONY w projekcie: kotlin-gradle-plugin 2.0.21 + connect-client 1.1.0-alpha07 + coroutines; rejestracja w MainActivity.registerPlugin przed super.onCreate; uprawnienia health.WRITE_EXERCISE/READ_WEIGHT w manifeście). **minSdk 24 -> 26** (wymóg connect-client; Android nieopublikowany, zero userów — decyzja w ramach autonomii). Flow zgód v1: brak pełnego ActivityResult — przy braku zgód otwieramy ustawienia Health Connect (ACTION_HEALTH_CONNECT_SETTINGS), user nadaje tam; kolejne wywołanie zwraca granted. Rename metody na `requestHealthPermissions` (kolizja z bazową Plugin.requestPermissions na OBU platformach). Weryfikacja: `gradlew :app:compileDebugKotlin` BUILD SUCCESSFUL. **ODŁOŻONE: scenariusz na emulatorze** — SDK bez emulatora/AVD na tej maszynie (KROK USERA albo przyszła sesja z emulatorem).
+
+**Z118:** sekcja "Zdrowie" w Ustawieniach (widoczna TYLKO gdy bridge.isAvailable — web ukryta, asercja w e2e; zgody systemowe dopiero przy pierwszym włączeniu toggle, nie przy starcie), stan w localStorage (natura uprawnień systemowych = per urządzenie); `HealthWeightSuggestion` w Pomiarach (banner "Dodaj X kg ze Zdrowia", zapis ISTNIEJĄCĄ ścieżką addMeasurement po tapnięciu, nigdy auto). iOS bridge platform-guard: web bundle +1.2 KB (registerPlugin lazy).
+
+**Weryfikacja:** vitest 815/815, e2e 161/161, bundle budget OK; symulator iOS: build z pluginem+entitlementem SUCCEEDED, apka startuje bez crasha (screenshot sim-health.png). Pełna pętla trening->Health->waga na realnym urządzeniu = KROK USERA (na symulatorze zalogowane realne konto — zapis treningu zabroniony).
+
 ### 2026-07-19 — X15C FAZA 1 (Z116): warstwa health-sync + HealthKit (iOS)
 
 **Wybór pluginu (research 2026-07-19):** ekosystem NIE wspiera zapisu workoutów (@capgo/capacitor-health: workouts read-only; @perfood/capacitor-healthkit: iOS-only, zapis niepotwierdzony, luty 2025) => WŁASNY minimalny plugin `HealthSyncPlugin.swift` (wzorzec lokalnego WatchBridgePlugin z prototypu X16B; auto-rejestracja CAPBridgedPlugin, 4 metody: isAvailable/requestPermissions/writeWorkout/readLatestWeight; HKWorkoutBuilder + bodyMass HKSampleQuery).

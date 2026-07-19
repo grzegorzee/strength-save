@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 // Release signing: dane w android/key.properties (gitignored), keystore w FIRMA/_secrets.
 def keystoreProperties = new Properties()
@@ -59,6 +60,9 @@ dependencies {
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    // Z117: Health Connect (zapis sesji treningowych, odczyt wagi)
+    implementation "androidx.health.connect:connect-client:1.1.0-alpha07"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
     implementation project(':capacitor-cordova-android-plugins')
 }
 

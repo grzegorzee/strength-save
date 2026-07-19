@@ -63,6 +63,8 @@ test.describe('Page Load Smoke Tests', () => {
     await navigateAndWait(page, '/settings');
     await expectPageRendered(page);
     await expect(page.getByText('Backup i przywracanie')).toBeVisible();
+    // Z118: sekcja Zdrowie tylko natywnie (web = no-op bridge, ukryta, zero crashy).
+    await expect(page.getByTestId('health-settings')).toHaveCount(0);
   });
 
   test('Workout Day (/workout/day-1) loads', async ({ page }) => {

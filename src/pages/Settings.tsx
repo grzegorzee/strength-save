@@ -21,6 +21,7 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
 import { WorkoutImportWizard } from '@/components/WorkoutImportWizard';
+import { HealthSettings } from '@/components/HealthSettings';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -165,6 +166,9 @@ const Settings = () => {
       <div id="settings-notifications" className="scroll-mt-20">
         <NotificationSettings />
       </div>
+
+      {/* Zdrowie (Z118): Apple Health / Health Connect — widoczne tylko natywnie */}
+      <HealthSettings />
 
       {/* Kalkulator talerzy (Z107): inwentarz per urządzenie */}
       <PlateInventorySettings />

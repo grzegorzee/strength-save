@@ -622,6 +622,16 @@ export const pl = {
   'notes.lastNote': 'Ostatnio: „{note}”',
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
+  // Apple Health / Health Connect (Z116-Z118)
+  'health.title': 'Zdrowie',
+  'health.description': 'Połączenie z Apple Health (iOS) lub Health Connect (Android). Dane zdrowotne nie opuszczają Twojego urządzenia.',
+  'health.syncWorkouts': 'Zapisuj treningi do Zdrowia',
+  'health.syncWorkoutsDesc': 'Ukończone treningi siłowe i cardio trafiają do systemowej apki Zdrowie.',
+  'health.suggestWeight': 'Proponuj wagę ze Zdrowia',
+  'health.suggestWeightDesc': 'Gdy Zdrowie ma nowszą wagę (np. z Fitatu), zaproponujemy dodanie jej do pomiarów.',
+  'health.lastSync': 'Ostatni zapis: {date}',
+  'health.weightSuggestion': 'Dodaj {kg} kg ze Zdrowia ({date})',
+  'health.weightAdded': 'Waga dodana do pomiarów.',
   // obciążenie hybrydowe (Z114-Z115)
   'hybrid.cardTitle': 'Obciążenie hybrydowe',
   'hybrid.cardDesc': 'Siła i cardio jako jedno obciążenie tygodniowe (szacunkowe: sesje siłowe wg czasu i RPE, cardio wg tętna lub intensywności).',
