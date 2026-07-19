@@ -11,6 +11,12 @@
 
 ## DECYZJE
 
+### 2026-07-19 — RELEASE X14A (Z103-Z104) na prod
+
+**Wdrożone:** rules (exercise_notes) na cloud.firestore; web index-CNXBdODL na gh-pages (zweryfikowane live: nowy hash + render #root bez pageerrors w headless Chromium); iOS 1.0.0 build 59 przez ios-testflight.sh + testflight_external.py (obie grupy, Beta App Review: APPROVED od razu; Robert dostaje build). Bramki przed wdrożeniem: vitest 681, e2e:mock 151, typecheck, lint, build, bundle budget (initial 1 471 846 B), dist-smoke PASS (build:mobile), dist-offline PASS.
+
+**Krok weryfikacji na koncie admina (częściowo ODŁOŻONY):** Chrome extension niepodłączony (user nieobecny, sesja autonomiczna), brak headless credentials — wykonano smoke live (render, zero błędów JS) zamiast pełnego scenariusza klikanego. KROK USERA: na live przypiąć notatkę przy ćwiczeniu i odpalić "Szybki trening" z Dashboardu (scenariusze pokryte e2e mock 1:1).
+
 ### 2026-07-19 — X14A FAZA 2 (Z104): szybki trening bez planu (empty workout)
 
 **Co:** przycisk "Szybki trening" na Dashboardzie (widoczny ZAWSZE, także bez planu), syntetyczny dzień `adhoc-<YYYY-MM-DD>-<ts>` (`src/lib/adhoc-workout.ts`: createAdhocDay/adhocDayFromId/isAdhocDayId/buildAdhocExerciseId), w WorkoutDay fallback `baseDay` z adhocDayFromId + przycisk "Dodaj ćwiczenie" (wspólny ExercisePicker Z69) tylko dla ad-hoc. Trening idzie ISTNIEJĄCĄ ścieżką (handleStartWorkout, draft-db, maszyna stanów, batchSaveWorkout) — zero równoległej ścieżki. Pre-fill serii dodanego ćwiczenia działa po nazwie (zweryfikowane: `getPreviousSets` fallback `previousSetsByName`).
