@@ -614,6 +614,7 @@ export const en: Record<keyof typeof pl, string> = {
   'notes.lastNote': 'Last time: "{note}"',
   'notes.dayNote': 'Day note',
   'notes.noneInSession': 'No notes in this session.',
+  'warmupgen.button': 'Generate warmup (%1RM)',
   'plates.title': 'Plate calculator',
   'plates.target': 'Target',
   'plates.bar': 'Bar',

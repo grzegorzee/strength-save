@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X14B FAZA 3 (Z107+Z108): kalkulator talerzy + generator rozgrzewki %1RM
+
+**Z107:** `computePlates` (greedy od najcięższych, arytmetyka w gramach — float 1.25 kg bez błędów; count = ŁĄCZNA liczba talerzy, floor(count/2) na stronę; cel<gryf => belowBar; niedokładność => najbliższy osiągalny W DÓŁ + info). Inwentarz w localStorage `fittracker_plate_inventory_v1` (gryf 20/15/10 + checkboxy talerzy w Ustawieniach; default pełny zestaw 25...1.25). UI: `PlateCalculatorSheet` (bottom sheet, wizualizacja talerzy na stronę) otwierany ikoną Disc w FOOTERZE karty ćwiczenia (nie per wiersz serii — grid serii to krytyczna ścieżka logowania, zero zmian w nim); ciężar = aktywna seria, fallback ostatnia robocza. Tylko weight_reps z ciężarem > 0.
+
+**Z108:** `generateWarmupSets` — pusty gryf x10, 50% x8, 70% x5, 90% x2 od PIERWSZEGO ciężaru roboczego; zaokrąglanie W DÓŁ do 2.5 kg (lżejsza rozgrzewka bezpieczniejsza — decyzja w ramach autonomii); serie <= gryf i >= ciężaru roboczego pomijane; null dla bodyweight/duration/assisted. Przycisk (Flame+%) w footerze karty, znika gdy istnieją wypełnione warmupy (bez duplikacji). Dostępny w każdej karcie weight_reps z ciężarem (plan mówił "przy pierwszym ćwiczeniu" — rozszerzenie w ramach autonomii, rozgrzewka procentowa ma sens przy każdym boju). Warmup nie liczy się do tonażu (istniejący test regresji).
+
+**Weryfikacja:** vitest 752/752 (6 plate-calculator, 6 warmup-generator), e2e 155/155 (rozkład 100 kg => "1×25 + 1×15"; generator wstawia 4 wiersze W i przycisk znika), bramki komplet.
+
 ### 2026-07-19 — X14B FAZA 2 (Z106): PR, tonaż i progresja per typ (asysta = wyróżnik)
 
 **Obciążenie efektywne:** `computeEffectiveLoad` (effective-load.ts): assisted = masa ciała MINUS asysta (clamp 0 gdy asysta > waga), bodyweight = masa ciała, duration = null. **Skąd waga ciała:** najnowszy pomiar z `measurements` (`getLatestMeasurement`); **brak pomiaru** = PR asysty tylko po powtórzeniach + hint w dialogu progresji "dodaj pomiar wagi". Uproszczenie v1 (odnotowane): jedna AKTUALNA waga do obu stron porównania historycznego (nie mamy wagi per trening) — różnice effectiveLoad = różnice asysty, więc detekcja PR poprawna.

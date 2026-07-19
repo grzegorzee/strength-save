@@ -29,6 +29,8 @@ import { PinnedNoteSection, type PinnedNoteSaveInput } from '@/components/Pinned
 import type { ExerciseNote } from '@/lib/exercise-notes';
 import { formatDistanceM, formatDurationSec, parseDurationInput, type TrackingType } from '@/lib/set-tracking';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
+import { generateWarmupSets } from '@/lib/warmup-generator';
+import { loadPlateInventory } from '@/lib/plate-calculator';
 
 // Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
 // Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
@@ -393,6 +395,18 @@ const ExerciseCardInner = ({
   const handleRemoveSet = (setIndex: number) => {
     hasLocalChanges.current = true;
     const newSets = sets.filter((_, idx) => idx !== setIndex);
+    setSets(newSets);
+    onSetsChange?.(exercise.id, newSets, notes);
+  };
+
+  // Z108: generator rozgrzewki %1RM — zastępuje pustą serię rozgrzewkową schematem
+  // gryf x10 / 50% x8 / 70% x5 / 90% x2 od pierwszego ciężaru roboczego.
+  const handleGenerateWarmup = () => {
+    const workingWeight = sets.find((s) => !s.isWarmup && s.weight > 0)?.weight ?? 0;
+    const generated = generateWarmupSets(workingWeight, tracking, loadPlateInventory().barKg);
+    if (!generated) return;
+    hasLocalChanges.current = true;
+    const newSets = [...generated, ...sets.filter((s) => !s.isWarmup)];
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
   };
@@ -897,6 +911,23 @@ const ExerciseCardInner = ({
               <Plus className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-1.5">
+              {(() => {
+                // Z108: generator rozgrzewki — tylko weight_reps z ciężarem roboczym,
+                // gdy nie ma jeszcze wypełnionych serii rozgrzewkowych (bez duplikacji).
+                const hasFilledWarmup = warmupSets.some((s) => s.weight > 0 || s.reps > 0 || s.completed);
+                const hasWorkingWeight = workingSets.some((s) => s.weight > 0);
+                return tracking === 'weight_reps' && hasWorkingWeight && !hasFilledWarmup ? (
+                  <button
+                    onClick={handleGenerateWarmup}
+                    aria-label={t('warmupgen.button')}
+                    data-testid="warmup-generate"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] font-semibold text-foreground/80 transition-colors hover:text-foreground"
+                  >
+                    <Flame className="h-3.5 w-3.5 text-[hsl(var(--ec-warmup-gold))]" />
+                    %
+                  </button>
+                ) : null;
+              })()}
               {(() => {
                 // Z107: ciężar dla kalkulatora — aktywna seria, fallback ostatnia robocza z ciężarem.
                 const plateWeight = tracking === 'weight_reps'

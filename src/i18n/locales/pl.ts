@@ -622,6 +622,8 @@ export const pl = {
   'notes.lastNote': 'Ostatnio: „{note}”',
   'notes.dayNote': 'Notatka dnia',
   'notes.noneInSession': 'Brak notatek w tej sesji.',
+  // generator rozgrzewki (Z108)
+  'warmupgen.button': 'Wygeneruj rozgrzewkę (%1RM)',
   // kalkulator talerzy (Z107)
   'plates.title': 'Kalkulator talerzy',
   'plates.target': 'Cel',

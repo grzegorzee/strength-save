@@ -982,6 +982,19 @@ test.describe('Kalkulator talerzy (Z107)', () => {
     await expect(page.getByTestId('plates-summary')).toContainText('1×25 + 1×15');
     await expect(page.getByTestId('plates-visual')).toBeVisible();
   });
+
+  test('generator rozgrzewki %1RM wstawia serie rozgrzewkowe i nie duplikuje się (Z108)', async ({ page }) => {
+    const today = new Date().toISOString().split('T')[0];
+    await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    const firstCard = page.locator('.exercise-card').first();
+    await firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first().fill('100');
+
+    await firstCard.getByTestId('warmup-generate').click();
+    // Schemat: gryf 20 x10, 50 x8, 70 x5, 90 x2 — 4 wiersze rozgrzewkowe.
+    await expect(firstCard.getByRole('spinbutton', { name: /Rozgrzewka W, kg/ })).toHaveCount(4);
+    // Po wygenerowaniu (wypełnione warmupy) przycisk znika — brak duplikacji.
+    await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
+  });
 });
 
 // =====================================================
