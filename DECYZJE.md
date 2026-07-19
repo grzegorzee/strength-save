@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X15B FAZA 1 (Z114): silnik obciążenia hybrydowego
+
+**sTRIMP (Foster session-RPE):** load siłowy = minuty x RPE sesji (średnia ważona liczbą ukończonych serii roboczych z exercises[].rpe; fallback RPE 6.0; brak durationSec => serie x 3 min). **Kalibracja do skali TRIMP:** STRENGTH_TO_TRIMP_CALIBRATION = 0.23 — godzinna sesja RPE 6 (sTRIMP 360) zrównana z godzinnym biegiem moderate (~75% HRmax => TRIMP ~83 przy rest 60/max 190); stała jawna, przybita testem (test kalibracyjny: ratio siła/cardio w przedziale 0.8-1.2). UI dostanie etykietę "obciążenie szacunkowe".
+
+**Interferencja (czysta reguła, zero ML):** ciężkie nogi = tonaż ćwiczeń kategorii legs/glutes/calves >= 1500 kg w sesji (próg jawny); intensywne cardio = Run/HIIT/Treadmill nie-easy (intensywność odczuwana; fallback HR >= 140; bieg/HIIT bez danych = wymagający); okno D lub D+1. Wynik: lista par (informacja, nigdy blokada).
+
+**Weryfikacja:** vitest 13/13 hybrid-load (pełne pokrycie czystych funkcji), typecheck/lint zielone.
+
 ### 2026-07-19 — RELEASE X15A (Z111-Z113) na prod
 
 **Wdrożone:** rules (manual_activities) + composite index manual_activities(userId, date desc); web index-CyMOYXXe (live zweryfikowane); iOS 1.0.0 build 62 + testflight_external.py (Beta App Review APPROVED). Bramki: vitest 787, e2e 159, rules 156, dist-smoke/offline PASS. Weryfikacja klikana na realnym koncie = KROK USERA (scenariusze pokryte e2e mock; screenshot dialogu cardio w scratchpadzie).
