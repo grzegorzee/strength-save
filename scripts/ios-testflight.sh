@@ -46,13 +46,15 @@ npm run check:dist-smoke
 echo "==> 2/5 cap sync ios"
 ./node_modules/.bin/cap sync ios
 
-# Archive BEZ podpisu — podpis Distribution (App Store) zakładamy przy eksporcie.
-# Development signing wymagałby zarejestrowanego urządzenia; Distribution nie.
-echo "==> 3/5 archive (bez podpisu)"
+# Archive Z PODPISEM Distribution (manual signing w Release configach pbxproj).
+# Lekcja buildu 64 (2026-07-20): archive bez podpisu + re-sign przy eksporcie dawał
+# binarki z MINIMALNYMI entitlements (bez healthkit/applesignin/aps-environment),
+# a watch app bez profilu w ExportOptions wychodziła z PUSTYMI (altool 90166).
+# Manual signing w archive wstrzykuje pełne App.entitlements do podpisu.
+echo "==> 3/5 archive (manual signing, Apple Distribution)"
 rm -rf "$ARCHIVE"
 xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release \
-  -archivePath "$ARCHIVE" -destination 'generic/platform=iOS' archive \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+  -archivePath "$ARCHIVE" -destination 'generic/platform=iOS' archive
 
 # Export z manual signing (cert + profil utworzone wcześniej przez ios_signing.py).
 # Fallback do automatic ExportOptions jeśli manual nie istnieje.
