@@ -1122,6 +1122,32 @@ test.describe('Ręczne cardio (Z112)', () => {
 });
 
 // =====================================================
+// 11a8. MANUALNE CARDIO W ANALITYCE (Z113)
+// =====================================================
+test.describe('Manualne cardio w analityce (Z113)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('bieg manualny 5 km wchodzi do podsumowania tygodnia', async ({ page }) => {
+    const today = new Date().toISOString().split('T')[0];
+    await page.addInitScript(({ key, data }) => {
+      window.localStorage.setItem(key, JSON.stringify(data));
+    }, {
+      key: 'fittracker_e2e_manual_activities',
+      data: [{
+        id: 'ma-1', userId: 'e2e-test-user', type: 'Run', date: today,
+        movingTime: 1800, distance: 5000, perceivedIntensity: 'moderate', createdAt: 1,
+      }],
+    });
+
+    await navigateAndWait(page, '/analytics');
+    await page.getByRole('tab', { name: 'Tygodnie' }).click();
+    await expect(page.getByText('5 km').first()).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {

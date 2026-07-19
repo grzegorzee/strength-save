@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X15A FAZA 3 (Z113): manualne cardio w widokach + TRIMP
+
+**TRIMP bez HR:** `computeDailyLoad` — realny pomiar HR WYGRYWA; bez HR intensywność odczuwana mapowana na reprezentatywny %HRmax (easy 60 / moderate 75 / hard 88); bez HR i bez intensywności aktywność pominięta (jak dotąd nieobecna). Testy obu ścieżek. TrainingLoadChart w StravaTab dostaje strumień zunifikowany (merge Strava+manual).
+
+**Konsumenci przełączeni na useActivities:** Dashboard (FAZA 2), TrainingPlan kalendarz (FAZA 2), AnalyticsWeeklyTab (podsumowania tygodni: runKm/czas liczą też manualne), TrainingLoadChart. Czysto-Stravowe nietknięte (Race Predictor, HR Zones, Pace/Calories/Elevation, personal bests).
+
+**Odstępstwa odnotowane:** (1) AI podsumowanie tygodnia operuje na AGREGATACH (runKm, czas) — manualne wpisy WCHODZĄ przez unified, ale "etykieta źródła per aktywność" nie ma nośnika w prompcie (prompt nie listuje aktywności) — wariant prostszy; (2) weekly digest (functions, e-mail) liczy po stronie serwera ze strava_activities — manualne wpisy nie wchodzą do MAILA (backlog: rozszerzenie digestu o manual_activities); (3) Training Load w UI żyje w zakładce Strava — user bez Stravy nie widzi TRIMP (X15B doda kartę obciążenia hybrydowego w Analytics dla wszystkich).
+
+**Weryfikacja:** vitest 787/787 (10 training-load z nowymi ścieżkami), e2e 159/159 (nowy: manualny bieg 5 km w podsumowaniu tygodnia; regresja tylko-Strava = komplet istniejących), bramki komplet.
+
 ### 2026-07-19 — X15A FAZA 2 (Z112): UI logowania cardio
 
 **AddCardioDialog:** typ (grid 10 chipów z ikonami) + czas w MINUTACH obowiązkowe (decyzja: minuty zamiast mm:ss — cardio loguje się w minutach, mniej tarcia niż parser), data edytowalna (wpisy wsteczne), reszta pod Collapsible "więcej" (dystans km->m, HR, kalorie, intensywność easy/moderate/hard, notatka). Wejścia: Dashboard (przycisk obok "Szybki trening", grid 2 kolumny) i kalendarz TrainingPlan (przycisk "Cardio" przy każdym dniu z defaultDate). Edycja: klik karty manualnej otwiera dialog z przyciskiem Usuń (ConfirmDialog); wpisy Strava read-only (klik = szczegóły Strava jak dotąd).

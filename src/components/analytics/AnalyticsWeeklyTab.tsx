@@ -5,7 +5,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
-import { useStrava } from '@/hooks/useStrava';
+import { useActivities } from '@/hooks/useActivities';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { buildLocalWeeklySummaries } from '@/lib/weekly-summary';
 import { dateLocale } from '@/i18n';
@@ -19,7 +19,8 @@ const AnalyticsWeeklyTab = () => {
   const { t, lang } = useTranslation();
   const { fmt, fmtTonnage } = useUnit();
   const { workouts } = useFirebaseWorkouts(uid);
-  const { activities: stravaActivities } = useStrava(uid, canUseStrava);
+  // Z113: podsumowanie tygodnia liczy Strava + ręczne cardio (unified).
+  const { activities: stravaActivities } = useActivities(uid, canUseStrava);
   const { plan: trainingPlan } = useTrainingPlan(uid);
 
   const summaries = useMemo(

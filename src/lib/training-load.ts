@@ -31,6 +31,24 @@ export const calculateTRIMP = (
   return Math.round(durationMin * hrr * 0.64 * Math.exp(1.92 * hrr));
 };
 
+// Z113: wpis manualny bez pomiaru HR — intensywność odczuwana mapowana na
+// reprezentatywny %HRmax. Prosto, zero nowych algorytmów.
+const INTENSITY_TO_HR_PERCENT: Record<string, number> = {
+  easy: 0.6,
+  moderate: 0.75,
+  hard: 0.88,
+};
+
+type LoadActivity = StravaActivity & { perceivedIntensity?: 'easy' | 'moderate' | 'hard' };
+
+// Efektywne HR aktywności: realny pomiar wygrywa; bez HR — z intensywności; inaczej null.
+const effectiveHeartrate = (activity: LoadActivity, maxHR: number): number | null => {
+  if (activity.averageHeartrate && activity.averageHeartrate > 0) return activity.averageHeartrate;
+  const percent = activity.perceivedIntensity ? INTENSITY_TO_HR_PERCENT[activity.perceivedIntensity] : undefined;
+  if (percent) return maxHR * percent;
+  return null;
+};
+
 /**
  * Compute daily TRIMP sum from activities
  */
@@ -41,10 +59,12 @@ export const computeDailyLoad = (
 ): DailyLoad[] => {
   const dailyMap = new Map<string, number>();
 
-  activities
-    .filter(a => a.averageHeartrate && a.averageHeartrate > 0 && a.movingTime && a.movingTime > 0)
+  (activities as LoadActivity[])
+    .filter(a => a.movingTime && a.movingTime > 0)
     .forEach(a => {
-      const trimp = calculateTRIMP(a.averageHeartrate!, a.movingTime!, restHR, maxHR);
+      const hr = effectiveHeartrate(a, maxHR);
+      if (hr === null) return; // bez HR i bez intensywności — pomijamy (jak dotąd nieobecne)
+      const trimp = calculateTRIMP(hr, a.movingTime!, restHR, maxHR);
       dailyMap.set(a.date, (dailyMap.get(a.date) || 0) + trimp);
     });
 

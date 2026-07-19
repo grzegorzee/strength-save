@@ -14,6 +14,8 @@ import {
 import { RefreshCw, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
+import { useManualActivities } from '@/hooks/useManualActivities';
+import { mergeActivities } from '@/lib/manual-activity';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { filterByMonthYear, getAvailableYears } from '@/lib/strava-utils';
 import { SeasonFilter } from './SeasonFilter';
@@ -32,6 +34,8 @@ export const StravaTab = () => {
   const { t } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
   const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
+  // Z113: Training Load liczy też ręczne cardio (intensywność zastępuje HR).
+  const { activities: manualActivities } = useManualActivities(uid);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | 'all'>(new Date().getMonth() + 1);
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
@@ -56,6 +60,12 @@ export const StravaTab = () => {
   const yearActivities = useMemo(
     () => filterByMonthYear(nonStrengthActivities, selectedYear, 'all'),
     [nonStrengthActivities, selectedYear],
+  );
+
+  // Z113: Training Load na strumieniu zunifikowanym (Strava + ręczne cardio).
+  const loadActivities = useMemo(
+    () => mergeActivities(yearActivities, manualActivities),
+    [yearActivities, manualActivities],
   );
 
   // Reference date for charts: end of selected month, or end of year, or today
@@ -139,9 +149,9 @@ export const StravaTab = () => {
       <ElevationChart activities={yearActivities} referenceDate={referenceDate} />
       <CaloriesChart activities={yearActivities} referenceDate={referenceDate} />
 
-      {/* Training Load */}
+      {/* Training Load — strumień zunifikowany (Strava + ręczne cardio, Z113) */}
       <TrainingLoadChart
-        activities={yearActivities}
+        activities={loadActivities}
         estimatedMaxHR={connection.estimatedMaxHR}
       />
 

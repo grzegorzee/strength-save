@@ -77,3 +77,34 @@ describe('computeFitnessFatigue', () => {
     expect(computeFitnessFatigue([])).toEqual([]);
   });
 });
+
+describe('computeDailyLoad — perceivedIntensity bez HR (Z113)', () => {
+  const base = {
+    id: 'm1', userId: 'u1', stravaId: 0, name: '', stravaUrl: '', syncedAt: '',
+  };
+
+  it('wpis bez HR z intensywnością dostaje reprezentatywny %HRmax (easy/moderate/hard = 60/75/88)', () => {
+    const activities = [
+      { ...base, id: 'm-easy', type: 'Treadmill', date: '2026-07-10', movingTime: 3600, perceivedIntensity: 'easy' },
+      { ...base, id: 'm-hard', type: 'HIIT', date: '2026-07-11', movingTime: 3600, perceivedIntensity: 'hard' },
+    ] as never[];
+    const load = computeDailyLoad(activities, 60, 190);
+    expect(load).toHaveLength(2);
+    const easy = load.find((d) => d.date === '2026-07-10')!.trimp;
+    const hard = load.find((d) => d.date === '2026-07-11')!.trimp;
+    // easy: avgHR=114 (60% z 190); hard: avgHR=167.2 (88%) — hard >> easy.
+    expect(easy).toBeGreaterThan(0);
+    expect(hard).toBeGreaterThan(easy * 2);
+  });
+
+  it('realny HR wygrywa z intensywnością; bez HR i bez intensywności => pominięte', () => {
+    const activities = [
+      { ...base, id: 'a1', type: 'Run', date: '2026-07-12', movingTime: 3600, averageHeartrate: 150, perceivedIntensity: 'easy' },
+      { ...base, id: 'a2', type: 'Walk', date: '2026-07-13', movingTime: 3600 },
+    ] as never[];
+    const load = computeDailyLoad(activities, 60, 190);
+    expect(load).toHaveLength(1);
+    const withHr = load.find((d) => d.date === '2026-07-12')!.trimp;
+    expect(withHr).toBe(calculateTRIMP(150, 3600, 60, 190));
+  });
+});
