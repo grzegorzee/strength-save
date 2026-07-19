@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formatHistorySetLabel } from '@/lib/set-tracking';
 import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, History, Search, StickyNote, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -351,7 +352,11 @@ const WorkoutHistory = () => {
                                     s.completed ? 'bg-muted/60 text-foreground' : 'bg-muted/30 text-muted-foreground line-through',
                                   )}
                                 >
-                                  {s.reps}×{s.weight > 0 ? `${Math.round(toDisplay(s.weight) * 10) / 10} ${unit}` : t('history.bodyweightSet')}
+                                  {formatHistorySetLabel(
+                                    s,
+                                    (kg) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`,
+                                    t('history.bodyweightSet'),
+                                  )}
                                 </span>
                               ))}
                             </div>

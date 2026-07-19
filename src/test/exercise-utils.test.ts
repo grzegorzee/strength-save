@@ -423,4 +423,38 @@ describe('createPrefilledSets with bodyweight', () => {
     expect(result[1].weight).toBe(14);
     expect(result[2].weight).toBe(14);
   });
+
+  it('pre-fill przenosi nowe pola typów serii: durationSec/distanceM/assistWeight (Z105)', () => {
+    const prev = [
+      { reps: 0, weight: 24, completed: true, durationSec: 60, distanceM: 40 },
+      { reps: 8, weight: 0, completed: true, assistWeight: 25 },
+    ];
+    const result = createPrefilledSets(2, prev, false);
+    expect(result[1].durationSec).toBe(60);
+    expect(result[1].distanceM).toBe(40);
+    expect(result[2].assistWeight).toBe(25);
+    // Pola nieobecne w źródle nie pojawiają się jako undefined-klucze.
+    expect(Object.keys(result[2])).not.toContain('durationSec');
+  });
+
+  it('pre-fill działa dla serii czysto czasowej (reps=0, weight=0, tylko durationSec)', () => {
+    const prev = [{ reps: 0, weight: 0, completed: true, durationSec: 90 }];
+    const result = createPrefilledSets(1, prev, false);
+    expect(result[1].durationSec).toBe(90);
+  });
+});
+
+describe('sanitizeSets — nowe pola typów serii (Z105)', () => {
+  it('przenosi durationSec/distanceM/assistWeight (hydracja karty nie gubi danych)', () => {
+    const input = [
+      { reps: 0, weight: 0, completed: true, isWarmup: true },
+      { reps: 0, weight: 24, completed: true, durationSec: 90, distanceM: 400 },
+      { reps: 8, weight: 0, completed: false, assistWeight: 20 },
+    ];
+    const sets = sanitizeSets(input, 2);
+    expect(sets[1].durationSec).toBe(90);
+    expect(sets[1].distanceM).toBe(400);
+    expect(sets[2].assistWeight).toBe(20);
+    expect(Object.keys(sets[2])).not.toContain('durationSec');
+  });
 });

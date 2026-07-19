@@ -870,6 +870,100 @@ test.describe('Szybki trening (Z104)', () => {
 });
 
 // =====================================================
+// 11a4. TYPY SERII: CZAS / DYSTANS / ASYSTA (Z105)
+// =====================================================
+test.describe('Typy serii (Z105)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('plank (czas), farmer walk (kg+dystans+czas) i asysta renderują właściwe pola; zapis do draftu', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await clearWorkoutDraftDb(page, 'e2e-test-user');
+    await page.getByTestId('quick-workout-start').click();
+    await expect(page).toHaveURL(/adhoc-/);
+
+    // Plank: typ duration — kolumna Czas, bez kolumny kg/Powt.
+    await page.getByTestId('adhoc-add-exercise').click();
+    let dialog = page.getByRole('dialog');
+    await dialog.getByPlaceholder(/Szukaj|Find/).fill('plank');
+    await dialog.getByText('Plank', { exact: true }).click();
+    const plankCard = page.locator('.exercise-card').first();
+    await expect(plankCard.getByText('Czas', { exact: true })).toBeVisible();
+    const plankTime = plankCard.getByRole('textbox', { name: /Plank, Set 1, Czas/ });
+    await plankTime.fill('1:30');
+    await plankTime.blur();
+
+    // Spacer farmera: kg + dystans + czas.
+    await page.getByTestId('adhoc-add-exercise').click();
+    dialog = page.getByRole('dialog');
+    await dialog.getByPlaceholder(/Szukaj|Find/).fill('spacer farmera');
+    await dialog.getByText("Spacer farmera (Farmer's Walk)").click();
+    const farmerCard = page.locator('.exercise-card').nth(1);
+    await expect(farmerCard.getByText('Dystans', { exact: true })).toBeVisible();
+    await farmerCard.getByRole('spinbutton', { name: /Set 1, kg/ }).fill('24');
+    await farmerCard.getByRole('spinbutton', { name: /Set 1, Dystans/ }).fill('40');
+
+    // Podciąganie wspomagane: asysta + powtórzenia.
+    await page.getByTestId('adhoc-add-exercise').click();
+    dialog = page.getByRole('dialog');
+    await dialog.getByPlaceholder(/Szukaj|Find/).fill('wspomagane');
+    await dialog.getByText('Podciąganie wspomagane na maszynie').click();
+    const assistCard = page.locator('.exercise-card').nth(2);
+    await expect(assistCard.getByText('Asysta', { exact: true })).toBeVisible();
+    await assistCard.getByRole('spinbutton', { name: /Set 1, Asysta/ }).fill('25');
+    await assistCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).fill('8');
+
+    // Draft w IndexedDB ma nowe pola (poll — zapis async).
+    type DraftShape = { exerciseSets?: Record<string, { durationSec?: number; distanceM?: number; assistWeight?: number }[]> } | null;
+    await expect.poll(async () => {
+      const draft = await readWorkoutDraftDb(page, 'e2e-test-user') as DraftShape;
+      const all = Object.values(draft?.exerciseSets ?? {}).flat();
+      return {
+        duration: all.some((s) => s.durationSec === 90),
+        distance: all.some((s) => s.distanceM === 40),
+        assist: all.some((s) => s.assistWeight === 25),
+      };
+    }, { timeout: 10000 }).toEqual({ duration: true, distance: true, assist: true });
+  });
+
+  test('historia renderuje etykiety czasu/dystansu/asysty zamiast 0×0', async ({ page }) => {
+    await setE2EWorkouts(page, [{
+      id: 'tracked-history-1',
+      userId: 'e2e-test-user',
+      dayId: 'adhoc-2026-07-11-1752130000002',
+      dayName: 'Szybki trening',
+      dayFocus: '',
+      date: '2026-07-11',
+      completed: true,
+      exercises: [
+        {
+          exerciseId: 'adhoc-ex-plank',
+          name: 'Plank',
+          sets: [{ reps: 0, weight: 0, completed: true, durationSec: 90 }],
+        },
+        {
+          exerciseId: 'adhoc-ex-spacer-farmera',
+          name: "Spacer farmera (Farmer's Walk)",
+          sets: [{ reps: 0, weight: 24, completed: true, distanceM: 40, durationSec: 60 }],
+        },
+        {
+          exerciseId: 'adhoc-ex-podciaganie-wspomagane',
+          name: 'Podciąganie wspomagane na maszynie',
+          sets: [{ reps: 8, weight: 0, completed: true, assistWeight: 25 }],
+        },
+      ],
+    }]);
+
+    await navigateAndWait(page, '/history');
+    await page.getByRole('button', { name: 'Szczegóły' }).first().click();
+    await expect(page.getByText('1:30', { exact: true })).toBeVisible();
+    await expect(page.getByText('24 kg · 40 m · 1:00')).toBeVisible();
+    await expect(page.getByText('8×-25 kg')).toBeVisible();
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {

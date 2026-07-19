@@ -41,3 +41,55 @@ const FIELDS_BY_TRACKING: Record<TrackingType, SetField[]> = {
 
 export const visibleSetFields = (tracking: TrackingType): SetField[] =>
   FIELDS_BY_TRACKING[tracking];
+
+/** Sekundy -> "m:ss" (input czasu serii). 0/brak -> pusty string (pusty input). */
+export const formatDurationSec = (sec?: number): string => {
+  if (!sec || sec <= 0) return '';
+  const minutes = Math.floor(sec / 60);
+  const seconds = Math.round(sec % 60);
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
+
+/** "m:ss" albo gołe sekundy -> sekundy. Śmieci/ujemne -> 0. */
+export const parseDurationInput = (raw: string): number => {
+  const trimmed = raw.trim();
+  if (!trimmed) return 0;
+  if (trimmed.includes(':')) {
+    const [minPart, secPart] = trimmed.split(':');
+    const minutes = parseInt(minPart, 10);
+    const seconds = parseInt(secPart, 10);
+    if (Number.isNaN(minutes) || Number.isNaN(seconds) || minutes < 0 || seconds < 0) return 0;
+    return minutes * 60 + seconds;
+  }
+  const seconds = parseInt(trimmed, 10);
+  return Number.isNaN(seconds) || seconds < 0 ? 0 : seconds;
+};
+
+/** Metry -> "400 m" albo "1.25 km" (wyświetlanie). 0/brak -> pusty string. */
+export const formatDistanceM = (m?: number): string => {
+  if (!m || m <= 0) return '';
+  if (m < 1000) return `${Math.round(m)} m`;
+  const km = Math.round((m / 1000) * 100) / 100;
+  return `${km} km`;
+};
+
+/**
+ * Etykieta serii w historii (Z105) — z ZAWARTOŚCI serii, nie z typu ćwiczenia
+ * (historyczne dane nie znają trackingu). Domyślny format reps×weight bez zmian.
+ */
+export const formatHistorySetLabel = (
+  set: { reps: number; weight: number; completed?: boolean; isWarmup?: boolean; durationSec?: number; distanceM?: number; assistWeight?: number },
+  fmtWeight: (kg: number) => string,
+  bodyweightLabel: string,
+): string => {
+  if ((set.assistWeight ?? 0) > 0) return `${set.reps}×-${fmtWeight(set.assistWeight!)}`;
+  if ((set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0) {
+    const parts = [
+      set.weight > 0 ? fmtWeight(set.weight) : '',
+      formatDistanceM(set.distanceM),
+      formatDurationSec(set.durationSec),
+    ].filter(Boolean);
+    if (parts.length > 0) return parts.join(' · ');
+  }
+  return `${set.reps}×${set.weight > 0 ? fmtWeight(set.weight) : bodyweightLabel}`;
+};

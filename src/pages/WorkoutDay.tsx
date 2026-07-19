@@ -28,7 +28,8 @@ import { shouldRequestReview, readLastReviewPromptAt, markReviewPromptShown } fr
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId } from '@/lib/adhoc-workout';
-import type { LibraryExercise } from '@/data/exerciseLibrary';
+import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
+import { getTrackingType, type TrackingType } from '@/lib/set-tracking';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useExerciseNotes } from '@/hooks/useExerciseNotes';
 import { localizeExerciseName } from '@/data/exercise-i18n';
@@ -38,7 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
-import { createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
+import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -121,6 +122,15 @@ const WorkoutDay = () => {
   const resolveIsBodyweight = useCallback((name: string): boolean => {
     const custom = customExercises.find((ex) => ex.name === name);
     return custom ? custom.isBodyweight === true : isBodyweightExercise(name);
+  }, [customExercises]);
+  // Typ śledzenia serii (Z105): własne ćwiczenie -> jego pole, biblioteka -> jej pole,
+  // fallback heurystyka bodyweight. Ten sam priorytet co resolveIsBodyweight.
+  const resolveTracking = useCallback((name: string): TrackingType => {
+    const custom = customExercises.find((ex) => ex.name === name);
+    if (custom) return getTrackingType(custom);
+    const lib = exerciseLibrary.find((e) => e.name === name);
+    if (lib) return getTrackingType(lib);
+    return getTrackingType({ isBodyweight: isBodyweightExercise(name) });
   }, [customExercises]);
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
   // Przypięte notatki per ćwiczenie (Z103): trwałe, klucz = kanoniczna nazwa.
@@ -441,14 +451,19 @@ const WorkoutDay = () => {
     }>();
     (day?.exercises ?? []).forEach((exercise, index) => {
       const prev = previousWorkout?.exercises.find(e => e.exerciseId === exercise.id);
+      // Z105: coach serii nie ma sensownego celu dla typów czasowych (świadomie nic);
+      // asysta = cel powtórzeniowy (jak bodyweight).
+      const exTracking = resolveTracking(exercise.name);
       map.set(exercise.id, {
         previousSets: prev?.sets && prev.sets.length > 0
           ? prev.sets
           : (exercise.name ? previousSetsByName.get(exercise.name) : undefined),
-        nextAdvice: getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
-          isBodyweight: resolveIsBodyweight(exercise.name),
-          isSuperset: exercise.isSuperset,
-        }, lang, unit),
+        nextAdvice: exTracking === 'duration' || exTracking === 'weight_distance_duration'
+          ? null
+          : getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
+            isBodyweight: exTracking === 'assisted_bodyweight' ? true : resolveIsBodyweight(exercise.name),
+            isSuperset: exercise.isSuperset,
+          }, lang, unit),
         historicalBest: getExerciseBest1RM(workouts, exercise.id),
         rzaAdvice: getRzaAdvice(workouts, exercise.id, exercise.name),
         // Z74: ostatnia notatka z poprzedniej sesji tego ćwiczenia.
@@ -456,7 +471,7 @@ const WorkoutDay = () => {
       });
     });
     return map;
-  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight]);
+  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight, resolveTracking]);
 
   const queueAutoSaveStatus = useCallback((status: AutoSaveStatus, nextStatus?: AutoSaveStatus, delay = 1600) => {
     setAutoSaveStatus(status);
@@ -1376,6 +1391,7 @@ const WorkoutDay = () => {
       weight: s.weight ?? 0,
       completed: s.completed ?? false,
       ...(s.isWarmup && { isWarmup: true }),
+      ...carrySetExtras(s),
     }));
     setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
     if (notes !== undefined) {
@@ -1390,6 +1406,7 @@ const WorkoutDay = () => {
       weight: s.weight ?? 0,
       completed: s.completed ?? false,
       ...(s.isWarmup && { isWarmup: true }),
+      ...carrySetExtras(s),
     }));
     const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
     const nextExerciseNotes = notes !== undefined
@@ -2101,6 +2118,7 @@ const WorkoutDay = () => {
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
               pinnedNote={getPinnedNote(exercise.name)}
               onPinnedNoteSave={savePinnedNote}
+              trackingType={resolveTracking(exercise.name)}
             />
           ))}
         </div>
@@ -2207,6 +2225,7 @@ const WorkoutDay = () => {
               onRestTimerStart={startRestTimer}
               pinnedNote={getPinnedNote(exercise.name)}
               onPinnedNoteSave={savePinnedNote}
+              trackingType={resolveTracking(exercise.name)}
             />
             {/* AI Swap & Skip buttons — only in active workout */}
             {isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id]) && (

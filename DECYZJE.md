@@ -11,6 +11,16 @@
 
 ## DECYZJE
 
+### 2026-07-19 — X14B FAZA 1 (Z105): silnik typów serii (czas/dystans/asysta)
+
+**Model:** `SetData` rozszerzone TYLKO polami opcjonalnymi `durationSec`/`distanceM`/`assistWeight` (zero migracji). Typ per ćwiczenie: `LibraryExercise.tracking` + `getTrackingType`/`visibleSetFields` w `src/lib/set-tracking.ts` (brak pola = weight_reps, isBodyweight = bodyweight_reps, jawne pole wygrywa). Biblioteka: 3 planki -> duration, Farmer's Hold -> weight_distance_duration, Podciąganie wspomagane -> assisted_bodyweight + NOWE: Spacer farmera (wdd) i Dipy wspomagane (assisted) z tłumaczeniami EN. Własne ćwiczenia: wybór typu w formularzu pickera (chipy Standard/Na czas/Ciężar+dystans+czas/Z asystą), pole `tracking` w custom_exercises (rules: opcjonalne, zamknięta lista, 2 nowe testy).
+
+**UI:** nowa gałąź renderu wiersza serii (renderTrackedSetRow) — ścieżka weight_reps/bodyweight_reps NIETKNIĘTA (twarda zasada: logowanie serii nie może zwolnić). Czas jako mm:ss (DurationInput: draft lokalny, parse na blur — parsowanie per znak psuje edycję), dystans w m, asysta "-kg". Historia: `formatHistorySetLabel` z ZAWARTOŚCI serii (historyczne dane nie znają trackingu). Coach serii: duration/wdd świadomie null, asysta = cel powtórzeniowy.
+
+**Root cause (3 kopie sanityzacji gubiły nowe pola):** WorkoutDay.handleSetsChange/Local (inline map), exercise-utils.sanitizeSets, workout-draft-db.normalizeSet — każda przepisywała serie do {reps,weight,completed,isWarmup} i wycinała durationSec/distanceM/assistWeight (objaw: wartość w UI, brak w drafcie po round-trip IndexedDB). Fix: wspólny `carrySetExtras` (exercise-utils) + rozszerzenie normalizeSet; `setsMatch` w workout-final-sync porównuje też nowe pola (rozjazd = rozjazd zapisu). Rules workouts: pola serii NIE są walidowane wprost (validWorkoutShape sprawdza tylko top-level + notes) — zmiana rules niepotrzebna.
+
+**Weryfikacja:** vitest 711/711, e2e 153/153 (2 nowe Z105: plank+farmer+asysta w szybkim treningu z draftem; render historii "1:30" / "24 kg · 40 m · 1:00" / "8×-25 kg"), rules 141/141, bramki komplet.
+
 ### 2026-07-19 — RELEASE X14A (Z103-Z104) na prod
 
 **Wdrożone:** rules (exercise_notes) na cloud.firestore; web index-CNXBdODL na gh-pages (zweryfikowane live: nowy hash + render #root bez pageerrors w headless Chromium); iOS 1.0.0 build 59 przez ios-testflight.sh + testflight_external.py (obie grupy, Beta App Review: APPROVED od razu; Robert dostaje build). Bramki przed wdrożeniem: vitest 681, e2e:mock 151, typecheck, lint, build, bundle budget (initial 1 471 846 B), dist-smoke PASS (build:mobile), dist-offline PASS.

@@ -152,6 +152,18 @@ export const previousWorkingSet = (
   return previousSets.filter(s => !s.isWarmup)[workingIndex];
 };
 
+// Nowe pola typów serii (Z105) przenoszone przy pre-fill/sanityzacji — klucz tylko
+// gdy wartość obecna (Firestore nie znosi undefined).
+export const carrySetExtras = (set: Partial<SetData> | undefined): Partial<SetData> => ({
+  ...(set?.durationSec !== undefined && { durationSec: set.durationSec }),
+  ...(set?.distanceM !== undefined && { distanceM: set.distanceM }),
+  ...(set?.assistWeight !== undefined && { assistWeight: set.assistWeight }),
+});
+
+const setHasAnyValue = (set: SetData): boolean =>
+  set.reps > 0 || set.weight > 0
+  || (set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0 || (set.assistWeight ?? 0) > 0;
+
 export const createPrefilledSets = (
   setCount: number,
   previousSets: SetData[] | undefined,
@@ -177,11 +189,12 @@ export const createPrefilledSets = (
   const workingSets: SetData[] = [];
   for (let i = 0; i < setCount; i++) {
     const prevSet = prevWorking[i] || prevWorking[prevWorking.length - 1];
-    if (prevSet && (prevSet.reps > 0 || prevSet.weight > 0)) {
+    if (prevSet && setHasAnyValue(prevSet)) {
       workingSets.push({
         reps: prevSet.reps,
         weight: isBodyweight ? 0 : prevSet.weight,
         completed: false,
+        ...carrySetExtras(prevSet),
       });
     } else {
       workingSets.push({ reps: 0, weight: 0, completed: false });
@@ -203,6 +216,7 @@ export const sanitizeSets = (
     weight: set?.weight ?? 0,
     completed: set?.completed ?? false,
     ...(set?.isWarmup && { isWarmup: true }),
+    ...carrySetExtras(set),
   }));
 
   if (sanitized.some(s => s.isWarmup)) return sanitized;

@@ -62,4 +62,17 @@ describe('getNextSetAdvice', () => {
     expect(advice.kind).toBe('deload');
     expect(advice.targetWeight).toBe(90);
   });
+
+  it('serie czysto czasowe (weight=0, reps=0) nie crashują coacha (Z105)', () => {
+    const ws = [
+      {
+        id: 'w1', userId: 'u1', dayId: 'day-1', date: '2026-07-01', completed: true,
+        exercises: [{
+          exerciseId: 'plank',
+          sets: [{ reps: 0, weight: 0, completed: true, durationSec: 90 }],
+        }],
+      },
+    ];
+    expect(() => getNextSetAdvice(ws, 'plank', '3 x 60s', 0)).not.toThrow();
+  });
 });

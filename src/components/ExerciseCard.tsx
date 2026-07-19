@@ -27,6 +27,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { PinnedNoteSection, type PinnedNoteSaveInput } from '@/components/PinnedNoteSection';
 import type { ExerciseNote } from '@/lib/exercise-notes';
+import { formatDistanceM, formatDurationSec, parseDurationInput, type TrackingType } from '@/lib/set-tracking';
 
 // Wibracja po ukończeniu całego ćwiczenia (sygnał „przejdź do następnego").
 // Natywnie Capacitor Haptics (iOS/Android); w przeglądarce fallback do Vibration API.
@@ -176,7 +177,39 @@ interface ExerciseCardProps {
   /** Przypięta notatka per ćwiczenie (Z103) — trwała, niezależna od planu i sesji. */
   pinnedNote?: ExerciseNote;
   onPinnedNoteSave?: (exerciseName: string, input: PinnedNoteSaveInput) => Promise<void> | void;
+  /** Typ śledzenia serii (Z105). Brak = dotychczasowe zachowanie (weight_reps / bodyweight_reps). */
+  trackingType?: TrackingType;
 }
+
+// Input czasu mm:ss (Z105): lokalny draft, parse dopiero na blur/Enter —
+// parsowanie per znak psułoby edycję ("1:3" -> 63 -> "1:03").
+const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, placeholder }: {
+  valueSec?: number;
+  onCommit: (sec: number) => void;
+  disabled?: boolean;
+  ariaLabel: string;
+  placeholder?: string;
+}) => {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <Input
+      type="text"
+      inputMode="numeric"
+      value={draft ?? formatDurationSec(valueSec)}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={() => setDraft(formatDurationSec(valueSec))}
+      onBlur={() => {
+        if (draft !== null) onCommit(parseDurationInput(draft));
+        setDraft(null);
+      }}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      placeholder={placeholder ?? '1:30'}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+    />
+  );
+};
 
 // ── Main Component ──
 const ExerciseCardInner = ({
@@ -198,6 +231,7 @@ const ExerciseCardInner = ({
   onRestTimerStart,
   pinnedNote,
   onPinnedNoteSave,
+  trackingType,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
@@ -250,8 +284,13 @@ const ExerciseCardInner = ({
     onMetricsChange?.(exercise.id, next);
   };
 
+  // Typ śledzenia serii (Z105). Brak propa = dokładnie dotychczasowe zachowanie.
+  const tracking: TrackingType = trackingType ?? (isBodyweight ? 'bodyweight_reps' : 'weight_reps');
+  // Nowe typy mają WŁASNĄ gałąź renderu wiersza — ścieżka weight_reps/bodyweight_reps nietknięta.
+  const isNewTrackingUi = tracking === 'duration' || tracking === 'weight_distance_duration' || tracking === 'assisted_bodyweight';
+
   // ── Edit a set value (no auto-completion — completion is confirmed via the checkmark) ──
-  const handleSetChange = (setIndex: number, field: 'reps' | 'weight', value: number) => {
+  const handleSetChange = (setIndex: number, field: 'reps' | 'weight' | 'durationSec' | 'distanceM' | 'assistWeight', value: number) => {
     if (isBodyweight && field === 'weight') return;
     hasLocalChanges.current = true;
 
@@ -282,10 +321,21 @@ const ExerciseCardInner = ({
       if (!isBodyweight) weight = previousSets[setIndex].weight;
     }
 
+    // Z105: adopcja pustych pól nowych typów z poprzedniej sesji przy odhaczaniu.
+    const prevForAdopt = turningOn ? previousSets?.[setIndex] : undefined;
+    const adoptedExtras = prevForAdopt
+      ? {
+        ...(!(currentSet.durationSec ?? 0) && prevForAdopt.durationSec !== undefined && { durationSec: prevForAdopt.durationSec }),
+        ...(!(currentSet.distanceM ?? 0) && prevForAdopt.distanceM !== undefined && { distanceM: prevForAdopt.distanceM }),
+        ...(!(currentSet.assistWeight ?? 0) && prevForAdopt.assistWeight !== undefined && { assistWeight: prevForAdopt.assistWeight }),
+      }
+      : {};
+
     const updatedSet: SetData = {
       ...currentSet,
       reps,
       weight: isBodyweight ? 0 : weight,
+      ...adoptedExtras,
       completed: turningOn,
     };
     const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
@@ -327,6 +377,10 @@ const ExerciseCardInner = ({
       reps: lastWorking?.reps ?? 0,
       weight: isBodyweight ? 0 : (lastWorking?.weight ?? 0),
       completed: false,
+      // Z105: nowa seria dziedziczy czas/dystans/asystę z ostatniej roboczej.
+      ...(lastWorking?.durationSec !== undefined && { durationSec: lastWorking.durationSec }),
+      ...(lastWorking?.distanceM !== undefined && { distanceM: lastWorking.distanceM }),
+      ...(lastWorking?.assistWeight !== undefined && { assistWeight: lastWorking.assistWeight }),
     };
     const newSets = [...sets, newSet];
     setSets(newSets);
@@ -376,12 +430,173 @@ const ExerciseCardInner = ({
   };
 
   // Grid: SET | PREVIOUS | [KG] | REPS | ✓ | × (mockup [17])
-  const gridCols = isBodyweight
+  // Z105: nowe typy mają własny układ kolumn (duration: czas; wdd: kg+dystans+czas bez PREV;
+  // assisted: asysta+powt.). Stare typy — układ nietknięty.
+  const gridCols = tracking === 'duration'
     ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_22px]'
-    : 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_22px]';
+    : tracking === 'weight_distance_duration'
+      ? 'grid-cols-[26px_1fr_1fr_1fr_40px_22px]'
+      : tracking === 'assisted_bodyweight'
+        ? 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_22px]'
+        : isBodyweight
+          ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_22px]'
+          : 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_22px]';
+
+  // Hint POPRZ. dla nowych typów (Z105): czas dla duration, powt.×(-asysta) dla assisted.
+  const getTrackedPreviousHint = (workingIndex: number): string | null => {
+    const prevSet = previousWorkingSet(previousSets, workingIndex);
+    if (!prevSet) return null;
+    if (tracking === 'duration') return formatDurationSec(prevSet.durationSec) || null;
+    if (tracking === 'assisted_bodyweight') {
+      if (!prevSet.reps && !(prevSet.assistWeight ?? 0)) return null;
+      return `${prevSet.reps}×-${fmt(prevSet.assistWeight ?? 0, { withUnit: false })}${unit}`;
+    }
+    return null;
+  };
+
+  // Wiersz serii dla nowych typów śledzenia (Z105) — osobna gałąź, ścieżka
+  // weight_reps/bodyweight_reps renderuje się dokładnie jak dotąd.
+  const renderTrackedSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean, workingIndex = -1) => {
+    const isActive = !isWarmupRow && globalIndex === activeSetIndex;
+    const setLabel = isWarmupRow ? `${t('comp.warmup.title')} ${label}` : `${t('card.colSet')} ${label}`;
+    const prevHint = !isWarmupRow ? getTrackedPreviousHint(workingIndex) : null;
+    const displayWeight = set.weight
+      ? (unit === 'lbs' ? Number(toDisplay(set.weight).toFixed(1)) : set.weight)
+      : '';
+    const displayAssist = (set.assistWeight ?? 0) > 0
+      ? (unit === 'lbs' ? Number(toDisplay(set.assistWeight!).toFixed(1)) : set.assistWeight!)
+      : '';
+
+    return (
+      <div
+        key={globalIndex}
+        className={cn(
+          'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
+          gridCols,
+          isActive && 'bg-primary/[0.04] ring-2 ring-primary',
+        )}
+      >
+        <span className={cn(
+          'select-none text-center text-sm font-extrabold',
+          isWarmupRow
+            ? 'text-[11px] tracking-wide text-[hsl(var(--ec-warmup-gold))]'
+            : isActive ? 'text-primary' : 'text-[hsl(var(--ec-set-number))]',
+        )}>
+          {label}
+        </span>
+
+        {/* PREV — nie renderowana dla weight_distance_duration (brak miejsca na 3 inputy) */}
+        {tracking !== 'weight_distance_duration' && (
+          <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
+            {isWarmupRow ? '—' : (prevHint || '—')}
+          </span>
+        )}
+
+        {tracking === 'weight_distance_duration' && (
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={0.5}
+            value={displayWeight}
+            onChange={(e) => handleSetChange(globalIndex, 'weight', fromInput(parseFloat(e.target.value) || 0))}
+            placeholder={unit}
+            disabled={!isEditable}
+            aria-label={`${localizedName}, ${setLabel}, ${unit}`}
+            className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+        )}
+
+        {tracking === 'weight_distance_duration' && (
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={set.distanceM || ''}
+            onChange={(e) => handleSetChange(globalIndex, 'distanceM', parseFloat(e.target.value) || 0)}
+            placeholder="m"
+            disabled={!isEditable}
+            aria-label={`${localizedName}, ${setLabel}, ${t('card.colDistance')}`}
+            className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+        )}
+
+        {tracking === 'assisted_bodyweight' && (
+          <Input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={0.5}
+            value={displayAssist}
+            onChange={(e) => handleSetChange(globalIndex, 'assistWeight', fromInput(parseFloat(e.target.value) || 0))}
+            placeholder={`-${unit}`}
+            disabled={!isEditable}
+            aria-label={`${localizedName}, ${setLabel}, ${t('card.colAssist')}`}
+            className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+        )}
+
+        {tracking === 'assisted_bodyweight' && (
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={set.reps || ''}
+            onChange={(e) => handleSetChange(globalIndex, 'reps', parseInt(e.target.value) || 0)}
+            placeholder={isWarmupRow ? '—' : repsPlaceholder}
+            disabled={!isEditable}
+            aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
+            className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
+        )}
+
+        {(tracking === 'duration' || tracking === 'weight_distance_duration') && (
+          <DurationInput
+            valueSec={set.durationSec}
+            onCommit={(sec) => handleSetChange(globalIndex, 'durationSec', sec)}
+            disabled={!isEditable}
+            ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDuration')}`}
+          />
+        )}
+
+        <div className="flex justify-center">
+          <button
+            onClick={() => handleToggleComplete(globalIndex)}
+            disabled={!isEditable}
+            aria-label={set.completed ? t('card.uncheckSet') : t('card.checkSet')}
+            className={cn(
+              'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
+              set.completed
+                ? 'bg-accent text-accent-foreground'
+                : 'border-2 border-muted-foreground/40 text-muted-foreground/50 hover:border-accent hover:text-accent',
+            )}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex justify-center">
+          {isEditable ? (
+            <button
+              onClick={() => handleRemoveSet(globalIndex)}
+              aria-label={t('card.removeSet')}
+              className="flex h-8 w-6 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
+            >
+              &times;
+            </button>
+          ) : (
+            <span className="w-6" />
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // ── Render set row ──
   const renderSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean, workingIndex = -1) => {
+    if (isNewTrackingUi) return renderTrackedSetRow(set, globalIndex, label, isWarmupRow, workingIndex);
     const prevHint = !isWarmupRow ? getPreviousHint(workingIndex) : null;
     const isActive = !isWarmupRow && globalIndex === activeSetIndex;
     const displayWeight = set.weight
@@ -610,6 +825,31 @@ const ExerciseCardInner = ({
       {/* ── Working sets grid ── */}
       <div className="px-4 sm:px-5 pt-4 pb-2">
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
+        {isNewTrackingUi ? (
+          <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
+            <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colSet')}</span>
+            {tracking !== 'weight_distance_duration' && (
+              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colPrevious')}</span>
+            )}
+            {tracking === 'weight_distance_duration' && (
+              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{unit}</span>
+            )}
+            {tracking === 'weight_distance_duration' && (
+              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colDistance')}</span>
+            )}
+            {tracking === 'assisted_bodyweight' && (
+              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colAssist')}</span>
+            )}
+            {tracking === 'assisted_bodyweight' && (
+              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colReps')}</span>
+            )}
+            {(tracking === 'duration' || tracking === 'weight_distance_duration') && (
+              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colDuration')}</span>
+            )}
+            <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">✓</span>
+            <span />
+          </div>
+        ) : (
         <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
           <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colSet')}</span>
           <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colPrevious')}</span>
@@ -620,6 +860,7 @@ const ExerciseCardInner = ({
           <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">✓</span>
           <span />
         </div>
+        )}
 
         {/* Set rows */}
         {workingSets.map((set, wi) => {

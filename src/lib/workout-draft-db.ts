@@ -61,6 +61,13 @@ const normalizeSet = (set: unknown): SetData => {
     weight: Number.isFinite(Number(set.weight)) ? Number(set.weight) : 0,
     completed: !!set.completed,
     ...(set.isWarmup ? { isWarmup: true } : {}),
+    // Nowe typy serii (Z105): czas/dystans/asysta przeżywają round-trip przez IndexedDB.
+    ...(Number.isFinite(Number(set.durationSec)) && Number(set.durationSec) > 0
+      ? { durationSec: Number(set.durationSec) } : {}),
+    ...(Number.isFinite(Number(set.distanceM)) && Number(set.distanceM) > 0
+      ? { distanceM: Number(set.distanceM) } : {}),
+    ...(Number.isFinite(Number(set.assistWeight)) && Number(set.assistWeight) > 0
+      ? { assistWeight: Number(set.assistWeight) } : {}),
   };
 };
 

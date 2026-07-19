@@ -49,7 +49,11 @@ const setsMatch = (actual: SetData, expected: SetData): boolean => {
   return nextActual.reps === nextExpected.reps
     && nextActual.weight === nextExpected.weight
     && nextActual.completed === nextExpected.completed
-    && !!nextActual.isWarmup === !!nextExpected.isWarmup;
+    && !!nextActual.isWarmup === !!nextExpected.isWarmup
+    // Z105: rozjazd czasu/dystansu/asysty też jest rozjazdem zapisu.
+    && (actual.durationSec ?? 0) === (expected.durationSec ?? 0)
+    && (actual.distanceM ?? 0) === (expected.distanceM ?? 0)
+    && (actual.assistWeight ?? 0) === (expected.assistWeight ?? 0);
 };
 
 const metricMatches = (actual: number | undefined, expected: number | undefined): boolean => (
