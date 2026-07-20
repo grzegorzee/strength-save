@@ -28,7 +28,11 @@ const formatDuration = (totalSec: number): string => {
 export const AllTimeStatsSheet = ({ open, onOpenChange, workouts }: AllTimeStatsSheetProps) => {
   const { t, lang } = useTranslation();
   const { fmt } = useUnit();
-  const stats = useMemo(() => buildAllTimeStats(workouts), [workouts]);
+  // Liczymy DOPIERO po otwarciu arkusza. Wcześniej `useMemo` biegł przy każdym
+  // renderze nagłówka, czyli na każdym ekranie apki — niepotrzebna praca, a przy
+  // uszkodzonym rekordzie treningu wywracało to całą stronę (crash 2026-07-20).
+  const stats = useMemo(() => (open ? buildAllTimeStats(workouts) : null), [open, workouts]);
+  if (!open || !stats) return null;
 
   const tiles: Array<{ label: string; value: string }> = [
     { label: t('stats.sets'), value: String(stats.totalSets) },

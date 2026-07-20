@@ -45,6 +45,12 @@ describe('RestSettingsCard', () => {
     expect(loadRestSettings().workingSeconds).toBe(120);
   });
 
+  it('presety zaczynają się od 15 s, nie od minuty (zgłoszenie usera)', () => {
+    renderCard();
+    fireEvent.click(screen.getByTestId('rest-preset-working-15'));
+    expect(loadRestSettings().workingSeconds).toBe(15);
+  });
+
   it('wartość spoza zakresu nie psuje zapisu', () => {
     renderCard();
     fireEvent.change(screen.getByLabelText(/Przerwa między seriami/i), { target: { value: '0' } });

@@ -1,5 +1,6 @@
 import type { SetData, WorkoutSession } from '@/types';
 import type { TrackingType } from '@/lib/set-tracking';
+import { workoutExercises, exerciseSets } from '@/lib/summary-utils';
 
 // Epley formula: 1RM = weight × (1 + reps / 30)
 export const calculate1RM = (weight: number, reps: number): number => {
@@ -29,9 +30,9 @@ export const getExerciseBest1RM = (
 
   workouts.forEach(w => {
     if (!w.completed) return;
-    w.exercises.forEach(ex => {
+    workoutExercises(w).forEach(ex => {
       if (ex.exerciseId !== exerciseId) return;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup || set.weight <= 0) return;
         if (set.weight > maxWeight) maxWeight = set.weight;
         const estimated = calculate1RM(set.weight, set.reps);
@@ -55,9 +56,9 @@ export const getExerciseBestReps = (
   let maxReps = 0;
   workouts.forEach(w => {
     if (!w.completed) return;
-    w.exercises.forEach(ex => {
+    workoutExercises(w).forEach(ex => {
       if (ex.exerciseId !== exerciseId) return;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         if (set.reps > maxReps) maxReps = set.reps;
       });
@@ -76,9 +77,9 @@ export const getExerciseBestDuration = (
   let best = 0;
   workouts.forEach(w => {
     if (!w.completed) return;
-    w.exercises.forEach(ex => {
+    workoutExercises(w).forEach(ex => {
       if (ex.exerciseId !== exerciseId) return;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         if ((set.durationSec ?? 0) > best) best = set.durationSec!;
       });
@@ -95,9 +96,9 @@ export const getExerciseBestWeightDistance = (
   let best = { score: 0, weight: 0, distanceM: 0 };
   workouts.forEach(w => {
     if (!w.completed) return;
-    w.exercises.forEach(ex => {
+    workoutExercises(w).forEach(ex => {
       if (ex.exerciseId !== exerciseId) return;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         const score = (set.weight || 0) * (set.distanceM ?? 0);
         if (score > best.score) best = { score, weight: set.weight, distanceM: set.distanceM ?? 0 };
@@ -121,9 +122,9 @@ export const getExerciseBestEffectiveLoad = (
   let best: { effectiveLoad: number; reps: number } | null = null;
   workouts.forEach(w => {
     if (!w.completed) return;
-    w.exercises.forEach(ex => {
+    workoutExercises(w).forEach(ex => {
       if (ex.exerciseId !== exerciseId) return;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup || set.reps <= 0) return;
         const effectiveLoad = Math.max(0, bodyWeightKg - (set.assistWeight ?? 0));
         if (!best
@@ -162,14 +163,14 @@ export const detectNewPRs = (
   const prs: PRComparison[] = [];
   if (!currentWorkout.completed) return prs;
 
-  currentWorkout.exercises.forEach(ex => {
+  workoutExercises(currentWorkout).forEach(ex => {
     const name = exerciseNames.get(ex.exerciseId) || ex.name || ex.exerciseId;
     const tracking = options?.trackingByExerciseId?.get(ex.exerciseId);
 
     // Z106: PR czasu — dłuższa ukończona seria niż kiedykolwiek.
     if (tracking === 'duration') {
       let currentBest = 0;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         if ((set.durationSec ?? 0) > currentBest) currentBest = set.durationSec!;
       });
@@ -184,7 +185,7 @@ export const detectNewPRs = (
     // Z106: PR ciężar x dystans.
     if (tracking === 'weight_distance_duration') {
       let currentBest = 0;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         const score = (set.weight || 0) * (set.distanceM ?? 0);
         if (score > currentBest) currentBest = score;
@@ -203,7 +204,7 @@ export const detectNewPRs = (
       if (bodyWeightKg !== null) {
         const historicalBest = getExerciseBestEffectiveLoad(previousWorkouts, ex.exerciseId, bodyWeightKg);
         let bestPr: PRComparison | null = null;
-        ex.sets.forEach(set => {
+        exerciseSets(ex).forEach(set => {
           if (!set.completed || set.isWarmup || set.reps <= 0) return;
           const effectiveLoad = Math.max(0, bodyWeightKg - (set.assistWeight ?? 0));
           if (historicalBest
@@ -218,7 +219,7 @@ export const detectNewPRs = (
       }
       // Brak pomiaru wagi ciała: PR tylko po powtórzeniach (zachęta do uzupełnienia w UI).
       let currentMaxReps = 0;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         if (set.reps > currentMaxReps) currentMaxReps = set.reps;
       });
@@ -235,7 +236,7 @@ export const detectNewPRs = (
     if (isBw) {
       // Bodyweight: PR based on max reps
       let currentMaxReps = 0;
-      ex.sets.forEach(set => {
+      exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         if (set.reps > currentMaxReps) currentMaxReps = set.reps;
       });
@@ -258,7 +259,7 @@ export const detectNewPRs = (
     // Weighted: PR based on weight / 1RM
     let currentMaxWeight = 0;
     let currentBest1RM = 0;
-    ex.sets.forEach(set => {
+    exerciseSets(ex).forEach(set => {
       if (!set.completed || set.isWarmup || set.weight <= 0) return;
       if (set.weight > currentMaxWeight) currentMaxWeight = set.weight;
       const est = calculate1RM(set.weight, set.reps);

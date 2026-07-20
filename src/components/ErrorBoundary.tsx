@@ -4,27 +4,46 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { reportClientError } from '@/lib/error-telemetry';
 
+/**
+ * Krótki kod błędu do zgłoszenia przez usera.
+ *
+ * User zgłosił „nieznany błąd" bez żadnego punktu zaczepienia — nie dało się
+ * powiązać zrzutu ekranu z konkretnym miejscem w kodzie. Kod jest deterministyczny
+ * (ten sam błąd = ten sam kod), więc powtórki widać od razu.
+ */
+const buildErrorCode = (error: Error): string => {
+  const seed = `${error.name}:${error.message}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+  }
+  return `E-${Math.abs(hash).toString(36).toUpperCase().slice(0, 5)}`;
+};
+
 interface Props {
   children: ReactNode;
   /** Crashe renderu raportują do client_errors tylko z uid (telemetria go wymaga). */
   uid?: string;
-  /** Własny fallback (np. karta per trasa); reset czyści stan błędu boundary. */
-  fallback?: (reset: () => void) => ReactNode;
+  /** Własny fallback (np. karta per trasa); reset czyści stan błędu boundary.
+   *  Dostaje też błąd i krótki KOD, żeby user miał co zgłosić zamiast „nieznany błąd". */
+  fallback?: (reset: () => void, error: Error | null, code: string) => ReactNode;
 }
 
 interface State {
   hasError: boolean;
   error: Error | null;
+  /** Krótki, rozpoznawalny identyfikator tego wystąpienia (do zgłoszenia). */
+  code: string;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, code: '' };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, code: buildErrorCode(error) };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -34,19 +53,19 @@ export class ErrorBoundary extends Component<Props, State> {
       void reportClientError(this.props.uid, {
         code: 'render-crash',
         phase: 'other',
-        detail: `${error.message} ${stackFirstLine}`.trim(),
+        detail: `[${this.state.code}] ${error.message} ${stackFirstLine}`.trim(),
       });
     }
   }
 
   reset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({ hasError: false, error: null, code: '' });
   };
 
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
-        return this.props.fallback(this.reset);
+        return this.props.fallback(this.reset, this.state.error, this.state.code);
       }
       // Klasa zywie poza LanguageProvider, wiec jezyk czytamy bezposrednio z localStorage.
       let isEN = false;

@@ -1,6 +1,7 @@
 import type { WorkoutSession } from '@/types';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
+import { workoutExercises } from '@/lib/summary-utils';
 
 // Metadane wierszy historii (Z80): czas trwania + liczba PR per sesja,
 // liczone RAZ dla całej listy (nie per wiersz w renderze).
@@ -29,7 +30,7 @@ export const buildHistoryRowMeta = (workouts: WorkoutSession[]): Map<string, His
     if (w.completed) {
       const names = new Map<string, string>();
       const bodyweightIds = new Set<string>();
-      w.exercises.forEach((ex) => {
+      workoutExercises(w).forEach((ex) => {
         if (ex.name) names.set(ex.exerciseId, ex.name);
         if (isBodyweightExercise(ex.name ?? '')) bodyweightIds.add(ex.exerciseId);
       });

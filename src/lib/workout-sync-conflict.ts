@@ -46,6 +46,20 @@ export type WorkoutSyncErrorMessageKey =
   | 'workout.err.offline'
   | 'workout.err.unknown';
 
+/**
+ * Surowa treść błędu do pokazania obok komunikatu.
+ *
+ * User zgłosił „nieznany błąd" bez żadnego konkretu — komunikat nie dawał się
+ * powiązać z przyczyną. Nierozpoznany błąd musi nieść oryginalną treść, inaczej
+ * diagnoza jest zgadywaniem.
+ */
+export const workoutSyncErrorDetail = (error: unknown): string | null => {
+  const raw = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  return trimmed.length > 160 ? `${trimmed.slice(0, 160)}…` : trimmed;
+};
+
 export const workoutSyncErrorMessageKey = (error: unknown): WorkoutSyncErrorMessageKey => {
   switch (classifyWorkoutSyncError(error instanceof Error ? error.message : error)) {
     case 'revision-conflict': return 'workout.err.conflict';

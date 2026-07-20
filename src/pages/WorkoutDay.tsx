@@ -51,7 +51,7 @@ import { resolveWorkoutHydration } from '@/lib/workout-hydration';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
-import { classifyWorkoutSyncError, shouldAutoResolveConflict, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
+import { classifyWorkoutSyncError, shouldAutoResolveConflict, workoutSyncErrorDetail, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
 import { reportClientError } from '@/lib/error-telemetry';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
@@ -476,6 +476,16 @@ const WorkoutDay = () => {
     }
   }, []);
 
+  // Nierozpoznany błąd niesie ORYGINALNĄ treść — „Nieznany błąd." bez konkretu
+  // nie dawał się powiązać z przyczyną (zgłoszenie usera 2026-07-20).
+  const describeSyncError = useCallback((error: unknown): string => {
+    const key = workoutSyncErrorMessageKey(error);
+    const base = t(key);
+    if (key !== 'workout.err.unknown') return base;
+    const detail = workoutSyncErrorDetail(error);
+    return detail ? `${base} (${detail})` : base;
+  }, [t]);
+
   // Cienki wrapper: logika snapshotu w czystej funkcji (workout-draft-snapshot.ts, Z29).
   const buildDraftSnapshot = useCallback((overrides: Partial<ActiveWorkoutDraft> = {}): ActiveWorkoutDraft | null => (
     buildWorkoutDraftSnapshot({
@@ -646,7 +656,7 @@ const WorkoutDay = () => {
       } else {
         trackTelemetryEvent(uid, 'sync_failure');
       }
-      setSaveError(t(workoutSyncErrorMessageKey(outcome.error)));
+      setSaveError(describeSyncError(outcome.error));
       setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
       void reportClientError(uid, {
         code: classifyWorkoutSyncError(outcome.error),
@@ -733,7 +743,7 @@ const WorkoutDay = () => {
     } catch (err) {
       // Offline/timeout: zostajemy przy lokalnym drafcie, user widzi komunikat,
       // kolejny checkpoint ponowi zapis.
-      setSaveError(t(workoutSyncErrorMessageKey(err)));
+      setSaveError(describeSyncError(err));
       void reportClientError(uid, {
         code: classifyWorkoutSyncError(err),
         phase: 'conflict-resolve',
@@ -1816,7 +1826,7 @@ const WorkoutDay = () => {
       expectedRevision = Math.max(0, Math.floor(serverWorkout.revision ?? 0));
     } catch (err) {
       setIsExplicitSaving(false);
-      setSaveError(t(workoutSyncErrorMessageKey(err)));
+      setSaveError(describeSyncError(err));
       toast({ title: t('workout.toast.errorTitle'), description: t('workout.toast.saveChangesFailedDesc'), variant: "destructive" });
       return;
     }

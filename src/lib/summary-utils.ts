@@ -27,16 +27,38 @@ export const getMonthBounds = (date: Date = new Date()): { start: Date; end: Dat
 // czas/asysta NIE wchodzą (fałszowałyby trend sztangowy); ciężar+dystans+czas wchodzi
 // jako ciężar x 1 (reps=0, ale przenoszony ciężar jest realną pracą).
 const setTonnage = (set: WorkoutSession['exercises'][number]['sets'][number]): number => {
-  if (!set.completed || set.isWarmup) return 0;
-  if (set.reps > 0) return set.reps * set.weight;
-  if (((set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0) && set.weight > 0) return set.weight;
+  if (!set?.completed || set.isWarmup) return 0;
+  const reps = Number(set.reps) || 0;
+  const weight = Number(set.weight) || 0;
+  if (reps > 0) return reps * weight;
+  if (((set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0) && weight > 0) return weight;
   return 0;
 };
 
+/**
+ * Ćwiczenia treningu jako TABLICA, zawsze.
+ *
+ * CRASH 2026-07-20 (build 73): rekord przerwanego szybkiego treningu przyszedł bez
+ * pola `exercises`, a pół apki robiło na nim `.reduce` / `.forEach`. Jeden taki
+ * rekord wywracał całą stronę przez ErrorBoundary („Coś poszło nie tak"), bo
+ * statystyki liczą się w nagłówku obecnym na każdym ekranie.
+ *
+ * Kształtu danych z Firestore nie kontrolujemy w 100% (przerwany zapis, stara
+ * sesja, częściowy sync), więc odczyt musi być odporny — nie wolno zakładać,
+ * że pole istnieje.
+ */
+export const workoutExercises = (w: WorkoutSession | null | undefined): WorkoutSession['exercises'] =>
+  Array.isArray(w?.exercises) ? w.exercises : [];
+
+/** Serie ćwiczenia jako TABLICA, zawsze (patrz `workoutExercises`). */
+export const exerciseSets = (
+  ex: WorkoutSession['exercises'][number] | null | undefined,
+): WorkoutSession['exercises'][number]['sets'] => (Array.isArray(ex?.sets) ? ex.sets : []);
+
 export const calculateTonnage = (workouts: WorkoutSession[]): number => {
   return workouts.reduce((total, w) => {
-    return total + w.exercises.reduce((exTotal, ex) => {
-      return exTotal + ex.sets.reduce((setTotal, set) => setTotal + setTonnage(set), 0);
+    return total + workoutExercises(w).reduce((exTotal, ex) => {
+      return exTotal + exerciseSets(ex).reduce((setTotal, set) => setTotal + setTonnage(set), 0);
     }, 0);
   }, 0);
 };

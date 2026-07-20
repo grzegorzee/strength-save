@@ -61,13 +61,17 @@ export const buildAllTimeStats = (workouts: WorkoutSession[]): AllTimeStats => {
     }
 
     const seenInWorkout = new Set<string>();
-    for (const exercise of workout.exercises) {
+    // Kształt danych z Firestore bywa niepełny (przerwany szybki trening, stara
+    // sesja, częściowy sync). Ten moduł liczy się na KAŻDEJ stronie z nagłówkiem,
+    // więc jeden uszkodzony rekord nie może wywrócić całej apki — crash 2026-07-20.
+    for (const exercise of Array.isArray(workout.exercises) ? workout.exercises : []) {
+      const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
       // Ta sama reguła co tonaż: liczy się WYŁĄCZNIE ukończona seria robocza.
-      const working = exercise.sets.filter((s) => s.completed && !s.isWarmup);
+      const working = sets.filter((s) => s?.completed && !s?.isWarmup);
       totalSets += working.length;
-      totalReps += working.reduce((sum, s) => sum + (s.reps ?? 0), 0);
+      totalReps += working.reduce((sum, s) => sum + (Number(s?.reps) || 0), 0);
 
-      const name = exercise.name ?? exercise.exerciseId;
+      const name = exercise?.name ?? exercise?.exerciseId ?? '';
       if (working.length > 0 && !seenInWorkout.has(name)) {
         seenInWorkout.add(name);
         exerciseSessions.set(name, (exerciseSessions.get(name) ?? 0) + 1);

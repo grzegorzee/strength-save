@@ -8,6 +8,17 @@ import { LocalNotifications } from '@capacitor/local-notifications';
 
 const REST_NOTIFICATION_ID = 90001;
 
+// DŹWIĘK POWIADOMIENIA: nazwa PLIKU w bundlu aplikacji, nigdy alias.
+//
+// Plugin robi wprost: content.sound = UNNotificationSound(named: UNNotificationSoundName(sound)).
+// Czyli iOS szuka PLIKU o podanej nazwie. Wcześniej leciało tu 'default' — iOS
+// szukał pliku „default", nie znajdował go i powiadomienie było NIEME (user zgłosił
+// po treningu: sama cicha wibracja, zero dźwięku). Pominięcie pola też daje ciszę,
+// bo plugin nie ustawia wtedy content.sound w ogóle.
+//
+// Plik: ios/App/App/rest_end.wav, dodany do zasobów targetu App.
+const REST_SOUND_FILE = 'rest_end.wav';
+
 // Cache TYLKO wyniku pozytywnego (R2-24): user może włączyć uprawnienia w Ustawieniach
 // systemu w trakcie życia appki — odmowa weryfikowana ponownie przy każdej próbie.
 let permissionGranted: boolean | null = null;
@@ -57,7 +68,7 @@ export const scheduleRestEndNotification = async (
           title,
           body,
           schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true },
-          sound: 'default',
+          sound: REST_SOUND_FILE,
         }],
       });
     } catch {

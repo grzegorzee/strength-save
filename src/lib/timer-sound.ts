@@ -16,10 +16,34 @@ const getCtx = (): AudioContext | null => {
   }
 };
 
+// Realny plik zamiast syntezy WebAudio (2026-07-20, po dwóch nieudanych testach
+// na urządzeniu). WebAudio w WKWebView potrafi nie zagrać mimo odblokowania —
+// HTMLAudioElement jest w tym środowisku przewidywalniejszy, a plik i tak musimy
+// wozić w bundlu dla powiadomienia systemowego. Syntezowany beep zostaje jako
+// fallback (web, brak pliku).
+const SOUND_URL = `${import.meta.env.BASE_URL ?? '/'}rest_end.wav`;
+let el: HTMLAudioElement | null = null;
+
+const getEl = (): HTMLAudioElement | null => {
+  if (typeof Audio === 'undefined') return null;
+  if (!el) {
+    el = new Audio(SOUND_URL);
+    el.preload = 'auto';
+    el.volume = 1;
+  }
+  return el;
+};
+
 /** Wywołaj w handlerze gestu (start/otwarcie timera), żeby odblokować audio na iOS. */
 export const unlockTimerSound = (): void => {
   const c = getCtx();
   if (c && c.state === 'suspended') c.resume().catch(() => {});
+  // Odblokowanie elementu audio tym samym gestem: krótkie play/pause w geście
+  // zdejmuje blokadę autoplay na iOS dla późniejszych odtworzeń z timera.
+  const a = getEl();
+  if (a && a.paused) {
+    a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
+  }
 };
 
 // Głośność sygnałów. Podniesiona po realnym treningu (2026-07-20): przy 0.3 beep
@@ -54,6 +78,25 @@ const isSoundEnabled = (): boolean => {
 
 export const playTimerSound = (kind: 'tick' | 'finish' | 'complete' = 'finish'): void => {
   if (!isSoundEnabled()) return;
+
+  // Koniec przerwy: najpierw realny plik (najpewniejsza droga w WKWebView).
+  // Gdy się nie uda — lecimy syntezą poniżej, żeby nie zostać z ciszą.
+  if (kind === 'finish') {
+    const a = getEl();
+    if (a) {
+      a.currentTime = 0;
+      const played = a.play();
+      if (played) {
+        played.catch(() => playSynth(kind));
+        return;
+      }
+    }
+  }
+
+  playSynth(kind);
+};
+
+const playSynth = (kind: 'tick' | 'finish' | 'complete'): void => {
   const c = getCtx();
   if (!c) return;
   if (c.state === 'suspended') c.resume().catch(() => {});

@@ -7,10 +7,12 @@ import { loadRestSettings, saveRestSettings, type RestSettings } from '@/lib/res
 
 type Field = 'workingSeconds' | 'betweenExercisesSeconds' | 'warmupSeconds';
 
+// Presety zaczynają się od 15 s — krótkie przerwy są realne (obwody, serie
+// wykończeniowe, rozgrzewka), a zaczynanie od minuty zmuszało do ręcznego wpisywania.
 const PRESETS: Record<Field, number[]> = {
-  workingSeconds: [60, 90, 120, 180],
-  betweenExercisesSeconds: [120, 150, 180, 240],
-  warmupSeconds: [30, 45, 60, 90],
+  workingSeconds: [15, 30, 45, 60, 90, 120, 180],
+  betweenExercisesSeconds: [15, 30, 60, 90, 120, 150, 240],
+  warmupSeconds: [15, 30, 45, 60, 90],
 };
 
 const KEY_PREFIX: Record<Field, string> = {
@@ -31,9 +33,9 @@ export const RestSettingsCard = () => {
   const [settings, setSettings] = useState<RestSettings>(() => loadRestSettings());
 
   const update = (field: Field, rawValue: number) => {
-    // Zakres pilnuje sensu: 5 s to minimum, na jakim odliczanie ma sens,
-    // 10 minut to sufit (dłuższa przerwa = raczej koniec treningu).
-    const value = Math.min(600, Math.max(5, Math.round(rawValue)));
+    // Zakres: od 10 s (krótsza przerwa nie zdąży się nawet wyświetlić) do 10 minut
+    // (dłuższa to raczej koniec treningu niż przerwa).
+    const value = Math.min(600, Math.max(10, Math.round(rawValue)));
     if (!Number.isFinite(value)) return;
     const next = { ...settings, [field]: value };
     setSettings(next);
@@ -63,7 +65,7 @@ export const RestSettingsCard = () => {
                 id={`rest-${field}`}
                 type="number"
                 inputMode="numeric"
-                min={5}
+                min={10}
                 max={600}
                 step={5}
                 value={settings[field]}

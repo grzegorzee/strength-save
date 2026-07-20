@@ -59,7 +59,7 @@ const AuthRedirect = () => {
 
 // Fallback boundary per trasa (Z56): crash jednej strony nie wywala całej apki —
 // user wraca na Dashboard, a boundary topowy zostaje ostatnią linią obrony.
-const RouteCrashFallback = ({ onReset }: { onReset: () => void }) => {
+const RouteCrashFallback = ({ onReset, error, code }: { onReset: () => void; error: Error | null; code: string }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   return (
@@ -67,6 +67,18 @@ const RouteCrashFallback = ({ onReset }: { onReset: () => void }) => {
       <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center">
         <h1 className="text-lg font-semibold">{t('errors.routeCrashTitle')}</h1>
         <p className="mt-2 text-sm text-muted-foreground">{t('errors.routeCrashDesc')}</p>
+        {/* Rozpoznawalny kod + treść błędu zamiast samego „coś poszło nie tak" —
+            bez tego zgłoszenia usera nie dało się powiązać z miejscem w kodzie. */}
+        {code && (
+          <p className="mt-4 select-text font-mono text-xs font-bold text-destructive" data-testid="route-crash-code">
+            {code}
+          </p>
+        )}
+        {error?.message && (
+          <p className="mt-1 select-text break-words rounded bg-muted p-2 font-mono text-[11px] text-muted-foreground/80">
+            {error.message}
+          </p>
+        )}
         <Button
           className="mt-6"
           onClick={() => {
@@ -182,7 +194,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
       <IosSwipeBack />
       {!isNewUser && <WatchEventRouter />}
       {!isNewUser && <ActiveWorkoutResume />}
-      <ErrorBoundary uid={uid} fallback={(reset) => <RouteCrashFallback onReset={reset} />}>
+      <ErrorBoundary uid={uid} fallback={(reset, error, code) => <RouteCrashFallback onReset={reset} error={error} code={code} />}>
       <Suspense fallback={<AppLoader />}>
         <Routes>
           {isNewUser ? (

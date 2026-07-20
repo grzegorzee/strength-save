@@ -146,3 +146,39 @@ describe('ujednolicenie tonażu (Z138.5)', () => {
     expect(buildAllTimeStats(workouts).totalTonnageKg).toBe(500);
   });
 });
+
+// CRASH z 2026-07-20 (build 73): user zgłosił „Coś poszło nie tak" po niezapisanym
+// szybkim treningu. AllTimeStatsSheet liczy statystyki przy KAŻDYM renderze (jest
+// montowany przez AppHeader na każdej stronie), więc jeden trening o niepełnym
+// kształcie wywracał całą stronę, a nie tylko arkusz statystyk.
+describe('odporność na niepełne dane treningu (crash 2026-07-20)', () => {
+  it('trening bez pola exercises nie wywraca liczenia', () => {
+    const broken = { id: 'x', userId: 'u', dayId: 'd', date: '2026-07-01', completed: true } as unknown as WorkoutSession;
+    expect(() => buildAllTimeStats([broken])).not.toThrow();
+    expect(buildAllTimeStats([broken]).workoutCount).toBe(1);
+  });
+
+  it('ćwiczenie bez pola sets nie wywraca liczenia', () => {
+    const broken = workout({
+      exercises: [{ exerciseId: 'a' } as unknown as WorkoutSession['exercises'][number]],
+    });
+    expect(() => buildAllTimeStats([broken])).not.toThrow();
+  });
+
+  it('seria z brakującymi liczbami liczy się jako zero, nie jako NaN', () => {
+    const broken = workout({
+      exercises: [{ exerciseId: 'a', sets: [{ completed: true } as unknown as SetData] }],
+    });
+    const s = buildAllTimeStats([broken]);
+    expect(Number.isNaN(s.totalReps)).toBe(false);
+    expect(Number.isNaN(s.totalTonnageKg)).toBe(false);
+  });
+
+  it('mieszanka poprawnych i uszkodzonych treningów liczy te poprawne', () => {
+    const broken = { id: 'x', userId: 'u', dayId: 'd', date: '2026-07-02', completed: true } as unknown as WorkoutSession;
+    const ok = withSets('w1', '2026-07-01', [set({ weight: 100, reps: 5, completed: true })]);
+    const s = buildAllTimeStats([broken, ok]);
+    expect(s.workoutCount).toBe(2);
+    expect(s.totalTonnageKg).toBe(500);
+  });
+});
