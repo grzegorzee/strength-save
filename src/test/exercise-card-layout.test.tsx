@@ -73,6 +73,13 @@ const warmupRowLabel = (card: HTMLElement): Element => {
 const addSetButton = (card: HTMLElement): HTMLElement =>
   within(card).getByRole('button', { name: /Dodaj serię/i });
 
+/** Wiersz serii = najbliższy przodek-grid pola powtórzeń/czasu. */
+const rowOf = (input: HTMLElement): HTMLElement => {
+  const row = input.closest('div.grid');
+  if (!row) throw new Error('Pole nie leży w wierszu serii');
+  return row as HTMLElement;
+};
+
 describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
   describe('niezmienniki: zostają po przebudowie układu', () => {
     it('weight_reps: renderuje WSZYSTKIE serie robocze i rozgrzewkowe', () => {
@@ -131,16 +138,76 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
     });
   });
 
-  describe('stan PRZED X17A: to zmieniamy w Z128-Z129', () => {
-    it('Z128.1: wiersz rozgrzewkowy renderuje się PRZED nagłówkami kolumn (do odwrócenia)', () => {
+  describe('Z128.1: hierarchia tabeli serii', () => {
+    it('nagłówki kolumn renderują się PRZED wierszem rozgrzewkowym', () => {
       const sets: SetData[] = [
         workingSet({ isWarmup: true, weight: 20, reps: 10 }),
         workingSet({ weight: 60, reps: 8 }),
       ];
       const { card } = renderCard({ savedSets: sets });
-      expect(domIndex(card, warmupRowLabel(card))).toBeLessThan(domIndex(card, columnHeader(card, 'Set')));
+      expect(domIndex(card, columnHeader(card, 'Set'))).toBeLessThan(domIndex(card, warmupRowLabel(card)));
     });
 
+    it('rozgrzewka jest w tej samej tabeli co serie robocze, bez osobnego nagłówka sekcji', () => {
+      const sets: SetData[] = [
+        workingSet({ isWarmup: true, weight: 20, reps: 10 }),
+        workingSet({ weight: 60, reps: 8 }),
+      ];
+      const { card } = renderCard({ savedSets: sets });
+      // Badge „Rozgrzewka" znika — rolę oznaczenia przejmuje „W" w kolumnie SET.
+      expect(within(card).queryByText('Rozgrzewka')).toBeNull();
+      expect(warmupRowLabel(card)).toBeTruthy();
+      // Wiersz W i wiersz roboczy 1 mają wspólnego rodzica (jedna tabela).
+      const warmupRow = rowOf(within(card).getAllByLabelText(/Powt\./)[0] as HTMLElement);
+      const workingRow = rowOf(within(card).getAllByLabelText(/Powt\./)[1] as HTMLElement);
+      expect(warmupRow.parentElement).toBe(workingRow.parentElement);
+    });
+
+    it('ukończona seria ma wypełnione tło wiersza, nieukończona nie', () => {
+      const sets: SetData[] = [
+        workingSet({ isWarmup: true }),
+        workingSet({ weight: 60, reps: 8, completed: true }),
+        workingSet({ weight: 60, reps: 8 }),
+      ];
+      const { card } = renderCard({ savedSets: sets });
+      const repsInputs = within(card).getAllByLabelText(/Powt\./) as HTMLElement[];
+      const doneRow = rowOf(repsInputs[1]);
+      const pendingRow = rowOf(repsInputs[2]);
+
+      expect(doneRow.className).toContain('bg-primary/[0.06]');
+      expect(pendingRow.className).not.toContain('bg-primary/[0.06]');
+      // Aktywna (pierwsza nieukończona) zachowuje obrys, ukończona go nie ma.
+      expect(pendingRow.className).toContain('ring-2');
+      expect(doneRow.className).not.toContain('ring-2');
+    });
+
+    it('ukończona seria ma tło także na ścieżce renderTrackedSetRow (duration)', () => {
+      const sets: SetData[] = [
+        workingSet({ isWarmup: true }),
+        workingSet({ durationSec: 60, completed: true }),
+        workingSet({ durationSec: 60 }),
+      ];
+      const { card } = renderCard({ savedSets: sets, trackingType: 'duration' });
+      const timeInputs = within(card).getAllByLabelText(/Czas/) as HTMLElement[];
+      expect(rowOf(timeInputs[1]).className).toContain('bg-primary/[0.06]');
+      expect(rowOf(timeInputs[2]).className).not.toContain('bg-primary/[0.06]');
+    });
+
+    it('złoto rozgrzewki jest na OBU ścieżkach renderu serii', () => {
+      const legacy = renderCard({ savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8 })] });
+      const legacyWarmupReps = within(legacy.card).getAllByLabelText(/Powt\./)[0] as HTMLElement;
+      expect(legacyWarmupReps.className).toContain('ec-warmup-gold-border');
+
+      const tracked = renderCard({
+        savedSets: [workingSet({ isWarmup: true }), workingSet({ durationSec: 60 })],
+        trackingType: 'duration',
+      });
+      const trackedWarmupTime = within(tracked.card).getAllByLabelText(/Czas/)[0] as HTMLElement;
+      expect(trackedWarmupTime.className).toContain('ec-warmup-gold-border');
+    });
+  });
+
+  describe('stan PRZED X17A: to zmieniamy w Z128.2-Z129', () => {
     it('Z128.2: miniatura rysuje się także BEZ animacji (pusty kwadrat — do usunięcia)', () => {
       const { card } = renderCard({ savedSets: [workingSet()] });
       const header = card.querySelector('.exercise-card-header') as HTMLElement;

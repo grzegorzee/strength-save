@@ -233,12 +233,13 @@ interface ExerciseCardProps {
 
 // Input czasu mm:ss (Z105): lokalny draft, parse dopiero na blur/Enter —
 // parsowanie per znak psułoby edycję ("1:3" -> 63 -> "1:03").
-const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, placeholder }: {
+const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, placeholder, className }: {
   valueSec?: number;
   onCommit: (sec: number) => void;
   disabled?: boolean;
   ariaLabel: string;
   placeholder?: string;
+  className?: string;
 }) => {
   const [draft, setDraft] = useState<string | null>(null);
   return (
@@ -256,7 +257,7 @@ const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, placeholder }:
       placeholder={placeholder ?? '1:30'}
       disabled={disabled}
       aria-label={ariaLabel}
-      className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+      className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', className)}
     />
   );
 };
@@ -523,6 +524,8 @@ const ExerciseCardInner = ({
   // weight_reps/bodyweight_reps renderuje się dokładnie jak dotąd.
   const renderTrackedSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean, workingIndex = -1) => {
     const isActive = !isWarmupRow && globalIndex === activeSetIndex;
+    // Z128.1: złoto rozgrzewki było tylko na starej ścieżce — teraz na obu.
+    const warmupInputClass = isWarmupRow ? '!border-[hsl(var(--ec-warmup-gold-border))]' : undefined;
     const setLabel = isWarmupRow ? `${t('comp.warmup.title')} ${label}` : `${t('card.colSet')} ${label}`;
     const prevHint = !isWarmupRow ? getTrackedPreviousHint(workingIndex) : null;
     const displayWeight = set.weight
@@ -538,7 +541,9 @@ const ExerciseCardInner = ({
         className={cn(
           'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
           gridCols,
-          isActive && 'bg-primary/[0.04] ring-2 ring-primary',
+          // Z128.1: ukończona seria = wypełnione tło (widoczne z odległości ręki),
+          // aktywna = obrys. Wykluczają się: aktywna to pierwsza NIEukończona.
+          set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.04] ring-2 ring-primary',
         )}
       >
         <span className={cn(
@@ -568,7 +573,7 @@ const ExerciseCardInner = ({
             placeholder={unit}
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${unit}`}
-            className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+            className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -582,7 +587,7 @@ const ExerciseCardInner = ({
             placeholder="m"
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colDistance')}`}
-            className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+            className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -597,7 +602,7 @@ const ExerciseCardInner = ({
             placeholder={`-${unit}`}
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colAssist')}`}
-            className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+            className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -611,7 +616,7 @@ const ExerciseCardInner = ({
             placeholder={isWarmupRow ? '—' : repsPlaceholder}
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
-            className="exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0"
+            className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -621,6 +626,7 @@ const ExerciseCardInner = ({
             onCommit={(sec) => handleSetChange(globalIndex, 'durationSec', sec)}
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDuration')}`}
+            className={warmupInputClass}
           />
         )}
 
@@ -675,7 +681,8 @@ const ExerciseCardInner = ({
         className={cn(
           'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
           gridCols,
-          isActive && 'bg-primary/[0.04] ring-2 ring-primary',
+          // Z128.1: patrz renderTrackedSetRow — ta sama reguła tła na obu ścieżkach.
+          set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.04] ring-2 ring-primary',
         )}
       >
         {/* SET */}
@@ -877,22 +884,7 @@ const ExerciseCardInner = ({
         );
       })()}
 
-      {/* ── Warmup section ── */}
-      {warmupSets.length > 0 && (
-        <div className="px-5 pt-3">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest mb-2.5 text-[hsl(var(--ec-warmup-gold))] border border-[hsl(var(--ec-warmup-gold-border))] bg-[hsl(var(--ec-warmup-gold-bg))]">
-            <Flame className="h-3 w-3" />
-            {t('comp.warmup.title')}
-          </div>
-          {warmupSets.map((set, wi) => {
-            const globalIndex = sets.indexOf(set);
-            return renderSetRow(set, globalIndex, 'W', true);
-          })}
-          <div className="exercise-card-divider mt-2" />
-        </div>
-      )}
-
-      {/* ── Working sets grid ── */}
+      {/* ── Set table: nagłówki kolumn → rozgrzewka (badge W) → serie robocze ── */}
       <div className="px-4 sm:px-5 pt-4 pb-2">
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
         {isNewTrackingUi ? (
@@ -931,6 +923,13 @@ const ExerciseCardInner = ({
           <span />
         </div>
         )}
+
+        {/* Z128.1: rozgrzewka w tej samej tabeli, oznaczona badge „W" w kolumnie SET —
+            bez osobnego nagłówka sekcji, który wypychał serie robocze pod zgięcie. */}
+        {warmupSets.map((set) => {
+          const globalIndex = sets.indexOf(set);
+          return renderSetRow(set, globalIndex, 'W', true);
+        })}
 
         {/* Set rows */}
         {workingSets.map((set, wi) => {

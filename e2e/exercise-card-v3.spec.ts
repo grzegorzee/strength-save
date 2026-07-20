@@ -91,19 +91,23 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     expect(labels.some((label) => label.includes(exerciseName!) && /Powt\.|Reps/.test(label))).toBe(true);
   });
 
-  test('warmup section shows gold-styled tag', async ({ page }) => {
+  // X17A Z128.1: rozgrzewka wchodzi do wspólnej tabeli serii. Osobny badge sekcji
+  // „Rozgrzewka" znika, oznaczeniem zostaje złote „W" w kolumnie SET.
+  test('warmup row sits in the set table under the column headers', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
 
     const firstCard = page.locator('.exercise-card').first();
 
-    // Warmup tag with "Rozgrzewka" text
-    const warmupTag = firstCard.getByText('Rozgrzewka');
-    await expect(warmupTag).toBeVisible();
+    await expect(firstCard.getByText('Rozgrzewka', { exact: true })).toHaveCount(0);
 
-    // Warmup set has "W" label
     const warmupLabel = firstCard.getByText('W', { exact: true });
     await expect(warmupLabel).toBeVisible();
+
+    // Nagłówek kolumny SET jest nad wierszem rozgrzewkowym.
+    const setHeaderBox = await firstCard.getByText('Set', { exact: true }).first().boundingBox();
+    const warmupBox = await warmupLabel.boundingBox();
+    expect(setHeaderBox!.y).toBeLessThan(warmupBox!.y);
   });
 
   test('tonal header separates the card without a visible divider', async ({ page }) => {
