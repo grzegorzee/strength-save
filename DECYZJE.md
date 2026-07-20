@@ -11,6 +11,12 @@
 
 ## DECYZJE
 
+### 2026-07-20 — RELEASE X16B (Z122-Z124): Apple Watch v1 domknięty na bazie prototypu
+
+**Co:** web index-CtB1XlVp + iOS build 66 (VALID, obie grupy, Beta App Review APPROVED). Prototyp watch pokrywał ~80% scope v1 (audyt w PLAN-X16B FAZA 0) — dorobione braki: etykieta celu tygodnia (silnik X16A) i przypięta notatka (X14A) w payloadzie (`buildWatchExercises`, notatka przycięta do 140 znaków), i18n zegarka PL/EN (enum L10n, język z payloadu — zero grzebania w pbxproj), wskaźnik "niezsynchronizowane" (outstandingUserInfoTransfers + delegate didFinish, widoczny gdy telefon nieosiągalny), DEDUPLIKACJA zapisu Health: eventy z zegarka niosą flagę `hkSession` — telefon pomija własny syncWorkoutToHealth, gdy sesję HKWorkout (z tętnem) prowadził zegarek.
+
+**Weryfikacja:** vitest 848/848 (watch-contract 5 nowych), e2e 330 passed (2 webkit-faile: flak + środowiskowy analytics-pdf potwierdzony bisektem na commit sprzed zmian), build obu targetów Xcode, pętla na parze symulatorów (iPhone 17 + Ultra 3, bundle E2E mock bez realnych kont): context dochodzi, L10n renderuje, nowe pola nie psują dekodowania. Interaktywne scenariusze headless niewykonalne (ekran hosta zgaszony, simctl bez tap) — KROK USERA na realnym sprzęcie. Lekcja narzędziowa: seed UserDefaults symulatora przez `simctl spawn defaults write` nie działa dla sandboxa apki (cfprefsd cache) — a świeży context z telefonu i tak nadpisuje.
+
 ### 2026-07-20 — RELEASE X16A (Z119-Z121): progresja programowa v1 + audyt prototypu watch (X16B FAZA 0)
 
 **Co:** X16A w całości na prod: web index-BP5paMV1 + rules (update progression) + iOS build 65 (upload OK, poll VALID/external w tle). Z121: DeloadBanner na Dashboardzie ([Zastosuj]/[Pomiń] → progression.deloadDecisions, punktowy updateDoc bez rewizji planu), suggestEarlyDeload (>=2 plateau lub powtarzalny ból >=4 w 2 ostatnich sesjach; cooldown 3 tyg. od zastosowanego; nigdy w tygodniu programowym), WeekReportCard (raport ostatniego ZAKOŃCZONEGO tygodnia: cele liczone z historii sprzed niego → % realizacji + do 3 rozjazdów z faktycznym wynikiem). Decyzja 'applied' aktywuje wariant deloadowy też poza harmonogramem (wcześniejszy deload). ODŁOŻONE: "sekcja w AI podsumowaniu tygodnia" — w kodzie nie ma AI podsumowania (chat usunięty w X12B); ewentualne rozszerzenie weekly digest o raport = backlog v2 (digest w functions nie ma dostępu do silnika klienta).
