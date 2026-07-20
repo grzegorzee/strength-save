@@ -222,3 +222,45 @@ All colors MUST be HSL.
     backdrop-filter: blur(20px);
   }
 }
+
+/* Zachowanie dotyku w natywnym WebView (incydent 2026-07-20).
+   Bez tego tap w przycisk/kartę na iOS zaznacza tekst (uchwyty zaznaczenia, lupa,
+   menu kopiowania) zamiast wywołać akcję — user trafiał w zaznaczanie przy
+   "Dodaj cardio" i kaflach Dashboardu. Zaznaczanie zostaje TYLKO tam, gdzie
+   ma sens: pola formularzy i treści oznaczone selectable. */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Layout nie ma prawa uciekać w bok — na screenach z 2026-07-20 karty
+     TONAŻ/CZAS były ucięte przy krawędzi ekranu. */
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  .selectable {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  button,
+  a,
+  [role="button"],
+  [role="tab"] {
+    touch-action: manipulation;
+  }
+}

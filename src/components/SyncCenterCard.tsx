@@ -69,7 +69,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
 
   const status = useCallback((targetDraft: ListedSyncEntry) => (
     targetDraft.finalSyncPending
-      ? { label: t('strava.statusCompletedLocally'), tone: 'bg-fitness-warning text-fitness-warning border-fitness-warning' }
+      ? { label: t('strava.statusCompletedLocally'), tone: 'bg-fitness-warning/10 text-fitness-warning border-fitness-warning' }
       : targetDraft.sessionOrigin === 'provisional'
         ? { label: t('strava.statusLocalOnly'), tone: 'bg-fitness-cyan/15 text-fitness-cyan border-fitness-cyan/30' }
         : targetDraft.dirty

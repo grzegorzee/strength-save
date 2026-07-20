@@ -179,3 +179,36 @@ describe('resolveWorkoutHydration (Z57)', () => {
     expect(older.useDraft).toBe(false);
   });
 });
+
+// Incydent 2026-07-20: szybki trening ukończony z ZEREM ćwiczeń. Chmura ma
+// completed=true, ale walidacja finalna zwraca 'empty-final-payload' (nie da się
+// jej spełnić), więc draft z finalSyncPending wisiał w nieskończoność: baner
+// "Masz lokalne zmiany do synchronizacji" i pomarańczowy ekran nie do usunięcia.
+describe('resolveWorkoutHydration — pusty ukończony trening (regresja 2026-07-20)', () => {
+  const completedEmpty: WorkoutSession = {
+    id: 'workout-adhoc', userId: 'u1', dayId: 'adhoc-2026-07-20-1',
+    date: '2026-07-20', completed: true, exercises: [],
+  };
+
+  it('draft BEZ treści przy ukończonym treningu w chmurze => czyścimy (nie ma czego stracić)', () => {
+    const decision = resolveWorkoutHydration({
+      workoutForDate: completedEmpty,
+      draft: makeDraft({ dayId: 'adhoc-2026-07-20-1', date: '2026-07-20', finalSyncPending: true, exerciseSets: {} }),
+      draftHasData: false,
+      completedValidationOk: false,
+    });
+    expect(decision.clearDraft).toBe(true);
+    expect(decision.useDraft).toBe(false);
+  });
+
+  it('draft Z treścią przy nieudanej walidacji NIE jest czyszczony (dane usera święte)', () => {
+    const decision = resolveWorkoutHydration({
+      workoutForDate: { ...completedEmpty, id: 'workout-1', dayId: 'day-1' },
+      draft: makeDraft({ finalSyncPending: true }),
+      draftHasData: true,
+      completedValidationOk: false,
+    });
+    expect(decision.clearDraft).toBe(false);
+    expect(decision.useDraft).toBe(true);
+  });
+});

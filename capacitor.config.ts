@@ -6,6 +6,9 @@ const config: CapacitorConfig = {
   appId: 'com.grzegorzjasionowicz.strengthsave',
   appName: 'StrengthSave',
   webDir: 'dist',
+  // Apka ma zachowywać się jak apka, nie jak strona: bez pinch-zoomu, który
+  // rozjeżdżał layout i ucinał treść po bokach (incydent 2026-07-20).
+  zoomEnabled: false,
   plugins: {
     FirebaseAuthentication: {
       // Native tworzy tylko credential; logowanie do Firebase robi JS SDK

@@ -42,6 +42,7 @@ import { cn, formatLocalDate } from '@/lib/utils';
 import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
+import { buildDayFromDraft, hasAnyCompletedSet } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -285,24 +286,9 @@ const WorkoutDay = () => {
     }
 
     if (draftForDaySnapshot && Object.keys(draftForDaySnapshot.exerciseSets).length > 0) {
-      const exerciseNames = draftForDaySnapshot.exerciseNames ?? {};
-      const snapshotDay: TrainingDay = {
-        id: draftForDaySnapshot.dayId,
-        dayName: draftForDaySnapshot.dayName || baseDay?.dayName || draftForDaySnapshot.dayId,
-        weekday: baseDay?.weekday ?? 'monday',
-        focus: draftForDaySnapshot.dayFocus || baseDay?.focus || '',
-        exercises: Object.entries(draftForDaySnapshot.exerciseSets).map(([exerciseId, sets]) => {
-          const baseExercise = baseDay?.exercises.find((exercise) => exercise.id === exerciseId);
-          return {
-            ...baseExercise,
-            id: exerciseId,
-            name: exerciseNames[exerciseId] || baseExercise?.name || exerciseId,
-            sets: `${sets.filter((set) => !set.isWarmup).length} serii`,
-            instructions: baseExercise?.instructions ?? [],
-          };
-        }),
-      };
-      return snapshotDay;
+      // Plan jest BAZĄ, draft tylko dokłada (incydent 2026-07-20: dzień budowany
+      // wyłącznie z kluczy draftu gubił ćwiczenia, których user jeszcze nie dotknął).
+      return buildDayFromDraft(baseDay, draftForDaySnapshot);
     }
 
     if (!baseDay || Object.keys(sessionSwaps).length === 0) return baseDay;
@@ -1307,6 +1293,27 @@ const WorkoutDay = () => {
         };
         setSessionId(result.session.id);
         setIsCompleted(false);
+        // Wznowienie istniejącej sesji: uzupełnij ćwiczenia, których jeszcze nie ma
+        // w stanie (incydent 2026-07-20 — bez tego draft miał tylko dotknięte
+        // ćwiczenie). Istniejących danych NIE ruszamy.
+        const existingSets = exerciseSetsRef.current;
+        const filled: Record<string, SetData[]> = { ...existingSets };
+        let added = false;
+        startSnapshot.day.exercises.forEach((exercise) => {
+          if (filled[exercise.id]) return;
+          const target = weeklyTargets?.[exercise.id];
+          filled[exercise.id] = createPrefilledSets(
+            target?.targetSets ?? parseSetCount(exercise.sets),
+            getPreviousSets(exercise.id, exercise.name),
+            resolveIsBodyweight(exercise.name),
+            target ? { weight: target.targetWeight, reps: target.targetReps } : null,
+          );
+          added = true;
+        });
+        if (added) {
+          setExerciseSets(filled);
+          saveDraftSnapshot({ exerciseSets: filled });
+        }
         if (watchStartEventId) await ackWatchEvents([watchStartEventId]);
         toast({
           title: t('workout.toast.continueTitle'),
@@ -1621,6 +1628,19 @@ const WorkoutDay = () => {
   const handleCompleteWorkout = async () => {
     if (!sessionId || !uid || !day) return;
     if (isCompleted || isExplicitSaving) return;
+
+    // Trening bez ANI JEDNEJ odhaczonej serii nie ma czego zapisać: walidacja finalna
+    // odrzuci go jako 'empty-final-payload' i draft zawiesi się na zawsze z banerem
+    // "czeka na synchronizację" (incydent 2026-07-20 — pusty szybki trening).
+    if (!hasAnyCompletedSet(exerciseSets)) {
+      setShowCompleteConfirm(false);
+      toast({
+        title: t('workout.toast.emptyWorkoutTitle'),
+        description: t('workout.toast.emptyWorkoutDesc'),
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setIsExplicitSaving(true);
     setSaveError(null);
@@ -1964,7 +1984,7 @@ const WorkoutDay = () => {
         <ErrorBanner />
 
         {isFinalSyncPending && (
-          <Card className="border-fitness-warning bg-fitness-warning">
+          <Card className="border-fitness-warning bg-fitness-warning/10">
             <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium text-fitness-warning">{t('workout.finishedLocally.title')}</p>
@@ -1985,7 +2005,7 @@ const WorkoutDay = () => {
 
         <Card className={cn(
           "border-fitness-success bg-fitness-success/10",
-          isFinalSyncPending && "border-fitness-warning bg-fitness-warning"
+          isFinalSyncPending && "border-fitness-warning bg-fitness-warning/10"
         )}>
           <CardHeader>
             <CardTitle className={cn(

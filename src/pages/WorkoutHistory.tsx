@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatHistorySetLabel } from '@/lib/set-tracking';
-import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, History, Search, StickyNote, Trophy } from 'lucide-react';
+import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, History, Loader2, Search, StickyNote, Trash2, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,12 @@ import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { cn } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { deleteWorkoutEverywhere } from '@/lib/workout-delete';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useUnit } from '@/contexts/UnitContext';
 import type { WorkoutSession } from '@/types';
 
@@ -49,6 +55,10 @@ const WorkoutHistory = () => {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [onlyPRs, setOnlyPRs] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<WorkoutSession | null>(null);
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
   const toggleExpanded = (id: string) =>
     setExpandedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const { workouts, isLoaded, isLoadingMore, hasMore, loadMore } = useWorkoutHistoryPage(uid, {
@@ -67,6 +77,7 @@ const WorkoutHistory = () => {
     const query = searchQuery.trim().toLowerCase();
     return workouts
       .filter((workout) => {
+        if (deletedIds.includes(workout.id)) return false;
         if (selectedDay !== 'all' && workout.dayId !== selectedDay) return false;
         if (selectedStatus === 'completed' && !workout.completed) return false;
         if (selectedStatus === 'draft' && workout.completed) return false;
@@ -87,7 +98,7 @@ const WorkoutHistory = () => {
         return haystack.includes(query);
       })
       .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
-  }, [resolver, fromDate, onlyPRs, rowMeta, searchQuery, selectedDay, selectedStatus, toDate, workouts]);
+  }, [deletedIds, resolver, fromDate, onlyPRs, rowMeta, searchQuery, selectedDay, selectedStatus, toDate, workouts]);
 
   const comparison = useMemo(() => {
     if (compareIds.length !== 2) return null;
@@ -114,6 +125,21 @@ const WorkoutHistory = () => {
       exerciseDelta: second.exercises.length - first.exercises.length,
     };
   }, [compareIds, workouts]);
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    setIsDeleting(true);
+    const result = await deleteWorkoutEverywhere(uid, pendingDelete.id);
+    setIsDeleting(false);
+    if (result.success) {
+      setDeletedIds((prev) => [...prev, pendingDelete.id]);
+      setCompareIds((prev) => prev.filter((id) => id !== pendingDelete.id));
+      toast({ title: t('history.deleted') });
+    } else {
+      toast({ title: t('history.deleteFailed'), description: result.error, variant: 'destructive' });
+    }
+    setPendingDelete(null);
+  };
 
   const toggleCompare = (workoutId: string) => {
     setCompareIds((prev) => {
@@ -330,6 +356,16 @@ const WorkoutHistory = () => {
                       {t('history.details')}
                       {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-destructive hover:text-destructive"
+                      data-testid="history-delete"
+                      onClick={() => setPendingDelete(workout)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {t('history.delete')}
+                    </Button>
                   </div>
 
                   {/* Rozwinięcie (Z74+Z80): serie per ćwiczenie, metryki RPE/ból/technika, notatki */}
@@ -419,6 +455,32 @@ const WorkoutHistory = () => {
           )
         )}
       </div>
+
+      <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
+        <AlertDialogContent data-testid="history-delete-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('history.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('history.deleteDesc', {
+                day: pendingDelete ? resolver.resolveDayLabel(pendingDelete).dayName : '',
+                date: pendingDelete?.date ?? '',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="history-delete-confirm"
+              disabled={isDeleting}
+              onClick={(event) => { event.preventDefault(); void handleConfirmDelete(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              {t('history.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
