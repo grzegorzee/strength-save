@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
+import { RestBar } from '@/components/RestBar';
+import { loadRestSettings, resolveRestSeconds } from '@/lib/rest-timer';
 import { IntervalTimer } from './IntervalTimer';
 import { Haptics, NotificationType } from '@capacitor/haptics';
 import { Capacitor } from '@capacitor/core';
@@ -57,16 +59,6 @@ async function exerciseCompleteHaptic() {
 // Z129.2: jeden rozmiar chipa dla całego paska. flex-1 wyrównuje szerokości,
 // zero ramek 1px — granicę robi tło (No-Line Rule, docs/DESIGN.md).
 const chipClass = 'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-[11px] font-semibold transition-colors';
-
-// Domyślny czas odpoczynku z ustawień (Profil → 'rest-timer-default'), w sekundach.
-const getRestDefaultSeconds = (): number => {
-  try {
-    const v = parseInt(localStorage.getItem('rest-timer-default') || '90', 10);
-    return Number.isFinite(v) && v > 0 ? v : 90;
-  } catch {
-    return 90;
-  }
-};
 
 // ── Progression Badge sub-component ──
 const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 'maintain'; label: string } }) => {
@@ -326,6 +318,8 @@ const ExerciseCardInner = ({
   const [pinnedNoteOpen, setPinnedNoteOpen] = useState(false);
   // Z130: indeks serii czekającej na potwierdzenie usunięcia (null = brak dialogu).
   const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
+  // X17C Z136: aktywna przerwa tej karty. runId 0 = jeszcze żadnej nie było.
+  const [restRun, setRestRun] = useState<{ seconds: number; runId: number }>({ seconds: 0, runId: 0 });
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
   const [notes, setNotes] = useState(savedNotes || '');
   const [showNotes, setShowNotes] = useState(!!savedNotes);
@@ -431,10 +425,14 @@ const ExerciseCardInner = ({
         exerciseCompleteHaptic();
         playTimerSound('complete');
       } else if (FEATURE_FLAGS.workoutTimers && !intervalSpec) {
-        // Kolejna seria robocza → kołowy timer odpoczynku.
+        // X17C Z136.4: kolejna seria robocza → pasek przerwy INLINE w tej karcie.
         // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
-        const seconds = getRestDefaultSeconds();
+        const seconds = resolveRestSeconds(loadRestSettings(), {
+          isWarmup: currentSet.isWarmup,
+          exerciseKey: exercise.name,
+        });
         unlockTimerSound();
+        setRestRun((r) => ({ seconds, runId: r.runId + 1 }));
         onRestTimerStart?.({ seconds, exerciseLabel: localizedName });
       }
     }
@@ -1013,6 +1011,17 @@ const ExerciseCardInner = ({
           const globalIndex = sets.indexOf(set);
           return renderSetRow(set, globalIndex, wi + 1, false, wi);
         })}
+
+        {/* X17C Z136.1: pasek przerwy w kontekście serii, nie jako modal kradnący
+            ekran (wzorzec Strong). Tyka sam — karta się przez niego nie re-renderuje. */}
+        {FEATURE_FLAGS.workoutTimers && isEditable && restRun.runId > 0 && (
+          <RestBar
+            seconds={restRun.seconds}
+            runId={restRun.runId}
+            exerciseLabel={localizedName}
+            onSkip={() => setRestRun((r) => ({ ...r, runId: 0 }))}
+          />
+        )}
 
         {/* Z129.1: „Dodaj serię" pełną szerokością bezpośrednio pod ostatnią serią —
             tam, gdzie user go szuka (wzorzec Hevy/Strong), nie w pasku akcji na dole. */}

@@ -718,6 +718,13 @@ export const pl = {
   // generator rozgrzewki (Z108)
   'warmupgen.button': 'Wygeneruj rozgrzewkę (%1RM)',
   // kalkulator talerzy (Z107)
+  'rest.bar.title': 'Przerwa',
+  'rest.bar.skip': 'Pomiń',
+  'rest.bar.done': 'Koniec przerwy',
+  'rest.bar.expand': 'Rozwiń timer przerwy',
+  'rest.bar.collapse': 'Zwiń',
+  'rest.settings.working': 'Przerwa po serii roboczej',
+  'rest.settings.warmup': 'Przerwa po rozgrzewce',
   'plates.title': 'Kalkulator talerzy',
   'plates.target': 'Cel',
   'plates.bar': 'Gryf',

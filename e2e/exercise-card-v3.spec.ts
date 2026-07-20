@@ -344,3 +344,55 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     expect(await allCards.count()).toBeGreaterThanOrEqual(1);
   });
 });
+
+// =====================================================
+// X17C Z136: pasek przerwy inline (za flagą — override tylko w trybie E2E)
+// =====================================================
+test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+    await page.addInitScript(() => {
+      localStorage.setItem('app-language', 'pl');
+      localStorage.setItem('fittracker_e2e_flag_workoutTimers', 'true');
+    });
+  });
+
+  test('odhaczenie serii roboczej startuje pasek, +15 wydłuża, Pomiń kończy', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+
+    // Kolejność checkmarków w karcie: [0] = rozgrzewka W, [1] = seria robocza 1.
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+
+    const bar = firstCard.getByTestId('rest-bar');
+    await expect(bar).toBeVisible();
+    const before = await bar.textContent();
+
+    await bar.getByRole('button', { name: '+15' }).click();
+    await expect(bar).not.toHaveText(before!);
+
+    await bar.getByRole('button', { name: 'Pomiń' }).click();
+    await expect(firstCard.getByTestId('rest-bar')).toHaveCount(0);
+  });
+
+  test('tap na pasek otwiera widok pełnoekranowy', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+
+    await firstCard.getByTestId('rest-bar-expand').click();
+    const fullscreen = page.getByTestId('rest-fullscreen');
+    await expect(fullscreen).toBeVisible();
+    // Zawężone do overlayu: „Zwiń" występuje też w nawigacji aplikacji.
+    await fullscreen.getByRole('button', { name: 'Zwiń' }).click();
+    await expect(page.getByTestId('rest-fullscreen')).toHaveCount(0);
+  });
+});
