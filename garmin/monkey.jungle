@@ -1,0 +1,2 @@
+project.manifest = manifest.xml
+pol.resourcePath = $(pol.resourcePath);resources-pol

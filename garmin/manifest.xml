@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!-- Strength Save Connect IQ device app (X16C v1).
+     UWAGA: id aplikacji wygeneruje SDK przy pierwszym buildzie (uuidgen);
+     listę produktów zweryfikuj z zainstalowanym SDK (id bywają wersjonowane). -->
+<iq:manifest version="3" xmlns:iq="http://www.garmin.com/xml/connectiq">
+  <iq:application
+      id="a1b2c3d4-0000-4000-8000-strengthsave"
+      type="watch-app"
+      name="@Strings.AppName"
+      entry="StrengthSaveApp"
+      launcherIcon="@Drawables.LauncherIcon"
+      minSdkVersion="4.0.0">
+    <iq:products>
+      <iq:product id="fenix7"/>
+      <iq:product id="fenix7s"/>
+      <iq:product id="fenix7x"/>
+      <iq:product id="fenix8solar47mm"/>
+      <iq:product id="epix2"/>
+      <iq:product id="fr255"/>
+      <iq:product id="fr265"/>
+      <iq:product id="fr955"/>
+      <iq:product id="fr965"/>
+      <iq:product id="venu2"/>
+      <iq:product id="venu3"/>
+      <iq:product id="vivoactive5"/>
+    </iq:products>
+    <iq:permissions>
+      <iq:uses-permission id="Communications"/>
+      <iq:uses-permission id="Fit"/>
+      <iq:uses-permission id="Sensor"/>
+      <iq:uses-permission id="UserProfile"/>
+    </iq:permissions>
+    <iq:languages>
+      <iq:language>eng</iq:language>
+      <iq:language>pol</iq:language>
+    </iq:languages>
+  </iq:application>
+</iq:manifest>

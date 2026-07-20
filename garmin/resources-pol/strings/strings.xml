@@ -1,0 +1,19 @@
+<strings>
+  <string id="AppName">Strength Save</string>
+  <string id="PairTitle">Sparuj z aplikacją</string>
+  <string id="PairHint">Ustawienia &gt; Zegarek Garmin</string>
+  <string id="PairSend">Sparuj</string>
+  <string id="PairFailed">Zły albo wygasły kod</string>
+  <string id="Loading">Wczytywanie...</string>
+  <string id="RestDay">Dziś odpoczynek</string>
+  <string id="NoConnection">Brak łączności. Ponowić?</string>
+  <string id="LogSet">Zalicz serię</string>
+  <string id="Reps">Powt.</string>
+  <string id="Weight">Ciężar</string>
+  <string id="Rest">Odpoczynek</string>
+  <string id="Skip">Pomiń</string>
+  <string id="Finish">Zakończ trening</string>
+  <string id="FinishConfirm">Zakończyć i zapisać?</string>
+  <string id="Pending">Niezsynchronizowane</string>
+  <string id="Saved">Trening zapisany</string>
+</strings>

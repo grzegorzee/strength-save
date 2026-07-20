@@ -1,0 +1,19 @@
+<strings>
+  <string id="AppName">Strength Save</string>
+  <string id="PairTitle">Pair with app</string>
+  <string id="PairHint">Settings &gt; Garmin watch</string>
+  <string id="PairSend">Pair</string>
+  <string id="PairFailed">Wrong or expired code</string>
+  <string id="Loading">Loading...</string>
+  <string id="RestDay">Rest day</string>
+  <string id="NoConnection">No connection. Retry?</string>
+  <string id="LogSet">Log set</string>
+  <string id="Reps">Reps</string>
+  <string id="Weight">Weight</string>
+  <string id="Rest">Rest</string>
+  <string id="Skip">Skip</string>
+  <string id="Finish">Finish workout</string>
+  <string id="FinishConfirm">Finish and save?</string>
+  <string id="Pending">Not synced</string>
+  <string id="Saved">Workout saved</string>
+</strings>
