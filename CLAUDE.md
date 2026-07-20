@@ -31,11 +31,56 @@ Przykład: koniec przerwy sygnalizuje system (local notification zaplanowana na 
 
 Każdy fix dotyka tylko swojego obszaru. N bugów = N izolowanych zmian, opis per bug w commicie, rollback punktowy. Nie poprawiaj przy okazji sąsiedniego kodu.
 
+### 5. Nowa funkcja NIE MOŻE zabrać niczego istniejącemu przepływowi
+
+Wdrożone 2026-07-20 po incydencie na realnym treningu: szybki trening (ad-hoc)
+potrzebował listy ćwiczeń budowanej z draftu, więc kod zaczął budować ją z draftu
+ZAWSZE. Skutek: powrót do treningu z planu pokazał 1 ćwiczenie zamiast 6, a pięć
+ćwiczeń z siłowni przepadło. Kod się kompilował, testy były zielone, bo żaden test
+nie sprawdzał sekwencji "plan → wyjście → szybki trening → powrót do planu".
+
+Przy KAŻDEJ nowej funkcji dotykającej istniejącego ekranu:
+
+- **Nazwij niezmiennik, zanim zmienisz źródło danych.** Tu brzmiał: "lista ćwiczeń
+  dnia z planu jest kompletna; sesja może tylko DOKŁADAĆ". Nowy przypadek rozszerza
+  źródło (plan + draft), nigdy go nie podmienia.
+- **Test niezmiennika, nie tylko nowej ścieżki.** Do nowej funkcji dopisz test
+  mówiący "stary przepływ nadal ma wszystko" (`workout-day-view.test.ts` jako wzór).
+- **Przetestuj SEKWENCJĘ, nie pojedynczy ekran.** Minimum dla treningu: start →
+  wyjście → inna sesja → powrót → dokończenie → sync. Większość realnych bugów
+  siedzi w przejściach między stanami, nie w stanie.
+
+### 6. Każdy stan błędu musi mieć wyjście
+
+Walidacja finalna odrzucała pusty trening jako `empty-final-payload`, ale nic nie
+blokowało jego utworzenia. Warunek nie do spełnienia = baner "czeka na
+synchronizację" wiszący wiecznie, bez możliwości usunięcia przez usera.
+
+- Guard, który odrzuca stan, wymaga bliźniaka: albo blokady POWSTANIA tego stanu,
+  albo ścieżki wyjścia (wyczyść / odrzuć / usuń).
+- Pytanie kontrolne do każdego `return { ok: false }`: "co user ma teraz kliknąć?".
+  Brak odpowiedzi = pułapka.
+
+### 7. Apka natywna ma się zachowywać jak apka
+
+WebView domyślnie jest stroną: tap zaznacza tekst, pinch zoomuje layout, długie
+przytrzymanie daje menu kopiowania. Baseline (`src/index.css`, `capacitor.config.ts`):
+`user-select`/`touch-callout`/`tap-highlight` wyłączone poza polami formularzy,
+`touch-action: manipulation` na kontrolkach, `maximum-scale=1` + `zoomEnabled: false`,
+`overflow-x` zablokowany. Nowy ekran nie ma prawa tego cofać.
+
+### 8. Kolory statusów: tło zawsze z przezroczystością
+
+`bg-fitness-warning` (pełne) + `text-fitness-warning` = nieczytelny blok. Tła
+statusowe zawsze z modyfikatorem (`/10`), tekst w pełnym kolorze. Wzorzec:
+`border-fitness-success bg-fitness-success/10 text-fitness-success`.
+
 ## Checklist przed KAŻDYM wdrożeniem
 
 - [ ] `npm run test` (wszystkie zielone), `npm run typecheck`, `npm run lint`
 - [ ] `npm run build` przechodzi
 - [ ] Zmiany dotykają timerów / autozapisu / scrolla / cyklu życia apki? → scenariusz **background/resume**: zgaś ekran, odczekaj, wróć (realne urządzenie)
+- [ ] Zmiany dotykają listy ćwiczeń / draftu / sesji? → scenariusz **przerwania**: start treningu z planu → wyjście → szybki trening → powrót do planu (wszystkie ćwiczenia na miejscu?) → zakończenie → sync
 - [ ] Commit + push na `main`
 - [ ] **Web:** `npm run deploy` (gh-pages; sam push NIE aktualizuje strony live)
 - [ ] **iOS:** bump `CURRENT_PROJECT_VERSION` w `ios/App/App.xcodeproj/project.pbxproj` (6 wystąpień, wszystkie równe; pilnuje tego `release-ios-preflight.mjs`), potem `scripts/release-ios.sh "co testować"` (build + TestFlight + auto Beta App Review; Robert dostaje build automatycznie)

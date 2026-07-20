@@ -27,8 +27,49 @@ drobnych poprawek składni/API.
    (Monkey C: Build). Symulator: `connectiq` + `monkeydo bin/strengthsave.prg fenix7`.
 5. Zweryfikuj listę `iq:product` w `manifest.xml` z dostępnymi w SDK
    (id urządzeń bywają wersjonowane, np. fenix8solar47mm).
-6. Publikacja: konto developerskie Garmin (bezpłatne) → Connect IQ Store
-   (opis PL/EN w `store/` — do przygotowania przy submisji).
+
+## PUBLIKACJA W CONNECT IQ STORE (krok po kroku)
+
+### A. Przed submisją (jednorazowo)
+
+1. Konto developerskie: zaloguj się na https://apps.garmin.com/developer
+   tym samym kontem Garmin co w SDK Managerze. Konto jest bezpłatne,
+   akceptujesz regulamin developera. Nie ma tu recenzji wstępnej jak u Apple.
+2. Zbuduj paczkę dystrybucyjną (NIE zwykły .prg):
+   `monkeyc -e -o bin/strengthsave.iq -f monkey.jungle -y ~/.garmin/developer_key.der -w`
+   Flaga `-e` robi export na WSZYSTKIE urządzenia z manifestu naraz.
+   Plik `.iq` to jedyny format przyjmowany przez Store.
+3. Sprawdź paczkę w symulatorze na 2 rozmiarach ekranu (okrągły fenix
+   i prostokątny venu), bo recenzent testuje na losowym urządzeniu z listy.
+
+### B. Materiały do formularza (przygotuj zawczasu)
+
+| Pole | Co wpisać |
+|------|-----------|
+| Nazwa | Strength Save |
+| Kategoria | Health & Fitness |
+| Krótki opis | Loguj serie treningu siłowego z nadgarstka. Plan dnia, cele serii, timer przerwy, zapis do Garmin Connect. |
+| Opis PL/EN | Oba języki (apka ma resources PL+EN) |
+| Ikona Store | 1024x1024 PNG |
+| Screenshoty | Min. 1, zalecane 3-4 z symulatora (`monkeydo` + zrzut okna) |
+| Polityka prywatności | URL (WYMAGANY, bo apka wysyła dane na własny backend) |
+| Uprawnienia | Communications, Fit, Sensor, UserProfile - uzasadnij każde w opisie |
+
+### C. Submisja i recenzja
+
+4. Upload `.iq` w panelu developera → wypełnij formularz z tabeli B →
+   Submit for review.
+5. Recenzja Garmina trwa zwykle kilka dni roboczych. Typowe powody odrzucenia:
+   brak polityki prywatności, uprawnienia bez uzasadnienia, crash na którymś
+   z zadeklarowanych urządzeń (dlatego krok A.3).
+6. Po akceptacji apka jest publiczna od razu. Aktualizacja = nowy `.iq`
+   z podbitą wersją w `manifest.xml` i ponowna (szybsza) recenzja.
+
+### D. Uwaga o kluczu developerskim
+
+Klucz `developer_key.der` to Twoja tożsamość w Store. Zgubienie = brak
+możliwości wydania aktualizacji istniejącej apki. Trzymaj kopię w
+`_secrets/` (poza repo, tak jak klucze Apple).
 
 ## Architektura
 
