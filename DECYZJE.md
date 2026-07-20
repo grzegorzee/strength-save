@@ -11,6 +11,31 @@
 
 ## DECYZJE
 
+### 2026-07-20 — INCYDENT NA TRENINGU (konto admina): utrata 5 ćwiczeń + 4 inne bugi
+
+**Zgłoszenie:** trening z planu (Poniedziałek/Góra A, 6 ćwiczeń) → wyjście → szybki trening → powrót do planu = TYLKO 1 ćwiczenie na ekranie. User zrobił pozostałe 5 ćwiczeń na siłowni, ale nie miał ich gdzie zalogować. Do tego: pomarańczowe nieczytelne bloki, baner syncu nie do usunięcia, rozjeżdżający się/zoomowany layout, tap zaznaczający tekst.
+
+**Ground truth z Firestore (read-only):** `workout-...-day-1-2026-07-20` miał completed=false i JEDNO ćwiczenie (tpl-ex-29, 4 serie) przy revision=6; obok pusty `adhoc-2026-07-20-...` (completed=true, 0 ćwiczeń, 6 sekund).
+
+**Root cause 1 (utrata danych):** `day` w WorkoutDay był budowany WYŁĄCZNIE z kluczy `draft.exerciseSets` (gałąź dodana dla szybkiego treningu Z104). Draft miał tylko dotknięte ćwiczenie, więc reszta planu znikała z ekranu — i z treningu. Wzmacniało to drugie niedopatrzenie: wznowienie istniejącej sesji (`result.existing`) nie robiło pre-fillu, więc stan startował pusty i pierwsza edycja tworzyła 1-elementowy draft. Fix: `buildDayFromDraft` (plan = BAZA, draft tylko dokłada + nadpisuje nazwę przy swapie) + pre-fill brakujących ćwiczeń przy wznowieniu.
+
+**Root cause 2 (zacięty sync):** pusty trening przechodzi zapis do chmury, ale walidacja finalna zwraca `empty-final-payload` — warunku NIE DA SIĘ spełnić, więc draft z `finalSyncPending` wisiał wiecznie. Fix: pusty draft przy ukończonym treningu jest czyszczony (nie ma czego stracić) + blokada kończenia treningu bez ani jednej odhaczonej serii.
+
+**Root cause 3 (kolory):** `bg-fitness-warning` bez `/10` — pełne pomarańczowe tło z pomarańczowym tekstem (WorkoutDay x2, SyncCenterCard).
+
+**Root cause 4 (zoom/zaznaczanie):** w CSS nie było ŻADNYCH reguł dotyku. WebView zachowywał się jak strona: pinch-zoom rozjeżdżał layout, tap w przycisk zaznaczał tekst. Fix: baseline dotyku w `index.css`, `maximum-scale=1`, `zoomEnabled:false`, guard `overflow-x`.
+
+**Brak funkcji (zgłoszony przy okazji):** `deleteWorkout` istniał w hooku, ale NIE MIAŁ UI — nie dało się usunąć śmieciowego treningu. Historia ma teraz usuwanie z potwierdzeniem (`deleteWorkoutEverywhere` kasuje też lokalny szkic i wpis w kolejce).
+
+**Odtworzenie danych:** trening 2026-07-20 uzupełniony z liczb podanych przez usera (6 ćwiczeń, 22 serie, 75 min, 5348 kg roboczego tonażu), revision 6→36 żeby lokalny szkic z telefonu nie wygrał. Backup przed zapisem w scratchpadzie sesji. Zweryfikowane odczytem po zapisie.
+
+**Sprawdzone i CZYSTE:** cardio (238 aktywności Strava nietknięte, 0 ręcznych, usuwanie ręcznego cardio już było w edycji), plan (6 dni bez uszkodzeń), cykle, notatki, ćwiczenia własne.
+
+**Lekcje zapisane w CLAUDE.md projektu (reguły 5-8):** nowa funkcja nie może zabrać niczego istniejącemu przepływowi (nazwij niezmiennik + test na stary przepływ); każdy stan błędu musi mieć wyjście; apka natywna ma się zachowywać jak apka; tła statusowe zawsze z przezroczystością. Checklista wdrożeniowa ma nowy scenariusz przerwania (plan → wyjście → szybki trening → powrót).
+
+**Weryfikacja:** vitest 863/863 (26 nowych: buildDayFromDraft, hasAnyCompletedSet, hydracja pustego draftu), typecheck/lint/build/budżet zielone, e2e 331 passed. Web index-Cnb1kBsw, iOS build 68.
+
+
 ### 2026-07-20 — MARATON X14-X16 ZAKOŃCZONY (Z103-Z127): 8,5/9 planów wdrożonych
 
 Podsumowanie autonomicznego wykonania (2026-07-19/20, prompt docs/PROMPT-WDROZENIE-X14-X16.md): X14A/B/C, X15A/B/C, X16A/B wdrożone w CAŁOŚCI (web + rules + functions + iOS TestFlight, buildy 59-67 wszystkie VALID + Beta App Review APPROVED); X16C wdrożony w zakresie wykonalnym (backend + web + iOS 67; apka Connect IQ napisana w `garmin/`, NIEZBUDOWANA — SDK za logowaniem Garmin = KROK USERA). Najważniejsze odkrycie maratonu: FIX SYSTEMOWY signingu iOS (buildy 47-63 miały binarki bez entitlements — martwe Sign in with Apple i push; od 64 manual signing w archive). KROKI USERA i backlog v2: raport końcowy sesji + wpisy per plan poniżej. Web X16C (index-BLktCjfp) POTWIERDZONY LIVE 2026-07-20 ~03:40 (Pages build wisiał ~1h przez nocny incydent GitHuba, API 503; pomógł ponowny trigger builds po ustąpieniu incydentu).
