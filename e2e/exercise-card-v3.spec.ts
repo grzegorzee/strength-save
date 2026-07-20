@@ -115,8 +115,15 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expectPageRendered(page);
 
     const firstCard = page.locator('.exercise-card').first();
-    await expect(firstCard.locator('.exercise-card-header')).toBeVisible();
-    await expect(firstCard.locator('.exercise-card-divider').first()).toBeAttached();
+    const header = firstCard.locator('.exercise-card-header');
+    await expect(header).toBeVisible();
+
+    // X17A Z128.2: klasa .exercise-card-divider (height:0, background:transparent)
+    // była martwa — usunięta. Granicę robi wyłącznie przesunięcie tła nagłówka.
+    await expect(firstCard.locator('.exercise-card-divider')).toHaveCount(0);
+    const headerBg = await header.evaluate((el) => getComputedStyle(el).backgroundColor);
+    const cardBg = await firstCard.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(headerBg).not.toBe(cardBg);
   });
 
   test('read-only mode hides interactive controls (delete, add set, notes)', async ({ page }) => {

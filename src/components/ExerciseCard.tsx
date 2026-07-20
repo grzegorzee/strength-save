@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Dumbbell, Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc } from 'lucide-react';
+import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc } from 'lucide-react';
 import { Exercise } from '@/data/trainingPlan';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
-import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
+import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, previousWorkingSet } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { IntervalTimer } from './IntervalTimer';
@@ -18,7 +18,7 @@ import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { hapticImpactLight } from '@/lib/haptics';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 import type { WeeklyTarget } from '@/lib/progression-engine';
 import type { TranslationKey } from '@/i18n';
@@ -781,26 +781,23 @@ const ExerciseCardInner = ({
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 p-3 pr-4 exercise-card-header">
         <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={() => animationUrl && setShowVideo(true)}
-            disabled={!animationUrl}
-            className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70 disabled:cursor-default"
-            aria-label={animationUrl ? t('card.showAnimation', { name: localizedName }) : undefined}
-          >
-            {animationUrl ? (
-              <>
-                <video src={animationUrl} className="h-full w-full object-cover opacity-80" autoPlay loop muted playsInline />
-                <span className="absolute inset-0 flex items-center justify-center bg-black/10">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
-                    <Play className="h-3.5 w-3.5 fill-current" />
-                  </span>
+          {/* Z128.2: miniatura tylko gdy JEST animacja. Pusty kwadrat 92×72 z ikoną
+              hantla zabierał szerokość tytułowi, nie niosąc żadnej informacji. */}
+          {animationUrl && (
+            <button
+              type="button"
+              onClick={() => setShowVideo(true)}
+              className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70"
+              aria-label={t('card.showAnimation', { name: localizedName })}
+            >
+              <video src={animationUrl} className="h-full w-full object-cover opacity-80" autoPlay loop muted playsInline />
+              <span className="absolute inset-0 flex items-center justify-center bg-black/10">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+                  <Play className="h-3.5 w-3.5 fill-current" />
                 </span>
-              </>
-            ) : (
-              <Dumbbell className="absolute inset-0 m-auto h-7 w-7 text-muted-foreground/40" />
-            )}
-          </button>
+              </span>
+            </button>
+          )}
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
@@ -851,38 +848,26 @@ const ExerciseCardInner = ({
                 </span>
               )}
             </div>
-            {weeklyTarget && weeklyTarget.kind !== 'start' && completedSets === 0 ? (
-              <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-snug">{t(weeklyTarget.reasonKey as TranslationKey)}</p>
-            ) : nextAdvice && completedSets === 0 && (
-              <p className="text-[11px] text-muted-foreground/80 mt-1.5 leading-snug">{nextAdvice.reason}</p>
-            )}
-            {lastNote && (
-              <p className="text-[11px] text-fitness-cyan/90 mt-1 leading-snug flex items-start gap-1">
-                <StickyNote className="h-3 w-3 shrink-0 mt-0.5" />
-                {t('notes.lastNote', { note: lastNote })}
-              </p>
-            )}
+            {/* Z128.2: jeden zwarty blok metadanych (uzasadnienie celu + ostatnia
+                notatka). Instrukcje wypadły z karty — idą do menu ⋯ (Z129). */}
+            <div className="mt-1.5 space-y-1 empty:mt-0">
+              {weeklyTarget && weeklyTarget.kind !== 'start' && completedSets === 0 ? (
+                <p className="text-[11px] text-muted-foreground/80 leading-snug">{t(weeklyTarget.reasonKey as TranslationKey)}</p>
+              ) : nextAdvice && completedSets === 0 && (
+                <p className="text-[11px] text-muted-foreground/80 leading-snug">{nextAdvice.reason}</p>
+              )}
+              {lastNote && (
+                <p className="text-[11px] text-fitness-cyan/90 leading-snug flex items-start gap-1">
+                  <StickyNote className="h-3 w-3 shrink-0 mt-0.5" />
+                  {t('notes.lastNote', { note: lastNote })}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
         <span className="w-2 shrink-0" aria-hidden="true" />
       </div>
-
-      {/* ── Divider ── */}
-      <div className="exercise-card-divider" />
-
-      {/* ── Instructions (always visible, with library fallback) ── */}
-      {(() => {
-        const displayInstructions = exercise.instructions.length > 0
-          ? exercise.instructions
-          : getExerciseInstructions(exercise.name);
-        if (displayInstructions.length === 0) return null;
-        return (
-          <div className="mx-5 mt-4 text-sm text-muted-foreground/80 leading-relaxed font-medium">
-            {displayInstructions.map(inst => localizeExerciseInstruction(exercise.name, inst.content, lang)).join(' ')}
-          </div>
-        );
-      })()}
 
       {/* ── Set table: nagłówki kolumn → rozgrzewka (badge W) → serie robocze ── */}
       <div className="px-4 sm:px-5 pt-4 pb-2">
@@ -951,8 +936,7 @@ const ExerciseCardInner = ({
 
       {/* ── Footer ── */}
       {isEditable && (
-        <div className="px-5 pb-5">
-          <div className="exercise-card-divider mb-3" />
+        <div className="px-5 pb-5 pt-3">
           <div className="flex items-center justify-between">
             <button
               onClick={handleAddSet}

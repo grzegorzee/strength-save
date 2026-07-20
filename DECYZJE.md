@@ -11,6 +11,26 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X17A FAZA 1 (Z128): hierarchia karty ćwiczenia
+
+**Problem:** po treningu 2026-07-20 user zgłosił, że karta ćwiczenia jest nieczytelna. Zrzut baseline z symulatora iPhone 17 potwierdził: nad tabelą serii stał pusty kwadrat miniatury 92×72 (mapa `ANIMATION_FILES` jest PUSTA, więc placeholder pokazywał się przy KAŻDYM ćwiczeniu), 6 linii instrukcji i osobna sekcja rozgrzewki z własnym badge'em. Efekt: nad zgięciem ekranu mieściły się dwie serie robocze.
+
+**Decyzje:**
+
+1. **Rozgrzewka wchodzi do wspólnej tabeli serii** (Z128.1). Osobna sekcja z badge'em „Rozgrzewka" i własnym dividerem znika, oznaczeniem zostaje złote „W" w kolumnie SET. Nagłówki kolumn (`SET | POPRZ. | KG | POWT. | ✓`) są teraz PIERWSZE — user widzi strukturę tabeli, zanim zobaczy jej zawartość.
+2. **Ukończona seria = wypełnione tło całego wiersza** (`bg-primary/[0.06]`), aktywna zachowuje obrys. Reguła zapisana wprost jako rozłączna (`completed ? tło : isActive && obrys`), bo aktywna to z definicji pierwsza NIEukończona. Zgodne z No-Line Rule: zero ramek, granice przez tło.
+3. **Złoto rozgrzewki na obu ścieżkach renderu.** Dotąd tylko stara ścieżka `weight_reps` oznaczała inputy rozgrzewki; `renderTrackedSetRow` (Z105) nie. `DurationInput` dostał opcjonalny `className`.
+4. **Miniatura tylko gdy JEST animacja** (Z128.2). Skoro `ANIMATION_FILES` jest pusta, dziś oznacza to brak miniatury i pełną szerokość dla tytułu. Gdy animacje wrócą, gałąź z `<video>` działa bez zmian (test pokrywa obie).
+5. **Instrukcje wypadają z karty na stałe** — idą do menu `⋯` (Z129). Uzasadnienie celu i ostatnia notatka zostają, ale jako jeden zwarty blok metadanych.
+6. **`.exercise-card-divider` usunięta.** Klasa była martwa (`height: 0; background: transparent`) i miała 4 użycia udające sekcjonowanie. Zastąpiona odstępami.
+7. **Tło nagłówka karty przez token.** `#262626` na sztywno ignorowało light mode (ciemnoszary pasek na białej karcie). Teraz `hsl(var(--surface-highest))`; w dark to dokładnie 0 0% 15%, więc ciemny motyw wygląda identycznie.
+
+**Weryfikacja:** test charakteryzujący `exercise-card-layout.test.tsx` napisany PRZED zmianami (16 asercji, dwa bloki: niezmienniki i stan-do-zmiany); każda nowa asercja potwierdzona czerwona przed implementacją. Bramki: test 879/879, typecheck, lint, build, bundle-budget (initial JS 1 490 147 / 1 536 000), dist-smoke, dist-offline, e2e:mock 168. Zrzut po zmianie: cała karta (W + 3 serie) mieści się nad zgięciem razem z początkiem następnego ćwiczenia.
+
+**Zaktualizowane testy e2e (nie obejścia, zmiana kontraktu UI):** badge „Rozgrzewka" → test pozycji wiersza W pod nagłówkami kolumn; asercja obecności martwego dividera → asercja jego BRAKU plus sprawdzenie, że nagłówek odcina się tłem.
+
+---
+
 ### 2026-07-20 — INCYDENT NA TRENINGU (konto admina): utrata 5 ćwiczeń + 4 inne bugi
 
 **Zgłoszenie:** trening z planu (Poniedziałek/Góra A, 6 ćwiczeń) → wyjście → szybki trening → powrót do planu = TYLKO 1 ćwiczenie na ekranie. User zrobił pozostałe 5 ćwiczeń na siłowni, ale nie miał ich gdzie zalogować. Do tego: pomarańczowe nieczytelne bloki, baner syncu nie do usunięcia, rozjeżdżający się/zoomowany layout, tap zaznaczający tekst.

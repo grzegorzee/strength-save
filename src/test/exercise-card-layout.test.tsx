@@ -13,6 +13,17 @@ vi.mock('@/contexts/UserContext', () => ({
 }));
 vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
 
+// Mapa animacji jest dziś pusta (żadne ćwiczenie nie ma pliku) — mock pozwala
+// przetestować OBIE gałęzie miniatury: z animacją i bez.
+vi.mock('@/lib/exercise-media', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/exercise-media')>();
+  return {
+    ...actual,
+    getExerciseAnimationUrl: (name?: string) =>
+      name === 'Ćwiczenie z animacją' ? 'https://example.test/anim.mp4' : null,
+  };
+});
+
 beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
 });
@@ -207,20 +218,39 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
     });
   });
 
-  describe('stan PRZED X17A: to zmieniamy w Z128.2-Z129', () => {
-    it('Z128.2: miniatura rysuje się także BEZ animacji (pusty kwadrat — do usunięcia)', () => {
+  describe('Z128.2: odchudzony nagłówek', () => {
+    it('bez animacji nie ma miniatury (dziś pusty kwadrat 92×72 z ikoną hantla)', () => {
       const { card } = renderCard({ savedSets: [workingSet()] });
       const header = card.querySelector('.exercise-card-header') as HTMLElement;
-      // Ćwiczenie bez animacji: przycisk miniatury i tak jest w DOM (disabled).
-      const thumb = header.querySelector('button[disabled]');
+      expect(header.querySelector('button[disabled]')).toBeNull();
+      expect(header.querySelector('video')).toBeNull();
+    });
+
+    it('z animacją miniatura jest i otwiera podgląd', () => {
+      const { card } = renderCard({ savedSets: [workingSet()], exercise: exercise({ name: 'Ćwiczenie z animacją' }) });
+      const header = card.querySelector('.exercise-card-header') as HTMLElement;
+      const thumb = within(header).getByRole('button', { name: /animacj/i });
       expect(thumb).toBeTruthy();
+      expect(header.querySelector('video')).toBeTruthy();
     });
 
-    it('Z128.2: instrukcje renderują się na stałe w karcie (do przeniesienia w menu ⋯)', () => {
+    it('instrukcje nie renderują się w karcie (idą do menu ⋯)', () => {
       const { card } = renderCard({ savedSets: [workingSet()] });
-      expect(within(card).getByText(/Łopatki ściągnięte/)).toBeTruthy();
+      expect(within(card).queryByText(/Łopatki ściągnięte/)).toBeNull();
     });
 
+    it('karta nie używa martwej klasy .exercise-card-divider', () => {
+      const { card } = renderCard({ savedSets: [workingSet()], onMetricsChange: vi.fn() });
+      expect(card.querySelectorAll('.exercise-card-divider')).toHaveLength(0);
+    });
+
+    it('metadane (cel + ostatnia notatka) zostają w nagłówku', () => {
+      const { card } = renderCard({ savedSets: [workingSet()], lastNote: 'Bolało prawe ramię' });
+      expect(within(card).getByText(/Bolało prawe ramię/)).toBeTruthy();
+    });
+  });
+
+  describe('stan PRZED X17A: to zmieniamy w Z129', () => {
     it('Z129.1: "Dodaj serię" jest w stopce PO chipach, nie pod wierszami serii (do przeniesienia)', () => {
       const { card } = renderCard({ savedSets: [workingSet({ weight: 60, reps: 8 })], onMetricsChange: vi.fn() });
       const metricsChip = within(card).getByRole('button', { name: 'Metryki' });

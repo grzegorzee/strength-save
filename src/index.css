@@ -175,13 +175,11 @@ All colors MUST be HSL.
     box-shadow: 0 20px 40px rgba(0,0,0,0.28);
   }
 
+  /* X17A Z128.2: przez token, nie #262626 na sztywno — light mode dostawał
+     ciemnoszary pasek na białej karcie. W dark --surface-highest to dokładnie
+     to samo 0 0% 15%, więc wygląd ciemnego motywu bez zmian. */
   .exercise-card-header {
-    background: #262626;
-  }
-
-  .exercise-card-divider {
-    height: 0;
-    background: transparent;
+    background: hsl(var(--surface-highest));
   }
 
   .exercise-card-input {
