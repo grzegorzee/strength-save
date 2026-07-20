@@ -1415,6 +1415,74 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     await expect(cards.first()).toBeVisible();
     expect(await cards.count()).toBeGreaterThan(1);
   });
+
+  // X17A Z131: pełna sekwencja z reguły 5 w CLAUDE.md, przejechana przez UI na
+  // NOWYM układzie karty. Większość realnych bugów siedzi w przejściach między
+  // stanami, nie w pojedynczym ekranie.
+  test('sekwencja: plan → wyjście → szybki trening → powrót — komplet ćwiczeń i nowy układ', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await clearWorkoutDraftDb(page, 'e2e-test-user');
+
+    // 1. Start treningu z planu i zalogowanie jednej serii roboczej.
+    await navigateAndWait(page, '/workout/day-1');
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    const planCards = page.locator('.exercise-card');
+    await expect(planCards.first().locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    const planExerciseCount = await planCards.count();
+    expect(planExerciseCount).toBeGreaterThan(1);
+
+    const firstCard = planCards.first();
+    await firstCard.getByLabel(/Set 1, (kg|lbs)/).first().fill('62.5');
+    await firstCard.getByLabel(/Set 1, Powt\./).first().fill('7');
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+    await expect(page.getByTestId('session-stats')).toContainText('1');
+
+    // 2. Wyjście z treningu i szybki trening obok.
+    await navigateAndWait(page, '/');
+    await page.getByTestId('quick-workout-start').click();
+    await expect(page).toHaveURL(/adhoc-/);
+    await page.getByTestId('adhoc-add-exercise').click();
+    const picker = page.getByRole('dialog');
+    await picker.getByPlaceholder(/Szukaj|Find/).fill('wioslowanie hantlami');
+    await picker.getByText('Wiosłowanie hantlami na ławce (przodem)').click();
+    await expect(page.getByRole('heading', { name: 'Wiosłowanie hantlami na ławce (przodem)' })).toBeVisible();
+
+    // 3. Powrót do treningu z planu — TU przepadały ćwiczenia w incydencie 2026-07-20.
+    await navigateAndWait(page, '/workout/day-1');
+    await expect(planCards.first()).toBeVisible();
+    expect(await planCards.count()).toBe(planExerciseCount);
+
+    // Zalogowana seria PRZEŻYWA przerwanie w szkicu (to jest gwarancja po incydencie
+    // 2026-07-20). Uwaga: ekran po powrocie pokazuje sesję jako niewznowioną, więc
+    // pola są puste do czasu wznowienia — osobne znalezisko, patrz ODŁOŻONE w
+    // docs/PLAN-X17A-2026-07-20.md. Dane sprawdzamy u ŹRÓDŁA, nie po widoku.
+    const draft = await readWorkoutDraftDb(page, 'e2e-test-user', `local-workout-e2e-test-user-day-1-${localToday()}`) as {
+      exerciseSets?: Record<string, { reps: number; weight: number; completed?: boolean; isWarmup?: boolean }[]>;
+    } | null;
+    expect(draft).not.toBeNull();
+    expect(Object.keys(draft!.exerciseSets ?? {})).toHaveLength(planExerciseCount);
+    const logged = Object.values(draft!.exerciseSets ?? {}).flat().find((s) => s.completed && !s.isWarmup);
+    expect(logged).toMatchObject({ weight: 62.5, reps: 7 });
+
+    // 4. Nowy układ X17A na miejscu po powrocie: nagłówki kolumn nad rozgrzewką,
+    // „Dodaj serię" pod seriami, menu ⋯ w nagłówku, trzy metryki sesji.
+    // Wznowienie sesji i dopiero potem asercje na układ w trybie edycji.
+    await page.getByRole('button', { name: /Rozpocznij trening|Kontynuuj|Start workout/i }).first().click();
+    const backCard = planCards.first();
+    await expect(backCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+
+    const setHeader = await backCard.getByText('Set', { exact: true }).first().boundingBox();
+    const warmupLabel = await backCard.getByText('W', { exact: true }).first().boundingBox();
+    const addSet = await backCard.getByRole('button', { name: /Dodaj serię/i }).boundingBox();
+    expect(setHeader!.y).toBeLessThan(warmupLabel!.y);
+    expect(warmupLabel!.y).toBeLessThan(addSet!.y);
+    await expect(backCard.getByRole('button', { name: 'Więcej akcji' })).toBeVisible();
+    await expect(page.getByTestId('session-stats')).toBeVisible();
+
+    // 5. Trening da się domknąć (finalny sync w mock e2e nie przechodzi — Firestore
+    // zablokowany — ale przycisk zakończenia musi być dostępny).
+    await expect(page.getByRole('button', { name: 'Zakończ trening' })).toBeVisible();
+  });
 });
 
 // =====================================================

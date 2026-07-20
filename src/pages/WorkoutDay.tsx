@@ -4,7 +4,6 @@ import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { RestTimer } from '@/components/RestTimer';
 import { calculateStreak } from '@/lib/summary-utils';
-import { StatCard } from '@/components/kinetic/StatCard';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
@@ -42,7 +41,7 @@ import { cn, formatLocalDate } from '@/lib/utils';
 import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
-import { buildDayFromDraft, hasAnyCompletedSet } from '@/lib/workout-day-view';
+import { buildDayFromDraft, hasAnyCompletedSet, sessionStats } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -225,9 +224,9 @@ const WorkoutDay = () => {
     ? activeDraft?.startedAt ?? null
     : null;
 
-  // Tonaż bieżącej sesji (kg) — serie ukończone, bez rozgrzewki.
-  const sessionVolumeKg = useMemo(
-    () => Object.values(exerciseSets).flat().reduce((t, s) => t + (s.completed && !s.isWarmup ? s.reps * s.weight : 0), 0),
+  // Tonaż i liczba serii bieżącej sesji — ukończone serie robocze, bez rozgrzewki (Z131).
+  const { volumeKg: sessionVolumeKg, completedSets: sessionCompletedSets } = useMemo(
+    () => sessionStats(exerciseSets),
     [exerciseSets],
   );
 
@@ -2274,15 +2273,25 @@ const WorkoutDay = () => {
         {(!isWorkoutStarted || isCompleted) && <span />}
       </div>
 
-      {/* Tonaż + czas sesji (kafelki) */}
+      {/* Z131: Czas / Objętość / Serie w JEDNYM zwartym rzędzie (wzorzec Hevy).
+          Dwa duże kafelki StatCard zjadały pionową przestrzeń nad pierwszą kartą,
+          a liczby serii sesji nie pokazywały w ogóle. */}
       {isWorkoutStarted && !isCompleted && (
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard label={t('dash.stat.tonnage')} value={fmt(sessionVolumeKg)} accent="secondary" />
-          <StatCard
-            label={t('workout.statTime')}
-            value={sessionClockStartedAt !== null ? <SessionClock startedAt={sessionClockStartedAt} /> : fmtDuration(0)}
-            accent="primary"
-          />
+        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-muted/40 px-3 py-2.5" data-testid="session-stats">
+          <div className="min-w-0 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/60">{t('workout.statTime')}</p>
+            <p className="truncate text-base font-bold tabular-nums text-primary">
+              {sessionClockStartedAt !== null ? <SessionClock startedAt={sessionClockStartedAt} /> : fmtDuration(0)}
+            </p>
+          </div>
+          <div className="min-w-0 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/60">{t('dash.stat.tonnage')}</p>
+            <p className="truncate text-base font-bold tabular-nums">{fmt(sessionVolumeKg)}</p>
+          </div>
+          <div className="min-w-0 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/60">{t('workout.statSets')}</p>
+            <p className="truncate text-base font-bold tabular-nums">{sessionCompletedSets}</p>
+          </div>
         </div>
       )}
 

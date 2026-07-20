@@ -64,3 +64,20 @@ export const buildDayFromDraft = (
 /** Czy trening ma cokolwiek do zapisania (>=1 odhaczona seria robocza lub rozgrzewkowa). */
 export const hasAnyCompletedSet = (exerciseSets: Record<string, SetData[]>): boolean =>
   Object.values(exerciseSets).some((sets) => sets.some((set) => set.completed));
+
+/**
+ * Z131: metryki nagłówka aktywnej sesji. Liczą się WYŁĄCZNIE ukończone serie
+ * robocze — rozgrzewka nie jest pracą do raportowania. Tonaż w kg (kanonicznie),
+ * konwersja jednostek dopiero w UI.
+ */
+export const sessionStats = (
+  exerciseSets: Record<string, SetData[]>,
+): { volumeKg: number; completedSets: number } =>
+  Object.values(exerciseSets)
+    .flat()
+    .reduce(
+      (acc, set) => (set.completed && !set.isWarmup
+        ? { volumeKg: acc.volumeKg + set.reps * set.weight, completedSets: acc.completedSets + 1 }
+        : acc),
+      { volumeKg: 0, completedSets: 0 },
+    );

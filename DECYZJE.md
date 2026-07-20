@@ -11,6 +11,27 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X17A FAZA 4 (Z131): nagłówek sesji + znalezisko o wznowieniu
+
+**Decyzje:**
+
+1. **Czas / Objętość / Serie w jednym zwartym rzędzie** zamiast dwóch dużych kafelków `StatCard`. Kafelki zjadały pionową przestrzeń nad pierwszą kartą, a liczby serii sesji nie pokazywały w ogóle.
+2. **Logika metryk wyjęta z komponentu** do czystego `sessionStats()` w `lib/workout-day-view.ts` — 2500-linijkowej strony nie da się sensownie testować, a czysta funkcja tak (4 testy: rozgrzewka poza tonażem i licznikiem, masa własna liczy się do serii ale nie do tonażu, pusta sesja daje zera, nie NaN).
+3. **Scenariusz przerwania jako trwały e2e**, nie jednorazowy przebieg ręczny. Sekwencja z reguły 5: start z planu → seria 62,5×7 → wyjście → szybki trening z dodanym ćwiczeniem → powrót → komplet ćwiczeń + dane w szkicu + nowy układ → dostępne zakończenie.
+
+**ZNALEZISKO (odłożone, poza zakresem X17A):** powrót do treningu z planu po szybkim treningu pokazuje sesję jako NIEWZNOWIONĄ — pola puste, wraca przycisk „Rozpocznij trening" — mimo że szkic w IndexedDB ma komplet 7 ćwiczeń planu i odhaczoną serię `62.5×7`.
+
+- **Dane są bezpieczne.** Zrzut szkicu po całej sekwencji potwierdza komplet ćwiczeń i zalogowaną serię. To NIE jest powtórka utraty danych z incydentu 2026-07-20.
+- **To nie regresja X17A.** Bisekt: ten sam scenariusz na `a605a081` (kod sprzed X17A) daje identyczny wynik (`kg=` pusty, przycisk startu obecny). Zachowanie zastane.
+- **Ryzyko dla usera mimo bezpiecznych danych:** po powrocie widzi pusty ekran i może uznać, że trening przepadł — dokładnie ten sam wzorzec paniki co przy incydencie. Rzecz siedzi w warstwie wznowienia sesji (`WorkoutDay`/auto-resume), nie w karcie ćwiczenia ani w zapisie.
+- Rekomendacja: osobne zadanie, priorytet wysoki, backlog v2.
+
+**Pułapka przy okazji:** klucz `workout.statSets` już istniał („Serii"); dopisany duplikat wywalił typecheck (TS1117). Przed dodaniem klucza i18n sprawdź, czy go nie ma.
+
+**Weryfikacja:** test 893/893, typecheck, lint, build, bundle-budget, build:mobile + dist-smoke, dist-offline, e2e:mock 171/171.
+
+---
+
 ### 2026-07-20 — X17A FAZA 2 (Z129): „Dodaj serię" pod listą + menu ⋯
 
 **Problem:** rzadkie akcje ćwiczenia były rozsiane po trzech miejscach (ikona `Info` w nagłówku, chipy w stopce, przyciski POD kartą), a „Dodaj serię" siedziało w pasku akcji na dole, nie tam, gdzie kończy się lista serii. Pasek chipów mieszał nagie ikony (`%`, dysk) z etykietowanymi, bez `flex-wrap` — po samej ikonie dysku nie było wiadomo, że to kalkulator talerzy.
