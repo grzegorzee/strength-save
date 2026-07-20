@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		1250B630B6A80D5E7EDCE5DE /* PhoneWatchSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */; };
+		12D8ECF61AF066F56A22D973 /* rest_alarm.wav in Resources */ = {isa = PBXBuildFile; fileRef = EDB64D0FA5C9B08409066C44 /* rest_alarm.wav */; };
+		22F693C1DA97013DA19AA8F3 /* rest_bell.wav in Resources */ = {isa = PBXBuildFile; fileRef = A72EF495572C1E0A667E1690 /* rest_bell.wav */; };
 		2D3CE223881D42528AB322FF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 957D18FA556717B27228D48F /* GoogleService-Info.plist */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
@@ -19,7 +21,6 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		545CDF57AF87E812BA03C516 /* StrengthWatchWidgets.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 766952A716CBDE96B97FFEDD /* StrengthWatchWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		60C701771DD97B4AFFDB5E87 /* ExerciseDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1BBD2AE4E8CC17D105D4944 /* ExerciseDetailView.swift */; };
-		620235F08815C20CFC7D8B7C /* rest_end.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3A6B7F6845BAC4E0F2B79DEF /* rest_end.wav */; };
 		635BE1BB948AD66020178891 /* WatchBridgePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7A5C154A80546659595207D /* WatchBridgePlugin.swift */; };
 		792329F990DF8EC8CC529017 /* WorkoutModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 882B980C9939C416BF0A0055 /* WorkoutModels.swift */; };
 		7E2786085D17F7C9B994BCB1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E83CF5EFFE95E2A5977E9A2B /* ContentView.swift */; };
@@ -32,6 +33,7 @@
 		C8D03C12A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D03C11A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift */; };
 		D49107F0D0A6DADA86650CFD /* WorkoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C03062003363EC390CFA58 /* WorkoutStore.swift */; };
 		DE2119989E46C6CE74169801 /* BridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E6AF113A4DF6B15EE3C518 /* BridgeViewController.swift */; };
+		DF7AC89BB1C125BBBEFA55A1 /* rest_horn.wav in Resources */ = {isa = PBXBuildFile; fileRef = 4A8E0ACDACFA5948FEB440AB /* rest_horn.wav */; };
 		E55F2F0365B9CC0A919F20B5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */; };
 		FE128978EF5B130144976C0D /* StrengthWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = FE9F7135B6617093094F1CF5 /* StrengthWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -82,8 +84,8 @@
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3604679A7761D6AF0C11BB5E /* StrengthWatchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StrengthWatchApp.swift; sourceTree = "<group>"; };
-		3A6B7F6845BAC4E0F2B79DEF /* rest_end.wav */ = {isa = PBXFileReference; includeInIndex = 1; path = rest_end.wav; sourceTree = "<group>"; };
 		47E6AF113A4DF6B15EE3C518 /* BridgeViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BridgeViewController.swift; sourceTree = "<group>"; };
+		4A8E0ACDACFA5948FEB440AB /* rest_horn.wav */ = {isa = PBXFileReference; includeInIndex = 1; path = rest_horn.wav; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -99,6 +101,7 @@
 		882B980C9939C416BF0A0055 /* WorkoutModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutModels.swift; sourceTree = "<group>"; };
 		957D18FA556717B27228D48F /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
+		A72EF495572C1E0A667E1690 /* rest_bell.wav */ = {isa = PBXFileReference; includeInIndex = 1; path = rest_bell.wav; sourceTree = "<group>"; };
 		A84DA980A7D4CDB27985A666 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhoneWatchSessionManager.swift; sourceTree = "<group>"; };
 		B7A5C154A80546659595207D /* WatchBridgePlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchBridgePlugin.swift; sourceTree = "<group>"; };
@@ -107,6 +110,7 @@
 		D1BBD2AE4E8CC17D105D4944 /* ExerciseDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExerciseDetailView.swift; sourceTree = "<group>"; };
 		E6C03062003363EC390CFA58 /* WorkoutStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WorkoutStore.swift; sourceTree = "<group>"; };
 		E83CF5EFFE95E2A5977E9A2B /* ContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		EDB64D0FA5C9B08409066C44 /* rest_alarm.wav */ = {isa = PBXFileReference; includeInIndex = 1; path = rest_alarm.wav; sourceTree = "<group>"; };
 		FE9F7135B6617093094F1CF5 /* StrengthWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StrengthWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -174,7 +178,9 @@
 				957D18FA556717B27228D48F /* GoogleService-Info.plist */,
 				62355E2FA3AF3CC20BBEB336 /* WatchBridge */,
 				D7E8F90A1B2C3D4E5F607182 /* HealthSync */,
-				3A6B7F6845BAC4E0F2B79DEF /* rest_end.wav */,
+				A72EF495572C1E0A667E1690 /* rest_bell.wav */,
+				4A8E0ACDACFA5948FEB440AB /* rest_horn.wav */,
+				EDB64D0FA5C9B08409066C44 /* rest_alarm.wav */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -353,7 +359,9 @@
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
 				2FAD9763203C412B000D30F8 /* config.xml in Resources */,
 				2D3CE223881D42528AB322FF /* GoogleService-Info.plist in Resources */,
-				620235F08815C20CFC7D8B7C /* rest_end.wav in Resources */,
+				22F693C1DA97013DA19AA8F3 /* rest_bell.wav in Resources */,
+				DF7AC89BB1C125BBBEFA55A1 /* rest_horn.wav in Resources */,
+				12D8ECF61AF066F56A22D973 /* rest_alarm.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

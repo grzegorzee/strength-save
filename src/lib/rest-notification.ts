@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { loadRestSound } from '@/lib/rest-sound';
 
 // Powiadomienie lokalne "koniec przerwy" (iOS/Android). JS w WKWebView jest wstrzymywany
 // po zgaszeniu ekranu, więc haptic/dźwięk z setInterval NIE odpali się w tle — system musi
@@ -16,8 +17,8 @@ const REST_NOTIFICATION_ID = 90001;
 // po treningu: sama cicha wibracja, zero dźwięku). Pominięcie pola też daje ciszę,
 // bo plugin nie ustawia wtedy content.sound w ogóle.
 //
-// Plik: ios/App/App/rest_end.wav, dodany do zasobów targetu App.
-const REST_SOUND_FILE = 'rest_end.wav';
+// Pliki: ios/App/App/rest_{bell,horn,alarm}.wav, dodane do zasobów targetu App.
+// Wybór usera z Ustawień; nazwa pliku jest identyczna po stronie web i natywnej.
 
 // Cache TYLKO wyniku pozytywnego (R2-24): user może włączyć uprawnienia w Ustawieniach
 // systemu w trakcie życia appki — odmowa weryfikowana ponownie przy każdej próbie.
@@ -68,7 +69,7 @@ export const scheduleRestEndNotification = async (
           title,
           body,
           schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true },
-          sound: REST_SOUND_FILE,
+          sound: loadRestSound().file,
         }],
       });
     } catch {

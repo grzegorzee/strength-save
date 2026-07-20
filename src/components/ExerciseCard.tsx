@@ -915,6 +915,12 @@ const ExerciseCardInner = ({
 
         {/* Z129.2: rzadkie akcje ćwiczenia w jednym menu, zamiast ikon rozsianych
             po nagłówku, pasku chipów i przyciskach pod kartą. */}
+        {/* UWAGA przy testach: po zamknięciu dialogu otwartego Z TEGO menu Radix
+            sprząta blokadę interakcji dopiero w następnym ticku. Okno jest
+            milisekundowe (człowiek go nie trafi), ale automat klikający natychmiast
+            po Escape owszem — dlatego e2e czeka na ZNIKNIĘCIE dialogu, a nie na sam
+            klawisz. `modal={false}` to naprawia, ale rozwala obsługę menu w jsdom,
+            więc zostaje domyślna modalność. */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button

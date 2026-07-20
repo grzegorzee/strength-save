@@ -308,17 +308,17 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       const onRequestSwap = vi.fn();
       const { card } = renderCard({ savedSets: [workingSet()], onSkip, onRequestSwap });
 
-      fireEvent.click(within(await openMenu(card)).getByText('Pomiń'));
+      fireEvent.click(within(await openMenu(card)).getByRole('menuitem', { name: 'Pomiń' }));
       expect(onSkip).toHaveBeenCalledWith('ex-1');
 
-      fireEvent.click(within(await openMenu(card)).getByText('Zamień ćwiczenie'));
+      fireEvent.click(within(await openMenu(card)).getByRole('menuitem', { name: 'Zamień ćwiczenie' }));
       expect(onRequestSwap).toHaveBeenCalledWith('ex-1');
     });
 
     it('„Instrukcje" pokazują treść, której nie ma na karcie', async () => {
       const { card } = renderCard({ savedSets: [workingSet()] });
       expect(within(card).queryByText(/Łopatki ściągnięte/)).toBeNull();
-      fireEvent.click(within(await openMenu(card)).getByText('Instrukcje'));
+      fireEvent.click(within(await openMenu(card)).getByRole('menuitem', { name: 'Instrukcje' }));
       expect(await screen.findByText(/Łopatki ściągnięte/)).toBeTruthy();
     });
 

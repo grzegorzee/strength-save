@@ -2,6 +2,8 @@
 // Współdzielony AudioContext odblokowywany na gest startu — dzięki temu beep odpalony
 // później z setInterval NIE jest blokowany przez politykę autoplay na iOS/Safari.
 
+import { loadRestSound, restSoundUrl } from '@/lib/rest-sound';
+
 let ctx: AudioContext | null = null;
 
 const getCtx = (): AudioContext | null => {
@@ -21,17 +23,28 @@ const getCtx = (): AudioContext | null => {
 // HTMLAudioElement jest w tym środowisku przewidywalniejszy, a plik i tak musimy
 // wozić w bundlu dla powiadomienia systemowego. Syntezowany beep zostaje jako
 // fallback (web, brak pliku).
-const SOUND_URL = `${import.meta.env.BASE_URL ?? '/'}rest_end.wav`;
 let el: HTMLAudioElement | null = null;
+let elFile = '';
 
 const getEl = (): HTMLAudioElement | null => {
   if (typeof Audio === 'undefined') return null;
-  if (!el) {
-    el = new Audio(SOUND_URL);
+  const chosen = loadRestSound();
+  // Zmiana wyboru w Ustawieniach ma działać bez restartu apki.
+  if (!el || elFile !== chosen.file) {
+    el = new Audio(restSoundUrl(chosen.file));
     el.preload = 'auto';
     el.volume = 1;
+    elFile = chosen.file;
   }
   return el;
+};
+
+/** Odsłuch z Ustawień: gra podany plik natychmiast, niezależnie od wyboru. */
+export const previewRestSound = (file: string): void => {
+  if (typeof Audio === 'undefined') return;
+  const a = new Audio(restSoundUrl(file));
+  a.volume = 1;
+  void a.play().catch(() => {});
 };
 
 /** Wywołaj w handlerze gestu (start/otwarcie timera), żeby odblokować audio na iOS. */

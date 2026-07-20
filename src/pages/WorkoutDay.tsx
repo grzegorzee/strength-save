@@ -27,6 +27,7 @@ import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
 import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId } from '@/lib/adhoc-workout';
 import { syncWorkoutToHealth } from '@/lib/health-bridge';
+import { keepScreenAwake, allowScreenSleep } from '@/lib/keep-awake';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { formatDurationSec, getTrackingType, type TrackingType } from '@/lib/set-tracking';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
@@ -216,6 +217,19 @@ const WorkoutDay = () => {
   const sessionClockStartedAt = sessionId !== null && !isCompleted && activeDraft?.sessionId === sessionId
     ? activeDraft?.startedAt ?? null
     : null;
+
+  // Blokada wygaszania ekranu na czas aktywnego treningu (zgłoszenie usera: przy
+  // zgaszonym ekranie dźwięk zależy wyłącznie od powiadomienia systemowego, przy
+  // włączonym gra sama apka). Hook MUSI stać przed wczesnymi returnami tego
+  // komponentu — inaczej łamie Rules of Hooks. Blokada zwalniana ZAWSZE przy wyjściu.
+  useEffect(() => {
+    if (sessionId === null || isCompleted) {
+      void allowScreenSleep();
+      return;
+    }
+    void keepScreenAwake();
+    return () => { void allowScreenSleep(); };
+  }, [sessionId, isCompleted]);
 
   // Tonaż i liczba serii bieżącej sesji — ukończone serie robocze, bez rozgrzewki (Z131).
   const { volumeKg: sessionVolumeKg, completedSets: sessionCompletedSets } = useMemo(
@@ -727,7 +741,7 @@ const WorkoutDay = () => {
     queueAutoSaveStatus('synced', 'idle', 2200);
     trackTelemetryEvent(uid, 'sync_success');
     return { success: true };
-  }, [uid, sessionId, workoutSyncDeps, persistDraftSnapshot, queueAutoSaveStatus, t]);
+  }, [uid, sessionId, workoutSyncDeps, persistDraftSnapshot, queueAutoSaveStatus, t, describeSyncError]);
 
   // Local-wins (Z87): zachowaj lokalną wersję — podbij znacznik chmury w drafcie
   // do stanu serwera i ponów zapis (świadome nadpisanie wersji z drugiego urządzenia).
@@ -751,7 +765,7 @@ const WorkoutDay = () => {
         sessionId,
       });
     }
-  }, [uid, sessionId, getWorkoutSessionFromServer, persistDraftSnapshot, syncDraftToFirebase, t]);
+  }, [uid, sessionId, getWorkoutSessionFromServer, persistDraftSnapshot, syncDraftToFirebase, describeSyncError]);
   // Funkcja jest zdefiniowana PO syncDraftToFirebase — gałąź konfliktu woła ją przez ref.
   keepLocalOnConflictRef.current = keepLocalOnConflict;
 
@@ -1896,6 +1910,7 @@ const WorkoutDay = () => {
 
   const isWorkoutStarted = sessionId !== null;
   const isFinalSyncPending = !!currentPageDraft?.finalSyncPending;
+
 
   // Calculate stats from exerciseSets
   const exerciseCount = Object.keys(exerciseSets).length;

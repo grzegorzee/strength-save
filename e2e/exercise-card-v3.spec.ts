@@ -183,8 +183,13 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
 
     // „Instrukcje" pokazują treść, której nie ma już na karcie.
     await menu.getByRole('menuitem', { name: 'Instrukcje' }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await page.keyboard.press('Escape');
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    // Zamykamy PRZYCISKIEM, nie klawiszem: Escape wysłany natychmiast po
+    // `toBeVisible()` trafia w animację otwierania dialogu i bywa gubiony.
+    // Potem czekamy na REALNE zniknięcie — dopiero wtedy pola serii przyjmują wpis.
+    await dialog.getByRole('button', { name: 'Close' }).click();
+    await expect(dialog).toHaveCount(0);
 
     // Chip kalkulatora ma etykietę — po samej ikonie dysku nie było wiadomo, co robi.
     // Ciężar wpisujemy w PIERWSZĄ SERIĘ ROBOCZĄ (wiersz rozgrzewki jest wyżej):

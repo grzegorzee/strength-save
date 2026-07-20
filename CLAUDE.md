@@ -88,6 +88,33 @@ statusowe zawsze z modyfikatorem (`/10`), tekst w pełnym kolorze. Wzorzec:
 - [ ] **Wersja aplikacji:** MARKETING_VERSION (iOS), `version` w package.json i versionName (Android) = **1.0.0 na sztywno do launchu** (decyzja 2026-07-17). Bump TYLKO `CURRENT_PROJECT_VERSION` (+1 per build TestFlight). Zmiana 1.0.0 wymaga jawnej decyzji usera.
 - [ ] Wpis do `DECYZJE.md` (co, dlaczego, root cause, weryfikacja)
 
+### 9. Zanim uznasz e2e za czerwone: zrestartuj dev server
+
+Dwa razy jednego dnia (2026-07-20) straciłem czas na diagnozowanie „regresji",
+która była zwietrzałym dev serverem Vite:
+
+- serwer działający od godzin z nagromadzonym HMR → losowe faile e2e,
+- **po `npm i` nowej zależności natywnej → 118 failów z `page.goto timeout`
+  i bieg 22 min zamiast 2**, bo Vite zawiesza się na re-optymalizacji zależności.
+
+Objaw diagnostyczny: e2e trwa wielokrotnie dłużej niż zwykle albo pada masowo na
+`page.goto`. Wtedy NAJPIERW `pkill -f vite` + wyczyść `node_modules/.vite`,
+dopiero potem szukaj buga w kodzie.
+
+### 10. Dźwięk powiadomienia na iOS wymaga PLIKU w bundlu
+
+`sound: 'default'` NIE działa. Plugin robi
+`UNNotificationSound(named: UNNotificationSoundName(sound))`, czyli iOS szuka
+**pliku o tej nazwie**; brak pliku = powiadomienie NIEME (zostaje sama wibracja).
+Pominięcie pola też daje ciszę. Dźwięk musi być realnym plikiem dodanym do
+zasobów targetu App (`ruby -e` z gemem `xcodeproj`) ORAZ w `public/` dla
+odtwarzania w foregroundzie.
+
+Osobno: przy bocznym przełączniku ciszy powiadomienia systemowe są nieme
+niezależnie od pliku. W foregroundzie da się to obejść kategorią sesji audio
+`.playback` w `AppDelegate` (`AVFoundation`), w tle — tylko przez Critical
+Alerts, które wymagają zgody Apple.
+
 ## Pułapki specyficzne dla projektu (skrót)
 
 - **Dźwięk timera:** WebAudio wymaga gestu usera (unlock w handlerze odhaczenia serii); przy wyciszonym telefonie beep nie zagra, ale haptic i notyfikacja tak.

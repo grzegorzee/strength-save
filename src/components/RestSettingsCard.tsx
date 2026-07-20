@@ -1,9 +1,13 @@
 import { useState } from 'react';
+import { Volume2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { loadRestSettings, saveRestSettings, type RestSettings } from '@/lib/rest-timer';
+import { REST_SOUNDS, loadRestSound, saveRestSound, type RestSoundId } from '@/lib/rest-sound';
+import { previewRestSound } from '@/lib/timer-sound';
+import { isKeepAwakeEnabled, setKeepAwakeEnabled } from '@/lib/keep-awake';
 
 type Field = 'workingSeconds' | 'betweenExercisesSeconds' | 'warmupSeconds';
 
@@ -31,6 +35,8 @@ const KEY_PREFIX: Record<Field, string> = {
 export const RestSettingsCard = () => {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<RestSettings>(() => loadRestSettings());
+  const [sound, setSound] = useState<RestSoundId>(() => loadRestSound().id);
+  const [keepAwake, setKeepAwake] = useState<boolean>(() => isKeepAwakeEnabled());
 
   const update = (field: Field, rawValue: number) => {
     // Zakres: od 10 s (krótsza przerwa nie zdąży się nawet wyświetlić) do 10 minut
@@ -98,6 +104,59 @@ export const RestSettingsCard = () => {
             </div>
           </div>
         ))}
+
+        {/* Wybór dźwięku z ODSŁUCHEM — jedyny sposób, żeby ocenić go w realnych
+            warunkach siłowni. Ten sam plik gra w apce i w powiadomieniu. */}
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            {t('rest.sound.title')}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {REST_SOUNDS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => { saveRestSound(option.id); setSound(option.id); previewRestSound(option.file); }}
+                aria-pressed={sound === option.id}
+                data-testid={`rest-sound-${option.id}`}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold transition-colors',
+                  sound === option.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-surface-highest text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Volume2 className="h-3.5 w-3.5" />
+                {t(option.labelKey)}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground/70">{t('rest.sound.hint')}</p>
+        </div>
+
+        {/* Blokada wygaszania: przy włączonym ekranie dźwięk gra zawsze, bo robi to
+            sama apka. Kosztuje baterię, więc to wybór usera, nie narzucone. */}
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => { const next = !keepAwake; setKeepAwakeEnabled(next); setKeepAwake(next); }}
+            aria-pressed={keepAwake}
+            data-testid="rest-keep-awake"
+            className={cn(
+              'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition-colors',
+              keepAwake ? 'bg-primary/10' : 'bg-muted/40',
+            )}
+          >
+            <span className="text-sm font-semibold">{t('rest.keepAwake')}</span>
+            <span className={cn(
+              'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase',
+              keepAwake ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
+            )}>
+              {keepAwake ? 'ON' : 'OFF'}
+            </span>
+          </button>
+          <p className="text-[11px] text-muted-foreground/70">{t('rest.keepAwakeHint')}</p>
+        </div>
       </CardContent>
     </Card>
   );

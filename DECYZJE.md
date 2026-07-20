@@ -11,6 +11,31 @@
 
 ## DECYZJE
 
+### 2026-07-20 — dźwięk końca przerwy: root cause i wybór dźwięku (build 74 → 75)
+
+**Sekwencja diagnostyczna (trzy testy usera na urządzeniu, trzy różne przyczyny):**
+
+1. **Build 71:** „cicha wibracja, nic więcej". Przyczyna: koniec przerwy wołał `hapticImpactLight` (najsłabszy impuls). Fix: `hapticRestEnd` z wzorcem notyfikacyjnym + trzema ciężkimi uderzeniami.
+2. **Build 73:** dźwięk działa na aktywnym ekranie, w tle nadal cisza. Przyczyna w foregroundzie była systemowa: kategoria sesji audio WKWebView (`.ambient`) jest wyciszana bocznym przełącznikiem ciszy. Fix: `.playback` + `.duckOthers` w `AppDelegate`.
+3. **Build 74:** w tle nadal cisza. **ROOT CAUSE znaleziony w źródle pluginu**, nie zgadnięty: `LocalNotificationsPlugin.swift` robi `content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))`. Przekazywanie `'default'` każe iOS szukać **PLIKU o nazwie „default"** — taki nie istnieje, więc powiadomienie było NIEME. Pominięcie pola też daje ciszę (plugin nie ustawia wtedy `content.sound` w ogóle). **Jedyne wyjście: realny plik dźwiękowy w bundlu.**
+4. **Potwierdzenie usera:** po wyłączeniu wyciszenia telefonu dźwięk w tle działa. Czyli zostały dwie niezależne przyczyny: zły parametr `sound` (naprawiony) i przełącznik ciszy (poza naszą kontrolą).
+
+**Decyzje:**
+
+1. **Trzy dźwięki do wyboru, generowane proceduralnie** (`rest_bell` / `rest_horn` / `rest_alarm`), każdy z ODSŁUCHEM w Ustawieniach. Odsłuch jest kluczowy: głośności nie da się ocenić inaczej niż na telefonie w hałasie siłowni. Domyślny: dzwon bokserski (klasyk kategorii, przebija hałas, nie brzmi jak alarm medyczny).
+2. **Głośność przez kompresję, nie przez sam szczyt.** `tanh` z drive 2.6–3.4 podnosi poziom ŚREDNI (RMS 0.33–0.53), bo to on decyduje o słyszalności, a nie wartość szczytowa. Partiale skupione w paśmie 2–4 kHz, gdzie ucho jest najczulsze.
+3. **Pliki w DWÓCH miejscach i to nie jest pomyłka:** root bundla iOS (dla `UNNotificationSound`) oraz web assets (dla `HTMLAudioElement` w foregroundzie). Ta sama nazwa po obu stronach, jeden wybór usera steruje obiema ścieżkami.
+4. **HTMLAudioElement przed WebAudio.** Synteza WebAudio potrafi nie zagrać w WKWebView mimo odblokowania gestem; realny plik jest przewidywalniejszy. Synteza zostaje fallbackiem.
+5. **Blokada wygaszania ekranu** (`@capacitor-community/keep-awake`) jako przełącznik w Ustawieniach, domyślnie włączony. Przy włączonym ekranie dźwięk gra zawsze, bo robi to sama apka. Zwalniana BEZWARUNKOWO przy wyjściu z treningu, żeby nie zostawić zapalonego ekranu.
+
+**Czego NIE da się obejść:** przy bocznym przełączniku ciszy powiadomienia systemowe są nieme z zasady iOS. Jedyne wyjście to Critical Alerts, wymagające osobnego wniosku do Apple — świadomie nie wchodzimy w to.
+
+**Lekcja (druga tego dnia):** po dodaniu nowej zależności natywnej działający dev server Vite zawiesza się na re-optymalizacji — 118 testów e2e padło z `page.goto timeout`, a bieg trwał 22 minuty zamiast 2. Kod był w porządku. **Po `npm i` nowego pluginu: ubij dev server i wyczyść `node_modules/.vite`, zanim uznasz e2e za czerwone.**
+
+**Lint złapał realny błąd:** hook blokady wygaszania wylądował po wczesnym `return` komponentu, co łamie Rules of Hooks. Przeniesiony przed nie, warunek liczony z `sessionId` zamiast z `isWorkoutStarted` (ta zmienna powstaje dopiero po returnach).
+
+---
+
 ### 2026-07-20 — X17C poprawki po teście usera na urządzeniu (build 71 → 73)
 
 **Zgłoszenie po realnym teście:** „jedyne co się wydarzyło to cicha wibracja, nic więcej", „da się to zrobić inline zamiast tego dużego zegara?", „możliwość ustawiania domyślnej przerwy między seriami i między ćwiczeniami".
