@@ -11,6 +11,14 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X16C (Z125-Z127): backend Garmin WDROŻONY, apka CIQ napisana (BLOKADA: SDK za logowaniem Garmin)
+
+**Co wdrożone:** functions na prod (smoke 401 na złym kodzie): callable garminPairStart/garminDevices/garminRevokeDevice + HTTP garminPair/garminDay/garminIngest (token urządzenia Bearer; w Firestore WYŁĄCZNIE hashe z pepperem API_KEY_PEPPER; kod 6-cyfrowy TTL 10 min jednorazowy z TTL Firestore; rate limit 2 s per token; CORS domyślnie zamknięty). Rules: deny-all dla device_pair_codes/device_tokens (nawet admin — tokeny to sekrety; 5 testów). Web: sekcja "Zegarek Garmin" w Ustawieniach (kod z odliczaniem, lista urządzeń, odłączanie). Testy: 20 functions + parytet ingest→sanitizeWorkoutDoc klienta + e2e sekcji.
+
+**Decyzje architektoniczne:** (1) garminDay zwraca kompaktowy JSON <8KB (praktyczny limit makeWebRequest przez BLE; test rozmiaru na 12 ćwiczeń) — serie jako pary [reps, kg], klucze 1-literowe. (2) Cel serii z UPROSZCZONEJ double progression w functions (progress/hold — parytet z decideNextSet testowany); pełny silnik (plateau/ból/deload) zostaje w kliencie — przeniesienie do wspólnego pakietu = v2, kopiowanie 500 linii silnika do functions odrzucone. (3) garminIngest: dedup po eventId, local-wins po timestamp per seria, idempotentny docId garmin-<deviceId>-<workoutId>, guard jednoczesności (istnieje completed sesja dnia → zapis jako ad-hoc "(Garmin)", zero mergowania).
+
+**BLOKADA ZEWNĘTRZNA (KROKI USERA):** kompletne źródła apki CIQ w `garmin/` (Monkey C: picker parowania, widok dnia z cache offline, ekran ćwiczenia ze stepperem i celem/notatką, rest timer z wibracją, ActivityRecording strength→FIT, kolejka zdarzeń w Storage; i18n PL/EN; 12 urządzeń, min API 4.0.0) — NIEZBUDOWANE, bo pobranie Connect IQ SDK wymaga zalogowania kontem Garmin w SDK Managerze. User: (1) SDK Manager + logowanie + SDK 9.2.0 i urządzenia, (2) klucz developerski (openssl, instrukcja w garmin/README.md), (3) `garmin/build.sh fenix7` + poprawki pierwszej kompilacji, (4) konto developerskie Garmin → submit do Connect IQ Store. Research: SDK 9.2.0 (2026-06-08); limity makeWebRequest ~8KB/-2/-300/-102.
+
 ### 2026-07-20 — RELEASE X16B (Z122-Z124): Apple Watch v1 domknięty na bazie prototypu
 
 **Co:** web index-CtB1XlVp + iOS build 66 (VALID, obie grupy, Beta App Review APPROVED). Prototyp watch pokrywał ~80% scope v1 (audyt w PLAN-X16B FAZA 0) — dorobione braki: etykieta celu tygodnia (silnik X16A) i przypięta notatka (X14A) w payloadzie (`buildWatchExercises`, notatka przycięta do 140 znaków), i18n zegarka PL/EN (enum L10n, język z payloadu — zero grzebania w pbxproj), wskaźnik "niezsynchronizowane" (outstandingUserInfoTransfers + delegate didFinish, widoczny gdy telefon nieosiągalny), DEDUPLIKACJA zapisu Health: eventy z zegarka niosą flagę `hkSession` — telefon pomija własny syncWorkoutToHealth, gdy sesję HKWorkout (z tętnem) prowadził zegarek.
