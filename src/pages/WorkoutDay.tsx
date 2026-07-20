@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, ArrowRightLeft, Flame, Share2, SkipForward, ChevronDown, X, Plus } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, X, Plus } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { RestTimer } from '@/components/RestTimer';
@@ -1570,6 +1570,12 @@ const WorkoutDay = () => {
     saveDraftSnapshot({ dayNotes: value });
   }, [saveDraftSnapshot]);
 
+  // Z129.2: menu ⋯ w karcie. Sygnatura z exerciseId + useCallback — inaczej każda
+  // karta dostaje nową lambdę i memo() przestaje działać (re-render bomba R2-07).
+  const handleRequestSwap = useCallback((exerciseId: string) => {
+    setSwapExerciseId(exerciseId);
+  }, []);
+
   const handleSkipExercise = useCallback((exerciseId: string) => {
     if (isExerciseFullyCompleted(exerciseSetsRef.current[exerciseId])) {
       return;
@@ -2326,28 +2332,10 @@ const WorkoutDay = () => {
               pinnedNote={getPinnedNote(exercise.name)}
               onPinnedNoteSave={savePinnedNote}
               trackingType={resolveTracking(exercise.name)}
+              {...(isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id])
+                ? { onRequestSwap: handleRequestSwap, onSkip: handleSkipExercise }
+                : {})}
             />
-            {/* AI Swap & Skip buttons — only in active workout */}
-            {isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id]) && (
-              <div className="flex justify-end gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground gap-1"
-                  onClick={() => handleSkipExercise(exercise.id)}
-                >
-                  <SkipForward className="h-3.5 w-3.5" />{t('workout.skip')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground gap-1"
-                  onClick={() => setSwapExerciseId(exercise.id)}
-                >
-                  <ArrowRightLeft className="h-3.5 w-3.5" />{t('newplan.swap')}
-                </Button>
-              </div>
-            )}
           </div>
         ))}
       </div>

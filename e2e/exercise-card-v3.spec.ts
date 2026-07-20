@@ -160,13 +160,60 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
     await expect(firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first()).toBeEnabled();
 
-    // "Notatka" button should be visible (exact: sekcja "Przypięta notatka" (Z103) też zawiera to słowo)
-    const notesBtn = firstCard.getByRole('button', { name: 'Notatka', exact: true });
-    await expect(notesBtn).toBeVisible();
-
-    // Click to show textarea
-    await notesBtn.click();
+    // X17A Z129.2: notatka sesyjna przeniesiona z chipa do menu ⋯.
+    await firstCard.getByRole('button', { name: 'Więcej akcji' }).click();
+    await page.getByRole('menuitem', { name: 'Notatka', exact: true }).click();
     await expect(firstCard.locator('textarea')).toBeVisible();
+  });
+
+  // X17A Z129.2: rzadkie akcje ćwiczenia zebrane w jednym menu.
+  test('menu ⋯ zbiera rzadkie akcje, chipy mają etykiety', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+
+    await firstCard.getByRole('button', { name: 'Więcej akcji' }).click();
+    const menu = page.getByRole('menu');
+    for (const item of ['Instrukcje', 'Zamień ćwiczenie', 'Pomiń', 'Notatka', 'Przypnij notatkę']) {
+      await expect(menu.getByRole('menuitem', { name: item, exact: true })).toBeVisible();
+    }
+
+    // „Instrukcje" pokazują treść, której nie ma już na karcie.
+    await menu.getByRole('menuitem', { name: 'Instrukcje' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // Chip kalkulatora ma etykietę — po samej ikonie dysku nie było wiadomo, co robi.
+    // Ciężar wpisujemy w PIERWSZĄ SERIĘ ROBOCZĄ (wiersz rozgrzewki jest wyżej):
+    // kalkulator i generator rozgrzewki liczą się wyłącznie z serii roboczych.
+    // Selektor po aria-label, nie po indeksie — indeks zależy od liczby rozgrzewek.
+    const weightInput = firstCard.getByLabel(/Set 1, (kg|lbs)/).first();
+    await weightInput.fill('60');
+    await weightInput.blur();
+    const chips = firstCard.getByTestId('exercise-card-chips');
+    await expect(chips.getByText('Talerze')).toBeVisible();
+    await expect(chips.getByText('Rozgrzewka')).toBeVisible();
+    await expect(chips.getByText('Metryki')).toBeVisible();
+  });
+
+  test('pominięcie ćwiczenia z menu ⋯ usuwa kartę z listy', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+
+    const cards = page.locator('.exercise-card');
+    await expect(cards.first().locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    const before = await cards.count();
+    const firstName = await cards.first().getByRole('heading').first().textContent();
+
+    await cards.first().getByRole('button', { name: 'Więcej akcji' }).click();
+    await page.getByRole('menuitem', { name: 'Pomiń' }).click();
+
+    await expect(cards).toHaveCount(before - 1);
+    await expect(cards.first().getByRole('heading').first()).not.toHaveText(firstName!);
   });
 
   test('rest timer is globally unavailable while the feature flag is disabled', async ({ page }) => {

@@ -3,12 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc } from 'lucide-react';
+import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Exercise } from '@/data/trainingPlan';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
-import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, previousWorkingSet } from '@/lib/exercise-utils';
+import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { IntervalTimer } from './IntervalTimer';
@@ -18,7 +24,7 @@ import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { hapticImpactLight } from '@/lib/haptics';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeExerciseName } from '@/data/exercise-i18n';
+import { localizeExerciseName, localizeExerciseInstruction } from '@/data/exercise-i18n';
 import type { NextSetAdvice } from '@/lib/next-set-advice';
 import type { WeeklyTarget } from '@/lib/progression-engine';
 import type { TranslationKey } from '@/i18n';
@@ -47,6 +53,10 @@ async function exerciseCompleteHaptic() {
     // Haptyka niedostępna — pomijamy.
   }
 }
+
+// Z129.2: jeden rozmiar chipa dla całego paska. flex-1 wyrównuje szerokości,
+// zero ramek 1px — granicę robi tło (No-Line Rule, docs/DESIGN.md).
+const chipClass = 'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-[11px] font-semibold transition-colors';
 
 // Domyślny czas odpoczynku z ustawień (Profil → 'rest-timer-default'), w sekundach.
 const getRestDefaultSeconds = (): number => {
@@ -229,6 +239,10 @@ interface ExerciseCardProps {
   onPinnedNoteSave?: (exerciseName: string, input: PinnedNoteSaveInput) => Promise<void> | void;
   /** Typ śledzenia serii (Z105). Brak = dotychczasowe zachowanie (weight_reps / bodyweight_reps). */
   trackingType?: TrackingType;
+  // Z129: rzadkie akcje z menu ⋯. Sygnatura z exerciseId i useCallback w rodzicu —
+  // lambda inline per karta zabiłaby memo() (re-render bomba R2-07).
+  onRequestSwap?: (exerciseId: string) => void;
+  onSkip?: (exerciseId: string) => void;
 }
 
 // Input czasu mm:ss (Z105): lokalny draft, parse dopiero na blur/Enter —
@@ -284,6 +298,8 @@ const ExerciseCardInner = ({
   pinnedNote,
   onPinnedNoteSave,
   trackingType,
+  onRequestSwap,
+  onSkip,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
@@ -304,6 +320,10 @@ const ExerciseCardInner = ({
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
+  // Z129.2: instrukcje wyprowadzone z karty do menu ⋯ (dialog na żądanie).
+  const [showInstructions, setShowInstructions] = useState(false);
+  // Z129.2: pusty stan przypiętej notatki żyje w menu, nie w karcie.
+  const [pinnedNoteOpen, setPinnedNoteOpen] = useState(false);
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
   const [notes, setNotes] = useState(savedNotes || '');
   const [showNotes, setShowNotes] = useState(!!savedNotes);
@@ -464,6 +484,8 @@ const ExerciseCardInner = ({
   const warmupSets = sets.filter(s => s.isWarmup);
   const workingSets = sets.filter(s => !s.isWarmup);
   const completedSets = workingSets.filter(s => s.completed).length;
+  const atSetLimit = workingSets.length >= 10;
+  const hasPinnedNote = Boolean(pinnedNote?.note || pinnedNote?.machineSettings);
   const allCompleted = workingSets.length > 0 && completedSets === workingSets.length;
   const animationUrl = getExerciseAnimationUrl(exercise.name);
   const { unit, fmt, toDisplay, fromInput } = useUnit();
@@ -802,16 +824,6 @@ const ExerciseCardInner = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 min-w-0">
               <h3 className="font-bold text-[16px] leading-tight">{localizedName}</h3>
-              {detailSlug && (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/exercise/${detailSlug}`)}
-                  aria-label={t('card.details')}
-                  className="shrink-0 p-1 -m-1 text-muted-foreground/60 hover:text-primary transition-colors"
-                >
-                  <Info className="h-4 w-4" />
-                </button>
-              )}
             </div>
             <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
               <span className="text-sm font-medium text-muted-foreground">
@@ -866,7 +878,49 @@ const ExerciseCardInner = ({
           </div>
         </div>
 
-        <span className="w-2 shrink-0" aria-hidden="true" />
+        {/* Z129.2: rzadkie akcje ćwiczenia w jednym menu, zamiast ikon rozsianych
+            po nagłówku, pasku chipów i przyciskach pod kartą. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={t('card.moreActions')}
+              className="shrink-0 self-start rounded-lg p-2 -mr-1 text-muted-foreground/70 transition-colors hover:text-foreground"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => setShowInstructions(true)} className="cursor-pointer">
+              <Info className="h-4 w-4 mr-2" />
+              {t('card.instructions')}
+            </DropdownMenuItem>
+            {onRequestSwap && (
+              <DropdownMenuItem onClick={() => onRequestSwap(exercise.id)} className="cursor-pointer">
+                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                {t('card.swapExercise')}
+              </DropdownMenuItem>
+            )}
+            {onSkip && (
+              <DropdownMenuItem onClick={() => onSkip(exercise.id)} className="cursor-pointer">
+                <SkipForward className="h-4 w-4 mr-2" />
+                {t('workout.skip')}
+              </DropdownMenuItem>
+            )}
+            {isEditable && (
+              <DropdownMenuItem onClick={() => setShowNotes(v => !v)} className="cursor-pointer">
+                <StickyNote className="h-4 w-4 mr-2" />
+                {t('card.note')}
+              </DropdownMenuItem>
+            )}
+            {isEditable && onPinnedNoteSave && (
+              <DropdownMenuItem onClick={() => setPinnedNoteOpen(true)} className="cursor-pointer">
+                <Pin className="h-4 w-4 mr-2" />
+                {t('notes.pinnedAdd')}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* ── Set table: nagłówki kolumn → rozgrzewka (badge W) → serie robocze ── */}
@@ -921,15 +975,37 @@ const ExerciseCardInner = ({
           const globalIndex = sets.indexOf(set);
           return renderSetRow(set, globalIndex, wi + 1, false, wi);
         })}
+
+        {/* Z129.1: „Dodaj serię" pełną szerokością bezpośrednio pod ostatnią serią —
+            tam, gdzie user go szuka (wzorzec Hevy/Strong), nie w pasku akcji na dole. */}
+        {isEditable && (
+          <>
+            <button
+              onClick={handleAddSet}
+              disabled={atSetLimit}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-muted/40 py-3 text-xs font-bold uppercase tracking-[0.14em] text-foreground transition-colors hover:bg-muted/70 hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <Plus className="h-4 w-4" />
+              {t('card.addSet')}
+            </button>
+            {/* Z129.1: nieme `disabled` nie mówiło userowi, dlaczego nie da się kliknąć. */}
+            {atSetLimit && (
+              <p className="mt-1.5 text-center text-[11px] text-muted-foreground/70">{t('card.addSetLimit')}</p>
+            )}
+          </>
+        )}
       </div>
 
-      {/* ── Pinned note (Z103): trwała notatka nad notatką sesyjną ── */}
-      {(pinnedNote || (isEditable && onPinnedNoteSave)) && (
+      {/* ── Pinned note (Z103): trwała notatka nad notatką sesyjną ──
+          Z129.2: w karcie TYLKO gdy notatka istnieje. Pusty stan siedzi w menu ⋯
+          i dopiero stamtąd otwiera edycję (pinnedNoteOpen). */}
+      {(hasPinnedNote || pinnedNoteOpen) && (
         <div className={cn('px-5', !isEditable && 'pb-5')}>
           <PinnedNoteSection
             exerciseName={exercise.name}
             pinnedNote={pinnedNote}
             onSave={isEditable ? onPinnedNoteSave : undefined}
+            startInEdit={pinnedNoteOpen && !hasPinnedNote}
           />
         </div>
       )}
@@ -937,78 +1013,59 @@ const ExerciseCardInner = ({
       {/* ── Footer ── */}
       {isEditable && (
         <div className="px-5 pb-5 pt-3">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handleAddSet}
-              disabled={workingSets.length >= 10}
-              className="inline-flex items-center gap-2 py-2 text-xs font-bold uppercase tracking-[0.14em] text-foreground hover:text-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              {t('card.addSet')}
-              <Plus className="h-5 w-5" />
-            </button>
-            <div className="flex items-center gap-1.5">
-              {(() => {
-                // Z108: generator rozgrzewki — tylko weight_reps z ciężarem roboczym,
-                // gdy nie ma jeszcze wypełnionych serii rozgrzewkowych (bez duplikacji).
-                const hasFilledWarmup = warmupSets.some((s) => s.weight > 0 || s.reps > 0 || s.completed);
-                const hasWorkingWeight = workingSets.some((s) => s.weight > 0);
-                return tracking === 'weight_reps' && hasWorkingWeight && !hasFilledWarmup ? (
-                  <button
-                    onClick={handleGenerateWarmup}
-                    aria-label={t('warmupgen.button')}
-                    data-testid="warmup-generate"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] font-semibold text-foreground/80 transition-colors hover:text-foreground"
-                  >
-                    <Flame className="h-3.5 w-3.5 text-[hsl(var(--ec-warmup-gold))]" />
-                    %
-                  </button>
-                ) : null;
-              })()}
-              {(() => {
-                // Z107: ciężar dla kalkulatora — aktywna seria, fallback ostatnia robocza z ciężarem.
-                const plateWeight = tracking === 'weight_reps'
-                  ? (sets[activeSetIndex]?.weight || [...sets].reverse().find((s) => !s.isWarmup && s.weight > 0)?.weight || 0)
-                  : 0;
-                return tracking === 'weight_reps' && plateWeight > 0 ? (
-                  <button
-                    onClick={() => setShowPlates(true)}
-                    aria-label={t('plates.openCalculator')}
-                    data-testid="plate-calculator-open"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] font-semibold text-foreground/80 transition-colors hover:text-foreground"
-                  >
-                    <Disc className="h-3.5 w-3.5" />
-                  </button>
-                ) : null;
-              })()}
-              {onMetricsChange && (
+          {/* Z129.2: trzy chipy tej samej wielkości, każdy z etykietą. Dotąd rząd
+              mieszał nagie ikony (%, dysk) z etykietowanymi, bez flex-wrap — po
+              ikonie nie było widać, że dysk to kalkulator talerzy. */}
+          <div className="flex items-stretch gap-1.5" data-testid="exercise-card-chips">
+            {(() => {
+              // Z108: generator rozgrzewki — tylko weight_reps z ciężarem roboczym,
+              // gdy nie ma jeszcze wypełnionych serii rozgrzewkowych (bez duplikacji).
+              const hasFilledWarmup = warmupSets.some((s) => s.weight > 0 || s.reps > 0 || s.completed);
+              const hasWorkingWeight = workingSets.some((s) => s.weight > 0);
+              return tracking === 'weight_reps' && hasWorkingWeight && !hasFilledWarmup ? (
                 <button
-                  onClick={() => setShowMetrics(v => !v)}
-                  aria-pressed={showMetrics}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold transition-colors",
-                    showMetrics
-                      ? "border-primary/40 bg-primary/10 text-primary"
-                      : "border-border bg-muted/40 text-foreground/80 hover:text-foreground"
-                  )}
+                  onClick={handleGenerateWarmup}
+                  aria-label={t('warmupgen.button')}
+                  data-testid="warmup-generate"
+                  className={cn(chipClass, 'bg-muted/40 text-foreground/80 hover:text-foreground')}
                 >
-                  <Activity className="h-3.5 w-3.5" />
-                  {t('card.metrics')}
+                  <Flame className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--ec-warmup-gold))]" />
+                  {t('comp.warmup.title')}
                 </button>
-              )}
+              ) : null;
+            })()}
+            {(() => {
+              // Z107: ciężar dla kalkulatora — aktywna seria, fallback ostatnia robocza z ciężarem.
+              const plateWeight = tracking === 'weight_reps'
+                ? (sets[activeSetIndex]?.weight || [...sets].reverse().find((s) => !s.isWarmup && s.weight > 0)?.weight || 0)
+                : 0;
+              return tracking === 'weight_reps' && plateWeight > 0 ? (
+                <button
+                  onClick={() => setShowPlates(true)}
+                  aria-label={t('plates.openCalculator')}
+                  data-testid="plate-calculator-open"
+                  className={cn(chipClass, 'bg-muted/40 text-foreground/80 hover:text-foreground')}
+                >
+                  <Disc className="h-3.5 w-3.5 shrink-0" />
+                  {t('plates.chip')}
+                </button>
+              ) : null;
+            })()}
+            {onMetricsChange && (
               <button
-                onClick={() => setShowNotes(v => !v)}
-                aria-pressed={showNotes}
+                onClick={() => setShowMetrics(v => !v)}
+                aria-pressed={showMetrics}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold transition-colors",
-                  showNotes
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-border bg-muted/40 text-foreground/80 hover:text-foreground"
+                  chipClass,
+                  showMetrics
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-muted/40 text-foreground/80 hover:text-foreground',
                 )}
               >
-                <StickyNote className="h-3.5 w-3.5" />
-                {t('card.note')}
+                <Activity className="h-3.5 w-3.5 shrink-0" />
+                {t('card.metrics')}
               </button>
-            </div>
+            )}
           </div>
           {onMetricsChange && showMetrics && (
             <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1044,6 +1101,37 @@ const ExerciseCardInner = ({
           )}
         </div>
       )}
+
+      {/* ── Instructions Dialog (Z129.2: treść wyprowadzona z karty do menu ⋯) ── */}
+      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+        <DialogContent className="max-w-[95vw] w-full sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base pr-6">{localizedName}</DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const displayInstructions = exercise.instructions.length > 0
+              ? exercise.instructions
+              : getExerciseInstructions(exercise.name);
+            if (displayInstructions.length === 0) {
+              return <p className="text-sm text-muted-foreground">{t('card.noInstructions')}</p>;
+            }
+            return (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {displayInstructions.map(inst => localizeExerciseInstruction(exercise.name, inst.content, lang)).join(' ')}
+              </p>
+            );
+          })()}
+          {detailSlug && (
+            <button
+              type="button"
+              onClick={() => navigate(`/exercise/${detailSlug}`)}
+              className="mt-1 w-full rounded-lg border border-primary/40 bg-primary/10 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-primary transition-colors hover:bg-primary/20"
+            >
+              {t('card.details')}
+            </button>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Animation Dialog ── */}
       {animationUrl && (

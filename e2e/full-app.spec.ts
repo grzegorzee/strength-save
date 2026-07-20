@@ -434,7 +434,9 @@ test.describe('ExercisePicker (Z69)', () => {
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
     await expect(page.locator('.exercise-card').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Zamień' }).first().click();
+    // X17A Z129.2: „Zamień ćwiczenie" przeniesione z przycisków pod kartą do menu ⋯.
+    await page.locator('.exercise-card').first().getByRole('button', { name: 'Więcej akcji' }).click();
+    await page.getByRole('menuitem', { name: 'Zamień ćwiczenie' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByPlaceholder(/Szukaj|Find/).fill('wyciskanie sztangi na lawce plaskiej');
@@ -621,11 +623,15 @@ test.describe('Linki krzyżowe (Z67)', () => {
     await blockFirebase(page);
   });
 
-  test('ikona info przy ćwiczeniu otwiera instrukcje i wraca bez utraty treningu', async ({ page }) => {
+  test('instrukcje z menu ⋯ prowadzą do szczegółów i wracają bez utraty treningu', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Szczegóły ćwiczenia' }).first().click();
+    // X17A Z129.2: ikona Info zniknęła z nagłówka karty — instrukcje otwiera menu ⋯,
+    // a dialog daje przejście do pełnych szczegółów ćwiczenia.
+    await page.locator('.exercise-card').first().getByRole('button', { name: 'Więcej akcji' }).click();
+    await page.getByRole('menuitem', { name: 'Instrukcje' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Szczegóły ćwiczenia' }).click();
     await expect(page).toHaveURL(/#\/exercise\//);
     await expect(page.getByRole('heading', { name: 'Instrukcje' })).toBeVisible();
 
@@ -730,8 +736,13 @@ test.describe('Przypięte notatki (Z103)', () => {
     await navigateAndWait(page, '/workout/day-1?autostart=true');
     await clearWorkoutDraftDb(page, 'e2e-test-user');
 
+    // X17A Z129.2: pusta przypięta notatka nie zaśmieca już karty — zakłada się ją
+    // z menu ⋯, a sekcja pojawia się w karcie dopiero gdy notatka ma treść.
+    await expect(page.getByTestId('pinned-note-section')).toHaveCount(0);
+    await page.locator('.exercise-card').first().getByRole('button', { name: 'Więcej akcji' }).click();
+    await page.getByRole('menuitem', { name: 'Przypnij notatkę' }).click();
+
     const firstSection = page.getByTestId('pinned-note-section').first();
-    await firstSection.getByTestId('pinned-note-edit').click();
     await page.getByTestId('pinned-note-input').fill('pas na 3 dziurkę');
     await page.getByTestId('pinned-note-machine-input').fill('siedzisko 4');
     await page.getByTestId('pinned-note-save').click();

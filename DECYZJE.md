@@ -11,6 +11,33 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X17A FAZA 2 (Z129): „Dodaj serię" pod listą + menu ⋯
+
+**Problem:** rzadkie akcje ćwiczenia były rozsiane po trzech miejscach (ikona `Info` w nagłówku, chipy w stopce, przyciski POD kartą), a „Dodaj serię" siedziało w pasku akcji na dole, nie tam, gdzie kończy się lista serii. Pasek chipów mieszał nagie ikony (`%`, dysk) z etykietowanymi, bez `flex-wrap` — po samej ikonie dysku nie było wiadomo, że to kalkulator talerzy.
+
+**Decyzje:**
+
+1. **„Dodaj serię" pełną szerokością bezpośrednio pod ostatnią serią** (wzorzec Hevy/Strong), w tym samym kontenerze co tabela.
+2. **Limit 10 serii mówi, dlaczego.** Nieme `disabled` zastąpione komunikatem `card.addSetLimit`. Reguła 6 z `CLAUDE.md`: każdy stan blokady musi powiedzieć userowi, co się dzieje.
+3. **Jedno menu `⋯` na rzadkie akcje:** Instrukcje, Zamień ćwiczenie, Pomiń, Notatka, Przypnij notatkę. Swap i pomiń pojawiają się tylko wtedy, gdy rodzic poda callbacki, więc widok historyczny ma menu bez akcji edycyjnych.
+4. **Instrukcje jako dialog na żądanie.** Treść usunięta z karty w Z128.2 wraca pod jednym tapnięciem, z fallbackiem z biblioteki (działa też dla ćwiczeń własnych) i przejściem do pełnych szczegółów, gdy ćwiczenie jest w bibliotece. Ikona `Info` znika z nagłówka.
+5. **Pusta przypięta notatka nie zajmuje miejsca w karcie.** Sekcja renderuje się dopiero, gdy notatka ma treść; zakłada się ją z menu (nowy prop `startInEdit` otwiera edycję od razu).
+6. **Trzy chipy o jednym rozmiarze** (Rozgrzewka / Talerze / Metryki) przez wspólną stałą `chipClass` z `flex-1`. Zero ramek 1px — granice przez tło (No-Line Rule). Chip „Notatka" przeniesiony do menu.
+7. **Kontrakt `memo()` utrzymany.** `handleRequestSwap` to `useCallback` z sygnaturą `(exerciseId)`, jak `handleSkipExercise`. Żadnej lambdy inline per karta — to była re-render bomba R2-07.
+
+**Infrastruktura testowa:** `src/test/setup.ts` dostał polyfill `PointerEvent`, `*PointerCapture` i `scrollIntoView`. jsdom ich nie implementuje, a Radix na nich stoi — bez tego menu `⋯` nie otwiera się w żadnym teście jednostkowym. To polyfill środowiska, nie rozluźnienie asercji.
+
+**Dwa fałszywe alarmy w bramkach (warto pamiętać, oba środowiskowe):**
+
+- `exercise-picker` „chip kategorii zawęża listę" wywalił się raz na timeout 26 s w teście synchronicznym. Solo zielony, trzy kolejne pełne biegi 887/887 zielone. Przyczyna: kontencja CPU (dev server + workery vitest + Playwright naraz), nie kod.
+- E2E karty sypało się losowo (raz 0 kart na `/workout/day-1`, raz brak chipa Talerze) na dev serverze **działającym od godzin z nagromadzonym HMR** po dziesiątkach edycji. Po restarcie serwera: 19/19 szeregowo, 170/170 pełne e2e. Wniosek na przyszłość: przed diagnozowaniem dziwnego e2e zrestartuj dev server, zanim zaczniesz szukać buga w kodzie.
+
+Przy okazji poprawiony nowy test e2e: pole ciężaru wybierane po `aria-label`, nie po indeksie `spinbutton` — indeks zależy od liczby wierszy rozgrzewki, a te właśnie zmieniły pozycję w Z128.1.
+
+**Weryfikacja:** test 887/887, typecheck, lint, build, bundle-budget (initial JS 1 490 669 / 1 536 000), build:mobile + dist-smoke, dist-offline, e2e:mock 170/170.
+
+---
+
 ### 2026-07-20 — X17A FAZA 1 (Z128): hierarchia karty ćwiczenia
 
 **Problem:** po treningu 2026-07-20 user zgłosił, że karta ćwiczenia jest nieczytelna. Zrzut baseline z symulatora iPhone 17 potwierdził: nad tabelą serii stał pusty kwadrat miniatury 92×72 (mapa `ANIMATION_FILES` jest PUSTA, więc placeholder pokazywał się przy KAŻDYM ćwiczeniu), 6 linii instrukcji i osobna sekcja rozgrzewki z własnym badge'em. Efekt: nad zgięciem ekranu mieściły się dwie serie robocze.

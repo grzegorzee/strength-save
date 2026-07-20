@@ -17,15 +17,17 @@ interface PinnedNoteSectionProps {
   /** Brak = tylko podgląd (widoki historyczne). */
   onSave?: (exerciseName: string, input: PinnedNoteSaveInput) => Promise<void> | void;
   className?: string;
+  /** Z129.2: otwarcie z menu ⋯ — pusta notatka startuje od razu w edycji. */
+  startInEdit?: boolean;
 }
 
 /**
  * Przypięta notatka per ćwiczenie (Z103): trwała, widoczna w każdej sesji z tym
  * ćwiczeniem, niezależnie od planu. Zapis dopiero po zatwierdzeniu (nie per znak).
  */
-export const PinnedNoteSection = ({ exerciseName, pinnedNote, onSave, className }: PinnedNoteSectionProps) => {
+export const PinnedNoteSection = ({ exerciseName, pinnedNote, onSave, className, startInEdit = false }: PinnedNoteSectionProps) => {
   const { t } = useTranslation();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(startInEdit);
   const [noteDraft, setNoteDraft] = useState(pinnedNote?.note ?? '');
   const [machineDraft, setMachineDraft] = useState(pinnedNote?.machineSettings ?? '');
 

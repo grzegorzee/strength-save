@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -250,14 +250,110 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
     });
   });
 
-  describe('stan PRZED X17A: to zmieniamy w Z129', () => {
-    it('Z129.1: "Dodaj serię" jest w stopce PO chipach, nie pod wierszami serii (do przeniesienia)', () => {
+  describe('Z129.1: przycisk dodania serii', () => {
+    it('"Dodaj serię" stoi bezpośrednio pod ostatnim wierszem serii, przed chipami', () => {
       const { card } = renderCard({ savedSets: [workingSet({ weight: 60, reps: 8 })], onMetricsChange: vi.fn() });
-      const metricsChip = within(card).getByRole('button', { name: 'Metryki' });
-      // Dziś: przycisk i chipy są w jednym rzędzie stopki, poniżej całej tabeli serii.
-      expect(domIndex(card, addSetButton(card))).toBeLessThan(domIndex(card, metricsChip));
       const lastRepsInput = within(card).getAllByLabelText(/Powt\./).at(-1) as HTMLElement;
-      expect(domIndex(card, lastRepsInput)).toBeLessThan(domIndex(card, addSetButton(card)));
+      const addSet = addSetButton(card);
+      const metricsChip = within(card).getByRole('button', { name: 'Metryki' });
+
+      expect(domIndex(card, lastRepsInput)).toBeLessThan(domIndex(card, addSet));
+      expect(domIndex(card, addSet)).toBeLessThan(domIndex(card, metricsChip));
+      // Pełna szerokość, w tym samym kontenerze co tabela serii.
+      expect(addSet.className).toContain('w-full');
+      expect(rowOf(lastRepsInput).parentElement).toBe(addSet.parentElement);
+    });
+
+    it('przy 10 seriach roboczych przycisk jest nieaktywny i podaje powód', () => {
+      const sets: SetData[] = [
+        workingSet({ isWarmup: true }),
+        ...Array.from({ length: 10 }, () => workingSet({ weight: 60, reps: 8 })),
+      ];
+      const { card } = renderCard({ savedSets: sets });
+      const addSet = addSetButton(card) as HTMLButtonElement;
+      expect(addSet.disabled).toBe(true);
+      expect(within(card).getByText(/Limit 10 serii/i)).toBeTruthy();
+    });
+
+    it('poniżej limitu przycisk jest aktywny i nie pokazuje powodu', () => {
+      const { card } = renderCard({ savedSets: [workingSet({ weight: 60, reps: 8 })] });
+      expect((addSetButton(card) as HTMLButtonElement).disabled).toBe(false);
+      expect(within(card).queryByText(/Limit 10 serii/i)).toBeNull();
+    });
+  });
+
+  describe('Z129.2: menu ⋯ i pasek chipów', () => {
+    const openMenu = async (card: HTMLElement) => {
+      const trigger = within(card).getByRole('button', { name: 'Więcej akcji' });
+      fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+      fireEvent.click(trigger);
+      return await screen.findByRole('menu');
+    };
+
+    it('menu zbiera rzadkie akcje ćwiczenia', async () => {
+      const { card } = renderCard({
+        savedSets: [workingSet()],
+        onRequestSwap: vi.fn(),
+        onSkip: vi.fn(),
+        onPinnedNoteSave: vi.fn(),
+      });
+      const menu = await openMenu(card);
+      for (const label of ['Instrukcje', 'Zamień ćwiczenie', 'Pomiń', 'Notatka', 'Przypnij notatkę']) {
+        expect(within(menu).getByText(label)).toBeTruthy();
+      }
+    });
+
+    it('„Pomiń" i „Zamień ćwiczenie" wołają callbacki z exerciseId', async () => {
+      const onSkip = vi.fn();
+      const onRequestSwap = vi.fn();
+      const { card } = renderCard({ savedSets: [workingSet()], onSkip, onRequestSwap });
+
+      fireEvent.click(within(await openMenu(card)).getByText('Pomiń'));
+      expect(onSkip).toHaveBeenCalledWith('ex-1');
+
+      fireEvent.click(within(await openMenu(card)).getByText('Zamień ćwiczenie'));
+      expect(onRequestSwap).toHaveBeenCalledWith('ex-1');
+    });
+
+    it('„Instrukcje" pokazują treść, której nie ma na karcie', async () => {
+      const { card } = renderCard({ savedSets: [workingSet()] });
+      expect(within(card).queryByText(/Łopatki ściągnięte/)).toBeNull();
+      fireEvent.click(within(await openMenu(card)).getByText('Instrukcje'));
+      expect(await screen.findByText(/Łopatki ściągnięte/)).toBeTruthy();
+    });
+
+    it('bez callbacków swap/skip menu ich nie pokazuje (widok historyczny)', async () => {
+      const { card } = renderCard({ savedSets: [workingSet()] });
+      const menu = await openMenu(card);
+      expect(within(menu).queryByText('Pomiń')).toBeNull();
+      expect(within(menu).queryByText('Zamień ćwiczenie')).toBeNull();
+      expect(within(menu).getByText('Instrukcje')).toBeTruthy();
+    });
+
+    it('pasek dolny ma trzy chipy z etykietami, bez chipu notatki', () => {
+      const { card } = renderCard({
+        savedSets: [workingSet({ weight: 60, reps: 8 })],
+        onMetricsChange: vi.fn(),
+      });
+      const chips = within(card).getByTestId('exercise-card-chips');
+      expect(within(chips).getByText('Rozgrzewka')).toBeTruthy();
+      expect(within(chips).getByText('Talerze')).toBeTruthy();
+      expect(within(chips).getByText('Metryki')).toBeTruthy();
+      expect(within(chips).queryByText('Notatka')).toBeNull();
+      expect(within(chips).getAllByRole('button')).toHaveLength(3);
+    });
+
+    it('przypięta notatka renderuje się w karcie tylko gdy istnieje', () => {
+      const empty = renderCard({ savedSets: [workingSet()], onPinnedNoteSave: vi.fn() });
+      expect(within(empty.card).queryByTestId('pinned-note-section')).toBeNull();
+
+      const filled = renderCard({
+        savedSets: [workingSet()],
+        onPinnedNoteSave: vi.fn(),
+        pinnedNote: { note: 'Uchwyt szeroki', updatedAt: 0 } as never,
+      });
+      expect(within(filled.card).getByTestId('pinned-note-section')).toBeTruthy();
+      expect(within(filled.card).getByText('Uchwyt szeroki')).toBeTruthy();
     });
   });
 });
