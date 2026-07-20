@@ -11,6 +11,28 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X17C (Z135-Z136): timery przerw wracają zza flagi, ale flaga ZOSTAJE
+
+**Kontekst:** timery wyłączono flagą 2026-06-27 po treningu, na którym timer nie dał sygnału przy zgaszonym ekranie. Przyczyna była systemowa: iOS wstrzymuje JavaScript w WKWebView, więc nic opartego o żywy JS nie zadziała, gdy telefon leży w kieszeni.
+
+**Decyzje:**
+
+1. **Stan timera to DEADLINE, nie licznik.** Pozostały czas liczy się zawsze jako `deadline − now`. Test symuluje skok zegara o 5 minut (jak po wyjęciu telefonu z kieszeni) i wymaga, żeby timer był SKOŃCZONY, nie zamrożony. To jedyna różnica, która naprawdę decyduje.
+2. **Sygnał przy zgaszonym ekranie wyłącznie przez local notification.** JS jest potrzebny tylko do rysowania paska, gdy user patrzy na ekran. Zadanie „obudź mnie za 90 sekund" należy do systemu.
+3. **Powiadomienie ma parę zaplanuj/anuluj.** `Pomiń` anuluje, każda zmiana czasu przeplanowuje, a koniec w foregroundzie anuluje systemowe i gra in-app — inaczej user dostałby sygnał do przerwy, której już nie ma, albo dwa razy ten sam.
+4. **Pasek INLINE w karcie, nie modal** (wzorzec Strong: odliczanie w kontekście serii). Tap rozwija do dużego odliczania na pełnym ekranie.
+5. **Pasek tyka we WŁASNYM stanie.** Gdyby licznik siedział w karcie, karta re-renderowałaby się cztery razy na sekundę — czyli powrót re-render bomby R2-07. `setInterval` odświeża wyłącznie widok paska i nigdy nie jest źródłem prawdy o czasie.
+6. **Osobne czasy przerwy dla rozgrzewki i serii roboczej** + nadpisanie per ćwiczenie, które celowo NIE dotyczy rozgrzewki. Najczęstsza skarga zaawansowanych na Hevy to jeden czas na wszystko.
+7. **Override flagi przez localStorage TYLKO w trybie E2E.** Bez tego timery za wyłączoną flagą są nietestowalne end-to-end, a włączenie ich globalnie w e2e zabiłoby test pilnujący, że przy wyłączonej fladze timerów w apce nie ma.
+
+**FLAGA POZOSTAJE WYŁĄCZONA.** Build 71 na TestFlight ma timery włączone (zbudowany z `VITE_FEATURE_WORKOUT_TIMERS=true`), web na gh-pages ich nie ma. Zdjęcie flagi na stałe wymaga zielonego testu na FIZYCZNYM iPhone — symulator nie odtwarza wstrzymania WKWebView, więc zielony wynik z symulatora niczego by nie dowodził. Lista kroków usera w `docs/PLAN-X17C-2026-07-20.md`.
+
+**Weryfikacja, że build 71 naprawdę ma timery** (nie założenie): bundle mobilny kompiluje się do `workoutTimers(){return e()??!0}`, a bez zmiennej środowiskowej do `!1`. Sprawdzone w obie strony; IPA zbudowana z tego dist.
+
+**Weryfikacja pozostała:** test 952/952, typecheck, lint, build, bundle-budget (initial JS 1 493 183 / 1 536 000), build:mobile + dist-smoke, dist-offline, e2e:mock 174/174, scenariusz przerwania zielony. iOS build 71 VALID + Beta App Review APPROVED.
+
+---
+
 ### 2026-07-20 — X17B (Z132-Z134): kalkulator talerzy v2
 
 **Zarzut usera:** „kalkulator o tyle jest słaby, że nie mogę tam zmienić wagi. Czyli jakbym chciał mieć inną wagę, to tam miałem na stałe przypisane np. 60 kg". Potwierdzone w kodzie: `targetKg` był propem, w komponencie nie istniał ani input wagi, ani stan na nią.
