@@ -50,3 +50,8 @@ scripts/__pycache__/
 # Android release signing (sekret, patrz FIRMA/_secrets/android)
 android/key.properties
 *.keystore
+
+# Lokalne artefakty w katalogu głównym (pliki usera, nie należą do repo)
+.last_session_update
+IMG_*.PNG
+RZA_*.xlsx
