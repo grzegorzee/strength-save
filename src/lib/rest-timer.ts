@@ -57,11 +57,14 @@ export const restProgress = (state: RestTimerState, nowMs: number): number => {
 // ── Ustawienia czasów przerw (Z135.2) ──
 
 export interface RestSettings {
-  /** Domyślna przerwa po serii ROBOCZEJ. */
+  /** Domyślna przerwa po serii ROBOCZEJ (między seriami). */
   workingSeconds: number;
   /** Domyślna przerwa po serii ROZGRZEWKOWEJ — najczęstsza skarga zaawansowanych
    *  na Hevy to jeden czas dla wszystkiego. */
   warmupSeconds: number;
+  /** Domyślna przerwa po ZAKOŃCZENIU ćwiczenia (przejście do następnego).
+   *  Zwykle dłuższa niż między seriami: dochodzi zmiana stanowiska i sprzętu. */
+  betweenExercisesSeconds: number;
   /** Nadpisanie per ćwiczenie (klucz = kanoniczna nazwa). Wzorzec Strong. */
   perExercise: Record<string, number>;
 }
@@ -73,6 +76,7 @@ const LEGACY_DEFAULT_KEY = 'rest-timer-default';
 export const DEFAULT_REST_SETTINGS: RestSettings = {
   workingSeconds: 90,
   warmupSeconds: 45,
+  betweenExercisesSeconds: 150,
   perExercise: {},
 };
 
@@ -99,6 +103,7 @@ export const loadRestSettings = (): RestSettings => {
     return {
       workingSeconds: positiveOr(parsed.workingSeconds, DEFAULT_REST_SETTINGS.workingSeconds),
       warmupSeconds: positiveOr(parsed.warmupSeconds, DEFAULT_REST_SETTINGS.warmupSeconds),
+      betweenExercisesSeconds: positiveOr(parsed.betweenExercisesSeconds, DEFAULT_REST_SETTINGS.betweenExercisesSeconds),
       perExercise,
     };
   } catch {
@@ -118,8 +123,11 @@ export const saveRestSettings = (settings: RestSettings): void => {
  */
 export const resolveRestSeconds = (
   settings: RestSettings,
-  set: { isWarmup?: boolean; exerciseKey?: string },
+  set: { isWarmup?: boolean; exerciseKey?: string; exerciseFinished?: boolean },
 ): number => {
+  // Ćwiczenie skończone => przerwa „przejście dalej", niezależna od serii.
+  // Nadpisanie per ćwiczenie jej nie dotyczy: to czas na zmianę stanowiska.
+  if (set.exerciseFinished) return settings.betweenExercisesSeconds;
   if (set.isWarmup) return settings.warmupSeconds;
   const override = set.exerciseKey ? settings.perExercise[set.exerciseKey] : undefined;
   return positiveOr(override, settings.workingSeconds);

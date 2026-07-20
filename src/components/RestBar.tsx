@@ -12,7 +12,7 @@ import {
 } from '@/lib/rest-timer';
 import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
-import { hapticImpactLight } from '@/lib/haptics';
+import { hapticRestEnd } from '@/lib/haptics';
 
 interface RestBarProps {
   /** Długość przerwy w sekundach. */
@@ -85,7 +85,9 @@ export const RestBar = ({ seconds, runId, exerciseLabel, onSkip }: RestBarProps)
     finishedRef.current = true;
     void cancelRestEndNotification();
     playTimerSound('finish');
-    void hapticImpactLight();
+    // MOCNY sygnał, nie lekki impuls: user zgłosił po treningu „cicha wibracja,
+    // nic więcej". Telefon leży obok ławki albo w kieszeni.
+    void hapticRestEnd();
   }, [done, state.deadlineAt]);
 
   const handleAdjust = (delta: number) => {
@@ -103,26 +105,29 @@ export const RestBar = ({ seconds, runId, exerciseLabel, onSkip }: RestBarProps)
 
   const label = done ? t('rest.bar.done') : mmss(left);
 
+  // Przyciski w OSOBNYM rzędzie, każdy flex-1. Wcześniej wszystko było w jednej
+  // linii z etykietą i czasem — na iPhone „Pomiń" wychodził poza kartę (zgłoszone
+  // ze zrzutu z treningu). Teraz szerokość tekstu nie ma jak rozwalić układu.
   const controls = (
-    <div className="flex items-center gap-1.5">
+    <div className="mt-2 flex items-stretch gap-1.5">
       <button
         type="button"
         onClick={() => handleAdjust(-15)}
-        className="rounded-lg bg-background/60 px-2.5 py-1.5 text-xs font-bold tabular-nums transition-colors hover:bg-background"
+        className="flex-1 rounded-lg bg-background/60 px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-background"
       >
         -15
       </button>
       <button
         type="button"
         onClick={() => handleAdjust(15)}
-        className="rounded-lg bg-background/60 px-2.5 py-1.5 text-xs font-bold tabular-nums transition-colors hover:bg-background"
+        className="flex-1 rounded-lg bg-background/60 px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-background"
       >
         +15
       </button>
       <button
         type="button"
         onClick={handleSkip}
-        className="rounded-lg bg-background/60 px-2.5 py-1.5 text-xs font-bold transition-colors hover:bg-background"
+        className="flex-1 rounded-lg bg-background/60 px-2 py-2 text-xs font-bold transition-colors hover:bg-background"
       >
         {t('rest.bar.skip')}
       </button>
@@ -144,19 +149,19 @@ export const RestBar = ({ seconds, runId, exerciseLabel, onSkip }: RestBarProps)
           style={{ width: `${progress * 100}%` }}
           aria-hidden="true"
         />
-        <div className="relative flex items-center justify-between gap-2">
+        <div className="relative">
           <button
             type="button"
             onClick={() => setExpanded(true)}
             aria-label={t('rest.bar.expand')}
             data-testid="rest-bar-expand"
-            className="flex items-center gap-2 text-left"
+            className="flex w-full items-center gap-2 text-left"
           >
             <Timer className={cn('h-4 w-4 shrink-0', done ? 'text-fitness-success' : 'text-primary')} />
-            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
               {t('rest.bar.title')}
             </span>
-            <span className={cn('text-base font-bold tabular-nums', done && 'text-fitness-success')}>{label}</span>
+            <span className={cn('truncate text-xl font-bold tabular-nums', done && 'text-fitness-success')}>{label}</span>
           </button>
           {controls}
         </div>

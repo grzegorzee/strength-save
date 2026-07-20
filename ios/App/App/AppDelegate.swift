@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -10,7 +11,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Aktywuj sesję Watch jak najwcześniej — eventy z zegarka (transferUserInfo)
         // muszą trafić do kolejki nawet zanim załaduje się webview.
         PhoneWatchSessionManager.shared.activate()
+        configureAudioSession()
         return true
+    }
+
+    /// Sygnał końca przerwy MUSI być słyszalny na siłowni.
+    ///
+    /// Domyślna kategoria sesji audio WKWebView (.ambient) jest wyciszana przez
+    /// boczny przełącznik ciszy na iPhone — user zgłosił po realnym treningu, że
+    /// słyszy tylko cichą wibrację. Kategoria .playback ignoruje ten przełącznik.
+    ///
+    /// .duckOthers + .mixWithOthers: muzyka z AirPodsów NIE jest przerywana, tylko
+    /// przyciszana na czas beepa. Na siłowni to jedyny sensowny wariant.
+    private func configureAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(
+                .playback,
+                mode: .default,
+                options: [.mixWithOthers, .duckOthers]
+            )
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            // Bez sesji audio zostaje haptyka i powiadomienie systemowe.
+        }
     }
 
     // @capacitor-firebase/messaging odbiera token APNs przez NotificationCenter.

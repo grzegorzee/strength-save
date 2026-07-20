@@ -85,24 +85,24 @@ describe('czasy przerw — rozgrzewka vs robocza vs per ćwiczenie (Z135.2)', ()
   beforeEach(() => localStorage.clear());
 
   it('seria robocza i rozgrzewkowa mają OSOBNE domyślne czasy', () => {
-    const settings = { workingSeconds: 120, warmupSeconds: 45, perExercise: {} };
+    const settings = { workingSeconds: 120, warmupSeconds: 45, betweenExercisesSeconds: 150, perExercise: {} };
     expect(resolveRestSeconds(settings, { isWarmup: false })).toBe(120);
     expect(resolveRestSeconds(settings, { isWarmup: true })).toBe(45);
   });
 
   it('nadpisanie per ćwiczenie wygrywa z domyślnym czasem serii roboczej', () => {
-    const settings = { workingSeconds: 120, warmupSeconds: 45, perExercise: { 'przysiad': 240 } };
+    const settings = { workingSeconds: 120, warmupSeconds: 45, betweenExercisesSeconds: 150, perExercise: { 'przysiad': 240 } };
     expect(resolveRestSeconds(settings, { isWarmup: false, exerciseKey: 'przysiad' })).toBe(240);
     expect(resolveRestSeconds(settings, { isWarmup: false, exerciseKey: 'wyciskanie' })).toBe(120);
   });
 
   it('nadpisanie per ćwiczenie NIE dotyczy rozgrzewki', () => {
-    const settings = { workingSeconds: 120, warmupSeconds: 45, perExercise: { 'przysiad': 240 } };
+    const settings = { workingSeconds: 120, warmupSeconds: 45, betweenExercisesSeconds: 150, perExercise: { 'przysiad': 240 } };
     expect(resolveRestSeconds(settings, { isWarmup: true, exerciseKey: 'przysiad' })).toBe(45);
   });
 
   it('zapis i odczyt ustawień przez localStorage', () => {
-    saveRestSettings({ workingSeconds: 150, warmupSeconds: 30, perExercise: { 'martwy ciag': 300 } });
+    saveRestSettings({ workingSeconds: 150, warmupSeconds: 30, betweenExercisesSeconds: 200, perExercise: { 'martwy ciag': 300 } });
     const loaded = loadRestSettings();
     expect(loaded.workingSeconds).toBe(150);
     expect(loaded.warmupSeconds).toBe(30);

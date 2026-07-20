@@ -224,8 +224,6 @@ interface ExerciseCardProps {
   defaultMetricsVisible?: boolean;
   /** Rekomendacja ciężaru z reguły RZA (ma priorytet nad nextAdvice gdy obecna). */
   rzaAdvice?: RzaAdvice | null;
-  /** Startuje globalny timer przerwy na poziomie strony treningu. */
-  onRestTimerStart?: (payload: { seconds: number; exerciseLabel: string }) => void;
   /** Przypięta notatka per ćwiczenie (Z103) — trwała, niezależna od planu i sesji. */
   pinnedNote?: ExerciseNote;
   onPinnedNoteSave?: (exerciseName: string, input: PinnedNoteSaveInput) => Promise<void> | void;
@@ -286,7 +284,6 @@ const ExerciseCardInner = ({
   onMetricsChange,
   defaultMetricsVisible = false,
   rzaAdvice,
-  onRestTimerStart,
   pinnedNote,
   onPinnedNoteSave,
   trackingType,
@@ -419,21 +416,23 @@ const ExerciseCardInner = ({
     if (turningOn && !currentSet.isWarmup) {
       const workingAfter = newSets.filter(s => !s.isWarmup);
       const allDone = workingAfter.length > 0 && workingAfter.every(s => s.completed);
+      // Timer przerwy startuje w OBU przypadkach, różni się tylko długością:
+      // po ostatniej serii to przerwa na przejście do następnego ćwiczenia
+      // (dłuższa — dochodzi zmiana stanowiska i sprzętu).
       if (allDone) {
-        // Ostatnia seria ćwiczenia ukończona → sygnał „przejdź do następnego" (bez timera przerwy).
         unlockTimerSound();
         exerciseCompleteHaptic();
         playTimerSound('complete');
-      } else if (FEATURE_FLAGS.workoutTimers && !intervalSpec) {
-        // X17C Z136.4: kolejna seria robocza → pasek przerwy INLINE w tej karcie.
+      }
+      if (FEATURE_FLAGS.workoutTimers && !intervalSpec) {
         // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
         const seconds = resolveRestSeconds(loadRestSettings(), {
           isWarmup: currentSet.isWarmup,
           exerciseKey: exercise.name,
+          exerciseFinished: allDone,
         });
         unlockTimerSound();
         setRestRun((r) => ({ seconds, runId: r.runId + 1 }));
-        onRestTimerStart?.({ seconds, exerciseLabel: localizedName });
       }
     }
   };

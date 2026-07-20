@@ -22,14 +22,20 @@ export const unlockTimerSound = (): void => {
   if (c && c.state === 'suspended') c.resume().catch(() => {});
 };
 
-const beepAt = (c: AudioContext, start: number, freq: number, dur: number): void => {
+// Głośność sygnałów. Podniesiona po realnym treningu (2026-07-20): przy 0.3 beep
+// ginął w hałasie siłowni i w muzyce z AirPodsów. Fala trójkątna niesie się lepiej
+// niż sinus przy tej samej głośności szczytowej.
+const PEAK_GAIN = 0.85;
+
+const beepAt = (c: AudioContext, start: number, freq: number, dur: number, peak = PEAK_GAIN): void => {
   const osc = c.createOscillator();
   const gain = c.createGain();
   osc.connect(gain);
   gain.connect(c.destination);
+  osc.type = 'triangle';
   osc.frequency.value = freq;
   gain.gain.setValueAtTime(0.0001, start);
-  gain.gain.exponentialRampToValueAtTime(0.3, start + 0.012);
+  gain.gain.exponentialRampToValueAtTime(peak, start + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
   osc.start(start);
   osc.stop(start + dur);
@@ -59,7 +65,11 @@ export const playTimerSound = (kind: 'tick' | 'finish' | 'complete' = 'finish'):
     beepAt(c, now + 0.15, 1175, 0.12);
     beepAt(c, now + 0.30, 1568, 0.2);
   } else {
-    beepAt(c, now, 880, 0.12);
-    beepAt(c, now + 0.16, 1175, 0.16);
+    // Koniec przerwy: wyraźna, wznosząca sekwencja „wracaj do sztangi".
+    // Dwa ciche tony gubiły się na siłowni — teraz cztery, dłuższe, z domknięciem.
+    beepAt(c, now, 880, 0.16);
+    beepAt(c, now + 0.20, 1175, 0.16);
+    beepAt(c, now + 0.40, 1568, 0.16);
+    beepAt(c, now + 0.62, 1568, 0.32);
   }
 };

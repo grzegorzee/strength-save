@@ -2,7 +2,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, X, Plus } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
-import { RestTimer } from '@/components/RestTimer';
 import { calculateStreak } from '@/lib/summary-utils';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -170,12 +169,6 @@ const WorkoutDay = () => {
   const keepLocalOnConflictRef = useRef<null | (() => Promise<void>)>(null);
   const [showWarmup, setShowWarmup] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [restTimer, setRestTimer] = useState<{ open: boolean; seconds: number; exerciseLabel: string; runId: number }>({
-    open: false,
-    seconds: 90,
-    exerciseLabel: '',
-    runId: 0,
-  });
   // Podsumowanie ukończonego treningu: które ćwiczenia mają rozwinięte serie.
   const [expandedSummaryIds, setExpandedSummaryIds] = useState<Set<string>>(new Set());
   const { unit, fmt, toDisplay } = useUnit();
@@ -481,16 +474,6 @@ const WorkoutDay = () => {
         setAutoSaveStatus(current => current === status ? nextStatus : current);
       }, delay);
     }
-  }, []);
-
-  const startRestTimer = useCallback((payload: { seconds: number; exerciseLabel: string }) => {
-    if (!FEATURE_FLAGS.workoutTimers) return;
-    setRestTimer((current) => ({
-      open: true,
-      seconds: payload.seconds,
-      exerciseLabel: payload.exerciseLabel,
-      runId: current.runId + 1,
-    }));
   }, []);
 
   // Cienki wrapper: logika snapshotu w czystej funkcji (workout-draft-snapshot.ts, Z29).
@@ -2340,7 +2323,6 @@ const WorkoutDay = () => {
               onMetricsChange={handleMetricsChange}
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
               rzaAdvice={exerciseInsights.get(exercise.id)?.rzaAdvice}
-              onRestTimerStart={startRestTimer}
               pinnedNote={getPinnedNote(exercise.name)}
               onPinnedNoteSave={savePinnedNote}
               trackingType={resolveTracking(exercise.name)}
@@ -2440,14 +2422,6 @@ const WorkoutDay = () => {
         </div>
       )}
 
-      {FEATURE_FLAGS.workoutTimers && isWorkoutStarted && !isCompleted && restTimer.open && (
-        <RestTimer
-          key={restTimer.runId}
-          defaultSeconds={restTimer.seconds}
-          exerciseLabel={restTimer.exerciseLabel}
-          onClose={() => setRestTimer((current) => ({ ...current, open: false }))}
-        />
-      )}
 
       {isWorkoutStarted && !isCompleted && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/85 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">

@@ -20,6 +20,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
+import { RestSettingsCard } from '@/components/RestSettingsCard';
 import { WorkoutImportWizard } from '@/components/WorkoutImportWizard';
 import { HealthSettings } from '@/components/HealthSettings';
 import { GarminSettings } from '@/components/GarminSettings';
@@ -172,6 +173,9 @@ const Settings = () => {
       <HealthSettings />
 
       <GarminSettings />
+
+      {/* Długości przerw (zgłoszenie usera 2026-07-20): seria / ćwiczenie / rozgrzewka */}
+      <RestSettingsCard />
 
       {/* Kalkulator talerzy (Z107): inwentarz per urządzenie */}
       <PlateInventorySettings />

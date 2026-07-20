@@ -11,6 +11,28 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X17C poprawki po teście usera na urządzeniu (build 71 → 73)
+
+**Zgłoszenie po realnym teście:** „jedyne co się wydarzyło to cicha wibracja, nic więcej", „da się to zrobić inline zamiast tego dużego zegara?", „możliwość ustawiania domyślnej przerwy między seriami i między ćwiczeniami".
+
+**Dobra wiadomość:** powiadomienia systemowe DOCHODZĄ przy zgaszonym ekranie — czyli fundament z Z135 (deadline + local notification) działa. Problemem była SIŁA sygnału i podwójny UI.
+
+**Naprawione:**
+
+1. **Podwójny timer — mój błąd.** `ExerciseCard` wołał `setRestRun` (nowy pasek inline) i RÓWNOCZEŚNIE `onRestTimerStart` (stary modal na poziomie strony). Na zrzucie usera widać oba naraz. Stary modal `RestTimer` odpięty i usunięty (był po tym martwy: 236 linii komponentu + 107 linii testu).
+2. **„Cicha wibracja" — źle dobrany sygnał.** Koniec przerwy wołał `hapticImpactLight`, czyli najsłabszy dostępny impuls. Nowy `hapticRestEnd`: systemowy wzorzec notyfikacyjny + trzy CIĘŻKIE uderzenia w odstępach 180 ms. Na webie fallback do `navigator.vibrate` ze wzorcem.
+3. **Brak dźwięku — przyczyna systemowa, nie kod JS.** Domyślna kategoria sesji audio WKWebView (`.ambient`) jest wyciszana bocznym przełącznikiem ciszy iPhone'a. `AppDelegate` ustawia teraz `.playback` z `[.mixWithOthers, .duckOthers]`: beep gra mimo przełącznika ciszy, a muzyka z AirPodsów nie jest przerywana, tylko przyciszana na czas sygnału (user miał podłączone AirPodsy).
+4. **Sam dźwięk wzmocniony:** szczyt 0.3 → 0.85, sinus → trójkąt (lepiej się niesie), a sygnał końca przerwy z dwóch krótkich tonów na cztery wznoszące z domknięciem.
+5. **Rozjeżdżający się pasek.** Etykieta, czas i trzy przyciski były w JEDNYM rzędzie — na iPhone „Pomiń" wychodził poza kartę. Teraz czas w pierwszym rzędzie, przyciski w drugim, każdy `flex-1`. Szerokość tekstu nie ma jak rozwalić układu.
+6. **Ustawienia przerw (nowe, `RestSettingsCard` w Ustawieniach).** Trzy niezależne czasy, bo to trzy różne sytuacje na siłowni: **między seriami** (domyślnie 90 s), **między ćwiczeniami** (150 s — dochodzi zmiana stanowiska i sprzętu), **po rozgrzewce** (45 s). Każdy z polem liczbowym i czterema presetami. Zakres 5–600 s.
+7. **Przerwa startuje też po ZAKOŃCZENIU ćwiczenia.** Dotąd ostatnia seria dawała tylko dźwięk „przejdź dalej" bez odliczania. Teraz leci przerwa „między ćwiczeniami"; nadpisanie per ćwiczenie jej NIE dotyczy (to czas na zmianę stanowiska, nie na daną pracę).
+
+**Weryfikacja:** test 974/974, typecheck, lint, build, bundle-budget (1 512 517 / 1 536 000), dist-offline, e2e:mock 177/177. Zrzut paska potwierdza brak ucięcia.
+
+**Flaga nadal wyłączona** dla weba; build 73 idzie z timerami włączonymi do ponownego testu na urządzeniu. Do sprawdzenia przez usera: czy dźwięk słychać przy przełączniku ciszy i czy wibracja jest wyczuwalna przez kieszeń.
+
+---
+
 ### 2026-07-20 — X17D (Z138-Z140): ekran „Twoje liczby" + animacja „+1"
 
 **Prośba usera:** „chciałbym, żeby po kliknięciu u góry po prawej stronie w ilość treningów wyświetlały się jakieś dane o tych wszystkich treningach, np. ile czasu spędziłem na siłowni oraz ile ton podniosłem (...) a jak zapiszę trening to chciałbym animację +1".
