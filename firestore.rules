@@ -556,6 +556,16 @@ service cloud.firestore {
       allow write: if request.auth != null && isAdmin();
     }
 
+    // Z125: parowanie zegarka Garmin — kody i tokeny urządzeń żyją WYŁĄCZNIE
+    // po stronie Admin SDK (functions). Klient widzi swoje urządzenia przez
+    // callable garminDevices, nigdy bezpośrednio (dokumenty trzymają hashe).
+    match /device_pair_codes/{codeHash} {
+      allow read, write: if false;
+    }
+    match /device_tokens/{tokenHash} {
+      allow read, write: if false;
+    }
+
     // chat_conversations — REMOVED (AI Chat feature removed in v6.7.0)
   }
 }

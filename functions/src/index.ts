@@ -70,6 +70,15 @@ admin.initializeApp();
 
 // Re-export weekly digest
 export { weeklyDigest } from "./weekly-digest";
+// Z125: Garmin Connect IQ — parowanie urządzenia i wymiana danych z zegarkiem.
+export {
+  garminPairStart,
+  garminDevices,
+  garminRevokeDevice,
+  garminPair,
+  garminDay,
+  garminIngest,
+} from "./garmin-endpoints";
 // Codzienne poranne przypomnienie o treningu (tylko w dni treningowe).
 export { dailyTrainingReminder } from "./daily-reminder";
 export { activityRollup } from "./activity-rollup";

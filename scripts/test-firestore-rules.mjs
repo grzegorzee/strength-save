@@ -430,6 +430,13 @@ add('exercise_notes: read admin ALLOWED', true, await ok(() => getDoc(doc(adminD
 add('exercise_notes: delete wlasnej ALLOWED', true, await ok(() => deleteDoc(doc(db, 'exercise_notes', `${UID}_przysiad-ze-sztanga`))));
 add('exercise_notes: delete cudzej DENIED', false, await ok(() => deleteDoc(doc(otherDb, 'exercise_notes', `${UID}_x4`))));
 
+// === Garmin (Z125): kody parowania i tokeny urzadzen tylko dla Admin SDK ===
+add('device_pair_codes: read klienta DENIED (Z125)', false, await ok(() => getDoc(doc(db, 'device_pair_codes', 'jakis-hash'))));
+add('device_pair_codes: write klienta DENIED (Z125)', false, await ok(() => setDoc(doc(db, 'device_pair_codes', 'jakis-hash'), { uid: UID, expiresAt: Date.now() })));
+add('device_tokens: read klienta DENIED (Z125)', false, await ok(() => getDoc(doc(db, 'device_tokens', 'jakis-hash'))));
+add('device_tokens: write klienta DENIED (Z125)', false, await ok(() => setDoc(doc(db, 'device_tokens', 'jakis-hash'), { uid: UID })));
+add('device_tokens: read admina DENIED (tokeny to sekrety, tylko Admin SDK) (Z125)', false, await ok(() => getDoc(doc(adminDb, 'device_tokens', 'jakis-hash'))));
+
 await env.cleanup();
 
 let failed = 0;
