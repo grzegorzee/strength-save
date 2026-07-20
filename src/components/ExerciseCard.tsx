@@ -485,11 +485,24 @@ const ExerciseCardInner = ({
     removeSetAt(setIndex);
   };
 
+  // X17B Z133.2: waga policzona w kalkulatorze wraca do AKTYWNEJ serii roboczej.
+  // Bez tego arkusz był ślepą uliczką: user liczył, zamykał i przepisywał ręcznie.
+  const handleApplyPlateWeight = (_exerciseId: string, weight: number) => {
+    const targetIndex = activeSetIndex >= 0
+      ? activeSetIndex
+      : sets.findIndex((s) => !s.isWarmup);
+    if (targetIndex < 0) return;
+    handleSetChange(targetIndex, 'weight', weight);
+  };
+
   // Z108: generator rozgrzewki %1RM — zastępuje pustą serię rozgrzewkową schematem
   // gryf x10 / 50% x8 / 70% x5 / 90% x2 od pierwszego ciężaru roboczego.
   const handleGenerateWarmup = () => {
     const workingWeight = sets.find((s) => !s.isWarmup && s.weight > 0)?.weight ?? 0;
-    const generated = generateWarmupSets(workingWeight, tracking, loadPlateInventory().barKg);
+    // Z134.2: inwentarz idzie do generatora, żeby nie proponował ciężarów,
+    // których na tej siłowni nie da się złożyć.
+    const inventory = loadPlateInventory();
+    const generated = generateWarmupSets(workingWeight, tracking, inventory.barKg, inventory.plates);
     if (!generated) return;
     hasLocalChanges.current = true;
     const newSets = [...generated, ...sets.filter((s) => !s.isWarmup)];
@@ -1059,23 +1072,20 @@ const ExerciseCardInner = ({
                 </button>
               ) : null;
             })()}
-            {(() => {
-              // Z107: ciężar dla kalkulatora — aktywna seria, fallback ostatnia robocza z ciężarem.
-              const plateWeight = tracking === 'weight_reps'
-                ? (sets[activeSetIndex]?.weight || [...sets].reverse().find((s) => !s.isWarmup && s.weight > 0)?.weight || 0)
-                : 0;
-              return tracking === 'weight_reps' && plateWeight > 0 ? (
-                <button
-                  onClick={() => setShowPlates(true)}
-                  aria-label={t('plates.openCalculator')}
-                  data-testid="plate-calculator-open"
-                  className={cn(chipClass, 'bg-muted/40 text-foreground/80 hover:text-foreground')}
-                >
-                  <Disc className="h-3.5 w-3.5 shrink-0" />
-                  {t('plates.chip')}
-                </button>
-              ) : null;
-            })()}
+            {/* X17B Z134.3: chip widoczny dla weight_reps NIEZALEŻNIE od tego, czy
+                w serii jest już ciężar. Warunek `plateWeight > 0` chował kalkulator
+                dokładnie w momencie, w którym jest najbardziej potrzebny. */}
+            {tracking === 'weight_reps' && (
+              <button
+                onClick={() => setShowPlates(true)}
+                aria-label={t('plates.openCalculator')}
+                data-testid="plate-calculator-open"
+                className={cn(chipClass, 'bg-muted/40 text-foreground/80 hover:text-foreground')}
+              >
+                <Disc className="h-3.5 w-3.5 shrink-0" />
+                {t('plates.chip')}
+              </button>
+            )}
             {onMetricsChange && (
               <button
                 onClick={() => setShowMetrics(v => !v)}
@@ -1224,6 +1234,8 @@ const ExerciseCardInner = ({
           open={showPlates}
           onOpenChange={setShowPlates}
           targetKg={sets[activeSetIndex]?.weight || [...sets].reverse().find((s) => !s.isWarmup && s.weight > 0)?.weight || 0}
+          exerciseId={exercise.id}
+          onApplyWeight={handleApplyPlateWeight}
         />
       )}
     </div>

@@ -199,6 +199,30 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(chips.getByText('Metryki')).toBeVisible();
   });
 
+  // X17B Z133.6: kalkulator przestaje być ślepą uliczką.
+  test('kalkulator talerzy: zmiana wagi w arkuszu i „Ustaw w serii"', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+
+    // Z134.3: chip jest dostępny ZANIM user wpisze jakikolwiek ciężar.
+    await expect(firstCard.getByTestId('plate-calculator-open')).toBeVisible();
+    await firstCard.getByTestId('plate-calculator-open').click();
+
+    // Waga jest edytowalna w arkuszu (główny zarzut usera).
+    const weight = page.getByLabel(/Waga docelowa/i);
+    await expect(weight).toBeVisible();
+    await weight.fill('100');
+    await expect(page.getByTestId('plates-summary')).toContainText('25');
+
+    // Domknięcie pętli: policzona waga wraca do serii.
+    await page.getByRole('button', { name: /Ustaw w serii/i }).click();
+    await expect(firstCard.getByLabel(/Set 1, (kg|lbs)/).first()).toHaveValue('100');
+  });
+
   test('pominięcie ćwiczenia z menu ⋯ usuwa kartę z listy', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
