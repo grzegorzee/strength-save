@@ -1,0 +1,1 @@
+import{r as a,X as r,Y as s,s as i}from"./generateCategoricalChart-D_heLTeF.js";import{A as x}from"./Analytics-D8MaMdxi.js";var o=a({chartName:"AreaChart",GraphicalChild:x,axisComponents:[{axisType:"xAxis",AxisComp:r},{axisType:"yAxis",AxisComp:s}],formatAxisMap:i});export{o as A};
