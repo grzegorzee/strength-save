@@ -33,7 +33,7 @@
 
 **Lekcje zapisane w CLAUDE.md projektu (reguły 5-8):** nowa funkcja nie może zabrać niczego istniejącemu przepływowi (nazwij niezmiennik + test na stary przepływ); każdy stan błędu musi mieć wyjście; apka natywna ma się zachowywać jak apka; tła statusowe zawsze z przezroczystością. Checklista wdrożeniowa ma nowy scenariusz przerwania (plan → wyjście → szybki trening → powrót).
 
-**Weryfikacja:** vitest 863/863 (26 nowych: buildDayFromDraft, hasAnyCompletedSet, hydracja pustego draftu), typecheck/lint/build/budżet zielone, e2e 331 passed. Web index-Cnb1kBsw, iOS build 68.
+**Weryfikacja:** vitest 863/863 (26 nowych: buildDayFromDraft, hasAnyCompletedSet, hydracja pustego draftu), typecheck/lint/build/budżet zielone, e2e 333 passed z NOWĄ sceną regresji incydentu, sprawdzoną w obie strony (pada na starym zachowaniu, przechodzi po fixie). Web index-Cnb1kBsw, iOS build 68 VALID + obie grupy + Beta App Review APPROVED.
 
 
 ### 2026-07-20 — MARATON X14-X16 ZAKOŃCZONY (Z103-Z127): 8,5/9 planów wdrożonych
