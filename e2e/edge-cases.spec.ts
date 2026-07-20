@@ -12,7 +12,7 @@ test.describe('Edge Cases: URL Manipulation', () => {
 
   test('special chars in URL params do not crash app', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1?date=2026-01-01&test=%3Cscript%3Ealert(1)%3C/script%3E');
-    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
+    await expect(page.getByText('Poniedziałek', { exact: false }).first()).toBeVisible();
   });
 
   test('SQL injection attempt in route param is harmless', async ({ page }) => {
@@ -54,7 +54,7 @@ test.describe('Edge Cases: LocalStorage', () => {
 
     // Navigate to workout — should handle draft save failure gracefully
     await navigateAndWait(page, '/workout/day-1');
-    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
+    await expect(page.getByText('Poniedziałek', { exact: false }).first()).toBeVisible();
 
     // Cleanup
     await page.evaluate(() => {
@@ -94,7 +94,7 @@ test.describe('Edge Cases: LocalStorage', () => {
     });
 
     await navigateAndWait(page, '/workout/day-1');
-    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
+    await expect(page.getByText('Poniedziałek', { exact: false }).first()).toBeVisible();
     const hasError = await page.locator('text=Coś poszło nie tak').count();
     expect(hasError).toBe(0);
     await page.evaluate(() => localStorage.removeItem('fittracker_workout_draft'));
