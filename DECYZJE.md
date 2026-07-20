@@ -11,6 +11,31 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X17B (Z132-Z134): kalkulator talerzy v2
+
+**Zarzut usera:** „kalkulator o tyle jest słaby, że nie mogę tam zmienić wagi. Czyli jakbym chciał mieć inną wagę, to tam miałem na stałe przypisane np. 60 kg". Potwierdzone w kodzie: `targetKg` był propem, w komponencie nie istniał ani input wagi, ani stan na nią.
+
+**Decyzje:**
+
+1. **Waga to STAN arkusza, nie prop.** Prop daje wyłącznie wartość startową z serii. Do tego steppery ±1,25 / ±2,5 / ±5 kg liczone w jednostce UI (kg kanonicznie w modelu).
+2. **„Ustaw w serii" domyka pętlę.** Policzona waga wraca do aktywnej serii roboczej. Callback z `exerciseId` w sygnaturze — kontrakt `memo()` z X17A. Bez tego kalkulator był ślepą uliczką: user liczył, zamykał i przepisywał ręcznie.
+3. **`suggestAchievable` zamiast samego „exact: false".** Zwraca wariant w DÓŁ i w GÓRĘ (oba klikalne) plus brakujący nominał, gdy to on blokuje. `up` jest `null`, gdy inwentarz się kończy; sufit liczony z realnych sztuk, więc pętla szukająca nie ma jak się zapętlić. Research: Stronger pokazuje obie strony, Stronglifts wskazuje brakujący nominał, Strong nie robi nic.
+4. **Tryb bez gryfu (`noBar`) jako opcja, nie druga funkcja.** Maszyna i hantle: cała waga na JEDNĄ stronę, sztuki NIE parowane (3 talerze 5 kg = realne 15 kg). Osobny test pilnuje, że ścieżka z gryfem zachowuje starą semantykę.
+5. **Preset imperialny trzyma kg kanonicznie.** 45 lb → `lbsToKg(45)`, przeliczenie na lbs robi UI. Model zostaje jednojednostkowy (twarda zasada projektu).
+6. **`loadPlateInventory` przestaje odrzucać gryf spoza presetów.** Legalne 0–100 kg (gryf techniczny 7,5, trap bar, 0 = brak gryfu). `BAR_OPTIONS_KG` degraduje się do listy skrótów w UI zamiast udawać walidator.
+7. **Ustawienia sprzętu z toggli na realną konfigurację:** liczba sztuk per rozmiar, własne talerze z usuwaniem, własny gryf, preset jednostki. „Mam / nie mam" nie oddaje siłowni, na której są dwie dwudziestki i osiem piątek.
+8. **Generator rozgrzewki zaokrągla do REALNIE składalnych ciężarów.** Na siłowni z samymi dwudziestkami proponował 84 kg, których nie da się złożyć. Dochodzi deduplikacja, bo ubogi inwentarz zbijał kilka procentów do tej samej wagi.
+9. **Chip „Talerze" niezależny od wpisanego ciężaru.** Warunek `plateWeight > 0` chował kalkulator dokładnie w momencie, w którym jest najbardziej potrzebny (zanim user wie, ile wziąć).
+10. **Kolory neutralne domyślnie**, presety IWF/IPF opcjonalnie, liczba kg widoczna w każdym wariancie. Komercyjne siłownie nie trzymają standardu kolorów.
+
+**LEKCJA (metodyczna, ważniejsza niż sam feature):** pierwsza wersja testów zaokrąglania rozgrzewki do inwentarza **przeszła bez żadnej zmiany kodu**. Asercje sprawdzały podzielność, którą stare zachowanie przypadkiem spełniało — czyli test nie testował niczego. Dopiero przepisanie na sprawdzenie realnej składalności przez `computePlates(...).exact` dało czerwień na starym kodzie. Wniosek: „test first" nie wystarcza; test regresji trzeba SPRAWDZIĆ w obie strony, bo zielony test na starym kodzie to test-atrapa.
+
+**Świadomie odłożone:** profile per siłownia, sync inwentarza między urządzeniami, zaciski zawodnicze (collars), gryf per ćwiczenie.
+
+**Weryfikacja:** test 929/929, typecheck, lint, build, bundle-budget (initial JS 1 492 548 / 1 536 000), build:mobile + dist-smoke, dist-offline, e2e:mock 172/172, scenariusz przerwania zielony. Web na gh-pages, iOS build 70 VALID + Beta App Review APPROVED.
+
+---
+
 ### 2026-07-20 — X17A FAZA 4 (Z131): nagłówek sesji + znalezisko o wznowieniu
 
 **Decyzje:**
