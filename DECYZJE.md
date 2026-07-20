@@ -11,6 +11,10 @@
 
 ## DECYZJE
 
+### 2026-07-20 — MARATON X14-X16 ZAKOŃCZONY (Z103-Z127): 8,5/9 planów wdrożonych
+
+Podsumowanie autonomicznego wykonania (2026-07-19/20, prompt docs/PROMPT-WDROZENIE-X14-X16.md): X14A/B/C, X15A/B/C, X16A/B wdrożone w CAŁOŚCI (web + rules + functions + iOS TestFlight, buildy 59-67 wszystkie VALID + Beta App Review APPROVED); X16C wdrożony w zakresie wykonalnym (backend + web + iOS 67; apka Connect IQ napisana w `garmin/`, NIEZBUDOWANA — SDK za logowaniem Garmin = KROK USERA). Najważniejsze odkrycie maratonu: FIX SYSTEMOWY signingu iOS (buildy 47-63 miały binarki bez entitlements — martwe Sign in with Apple i push; od 64 manual signing w archive). KROKI USERA i backlog v2: raport końcowy sesji + wpisy per plan poniżej. UWAGA: web X16C (index-BLktCjfp) na gałęzi gh-pages, Pages build "building" w chwili zapisu — propagacja CDN po stronie GitHuba.
+
 ### 2026-07-20 — X16C (Z125-Z127): backend Garmin WDROŻONY, apka CIQ napisana (BLOKADA: SDK za logowaniem Garmin)
 
 **Co wdrożone:** iOS build 67 (VALID, obie grupy TestFlight, Beta App Review APPROVED — maraton zamyka się buildami 59-67, wszystkie APPROVED); web index-BLktCjfp; functions na prod (smoke 401 na złym kodzie): callable garminPairStart/garminDevices/garminRevokeDevice + HTTP garminPair/garminDay/garminIngest (token urządzenia Bearer; w Firestore WYŁĄCZNIE hashe z pepperem API_KEY_PEPPER; kod 6-cyfrowy TTL 10 min jednorazowy z TTL Firestore; rate limit 2 s per token; CORS domyślnie zamknięty). Rules: deny-all dla device_pair_codes/device_tokens (nawet admin — tokeny to sekrety; 5 testów). Web: sekcja "Zegarek Garmin" w Ustawieniach (kod z odliczaniem, lista urządzeń, odłączanie). Testy: 20 functions + parytet ingest→sanitizeWorkoutDoc klienta + e2e sekcji.
