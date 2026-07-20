@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
 import { ArrowLeft, Dumbbell, WifiOff } from 'lucide-react';
+import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
+import { consumeCelebration } from '@/lib/workout-celebration';
 import { Button } from '@/components/ui/button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -16,6 +19,24 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { workouts, isLoaded } = useFirebaseWorkoutReads(uid);
   const { isOnline, pendingOps } = useOnlineStatus();
   const completedCount = workouts.filter((w) => w.completed).length;
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [celebration, setCelebration] = useState(0);
+
+  // Z140.4: użytkownicy z `prefers-reduced-motion` dostają samą zmianę liczby.
+  const reducedMotion = typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  // Z140.2: AppHeader jest UKRYTY na /workout/*, więc w momencie zakończenia
+  // treningu nie ma go w drzewie. Gratulację odczytujemy z trwałego stanu po
+  // powrocie na Dashboard, zamiast liczyć na zamontowany komponent.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const delta = consumeCelebration(completedCount);
+    if (delta <= 0) return;
+    setCelebration(delta);
+    const id = setTimeout(() => setCelebration(0), 1800);
+    return () => clearTimeout(id);
+  }, [isLoaded, completedCount]);
 
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
@@ -38,17 +59,40 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
             </div>
           )}
           {isLoaded && (
-            <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-bold"
-              aria-label={t('comp.header.workoutsCount', { count: completedCount })}
+            <button
+              type="button"
+              onClick={() => setStatsOpen(true)}
+              aria-label={t('stats.open')}
               title={t('comp.header.workoutsCount', { count: completedCount })}
+              data-testid="header-workout-count"
+              className="relative flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-sm font-bold text-primary transition-colors hover:bg-primary/20"
             >
               <Dumbbell className="h-4 w-4" />
-              {completedCount}
-            </div>
+              <span className="tabular-nums">{completedCount}</span>
+
+              {/* Z140.1: „+1" unosi się i gaśnie. Keyframes inline jak w ConfettiBurst
+                  — w projekcie nie ma (i nie ma być) framer-motion. */}
+              {celebration > 0 && (
+                <>
+                  <style>{'@keyframes ss-plus-one{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-22px);opacity:0}}'}</style>
+                  <span
+                    aria-hidden="true"
+                    data-testid="header-plus-one"
+                    className="pointer-events-none absolute -top-1 right-1 text-sm font-bold text-fitness-success"
+                    style={reducedMotion
+                      ? undefined
+                      : { animation: 'ss-plus-one 1.6s ease-out forwards' }}
+                  >
+                    +{celebration}
+                  </span>
+                </>
+              )}
+            </button>
           )}
         </div>
       </div>
+
+      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} />
     </header>
   );
 };

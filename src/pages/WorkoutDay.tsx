@@ -2160,7 +2160,10 @@ const WorkoutDay = () => {
             <Share2 className="h-4 w-4 mr-2" />
             {t('comp.share.share')}
           </Button>
-          <Button variant="outline" className="flex-1" onClick={() => navigate('/')}>
+          {/* X17D Z140.3: powrót z ukończonego treningu odpala confetti na Dashboardzie.
+              Ten sam wzorzec co ?welcome=1 po onboardingu — AppHeader ukryty na
+              /workout/*, więc świętowanie musi wydarzyć się PO nawigacji. */}
+          <Button variant="outline" className="flex-1" onClick={() => navigate('/?celebrate=1')}>
             {t('workout.backToDashboard')}
           </Button>
         </div>

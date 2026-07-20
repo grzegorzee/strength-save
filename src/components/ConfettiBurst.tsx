@@ -9,7 +9,11 @@ interface ConfettiBurstProps {
 }
 
 export const ConfettiBurst = ({ onDone, durationMs = 2600 }: ConfettiBurstProps) => {
-  const [show, setShow] = useState(true);
+  // X17D Z140.4: przy `prefers-reduced-motion` nie sypiemy konfetti w ogóle —
+  // to czysta dekoracja, więc jej pominięcie niczego nie zabiera.
+  const reducedMotion = typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const [show, setShow] = useState(!reducedMotion);
 
   const pieces = useMemo(
     () => Array.from({ length: 48 }).map((_, i) => ({

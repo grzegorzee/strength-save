@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
+import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
 import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -108,12 +109,19 @@ const DashboardStatCard = ({
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  // Confetti po ukończeniu onboardingu (Onboarding nawiguje na /?welcome=1).
-  const [showConfetti, setShowConfetti] = useState(() => searchParams.get('welcome') === '1');
+  // Confetti po ukończeniu onboardingu (?welcome=1) oraz po zapisaniu treningu
+  // (?celebrate=1, X17D Z140.3 — AppHeader jest ukryty na /workout/*, więc
+  // świętowanie odpala się dopiero po powrocie tutaj).
+  // X17D Z139.4: drugie wejście do „Twoich liczb" (pierwsze to licznik w nagłówku).
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(
+    () => searchParams.get('welcome') === '1' || searchParams.get('celebrate') === '1',
+  );
   useEffect(() => {
-    if (searchParams.get('welcome') === '1') {
+    if (searchParams.get('welcome') === '1' || searchParams.get('celebrate') === '1') {
       const next = new URLSearchParams(searchParams);
       next.delete('welcome');
+      next.delete('celebrate');
       setSearchParams(next, { replace: true }); // czyść URL, żeby odświeżenie nie powtarzało confetti
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -524,6 +532,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {showConfetti && <ConfettiBurst onDone={() => setShowConfetti(false)} />}
+      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} />
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
@@ -756,7 +765,7 @@ const Dashboard = () => {
           icon={Trophy}
           trend={trends.workouts}
           iconColor="bg-fitness-success/15 text-fitness-success"
-          onClick={() => navigate('/analytics?tab=charts')}
+          onClick={() => setStatsOpen(true)}
         />
         <DashboardStatCard
           title={t('dash.stat.tonnage')}
