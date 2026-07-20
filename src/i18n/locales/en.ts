@@ -4,6 +4,7 @@ import type { pl } from './pl';
 export const en: Record<keyof typeof pl, string> = {
   'common.save': 'Save',
   'common.cancel': 'Cancel',
+  'common.delete': 'Delete',
   'errors.routeCrashTitle': 'Something went wrong',
   'errors.routeCrashDesc': 'This page hit an unexpected error. Your workout data is safe.',
   'errors.backToDashboard': 'Back to Dashboard',
@@ -1055,6 +1056,9 @@ export const en: Record<keyof typeof pl, string> = {
   'card.colAssist': 'Assist',
   'card.addSet': 'Add set',
   'card.addSetLimit': 'Limit of 10 working sets',
+  'card.firstTime': 'first time',
+  'card.removeSetConfirmTitle': 'Delete this set?',
+  'card.removeSetConfirmDesc': 'This set has saved data. You cannot undo this.',
   'card.moreActions': 'More actions',
   'card.instructions': 'Instructions',
   'card.noInstructions': 'No technique description for this exercise.',

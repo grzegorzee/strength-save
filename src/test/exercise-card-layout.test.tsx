@@ -343,6 +343,42 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(chips).getAllByRole('button')).toHaveLength(3);
     });
 
+    it('POPRZ. pokazuje ciężar×powtórzenia z historii, a bez historii „pierwszy raz"', () => {
+      const previousSets: SetData[] = [
+        workingSet({ isWarmup: true, weight: 20, reps: 10 }),
+        workingSet({ weight: 60, reps: 6, completed: true }),
+      ];
+      const { card } = renderCard({
+        savedSets: [workingSet({ isWarmup: true }), workingSet(), workingSet()],
+        previousSets,
+      });
+      // Seria 1 ma historię: format „60×6" (ciężar × powtórzenia).
+      expect(within(card).getByText('60×6')).toBeTruthy();
+      // Seria 2 historii nie ma — czytelny komunikat zamiast myślnika.
+      expect(within(card).getAllByText('pierwszy raz').length).toBeGreaterThanOrEqual(1);
+      expect(within(card).queryByText('6×60kg')).toBeNull();
+    });
+
+    it('usunięcie serii z danymi pyta o potwierdzenie, pustej nie', () => {
+      const onSetsChange = vi.fn();
+      const { card } = renderCard({
+        savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8 }), workingSet()],
+        onSetsChange,
+      });
+      const removeButtons = within(card).getAllByRole('button', { name: /Usuń serię/i });
+
+      // Pusta seria (ostatnia) — kasuje się od razu.
+      fireEvent.click(removeButtons.at(-1) as HTMLElement);
+      expect(onSetsChange).toHaveBeenCalledTimes(1);
+
+      // Seria z danymi — najpierw dialog, dopiero potwierdzenie kasuje.
+      onSetsChange.mockClear();
+      fireEvent.click(removeButtons[1]);
+      expect(onSetsChange).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: 'Usuń' }));
+      expect(onSetsChange).toHaveBeenCalledTimes(1);
+    });
+
     it('przypięta notatka renderuje się w karcie tylko gdy istnieje', () => {
       const empty = renderCard({ savedSets: [workingSet()], onPinnedNoteSave: vi.fn() });
       expect(within(empty.card).queryByTestId('pinned-note-section')).toBeNull();

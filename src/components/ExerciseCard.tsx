@@ -324,6 +324,8 @@ const ExerciseCardInner = ({
   const [showInstructions, setShowInstructions] = useState(false);
   // Z129.2: pusty stan przypiętej notatki żyje w menu, nie w karcie.
   const [pinnedNoteOpen, setPinnedNoteOpen] = useState(false);
+  // Z130: indeks serii czekającej na potwierdzenie usunięcia (null = brak dialogu).
+  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
   const [notes, setNotes] = useState(savedNotes || '');
   const [showNotes, setShowNotes] = useState(!!savedNotes);
@@ -461,11 +463,26 @@ const ExerciseCardInner = ({
     onSetsChange?.(exercise.id, newSets, notes);
   };
 
-  const handleRemoveSet = (setIndex: number) => {
+  const removeSetAt = (setIndex: number) => {
     hasLocalChanges.current = true;
     const newSets = sets.filter((_, idx) => idx !== setIndex);
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
+  };
+
+  // Z130: `×` kasowało natychmiast, bez pytania — jeden przypadkowy tap na siłowni
+  // i seria z ciężarem przepadała. Pusta seria nadal leci bez dialogu (nie ma czego stracić).
+  const setHasData = (set?: SetData): boolean => Boolean(
+    set && (set.reps > 0 || set.weight > 0 || set.completed
+      || (set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0 || (set.assistWeight ?? 0) > 0),
+  );
+
+  const handleRemoveSet = (setIndex: number) => {
+    if (setHasData(sets[setIndex])) {
+      setPendingRemoveIndex(setIndex);
+      return;
+    }
+    removeSetAt(setIndex);
   };
 
   // Z108: generator rozgrzewki %1RM — zastępuje pustą serię rozgrzewkową schematem
@@ -514,7 +531,9 @@ const ExerciseCardInner = ({
     const prevSet = previousWorkingSet(previousSets, workingIndex);
     if (!prevSet || (prevSet.weight === 0 && prevSet.reps === 0)) return null;
     if (isBodyweight) return t('card.repsValue', { n: prevSet.reps });
-    return `${prevSet.reps}×${fmt(prevSet.weight, { withUnit: false })}${unit}`;
+    // Z130: format „60×6" (ciężar × powtórzenia) — tak zapisuje się serię na
+    // kartce i tak czytają to Hevy/Strong. Wcześniej było odwrotnie („6×60kg").
+    return `${fmt(prevSet.weight, { withUnit: false })}×${prevSet.reps}`;
   };
 
   // Grid: SET | PREVIOUS | [KG] | REPS | ✓ | × (mockup [17])
@@ -579,8 +598,11 @@ const ExerciseCardInner = ({
 
         {/* PREV — nie renderowana dla weight_distance_duration (brak miejsca na 3 inputy) */}
         {tracking !== 'weight_distance_duration' && (
-          <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
-            {isWarmupRow ? '—' : (prevHint || '—')}
+          <span className={cn(
+            'truncate text-center text-xs tabular-nums text-muted-foreground',
+            !isWarmupRow && !prevHint && 'text-[10px] tabular-nums-none text-muted-foreground/60',
+          )}>
+            {isWarmupRow ? '—' : (prevHint || t('card.firstTime'))}
           </span>
         )}
 
@@ -717,9 +739,12 @@ const ExerciseCardInner = ({
           {label}
         </span>
 
-        {/* PREVIOUS */}
-        <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
-          {isWarmupRow ? '—' : (prevHint || '—')}
+        {/* PREVIOUS — Z130: brak historii mówi „pierwszy raz", nie „—" */}
+        <span className={cn(
+          'truncate text-center text-xs tabular-nums text-muted-foreground',
+          !isWarmupRow && !prevHint && 'text-[10px] tabular-nums-none text-muted-foreground/60',
+        )}>
+          {isWarmupRow ? '—' : (prevHint || t('card.firstTime'))}
         </span>
 
         {/* KG (non-bodyweight) */}
@@ -1101,6 +1126,35 @@ const ExerciseCardInner = ({
           )}
         </div>
       )}
+
+      {/* ── Potwierdzenie usunięcia serii z danymi (Z130) ── */}
+      <Dialog open={pendingRemoveIndex !== null} onOpenChange={(open) => { if (!open) setPendingRemoveIndex(null); }}>
+        <DialogContent className="max-w-[95vw] w-full sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base pr-6">{t('card.removeSetConfirmTitle')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('card.removeSetConfirmDesc')}</p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPendingRemoveIndex(null)}
+              className="rounded-lg px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (pendingRemoveIndex !== null) removeSetAt(pendingRemoveIndex);
+                setPendingRemoveIndex(null);
+              }}
+              className="rounded-lg bg-destructive/15 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-destructive transition-colors hover:bg-destructive/25"
+            >
+              {t('common.delete')}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Instructions Dialog (Z129.2: treść wyprowadzona z karty do menu ⋯) ── */}
       <Dialog open={showInstructions} onOpenChange={setShowInstructions}>

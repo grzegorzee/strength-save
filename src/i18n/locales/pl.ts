@@ -4,6 +4,7 @@ export const pl = {
   // wspólne
   'common.save': 'Zapisz',
   'common.cancel': 'Anuluj',
+  'common.delete': 'Usuń',
   'errors.routeCrashTitle': 'Coś poszło nie tak',
   'errors.routeCrashDesc': 'Ta strona napotkała nieoczekiwany błąd. Twoje dane treningowe są bezpieczne.',
   'errors.backToDashboard': 'Wróć na Dashboard',
@@ -1076,6 +1077,9 @@ export const pl = {
   'card.colAssist': 'Asysta',
   'card.addSet': 'Dodaj serię',
   'card.addSetLimit': 'Limit 10 serii roboczych',
+  'card.firstTime': 'pierwszy raz',
+  'card.removeSetConfirmTitle': 'Usunąć tę serię?',
+  'card.removeSetConfirmDesc': 'Seria ma zapisane dane. Tej operacji nie cofniesz.',
   'card.moreActions': 'Więcej akcji',
   'card.instructions': 'Instrukcje',
   'card.noInstructions': 'Brak opisu techniki dla tego ćwiczenia.',
