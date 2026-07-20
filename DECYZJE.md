@@ -11,6 +11,28 @@
 
 ## DECYZJE
 
+### 2026-07-20 — X17D (Z138-Z140): ekran „Twoje liczby" + animacja „+1"
+
+**Prośba usera:** „chciałbym, żeby po kliknięciu u góry po prawej stronie w ilość treningów wyświetlały się jakieś dane o tych wszystkich treningach, np. ile czasu spędziłem na siłowni oraz ile ton podniosłem (...) a jak zapiszę trening to chciałbym animację +1".
+
+**Decyzje:**
+
+1. **Jedno źródło prawdy dla statystyk.** `buildAllTimeStats` REUŻYWA istniejących reguł (`calculateTonnage`, `workoutDurationSec`, `calculateStreakDetails`, `buildHistoryRowMeta`) zamiast liczyć po swojemu. Inaczej powstałaby trzecia wersja prawdy o tonażu.
+2. **Naprawiony dług: dwie metody liczenia tonażu.** `getTotalWeight` liczył BEZ filtra `isWarmup`, więc Dashboard i Osiągnięcia pokazywały inną liczbę niż raport PDF. Test regresji utrwala, która jest poprawna, i dowodzi, że różnica była realna: **1100 kg starą metodą vs 500 kg poprawną** na tym samym treningu (600 kg rozgrzewki).
+3. **Czas z jawnym zastrzeżeniem.** Pokazujemy, z ilu treningów jest liczony — sesje sprzed M32 nie mają pomiaru i cicho wliczone jako zero kłamałyby w dół.
+4. **Łączna liczba serii i powtórzeń** — luka: dotąd nigdzie w projekcie nie liczone zbiorczo (tylko inline per sesja).
+5. **Grywalizacja TYLKO na tym ekranie.** Ekwiwalenty (słonie/samochody) w jednym boksie z podpisem, że to zabawa. Do ekranu treningu nie wchodzi nic — brak grywalizacji w logowaniu jest wymieniany jako ZALETA Stronga, a odznaki „często tylko rozpraszają".
+6. **Licznik w nagłówku to teraz przycisk.** Był zwykłym `div` bez `onClick`, roli i `tabIndex`. Doszła rola przycisku, `aria-label` i obsługa klawiatury (e2e sprawdza wejście Enterem).
+7. **PUŁAPKA Z140.2 rozwiązana wprost.** `AppHeader` jest UKRYTY na `/workout/*`, więc przy kliknięciu „Zakończ trening" nie ma czego animować. Zamiast liczyć na zamontowany komponent, `consumeCelebration` porównuje licznik z ostatnio pokazanym i świętuje po powrocie na Dashboard. Zachowania brzegowe w testach: jednorazowość, brak świętowania istniejącej historii przy pierwszym uruchomieniu, brak świętowania przy usunięciu treningu, pełna delta przy zsynchronizowaniu kilku treningów.
+8. **Confetti po treningu przez parametr `?celebrate=1`**, ten sam wzorzec co `?welcome=1` po onboardingu. Dwa niezależne mechanizmy (confetti z URL, „+1" z licznika) zamiast jednego współdzielonego stanu, który jeden z konsumentów by „zjadł".
+9. **Zero nowych zależności animacyjnych.** Keyframes inline jak w `ConfettiBurst`. `prefers-reduced-motion` respektowane w obu animacjach.
+
+**Uwaga na przyszłość:** po X17D zostały **24 KB zapasu** w budżecie bundla (1 511 843 / 1 536 000). Kolejna większa funkcja wymaga code-splittingu albo świadomego podniesienia limitu.
+
+**Weryfikacja:** test 969/969, typecheck, lint, build, bundle-budget, build:mobile + dist-smoke, dist-offline, e2e:mock 177/177, scenariusz przerwania zielony. Web na gh-pages, iOS build 72 VALID + APPROVED.
+
+---
+
 ### 2026-07-20 — X17C (Z135-Z136): timery przerw wracają zza flagi, ale flaga ZOSTAJE
 
 **Kontekst:** timery wyłączono flagą 2026-06-27 po treningu, na którym timer nie dał sygnału przy zgaszonym ekranie. Przyczyna była systemowa: iOS wstrzymuje JavaScript w WKWebView, więc nic opartego o żywy JS nie zadziała, gdy telefon leży w kieszeni.
