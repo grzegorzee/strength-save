@@ -1361,6 +1361,52 @@ test.describe('Parowanie Garmin (Z125)', () => {
 });
 
 // =====================================================
+// 11a12. REGRESJA INCYDENTU 2026-07-20: ćwiczenia planu nie znikają
+// =====================================================
+test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 2026-07-20)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('szkic z JEDNYM ćwiczeniem => dzień planu nadal pokazuje wszystkie ćwiczenia', async ({ page }) => {
+    const today = localToday();
+    await navigateAndWait(page, '/');
+    // Szkic jak po powrocie z szybkiego treningu: tylko pierwsze ćwiczenie dotknięte.
+    await writeWorkoutDraftDb(page, {
+      sessionId: `workout-e2e-test-user-day-1-${today}`,
+      userId: 'e2e-test-user',
+      dayId: 'day-1',
+      date: today,
+      cycleId: null,
+      sessionOrigin: 'remote',
+      remoteSessionId: `workout-e2e-test-user-day-1-${today}`,
+      exerciseSets: { 'ex-1-1': [{ reps: 6, weight: 60, completed: true }] },
+      exerciseNotes: {},
+      exerciseMetrics: {},
+      exerciseNames: {},
+      dayNotes: '',
+      dayName: 'Poniedziałek',
+      skippedExercises: [],
+      lastTouchedExerciseId: 'ex-1-1',
+      startedAt: Date.now(),
+      updatedAt: Date.now(),
+      lastFirebaseSyncAt: null,
+      dirty: true,
+      completedLocally: false,
+      finalSyncPending: false,
+      version: 1,
+    });
+
+    await navigateAndWait(page, '/workout/day-1');
+    await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
+    // Przed fixem renderowała się DOKŁADNIE jedna karta ćwiczenia (reszta planu znikała).
+    const cards = page.locator('.exercise-card');
+    await expect(cards.first()).toBeVisible();
+    expect(await cards.count()).toBeGreaterThan(1);
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {
