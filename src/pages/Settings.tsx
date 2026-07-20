@@ -22,6 +22,7 @@ import { NotificationSettings } from '@/components/NotificationSettings';
 import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
 import { WorkoutImportWizard } from '@/components/WorkoutImportWizard';
 import { HealthSettings } from '@/components/HealthSettings';
+import { GarminSettings } from '@/components/GarminSettings';
 import { useStrava } from '@/hooks/useStrava';
 import { useToast } from '@/hooks/use-toast';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -169,6 +170,8 @@ const Settings = () => {
 
       {/* Zdrowie (Z118): Apple Health / Health Connect — widoczne tylko natywnie */}
       <HealthSettings />
+
+      <GarminSettings />
 
       {/* Kalkulator talerzy (Z107): inwentarz per urządzenie */}
       <PlateInventorySettings />

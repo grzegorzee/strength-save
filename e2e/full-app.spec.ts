@@ -1328,6 +1328,39 @@ test.describe('Cele tygodnia (Z120)', () => {
 });
 
 // =====================================================
+// 11a11. PAROWANIE ZEGARKA GARMIN (Z125)
+// =====================================================
+test.describe('Parowanie Garmin (Z125)', () => {
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  test('sekcja w Ustawieniach: kod parowania z odliczaniem, lista urządzeń i odłączanie', async ({ page }) => {
+    await page.addInitScript(({ key, data }) => {
+      window.localStorage.setItem(key, JSON.stringify(data));
+    }, {
+      key: 'fittracker_e2e_garmin_devices',
+      data: [{ deviceId: 'abc123def456', label: 'Fenix 8', createdAt: 1, lastUsedAt: 1752960000000 }],
+    });
+
+    await navigateAndWait(page, '/settings');
+    const section = page.getByTestId('garmin-settings');
+    await expect(section).toBeVisible();
+
+    // Kod parowania (mock: 123456) z odliczaniem TTL.
+    await section.getByTestId('garmin-pair-start').click();
+    await expect(section.getByTestId('garmin-pair-code')).toContainText('123456');
+    await expect(section.getByTestId('garmin-pair-code')).toContainText(/Wygasa za/);
+
+    // Lista urządzeń + odłączenie.
+    await expect(section.getByTestId('garmin-device-row')).toHaveCount(1);
+    await expect(section.getByTestId('garmin-device-row')).toContainText('Fenix 8');
+    await section.getByTestId('garmin-device-revoke').click();
+    await expect(section.getByTestId('garmin-device-row')).toHaveCount(0);
+  });
+});
+
+// =====================================================
 // 11b. AUTO-RESUME AKTYWNEGO TRENINGU (Z49)
 // =====================================================
 test.describe('Auto-resume (Z49)', () => {
