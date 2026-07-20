@@ -18,6 +18,7 @@ import {
 import { db } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
 import { MEASUREMENT_LIMITS, validateMeasurement } from '@/lib/measurement-validation';
+import { calculateTonnage } from '@/lib/summary-utils';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -210,15 +211,13 @@ export const useFirebaseWorkoutActions = (
     return measurements.find(hasValue) ?? measurements[0];
   }, [measurements]);
 
-  const getTotalWeight = useCallback(() => {
-    return workouts.reduce((total, workout) => {
-      return total + workout.exercises.reduce((exTotal, exercise) => {
-        return exTotal + exercise.sets.reduce((setTotal, set) => {
-          return setTotal + (set.completed ? set.reps * set.weight : 0);
-        }, 0);
-      }, 0);
-    }, 0);
-  }, [workouts]);
+  // X17D Z138.5 (dług): ta funkcja liczyła tonaż BEZ filtra isWarmup, więc
+  // Dashboard i Osiągnięcia pokazywały inną liczbę niż raport PDF i podsumowania —
+  // rozgrzewka zawyżała sumę. Jedno źródło prawdy: calculateTonnage (reguła Z106).
+  const getTotalWeight = useCallback(
+    () => calculateTonnage(workouts.filter((w) => w.completed)),
+    [workouts],
+  );
 
   const getCompletedWorkoutsCount = useCallback(() => {
     return workouts.filter(w => w.completed).length;
