@@ -648,6 +648,8 @@ export const pl = {
   'hybrid.cardTitle': 'Obciążenie hybrydowe',
   'hybrid.cardDesc': 'Siła i cardio jako jedno obciążenie tygodniowe (szacunkowe: sesje siłowe wg czasu i RPE, cardio wg tętna lub intensywności).',
   'hybrid.strength': 'Siła',
+  'hybrid.stripTitle': 'Obciążenie treningowe',
+  'hybrid.stripHint': 'czas × intensywność',
   'hybrid.cardio': 'Cardio',
   'hybrid.total': 'Łącznie',
   'hybrid.currentWeekSplit': 'Bieżący tydzień: siła / cardio',

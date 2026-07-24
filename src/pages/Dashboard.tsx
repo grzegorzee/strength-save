@@ -941,6 +941,7 @@ const Dashboard = () => {
           activities={unifiedActivities.filter(a => a.source === 'manual' || stravaConnection.connected)}
           weekStart={getStartOfPlanWeek(today)}
           maxHR={stravaConnection.estimatedMaxHR}
+          plannedWeekdays={trainingPlan.map((d) => d.weekday)}
         />
         {/* Z121: decyzja deload + raport target vs actual (tylko plany z włączoną progresją) */}
         {planStarted && (

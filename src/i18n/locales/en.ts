@@ -637,6 +637,8 @@ export const en: Record<keyof typeof pl, string> = {
   'hybrid.cardTitle': 'Hybrid load',
   'hybrid.cardDesc': 'Strength and cardio as one weekly load (estimated: strength by time x RPE, cardio by HR or intensity).',
   'hybrid.strength': 'Strength',
+  'hybrid.stripTitle': 'Training load',
+  'hybrid.stripHint': 'time × intensity',
   'hybrid.cardio': 'Cardio',
   'hybrid.total': 'Total',
   'hybrid.currentWeekSplit': 'Current week: strength / cardio',

@@ -25,13 +25,20 @@ interface HybridWeekStripProps {
   activities: UnifiedActivity[];
   weekStart: Date;
   maxHR?: number;
+  /** Z148: weekday'e dni aktywnego planu — kropka pod etykietą dnia planowego. */
+  plannedWeekdays?: string[];
 }
+
+const WEEKDAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+/** Z148: słupek z obciążeniem nie może zniknąć — minimum 3 px na stack. */
+const MIN_STACK_PX = 3;
 
 /**
  * Pasek łącznego obciążenia dnia (Z115): 7 mini słupków pon-nd (siła lime + cardio cyan)
  * + dyskretna, dismissowalna wskazówka interferencji (informacja, nigdy blokada).
  */
-export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR }: HybridWeekStripProps) => {
+export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, plannedWeekdays }: HybridWeekStripProps) => {
   const { t, lang } = useTranslation();
   const [dismissed, setDismissed] = useState<string[]>(readDismissed);
 
@@ -69,25 +76,61 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR }: Hybr
   return (
     <div className="space-y-2" data-testid="hybrid-week-strip">
       {hasAny && (
-        <div className="flex items-end gap-1.5 rounded-xl bg-surface-low p-3">
-          {weekLoads.map((d) => {
-            const strengthH = Math.round((d.strengthLoad / maxLoad) * 40);
-            const cardioH = Math.round((d.cardioLoad / maxLoad) * 40);
-            const label = parseLocalDate(d.date).toLocaleDateString(dateLocale(lang), { weekday: 'short' });
-            return (
-              <div
-                key={d.date}
-                className="flex flex-1 flex-col items-center gap-1"
-                title={`${label}: ${t('hybrid.strength')} ${Math.round(d.strengthLoad)} + ${t('hybrid.cardio')} ${Math.round(d.cardioLoad)}`}
-              >
-                <div className="flex h-11 w-full max-w-[26px] flex-col justify-end overflow-hidden rounded-sm">
-                  <div className="w-full bg-[#00e3fd]/85" style={{ height: cardioH }} />
-                  <div className="w-full bg-primary" style={{ height: strengthH }} />
+        <div className="rounded-xl bg-surface-low p-3">
+          {/* Z148: pasek dostaje WŁASNY mikronagłówek — "Plan tygodnia" nad sekcją
+              zostaje nagłówkiem listy kart dni (to ona jest planem), a ten pasek
+              mówi wprost, że pokazuje WYKONANE obciążenie. */}
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              {t('hybrid.stripTitle')}
+            </span>
+            <span className="text-[9px] text-muted-foreground/60">{t('hybrid.stripHint')}</span>
+          </div>
+          <div className="flex items-end gap-1.5">
+            {weekLoads.map((d) => {
+              let strengthH = Math.round((d.strengthLoad / maxLoad) * 40);
+              let cardioH = Math.round((d.cardioLoad / maxLoad) * 40);
+              // Z148: dzień z obciążeniem nie może wyglądać jak pusty — poniżej
+              // ~1/80 maksimum słupek zaokrąglał się do zera i "znikał".
+              if (d.totalLoad > 0 && strengthH + cardioH < MIN_STACK_PX) {
+                if (d.strengthLoad >= d.cardioLoad) strengthH = MIN_STACK_PX - cardioH;
+                else cardioH = MIN_STACK_PX - strengthH;
+              }
+              const label = parseLocalDate(d.date).toLocaleDateString(dateLocale(lang), { weekday: 'short' });
+              const isPlanned = plannedWeekdays?.includes(WEEKDAY_NAMES[parseLocalDate(d.date).getDay()]) ?? false;
+              return (
+                <div
+                  key={d.date}
+                  className="flex flex-1 flex-col items-center gap-1"
+                  title={`${label}: ${t('hybrid.strength')} ${Math.round(d.strengthLoad)} + ${t('hybrid.cardio')} ${Math.round(d.cardioLoad)}`}
+                >
+                  <div
+                    className="flex h-11 w-full max-w-[26px] flex-col justify-end overflow-hidden rounded-sm"
+                    data-testid={`strip-bar-${d.date}`}
+                  >
+                    <div className="w-full bg-[#00e3fd]/85" style={{ height: cardioH }} />
+                    <div className="w-full bg-primary" style={{ height: strengthH }} />
+                  </div>
+                  <span className="text-[9px] font-bold uppercase text-muted-foreground/60">{label}</span>
+                  {/* Z148: kropka dnia planowego — niezależna od obciążenia. */}
+                  {isPlanned
+                    ? <span className="h-1 w-1 rounded-full bg-primary/70" data-testid="plan-day-dot" />
+                    : <span className="h-1 w-1" aria-hidden="true" />}
                 </div>
-                <span className="text-[9px] font-bold uppercase text-muted-foreground/60">{label}</span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          {/* Z148: legenda zamiast opisu ukrytego w title (martwy na dotyku). */}
+          <div className="mt-2 flex items-center gap-3" data-testid="strip-legend">
+            <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase text-muted-foreground/70">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              {t('hybrid.strength')}
+            </span>
+            <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase text-muted-foreground/70">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#00e3fd]/85" />
+              {t('hybrid.cardio')}
+            </span>
+          </div>
         </div>
       )}
 
