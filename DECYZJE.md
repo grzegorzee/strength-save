@@ -11,6 +11,20 @@
 
 ## DECYZJE
 
+### 2026-07-24 — X18B: timery przerw v2 — jeden timer, koniec treningu bez timera, pełna widoczność (Z143+Z144+Z145)
+
+**Co:** Timer przerwy to jeden spójny mechanizm sesji: nigdy nie biegną dwa naraz, nie startuje po ostatniej serii całego treningu, jest w pełni widoczny w ukończonej karcie.
+
+**Właściciel stanu timera (Z143):** stan `{exerciseId, seconds, runId}` przeniesiony z `useState` per instancja ExerciseCard do WorkoutDay (`useRestTimerController`). Karta dostaje `restRun` tylko gdy przerwa jest jej; callbacki stabilne (memo/R2-07 zachowane), tykanie zostaje w RestBar. Odhaczenie w B przejmuje przerwę z A: unmount paska A anuluje notyfikację, mount B planuje nową (serializuje `operationChain`). Nowość: `RestBar.onFinished` — koniec przerwy w foregroundzie zeruje stan (pasek znika, karta może się przygasić).
+
+**Wyjątek ostatniej serii (Z144):** `hasRemainingWork(exerciseSets, skipped, exercises)` w workout-session-state — po ostatniej serii roboczej ostatniego niepominiętego ćwiczenia handler NIE startuje timera i gasi biegnącą przerwę + notyfikację. Rozgrzewka nie jest pracą; ćwiczenie bez stanu serii (dodane w trakcie) jest. `exerciseSetsRef` aktualizowany synchronicznie w handleSetsChange (decyzja w tym samym kliknięciu). Zero nowego UI — zostaje przycisk "Zakończ trening".
+
+**Warunek dimmingu (Z145):** przygaszenie ukończonej karty tylko `allCompleted && !restActive` — opacity rodzica jest multiplikatywne i wyszarzało pasek dokładnie wtedy, gdy odliczał przejście do następnego ćwiczenia.
+
+**Status flagi:** `VITE_FEATURE_WORKOUT_TIMERS` bez zmian — web OFF, buildy iOS ON. Zdjęcie flagi web bramkowane potwierdzeniem usera z fizycznego iPhone'a (Z149 krok 3).
+
+**Weryfikacja:** rest-timer-controller.test.tsx (przejęcie A→B: 1 pasek + 1 notyfikacja z księgującego mocka LocalNotifications; sekwencja Z144; dimming Z145; niezmienniki ±15/Pomiń/start po serii) — RED na starym kodzie, GREEN po; hasRemainingWork 5 przypadków; pełny vitest 1018/1018; e2e:mock 179/179; bundle bez zmian (1 514 702 B).
+
 ### 2026-07-24 — X18A: autostart kasował serie po edycji planu dnia + czas 48:08:47 (Z141+Z142)
 
 **Co:** (1) Edycja planu dnia w trakcie treningu nie kasuje odhaczonych serii. (2) durationSec liczony do ostatniej realnej aktywności, nie do kliknięcia "Zakończ trening".
