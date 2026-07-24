@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import {
   computePlates,
+  formatPlateNominal,
   suggestAchievable,
   loadPlateInventory,
   savePlateInventory,
@@ -172,5 +173,30 @@ describe('loadPlateInventory — nietypowy gryf (Z132.1)', () => {
     const loaded = loadPlateInventory();
     expect(loaded.barKg).toBe(20);
     expect(loaded.plates).toEqual(DEFAULT_PLATE_INVENTORY);
+  });
+});
+
+// Zgłoszenie 2026-07-24 (build 77): przełącznik jednostki inwentarza "nie działa" —
+// preset się aplikował, ale wybrana jednostka nie była persystowana ani pokazywana.
+describe('jednostka inwentarza — persist + nominały', () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it('zapisuje i odczytuje wybraną jednostkę inwentarza', () => {
+    savePlateInventory(20, DEFAULT_PLATE_INVENTORY_LB, 'lbs');
+    expect(loadPlateInventory().unit).toBe('lbs');
+  });
+
+  it('domyślnie i dla zapisów legacy (bez pola unit) zwraca kg', () => {
+    expect(loadPlateInventory().unit).toBe('kg');
+    window.localStorage.setItem(PLATE_INVENTORY_STORAGE_KEY, JSON.stringify({ barKg: 20, plates: DEFAULT_PLATE_INVENTORY }));
+    expect(loadPlateInventory().unit).toBe('kg');
+    savePlateInventory(20, DEFAULT_PLATE_INVENTORY);
+    expect(loadPlateInventory().unit).toBe('kg');
+  });
+
+  it('formatPlateNominal pokazuje nominał z talerza, nie przeliczenie', () => {
+    expect(formatPlateNominal(lbsToKg(45), 'lbs')).toBe(45);
+    expect(formatPlateNominal(lbsToKg(2.5), 'lbs')).toBe(2.5);
+    expect(formatPlateNominal(1.25, 'kg')).toBe(1.25);
   });
 });

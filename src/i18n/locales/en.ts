@@ -768,7 +768,7 @@ export const en: Record<keyof typeof pl, string> = {
   'plates.unreachableUp': 'You cannot load more from this inventory.',
   'plates.settingsTitle': 'Plate calculator',
   'plates.settingsDesc': 'Bar and plates available at your gym (saved on this device).',
-  'plates.availablePlates': 'Available plates (kg)',
+  'plates.availablePlates': 'Available plates ({unit})',
   'plates.countLabel': 'Count {weight}',
   'plates.customPlate': 'Custom plate',
   'plates.addPlate': 'Add plate',

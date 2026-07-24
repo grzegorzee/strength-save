@@ -9,11 +9,14 @@ import {
   DEFAULT_PLATE_INVENTORY,
   DEFAULT_PLATE_INVENTORY_LB,
   computePlates,
+  formatPlateNominal,
   suggestAchievable,
   loadPlateInventory,
   savePlateInventory,
   type PlateInventoryItem,
+  type PlateInventoryUnit,
 } from '@/lib/plate-calculator';
+import { lbsToKg } from '@/lib/units';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
@@ -288,14 +291,13 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
  */
 export const PlateInventorySettings = () => {
   const { t } = useTranslation();
-  const { unit, toDisplay } = useUnit();
-  const [{ barKg, plates }, setInventory] = useState(() => loadPlateInventory());
+  const [{ barKg, plates, unit: inventoryUnit }, setInventory] = useState(() => loadPlateInventory());
   const [customPlate, setCustomPlate] = useState('');
   const [customBar, setCustomBar] = useState('');
 
-  const persist = (nextBar: number, nextPlates: PlateInventoryItem[]) => {
-    savePlateInventory(nextBar, nextPlates);
-    setInventory({ barKg: nextBar, plates: nextPlates });
+  const persist = (nextBar: number, nextPlates: PlateInventoryItem[], nextUnit: PlateInventoryUnit = inventoryUnit) => {
+    savePlateInventory(nextBar, nextPlates, nextUnit);
+    setInventory({ barKg: nextBar, plates: nextPlates, unit: nextUnit });
   };
 
   const setCount = (weightKg: number, raw: string) => {
@@ -305,8 +307,10 @@ export const PlateInventorySettings = () => {
   };
 
   const addPlate = () => {
-    const kg = parseFloat(customPlate);
-    if (!Number.isFinite(kg) || kg <= 0) return;
+    const nominal = parseFloat(customPlate);
+    if (!Number.isFinite(nominal) || nominal <= 0) return;
+    // Wpis w jednostce inwentarza (na talerzu lbs pisze "45") — model zostaje w kg.
+    const kg = inventoryUnit === 'lbs' ? lbsToKg(nominal) : nominal;
     if (plates.some((p) => Math.abs(p.weightKg - kg) < 0.001)) return;
     persist(barKg, [...plates, { weightKg: kg, count: 4 }].sort((a, b) => b.weightKg - a.weightKg));
     setCustomPlate('');
@@ -316,13 +320,13 @@ export const PlateInventorySettings = () => {
     persist(barKg, plates.filter((p) => p.weightKg !== weightKg));
   };
 
-  const applyUnitPreset = (target: 'kg' | 'lbs') => {
-    persist(barKg, target === 'lbs' ? DEFAULT_PLATE_INVENTORY_LB : DEFAULT_PLATE_INVENTORY);
+  const applyUnitPreset = (target: PlateInventoryUnit) => {
+    persist(barKg, target === 'lbs' ? DEFAULT_PLATE_INVENTORY_LB : DEFAULT_PLATE_INVENTORY, target);
   };
 
   const setBar = (nextBar: number) => persist(nextBar, plates);
 
-  const label = (kg: number) => round3(toDisplay(kg));
+  const label = (kg: number) => formatPlateNominal(kg, inventoryUnit);
 
   return (
     <Card>
@@ -374,8 +378,12 @@ export const PlateInventorySettings = () => {
               <button
                 key={u}
                 type="button"
+                aria-pressed={inventoryUnit === u}
                 onClick={() => applyUnitPreset(u)}
-                className="rounded-full bg-surface-highest px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                className={cn(
+                  'rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                  inventoryUnit === u ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground hover:text-foreground',
+                )}
               >
                 {u}
               </button>
@@ -385,18 +393,18 @@ export const PlateInventorySettings = () => {
 
         {/* Talerze: liczba sztuk per rozmiar */}
         <div className="space-y-2">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('plates.availablePlates')}</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('plates.availablePlates', { unit: inventoryUnit })}</p>
           <p className="text-[11px] text-muted-foreground/70">{t('plates.countHint')}</p>
           <div className="space-y-1.5">
             {plates.map((p) => (
               <div key={p.weightKg} className="flex items-center gap-2" data-testid={`plate-row-${round3(p.weightKg)}`}>
-                <span className="w-20 text-sm font-bold tabular-nums">{label(p.weightKg)} {unit}</span>
+                <span className="w-20 text-sm font-bold tabular-nums">{label(p.weightKg)} {inventoryUnit}</span>
                 <Input
                   type="number"
                   inputMode="numeric"
                   min={0}
                   value={p.count}
-                  aria-label={t('plates.countLabel', { weight: String(round3(p.weightKg)) })}
+                  aria-label={t('plates.countLabel', { weight: String(label(p.weightKg)) })}
                   onChange={(e) => setCount(p.weightKg, e.target.value)}
                   className="h-9 w-20 text-sm"
                 />

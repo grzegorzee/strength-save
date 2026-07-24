@@ -5,7 +5,7 @@
 // suggestAchievable (najbliższa waga w dół I w górę). Rdzeń greedy w GRAMACH
 // jako integer zostaje — to on chroni przed błędami float przy 1,25 kg.
 
-import { lbsToKg } from '@/lib/units';
+import { kgToLbs, lbsToKg } from '@/lib/units';
 
 export interface PlateInventoryItem {
   weightKg: number;
@@ -45,6 +45,16 @@ export const DEFAULT_PLATE_INVENTORY: PlateInventoryItem[] = [
 ];
 
 export const PLATE_INVENTORY_STORAGE_KEY = 'fittracker_plate_inventory_v1';
+
+/** Jednostka, w której siłownia opisuje talerze — niezależna od jednostki wyświetlania usera. */
+export type PlateInventoryUnit = 'kg' | 'lbs';
+
+/**
+ * Nominał z talerza (to, co na nim napisane): 20.412 kg w inwentarzu lbs to talerz "45".
+ * Model zostaje w kg — konwersja wyłącznie do prezentacji.
+ */
+export const formatPlateNominal = (weightKg: number, unit: PlateInventoryUnit): number =>
+  Math.round((unit === 'lbs' ? kgToLbs(weightKg) : weightKg) * 1000) / 1000;
 
 /**
  * Preset imperialny (45/35/25/10/5/2.5 lb) trzymany w KG — kg jest kanoniczne
@@ -157,11 +167,11 @@ export const suggestAchievable = (
 };
 
 /** Inwentarz z localStorage albo default (uszkodzony zapis => default). */
-export const loadPlateInventory = (): { barKg: number; plates: PlateInventoryItem[] } => {
+export const loadPlateInventory = (): { barKg: number; plates: PlateInventoryItem[]; unit: PlateInventoryUnit } => {
   try {
     const raw = window.localStorage.getItem(PLATE_INVENTORY_STORAGE_KEY);
-    if (!raw) return { barKg: DEFAULT_BAR_KG, plates: DEFAULT_PLATE_INVENTORY };
-    const parsed = JSON.parse(raw) as { barKg?: number; plates?: PlateInventoryItem[] };
+    if (!raw) return { barKg: DEFAULT_BAR_KG, plates: DEFAULT_PLATE_INVENTORY, unit: 'kg' };
+    const parsed = JSON.parse(raw) as { barKg?: number; plates?: PlateInventoryItem[]; unit?: string };
     // Z132.1: gryf spoza presetów jest legalny (techniczny 7,5 kg, trap bar, 0 = brak
     // gryfu). Odrzucamy tylko wartości bez sensu fizycznego. BAR_OPTIONS_KG zostaje
     // listą skrótów w UI, nie walidatorem.
@@ -172,14 +182,16 @@ export const loadPlateInventory = (): { barKg: number; plates: PlateInventoryIte
       plates: Array.isArray(parsed.plates) && parsed.plates.length > 0
         ? parsed.plates.filter((p) => typeof p.weightKg === 'number' && typeof p.count === 'number')
         : DEFAULT_PLATE_INVENTORY,
+      // Zapisy legacy nie mają pola unit → kg (dotychczasowe zachowanie).
+      unit: parsed.unit === 'lbs' ? 'lbs' : 'kg',
     };
   } catch {
-    return { barKg: DEFAULT_BAR_KG, plates: DEFAULT_PLATE_INVENTORY };
+    return { barKg: DEFAULT_BAR_KG, plates: DEFAULT_PLATE_INVENTORY, unit: 'kg' };
   }
 };
 
-export const savePlateInventory = (barKg: number, plates: PlateInventoryItem[]): void => {
+export const savePlateInventory = (barKg: number, plates: PlateInventoryItem[], unit: PlateInventoryUnit = 'kg'): void => {
   try {
-    window.localStorage.setItem(PLATE_INVENTORY_STORAGE_KEY, JSON.stringify({ barKg, plates }));
+    window.localStorage.setItem(PLATE_INVENTORY_STORAGE_KEY, JSON.stringify({ barKg, plates, unit }));
   } catch { /* localStorage niedostępne — ignoruj */ }
 };

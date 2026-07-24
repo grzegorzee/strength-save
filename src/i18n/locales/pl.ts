@@ -783,7 +783,7 @@ export const pl = {
   'plates.unreachableUp': 'Więcej nie złożysz z tego inwentarza.',
   'plates.settingsTitle': 'Kalkulator talerzy',
   'plates.settingsDesc': 'Gryf i talerze dostępne na Twojej siłowni (zapisywane na tym urządzeniu).',
-  'plates.availablePlates': 'Dostępne talerze (kg)',
+  'plates.availablePlates': 'Dostępne talerze ({unit})',
   'plates.countLabel': 'Sztuk {weight}',
   'plates.customPlate': 'Własny talerz',
   'plates.addPlate': 'Dodaj talerz',
