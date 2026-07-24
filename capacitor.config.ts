@@ -17,7 +17,10 @@ const config: CapacitorConfig = {
       providers: ['google.com', 'apple.com'],
     },
     FirebaseMessaging: {
-      presentationOptions: ['alert', 'badge', 'sound'],
+      // Z146: bez 'alert' — w foregroundzie prezentację przejmuje w całości
+      // kontrolowany toast (PushRegistrar), znika podwójny banner. W tle
+      // systemowy banner działa normalnie (presentationOptions dotyczy foregroundu).
+      presentationOptions: ['badge', 'sound'],
     },
   },
 };

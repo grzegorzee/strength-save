@@ -47,6 +47,8 @@ export interface DailyReminderDeps {
     responses: DeliveryResponse[];
   }>;
   deleteRegistrations: (registrationIds: string[]) => Promise<void>;
+  /** Z146: dzisiejszy trening usera (1 query per KANDYDAT, nie per user) — null gdy brak. */
+  getTodayWorkout: (userId: string) => Promise<{ startedAt?: number; completed?: boolean } | null>;
   today: string;
 }
 
@@ -55,11 +57,13 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
   sent: number;
   failed: number;
   invalidTokens: number;
+  skippedActive: number;
 }> {
   let candidates = 0;
   let sent = 0;
   let failed = 0;
   let invalidTokens = 0;
+  let skippedActive = 0;
 
   const registrations = (await deps.listTokenRegistrations())
     .filter((registration) => !!registration.token && !!registration.userId);
@@ -89,6 +93,16 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
     if (!todayDay) return; // dziś dzień wolny — nie przypominamy
 
     candidates += 1;
+
+    // Z146: trening już rozpoczęty (startedAt z syncu) albo ukończony → nie spamujemy.
+    // Świadome ograniczenie: draft offline (IndexedDB) jest niewidoczny dla backendu,
+    // więc trening rozpoczęty offline bez syncu nadal dostanie push — akceptowalne,
+    // autosave syncuje startedAt przy pierwszym zapisie online.
+    const todayWorkout = await deps.getTodayWorkout(uid);
+    if (todayWorkout && (todayWorkout.startedAt !== undefined || todayWorkout.completed === true)) {
+      skippedActive += 1;
+      return;
+    }
 
     const userRegistrations = byUser.get(uid) ?? [];
     const tokens = userRegistrations.map((registration) => registration.token);
@@ -120,7 +134,7 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
 
   await forEachWithConcurrency(eligibleUserIds, REMINDER_CONCURRENCY, processUser);
 
-  return { candidates, sent, failed, invalidTokens };
+  return { candidates, sent, failed, invalidTokens, skippedActive };
 }
 
 export const dailyTrainingReminder = onSchedule(
@@ -133,6 +147,8 @@ export const dailyTrainingReminder = onSchedule(
     const db = admin.firestore();
     // 07:00 Warsaw = 05:00/06:00 UTC, ten sam dzień kalendarzowy → getDay() w UTC daje poprawny dzień tygodnia.
     const today = WEEKDAYS[new Date().getDay()];
+    // Z146: data dokumentu workouts (YYYY-MM-DD) — o 07:00 Warsaw dzień UTC = dzień lokalny.
+    const todayDate = new Date().toISOString().slice(0, 10);
     logger.info(`[dailyReminder] start, dzień: ${today}`);
 
     const chunkedGetAll = async (refs: admin.firestore.DocumentReference[]) => {
@@ -167,12 +183,29 @@ export const dailyTrainingReminder = onSchedule(
       sendMulticast: (tokens, title, body) => admin.messaging().sendEachForMulticast({
         tokens,
         notification: { title, body },
+        // Z146: typ w payloadzie — klient nie pokazuje toastu dla daily-reminder,
+        // gdy user ma aktywną sesję treningową (koniec podwójnego banera).
+        data: { type: "daily-reminder" },
         apns: { payload: { aps: { sound: "default" } } },
       }),
       deleteRegistrations: async (registrationIds) => {
         await Promise.all(registrationIds.map((id) => (
           db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).doc(id).delete()
         )));
+      },
+      getTodayWorkout: async (userId) => {
+        // Query z composite indexem userId+date (istnieje w firestore.indexes.json).
+        const snap = await db.collection("workouts")
+          .where("userId", "==", userId)
+          .where("date", "==", todayDate)
+          .limit(1)
+          .get();
+        if (snap.empty) return null;
+        const data = snap.docs[0].data();
+        return {
+          ...(data.startedAt !== undefined && { startedAt: Number(data.startedAt) }),
+          ...(data.completed !== undefined && { completed: !!data.completed }),
+        };
       },
       today,
     });

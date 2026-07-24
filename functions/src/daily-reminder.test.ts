@@ -26,6 +26,7 @@ describe("runDailyReminder (R2-12)", () => {
       responses: tokens.map(() => ({ success: true })),
     })),
     deleteRegistrations: vi.fn(async () => undefined),
+    getTodayWorkout: vi.fn(async () => null),
     today: "monday",
     ...over,
   });
@@ -63,6 +64,55 @@ describe("runDailyReminder (R2-12)", () => {
 
     expect(deps.sendMulticast).not.toHaveBeenCalled();
     expect(result.candidates).toBe(0);
+  });
+
+  // Z146 (X18C): poranny push pomija userów, którzy dziś już trenują / potrenowali.
+  it("user z rozpoczetym treningiem na dzis (startedAt) jest POMINIETY", async () => {
+    const deps = makeDeps({
+      getTodayWorkout: vi.fn(async (uid: string) => (
+        uid === "u1" ? { startedAt: 1_753_340_000_000 } : null
+      )),
+    });
+
+    const result = await runDailyReminder(deps);
+
+    expect(result.sent).toBe(1); // tylko u2
+    const sentTokens = (deps.sendMulticast as ReturnType<typeof vi.fn>).mock.calls.flatMap((call) => call[0]);
+    expect(sentTokens).toEqual(["t2"]);
+  });
+
+  it("user z ukonczonym treningiem na dzis (completed) jest POMINIETY", async () => {
+    const deps = makeDeps({
+      getTodayWorkout: vi.fn(async (uid: string) => (
+        uid === "u2" ? { completed: true } : null
+      )),
+    });
+
+    const result = await runDailyReminder(deps);
+
+    expect(result.sent).toBe(1);
+    const sentTokens = (deps.sendMulticast as ReturnType<typeof vi.fn>).mock.calls.flatMap((call) => call[0]);
+    expect(sentTokens).toEqual(["t1"]);
+  });
+
+  it("user bez dokumentu treningu na dzis dostaje push (bez regresji)", async () => {
+    const deps = makeDeps({ getTodayWorkout: vi.fn(async () => null) });
+
+    const result = await runDailyReminder(deps);
+
+    expect(result.sent).toBe(2);
+  });
+
+  it("odczyt treningu TYLKO dla kandydatow po dotychczasowych filtrach (1 query per kandydat)", async () => {
+    const getTodayWorkout = vi.fn(async () => null);
+    const deps = makeDeps({
+      today: "sunday", // dzień wolny — zero kandydatów
+      getTodayWorkout,
+    });
+
+    await runDailyReminder(deps);
+
+    expect(getTodayWorkout).not.toHaveBeenCalled();
   });
 
   it("permanentnie odrzucone tokeny sa usuwane", async () => {
