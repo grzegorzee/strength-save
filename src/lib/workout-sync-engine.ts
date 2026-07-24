@@ -7,6 +7,7 @@ import {
 } from '@/lib/workout-final-sync';
 import { isRevisionConflictError } from '@/lib/workout-sync-conflict';
 import { draftWriteId } from '@/lib/workout-write-attempt';
+import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 
 // Jeden silnik syncu treningu: cała sekwencja promote -> alreadyFinalized -> save ->
 // validate -> cleanup w jednym miejscu, z blokadą in-flight per (userId, sessionId).
@@ -237,8 +238,14 @@ const runSync = async (
 
     const exercisesPayload = buildDraftExercisesPayload(draft);
     const finalizedAt = requiresFinal ? draft.finalizedAt ?? now() : undefined;
-    const durationSec = requiresFinal && draft.startedAt && finalizedAt
-      ? Math.max(0, Math.floor((finalizedAt - draft.startedAt) / 1000))
+    // Z142: duration do ostatniej realnej aktywności (clamp porzuconej sesji);
+    // completedAt ZOSTAJE momentem faktycznego zapisu (porządek syncu i historia).
+    const durationSec = requiresFinal
+      ? computeEffectiveDurationSec({
+        startedAt: draft.startedAt,
+        finalizedAt,
+        lastActivityAt: draft.lastActivityAt,
+      })
       : undefined;
     const saveOptions: WorkoutSaveOptions = {
       cycleId: draft.cycleId ?? undefined,

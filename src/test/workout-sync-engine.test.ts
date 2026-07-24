@@ -392,4 +392,65 @@ describe('syncWorkoutSession', () => {
     expect(saveOptions.completed).toBe(true);
     expect(deps.clearDraftIfVersion).toHaveBeenCalledWith('u1', 's1', 3);
   });
+
+  // Z142: duration liczony do ostatniej realnej aktywności, nie do kliknięcia
+  // "Zakończ trening" (incydent 48:08:47 z 2026-07-24).
+  describe('uczciwy durationSec przy finalizacji (Z142)', () => {
+    const finalDeps = (draft: ActiveWorkoutDraft) => makeDeps({
+      draft,
+      serverWorkout: makeCloudWorkout({ completed: false }),
+    });
+
+    it('normalny przepływ: finalizacja 5 min po ostatniej aktywności → durationSec = finalizedAt - startedAt', async () => {
+      const draft = makeDraft({
+        finalSyncPending: true,
+        completedLocally: true,
+        startedAt: 100_000,
+        lastActivityAt: 3_700_000,
+        finalizedAt: 4_000_000, // 5 min po ostatniej serii
+      });
+      const deps = finalDeps(draft);
+
+      await syncWorkoutSession('u1', 's1', 'final', deps);
+
+      const saveOptions = deps.saveWorkout.mock.calls[0][2] as { durationSec?: number; completedAt?: number };
+      expect(saveOptions.durationSec).toBe(3900); // (4_000_000 - 100_000) / 1000
+      expect(saveOptions.completedAt).toBe(4_000_000);
+    });
+
+    it('porzucona sesja: finalizacja 48h po ostatniej aktywności → duration do lastActivityAt + bufor', async () => {
+      const lastActivityAt = 3_700_000;
+      const draft = makeDraft({
+        finalSyncPending: true,
+        completedLocally: true,
+        startedAt: 100_000,
+        lastActivityAt,
+        finalizedAt: lastActivityAt + 48 * 60 * 60 * 1000, // 48h później
+      });
+      const deps = finalDeps(draft);
+
+      await syncWorkoutSession('u1', 's1', 'final', deps);
+
+      const saveOptions = deps.saveWorkout.mock.calls[0][2] as { durationSec?: number; completedAt?: number };
+      // effectiveEnd = lastActivityAt + 3 min bufora; duration = (3_880_000 - 100_000) / 1000
+      expect(saveOptions.durationSec).toBe(3780);
+      // completedAt ZOSTAJE momentem faktycznego zapisu (porządek syncu i sortowanie historii).
+      expect(saveOptions.completedAt).toBe(lastActivityAt + 48 * 60 * 60 * 1000);
+    });
+
+    it('stary draft bez lastActivityAt → zachowanie dotychczasowe (bez regresji)', async () => {
+      const draft = makeDraft({
+        finalSyncPending: true,
+        completedLocally: true,
+        startedAt: 100_000,
+        finalizedAt: 176_500_000,
+      });
+      const deps = finalDeps(draft);
+
+      await syncWorkoutSession('u1', 's1', 'final', deps);
+
+      const saveOptions = deps.saveWorkout.mock.calls[0][2] as { durationSec?: number };
+      expect(saveOptions.durationSec).toBe(176_400); // pełna różnica, jak dotąd
+    });
+  });
 });

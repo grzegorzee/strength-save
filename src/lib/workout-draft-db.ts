@@ -31,6 +31,10 @@ export interface ActiveWorkoutDraft {
   // Opcjonalne pole additive, bez bumpu wersji IndexedDB.
   lastTouchedExerciseId?: string;
   startedAt: number;
+  /** Ostatnia realna akcja treningowa (serie/kg/notatki/metryki/skipy) — Z142.
+   *  Bumpowana TYLKO przy zmianie treści draftu; snapshoty techniczne (scroll,
+   *  finalizedAt, promocja) jej nie ruszają. Opcjonalna: stare drafty bez migracji. */
+  lastActivityAt?: number;
   /** Moment potwierdzenia zakończenia. Stabilizuje duration przy retry finalnego syncu. */
   finalizedAt?: number;
   updatedAt: number;
@@ -207,6 +211,7 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     skippedExercises: normalizeStringArray(value.skippedExercises),
     ...(typeof value.lastTouchedExerciseId === 'string' && { lastTouchedExerciseId: value.lastTouchedExerciseId }),
     startedAt: toNumberOr(value.startedAt, now),
+    ...(value.lastActivityAt !== undefined && { lastActivityAt: toNumberOr(value.lastActivityAt, now) }),
     ...(value.finalizedAt !== undefined && { finalizedAt: toNumberOr(value.finalizedAt, now) }),
     updatedAt: toNumberOr(value.updatedAt, now),
     ...(value.cloudUpdatedAt !== undefined && { cloudUpdatedAt: toNumberOr(value.cloudUpdatedAt, now) }),

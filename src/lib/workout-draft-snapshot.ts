@@ -130,6 +130,11 @@ export const buildWorkoutDraftSnapshot = (
     dayName: overrides.dayName ?? previousDraft?.dayName ?? context.dayName,
     dayFocus: overrides.dayFocus ?? previousDraft?.dayFocus ?? context.dayFocus,
     startedAt: overrides.startedAt ?? previousDraft?.startedAt ?? now,
+    // Z142: znacznik ostatniej realnej akcji treningowej — bump TYLKO gdy treść
+    // (serie/notatki/metryki/skipy) faktycznie się zmieniła. Snapshoty techniczne
+    // (scroll, finalizedAt, promocja) przenoszą starą wartość.
+    lastActivityAt: overrides.lastActivityAt
+      ?? (previousDraft ? (contentUnchanged ? previousDraft.lastActivityAt : now) : now),
     finalizedAt: overrides.finalizedAt ?? previousDraft?.finalizedAt,
     updatedAt: overrides.updatedAt ?? now,
     cloudUpdatedAt: overrides.cloudUpdatedAt

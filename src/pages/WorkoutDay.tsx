@@ -50,6 +50,7 @@ import { addAppStateListener } from '@/lib/app-lifecycle';
 import { deriveWorkoutSessionPhase, isActiveTrainingPhase } from '@/lib/workout-session-state';
 import { resolveWorkoutHydration } from '@/lib/workout-hydration';
 import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
+import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
@@ -1932,9 +1933,13 @@ const WorkoutDay = () => {
   const durationFromTimestamps = currentWorkoutForDuration?.completedAt && currentWorkoutForDuration?.startedAt
     ? Math.max(0, Math.floor((currentWorkoutForDuration.completedAt - currentWorkoutForDuration.startedAt) / 1000))
     : null;
-  const draftDurationSec = currentPageDraft?.finalizedAt && currentPageDraft?.startedAt
-    ? Math.max(0, Math.floor((currentPageDraft.finalizedAt - currentPageDraft.startedAt) / 1000))
-    : null;
+  // Z142: ten sam clamp co przy finalizacji w silniku — kafel "Czas" pokazuje to,
+  // co pójdzie do Firestore (duration do ostatniej realnej aktywności).
+  const draftDurationSec = computeEffectiveDurationSec({
+    startedAt: currentPageDraft?.startedAt,
+    finalizedAt: currentPageDraft?.finalizedAt,
+    lastActivityAt: currentPageDraft?.lastActivityAt,
+  }) ?? null;
   const sessionDurationSec = currentWorkoutForDuration?.durationSec ?? durationFromTimestamps ?? draftDurationSec;
 
   const ErrorBanner = () => saveError ? (

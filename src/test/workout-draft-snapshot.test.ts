@@ -153,6 +153,50 @@ describe('buildWorkoutDraftSnapshot', () => {
   });
 });
 
+describe('lastActivityAt — znacznik ostatniej realnej aktywności (Z142)', () => {
+  it('zmiana treści (toggle serii) bumpuje lastActivityAt do now', () => {
+    const context = makeContext({
+      previousDraft: makePreviousDraft({ lastActivityAt: 1500 }),
+      exerciseSets: { 'ex-1': [{ reps: 8, weight: 100, completed: false }] },
+    });
+    expect(buildWorkoutDraftSnapshot(context)?.lastActivityAt).toBe(3000);
+  });
+
+  it('zmiana kg / dodanie serii / notatka bumpują lastActivityAt', () => {
+    const prev = makePreviousDraft({ lastActivityAt: 1500 });
+    expect(buildWorkoutDraftSnapshot(makeContext({
+      previousDraft: prev,
+      exerciseSets: { 'ex-1': [{ reps: 8, weight: 105, completed: true }] },
+    }))?.lastActivityAt).toBe(3000);
+    expect(buildWorkoutDraftSnapshot(makeContext({
+      previousDraft: prev,
+      exerciseSets: { 'ex-1': [{ reps: 8, weight: 100, completed: true }, { reps: 8, weight: 100, completed: false }] },
+    }))?.lastActivityAt).toBe(3000);
+    expect(buildWorkoutDraftSnapshot(makeContext({
+      previousDraft: prev,
+      exerciseNotes: { 'ex-1': 'ciężko' },
+    }))?.lastActivityAt).toBe(3000);
+  });
+
+  it('snapshot techniczny (ta sama treść, np. finalizedAt / scroll) NIE bumpuje', () => {
+    const context = makeContext({
+      previousDraft: makePreviousDraft({ lastActivityAt: 1500 }),
+    });
+    expect(buildWorkoutDraftSnapshot(context, { finalizedAt: 2999 })?.lastActivityAt).toBe(1500);
+    expect(buildWorkoutDraftSnapshot(context, { lastTouchedExerciseId: 'ex-9' })?.lastActivityAt).toBe(1500);
+  });
+
+  it('stary draft bez pola: snapshot bez zmiany treści zostawia undefined (zero migracji)', () => {
+    const context = makeContext({ previousDraft: makePreviousDraft() });
+    expect(buildWorkoutDraftSnapshot(context, { finalizedAt: 2999 })?.lastActivityAt).toBeUndefined();
+  });
+
+  it('pierwszy snapshot sesji (brak previousDraft) dostaje lastActivityAt=now', () => {
+    const context = makeContext({ previousDraft: null });
+    expect(buildWorkoutDraftSnapshot(context)?.lastActivityAt).toBe(3000);
+  });
+});
+
 describe('queuedDraft jako baza snapshotu (R2-21)', () => {
   it('gdy activeDraft nie pasuje do sesji, bazą jest queuedDraft o zgodnym sessionId', () => {
     const queued = makePreviousDraft({
