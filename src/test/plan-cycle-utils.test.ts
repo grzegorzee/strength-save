@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 import {
+  alignPlanDaysWithCycleIds,
   applyWeekdaysToPlanDays,
   buildActiveCyclePlanPatch,
   chunkForFirestoreWrite,
@@ -118,5 +119,98 @@ describe('plan cycle utilities', () => {
     const chunks = chunkForFirestoreWrite(Array.from({ length: 501 }, (_, index) => index));
     expect(chunks.map(chunk => chunk.length)).toEqual([450, 51]);
     expect(chunks.flat()).toHaveLength(501);
+  });
+});
+
+// Z151: niezmiennik — id dni aktywnego cyklu są stałe przy każdym zapisie planu.
+describe('alignPlanDaysWithCycleIds', () => {
+  const START = '2026-07-21';
+  const cycleDay = (n: number, weekday: TrainingDay['weekday']): TrainingDay => ({
+    ...day(`${START}-d${n}`),
+    weekday,
+    focus: `Cycle ${n}`,
+  });
+
+  const cycleDays = [
+    cycleDay(1, 'monday'),
+    cycleDay(2, 'wednesday'),
+    cycleDay(3, 'friday'),
+  ];
+
+  it('keeps ids that already exist in the cycle untouched', () => {
+    const planDays = [
+      { ...day(`${START}-d1`), weekday: 'monday' as const },
+      { ...day(`${START}-d2`), weekday: 'wednesday' as const },
+    ];
+    const result = alignPlanDaysWithCycleIds(planDays, cycleDays, START);
+    expect(result.map(d => d.id)).toEqual([`${START}-d1`, `${START}-d2`]);
+  });
+
+  it('remaps a foreign-format day matched by position + weekday to the cycle day id, content from the plan', () => {
+    const planDays = [
+      { ...day('day-1', ['ex-1-1']), weekday: 'monday' as const, focus: 'Edited push' },
+      { ...day('day-2', ['ex-2-1']), weekday: 'wednesday' as const, focus: 'Edited pull' },
+      { ...day('day-3', ['ex-3-1']), weekday: 'friday' as const, focus: 'Edited legs' },
+    ];
+    const result = alignPlanDaysWithCycleIds(planDays, cycleDays, START);
+    expect(result.map(d => d.id)).toEqual([`${START}-d1`, `${START}-d2`, `${START}-d3`]);
+    // Treść zostaje z planu (w tym id ćwiczeń — twarda zasada 4: nie ruszamy).
+    expect(result[0].focus).toBe('Edited push');
+    expect(result[0].exercises.map(e => e.id)).toEqual(['ex-1-1']);
+  });
+
+  it('does not adopt a cycle id when the weekday does not match at that position', () => {
+    const planDays = [
+      { ...day('day-1'), weekday: 'tuesday' as const },
+    ];
+    const result = alignPlanDaysWithCycleIds(planDays, cycleDays, START);
+    expect(result[0].id).not.toBe(`${START}-d1`);
+    expect(result[0].id).toMatch(new RegExp(`^${START}-d\\d+$`));
+  });
+
+  it('gives a brand-new plan day a fresh id in the cycle format (first free N)', () => {
+    const planDays = [
+      { ...day(`${START}-d1`), weekday: 'monday' as const },
+      { ...day(`${START}-d2`), weekday: 'wednesday' as const },
+      { ...day(`${START}-d3`), weekday: 'friday' as const },
+      { ...day('day-4', ['ex-4-1']), weekday: 'saturday' as const },
+    ];
+    const result = alignPlanDaysWithCycleIds(planDays, cycleDays, START);
+    expect(result.map(d => d.id)).toEqual([
+      `${START}-d1`, `${START}-d2`, `${START}-d3`, `${START}-d4`,
+    ]);
+  });
+
+  it('drops removed plan days instead of resurrecting cycle days', () => {
+    const planDays = [
+      { ...day(`${START}-d1`), weekday: 'monday' as const },
+      { ...day(`${START}-d3`), weekday: 'friday' as const },
+    ];
+    const result = alignPlanDaysWithCycleIds(planDays, cycleDays, START);
+    expect(result.map(d => d.id)).toEqual([`${START}-d1`, `${START}-d3`]);
+  });
+
+  it('handles a mixed-format plan: matched days adopt cycle ids, extra days get fresh cycle-format ids', () => {
+    const planDays = [
+      { ...day(`${START}-d1`), weekday: 'monday' as const },
+      { ...day('day-2', ['ex-2-1']), weekday: 'wednesday' as const },
+      { ...day('day-9', ['ex-9-1']), weekday: 'sunday' as const },
+    ];
+    const result = alignPlanDaysWithCycleIds(planDays, cycleDays, START);
+    expect(result[0].id).toBe(`${START}-d1`);
+    expect(result[1].id).toBe(`${START}-d2`);
+    // day-9: pozycja 2 ma weekday friday w cyklu, plan ma sunday → świeże id.
+    expect(result[2].id).toBe(`${START}-d4`);
+  });
+
+  it('is idempotent: a second run changes nothing', () => {
+    const planDays = [
+      { ...day('day-1'), weekday: 'monday' as const },
+      { ...day('day-2'), weekday: 'wednesday' as const },
+      { ...day('day-7', ['ex-7-1']), weekday: 'sunday' as const },
+    ];
+    const first = alignPlanDaysWithCycleIds(planDays, cycleDays, START);
+    const second = alignPlanDaysWithCycleIds(first, cycleDays, START);
+    expect(second).toEqual(first);
   });
 });

@@ -129,6 +129,58 @@ export const shouldMergeContinuousCycles = (previous: PlanCycle, next: PlanCycle
   return planExerciseOverlap(previous.days, next.days) >= 0.7;
 };
 
+/**
+ * Z151: niezmiennik — id dnia aktywnego cyklu jest stałe przez całe życie cyklu.
+ * Wyrównuje id dni PLANU do id dni CYKLU przed zapisem (plan i cykl trzymają
+ * identyczne id): id obecne w cyklu lub już w formacie cyklu zostaje; dzień w
+ * obcym formacie dopasowany po pozycji + weekday dostaje id TEGO dnia cyklu
+ * (treść z planu, id ćwiczeń nietknięte); dzień bez odpowiednika dostaje świeże
+ * `${cycleStartDate}-dN` (pierwszy wolny N). Dni usunięte z planu znikają.
+ */
+export const alignPlanDaysWithCycleIds = (
+  planDays: TrainingDay[],
+  cycleDays: TrainingDay[],
+  cycleStartDate: string,
+): TrainingDay[] => {
+  const cycleFormat = new RegExp(`^${escapeRegExp(cycleStartDate)}-d(\\d+)$`);
+  const cycleIds = new Set(cycleDays.map(day => day.id));
+
+  const usedNumbers = new Set<number>();
+  const claimNumber = (id: string): void => {
+    const match = id.match(cycleFormat);
+    if (match) usedNumbers.add(Number(match[1]));
+  };
+  cycleDays.forEach(day => claimNumber(day.id));
+
+  // Id zachowywane bez zmian (istnieją w cyklu albo są już w formacie cyklu)
+  // rezerwują dopasowania, zanim obce dni zaczną adoptować id po pozycji.
+  const claimedCycleIds = new Set<string>();
+  planDays.forEach(day => {
+    if (cycleIds.has(day.id) || cycleFormat.test(day.id)) {
+      claimedCycleIds.add(day.id);
+      claimNumber(day.id);
+    }
+  });
+
+  const nextFreeId = (): string => {
+    let n = 1;
+    while (usedNumbers.has(n)) n += 1;
+    usedNumbers.add(n);
+    return `${cycleStartDate}-d${n}`;
+  };
+
+  return planDays.map((day, index) => {
+    if (cycleIds.has(day.id) || cycleFormat.test(day.id)) return day;
+
+    const candidate = cycleDays[index];
+    if (candidate && !claimedCycleIds.has(candidate.id) && candidate.weekday === day.weekday) {
+      claimedCycleIds.add(candidate.id);
+      return { ...day, id: candidate.id };
+    }
+    return { ...day, id: nextFreeId() };
+  });
+};
+
 export const buildActiveCyclePlanPatch = (
   days: TrainingDay[],
   durationWeeks: number,

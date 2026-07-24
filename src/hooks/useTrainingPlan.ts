@@ -15,7 +15,7 @@ import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
-import { saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
+import { resolvePlanDaysForSave, saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
 import { sanitizeProgressionConfig, type ProgressionConfig, type DeloadDecision } from '@/lib/progression-engine';
 import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
@@ -176,15 +176,25 @@ export const useTrainingPlan = (userId: string) => {
       const nextDurationWeeks = options?.durationWeeks ?? planDurationWeeks;
       const nextStartDate = options?.startDate !== undefined ? options.startDate : planStartDate;
       const nextProgression = options?.progression !== undefined ? options.progression : progression;
+      // Z151: ta gałąź omija saveTrainingPlanWithRevision, więc niezmiennik id dni
+      // aktywnego cyklu egzekwujemy tu tak samo — cykle z seamu e2e.
+      let alignedPlan = newPlan;
+      if (options?.syncActiveCycle !== false) {
+        try {
+          const raw = window.localStorage.getItem('fittracker_e2e_cycles');
+          const cycles = raw ? (JSON.parse(raw) as Array<{ status?: string; days?: TrainingDay[]; startDate?: string }>) : [];
+          alignedPlan = resolvePlanDaysForSave(newPlan, cycles.filter(cycle => cycle.status === 'active'));
+        } catch { /* noop */ }
+      }
       try {
         window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify({
-          days: newPlan,
+          days: alignedPlan,
           durationWeeks: nextDurationWeeks,
           ...(nextStartDate ? { startDate: nextStartDate } : {}),
           ...(nextProgression ? { progression: nextProgression } : {}),
         }));
       } catch { /* noop */ }
-      setPlan(newPlan);
+      setPlan(alignedPlan);
       setIsCustom(true);
       setPlanDurationWeeks(nextDurationWeeks);
       setPlanStartDate(nextStartDate);

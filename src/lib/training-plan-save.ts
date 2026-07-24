@@ -9,7 +9,7 @@ import {
 } from 'firebase/firestore';
 import type { TrainingDay } from '../data/trainingPlan';
 import type { ProgressionConfig } from './progression-engine';
-import { buildActiveCyclePlanPatch } from './plan-cycle-utils';
+import { alignPlanDaysWithCycleIds, buildActiveCyclePlanPatch } from './plan-cycle-utils';
 
 const PLAN_COLLECTION = 'training_plans';
 const CYCLES_COLLECTION = 'plan_cycles';
@@ -24,6 +24,22 @@ export interface SaveTrainingPlanWithRevisionParams {
   /** Progresja programowa (Z119): undefined = nie ruszaj pola, null = brak zmiany też. */
   progression?: ProgressionConfig;
 }
+
+/**
+ * Z151: przy aktywnym cyklu zapisywane dni planu są wyrównywane do id dni
+ * PIERWSZEGO aktywnego cyklu (id dnia cyklu jest niezmienne przez całe jego
+ * życie). Ten sam wyrównany zestaw idzie do training_plans.days ORAZ patcha
+ * cyklu. Bez aktywnego cyklu dni wchodzą bez zmian (default day-N zostaje).
+ */
+export const resolvePlanDaysForSave = (
+  newPlan: TrainingDay[],
+  activeCycles: Array<{ days?: TrainingDay[]; startDate?: string } | undefined>,
+): TrainingDay[] => {
+  const firstActive = activeCycles.find(cycle =>
+    cycle && Array.isArray(cycle.days) && typeof cycle.startDate === 'string' && cycle.startDate.length > 0);
+  if (!firstActive) return newPlan;
+  return alignPlanDaysWithCycleIds(newPlan, firstActive.days!, firstActive.startDate!);
+};
 
 export const saveTrainingPlanWithRevision = async (
   firestoreDb: Firestore,
@@ -55,8 +71,17 @@ export const saveTrainingPlanWithRevision = async (
       throw new Error('PLAN_CONFLICT');
     }
 
+    // Z151: plan i cykl trzymają identyczne id po każdym zapisie — wyrównany
+    // zestaw dni trafia do OBU dokumentów.
+    const alignedPlan = params.syncActiveCycle === false
+      ? params.newPlan
+      : resolvePlanDaysForSave(
+        params.newPlan,
+        activeCycles.filter(snapshot => snapshot.exists()).map(snapshot => snapshot.data() as { days?: TrainingDay[]; startDate?: string }),
+      );
+
     transaction.set(planRef, {
-      days: params.newPlan,
+      days: alignedPlan,
       updatedAt: new Date().toISOString(),
       durationWeeks: params.durationWeeks,
       revision: currentRevision + 1,
@@ -65,7 +90,7 @@ export const saveTrainingPlanWithRevision = async (
     }, { merge: true });
 
     if (params.syncActiveCycle !== false) {
-      const patch = buildActiveCyclePlanPatch(params.newPlan, params.durationWeeks, params.startDate);
+      const patch = buildActiveCyclePlanPatch(alignedPlan, params.durationWeeks, params.startDate);
       activeCycles.filter(snapshot => snapshot.exists()).forEach(snapshot => transaction.update(snapshot.ref, patch));
     }
   });
