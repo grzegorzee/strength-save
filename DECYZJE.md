@@ -11,6 +11,20 @@
 
 ## DECYZJE
 
+### 2026-07-24 — X19: id dni aktywnego cyklu niezmienne przy każdym zapisie planu (Z150-Z153) + fix jednostki inwentarza talerzy
+
+**Niezmiennik (Z151, zakodowany w testach):** id dnia aktywnego cyklu nadane przy starcie cyklu jest niezmienne do końca cyklu. Sync planu do cyklu może dni AKTUALIZOWAĆ i DOKŁADAĆ, nigdy nie zmienia id istniejących. Realizacja: `alignPlanDaysWithCycleIds` (`plan-cycle-utils.ts`) — id obecne w cyklu lub w formacie cyklu zostaje; dzień w obcym formacie dopasowany po pozycji+weekday dostaje id dnia cyklu (treść z planu, id ćwiczeń nietknięte); nowy dzień dostaje świeże `${cycleStartDate}-dN`. Wyrównany zestaw idzie do `training_plans.days` ORAZ patcha cyklu (w tej samej transakcji `saveTrainingPlanWithRevision`); gałąź e2e-mock `savePlan` wyrównuje tak samo (cykle z `fittracker_e2e_cycles`), żeby e2e testowało realny kontrakt.
+
+**Wektory dryfu (zweryfikowane w Z150, mapa skutków w PLAN-X19):** `resetToDefault` (plan default `day-N` nadpisywał id cyklu), `addPlanDay` (zawsze `day-N`), zapis z buildera/szablonu. Skutki przed fixem: Dashboard linkuje id z PLANU → po podmianie żywy draft nieodnajdywalny (auto-resume prowadzi w `dayNotFound` albo dzień tylko z dotkniętych ćwiczeń), ukończony dziś trening niewidoczny dla karty dnia (druga sesja tego samego dnia), mieszanka prefiksów id ćwiczeń.
+
+**Weryfikacja:** testy align 16/16 (czerwony bieg na starym zachowaniu: 4 fail); niezmienniki starych przepływów `training-plan-save.test.ts` (resetToDefault→id cyklu, addPlanDay→format cyklu, edycja ćwiczenia→id bez zmian, plan bez cyklu→`day-N`); e2e `plan-cycle-day-ids.spec.ts` 2/2 (czerwone na kodzie sprzed Z151: `day-4` zamiast `${START}-d4`, po resecie `day-1..3`); pełna suita 1049, e2e:mock 181/181, bramki dist w kolejności mobile+smoke→web+offline zielone.
+
+**Audyt produkcji (Z153):** `scripts/repair-cycle-day-ids.mjs` (dry-run domyślny, workouts NIGDY nie modyfikowane, wyrównanie plan/cykl do formatu HISTORII). Dry-run g.jasionowicz@gmail.com: 1 aktywny cykl, plan+cykl+historia spójnie `day-1..4` (32 workouts planowe, 4 adhoc), ZERO rozjazdów — apply niepotrzebny.
+
+**Fix przy okazji (zgłoszenie usera z builda 77):** przełącznik jednostki inwentarza talerzy KG/LBS wyglądał na martwy — preset się aplikował, ale jednostka nie była persystowana ani pokazywana (nominały w kg: `20.412 kg` zamiast `45 lbs`). Teraz: pole `unit` w `fittracker_plate_inventory_v1` (legacy bez pola = kg), aktywny przycisk z `aria-pressed`, nominały i nagłówek w jednostce inwentarza (`formatPlateNominal`), wpis własnego talerza interpretowany w jednostce inwentarza. i18n: `plates.availablePlates` z parametrem `{unit}` w PL i EN (parytet kluczy pełny, wymusza go typecheck).
+
+**Deploy:** web `index-Btkz95fT.js` na live (hash zweryfikowany curl-em). iOS BEZ builda — zmiany pojadą następnym trainem po potwierdzeniu builda 77 przez usera.
+
 ### 2026-07-24 — X18C: reminder bez spamu, gong bez Now Playing, czytelny pasek tygodnia (Z146+Z147+Z148)
 
 **Warunek pomijania porannego pusha (Z146):** `runDailyReminder` czyta dzisiejszy trening kandydata (1 query per kandydat po dotychczasowych filtrach, composite index workouts userId+date istniał): `startedAt` obecny LUB `completed=true` → skip (licznik `skippedActive` w logu). Świadome ograniczenie: draft offline niewidoczny dla backendu — trening rozpoczęty offline bez syncu nadal dostanie push.
