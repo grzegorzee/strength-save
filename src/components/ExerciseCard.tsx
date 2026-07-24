@@ -233,6 +233,12 @@ interface ExerciseCardProps {
   // lambda inline per karta zabiłaby memo() (re-render bomba R2-07).
   onRequestSwap?: (exerciseId: string) => void;
   onSkip?: (exerciseId: string) => void;
+  // Z143 (X18B): stan przerwy podniesiony do WorkoutDay — jeden timer na sesję.
+  // restRun przychodzi TYLKO gdy przerwa należy do tej karty; callbacki stabilne
+  // (useCallback w rodzicu), inaczej memo() padnie.
+  restRun?: { seconds: number; runId: number } | null;
+  onRestStart?: (exerciseId: string, seconds: number) => void;
+  onRestStop?: () => void;
 }
 
 // Input czasu mm:ss (Z105): lokalny draft, parse dopiero na blur/Enter —
@@ -289,6 +295,9 @@ const ExerciseCardInner = ({
   trackingType,
   onRequestSwap,
   onSkip,
+  restRun,
+  onRestStart,
+  onRestStop,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
@@ -315,8 +324,8 @@ const ExerciseCardInner = ({
   const [pinnedNoteOpen, setPinnedNoteOpen] = useState(false);
   // Z130: indeks serii czekającej na potwierdzenie usunięcia (null = brak dialogu).
   const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
-  // X17C Z136: aktywna przerwa tej karty. runId 0 = jeszcze żadnej nie było.
-  const [restRun, setRestRun] = useState<{ seconds: number; runId: number }>({ seconds: 0, runId: 0 });
+  // X17C Z136 → Z143: stan przerwy przeniesiony do rodzica (jeden timer na sesję);
+  // karta dostaje restRun propsem tylko, gdy przerwa należy do niej.
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
   const [notes, setNotes] = useState(savedNotes || '');
   const [showNotes, setShowNotes] = useState(!!savedNotes);
@@ -432,7 +441,9 @@ const ExerciseCardInner = ({
           exerciseFinished: allDone,
         });
         unlockTimerSound();
-        setRestRun((r) => ({ seconds, runId: r.runId + 1 }));
+        // Z143: decyzja i stan u rodzica (jeden timer na sesję, przejmowanie przez
+        // ostatnią odhaczoną serię). Warunki startu zostają w karcie.
+        onRestStart?.(exercise.id, seconds);
       }
     }
   };
@@ -1019,12 +1030,13 @@ const ExerciseCardInner = ({
 
         {/* X17C Z136.1: pasek przerwy w kontekście serii, nie jako modal kradnący
             ekran (wzorzec Strong). Tyka sam — karta się przez niego nie re-renderuje. */}
-        {FEATURE_FLAGS.workoutTimers && isEditable && restRun.runId > 0 && (
+        {FEATURE_FLAGS.workoutTimers && isEditable && restRun && restRun.runId > 0 && (
           <RestBar
             seconds={restRun.seconds}
             runId={restRun.runId}
             exerciseLabel={localizedName}
-            onSkip={() => setRestRun((r) => ({ ...r, runId: 0 }))}
+            onSkip={() => onRestStop?.()}
+            onFinished={onRestStop}
           />
         )}
 

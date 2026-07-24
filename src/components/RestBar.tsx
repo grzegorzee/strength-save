@@ -21,6 +21,8 @@ interface RestBarProps {
   runId: number;
   exerciseLabel: string;
   onSkip: () => void;
+  /** Z143: koniec przerwy w foregroundzie — rodzic (właściciel stanu) zeruje przerwę. */
+  onFinished?: () => void;
 }
 
 const mmss = (total: number): string => {
@@ -40,7 +42,7 @@ const mmss = (total: number): string => {
  * `setInterval` służy WYŁĄCZNIE do odświeżania widoku, gdy apka jest na wierzchu.
  * Sygnał końca przy zgaszonym ekranie dostarcza system (local notification).
  */
-export const RestBar = ({ seconds, runId, exerciseLabel, onSkip }: RestBarProps) => {
+export const RestBar = ({ seconds, runId, exerciseLabel, onSkip, onFinished }: RestBarProps) => {
   const { t } = useTranslation();
   const [state, setState] = useState<RestTimerState>(() => startRest(Date.now(), seconds));
   const [, forceTick] = useState(0);
@@ -88,7 +90,10 @@ export const RestBar = ({ seconds, runId, exerciseLabel, onSkip }: RestBarProps)
     // MOCNY sygnał, nie lekki impuls: user zgłosił po treningu „cicha wibracja,
     // nic więcej". Telefon leży obok ławki albo w kieszeni.
     void hapticRestEnd();
-  }, [done, state.deadlineAt]);
+    // Z143: właścicielem stanu jest rodzic — koniec przerwy zeruje stan (karta
+    // może się przygasić, Z145; pasek znika zamiast wisieć jako „Koniec przerwy").
+    onFinished?.();
+  }, [done, state.deadlineAt, onFinished]);
 
   const handleAdjust = (delta: number) => {
     const next = adjustRest(state, delta, Date.now());

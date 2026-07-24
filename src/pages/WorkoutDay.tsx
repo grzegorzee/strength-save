@@ -51,6 +51,7 @@ import { deriveWorkoutSessionPhase, isActiveTrainingPhase } from '@/lib/workout-
 import { resolveWorkoutHydration } from '@/lib/workout-hydration';
 import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
+import { useRestTimerController } from '@/hooks/useRestTimerController';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
@@ -185,6 +186,9 @@ const WorkoutDay = () => {
   const [showAddExercise, setShowAddExercise] = useState(false);
   // Session-only swaps ("tylko dziś") keyed by exerciseId — not persisted to the plan.
   const [sessionSwaps, setSessionSwaps] = useState<Record<string, { id: string; name: string; sets: string; videoUrl?: string }>>({});
+
+  // Z143: jeden timer przerwy na sesję — stan u właściciela (tu), tykanie w RestBar.
+  const { restState, startRest: startRestTimer, stopRest: stopRestTimer } = useRestTimerController();
 
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const firstExerciseRef = useRef<HTMLDivElement>(null);
@@ -2360,6 +2364,9 @@ const WorkoutDay = () => {
               pinnedNote={getPinnedNote(exercise.name)}
               onPinnedNoteSave={savePinnedNote}
               trackingType={resolveTracking(exercise.name)}
+              restRun={restState && restState.exerciseId === exercise.id ? restState : null}
+              onRestStart={startRestTimer}
+              onRestStop={stopRestTimer}
               {...(isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id])
                 ? { onRequestSwap: handleRequestSwap, onSkip: handleSkipExercise }
                 : {})}
