@@ -49,6 +49,7 @@ import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { addAppStateListener } from '@/lib/app-lifecycle';
 import { deriveWorkoutSessionPhase, isActiveTrainingPhase } from '@/lib/workout-session-state';
 import { resolveWorkoutHydration } from '@/lib/workout-hydration';
+import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
@@ -62,8 +63,11 @@ import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import {
   areWorkoutStartSourcesReady,
+  buildStartDraft,
+  buildStartExerciseSets,
   buildWorkoutStartSnapshot,
   findUniqueCycleForDate,
+  type StartExerciseLike,
 } from '@/lib/workout-start';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
@@ -102,7 +106,7 @@ const SessionClock = ({ startedAt }: { startedAt: number }) => {
 
 const WorkoutDay = () => {
   const { dayId } = useParams<{ dayId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t, lang } = useTranslation();
@@ -1049,13 +1053,23 @@ const WorkoutDay = () => {
 
     autostartDone.current = true;
 
-    if (sessionId) {
+    // Z141: parametr znika z URL po konsumpcji — wpis historii z ?autostart=true
+    // przestaje restartować żywą sesję przy powrocie (back) z /plan/edit.
+    const strippedParams = stripAutostartParam(searchParams);
+    if (strippedParams) setSearchParams(strippedParams, { replace: true });
+
+    const decision = shouldAutostartWorkout({ autostart, sessionId, draftForPage: currentPageDraft });
+
+    if (decision === 'scroll-only') {
       // Session already exists, just scroll to first exercise
       setTimeout(() => {
         firstExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
       return;
     }
+
+    // resume: draft z treścią dla tej strony — hydracja robi swoje, bez handleStartWorkout
+    if (decision !== 'start') return;
 
     // Auto-start the workout and scroll
     handleStartWorkout().then(() => {
@@ -1291,6 +1305,16 @@ const WorkoutDay = () => {
         return;
       }
 
+      const buildStartPrefill = (exercise: StartExerciseLike) => {
+        const target = weeklyTargets?.[exercise.id];
+        return createPrefilledSets(
+          target?.targetSets ?? parseSetCount(exercise.sets),
+          getPreviousSets(exercise.id, exercise.name),
+          resolveIsBodyweight(exercise.name),
+          target ? { weight: target.targetWeight, reps: target.targetReps } : null,
+        );
+      };
+
       if (result.existing) {
         cloudMetaRef.current = {
           sessionId: result.session.id,
@@ -1301,20 +1325,13 @@ const WorkoutDay = () => {
         setIsCompleted(false);
         // Wznowienie istniejącej sesji: uzupełnij ćwiczenia, których jeszcze nie ma
         // w stanie (incydent 2026-07-20 — bez tego draft miał tylko dotknięte
-        // ćwiczenie). Istniejących danych NIE ruszamy.
-        const existingSets = exerciseSetsRef.current;
-        const filled: Record<string, SetData[]> = { ...existingSets };
-        let added = false;
-        startSnapshot.day.exercises.forEach((exercise) => {
-          if (filled[exercise.id]) return;
-          const target = weeklyTargets?.[exercise.id];
-          filled[exercise.id] = createPrefilledSets(
-            target?.targetSets ?? parseSetCount(exercise.sets),
-            getPreviousSets(exercise.id, exercise.name),
-            resolveIsBodyweight(exercise.name),
-            target ? { weight: target.targetWeight, reps: target.targetReps } : null,
-          );
-          added = true;
+        // ćwiczenie). Istniejących danych NIE ruszamy. Draft z bazy jest źródłem
+        // prawdy — ref bywa pusty na świeżym mouncie (Z141.2, wyścig z hydracją).
+        const { sets: filled, added } = buildStartExerciseSets({
+          exercises: startSnapshot.day.exercises,
+          draftSets: currentPageDraft?.exerciseSets ?? null,
+          stateSets: exerciseSetsRef.current,
+          buildPrefill: buildStartPrefill,
         });
         if (added) {
           setExerciseSets(filled);
@@ -1326,53 +1343,40 @@ const WorkoutDay = () => {
           description: t('workout.toast.continueDesc'),
         });
       } else {
-        // Pre-fill with progression from previous workout
-        const prefilled: Record<string, SetData[]> = {};
-        startSnapshot.day.exercises.forEach((exercise) => {
-          const prevSets = getPreviousSets(exercise.id, exercise.name);
-          // Z120: przy włączonym silniku progresji pre-fill z celu tygodnia
-          // (deload-week redukuje też liczbę serii).
-          const target = weeklyTargets?.[exercise.id];
-          const count = target?.targetSets ?? parseSetCount(exercise.sets);
-          prefilled[exercise.id] = createPrefilledSets(
-            count, prevSets, resolveIsBodyweight(exercise.name),
-            target ? { weight: target.targetWeight, reps: target.targetReps } : null,
-          );
+        // Z141.2: żywy draft tej strony NIE jest budowany od zera — adoptujemy go
+        // (serie, notatki, startedAt, wersja zostają), aktualizując tylko tożsamość
+        // sesji i cloud-meta. Bez tego gałąź existing=false deterministycznie
+        // wymazywała odhaczone serie (incydent 2026-07-24).
+        const adoptableDraft = currentPageDraft && draftHasLiveContent(currentPageDraft)
+          ? currentPageDraft
+          : null;
+        // Pre-fill with progression from previous workout (Z120: cel tygodnia,
+        // deload-week redukuje też liczbę serii) — tylko dla brakujących ćwiczeń.
+        const { sets: prefilled } = buildStartExerciseSets({
+          exercises: startSnapshot.day.exercises,
+          draftSets: adoptableDraft?.exerciseSets ?? null,
+          stateSets: {},
+          buildPrefill: buildStartPrefill,
         });
         setExerciseSets(prefilled);
-        setExerciseNotes({});
-        setDayNotes('');
-        setSkippedExercises([]);
+        setExerciseNotes(adoptableDraft?.exerciseNotes ?? {});
+        setDayNotes(adoptableDraft?.dayNotes ?? '');
+        setSkippedExercises(adoptableDraft?.skippedExercises ?? []);
+        if (adoptableDraft) setExerciseMetrics(adoptableDraft.exerciseMetrics);
 
-        const now = Date.now();
-        const initialDraft: ActiveWorkoutDraft = {
-          sessionId: result.session.id,
-          userId: uid,
-          dayId: startSnapshot.day.id,
-          date: startSnapshot.date,
-          cycleId: startSnapshot.activeCycleId,
-          sessionOrigin: result.provisional ? 'provisional' : 'remote',
-          remoteSessionId: result.provisional ? null : result.session.id,
-          cloudUpdatedAt: result.session.updatedAt,
-          cloudRevision: result.session.revision,
-          exerciseSets: prefilled,
-          exerciseNotes: {},
-          exerciseNames: Object.fromEntries(
-            startSnapshot.day.exercises.map((exercise) => [exercise.id, exercise.name]),
-          ),
-          exerciseMetrics: {},
-          dayNotes: '',
-          dayName: startSnapshot.day.dayName,
-          dayFocus: startSnapshot.day.focus,
-          skippedExercises: [],
-          startedAt: now,
-          updatedAt: now,
-          lastFirebaseSyncAt: null,
-          dirty: true,
-          completedLocally: false,
-          finalSyncPending: false,
-          version: 1,
-        };
+        const initialDraft = buildStartDraft({
+          uid,
+          session: {
+            sessionId: result.session.id,
+            provisional: !!result.provisional,
+            cloudUpdatedAt: result.session.updatedAt,
+            cloudRevision: result.session.revision,
+          },
+          snapshot: startSnapshot,
+          adoptedDraft: adoptableDraft,
+          sets: prefilled,
+          now: Date.now(),
+        });
 
         const savedDraft = await persistDraftSnapshot(initialDraft, { showStatus: true });
         if (!savedDraft) {

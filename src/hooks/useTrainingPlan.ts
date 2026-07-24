@@ -44,17 +44,26 @@ export const useTrainingPlan = (userId: string) => {
       return;
     }
 
-    // E2E mock (Z120): Firestore zablokowany, więc startDate/progression planu
-    // czytamy z localStorage — pozwala testować silnik progresji end-to-end.
+    // E2E mock (Z120/Z141): Firestore zablokowany, więc cały plan (days + meta)
+    // żyje w localStorage. Subskrypcję snapshotów POMIJAMY — cache'owy snapshot
+    // "exists=false" nadpisywałby dni z mocka defaultem chwilę po mouncie.
     if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
       try {
         const raw = window.localStorage.getItem('fittracker_e2e_plan');
         if (raw) {
-          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown };
+          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number };
           if (data.startDate) setPlanStartDate(data.startDate);
           setProgression(sanitizeProgressionConfig(data.progression));
+          if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
+          const days = data.days !== undefined ? sanitizeTrainingPlanDays(data.days) : null;
+          if (days) {
+            setPlan(days);
+            setIsCustom(true);
+          }
         }
       } catch { /* uszkodzony wpis e2e — zostaje default */ }
+      setIsLoaded(true);
+      return;
     }
 
     const docRef = doc(db, PLAN_COLLECTION, userId);
@@ -161,6 +170,27 @@ export const useTrainingPlan = (userId: string) => {
     // Zapis przed załadowaniem snapshotu nadpisałby istniejący plan domyślnym stanem
     // (durationWeeks=12, startDate=null) — czyli skasowałby custom plan i datę startu.
     if (!isLoaded) return { success: false, error: t('err.planNotLoaded') };
+    // E2E mock (Z141): zapis planu do localStorage zamiast transakcji Firestore
+    // (ten sam seam co saveDeloadDecision) — edycja planu testowalna bez backendu.
+    if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+      const nextDurationWeeks = options?.durationWeeks ?? planDurationWeeks;
+      const nextStartDate = options?.startDate !== undefined ? options.startDate : planStartDate;
+      const nextProgression = options?.progression !== undefined ? options.progression : progression;
+      try {
+        window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify({
+          days: newPlan,
+          durationWeeks: nextDurationWeeks,
+          ...(nextStartDate ? { startDate: nextStartDate } : {}),
+          ...(nextProgression ? { progression: nextProgression } : {}),
+        }));
+      } catch { /* noop */ }
+      setPlan(newPlan);
+      setIsCustom(true);
+      setPlanDurationWeeks(nextDurationWeeks);
+      setPlanStartDate(nextStartDate);
+      setProgression(nextProgression ?? null);
+      return { success: true };
+    }
     try {
       const nextDurationWeeks = options?.durationWeeks ?? planDurationWeeks;
       await saveTrainingPlanWithRevision(db, {
@@ -185,7 +215,7 @@ export const useTrainingPlan = (userId: string) => {
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, [userId, isLoaded, planDurationWeeks, planStartDate, planRevision, t]);
+  }, [userId, isLoaded, planDurationWeeks, planStartDate, planRevision, progression, t]);
 
   const swapExercise = useCallback(async (
     dayId: string,
