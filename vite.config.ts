@@ -110,6 +110,13 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    optimizeDeps: {
+      // Jawne wejście zamiast domyślnego globa '**/*.html' po całym repo:
+      // build/sim (derivedData symulatora, 3+ GB) zawiera cykliczne symlinki
+      // xcframeworków, na których fast-glob wisi w nieskończoność — dev server
+      // nigdy nie kończył wtedy skanu zależności (page.goto timeout w e2e).
+      entries: ['index.html'],
+    },
     build: {
       modulePreload: false,
       rollupOptions: {
