@@ -11,6 +11,24 @@
 
 ## DECYZJE
 
+### 2026-07-24 — X18A: autostart kasował serie po edycji planu dnia + czas 48:08:47 (Z141+Z142)
+
+**Co:** (1) Edycja planu dnia w trakcie treningu nie kasuje odhaczonych serii. (2) durationSec liczony do ostatniej realnej aktywności, nie do kliknięcia "Zakończ trening".
+
+**Root cause 1 (reset serii):** `?autostart=true` żył w historii przeglądarki (Dashboard nigdy go nie zdejmował). Powrót (back) z `/plan/edit` montował WorkoutDay na świeżo: `autostartDone` ref świeży, `sessionId` w domknięciu efektu jeszcze `null` (hydracja ustawia go setState'em niewidocznym w tym samym przebiegu) → `handleStartWorkout()` startował NA ŻYWEJ SESJI. Gałąź provisional nadpisywała draft deterministycznie (`initialDraft` z `version: 1`), gałąź remote — zależnie od wyścigu z hydracją (`exerciseSetsRef` pusty na świeżym mouncie).
+
+**Fix 1:** `shouldAutostartWorkout` (czysta funkcja: start/resume/scroll-only/none; draft z treścią → resume) + zdjęcie parametru z URL po konsumpcji (`setSearchParams` replace) + guard bliźniak w `handleStartWorkout` (`buildStartExerciseSets`: draft z bazy źródłem prawdy, prefill tylko brakujących; `buildStartDraft`: adopcja żywego draftu — serie/notatki/startedAt/wersja zostają).
+
+**Root cause 2 (48:08:47):** `durationSec = finalizedAt - startedAt` bez capa; `finalizedAt` = moment kliknięcia "Zakończ trening", nawet 48h po treningu.
+
+**Fix 2:** `ActiveWorkoutDraft.lastActivityAt` (opcjonalne, bump tylko przy zmianie treści draftu — detekcja `contentUnchanged` w snapshocie; snapshoty techniczne nie ruszają) + `computeEffectiveDurationSec`: przerwa bez akcji > 60 min → koniec = lastActivityAt + 3 min bufora. `completedAt` zostaje momentem zapisu (porządek syncu). Jedno źródło prawdy: silnik finalizacji + kafel "Czas".
+
+**Weryfikacja:** e2e sekwencji `plan-edit-during-workout.spec.ts` (autostart → 2 serie → /plan/edit → dodaj ćwiczenie → back → serie nietknięte + wariant offline/provisional) — RED na kodzie sprzed fixa, GREEN po; unit: workout-autostart 11, workout-start 18, snapshot +5, silnik +3 (clamp RED→GREEN); pełny vitest 1006/1006.
+
+**Naprawa danych (czeka na usera):** dry-run `scripts/repair-duration-outliers.mjs` znalazł 1 rekord: 2026-07-21 Wtorek 48:08:47, 17 serii → propozycja 51 min (17×3 min) albo 60 min wg słów usera. Zapis dopiero po potwierdzeniu.
+
+**Przy okazji (środowisko):** dev server wisiał na skanie zależności po każdym czyszczeniu `node_modules/.vite` — domyślny glob `**/*.html` vite trafiał w `build/sim` (3,1 GB derivedData z cyklicznymi symlinkami xcframeworków). Fix: `optimizeDeps.entries: ['index.html']`. Seam e2e: dni planu w `fittracker_e2e_plan.days` (localStorage), zapis planu bez Firestore w trybie mock.
+
 ### 2026-07-20 — dźwięk końca przerwy: root cause i wybór dźwięku (build 74 → 75)
 
 **Sekwencja diagnostyczna (trzy testy usera na urządzeniu, trzy różne przyczyny):**
