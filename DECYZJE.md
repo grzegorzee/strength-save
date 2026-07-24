@@ -23,7 +23,7 @@
 
 **Fix przy okazji (zgłoszenie usera z builda 77):** przełącznik jednostki inwentarza talerzy KG/LBS wyglądał na martwy — preset się aplikował, ale jednostka nie była persystowana ani pokazywana (nominały w kg: `20.412 kg` zamiast `45 lbs`). Teraz: pole `unit` w `fittracker_plate_inventory_v1` (legacy bez pola = kg), aktywny przycisk z `aria-pressed`, nominały i nagłówek w jednostce inwentarza (`formatPlateNominal`), wpis własnego talerza interpretowany w jednostce inwentarza. i18n: `plates.availablePlates` z parametrem `{unit}` w PL i EN (parytet kluczy pełny, wymusza go typecheck).
 
-**Deploy:** web `index-Btkz95fT.js` na live (hash zweryfikowany curl-em). iOS BEZ builda — zmiany pojadą następnym trainem po potwierdzeniu builda 77 przez usera.
+**Deploy:** web `index-Btkz95fT.js` na live (hash zweryfikowany curl-em). iOS: po potwierdzeniu builda 77 przez usera (realny trening OK) — build 78 na TestFlight tym samym dniem (X19 + fix jednostki inwentarza): upload SUCCEEDED, obie grupy podpięte, Beta App Review APPROVED; Robert dostaje build automatycznie.
 
 ### 2026-07-24 — X18C: reminder bez spamu, gong bez Now Playing, czytelny pasek tygodnia (Z146+Z147+Z148)
 
