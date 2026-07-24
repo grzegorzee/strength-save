@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deriveWorkoutSessionPhase,
+  hasRemainingWork,
   isActiveTrainingPhase,
   type WorkoutSessionPhaseInput,
 } from '@/lib/workout-session-state';
@@ -57,5 +58,52 @@ describe('deriveWorkoutSessionPhase (Z57)', () => {
     expect(isActiveTrainingPhase('editing')).toBe(false);
     expect(isActiveTrainingPhase('final-pending')).toBe(false);
     expect(isActiveTrainingPhase('completed')).toBe(false);
+  });
+});
+
+describe('hasRemainingWork (Z144)', () => {
+  const exercises = [{ id: 'ex-a' }, { id: 'ex-b' }];
+  const done = { reps: 5, weight: 100, completed: true };
+  const open = { reps: 5, weight: 100, completed: false };
+  const warmupOpen = { reps: 10, weight: 20, completed: false, isWarmup: true };
+
+  it('ostatnia seria ostatniego niepominiętego ćwiczenia → false', () => {
+    expect(hasRemainingWork(
+      { 'ex-a': [done, done], 'ex-b': [done] },
+      [],
+      exercises,
+    )).toBe(false);
+  });
+
+  it('ostatnia seria ćwiczenia, ale inne ćwiczenie ma nieodhaczone serie → true', () => {
+    expect(hasRemainingWork(
+      { 'ex-a': [done, done], 'ex-b': [open] },
+      [],
+      exercises,
+    )).toBe(true);
+  });
+
+  it('pozostały tylko serie rozgrzewkowe → false (rozgrzewka nie jest pracą do zrobienia)', () => {
+    expect(hasRemainingWork(
+      { 'ex-a': [warmupOpen, done], 'ex-b': [warmupOpen, done] },
+      [],
+      exercises,
+    )).toBe(false);
+  });
+
+  it('pozostałe ćwiczenie jest w skippedExercises → false', () => {
+    expect(hasRemainingWork(
+      { 'ex-a': [done, done], 'ex-b': [open, open] },
+      ['ex-b'],
+      exercises,
+    )).toBe(false);
+  });
+
+  it('ćwiczenie bez stanu serii (dodane w trakcie, nietknięte) → true', () => {
+    expect(hasRemainingWork(
+      { 'ex-a': [done] },
+      [],
+      exercises,
+    )).toBe(true);
   });
 });

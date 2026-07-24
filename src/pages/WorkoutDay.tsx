@@ -47,7 +47,8 @@ import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { addAppStateListener } from '@/lib/app-lifecycle';
-import { deriveWorkoutSessionPhase, isActiveTrainingPhase } from '@/lib/workout-session-state';
+import { deriveWorkoutSessionPhase, hasRemainingWork, isActiveTrainingPhase } from '@/lib/workout-session-state';
+import { cancelRestEndNotification } from '@/lib/rest-notification';
 import { resolveWorkoutHydration } from '@/lib/workout-hydration';
 import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
@@ -189,6 +190,26 @@ const WorkoutDay = () => {
 
   // Z143: jeden timer przerwy na sesję — stan u właściciela (tu), tykanie w RestBar.
   const { restState, startRest: startRestTimer, stopRest: stopRestTimer } = useRestTimerController();
+  // Zawsze aktualna lista ćwiczeń dnia dla decyzji o przerwie (Z144) — bez
+  // wiązania tożsamości handlera z obiektem day (memo kart, R2-07).
+  const dayExercisesRef = useRef<ReadonlyArray<{ id: string }>>([]);
+
+  // Z144: ostatnia seria treningu nie startuje przerwy. Koniec treningu = koniec
+  // odliczania czegokolwiek: gasimy też biegnącą przerwę i jej notyfikację.
+  // Sygnał końca serii (dźwięk/haptyka z odhaczenia) zostaje w karcie bez zmian.
+  const handleRestStart = useCallback((exerciseId: string, seconds: number) => {
+    const workRemains = hasRemainingWork(
+      exerciseSetsRef.current,
+      skippedExercisesRef.current,
+      dayExercisesRef.current,
+    );
+    if (!workRemains) {
+      stopRestTimer();
+      void cancelRestEndNotification();
+      return;
+    }
+    startRestTimer(exerciseId, seconds);
+  }, [startRestTimer, stopRestTimer]);
 
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const firstExerciseRef = useRef<HTMLDivElement>(null);
@@ -320,6 +341,8 @@ const WorkoutDay = () => {
     daySnapshotRef.current = day
       ? { dayName: day.dayName, focus: day.focus, names: Object.fromEntries(day.exercises.map(e => [e.id, e.name])) }
       : { dayName: '', focus: '', names: {} };
+    // Z144: lista ćwiczeń dnia dla decyzji o starcie przerwy (hasRemainingWork).
+    dayExercisesRef.current = day?.exercises ?? [];
   }, [day]);
 
   // Z104: dodanie ćwiczenia w locie do treningu ad-hoc. Serie pre-fillowane z historii
@@ -1454,6 +1477,10 @@ const WorkoutDay = () => {
       ? { ...exerciseNotesRef.current, [exerciseId]: notes }
       : exerciseNotesRef.current;
 
+    // Z144: ref aktualizowany SYNCHRONICZNIE — onRestStart odpala się w tym samym
+    // kliknięciu co onSetsChange i musi widzieć właśnie odhaczoną serię (efekt
+    // mirrorujący ref zdąży dopiero po renderze).
+    exerciseSetsRef.current = nextExerciseSets;
     setExerciseSets(nextExerciseSets);
     if (notes !== undefined) {
       setExerciseNotes(nextExerciseNotes);
@@ -2365,7 +2392,7 @@ const WorkoutDay = () => {
               onPinnedNoteSave={savePinnedNote}
               trackingType={resolveTracking(exercise.name)}
               restRun={restState && restState.exerciseId === exercise.id ? restState : null}
-              onRestStart={startRestTimer}
+              onRestStart={handleRestStart}
               onRestStop={stopRestTimer}
               {...(isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id])
                 ? { onRequestSwap: handleRequestSwap, onSkip: handleSkipExercise }

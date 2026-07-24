@@ -38,3 +38,22 @@ export const deriveWorkoutSessionPhase = (input: WorkoutSessionPhaseInput): Work
 export const isActiveTrainingPhase = (phase: WorkoutSessionPhase): boolean =>
   phase === 'active-provisional' || phase === 'active-remote'
   || phase === 'completing' || phase === 'conflict';
+
+// Z144 (X18B): czy po aktualizacji stanu istnieje jeszcze jakakolwiek nieukończona
+// SERIA ROBOCZA w niepominiętym ćwiczeniu. false = koniec treningu — przerwa nie
+// ma już czego odliczać (user widzi przycisk "Zakończ trening", zero nowego UI).
+export const hasRemainingWork = (
+  exerciseSets: Record<string, Array<{ completed: boolean; isWarmup?: boolean }>>,
+  skippedExercises: string[],
+  exercises: ReadonlyArray<{ id: string }>,
+): boolean => {
+  const skipped = new Set(skippedExercises);
+  return exercises.some((exercise) => {
+    if (skipped.has(exercise.id)) return false;
+    const sets = exerciseSets[exercise.id];
+    // Ćwiczenie bez stanu serii (np. dodane do planu w trakcie sesji, jeszcze
+    // nietknięte) = praca do zrobienia; rozgrzewka pracą nie jest.
+    if (!sets) return true;
+    return sets.some((set) => !set.isWarmup && !set.completed);
+  });
+};

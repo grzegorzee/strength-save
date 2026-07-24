@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useRef } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { fireEvent, render, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
+import { hasRemainingWork } from '@/lib/workout-session-state';
+import { cancelRestEndNotification } from '@/lib/rest-notification';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import type { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
@@ -147,6 +150,70 @@ describe('jeden RestBar na sesję (Z143)', () => {
     expect(pendingNotifications.size).toBe(1);
     const [pending] = Array.from(pendingNotifications.values());
     expect(pending.body).toContain('Wyciskanie sztangi');
+  });
+
+  it('sekwencja Z144: przedostatnia seria startuje timer, ostatnia seria treningu gasi wszystko', async () => {
+    // Harness z bramką hasRemainingWork — dokładnie logika handleRestStart z WorkoutDay
+    // (onSetsChange aktualizuje ref synchronicznie PRZED decyzją o przerwie).
+    const GatedHarness = () => {
+      const { restState, startRest, stopRest } = useRestTimerController();
+      const setsRef = useRef<Record<string, SetData[]>>({});
+      const handleSetsChange = (exerciseId: string, sets: SetData[]) => {
+        setsRef.current = { ...setsRef.current, [exerciseId]: sets };
+      };
+      const handleRestStart = (exerciseId: string, seconds: number) => {
+        if (!hasRemainingWork(setsRef.current, [], [exerciseA, exerciseB])) {
+          stopRest();
+          void cancelRestEndNotification();
+          return;
+        }
+        startRest(exerciseId, seconds);
+      };
+      const cardProps = (exercise: Exercise) => ({
+        exercise,
+        index: 1,
+        savedSets: twoSets(),
+        isEditable: true,
+        onSetsChange: handleSetsChange,
+        restRun: restState && restState.exerciseId === exercise.id ? restState : null,
+        onRestStart: handleRestStart,
+        onRestStop: stopRest,
+      });
+      return (
+        <MemoryRouter>
+          <LanguageProvider>
+            <UnitProvider>
+              <div data-testid="card-a"><ExerciseCard {...cardProps(exerciseA)} /></div>
+              <div data-testid="card-b"><ExerciseCard {...cardProps(exerciseB)} /></div>
+            </UnitProvider>
+          </LanguageProvider>
+        </MemoryRouter>
+      );
+    };
+
+    const view = render(<GatedHarness />);
+    const cardA = view.getByTestId('card-a');
+    const cardB = view.getByTestId('card-b');
+
+    // A: seria 1 i 2 — po każdej timer biegnie (w B wciąż jest praca).
+    checkFirstOpenSet(cardA);
+    await flushNotificationChain();
+    checkFirstOpenSet(cardA);
+    await flushNotificationChain();
+    expect(within(cardA).getAllByTestId('rest-bar')).toHaveLength(1);
+
+    // B: przedostatnia seria treningu → timer startuje (przejęty przez B).
+    checkFirstOpenSet(cardB);
+    await flushNotificationChain();
+    expect(within(cardB).getAllByTestId('rest-bar')).toHaveLength(1);
+    expect(pendingNotifications.size).toBe(1);
+
+    // B: OSTATNIA seria ostatniego ćwiczenia → zero pasków, biegnąca przerwa
+    // anulowana, zero zaplanowanych notyfikacji.
+    checkFirstOpenSet(cardB);
+    await flushNotificationChain();
+    expect(view.queryByTestId('rest-bar')).toBeNull();
+    expect(pendingNotifications.size).toBe(0);
   });
 
   it('niezmienniki starych przepływów: odhaczenie startuje timer, ±15 przeplanowuje, Pomiń anuluje', async () => {
