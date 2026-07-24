@@ -11,6 +11,18 @@
 
 ## DECYZJE
 
+### 2026-07-24 — X18C: reminder bez spamu, gong bez Now Playing, czytelny pasek tygodnia (Z146+Z147+Z148)
+
+**Warunek pomijania porannego pusha (Z146):** `runDailyReminder` czyta dzisiejszy trening kandydata (1 query per kandydat po dotychczasowych filtrach, composite index workouts userId+date istniał): `startedAt` obecny LUB `completed=true` → skip (licznik `skippedActive` w logu). Świadome ograniczenie: draft offline niewidoczny dla backendu — trening rozpoczęty offline bez syncu nadal dostanie push.
+
+**Los `presentationOptions` (Z146):** bez `'alert'` (zostaje badge+sound) — w foregroundzie prezentację przejmuje w całości kontrolowany toast. Payload dostaje `data.type='daily-reminder'`, a klient (czysty moduł `push-foreground`, bez importów Firebase) nie pokazuje toastu tego typu na ekranie treningu. Koniec podwójnego banera.
+
+**Rewizja decyzji 2026-07-20 "HTMLAudioElement przed WebAudio" (Z147):** tamta decyzja dotyczyła SYNTEZY dźwięku, nie odtwarzania zdekodowanego PLIKU. Media element w WKWebView rejestrował apkę w Now Playing (widget odtwarzacza z paskiem 0:02 = długość wav). Teraz: fetch + decodeAudioData + bufferSource (cache per plik, porażka nie zostaje w cache), synteza WebAudio zostaje fallbackiem, `unlockTimerSound` prefetchuje wybrany plik w geście. Kategoria `.playback` w AppDelegate ZOSTAJE (dźwięk mimo przełącznika ciszy). Zero `new Audio(`/`<audio` w src/. Domyślny dźwięk: GONG (`rest_bell.wav`), etykieta ujednoznaczniona "Gong (dzwon bokserski)". Test słyszalności na fizycznym iPhone czeka na usera (plan B: natywny AVAudioPlayer, tylko jeśli WebAudio padnie na urządzeniu).
+
+**Pasek tygodnia (Z148):** pokazuje WYKONANE obciążenie — dostał własny mikronagłówek ("Obciążenie treningowe · czas × intensywność"), min 3 px słupka z obciążeniem, legendę siła/cardio i kropki dni planu (`plannedWeekdays` z Dashboardu). "Plan tygodnia" zostaje nagłówkiem listy kart dni. Zrzuty przed/po: docs/assets/z148-week-strip-*.png.
+
+**Weryfikacja:** functions daily-reminder 13/13, push-foreground 3/3, timer-sound 5/5, hybrid-week-strip 5/5 (wszystko RED→GREEN); pełny vitest 1031/1031; e2e:mock 179/179; bundle 1 515 062 B (limit 1 536 000); deploy functions potwierdzony (updateTime 2026-07-24T09:26Z, ACTIVE).
+
 ### 2026-07-24 — X18B: timery przerw v2 — jeden timer, koniec treningu bez timera, pełna widoczność (Z143+Z144+Z145)
 
 **Co:** Timer przerwy to jeden spójny mechanizm sesji: nigdy nie biegną dwa naraz, nie startuje po ostatniej serii całego treningu, jest w pełni widoczny w ukończonej karcie.
