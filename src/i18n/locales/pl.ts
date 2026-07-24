@@ -724,7 +724,7 @@ export const pl = {
   'rest.bar.expand': 'Rozwiń timer przerwy',
   'rest.bar.collapse': 'Zwiń',
   'rest.sound.title': 'Dźwięk końca przerwy',
-  'rest.sound.bell': 'Dzwon bokserski',
+  'rest.sound.bell': 'Gong (dzwon bokserski)',
   'rest.sound.horn': 'Klakson',
   'rest.sound.alarm': 'Alarm',
   'rest.sound.preview': 'Odsłuchaj',

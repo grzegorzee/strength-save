@@ -709,7 +709,7 @@ export const en: Record<keyof typeof pl, string> = {
   'rest.bar.expand': 'Expand rest timer',
   'rest.bar.collapse': 'Collapse',
   'rest.sound.title': 'Rest end sound',
-  'rest.sound.bell': 'Boxing bell',
+  'rest.sound.bell': 'Gong (boxing bell)',
   'rest.sound.horn': 'Horn',
   'rest.sound.alarm': 'Alarm',
   'rest.sound.preview': 'Play',

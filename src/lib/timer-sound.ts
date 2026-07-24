@@ -18,45 +18,69 @@ const getCtx = (): AudioContext | null => {
   }
 };
 
-// Realny plik zamiast syntezy WebAudio (2026-07-20, po dwóch nieudanych testach
-// na urządzeniu). WebAudio w WKWebView potrafi nie zagrać mimo odblokowania —
-// HTMLAudioElement jest w tym środowisku przewidywalniejszy, a plik i tak musimy
-// wozić w bundlu dla powiadomienia systemowego. Syntezowany beep zostaje jako
-// fallback (web, brak pliku).
-let el: HTMLAudioElement | null = null;
-let elFile = '';
+// Z147: plik gramy przez WebAudio (fetch + decodeAudioData + bufferSource),
+// NIE przez HTMLAudioElement — media element w WKWebView rejestrował apkę
+// w Now Playing (widget odtwarzacza z paskiem 0:02 na lock screenie). Czysty
+// WebAudio nie tworzy wpisu Now Playing. Decyzja 2026-07-20 („HTMLAudioElement
+// przed WebAudio") dotyczyła SYNTEZY, nie odtwarzania zdekodowanego pliku —
+// rewizja opisana w DECYZJE.md (X18C). Synteza zostaje fallbackiem.
+const bufferCache = new Map<string, Promise<AudioBuffer | null>>();
 
-const getEl = (): HTMLAudioElement | null => {
-  if (typeof Audio === 'undefined') return null;
-  const chosen = loadRestSound();
-  // Zmiana wyboru w Ustawieniach ma działać bez restartu apki.
-  if (!el || elFile !== chosen.file) {
-    el = new Audio(restSoundUrl(chosen.file));
-    el.preload = 'auto';
-    el.volume = 1;
-    elFile = chosen.file;
+const loadBuffer = (c: AudioContext, file: string): Promise<AudioBuffer | null> => {
+  const cached = bufferCache.get(file);
+  if (cached) return cached;
+  const promise = fetch(restSoundUrl(file))
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.arrayBuffer();
+    })
+    .then((buf) => c.decodeAudioData(buf))
+    .catch(() => null)
+    .then((buffer) => {
+      // Porażka nie zostaje w cache — kolejna próba (np. po odzyskaniu sieci) ma szansę.
+      if (!buffer) bufferCache.delete(file);
+      return buffer;
+    });
+  bufferCache.set(file, promise);
+  return promise;
+};
+
+/** Odtwórz plik przez WebAudio. false = nie zagrało (brak ctx / fetch / decode). */
+const playFile = async (file: string): Promise<boolean> => {
+  const c = getCtx();
+  if (!c) return false;
+  if (c.state === 'suspended') c.resume().catch(() => {});
+  const buffer = await loadBuffer(c, file);
+  if (!buffer) return false;
+  try {
+    const source = c.createBufferSource();
+    source.buffer = buffer;
+    const gain = c.createGain();
+    gain.gain.value = 1;
+    source.connect(gain);
+    gain.connect(c.destination);
+    source.start();
+    return true;
+  } catch {
+    return false;
   }
-  return el;
 };
 
 /** Odsłuch z Ustawień: gra podany plik natychmiast, niezależnie od wyboru. */
 export const previewRestSound = (file: string): void => {
-  if (typeof Audio === 'undefined') return;
-  const a = new Audio(restSoundUrl(file));
-  a.volume = 1;
-  void a.play().catch(() => {});
+  void playFile(file).then((played) => {
+    if (!played) playSynth('finish');
+  });
 };
 
 /** Wywołaj w handlerze gestu (start/otwarcie timera), żeby odblokować audio na iOS. */
 export const unlockTimerSound = (): void => {
   const c = getCtx();
-  if (c && c.state === 'suspended') c.resume().catch(() => {});
-  // Odblokowanie elementu audio tym samym gestem: krótkie play/pause w geście
-  // zdejmuje blokadę autoplay na iOS dla późniejszych odtworzeń z timera.
-  const a = getEl();
-  if (a && a.paused) {
-    a.play().then(() => { a.pause(); a.currentTime = 0; }).catch(() => {});
-  }
+  if (!c) return;
+  if (c.state === 'suspended') c.resume().catch(() => {});
+  // Prefetch wybranego dźwięku w geście — koniec przerwy gra z cache, bez
+  // czekania na fetch/decode w momencie deadline'u.
+  void loadBuffer(c, loadRestSound().file);
 };
 
 // Głośność sygnałów. Podniesiona po realnym treningu (2026-07-20): przy 0.3 beep
@@ -92,18 +116,13 @@ const isSoundEnabled = (): boolean => {
 export const playTimerSound = (kind: 'tick' | 'finish' | 'complete' = 'finish'): void => {
   if (!isSoundEnabled()) return;
 
-  // Koniec przerwy: najpierw realny plik (najpewniejsza droga w WKWebView).
-  // Gdy się nie uda — lecimy syntezą poniżej, żeby nie zostać z ciszą.
+  // Koniec przerwy: realny plik przez WebAudio (bez wpisu Now Playing).
+  // Gdy się nie uda — synteza, żeby nie zostać z ciszą.
   if (kind === 'finish') {
-    const a = getEl();
-    if (a) {
-      a.currentTime = 0;
-      const played = a.play();
-      if (played) {
-        played.catch(() => playSynth(kind));
-        return;
-      }
-    }
+    void playFile(loadRestSound().file).then((played) => {
+      if (!played) playSynth(kind);
+    });
+    return;
   }
 
   playSynth(kind);
