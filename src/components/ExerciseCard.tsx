@@ -840,11 +840,17 @@ const ExerciseCardInner = ({
     );
   };
 
+  // Z145: przygaszenie ukończonej karty dopiero, gdy przerwa się skończy albo
+  // zostanie pominięta — opacity rodzica jest multiplikatywne i wyszarzało pasek
+  // przerwy dokładnie wtedy, gdy był najbardziej potrzebny (przejście do
+  // następnego ćwiczenia).
+  const restActive = !!restRun && restRun.runId > 0;
+
   return (
     <div className={cn(
       "exercise-card",
       exercise.isSuperset && "bg-primary/[0.04]",
-      allCompleted && "opacity-50"
+      allCompleted && !restActive && "opacity-50"
     )}>
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 p-3 pr-4 exercise-card-header">

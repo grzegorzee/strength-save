@@ -216,6 +216,42 @@ describe('jeden RestBar na sesję (Z143)', () => {
     expect(pendingNotifications.size).toBe(0);
   });
 
+  it('Z145: ukończona karta z aktywną przerwą NIE jest przygaszona; bez przerwy — jest', () => {
+    const doneSets: SetData[] = [
+      { reps: 5, weight: 100, completed: true },
+      { reps: 5, weight: 100, completed: true },
+    ];
+    const renderDone = (restRun: { seconds: number; runId: number } | null) => render(
+      <MemoryRouter>
+        <LanguageProvider>
+          <UnitProvider>
+            <ExerciseCard
+              exercise={exerciseA}
+              index={1}
+              savedSets={doneSets}
+              isEditable={true}
+              restRun={restRun}
+              onRestStop={() => {}}
+            />
+          </UnitProvider>
+        </LanguageProvider>
+      </MemoryRouter>,
+    );
+
+    // Aktywna przerwa (odliczanie przejścia do następnego ćwiczenia) → karta
+    // pełną jasnością, pasek widoczny.
+    const withRest = renderDone({ seconds: 150, runId: 1 });
+    const cardWithRest = withRest.container.querySelector('.exercise-card') as HTMLElement;
+    expect(cardWithRest.className).not.toContain('opacity-50');
+    expect(within(cardWithRest).getByTestId('rest-bar')).toBeTruthy();
+    withRest.unmount();
+
+    // Bez przerwy → przygaszenie jak dotąd.
+    const withoutRest = renderDone(null);
+    const cardIdle = withoutRest.container.querySelector('.exercise-card') as HTMLElement;
+    expect(cardIdle.className).toContain('opacity-50');
+  });
+
   it('niezmienniki starych przepływów: odhaczenie startuje timer, ±15 przeplanowuje, Pomiń anuluje', async () => {
     const view = render(<TwoCardsHarness />);
     const cardA = view.getByTestId('card-a');
