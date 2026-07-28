@@ -10,7 +10,8 @@ const APP_DEEP_LINK = "strengthsave://open";
 
 // Escape HTML dla wartości interpolowanych do maili (email, displayName, note, body
 // mogą zawierać znaki sterujące z OAuth/inputu admina). Zapobiega HTML injection.
-function esc(value: string): string {
+// Eksport: używa go też weekly-digest-html.ts (Z160).
+export function esc(value: string): string {
   return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

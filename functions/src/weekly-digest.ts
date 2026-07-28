@@ -4,19 +4,17 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
 import { forEachWithConcurrency } from "./bounded-concurrency";
+import {
+  compareWeeks,
+  computeWeekStats,
+  detectWeekPRs,
+  type DigestWorkout,
+} from "./weekly-digest-stats";
+import { buildWeeklyDigest, type DigestStrava, type UnitSystem } from "./weekly-digest-html";
+import type { Lang } from "./email-templates";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 const DIGEST_CONCURRENCY = 10;
-
-interface WorkoutDoc {
-  userId: string;
-  completed: boolean;
-  date: string;
-  exercises: Array<{
-    exerciseId: string;
-    sets: Array<{ reps: number; weight: number; completed: boolean; isWarmup?: boolean }>;
-  }>;
-}
 
 interface StravaDoc {
   date: string;
@@ -27,34 +25,72 @@ interface StravaDoc {
   averageSpeed?: number;
 }
 
-function escapeHtmlStr(text: string): string {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 // R2-10: odbiorcy z kolekcji users (status active + opt-out weeklyDigest), a odczyty
-// proporcjonalne do treningów tygodnia (2 kwerendy zbiorcze), nie 2 kwerendy per user.
+// proporcjonalne do treningów (kwerendy zbiorcze), nie kwerendy per user.
 // Zależności wstrzykiwane, żeby logika była testowalna bez emulatora.
 export interface DigestUser {
   uid: string;
   email?: string;
   status?: string;
   notificationPrefs?: { weeklyDigest?: boolean };
+  // Z160: język i jednostki do i18n treści maila.
+  language?: string;
+  displayName?: string;
+  preferences?: { unit?: string; language?: string };
 }
 
 export interface WeeklyDigestDeps {
   listUsers: () => Promise<DigestUser[]>;
-  queryCompletedWorkouts: (startStr: string, endStr: string) => Promise<WorkoutDoc[]>;
+  queryCompletedWorkouts: (startStr: string, endStr: string) => Promise<DigestWorkout[]>;
+  /** Z160: pełne dokumenty ukończonych treningów sprzed danej daty (baza PR-ów
+   *  i poprzedni tydzień). Koszt: cała historia kolekcji — przy obecnej skali
+   *  userów akceptowalne; przy wzroście → per-user limit albo agregaty. */
+  queryWorkoutHistory: (beforeStr: string) => Promise<DigestWorkout[]>;
   queryStravaActivities: (startStr: string, endStr: string) => Promise<Array<StravaDoc & { userId: string }>>;
   sendEmail: (to: string, subject: string, html: string) => Promise<{ error?: { message: string } }>;
   now?: () => Date;
 }
 
+const localDateStr = (d: Date): string =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const groupByUser = <T extends { userId?: string }>(docs: T[]): Map<string, T[]> => {
+  const byUser = new Map<string, T[]>();
+  docs.forEach((docItem) => {
+    if (!docItem.userId) return;
+    const list = byUser.get(docItem.userId) ?? [];
+    list.push(docItem);
+    byUser.set(docItem.userId, list);
+  });
+  return byUser;
+};
+
+const userLang = (user: DigestUser): Lang =>
+  (user.language ?? user.preferences?.language) === "en" ? "en" : "pl";
+
+const userUnit = (user: DigestUser): UnitSystem =>
+  user.preferences?.unit === "lbs" ? "lbs" : "kg";
+
+const buildStravaSummary = (activities: StravaDoc[]): DigestStrava | null => {
+  const runs = activities.filter((a) => a.type === "Run");
+  if (runs.length === 0) return null;
+  const totalRunKm = Math.round(runs.reduce((sum, a) => sum + ((a.distance || 0) / 1000), 0) * 10) / 10;
+  const best = runs
+    .filter((a) => a.averageSpeed && a.averageSpeed > 0)
+    .sort((a, b) => (b.averageSpeed || 0) - (a.averageSpeed || 0))[0];
+  const longest = runs
+    .filter((a) => a.distance && a.distance > 0)
+    .sort((a, b) => (b.distance || 0) - (a.distance || 0))[0];
+  return {
+    runCount: runs.length,
+    totalRunKm,
+    ...(best && { bestRun: { name: best.name, km: Math.round(((best.distance || 0) / 1000) * 10) / 10 } }),
+    ...(longest && { longestRun: { name: longest.name, km: Math.round(((longest.distance || 0) / 1000) * 10) / 10 } }),
+  };
+};
+
 export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ processed: number; sent: number; failed: number }> {
-  // Get last Monday-Sunday range
+  // Zakres: poprzedni poniedziałek-niedziela.
   const now = deps.now ? deps.now() : new Date();
   const lastMonday = new Date(now);
   const day = lastMonday.getDay();
@@ -66,8 +102,14 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
   lastSunday.setDate(lastMonday.getDate() + 6);
   lastSunday.setHours(23, 59, 59, 999);
 
-  const startStr = lastMonday.toISOString().split("T")[0];
-  const endStr = lastSunday.toISOString().split("T")[0];
+  const startStr = localDateStr(lastMonday);
+  const endStr = localDateStr(lastSunday);
+  // Poprzedni tydzień (do porównania WoW) wycinamy z kwerendy historii — bez
+  // trzeciej kwerendy zbiorczej.
+  const prevMonday = new Date(lastMonday);
+  prevMonday.setDate(prevMonday.getDate() - 7);
+  const prevStartStr = localDateStr(prevMonday);
+  const prevEndStr = localDateStr(new Date(lastMonday.getTime() - 24 * 60 * 60 * 1000));
 
   logger.info(`[WeeklyDigest] Period: ${startStr} - ${endStr}`);
 
@@ -79,124 +121,49 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
     && user.notificationPrefs?.weeklyDigest !== false
   ));
 
-  const [allWorkouts, allStrava] = await Promise.all([
+  const [weekWorkouts, historyWorkouts, allStrava] = await Promise.all([
     deps.queryCompletedWorkouts(startStr, endStr),
+    deps.queryWorkoutHistory(startStr),
     deps.queryStravaActivities(startStr, endStr),
   ]);
-  const workoutsByUser = new Map<string, WorkoutDoc[]>();
-  allWorkouts.forEach((workoutDoc) => {
-    const list = workoutsByUser.get(workoutDoc.userId) ?? [];
-    list.push(workoutDoc);
-    workoutsByUser.set(workoutDoc.userId, list);
-  });
-  const stravaByUser = new Map<string, StravaDoc[]>();
-  allStrava.forEach((activity) => {
-    const list = stravaByUser.get(activity.userId) ?? [];
-    list.push(activity);
-    stravaByUser.set(activity.userId, list);
-  });
+  const workoutsByUser = groupByUser(weekWorkouts);
+  const historyByUser = groupByUser(historyWorkouts);
+  const stravaByUser = groupByUser(allStrava);
 
   let processed = 0;
   let sent = 0;
   let failed = 0;
-  const processUser = async (user: { uid: string; email: string }) => {
+  const processUser = async (user: DigestUser & { email: string }) => {
     processed += 1;
     try {
       const workouts = workoutsByUser.get(user.uid) ?? [];
-      const sessionCount = workouts.length;
-
-      if (sessionCount === 0) {
+      if (workouts.length === 0) {
         return;
       }
 
-      // Calculate tonnage
-      const tonnage = workouts.reduce((total, w) =>
-        total + w.exercises.reduce((exTotal, ex) =>
-          exTotal + ex.sets
-            .filter(s => s.completed && !s.isWarmup)
-            .reduce((s, set) => s + set.reps * set.weight, 0),
-        0),
-      0);
+      const lang = userLang(user);
+      const unit = userUnit(user);
+      const history = historyByUser.get(user.uid) ?? [];
+      const prevWeek = history.filter((w) => (w.date ?? "") >= prevStartStr && (w.date ?? "") <= prevEndStr);
 
-      const stravaActivities = stravaByUser.get(user.uid) ?? [];
-      const runs = stravaActivities.filter(a => a.type === "Run");
-        const totalRunKm = Math.round(
-          runs.reduce((sum, a) => sum + ((a.distance || 0) / 1000), 0) * 10
-        ) / 10;
+      const stats = computeWeekStats(workouts);
+      const comparison = prevWeek.length > 0 ? compareWeeks(stats, computeWeekStats(prevWeek)) : null;
+      const prs = detectWeekPRs(workouts, history);
+      const strava = buildStravaSummary(stravaByUser.get(user.uid) ?? []);
 
-        // Best run (fastest pace)
-        const bestRun = runs
-          .filter(a => a.averageSpeed && a.averageSpeed > 0)
-          .sort((a, b) => (b.averageSpeed || 0) - (a.averageSpeed || 0))[0];
+      const locale = lang === "en" ? "en-US" : "pl-PL";
+      const rangeLabel = `${lastMonday.toLocaleDateString(locale, { day: "numeric", month: "long" })} - ${lastSunday.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}`;
 
-        // Longest run
-        const longestRun = runs
-          .filter(a => a.distance && a.distance > 0)
-          .sort((a, b) => (b.distance || 0) - (a.distance || 0))[0];
-
-        const dateRange = `${lastMonday.toLocaleDateString("pl-PL", { day: "numeric", month: "long" })} - ${lastSunday.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" })}`;
-
-        const subject = `💪 Tydzień ${startStr}: ${sessionCount} treningów, ${(tonnage / 1000).toFixed(1)}t tonażu${totalRunKm > 0 ? `, ${totalRunKm}km biegu` : ""}`;
-
-        const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f8f9fa;font-family:system-ui,-apple-system,sans-serif;">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;margin-top:20px;margin-bottom:20px;">
-    <div style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:32px;color:#fff;text-align:center;">
-      <h1 style="margin:0;font-size:24px;">💪 Podsumowanie tygodnia</h1>
-      <p style="margin:8px 0 0;opacity:0.8;font-size:14px;">${escapeHtmlStr(dateRange)}</p>
-    </div>
-
-    <div style="padding:24px;">
-      <div style="display:flex;gap:16px;margin-bottom:24px;">
-        <div style="flex:1;text-align:center;padding:16px;background:#f0f9ff;border-radius:8px;">
-          <div style="font-size:32px;font-weight:700;color:#1a1a2e;">${sessionCount}</div>
-          <div style="font-size:12px;color:#64748b;">Treningi</div>
-        </div>
-        <div style="flex:1;text-align:center;padding:16px;background:#f0fdf4;border-radius:8px;">
-          <div style="font-size:32px;font-weight:700;color:#1a1a2e;">${(tonnage / 1000).toFixed(1)}t</div>
-          <div style="font-size:12px;color:#64748b;">Tonaż</div>
-        </div>
-      </div>
-
-      ${totalRunKm > 0 ? `
-      <div style="display:flex;gap:16px;margin-bottom:24px;">
-        <div style="flex:1;text-align:center;padding:16px;background:#fff7ed;border-radius:8px;">
-          <div style="font-size:32px;font-weight:700;color:#1a1a2e;">${totalRunKm}km</div>
-          <div style="font-size:12px;color:#64748b;">Bieg</div>
-        </div>
-        <div style="flex:1;text-align:center;padding:16px;background:#fdf4ff;border-radius:8px;">
-          <div style="font-size:32px;font-weight:700;color:#1a1a2e;">${runs.length}</div>
-          <div style="font-size:12px;color:#64748b;">Biegi</div>
-        </div>
-      </div>
-      ` : ""}
-
-      ${bestRun ? `
-      <div style="margin-bottom:16px;padding:12px;background:#f8fafc;border-radius:8px;border-left:4px solid #f97316;">
-        <p style="margin:0;font-size:13px;color:#64748b;">🏃 Najszybszy bieg</p>
-        <p style="margin:4px 0 0;font-weight:600;">${escapeHtmlStr(bestRun.name)} — ${((bestRun.distance || 0) / 1000).toFixed(1)} km</p>
-      </div>
-      ` : ""}
-
-      ${longestRun ? `
-      <div style="margin-bottom:16px;padding:12px;background:#f8fafc;border-radius:8px;border-left:4px solid #3b82f6;">
-        <p style="margin:0;font-size:13px;color:#64748b;">📏 Najdłuższy dystans</p>
-        <p style="margin:4px 0 0;font-weight:600;">${escapeHtmlStr(longestRun.name)} — ${((longestRun.distance || 0) / 1000).toFixed(1)} km</p>
-      </div>
-      ` : ""}
-
-      <div style="text-align:center;padding-top:16px;border-top:1px solid #e2e8f0;">
-        <a href="https://grzegorzee.github.io/strength-save/" style="display:inline-block;padding:12px 24px;background:#1a1a2e;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;">
-          Otwórz Strength Save
-        </a>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`;
+      const { subject, html } = buildWeeklyDigest({
+        stats,
+        comparison,
+        prs,
+        strava,
+        lang,
+        unit,
+        displayName: user.displayName,
+        rangeLabel,
+      });
 
       // Resend SDK nie rzuca przy odrzuceniu — błąd wraca w response.error.
       const response = await deps.sendEmail(user.email, subject, html);
@@ -214,7 +181,7 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
   };
 
   await forEachWithConcurrency(
-    recipients.map((user) => ({ uid: user.uid, email: user.email as string })),
+    recipients.map((user) => ({ ...user, email: user.email as string })),
     DIGEST_CONCURRENCY,
     processUser,
   );
@@ -242,52 +209,68 @@ export const weeklyDigest = onSchedule(
 
     const resend = new Resend(apiKey);
 
-    await runWeeklyDigest({
-      listUsers: async () => {
-        // Paginacja po kolekcji users (1 read/user) zamiast listUsers z Auth —
-        // profil niesie status i notificationPrefs potrzebne do filtrowania.
-        const users: DigestUser[] = [];
-        let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
-        for (;;) {
-          let query = db.collection("users")
-            .select("email", "status", "notificationPrefs")
-            .orderBy("__name__")
-            .limit(1000);
-          if (last) query = query.startAfter(last);
-          const page = await query.get();
-          page.docs.forEach((doc) => {
-            const data = doc.data() as { email?: string; status?: string; notificationPrefs?: { weeklyDigest?: boolean } };
-            users.push({ uid: doc.id, email: data.email, status: data.status, notificationPrefs: data.notificationPrefs });
-          });
-          if (page.docs.length < 1000) break;
-          last = page.docs[page.docs.length - 1];
-        }
-        return users;
-      },
-      queryCompletedWorkouts: async (startStr, endStr) => {
-        const snapshot = await db.collection("workouts")
-          .where("completed", "==", true)
-          .where("date", ">=", startStr)
-          .where("date", "<=", endStr)
-          .get();
-        return snapshot.docs.map((doc) => doc.data() as WorkoutDoc);
-      },
-      queryStravaActivities: async (startStr, endStr) => {
-        const snapshot = await db.collection("strava_activities")
-          .where("date", ">=", startStr)
-          .where("date", "<=", endStr)
-          .get();
-        return snapshot.docs.map((doc) => doc.data() as StravaDoc & { userId: string });
-      },
-      sendEmail: async (to, subject, html) => {
-        const response = await resend.emails.send({
-          from: "Strength Save <noreply@strengthsave.app>",
-          to,
-          subject,
-          html,
-        });
-        return response.error ? { error: { message: response.error.message } } : {};
-      },
-    });
+    await runWeeklyDigest(buildWeeklyDigestDeps(db, resend));
   },
 );
+
+// Z160: deps wyciągnięte do funkcji, żeby ręczny trigger testowy (sendTestDigest)
+// używał DOKŁADNIE tej samej ścieżki co poniedziałkowy harmonogram.
+export function buildWeeklyDigestDeps(db: FirebaseFirestore.Firestore, resend: Resend): WeeklyDigestDeps {
+  return {
+    listUsers: async () => {
+      // Paginacja po kolekcji users (1 read/user) zamiast listUsers z Auth —
+      // profil niesie status, notificationPrefs, język i jednostki.
+      const users: DigestUser[] = [];
+      let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+      for (;;) {
+        let query = db.collection("users")
+          .select("email", "status", "notificationPrefs", "language", "displayName", "preferences")
+          .orderBy("__name__")
+          .limit(1000);
+        if (last) query = query.startAfter(last);
+        const page = await query.get();
+        page.docs.forEach((doc) => {
+          const data = doc.data() as Omit<DigestUser, "uid">;
+          users.push({ uid: doc.id, ...data });
+        });
+        if (page.docs.length < 1000) break;
+        last = page.docs[page.docs.length - 1];
+      }
+      return users;
+    },
+    queryCompletedWorkouts: async (startStr, endStr) => {
+      const snapshot = await db.collection("workouts")
+        .where("completed", "==", true)
+        .where("date", ">=", startStr)
+        .where("date", "<=", endStr)
+        .get();
+      return snapshot.docs.map((doc) => doc.data() as DigestWorkout);
+    },
+    queryWorkoutHistory: async (beforeStr) => {
+      // Koszt świadomy (Z160): pełne dokumenty CAŁEJ historii ukończonych treningów.
+      // Przy obecnej skali userów to akceptowalne; przy wzroście — limit per user
+      // albo agregaty tygodniowe.
+      const snapshot = await db.collection("workouts")
+        .where("completed", "==", true)
+        .where("date", "<", beforeStr)
+        .get();
+      return snapshot.docs.map((doc) => doc.data() as DigestWorkout);
+    },
+    queryStravaActivities: async (startStr, endStr) => {
+      const snapshot = await db.collection("strava_activities")
+        .where("date", ">=", startStr)
+        .where("date", "<=", endStr)
+        .get();
+      return snapshot.docs.map((doc) => doc.data() as StravaDoc & { userId: string });
+    },
+    sendEmail: async (to, subject, html) => {
+      const response = await resend.emails.send({
+        from: "Strength Save <noreply@strengthsave.app>",
+        to,
+        subject,
+        html,
+      });
+      return response.error ? { error: { message: response.error.message } } : {};
+    },
+  };
+}

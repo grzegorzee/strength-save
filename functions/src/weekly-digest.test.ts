@@ -15,6 +15,7 @@ const makeDeps = (users: DigestUser[], over: Partial<WeeklyDigestDeps> = {}) => 
   const deps = {
     listUsers: vi.fn(async () => users),
     queryCompletedWorkouts: vi.fn(async () => users.map((user) => workout(user.uid))),
+    queryWorkoutHistory: vi.fn(async () => []),
     queryStravaActivities: vi.fn(async () => []),
     sendEmail: vi.fn(async () => ({})),
     now: () => new Date("2026-07-01T08:00:00Z"),
@@ -78,6 +79,7 @@ describe("runWeeklyDigest (R2-10)", () => {
     const result = await runWeeklyDigest(deps);
 
     expect(deps.queryCompletedWorkouts).toHaveBeenCalledTimes(1);
+    expect(deps.queryWorkoutHistory).toHaveBeenCalledTimes(1);
     expect(deps.queryStravaActivities).toHaveBeenCalledTimes(1);
     expect(result.sent).toBe(50);
   });
@@ -96,5 +98,56 @@ describe("runWeeklyDigest (R2-10)", () => {
 
     expect(result.sent).toBe(1);
     expect(result.failed).toBe(1);
+  });
+
+  // Z160: pełne podsumowanie — i18n, jednostki, PR-y, porównanie WoW.
+  it("user z language=en i unit=lbs dostaje mail EN w lbs", async () => {
+    const deps = makeDeps([
+      { uid: "u1", email: "a@b.c", status: "active", language: "en", preferences: { unit: "lbs" } },
+    ]);
+
+    await runWeeklyDigest(deps);
+
+    expect(deps.sendEmail).toHaveBeenCalledTimes(1);
+    const [, subject, html] = deps.sendEmail.mock.calls[0] as unknown as [string, string, string];
+    expect(subject).toContain("your week");
+    expect(subject).toContain("k lbs");
+    expect(html).toContain("Working sets");
+  });
+
+  it("domyślnie (bez language) mail po polsku z tonażem w kg", async () => {
+    const deps = makeDeps([{ uid: "u1", email: "a@b.c", status: "active" }]);
+
+    await runWeeklyDigest(deps);
+
+    const [, subject, html] = deps.sendEmail.mock.calls[0] as unknown as [string, string, string];
+    expect(subject).toContain("Twój tydzień");
+    expect(subject).toContain("t");
+    expect(html).toContain("Serie robocze");
+    expect(html).not.toContain("display:flex");
+  });
+
+  it("historia daje PR-y i porównanie z poprzednim tygodniem", async () => {
+    // Tydzień digestu: 2026-06-22..28 (now = 2026-07-01). Poprzedni: 06-15..21.
+    const history = [
+      { ...workout("u1", "2026-06-17"), exercises: [{ exerciseId: "ex-1", name: "Przysiad ze sztangą", sets: [{ reps: 5, weight: 90, completed: true }] }] },
+    ];
+    const week = [
+      { ...workout("u1", "2026-06-23"), exercises: [{ exerciseId: "ex-1", name: "Przysiad ze sztangą", sets: [{ reps: 5, weight: 100, completed: true }] }] },
+    ];
+    const deps = makeDeps(
+      [{ uid: "u1", email: "a@b.c", status: "active" }],
+      {
+        queryCompletedWorkouts: vi.fn(async () => week),
+        queryWorkoutHistory: vi.fn(async () => history),
+      },
+    );
+
+    await runWeeklyDigest(deps);
+
+    const [, , html] = deps.sendEmail.mock.calls[0] as unknown as [string, string, string];
+    expect(html).toContain("Rekordy tygodnia");
+    expect(html).toContain("Przysiad ze sztangą");
+    expect(html).toContain("vs poprzedni tydzień");
   });
 });
