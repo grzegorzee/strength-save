@@ -13,6 +13,7 @@ import { Check, Timer, Flame } from 'lucide-react';
 import { warmupExercises, getStretchingForFocus, localizeWarmup } from '@/data/warmupStretching';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { localizeFocus } from '@/lib/plan-i18n';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 
 interface Props {
@@ -70,7 +71,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange, checked, onTogg
             {t('comp.warmup.title')}
           </DialogTitle>
           <DialogDescription>
-            {t('comp.warmup.progress', { focus, done, total: allItems.length })}
+            {t('comp.warmup.progress', { focus: localizeFocus(focus, lang), done, total: allItems.length })}
           </DialogDescription>
         </DialogHeader>
 
