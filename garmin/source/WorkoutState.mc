@@ -96,11 +96,14 @@ module WorkoutState {
     }
 
     // Czas trwania sesji (s); 0 zanim padnie pierwsza seria (startedAt null).
+    // Sanity: startedAt zapisane starym kodem (przepełniony 32-bit Number zamiast
+    // Long) daje absurdalny diff — wszystko poza [0, 24h] traktuj jak brak sesji.
     function sessionElapsedSec() as Number {
         var startedAt = Application.Storage.getValue("startedAt");
         if (startedAt == null) { return 0; }
-        var diff = (nowMs() - (startedAt as Long)) / 1000;
-        return diff < 0 ? 0 : diff.toNumber();
+        var diff = (nowMs() - (startedAt as Long).toLong()) / 1000;
+        if (diff < 0 || diff > 86400) { return 0; }
+        return diff.toNumber();
     }
 
     // Statystyki bieżącej sesji z mapy done: {"sets" => Number, "tonnage" => Float (kg)}.

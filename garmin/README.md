@@ -1,4 +1,4 @@
-# Strength Save — aplikacja Garmin Connect IQ (X16C, v1)
+# Strength Save — aplikacja Garmin Connect IQ (X16C, v3)
 
 Aplikacja device app (Monkey C) do logowania serii z zegarka Garmin:
 parowanie 6-cyfrowym kodem (Ustawienia → Zegarek Garmin w apce),
@@ -6,16 +6,21 @@ pobranie dnia (`garminDay`), odhaczanie serii ze stepperem, rest timer
 z wibracją, natywna sesja siłowa (FIT z HR) do Garmin Connect,
 kolejka offline i wysyłka treningu do `garminIngest`.
 
-## STATUS: DZIAŁA NA ZEGARKU (2026-07-28)
+## STATUS: DZIAŁA NA ZEGARKU, v3 GOTOWE (2026-07-28)
 
 SDK 9.2.0 zainstalowany, apka skompilowana, sparowana i przetestowana na
 epix (Gen 2) usera + w symulatorze (zrzuty). UI v2: lista dnia jako natywne
 Menu2, ekran ćwiczenia w pionie, krok wagi 0.5-5 kg, szybki trening ad-hoc
 (lista ostatnich ćwiczeń `r` z garminDay, dayId `adhoc-<data>-<ms>` w
-konwencji telefonu). Sideload na macOS: OpenMTP → GARMIN/Apps (zegarek jest
-MTP-only; Garmin Express musi być zamknięty). Do publikacji w Store zostało:
-pobranie urządzeń fr255/265/955/965 + venu2/3 w SDK Managerze, ikona
-1024x1024, screenshoty, formularz (sekcje A-D niżej).
+konwencji telefonu). v3 (2026-07-28 wieczór): przerwy konfigurowalne w menu
+dnia (między seriami 30 s-4 min, default 1:30; między ćwiczeniami
+wyłączona-5 min, default 2:30 — parytet 90/150 z telefonem), zegar czasu
+sesji (mini u góry ekranu ćwiczenia, tyka od pierwszej odhaczonej serii),
+ekran Sesja (czas + serie + tonaż) — wejście swipe w lewo z ekranu ćwiczenia
+albo pozycja "Sesja" w menu dnia. Sideload na macOS: OpenMTP → GARMIN/Apps
+(zegarek jest MTP-only; Garmin Express musi być zamknięty). Do publikacji w
+Store zostało: pobranie urządzeń fr255/265/955/965 + venu2/3 w SDK
+Managerze, ikona 1024x1024, screenshoty, formularz (sekcje A-D niżej).
 
 ## KROKI USERA
 
@@ -83,9 +88,11 @@ możliwości wydania aktualizacji istniejącej apki. Trzymaj kopię w
   eventId), flush przy łączności, wysyłka finalna przy zakończeniu.
 - `source/SessionRecorder.mc` — ActivityRecording (strength) start przy
   pierwszym odhaczeniu, stop+save przy zakończeniu → FIT do Garmin Connect.
-- Widoki: PairView (picker cyfr) → DayView (lista ćwiczeń) →
-  ExerciseView (serie, stepper wagi ±2.5 kg / powt. ±1, odhacz) →
-  RestTimerView (odliczanie + Attention.vibrate).
+- Widoki: PairView (picker cyfr) → DayView/DayMenu (Menu2: ćwiczenia,
+  Szybki trening, Sesja, Zakończ, Krok wagi, Przerwa: serie, Przerwa:
+  ćwiczenia) → ExerciseView (serie, stepper wagi, odhacz, przerwa inline
+  z wibracją, mini zegar sesji) → SessionView (czas + serie + tonaż,
+  swipe w lewo z ExerciseView albo pozycja "Sesja" w menu).
 
 Backend: `functions/src/garmin-pair|day|ingest|endpoints.ts` (testy vitest,
 rules deny-all dla `device_pair_codes`/`device_tokens`).
