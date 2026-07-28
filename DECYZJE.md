@@ -5,11 +5,29 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-28 (X20 wdrożony: Z154-Z161, build 79)
+**Ostatnia aktualizacja:** 2026-07-28 (X21 wdrożony: Z162-Z168, build 80)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-28 — X21: rozgrzewka pamięta odhaczenia + spójność i18n PL/EN (Z162-Z168)
+
+**Z162 (odhaczenia rozgrzewki znikały — zgłoszenie usera):** root cause = `WarmupRoutineDialog` trzymał stan w lokalnym `useState<Set<number>>`, a efekt jawnie robił `setChecked(new Set())` przy KAŻDYM `open === false` (X, Esc, klik w overlay); klucz = indeks pozycji, więc niestabilny przy zmianie focusu (offset stretchingu zależał od długości listy rozgrzewki). Fix: dialog KONTROLOWANY (`checked: ReadonlySet<string>` po `nameKey` + `onToggle`), stan mieszka w drafcie sesji jako pole additive `ActiveWorkoutDraft.warmupChecked?: string[]` (bez bumpu wersji IndexedDB, wzorzec `lastTouchedExerciseId`), przeżywa round-trip przez IDB i fallback localStorage, odhaczenie liczy się jako zmiana treści (bump `version`). Pole NIE wychodzi do Firestore — payload syncu budowany jawnie (`buildDraftExercisesPayload` + `saveOptions`), zweryfikowane grepem. Nowa sesja = czysta rozgrzewka (reset w `applyWorkoutState`). Weryfikacja: `warmup-routine-dialog.test.tsx` (dialog + sekwencja odhacz/wyjdź/wróć/nowa sesja + niezmiennik legacy draftu bez pola), round-trip IDB i localStorage, NOWY `e2e/warmup-persistence.spec.ts` (realne klikanie: X, Escape, wyjście na Dashboard, powrót).
+
+**Z163 (mieszane PL/EN w nazwach rozgrzewki):** polski słownik miał wartości angielskie (`Jumping Jacks`, `Child's Pose`, `Pigeon Pose`) albo dwujęzyczne (`Kręcenie biodrami (Hip Circles)`). Nowe wartości: Pajacyki, Krążenia bioder, Krążenia ramion, Koci grzbiet (na czworakach), Pozycja dziecka, Pozycja gołębia. Klucze `warmup.*`/`stretch.*` BEZ ZMIAN — to kanoniczne identyfikatory, od Z162 zapisywane w draftach sesji. Guard `warmup-i18n.test.ts` zostaje na stałe (PL bez angielskich wtrąceń, EN bez polskich znaków).
+
+**Z164 (polskie stringi na ekranach EN):** `HRZoneConfig.name` → `nameKey: TranslationKey` (render przez `t()` w obu konsumentach); `getWeekLabel` i format miesiąca per język (`strava.week*` + `DF_LOCALES = {pl, enUS}`), pięć funkcji `compute*` przyjmuje `lang` z domyślnym `'pl'` (niezmiennik starych callerów), komponenty Strava przekazują język z `useTranslation`; `PLAN_DESC['tpl-rza-3']` (jedyny szablon bez opisu EN) — guard skanuje teraz WSZYSTKIE szablony; `useWatchPlanPreview` dokłada `lang` do obu payloadów podglądu (nazwy ćwiczeń zostają kanoniczne PL — dopasowanie serii po nazwie). Follow-up z e2e: dialog rozgrzewki pokazywał focus dnia kanonicznie po polsku również w EN → `localizeFocus(focus, lang)`.
+
+**Z165 (panel admina pół na pół):** ~90 nowych kluczy `admin.*` w obu locales, ~70 literałów PL podmienionych w 7 plikach (dialogi, toasty, kafle pulsu, filtry, sortowania, logi, flagi, broadcast). `admin-user-types.ts` (moduł bez Reacta): `description` → `descriptionKey: TranslationKey`; `admin-audit.ts`: `formatRepairOperations(ops, lang = 'pl')` przez `translate`. Przy okazji: klucz `admin.revoke` miał w polskim słowniku wartość angielską. Definicja „done" zakodowana w `admin-i18n-scan.test.ts` — polski znak w `src/pages/admin` lub `src/components/admin` poza komentarzem wywala test.
+
+**Z166 (hardcodowane EN w UI):** sr-only zamknięcia dialogu, aria-label nawigacji, „Max HR" i komunikaty błędów `cycle-actions` przez `t()`/`translate` (`lang?: LanguageCode` w Deps, default PL = niezmiennik). E2E wyłapało kolizję: sr-only „Zamknij" miało tę samą nazwę dostępnościową co przyciski akcji „Zamknij" w tym samym dialogu (strict mode violation + realny problem dla czytnika ekranu) → `a11y.close` = „Zamknij okno" / „Close dialog". Nieużywane komponenty shadcn (pagination, breadcrumb, sidebar) świadomie nietknięte (0 importów).
+
+**Z167 (backend po polsku niezależnie od konta):** `daily-reminder` czyta `users.language` — EN dostaje „Hey {imię}! Time to train 💪" z focusem tłumaczonym portem mapy tokenów (`functions/src/focus-en.ts`, wzorzec `exercise-name-en.ts`); brak pola = dotychczasowy push PL 1:1. `inviteEmailHtml(code, url, note, lang = 'pl')` + subject per język (`lang` z payloadu, dziś wysyłki PL, parametr przyszłościowy). Test parytetu obu map focus (klient vs functions) — rozjazd oznaczałby polski focus w powiadomieniu EN. Wdrożone: `firebase deploy --only functions` (Deploy complete).
+
+**Z168 (architektura dwujęzyczna → n-językowa):** `dateLocale` przez `DATE_LOCALES` z fallbackiem, selektor języka w Profilu generowany z rejestru `LANGUAGES`, binarne `lang === 'en'` zastąpione nakładkami `Partial<Record<LanguageCode, ...>>` (nazwy ćwiczeń, instrukcje, kategorie, dni, skróty, tokeny focusu, teksty planów) — istniejące testy przeszły BEZ zmiany asercji (to był test niezmiennika). Typy `language?: LanguageCode` + walidacja przez rejestr zamiast literałów. Globalny `i18n-hardcoded-scan.test.ts`: polski znak w `src/` poza allowlistą (12 plików, każdy z uzasadnieniem: wartości kanoniczne, klucze lookup, normalizacja diakrytyków, kod poza LanguageProvider) = czerwony test; drugi test pilnuje, że allowlista nie ma martwych wpisów. `docs/I18N-NOWY-JEZYK.md` = checklist dodania języka (klient, nakładki, functions, Garmin/Watch, warstwa statyczna) z ostrzeżeniem, że trzeci pełny słownik wymaga lazy-loadu locale (bundle).
+
+**Bramki:** test 125 plików / 1114 testów, functions 151, typecheck + lint 0, build OK, bundle 1 529 471 / 1 536 000 B (limit NIE podnoszony), dist-smoke, dist-offline, e2e:mock 188 passed. **Wdrożone:** web (`index-S1tEjfK8.js`), functions (prod), iOS build 80 (TestFlight, betaReviewState APPROVED).
 
 ### 2026-07-28 — X20: zgłoszenia z builda 78 — analityka bez czarnego ekranu, push, i18n, timer z przełącznikiem, klawiatura, digest, usuwanie treningu (Z154-Z161)
 
