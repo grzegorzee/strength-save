@@ -5,11 +5,33 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-19 (kierunek X14-X16 z syntezy 3 deep researchy; plany Z103-Z126 + prompt autonomicznego wdrożenia)
+**Ostatnia aktualizacja:** 2026-07-28 (X20 wdrożony: Z154-Z161, build 79)
 
 ---
 
 ## DECYZJE
+
+### 2026-07-28 — X20: zgłoszenia z builda 78 — analityka bez czarnego ekranu, push, i18n, timer z przełącznikiem, klawiatura, digest, usuwanie treningu (Z154-Z161)
+
+**Z154 (czarny ekran analityki po powrocie z tła):** root cause = handler `vite:preloadError` w main.tsx robił `preventDefault()`, przez co błąd chunka NIE rzucał — catch w `lazyWithRetry` był martwym kodem, `lazy` dostawał undefined, a reload szedł BEZ guarda antypętlowego. Fix: handler USUNIĘTY; `loadChunkWithRetry` (walidacja `chunk-empty`, retry 500 ms w miejscu, guard sessionStorage) + licznik antypętlowy w `requestGuardedReload` (max 2 reloady/60 s, telemetria `reload-loop-guard`); 5 gołych `lazy(` przepięte na `lazyWithRetry`; `TabBoundary` per zakładka analityki (fallback z "Spróbuj ponownie", reset przez key); top-level ErrorBoundary czyta uid z auth W MOMENCIE catcha (App nie re-renderuje się po zalogowaniu); nowy `global-error-telemetry.ts` (`window-error`/`unhandled-rejection` → client_errors). Weryfikacja: lazy-with-retry 5/5 (RED→GREEN), pwa-update-guard 4/4, error-boundary 4/4.
+
+**Z155 (push "idź na trening" w trakcie treningu):** guard X18C sprawdzał `startedAt || completed`, ale klient wysyłał `startedAt` dopiero przy finalnym syncu — realny aktywny trening to doc `{completed:false}` bez startedAt (test X18C mockował dokument, jakiego klient nie produkował). Fix dwustronny: backend pomija push gdy dokument dnia ISTNIEJE (samo istnienie = zaczął/skończył); klient pisze `startedAt` od `createWorkoutSession` i w checkpointach (zdjęty warunek `requiresFinal`). Rules bez zmian (`validWorkoutShape` już dopuszczał startedAt). Margines: okno start→pierwszy checkpoint (tech debt w PLAN.md). Weryfikacja: daily-reminder 14/14 (RED na realnym kształcie dokumentu), sync engine z asercją startedAt w checkpoincie.
+
+**Z156 (nazwy ćwiczeń po polsku przy EN):** 5 ścieżek omijało lokalizację (weekly-summary, rza-metrics, all-time-stats, cycle-insights, dialog progresji) + w mapie EN brakowało nie 12, a **30 nazw** (test inwentarzowy wykrył też szablony RZA/hybrydowe). Kontrakty zakodowane komentarzami i testami: prop `ExerciseProgressionDialog` = kanoniczna PL (lokalizacja WEWNĄTRZ), `isBodyweightExercise` przyjmuje kanoniczną PL (w EN zwracał zawsze false → wykresy bodyweight pokazywały kg zamiast reps); resolver dostał `resolveCanonicalExerciseName`. Test inwentarzowy zostaje na stałe (blokuje przyszłe luki). Weryfikacja: coverage + sekwencja przełączenia języka (PL→EN, zero polskich nazw) + weekly-local 5/5.
+
+**Z157 (timer przerwy z przełącznikiem, default ON):** precedencja `e2eOverride ?? ustawienie usera (localStorage, bez mirrora Firestore — jak keep-awake) ?? default ON`. EMOM/AMRAP + rozgrzewka ZOSTAJĄ wyłączone za NOWĄ flagą `VITE_FEATURE_INTERVAL_TIMERS` (mają tylko setInterval — milkną przy zgaszonym ekranie; dług Z10, warunek zdjęcia w PLAN.md). Przełącznik w Profilu nad wierszem czasu odpoczynku (SettingRow z opisem); wiersze zależne chowają się natychmiast. Konsekwencja web: timer domyślnie ON także na webie — domyka wiszącą decyzję "flaga web" z X18. Weryfikacja: feature-flags 9/9 (RED→GREEN), e2e przepisany na wyłączenie przez ustawienie usera, e2e:mock 183/183.
+
+**Z158 (kafle statystyk ucinane):** kafle tekstowe (ulubione ćwiczenie, "Trenujesz od") dostały `col-span-2` + `break-words` zamiast `truncate`; liczbowe bez zmian (truncate+tabular-nums, niezmiennik w teście). Weryfikacja: all-time-stats-sheet 3/3 (RED→GREEN).
+
+**Z159 (klawiatura zasłania modale):** `@capacitor/keyboard` z `resize: 'none'` — globalny layout NIE drga (fixed bottom bary WorkoutDay); kompensują wyłącznie dialogi przez CSS var `--keyboard-inset` (`keyboard-inset.ts`: natywnie keyboardWillShow/Hide, web fallback visualViewport). `dialog.tsx`/`alert-dialog.tsx`: top liczony względem widocznego viewportu + `transition-[top]`. Jedna zmiana naprawia wszystkie dialogi z inputami. Weryfikacja: keyboard-inset 3/3; scenariusz na fizycznym iPhone = krok usera (jsdom nie pokrywa).
+
+**Z160 (mail tygodniowy):** pełne podsumowanie zamiast 2 kafli: statystyki (tonaż METODĄ APKI — port setTonnage z guardami na uszkodzone dokumenty; crash 2026-07-20 nie wyklucza cicho usera), PR-y tygodnia względem historii, porównanie WoW, top 3 ćwiczenia, sekcja biegowa, i18n PL/EN (users.language), jednostki wg preferences.unit, layout WYŁĄCZNIE `<table>` (Gmail/Outlook wycinają flex), preheader, stopka z opt-outem. Poprzedni tydzień wycinany z kwerendy historii (2 kwerendy zbiorcze zamiast 3); koszt pełnej historii odnotowany w komentarzu. Port mapy nazw EN w functions pilnowany testem 1:1 z mapą klienta. Wysyłka testowa na g.jasionowicz@gmail.com przez `functions/send-test-digest.cjs` (ta sama ścieżka co harmonogram, guard na inne adresy): sent:1, temat "💪 5 treningów, 28.3 t — Twój tydzień 20 lipca - 26 lipca 2026". Ocena w skrzynce = krok usera przed poniedziałkiem.
+
+**Z161 (usuwanie treningu z widoku treningu):** Historia miała pełny przepływ — WorkoutDay wystawia TĘ SAMĄ ścieżkę (`deleteWorkoutEverywhere`: dokument + szkic IDB + kolejka syncu, nigdy goły deleteDoc) w widoku podsumowania zapisanej sesji (ghost destructive + AlertDialog wzorem Historii, reuse kluczy history.*). Niezmiennik: trening W TOKU nie renderuje akcji (test e2e). Weryfikacja: workout-delete-from-day.spec 2/2 (RED→GREEN).
+
+**Zastane w drzewie (poza X20, nie ruszane):** zmiany garmin/ (wątek CIQ) + `firestore.indexes.json` (composite index workouts userId+date dopisany przez równoległy proces innej sesji).
+
+**Deploy:** functions (dailyTrainingReminder + weeklyDigest) na prod; web `npm run deploy`; iOS build 79 → TestFlight (obie grupy + Beta App Review przez testflight_external.py).
 
 ### 2026-07-24 — X19: id dni aktywnego cyklu niezmienne przy każdym zapisie planu (Z150-Z153) + fix jednostki inwentarza talerzy
 
