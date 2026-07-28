@@ -237,8 +237,8 @@ Warsztat symulatora (pełne notatki: memory `garmin-ciq-dev-workflow`):
 
 - [ ] Krok 1: Zrzuty do weryfikacji wizualnej (obejrzyj je narzędziem Read i OCEŃ layout, nie tylko "plik istnieje"): (a) dół menu dnia — pozycje Sesja / Krok wagi / Przerwa: serie / Przerwa: ćwiczenia z sublabelami "1:30" i "2:30"; (b) klik w "Przerwa: serie" zmienia sublabel (cykl); (c) ekran Sesja z menu (czas 0:00 albo tykający, Serie, Tonaż); (d) ekran ćwiczenia z mini zegarem u góry (odhacz JEDNĄ serię w symulatorze, żeby sesja wystartowała — to bezpieczne, lokalne).
 - [ ] Krok 2: Sprawdź, że w kolejce NIE przybyło nic ponad Twoje testowe odhaczenia i że NIE dotknąłeś "Zakończ trening".
-- [ ] Krok 3: Commit + push (pliki imiennie!). `cp garmin/bin/strengthsave-epix2.prg ~/Desktop/StrengthSave.prg` i napisz userowi instrukcję: podłącz zegarek USB → OpenMTP (Garmin Express musi być ZAMKNIĘTY, blokuje MTP) → przeciągnij z Pulpitu do `GARMIN/Apps` (Replace) → odłącz.
-- [ ] Krok 4: Zaktualizuj sekcję STATUS w `garmin/README.md` (v3: przerwy, zegar sesji, ekran Sesja) + dopisz memory update do `garmin-ciq-dev-workflow` jeśli odkryjesz nową pułapkę.
+- [x] Krok 3: Commit + push (pliki imiennie!). `cp garmin/bin/strengthsave-epix2.prg ~/Desktop/StrengthSave.prg` i napisz userowi instrukcję: podłącz zegarek USB → OpenMTP (Garmin Express musi być ZAMKNIĘTY, blokuje MTP) → przeciągnij z Pulpitu do `GARMIN/Apps` (Replace) → odłącz.
+- [x] Krok 4: Zaktualizuj sekcję STATUS w `garmin/README.md` (v3: przerwy, zegar sesji, ekran Sesja) + dopisz memory update do `garmin-ciq-dev-workflow` jeśli odkryjesz nową pułapkę.
 
 ## POZA ZAKRESEM (nie ruszaj)
 
