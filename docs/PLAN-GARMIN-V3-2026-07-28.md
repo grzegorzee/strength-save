@@ -89,7 +89,7 @@
 
 ## FAZA 3: Jeden timer UI + mini zegar sesji w ExerciseView
 
-- [ ] Krok 1: Refactor timera (dziś timer startuje tylko przy przerwie; zegar sesji musi tykać zawsze): usuń `restTimer`, dodaj `uiTimer` uruchamiany w `onShow`, zatrzymywany w `onHide`:
+- [x] Krok 1: Refactor timera (dziś timer startuje tylko przy przerwie; zegar sesji musi tykać zawsze): usuń `restTimer`, dodaj `uiTimer` uruchamiany w `onShow`, zatrzymywany w `onHide`:
   ```monkeyc
   var uiTimer as Timer.Timer or Null = null;
 
@@ -117,7 +117,7 @@
   }
   ```
   W `ExerciseDelegate.onSelect` (pomiń przerwę) podmień `view.onRestTick()` → `view.onTick()` (mechanizm `restLeft = 1` zostaje).
-- [ ] Krok 2: Mini zegar na górze `onUpdate` (przed nazwą ćwiczenia; rysuj TYLKO gdy sesja trwa):
+- [x] Krok 2: Mini zegar na górze `onUpdate` (przed nazwą ćwiczenia; rysuj TYLKO gdy sesja trwa):
   ```monkeyc
   var elapsed = WorkoutState.sessionElapsedSec();
   if (elapsed > 0) {
@@ -127,7 +127,7 @@
   }
   ```
   Ma być widoczny też podczas przerwy (blok `restLeft > 0` jest niżej — zegar rysuj PRZED nim).
-- [ ] Krok 3: Build + commit `feat(garmin): zegar sesji na ekranie cwiczenia, jeden timer UI`.
+- [x] Krok 3: Build + commit `feat(garmin): zegar sesji na ekranie cwiczenia, jeden timer UI`.
 
 ## FAZA 4: Ekran Sesja + wejścia (menu i swipe)
 

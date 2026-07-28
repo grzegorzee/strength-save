@@ -14,7 +14,9 @@ class ExerciseView extends WatchUi.View {
     var weight as Float = 0.0;
     var editReps as Boolean = false;
     var restLeft as Number = 0;
-    var restTimer as Timer.Timer or Null = null;
+    // Jeden timer UI tykający cały czas widoczności widoku: odlicza przerwę
+    // ORAZ odświeża mini zegar sesji (który tyka też poza przerwą).
+    var uiTimer as Timer.Timer or Null = null;
 
     function initialize(exerciseIndex as Number) {
         View.initialize();
@@ -78,25 +80,26 @@ class ExerciseView extends WatchUi.View {
     }
 
     function startRest(seconds as Number) as Void {
-        restLeft = seconds;
-        if (restTimer == null) { restTimer = new Timer.Timer(); }
-        restTimer.start(method(:onRestTick), 1000, true);
+        restLeft = seconds; // uiTimer już tyka
     }
 
-    function onRestTick() as Void {
-        restLeft -= 1;
-        if (restLeft <= 0) {
-            restTimer.stop();
-            restLeft = 0;
-            if (Attention has :vibrate) {
+    function onShow() as Void {
+        if (uiTimer == null) { uiTimer = new Timer.Timer(); }
+        uiTimer.start(method(:onTick), 1000, true);
+    }
+
+    function onHide() as Void {
+        if (uiTimer != null) { uiTimer.stop(); }
+    }
+
+    function onTick() as Void {
+        if (restLeft > 0) {
+            restLeft -= 1;
+            if (restLeft == 0 && Attention has :vibrate) {
                 Attention.vibrate([new Attention.VibeProfile(100, 600)]);
             }
         }
         WatchUi.requestUpdate();
-    }
-
-    function onHide() as Void {
-        if (restTimer != null) { restTimer.stop(); }
     }
 
     // Przycina tekst do maxWidth pikseli (z "..."), zamiast zgadywać liczbę znaków.
@@ -118,6 +121,14 @@ class ExerciseView extends WatchUi.View {
         var center = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
         var ex = exercise();
         if (ex == null) { return; }
+
+        // Mini zegar sesji (tyka od pierwszej odhaczonej serii, także w przerwie).
+        var elapsed = WorkoutState.sessionElapsedSec();
+        if (elapsed > 0) {
+            dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, h * 5 / 100, Graphics.FONT_XTINY, AppSettings.formatElapsed(elapsed), center);
+            dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+        }
 
         // Nagłówek: nazwa + cel (u góry okręgu węższy pas, stąd 66% szerokości).
         dc.drawText(cx, h * 12 / 100, Graphics.FONT_XTINY,
@@ -217,7 +228,7 @@ class ExerciseDelegate extends WatchUi.BehaviorDelegate {
         if (view.restLeft > 0) {
             // Tap w timer = pomiń odpoczynek.
             view.restLeft = 1;
-            view.onRestTick();
+            view.onTick();
             return true;
         }
         view.logCurrent();
