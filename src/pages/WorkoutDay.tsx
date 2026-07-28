@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, X, Plus } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, X, Plus, Trash2 } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak } from '@/lib/summary-utils';
@@ -25,6 +25,11 @@ import { InAppReview } from '@capacitor-community/in-app-review';
 import { shouldRequestReview, readLastReviewPromptAt, markReviewPromptShown } from '@/lib/review-prompt';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
+import { deleteWorkoutEverywhere } from '@/lib/workout-delete';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId } from '@/lib/adhoc-workout';
 import { syncWorkoutToHealth } from '@/lib/health-bridge';
 import { keepScreenAwake, allowScreenSleep } from '@/lib/keep-awake';
@@ -170,6 +175,12 @@ const WorkoutDay = () => {
   const [queuedDraft, setQueuedDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  // Z161: usuwanie ZAPISANEGO treningu z widoku podsumowania — ta sama ścieżka co
+  // Historia (deleteWorkoutEverywhere: dokument + szkic IDB + kolejka syncu, nigdy
+  // goły deleteDoc). Trening w toku nie renderuje tej akcji (widok podsumowania
+  // istnieje tylko dla isCompleted).
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingWorkout, setIsDeletingWorkout] = useState(false);
   // Local-wins (Z87): konflikt wersji rozwiązujemy automatycznie na korzyść lokalnej.
   // Limit prób per sesja zapisu chroni przed pętlą, gdy drugie urządzenie aktywnie pisze.
   const conflictAutoResolveAttemptsRef = useRef(0);
@@ -2013,6 +2024,21 @@ const WorkoutDay = () => {
     );
   };
 
+  // Z161: usunięcie zapisanego treningu — przez deleteWorkoutEverywhere (jak Historia).
+  const handleDeleteWorkout = async () => {
+    if (!sessionId) return;
+    setIsDeletingWorkout(true);
+    const result = await deleteWorkoutEverywhere(uid, sessionId);
+    setIsDeletingWorkout(false);
+    setShowDeleteConfirm(false);
+    if (result.success) {
+      toast({ title: t('history.deleted') });
+      navigate('/history');
+    } else {
+      toast({ title: t('history.deleteFailed'), description: result.error, variant: 'destructive' });
+    }
+  };
+
   // COMPLETED VIEW (not editing)
   if (isCompleted && !isEditing) {
     return (
@@ -2214,6 +2240,42 @@ const WorkoutDay = () => {
             {t('workout.backToDashboard')}
           </Button>
         </div>
+
+        {/* Z161: usunięcie zapisanego treningu — user szukał tej opcji właśnie tutaj. */}
+        {sessionId && (
+          <Button
+            variant="ghost"
+            className="w-full gap-1.5 text-destructive hover:text-destructive"
+            data-testid="workout-delete"
+            onClick={() => setShowDeleteConfirm(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+            {t('history.delete')}
+          </Button>
+        )}
+
+        <AlertDialog open={showDeleteConfirm} onOpenChange={(open) => { if (!open) setShowDeleteConfirm(false); }}>
+          <AlertDialogContent data-testid="workout-delete-dialog">
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('history.deleteTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('history.deleteDesc', { day: localizeDayName(day.dayName, lang), date: targetDate })}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingWorkout}>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                data-testid="workout-delete-confirm"
+                disabled={isDeletingWorkout}
+                onClick={(event) => { event.preventDefault(); void handleDeleteWorkout(); }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeletingWorkout ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                {t('history.delete')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <ShareWorkoutDialog
           data={{
