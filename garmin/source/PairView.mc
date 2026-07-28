@@ -47,11 +47,27 @@ class PairView extends WatchUi.View {
         dc.drawText(cx, dc.getHeight() / 5, Graphics.FONT_SMALL,
             WatchUi.loadResource(Rez.Strings.PairTitle) as String, Graphics.TEXT_JUSTIFY_CENTER);
 
-        var shown = "";
+        // Cyfry rysowane pojedynczo: fonty FONT_NUMBER_* mają tylko cyfry
+        // (nawiasy renderują się jako tofu), więc kursor = kolor + podkreślenie.
+        var font = Graphics.FONT_NUMBER_MILD;
+        var gap = 8;
+        var digitY = dc.getHeight() / 2 - Graphics.getFontHeight(font) / 2;
+        var total = 0;
+        var widths = new Array<Number>[digits.size()];
         for (var i = 0; i < digits.size(); i++) {
-            shown += (i == cursor) ? "[" + digits[i].toString() + "]" : digits[i].toString();
+            widths[i] = dc.getTextWidthInPixels(digits[i].toString(), font);
+            total += widths[i] + (i > 0 ? gap : 0);
         }
-        dc.drawText(cx, dc.getHeight() / 2 - 20, Graphics.FONT_NUMBER_MILD, shown, Graphics.TEXT_JUSTIFY_CENTER);
+        var x = cx - total / 2;
+        for (var i = 0; i < digits.size(); i++) {
+            dc.setColor(i == cursor ? Graphics.COLOR_GREEN : Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(x, digitY, font, digits[i].toString(), Graphics.TEXT_JUSTIFY_LEFT);
+            if (i == cursor) {
+                dc.fillRectangle(x, digitY + Graphics.getFontHeight(font) + 2, widths[i], 4);
+            }
+            x += widths[i] + gap;
+        }
+        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
 
         var hint = busy
             ? WatchUi.loadResource(Rez.Strings.Loading) as String

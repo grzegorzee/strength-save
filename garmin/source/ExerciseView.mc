@@ -5,8 +5,9 @@ import Toybox.Timer;
 import Toybox.WatchUi;
 
 // Ekran ćwiczenia: następna niezaliczona seria z pre-fill (cel z garminDay),
-// stepper ciężaru +/-2.5 kg (UP/DOWN), tap/SELECT = zalicz. Po serii rest
-// timer z wibracją. Notatka i cel z kontekstu (pola t/p).
+// stepper ciężaru (krok z AppSettings, UP/DOWN), tap/SELECT = zalicz. Po serii
+// rest timer z wibracją. Układ pionowy, wszystko wycentrowane — okrągły ekran
+// nie obcina, teksty przycinane do szerokości piksela (fitText).
 class ExerciseView extends WatchUi.View {
     var exIdx as Number;
     var reps as Number = 0;
@@ -84,59 +85,86 @@ class ExerciseView extends WatchUi.View {
         if (restTimer != null) { restTimer.stop(); }
     }
 
+    // Przycina tekst do maxWidth pikseli (z "..."), zamiast zgadywać liczbę znaków.
+    function fitText(dc as Dc, text as String, font as Graphics.FontType, maxWidth as Number) as String {
+        if (dc.getTextWidthInPixels(text, font) <= maxWidth) { return text; }
+        var t = text;
+        while (t.length() > 1 && dc.getTextWidthInPixels(t + "...", font) > maxWidth) {
+            t = t.substring(0, t.length() - 1) as String;
+        }
+        return t + "...";
+    }
+
     function onUpdate(dc as Dc) as Void {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
         dc.clear();
-        var cx = dc.getWidth() / 2;
+        var w = dc.getWidth();
+        var h = dc.getHeight();
+        var cx = w / 2;
+        var center = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
         var ex = exercise();
         if (ex == null) { return; }
 
-        var name = ex["n"] as String;
-        dc.drawText(cx, 8, Graphics.FONT_XTINY,
-            name.length() > 20 ? name.substring(0, 20) : name, Graphics.TEXT_JUSTIFY_CENTER);
-
+        // Nagłówek: nazwa + cel (u góry okręgu węższy pas, stąd 66% szerokości).
+        dc.drawText(cx, h * 12 / 100, Graphics.FONT_XTINY,
+            fitText(dc, ex["n"] as String, Graphics.FONT_XTINY, w * 66 / 100), center);
         if (ex.hasKey("t")) {
             dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, 28, Graphics.FONT_XTINY, ex["t"] as String, Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(cx, h * 21 / 100, Graphics.FONT_XTINY, ex["t"] as String, center);
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         }
 
         if (restLeft > 0) {
             dc.setColor(Graphics.COLOR_ORANGE, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, dc.getHeight() / 2 - 20, Graphics.FONT_NUMBER_MEDIUM,
-                (restLeft / 60).toString() + ":" + (restLeft % 60).format("%02d"), Graphics.TEXT_JUSTIFY_CENTER);
-            dc.drawText(cx, dc.getHeight() * 3 / 4, Graphics.FONT_XTINY,
+            dc.drawText(cx, h / 2, Graphics.FONT_NUMBER_MEDIUM,
+                (restLeft / 60).toString() + ":" + (restLeft % 60).format("%02d"), center);
+            dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, h * 72 / 100, Graphics.FONT_XTINY,
                 WatchUi.loadResource(Rez.Strings.Rest) as String + " · " + WatchUi.loadResource(Rez.Strings.Skip) as String,
-                Graphics.TEXT_JUSTIFY_CENTER);
+                center);
             return;
         }
 
         var setIdx = nextSetIndex();
+        var sets = ex["s"] as Array;
         if (setIdx < 0) {
             dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, dc.getHeight() / 2, Graphics.FONT_SMALL, "✓", Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(cx, h / 2, Graphics.FONT_SMALL,
+                WatchUi.loadResource(Rez.Strings.AllDone) as String, center);
             return;
         }
 
-        // Edytowane pole podświetlone: UP/DOWN zmienia, długi SELECT przełącza pole.
-        dc.setColor(editReps ? Graphics.COLOR_GREEN : Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - 40, dc.getHeight() / 2 - 16, Graphics.FONT_NUMBER_MILD,
-            reps.toString(), Graphics.TEXT_JUSTIFY_CENTER);
-        dc.setColor(editReps ? Graphics.COLOR_WHITE : Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx + 40, dc.getHeight() / 2 - 16, Graphics.FONT_NUMBER_MILD,
-            weight.format("%.1f"), Graphics.TEXT_JUSTIFY_CENTER);
+        // Numer serii.
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx - 40, dc.getHeight() / 2 + 24, Graphics.FONT_XTINY,
-            WatchUi.loadResource(Rez.Strings.Reps) as String, Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(cx + 40, dc.getHeight() / 2 + 24, Graphics.FONT_XTINY,
-            "kg", Graphics.TEXT_JUSTIFY_CENTER);
+        dc.drawText(cx, h * 30 / 100, Graphics.FONT_XTINY,
+            WatchUi.loadResource(Rez.Strings.SetWord) as String + " "
+                + (setIdx + 1).toString() + "/" + sets.size().toString(), center);
 
+        // Edytowana wartość duża w centrum, druga mała pod spodem.
+        var bigValue = editReps ? reps.toString() : AppSettings.formatKg(weight);
+        var bigUnit = editReps
+            ? WatchUi.loadResource(Rez.Strings.RepsUnit) as String
+            : "kg";
+        var smallValue = editReps
+            ? AppSettings.formatKg(weight) + " kg"
+            : reps.toString() + " " + (WatchUi.loadResource(Rez.Strings.RepsUnit) as String);
+
+        dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 47 / 100, Graphics.FONT_NUMBER_MEDIUM, bigValue, center);
+        dc.drawText(cx, h * 62 / 100, Graphics.FONT_TINY, bigUnit, center);
+        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 72 / 100, Graphics.FONT_XTINY, smallValue, center);
+
+        // Notatka (przypięta w apce) i podpowiedź sterowania.
         if (ex.hasKey("p")) {
             dc.setColor(Graphics.COLOR_YELLOW, Graphics.COLOR_TRANSPARENT);
-            var note = ex["p"] as String;
-            dc.drawText(cx, dc.getHeight() - 34, Graphics.FONT_XTINY,
-                note.length() > 24 ? note.substring(0, 24) : note, Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(cx, h * 81 / 100, Graphics.FONT_XTINY,
+                fitText(dc, ex["p"] as String, Graphics.FONT_XTINY, w * 60 / 100), center);
         }
+        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 87 / 100, Graphics.FONT_XTINY,
+            fitText(dc, WatchUi.loadResource(Rez.Strings.HintLog) as String, Graphics.FONT_XTINY, w * 52 / 100),
+            center);
     }
 }
 
@@ -152,7 +180,8 @@ class ExerciseDelegate extends WatchUi.BehaviorDelegate {
         if (view.editReps) {
             view.reps = view.reps > 0 ? view.reps - 1 : 0;
         } else {
-            view.weight = view.weight >= 2.5 ? view.weight - 2.5 : 0.0;
+            var step = AppSettings.weightStep();
+            view.weight = view.weight >= step ? view.weight - step : 0.0;
         }
         WatchUi.requestUpdate();
         return true;
@@ -162,7 +191,7 @@ class ExerciseDelegate extends WatchUi.BehaviorDelegate {
         if (view.editReps) {
             view.reps += 1;
         } else {
-            view.weight += 2.5;
+            view.weight += AppSettings.weightStep();
         }
         WatchUi.requestUpdate();
         return true;

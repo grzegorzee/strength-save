@@ -16,4 +16,12 @@
   <string id="FinishConfirm">Zakończyć i zapisać?</string>
   <string id="Pending">Niezsynchronizowane</string>
   <string id="Saved">Trening zapisany</string>
+  <string id="WeightStep">Krok wagi</string>
+  <string id="ToSend">do wysłania</string>
+  <string id="NothingToSend">Brak serii do wysłania</string>
+  <string id="AllDone">Wszystkie serie zrobione</string>
+  <string id="ServerError">Błąd serwera. Ponowić?</string>
+  <string id="SetWord">Seria</string>
+  <string id="RepsUnit">powt.</string>
+  <string id="HintLog">OK: zalicz · MENU: pole</string>
 </strings>

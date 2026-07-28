@@ -5,13 +5,14 @@ import Toybox.Time;
 import Toybox.Time.Gregorian;
 import Toybox.WatchUi;
 
-// Ekran dnia: pobiera kontekst z garminDay i renderuje przewijaną listę
-// ćwiczeń (UP/DOWN), SELECT otwiera ćwiczenie, MENU kończy trening.
+// Ekran startowy dnia: pobiera kontekst z garminDay i obsługuje stany
+// loading/błąd/odpoczynek. Sama lista ćwiczeń to natywne Menu2 (DayMenu) —
+// poprawny layout na okrągłych ekranach każdego urządzenia bez ręcznego
+// liczenia marginesów, marquee długich nazw za darmo.
 class DayView extends WatchUi.View {
     var loading as Boolean = true;
     var errorCode as Number = 0;
     var rest as Boolean = false;
-    var selected as Number = 0;
 
     function initialize() {
         View.initialize();
@@ -23,6 +24,7 @@ class DayView extends WatchUi.View {
             fetch();
         } else {
             loading = false;
+            showMenu();
         }
     }
 
@@ -51,63 +53,45 @@ class DayView extends WatchUi.View {
             rest = true;
         } else {
             WorkoutState.setDay(data);
+            showMenu();
+            return;
         }
         WatchUi.requestUpdate();
+    }
+
+    function showMenu() as Void {
+        var menu = new DayMenu();
+        WatchUi.switchToView(menu, new DayMenuDelegate(menu), WatchUi.SLIDE_LEFT);
     }
 
     function onUpdate(dc as Dc) as Void {
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
         dc.clear();
         var cx = dc.getWidth() / 2;
+        var h = dc.getHeight();
 
         if (loading) {
-            dc.drawText(cx, dc.getHeight() / 2, Graphics.FONT_SMALL,
-                WatchUi.loadResource(Rez.Strings.Loading) as String, Graphics.TEXT_JUSTIFY_CENTER);
+            dc.drawText(cx, h / 2, Graphics.FONT_SMALL,
+                WatchUi.loadResource(Rez.Strings.Loading) as String,
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
             return;
         }
         if (errorCode != 0) {
-            dc.drawText(cx, dc.getHeight() / 2, Graphics.FONT_XTINY,
-                WatchUi.loadResource(Rez.Strings.NoConnection) as String, Graphics.TEXT_JUSTIFY_CENTER);
+            var message = errorCode >= 500
+                ? WatchUi.loadResource(Rez.Strings.ServerError) as String
+                : WatchUi.loadResource(Rez.Strings.NoConnection) as String;
+            dc.drawText(cx, h * 45 / 100, Graphics.FONT_XTINY, message,
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, h * 58 / 100, Graphics.FONT_XTINY, "(" + errorCode.toString() + ")",
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
             return;
         }
-        var day = WorkoutState.day();
-        if (rest || day == null) {
-            dc.drawText(cx, dc.getHeight() / 2, Graphics.FONT_SMALL,
-                WatchUi.loadResource(Rez.Strings.RestDay) as String, Graphics.TEXT_JUSTIFY_CENTER);
+        if (rest) {
+            dc.drawText(cx, h / 2, Graphics.FONT_SMALL,
+                WatchUi.loadResource(Rez.Strings.RestDay) as String,
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
             return;
-        }
-
-        var exercises = day["e"] as Array;
-        dc.drawText(cx, 8, Graphics.FONT_XTINY, day["n"] as String, Graphics.TEXT_JUSTIFY_CENTER);
-        if (EventQueue.size() > 0) {
-            dc.setColor(Graphics.COLOR_ORANGE, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, 26, Graphics.FONT_XTINY,
-                WatchUi.loadResource(Rez.Strings.Pending) as String, Graphics.TEXT_JUSTIFY_CENTER);
-            dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        }
-
-        var rowHeight = 26;
-        var top = 46;
-        var visible = (dc.getHeight() - top) / rowHeight - 1;
-        var first = selected > visible ? selected - visible : 0;
-        for (var i = first; i < exercises.size() && (i - first) <= visible; i++) {
-            var exercise = exercises[i] as Dictionary;
-            var doneCount = 0;
-            var sets = exercise["s"] as Array;
-            for (var j = 0; j < sets.size(); j++) {
-                if (WorkoutState.isDone(i, j)) { doneCount += 1; }
-            }
-            var y = top + (i - first) * rowHeight;
-            if (i == selected) {
-                dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
-            } else {
-                dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-            }
-            var name = exercise["n"] as String;
-            var label = name.length() > 18 ? name.substring(0, 18) : name;
-            dc.drawText(12, y, Graphics.FONT_XTINY, label, Graphics.TEXT_JUSTIFY_LEFT);
-            dc.drawText(dc.getWidth() - 12, y, Graphics.FONT_XTINY,
-                doneCount.toString() + "/" + sets.size().toString(), Graphics.TEXT_JUSTIFY_RIGHT);
         }
     }
 }
@@ -120,51 +104,105 @@ class DayDelegate extends WatchUi.BehaviorDelegate {
         view = dayView;
     }
 
-    function exerciseCount() as Number {
-        var day = WorkoutState.day();
-        return day == null ? 0 : (day["e"] as Array).size();
-    }
-
-    function onNextPage() as Boolean {
-        var count = exerciseCount();
-        if (count > 0) {
-            view.selected = (view.selected + 1) % count;
-            WatchUi.requestUpdate();
-        }
-        return true;
-    }
-
-    function onPreviousPage() as Boolean {
-        var count = exerciseCount();
-        if (count > 0) {
-            view.selected = (view.selected + count - 1) % count;
-            WatchUi.requestUpdate();
-        }
-        return true;
-    }
-
     function onSelect() as Boolean {
         if (view.errorCode != 0) {
             view.fetch();
-            return true;
         }
-        if (exerciseCount() > 0) {
-            var exView = new ExerciseView(view.selected);
-            WatchUi.pushView(exView, new ExerciseDelegate(exView), WatchUi.SLIDE_LEFT);
-        }
-        return true;
-    }
-
-    function onMenu() as Boolean {
-        var dialog = new WatchUi.Confirmation(WatchUi.loadResource(Rez.Strings.FinishConfirm) as String);
-        WatchUi.pushView(dialog, new FinishConfirmDelegate(), WatchUi.SLIDE_UP);
         return true;
     }
 }
 
-class FinishConfirmDelegate extends WatchUi.ConfirmationDelegate {
+// Natywne menu dnia: ćwiczenia (sublabel: postęp + cel) + akcje na końcu.
+class DayMenu extends WatchUi.Menu2 {
     function initialize() {
+        var day = WorkoutState.day();
+        Menu2.initialize({ :title => day == null ? "" : day["n"] as String });
+        var exercises = day == null ? ([] as Array) : day["e"] as Array;
+        for (var i = 0; i < exercises.size(); i++) {
+            var exercise = exercises[i] as Dictionary;
+            addItem(new WatchUi.MenuItem(exercise["n"] as String, exerciseSubLabel(i), i, {}));
+        }
+        addItem(new WatchUi.MenuItem(
+            WatchUi.loadResource(Rez.Strings.Finish) as String, pendingSubLabel(), :finish, {}));
+        addItem(new WatchUi.MenuItem(
+            WatchUi.loadResource(Rez.Strings.WeightStep) as String, AppSettings.stepLabel(), :step, {}));
+    }
+
+    function exerciseSubLabel(index as Number) as String {
+        var day = WorkoutState.day();
+        if (day == null) { return ""; }
+        var exercise = (day["e"] as Array)[index] as Dictionary;
+        var sets = exercise["s"] as Array;
+        var doneCount = 0;
+        for (var j = 0; j < sets.size(); j++) {
+            if (WorkoutState.isDone(index, j)) { doneCount += 1; }
+        }
+        var label = doneCount.toString() + "/" + sets.size().toString();
+        if (exercise.hasKey("t")) {
+            label += " · " + (exercise["t"] as String);
+        }
+        return label;
+    }
+
+    function pendingSubLabel() as String or Null {
+        var pending = EventQueue.size();
+        if (pending == 0) { return null; }
+        return pending.toString() + " " + (WatchUi.loadResource(Rez.Strings.ToSend) as String);
+    }
+
+    function refresh() as Void {
+        var day = WorkoutState.day();
+        if (day == null) { return; }
+        var count = (day["e"] as Array).size();
+        for (var i = 0; i < count; i++) {
+            (getItem(i) as WatchUi.MenuItem).setSubLabel(exerciseSubLabel(i));
+        }
+        (getItem(count) as WatchUi.MenuItem).setSubLabel(pendingSubLabel());
+        (getItem(count + 1) as WatchUi.MenuItem).setSubLabel(AppSettings.stepLabel());
+    }
+
+    function onShow() as Void {
+        refresh();
+        Menu2.onShow();
+    }
+}
+
+class DayMenuDelegate extends WatchUi.Menu2InputDelegate {
+    var menu as DayMenu;
+
+    function initialize(dayMenu as DayMenu) {
+        Menu2InputDelegate.initialize();
+        menu = dayMenu;
+    }
+
+    function onSelect(item as WatchUi.MenuItem) as Void {
+        var id = item.getId();
+        if (id instanceof Number) {
+            var exView = new ExerciseView(id as Number);
+            WatchUi.pushView(exView, new ExerciseDelegate(exView), WatchUi.SLIDE_LEFT);
+        } else if (id == :finish) {
+            if (EventQueue.size() == 0) {
+                if (WatchUi has :showToast) {
+                    WatchUi.showToast(WatchUi.loadResource(Rez.Strings.NothingToSend) as String, null);
+                }
+                return;
+            }
+            var dialog = new WatchUi.Confirmation(WatchUi.loadResource(Rez.Strings.FinishConfirm) as String);
+            WatchUi.pushView(dialog, new FinishConfirmDelegate(menu), WatchUi.SLIDE_UP);
+        } else if (id == :step) {
+            AppSettings.cycleWeightStep();
+            item.setSubLabel(AppSettings.stepLabel());
+            WatchUi.requestUpdate();
+        }
+    }
+}
+
+class FinishConfirmDelegate extends WatchUi.ConfirmationDelegate {
+    var menu as DayMenu;
+
+    function initialize(dayMenu as DayMenu) {
         ConfirmationDelegate.initialize();
+        menu = dayMenu;
     }
 
     function onResponse(response as WatchUi.Confirm) as Boolean {
@@ -175,8 +213,12 @@ class FinishConfirmDelegate extends WatchUi.ConfirmationDelegate {
     }
 
     function onFinished(ok as Boolean) as Void {
-        // ok=false: zdarzenia zostają w kolejce (wskaźnik na liście), retry przy
-        // kolejnym zakończeniu — ingest jest idempotentny.
+        // ok=false: zdarzenia zostają w kolejce (sublabel "do wysłania"), retry
+        // przy kolejnym zakończeniu — ingest jest idempotentny.
+        menu.refresh();
+        if (WatchUi has :showToast) {
+            WatchUi.showToast(WatchUi.loadResource(ok ? Rez.Strings.Saved : Rez.Strings.NoConnection) as String, null);
+        }
         WatchUi.requestUpdate();
     }
 }

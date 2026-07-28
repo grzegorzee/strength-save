@@ -16,4 +16,12 @@
   <string id="FinishConfirm">Finish and save?</string>
   <string id="Pending">Not synced</string>
   <string id="Saved">Workout saved</string>
+  <string id="WeightStep">Weight step</string>
+  <string id="ToSend">to send</string>
+  <string id="NothingToSend">No sets to send</string>
+  <string id="AllDone">All sets done</string>
+  <string id="ServerError">Server error. Retry?</string>
+  <string id="SetWord">Set</string>
+  <string id="RepsUnit">reps</string>
+  <string id="HintLog">OK: log · MENU: field</string>
 </strings>
