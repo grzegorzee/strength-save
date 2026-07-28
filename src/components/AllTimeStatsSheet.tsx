@@ -3,6 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { buildAllTimeStats } from '@/lib/all-time-stats';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import type { WorkoutSession } from '@/types';
 
 interface AllTimeStatsSheetProps {
@@ -41,7 +42,7 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, workouts }: AllTimeStats
     { label: t('stats.longestStreak'), value: String(stats.longestStreak) },
     { label: t('stats.prs'), value: String(stats.totalPRs) },
     ...(stats.favoriteExercise
-      ? [{ label: t('stats.favorite'), value: stats.favoriteExercise.name }]
+      ? [{ label: t('stats.favorite'), value: localizeExerciseName(stats.favoriteExercise.name, lang) }]
       : []),
     ...(stats.firstWorkoutDate
       ? [{

@@ -19,6 +19,8 @@ import { translate, type LanguageCode } from '@/i18n';
 
 export interface WorkoutResolver {
   resolveExerciseName: (workout: WorkoutSession, exerciseId: string) => string;
+  /** Kanoniczna nazwa PL (bez lokalizacji) — do lookupów w bibliotece / isBodyweightExercise (Z156). */
+  resolveCanonicalExerciseName: (workout: WorkoutSession, exerciseId: string) => string;
   resolveDayLabel: (workout: WorkoutSession) => { dayName: string; focus: string };
 }
 
@@ -100,5 +102,5 @@ export const buildWorkoutResolver = (
     return { dayName: localizeDayName(raw.dayName, lang), focus: localizeFocus(raw.focus, lang) };
   };
 
-  return { resolveExerciseName, resolveDayLabel };
+  return { resolveExerciseName, resolveCanonicalExerciseName: resolveRawExerciseName, resolveDayLabel };
 };

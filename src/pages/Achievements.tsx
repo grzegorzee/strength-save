@@ -137,12 +137,18 @@ const Achievements = () => {
 
   // Rekordy 1RM (szacowane) — wspólne źródło dla "życiowych rekordów" i pełnej listy 1RM.
   const oneRMRecords = useMemo(() => {
-    const seen = new Map<string, string>();
+    const seen = new Map<string, { name: string; canonicalName: string }>();
     workouts.forEach(w => w.exercises.forEach(ex => {
-      if (!seen.has(ex.exerciseId)) seen.set(ex.exerciseId, resolver.resolveExerciseName(w, ex.exerciseId));
+      if (!seen.has(ex.exerciseId)) {
+        seen.set(ex.exerciseId, {
+          name: resolver.resolveExerciseName(w, ex.exerciseId),
+          // Z156: kanoniczna PL do lookupów (dialog progresji, isBodyweightExercise).
+          canonicalName: resolver.resolveCanonicalExerciseName(w, ex.exerciseId),
+        });
+      }
     }));
     const sorted = Array.from(seen.entries())
-      .map(([id, name]) => ({ ...getExerciseBest1RM(workouts, id), name }))
+      .map(([id, names]) => ({ ...getExerciseBest1RM(workouts, id), ...names }))
       .filter(r => r.best1RM > 0)
       .sort((a, b) => b.best1RM - a.best1RM);
     // Dedup po nazwie: różne exerciseId mogą mapować na to samo ćwiczenie (np. id
@@ -160,6 +166,12 @@ const Achievements = () => {
   const exerciseNames = useMemo(() => {
     const m = new Map<string, string>();
     oneRMRecords.forEach(r => m.set(r.exerciseId, r.name));
+    return m;
+  }, [oneRMRecords]);
+
+  const exerciseCanonicalNames = useMemo(() => {
+    const m = new Map<string, string>();
+    oneRMRecords.forEach(r => m.set(r.exerciseId, r.canonicalName));
     return m;
   }, [oneRMRecords]);
 
@@ -488,7 +500,7 @@ const Achievements = () => {
                     variant="ghost"
                     size="sm"
                     className="shrink-0 text-fitness-warning hover:text-fitness-warning"
-                    onClick={() => setProgressionExercise({ id: p.exerciseId, name: p.name })}
+                    onClick={() => setProgressionExercise({ id: p.exerciseId, name: exerciseCanonicalNames.get(p.exerciseId) ?? p.name })}
                   >
                     {t('achievements.plateauCta')}
                   </Button>
@@ -576,7 +588,7 @@ const Achievements = () => {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => setProgressionExercise({ id: record.exerciseId, name: record.name })}
+                      onClick={() => setProgressionExercise({ id: record.exerciseId, name: record.canonicalName })}
                     >
                       <TrendingUp className="h-4 w-4 text-primary" />
                     </Button>

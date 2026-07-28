@@ -229,7 +229,9 @@ const AnalyticsChartsTab = () => {
           id: ex.exerciseId,
           name,
           chartData: [],
-          isBodyweight: isBodyweightExercise(name),
+          // Z156: lookup po nazwie KANONICZNEJ — zlokalizowana dawała w EN zawsze
+          // false i wykresy bodyweight pokazywały kg zamiast powtórzeń.
+          isBodyweight: isBodyweightExercise(resolver.resolveCanonicalExerciseName(w, ex.exerciseId)),
         };
 
         entry.chartData.push({

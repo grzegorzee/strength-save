@@ -111,7 +111,7 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
           <CardContent className="space-y-1">
             {cycle.stats.prs.map((pr, i) => (
               <div key={i} className="flex items-center justify-between py-2 border-b last:border-0">
-                <span className="text-sm">{pr.exerciseName}</span>
+                <span className="text-sm">{localizeExerciseName(pr.exerciseName, lang)}</span>
                 <div className="text-right">
                   <span className="text-sm font-bold">{fmt(pr.weight)}</span>
                   <span className="text-xs text-muted-foreground ml-2">

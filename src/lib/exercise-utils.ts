@@ -115,6 +115,8 @@ export const lookupExerciseType = (name: string): 'compound' | 'isolation' => {
   return found?.type ?? 'compound';
 };
 
+// KONTRAKT (Z156): `name` = kanoniczna nazwa PL (lookup w exerciseLibrary).
+// Nazwa przetłumaczona zawsze zwróci false — lokalizuj dopiero przy renderze.
 export const isBodyweightExercise = (name: string): boolean => {
   const found = exerciseLibrary.find(e => e.name === name);
   return found?.isBodyweight === true;

@@ -5,6 +5,7 @@ import type { WorkoutSession } from '@/types';
 import { getWeeklyMetrics, getPainWatchlist, getAvgQuality } from '@/lib/rza-metrics';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -12,7 +13,7 @@ import { dateLocale } from '@/i18n';
 // Karta "MASZYNA" — agregaty tygodniowe (objętość, śr. RPE, śr. ból, liczba OK).
 // Renderuje się TYLKO gdy zapisano jakiekolwiek RPE, więc plany bez autoregulacji jej nie widzą.
 export const RzaMetricsCard = ({ workouts }: { workouts: WorkoutSession[] }) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const weeks = useMemo(() => getWeeklyMetrics(workouts).filter(w => w.hasRpe), [workouts]);
   // Z75: watchlist bólu i średnia techniki z ostatnich 4 tygodni.
   const painWatchlist = useMemo(() => getPainWatchlist(workouts, new Date()), [workouts]);
@@ -72,7 +73,7 @@ export const RzaMetricsCard = ({ workouts }: { workouts: WorkoutSession[] }) => 
                 onClick={() => setProgressionTarget({ id: entry.exerciseId, name: entry.exerciseName })}
                 className="w-full flex items-center justify-between gap-2 rounded-lg bg-fitness-warning/5 border border-fitness-warning/20 px-3 py-2 text-left hover:bg-fitness-warning/10 transition-colors"
               >
-                <span className="text-sm font-medium truncate">{entry.exerciseName}</span>
+                <span className="text-sm font-medium truncate">{localizeExerciseName(entry.exerciseName, lang)}</span>
                 <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
                   {t('analytics.rza.painEntry', { max: entry.maxPain, n: entry.sessionsWithPain })}
                 </span>

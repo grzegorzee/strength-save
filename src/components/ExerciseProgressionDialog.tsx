@@ -32,9 +32,12 @@ import { parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 
 interface Props {
   exerciseId: string;
+  /** KONTRAKT (Z156): kanoniczna nazwa PL — dialog szuka po niej w exerciseLibrary
+   *  i customExercises. Lokalizacja do wyświetlenia dzieje się WEWNĄTRZ dialogu. */
   exerciseName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -104,7 +107,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{exerciseName}</DialogTitle>
+            <DialogTitle>{localizeExerciseName(exerciseName, lang)}</DialogTitle>
             <DialogDescription>{t('comp.progression.noHistory')}</DialogDescription>
           </DialogHeader>
         </DialogContent>
@@ -124,7 +127,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              {exerciseName}
+              {localizeExerciseName(exerciseName, lang)}
             </DialogTitle>
             <DialogDescription>{trackedLabel}</DialogDescription>
           </DialogHeader>
@@ -181,7 +184,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-primary" />
-            {exerciseName}
+            {localizeExerciseName(exerciseName, lang)}
           </DialogTitle>
           <DialogDescription>{isBodyweight ? t('comp.progression.subtitleReps') : t('comp.progression.subtitleWeight')}</DialogDescription>
         </DialogHeader>

@@ -1,8 +1,10 @@
 import type { WorkoutSession } from '@/types';
 import type { StravaActivity } from '@/types/strava';
 import type { TrainingDay } from '@/data/trainingPlan';
+import type { LanguageCode } from '@/i18n';
 import { getWeekBounds, calculateTonnage, filterWorkoutsByPeriod } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 // --- Types ---
@@ -42,12 +44,13 @@ export function buildLocalWeeklySummaries(
   trainingPlan: TrainingDay[],
   now: Date = new Date(),
   weeksBack = 12,
+  lang: LanguageCode = 'pl',
 ): LocalWeeklySummary[] {
   const summaries: LocalWeeklySummary[] = [];
   for (let i = 0; i < weeksBack; i += 1) {
     const weekDate = new Date(now);
     weekDate.setDate(weekDate.getDate() - i * 7);
-    const { stats, weekStart, weekEnd, hasData } = prepareWeeklyData(weekDate, workouts, stravaActivities, trainingPlan);
+    const { stats, weekStart, weekEnd, hasData } = prepareWeeklyData(weekDate, workouts, stravaActivities, trainingPlan, lang);
     if (hasData) summaries.push({ weekStart, weekEnd, stats });
   }
   return summaries;
@@ -60,6 +63,7 @@ export function prepareWeeklyData(
   workouts: WorkoutSession[],
   stravaActivities: StravaActivity[],
   trainingPlan: TrainingDay[],
+  lang: LanguageCode = 'pl',
 ): { stats: WeeklySummaryStats; weekStart: string; weekEnd: string; hasData: boolean } {
   const bounds = getWeekBounds(weekDate);
   const weekStart = formatLocalDate(bounds.start);
@@ -80,7 +84,8 @@ export function prepareWeeklyData(
   const prs: WeeklySummaryStats['prs'] = [];
   weekWorkouts.forEach(w => {
     const detected = detectNewPRs(w, historicalWorkouts, allNames);
-    detected.forEach(pr => prs.push({ exerciseName: pr.exerciseName, type: pr.type, newValue: pr.newValue }));
+    // Z156: nazwy PR-ów lokalizowane u źródła — snapshoty w treningach są kanoniczne PL.
+    detected.forEach(pr => prs.push({ exerciseName: localizeExerciseName(pr.exerciseName, lang), type: pr.type, newValue: pr.newValue }));
   });
 
   // Strava activities this week

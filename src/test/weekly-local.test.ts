@@ -47,4 +47,22 @@ describe('buildLocalWeeklySummaries (Z78)', () => {
   it('puste dane → []', () => {
     expect(buildLocalWeeklySummaries([], [], [], now)).toEqual([]);
   });
+
+  // Z156: PR-y w trybie EN dostają nazwę EN (snapshoty w treningach są kanoniczne PL).
+  it('lang=en lokalizuje nazwy ćwiczeń w PR-ach', () => {
+    const workouts = [session('w1', '2026-06-23', 60), session('w2', '2026-06-30', 80)];
+
+    const summaries = buildLocalWeeklySummaries(workouts, [], [], now, 12, 'en');
+
+    expect(summaries[0].stats.prs.length).toBeGreaterThan(0);
+    expect(summaries[0].stats.prs[0].exerciseName).toBe('Barbell Bench Press');
+  });
+
+  it('bez lang (default pl) nazwy PR zostają kanoniczne', () => {
+    const workouts = [session('w1', '2026-06-23', 60), session('w2', '2026-06-30', 80)];
+
+    const summaries = buildLocalWeeklySummaries(workouts, [], [], now);
+
+    expect(summaries[0].stats.prs[0].exerciseName).toBe('Wyciskanie sztangi na ławce płaskiej');
+  });
 });

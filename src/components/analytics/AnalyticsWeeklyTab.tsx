@@ -24,8 +24,8 @@ const AnalyticsWeeklyTab = () => {
   const { plan: trainingPlan } = useTrainingPlan(uid);
 
   const summaries = useMemo(
-    () => buildLocalWeeklySummaries(workouts, stravaActivities, trainingPlan),
-    [workouts, stravaActivities, trainingPlan],
+    () => buildLocalWeeklySummaries(workouts, stravaActivities, trainingPlan, new Date(), 12, lang),
+    [workouts, stravaActivities, trainingPlan, lang],
   );
 
   return (
