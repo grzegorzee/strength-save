@@ -121,6 +121,8 @@ class DayMenu extends WatchUi.Menu2 {
     var exerciseCount as Number = 0;
     var finishIndex as Number = -1;
     var stepIndex as Number = -1;
+    var restSetIndex as Number = -1;
+    var restExIndex as Number = -1;
 
     function initialize() {
         var day = WorkoutState.day();
@@ -157,6 +159,16 @@ class DayMenu extends WatchUi.Menu2 {
         addItem(new WatchUi.MenuItem(
             WatchUi.loadResource(Rez.Strings.WeightStep) as String, AppSettings.stepLabel(), :step, {}));
         stepIndex = nextIndex;
+        nextIndex += 1;
+
+        addItem(new WatchUi.MenuItem(
+            WatchUi.loadResource(Rez.Strings.RestSetLabel) as String, AppSettings.restSetLabel(), :restSet, {}));
+        restSetIndex = nextIndex;
+        nextIndex += 1;
+
+        addItem(new WatchUi.MenuItem(
+            WatchUi.loadResource(Rez.Strings.RestExLabel) as String, AppSettings.restExerciseLabel(), :restEx, {}));
+        restExIndex = nextIndex;
     }
 
     function exerciseSubLabel(index as Number) as String {

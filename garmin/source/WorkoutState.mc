@@ -90,8 +90,31 @@ module WorkoutState {
         return done().hasKey(exIdx.toString() + "#" + setIdx.toString());
     }
 
-    function nowMs() as Number {
-        return Time.now().value() * 1000;
+    function nowMs() as Long {
+        // .toLong() PRZED mnożeniem: sekundy epoch * 1000 przepełniają 32-bit Number.
+        return Time.now().value().toLong() * 1000;
+    }
+
+    // Czas trwania sesji (s); 0 zanim padnie pierwsza seria (startedAt null).
+    function sessionElapsedSec() as Number {
+        var startedAt = Application.Storage.getValue("startedAt");
+        if (startedAt == null) { return 0; }
+        var diff = (nowMs() - (startedAt as Long)) / 1000;
+        return diff < 0 ? 0 : diff.toNumber();
+    }
+
+    // Statystyki bieżącej sesji z mapy done: {"sets" => Number, "tonnage" => Float (kg)}.
+    function sessionStats() as Dictionary {
+        var progress = done();
+        var keys = progress.keys();
+        var tonnage = 0.0;
+        for (var i = 0; i < keys.size(); i++) {
+            var entry = progress[keys[i]] as Array;
+            var reps = entry[0] as Number;
+            var kg = entry[1];
+            tonnage += reps * (kg instanceof Float ? kg as Float : (kg as Number).toFloat());
+        }
+        return { "sets" => keys.size(), "tonnage" => tonnage };
     }
 
     function ensureWorkoutStarted() as Void {
