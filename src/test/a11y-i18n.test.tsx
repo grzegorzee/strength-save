@@ -25,12 +25,12 @@ describe('sr-only "Zamknij" w dialogu per język (Z166)', () => {
 
   it('PL: Zamknij', () => {
     renderDialog('pl');
-    expect(document.body.textContent).toContain('Zamknij');
+    expect(document.body.textContent).toContain('Zamknij okno');
   });
 
   it('EN: Close', () => {
     renderDialog('en');
-    expect(document.body.textContent).toContain('Close');
+    expect(document.body.textContent).toContain('Close dialog');
   });
 });
 

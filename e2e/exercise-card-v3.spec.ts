@@ -188,7 +188,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     // Zamykamy PRZYCISKIEM, nie klawiszem: Escape wysłany natychmiast po
     // `toBeVisible()` trafia w animację otwierania dialogu i bywa gubiony.
     // Potem czekamy na REALNE zniknięcie — dopiero wtedy pola serii przyjmują wpis.
-    await dialog.getByRole('button', { name: 'Close' }).click();
+    await dialog.getByRole('button', { name: 'Zamknij okno' }).click();
     await expect(dialog).toHaveCount(0);
 
     // Chip kalkulatora ma etykietę — po samej ikonie dysku nie było wiadomo, co robi.

@@ -17,7 +17,7 @@ export const pl = {
   'nav.dashboard': 'Dashboard',
   'nav.expand': 'Rozwiń nawigację',
   'nav.collapse': 'Zwiń nawigację',
-  'a11y.close': 'Zamknij',
+  'a11y.close': 'Zamknij okno',
   'settings.maxHrLabel': 'Max HR',
   'cycles.errActiveNotCreated': 'Nie udało się utworzyć aktywnego cyklu',
   'ob.errCompleteFailed': 'Nie udało się dokończyć konfiguracji',

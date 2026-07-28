@@ -1038,7 +1038,7 @@ test.describe('Import CSV (Z110)', () => {
     await page.getByTestId('import-confirm-checkbox').click();
     await writeBtn.click();
     await expect(page.getByTestId('import-done')).toContainText('3');
-    await page.getByRole('button', { name: 'Zamknij' }).click();
+    await page.getByRole('button', { name: 'Zamknij', exact: true }).click();
 
     // Historia pokazuje zaimportowane treningi ze snapshotem nazwy dnia.
     await navigateAndWait(page, '/history');
@@ -1058,7 +1058,7 @@ test.describe('Import CSV (Z110)', () => {
       return raw ? (JSON.parse(raw) as unknown[]).length : 0;
     });
     expect(workoutsAfterSecond).toBe(3);
-    await page.getByRole('button', { name: 'Zamknij' }).click();
+    await page.getByRole('button', { name: 'Zamknij', exact: true }).click();
 
     // Cofnięcie: historia importów -> Cofnij -> treningi znikają.
     await page.getByTestId('import-wizard-open').click();
