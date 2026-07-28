@@ -131,7 +131,7 @@
 
 ## FAZA 4: Ekran Sesja + wejścia (menu i swipe)
 
-- [ ] Krok 1: Nowy plik `garmin/source/SessionView.mc`:
+- [x] Krok 1: Nowy plik `garmin/source/SessionView.mc`:
   ```monkeyc
   import Toybox.Graphics;
   import Toybox.Lang;
@@ -204,7 +204,7 @@
       }
   }
   ```
-- [ ] Krok 2: `DayMenu` — pozycja "Sesja" (TYLKO gdy `day != null`), wstaw MIĘDZY blokiem `:add`/`:quick` a blokiem `:finish`, z aktualizacją `nextIndex` i nowym polem `sessionIndex as Number = -1`:
+- [x] Krok 2: `DayMenu` — pozycja "Sesja" (TYLKO gdy `day != null`), wstaw MIĘDZY blokiem `:add`/`:quick` a blokiem `:finish`, z aktualizacją `nextIndex` i nowym polem `sessionIndex as Number = -1`:
   ```monkeyc
   if (day != null) {
       addItem(new WatchUi.MenuItem(
@@ -215,7 +215,7 @@
   ```
   W `refresh()`: `if (sessionIndex >= 0) { var e = WorkoutState.sessionElapsedSec(); (getItem(sessionIndex) as WatchUi.MenuItem).setSubLabel(e > 0 ? AppSettings.formatElapsed(e) : null); }`
   W `DayMenuDelegate.onSelect`: `} else if (id == :session) { WatchUi.pushView(new SessionView(), new SessionDelegate(), WatchUi.SLIDE_LEFT); }`
-- [ ] Krok 3: Swipe z ekranu ćwiczenia — w `ExerciseDelegate`:
+- [x] Krok 3: Swipe z ekranu ćwiczenia — w `ExerciseDelegate`:
   ```monkeyc
   function onSwipe(evt as WatchUi.SwipeEvent) as Boolean {
       if (evt.getDirection() == WatchUi.SWIPE_LEFT) {
@@ -225,7 +225,7 @@
       return false;
   }
   ```
-- [ ] Krok 4: Build + commit `feat(garmin): ekran Sesja (czas+serie+tonaz), swipe w bok i pozycja w menu dnia`.
+- [x] Krok 4: Build + commit `feat(garmin): ekran Sesja (czas+serie+tonaz), swipe w bok i pozycja w menu dnia`.
 
 ## FAZA 5: Weryfikacja w symulatorze + handoff
 

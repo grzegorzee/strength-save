@@ -123,6 +123,7 @@ class DayMenu extends WatchUi.Menu2 {
     var stepIndex as Number = -1;
     var restSetIndex as Number = -1;
     var restExIndex as Number = -1;
+    var sessionIndex as Number = -1;
 
     function initialize() {
         var day = WorkoutState.day();
@@ -148,6 +149,13 @@ class DayMenu extends WatchUi.Menu2 {
                 WatchUi.loadResource(Rez.Strings.QuickWorkout) as String, null, :quick, {}));
         }
         nextIndex += 1;
+
+        if (day != null) {
+            addItem(new WatchUi.MenuItem(
+                WatchUi.loadResource(Rez.Strings.SessionTitle) as String, null, :session, {}));
+            sessionIndex = nextIndex;
+            nextIndex += 1;
+        }
 
         if (day != null || EventQueue.size() > 0) {
             addItem(new WatchUi.MenuItem(
@@ -201,6 +209,10 @@ class DayMenu extends WatchUi.Menu2 {
     function refresh() as Void {
         for (var i = 0; i < exerciseCount; i++) {
             (getItem(i) as WatchUi.MenuItem).setSubLabel(exerciseSubLabel(i));
+        }
+        if (sessionIndex >= 0) {
+            var e = WorkoutState.sessionElapsedSec();
+            (getItem(sessionIndex) as WatchUi.MenuItem).setSubLabel(e > 0 ? AppSettings.formatElapsed(e) : null);
         }
         if (finishIndex >= 0) {
             (getItem(finishIndex) as WatchUi.MenuItem).setSubLabel(pendingSubLabel());
@@ -281,6 +293,8 @@ class DayMenuDelegate extends WatchUi.Menu2InputDelegate {
             AppSettings.cycleRestExerciseSeconds();
             item.setSubLabel(AppSettings.restExerciseLabel());
             WatchUi.requestUpdate();
+        } else if (id == :session) {
+            WatchUi.pushView(new SessionView(), new SessionDelegate(), WatchUi.SLIDE_LEFT);
         }
     }
 }

@@ -246,4 +246,12 @@ class ExerciseDelegate extends WatchUi.BehaviorDelegate {
         WatchUi.popView(WatchUi.SLIDE_RIGHT);
         return true;
     }
+
+    function onSwipe(evt as WatchUi.SwipeEvent) as Boolean {
+        if (evt.getDirection() == WatchUi.SWIPE_LEFT) {
+            WatchUi.pushView(new SessionView(), new SessionDelegate(), WatchUi.SLIDE_LEFT);
+            return true;
+        }
+        return false;
+    }
 }
