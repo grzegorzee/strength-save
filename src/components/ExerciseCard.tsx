@@ -1236,7 +1236,10 @@ const ExerciseCardInner = ({
             <DialogHeader>
               <DialogTitle className="text-sm pr-6">{localizedName}</DialogTitle>
             </DialogHeader>
-            <div className="relative w-full overflow-hidden rounded-lg" style={{ paddingBottom: '56.25%' }}>
+            {/* 75% = 4:3, zgodnie z proporcją animacji ćwiczeń. Wcześniej było
+                56.25% (16:9), przez co object-cover ucinał 25% wysokości, czyli
+                głowę i stopy ćwiczącego. */}
+            <div className="relative w-full overflow-hidden rounded-lg" style={{ paddingBottom: '75%' }}>
               {showVideo && (
                 <video
                   className="absolute inset-0 w-full h-full object-cover"

@@ -63,7 +63,7 @@ Multi-user aplikacja PWA (React + Firebase + Strava) do śledzenia treningów si
 - `src/`
 
 **Ostatnia sesja (kiedy/co zrobione):**
-2026-07-20: edit strength_save/VIRAL-ZASADY.md (auto)
+2026-07-24: edit strength_save/animacje-cwiczen/dane_cwiczen.py (auto)
 
 ---
 

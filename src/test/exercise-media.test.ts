@@ -13,4 +13,18 @@ describe('exercise media helpers', () => {
     expect(getExerciseAnimationUrl()).toBeNull();
     expect(getExerciseAnimationUrl('')).toBeNull();
   });
+
+  // Mapa ANIMATION_FILES jest uzupełniana ręcznie, więc literówka w slugu nie
+  // wywoła błędu, tylko po cichu wyłączy animację. Ten test to wyłapuje.
+  it('returns a CDN URL for exercises that have an animation', () => {
+    expect(getExerciseAnimationUrl('Przysiad ze sztangą (High Bar)')).toBe(
+      'https://media.gjasionowicz.pl/exercises/przysiad-ze-sztanga-high-bar.mp4',
+    );
+    expect(getExerciseAnimationUrl('Wyciskanie sztangi na ławce płaskiej')).toBe(
+      'https://media.gjasionowicz.pl/exercises/wyciskanie-sztangi-na-lawce-plaskiej.mp4',
+    );
+    expect(getExerciseAnimationUrl('Podciąganie na drążku')).toBe(
+      'https://media.gjasionowicz.pl/exercises/podciaganie-na-drazku.mp4',
+    );
+  });
 });
