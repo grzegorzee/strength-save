@@ -1,0 +1,1 @@
+const r="fittracker_workout_timers_v1",n=()=>{try{const e=window.localStorage.getItem(r);return e===null?null:e==="true"}catch{return null}},o=e=>{try{window.localStorage.setItem(r,e?"true":"false")}catch{}},t=e=>null,s={get workoutTimers(){return t()??n()??!0},get intervalTimers(){return t()??!1}};export{s as F,o as s};
