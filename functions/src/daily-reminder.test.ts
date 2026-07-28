@@ -31,6 +31,54 @@ describe("runDailyReminder (R2-12)", () => {
     ...over,
   });
 
+  it("Z167: user z language='en' dostaje push po angielsku (focus przetlumaczony)", async () => {
+    const deps = makeDeps({
+      listTokenRegistrations: vi.fn(async () => [{ id: "r1", userId: "u1", token: "t1" }]),
+      getUsers: vi.fn(async () => new Map([["u1", { displayName: "John Doe", language: "en" }]])),
+      getPlanDays: vi.fn(async () => new Map([["u1", [{ weekday: "monday", focus: "Góra A" }]]])),
+    });
+
+    await runDailyReminder(deps);
+
+    expect(deps.sendMulticast).toHaveBeenCalledWith(
+      ["t1"],
+      "Hey John! Time to train 💪",
+      "Today's plan: Upper A. Open the app and log your first set.",
+    );
+  });
+
+  it("Z167: user bez pola language dostaje dotychczasowy push PL (niezmiennik)", async () => {
+    const deps = makeDeps({
+      listTokenRegistrations: vi.fn(async () => [{ id: "r1", userId: "u1", token: "t1" }]),
+      getUsers: vi.fn(async () => new Map([["u1", { displayName: "Jan Kowalski" }]])),
+      getPlanDays: vi.fn(async () => new Map([["u1", [{ weekday: "monday", focus: "Góra A" }]]])),
+    });
+
+    await runDailyReminder(deps);
+
+    expect(deps.sendMulticast).toHaveBeenCalledWith(
+      ["t1"],
+      "Cześć Jan! Czas na trening 💪",
+      "Dziś w planie: Góra A. Wejdź i odhacz pierwszą serię.",
+    );
+  });
+
+  it("Z167: EN bez imienia = tytul bez powitania", async () => {
+    const deps = makeDeps({
+      listTokenRegistrations: vi.fn(async () => [{ id: "r1", userId: "u1", token: "t1" }]),
+      getUsers: vi.fn(async () => new Map([["u1", { language: "en" }]])),
+      getPlanDays: vi.fn(async () => new Map([["u1", [{ weekday: "monday", focus: "Push" }]]])),
+    });
+
+    await runDailyReminder(deps);
+
+    expect(deps.sendMulticast).toHaveBeenCalledWith(
+      ["t1"],
+      "Time to train 💪",
+      "Today's plan: Push. Open the app and log your first set.",
+    );
+  });
+
   it("czyta TYLKO userów z tokenami (2 tokeny = 2 odczyty userów, nie cala kolekcja)", async () => {
     const deps = makeDeps();
 

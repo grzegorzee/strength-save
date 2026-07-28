@@ -15,7 +15,7 @@ const WEEKDAY_EN: Record<string, string> = {
 
 // Tokeny focusu (np. "Góra A" -> "Upper A"). Tłumaczymy znane słowa, resztę (litery,
 // liczby, terminy już angielskie jak Push/Pull/FBW) zostawiamy.
-const FOCUS_TOKEN_EN: Record<string, string> = {
+export const FOCUS_TOKEN_EN: Record<string, string> = {
   'Góra': 'Upper',
   'Dół': 'Lower',
   'Nogi': 'Legs',

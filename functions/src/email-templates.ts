@@ -87,18 +87,38 @@ export function welcomeEmailHtml(displayName: string, lang: Lang): string {
   </div>`;
 }
 
-export function inviteEmailHtml(code: string, inviteUrl: string, note: string | null): string {
+export function inviteEmailHtml(
+  code: string,
+  inviteUrl: string,
+  note: string | null,
+  lang: Lang = "pl",
+): string {
+  // Z167: default PL — dzisiejsze wysyłki są polskie, parametr przyszłościowy.
+  const t = lang === "en"
+    ? {
+        title: esc("You're invited to Strength Save"),
+        body: "You can sign in with Google or email + password using this invite code:",
+        link: "Direct link:",
+        cta: "Open the app",
+      }
+    : {
+        title: "Masz zaproszenie do Strength Save",
+        body: "Możesz wejść do aplikacji przez Google albo email + hasło. Jeśli aplikacja poprosi o kod zaproszenia, użyj:",
+        link: "Bezpośredni link:",
+        cta: "Otwórz aplikację",
+      };
+
   return `
   <div style="font-family:system-ui,-apple-system,sans-serif;line-height:1.5;padding:24px;background:#f8fafc;">
     <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
-      <h1 style="margin:0 0 12px;font-size:24px;">Masz zaproszenie do Strength Save</h1>
-      <p style="margin:0 0 16px;color:#475569;">Możesz wejść do aplikacji przez Google albo email + hasło. Jeśli aplikacja poprosi o kod zaproszenia, użyj:</p>
+      <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
+      <p style="margin:0 0 16px;color:#475569;">${t.body}</p>
       <div style="font-size:28px;font-weight:700;letter-spacing:0.12em;text-align:center;padding:18px 0;border-radius:12px;background:#0f172a;color:#fff;">
         ${code}
       </div>
       ${note ? `<p style="margin:16px 0 0;color:#334155;">${esc(note)}</p>` : ""}
-      <p style="margin:20px 0 12px;color:#64748b;">Bezpośredni link:</p>
-      <a href="${esc(inviteUrl)}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">Otwórz aplikację</a>
+      <p style="margin:20px 0 12px;color:#64748b;">${t.link}</p>
+      <a href="${esc(inviteUrl)}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">${t.cta}</a>
     </div>
   </div>`;
 }

@@ -1,4 +1,6 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { localizeFocusEn } from "./focus-en";
+import type { Lang } from "./email-templates";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { forEachWithConcurrency } from "./bounded-concurrency";
@@ -32,6 +34,8 @@ export const getInvalidFcmTokens = (tokens: string[], responses: DeliveryRespons
 // Zależności wstrzykiwane, żeby logika była testowalna bez emulatora.
 export interface ReminderUser {
   displayName?: string;
+  /** Z167: język UI usera — push idzie w jego języku (brak pola = PL). */
+  language?: string;
   status?: string;
   access?: { enabled?: boolean };
   notificationPrefs?: { dailyReminder?: boolean };
@@ -110,9 +114,15 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
     const userRegistrations = byUser.get(uid) ?? [];
     const tokens = userRegistrations.map((registration) => registration.token);
     const firstName = (user.displayName || "").trim().split(" ")[0];
-    const focus = todayDay.focus || todayDay.dayName || "trening";
-    const title = firstName ? `Cześć ${firstName}! Czas na trening 💪` : "Czas na trening 💪";
-    const body = `Dziś w planie: ${focus}. Wejdź i odhacz pierwszą serię.`;
+    const lang: Lang = user.language === "en" ? "en" : "pl";
+    const focusRaw = todayDay.focus || todayDay.dayName || (lang === "en" ? "training" : "trening");
+    const focus = lang === "en" ? localizeFocusEn(focusRaw) : focusRaw;
+    const title = lang === "en"
+      ? (firstName ? `Hey ${firstName}! Time to train 💪` : "Time to train 💪")
+      : (firstName ? `Cześć ${firstName}! Czas na trening 💪` : "Czas na trening 💪");
+    const body = lang === "en"
+      ? `Today's plan: ${focus}. Open the app and log your first set.`
+      : `Dziś w planie: ${focus}. Wejdź i odhacz pierwszą serię.`;
 
     try {
       for (let index = 0; index < tokens.length; index += 500) {

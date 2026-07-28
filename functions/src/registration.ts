@@ -745,6 +745,8 @@ export const createInvite = onCall({ secrets: [resendApiKey] }, async (request) 
   const cohorts = normalizeStringArray(request.data?.cohorts, 10, 40);
   const waitlistEntryId = normalizeOptionalString(request.data?.waitlistEntryId, 120);
   const expiresInDays = Math.max(1, Math.min(90, Number(request.data?.expiresInDays) || 30));
+  // Z167: język zaproszenia — dziś wysyłki są PL, parametr przyszłościowy.
+  const inviteLang = normalizeLanguage(request.data?.language);
   const timestamp = nowIso();
   const code = randomInviteCode();
   const inviteRef = getDb().collection(INVITES_COLLECTION).doc();
@@ -777,8 +779,8 @@ export const createInvite = onCall({ secrets: [resendApiKey] }, async (request) 
   if (email) {
     await sendEmail({
       to: email,
-      subject: "Zaproszenie do Strength Save",
-      html: inviteEmailHtml(code, inviteUrl, note),
+      subject: inviteLang === "en" ? "Your Strength Save invite" : "Zaproszenie do Strength Save",
+      html: inviteEmailHtml(code, inviteUrl, note, inviteLang),
       type: "invite_email",
       userId: null,
     });
