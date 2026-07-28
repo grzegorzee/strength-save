@@ -16,10 +16,12 @@ import {
 import { Mail, Bell, Loader2, Send } from 'lucide-react';
 import { adminBroadcastEmail, adminSendPush } from '@/lib/registration-api';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 // Komunikacja: broadcast mailowy + powiadomienia push do wszystkich lub do cohorty.
 export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [channel, setChannel] = useState<'email' | 'push'>('push');
   const [target, setTarget] = useState('all');
   const [subject, setSubject] = useState('');
@@ -32,7 +34,11 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
 
   const validateBeforeSend = () => {
     if (!body.trim() || (channel === 'email' && !subject.trim()) || (channel === 'push' && !subject.trim())) {
-      toast({ title: 'Uzupełnij treść', description: channel === 'email' ? 'Temat i treść maila.' : 'Tytuł i treść powiadomienia.', variant: 'destructive' });
+      toast({
+        title: t('admin.commsMissingTitle'),
+        description: channel === 'email' ? t('admin.commsMissingEmail') : t('admin.commsMissingPush'),
+        variant: 'destructive',
+      });
       return false;
     }
     setConfirmOpen(true);
@@ -45,16 +51,22 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
       let resultText: string;
       if (channel === 'email') {
         const res = await adminBroadcastEmail({ target, subject, body });
-        resultText = `Dostarczono do ${res.sent}/${res.total}.`;
+        resultText = t('admin.commsDeliveredShort', { sent: res.sent, total: res.total });
       } else {
         const res = await adminSendPush({ target, title: subject, body });
-        resultText = `Dostarczono do ${res.sent}/${res.total}. Błędy: ${res.failed}. Martwe tokeny: ${res.invalidTokens}.`;
+        resultText = t('admin.commsDelivered', {
+          sent: res.sent, total: res.total, failed: res.failed, invalid: res.invalidTokens,
+        });
       }
       setLastResult(resultText);
-      toast({ title: 'Wysłano', description: resultText });
+      toast({ title: t('admin.commsSentTitle'), description: resultText });
       setSubject(''); setBody('');
     } catch (e) {
-      toast({ title: 'Błąd', description: e instanceof Error ? e.message : 'Nie udało się wysłać.', variant: 'destructive' });
+      toast({
+        title: t('admin.errorTitle'),
+        description: e instanceof Error ? e.message : t('admin.commsSendFailed'),
+        variant: 'destructive',
+      });
     } finally {
       setSending(false);
     }
@@ -65,9 +77,9 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
-            <Send className="h-4 w-4 text-primary" /> Komunikacja
+            <Send className="h-4 w-4 text-primary" /> {t('admin.commsTitle')}
           </CardTitle>
-          <CardDescription>Broadcast mailowy lub push do wszystkich / wybranej grupy.</CardDescription>
+          <CardDescription>{t('admin.commsDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
@@ -80,11 +92,11 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
           </div>
 
           <div>
-            <p className="text-xs text-muted-foreground mb-1.5">Odbiorcy</p>
+            <p className="text-xs text-muted-foreground mb-1.5">{t('admin.commsRecipients')}</p>
             <div className="flex flex-wrap gap-1.5">
               {targets.map((tg) => (
                 <button key={tg} onClick={() => setTarget(tg)} className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${target === tg ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground'}`}>
-                  {tg === 'all' ? 'Wszyscy' : tg}
+                  {tg === 'all' ? t('admin.filterAll') : tg}
                 </button>
               ))}
             </div>
@@ -93,18 +105,18 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
           <Input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            placeholder={channel === 'email' ? 'Temat maila' : 'Tytuł powiadomienia'}
+            placeholder={channel === 'email' ? t('admin.commsSubjectEmail') : t('admin.commsSubjectPush')}
           />
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder={channel === 'email' ? 'Treść maila' : 'Treść powiadomienia'}
+            placeholder={channel === 'email' ? t('admin.commsBodyEmail') : t('admin.commsBodyPush')}
             rows={4}
           />
 
           <Button className="w-full" onClick={validateBeforeSend} disabled={sending}>
             {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-            Wyślij {channel === 'email' ? 'mail' : 'push'}
+            {channel === 'email' ? t('admin.commsSendEmail') : t('admin.commsSendPush')}
           </Button>
 
           {lastResult && (
@@ -118,15 +130,17 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Potwierdź wysyłkę</AlertDialogTitle>
+            <AlertDialogTitle>{t('admin.commsConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Wysłać {channel === 'email' ? 'maila' : 'push'} do: {target === 'all' ? 'WSZYSTKICH' : target}?
+              {channel === 'email'
+                ? t('admin.commsConfirmEmail', { target: target === 'all' ? t('admin.commsTargetAll') : target })
+                : t('admin.commsConfirmPush', { target: target === 'all' ? t('admin.commsTargetAll') : target })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={sending}>Anuluj</AlertDialogCancel>
+            <AlertDialogCancel disabled={sending}>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={(event) => { event.preventDefault(); setConfirmOpen(false); void send(); }} disabled={sending}>
-              Wyślij
+              {t('admin.commsSend')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

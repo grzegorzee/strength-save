@@ -159,7 +159,7 @@ export const UsersActivityTable = ({
                     <div key={feat.key} className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium">{feat.label}</p>
-                        <p className="text-xs text-muted-foreground">{feat.key === 'strava' ? t('admin.featStravaDesc') : feat.description}</p>
+                        <p className="text-xs text-muted-foreground">{t(feat.descriptionKey)}</p>
                       </div>
                       <Switch
                         checked={user.features[feat.key] ?? (feat.defaultOn || user.role === 'admin')}
@@ -238,7 +238,7 @@ export const UsersActivityTable = ({
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Logi</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('admin.rowLogs')}</p>
                   <AdminUserLogs uid={user.uid} />
                 </div>
 
@@ -252,16 +252,16 @@ export const UsersActivityTable = ({
                     {t('admin.editPlan')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onSendEmail(user.uid)}>
-                    <Mail className="h-4 w-4 mr-1.5" /> Wyślij mail
+                    <Mail className="h-4 w-4 mr-1.5" /> {t('admin.rowSendMail')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onResendCode(user.uid)}>
-                    <Send className="h-4 w-4 mr-1.5" /> Wyślij kod
+                    <Send className="h-4 w-4 mr-1.5" /> {t('admin.rowSendCode')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onResetOnboarding(user.uid)}>
-                    <RotateCcw className="h-4 w-4 mr-1.5" /> Reset onboardingu
+                    <RotateCcw className="h-4 w-4 mr-1.5" /> {t('admin.rowResetOnboarding')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onEditCohorts(user.uid, user.cohorts)}>
-                    <Ticket className="h-4 w-4 mr-1.5" /> Cohorty
+                    <Ticket className="h-4 w-4 mr-1.5" /> {t('admin.rowCohorts')}
                   </Button>
                   <Button
                     variant={user.status === 'suspended' ? 'outline' : 'destructive'}
@@ -278,7 +278,7 @@ export const UsersActivityTable = ({
                     onClick={() => onDeleteUser(user.uid, user.displayName || user.email)}
                     disabled={user.role === 'admin'}
                   >
-                    <Trash2 className="h-4 w-4 mr-1.5" /> Usuń konto
+                    <Trash2 className="h-4 w-4 mr-1.5" /> {t('admin.rowDeleteAccount')}
                   </Button>
                 </div>
 

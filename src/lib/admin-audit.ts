@@ -1,5 +1,6 @@
 import { Timestamp, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { translate, type LanguageCode } from '@/i18n';
 
 // Z101: dziennik akcji administracyjnych. Wpisy klienckie (toggles, edycje)
 // create-only wg rules; naprawy dopisuje Admin SDK w adminUserRepair.
@@ -44,12 +45,15 @@ export interface RepairOperationLike {
   after: Record<string, unknown> | null;
 }
 
-export const formatRepairOperations = (operations: RepairOperationLike[]): string[] =>
+export const formatRepairOperations = (
+  operations: RepairOperationLike[],
+  lang: LanguageCode = 'pl',
+): string[] =>
   operations.map((operation) => {
     const target = `${operation.collection}/${operation.docId}`;
-    if (operation.op === 'delete') return `${target}: usunięcie`;
+    if (operation.op === 'delete') return `${target}: ${translate(lang, 'admin.auditDeleted')}`;
     const changes = Object.entries(operation.after ?? {})
       .map(([key, value]) => `${key} → ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`)
       .join(', ');
-    return `${target}: ${changes || 'aktualizacja'}`;
+    return `${target}: ${changes || translate(lang, 'admin.auditUpdated')}`;
   });

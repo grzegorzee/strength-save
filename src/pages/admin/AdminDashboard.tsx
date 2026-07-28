@@ -476,14 +476,14 @@ const AdminDashboard = () => {
 
   const handleResetOnboarding = async (uid: string) => {
     setConfirmDialog({
-      title: 'Reset onboardingu',
-      description: 'Zresetować onboarding tego użytkownika? Przejdzie kreator od nowa.',
-      confirmLabel: 'Resetuj onboarding',
+      title: t('admin.resetOnboardingTitle'),
+      description: t('admin.resetOnboardingDesc'),
+      confirmLabel: t('admin.resetOnboardingConfirm'),
       onConfirm: async () => {
         try {
           await updateDoc(doc(db, 'users', uid), { onboardingCompleted: false, 'onboarding.state': 'not_started' });
           void logAdminAction(adminUid, { action: 'resetOnboarding', targetUid: uid });
-          toast({ title: 'Onboarding zresetowany' });
+          toast({ title: t('admin.resetOnboardingDone') });
         } catch {
           toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
         }
@@ -493,14 +493,14 @@ const AdminDashboard = () => {
 
   const handleResendCode = async (uid: string) => {
     setConfirmDialog({
-      title: 'Ponowne wysłanie kodu',
-      description: 'Wysłać ponownie kod weryfikacyjny do tego użytkownika?',
-      confirmLabel: 'Wyślij kod',
+      title: t('admin.resendCodeTitle'),
+      description: t('admin.resendCodeDesc'),
+      confirmLabel: t('admin.resendCodeConfirm'),
       onConfirm: async () => {
         try {
           await adminResendVerification(uid);
           void logAdminAction(adminUid, { action: 'resendVerification', targetUid: uid });
-          toast({ title: 'Kod wysłany' });
+          toast({ title: t('admin.resendCodeDone') });
         } catch (e) {
           toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
         }
@@ -518,9 +518,9 @@ const AdminDashboard = () => {
 
   const handleDeleteUser = async (uid: string, name: string) => {
     setConfirmDialog({
-      title: 'Usunąć konto użytkownika?',
-      description: `Usunąć konto i WSZYSTKIE dane użytkownika "${name}"? Tego nie da się cofnąć.`,
-      confirmLabel: 'Usuń konto',
+      title: t('admin.deleteAccountTitle'),
+      description: t('admin.deleteAccountDesc', { name }),
+      confirmLabel: t('admin.deleteAccountConfirm'),
       destructive: true,
       onConfirm: async () => {
         try {
@@ -528,7 +528,7 @@ const AdminDashboard = () => {
           void logAdminAction(adminUid, { action: 'deleteUser', targetUid: uid, detail: name });
           setUsers(prev => prev.filter(u => u.uid !== uid));
           setExpandedUid(null);
-          toast({ title: 'Konto usunięte', description: name });
+          toast({ title: t('admin.deleteAccountDone'), description: name });
         } catch (e) {
           toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
         }
@@ -561,7 +561,7 @@ const AdminDashboard = () => {
     try {
       await adminSendUserEmail({ uid: payload.uid, subject: payload.subject.trim(), body: payload.body.trim() });
       void logAdminAction(adminUid, { action: 'sendEmail', targetUid: payload.uid, detail: payload.subject.trim() });
-      toast({ title: 'Mail wysłany' });
+      toast({ title: t('admin.mailSentTitle') });
     } catch (e) {
       toast({ title: t('admin.error'), description: e instanceof Error ? e.message : t('admin.saveFailed'), variant: 'destructive' });
     }
@@ -576,7 +576,7 @@ const AdminDashboard = () => {
       await updateDoc(doc(db, 'users', payload.uid), { cohorts });
       void logAdminAction(adminUid, { action: 'editCohorts', targetUid: payload.uid, detail: cohorts.join(', ') });
       setUsers(prev => prev.map(u => u.uid === payload.uid ? { ...u, cohorts } : u));
-      toast({ title: 'Cohorty zapisane', description: cohorts.join(', ') || 'brak' });
+      toast({ title: t('admin.cohortsSavedTitle'), description: cohorts.join(', ') || t('admin.cohortsNone') });
     } catch {
       toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
     }
@@ -603,7 +603,7 @@ const AdminDashboard = () => {
       {/* Puls aplikacji */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-heading font-bold uppercase tracking-tight">Puls aplikacji</CardTitle>
+          <CardTitle className="text-base font-heading font-bold uppercase tracking-tight">{t('admin.pulseTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           {(() => {
@@ -612,15 +612,15 @@ const AdminDashboard = () => {
             const unverified = users.filter(u => !u.emailVerifiedAt).length;
             const activeInvites = invites.filter(i => i.status === 'active').length;
             const stats: { label: string; value: string | number }[] = [
-              { label: 'Użytkownicy', value: users.length },
-              { label: 'Aktywni 7 dni', value: activeLast7 },
-              { label: 'Treningi', value: counts ? counts.workouts : '—' },
-              { label: 'Aktywne cykle', value: counts ? counts.activeCycles : '—' },
-              { label: 'Zawieszeni', value: suspended },
-              { label: 'Bez dostępu', value: noAccess },
-              { label: 'Niezweryfikowani', value: unverified },
-              { label: 'Waitlista', value: waitlistEntries.length },
-              { label: 'Zaproszenia akt.', value: activeInvites },
+              { label: t('admin.pulseUsers'), value: users.length },
+              { label: t('admin.pulseActive7'), value: activeLast7 },
+              { label: t('admin.pulseWorkouts'), value: counts ? counts.workouts : '—' },
+              { label: t('admin.pulseActiveCycles'), value: counts ? counts.activeCycles : '—' },
+              { label: t('admin.pulseSuspended'), value: suspended },
+              { label: t('admin.pulseNoAccess'), value: noAccess },
+              { label: t('admin.pulseUnverified'), value: unverified },
+              { label: t('admin.pulseWaitlist'), value: waitlistEntries.length },
+              { label: t('admin.pulseActiveInvites'), value: activeInvites },
             ];
             return (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -834,14 +834,14 @@ const AdminDashboard = () => {
           <div className="pt-3 space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Szukaj po nazwie lub mailu" className="pl-9" />
+              <Input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder={t('admin.userSearchPlaceholder')} className="pl-9" />
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {([['all', 'Wszyscy'], ['active', 'Aktywni'], ['suspended', 'Zawieszeni'], ['no-access', 'Bez dostępu'], ['unverified', 'Niezweryf.']] as [UserFilter, string][]).map(([key, label]) => (
+              {([['all', t('admin.filterAll')], ['active', t('admin.filterActive')], ['suspended', t('admin.filterSuspended')], ['no-access', t('admin.filterNoAccess')], ['unverified', t('admin.filterUnverified')]] as [UserFilter, string][]).map(([key, label]) => (
                 <button key={key} onClick={() => setUserFilter(key)} className={cn('rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', userFilter === key ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>{label}</button>
               ))}
               <span className="mx-1 w-px self-stretch bg-surface-high" />
-              {([['activity', 'Aktywność'], ['recent', 'Ostatni'], ['name', 'Nazwa']] as [UserSort, string][]).map(([key, label]) => (
+              {([['activity', t('admin.sortActivity')], ['recent', t('admin.sortRecent')], ['name', t('admin.sortName')]] as [UserSort, string][]).map(([key, label]) => (
                 <button key={key} onClick={() => setUserSort(key)} className={cn('rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', userSort === key ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}>{label}</button>
               ))}
             </div>
@@ -894,23 +894,23 @@ const AdminDashboard = () => {
     <Dialog open={!!suspendDialog} onOpenChange={(open) => { if (!open) setSuspendDialog(null); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Zawieś konto</DialogTitle>
+          <DialogTitle>{t('admin.suspendDialogTitle')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
           <label htmlFor="admin-suspend-reason" className="text-sm font-medium">
-            Powód zawieszenia {suspendDialog ? `- ${suspendDialog.name}` : ''}
+            {t('admin.suspendReasonLabel', { name: suspendDialog ? `- ${suspendDialog.name}` : '' })}
           </label>
           <Textarea
             id="admin-suspend-reason"
             value={suspendReason}
             onChange={(event) => setSuspendReason(event.target.value)}
-            placeholder="Np. naruszenie regulaminu"
+            placeholder={t('admin.suspendReasonPlaceholder')}
             rows={3}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setSuspendDialog(null)}>{t('common.cancel')}</Button>
-          <Button variant="destructive" onClick={() => void submitSuspendDialog()}>Zawieś konto</Button>
+          <Button variant="destructive" onClick={() => void submitSuspendDialog()}>{t('admin.suspendDialogTitle')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -918,26 +918,26 @@ const AdminDashboard = () => {
     <Dialog open={!!emailDialog} onOpenChange={(open) => { if (!open) setEmailDialog(null); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Wyślij mail</DialogTitle>
+          <DialogTitle>{t('admin.mailDialogTitle')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <Input
             value={emailDialog?.subject ?? ''}
             onChange={(event) => setEmailDialog(prev => prev ? { ...prev, subject: event.target.value } : prev)}
-            placeholder="Temat maila"
-            aria-label="Temat maila"
+            placeholder={t('admin.mailSubjectPlaceholder')}
+            aria-label={t('admin.mailSubjectPlaceholder')}
           />
           <Textarea
             value={emailDialog?.body ?? ''}
             onChange={(event) => setEmailDialog(prev => prev ? { ...prev, body: event.target.value } : prev)}
-            placeholder="Treść maila"
-            aria-label="Treść maila"
+            placeholder={t('admin.mailBodyPlaceholder')}
+            aria-label={t('admin.mailBodyPlaceholder')}
             rows={5}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setEmailDialog(null)}>{t('common.cancel')}</Button>
-          <Button onClick={() => void submitEmailDialog()} disabled={!emailDialog?.subject.trim() || !emailDialog?.body.trim()}>Wyślij mail</Button>
+          <Button onClick={() => void submitEmailDialog()} disabled={!emailDialog?.subject.trim() || !emailDialog?.body.trim()}>{t('admin.mailDialogTitle')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -945,10 +945,10 @@ const AdminDashboard = () => {
     <Dialog open={!!cohortsDialog} onOpenChange={(open) => { if (!open) setCohortsDialog(null); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edytuj cohorty</DialogTitle>
+          <DialogTitle>{t('admin.editCohortsTitle')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
-          <label htmlFor="admin-user-cohorts" className="text-sm font-medium">Cohorty po przecinku</label>
+          <label htmlFor="admin-user-cohorts" className="text-sm font-medium">{t('admin.cohortsLabel')}</label>
           <Input
             id="admin-user-cohorts"
             value={cohortsDialog?.cohorts ?? ''}
@@ -957,7 +957,7 @@ const AdminDashboard = () => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setCohortsDialog(null)}>{t('common.cancel')}</Button>
-          <Button onClick={() => void submitCohortsDialog()}>Zapisz cohorty</Button>
+          <Button onClick={() => void submitCohortsDialog()}>{t('admin.saveCohorts')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

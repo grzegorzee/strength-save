@@ -326,7 +326,7 @@ export const ApiKeysCard = () => {
         onOpenChange={(open) => { if (!open) setPendingKeyAction(null); }}
         title={pendingKeyAction?.type === 'rotate' ? t('admin.confirmRotateTitle') : t('admin.confirmRevokeTitle')}
         description={pendingKeyAction?.type === 'rotate' ? t('admin.confirmRotateDesc') : t('admin.confirmRevokeDesc')}
-        confirmLabel={pendingKeyAction?.type === 'rotate' ? 'Rotate' : 'Revoke'}
+        confirmLabel={pendingKeyAction?.type === 'rotate' ? t('admin.rotate') : t('admin.revoke')}
         destructive={pendingKeyAction?.type === 'revoke'}
         onConfirm={() => {
           if (!pendingKeyAction) return;

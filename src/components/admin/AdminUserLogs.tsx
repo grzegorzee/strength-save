@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 // Logi per-użytkownik: maile (notification_logs) + zdarzenia auth (auth_audit_logs).
 export const AdminUserLogs = ({ uid }: { uid: string }) => {
-  const { lang } = useTranslation();
+  const { t, lang } = useTranslation();
   const [tab, setTab] = useState<'mail' | 'auth'>('mail');
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<AdminLogEntry[]>([]);
@@ -29,29 +29,29 @@ export const AdminUserLogs = ({ uid }: { uid: string }) => {
     <div className="rounded-lg bg-surface-lowest p-3 space-y-2">
       <div className="flex gap-1.5">
         <button onClick={() => setTab('mail')} className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', tab === 'mail' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>
-          <Mail className="h-3 w-3" /> Maile ({notifications.length})
+          <Mail className="h-3 w-3" /> {t('admin.logsMailsTab', { n: notifications.length })}
         </button>
         <button onClick={() => setTab('auth')} className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide', tab === 'auth' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>
-          <ShieldCheck className="h-3 w-3" /> Logowania ({authLogs.length})
+          <ShieldCheck className="h-3 w-3" /> {t('admin.logsAuthTab', { n: authLogs.length })}
         </button>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
       ) : tab === 'mail' ? (
-        notifications.length === 0 ? <p className="text-xs text-muted-foreground py-2 text-center">Brak maili.</p> : (
+        notifications.length === 0 ? <p className="text-xs text-muted-foreground py-2 text-center">{t('admin.logsNoMails')}</p> : (
           <div className="space-y-1 max-h-56 overflow-y-auto">
             {notifications.map((n) => (
               <div key={n.id} className="text-xs flex items-center justify-between gap-2 py-1.5 border-b border-surface-high/40 last:border-0">
                 <span className="font-medium truncate">{String(n.type ?? '—')}</span>
-                <span className={cn('shrink-0', n.error ? 'text-destructive' : 'text-fitness-success')}>{n.error ? 'błąd' : 'ok'}</span>
+                <span className={cn('shrink-0', n.error ? 'text-destructive' : 'text-fitness-success')}>{n.error ? t('admin.logsError') : t('admin.logsOk')}</span>
                 <span className="shrink-0 text-muted-foreground tabular-nums">{fmt(n.createdAt)}</span>
               </div>
             ))}
           </div>
         )
       ) : (
-        authLogs.length === 0 ? <p className="text-xs text-muted-foreground py-2 text-center">Brak zdarzeń.</p> : (
+        authLogs.length === 0 ? <p className="text-xs text-muted-foreground py-2 text-center">{t('admin.logsNoEvents')}</p> : (
           <div className="space-y-1 max-h-56 overflow-y-auto">
             {authLogs.map((l) => (
               <div key={l.id} className="text-xs flex items-center justify-between gap-2 py-1.5 border-b border-surface-high/40 last:border-0">

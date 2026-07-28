@@ -1,10 +1,17 @@
 // Wspólne typy panelu admina (lista userów + szczegół). Wydzielone z AdminDashboard
 // w X13B, żeby UsersActivityTable/AdminUserDetail nie importowały strony (cykl).
 import type { ActivitySummary } from '@/lib/user-profile';
+import type { TranslationKey } from '@/i18n';
 
-export const AVAILABLE_FEATURES = [
-  { key: 'strava', label: 'Strava', description: 'Integracja ze Stravą', defaultOn: false },
-] as const;
+// Z165: opis funkcji jako KLUCZ i18n — moduł bez Reacta, tłumaczenie w miejscu renderu.
+export const AVAILABLE_FEATURES: ReadonlyArray<{
+  key: 'strava';
+  label: string;
+  descriptionKey: TranslationKey;
+  defaultOn: boolean;
+}> = [
+  { key: 'strava', label: 'Strava', descriptionKey: 'admin.featStravaDesc', defaultOn: false },
+];
 
 export type FeatureKey = typeof AVAILABLE_FEATURES[number]['key'];
 

@@ -404,7 +404,7 @@ const AdminUserDetail = () => {
             <div key={feat.key} className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium">{feat.label}</p>
-                <p className="text-xs text-muted-foreground">{feat.key === 'strava' ? t('admin.featStravaDesc') : feat.description}</p>
+                <p className="text-xs text-muted-foreground">{t(feat.descriptionKey)}</p>
               </div>
               <Switch
                 checked={user.features[feat.key] ?? user.role === 'admin'}
@@ -464,7 +464,7 @@ const AdminUserDetail = () => {
                     ? <p className="text-xs text-fitness-success">{t('admin.repair.nothing')}</p>
                     : (
                       <ul className="space-y-0.5 text-xs text-muted-foreground">
-                        {formatRepairOperations(preview).slice(0, 20).map((line, index) => (
+                        {formatRepairOperations(preview, lang).slice(0, 20).map((line, index) => (
                           <li key={index} className="break-all">{line}</li>
                         ))}
                         {preview.length > 20 && <li>… +{preview.length - 20}</li>}
