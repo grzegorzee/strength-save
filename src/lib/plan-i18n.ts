@@ -127,6 +127,10 @@ const PLAN_DESC: Record<string, PlanText> = {
     pl: 'Moc i wydolność: ciężkie boje dla siły bazowej + wstawki eksplozywne i kondycyjne. Pod sport i funkcjonalną sprawność.',
     en: 'Power and conditioning: heavy lifts for base strength + explosive and conditioning work. For sport and functional fitness.',
   },
+  'tpl-rza-3': {
+    pl: 'Trzy dni A/B/C przez 12 tygodni. Nacisk na barki boczne, plecy i szerokość sylwetki (V-taper), sterowanie przez RPE i finishery kondycyjne. Dla świadomych, którzy lubią twarde, mierzalne treningi.',
+    en: 'Three A/B/C days over 12 weeks. Emphasis on side delts, back and V-taper width, RPE-driven with conditioning finishers. For experienced lifters who like hard, measurable training.',
+  },
 };
 
 /** Nazwa gotowego planu w języku UI (PL kanoniczne dla polskiego usera). */

@@ -35,7 +35,7 @@ export const HRZoneDistribution = ({ activities, estimatedMaxHR }: HRZoneDistrib
           const widthPercent = (count / maxZoneCount) * 100;
           return (
             <div key={z.zone} className="flex items-center gap-2">
-              <span className="text-xs w-24 shrink-0">Z{z.zone} {z.name}</span>
+              <span className="text-xs w-24 shrink-0">Z{z.zone} {t(z.nameKey)}</span>
               <div className="flex-1 h-6 bg-muted/30 rounded overflow-hidden">
                 <div
                   className={`h-full ${z.color} rounded transition-all duration-300 flex items-center justify-end pr-1`}

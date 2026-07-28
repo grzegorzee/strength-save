@@ -15,8 +15,8 @@ interface PaceTrendChartProps {
 }
 
 export const PaceTrendChart = ({ activities, referenceDate }: PaceTrendChartProps) => {
-  const { t } = useTranslation();
-  const data = useMemo(() => computePaceTrendData(activities, 12, referenceDate), [activities, referenceDate]);
+  const { t, lang } = useTranslation();
+  const data = useMemo(() => computePaceTrendData(activities, 12, referenceDate, lang), [activities, referenceDate, lang]);
 
   if (!data.some((d) => d.paceSeconds !== null)) return null;
 

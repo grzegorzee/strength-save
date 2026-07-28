@@ -10,6 +10,7 @@ import { formatLocalDate } from '@/lib/utils';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { getRestDefaultSeconds, getUnitSystemForWatch, isWatchBridgeSupported, sendWorkoutToWatch } from '@/lib/watch-bridge';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
+import { useTranslation } from '@/contexts/LanguageContext';
 
 interface UseWatchPlanPreviewOptions {
   uid: string | null;
@@ -23,6 +24,9 @@ interface UseWatchPlanPreviewOptions {
 const SEND_DEBOUNCE_MS = 1200;
 
 export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWatchPlanPreviewOptions) {
+  // Z164: zegarek dostaje język UI (kontrakt jak w useWatchWorkoutSync).
+  const { lang } = useTranslation();
+
   useEffect(() => {
     if (!isWatchBridgeSupported() || !uid) return;
 
@@ -50,6 +54,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
             timersEnabled: FEATURE_FLAGS.workoutTimers,
             ...(FEATURE_FLAGS.workoutTimers && { restSeconds: getRestDefaultSeconds() }),
             unit: getUnitSystemForWatch(),
+            lang,
             exercises: day.exercises.map((exercise) => ({
               id: exercise.id,
               name: exercise.name,
@@ -92,6 +97,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
           timersEnabled: FEATURE_FLAGS.workoutTimers,
           ...(FEATURE_FLAGS.workoutTimers && { restSeconds: getRestDefaultSeconds() }),
           unit: getUnitSystemForWatch(),
+          lang,
           exercises: day.exercises.map((exercise) => ({
             id: exercise.id,
             name: exercise.name,
@@ -107,5 +113,5 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
     }, SEND_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [uid, type, day, dateStr, workouts]);
+  }, [uid, type, day, dateStr, workouts, lang]);
 }

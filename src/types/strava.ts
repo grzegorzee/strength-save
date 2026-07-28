@@ -1,3 +1,5 @@
+import type { TranslationKey } from '@/i18n';
+
 export interface StravaActivity {
   id: string;
   userId: string;
@@ -46,16 +48,17 @@ export type HRZone = 1 | 2 | 3 | 4 | 5;
 
 export interface HRZoneConfig {
   zone: HRZone;
-  name: string;
+  /** Klucz i18n nazwy strefy (Z164) — render przez t()/translate(). */
+  nameKey: TranslationKey;
   minPercent: number;
   maxPercent: number;
   color: string; // Tailwind class
 }
 
 export const HR_ZONES: HRZoneConfig[] = [
-  { zone: 1, name: 'Regeneracja', minPercent: 50, maxPercent: 60, color: 'bg-blue-400' },
-  { zone: 2, name: 'Aerobowa', minPercent: 60, maxPercent: 70, color: 'bg-green-400' },
-  { zone: 3, name: 'Tempo', minPercent: 70, maxPercent: 80, color: 'bg-yellow-400' },
-  { zone: 4, name: 'Próg', minPercent: 80, maxPercent: 90, color: 'bg-orange-400' },
-  { zone: 5, name: 'VO2 Max', minPercent: 90, maxPercent: 100, color: 'bg-red-500' },
+  { zone: 1, nameKey: 'strava.zoneRecovery', minPercent: 50, maxPercent: 60, color: 'bg-blue-400' },
+  { zone: 2, nameKey: 'strava.zoneAerobic', minPercent: 60, maxPercent: 70, color: 'bg-green-400' },
+  { zone: 3, nameKey: 'strava.zoneTempo', minPercent: 70, maxPercent: 80, color: 'bg-yellow-400' },
+  { zone: 4, nameKey: 'strava.zoneThreshold', minPercent: 80, maxPercent: 90, color: 'bg-orange-400' },
+  { zone: 5, nameKey: 'strava.zoneVo2max', minPercent: 90, maxPercent: 100, color: 'bg-red-500' },
 ];

@@ -15,8 +15,8 @@ interface MonthlyActivitiesProps {
 }
 
 export const MonthlyActivities = ({ activities, estimatedMaxHR }: MonthlyActivitiesProps) => {
-  const { t } = useTranslation();
-  const summaries = useMemo(() => computeMonthlySummaries(activities), [activities]);
+  const { t, lang } = useTranslation();
+  const summaries = useMemo(() => computeMonthlySummaries(activities, lang), [activities, lang]);
 
   if (summaries.length === 0) {
     return (

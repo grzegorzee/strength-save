@@ -15,8 +15,8 @@ interface WeeklyKmChartProps {
 }
 
 export const WeeklyKmChart = ({ activities, referenceDate }: WeeklyKmChartProps) => {
-  const { t } = useTranslation();
-  const data = useMemo(() => computeWeeklyKm(activities, 12, referenceDate), [activities, referenceDate]);
+  const { t, lang } = useTranslation();
+  const data = useMemo(() => computeWeeklyKm(activities, 12, referenceDate, lang), [activities, referenceDate, lang]);
 
   if (!data.some((w) => w.km > 0)) return null;
 

@@ -1,5 +1,5 @@
 import { startOfWeek, format, parseISO } from 'date-fns';
-import { pl } from 'date-fns/locale';
+import { pl as plDateFns, enUS } from 'date-fns/locale';
 import type { StravaActivity } from '@/types/strava';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { translate, type LanguageCode } from '@/i18n';
@@ -69,10 +69,13 @@ export interface SummaryStats {
 // Helpers
 // ========================
 
-const getWeekLabel = (weekIndex: number, totalWeeks: number): string => {
-  if (weekIndex === totalWeeks - 1) return 'Ten tydz.';
-  if (weekIndex === totalWeeks - 2) return 'Ost. tydz.';
-  return `${totalWeeks - weekIndex} tyg. temu`;
+// Z164: etykiety per język; domyślnie PL (wzorzec lib w tym projekcie).
+const DF_LOCALES = { pl: plDateFns, en: enUS } as const;
+
+const getWeekLabel = (weekIndex: number, totalWeeks: number, lang: LanguageCode = 'pl'): string => {
+  if (weekIndex === totalWeeks - 1) return translate(lang, 'strava.weekThis');
+  if (weekIndex === totalWeeks - 2) return translate(lang, 'strava.weekLast');
+  return translate(lang, 'strava.weeksAgo', { n: totalWeeks - weekIndex });
 };
 
 const getMonWeekStart = (date: Date): Date =>
@@ -182,6 +185,7 @@ export const computeWeeklyKm = (
   activities: StravaActivity[],
   numWeeks: number = 12,
   referenceDate?: Date,
+  lang: LanguageCode = 'pl',
 ): WeeklyDataPoint[] => {
   const now = referenceDate ?? new Date();
   const weeks: WeeklyDataPoint[] = [];
@@ -202,7 +206,7 @@ export const computeWeeklyKm = (
         .reduce((sum, a) => sum + (a.distance || 0), 0) / 1000;
 
     weeks.push({
-      label: getWeekLabel(numWeeks - 1 - i, numWeeks),
+      label: getWeekLabel(numWeeks - 1 - i, numWeeks, lang),
       weekStart: startStr,
       km: Math.round(km * 10) / 10,
     });
@@ -219,6 +223,7 @@ export const computePaceTrendData = (
   activities: StravaActivity[],
   numWeeks: number = 12,
   referenceDate?: Date,
+  lang: LanguageCode = 'pl',
 ): PaceTrendPoint[] => {
   const now = referenceDate ?? new Date();
   const weeks: PaceTrendPoint[] = [];
@@ -252,7 +257,7 @@ export const computePaceTrendData = (
     }
 
     weeks.push({
-      label: getWeekLabel(numWeeks - 1 - i, numWeeks),
+      label: getWeekLabel(numWeeks - 1 - i, numWeeks, lang),
       weekStart: startStr,
       paceSeconds,
       paceFormatted: paceSeconds ? formatPaceFromSeconds(paceSeconds) : '',
@@ -268,6 +273,7 @@ export const computePaceTrendData = (
 
 export const computeMonthlySummaries = (
   activities: StravaActivity[],
+  lang: LanguageCode = 'pl',
 ): MonthlySummary[] => {
   const groups = new Map<string, StravaActivity[]>();
 
@@ -281,7 +287,7 @@ export const computeMonthlySummaries = (
 
   for (const [key, acts] of groups) {
     const date = parseISO(`${key}-01`);
-    const label = capitalize(format(date, 'LLLL yyyy', { locale: pl }));
+    const label = capitalize(format(date, 'LLLL yyyy', { locale: DF_LOCALES[lang] ?? DF_LOCALES.pl }));
 
     const totalKm =
       Math.round(
@@ -331,6 +337,7 @@ export const computeWeeklyElevation = (
   activities: StravaActivity[],
   numWeeks: number = 12,
   referenceDate?: Date,
+  lang: LanguageCode = 'pl',
 ): { data: ElevationDataPoint[]; totalSeason: number; trend: number | null } => {
   const now = referenceDate ?? new Date();
   const data: ElevationDataPoint[] = [];
@@ -350,7 +357,7 @@ export const computeWeeklyElevation = (
       .reduce((sum, a) => sum + (a.totalElevationGain || 0), 0);
 
     data.push({
-      label: getWeekLabel(numWeeks - 1 - i, numWeeks),
+      label: getWeekLabel(numWeeks - 1 - i, numWeeks, lang),
       weekStart: startStr,
       elevation: Math.round(elevation),
     });
@@ -379,6 +386,7 @@ export const computeWeeklyCalories = (
   activities: StravaActivity[],
   numWeeks: number = 12,
   referenceDate?: Date,
+  lang: LanguageCode = 'pl',
 ): { data: CaloriesDataPoint[]; totalSeason: number } => {
   const now = referenceDate ?? new Date();
   const data: CaloriesDataPoint[] = [];
@@ -398,7 +406,7 @@ export const computeWeeklyCalories = (
       .reduce((sum, a) => sum + (a.calories || 0), 0);
 
     data.push({
-      label: getWeekLabel(numWeeks - 1 - i, numWeeks),
+      label: getWeekLabel(numWeeks - 1 - i, numWeeks, lang),
       weekStart: startStr,
       calories: Math.round(calories),
     });

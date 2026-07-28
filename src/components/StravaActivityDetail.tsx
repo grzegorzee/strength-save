@@ -161,7 +161,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
                 ))}
               </div>
               <p className="text-sm">
-                {t('strava.detail.dominantZone')} <span className="font-semibold">Z{zone} — {zoneConfig.name}</span>{' '}
+                {t('strava.detail.dominantZone')} <span className="font-semibold">Z{zone} — {t(zoneConfig.nameKey)}</span>{' '}
                 <span className="text-muted-foreground">({percent}% max HR)</span>
               </p>
             </div>

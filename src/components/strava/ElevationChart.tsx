@@ -15,10 +15,10 @@ interface ElevationChartProps {
 }
 
 export const ElevationChart = ({ activities, referenceDate }: ElevationChartProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { data, totalSeason, trend } = useMemo(
-    () => computeWeeklyElevation(activities, 12, referenceDate),
-    [activities, referenceDate],
+    () => computeWeeklyElevation(activities, 12, referenceDate, lang),
+    [activities, referenceDate, lang],
   );
 
   if (!data.some((d) => d.elevation > 0)) return null;

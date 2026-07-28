@@ -15,10 +15,10 @@ interface CaloriesChartProps {
 }
 
 export const CaloriesChart = ({ activities, referenceDate }: CaloriesChartProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const { data, totalSeason } = useMemo(
-    () => computeWeeklyCalories(activities, 12, referenceDate),
-    [activities, referenceDate],
+    () => computeWeeklyCalories(activities, 12, referenceDate, lang),
+    [activities, referenceDate, lang],
   );
 
   if (!data.some((d) => d.calories > 0)) return null;
