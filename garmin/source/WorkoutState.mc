@@ -69,6 +69,8 @@ module WorkoutState {
         });
     }
 
+    var _finishCb = null;
+
     // Zakończenie: finalna wysyłka wszystkich zdarzeń + zapis sesji FIT.
     function finish(callback as Method(ok as Boolean) as Void) as Void {
         var d = day();
@@ -83,14 +85,17 @@ module WorkoutState {
             "events" => EventQueue.all(),
         };
         SessionRecorder.stopAndSave();
-        Api.ingest(payload, method(:onFinishResponse).bind({ :callback => callback }));
+        _finishCb = callback;
+        Api.ingest(payload, new Lang.Method($.WorkoutState, :onFinishResponse));
     }
 
-    function onFinishResponse(ok as Boolean, context as Dictionary) as Void {
+    function onFinishResponse(ok as Boolean) as Void {
         if (ok) {
             EventQueue.clear();
             Application.Storage.setValue("workoutId", null);
         }
-        (context[:callback] as Method).invoke(ok);
+        var cb = _finishCb;
+        _finishCb = null;
+        if (cb != null) { (cb as Method).invoke(ok); }
     }
 }

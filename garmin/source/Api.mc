@@ -5,11 +5,17 @@ import Toybox.System;
 
 // Warstwa HTTP do Cloud Functions. Odpowiedzi makeWebRequest mają praktyczny
 // limit ~8KB (BLE) — kontrakt garminDay jest kompaktowy z założenia.
+// Callback usera trzymamy w zmiennej modułu (Monkey C nie ma .bind, a handler
+// makeWebRequest dostaje tylko (code, data)); jedno żądanie danego typu naraz.
 module Api {
     const BASE = "https://us-central1-fittracker-workouts.cloudfunctions.net";
 
-    function token() as String or Null {
-        return Application.Storage.getValue("deviceToken") as String or Null;
+    var _pairCb = null;
+    var _dayCb = null;
+    var _ingestCb = null;
+
+    function token() {
+        return Application.Storage.getValue("deviceToken");
     }
 
     function authHeaders() as Dictionary {
@@ -21,6 +27,7 @@ module Api {
 
     // Wymiana kodu parowania na token urządzenia.
     function pair(code as String, callback as Method(ok as Boolean) as Void) as Void {
+        _pairCb = callback;
         Communications.makeWebRequest(
             BASE + "/garminPair",
             { "code" => code, "label" => "Garmin " + System.getDeviceSettings().partNumber },
@@ -29,21 +36,24 @@ module Api {
                 :headers => { "Content-Type" => Communications.REQUEST_CONTENT_TYPE_JSON },
                 :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
             },
-            method(:onPairResponse).bind({ :callback => callback })
+            new Lang.Method($.Api, :onPairResponse)
         );
     }
 
-    function onPairResponse(responseCode as Number, data as Dictionary or Null, context as Dictionary) as Void {
-        var ok = responseCode == 200 && data != null && data["token"] != null;
+    function onPairResponse(responseCode as Number, data as Dictionary or String or Null) as Void {
+        var ok = responseCode == 200 && data instanceof Dictionary && data["token"] != null;
         if (ok) {
-            Application.Storage.setValue("deviceToken", data["token"]);
-            Application.Storage.setValue("deviceId", data["deviceId"]);
+            Application.Storage.setValue("deviceToken", (data as Dictionary)["token"]);
+            Application.Storage.setValue("deviceId", (data as Dictionary)["deviceId"]);
         }
-        (context[:callback] as Method).invoke(ok);
+        var cb = _pairCb;
+        _pairCb = null;
+        if (cb != null) { (cb as Method).invoke(ok); }
     }
 
     // Kontekst dnia (kompaktowy JSON) na wskazaną datę.
     function fetchDay(date as String, callback as Method(day as Dictionary or Null, code as Number) as Void) as Void {
+        _dayCb = callback;
         Communications.makeWebRequest(
             BASE + "/garminDay?date=" + date,
             null,
@@ -52,20 +62,25 @@ module Api {
                 :headers => authHeaders(),
                 :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
             },
-            method(:onDayResponse).bind({ :callback => callback })
+            new Lang.Method($.Api, :onDayResponse)
         );
     }
 
-    function onDayResponse(responseCode as Number, data as Dictionary or Null, context as Dictionary) as Void {
+    function onDayResponse(responseCode as Number, data as Dictionary or String or Null) as Void {
         if (responseCode == 401) {
             // Token cofnięty — powrót do parowania.
             Application.Storage.deleteValue("deviceToken");
         }
-        (context[:callback] as Method).invoke(responseCode == 200 ? data : null, responseCode);
+        var cb = _dayCb;
+        _dayCb = null;
+        if (cb != null) {
+            (cb as Method).invoke(responseCode == 200 && data instanceof Dictionary ? data : null, responseCode);
+        }
     }
 
     // Wysyłka paczki zdarzeń treningu (idempotentna po workoutId/eventId).
     function ingest(payload as Dictionary, callback as Method(ok as Boolean) as Void) as Void {
+        _ingestCb = callback;
         Communications.makeWebRequest(
             BASE + "/garminIngest",
             payload,
@@ -74,11 +89,13 @@ module Api {
                 :headers => authHeaders(),
                 :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON,
             },
-            method(:onIngestResponse).bind({ :callback => callback })
+            new Lang.Method($.Api, :onIngestResponse)
         );
     }
 
-    function onIngestResponse(responseCode as Number, data as Dictionary or Null, context as Dictionary) as Void {
-        (context[:callback] as Method).invoke(responseCode == 200);
+    function onIngestResponse(responseCode as Number, data as Dictionary or String or Null) as Void {
+        var cb = _ingestCb;
+        _ingestCb = null;
+        if (cb != null) { (cb as Method).invoke(responseCode == 200); }
     }
 }

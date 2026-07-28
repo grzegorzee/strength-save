@@ -1,3 +1,4 @@
+import Toybox.Activity;
 import Toybox.ActivityRecording;
 import Toybox.Lang;
 
@@ -10,8 +11,8 @@ module SessionRecorder {
         if (_session != null) { return; }
         _session = ActivityRecording.createSession({
             :name => "Strength Save",
-            :sport => ActivityRecording.SPORT_TRAINING,
-            :subSport => ActivityRecording.SUB_SPORT_STRENGTH_TRAINING,
+            :sport => Activity.SPORT_TRAINING,
+            :subSport => Activity.SUB_SPORT_STRENGTH_TRAINING,
         });
         _session.start();
     }
