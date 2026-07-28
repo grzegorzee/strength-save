@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -30,15 +30,17 @@ import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard'
 import { HybridLoadCard } from '@/components/analytics/HybridLoadCard';
 import { buildTrainingReportModel, generateTrainingReportPdf } from '@/lib/pdf-report';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { lazyWithRetry } from '@/lib/lazy-with-retry';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 
 type AnalyticsTab = 'summary' | 'charts' | 'strava' | 'weekly';
 
-const ChartsTab = lazy(() => import('@/components/analytics/AnalyticsChartsTab'));
-const WeeklyTab = lazy(() => import('@/components/analytics/AnalyticsWeeklyTab'));
-const StravaTab = lazy(() => import('@/components/strava/StravaTab').then((mod) => ({ default: mod.StravaTab })));
+const ChartsTab = lazyWithRetry(() => import('@/components/analytics/AnalyticsChartsTab'), 'lazy-retry:analytics-charts');
+const WeeklyTab = lazyWithRetry(() => import('@/components/analytics/AnalyticsWeeklyTab'), 'lazy-retry:analytics-weekly');
+const StravaTab = lazyWithRetry(() => import('@/components/strava/StravaTab').then((mod) => ({ default: mod.StravaTab })), 'lazy-retry:analytics-strava');
 
 // ========================
 // TAB: Podsumowanie
@@ -339,6 +341,38 @@ const SummaryTab = () => {
 // MAIN PAGE
 // ========================
 
+// Boundary per zakładka: crash jednej zakładki nie może wygaszać całej analityki
+// (Z154 — czarny ekran po powrocie z tła). Reset przez zmianę key remountuje subtree.
+const TabBoundary = ({ uid, children }: { uid?: string; children: React.ReactNode }) => {
+  const { t } = useTranslation();
+  const [attempt, setAttempt] = useState(0);
+  return (
+    <ErrorBoundary
+      key={attempt}
+      uid={uid}
+      fallback={(reset, _error, code) => (
+        <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            {t('analytics.tabError')}{code ? ` [${code}]` : ''}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              reset();
+              setAttempt((value) => value + 1);
+            }}
+          >
+            {t('analytics.tabRetry')}
+          </Button>
+        </div>
+      )}
+    >
+      {children}
+    </ErrorBoundary>
+  );
+};
+
 const Analytics = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { uid, canUseStrava } = useCurrentUser();
@@ -368,23 +402,31 @@ const Analytics = () => {
           <TabsTrigger value="weekly" className="flex-1 text-xs min-w-0">{t('analytics.tab.weekly')}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="summary"><SummaryTab /></TabsContent>
+        <TabsContent value="summary">
+          <TabBoundary uid={uid}><SummaryTab /></TabBoundary>
+        </TabsContent>
         <TabsContent value="charts">
-          <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
-            <ChartsTab />
-          </Suspense>
+          <TabBoundary uid={uid}>
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
+              <ChartsTab />
+            </Suspense>
+          </TabBoundary>
         </TabsContent>
         {canUseStrava && (
           <TabsContent value="strava">
-            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
-              <StravaTab />
-            </Suspense>
+            <TabBoundary uid={uid}>
+              <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
+                <StravaTab />
+              </Suspense>
+            </TabBoundary>
           </TabsContent>
         )}
         <TabsContent value="weekly">
-          <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
-            <WeeklyTab />
-          </Suspense>
+          <TabBoundary uid={uid}>
+            <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>}>
+              <WeeklyTab />
+            </Suspense>
+          </TabBoundary>
         </TabsContent>
       </Tabs>
     </div>

@@ -258,6 +258,8 @@ export const en: Record<keyof typeof pl, string> = {
   'analytics.tab.summary': 'Summary',
   'analytics.tab.charts': 'Charts',
   'analytics.tab.weekly': 'Weekly',
+  'analytics.tabError': 'This tab failed to load.',
+  'analytics.tabRetry': 'Try again',
   'analytics.period.week': 'Week',
   'analytics.period.month': 'Month',
   'analytics.copy': 'Copy',

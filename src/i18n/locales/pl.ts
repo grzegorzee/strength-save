@@ -264,6 +264,8 @@ export const pl = {
   'analytics.tab.summary': 'Podsum.',
   'analytics.tab.charts': 'Wykresy',
   'analytics.tab.weekly': 'Tygodnie',
+  'analytics.tabError': 'Nie udało się załadować tej zakładki.',
+  'analytics.tabRetry': 'Spróbuj ponownie',
   'analytics.period.week': 'Tydzień',
   'analytics.period.month': 'Miesiąc',
   'analytics.copy': 'Kopiuj',

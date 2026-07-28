@@ -2,6 +2,9 @@ const PWA_UPDATE_BLOCK_KEY = 'strength-save:pwa-update-blocked';
 const PWA_UPDATE_BLOCK_EVENT = 'strength-save:pwa-update-blocked';
 const PWA_RELOAD_PENDING_KEY = 'strength-save:pwa-reload-pending';
 const PWA_RELOAD_PENDING_EVENT = 'strength-save:pwa-reload-pending';
+const GUARDED_RELOAD_HISTORY_KEY = 'strength-save:guarded-reload-history';
+const GUARDED_RELOAD_WINDOW_MS = 60_000;
+const GUARDED_RELOAD_MAX_IN_WINDOW = 2;
 
 export type GuardedReloadReason = 'chunk' | 'service-worker';
 
@@ -55,6 +58,36 @@ export const clearPendingGuardedReload = (): void => {
   window.dispatchEvent(new CustomEvent<boolean>(PWA_RELOAD_PENDING_EVENT, { detail: false }));
 };
 
+const readGuardedReloadHistory = (): number[] => {
+  try {
+    const raw = window.sessionStorage.getItem(GUARDED_RELOAD_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((value): value is number => typeof value === 'number') : [];
+  } catch {
+    return [];
+  }
+};
+
+// Telemetria pętli reloadów — dynamiczne importy, żeby guard nie ciągnął firebase
+// przy każdym starcie modułu; best-effort, bez uid raport pomijamy (rules wymagają auth).
+const reportReloadLoopGuard = (reason: GuardedReloadReason): void => {
+  void (async () => {
+    try {
+      const [{ reportClientError }, { auth }] = await Promise.all([
+        import('./error-telemetry'),
+        import('./firebase'),
+      ]);
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        await reportClientError(uid, { code: 'reload-loop-guard', phase: 'other', detail: reason });
+      }
+    } catch {
+      // Best effort only.
+    }
+  })();
+};
+
 export const requestGuardedReload = (reason: GuardedReloadReason): boolean => {
   if (typeof window === 'undefined') return false;
 
@@ -66,6 +99,23 @@ export const requestGuardedReload = (reason: GuardedReloadReason): boolean => {
     }
     window.dispatchEvent(new CustomEvent<boolean>(PWA_RELOAD_PENDING_EVENT, { detail: true }));
     return false;
+  }
+
+  const now = Date.now();
+  const recentReloads = readGuardedReloadHistory().filter(
+    (timestamp) => now - timestamp < GUARDED_RELOAD_WINDOW_MS,
+  );
+  if (recentReloads.length >= GUARDED_RELOAD_MAX_IN_WINDOW) {
+    reportReloadLoopGuard(reason);
+    return false;
+  }
+  try {
+    window.sessionStorage.setItem(
+      GUARDED_RELOAD_HISTORY_KEY,
+      JSON.stringify([...recentReloads, now]),
+    );
+  } catch {
+    // Best effort only.
   }
 
   clearPendingGuardedReload();

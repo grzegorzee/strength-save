@@ -1,4 +1,4 @@
-import { Suspense, lazy, useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -15,8 +15,9 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { HealthWeightSuggestion } from '@/components/HealthWeightSuggestion';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
+import { lazyWithRetry } from '@/lib/lazy-with-retry';
 
-const MeasurementTrendChart = lazy(() => import('@/components/MeasurementTrendChart'));
+const MeasurementTrendChart = lazyWithRetry(() => import('@/components/MeasurementTrendChart'), 'lazy-retry:measurement-trend');
 
 // Kolor delty wg celu pola (Z77): talia w dół = zielona, ramię w górę = zielone, waga neutralna.
 const deltaClass = (field: MeasurementField, delta: number): string => {
@@ -108,7 +109,7 @@ const Measurements = () => {
       )}
 
       {measurements.length > 0 && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="h-[220px]" />}>
           <MeasurementTrendChart measurements={measurements} />
         </Suspense>
       )}

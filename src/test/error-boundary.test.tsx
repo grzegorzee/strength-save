@@ -6,6 +6,9 @@ vi.mock('@/lib/error-telemetry', () => ({
   reportClientError: (uid: string, entry: unknown) => reportClientError(uid, entry),
 }));
 
+const authMock = vi.hoisted(() => ({ currentUser: null as null | { uid: string } }));
+vi.mock('@/lib/firebase', () => ({ auth: authMock }));
+
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const Bomb = (): never => {
@@ -15,6 +18,7 @@ const Bomb = (): never => {
 describe('ErrorBoundary (Z56)', () => {
   beforeEach(() => {
     reportClientError.mockClear();
+    authMock.currentUser = null;
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -42,6 +46,19 @@ describe('ErrorBoundary (Z56)', () => {
 
     expect(screen.getByText(/Coś poszło nie tak|Something went wrong/)).toBeTruthy();
     expect(reportClientError).not.toHaveBeenCalled();
+  });
+
+  it('bez propa uid raportuje z uid z auth (top-level boundary, Z154)', () => {
+    authMock.currentUser = { uid: 'auth-user' };
+
+    render(
+      <ErrorBoundary>
+        <Bomb />
+      </ErrorBoundary>,
+    );
+
+    expect(reportClientError).toHaveBeenCalledTimes(1);
+    expect(reportClientError.mock.calls[0][0]).toBe('auth-user');
   });
 
   it('własny fallback dostaje reset i jest renderowany zamiast domyślnego', () => {

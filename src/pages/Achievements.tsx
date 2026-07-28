@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -27,9 +27,10 @@ import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { withLiveCompletedStats } from '@/lib/cycle-insights';
 import { ExerciseProgressionDialog } from '@/components/ExerciseProgressionDialog';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
+import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { useTranslation } from '@/contexts/LanguageContext';
 
-const TonnageTrendChart = lazy(() => import('@/components/achievements/TonnageTrendChart'));
+const TonnageTrendChart = lazyWithRetry(() => import('@/components/achievements/TonnageTrendChart'), 'lazy-retry:tonnage-trend');
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
 import { cn, parseLocalDate } from '@/lib/utils';

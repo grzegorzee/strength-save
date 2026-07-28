@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,6 +25,7 @@ import { PushRegistrar } from "./components/PushRegistrar";
 import { IosSwipeBack } from "./components/IosSwipeBack";
 import { Loader2, ShieldOff } from "lucide-react";
 import { lazyWithRetry } from "./lib/lazy-with-retry";
+import { initGlobalErrorTelemetry, setGlobalErrorTelemetryUid } from "./lib/global-error-telemetry";
 import { EmailVerificationGate } from "./components/EmailVerificationGate";
 
 const queryClient = new QueryClient();
@@ -105,7 +106,7 @@ const AuthenticatedRouteRedirect = ({ isNewUser }: { isNewUser: boolean }) => {
 };
 
 const AppLoader = () => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div className="min-h-[50vh] flex items-center justify-center">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
   </div>
 );
@@ -166,6 +167,12 @@ const AccessRestrictedView = ({
 
 const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
   const { uid, isNewUser, profileLoaded, hasAppAccess, profile, needsEmailVerification, isSuspended, profileLoadError } = useCurrentUser();
+
+  useEffect(() => {
+    initGlobalErrorTelemetry();
+    setGlobalErrorTelemetryUid(uid);
+    return () => setGlobalErrorTelemetryUid(undefined);
+  }, [uid]);
 
   if (!profileLoaded) {
     return <AppLoader />;

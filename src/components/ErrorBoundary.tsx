@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { reportClientError } from '@/lib/error-telemetry';
+import { auth } from '@/lib/firebase';
 
 /**
  * Krótki kod błędu do zgłoszenia przez usera.
@@ -48,9 +49,12 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
-    if (this.props.uid) {
+    // Top-level boundary nie re-renderuje się po zalogowaniu, więc uid czytamy
+    // w momencie catcha (Z154). Bez uid raport pomijamy — rules wymagają auth.
+    const uid = this.props.uid ?? auth.currentUser?.uid;
+    if (uid) {
       const stackFirstLine = (error.stack ?? '').split('\n').find(line => line.includes('at ')) ?? '';
-      void reportClientError(this.props.uid, {
+      void reportClientError(uid, {
         code: 'render-crash',
         phase: 'other',
         detail: `[${this.state.code}] ${error.message} ${stackFirstLine}`.trim(),
