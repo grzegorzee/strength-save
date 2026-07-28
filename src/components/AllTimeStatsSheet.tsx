@@ -4,6 +4,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { buildAllTimeStats } from '@/lib/all-time-stats';
 import { localizeExerciseName } from '@/data/exercise-i18n';
+import { cn } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
 interface AllTimeStatsSheetProps {
@@ -35,14 +36,16 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, workouts }: AllTimeStats
   const stats = useMemo(() => (open ? buildAllTimeStats(workouts) : null), [open, workouts]);
   if (!open || !stats) return null;
 
-  const tiles: Array<{ label: string; value: string }> = [
+  // Z158: kafle tekstowe (ulubione ćwiczenie, data) — pełna szerokość i zawijanie
+  // zamiast "..."; liczbowe zostają zwarte z truncate + tabular-nums.
+  const tiles: Array<{ label: string; value: string; wide?: boolean; text?: boolean }> = [
     { label: t('stats.sets'), value: String(stats.totalSets) },
     { label: t('stats.reps'), value: String(stats.totalReps) },
     { label: t('stats.currentStreak'), value: String(stats.currentStreak) },
     { label: t('stats.longestStreak'), value: String(stats.longestStreak) },
     { label: t('stats.prs'), value: String(stats.totalPRs) },
     ...(stats.favoriteExercise
-      ? [{ label: t('stats.favorite'), value: localizeExerciseName(stats.favoriteExercise.name, lang) }]
+      ? [{ label: t('stats.favorite'), value: localizeExerciseName(stats.favoriteExercise.name, lang), wide: true, text: true }]
       : []),
     ...(stats.firstWorkoutDate
       ? [{
@@ -50,6 +53,8 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, workouts }: AllTimeStats
         value: new Date(stats.firstWorkoutDate).toLocaleDateString(lang === 'pl' ? 'pl-PL' : 'en-US', {
           day: 'numeric', month: 'long', year: 'numeric',
         }),
+        wide: true,
+        text: true,
       }]
       : []),
   ];
@@ -95,10 +100,10 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, workouts }: AllTimeStats
 
             {/* Reszta metryk — granice przez tło, zero ramek (No-Line Rule). */}
             <div className="grid grid-cols-2 gap-2">
-              {tiles.map(({ label, value }) => (
-                <div key={label} className="rounded-xl bg-muted/40 px-3 py-2.5">
+              {tiles.map(({ label, value, wide, text }) => (
+                <div key={label} className={cn('rounded-xl bg-muted/40 px-3 py-2.5', wide && 'col-span-2')}>
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">{label}</p>
-                  <p className="truncate text-lg font-bold tabular-nums">{value}</p>
+                  <p className={cn('text-lg font-bold', text ? 'break-words leading-tight' : 'truncate tabular-nums')}>{value}</p>
                 </div>
               ))}
             </div>
