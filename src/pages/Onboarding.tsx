@@ -15,7 +15,7 @@ import type { TrainingDay } from '@/data/trainingPlan';
 // Onboarding nowego użytkownika = wspólny PlanWizard (z ekranem Welcome) + podgląd planu
 // (ten sam ekran co NewPlan, Z73) + zapis planu.
 const Onboarding = () => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { uid } = useCurrentUser();
   const { savePlan } = useTrainingPlan(uid);
@@ -40,6 +40,7 @@ const Onboarding = () => {
     setError(null);
     const confirmed: PlanWizardChoice = { ...choice, days: reviewDays };
     const result = await completeOnboardingPlan(confirmed, {
+      lang,
       savePlan,
       createActiveCycle,
       markOnboardingComplete: async () => updateDoc(doc(db, 'users', uid), {

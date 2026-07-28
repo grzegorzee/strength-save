@@ -140,6 +140,7 @@ const NewPlan = () => {
     setError(null);
     try {
       const result = await startCycleWithPlan(reviewDays, chosen.durationWeeks, {
+        lang,
         uid,
         currentPlan,
         planStartDate,

@@ -338,7 +338,7 @@ const Settings = () => {
               <div className="border-t pt-4">
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <p className="text-sm font-medium">Max HR</p>
+                    <p className="text-sm font-medium">{t('settings.maxHrLabel')}</p>
                     <p className="text-xs text-muted-foreground">
                       {connection.estimatedMaxHR
                         ? t('settings.maxHR.value', { value: connection.estimatedMaxHR, source: connection.maxHRManualOverride ? t('settings.maxHR.manual') : t('settings.maxHR.auto') })
@@ -350,7 +350,7 @@ const Settings = () => {
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    aria-label="Max HR"
+                    aria-label={t('settings.maxHrLabel')}
                     placeholder={connection.estimatedMaxHR?.toString() || '185'}
                     min={100}
                     max={230}

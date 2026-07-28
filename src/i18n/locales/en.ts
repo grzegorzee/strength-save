@@ -14,6 +14,12 @@ export const en: Record<keyof typeof pl, string> = {
   'common.results': 'results',
 
   'nav.dashboard': 'Dashboard',
+  'nav.expand': 'Expand navigation',
+  'nav.collapse': 'Collapse navigation',
+  'a11y.close': 'Close',
+  'settings.maxHrLabel': 'Max HR',
+  'cycles.errActiveNotCreated': 'Active cycle was not created',
+  'ob.errCompleteFailed': 'Could not complete onboarding',
   'nav.group.main': 'Main',
   'nav.group.progress': 'Progress',
   'nav.group.account': 'Account',

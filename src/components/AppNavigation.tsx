@@ -131,7 +131,7 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                 size="icon"
                 onClick={() => setCollapsed(prev => !prev)}
                 className="hidden md:flex h-8 w-8"
-                aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+                aria-label={collapsed ? t('nav.expand') : t('nav.collapse')}
               >
                 {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
               </Button>

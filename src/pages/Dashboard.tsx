@@ -160,6 +160,7 @@ const Dashboard = () => {
     if (source.days.length === 0) return;
     setIsRepeating(true);
     const res = await startCycleWithPlan(source.days, source.durationWeeks, {
+      lang,
       uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
       archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
     });

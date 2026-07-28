@@ -1,4 +1,5 @@
 import type { TrainingDay } from '@/data/trainingPlan';
+import { translate, type LanguageCode } from '@/i18n';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate } from '@/lib/utils';
@@ -8,6 +9,8 @@ import { DEFAULT_PROGRESSION, type ProgressionConfig } from '@/lib/progression-e
 
 export interface StartCycleDeps {
   uid: string;
+  /** Z166: język komunikatów błędów pokazywanych userowi (default PL). */
+  lang?: LanguageCode;
   currentPlan: TrainingDay[];
   planStartDate: string | null;
   planDurationWeeks: number;
@@ -29,6 +32,7 @@ export interface CompleteOnboardingChoice {
 }
 
 export interface CompleteOnboardingDeps {
+  lang?: LanguageCode;
   savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   markOnboardingComplete: (choice: CompleteOnboardingChoice, days: TrainingDay[], startDate: string) => Promise<void>;
@@ -86,7 +90,7 @@ export async function startCycleWithPlan(
         syncActiveCycle: false,
       });
     }
-    return { success: false, error: 'Active cycle was not created' };
+    return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.errActiveNotCreated') };
   }
 
   // Archiwizuj poprzedni plan dopiero po utworzeniu nowego aktywnego cyklu. Jeśli ten krok
@@ -119,7 +123,7 @@ export async function completeOnboardingPlan(
     // The deterministic cycle is the workflow anchor. If the plan write loses a
     // response, a retry observes this same cycle instead of creating a duplicate.
     const activeCycleId = await deps.createActiveCycle(days, choice.durationWeeks, planStartDate);
-    if (!activeCycleId) return { success: false, error: 'Active cycle was not created' };
+    if (!activeCycleId) return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.errActiveNotCreated') };
 
     const result = await deps.savePlan(days, {
       durationWeeks: choice.durationWeeks,
@@ -134,7 +138,7 @@ export async function completeOnboardingPlan(
     await deps.markOnboardingComplete(choice, days, planStartDate);
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Could not complete onboarding' };
+    return { success: false, error: err instanceof Error ? err.message : translate(deps.lang ?? 'pl', 'ob.errCompleteFailed') };
   }
 }
 

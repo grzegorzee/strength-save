@@ -15,6 +15,12 @@ export const pl = {
 
   // nawigacja
   'nav.dashboard': 'Dashboard',
+  'nav.expand': 'Rozwiń nawigację',
+  'nav.collapse': 'Zwiń nawigację',
+  'a11y.close': 'Zamknij',
+  'settings.maxHrLabel': 'Max HR',
+  'cycles.errActiveNotCreated': 'Nie udało się utworzyć aktywnego cyklu',
+  'ob.errCompleteFailed': 'Nie udało się dokończyć konfiguracji',
   'nav.group.main': 'Główne',
   'nav.group.progress': 'Postępy',
   'nav.group.account': 'Konto',
