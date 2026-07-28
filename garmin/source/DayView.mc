@@ -208,6 +208,12 @@ class DayMenu extends WatchUi.Menu2 {
         if (stepIndex >= 0) {
             (getItem(stepIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.stepLabel());
         }
+        if (restSetIndex >= 0) {
+            (getItem(restSetIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.restSetLabel());
+        }
+        if (restExIndex >= 0) {
+            (getItem(restExIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.restExerciseLabel());
+        }
     }
 
     function onShow() as Void {
@@ -266,6 +272,14 @@ class DayMenuDelegate extends WatchUi.Menu2InputDelegate {
         } else if (id == :step) {
             AppSettings.cycleWeightStep();
             item.setSubLabel(AppSettings.stepLabel());
+            WatchUi.requestUpdate();
+        } else if (id == :restSet) {
+            AppSettings.cycleRestSetSeconds();
+            item.setSubLabel(AppSettings.restSetLabel());
+            WatchUi.requestUpdate();
+        } else if (id == :restEx) {
+            AppSettings.cycleRestExerciseSeconds();
+            item.setSubLabel(AppSettings.restExerciseLabel());
             WatchUi.requestUpdate();
         }
     }

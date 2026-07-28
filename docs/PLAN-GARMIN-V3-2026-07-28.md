@@ -33,7 +33,7 @@
 
 ## FAZA 1: Stringi (odblokowuje kompilację)
 
-- [ ] Krok 1: Dopisz do OBU plików stringów (przed `</strings>`):
+- [x] Krok 1: Dopisz do OBU plików stringów (przed `</strings>`):
   PL (`resources-pol/strings/strings.xml`):
   ```xml
   <string id="RestSetLabel">Przerwa: serie</string>
@@ -50,11 +50,11 @@
   <string id="SessionTitle">Session</string>
   <string id="TonnageLabel">Volume</string>
   ```
-- [ ] Krok 2: `./build.sh epix2` → BUILD SUCCESSFUL (jedyne dopuszczalne warningi: "Invalid device id" dla niepobranych urządzeń i skalowanie ikony).
+- [x] Krok 2: `./build.sh epix2` → BUILD SUCCESSFUL (jedyne dopuszczalne warningi: "Invalid device id" dla niepobranych urządzeń i skalowanie ikony).
 
 ## FAZA 2: Dokończenie przerw
 
-- [ ] Krok 1: `DayMenu.refresh()` — dopisz po bloku `stepIndex`:
+- [x] Krok 1: `DayMenu.refresh()` — dopisz po bloku `stepIndex`:
   ```monkeyc
   if (restSetIndex >= 0) {
       (getItem(restSetIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.restSetLabel());
@@ -63,7 +63,7 @@
       (getItem(restExIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.restExerciseLabel());
   }
   ```
-- [ ] Krok 2: `DayMenuDelegate.onSelect` — dwa nowe gałęzie obok `:step`:
+- [x] Krok 2: `DayMenuDelegate.onSelect` — dwa nowe gałęzie obok `:step`:
   ```monkeyc
   } else if (id == :restSet) {
       AppSettings.cycleRestSetSeconds();
@@ -74,7 +74,7 @@
       item.setSubLabel(AppSettings.restExerciseLabel());
       WatchUi.requestUpdate();
   ```
-- [ ] Krok 3: `ExerciseView.logCurrent` — przerwa serii z ustawień + NOWA przerwa po ostatniej serii ćwiczenia ("zmiana stanowiska", parytet `resolveRestSeconds` z telefonu: `exerciseFinished => betweenExercisesSeconds`):
+- [x] Krok 3: `ExerciseView.logCurrent` — przerwa serii z ustawień + NOWA przerwa po ostatniej serii ćwiczenia ("zmiana stanowiska", parytet `resolveRestSeconds` z telefonu: `exerciseFinished => betweenExercisesSeconds`):
   ```monkeyc
   if (nextSetIndex() >= 0) {
       startRest(AppSettings.restSetSeconds());
@@ -85,7 +85,7 @@
   }
   ```
   (Po przerwie międzyćwiczeniowej widok naturalnie pokaże AllDone; BACK wraca do menu.)
-- [ ] Krok 4: Build + commit `feat(garmin): przerwy miedzy seriami i cwiczeniami ustawiane w menu dnia (0=wylaczona, parytet 90/150 z telefonem)`.
+- [x] Krok 4: Build + commit `feat(garmin): przerwy miedzy seriami i cwiczeniami ustawiane w menu dnia (0=wylaczona, parytet 90/150 z telefonem)`.
 
 ## FAZA 3: Jeden timer UI + mini zegar sesji w ExerciseView
 

@@ -29,4 +29,9 @@
   <string id="FinishFirst">Finish current workout first</string>
   <string id="NoRecents">No recent exercises</string>
   <string id="SetsLabel">Sets</string>
+  <string id="RestSetLabel">Rest: sets</string>
+  <string id="RestExLabel">Rest: exercises</string>
+  <string id="RestOff">off</string>
+  <string id="SessionTitle">Session</string>
+  <string id="TonnageLabel">Volume</string>
 </strings>

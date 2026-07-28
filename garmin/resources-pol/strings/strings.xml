@@ -29,4 +29,9 @@
   <string id="FinishFirst">Najpierw zakończ trening</string>
   <string id="NoRecents">Brak ostatnich ćwiczeń</string>
   <string id="SetsLabel">Serie</string>
+  <string id="RestSetLabel">Przerwa: serie</string>
+  <string id="RestExLabel">Przerwa: ćwiczenia</string>
+  <string id="RestOff">wyłączona</string>
+  <string id="SessionTitle">Sesja</string>
+  <string id="TonnageLabel">Tonaż</string>
 </strings>

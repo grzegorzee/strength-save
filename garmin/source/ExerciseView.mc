@@ -62,12 +62,17 @@ class ExerciseView extends WatchUi.View {
             Attention.vibrate([new Attention.VibeProfile(80, 300)]);
         }
         if (nextSetIndex() >= 0) {
-            startRest(90);
+            startRest(AppSettings.restSetSeconds());
             // Quick: zostaw wpisane wartości (user często robi kolejną serię tym
             // samym ciężarem, który właśnie skorygował). Plan: pre-fill celu serii.
             if (!WorkoutState.isQuick()) {
                 loadNextSet();
             }
+        } else {
+            // Ostatnia seria ćwiczenia: przerwa na zmianę stanowiska (0 = wyłączona,
+            // parytet resolveRestSeconds z telefonu). Po niej widok pokaże AllDone.
+            var between = AppSettings.restExerciseSeconds();
+            if (between > 0) { startRest(between); }
         }
         WatchUi.requestUpdate();
     }
