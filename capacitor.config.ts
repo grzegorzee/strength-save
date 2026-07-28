@@ -22,6 +22,12 @@ const config: CapacitorConfig = {
       // systemowy banner działa normalnie (presentationOptions dotyczy foregroundu).
       presentationOptions: ['badge', 'sound'],
     },
+    Keyboard: {
+      // Z159: ŻADNEJ zmiany globalnego layoutu — resize webview wywróciłby fixed
+      // bottom bary WorkoutDay (reguła 5). Klawiaturę kompensują same dialogi
+      // przez CSS var --keyboard-inset (keyboard-inset.ts).
+      resize: 'none',
+    },
   },
 };
 
