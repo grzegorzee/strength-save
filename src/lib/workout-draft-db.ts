@@ -30,6 +30,9 @@ export interface ActiveWorkoutDraft {
   // Ostatnio dotykane ćwiczenie (odhaczenie serii / metryki) — cel scrolla po hydracji.
   // Opcjonalne pole additive, bez bumpu wersji IndexedDB.
   lastTouchedExerciseId?: string;
+  // Odhaczone pozycje rozgrzewki/stretchingu po nameKey (Z162). Pole additive, bez bumpu
+  // wersji IndexedDB; NIE wychodzi do Firestore (stan pomocniczy sesji, nie trening).
+  warmupChecked?: string[];
   startedAt: number;
   /** Ostatnia realna akcja treningowa (serie/kg/notatki/metryki/skipy) — Z142.
    *  Bumpowana TYLKO przy zmianie treści draftu; snapshoty techniczne (scroll,
@@ -210,6 +213,9 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     ...(value.dayFocus !== undefined && { dayFocus: String(value.dayFocus) }),
     skippedExercises: normalizeStringArray(value.skippedExercises),
     ...(typeof value.lastTouchedExerciseId === 'string' && { lastTouchedExerciseId: value.lastTouchedExerciseId }),
+    ...(Array.isArray(value.warmupChecked) && {
+      warmupChecked: value.warmupChecked.filter((key): key is string => typeof key === 'string'),
+    }),
     startedAt: toNumberOr(value.startedAt, now),
     ...(value.lastActivityAt !== undefined && { lastActivityAt: toNumberOr(value.lastActivityAt, now) }),
     ...(value.finalizedAt !== undefined && { finalizedAt: toNumberOr(value.finalizedAt, now) }),
@@ -277,6 +283,7 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     exerciseNotes: draft.exerciseNotes,
     dayNotes: draft.dayNotes,
     skippedExercises: draft.skippedExercises,
+    ...(draft.warmupChecked !== undefined && { warmupChecked: draft.warmupChecked }),
     savedAt: draft.updatedAt,
     ...(draft.cloudRevision != null && { cloudRevision: draft.cloudRevision }),
     ...(draft.cloudUpdatedAt != null && { cloudUpdatedAt: draft.cloudUpdatedAt }),

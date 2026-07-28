@@ -186,6 +186,9 @@ const WorkoutDay = () => {
   const conflictAutoResolveAttemptsRef = useRef(0);
   const keepLocalOnConflictRef = useRef<null | (() => Promise<void>)>(null);
   const [showWarmup, setShowWarmup] = useState(false);
+  // Z162: odhaczenia rozgrzewki (klucze nameKey) żyją w drafcie sesji — zamknięcie
+  // dialogu i wyjście z apki ich nie kasuje, nowa sesja startuje z czystą listą.
+  const [warmupChecked, setWarmupChecked] = useState<string[]>([]);
   const [showShare, setShowShare] = useState(false);
   // Podsumowanie ukończonego treningu: które ćwiczenia mają rozwinięte serie.
   const [expandedSummaryIds, setExpandedSummaryIds] = useState<Set<string>>(new Set());
@@ -241,6 +244,7 @@ const WorkoutDay = () => {
   const exerciseMetricsRef = useRef(exerciseMetrics);
   const dayNotesRef = useRef(dayNotes);
   const skippedExercisesRef = useRef(skippedExercises);
+  const warmupCheckedRef = useRef(warmupChecked);
   const activeDraftRef = useRef(activeDraft);
   const queuedDraftRef = useRef(queuedDraft);
 
@@ -249,6 +253,8 @@ const WorkoutDay = () => {
   useEffect(() => { exerciseMetricsRef.current = exerciseMetrics; }, [exerciseMetrics]);
   useEffect(() => { dayNotesRef.current = dayNotes; }, [dayNotes]);
   useEffect(() => { skippedExercisesRef.current = skippedExercises; }, [skippedExercises]);
+  useEffect(() => { warmupCheckedRef.current = warmupChecked; }, [warmupChecked]);
+  const warmupCheckedSet = useMemo(() => new Set(warmupChecked), [warmupChecked]);
   useEffect(() => { activeDraftRef.current = activeDraft; }, [activeDraft]);
   useEffect(() => { queuedDraftRef.current = queuedDraft; }, [queuedDraft]);
 
@@ -556,6 +562,11 @@ const WorkoutDay = () => {
       exerciseMetrics: exerciseMetricsRef.current,
       dayNotes: dayNotesRef.current,
       skippedExercises: skippedExercisesRef.current,
+      // Pole tylko gdy sesja realnie ma odhaczenia (albo już je miała) — legacy draft
+      // bez rozgrzewki nie dostaje pustej tablicy, a odznaczenie WSZYSTKIEGO nie wraca
+      // do starej wartości z previousDraft.
+      ...((warmupCheckedRef.current.length > 0 || activeDraftRef.current?.warmupChecked !== undefined)
+        && { warmupChecked: warmupCheckedRef.current }),
       dayNames: daySnapshotRef.current.names,
       dayName: daySnapshotRef.current.dayName,
       dayFocus: daySnapshotRef.current.focus,
@@ -819,6 +830,7 @@ const WorkoutDay = () => {
     exerciseMetrics?: Record<string, ExerciseMetrics>;
     dayNotes: string;
     skippedExercises: string[];
+    warmupChecked?: string[];
   }) => {
     setSessionId(next.sessionId);
     setIsCompleted(next.completed);
@@ -827,6 +839,8 @@ const WorkoutDay = () => {
     setExerciseMetrics(next.exerciseMetrics ?? {});
     setDayNotes(next.dayNotes);
     setSkippedExercises(next.skippedExercises);
+    // Z162: brak pola = nowa/inna sesja → rozgrzewka startuje czysta.
+    setWarmupChecked(next.warmupChecked ?? []);
   }, []);
 
   useEffect(() => {
@@ -932,6 +946,7 @@ const WorkoutDay = () => {
         exerciseMetrics: currentPageDraft.exerciseMetrics,
         dayNotes: currentPageDraft.dayNotes,
         skippedExercises: currentPageDraft.skippedExercises,
+        warmupChecked: currentPageDraft.warmupChecked,
       });
 
       if (draftRecoveryDone.current !== currentPageDraft.sessionId && (draftHasData || currentPageDraft.finalSyncPending)) {
@@ -1400,6 +1415,7 @@ const WorkoutDay = () => {
         setExerciseNotes(adoptableDraft?.exerciseNotes ?? {});
         setDayNotes(adoptableDraft?.dayNotes ?? '');
         setSkippedExercises(adoptableDraft?.skippedExercises ?? []);
+        setWarmupChecked(adoptableDraft?.warmupChecked ?? []);
         if (adoptableDraft) setExerciseMetrics(adoptableDraft.exerciseMetrics);
 
         const initialDraft = buildStartDraft({
@@ -1627,6 +1643,17 @@ const WorkoutDay = () => {
   const handleRequestSwap = useCallback((exerciseId: string) => {
     setSwapExerciseId(exerciseId);
   }, []);
+
+  // Z162: odhaczenie pozycji rozgrzewki = zmiana treści draftu (przeżywa zamknięcie
+  // dialogu, wyjście z ekranu i powrót z tła).
+  const toggleWarmupItem = useCallback((nameKey: string) => {
+    setWarmupChecked(prev => {
+      const next = prev.includes(nameKey) ? prev.filter(key => key !== nameKey) : [...prev, nameKey];
+      warmupCheckedRef.current = next;
+      saveDraftSnapshot({ warmupChecked: next });
+      return next;
+    });
+  }, [saveDraftSnapshot]);
 
   const handleSkipExercise = useCallback((exerciseId: string) => {
     if (isExerciseFullyCompleted(exerciseSetsRef.current[exerciseId])) {
@@ -2414,6 +2441,8 @@ const WorkoutDay = () => {
         focus={day.focus}
         open={showWarmup}
         onOpenChange={setShowWarmup}
+        checked={warmupCheckedSet}
+        onToggle={toggleWarmupItem}
       />
 
       {/* Past date without workout */}

@@ -153,6 +153,36 @@ describe('buildWorkoutDraftSnapshot', () => {
   });
 });
 
+describe('warmupChecked w snapshocie draftu (Z162)', () => {
+  it('override warmupChecked trafia do snapshotu i podbija version (zmiana treści)', () => {
+    const snapshot = buildWorkoutDraftSnapshot(makeContext(), {
+      warmupChecked: ['warmup.jumpingJacks'],
+    });
+
+    expect(snapshot?.warmupChecked).toEqual(['warmup.jumpingJacks']);
+    expect(snapshot?.version).toBe(7);
+  });
+
+  it('brak zmiany warmupChecked nie podbija version (niezmiennik)', () => {
+    const context = makeContext({
+      previousDraft: makePreviousDraft({ warmupChecked: ['warmup.jumpingJacks'] }),
+      warmupChecked: ['warmup.jumpingJacks'],
+    });
+
+    const snapshot = buildWorkoutDraftSnapshot(context);
+
+    expect(snapshot?.warmupChecked).toEqual(['warmup.jumpingJacks']);
+    expect(snapshot?.version).toBe(6);
+  });
+
+  it('legacy previousDraft bez warmupChecked: snapshot bez pola, version bez bumpu', () => {
+    const snapshot = buildWorkoutDraftSnapshot(makeContext());
+
+    expect(snapshot?.warmupChecked).toBeUndefined();
+    expect(snapshot?.version).toBe(6);
+  });
+});
+
 describe('lastActivityAt — znacznik ostatniej realnej aktywności (Z142)', () => {
   it('zmiana treści (toggle serii) bumpuje lastActivityAt do now', () => {
     const context = makeContext({

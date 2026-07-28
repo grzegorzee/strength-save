@@ -21,6 +21,8 @@ export interface DraftSnapshotContext {
   exerciseMetrics: Record<string, ExerciseMetrics>;
   dayNotes: string;
   skippedExercises: string[];
+  // Odhaczenia rozgrzewki (Z162): część treści draftu — zmiana bumpuje version.
+  warmupChecked?: string[];
   dayNames: Record<string, string>;
   dayName?: string;
   dayFocus?: string;
@@ -73,13 +75,14 @@ const sameStringArray = (a: string[], b: string[]): boolean => (
 
 const sameDraftContent = (
   previous: ActiveWorkoutDraft,
-  next: Pick<ActiveWorkoutDraft, 'exerciseSets' | 'exerciseNotes' | 'exerciseMetrics' | 'dayNotes' | 'skippedExercises'>,
+  next: Pick<ActiveWorkoutDraft, 'exerciseSets' | 'exerciseNotes' | 'exerciseMetrics' | 'dayNotes' | 'skippedExercises' | 'warmupChecked'>,
 ): boolean => (
   sameSets(previous.exerciseSets, next.exerciseSets)
   && sameStringMap(previous.exerciseNotes, next.exerciseNotes)
   && sameMetrics(previous.exerciseMetrics, next.exerciseMetrics)
   && previous.dayNotes === next.dayNotes
   && sameStringArray(previous.skippedExercises, next.skippedExercises)
+  && sameStringArray(previous.warmupChecked ?? [], next.warmupChecked ?? [])
 );
 
 export const buildWorkoutDraftSnapshot = (
@@ -99,12 +102,16 @@ export const buildWorkoutDraftSnapshot = (
       ? context.queuedDraft
       : null;
 
+  // Z162: pole opcjonalne — legacy draft bez odhaczeń zostaje bez pola (brak fałszywego bumpu version).
+  const nextWarmupChecked = overrides.warmupChecked ?? context.warmupChecked ?? previousDraft?.warmupChecked;
+
   const content = {
     exerciseSets: overrides.exerciseSets ?? context.exerciseSets,
     exerciseNotes: overrides.exerciseNotes ?? context.exerciseNotes,
     exerciseMetrics: overrides.exerciseMetrics ?? context.exerciseMetrics,
     dayNotes: overrides.dayNotes ?? context.dayNotes,
     skippedExercises: overrides.skippedExercises ?? context.skippedExercises,
+    ...(nextWarmupChecked !== undefined && { warmupChecked: nextWarmupChecked }),
   };
 
   const contentUnchanged = previousDraft !== null && sameDraftContent(previousDraft, content);

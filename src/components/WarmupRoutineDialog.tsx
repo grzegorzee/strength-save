@@ -19,9 +19,12 @@ interface Props {
   focus: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Odhaczone pozycje po nameKey (Z162) — stan mieszka w drafcie sesji, nie w dialogu. */
+  checked: ReadonlySet<string>;
+  onToggle: (nameKey: string) => void;
 }
 
-export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
+export const WarmupRoutineDialog = ({ focus, open, onOpenChange, checked, onToggle }: Props) => {
   const { t, lang } = useTranslation();
   const stretches = getStretchingForFocus(focus);
   const allItems = [
@@ -29,21 +32,13 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
     ...stretches.map(e => ({ ...e, section: 'stretch' as const })),
   ];
 
-  const [checked, setChecked] = useState<Set<number>>(new Set());
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(30);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const progress = allItems.length > 0 ? Math.round((checked.size / allItems.length) * 100) : 0;
-
-  const toggle = (idx: number) => {
-    setChecked(prev => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  };
+  // Licznik po bieżącej liście: klucze zapamiętane dla innego focusu nie zawyżają postępu.
+  const done = allItems.filter(item => checked.has(item.nameKey)).length;
+  const progress = allItems.length > 0 ? Math.round((done / allItems.length) * 100) : 0;
 
   const startTimer = useCallback(() => {
     if (!FEATURE_FLAGS.intervalTimers) return;
@@ -62,7 +57,6 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
 
   useEffect(() => {
     if (!open) {
-      setChecked(new Set());
       setTimerActive(false);
     }
   }, [open]);
@@ -76,7 +70,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
             {t('comp.warmup.title')}
           </DialogTitle>
           <DialogDescription>
-            {t('comp.warmup.progress', { focus, done: checked.size, total: allItems.length })}
+            {t('comp.warmup.progress', { focus, done, total: allItems.length })}
           </DialogDescription>
         </DialogHeader>
 
@@ -94,22 +88,22 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
         {/* Warmup section */}
         <div className="space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground mb-2">{t('comp.warmup.dynamicWarmup')}</h4>
-          {warmupExercises.map((ex, idx) => (
+          {warmupExercises.map(ex => (
             <button
-              key={idx}
+              key={ex.nameKey}
               className={cn(
                 'flex items-center gap-3 w-full p-3 rounded-lg transition-colors text-left',
-                checked.has(idx) ? 'bg-fitness-success/10' : 'bg-muted/30 hover:bg-muted/50',
+                checked.has(ex.nameKey) ? 'bg-fitness-success/10' : 'bg-muted/30 hover:bg-muted/50',
               )}
-              onClick={() => toggle(idx)}
+              onClick={() => onToggle(ex.nameKey)}
             >
               <div className={cn(
                 'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
-                checked.has(idx) ? 'bg-fitness-success border-fitness-success' : 'border-muted-foreground/30',
+                checked.has(ex.nameKey) ? 'bg-fitness-success border-fitness-success' : 'border-muted-foreground/30',
               )}>
-                {checked.has(idx) && <Check className="h-4 w-4 text-white" />}
+                {checked.has(ex.nameKey) && <Check className="h-4 w-4 text-white" />}
               </div>
-              <span className={cn('flex-1 text-sm', checked.has(idx) && 'line-through text-muted-foreground')}>{localizeWarmup(ex, lang).name}</span>
+              <span className={cn('flex-1 text-sm', checked.has(ex.nameKey) && 'line-through text-muted-foreground')}>{localizeWarmup(ex, lang).name}</span>
               <Badge variant="outline" className="text-[10px] shrink-0">{localizeWarmup(ex, lang).duration}</Badge>
             </button>
           ))}
@@ -118,28 +112,25 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
         {/* Stretching section */}
         <div className="space-y-1">
           <h4 className="text-sm font-medium text-muted-foreground mb-2">{t('comp.warmup.stretching')}</h4>
-          {stretches.map((ex, sIdx) => {
-            const idx = warmupExercises.length + sIdx;
-            return (
-              <button
-                key={idx}
-                className={cn(
-                  'flex items-center gap-3 w-full p-3 rounded-lg transition-colors text-left',
-                  checked.has(idx) ? 'bg-fitness-success/10' : 'bg-muted/30 hover:bg-muted/50',
-                )}
-                onClick={() => toggle(idx)}
-              >
-                <div className={cn(
-                  'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
-                  checked.has(idx) ? 'bg-fitness-success border-fitness-success' : 'border-muted-foreground/30',
-                )}>
-                  {checked.has(idx) && <Check className="h-4 w-4 text-white" />}
-                </div>
-                <span className={cn('flex-1 text-sm', checked.has(idx) && 'line-through text-muted-foreground')}>{localizeWarmup(ex, lang).name}</span>
-                <Badge variant="outline" className="text-[10px] shrink-0">{localizeWarmup(ex, lang).duration}</Badge>
-              </button>
-            );
-          })}
+          {stretches.map(ex => (
+            <button
+              key={ex.nameKey}
+              className={cn(
+                'flex items-center gap-3 w-full p-3 rounded-lg transition-colors text-left',
+                checked.has(ex.nameKey) ? 'bg-fitness-success/10' : 'bg-muted/30 hover:bg-muted/50',
+              )}
+              onClick={() => onToggle(ex.nameKey)}
+            >
+              <div className={cn(
+                'h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors',
+                checked.has(ex.nameKey) ? 'bg-fitness-success border-fitness-success' : 'border-muted-foreground/30',
+              )}>
+                {checked.has(ex.nameKey) && <Check className="h-4 w-4 text-white" />}
+              </div>
+              <span className={cn('flex-1 text-sm', checked.has(ex.nameKey) && 'line-through text-muted-foreground')}>{localizeWarmup(ex, lang).name}</span>
+              <Badge variant="outline" className="text-[10px] shrink-0">{localizeWarmup(ex, lang).duration}</Badge>
+            </button>
+          ))}
         </div>
 
         {/* Timer button */}

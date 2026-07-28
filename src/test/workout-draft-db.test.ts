@@ -242,6 +242,50 @@ describe('workoutDraftDb', () => {
     expect(loaded?.lastTouchedExerciseId).toBe('ex-1');
   });
 
+  it('roundtrip zachowuje warmupChecked (Z162)', async () => {
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      warmupChecked: ['warmup.jumpingJacks', 'stretch.catCow'],
+    });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.warmupChecked).toEqual(['warmup.jumpingJacks', 'stretch.catCow']);
+  });
+
+  it('normalizeDraft odfiltrowuje nie-stringi z warmupChecked (Z162)', async () => {
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      warmupChecked: ['warmup.jumpingJacks', 3, null, { a: 1 }] as unknown as string[],
+    });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.warmupChecked).toEqual(['warmup.jumpingJacks']);
+  });
+
+  it('legacy draft bez warmupChecked ładuje się bez pola (niezmiennik Z162)', async () => {
+    await workoutDraftDb.saveActiveDraft(baseDraft);
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.warmupChecked).toBeUndefined();
+    expect(loaded?.exerciseSets).toEqual(baseDraft.exerciseSets);
+  });
+
+  it('sekwencja Z162: odhaczenia giną razem z sesją, nowa sesja startuje czysta', async () => {
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      warmupChecked: ['warmup.jumpingJacks', 'stretch.catCow'],
+    });
+    // Koniec treningu = draft skasowany.
+    await workoutDraftDb.clearActiveDraft('user-1', baseDraft.sessionId);
+
+    // Nowa sesja tego samego dnia: brak odhaczeń z poprzedniej.
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: 'workout-999',
+      remoteSessionId: 'workout-999',
+    });
+    const loaded = await workoutDraftDb.loadDraft('user-1', 'workout-999');
+
+    expect(loaded?.warmupChecked).toBeUndefined();
+  });
+
   it('keeps multiple dirty drafts for the same user keyed by session', async () => {
     await workoutDraftDb.saveActiveDraft(baseDraft);
     await workoutDraftDb.saveActiveDraft({
@@ -584,6 +628,22 @@ describe('workoutDraftDb', () => {
     expect(migrated).toBeNull();
     expect(loaded).toBeNull();
     expect(localStorage.getItem(LOCAL_STORAGE_WORKOUT_DRAFT_KEY)).toBeNull();
+  });
+
+  it('fallback localStorage zachowuje warmupChecked (Z162)', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      warmupChecked: ['warmup.hipCircles'],
+    });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(loaded?.warmupChecked).toEqual(['warmup.hipCircles']);
   });
 
   it('fallback localStorage zachowuje cloudRevision i version draftu', async () => {
