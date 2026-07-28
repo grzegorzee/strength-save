@@ -1,8 +1,7 @@
+import Toybox.Application;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
-import Toybox.Time;
-import Toybox.Time.Gregorian;
 import Toybox.WatchUi;
 
 // Ekran startowy dnia: pobiera kontekst z garminDay i obsługuje stany
@@ -12,15 +11,22 @@ import Toybox.WatchUi;
 class DayView extends WatchUi.View {
     var loading as Boolean = true;
     var errorCode as Number = 0;
-    var rest as Boolean = false;
 
     function initialize() {
         View.initialize();
     }
 
     function onShow() as Void {
-        // Kontekst z cache pozwala trenować offline; odśwież tylko gdy brak dnia.
-        if (WorkoutState.day() == null) {
+        // Cache pozwala trenować offline, ale nie może być wieczny: odśwież gdy
+        // brak dnia, dzień z INNEJ daty (stary bug: wczorajszy dzień wisiał na
+        // zawsze) albo brak listy ostatnich ćwiczeń. Wyjątek: szybki trening
+        // z niewysłanymi seriami — jego kontekstu nie wolno nadpisać (reguła 5).
+        var day = WorkoutState.day();
+        var keepQuick = WorkoutState.isQuick() && EventQueue.size() > 0;
+        var stale = day == null
+            || !(day["d"] as String).equals(WorkoutState.todayString())
+            || Application.Storage.getValue("recents") == null;
+        if (stale && !keepQuick) {
             fetch();
         } else {
             loading = false;
@@ -28,16 +34,11 @@ class DayView extends WatchUi.View {
         }
     }
 
-    function todayString() as String {
-        var now = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
-        return now.year.format("%04d") + "-" + now.month.format("%02d") + "-" + now.day.format("%02d");
-    }
-
     function fetch() as Void {
         loading = true;
         errorCode = 0;
         WatchUi.requestUpdate();
-        Api.fetchDay(todayString(), method(:onDay));
+        Api.fetchDay(WorkoutState.todayString(), method(:onDay));
     }
 
     function onDay(data as Dictionary or Null, code as Number) as Void {
@@ -49,14 +50,20 @@ class DayView extends WatchUi.View {
                 WatchUi.switchToView(pairView, new PairDelegate(pairView), WatchUi.SLIDE_RIGHT);
                 return;
             }
-        } else if (data.hasKey("rest") && data["rest"] == true) {
-            rest = true;
-        } else {
-            WorkoutState.setDay(data);
+            WatchUi.requestUpdate();
+            return;
+        }
+        // Lista ostatnich ćwiczeń do szybkiego treningu (też w dni wolne).
+        if (data.hasKey("r")) {
+            Application.Storage.setValue("recents", data["r"]);
+        }
+        if (data.hasKey("rest") && data["rest"] == true) {
+            // Dzień wolny nie jest ślepym zaułkiem: menu z szybkim treningiem.
             showMenu();
             return;
         }
-        WatchUi.requestUpdate();
+        WorkoutState.setDay(data);
+        showMenu();
     }
 
     function showMenu() as Void {
@@ -87,12 +94,6 @@ class DayView extends WatchUi.View {
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
             return;
         }
-        if (rest) {
-            dc.drawText(cx, h / 2, Graphics.FONT_SMALL,
-                WatchUi.loadResource(Rez.Strings.RestDay) as String,
-                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-            return;
-        }
     }
 }
 
@@ -112,20 +113,50 @@ class DayDelegate extends WatchUi.BehaviorDelegate {
     }
 }
 
-// Natywne menu dnia: ćwiczenia (sublabel: postęp + cel) + akcje na końcu.
+// Natywne menu dnia w trzech stanach:
+// - plan: ćwiczenia dnia + Szybki trening + Zakończ + Krok wagi
+// - quick: ćwiczenia ad-hoc + Dodaj ćwiczenie + Zakończ + Krok wagi
+// - dzień wolny (day == null): Szybki trening + Krok wagi (+ Zakończ gdy wiszą eventy)
 class DayMenu extends WatchUi.Menu2 {
+    var exerciseCount as Number = 0;
+    var finishIndex as Number = -1;
+    var stepIndex as Number = -1;
+
     function initialize() {
         var day = WorkoutState.day();
-        Menu2.initialize({ :title => day == null ? "" : day["n"] as String });
+        var quick = WorkoutState.isQuick();
+        var title = day == null
+            ? WatchUi.loadResource(Rez.Strings.RestDay) as String
+            : day["n"] as String;
+        Menu2.initialize({ :title => title });
+
         var exercises = day == null ? ([] as Array) : day["e"] as Array;
-        for (var i = 0; i < exercises.size(); i++) {
+        exerciseCount = exercises.size();
+        for (var i = 0; i < exerciseCount; i++) {
             var exercise = exercises[i] as Dictionary;
             addItem(new WatchUi.MenuItem(exercise["n"] as String, exerciseSubLabel(i), i, {}));
         }
-        addItem(new WatchUi.MenuItem(
-            WatchUi.loadResource(Rez.Strings.Finish) as String, pendingSubLabel(), :finish, {}));
+
+        var nextIndex = exerciseCount;
+        if (day != null && quick) {
+            addItem(new WatchUi.MenuItem(
+                WatchUi.loadResource(Rez.Strings.AddExercise) as String, null, :add, {}));
+        } else {
+            addItem(new WatchUi.MenuItem(
+                WatchUi.loadResource(Rez.Strings.QuickWorkout) as String, null, :quick, {}));
+        }
+        nextIndex += 1;
+
+        if (day != null || EventQueue.size() > 0) {
+            addItem(new WatchUi.MenuItem(
+                WatchUi.loadResource(Rez.Strings.Finish) as String, pendingSubLabel(), :finish, {}));
+            finishIndex = nextIndex;
+            nextIndex += 1;
+        }
+
         addItem(new WatchUi.MenuItem(
             WatchUi.loadResource(Rez.Strings.WeightStep) as String, AppSettings.stepLabel(), :step, {}));
+        stepIndex = nextIndex;
     }
 
     function exerciseSubLabel(index as Number) as String {
@@ -133,6 +164,11 @@ class DayMenu extends WatchUi.Menu2 {
         if (day == null) { return ""; }
         var exercise = (day["e"] as Array)[index] as Dictionary;
         var sets = exercise["s"] as Array;
+        if (WorkoutState.isQuick()) {
+            // Serie w szybkim treningu są otwarte (można logować ponad plan).
+            return (WatchUi.loadResource(Rez.Strings.SetsLabel) as String) + ": "
+                + WorkoutState.doneCountContiguous(index).toString();
+        }
         var doneCount = 0;
         for (var j = 0; j < sets.size(); j++) {
             if (WorkoutState.isDone(index, j)) { doneCount += 1; }
@@ -151,14 +187,15 @@ class DayMenu extends WatchUi.Menu2 {
     }
 
     function refresh() as Void {
-        var day = WorkoutState.day();
-        if (day == null) { return; }
-        var count = (day["e"] as Array).size();
-        for (var i = 0; i < count; i++) {
+        for (var i = 0; i < exerciseCount; i++) {
             (getItem(i) as WatchUi.MenuItem).setSubLabel(exerciseSubLabel(i));
         }
-        (getItem(count) as WatchUi.MenuItem).setSubLabel(pendingSubLabel());
-        (getItem(count + 1) as WatchUi.MenuItem).setSubLabel(AppSettings.stepLabel());
+        if (finishIndex >= 0) {
+            (getItem(finishIndex) as WatchUi.MenuItem).setSubLabel(pendingSubLabel());
+        }
+        if (stepIndex >= 0) {
+            (getItem(stepIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.stepLabel());
+        }
     }
 
     function onShow() as Void {
@@ -175,11 +212,36 @@ class DayMenuDelegate extends WatchUi.Menu2InputDelegate {
         menu = dayMenu;
     }
 
+    function rebuildMenu() as Void {
+        var fresh = new DayMenu();
+        WatchUi.switchToView(fresh, new DayMenuDelegate(fresh), WatchUi.SLIDE_LEFT);
+    }
+
     function onSelect(item as WatchUi.MenuItem) as Void {
         var id = item.getId();
         if (id instanceof Number) {
             var exView = new ExerciseView(id as Number);
             WatchUi.pushView(exView, new ExerciseDelegate(exView), WatchUi.SLIDE_LEFT);
+        } else if (id == :quick) {
+            // Reguła 5: start szybkiego treningu nie może zgubić niewysłanych serii
+            // z bieżącej sesji — najpierw Zakończ trening.
+            if (EventQueue.size() > 0) {
+                if (WatchUi has :showToast) {
+                    WatchUi.showToast(WatchUi.loadResource(Rez.Strings.FinishFirst) as String, null);
+                }
+                return;
+            }
+            WorkoutState.startQuick(WatchUi.loadResource(Rez.Strings.QuickWorkout) as String);
+            rebuildMenu();
+        } else if (id == :add) {
+            var recents = Application.Storage.getValue("recents");
+            if (recents == null || (recents as Array).size() == 0) {
+                if (WatchUi has :showToast) {
+                    WatchUi.showToast(WatchUi.loadResource(Rez.Strings.NoRecents) as String, null);
+                }
+                return;
+            }
+            WatchUi.pushView(new RecentsMenu(recents as Array), new RecentsDelegate(recents as Array), WatchUi.SLIDE_LEFT);
         } else if (id == :finish) {
             if (EventQueue.size() == 0) {
                 if (WatchUi has :showToast) {
@@ -193,6 +255,41 @@ class DayMenuDelegate extends WatchUi.Menu2InputDelegate {
             AppSettings.cycleWeightStep();
             item.setSubLabel(AppSettings.stepLabel());
             WatchUi.requestUpdate();
+        }
+    }
+}
+
+// Wybór ćwiczenia do szybkiego treningu z ostatnio wykonywanych (r z garminDay).
+class RecentsMenu extends WatchUi.Menu2 {
+    function initialize(recents as Array) {
+        Menu2.initialize({ :title => WatchUi.loadResource(Rez.Strings.AddExercise) as String });
+        for (var i = 0; i < recents.size(); i++) {
+            var recent = recents[i] as Dictionary;
+            var weightKg = recent["w"];
+            var sub = AppSettings.formatKg(
+                    weightKg instanceof Float ? weightKg as Float : (weightKg as Number).toFloat())
+                + " kg × " + (recent["p"] as Number).toString();
+            addItem(new WatchUi.MenuItem(recent["n"] as String, sub, i, {}));
+        }
+    }
+}
+
+class RecentsDelegate extends WatchUi.Menu2InputDelegate {
+    var recents as Array;
+
+    function initialize(list as Array) {
+        Menu2InputDelegate.initialize();
+        recents = list;
+    }
+
+    function onSelect(item as WatchUi.MenuItem) as Void {
+        var id = item.getId();
+        if (id instanceof Number) {
+            WorkoutState.addQuickExercise(recents[id as Number] as Dictionary);
+            // Pod spodem leży stary DayMenu bez nowej pozycji — podmień na świeży.
+            WatchUi.popView(WatchUi.SLIDE_RIGHT);
+            var fresh = new DayMenu();
+            WatchUi.switchToView(fresh, new DayMenuDelegate(fresh), WatchUi.SLIDE_LEFT);
         }
     }
 }
@@ -215,10 +312,17 @@ class FinishConfirmDelegate extends WatchUi.ConfirmationDelegate {
     function onFinished(ok as Boolean) as Void {
         // ok=false: zdarzenia zostają w kolejce (sublabel "do wysłania"), retry
         // przy kolejnym zakończeniu — ingest jest idempotentny.
-        menu.refresh();
         if (WatchUi has :showToast) {
             WatchUi.showToast(WatchUi.loadResource(ok ? Rez.Strings.Saved : Rez.Strings.NoConnection) as String, null);
         }
+        if (ok && WorkoutState.isQuick()) {
+            // Szybki trening wysłany: wróć do świeżo pobranego dnia z planu.
+            WorkoutState.clearQuick();
+            var dayView = new DayView();
+            WatchUi.switchToView(dayView, new DayDelegate(dayView), WatchUi.SLIDE_RIGHT);
+            return;
+        }
+        menu.refresh();
         WatchUi.requestUpdate();
     }
 }

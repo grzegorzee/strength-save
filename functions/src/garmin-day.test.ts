@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildGarminDayContext, type GarminPlanDay, type GarminWorkout } from "./garmin-day";
+import { buildGarminDayContext, buildRecentExercises, type GarminPlanDay, type GarminWorkout } from "./garmin-day";
 
 const day: GarminPlanDay = {
   id: "day-1",
@@ -72,5 +72,45 @@ describe("buildGarminDayContext (Z125)", () => {
     const notes = Object.fromEntries(bigDay.exercises.map((e) => [e.name, "n".repeat(140)]));
     const ctx = buildGarminDayContext([bigDay], workouts, "2026-07-20", notes);
     expect(JSON.stringify(ctx).length).toBeLessThan(8 * 1024);
+  });
+});
+
+// Szybki trening na zegarku: lista ostatnich ćwiczeń (r) z historii.
+describe("buildRecentExercises", () => {
+  const w = (date: string, exerciseId: string, opts: { name?: string; weight?: number; reps?: number; completed?: boolean; warmupOnly?: boolean } = {}): GarminWorkout => ({
+    date,
+    completed: opts.completed ?? true,
+    exercises: [{
+      exerciseId,
+      ...(opts.name ? { name: opts.name } : {}),
+      sets: [
+        { reps: opts.reps ?? 8, weight: opts.weight ?? 60, completed: true, isWarmup: opts.warmupOnly ?? false },
+      ],
+    }],
+  });
+
+  it("dedup po exerciseId, wygrywa najnowsze wykonanie, sort od najnowszych", () => {
+    const recents = buildRecentExercises([
+      w("2026-07-01", "ex-1", { name: "Przysiad", weight: 80, reps: 6 }),
+      w("2026-07-20", "ex-1", { name: "Przysiad", weight: 85, reps: 5 }),
+      w("2026-07-10", "ex-2", { name: "Wiosłowanie", weight: 50, reps: 10 }),
+    ]);
+    expect(recents.map((r) => r.i)).toEqual(["ex-1", "ex-2"]);
+    expect(recents[0]).toEqual({ i: "ex-1", n: "Przysiad", w: 85, p: 5 });
+  });
+
+  it("limit 10, brak snapshotu nazwy => exerciseId, bodyweight (0 kg) wchodzi", () => {
+    const many = Array.from({ length: 14 }, (_, i) =>
+      w(`2026-07-${String(i + 1).padStart(2, "0")}`, `ex-${i}`));
+    expect(buildRecentExercises(many)).toHaveLength(10);
+    expect(buildRecentExercises([w("2026-07-01", "ex-x")])[0].n).toBe("ex-x");
+    expect(buildRecentExercises([w("2026-07-01", "ex-bw", { weight: 0, reps: 12 })])[0]).toMatchObject({ w: 0, p: 12 });
+  });
+
+  it("pomija nieukończone treningi i serie rozgrzewkowe", () => {
+    expect(buildRecentExercises([
+      w("2026-07-20", "ex-1", { completed: false }),
+      w("2026-07-19", "ex-2", { warmupOnly: true }),
+    ])).toEqual([]);
   });
 });

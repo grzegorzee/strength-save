@@ -32,6 +32,10 @@ class ExerciseView extends WatchUi.View {
     function nextSetIndex() as Number {
         var ex = exercise();
         if (ex == null) { return -1; }
+        if (WorkoutState.isQuick()) {
+            // Serie otwarte: zawsze jest następna (można logować ponad pre-fill).
+            return WorkoutState.doneCountContiguous(exIdx);
+        }
         var sets = ex["s"] as Array;
         for (var i = 0; i < sets.size(); i++) {
             if (!WorkoutState.isDone(exIdx, i)) { return i; }
@@ -44,7 +48,8 @@ class ExerciseView extends WatchUi.View {
         var setIdx = nextSetIndex();
         if (ex == null || setIdx < 0) { return; }
         var sets = ex["s"] as Array;
-        var pair = sets[setIdx] as Array;
+        if (sets.size() == 0) { return; }
+        var pair = sets[setIdx < sets.size() ? setIdx : sets.size() - 1] as Array;
         reps = pair[0] as Number;
         weight = (pair[1] as Number).toFloat();
     }
@@ -58,7 +63,11 @@ class ExerciseView extends WatchUi.View {
         }
         if (nextSetIndex() >= 0) {
             startRest(90);
-            loadNextSet();
+            // Quick: zostaw wpisane wartości (user często robi kolejną serię tym
+            // samym ciężarem, który właśnie skorygował). Plan: pre-fill celu serii.
+            if (!WorkoutState.isQuick()) {
+                loadNextSet();
+            }
         }
         WatchUi.requestUpdate();
     }
@@ -134,11 +143,13 @@ class ExerciseView extends WatchUi.View {
             return;
         }
 
-        // Numer serii.
+        // Numer serii (quick: bez "/total", serie otwarte).
+        var setLabel = WatchUi.loadResource(Rez.Strings.SetWord) as String + " " + (setIdx + 1).toString();
+        if (!WorkoutState.isQuick()) {
+            setLabel += "/" + sets.size().toString();
+        }
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 30 / 100, Graphics.FONT_XTINY,
-            WatchUi.loadResource(Rez.Strings.SetWord) as String + " "
-                + (setIdx + 1).toString() + "/" + sets.size().toString(), center);
+        dc.drawText(cx, h * 30 / 100, Graphics.FONT_XTINY, setLabel, center);
 
         // Edytowana wartość duża w centrum, druga mała pod spodem.
         var bigValue = editReps ? reps.toString() : AppSettings.formatKg(weight);

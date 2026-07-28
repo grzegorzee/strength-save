@@ -23,8 +23,44 @@ export interface GarminWorkout {
   completed: boolean;
   exercises: Array<{
     exerciseId: string;
+    /** Snapshot nazwy (architektura snapshot+resolver). */
+    name?: string;
     sets: Array<{ reps: number; weight: number; completed: boolean; isWarmup?: boolean }>;
   }>;
+}
+
+export interface GarminRecentExercise {
+  /** exerciseId. */
+  i: string;
+  /** Nazwa (snapshot). */
+  n: string;
+  /** Ostatni ciężar kg (0 przy bodyweight). */
+  w: number;
+  /** Powtórzenia z najcięższej serii ostatniego wykonania. */
+  p: number;
+}
+
+/** Ostatnio wykonywane ćwiczenia (dedup po exerciseId, najnowsze najpierw) —
+ *  źródło wyboru dla szybkiego treningu na zegarku. */
+export function buildRecentExercises(workouts: GarminWorkout[], limit = 10): GarminRecentExercise[] {
+  const byId = new Map<string, { n: string; w: number; p: number; date: string }>();
+  for (const w of workouts) {
+    if (!w.completed || !Array.isArray(w.exercises)) continue;
+    for (const ex of w.exercises) {
+      if (!Array.isArray(ex.sets)) continue;
+      const working = ex.sets.filter((s) => s.completed && !s.isWarmup);
+      if (working.length === 0) continue;
+      const existing = byId.get(ex.exerciseId);
+      if (existing && existing.date >= w.date) continue;
+      const weight = Math.max(...working.map((s) => s.weight));
+      const reps = Math.max(...working.filter((s) => s.weight === weight).map((s) => s.reps));
+      byId.set(ex.exerciseId, { n: ex.name ?? ex.exerciseId, w: weight, p: reps, date: w.date });
+    }
+  }
+  return [...byId.entries()]
+    .sort((a, b) => (a[1].date < b[1].date ? 1 : a[1].date > b[1].date ? -1 : 0))
+    .slice(0, limit)
+    .map(([i, e]) => ({ i, n: e.n, w: e.w, p: e.p }));
 }
 
 export interface GarminDayContext {

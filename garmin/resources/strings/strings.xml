@@ -24,4 +24,9 @@
   <string id="SetWord">Set</string>
   <string id="RepsUnit">reps</string>
   <string id="HintLog">OK: log · MENU: field</string>
+  <string id="QuickWorkout">Quick workout</string>
+  <string id="AddExercise">Add exercise</string>
+  <string id="FinishFirst">Finish current workout first</string>
+  <string id="NoRecents">No recent exercises</string>
+  <string id="SetsLabel">Sets</string>
 </strings>

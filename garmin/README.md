@@ -6,13 +6,16 @@ pobranie dnia (`garminDay`), odhaczanie serii ze stepperem, rest timer
 z wibracją, natywna sesja siłowa (FIT z HR) do Garmin Connect,
 kolejka offline i wysyłka treningu do `garminIngest`.
 
-## STATUS: NIEZBUDOWANA (blokada zewnętrzna)
+## STATUS: DZIAŁA NA ZEGARKU (2026-07-28)
 
-Kod napisany i zgodny z kontraktem backendu (functions `garmin-*`,
-wdrożone i przetestowane), ale **NIE był kompilowany** — pobranie
-Connect IQ SDK wymaga zalogowania kontem Garmin w SDK Managerze,
-a to może zrobić tylko user. Przy pierwszej kompilacji spodziewaj się
-drobnych poprawek składni/API.
+SDK 9.2.0 zainstalowany, apka skompilowana, sparowana i przetestowana na
+epix (Gen 2) usera + w symulatorze (zrzuty). UI v2: lista dnia jako natywne
+Menu2, ekran ćwiczenia w pionie, krok wagi 0.5-5 kg, szybki trening ad-hoc
+(lista ostatnich ćwiczeń `r` z garminDay, dayId `adhoc-<data>-<ms>` w
+konwencji telefonu). Sideload na macOS: OpenMTP → GARMIN/Apps (zegarek jest
+MTP-only; Garmin Express musi być zamknięty). Do publikacji w Store zostało:
+pobranie urządzeń fr255/265/955/965 + venu2/3 w SDK Managerze, ikona
+1024x1024, screenshoty, formularz (sekcje A-D niżej).
 
 ## KROKI USERA
 

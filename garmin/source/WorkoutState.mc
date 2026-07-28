@@ -2,17 +2,29 @@ import Toybox.Application;
 import Toybox.Lang;
 import Toybox.System;
 import Toybox.Time;
+import Toybox.Time.Gregorian;
 
 // Stan treningu na zegarku: kontekst dnia z garminDay + lokalne odhaczenia
 // (Storage — przeżywa wyjście z apki), kolejka zdarzeń do garminIngest.
+// mode: "plan" (dzień z garminDay) | "quick" (szybki trening ad-hoc).
 module WorkoutState {
     // day: {v,d,y,n,f,e:[{i,n,t,p,s:[[reps,kg]]}]}; done: {"exIdx#setIdx" => [reps,kg,atMs]}
     function day() as Dictionary or Null {
         return Application.Storage.getValue("day") as Dictionary or Null;
     }
 
+    function todayString() as String {
+        var now = Gregorian.info(Time.now(), Time.FORMAT_SHORT);
+        return now.year.format("%04d") + "-" + now.month.format("%02d") + "-" + now.day.format("%02d");
+    }
+
+    function isQuick() as Boolean {
+        return "quick".equals(Application.Storage.getValue("mode"));
+    }
+
     function setDay(context as Dictionary) as Void {
         Application.Storage.setValue("day", context);
+        Application.Storage.setValue("mode", "plan");
         // Nowy dzień = nowy trening: czyścimy postęp starszego dnia.
         var current = Application.Storage.getValue("dayDate");
         if (current == null || !current.equals(context["d"])) {
@@ -21,6 +33,52 @@ module WorkoutState {
             Application.Storage.setValue("workoutId", null);
             Application.Storage.setValue("startedAt", null);
         }
+    }
+
+    // Szybki trening: syntetyczny dzień ad-hoc w konwencji telefonu
+    // (adhoc-<data>-<ms>, sufiks MUSI być liczbą — regex klienta).
+    function startQuick(title as String) as Void {
+        var date = todayString();
+        Application.Storage.setValue("day", {
+            "d" => date,
+            "y" => "adhoc-" + date + "-" + nowMs().toString(),
+            "n" => title,
+            "e" => [],
+        });
+        Application.Storage.setValue("dayDate", date);
+        Application.Storage.setValue("done", {});
+        Application.Storage.setValue("workoutId", null);
+        Application.Storage.setValue("startedAt", null);
+        Application.Storage.setValue("mode", "quick");
+    }
+
+    // Po wysłanym szybkim treningu wracamy do trybu planu (świeży fetch dnia).
+    function clearQuick() as Void {
+        Application.Storage.deleteValue("day");
+        Application.Storage.setValue("mode", "plan");
+    }
+
+    // Dodaje ćwiczenie z listy ostatnich (r z garminDay) do szybkiego treningu:
+    // 3 serie z pre-fill z ostatniego wykonania.
+    function addQuickExercise(recent as Dictionary) as Void {
+        var d = day();
+        if (d == null) { return; }
+        var reps = recent["p"] as Number;
+        var weightKg = recent["w"];
+        var exercises = d["e"] as Array;
+        exercises.add({
+            "i" => recent["i"],
+            "n" => recent["n"],
+            "s" => [[reps, weightKg], [reps, weightKg], [reps, weightKg]],
+        });
+        Application.Storage.setValue("day", d);
+    }
+
+    // Serie logowane są po kolei, więc ciągły prefiks done == liczba zaliczonych.
+    function doneCountContiguous(exIdx as Number) as Number {
+        var i = 0;
+        while (isDone(exIdx, i)) { i += 1; }
+        return i;
     }
 
     function done() as Dictionary {

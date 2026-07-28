@@ -24,4 +24,9 @@
   <string id="SetWord">Seria</string>
   <string id="RepsUnit">powt.</string>
   <string id="HintLog">OK: zalicz · MENU: pole</string>
+  <string id="QuickWorkout">Szybki trening</string>
+  <string id="AddExercise">Dodaj ćwiczenie</string>
+  <string id="FinishFirst">Najpierw zakończ trening</string>
+  <string id="NoRecents">Brak ostatnich ćwiczeń</string>
+  <string id="SetsLabel">Serie</string>
 </strings>

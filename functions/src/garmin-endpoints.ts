@@ -19,7 +19,7 @@ import {
   type PairCodeDoc,
   type DeviceTokenDoc,
 } from "./garmin-pair";
-import { buildGarminDayContext, type GarminPlanDay, type GarminWorkout } from "./garmin-day";
+import { buildGarminDayContext, buildRecentExercises, type GarminPlanDay, type GarminWorkout } from "./garmin-day";
 import { runGarminIngest } from "./garmin-ingest";
 
 const garminPepper = defineSecret("API_KEY_PEPPER");
@@ -153,18 +153,23 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
   const db = getDb();
   const planSnap = await db.collection("training_plans").doc(auth.uid).get();
   const planDays = (planSnap.exists ? planSnap.data()?.days : null) as GarminPlanDay[] | null;
-  if (!Array.isArray(planDays) || planDays.length === 0) {
-    res.json({ v: 1, d: date, rest: true });
-    return;
-  }
 
   // Historia do pre-fill/celów: ostatnie 60 dni (1 kwerenda na start treningu, bez pollingu).
+  // Pobierana też w dni wolne — z niej budujemy listę ostatnich ćwiczeń (r) dla
+  // szybkiego treningu na zegarku.
   const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const workoutsSnap = await db.collection("workouts")
     .where("userId", "==", auth.uid)
     .where("date", ">=", since)
     .get();
   const workouts = workoutsSnap.docs.map((doc) => doc.data() as GarminWorkout);
+  const recents = buildRecentExercises(workouts);
+  const recentsField = recents.length > 0 ? { r: recents } : {};
+
+  if (!Array.isArray(planDays) || planDays.length === 0) {
+    res.json({ v: 1, d: date, rest: true, ...recentsField });
+    return;
+  }
 
   const notesSnap = await db.collection("exercise_notes")
     .where("userId", "==", auth.uid).get();
@@ -178,10 +183,10 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
 
   const context = buildGarminDayContext(planDays, workouts, date, notes);
   if (!context) {
-    res.json({ v: 1, d: date, rest: true });
+    res.json({ v: 1, d: date, rest: true, ...recentsField });
     return;
   }
-  res.json(context);
+  res.json({ ...context, ...recentsField });
 });
 
 /** HTTP: paczka zdarzeń odhaczeń + zakończenie treningu z zegarka. */
