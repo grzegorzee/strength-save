@@ -142,6 +142,19 @@ describe('syncWorkoutSession', () => {
     expect(deps.clearDraftIfVersion).not.toHaveBeenCalled();
   });
 
+  // Z155: backend rozpoznaje aktywny trening po startedAt — checkpoint (nie tylko
+  // final) musi go nieść, gdy draft go ma.
+  it('checkpoint niesie startedAt z draftu w payloadzie zapisu', async () => {
+    const deps = makeDeps();
+
+    await syncWorkoutSession('u1', 's1', 'checkpoint', deps);
+
+    expect(deps.saveWorkout).toHaveBeenCalledTimes(1);
+    const saveOptions = deps.saveWorkout.mock.calls[0][2] as { startedAt?: number; completed?: boolean };
+    expect(saveOptions.startedAt).toBe(1000);
+    expect(saveOptions.completed).toBeUndefined();
+  });
+
   it('brak draftu = skipped sukces + sprzątnięcie referencji z kolejki', async () => {
     const deps = makeDeps({ draft: null });
 

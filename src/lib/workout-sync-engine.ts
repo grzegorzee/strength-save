@@ -255,7 +255,8 @@ const runSync = async (
       dayFocus: draft.dayFocus || undefined,
       ...(requiresFinal && { completed: true }),
       ...(durationSec !== undefined && { durationSec }),
-      ...(requiresFinal && draft.startedAt ? { startedAt: draft.startedAt } : {}),
+      // Z155: checkpointy też niosą startedAt — backend rozpoznaje aktywny trening.
+      ...(draft.startedAt ? { startedAt: draft.startedAt } : {}),
       ...(finalizedAt !== undefined && { completedAt: finalizedAt }),
       expectedRevision: draft.cloudRevision ?? 0,
       writeId,

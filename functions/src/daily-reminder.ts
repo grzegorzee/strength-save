@@ -94,12 +94,15 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
 
     candidates += 1;
 
-    // Z146: trening już rozpoczęty (startedAt z syncu) albo ukończony → nie spamujemy.
+    // Z146/Z155: dokument workouts na dziś powstaje wyłącznie po starcie treningu,
+    // więc samo jego istnienie znaczy "user już dziś zaczął albo skończył" — nie
+    // spamujemy. (Guard X18C sprawdzał startedAt, którego klient nie wysyłał przed
+    // finalnym synciem — push przychodził W TRAKCIE treningu.)
     // Świadome ograniczenie: draft offline (IndexedDB) jest niewidoczny dla backendu,
     // więc trening rozpoczęty offline bez syncu nadal dostanie push — akceptowalne,
-    // autosave syncuje startedAt przy pierwszym zapisie online.
+    // autosave syncuje przy pierwszym zapisie online.
     const todayWorkout = await deps.getTodayWorkout(uid);
-    if (todayWorkout && (todayWorkout.startedAt !== undefined || todayWorkout.completed === true)) {
+    if (todayWorkout) {
       skippedActive += 1;
       return;
     }

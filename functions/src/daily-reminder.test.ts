@@ -95,6 +95,23 @@ describe("runDailyReminder (R2-12)", () => {
     expect(sentTokens).toEqual(["t1"]);
   });
 
+  // Z155: createWorkoutSession tworzy dokument BEZ startedAt (startedAt dolatywał
+  // dopiero z finalnym synciem) — realny aktywny trening to { completed: false }.
+  it("user z aktywnym treningiem bez startedAt (realny dokument klienta) jest POMINIETY", async () => {
+    const deps = makeDeps({
+      getTodayWorkout: vi.fn(async (uid: string) => (
+        uid === "u1" ? { completed: false } : null
+      )),
+    });
+
+    const result = await runDailyReminder(deps);
+
+    expect(result.skippedActive).toBe(1);
+    expect(result.sent).toBe(1); // tylko u2
+    const sentTokens = (deps.sendMulticast as ReturnType<typeof vi.fn>).mock.calls.flatMap((call) => call[0]);
+    expect(sentTokens).toEqual(["t2"]);
+  });
+
   it("user bez dokumentu treningu na dzis dostaje push (bez regresji)", async () => {
     const deps = makeDeps({ getTodayWorkout: vi.fn(async () => null) });
 

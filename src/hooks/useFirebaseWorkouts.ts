@@ -120,6 +120,9 @@ export const useFirebaseWorkoutActions = (
       date: workoutDate,
       exercises: [],
       completed: false,
+      // Z155: startedAt od utworzenia — backend (daily reminder) musi widzieć
+      // aktywny trening od pierwszego zapisu, nie dopiero po finalnym syncu.
+      startedAt: createdAt,
       updatedAt: createdAt,
       revision: 0,
       ...(cycleId && { cycleId }),
