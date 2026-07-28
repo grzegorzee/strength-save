@@ -245,10 +245,13 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(cards.first().getByRole('heading').first()).not.toHaveText(firstName!);
   });
 
-  test('rest timer is globally unavailable while the feature flag is disabled', async ({ page }) => {
+  // Z157: timer jest domyślnie WŁĄCZONY — wyłączenie to ustawienie usera (Profil),
+  // persystowane w localStorage, nie brak flagi buildowej.
+  test('rest timer is globally unavailable while the user setting is off', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('app-language', 'pl');
       localStorage.setItem('rest-timer-default', '30');
+      localStorage.setItem('fittracker_workout_timers_v1', 'false');
     });
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);

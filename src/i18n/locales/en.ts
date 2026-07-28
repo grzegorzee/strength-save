@@ -36,6 +36,8 @@ export const en: Record<keyof typeof pl, string> = {
   'profile.account.password': 'Change password',
   'profile.account.privacy': 'Privacy',
   'profile.section.preferences': 'Workout preferences',
+  'profile.restTimerToggle': 'Rest timer',
+  'profile.restTimerToggleDesc': 'Countdown after checking off a set',
   'profile.pref.restTimer': 'Default rest timer',
   'profile.pref.units': 'Units',
   'profile.section.app': 'App settings',

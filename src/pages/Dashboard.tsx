@@ -30,7 +30,6 @@ import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
-import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';

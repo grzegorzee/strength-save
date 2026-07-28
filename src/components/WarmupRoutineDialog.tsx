@@ -46,7 +46,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
   };
 
   const startTimer = useCallback(() => {
-    if (!FEATURE_FLAGS.workoutTimers) return;
+    if (!FEATURE_FLAGS.intervalTimers) return;
     setTimerSeconds(30);
     setTimerActive(true);
   }, []);
@@ -83,7 +83,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
         <Progress value={progress} className="h-2" />
 
         {/* Timer */}
-        {FEATURE_FLAGS.workoutTimers && timerActive && (
+        {FEATURE_FLAGS.intervalTimers && timerActive && (
           <div className="flex items-center justify-center gap-3 py-3 bg-muted/30 rounded-lg">
             <Timer className="h-5 w-5 text-primary animate-pulse" />
             <span className="text-2xl font-bold tabular-nums">{timerSeconds}s</span>
@@ -143,7 +143,7 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange }: Props) => {
         </div>
 
         {/* Timer button */}
-        {FEATURE_FLAGS.workoutTimers && !timerActive && (
+        {FEATURE_FLAGS.intervalTimers && !timerActive && (
           <Button variant="outline" size="sm" className="w-full" onClick={startTimer}>
             <Timer className="h-4 w-4 mr-2" /> {t('comp.warmup.timer30')}
           </Button>

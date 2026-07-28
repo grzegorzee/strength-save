@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 interface SettingRowProps {
   icon?: ComponentType<{ className?: string }>;
   label: string;
+  /** Opcjonalny opis pod labelem (np. wyjaśnienie przełącznika). */
+  description?: string;
   value?: ReactNode;
   right?: ReactNode;
   onClick?: () => void;
@@ -15,11 +17,14 @@ interface SettingRowProps {
  * Wiersz ustawień wg mockupu Profilu: ikona + label + (wartość | własny element | chevron).
  * Bez dividerów — wiersze rozdzielone spacingiem wewnątrz SectionCard.
  */
-export const SettingRow = ({ icon: Icon, label, value, right, onClick, danger }: SettingRowProps) => {
+export const SettingRow = ({ icon: Icon, label, description, value, right, onClick, danger }: SettingRowProps) => {
   const content = (
     <>
       {Icon && <Icon className={cn('h-5 w-5 shrink-0', danger ? 'text-destructive' : 'text-muted-foreground')} />}
-      <span className={cn('flex-1 font-medium', danger && 'text-destructive')}>{label}</span>
+      <div className="flex-1">
+        <p className={cn('font-medium', danger && 'text-destructive')}>{label}</p>
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      </div>
       {right ?? (value != null && <span className="text-sm font-semibold text-muted-foreground">{value}</span>)}
       {onClick && !right && <ChevronRight className="h-4 w-4 text-muted-foreground/60" />}
     </>

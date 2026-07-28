@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
+import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
 import {
   User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
@@ -55,6 +56,14 @@ const Profile = () => {
   const [sound, setSound] = useState(() => {
     try { return localStorage.getItem(SOUND_KEY) !== 'false'; } catch { return true; }
   });
+  // Z157: przełącznik timera przerwy — persystencja per urządzenie (localStorage,
+  // świadomie bez mirrora do Firestore, jak keep-awake). State wymusza re-render,
+  // dzięki czemu wiersze warunkowane FEATURE_FLAGS.workoutTimers chowają się od razu.
+  const [timersOn, setTimersOn] = useState<boolean>(() => FEATURE_FLAGS.workoutTimers);
+  const handleTimersToggle = (value: boolean) => {
+    setWorkoutTimersEnabled(value);
+    setTimersOn(value);
+  };
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
   const [savingName, setSavingName] = useState(false);
@@ -190,6 +199,12 @@ const Profile = () => {
 
       {/* WORKOUT PREFERENCES */}
       <SectionCard label={t('profile.section.preferences')} labelAccent="secondary">
+        <SettingRow
+          icon={Timer}
+          label={t('profile.restTimerToggle')}
+          description={t('profile.restTimerToggleDesc')}
+          right={<Switch checked={timersOn} onCheckedChange={handleTimersToggle} aria-label={t('profile.restTimerToggle')} />}
+        />
         {FEATURE_FLAGS.workoutTimers && (
           <SettingRow
             icon={Timer}

@@ -38,6 +38,8 @@ export const pl = {
   'profile.account.password': 'Zmień hasło',
   'profile.account.privacy': 'Prywatność',
   'profile.section.preferences': 'Preferencje treningu',
+  'profile.restTimerToggle': 'Timer przerwy',
+  'profile.restTimerToggleDesc': 'Odliczanie przerwy po odhaczeniu serii',
   'profile.pref.restTimer': 'Domyślny czas odpoczynku',
   'profile.pref.units': 'Jednostki',
   'profile.section.app': 'Aplikacja',

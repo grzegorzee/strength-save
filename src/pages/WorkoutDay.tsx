@@ -63,7 +63,6 @@ import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-eng
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
 import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
-import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import {
   areWorkoutStartSourcesReady,
   buildStartDraft,

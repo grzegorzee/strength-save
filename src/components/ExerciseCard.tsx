@@ -308,8 +308,9 @@ const ExerciseCardInner = ({
     return slug && exerciseLibrary.some((e) => slugifyExercise(e.name) === slug) ? slug : null;
   }, [exercise.name]);
   // Timer interwałowy (EMOM/AMRAP) — tylko gdy ćwiczenie ma rozpoznany zapis interwału.
+  // Z157: osobna flaga buildowa (setInterval milknie przy zgaszonym ekranie, dług Z10).
   const intervalSpec = useMemo(
-    () => FEATURE_FLAGS.workoutTimers ? resolveExerciseInterval(exercise) : null,
+    () => FEATURE_FLAGS.intervalTimers ? resolveExerciseInterval(exercise) : null,
     [exercise],
   );
   const [intervalRun, setIntervalRun] = useState<{ open: boolean; runId: number }>({ open: false, runId: 0 });
@@ -894,7 +895,7 @@ const ExerciseCardInner = ({
                 : weeklyTarget && weeklyTarget.kind !== 'start' ? <WeeklyTargetBadge target={weeklyTarget} />
                 : nextAdvice ? <NextTargetBadge advice={nextAdvice} />
                 : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
-              {FEATURE_FLAGS.workoutTimers && intervalSpec && (
+              {FEATURE_FLAGS.intervalTimers && intervalSpec && (
                 <button
                   onClick={() => setIntervalRun(r => ({ open: true, runId: r.runId + 1 }))}
                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
@@ -1255,7 +1256,7 @@ const ExerciseCardInner = ({
         </Dialog>
       )}
 
-      {FEATURE_FLAGS.workoutTimers && intervalSpec && intervalRun.open && (
+      {FEATURE_FLAGS.intervalTimers && intervalSpec && intervalRun.open && (
         <IntervalTimer
           key={intervalRun.runId}
           spec={intervalSpec}
