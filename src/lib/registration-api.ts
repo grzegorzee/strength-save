@@ -1,7 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 import { getPendingInviteCode } from "@/lib/pending-invite";
-import { detectLanguage, type LanguageCode } from "@/i18n";
+import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
 
 const isE2EMode = import.meta.env.VITE_E2E_MODE === 'true';
 
@@ -11,7 +11,8 @@ const isE2EMode = import.meta.env.VITE_E2E_MODE === 'true';
 function currentLanguage(): LanguageCode {
   try {
     const saved = localStorage.getItem('app-language');
-    if (saved === 'pl' || saved === 'en') return saved;
+    // Z168: walidacja przez rejestr — nowy język działa bez zmiany tego warunku.
+    if (saved && LANGUAGES.some((language) => language.code === saved)) return saved as LanguageCode;
   } catch { /* ignore */ }
   return detectLanguage();
 }
@@ -61,7 +62,7 @@ export interface AppUserProfile {
   // Preferencje aplikacji synchronizowane między urządzeniami (web + iOS).
   preferences?: {
     unit?: 'kg' | 'lbs';
-    language?: 'pl' | 'en';
+    language?: LanguageCode;
     restTimerSec?: number;
     timerSound?: boolean;
   };

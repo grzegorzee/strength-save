@@ -42,24 +42,31 @@ const WEEKDAY_SHORT_EN: Record<string, string> = {
   'Pn': 'Mon', 'Wt': 'Tue', 'Śr': 'Wed', 'Cz': 'Thu', 'Pt': 'Fri', 'So': 'Sat', 'Nd': 'Sun',
 };
 
+// Z168: nakładki per język (kanoniczne PL to baza). Dodanie języka = dopisanie map
+// do trzech rejestrów niżej; brak wpisu → wartość kanoniczna.
+const WEEKDAY_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>> = { en: WEEKDAY_EN };
+const WEEKDAY_SHORT_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>> = { en: WEEKDAY_SHORT_EN };
+const FOCUS_TOKEN_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>> = { en: FOCUS_TOKEN_EN };
+
 /** Nazwa dnia w języku UI (mapuje kanoniczne polskie nazwy dni; inne zostawia). */
 export const localizeDayName = (name: string, lang: LanguageCode): string => {
-  if (lang !== 'en' || !name) return name;
-  return WEEKDAY_EN[name] ?? name;
+  if (!name) return name;
+  return WEEKDAY_OVERLAYS[lang]?.[name] ?? name;
 };
 
 /** Skrót dnia w języku UI (Pn -> Mon). */
 export const localizeWeekdayShort = (short: string, lang: LanguageCode): string => {
-  if (lang !== 'en' || !short) return short;
-  return WEEKDAY_SHORT_EN[short] ?? short;
+  if (!short) return short;
+  return WEEKDAY_SHORT_OVERLAYS[lang]?.[short] ?? short;
 };
 
 /** Focus dnia w języku UI (tłumaczy znane tokeny, zachowuje litery/liczby/terminy EN). */
 export const localizeFocus = (focus: string, lang: LanguageCode): string => {
-  if (lang !== 'en' || !focus) return focus;
+  const overlay = FOCUS_TOKEN_OVERLAYS[lang];
+  if (!overlay || !focus) return focus;
   return focus
     .split(/(\s+)/)
-    .map((tok) => FOCUS_TOKEN_EN[tok] ?? tok)
+    .map((tok) => overlay[tok] ?? tok)
     .join('');
 };
 
@@ -133,10 +140,15 @@ const PLAN_DESC: Record<string, PlanText> = {
   },
 };
 
+// Teksty planów trzymamy per język w PlanText; nowy język = nowe pole w PlanText
+// (brak pola → fallback do PL, czyli wartości kanonicznej z danych szablonu).
+const planText = (text: PlanText | undefined, lang: LanguageCode): string | undefined =>
+  text?.[lang as keyof PlanText] ?? text?.pl;
+
 /** Nazwa gotowego planu w języku UI (PL kanoniczne dla polskiego usera). */
 export const localizePlanName = (id: string, fallback: string, lang: LanguageCode): string =>
-  PLAN_NAME[id]?.[lang === 'en' ? 'en' : 'pl'] ?? fallback;
+  planText(PLAN_NAME[id], lang) ?? fallback;
 
 /** Opis gotowego planu w języku UI. */
 export const localizePlanDescription = (id: string, fallback: string, lang: LanguageCode): string =>
-  PLAN_DESC[id]?.[lang === 'en' ? 'en' : 'pl'] ?? fallback;
+  planText(PLAN_DESC[id], lang) ?? fallback;

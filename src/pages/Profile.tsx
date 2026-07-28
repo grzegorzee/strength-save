@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
-import type { LanguageCode } from '@/i18n';
+import { LANGUAGES, type LanguageCode } from '@/i18n';
 import { computeTier } from '@/lib/tier';
 import { deleteOwnAccount } from '@/lib/registration-api';
 import { SectionCard } from '@/components/kinetic/SectionCard';
@@ -257,8 +257,9 @@ const Profile = () => {
             <Select value={lang} onValueChange={handleLanguage}>
               <SelectTrigger className="h-9 w-28 border-0 bg-surface-highest" aria-label={t('profile.app.language')}><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="pl">Polski</SelectItem>
-                <SelectItem value="en">English</SelectItem>
+                {LANGUAGES.map((language) => (
+                  <SelectItem key={language.code} value={language.code}>{language.label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}

@@ -529,9 +529,13 @@ export const EXERCISE_INSTRUCTION_EN: Record<string, string> = {
   "Wspięcia na palce na suwnicy siedząc (zgięte kolana)": "Smith bar on thighs above knees, balls of feet on a plate, full ankle range.",
 };
 
-/** Zwraca nazwe cwiczenia w jezyku UI. EN tylko gdy mamy tlumaczenie, inaczej PL (fallback). */
+// Z168: nakładki danych per język zamiast binarnego lang === 'en'. Kanoniczne PL
+// jest bazą; dodanie języka = dopisanie mapy do nakładki (brak wpisu → PL).
+const NAME_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>> = { en: EXERCISE_NAME_EN };
+
+/** Zwraca nazwe cwiczenia w jezyku UI. Nakładka gdy jest tlumaczenie, inaczej PL (fallback). */
 export const localizeExerciseName = (name: string, lang: LanguageCode): string =>
-  lang === "en" ? EXERCISE_NAME_EN[name] ?? name : name;
+  NAME_OVERLAYS[lang]?.[name] ?? name;
 
 /** Zwraca wskazowke techniczna w jezyku UI (fallback do oryginalu PL). */
 const canonicalInstructionKey = (name: string, original: string): string => `${name}\u0000${original}`;
@@ -545,8 +549,12 @@ const CANONICAL_LIBRARY_INSTRUCTION_EN = new Map(
   ),
 );
 
+const INSTRUCTION_OVERLAYS: Partial<Record<LanguageCode, Map<string, string>>> = {
+  en: CANONICAL_LIBRARY_INSTRUCTION_EN,
+};
+
 export const localizeExerciseInstruction = (name: string, original: string, lang: LanguageCode): string =>
-  lang === "en" ? CANONICAL_LIBRARY_INSTRUCTION_EN.get(canonicalInstructionKey(name, original)) ?? original : original;
+  INSTRUCTION_OVERLAYS[lang]?.get(canonicalInstructionKey(name, original)) ?? original;
 
 /** Klucz kategorii miesniowej -> etykieta EN (do wyswietlania w trybie EN). */
 const CATEGORY_LABEL_EN: Record<string, string> = {
@@ -565,7 +573,9 @@ const CATEGORY_LABEL_EN: Record<string, string> = {
  * EN -> mapa CATEGORY_LABEL_EN (fallback do klucza), PL -> categoryLabels.
  * Klucz kategorii ('chest', 'back', ...) pozostaje kanoniczny do filtrowania.
  */
+const CATEGORY_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>> = { en: CATEGORY_LABEL_EN };
+
 export const localizeCategory = (category: string, lang: LanguageCode): string =>
-  lang === "en"
-    ? CATEGORY_LABEL_EN[category] ?? category
-    : categoryLabels[category as keyof typeof categoryLabels] ?? category;
+  CATEGORY_OVERLAYS[lang]?.[category]
+    ?? categoryLabels[category as keyof typeof categoryLabels]
+    ?? category;

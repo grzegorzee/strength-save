@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { dateLocale } from '@/i18n';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -50,7 +51,7 @@ export const AllTimeStatsSheet = ({ open, onOpenChange, workouts }: AllTimeStats
     ...(stats.firstWorkoutDate
       ? [{
         label: t('stats.since'),
-        value: new Date(stats.firstWorkoutDate).toLocaleDateString(lang === 'pl' ? 'pl-PL' : 'en-US', {
+        value: new Date(stats.firstWorkoutDate).toLocaleDateString(dateLocale(lang), {
           day: 'numeric', month: 'long', year: 'numeric',
         }),
         wide: true,

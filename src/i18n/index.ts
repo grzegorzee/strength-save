@@ -31,8 +31,11 @@ export const translate = (lang: LanguageCode, key: TranslationKey, params?: TPar
   );
 };
 
-/** Locale do formatowania dat/liczb wg języka UI. */
-export const dateLocale = (lang: LanguageCode): string => (lang === 'en' ? 'en-US' : 'pl-PL');
+/** Locale do formatowania dat/liczb wg języka UI (rejestr = źródło prawdy, Z168). */
+const DATE_LOCALES: Record<LanguageCode, string> = { pl: 'pl-PL', en: 'en-US' };
+
+export const dateLocale = (lang: LanguageCode): string =>
+  DATE_LOCALES[lang] ?? DATE_LOCALES[DEFAULT_LANGUAGE];
 
 /** Wykrywa język urządzenia, jeśli wspierany; inaczej domyślny. */
 export const detectLanguage = (): LanguageCode => {

@@ -1,4 +1,5 @@
 import type { AppUserProfile } from '@/lib/registration-api';
+import type { LanguageCode } from '@/i18n';
 
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
 
@@ -66,7 +67,7 @@ export interface UserProfile {
   activitySummary?: ActivitySummary;
   preferences?: {
     unit?: 'kg' | 'lbs';
-    language?: 'pl' | 'en';
+    language?: LanguageCode;
     restTimerSec?: number;
     timerSound?: boolean;
   };
