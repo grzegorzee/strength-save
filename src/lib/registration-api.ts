@@ -335,6 +335,13 @@ export async function adminDeleteUser(uid: string) {
   return (await fn({ uid })).data;
 }
 
+export async function adminGrantSubscription(uid: string, tier: 'comp' | 'trial', days: number | null) {
+  if (isE2EMode) return { success: true };
+  const fn = httpsCallable<{ uid: string; tier: string; days: number | null }, { success: boolean }>(
+    functions, "adminGrantSubscription");
+  return (await fn({ uid, tier, days })).data;
+}
+
 export async function deleteOwnAccount() {
   if (isE2EMode) return { success: true };
   const fn = httpsCallable<Record<string, never>, { success: boolean }>(functions, "deleteOwnAccount");

@@ -26,6 +26,7 @@ import {
   providerGetsImmediateAccess,
   readFeatureFlags,
   resendErrorMessage,
+  buildGrantedSubscription,
 } from "./security";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
@@ -1279,6 +1280,50 @@ export const adminDeleteUser = onCall(async (request) => {
     console.error("Failed to write sanitized admin delete audit log", error);
   });
   return { success: true };
+});
+
+// Z169: admin nadaje dostęp PRO (comp bezterminowo albo trial na N dni). Zapis idzie
+// Admin SDK, więc nie wymaga service accountu po stronie operatora — wystarczy panel.
+export const adminGrantSubscription = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const uid = normalizeOptionalString(request.data?.uid, 120);
+  if (!uid) throw new HttpsError("invalid-argument", "uid required");
+
+  const rawDays = request.data?.days;
+  let granted;
+  try {
+    granted = buildGrantedSubscription({
+      tier: request.data?.tier === "trial" ? "trial" : "comp",
+      days: rawDays === null || rawDays === undefined ? null : Number(rawDays),
+    }, Date.now());
+  } catch (error) {
+    throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "invalid input");
+  }
+
+  const target = await getDb().collection(USERS_COLLECTION).doc(uid).get();
+  if (!target.exists) throw new HttpsError("not-found", "User not found");
+
+  await getDb().collection(USERS_COLLECTION).doc(uid).set({
+    subscription: { ...granted, updatedAt: nowIso() },
+  }, { merge: true });
+
+  await writeAuthAuditLog({
+    eventType: "admin_subscription_granted",
+    uid: null,
+    email: null,
+    actorUid: request.auth.uid,
+    createdAt: nowIso(),
+    metadata: {
+      targetUidHash: sanitizedIdentifierHash(uid),
+      tier: granted.tier,
+      expiresAt: granted.expiresAt,
+    },
+  }).catch((error) => {
+    console.error("Failed to write grant audit log", error);
+  });
+
+  return { success: true, subscription: granted };
 });
 
 // Self-service usunięcie własnego konta (wymóg Apple 5.1.1(v)).

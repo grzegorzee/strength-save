@@ -99,3 +99,45 @@ export function isValidStravaOAuthState(state: unknown): state is string {
 export function resendErrorMessage(response: ResendLikeResponse): string | null {
   return response.error?.message || null;
 }
+
+// Z169: nadanie dostępu PRO przez admina (konto demo dla App Review, influencerzy,
+// rekompensaty). Czysta walidacja wejścia — zapis robi callable adminGrantSubscription.
+export type GrantTier = 'comp' | 'trial';
+
+export interface GrantSubscriptionInput {
+  tier: GrantTier;
+  /** Liczba dni dostępu; null/undefined = bezterminowo (dozwolone tylko dla 'comp'). */
+  days?: number | null;
+}
+
+export interface GrantSubscriptionResult {
+  tier: GrantTier;
+  status: 'active';
+  expiresAt: string | null;
+}
+
+export const MAX_GRANT_DAYS = 3650;
+
+/** Buduje stan subskrypcji do zapisu; rzuca Error z kodem przy złym wejściu. */
+export const buildGrantedSubscription = (
+  input: GrantSubscriptionInput,
+  now: number,
+): GrantSubscriptionResult => {
+  if (input.tier !== 'comp' && input.tier !== 'trial') {
+    throw new Error('INVALID_TIER');
+  }
+  const days = input.days ?? null;
+  if (days === null) {
+    // Bezterminowy dostęp ma sens tylko jako comp — trial bez daty końca nigdy by nie wygasł.
+    if (input.tier === 'trial') throw new Error('TRIAL_REQUIRES_DAYS');
+    return { tier: 'comp', status: 'active', expiresAt: null };
+  }
+  if (!Number.isFinite(days) || days <= 0 || days > MAX_GRANT_DAYS) {
+    throw new Error('INVALID_DAYS');
+  }
+  return {
+    tier: input.tier,
+    status: 'active',
+    expiresAt: new Date(now + Math.round(days) * 24 * 60 * 60 * 1000).toISOString(),
+  };
+};

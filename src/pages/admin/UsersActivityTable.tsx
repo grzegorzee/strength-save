@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
   Ban, BarChart3, ChevronDown, ChevronUp, Dumbbell, Loader2, Mail,
-  RotateCcw, Send, ShieldCheck, ShieldOff, Ticket, Trash2,
+  RotateCcw, Send, ShieldCheck, ShieldOff, Sparkles, Ticket, Trash2,
 } from 'lucide-react';
 import { AdminUserLogs } from '@/components/admin/AdminUserLogs';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -47,6 +47,7 @@ export interface UsersActivityTableProps {
   onResetOnboarding: (uid: string) => void;
   onEditCohorts: (uid: string, current: string[]) => void;
   onDeleteUser: (uid: string, name: string) => void;
+  onGrantPro: (uid: string, name: string) => void;
 }
 
 export const UsersActivityTable = ({
@@ -63,6 +64,7 @@ export const UsersActivityTable = ({
   onResetOnboarding,
   onEditCohorts,
   onDeleteUser,
+  onGrantPro,
 }: UsersActivityTableProps) => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
@@ -259,6 +261,9 @@ export const UsersActivityTable = ({
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onResetOnboarding(user.uid)}>
                     <RotateCcw className="h-4 w-4 mr-1.5" /> {t('admin.rowResetOnboarding')}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => onGrantPro(user.uid, user.displayName || user.email)}>
+                    <Sparkles className="h-4 w-4 mr-1.5" /> {t('admin.rowGrantPro')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onEditCohorts(user.uid, user.cohorts)}>
                     <Ticket className="h-4 w-4 mr-1.5" /> {t('admin.rowCohorts')}

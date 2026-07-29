@@ -60,6 +60,7 @@ export {
   adminBroadcastEmail,
   adminSendPush,
   adminDeleteUser,
+  adminGrantSubscription,
   deleteOwnAccount,
   registerPushToken,
   unregisterPushToken,

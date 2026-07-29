@@ -13,7 +13,9 @@ import {
   resendErrorMessage,
   STRAVA_OAUTH_STATE_BYTES,
   STRAVA_OAUTH_STATE_TTL_MS,
+  buildGrantedSubscription,
 } from '../../functions/src/security';
+import { isSubscriptionActive } from '@/lib/user-profile';
 
 describe('functions security helpers', () => {
   it('maps Apple sign-in as social auth with immediate access', () => {
@@ -85,5 +87,40 @@ describe('functions security helpers', () => {
       'training_plans',
       'users',
     ]));
+  });
+});
+
+// Z169: nadawanie dostępu PRO przez panel admina (odblokowuje konto demo App Review
+// bez service accountu; docelowo influencerzy i rekompensaty).
+describe('buildGrantedSubscription (Z169)', () => {
+  const NOW = Date.parse('2026-07-29T10:00:00.000Z');
+
+  it('comp bez dni = dostęp bezterminowy', () => {
+    expect(buildGrantedSubscription({ tier: 'comp' }, NOW)).toEqual({
+      tier: 'comp', status: 'active', expiresAt: null,
+    });
+  });
+
+  it('trial z dniami liczy expiresAt', () => {
+    expect(buildGrantedSubscription({ tier: 'trial', days: 30 }, NOW).expiresAt)
+      .toBe('2026-08-28T10:00:00.000Z');
+  });
+
+  it('trial bez dni odrzucony (nigdy by nie wygasł)', () => {
+    expect(() => buildGrantedSubscription({ tier: 'trial' }, NOW)).toThrow('TRIAL_REQUIRES_DAYS');
+  });
+
+  it('odrzuca zły tier i bezsensowne dni', () => {
+    expect(() => buildGrantedSubscription({ tier: 'pro' as 'comp' }, NOW)).toThrow('INVALID_TIER');
+    expect(() => buildGrantedSubscription({ tier: 'comp', days: 0 }, NOW)).toThrow('INVALID_DAYS');
+    expect(() => buildGrantedSubscription({ tier: 'comp', days: -5 }, NOW)).toThrow('INVALID_DAYS');
+    expect(() => buildGrantedSubscription({ tier: 'comp', days: 99999 }, NOW)).toThrow('INVALID_DAYS');
+  });
+
+  it('wynik przechodzi isSubscriptionActive (kontrakt z klientem)', () => {
+    expect(isSubscriptionActive(buildGrantedSubscription({ tier: 'comp' }, NOW), NOW)).toBe(true);
+    expect(isSubscriptionActive(buildGrantedSubscription({ tier: 'trial', days: 14 }, NOW), NOW)).toBe(true);
+    // Po wygaśnięciu trial nie daje dostępu.
+    expect(isSubscriptionActive(buildGrantedSubscription({ tier: 'trial', days: 14 }, NOW), NOW + 15 * 864e5)).toBe(false);
   });
 });
