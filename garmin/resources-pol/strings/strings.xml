@@ -34,4 +34,7 @@
   <string id="RestOff">wyłączona</string>
   <string id="SessionTitle">Sesja</string>
   <string id="TonnageLabel">Tonaż</string>
+  <string id="DiscardWorkout">Odrzuć trening</string>
+  <string id="DiscardConfirm">Odrzucić bez zapisu?</string>
+  <string id="Discarded">Odrzucono</string>
 </strings>

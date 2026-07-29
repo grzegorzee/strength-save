@@ -23,4 +23,12 @@ module SessionRecorder {
         _session.save();
         _session = null;
     }
+
+    // Odrzucenie treningu: porzuca nagranie FIT bez zapisu do Garmin Connect.
+    function discard() as Void {
+        if (_session == null) { return; }
+        _session.stop();
+        _session.discard();
+        _session = null;
+    }
 }

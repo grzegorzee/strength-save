@@ -34,4 +34,7 @@
   <string id="RestOff">off</string>
   <string id="SessionTitle">Session</string>
   <string id="TonnageLabel">Volume</string>
+  <string id="DiscardWorkout">Discard workout</string>
+  <string id="DiscardConfirm">Discard without saving?</string>
+  <string id="Discarded">Discarded</string>
 </strings>

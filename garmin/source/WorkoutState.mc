@@ -126,6 +126,14 @@ module WorkoutState {
             var date = d == null ? "unknown" : d["d"] as String;
             Application.Storage.setValue("workoutId", "w-" + date + "-" + nowMs().toString());
             Application.Storage.setValue("startedAt", nowMs());
+            // Kontekst dnia sesji przybity w chwili startu: finalna wysyłka po
+            // zmianie dnia (serie z wtorku wysyłane w środę) ma nieść datę i dayId
+            // dnia, w którym serie PADŁY, nie dnia wysyłki.
+            if (d != null) {
+                Application.Storage.setValue("sessionDay", {
+                    "d" => d["d"], "y" => d["y"], "n" => d["n"],
+                });
+            }
             SessionRecorder.start();
         }
     }
@@ -158,12 +166,16 @@ module WorkoutState {
     // Zakończenie: finalna wysyłka wszystkich zdarzeń + zapis sesji FIT.
     function finish(callback as Method(ok as Boolean) as Void) as Void {
         var d = day();
-        if (d == null) { callback.invoke(false); return; }
+        // Serie należą do dnia, w którym padły (sessionDay z chwili startu);
+        // bieżący day() to tylko fallback dla sesji sprzed tego mechanizmu.
+        var sd = Application.Storage.getValue("sessionDay");
+        var src = sd == null ? d : sd as Dictionary;
+        if (src == null) { callback.invoke(false); return; }
         var payload = {
             "workoutId" => Application.Storage.getValue("workoutId"),
-            "date" => d["d"],
-            "dayId" => d["y"],
-            "dayName" => d["n"],
+            "date" => src["d"],
+            "dayId" => src["y"],
+            "dayName" => src["n"],
             "startedAt" => Application.Storage.getValue("startedAt"),
             "finishedAt" => nowMs(),
             "events" => EventQueue.all(),
@@ -177,9 +189,23 @@ module WorkoutState {
         if (ok) {
             EventQueue.clear();
             Application.Storage.setValue("workoutId", null);
+            Application.Storage.deleteValue("sessionDay");
         }
         var cb = _finishCb;
         _finishCb = null;
         if (cb != null) { (cb as Method).invoke(ok); }
+    }
+
+    // Odrzucenie treningu: czyści kolejkę i stan sesji LOKALNIE, nic nie wysyła,
+    // nagranie FIT idzie do kosza. Wyjście ze stanu "wiszące serie" bez zapisu
+    // (reguła 6: guard bez ścieżki wyjścia to pułapka).
+    function discard() as Void {
+        SessionRecorder.discard();
+        EventQueue.clear();
+        Application.Storage.setValue("workoutId", null);
+        Application.Storage.setValue("startedAt", null);
+        Application.Storage.setValue("done", {});
+        Application.Storage.deleteValue("sessionDay");
+        if (isQuick()) { clearQuick(); }
     }
 }

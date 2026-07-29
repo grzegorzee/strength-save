@@ -17,7 +17,11 @@ dnia (między seriami 30 s-4 min, default 1:30; między ćwiczeniami
 wyłączona-5 min, default 2:30 — parytet 90/150 z telefonem), zegar czasu
 sesji (mini u góry ekranu ćwiczenia, tyka od pierwszej odhaczonej serii),
 ekran Sesja (czas + serie + tonaż) — wejście swipe w lewo z ekranu ćwiczenia
-albo pozycja "Sesja" w menu dnia. Sideload na macOS: OpenMTP → GARMIN/Apps
+albo pozycja "Sesja" w menu dnia. Do tego "Odrzuć trening" (2026-07-29):
+pozycja w menu widoczna przy wiszących seriach, z potwierdzeniem; czyści
+kolejkę i stan LOKALNIE (FIT do kosza, nic nie wysyła) — wyjście ze stanu
+"niewysłany trening" bez zapisu; serie niosą datę dnia startu sesji
+(sessionDay), nie datę wysyłki. Sideload na macOS: OpenMTP → GARMIN/Apps
 (zegarek jest MTP-only; Garmin Express musi być zamknięty). Do publikacji w
 Store zostało: pobranie urządzeń fr255/265/955/965 + venu2/3 w SDK
 Managerze, ikona 1024x1024, screenshoty, formularz (sekcje A-D niżej).

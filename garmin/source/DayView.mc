@@ -164,6 +164,14 @@ class DayMenu extends WatchUi.Menu2 {
             nextIndex += 1;
         }
 
+        // Wyjście ze stanu "wiszące serie" bez wysyłki (reguła 6): widoczne
+        // tylko, gdy faktycznie jest co odrzucić.
+        if (EventQueue.size() > 0) {
+            addItem(new WatchUi.MenuItem(
+                WatchUi.loadResource(Rez.Strings.DiscardWorkout) as String, null, :discard, {}));
+            nextIndex += 1;
+        }
+
         addItem(new WatchUi.MenuItem(
             WatchUi.loadResource(Rez.Strings.WeightStep) as String, AppSettings.stepLabel(), :step, {}));
         stepIndex = nextIndex;
@@ -295,6 +303,15 @@ class DayMenuDelegate extends WatchUi.Menu2InputDelegate {
             WatchUi.requestUpdate();
         } else if (id == :session) {
             WatchUi.pushView(new SessionView(), new SessionDelegate(), WatchUi.SLIDE_LEFT);
+        } else if (id == :discard) {
+            if (EventQueue.size() == 0) {
+                if (WatchUi has :showToast) {
+                    WatchUi.showToast(WatchUi.loadResource(Rez.Strings.NothingToSend) as String, null);
+                }
+                return;
+            }
+            var confirm = new WatchUi.Confirmation(WatchUi.loadResource(Rez.Strings.DiscardConfirm) as String);
+            WatchUi.pushView(confirm, new DiscardConfirmDelegate(menu), WatchUi.SLIDE_UP);
         }
     }
 }
@@ -331,6 +348,30 @@ class RecentsDelegate extends WatchUi.Menu2InputDelegate {
             var fresh = new DayMenu();
             WatchUi.switchToView(fresh, new DayMenuDelegate(fresh), WatchUi.SLIDE_LEFT);
         }
+    }
+}
+
+class DiscardConfirmDelegate extends WatchUi.ConfirmationDelegate {
+    var menu as DayMenu;
+
+    function initialize(dayMenu as DayMenu) {
+        ConfirmationDelegate.initialize();
+        menu = dayMenu;
+    }
+
+    function onResponse(response as WatchUi.Confirm) as Boolean {
+        if (response == WatchUi.CONFIRM_YES) {
+            WorkoutState.discard();
+            if (WatchUi has :showToast) {
+                WatchUi.showToast(WatchUi.loadResource(Rez.Strings.Discarded) as String, null);
+            }
+            // Dialog zdejmuje się sam; tu tylko odświeżamy sublabele (licznik
+            // "do wysłania" znika). Pozycja Odrzuć wisi do przebudowy menu,
+            // klik w nią z pustą kolejką kwituje toast (guard w onSelect).
+            menu.refresh();
+            WatchUi.requestUpdate();
+        }
+        return true;
     }
 }
 
