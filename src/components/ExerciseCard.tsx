@@ -35,6 +35,7 @@ import type { RzaAdvice } from '@/lib/rza-progression';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { reportClientError } from '@/lib/error-telemetry';
 import { PinnedNoteSection, type PinnedNoteSaveInput } from '@/components/PinnedNoteSection';
 import type { ExerciseNote } from '@/lib/exercise-notes';
 import { formatDistanceM, formatDurationSec, parseDurationInput, type TrackingType } from '@/lib/set-tracking';
@@ -323,8 +324,13 @@ const ExerciseCardInner = ({
   const [showInstructions, setShowInstructions] = useState(false);
   // Z129.2: pusty stan przypiętej notatki żyje w menu, nie w karcie.
   const [pinnedNoteOpen, setPinnedNoteOpen] = useState(false);
-  // Z130: indeks serii czekającej na potwierdzenie usunięcia (null = brak dialogu).
-  const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(null);
+  // Z130 → Z171: REFERENCJA serii czekającej na potwierdzenie usunięcia (null = brak
+  // dialogu). Indeks był kruchy: sets potrafią się podmienić (hydracja draftu) między
+  // otwarciem dialogu a potwierdzeniem i USUŃ kasował złą serię.
+  const [pendingRemove, setPendingRemove] = useState<SetData | null>(null);
+  // Z171: serie DOTKNIĘTE w tym mount (wpisana wartość) — tylko takie i odhaczone
+  // zasługują na dialog; prefill z "Dodaj serię" kasuje się bez pytania.
+  const touchedSets = useRef(new WeakSet<SetData>());
   // X17C Z136 → Z143: stan przerwy przeniesiony do rodzica (jeden timer na sesję);
   // karta dostaje restRun propsem tylko, gdy przerwa należy do niej.
   const [sets, setSets] = useState<SetData[]>(() => sanitizeSets(savedSets, setCount));
@@ -345,6 +351,9 @@ const ExerciseCardInner = ({
       setMetricsState(metrics || {});
       setShowMetrics(hasMetricValue(metrics) || defaultMetricsVisible);
       isInitialized.current = true;
+      // Z171: otwarty dialog usuwania nie przeżywa podmiany sets — jego referencja
+      // wskazywałaby obiekt, którego już nie ma w tablicy.
+      setPendingRemove(null);
     }
   }, [savedSets, savedNotes, setCount, metrics, defaultMetricsVisible]);
 
@@ -377,6 +386,8 @@ const ExerciseCardInner = ({
       ...(isBodyweight && { weight: 0 }),
     };
 
+    // Z171: seria dotknięta ręcznie = realne dane (dialog przy usuwaniu).
+    touchedSets.current.add(updatedSet);
     const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
@@ -415,6 +426,9 @@ const ExerciseCardInner = ({
       ...adoptedExtras,
       completed: turningOn,
     };
+    // Z171: odznaczona seria dalej niesie realne dane — bez tego X po odznaczeniu
+    // kasowałby ją bez pytania.
+    touchedSets.current.add(updatedSet);
     const newSets = sets.map((set, i) => (i === setIndex ? updatedSet : set));
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
@@ -472,26 +486,35 @@ const ExerciseCardInner = ({
     onSetsChange?.(exercise.id, newSets, notes);
   };
 
-  const removeSetAt = (setIndex: number) => {
+  // Z171: usuwanie po REFERENCJI — index potrafił wskazać złą serię po podmianie
+  // sets (hydracja draftu) między otwarciem dialogu a potwierdzeniem.
+  const removeSet = (target: SetData) => {
+    const newSets = sets.filter((s) => s !== target);
+    if (newSets.length === sets.length) {
+      // Referencja nieaktualna: nic nie kasujemy (żadna "podobna" seria nie może
+      // oberwać rykoszetem), ślad do client_errors zamiast cichego no-opa.
+      void reportClientError(uid ?? '', { code: 'remove-set-stale-ref', phase: 'other', detail: exercise.id });
+      setPendingRemove(null);
+      return;
+    }
     hasLocalChanges.current = true;
-    const newSets = sets.filter((_, idx) => idx !== setIndex);
     setSets(newSets);
     onSetsChange?.(exercise.id, newSets, notes);
   };
 
-  // Z130: `×` kasowało natychmiast, bez pytania — jeden przypadkowy tap na siłowni
-  // i seria z ciężarem przepadała. Pusta seria nadal leci bez dialogu (nie ma czego stracić).
+  // Z130 → Z171: dialog TYLKO dla realnych danych — seria odhaczona albo dotknięta
+  // w tej sesji. Prefill z "Dodaj serię" (kopia reps/weight ostatniej) kasuje się
+  // bez pytania: user nic w niej nie wpisał, nie ma czego stracić.
   const setHasData = (set?: SetData): boolean => Boolean(
-    set && (set.reps > 0 || set.weight > 0 || set.completed
-      || (set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0 || (set.assistWeight ?? 0) > 0),
+    set && (set.completed === true || touchedSets.current.has(set)),
   );
 
-  const handleRemoveSet = (setIndex: number) => {
-    if (setHasData(sets[setIndex])) {
-      setPendingRemoveIndex(setIndex);
+  const handleRemoveSet = (set: SetData) => {
+    if (setHasData(set)) {
+      setPendingRemove(set);
       return;
     }
-    removeSetAt(setIndex);
+    removeSet(set);
   };
 
   // X17B Z133.2: waga policzona w kalkulatorze wraca do AKTYWNEJ serii roboczej.
@@ -719,7 +742,7 @@ const ExerciseCardInner = ({
         <div className="flex justify-center">
           {isEditable ? (
             <button
-              onClick={() => handleRemoveSet(globalIndex)}
+              onClick={() => handleRemoveSet(set)}
               aria-label={t('card.removeSet')}
               className="flex h-11 w-11 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
             >
@@ -829,7 +852,7 @@ const ExerciseCardInner = ({
         <div className="flex justify-center">
           {isEditable ? (
             <button
-              onClick={() => handleRemoveSet(globalIndex)}
+              onClick={() => handleRemoveSet(set)}
               aria-label={t('card.removeSet')}
               className="flex h-11 w-11 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
             >
@@ -1172,8 +1195,8 @@ const ExerciseCardInner = ({
         </div>
       )}
 
-      {/* ── Potwierdzenie usunięcia serii z danymi (Z130) ── */}
-      <Dialog open={pendingRemoveIndex !== null} onOpenChange={(open) => { if (!open) setPendingRemoveIndex(null); }}>
+      {/* ── Potwierdzenie usunięcia serii z danymi (Z130/Z171) ── */}
+      <Dialog open={pendingRemove !== null} onOpenChange={(open) => { if (!open) setPendingRemove(null); }}>
         {/* Z170: destrukcyjne potwierdzenie zamyka się TYLKO przez ANULUJ / X —
             tap w overlay (np. gdy dialog przeskoczył po schowaniu klawiatury) nie może go zdjąć. */}
         <DialogContent className="max-w-[95vw] w-full sm:max-w-sm" onInteractOutside={(e) => e.preventDefault()}>
@@ -1185,7 +1208,7 @@ const ExerciseCardInner = ({
             <button
               type="button"
               data-testid="remove-set-cancel"
-              onClick={() => setPendingRemoveIndex(null)}
+              onClick={() => setPendingRemove(null)}
               className="min-h-[44px] min-w-[88px] rounded-lg px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
             >
               {t('common.cancel')}
@@ -1194,8 +1217,8 @@ const ExerciseCardInner = ({
               type="button"
               data-testid="remove-set-confirm"
               onClick={() => {
-                if (pendingRemoveIndex !== null) removeSetAt(pendingRemoveIndex);
-                setPendingRemoveIndex(null);
+                if (pendingRemove !== null) removeSet(pendingRemove);
+                setPendingRemove(null);
               }}
               className="min-h-[44px] min-w-[88px] rounded-lg bg-destructive/15 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-destructive transition-colors hover:bg-destructive/25"
             >

@@ -351,6 +351,48 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     const allCards = page.locator('.exercise-card');
     expect(await allCards.count()).toBeGreaterThanOrEqual(1);
   });
+
+  // Z171: sekwencja z realnego treningu na buildzie 80 — dodana seria z danymi
+  // usuwa się przez dialog i NIE wraca po wyjściu i powrocie (draft round-trip).
+  test('Z171: usunięta seria nie wraca po wyjściu na Dashboard i powrocie', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('app-language', 'pl');
+      localStorage.setItem('fittracker_workout_timers_v1', 'false');
+    });
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    const repsInputs = firstCard.getByLabel(/Powt\./);
+    const before = await repsInputs.count();
+
+    // Marker trwałości draftu: waga w serii 1 musi przeżyć round-trip.
+    const firstWeight = firstCard.getByLabel(/Set 1, (kg|lbs)/).first();
+    await firstWeight.fill('60');
+
+    await firstCard.getByRole('button', { name: 'Dodaj serię' }).click();
+    await expect(repsInputs).toHaveCount(before + 1);
+
+    // Wpisz wagę w NOWEJ serii i odhacz ją (realne dane → dialog przy usuwaniu).
+    await firstCard.getByLabel(/Set \d+, (kg|lbs)/).last().fill('72.5');
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).last().click();
+
+    await firstCard.getByRole('button', { name: 'Usuń serię' }).last().click();
+    await page.getByTestId('remove-set-confirm').click();
+    await expect(repsInputs).toHaveCount(before);
+
+    // Draft round-trip: wyjście na Dashboard i powrót — seria NADAL usunięta,
+    // a waga z serii 1 przywrócona (dowód, że draft faktycznie wrócił).
+    await page.waitForTimeout(1000);
+    await navigateAndWait(page, '/');
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    const cardAfter = page.locator('.exercise-card').first();
+    await expect(cardAfter.getByLabel(/Set 1, (kg|lbs)/).first()).toHaveValue('60', { timeout: 5000 });
+    await expect(cardAfter.getByLabel(/Powt\./)).toHaveCount(before);
+  });
 });
 
 // =====================================================

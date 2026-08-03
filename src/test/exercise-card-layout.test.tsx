@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { useState } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -12,6 +13,8 @@ vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({ uid: 'test-uid' }),
 }));
 vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
+// Z171: removeSet raportuje stale-ref do client_errors — moduł ciągnie Firestore, więc mock.
+vi.mock('@/lib/error-telemetry', () => ({ reportClientError: vi.fn() }));
 
 // Mapa animacji jest dziś pusta (żadne ćwiczenie nie ma pliku) — mock pozwala
 // przetestować OBIE gałęzie miniatury: z animacją i bez.
@@ -359,10 +362,10 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(card).queryByText('6×60kg')).toBeNull();
     });
 
-    it('usunięcie serii z danymi pyta o potwierdzenie, pustej nie', () => {
+    it('usunięcie ODHACZONEJ serii pyta o potwierdzenie, pustej nie (Z171)', () => {
       const onSetsChange = vi.fn();
       const { card } = renderCard({
-        savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8 }), workingSet()],
+        savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8, completed: true }), workingSet()],
         onSetsChange,
       });
       const removeButtons = within(card).getAllByRole('button', { name: /Usuń serię/i });
@@ -371,21 +374,21 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       fireEvent.click(removeButtons.at(-1) as HTMLElement);
       expect(onSetsChange).toHaveBeenCalledTimes(1);
 
-      // Seria z danymi — najpierw dialog, dopiero potwierdzenie kasuje.
+      // Odhaczona seria — najpierw dialog, dopiero potwierdzenie kasuje.
       onSetsChange.mockClear();
       fireEvent.click(removeButtons[1]);
       expect(onSetsChange).not.toHaveBeenCalled();
-      fireEvent.click(screen.getByRole('button', { name: 'Usuń' }));
+      fireEvent.click(screen.getByTestId('remove-set-confirm'));
       expect(onSetsChange).toHaveBeenCalledTimes(1);
     });
 
     it('Z170: pointer down poza dialogiem potwierdzenia NIE zamyka go', async () => {
       const onSetsChange = vi.fn();
       const { card } = renderCard({
-        savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8 })],
+        savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8, completed: true })],
         onSetsChange,
       });
-      // Otwórz dialog przez X na serii z danymi.
+      // Otwórz dialog przez X na serii z danymi (odhaczonej — Z171: tylko taka pyta).
       const removeButtons = within(card).getAllByRole('button', { name: /Usuń serię/i });
       fireEvent.click(removeButtons[1]);
       expect(screen.getByRole('button', { name: 'Usuń' })).toBeTruthy();
@@ -413,6 +416,116 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       });
       expect(within(filled.card).getByTestId('pinned-note-section')).toBeTruthy();
       expect(within(filled.card).getByText('Uchwyt szeroki')).toBeTruthy();
+    });
+  });
+
+  describe('Z171: usuwanie po referencji + dialog tylko dla realnych danych', () => {
+    /** Rodzic kontrolowany: oddaje savedSets z karty z powrotem do niej (round-trip jak draft). */
+    const ControlledCard = ({ initialSets, spy }: { initialSets: SetData[]; spy: ReturnType<typeof vi.fn> }) => {
+      const [sets, setSets] = useState<SetData[]>(initialSets);
+      return (
+        <MemoryRouter>
+          <LanguageProvider>
+            <UnitProvider>
+              <ExerciseCard
+                exercise={exercise()}
+                index={1}
+                savedSets={sets}
+                onSetsChange={(id, next, notes) => {
+                  spy(id, next, notes);
+                  setSets(next);
+                }}
+              />
+            </UnitProvider>
+          </LanguageProvider>
+        </MemoryRouter>
+      );
+    };
+
+    it('świeża seria z "Dodaj serię" (prefill) kasuje się bez dialogu i znika DOKŁADNIE ona', () => {
+      const spy = vi.fn();
+      const { container } = render(
+        <ControlledCard
+          initialSets={[
+            workingSet({ isWarmup: true, weight: 20, reps: 10 }),
+            workingSet({ weight: 60, reps: 8 }),
+            workingSet({ weight: 60, reps: 8 }),
+          ]}
+          spy={spy}
+        />,
+      );
+      const card = container.querySelector('.exercise-card') as HTMLElement;
+
+      fireEvent.click(within(card).getByRole('button', { name: /Dodaj serię/i }));
+      expect(within(card).getAllByLabelText(/Powt\./)).toHaveLength(4);
+
+      // X na świeżej (prefillowanej) serii: BEZ dialogu, natychmiastowe usunięcie.
+      const removeButtons = within(card).getAllByRole('button', { name: /Usuń serię/i });
+      fireEvent.click(removeButtons.at(-1) as HTMLElement);
+      expect(screen.queryByTestId('remove-set-confirm')).toBeNull();
+
+      const lastSets = spy.mock.calls.at(-1)?.[1] as SetData[];
+      expect(lastSets).toHaveLength(3);
+      expect(lastSets.map((s) => ({ w: s.weight, r: s.reps, warm: !!s.isWarmup }))).toEqual([
+        { w: 20, r: 10, warm: true },
+        { w: 60, r: 8, warm: false },
+        { w: 60, r: 8, warm: false },
+      ]);
+      expect(within(card).getAllByLabelText(/Powt\./)).toHaveLength(3);
+    });
+
+    it('podmiana savedSets między otwarciem dialogu a USUŃ nie kasuje złej serii', () => {
+      const spy = vi.fn();
+      const ui = (sets: SetData[]) => (
+        <MemoryRouter>
+          <LanguageProvider>
+            <UnitProvider>
+              <ExerciseCard exercise={exercise()} index={1} savedSets={sets} onSetsChange={spy} />
+            </UnitProvider>
+          </LanguageProvider>
+        </MemoryRouter>
+      );
+      const view = render(ui([
+        workingSet({ isWarmup: true }),
+        workingSet({ weight: 60, reps: 8, completed: true }),
+        workingSet({ weight: 62.5, reps: 6 }),
+      ]));
+
+      // Dialog na odhaczonej serii nr 1.
+      const removeButtons = screen.getAllByRole('button', { name: /Usuń serię/i });
+      fireEvent.click(removeButtons[1]);
+      expect(screen.getByTestId('remove-set-confirm')).toBeTruthy();
+
+      // Symulacja hydracji draftu: NOWE obiekty + dodatkowa seria na początku roboczych.
+      view.rerender(ui([
+        workingSet({ isWarmup: true }),
+        workingSet({ weight: 100, reps: 1, completed: true }),
+        workingSet({ weight: 60, reps: 8, completed: true }),
+        workingSet({ weight: 62.5, reps: 6 }),
+      ]));
+
+      // Otwarty dialog nie może przeżyć podmiany sets; jeśli przeżył (stary kod),
+      // klik USUŃ skasowałby serię pod ZŁYM indeksem.
+      const confirm = screen.queryByTestId('remove-set-confirm');
+      if (confirm) fireEvent.click(confirm);
+      expect(spy).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('remove-set-confirm')).toBeNull();
+    });
+
+    it('seria z wagą wpisaną w tej sesji pyta o potwierdzenie (dotknięta = realne dane)', () => {
+      const onSetsChange = vi.fn();
+      const { card } = renderCard({
+        savedSets: [workingSet({ isWarmup: true }), workingSet()],
+        onSetsChange,
+      });
+      const weightInput = within(card).getAllByLabelText(/kg$/i).at(-1) as HTMLElement;
+      fireEvent.change(weightInput, { target: { value: '80' } });
+
+      onSetsChange.mockClear();
+      const removeButtons = within(card).getAllByRole('button', { name: /Usuń serię/i });
+      fireEvent.click(removeButtons.at(-1) as HTMLElement);
+      expect(screen.getByTestId('remove-set-confirm')).toBeTruthy();
+      expect(onSetsChange).not.toHaveBeenCalled();
     });
   });
 });
