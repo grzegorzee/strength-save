@@ -1,7 +1,7 @@
-import html2canvas from 'html2canvas-pro';
 import { parseLocalDate } from '@/lib/utils';
 import { translate, dateLocale, type LanguageCode } from '@/i18n';
 import { formatTonnage, type UnitSystem } from '@/lib/units';
+import appIcon from '@/assets/app-icon.png';
 
 export interface ShareData {
   dayName: string;
@@ -13,13 +13,76 @@ export interface ShareData {
   streak: number;
 }
 
+// Z180: trzy szablony obrazu podsumowania. 'photo' wymaga zdjęcia usera.
+export type ShareTemplate = 'gradient' | 'photo' | 'minimal';
+
+// Z179: maksymalne wymiary zdjęcia usera (format IG Story przy scale 2).
+const SHARE_PHOTO_MAX = { width: 1080, height: 1920 };
+
+/**
+ * Z179: zdjęcie z aparatu (12 MP) bez downscale to kilka kopii base64 w pamięci
+ * WKWebView (FileReader + innerHTML + html2canvas) → crash "Dodaj zdjęcie".
+ * Zwraca JPEG dataURL o wymiarach ≤1080×1920 (proporcje zachowane).
+ */
+export async function downscalePhoto(file: Blob): Promise<string> {
+  const draw = (w: number, h: number, source: CanvasImageSource): string => {
+    const scale = Math.min(1, SHARE_PHOTO_MAX.width / w, SHARE_PHOTO_MAX.height / h);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(w * scale));
+    canvas.height = Math.max(1, Math.round(h * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas-2d-unavailable');
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.8);
+  };
+
+  if (typeof createImageBitmap === 'function') {
+    // from-image: EXIF decyduje o orientacji — zdjęcie z aparatu nie leży na boku.
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    try {
+      return draw(bitmap.width, bitmap.height, bitmap);
+    } finally {
+      bitmap.close();
+    }
+  }
+
+  // Fallback (Safari < 16.4 / brak opcji): dekodowanie przez <img>.
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    return draw(img.naturalWidth, img.naturalHeight, img);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// Z180: wspólna stopka z realnym logo (import z bundla) zamiast tekstowego "SS".
+function renderFooter(withTopBorder: boolean): string {
+  return `
+      <div style="margin-top:auto;padding-top:20px;${withTopBorder ? 'border-top:1px solid rgba(255,255,255,0.1);' : ''}display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <img src="${appIcon}" style="width:28px;height:28px;border-radius:6px;" />
+          <span style="font-size:13px;color:#94a3b8;">Strength Save</span>
+        </div>
+        <span style="font-size:20px;">💪</span>
+      </div>`;
+}
+
 function escapeHtml(text: string): string {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-function buildShareHtml(data: ShareData, lang: LanguageCode, unit: UnitSystem): string {
+export function buildShareHtml(
+  data: ShareData,
+  lang: LanguageCode,
+  unit: UnitSystem,
+  template: Exclude<ShareTemplate, 'photo'> = 'gradient',
+): string {
+  if (template === 'minimal') return buildShareHtmlMinimal(data, lang, unit);
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
     parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
@@ -88,15 +151,56 @@ function buildShareHtml(data: ShareData, lang: LanguageCode, unit: UnitSystem): 
 
       ${prSection}
 
-      <div style="margin-top:auto;padding-top:24px;border-top:1px solid rgba(255,255,255,0.1);display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:13px;color:#94a3b8;">Strength Save</span>
-        <span style="font-size:13px;color:#94a3b8;">💪</span>
-      </div>
+      ${renderFooter(true)}
     </div>
   `;
 }
 
-function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string, lang: LanguageCode, unit: UnitSystem): string {
+// Z180: wariant minimal — ciemne tło, duży tonaż, logo. Bez nowej logiki danych.
+function buildShareHtmlMinimal(data: ShareData, lang: LanguageCode, unit: UnitSystem): string {
+  const safeDayName = escapeHtml(data.dayName);
+  const safeDate = escapeHtml(
+    parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    })
+  );
+  const tonnageStr = formatTonnage(data.tonnage, unit);
+
+  return `
+    <div style="
+      width:540px;height:960px;
+      background:#0b0b0f;
+      color:#fff;font-family:system-ui,-apple-system,sans-serif;
+      padding:48px 36px;display:flex;flex-direction:column;
+    ">
+      <div>
+        <div style="font-size:14px;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.workoutDone'))}</div>
+        <div style="font-size:30px;font-weight:800;margin-top:8px;">${safeDayName}</div>
+        <div style="font-size:15px;color:#94a3b8;margin-top:4px;">${safeDate}</div>
+      </div>
+
+      <div style="margin:auto 0;text-align:center;">
+        <div style="font-size:76px;font-weight:800;letter-spacing:-2px;line-height:1;">${tonnageStr}</div>
+        <div style="font-size:14px;color:#94a3b8;margin-top:10px;text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.tonnage'))}</div>
+        <div style="display:flex;justify-content:center;gap:28px;margin-top:36px;font-size:15px;color:#cbd5e1;">
+          <span>${data.exercises.length} · ${escapeHtml(translate(lang, 'share.exercises'))}</span>
+          <span>${data.prs.length} · ${escapeHtml(translate(lang, 'share.newPRs'))}</span>
+          <span>${data.streak} · ${escapeHtml(translate(lang, 'share.streakWeeks'))}</span>
+        </div>
+      </div>
+
+      ${renderFooter(true)}
+    </div>
+  `;
+}
+
+export function buildShareHtmlWithPhoto(
+  data: ShareData,
+  photoDataUrl: string,
+  lang: LanguageCode,
+  unit: UnitSystem,
+  dim = 0.6,
+): string {
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
     parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
@@ -131,7 +235,7 @@ function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string, lang: La
     ">
       <img src="${photoDataUrl}" style="
         position:absolute;top:0;left:0;width:100%;height:100%;
-        object-fit:cover;filter:brightness(0.4);
+        object-fit:cover;filter:brightness(${(1 - Math.min(0.7, Math.max(0.3, dim))).toFixed(2)});
       " />
       <div style="
         position:absolute;top:0;left:0;width:100%;height:100%;
@@ -169,27 +273,30 @@ function buildShareHtmlWithPhoto(data: ShareData, photoDataUrl: string, lang: La
 
         ${prBadges ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;">${prBadges}</div>` : ''}
 
-        <div style="margin-top:auto;padding-top:20px;display:flex;justify-content:space-between;align-items:center;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;">
-              <span style="font-size:12px;font-weight:700;">SS</span>
-            </div>
-            <span style="font-size:12px;color:rgba(255,255,255,0.5);">Strength Save</span>
-          </div>
-          <span style="font-size:20px;">💪</span>
-        </div>
+        ${renderFooter(false)}
       </div>
     </div>
   `;
 }
 
-export async function generateWorkoutImage(data: ShareData, photoDataUrl?: string, lang: LanguageCode = 'pl', unit: UnitSystem = 'kg'): Promise<Blob> {
+export async function generateWorkoutImage(
+  data: ShareData,
+  photoDataUrl?: string,
+  lang: LanguageCode = 'pl',
+  unit: UnitSystem = 'kg',
+  template: ShareTemplate = 'gradient',
+): Promise<Blob> {
+  // Z179: lazy import — html2canvas-pro (~150 KB) schodzi z chunka WorkoutDay,
+  // ładuje się dopiero przy pierwszym otwarciu dialogu share.
+  const { default: html2canvas } = await import('html2canvas-pro');
+
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;left:-9999px;top:0;width:540px;height:960px;';
-  // All user-provided text is escaped via escapeHtml; photoDataUrl is a base64 data URI from FileReader
-  container.innerHTML = photoDataUrl
+  // All user-provided text is escaped via escapeHtml; photoDataUrl is a base64 data URI (downscalePhoto)
+  const usePhoto = template === 'photo' && photoDataUrl;
+  container.innerHTML = usePhoto
     ? buildShareHtmlWithPhoto(data, photoDataUrl, lang, unit)
-    : buildShareHtml(data, lang, unit);
+    : buildShareHtml(data, lang, unit, template === 'minimal' ? 'minimal' : 'gradient');
 
   document.body.appendChild(container);
 
@@ -197,13 +304,16 @@ export async function generateWorkoutImage(data: ShareData, photoDataUrl?: strin
     const canvas = await html2canvas(container.firstElementChild as HTMLElement, {
       scale: 2,
       useCORS: true,
-      backgroundColor: null,
+      // Z179: JPEG nie ma kanału alfa — bez tła piksele przezroczyste robią
+      // czarne artefakty. Tło spójne z gradientem apki.
+      backgroundColor: '#0f172a',
     });
 
     return new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         blob => blob ? resolve(blob) : reject(new Error('Failed to create blob')),
-        'image/png',
+        'image/jpeg',
+        0.85,
       );
     });
   } finally {

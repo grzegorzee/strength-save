@@ -8,15 +8,30 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, Share2, Camera, X } from 'lucide-react';
-import { generateWorkoutImage, type ShareData } from '@/lib/share-utils';
+import { Capacitor } from '@capacitor/core';
+import { downscalePhoto, generateWorkoutImage, type ShareData, type ShareTemplate } from '@/lib/share-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
+import { cn } from '@/lib/utils';
 
 interface Props {
   data: ShareData;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+// Z180: wybór szablonu zapamiętany między sesjami.
+const TEMPLATE_STORAGE_KEY = 'fittracker_share_template_v1';
+
+const loadStoredTemplate = (): ShareTemplate => {
+  try {
+    const raw = localStorage.getItem(TEMPLATE_STORAGE_KEY);
+    // 'photo' bez zdjęcia nie ma sensu na starcie — degraduje do gradientu.
+    return raw === 'minimal' ? 'minimal' : 'gradient';
+  } catch {
+    return 'gradient';
+  }
+};
 
 export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   const { t, lang } = useTranslation();
@@ -26,14 +41,15 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const [template, setTemplate] = useState<ShareTemplate>(() => loadStoredTemplate());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const generate = async (photo?: string | null) => {
+  const generate = async (photo: string | null, tpl: ShareTemplate) => {
     setIsGenerating(true);
     setError(null);
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     try {
-      const result = await generateWorkoutImage(data, photo || undefined, lang, unit);
+      const result = await generateWorkoutImage(data, photo || undefined, lang, unit, tpl);
       setBlob(result);
       setImageUrl(URL.createObjectURL(result));
     } catch {
@@ -43,6 +59,17 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
     }
   };
 
+  const selectTemplate = (tpl: ShareTemplate) => {
+    if (tpl === 'photo' && !photoDataUrl) {
+      // Reguła 6: chip "Zdjęcie" bez zdjęcia otwiera picker zamiast robić no-op.
+      fileInputRef.current?.click();
+      return;
+    }
+    setTemplate(tpl);
+    try { localStorage.setItem(TEMPLATE_STORAGE_KEY, tpl); } catch { /* zostaje default */ }
+    void generate(photoDataUrl, tpl);
+  };
+
   useEffect(() => {
     if (!open) {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
@@ -50,51 +77,85 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
       setBlob(null);
       setError(null);
       setPhotoDataUrl(null);
+      setTemplate(loadStoredTemplate());
       return;
     }
 
-    generate(null);
+    void generate(null, loadStoredTemplate());
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
+    setIsGenerating(true);
+    try {
+      // Z179: 12 MP z aparatu bez downscale = crash WKWebView (kopie base64 w pamięci).
+      const dataUrl = await downscalePhoto(file);
       setPhotoDataUrl(dataUrl);
-      generate(dataUrl);
-    };
-    reader.readAsDataURL(file);
+      setTemplate('photo');
+      try { localStorage.setItem(TEMPLATE_STORAGE_KEY, 'photo'); } catch { /* noop */ }
+      await generate(dataUrl, 'photo');
+    } catch {
+      setIsGenerating(false);
+      setError(t('comp.share.generateError'));
+    }
   };
 
   const handleRemovePhoto = () => {
     setPhotoDataUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    generate(null);
+    setTemplate('gradient');
+    try { localStorage.setItem(TEMPLATE_STORAGE_KEY, 'gradient'); } catch { /* noop */ }
+    void generate(null, 'gradient');
   };
 
-  const handleDownload = () => {
-    if (!imageUrl) return;
-    const a = document.createElement('a');
-    a.href = imageUrl;
-    a.download = `trening-${data.date}.png`;
-    a.click();
-  };
+  const shareFile = (): File | null =>
+    blob ? new File([blob], `trening-${data.date}.jpg`, { type: 'image/jpeg' }) : null;
 
-  const handleShare = async () => {
-    if (!blob) return;
-    const file = new File([blob], `trening-${data.date}.png`, { type: 'image/png' });
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+  const systemShare = async (file: File) => {
+    try {
       await navigator.share({
         title: t('comp.share.shareTitle', { dayName: data.dayName }),
         files: [file],
       });
-    } else {
-      handleDownload();
+    } catch (err) {
+      // Zamknięcie sheeta (AbortError) to nie błąd — wzorzec Analytics.tsx.
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setError(t('comp.share.generateError'));
     }
   };
+
+  const handleDownload = async () => {
+    if (!imageUrl) return;
+    const file = shareFile();
+    // Z179: WKWebView ignoruje <a download> — natywnie "Pobierz" idzie przez
+    // share sheet (iOS ma tam "Zapisz obraz"), bez nowych pluginów.
+    if (Capacitor.isNativePlatform() && file && navigator.canShare?.({ files: [file] })) {
+      await systemShare(file);
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = imageUrl;
+    a.download = `trening-${data.date}.jpg`;
+    a.click();
+  };
+
+  const handleShare = async () => {
+    const file = shareFile();
+    if (!file) return;
+    if (navigator.canShare?.({ files: [file] })) {
+      await systemShare(file);
+    } else {
+      await handleDownload();
+    }
+  };
+
+  const templates: Array<{ id: ShareTemplate; label: string }> = [
+    { id: 'gradient', label: t('comp.share.tplGradient') },
+    { id: 'photo', label: t('comp.share.tplPhoto') },
+    { id: 'minimal', label: t('comp.share.tplMinimal') },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,13 +165,30 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
           <DialogDescription>{t('comp.share.subtitle')}</DialogDescription>
         </DialogHeader>
 
+        {/* Z180: przełączniki szablonu */}
+        <div className="flex gap-1.5" data-testid="share-template-chips">
+          {templates.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => selectTemplate(id)}
+              aria-pressed={template === id}
+              className={cn(
+                'flex-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                template === id ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Photo toggle */}
         <div className="flex items-center gap-2">
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={handlePhotoSelect}
           />

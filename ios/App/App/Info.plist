@@ -70,5 +70,9 @@
 	<string>Strength Save odczytuje Twoją masę ciała z Apple Health, aby proponować aktualizację pomiarów i poprawnie liczyć obciążenie efektywne (np. podciąganie z asystą). Zawsze zatwierdzasz dodanie wagi ręcznie.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Strength Save zapisuje ukończone treningi siłowe i cardio do Apple Health, aby liczyły się do Twoich pierścieni aktywności i historii zdrowia.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Wybór zdjęcia do obrazu podsumowania treningu.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Zrobienie zdjęcia do obrazu podsumowania treningu.</string>
 </dict>
 </plist>
