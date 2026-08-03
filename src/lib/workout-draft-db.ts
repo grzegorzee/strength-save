@@ -438,7 +438,12 @@ const clearFallbackCopyIfMatches = (userId: string, sessionId?: string): void =>
   }
 };
 
-const runWrite = async (value: ActiveWorkoutDraft | null, userId: string, sessionId?: string): Promise<void> => {
+const runWrite = async (
+  value: ActiveWorkoutDraft | null,
+  userId: string,
+  sessionId?: string,
+  options?: { skipIfNewerExists?: boolean },
+): Promise<void> => {
   const db = await openDatabase();
   if (!db) {
     if (value) {
@@ -458,7 +463,27 @@ const runWrite = async (value: ActiveWorkoutDraft | null, userId: string, sessio
       if (sessionId && sessionId !== value.sessionId) {
         store.delete(getWorkoutDraftKey(userId, sessionId));
       }
-      store.put(value, getWorkoutDraftKey(value.userId, value.sessionId));
+      const targetKey = getWorkoutDraftKey(value.userId, value.sessionId);
+      if (options?.skipIfNewerExists) {
+        // Z175: read-before-write w TEJ SAMEJ transakcji — świeży stan (np. autostart
+        // z kafla, version=1) nie może nadpisać żywego draftu z odhaczeniami.
+        // Mapa latestWriteVersions chroni tylko wyścigi w obrębie strony; po reloadzie
+        // WebView jest pusta i jedyną prawdą o wersji jest rekord w IDB.
+        const getRequest = store.get(targetKey);
+        getRequest.onsuccess = () => {
+          const existing = normalizeDraft(getRequest.result, value.userId);
+          if (existing && existing.version > value.version) {
+            // Nie nadpisujemy; resolve wprost — transakcja bez writa nie w każdym
+            // driverze strzela oncomplete.
+            resolve();
+            return;
+          }
+          store.put(value, targetKey);
+        };
+        getRequest.onerror = () => reject(getRequest.error);
+      } else {
+        store.put(value, targetKey);
+      }
     } else {
       if (sessionId) {
         store.delete(getWorkoutDraftKey(userId, sessionId));
@@ -805,14 +830,14 @@ export const workoutDraftDb = {
     const write = previous.then(async () => {
       if (normalized.version < (latestWriteVersions.get(key) ?? normalized.version)) return;
       try {
-        await runWrite(normalized, normalized.userId);
+        await runWrite(normalized, normalized.userId, undefined, { skipIfNewerExists: true });
       } catch {
         // IndexedDB w WKWebView potrafi stracić połączenie po powrocie z tła — jedna ponowna
         // próba na ŚWIEŻYM połączeniu, potem localStorage. Błąd pozostaje widoczny tylko
         // gdy fallback zawiedzie.
         resetDatabaseConnection();
         try {
-          await runWrite(normalized, normalized.userId);
+          await runWrite(normalized, normalized.userId, undefined, { skipIfNewerExists: true });
         } catch {
           withFallbackSave(normalized);
         }

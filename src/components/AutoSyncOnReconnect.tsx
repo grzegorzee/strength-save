@@ -14,8 +14,11 @@ import { cleanupLegacySyncLeftovers } from '@/lib/workout-sync-cleanup';
 
 // Po powrocie online (i na starcie sesji) automatycznie domyka zaległe final-synci
 // z kolejki — wcześniej wymagało to ręcznego "Ponów" w Sync Center w Ustawieniach.
-// Przetwarza WYŁĄCZNIE wpisy finalSyncPending (ukończone treningi), także aktywny
-// draft widoczny na Dashboardzie. Aktywne drafty w trakcie treningu obsługuje WorkoutDay.
+// Przetwarza wpisy finalSyncPending (ukończone treningi, kind=final) ORAZ — od Z175 —
+// aktywne sesje provisional (start offline, kind=checkpoint): bez tego promocja
+// provisional→remote wymagała WEJŚCIA w ekran treningu i baner "rozpoczęty offline"
+// wisiał na Dashboardzie mimo sieci. Dirty drafty remote nadal obsługuje WYŁĄCZNIE
+// WorkoutDay (żywa sesja ma swój rytm checkpointów).
 // Konflikt wersji (WORKOUT_CONFLICT) zostaje
 // w kolejce do ręcznego rozwiązania dialogiem w treningu.
 export const AutoSyncOnReconnect = () => {
@@ -65,14 +68,18 @@ export const AutoSyncOnReconnect = () => {
           .map((entry) => entry.sessionId),
       );
       const entries = collectRetryableSyncEntries(activeDrafts, queueEntries)
-        .filter(({ entry }) => entry.finalSyncPending && !conflictSessionIds.has(entry.sessionId));
+        .filter(({ entry }) => (entry.finalSyncPending || entry.sessionOrigin === 'provisional')
+          && !conflictSessionIds.has(entry.sessionId));
       if (entries.length === 0) return;
 
       runningRef.current = true;
       let synced = 0;
       try {
         for (const { entry } of entries) {
-          const outcome = await syncWorkoutSession(uid, entry.sessionId, 'final', syncDeps);
+          // Z175: aktywna sesja provisional dostaje checkpoint (promocja + baseline),
+          // final zostaje wyłącznie dla ukończonych treningów.
+          const kind = entry.finalSyncPending ? 'final' : 'checkpoint';
+          const outcome = await syncWorkoutSession(uid, entry.sessionId, kind, syncDeps);
           if (outcome.promotedSessionId) {
             trackTelemetryEvent(uid, 'provisional_session_promoted');
           }
@@ -90,7 +97,7 @@ export const AutoSyncOnReconnect = () => {
             }
             void reportClientError(uid, {
               code: classifyWorkoutSyncError(outcome.error),
-              phase: 'final',
+              phase: kind,
               detail: outcome.error,
               sessionId: outcome.sessionId,
             });

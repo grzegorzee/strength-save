@@ -236,6 +236,37 @@ describe('workoutDraftDb', () => {
     expect(loaded).toEqual(baseDraft);
   });
 
+  it('Z175: zapis z niższą wersją NIE nadpisuje żywego draftu pod tym samym kluczem', async () => {
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      version: 5,
+      exerciseSets: {
+        'ex-1': [
+          { reps: 5, weight: 100, completed: true },
+          { reps: 5, weight: 100, completed: true },
+          { reps: 5, weight: 100, completed: true },
+        ],
+      },
+    });
+
+    // Autostart z kafla budował świeży stan (version=1, zero odhaczeń) i nadpisywał
+    // żywą sesję pod tym samym kluczem — guard read-before-write w IDB ma go odbić.
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 1, exerciseSets: { 'ex-1': [] } });
+
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.version).toBe(5);
+    expect(loaded?.exerciseSets['ex-1'].filter((set) => set.completed)).toHaveLength(3);
+  });
+
+  it('Z175 niezmiennik: zapis z wyższą wersją nadpisuje jak dotąd', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 2 });
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 7, dayNotes: 'Nowsza treść' });
+
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.version).toBe(7);
+    expect(loaded?.dayNotes).toBe('Nowsza treść');
+  });
+
   it('roundtrip zachowuje lastTouchedExerciseId (Z47)', async () => {
     await workoutDraftDb.saveActiveDraft({ ...baseDraft, lastTouchedExerciseId: 'ex-1' });
     const loaded = await workoutDraftDb.loadActiveDraft('user-1');

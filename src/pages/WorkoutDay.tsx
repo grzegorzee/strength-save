@@ -78,6 +78,9 @@ import {
 } from '@/lib/workout-start';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
+// Z175: sesja provisional dostaje PIERWSZY checkpoint szybko — 5-minutowe okno bez
+// próby promocji zostawiało baner "rozpoczęty offline" na Dashboardzie mimo sieci.
+const PROVISIONAL_FIRST_CHECKPOINT_MS = 15 * 1000;
 
 type AutoSaveStatus =
   | 'idle'
@@ -1133,11 +1136,29 @@ const WorkoutDay = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autostart, startSourcesReady, day, isViewingPastWorkout, isCompleted, sessionId]);
 
+  // Z175: najświeższe wersje callbacków dla cleanupu unmount (efekt z pustymi deps
+  // widziałby wersje z PIERWSZEGO renderu).
+  const persistDraftSnapshotRef = useRef(persistDraftSnapshot);
+  const syncDraftToFirebaseRef = useRef(syncDraftToFirebase);
+  useEffect(() => {
+    persistDraftSnapshotRef.current = persistDraftSnapshot;
+    syncDraftToFirebaseRef.current = syncDraftToFirebase;
+  }, [persistDraftSnapshot, syncDraftToFirebase]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
       if (periodicSaveTimer.current) clearInterval(periodicSaveTimer.current);
+      // Z175: wyjście z ekranu treningu = fire-and-forget flush draftu + checkpoint
+      // dla sesji provisional/dirty. Bez tego promocja provisional czekała, aż user
+      // WRÓCI do treningu (baner offline wisiał na Dashboardzie mimo sieci).
+      const draft = activeDraftRef.current;
+      if (draft && !draft.finalSyncPending && (draft.dirty || draft.sessionOrigin === 'provisional')) {
+        void persistDraftSnapshotRef.current({}, { showStatus: false })
+          .then(() => syncDraftToFirebaseRef.current('checkpoint'))
+          .catch(() => { /* best effort — kolejny checkpoint/AutoSync ponowi */ });
+      }
     };
   }, []);
 
@@ -1149,14 +1170,25 @@ const WorkoutDay = () => {
       return;
     }
 
+    // Z175: pierwszy checkpoint sesji provisional po 15 s (promocja od razu, gdy
+    // jest sieć), potem normalny rytm 5 min. Po promocji sessionOrigin='remote'
+    // → efekt się przezbraja i timeout znika.
+    let firstProvisionalCheckpoint: NodeJS.Timeout | null = null;
+    if (currentPageDraft?.sessionOrigin === 'provisional') {
+      firstProvisionalCheckpoint = setTimeout(() => {
+        void syncDraftToFirebase('checkpoint');
+      }, PROVISIONAL_FIRST_CHECKPOINT_MS);
+    }
+
     periodicSaveTimer.current = setInterval(() => {
       void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
     }, CHECKPOINT_INTERVAL_MS);
 
     return () => {
+      if (firstProvisionalCheckpoint) clearTimeout(firstProvisionalCheckpoint);
       if (periodicSaveTimer.current) clearInterval(periodicSaveTimer.current);
     };
-  }, [sessionId, currentPageDraft?.dirty, currentPageDraft?.finalSyncPending, syncDraftToFirebase]);
+  }, [sessionId, currentPageDraft?.dirty, currentPageDraft?.finalSyncPending, currentPageDraft?.sessionOrigin, syncDraftToFirebase]);
 
   // Flush local draft and try best-effort sync when app goes to background.
   // Przy okazji zapisujemy pozycję scrolla — iOS WKWebView potrafi przeładować stronę w tle,
