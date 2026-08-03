@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ChevronDown, Loader2, Trash2 } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { cn, formatLocalDate } from '@/lib/utils';
+import { parseDecimalInput } from '@/lib/decimal-input';
 import {
   MANUAL_ACTIVITY_TYPES,
   type ManualActivity,
@@ -76,13 +77,15 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
     setError(null);
   }, [open, editActivity, defaultDate]);
 
+  // Z178: parseDecimalInput zamiast martwego replace — type="number" sanitował
+  // przecinek do "" zanim JS go zobaczył.
   const buildInput = (): ManualActivityInput => ({
     type,
     date,
-    movingTime: Math.round((parseFloat(minutes.replace(',', '.')) || 0) * 60),
-    ...(distanceKm && { distance: Math.round((parseFloat(distanceKm.replace(',', '.')) || 0) * 1000) }),
-    ...(avgHR && { averageHeartrate: parseFloat(avgHR) }),
-    ...(calories && { calories: parseFloat(calories) }),
+    movingTime: Math.round((parseDecimalInput(minutes) ?? 0) * 60),
+    ...(distanceKm && { distance: Math.round((parseDecimalInput(distanceKm) ?? 0) * 1000) }),
+    ...(avgHR && { averageHeartrate: parseDecimalInput(avgHR) ?? 0 }),
+    ...(calories && { calories: parseDecimalInput(calories) ?? 0 }),
     ...(intensity && { perceivedIntensity: intensity }),
     ...(note.trim() && { description: note.trim() }),
   });
@@ -145,9 +148,8 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
           <div>
             <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.minutes')}</p>
             <Input
-              type="number"
-              inputMode="numeric"
-              min={1}
+              type="text"
+              inputMode="decimal"
               value={minutes}
               onChange={(e) => setMinutes(e.target.value)}
               placeholder="30"
@@ -172,7 +174,7 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.distanceKm')}</p>
-                <Input type="number" inputMode="decimal" min={0} step={0.1} value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder="5.0" data-testid="cardio-distance" />
+                <Input type="text" inputMode="decimal" value={distanceKm} onChange={(e) => setDistanceKm(e.target.value)} placeholder="5.0" data-testid="cardio-distance" />
               </div>
               <div>
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.avgHR')}</p>
@@ -228,7 +230,7 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
           )}
           <Button
             className="flex-1"
-            disabled={saving || !minutes || Math.round((parseFloat(minutes.replace(',', '.')) || 0) * 60) <= 0}
+            disabled={saving || !minutes || Math.round((parseDecimalInput(minutes) ?? 0) * 60) <= 0}
             onClick={() => void handleSave()}
             data-testid="cardio-save"
           >

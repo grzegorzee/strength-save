@@ -790,7 +790,7 @@ test.describe('Szybki trening (Z104)', () => {
     await expect(page.getByRole('heading', { name: 'Wiosłowanie hantlami na ławce (przodem)' })).toBeVisible();
 
     // Odhacz pierwszą serię ROBOCZĄ (nie warmup) pierwszego ćwiczenia.
-    await page.getByRole('spinbutton', { name: 'Wyciskanie sztangi na ławce płaskiej, Set 1, kg' }).fill('60');
+    await page.getByRole('textbox', { name: 'Wyciskanie sztangi na ławce płaskiej, Set 1, kg' }).fill('60');
     await page.getByRole('spinbutton', { name: 'Wyciskanie sztangi na ławce płaskiej, Set 1, Powt.' }).fill('8');
     // Kolejność checkmarków w karcie: [0]=rozgrzewka W, [1]=Set 1.
     const firstCard = page.locator('.exercise-card').first();
@@ -914,7 +914,7 @@ test.describe('Typy serii (Z105)', () => {
     await dialog.getByText("Spacer farmera (Farmer's Walk)").click();
     const farmerCard = page.locator('.exercise-card').nth(1);
     await expect(farmerCard.getByText('Dystans', { exact: true })).toBeVisible();
-    await farmerCard.getByRole('spinbutton', { name: /Set 1, kg/ }).fill('24');
+    await farmerCard.getByRole('textbox', { name: /Set 1, kg/ }).fill('24');
     await farmerCard.getByRole('spinbutton', { name: /Set 1, Dystans/ }).fill('40');
 
     // Podciąganie wspomagane: asysta + powtórzenia.
@@ -924,7 +924,7 @@ test.describe('Typy serii (Z105)', () => {
     await dialog.getByText('Podciąganie wspomagane na maszynie').click();
     const assistCard = page.locator('.exercise-card').nth(2);
     await expect(assistCard.getByText('Asysta', { exact: true })).toBeVisible();
-    await assistCard.getByRole('spinbutton', { name: /Set 1, Asysta/ }).fill('25');
+    await assistCard.getByRole('textbox', { name: /Set 1, Asysta/ }).fill('25');
     await assistCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).fill('8');
 
     // Draft w IndexedDB ma nowe pola (poll — zapis async).
@@ -988,7 +988,7 @@ test.describe('Kalkulator talerzy (Z107)', () => {
     const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
     const firstCard = page.locator('.exercise-card').first();
-    await firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first().fill('100');
+    await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
     await firstCard.getByTestId('plate-calculator-open').click();
     // 100 kg na gryfie 20: 40 kg na stronę = 25 + 15 (default inventory).
@@ -1000,11 +1000,11 @@ test.describe('Kalkulator talerzy (Z107)', () => {
     const today = localToday();
     await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
     const firstCard = page.locator('.exercise-card').first();
-    await firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first().fill('100');
+    await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
 
     await firstCard.getByTestId('warmup-generate').click();
     // Schemat: gryf 20 x10, 50 x8, 70 x5, 90 x2 — 4 wiersze rozgrzewkowe.
-    await expect(firstCard.getByRole('spinbutton', { name: /Rozgrzewka W, kg/ })).toHaveCount(4);
+    await expect(firstCard.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(4);
     // Po wygenerowaniu (wypełnione warmupy) przycisk znika — brak duplikacji.
     await expect(firstCard.getByTestId('warmup-generate')).toHaveCount(0);
   });
@@ -1275,7 +1275,7 @@ test.describe('Cele tygodnia (Z120)', () => {
     // Pre-fill startu treningu używa celu (waga 62.5, powtórzenia 6), nie kopii poprzedniego (60×8).
     await page.getByRole('button', { name: /Rozpocznij trening/ }).click();
     const card = page.locator('.exercise-card').first();
-    await expect(card.getByRole('spinbutton', { name: /Set 2, kg/ })).toHaveValue('62.5');
+    await expect(card.getByRole('textbox', { name: /Set 2, kg/ })).toHaveValue('62.5');
     await expect(card.getByRole('spinbutton', { name: /Set 2, Powt\./ })).toHaveValue('6');
   });
 

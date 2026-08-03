@@ -82,7 +82,7 @@ const checkOneSet = async (page: Page) => {
   const firstCard = page.locator('.exercise-card').first();
   await expect(firstCard).toBeVisible();
 
-  await firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first().fill('100');
+  await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
   await firstCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).first().fill('8');
   await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
   await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(1);
@@ -132,7 +132,7 @@ test.describe('Id dni aktywnego cyklu przy edycji planu (Z152)', () => {
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard).toBeVisible();
     await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(1);
-    await expect(firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first()).toHaveValue('100');
+    await expect(firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first()).toHaveValue('100');
     const draftAfter = await readWorkoutDraftDb(page, E2E_UID) as DraftShape;
     expect(draftAfter?.sessionId).toBe(draftBefore?.sessionId);
     expect(countCompletedSets(draftAfter)).toBe(1);

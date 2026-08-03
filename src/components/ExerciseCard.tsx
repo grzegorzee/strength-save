@@ -39,6 +39,7 @@ import { reportClientError } from '@/lib/error-telemetry';
 import { PinnedNoteSection, type PinnedNoteSaveInput } from '@/components/PinnedNoteSection';
 import type { ExerciseNote } from '@/lib/exercise-notes';
 import { formatDistanceM, formatDurationSec, parseDurationInput, type TrackingType } from '@/lib/set-tracking';
+import { formatDecimalInput, parseDecimalInput } from '@/lib/decimal-input';
 import { PlateCalculatorSheet } from '@/components/PlateCalculatorSheet';
 import { generateWarmupSets } from '@/lib/warmup-generator';
 import { loadPlateInventory } from '@/lib/plate-calculator';
@@ -273,6 +274,55 @@ const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, placeholder, c
   );
 };
 
+// Z178: pole dziesiętne przyjmujące przecinek I kropkę (wzorzec DurationInput).
+// type="number" z przecinkiem = tekst, którego React nie nadpisze, a wariant
+// WebKit sanituje do "" i `parseFloat||0` robił ZAPIS 0 (cicha utrata wagi).
+// Draft lokalny: stan pośredni ("47,") nie commituje; wartość parsowalna
+// commituje na bieżąco; puste pole = jawny onClear; blur wraca do kanonicznej
+// postaci z kropką.
+const DecimalInput = ({
+  value,
+  onCommit,
+  onClear,
+  disabled,
+  ariaLabel,
+  placeholder,
+  className,
+}: {
+  value: number | '';
+  onCommit: (n: number) => void;
+  onClear?: () => void;
+  disabled?: boolean;
+  ariaLabel?: string;
+  placeholder?: string;
+  className?: string;
+}) => {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      value={draft ?? (value === '' ? '' : formatDecimalInput(value))}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setDraft(raw);
+        if (raw.trim() === '') {
+          onClear?.();
+          return;
+        }
+        const parsed = parseDecimalInput(raw);
+        if (parsed !== null) onCommit(parsed);
+      }}
+      onBlur={() => setDraft(null)}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+      placeholder={placeholder}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className={className}
+    />
+  );
+};
+
 // ── Main Component ──
 const ExerciseCardInner = ({
   exercise,
@@ -363,14 +413,16 @@ const ExerciseCardInner = ({
     }
   }, [savedSets, savedNotes, setCount, metrics, defaultMetricsVisible]);
 
-  // Zmiana metryki: pusty input => pole usunięte (undefined), inaczej liczba w zakresie.
-  const handleMetricChange = (field: keyof ExerciseMetrics, raw: string) => {
+  // Zmiana metryki: null => pole usunięte (undefined), inaczej liczba.
+  // Z178: wartość przychodzi już SPARSOWANA z DecimalInput — koniec NaN z
+  // przecinka, które znikało po powrocie do ekranu.
+  const handleMetricChange = (field: keyof ExerciseMetrics, value: number | null) => {
     hasLocalChanges.current = true;
     const next: ExerciseMetrics = { ...metricsState };
-    if (raw === '') {
+    if (value === null) {
       delete next[field];
     } else {
-      next[field] = parseFloat(raw);
+      next[field] = value;
     }
     setMetricsState(next);
     onMetricsChange?.(exercise.id, next);
@@ -660,16 +712,13 @@ const ExerciseCardInner = ({
         )}
 
         {tracking === 'weight_distance_duration' && (
-          <Input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step={0.5}
+          <DecimalInput
             value={displayWeight}
-            onChange={(e) => handleSetChange(globalIndex, 'weight', fromInput(parseFloat(e.target.value) || 0))}
+            onCommit={(n) => handleSetChange(globalIndex, 'weight', fromInput(n))}
+            onClear={() => handleSetChange(globalIndex, 'weight', 0)}
             placeholder={unit}
             disabled={!isEditable}
-            aria-label={`${localizedName}, ${setLabel}, ${unit}`}
+            ariaLabel={`${localizedName}, ${setLabel}, ${unit}`}
             className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
@@ -689,16 +738,13 @@ const ExerciseCardInner = ({
         )}
 
         {tracking === 'assisted_bodyweight' && (
-          <Input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step={0.5}
+          <DecimalInput
             value={displayAssist}
-            onChange={(e) => handleSetChange(globalIndex, 'assistWeight', fromInput(parseFloat(e.target.value) || 0))}
+            onCommit={(n) => handleSetChange(globalIndex, 'assistWeight', fromInput(n))}
+            onClear={() => handleSetChange(globalIndex, 'assistWeight', 0)}
             placeholder={`-${unit}`}
             disabled={!isEditable}
-            aria-label={`${localizedName}, ${setLabel}, ${t('card.colAssist')}`}
+            ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colAssist')}`}
             className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
@@ -802,16 +848,13 @@ const ExerciseCardInner = ({
 
         {/* KG (non-bodyweight) */}
         {!isBodyweight && (
-          <Input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step={0.5}
+          <DecimalInput
             value={displayWeight}
-            onChange={(e) => handleSetChange(globalIndex, 'weight', fromInput(parseFloat(e.target.value) || 0))}
+            onCommit={(n) => handleSetChange(globalIndex, 'weight', fromInput(n))}
+            onClear={() => handleSetChange(globalIndex, 'weight', 0)}
             placeholder="0"
             disabled={!isEditable}
-            aria-label={`${localizedName}, ${setLabel}, ${unit}`}
+            ariaLabel={`${localizedName}, ${setLabel}, ${unit}`}
             className={cn(
               'exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
               isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
@@ -1195,18 +1238,15 @@ const ExerciseCardInner = ({
                 { field: 'rpe' as const, label: t('card.rpe'), min: 0, max: 10, step: 0.5, ph: '8' },
                 { field: 'pain' as const, label: t('card.pain'), min: 0, max: 10, step: 1, ph: '0' },
                 { field: 'quality' as const, label: t('card.quality'), min: 1, max: 5, step: 1, ph: '5' },
-              ]).map(({ field, label, min, max, step, ph }) => (
+              ]).map(({ field, label, ph }) => (
                 <div key={field} className="flex flex-col gap-1">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 text-center">{label}</span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min={min}
-                    max={max}
-                    step={step}
+                  <DecimalInput
                     value={metricsState[field] ?? ''}
-                    onChange={(e) => handleMetricChange(field, e.target.value)}
+                    onCommit={(n) => handleMetricChange(field, n)}
+                    onClear={() => handleMetricChange(field, null)}
                     placeholder={ph}
+                    ariaLabel={label}
                     className="exercise-card-input h-11 text-base font-bold text-center focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>

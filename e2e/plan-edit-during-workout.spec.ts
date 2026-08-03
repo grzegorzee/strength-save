@@ -35,9 +35,9 @@ const checkTwoSets = async (page: Page) => {
   const firstCard = page.locator('.exercise-card').first();
   await expect(firstCard).toBeVisible();
 
-  await firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first().fill('100');
+  await firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first().fill('100');
   await firstCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).first().fill('8');
-  await firstCard.getByRole('spinbutton', { name: /Set 2, kg/ }).first().fill('102.5');
+  await firstCard.getByRole('textbox', { name: /Set 2, kg/ }).first().fill('102.5');
   await firstCard.getByRole('spinbutton', { name: /Set 2, Powt\./ }).first().fill('6');
 
   // Po kliknięciu przycisk zmienia aria-label na "Odznacz serię" — first()
@@ -69,9 +69,9 @@ const expectWorkoutIntactAfterBack = async (page: Page, draftBefore: DraftShape)
 
   // Serie NADAL odhaczone, wartości nietknięte.
   await expect(firstCard.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(2);
-  await expect(firstCard.getByRole('spinbutton', { name: /Set 1, kg/ }).first()).toHaveValue('100');
+  await expect(firstCard.getByRole('textbox', { name: /Set 1, kg/ }).first()).toHaveValue('100');
   await expect(firstCard.getByRole('spinbutton', { name: /Set 1, Powt\./ }).first()).toHaveValue('8');
-  await expect(firstCard.getByRole('spinbutton', { name: /Set 2, kg/ }).first()).toHaveValue('102.5');
+  await expect(firstCard.getByRole('textbox', { name: /Set 2, kg/ }).first()).toHaveValue('102.5');
 
   // Nowe ćwiczenie z planu widoczne na liście dnia (merge plan+draft).
   await expect(page.getByRole('heading', { name: ADDED_EXERCISE })).toBeVisible();

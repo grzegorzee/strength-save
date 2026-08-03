@@ -10,6 +10,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import { validateMeasurement } from '@/lib/measurement-validation';
+import { parseDecimalInput } from '@/lib/decimal-input';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
@@ -42,18 +43,25 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Z178: przecinek legalny (Number("82,4")=NaN blokował zapis pomiarów).
+    // Pole nieparsowalne → NaN, które walidacja odrzuca jako błąd (nie trafia do danych).
+    const parseField = (raw: string, convert: (n: number) => number): number | undefined => {
+      if (!raw) return undefined;
+      const n = parseDecimalInput(raw);
+      return n === null ? Number.NaN : convert(n);
+    };
     const measurement = {
       date: formatLocalDate(new Date()),
-      weight: formData.weight ? fromInput(Number(formData.weight)) : undefined,
-      armLeft: formData.armLeft ? fromInputLength(Number(formData.armLeft)) : undefined,
-      armRight: formData.armRight ? fromInputLength(Number(formData.armRight)) : undefined,
-      chest: formData.chest ? fromInputLength(Number(formData.chest)) : undefined,
-      waist: formData.waist ? fromInputLength(Number(formData.waist)) : undefined,
-      hips: formData.hips ? fromInputLength(Number(formData.hips)) : undefined,
-      thighLeft: formData.thighLeft ? fromInputLength(Number(formData.thighLeft)) : undefined,
-      thighRight: formData.thighRight ? fromInputLength(Number(formData.thighRight)) : undefined,
-      calfLeft: formData.calfLeft ? fromInputLength(Number(formData.calfLeft)) : undefined,
-      calfRight: formData.calfRight ? fromInputLength(Number(formData.calfRight)) : undefined,
+      weight: parseField(formData.weight, fromInput),
+      armLeft: parseField(formData.armLeft, fromInputLength),
+      armRight: parseField(formData.armRight, fromInputLength),
+      chest: parseField(formData.chest, fromInputLength),
+      waist: parseField(formData.waist, fromInputLength),
+      hips: parseField(formData.hips, fromInputLength),
+      thighLeft: parseField(formData.thighLeft, fromInputLength),
+      thighRight: parseField(formData.thighRight, fromInputLength),
+      calfLeft: parseField(formData.calfLeft, fromInputLength),
+      calfRight: parseField(formData.calfRight, fromInputLength),
     };
     if (!validateMeasurement(measurement).valid) {
       setValidationError(true);
@@ -108,8 +116,8 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
                 </Label>
                 <Input
                   id={field.key}
-                  type="number"
-                  step="0.1"
+                  type="text"
+                  inputMode="decimal"
                   placeholder={field.description}
                   value={formData[field.key as keyof typeof formData]}
                   onChange={(e) => handleChange(field.key, e.target.value)}

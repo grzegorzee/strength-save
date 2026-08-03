@@ -17,6 +17,7 @@ import {
   type PlateInventoryUnit,
 } from '@/lib/plate-calculator';
 import { lbsToKg } from '@/lib/units';
+import { parseDecimalInput } from '@/lib/decimal-input';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
@@ -116,16 +117,15 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
           <div className="flex items-center gap-2">
             <Input
               id="plate-weight"
-              type="number"
+              type="text"
               inputMode="decimal"
-              min={0}
-              step={0.5}
               value={displayWeight}
               aria-label={`${t('plates.weightLabel')} (${unit})`}
               onChange={(e) => {
                 setDraft(e.target.value);
-                const parsed = parseFloat(e.target.value);
-                if (Number.isFinite(parsed)) setWeightKg(Math.max(0, fromInput(parsed)));
+                // Z178: przecinek legalny; type="number" sanitował go do "" (martwy parse).
+                const parsed = parseDecimalInput(e.target.value);
+                if (parsed !== null) setWeightKg(Math.max(0, fromInput(parsed)));
               }}
               onBlur={() => setDraft(null)}
               className="exercise-card-input h-14 text-xl font-bold"
@@ -307,8 +307,8 @@ export const PlateInventorySettings = () => {
   };
 
   const addPlate = () => {
-    const nominal = parseFloat(customPlate);
-    if (!Number.isFinite(nominal) || nominal <= 0) return;
+    const nominal = parseDecimalInput(customPlate);
+    if (nominal === null || nominal <= 0) return;
     // Wpis w jednostce inwentarza (na talerzu lbs pisze "45") — model zostaje w kg.
     const kg = inventoryUnit === 'lbs' ? lbsToKg(nominal) : nominal;
     if (plates.some((p) => Math.abs(p.weightKg - kg) < 0.001)) return;
@@ -353,17 +353,15 @@ export const PlateInventorySettings = () => {
               </button>
             ))}
             <Input
-              type="number"
+              type="text"
               inputMode="decimal"
-              min={0}
-              step={0.5}
               value={customBar}
               aria-label={t('plates.customBar')}
               placeholder={t('plates.customBar')}
               onChange={(e) => {
                 setCustomBar(e.target.value);
-                const kg = parseFloat(e.target.value);
-                if (Number.isFinite(kg) && kg >= 0 && kg <= 100) setBar(kg);
+                const kg = parseDecimalInput(e.target.value);
+                if (kg !== null && kg >= 0 && kg <= 100) setBar(kg);
               }}
               className="h-9 w-28 text-sm"
             />
@@ -428,10 +426,8 @@ export const PlateInventorySettings = () => {
             </label>
             <Input
               id="custom-plate"
-              type="number"
+              type="text"
               inputMode="decimal"
-              min={0}
-              step={0.25}
               value={customPlate}
               aria-label={t('plates.customPlate')}
               onChange={(e) => setCustomPlate(e.target.value)}

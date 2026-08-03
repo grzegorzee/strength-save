@@ -209,7 +209,8 @@ const ChartTooltipContent = React.forwardRef<
                       </div>
                       {item.value && (
                         <span className="font-mono font-medium tabular-nums text-foreground">
-                          {item.value.toLocaleString()}
+                          {/* Z178: stałe locale — format tooltipa nie może zależeć od locale urządzenia. */}
+                          {item.value.toLocaleString('en-US')}
                         </span>
                       )}
                     </div>
