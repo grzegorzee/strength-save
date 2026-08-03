@@ -1,8 +1,13 @@
 // Zgłoszenie usera po treningu 2026-07-20: „możliwość ustawiania domyślnej przerwy
 // między seriami w ustawieniach i domyślnej przerwy między ćwiczeniami".
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+
+// Z177: RestSettingsCard → timer-sound → global-error-telemetry ciągnie Firebase
+// (Auth pada w jsdom) — mock jak w timer-sound.test.ts.
+vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: vi.fn() }));
+
 import { RestSettingsCard } from '@/components/RestSettingsCard';
 import { loadRestSettings, saveRestSettings, DEFAULT_REST_SETTINGS, resolveRestSeconds } from '@/lib/rest-timer';
 

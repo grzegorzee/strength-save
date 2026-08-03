@@ -1,5 +1,7 @@
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { Capacitor } from '@capacitor/core';
+import { addAppStateListener } from '@/lib/app-lifecycle';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 
 /**
  * Blokada wygaszania ekranu na czas aktywnego treningu.
@@ -30,13 +32,40 @@ export const setKeepAwakeEnabled = (enabled: boolean): void => {
   } catch { /* localStorage niedostępne — zostaje domyślka */ }
 };
 
+// Z177: samonaprawa. iOS potrafi zdjąć idle-timer po powrocie z tła, a blokada
+// była zakładana raz per sesja — ekran gasł mimo włączonego ustawienia. Moduł
+// pamięta, że blokada POWINNA trzymać (held) i ponawia ją przy każdym powrocie
+// na pierwszy plan. allowScreenSleep zdejmuje intencję.
+let held = false;
+let resumeReapplyArmed = false;
+
+const armResumeReapply = (): void => {
+  if (resumeReapplyArmed) return;
+  resumeReapplyArmed = true;
+  addAppStateListener((isActive) => {
+    if (isActive && held) void keepScreenAwake();
+  });
+};
+
 /** Włącz blokadę, o ile user jej nie wyłączył. Fire-and-forget, web = no-op. */
 export const keepScreenAwake = async (): Promise<void> => {
   if (!Capacitor.isNativePlatform() || !isKeepAwakeEnabled()) return;
+  armResumeReapply();
   try {
     await KeepAwake.keepAwake();
-  } catch {
-    // Plugin niedostępny — ekran gaśnie normalnie, nic się nie psuje.
+    held = true;
+    // Z177: zaufaj, ale sprawdź — plugin bez wyjątku a blokada nie weszła
+    // to dokładnie ta cisza, przez którą ekran gasł na siłowni.
+    const check = await KeepAwake.isKeptAwake().catch(() => null);
+    if (check && check.isKeptAwake === false) {
+      reportClientErrorWithCurrentUid({ code: 'keep-awake-not-applied', phase: 'other' });
+    }
+  } catch (err) {
+    reportClientErrorWithCurrentUid({
+      code: 'keep-awake-error',
+      phase: 'other',
+      detail: err instanceof Error ? err.message : String(err),
+    });
   }
 };
 
@@ -46,6 +75,7 @@ export const keepScreenAwake = async (): Promise<void> => {
  * ekranu na stałe.
  */
 export const allowScreenSleep = async (): Promise<void> => {
+  held = false;
   if (!Capacitor.isNativePlatform()) return;
   try {
     await KeepAwake.allowSleep();

@@ -40,6 +40,13 @@ export const initGlobalErrorTelemetry = (): void => {
   });
 };
 
+// Z177: kanał telemetrii dla modułów bez kontekstu usera (timer-sound, keep-awake).
+// No-op, dopóki uid nieznany — rules wymagają auth.
+export const reportClientErrorWithCurrentUid = (entry: Parameters<typeof reportClientError>[1]): void => {
+  if (!currentUid) return;
+  void reportClientError(currentUid, entry);
+};
+
 export const __resetGlobalErrorTelemetryForTests = (): void => {
   currentUid = undefined;
 };

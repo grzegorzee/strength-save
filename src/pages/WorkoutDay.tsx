@@ -224,6 +224,10 @@ const WorkoutDay = () => {
       void cancelRestEndNotification();
       return;
     }
+    // Z177: re-apply blokady ekranu przy KAŻDEJ przerwie — iOS potrafi zdjąć
+    // idle-timer po powrocie z tła, a przerwa to moment, gdy zgaszony ekran
+    // ucina gong (JS wstrzymany).
+    void keepScreenAwake();
     startRestTimer(exerciseId, seconds);
   }, [startRestTimer, stopRestTimer]);
 
@@ -1223,7 +1227,13 @@ const WorkoutDay = () => {
     // jest źródłem prawdy o tle. Webowe handlery zostają (PWA); duplikat flusha to no-op
     // (saveActiveDraft z tą samą wersją gate'owany przez latestWriteVersions).
     const removeAppStateListener = addAppStateListener((isActive) => {
-      if (isActive || !sessionId) return;
+      if (isActive) {
+        // Z177: powrót na pierwszy plan — ponów blokadę ekranu ŻYWEJ sesji
+        // (iOS zdejmuje idle-timer w tle; lib dodatkowo pilnuje intencji held).
+        if (sessionId && !isCompleted) void keepScreenAwake();
+        return;
+      }
+      if (!sessionId) return;
       saveScroll();
       void persistDraftSnapshot({}, { showStatus: false });
       void syncDraftToFirebase(currentPageDraft?.finalSyncPending ? 'final' : 'checkpoint');
@@ -1233,7 +1243,7 @@ const WorkoutDay = () => {
       window.removeEventListener('pagehide', handlePageHide);
       removeAppStateListener();
     };
-  }, [sessionId, scrollStorageKey, currentPageDraft?.finalSyncPending, persistDraftSnapshot, syncDraftToFirebase]);
+  }, [sessionId, isCompleted, scrollStorageKey, currentPageDraft?.finalSyncPending, persistDraftSnapshot, syncDraftToFirebase]);
 
   // Po remount/reloadzie (iOS purguje WebView w tle) ORAZ po powrocie z tła przywróć pozycję
   // scrolla — user wraca do ćwiczenia, które robił, a nie na początek. Tylko świeży zapis (<15 min).

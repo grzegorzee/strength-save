@@ -4,6 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // HTMLAudioElement — media element WKWebView rejestrował apkę w Now Playing
 // (widget odtwarzacza na lock screenie). Czysty WebAudio nie tworzy wpisu.
 
+// Z177: timer-sound raportuje błędy syntezy przez global-error-telemetry —
+// moduł ciągnie Firestore, a resetModules powodowałby re-init Firebase.
+vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: vi.fn() }));
+
 type FakeSource = {
   buffer: unknown;
   connect: ReturnType<typeof vi.fn>;
@@ -134,5 +138,53 @@ describe('playTimerSound(finish) przez WebAudio (Z147)', () => {
     await flushAsync();
 
     expect(resume).toHaveBeenCalled();
+  });
+});
+
+// Z177: media sessions wideo (Z176 wprowadziło <video> na ekran treningu) wpychają
+// współdzielony AudioContext w stan 'interrupted', a bywa że system go zamyka.
+// Kod obsługiwał tylko 'suspended' → cisza gongów do restartu apki.
+describe('Z177: AudioContext odporny na iOS (interrupted/closed)', () => {
+  it('ctx w stanie interrupted → playTimerSound wznawia (resume) i gra', async () => {
+    vi.stubGlobal('AudioContext', class extends FakeAudioContext { state = 'interrupted'; });
+    const { playTimerSound } = await importTimerSound();
+
+    playTimerSound('finish');
+    await flushAsync();
+
+    expect(resume).toHaveBeenCalled();
+    expect(createdSources).toHaveLength(1);
+  });
+
+  it('ctx closed → moduł tworzy NOWY kontekst i gra', async () => {
+    const instances: FakeAudioContext[] = [];
+    vi.stubGlobal('AudioContext', class extends FakeAudioContext {
+      constructor() {
+        super();
+        instances.push(this);
+      }
+    });
+    const mod = await importTimerSound();
+
+    mod.unlockTimerSound(); // tworzy ctx #1
+    await flushAsync();
+    instances[0].state = 'closed'; // system ubił kontekst (np. przez media wideo)
+
+    mod.playTimerSound('finish');
+    await flushAsync();
+
+    expect(instances).toHaveLength(2);
+    expect(createdSources.length).toBeGreaterThan(0);
+  });
+
+  it('playSynth z rzucającym ctx NIE propaguje wyjątku', async () => {
+    vi.stubGlobal('AudioContext', class extends FakeAudioContext {
+      createOscillator(): never {
+        throw new Error('boom');
+      }
+    });
+    const { playTimerSound } = await importTimerSound();
+
+    expect(() => playTimerSound('tick')).not.toThrow();
   });
 });

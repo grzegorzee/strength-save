@@ -12,7 +12,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // muszą trafić do kolejki nawet zanim załaduje się webview.
         PhoneWatchSessionManager.shared.activate()
         configureAudioSession()
+        // Z177: po przerwaniu sesji audio (telefon, Siri, inne media) system NIE
+        // przywraca jej sam — bez reaktywacji gongi milkły do restartu apki.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAudioSessionInterruption(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
         return true
+    }
+
+    @objc private func handleAudioSessionInterruption(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: typeValue),
+              type == .ended else { return }
+        configureAudioSession()
     }
 
     /// Sygnał końca przerwy MUSI być słyszalny na siłowni.
@@ -69,7 +85,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
+        // Z177: reaktywacja sesji audio po powrocie na pierwszy plan — kategoria
+        // .playback bywa zdejmowana przez system, a była ustawiana RAZ na starcie.
+        configureAudioSession()
     }
 
     func applicationWillTerminate(_ application: UIApplication) {

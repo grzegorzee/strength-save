@@ -3,6 +3,7 @@
 // później z setInterval NIE jest blokowany przez politykę autoplay na iOS/Safari.
 
 import { loadRestSound, restSoundUrl } from '@/lib/rest-sound';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 
 let ctx: AudioContext | null = null;
 
@@ -11,11 +12,19 @@ const getCtx = (): AudioContext | null => {
   try {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
-    if (!ctx) ctx = new AC();
+    // Z177: system potrafi ZAMKNĄĆ kontekst (media sessions wideo z Z176);
+    // closed jest nieodwracalne — jedyny ratunek to nowy AudioContext.
+    if (!ctx || ctx.state === 'closed') ctx = new AC();
     return ctx;
   } catch {
     return null;
   }
+};
+
+// Z177: iOS zna też stan 'interrupted' (przerwanie sesji audio) — resume() dla
+// KAŻDEGO stanu poza 'running', nie tylko 'suspended'.
+const resumeIfNotRunning = (c: AudioContext): void => {
+  if (c.state !== 'running') c.resume().catch(() => {});
 };
 
 // Z147: plik gramy przez WebAudio (fetch + decodeAudioData + bufferSource),
@@ -49,7 +58,7 @@ const loadBuffer = (c: AudioContext, file: string): Promise<AudioBuffer | null> 
 const playFile = async (file: string): Promise<boolean> => {
   const c = getCtx();
   if (!c) return false;
-  if (c.state === 'suspended') c.resume().catch(() => {});
+  resumeIfNotRunning(c);
   const buffer = await loadBuffer(c, file);
   if (!buffer) return false;
   try {
@@ -77,7 +86,7 @@ export const previewRestSound = (file: string): void => {
 export const unlockTimerSound = (): void => {
   const c = getCtx();
   if (!c) return;
-  if (c.state === 'suspended') c.resume().catch(() => {});
+  resumeIfNotRunning(c);
   // Prefetch wybranego dźwięku w geście — koniec przerwy gra z cache, bez
   // czekania na fetch/decode w momencie deadline'u.
   void loadBuffer(c, loadRestSound().file);
@@ -129,22 +138,32 @@ export const playTimerSound = (kind: 'tick' | 'finish' | 'complete' = 'finish'):
 };
 
 const playSynth = (kind: 'tick' | 'finish' | 'complete'): void => {
-  const c = getCtx();
-  if (!c) return;
-  if (c.state === 'suspended') c.resume().catch(() => {});
-  const now = c.currentTime;
-  if (kind === 'tick') {
-    beepAt(c, now, 880, 0.12);
-  } else if (kind === 'complete') {
-    beepAt(c, now, 880, 0.12);
-    beepAt(c, now + 0.15, 1175, 0.12);
-    beepAt(c, now + 0.30, 1568, 0.2);
-  } else {
-    // Koniec przerwy: wyraźna, wznosząca sekwencja „wracaj do sztangi".
-    // Dwa ciche tony gubiły się na siłowni — teraz cztery, dłuższe, z domknięciem.
-    beepAt(c, now, 880, 0.16);
-    beepAt(c, now + 0.20, 1175, 0.16);
-    beepAt(c, now + 0.40, 1568, 0.16);
-    beepAt(c, now + 0.62, 1568, 0.32);
+  // Z177: synteza to OSTATNIA linia obrony przed ciszą — jej wyjątek (np. ctx w
+  // dziwnym stanie po przerwaniu) nie może wywalić handlera odhaczenia serii.
+  try {
+    const c = getCtx();
+    if (!c) return;
+    resumeIfNotRunning(c);
+    const now = c.currentTime;
+    if (kind === 'tick') {
+      beepAt(c, now, 880, 0.12);
+    } else if (kind === 'complete') {
+      beepAt(c, now, 880, 0.12);
+      beepAt(c, now + 0.15, 1175, 0.12);
+      beepAt(c, now + 0.30, 1568, 0.2);
+    } else {
+      // Koniec przerwy: wyraźna, wznosząca sekwencja „wracaj do sztangi".
+      // Dwa ciche tony gubiły się na siłowni — teraz cztery, dłuższe, z domknięciem.
+      beepAt(c, now, 880, 0.16);
+      beepAt(c, now + 0.20, 1175, 0.16);
+      beepAt(c, now + 0.40, 1568, 0.16);
+      beepAt(c, now + 0.62, 1568, 0.32);
+    }
+  } catch (err) {
+    reportClientErrorWithCurrentUid({
+      code: 'timer-sound-synth-error',
+      phase: 'other',
+      detail: err instanceof Error ? err.message : String(err),
+    });
   }
 };

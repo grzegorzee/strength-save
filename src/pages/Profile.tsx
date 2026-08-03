@@ -247,9 +247,11 @@ const Profile = () => {
       {/* APP SETTINGS */}
       <SectionCard label={t('profile.section.app')}>
         <SettingRow icon={Bell} label={t('profile.app.notifications')} onClick={() => navigate('/settings?section=notifications')} />
-        {FEATURE_FLAGS.workoutTimers && (
-          <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
-        )}
+        {/* Z177 (reguła 6): wiersz Dźwięk ZAWSZE widoczny — schowany za przełącznikiem
+            „Timer przerwy" (Z157) robił pułapkę: wyłączony timer + wyłączony dźwięk
+            = brak drogi powrotu do ustawienia dźwięku. Dźwięk dotyczy też
+            zakończenia ćwiczenia, nie tylko timera przerwy. */}
+        <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
         <SettingRow
           icon={Globe}
           label={t('profile.app.language')}
