@@ -81,3 +81,8 @@ export const sessionStats = (
         : acc),
       { volumeKg: 0, completedSets: 0 },
     );
+
+/** Z174: wspólny licznik odhaczonych serii ROBOCZYCH — Dashboard liczył z
+ *  rozgrzewką i rozjeżdżał się z ekranem treningu ("Odhaczone serie: 0/4"). */
+export const countCompletedWorkingSets = (exerciseSets: Record<string, SetData[]>): number =>
+  sessionStats(exerciseSets).completedSets;

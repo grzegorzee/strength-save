@@ -37,6 +37,7 @@ import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
+import { countCompletedWorkingSets } from '@/lib/workout-day-view';
 import { createAdhocDay } from '@/lib/adhoc-workout';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
@@ -367,6 +368,20 @@ const Dashboard = () => {
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
   }, [trainingPlan, today, workouts, planStartDate, workoutToDay]);
 
+  // Z174: JEDNA prawda o aktywnej sesji. Gdy karta dnia pokazuje CTA kontynuacji,
+  // baner sync degraduje się do wiersza informacyjnego (bez drugiego przycisku).
+  // Licznik serii wspólny z ekranem treningu (bez rozgrzewki).
+  const todayContinueDraft = useMemo(() => (
+    todayTraining.type === 'training'
+    && isDraftContinuableToday(localDraft, todayTraining.dateStr)
+    && localDraft.dayId === todayTraining.dayId
+      ? {
+        target: continuableDraftTarget(localDraft),
+        completedSets: countCompletedWorkingSets(localDraft.exerciseSets),
+      }
+      : null
+  ), [todayTraining, localDraft]);
+
   // Apple Watch: podgląd dzisiejszego planu na zegarku zanim sesja wystartuje.
   useWatchPlanPreview({
     uid,
@@ -580,12 +595,16 @@ const Dashboard = () => {
                 </p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => navigate(draftResume.resume ? draftResume.target : '/settings')}
-            >
-              {draftResume.resume ? t('dash.today.continue') : t('dash.sync.openCenter')}
-            </Button>
+            {/* Z174: gdy karta dnia ma CTA kontynuacji, baner nie dubluje przycisku
+                (zostaje sam status); wariant "Otwórz Sync Center" zawsze zostaje. */}
+            {todayContinueDraft && draftResume.resume ? null : (
+              <Button
+                variant="outline"
+                onClick={() => navigate(draftResume.resume ? draftResume.target : '/settings')}
+              >
+                {draftResume.resume ? t('dash.today.continue') : t('dash.sync.openCenter')}
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : null}
@@ -594,13 +613,9 @@ const Dashboard = () => {
       {todayTraining.type === 'training' && (() => {
         // Z88: KAŻDY nieukończony dzisiejszy szkic = "Kontynuuj trening", także w pełni
         // zsynchronizowany (dirty=false). Auto-nawigacja (Z49) celowo zostaje ostrzejsza.
-        const continueDraft = isDraftContinuableToday(localDraft, todayTraining.dateStr)
-          && localDraft.dayId === todayTraining.dayId
-          ? {
-            target: continuableDraftTarget(localDraft),
-            completedSets: Object.values(localDraft.exerciseSets).flat().filter(s => s.completed).length,
-          }
-          : null;
+        // Z174: decyzja i licznik we wspólnym memo (todayContinueDraft) — koniec
+        // rozjazdu banera, karty dnia i ekranu treningu.
+        const continueDraft = todayContinueDraft;
         return (
         <Card className="border-primary/40 bg-primary/5">
           <CardContent className="p-5">
@@ -1021,10 +1036,17 @@ const Dashboard = () => {
                     day={trainingPlan.find(d => d.id === item.dayId)!}
                     latestWorkout={workoutForDate}
                     trainingDate={item.date}
-                    onClick={() => navigate(workoutForDate?.completed
-                      ? buildWorkoutRoute(workoutForDate, item.dayId)
-                      : `/workout/${item.dayId}?date=${item.dateStr}&autostart=true`
-                    )}
+                    onClick={() => {
+                      // Z174: żywy draft tego dnia → kontynuacja sesji (?session=),
+                      // NIGDY autostart (autostart potrafił nadpisać draft wersją 1).
+                      if (isDraftContinuableToday(localDraft, item.dateStr) && localDraft.dayId === item.dayId) {
+                        navigate(continuableDraftTarget(localDraft));
+                        return;
+                      }
+                      navigate(workoutForDate?.completed
+                        ? buildWorkoutRoute(workoutForDate, item.dayId)
+                        : `/workout/${item.dayId}?date=${item.dateStr}&autostart=true`);
+                    }}
                   />
                 );
               }
