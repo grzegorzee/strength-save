@@ -5,11 +5,15 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-07-28 (X21 wdrożony: Z162-Z168, build 80)
+**Ostatnia aktualizacja:** 2026-08-03 (X22 wdrożony: Z170-Z181, build 81)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-03 — X22 WPIS ZBIORCZY: zgłoszenia z builda 80 naprawione u źródła (Z170-Z181)
+
+Plan `docs/PLAN-X22-2026-08-03.md` wykonany w CAŁOŚCI metodą test-first (każdy fix ma test, który był CZERWONY przed implementacją; szczegóły per faza w pięciu wpisach poniżej). Zakres: **F1** usuwanie serii (Z170 dialog stabilny/klikalny, Z171 usuwanie po referencji + dialog tylko dla realnych danych); **F2** Dashboard (Z172 bez defaultPlan przy nieznanym planie, Z173 świeże `today` + guard daty kafli, Z174 jeden CTA aktywnej sesji, Z175 promocja provisional bez wchodzenia w trening + guard wersji draftu w IDB); **F3** wideo (Z176 miniatury bez autoplay, twardy start w dialogu, biblioteka bez hovera); **F4** dźwięk/ekran (Z177 AudioContext odporny na interrupted/closed, reaktywacja sesji audio w AppDelegate, keep-awake self-healing, wiersz Dźwięk zawsze widoczny; diagnoza read-only: `preferences.timerSound=true` — mirror nie wyciszał); **F5** separator (Z178 przecinek wszędzie, koniec cichego zerowania); **F6** share (Z179 plist+downscale+JPEG+lazy html2canvas+Pobierz natywnie, Z180 szablony z logo). **F7 (Z181):** pełne bramki z jawnymi exit code — test 134 pliki / 1160, typecheck 0, lint 0, build OK, bundle 1 531 095 / 1 536 000 B (limit NIE podnoszony), dist-smoke PASS, dist-offline PASS, e2e:mock 192 passed; sekwencje obowiązkowe pokryte: (1) `full-app.spec.ts:1422` plan→wyjście→szybki→powrót, (2) `exercise-card-v3.spec.ts` „Z171: usunięta seria nie wraca...", (3) provisional→jeden CTA→promocja po online: `dashboard-active-session.test.tsx` + `auto-sync-provisional.test.ts` + e2e wariant offline w `plan-edit-during-workout.spec.ts`. Wdrożone: web gh-pages (bundle `index-DtDIdtPz.js`), iOS build 81 (TestFlight + auto-dystrybucja `testflight_external.py` w pipeline release-ios.sh). Tech debt dopisany do PLAN.md (sekcja ODŁOŻONE planu X22).
 
 ### 2026-08-03 — X22 FAZA 6: udostępnianie bez crasha + szablony z logo (Z179, Z180)
 
