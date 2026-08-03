@@ -60,9 +60,15 @@ const ExerciseVideoPreview = ({ animationUrl, active }: { animationUrl: string |
 };
 
 // Wiersz listy wg mockupu: miniatura + nazwa uppercase + chip kategorii + typ + swap-ikona.
-const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: EnrichedExercise) => void }) => {
+// Z176: podgląd startuje z TAPNIĘCIA w miniaturę (hover na dotyku nie istnieje);
+// stan podglądu żyje u rodzica — max 1 aktywne wideo naraz (limit dekoderów iOS).
+const ExerciseRow = ({ ex, onOpen, previewActive, onTogglePreview }: {
+  ex: EnrichedExercise;
+  onOpen: (ex: EnrichedExercise) => void;
+  previewActive: boolean;
+  onTogglePreview: (ex: EnrichedExercise) => void;
+}) => {
   const { t, lang } = useTranslation();
-  const [previewActive, setPreviewActive] = useState(false);
   const typeLabel = ex.isBodyweight
     ? t('exercises.type.bodyweight')
     : ex.type === 'compound' ? t('exercises.type.compound') : t('exercises.type.isolation');
@@ -71,13 +77,18 @@ const ExerciseRow = ({ ex, onOpen }: { ex: EnrichedExercise; onOpen: (ex: Enrich
     <button
       type="button"
       onClick={() => onOpen(ex)}
-      onFocus={() => setPreviewActive(true)}
-      onBlur={() => setPreviewActive(false)}
-      onMouseEnter={() => setPreviewActive(true)}
-      onMouseLeave={() => setPreviewActive(false)}
       className="flex w-full items-center gap-3 rounded-xl bg-surface-low p-3 text-left transition-colors hover:bg-surface-high"
     >
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-lowest">
+      <div
+        data-testid="exercise-preview-thumb"
+        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-surface-lowest"
+        onClick={(e) => {
+          // Tap w miniaturę przełącza podgląd, nie otwiera szczegółów.
+          if (!animationUrl) return;
+          e.stopPropagation();
+          onTogglePreview(ex);
+        }}
+      >
         <ExerciseVideoPreview animationUrl={animationUrl} active={previewActive} />
       </div>
       <div className="min-w-0 flex-1">
@@ -99,6 +110,9 @@ const ExerciseLibrary = () => {
   const { t, lang } = useTranslation();
   const [activeCategory, setActiveCategory] = useState<LibraryExercise['category'] | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  // Z176: max 1 aktywny podgląd naraz (limit dekoderów wideo iOS); tap w tę samą
+  // miniaturę wyłącza podgląd.
+  const [activePreviewName, setActivePreviewName] = useState<string | null>(null);
 
   const enrichedExercises = useMemo<EnrichedExercise[]>(() => {
     const planExercises = trainingPlan.flatMap((day) => day.exercises.map((ex) => ({ ...ex, dayName: day.dayName })));
@@ -159,7 +173,13 @@ const ExerciseLibrary = () => {
       {/* Lista */}
       <div className="space-y-2">
         {filtered.map((ex) => (
-          <ExerciseRow key={ex.name} ex={ex} onOpen={(e) => navigate(`/exercise/${slugifyExercise(e.name)}`)} />
+          <ExerciseRow
+            key={ex.name}
+            ex={ex}
+            onOpen={(e) => navigate(`/exercise/${slugifyExercise(e.name)}`)}
+            previewActive={activePreviewName === ex.name}
+            onTogglePreview={(e) => setActivePreviewName((prev) => (prev === e.name ? null : e.name))}
+          />
         ))}
         {filtered.length === 0 && (
           <p className="py-8 text-center text-sm text-muted-foreground">{t('exercises.noResults')} „{searchQuery}”</p>

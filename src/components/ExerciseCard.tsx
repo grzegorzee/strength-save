@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin } from 'lucide-react';
+import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -320,6 +320,12 @@ const ExerciseCardInner = ({
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
+  // Z176: miniatura bez autoplay (limit dekoderów iOS przy 7 <video> naraz);
+  // błąd ładowania → ikona zamiast wideo + ślad w client_errors.
+  const [thumbVideoFailed, setThumbVideoFailed] = useState(false);
+  // Z176: dialog startuje wideo twardo (play() w onLoadedMetadata); odmowa
+  // autoplay (np. Low Power Mode) → natywne controls, user ma przycisk (reguła 6).
+  const [videoControls, setVideoControls] = useState(false);
   // Z129.2: instrukcje wyprowadzone z karty do menu ⋯ (dialog na żądanie).
   const [showInstructions, setShowInstructions] = useState(false);
   // Z129.2: pusty stan przypiętej notatki żyje w menu, nie w karcie.
@@ -890,9 +896,32 @@ const ExerciseCardInner = ({
               className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70"
               aria-label={t('card.showAnimation', { name: localizedName })}
             >
-              <video src={animationUrl} className="h-full w-full object-cover opacity-80" autoPlay loop muted playsInline />
-              <span className="absolute inset-0 flex items-center justify-center bg-black/10">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm">
+              {/* Z176: BEZ autoplay (na ekranie treningu bywa 7 <video> naraz — limit
+                  dekoderów iOS = nieruchome klatki) i BEZ opacity/backdrop-filter na
+                  wideo (znany freeze WebKit). Miniatura = pierwsza klatka (metadata). */}
+              {thumbVideoFailed ? (
+                <span className="flex h-full w-full items-center justify-center">
+                  <Dumbbell className="h-6 w-6 text-muted-foreground/50" />
+                </span>
+              ) : (
+                <video
+                  src={animationUrl}
+                  className="h-full w-full object-cover"
+                  preload="metadata"
+                  muted
+                  playsInline
+                  onError={(e) => {
+                    setThumbVideoFailed(true);
+                    void reportClientError(uid ?? '', {
+                      code: 'exercise-video-error',
+                      phase: 'other',
+                      detail: `${exercise.name}:${e.currentTarget.error?.code ?? 'unknown'}`,
+                    });
+                  }}
+                />
+              )}
+              <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white">
                   <Play className="h-3.5 w-3.5 fill-current" />
                 </span>
               </span>
@@ -1261,7 +1290,7 @@ const ExerciseCardInner = ({
 
       {/* ── Animation Dialog ── */}
       {animationUrl && (
-        <Dialog open={showVideo} onOpenChange={setShowVideo}>
+        <Dialog open={showVideo} onOpenChange={(open) => { setShowVideo(open); if (!open) setVideoControls(false); }}>
           <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6">
             <DialogHeader>
               <DialogTitle className="text-sm pr-6">{localizedName}</DialogTitle>
@@ -1274,10 +1303,24 @@ const ExerciseCardInner = ({
                 <video
                   className="absolute inset-0 w-full h-full object-cover"
                   src={animationUrl}
-                  autoPlay
                   loop
                   muted
                   playsInline
+                  controls={videoControls}
+                  // Z176: twardy start zamiast atrybutu autoplay — odmowę widać
+                  // (rejection) i dajemy controls; sam atrybut milczał (Low Power Mode).
+                  onLoadedMetadata={(e) => {
+                    const v = e.currentTarget;
+                    v.muted = true;
+                    v.play().catch(() => {
+                      setVideoControls(true);
+                      void reportClientError(uid ?? '', {
+                        code: 'exercise-video-play-blocked',
+                        phase: 'other',
+                        detail: exercise.name,
+                      });
+                    });
+                  }}
                 />
               )}
             </div>

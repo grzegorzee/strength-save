@@ -20,6 +20,8 @@ const ExerciseDetail = () => {
   const { uid } = useCurrentUser();
   // Przypięta notatka per ćwiczenie (Z103) — ta sama sekcja co w karcie treningu.
   const { getPinnedNote, savePinnedNote } = useExerciseNotes(uid);
+  // Z176: fallback hero — odmowa autoplay pokazuje natywne controls (reguła 6).
+  const [heroControls, setHeroControls] = useState(false);
 
   const exercise = useMemo(
     () => exerciseLibrary.find((e) => slugifyExercise(e.name) === slug),
@@ -66,13 +68,28 @@ const ExerciseDetail = () => {
       {/* Hero */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface-highest">
         {animationUrl ? (
-          <video src={animationUrl} className="absolute inset-0 h-full w-full object-cover" autoPlay loop muted playsInline />
+          <video
+            src={animationUrl}
+            className="absolute inset-0 h-full w-full object-cover"
+            loop
+            muted
+            playsInline
+            controls={heroControls}
+            // Z176: twardy start jak w dialogu karty — odmowa autoplay (Low Power
+            // Mode) daje natywne controls zamiast martwej pierwszej klatki.
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget;
+              v.muted = true;
+              v.play().catch(() => setHeroControls(true));
+            }}
+          />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <Dumbbell className="h-16 w-16 text-muted-foreground/30" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
+        {/* Z176: pointer-events-none — gradient nie może blokować tapnięć w controls. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent pointer-events-none" />
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -81,8 +98,8 @@ const ExerciseDetail = () => {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        {animationUrl && (
-          <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary/90 text-primary-foreground">
+        {animationUrl && !heroControls && (
+          <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary/90 text-primary-foreground pointer-events-none">
             <Play className="h-6 w-6 fill-current" />
           </span>
         )}
