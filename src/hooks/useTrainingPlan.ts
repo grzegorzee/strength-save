@@ -34,6 +34,9 @@ export const useTrainingPlan = (userId: string) => {
   const [planRevision, setPlanRevision] = useState(0);
   // Progresja programowa (Z119): null = pole nieustawione (stare plany, silnik wyłączony).
   const [progression, setProgression] = useState<ProgressionConfig | null>(null);
+  // Z172: błąd snapshotu — plan usera ZOSTAJE w stanie (nie podmieniamy na default),
+  // konsument może pokazać komunikat zamiast cudzego planu.
+  const [planError, setPlanError] = useState(false);
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
@@ -93,11 +96,15 @@ export const useTrainingPlan = (userId: string) => {
           setIsCustom(false);
           setPlanRevision(0);
         }
+        setPlanError(false);
         setIsLoaded(true);
       },
       (err) => {
         console.error('Error fetching training plan:', err);
-        setPlan(defaultPlan);
+        // Z172: NIE podmieniamy planu na default — jeśli wcześniej doszedł dobry
+        // snapshot, zostaje plan usera; jeśli nie, konsument widzi planError i sam
+        // decyduje, co pokazać (Dashboard nie renderuje wtedy cudzego planu).
+        setPlanError(true);
         setIsLoaded(true);
       },
     );
@@ -356,6 +363,7 @@ export const useTrainingPlan = (userId: string) => {
   return {
     plan,
     isLoaded,
+    planError,
     isCustom,
     planDurationWeeks,
     planStartDate,

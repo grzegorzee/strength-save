@@ -503,7 +503,11 @@ const Dashboard = () => {
     info: 'border-fitness-cyan/40 bg-fitness-cyan/5',
   } as const;
 
-  if (!isLoaded) {
+  // Z172: czekamy TAKŻE na plan usera — bez tego Dashboard renderował wbudowany
+  // defaultPlan ("Klatka / Przysiad / Środek Pleców") zanim doszedł snapshot planu.
+  // Spinner nie zawiśnie: oba isLoaded są ustawiane również w error-handlerach
+  // (workout-read-store.ts:156 i useTrainingPlan — handler błędu snapshotu).
+  if (!isLoaded || !planIsLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
