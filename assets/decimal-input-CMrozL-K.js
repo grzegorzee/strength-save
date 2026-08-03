@@ -1,0 +1,1 @@
+const t=n=>{const e=n.trim().replace(/\s/g,"").replace(",",".");if(!e||e.endsWith("."))return null;const r=Number(e);return Number.isFinite(r)?r:null},i=(n,e=1)=>String(Number(n.toFixed(e)));export{i as f,t as p};
