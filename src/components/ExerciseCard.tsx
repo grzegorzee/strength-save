@@ -561,15 +561,17 @@ const ExerciseCardInner = ({
   // Grid: SET | PREVIOUS | [KG] | REPS | ✓ | × (mockup [17])
   // Z105: nowe typy mają własny układ kolumn (duration: czas; wdd: kg+dystans+czas bez PREV;
   // assisted: asysta+powt.). Stare typy — układ nietknięty.
+  // Z170: ostatnia kolumna 44px — X ma pełny tap target 44px (h-11 w-11),
+  // węższa kolumna kładła go NA checkmarku i tap w ✓ potrafił trafić w usuwanie.
   const gridCols = tracking === 'duration'
-    ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_22px]'
+    ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_44px]'
     : tracking === 'weight_distance_duration'
-      ? 'grid-cols-[26px_1fr_1fr_1fr_40px_22px]'
+      ? 'grid-cols-[26px_1fr_1fr_1fr_40px_44px]'
       : tracking === 'assisted_bodyweight'
-        ? 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_22px]'
+        ? 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_44px]'
         : isBodyweight
-          ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_22px]'
-          : 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_22px]';
+          ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_44px]'
+          : 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_44px]';
 
   // Hint POPRZ. dla nowych typów (Z105): czas dla duration, powt.×(-asysta) dla assisted.
   const getTrackedPreviousHint = (workingIndex: number): string | null => {
@@ -719,7 +721,7 @@ const ExerciseCardInner = ({
             <button
               onClick={() => handleRemoveSet(globalIndex)}
               aria-label={t('card.removeSet')}
-              className="flex h-8 w-6 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
+              className="flex h-11 w-11 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
             >
               &times;
             </button>
@@ -829,7 +831,7 @@ const ExerciseCardInner = ({
             <button
               onClick={() => handleRemoveSet(globalIndex)}
               aria-label={t('card.removeSet')}
-              className="flex h-8 w-6 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
+              className="flex h-11 w-11 items-center justify-center text-lg leading-none text-[hsl(var(--ec-delete))] hover:text-destructive"
             >
               &times;
             </button>
@@ -1172,7 +1174,9 @@ const ExerciseCardInner = ({
 
       {/* ── Potwierdzenie usunięcia serii z danymi (Z130) ── */}
       <Dialog open={pendingRemoveIndex !== null} onOpenChange={(open) => { if (!open) setPendingRemoveIndex(null); }}>
-        <DialogContent className="max-w-[95vw] w-full sm:max-w-sm">
+        {/* Z170: destrukcyjne potwierdzenie zamyka się TYLKO przez ANULUJ / X —
+            tap w overlay (np. gdy dialog przeskoczył po schowaniu klawiatury) nie może go zdjąć. */}
+        <DialogContent className="max-w-[95vw] w-full sm:max-w-sm" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle className="text-base pr-6">{t('card.removeSetConfirmTitle')}</DialogTitle>
           </DialogHeader>
@@ -1180,18 +1184,20 @@ const ExerciseCardInner = ({
           <div className="flex justify-end gap-2">
             <button
               type="button"
+              data-testid="remove-set-cancel"
               onClick={() => setPendingRemoveIndex(null)}
-              className="rounded-lg px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
+              className="min-h-[44px] min-w-[88px] rounded-lg px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
             >
               {t('common.cancel')}
             </button>
             <button
               type="button"
+              data-testid="remove-set-confirm"
               onClick={() => {
                 if (pendingRemoveIndex !== null) removeSetAt(pendingRemoveIndex);
                 setPendingRemoveIndex(null);
               }}
-              className="rounded-lg bg-destructive/15 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-destructive transition-colors hover:bg-destructive/25"
+              className="min-h-[44px] min-w-[88px] rounded-lg bg-destructive/15 px-3 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-destructive transition-colors hover:bg-destructive/25"
             >
               {t('common.delete')}
             </button>

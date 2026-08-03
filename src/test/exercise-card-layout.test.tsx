@@ -379,6 +379,29 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(onSetsChange).toHaveBeenCalledTimes(1);
     });
 
+    it('Z170: pointer down poza dialogiem potwierdzenia NIE zamyka go', async () => {
+      const onSetsChange = vi.fn();
+      const { card } = renderCard({
+        savedSets: [workingSet({ isWarmup: true }), workingSet({ weight: 60, reps: 8 })],
+        onSetsChange,
+      });
+      // Otwórz dialog przez X na serii z danymi.
+      const removeButtons = within(card).getAllByRole('button', { name: /Usuń serię/i });
+      fireEvent.click(removeButtons[1]);
+      expect(screen.getByRole('button', { name: 'Usuń' })).toBeTruthy();
+      // Radix podpina listener outside-dismiss w setTimeout(0) — bez ticka
+      // event synchroniczny by go ominął i test nic by nie sprawdzał.
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Na siłowni: klawiatura się chowa, dialog zjeżdża, tap ląduje w overlayu.
+      // Destrukcyjne potwierdzenie NIE MOŻE zamknąć się od takiego tapnięcia.
+      // (Na dotyku Radix domyka dopiero na click po pointerdown — emitujemy oba.)
+      fireEvent.pointerDown(document.body, { pointerType: 'touch' });
+      fireEvent.click(document.body);
+      expect(screen.queryByRole('button', { name: 'Usuń' })).toBeTruthy();
+      expect(onSetsChange).not.toHaveBeenCalled();
+    });
+
     it('przypięta notatka renderuje się w karcie tylko gdy istnieje', () => {
       const empty = renderCard({ savedSets: [workingSet()], onPinnedNoteSave: vi.fn() });
       expect(within(empty.card).queryByTestId('pinned-note-section')).toBeNull();
