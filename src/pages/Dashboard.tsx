@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { useToday } from '@/hooks/useToday';
 import { useToast } from '@/hooks/use-toast';
 import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
 import { trainingPlan as defaultPlanData, type TrainingDay } from '@/data/trainingPlan';
@@ -177,7 +178,10 @@ const Dashboard = () => {
   const latestMeasurement = getLatestMeasurement();
   const totalWeight = getTotalWeight();
 
-  const today = useMemo(() => new Date(), []);
+  // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
+  // przy mouncie — wszystkie pochodne (thisWeek, todayTraining, draftResume,
+  // weeklyKm, kafle tygodnia) przeliczają się same przez zależność od `today`.
+  const today = useToday();
   const thisWeek = useMemo(() => {
     if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today);
     const start = parseLocalDate(planStartDate);
@@ -354,6 +358,8 @@ const Dashboard = () => {
       dayId: day.id,
       date: todayEntry.dateKey,
       allowDateFallback: true,
+      // Z173: guard daty jak w WorkoutDay — cross-day fallback tylko dla przeszłości.
+      today: todayKey,
     });
     if (todayWorkout?.completed) {
       return { type: 'completed' as const, day, workout: todayWorkout, dateStr: todayEntry.dateKey };
@@ -1005,6 +1011,9 @@ const Dashboard = () => {
                   dayId: item.dayId,
                   date: item.dateStr,
                   allowDateFallback: true,
+                  // Z173: dzisiejszy/przyszły kafel nie wciąga ukończonego treningu
+                  // INNEGO dnia planu z tej samej daty (fałszywe ✅).
+                  today: formatLocalDate(today),
                 });
                 return (
                   <TrainingDayCard

@@ -48,13 +48,16 @@ const planFixture = vi.hoisted(() => ({
   isLoaded: false,
   plan: [] as unknown[],
 }));
+const workoutsFixture = vi.hoisted(() => ({
+  workouts: [] as unknown[],
+}));
 
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({ uid: 'u1', profile: { displayName: 'Tester' }, isAdmin: false, canUseStrava: false }),
 }));
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({
-    workouts: [],
+    workouts: workoutsFixture.workouts,
     getTotalWeight: () => 0,
     getCompletedWorkoutsCount: () => 0,
     getLatestMeasurement: () => null,
@@ -144,6 +147,7 @@ beforeEach(() => {
   snapshotHandlers.subs.length = 0;
   planFixture.isLoaded = false;
   planFixture.plan = [];
+  workoutsFixture.workouts = [];
 });
 
 describe('Z172: Dashboard a źródło planu', () => {
@@ -168,6 +172,32 @@ describe('Z172: Dashboard a źródło planu', () => {
 
     expect(screen.queryByText(/Klatka \/ Przysiad/)).toBeNull();
     expect(screen.getAllByText(/Martwy ciąg i plecy/).length).toBeGreaterThan(0);
+  });
+
+  // Z173: guard daty w lookupie kafli tygodnia — ukończony DZIŚ trening INNEGO
+  // dnia planu (np. z poprzedniego planu) nie może oznaczyć dzisiejszego kafla ✅.
+  it('Z173: trening innego dnia planu ukończony dziś nie oznacza kafla jako ukończony', () => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const weekdayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][now.getDay()];
+
+    planFixture.isLoaded = true;
+    planFixture.plan = [{ ...customDays[0], weekday: weekdayName }];
+    workoutsFixture.workouts = [{
+      id: 'w-legacy',
+      userId: 'u1',
+      dayId: 'legacy-day',
+      date: todayStr,
+      completed: true,
+      exercises: [],
+    }];
+
+    renderDashboard();
+
+    // Kafel dnia usera jest na ekranie…
+    expect(screen.getAllByText(/Mój dzień A/).length).toBeGreaterThan(0);
+    // …ale NIE jako ukończony (✅ renderuje wyłącznie TrainingDayCard).
+    expect(screen.queryAllByText('✅')).toHaveLength(0);
   });
 });
 
