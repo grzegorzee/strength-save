@@ -9,33 +9,32 @@ import { blockFirebase, navigateAndWait, expectPageRendered } from './helpers';
 test.describe('Wideo ćwiczeń (Z176)', () => {
   test.beforeEach(async ({ page }) => {
     await blockFirebase(page);
-    // Wszystkie animacje CDN → lokalna fixture (1 s testsrc), zero sieci.
-    await page.route('**/media.gjasionowicz.pl/**', (route) =>
-      route.fulfill({ path: 'e2e/fixtures/sample-video.mp4', contentType: 'video/mp4' }),
-    );
+    // Wszystkie animacje CDN → lokalne fixtures, zero sieci.
+    // Z195: postery jpg dostają obrazek, mp4 dostają klip (1 s testsrc).
+    await page.route('**/media.gjasionowicz.pl/**', (route) => (
+      route.request().url().endsWith('.jpg')
+        ? route.fulfill({ path: 'e2e/fixtures/sample-poster.jpg', contentType: 'image/jpeg' })
+        : route.fulfill({ path: 'e2e/fixtures/sample-video.mp4', contentType: 'video/mp4' })
+    ));
   });
 
-  test('miniatury na treningu są widoczne i ŻADNA nie gra', async ({ page }) => {
+  test('miniatury na treningu to postery JPEG — zero dekoderów wideo na liście (Z195)', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
 
-    const thumbs = page.locator('.exercise-card-header video');
+    const thumbs = page.locator('.exercise-card-header img[src$=".jpg"]');
     await expect(thumbs.first()).toBeVisible();
-    const count = await thumbs.count();
-    expect(count).toBeGreaterThanOrEqual(1);
+    expect(await thumbs.count()).toBeGreaterThanOrEqual(1);
 
-    // Daj przeglądarce chwilę: gdyby autoplay istniał, do tego czasu by wystartował.
-    await page.waitForTimeout(800);
-    for (let i = 0; i < count; i++) {
-      expect(await thumbs.nth(i).evaluate((v: HTMLVideoElement) => v.paused)).toBe(true);
-    }
+    // Twardy niezmiennik Z195: na liście treningu nie ma ŻADNEGO <video>.
+    await expect(page.locator('.exercise-card-header video')).toHaveCount(0);
   });
 
   test('dialog animacji: po otwarciu wideo gra ALBO pokazuje controls (fallback)', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
 
-    const firstThumb = page.locator('.exercise-card-header button:has(video)').first();
+    const firstThumb = page.locator('.exercise-card-header button:has(img)').first();
     await firstThumb.click();
 
     const dialogVideo = page.getByRole('dialog').locator('video');

@@ -231,9 +231,11 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
   // Z193: bramka warstw — incydent z builda 81: dialog wideo otwarty spod
   // modalnego menu zostawiał body z pointer-events: none (X martwy, force-quit).
   test('Z193: menu → dialog → X za pierwszym tapem, body bez pointer-events lock', async ({ page }) => {
-    await page.route('**/media.gjasionowicz.pl/**', (route) =>
-      route.fulfill({ path: 'e2e/fixtures/sample-video.mp4', contentType: 'video/mp4' }),
-    );
+    await page.route('**/media.gjasionowicz.pl/**', (route) => (
+      route.request().url().endsWith('.jpg')
+        ? route.fulfill({ path: 'e2e/fixtures/sample-poster.jpg', contentType: 'image/jpeg' })
+        : route.fulfill({ path: 'e2e/fixtures/sample-video.mp4', contentType: 'video/mp4' })
+    ));
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
@@ -259,8 +261,8 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     // (b) menu OTWARTE → tap w miniaturę wideo. Modalne menu pochłania pierwszy
     // tap poza warstwą (standard: tap tylko zamyka menu) — kluczowe jest, że menu
     // ZNIKA, a dialog otwarty kolejnym tapem działa i nie ląduje pod blokadą.
-    const cardWithThumb = page.locator('.exercise-card:has(.exercise-card-header video)').first();
-    const thumb = cardWithThumb.locator('.exercise-card-header button:has(video)').first();
+    const cardWithThumb = page.locator('.exercise-card:has(.exercise-card-header img)').first();
+    const thumb = cardWithThumb.locator('.exercise-card-header button:has(img)').first();
     await cardWithThumb.getByRole('button', { name: 'Więcej akcji' }).click();
     await expect(page.getByRole('menu')).toBeVisible();
     await thumb.click({ force: true });

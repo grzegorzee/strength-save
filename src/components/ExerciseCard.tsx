@@ -15,7 +15,7 @@ import { exerciseLibrary } from '@/data/exerciseLibrary';
 import type { SetData, ExerciseMetrics } from '@/types';
 import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
-import { getExerciseAnimationUrl, slugifyExercise } from '@/lib/exercise-media';
+import { getExerciseAnimationUrl, getExercisePosterUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { RestBar } from '@/components/RestBar';
 import { loadRestSettings, resolveRestSeconds } from '@/lib/rest-timer';
@@ -373,9 +373,10 @@ const ExerciseCardInner = ({
   const localizedName = localizeExerciseName(exercise.name, lang);
   const setCount = useMemo(() => parseSetCount(exercise.sets), [exercise.sets]);
   const [showVideo, setShowVideo] = useState(false);
-  // Z176: miniatura bez autoplay (limit dekoderów iOS przy 7 <video> naraz);
-  // błąd ładowania → ikona zamiast wideo + ślad w client_errors.
-  const [thumbVideoFailed, setThumbVideoFailed] = useState(false);
+  // Z176 → Z195: miniatura to POSTER JPEG (WebKit przy preload=metadata nie maluje
+  // żadnej klatki wideo — kafle były czarne); błąd ładowania → ikona + ślad
+  // w client_errors. Zero dekoderów wideo na liście treningu.
+  const [thumbFailed, setThumbFailed] = useState(false);
   // Z176: dialog startuje wideo twardo (play() w onLoadedMetadata); odmowa
   // autoplay (np. Low Power Mode) → natywne controls, user ma przycisk (reguła 6).
   const [videoControls, setVideoControls] = useState(false);
@@ -624,6 +625,7 @@ const ExerciseCardInner = ({
   const hasPinnedNote = Boolean(pinnedNote?.note || pinnedNote?.machineSettings);
   const allCompleted = workingSets.length > 0 && completedSets === workingSets.length;
   const animationUrl = getExerciseAnimationUrl(exercise.name);
+  const posterUrl = getExercisePosterUrl(exercise.name);
   const { unit, fmt, toDisplay, fromInput } = useUnit();
 
   // Indeks pierwszej nieukończonej serii roboczej (podświetlana jako aktywna — mockup [17]).
@@ -964,31 +966,33 @@ const ExerciseCardInner = ({
               className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70"
               aria-label={t('card.showAnimation', { name: localizedName })}
             >
-              {/* Z176: BEZ autoplay (na ekranie treningu bywa 7 <video> naraz — limit
-                  dekoderów iOS = nieruchome klatki) i BEZ opacity/backdrop-filter na
-                  wideo (znany freeze WebKit). Miniatura = pierwsza klatka (metadata). */}
-              {thumbVideoFailed ? (
+              {/* Z195: miniatura = poster JPEG z CDN, NIE <video> — WebKit przy
+                  preload=metadata nie maluje żadnej klatki (czarne kafle z builda 81);
+                  zero dekoderów wideo na liście. Wideo gra dopiero w dialogu. */}
+              {thumbFailed || !posterUrl ? (
                 <span className="flex h-full w-full items-center justify-center">
                   <Dumbbell className="h-6 w-6 text-muted-foreground/50" />
                 </span>
               ) : (
-                <video
-                  src={animationUrl}
+                <img
+                  src={posterUrl}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
                   className="h-full w-full object-cover"
-                  preload="metadata"
-                  muted
-                  playsInline
-                  onError={(e) => {
-                    setThumbVideoFailed(true);
+                  onError={() => {
+                    setThumbFailed(true);
                     void reportClientError(uid ?? '', {
-                      code: 'exercise-video-error',
+                      code: 'exercise-poster-error',
                       phase: 'other',
-                      detail: `${exercise.name}:${e.currentTarget.error?.code ?? 'unknown'}`,
+                      detail: exercise.name,
                     });
                   }}
                 />
               )}
-              <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+              {/* Poster jest jaśniejszy niż wideo — lżejsze przyciemnienie, play i tak
+                  siedzi na plakietce bg-black/55. */}
+              <span className="absolute inset-0 flex items-center justify-center bg-black/15">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white">
                   <Play className="h-3.5 w-3.5 fill-current" />
                 </span>

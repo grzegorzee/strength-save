@@ -24,6 +24,9 @@ vi.mock('@/lib/exercise-media', async (importOriginal) => {
     ...actual,
     getExerciseAnimationUrl: (name?: string) =>
       name === 'Ćwiczenie z animacją' ? 'https://example.test/anim.mp4' : null,
+    // Z195: miniatura renderuje poster JPEG, nie <video>.
+    getExercisePosterUrl: (name?: string) =>
+      name === 'Ćwiczenie z animacją' ? 'https://example.test/anim.jpg' : null,
   };
 });
 
@@ -244,12 +247,15 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(header.querySelector('video')).toBeNull();
     });
 
-    it('z animacją miniatura jest i otwiera podgląd', () => {
+    it('z animacją miniatura jest (poster JPEG, zero <video> na liście — Z195) i otwiera podgląd', () => {
       const { card } = renderCard({ savedSets: [workingSet()], exercise: exercise({ name: 'Ćwiczenie z animacją' }) });
       const header = card.querySelector('.exercise-card-header') as HTMLElement;
       const thumb = within(header).getByRole('button', { name: /animacj/i });
       expect(thumb).toBeTruthy();
-      expect(header.querySelector('video')).toBeTruthy();
+      const poster = header.querySelector('img') as HTMLImageElement;
+      expect(poster).toBeTruthy();
+      expect(poster.src).toContain('.jpg');
+      expect(header.querySelector('video')).toBeNull();
     });
 
     it('instrukcje nie renderują się w karcie (idą do menu ⋯)', () => {

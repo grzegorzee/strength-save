@@ -189,3 +189,11 @@ export const getExerciseAnimationUrl = (name?: string): string | null => {
   const file = slug ? ANIMATION_FILES[slug] : undefined;
   return file ? `${CDN_BASE}/${file}` : null;
 };
+
+/** Z195: poster JPEG miniatury (ta sama nazwa co mp4). WebKit przy
+ *  preload=metadata nie maluje żadnej klatki wideo — kafelek renderuje <img>. */
+export const getExercisePosterUrl = (name?: string): string | null => {
+  const slug = slugifyExercise(name);
+  const file = slug ? ANIMATION_FILES[slug] : undefined;
+  return file ? `${CDN_BASE}/${file.replace(/\.mp4$/, '.jpg')}` : null;
+};

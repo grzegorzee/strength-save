@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { slugifyExercise, getExerciseAnimationUrl } from '@/lib/exercise-media';
+import { slugifyExercise, getExerciseAnimationUrl, getExercisePosterUrl } from '@/lib/exercise-media';
 
 describe('exercise media helpers', () => {
   it('slugifies exercise names without Polish characters', () => {
@@ -26,5 +26,18 @@ describe('exercise media helpers', () => {
     expect(getExerciseAnimationUrl('Podciąganie na drążku')).toBe(
       'https://media.gjasionowicz.pl/exercises/podciaganie-na-drazku.mp4',
     );
+  });
+
+  // Z195: WebKit przy preload=metadata NIE maluje żadnej klatki wideo — miniatura
+  // renderuje poster JPEG z CDN (ta sama nazwa co mp4, rozszerzenie .jpg).
+  it('Z195: getExercisePosterUrl zwraca URL jpg dla ćwiczenia z animacją, null bez niej', () => {
+    expect(getExercisePosterUrl('Burpees')).toBe(
+      'https://media.gjasionowicz.pl/exercises/burpees.jpg',
+    );
+    expect(getExercisePosterUrl('Przysiad ze sztangą (High Bar)')).toBe(
+      'https://media.gjasionowicz.pl/exercises/przysiad-ze-sztanga-high-bar.jpg',
+    );
+    expect(getExercisePosterUrl('Ćwiczenie bez animacji')).toBeNull();
+    expect(getExercisePosterUrl()).toBeNull();
   });
 });
