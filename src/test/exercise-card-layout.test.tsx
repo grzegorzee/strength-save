@@ -326,11 +326,12 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       const onRequestSwap = vi.fn();
       const { card } = renderCard({ savedSets: [workingSet()], onSkip, onRequestSwap });
 
+      // Z191: akcja odpala się klatkę PO zamknięciu menu (rAF) — stąd waitFor.
       fireEvent.click(within(await openMenu(card)).getByRole('menuitem', { name: 'Pomiń' }));
-      expect(onSkip).toHaveBeenCalledWith('ex-1');
+      await vi.waitFor(() => expect(onSkip).toHaveBeenCalledWith('ex-1'));
 
       fireEvent.click(within(await openMenu(card)).getByRole('menuitem', { name: 'Zamień ćwiczenie' }));
-      expect(onRequestSwap).toHaveBeenCalledWith('ex-1');
+      await vi.waitFor(() => expect(onRequestSwap).toHaveBeenCalledWith('ex-1'));
     });
 
     it('„Instrukcje" pokazują treść, której nie ma na karcie', async () => {
@@ -338,6 +339,22 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(card).queryByText(/Łopatki ściągnięte/)).toBeNull();
       fireEvent.click(within(await openMenu(card)).getByRole('menuitem', { name: 'Instrukcje' }));
       expect(await screen.findByText(/Łopatki ściągnięte/)).toBeTruthy();
+    });
+
+    it('Z191: klik "Instrukcje" zamyka menu PRZED otwarciem dialogu (koniec pointer-events lock)', async () => {
+      const { card } = renderCard({ savedSets: [workingSet()] });
+      fireEvent.click(within(await openMenu(card)).getByRole('menuitem', { name: 'Instrukcje' }));
+
+      // Bezpośrednio po kliknięciu: menu zamknięte, a dialog JESZCZE nie istnieje —
+      // otworzy się dopiero w następnej klatce (rAF), gdy warstwa menu zniknęła.
+      // Stary kod otwierał dialog synchronicznie, POD żywą modalną warstwą menu,
+      // która zostawiała body z pointer-events: none (X martwy, overlay martwy).
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(screen.queryByText(/Łopatki ściągnięte/)).toBeNull();
+
+      // Po klatce dialog jest, menu nadal nie ma.
+      expect(await screen.findByText(/Łopatki ściągnięte/)).toBeTruthy();
+      expect(screen.queryByRole('menu')).toBeNull();
     });
 
     it('bez callbacków swap/skip menu ich nie pokazuje (widok historyczny)', async () => {

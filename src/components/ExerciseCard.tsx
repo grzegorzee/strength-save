@@ -381,6 +381,14 @@ const ExerciseCardInner = ({
   const [videoControls, setVideoControls] = useState(false);
   // Z129.2: instrukcje wyprowadzone z karty do menu ⋯ (dialog na żądanie).
   const [showInstructions, setShowInstructions] = useState(false);
+  // Z191: kontrolowany stan menu ⋯ — dialog wolno otworzyć dopiero PO zamknięciu
+  // modalnej warstwy menu, inaczej body zostaje z pointer-events: none.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const selectFromMenu = (action: () => void) => (event: Event) => {
+    event.preventDefault();
+    setMenuOpen(false);
+    requestAnimationFrame(action);
+  };
   // Z129.2: pusty stan przypiętej notatki żyje w menu, nie w karcie.
   const [pinnedNoteOpen, setPinnedNoteOpen] = useState(false);
   // Z130 → Z171: REFERENCJA serii czekającej na potwierdzenie usunięcia (null = brak
@@ -943,7 +951,16 @@ const ExerciseCardInner = ({
           {animationUrl && (
             <button
               type="button"
-              onClick={() => setShowVideo(true)}
+              onClick={() => {
+                // Z191: tap w miniaturę przy otwartym menu NAJPIERW zamyka menu —
+                // dialog wideo nie może wjechać pod modalną warstwę menu.
+                if (menuOpen) {
+                  setMenuOpen(false);
+                  requestAnimationFrame(() => setShowVideo(true));
+                } else {
+                  setShowVideo(true);
+                }
+              }}
               className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70"
               aria-label={t('card.showAnimation', { name: localizedName })}
             >
@@ -1038,13 +1055,13 @@ const ExerciseCardInner = ({
 
         {/* Z129.2: rzadkie akcje ćwiczenia w jednym menu, zamiast ikon rozsianych
             po nagłówku, pasku chipów i przyciskach pod kartą. */}
-        {/* UWAGA przy testach: po zamknięciu dialogu otwartego Z TEGO menu Radix
-            sprząta blokadę interakcji dopiero w następnym ticku. Okno jest
-            milisekundowe (człowiek go nie trafi), ale automat klikający natychmiast
-            po Escape owszem — dlatego e2e czeka na ZNIKNIĘCIE dialogu, a nie na sam
-            klawisz. `modal={false}` to naprawia, ale rozwala obsługę menu w jsdom,
-            więc zostaje domyślna modalność. */}
-        <DropdownMenu>
+        {/* Z191: menu jest MODALNE (Radix zdejmuje pointer-events z body na czas
+            życia warstwy, także przez animację zamykania). Dialog otwarty w tym
+            samym ticku lądował POD tą blokadą: X i overlay martwe, na iOS bez
+            Escape dialog był niezamykalny NICZYM (force-quit z realnego treningu).
+            Dlatego każda pozycja NAJPIERW zamyka menu (kontrolowany open), a akcję
+            odpala w następnej klatce (requestAnimationFrame). */}
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
@@ -1055,30 +1072,30 @@ const ExerciseCardInner = ({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem onClick={() => setShowInstructions(true)} className="cursor-pointer">
+            <DropdownMenuItem onSelect={selectFromMenu(() => setShowInstructions(true))} className="cursor-pointer">
               <Info className="h-4 w-4 mr-2" />
               {t('card.instructions')}
             </DropdownMenuItem>
             {onRequestSwap && (
-              <DropdownMenuItem onClick={() => onRequestSwap(exercise.id)} className="cursor-pointer">
+              <DropdownMenuItem onSelect={selectFromMenu(() => onRequestSwap(exercise.id))} className="cursor-pointer">
                 <ArrowRightLeft className="h-4 w-4 mr-2" />
                 {t('card.swapExercise')}
               </DropdownMenuItem>
             )}
             {onSkip && (
-              <DropdownMenuItem onClick={() => onSkip(exercise.id)} className="cursor-pointer">
+              <DropdownMenuItem onSelect={selectFromMenu(() => onSkip(exercise.id))} className="cursor-pointer">
                 <SkipForward className="h-4 w-4 mr-2" />
                 {t('workout.skip')}
               </DropdownMenuItem>
             )}
             {isEditable && (
-              <DropdownMenuItem onClick={() => setShowNotes(v => !v)} className="cursor-pointer">
+              <DropdownMenuItem onSelect={selectFromMenu(() => setShowNotes(v => !v))} className="cursor-pointer">
                 <StickyNote className="h-4 w-4 mr-2" />
                 {t('card.note')}
               </DropdownMenuItem>
             )}
             {isEditable && onPinnedNoteSave && (
-              <DropdownMenuItem onClick={() => setPinnedNoteOpen(true)} className="cursor-pointer">
+              <DropdownMenuItem onSelect={selectFromMenu(() => setPinnedNoteOpen(true))} className="cursor-pointer">
                 <Pin className="h-4 w-4 mr-2" />
                 {t('notes.pinnedAdd')}
               </DropdownMenuItem>
