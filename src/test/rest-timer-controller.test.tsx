@@ -68,14 +68,14 @@ describe('useRestTimerController (Z143)', () => {
   it('start przerwy dla A → stan wskazuje A', () => {
     const { result } = renderHook(() => useRestTimerController());
     act(() => result.current.startRest('ex-a', 90));
-    expect(result.current.restState).toEqual({ exerciseId: 'ex-a', seconds: 90, runId: 1 });
+    expect(result.current.restState).toMatchObject({ exerciseId: 'ex-a', totalSeconds: 90, runId: 1 });
   });
 
   it('start dla B przy biegnącej przerwie A → stan wskazuje B, runId rośnie', () => {
     const { result } = renderHook(() => useRestTimerController());
     act(() => result.current.startRest('ex-a', 90));
     act(() => result.current.startRest('ex-b', 150));
-    expect(result.current.restState).toEqual({ exerciseId: 'ex-b', seconds: 150, runId: 2 });
+    expect(result.current.restState).toMatchObject({ exerciseId: 'ex-b', totalSeconds: 150, runId: 2 });
   });
 
   it('stop (Pomiń / koniec w foregroundzie) → stan null; kolejny start ma NOWY runId', () => {
@@ -85,6 +85,96 @@ describe('useRestTimerController (Z143)', () => {
     expect(result.current.restState).toBeNull();
     act(() => result.current.startRest('ex-a', 90));
     expect(result.current.restState?.runId).toBe(2);
+  });
+});
+
+// ── Z188: deadline u właściciela + persystencja przez kill ──
+
+describe('useRestTimerController — deadline i persystencja (Z188)', () => {
+  const KEY = 'fittracker_rest_state_v1';
+
+  beforeEach(() => {
+    localStorage.removeItem(KEY);
+  });
+
+  it('startRest ustawia deadlineAt ≈ now + seconds i zapisuje stan w localStorage', () => {
+    const { result } = renderHook(() => useRestTimerController());
+    const before = Date.now();
+    act(() => result.current.startRest('ex-a', 90));
+
+    const state = result.current.restState;
+    expect(state?.deadlineAt).toBeGreaterThanOrEqual(before + 90_000);
+    expect(state?.deadlineAt).toBeLessThanOrEqual(Date.now() + 90_000);
+    expect(state?.totalSeconds).toBe(90);
+
+    const persisted = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    expect(persisted).toEqual({
+      exerciseId: 'ex-a',
+      deadlineAt: state?.deadlineAt,
+      totalSeconds: 90,
+    });
+  });
+
+  it('adjustRest przesuwa deadline i totalSeconds, persystuje; skrócenie nie schodzi poniżej teraz', () => {
+    const { result } = renderHook(() => useRestTimerController());
+    act(() => result.current.startRest('ex-a', 90));
+    const deadlineBefore = result.current.restState!.deadlineAt;
+
+    act(() => result.current.adjustRest(15));
+    expect(result.current.restState?.deadlineAt).toBe(deadlineBefore + 15_000);
+    expect(result.current.restState?.totalSeconds).toBe(105);
+    const persisted = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+    expect(persisted?.deadlineAt).toBe(deadlineBefore + 15_000);
+
+    // Skrócenie o więcej niż zostało: deadline ląduje na "teraz", nie w przeszłości.
+    act(() => result.current.adjustRest(-3600));
+    expect(result.current.restState?.deadlineAt).toBeGreaterThanOrEqual(Date.now() - 1000);
+    expect(result.current.restState?.deadlineAt).toBeLessThanOrEqual(Date.now() + 100);
+  });
+
+  it('stopRest czyści wpis w localStorage', () => {
+    const { result } = renderHook(() => useRestTimerController());
+    act(() => result.current.startRest('ex-a', 90));
+    expect(localStorage.getItem(KEY)).not.toBeNull();
+    act(() => result.current.stopRest());
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('resumeFromStorage z deadlinem w przyszłości odtwarza przerwę (runId rośnie)', () => {
+    localStorage.setItem(KEY, JSON.stringify({
+      exerciseId: 'ex-a',
+      deadlineAt: Date.now() + 42_000,
+      totalSeconds: 90,
+    }));
+    const { result } = renderHook(() => useRestTimerController());
+    act(() => result.current.resumeFromStorage());
+
+    expect(result.current.restState).toMatchObject({ exerciseId: 'ex-a', totalSeconds: 90 });
+    expect(result.current.restState!.runId).toBeGreaterThan(0);
+    expect(result.current.restState!.deadlineAt).toBeGreaterThan(Date.now());
+  });
+
+  it('resumeFromStorage z deadlinem w przeszłości czyści wpis i anuluje notyfikację', async () => {
+    localStorage.setItem(KEY, JSON.stringify({
+      exerciseId: 'ex-a',
+      deadlineAt: Date.now() - 5_000,
+      totalSeconds: 90,
+    }));
+    const { result } = renderHook(() => useRestTimerController());
+    act(() => result.current.resumeFromStorage());
+    await flushNotificationChain();
+
+    expect(result.current.restState).toBeNull();
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('resumeFromStorage odrzuca wpis bez exerciseId (walidacja kształtu)', () => {
+    localStorage.setItem(KEY, JSON.stringify({ deadlineAt: Date.now() + 42_000, totalSeconds: 90 }));
+    const { result } = renderHook(() => useRestTimerController());
+    act(() => result.current.resumeFromStorage());
+
+    expect(result.current.restState).toBeNull();
+    expect(localStorage.getItem(KEY)).toBeNull();
   });
 });
 
@@ -153,7 +243,7 @@ describe('Z187: przerwa po serii rozgrzewkowej', () => {
 });
 
 const TwoCardsHarness = () => {
-  const { restState, startRest, stopRest } = useRestTimerController();
+  const { restState, startRest, adjustRest, stopRest } = useRestTimerController();
   const cardProps = (exercise: Exercise) => ({
     exercise,
     index: 1,
@@ -161,6 +251,7 @@ const TwoCardsHarness = () => {
     isEditable: true,
     restRun: restState && restState.exerciseId === exercise.id ? restState : null,
     onRestStart: startRest,
+    onRestAdjust: adjustRest,
     onRestStop: stopRest,
   });
   return (
@@ -276,7 +367,7 @@ describe('jeden RestBar na sesję (Z143)', () => {
       { reps: 5, weight: 100, completed: true },
       { reps: 5, weight: 100, completed: true },
     ];
-    const renderDone = (restRun: { seconds: number; runId: number } | null) => render(
+    const renderDone = (restRun: { deadlineAt: number; totalSeconds: number; runId: number } | null) => render(
       <MemoryRouter>
         <LanguageProvider>
           <UnitProvider>
@@ -295,7 +386,7 @@ describe('jeden RestBar na sesję (Z143)', () => {
 
     // Aktywna przerwa (odliczanie przejścia do następnego ćwiczenia) → karta
     // pełną jasnością, pasek widoczny.
-    const withRest = renderDone({ seconds: 150, runId: 1 });
+    const withRest = renderDone({ deadlineAt: Date.now() + 150_000, totalSeconds: 150, runId: 1 });
     const cardWithRest = withRest.container.querySelector('.exercise-card') as HTMLElement;
     expect(cardWithRest.className).not.toContain('opacity-50');
     expect(within(cardWithRest).getByTestId('rest-bar')).toBeTruthy();

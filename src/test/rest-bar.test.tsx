@@ -1,7 +1,10 @@
 // X17C Z136: pasek przerwy inline w karcie ćwiczenia (wzorzec Strong — odliczanie
 // w kontekście, nie modal kradnący ekran). Pasek tyka SAM, żeby karta nie
 // re-renderowała się cztery razy na sekundę (kontrakt memo() z X17A).
+// Z188: RestBar jest czysto prezentacyjny — deadline przychodzi propsem od
+// właściciela stanu (kontroler w WorkoutDay), ±15 idzie w górę przez onAdjust.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { RestBar } from '@/components/RestBar';
@@ -15,11 +18,39 @@ vi.mock('@/lib/rest-notification', () => ({
   cancelRestEndNotification: vi.fn().mockResolvedValue(undefined),
 }));
 
-const renderBar = (props: Partial<Parameters<typeof RestBar>[0]> = {}) => {
+// Harness = właściciel stanu (jak kontroler w WorkoutDay po Z188): trzyma deadline,
+// obsługuje onAdjust dokładnie tak jak useRestTimerController.adjustRest.
+const OwnerHarness = ({
+  seconds = 90,
+  runId = 1,
+  onSkip = vi.fn(),
+  onFinished,
+}: { seconds?: number; runId?: number; onSkip?: () => void; onFinished?: () => void }) => {
+  const [state, setState] = useState(() => ({
+    deadlineAt: Date.now() + seconds * 1000,
+    totalSeconds: seconds,
+  }));
+  return (
+    <RestBar
+      deadlineAt={state.deadlineAt}
+      totalSeconds={state.totalSeconds}
+      runId={runId}
+      exerciseLabel="Przysiad"
+      onSkip={onSkip}
+      onAdjust={(delta) => setState((current) => ({
+        deadlineAt: Math.max(Date.now(), current.deadlineAt + delta * 1000),
+        totalSeconds: Math.max(1, current.totalSeconds + delta),
+      }))}
+      onFinished={onFinished}
+    />
+  );
+};
+
+const renderBar = (props: Parameters<typeof OwnerHarness>[0] = {}) => {
   const onSkip = vi.fn();
   render(
     <LanguageProvider>
-      <RestBar seconds={90} runId={1} exerciseLabel="Przysiad" onSkip={onSkip} {...props} />
+      <OwnerHarness onSkip={onSkip} {...props} />
     </LanguageProvider>,
   );
   return { onSkip };
@@ -42,7 +73,7 @@ describe('RestBar (Z136)', () => {
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:20');
   });
 
-  it('+15 wydłuża przerwę, −15 skraca', () => {
+  it('+15 wydłuża przerwę, −15 skraca (przez onAdjust u właściciela)', () => {
     renderBar({ seconds: 60 });
     fireEvent.click(screen.getByRole('button', { name: '+15' }));
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:15');
@@ -89,7 +120,14 @@ describe('RestBar (Z136)', () => {
   it('nowy runId startuje przerwę od nowa', () => {
     const { rerender } = render(
       <LanguageProvider>
-        <RestBar seconds={90} runId={1} exerciseLabel="Przysiad" onSkip={vi.fn()} />
+        <RestBar
+          deadlineAt={Date.now() + 90_000}
+          totalSeconds={90}
+          runId={1}
+          exerciseLabel="Przysiad"
+          onSkip={vi.fn()}
+          onAdjust={vi.fn()}
+        />
       </LanguageProvider>,
     );
     act(() => { vi.advanceTimersByTime(30_000); });
@@ -97,10 +135,44 @@ describe('RestBar (Z136)', () => {
 
     rerender(
       <LanguageProvider>
-        <RestBar seconds={90} runId={2} exerciseLabel="Przysiad" onSkip={vi.fn()} />
+        <RestBar
+          deadlineAt={Date.now() + 90_000}
+          totalSeconds={90}
+          runId={2}
+          exerciseLabel="Przysiad"
+          onSkip={vi.fn()}
+          onAdjust={vi.fn()}
+        />
       </LanguageProvider>,
     );
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:30');
+  });
+
+  it('Z188: zmiana exerciseLabel NIE restartuje przerwy ani nie przeplanowuje notyfikacji', () => {
+    const props = {
+      deadlineAt: Date.now() + 90_000,
+      totalSeconds: 90,
+      runId: 1,
+      onSkip: vi.fn(),
+      onAdjust: vi.fn(),
+    };
+    const { rerender } = render(
+      <LanguageProvider>
+        <RestBar {...props} exerciseLabel="Przysiad" />
+      </LanguageProvider>,
+    );
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:00');
+    vi.mocked(scheduleRestEndNotification).mockClear();
+
+    rerender(
+      <LanguageProvider>
+        <RestBar {...props} exerciseLabel="Przysiad ze sztangą" />
+      </LanguageProvider>,
+    );
+    // Ten sam runId i deadline: czas biegnie dalej, zero nowych notyfikacji.
+    expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:00');
+    expect(scheduleRestEndNotification).not.toHaveBeenCalled();
   });
 
   it('tap na pasek rozwija widok pełnoekranowy', () => {

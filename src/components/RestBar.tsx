@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, Timer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import {
-  startRest,
-  adjustRest,
   remainingSeconds,
   isFinished,
   restProgress,
@@ -15,12 +13,16 @@ import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { hapticRestEnd } from '@/lib/haptics';
 
 interface RestBarProps {
-  /** Długość przerwy w sekundach. */
-  seconds: number;
+  /** Z188: deadline przychodzi z kontrolera (WorkoutDay) — RestBar nic nie liczy sam. */
+  deadlineAt: number;
+  /** Pełna długość przerwy w sekundach — do paska postępu. */
+  totalSeconds: number;
   /** Zmiana wartości = START NOWEJ przerwy (wzorzec runId z IntervalTimer). */
   runId: number;
   exerciseLabel: string;
   onSkip: () => void;
+  /** Z188: korekta ±15 s idzie do właściciela stanu (kontroler persystuje deadline). */
+  onAdjust: (deltaSeconds: number) => void;
   /** Z143: koniec przerwy w foregroundzie — rodzic (właściciel stanu) zeruje przerwę. */
   onFinished?: () => void;
 }
@@ -37,34 +39,34 @@ const mmss = (total: number): string => {
  * Komponent tyka SAM (własny setInterval), żeby karta ćwiczenia nie re-renderowała
  * się cztery razy na sekundę — to byłby powrót re-render bomby R2-07.
  *
- * Źródłem prawdy jest DEADLINE z `rest-timer.ts`, nie odliczane ticki: po powrocie
+ * Źródłem prawdy jest DEADLINE z kontrolera (Z188), nie odliczane ticki: po powrocie
  * z tła (iOS wstrzymuje JS w WKWebView) pasek natychmiast pokazuje realny stan.
  * `setInterval` służy WYŁĄCZNIE do odświeżania widoku, gdy apka jest na wierzchu.
  * Sygnał końca przy zgaszonym ekranie dostarcza system (local notification).
  */
-export const RestBar = ({ seconds, runId, exerciseLabel, onSkip, onFinished }: RestBarProps) => {
+export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, onSkip, onAdjust, onFinished }: RestBarProps) => {
   const { t } = useTranslation();
-  const [state, setState] = useState<RestTimerState>(() => startRest(Date.now(), seconds));
   const [, forceTick] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const finishedRef = useRef(false);
 
-  // Zaplanowanie powiadomienia na deadline. Wołane przy starcie i przy KAŻDEJ
-  // zmianie czasu — inaczej sygnał przyszedłby na nieaktualny moment.
-  const scheduleFor = useCallback((next: RestTimerState) => {
-    if (next.deadlineAt === null) return;
-    const left = Math.max(1, Math.round((next.deadlineAt - Date.now()) / 1000) + 1);
-    void scheduleRestEndNotification(left, t('rest.bar.done'), exerciseLabel);
-  }, [t, exerciseLabel]);
+  // Z188: t i exerciseLabel czytane z refów — ich zmiana (język, nazwa ćwiczenia)
+  // nie może restartować przerwy ani przeplanowywać notyfikacji (dzisiejszy dep na
+  // identity scheduleFor robił dokładnie to).
+  const tRef = useRef(t);
+  const exerciseLabelRef = useRef(exerciseLabel);
+  useEffect(() => { tRef.current = t; }, [t]);
+  useEffect(() => { exerciseLabelRef.current = exerciseLabel; }, [exerciseLabel]);
 
-  // Nowy runId => nowa przerwa (odhaczona kolejna seria).
+  // Notyfikacja systemowa na deadline: przy starcie (nowy runId) i przy każdej
+  // KOREKCIE deadline (±15 z kontrolera). deadlineAt zmienia się wyłącznie w tych
+  // dwóch momentach — nigdy od tykania.
   useEffect(() => {
     finishedRef.current = false;
-    const next = startRest(Date.now(), seconds);
-    setState(next);
     unlockTimerSound();
-    scheduleFor(next);
-  }, [runId, seconds, scheduleFor]);
+    const left = Math.max(1, Math.round((deadlineAt - Date.now()) / 1000) + 1);
+    void scheduleRestEndNotification(left, tRef.current('rest.bar.done'), exerciseLabelRef.current);
+  }, [runId, deadlineAt]);
 
   // Odświeżanie widoku. Nie liczy czasu — tylko wymusza przeliczenie z deadline.
   useEffect(() => {
@@ -75,6 +77,7 @@ export const RestBar = ({ seconds, runId, exerciseLabel, onSkip, onFinished }: R
   // Sprzątanie: wyjście z ekranu nie może zostawić zaplanowanego powiadomienia.
   useEffect(() => () => { void cancelRestEndNotification(); }, []);
 
+  const state: RestTimerState = { deadlineAt, totalSeconds };
   const now = Date.now();
   const left = remainingSeconds(state, now);
   const done = isFinished(state, now);
@@ -83,7 +86,7 @@ export const RestBar = ({ seconds, runId, exerciseLabel, onSkip, onFinished }: R
   // Koniec w foregroundzie: JS żyje, więc sygnał gramy sami, a systemowy anulujemy
   // (inaczej user dostałby go drugi raz, już po fakcie).
   useEffect(() => {
-    if (!done || finishedRef.current || state.deadlineAt === null) return;
+    if (!done || finishedRef.current) return;
     finishedRef.current = true;
     void cancelRestEndNotification();
     playTimerSound('finish');
@@ -93,15 +96,7 @@ export const RestBar = ({ seconds, runId, exerciseLabel, onSkip, onFinished }: R
     // Z143: właścicielem stanu jest rodzic — koniec przerwy zeruje stan (karta
     // może się przygasić, Z145; pasek znika zamiast wisieć jako „Koniec przerwy").
     onFinished?.();
-  }, [done, state.deadlineAt, onFinished]);
-
-  const handleAdjust = (delta: number) => {
-    const next = adjustRest(state, delta, Date.now());
-    setState(next);
-    finishedRef.current = false;
-    void cancelRestEndNotification();
-    scheduleFor(next);
-  };
+  }, [done, onFinished]);
 
   const handleSkip = () => {
     void cancelRestEndNotification();
@@ -117,14 +112,14 @@ export const RestBar = ({ seconds, runId, exerciseLabel, onSkip, onFinished }: R
     <div className="mt-2 flex items-stretch gap-1.5">
       <button
         type="button"
-        onClick={() => handleAdjust(-15)}
+        onClick={() => onAdjust(-15)}
         className="flex-1 rounded-lg bg-background/60 px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-background"
       >
         -15
       </button>
       <button
         type="button"
-        onClick={() => handleAdjust(15)}
+        onClick={() => onAdjust(15)}
         className="flex-1 rounded-lg bg-background/60 px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-background"
       >
         +15

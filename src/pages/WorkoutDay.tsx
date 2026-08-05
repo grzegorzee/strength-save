@@ -205,7 +205,14 @@ const WorkoutDay = () => {
   const [sessionSwaps, setSessionSwaps] = useState<Record<string, { id: string; name: string; sets: string; videoUrl?: string }>>({});
 
   // Z143: jeden timer przerwy na sesję — stan u właściciela (tu), tykanie w RestBar.
-  const { restState, startRest: startRestTimer, stopRest: stopRestTimer } = useRestTimerController();
+  // Z188: kontroler niesie deadline + persystencję localStorage (kill nie gubi przerwy).
+  const {
+    restState,
+    startRest: startRestTimer,
+    adjustRest: adjustRestTimer,
+    stopRest: stopRestTimer,
+    resumeFromStorage: resumeRestFromStorage,
+  } = useRestTimerController();
   // Zawsze aktualna lista ćwiczeń dnia dla decyzji o przerwie (Z144) — bez
   // wiązania tożsamości handlera z obiektem day (memo kart, R2-07).
   const dayExercisesRef = useRef<ReadonlyArray<{ id: string }>>([]);
@@ -283,6 +290,21 @@ const WorkoutDay = () => {
     void keepScreenAwake();
     return () => { void allowScreenSleep(); };
   }, [sessionId, isCompleted]);
+
+  // Z188: przerwa przeżywa kill — po hydracji sesji (raz per mount) przywróć
+  // deadline z localStorage; realny pozostały czas wraca na kartę exerciseId.
+  // Ukończony trening niczego nie odlicza: zawsze stopRest.
+  const restResumeDone = useRef(false);
+  useEffect(() => {
+    if (sessionId === null) return;
+    if (isCompleted) {
+      stopRestTimer();
+      return;
+    }
+    if (restResumeDone.current) return;
+    restResumeDone.current = true;
+    resumeRestFromStorage();
+  }, [sessionId, isCompleted, stopRestTimer, resumeRestFromStorage]);
 
   // Tonaż i liczba serii bieżącej sesji — ukończone serie robocze, bez rozgrzewki (Z131).
   const { volumeKg: sessionVolumeKg, completedSets: sessionCompletedSets } = useMemo(
@@ -2532,6 +2554,7 @@ const WorkoutDay = () => {
               trackingType={resolveTracking(exercise.name)}
               restRun={restState && restState.exerciseId === exercise.id ? restState : null}
               onRestStart={handleRestStart}
+              onRestAdjust={adjustRestTimer}
               onRestStop={stopRestTimer}
               {...(isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id])
                 ? { onRequestSwap: handleRequestSwap, onSkip: handleSkipExercise }

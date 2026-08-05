@@ -238,8 +238,10 @@ interface ExerciseCardProps {
   // Z143 (X18B): stan przerwy podniesiony do WorkoutDay — jeden timer na sesję.
   // restRun przychodzi TYLKO gdy przerwa należy do tej karty; callbacki stabilne
   // (useCallback w rodzicu), inaczej memo() padnie.
-  restRun?: { seconds: number; runId: number } | null;
+  // Z188: kontroler niesie deadline (źródło prawdy) — karta tylko renderuje pasek.
+  restRun?: { deadlineAt: number; totalSeconds: number; runId: number } | null;
   onRestStart?: (exerciseId: string, seconds: number) => void;
+  onRestAdjust?: (deltaSeconds: number) => void;
   onRestStop?: () => void;
 }
 
@@ -348,6 +350,7 @@ const ExerciseCardInner = ({
   onSkip,
   restRun,
   onRestStart,
+  onRestAdjust,
   onRestStop,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
@@ -1141,10 +1144,12 @@ const ExerciseCardInner = ({
             ekran (wzorzec Strong). Tyka sam — karta się przez niego nie re-renderuje. */}
         {FEATURE_FLAGS.workoutTimers && isEditable && restRun && restRun.runId > 0 && (
           <RestBar
-            seconds={restRun.seconds}
+            deadlineAt={restRun.deadlineAt}
+            totalSeconds={restRun.totalSeconds}
             runId={restRun.runId}
             exerciseLabel={localizedName}
             onSkip={() => onRestStop?.()}
+            onAdjust={(delta) => onRestAdjust?.(delta)}
             onFinished={onRestStop}
           />
         )}
