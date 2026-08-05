@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
-import { hasRemainingWork } from '@/lib/workout-session-state';
+import { hasRemainingWork, shouldStartRest } from '@/lib/workout-session-state';
 import { cancelRestEndNotification } from '@/lib/rest-notification';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import type { Exercise } from '@/data/trainingPlan';
@@ -192,6 +192,120 @@ describe('useRestTimerController — deadline i persystencja (Z188)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// ── Z190: bramka sekwencji timera — rozgrzewka → robocza → przejęcie → koniec ──
+
+describe('Z190: sekwencja timera w jednym przebiegu', () => {
+  // A: rozgrzewka + 2 robocze; B: jedna robocza. Sekwencja domyka trening
+  // ostatnią serią w A (krok 4), a B przejmuje przerwę w kroku 3.
+  const warmupPlusTwo: SetData[] = [
+    { reps: 10, weight: 20, completed: false, isWarmup: true },
+    { reps: 5, weight: 100, completed: false },
+    { reps: 5, weight: 100, completed: false },
+  ];
+  const oneSet: SetData[] = [{ reps: 5, weight: 60, completed: false }];
+
+  const SequenceHarness = () => {
+    const { restState, startRest, stopRest } = useRestTimerController();
+    const setsRef = useRef<Record<string, SetData[]>>({});
+    const handleSetsChange = (exerciseId: string, sets: SetData[]) => {
+      setsRef.current = { ...setsRef.current, [exerciseId]: sets };
+    };
+    // Dokładnie logika handleRestStart z WorkoutDay po Z189 (shouldStartRest).
+    const handleRestStart = (exerciseId: string, seconds: number) => {
+      if (!shouldStartRest(setsRef.current, [], [exerciseA, exerciseB])) {
+        stopRest();
+        void cancelRestEndNotification();
+        return;
+      }
+      startRest(exerciseId, seconds);
+    };
+    const cardProps = (exercise: Exercise, savedSets: SetData[]) => ({
+      exercise,
+      index: 1,
+      savedSets,
+      isEditable: true,
+      onSetsChange: handleSetsChange,
+      restRun: restState && restState.exerciseId === exercise.id ? restState : null,
+      onRestStart: handleRestStart,
+      onRestStop: stopRest,
+    });
+    return (
+      <MemoryRouter>
+        <LanguageProvider>
+          <UnitProvider>
+            <span data-testid="run-id">{restState?.runId ?? 0}</span>
+            <div data-testid="card-a"><ExerciseCard {...cardProps(exerciseA, warmupPlusTwo)} /></div>
+            <div data-testid="card-b"><ExerciseCard {...cardProps(exerciseB, oneSet)} /></div>
+          </UnitProvider>
+        </LanguageProvider>
+      </MemoryRouter>
+    );
+  };
+
+  beforeEach(() => {
+    localStorage.removeItem('fittracker_rest_settings_v1');
+    localStorage.removeItem('fittracker_rest_state_v1');
+  });
+
+  it('rozgrzewka 45 s → robocza restartuje na 90 s → B przejmuje → ostatnia seria gasi wszystko', async () => {
+    const view = render(<SequenceHarness />);
+    const cardA = view.getByTestId('card-a');
+    const cardB = view.getByTestId('card-b');
+    const runId = () => Number(view.getByTestId('run-id').textContent);
+
+    // 1. Odhacz W w A → pasek 45 s w A (martwa gałąź warmupSeconds ożyła, Z187).
+    fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    await flushNotificationChain();
+    expect(within(cardA).getByTestId('rest-bar')).toHaveTextContent('0:45');
+    expect(runId()).toBe(1);
+
+    // 2. Odhacz pierwszą roboczą w A → pasek restartuje na 90 s (runId rośnie;
+    //    w A zostaje jeszcze jedna otwarta robocza, więc to NIE koniec ćwiczenia).
+    fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    await flushNotificationChain();
+    expect(within(cardA).getByTestId('rest-bar')).toHaveTextContent('1:30');
+    expect(runId()).toBe(2);
+
+    // 3. Odhacz jedyną serię w B → przerwa przechodzi do B (koniec ćwiczenia B =
+    //    2:30 przejścia), JEDNA notyfikacja z czasem B.
+    fireEvent.click(within(cardB).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    await flushNotificationChain();
+    expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
+    expect(within(cardB).getByTestId('rest-bar')).toHaveTextContent('2:30');
+    expect(runId()).toBe(3);
+    expect(pendingNotifications.size).toBe(1);
+    expect(Array.from(pendingNotifications.values())[0].body).toContain('Wyciskanie sztangi');
+    // Persystencja Z188: localStorage niesie biegnącą przerwę.
+    expect(JSON.parse(localStorage.getItem('fittracker_rest_state_v1') ?? 'null')?.exerciseId).toBe('ex-b');
+
+    // 4. OSTATNIA seria treningu (druga robocza w A) → stan null, zero pasków,
+    //    zero notyfikacji, localStorage wyczyszczony.
+    fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+    await flushNotificationChain();
+    expect(view.queryByTestId('rest-bar')).toBeNull();
+    expect(runId()).toBe(0);
+    expect(pendingNotifications.size).toBe(0);
+    expect(localStorage.getItem('fittracker_rest_state_v1')).toBeNull();
+  });
+
+  it('kill w środku przerwy: nowy mount kontrolera + resumeFromStorage wraca z realnym czasem', () => {
+    // Pierwszy "mount": przerwa 90 s startuje i persystuje.
+    const first = renderHook(() => useRestTimerController());
+    act(() => first.result.current.startRest('ex-b', 90));
+    const persistedDeadline = first.result.current.restState!.deadlineAt;
+    first.unmount();
+
+    // Kill = nowy mount, stan Reacta pusty; resume czyta localStorage.
+    const second = renderHook(() => useRestTimerController());
+    expect(second.result.current.restState).toBeNull();
+    act(() => second.result.current.resumeFromStorage());
+
+    expect(second.result.current.restState).toMatchObject({ exerciseId: 'ex-b', totalSeconds: 90 });
+    // Realny czas: TEN SAM deadline co przed killem, nie odliczanie od nowa.
+    expect(second.result.current.restState!.deadlineAt).toBe(persistedDeadline);
   });
 });
 
