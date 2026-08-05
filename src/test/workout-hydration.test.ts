@@ -51,12 +51,52 @@ describe('resolveWorkoutHydration (Z57)', () => {
 
   it('draft innej sesji niż workoutForDate => false', () => {
     const result = resolveWorkoutHydration({
-      workoutForDate: makeWorkout({ id: 'workout-OTHER' }),
-      draft: makeDraft({ dirty: true }),
+      workoutForDate: makeWorkout({ id: 'workout-OTHER', updatedAt: 500 }),
+      draft: makeDraft({ dirty: true, updatedAt: 100 }),
       draftHasData: true,
       completedValidationOk: null,
     });
     expect(result.useDraft).toBe(false);
+  });
+
+  it('Z183: dirty draft NOWSZY niż chmura wygrywa mimo rozjazdu sessionId', () => {
+    const result = resolveWorkoutHydration({
+      workoutForDate: makeWorkout({ id: 'workout-OTHER', updatedAt: 100 }),
+      draft: makeDraft({ dirty: true, updatedAt: 500 }),
+      draftHasData: true,
+      completedValidationOk: null,
+    });
+    expect(result.useDraft).toBe(true);
+  });
+
+  it('Z183 niezmiennik: rozjazd sessionId przy CZYSTYM drafcie => false (zombie sprzed promocji)', () => {
+    const result = resolveWorkoutHydration({
+      workoutForDate: makeWorkout({ id: 'workout-OTHER', updatedAt: 100 }),
+      draft: makeDraft({ dirty: false, updatedAt: 500 }),
+      draftHasData: true,
+      completedValidationOk: null,
+    });
+    expect(result.useDraft).toBe(false);
+  });
+
+  it('Z183 niezmiennik: rozjazd sessionId przy drafcie STARSZYM niż chmura => false', () => {
+    const result = resolveWorkoutHydration({
+      workoutForDate: makeWorkout({ id: 'workout-OTHER', updatedAt: 500 }),
+      draft: makeDraft({ dirty: true, updatedAt: 100 }),
+      draftHasData: true,
+      completedValidationOk: null,
+    });
+    expect(result.useDraft).toBe(false);
+  });
+
+  it('Z183 niezmiennik: rozjazd sessionId, chmura BEZ updatedAt, dirty draft => true (draft to jedyny świeży stan)', () => {
+    const result = resolveWorkoutHydration({
+      workoutForDate: makeWorkout({ id: 'workout-OTHER', updatedAt: undefined }),
+      draft: makeDraft({ dirty: true, updatedAt: 500 }),
+      draftHasData: true,
+      completedValidationOk: null,
+    });
+    expect(result.useDraft).toBe(true);
   });
 
   it('brak workoutForDate + draftHasData => true', () => {

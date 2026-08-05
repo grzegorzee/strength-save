@@ -34,7 +34,12 @@ export const resolveWorkoutHydration = (input: WorkoutHydrationInput): WorkoutHy
   const useDraft = (() => {
     if (!draft) return false;
     if (emptyDraftOnCompleted) return false;
-    if (workoutForDate && draft.sessionId !== workoutForDate.id) return false;
+    // Z183: rozjazd sessionId nie może wskrzeszać starszej chmury — dirty draft
+    // NOWSZY niż workout w chmurze wygrywa (force-quit tuż po promocji sesji).
+    // Draft czysty albo starszy: chmura wygrywa (ochrona przed zombie-draftem).
+    if (workoutForDate && draft.sessionId !== workoutForDate.id) {
+      return draft.dirty && draft.updatedAt > (workoutForDate.updatedAt ?? 0);
+    }
     // Z104: szybki trening startuje z zerem ćwiczeń — żywy (dirty) pusty draft
     // ad-hoc jest hydratowalny, inaczej reset sesji zaraz po starcie.
     if (!workoutForDate) {
