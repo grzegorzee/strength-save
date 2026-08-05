@@ -271,7 +271,7 @@ const DurationInput = ({ valueSec, onCommit, disabled, ariaLabel, placeholder, c
       placeholder={placeholder ?? '1:30'}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', className)}
+      className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', className)}
     />
   );
 };
@@ -662,15 +662,19 @@ const ExerciseCardInner = ({
   // assisted: asysta+powt.). Stare typy — układ nietknięty.
   // Z170: ostatnia kolumna 44px — X ma pełny tap target 44px (h-11 w-11),
   // węższa kolumna kładła go NA checkmarku i tap w ✓ potrafił trafić w usuwanie.
+  // Z196: równy podział 1fr/1fr nie mieścił "122.5" w KG @390 px (50.7 px kolumny,
+  // 26.7 px wnętrza przy px-3; "125" potrzebuje ~29.5 px, "122.5" ~44 px). Kolumny
+  // liczbowe wagi/asysty/dystansu dostają więcej przestrzeni kosztem POWT. (3 cyfry
+  // maks). Nagłówek używa tego samego gridCols — synchronizacja automatyczna.
   const gridCols = tracking === 'duration'
     ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_44px]'
     : tracking === 'weight_distance_duration'
-      ? 'grid-cols-[26px_1fr_1fr_1fr_40px_44px]'
+      ? 'grid-cols-[26px_1.1fr_1.1fr_0.8fr_40px_44px]'
       : tracking === 'assisted_bodyweight'
-        ? 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_44px]'
+        ? 'grid-cols-[26px_minmax(0,0.9fr)_1.25fr_0.85fr_40px_44px]'
         : isBodyweight
           ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_44px]'
-          : 'grid-cols-[26px_minmax(0,1fr)_1fr_1fr_40px_44px]';
+          : 'grid-cols-[26px_minmax(0,0.9fr)_1.25fr_0.85fr_40px_44px]';
 
   // Hint POPRZ. dla nowych typów (Z105): czas dla duration, powt.×(-asysta) dla assisted.
   const getTrackedPreviousHint = (workingIndex: number): string | null => {
@@ -737,7 +741,7 @@ const ExerciseCardInner = ({
             placeholder={unit}
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${unit}`}
-            className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -751,7 +755,7 @@ const ExerciseCardInner = ({
             placeholder="m"
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colDistance')}`}
-            className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -763,7 +767,7 @@ const ExerciseCardInner = ({
             placeholder={`-${unit}`}
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colAssist')}`}
-            className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -777,7 +781,7 @@ const ExerciseCardInner = ({
             placeholder={isWarmupRow ? '—' : repsPlaceholder}
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
-            className={cn('exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -874,7 +878,7 @@ const ExerciseCardInner = ({
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${unit}`}
             className={cn(
-              'exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
+              'exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
               isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
             )}
           />
@@ -891,7 +895,7 @@ const ExerciseCardInner = ({
           disabled={!isEditable}
           aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
           className={cn(
-            'exercise-card-input h-12 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
+            'exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
             isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
           )}
         />

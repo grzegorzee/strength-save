@@ -263,6 +263,24 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(card).queryByText(/Łopatki ściągnięte/)).toBeNull();
     });
 
+    it('Z196: pola serii mają px-1, a kolumna KG jest szersza niż POWT. (mieści "122.5")', () => {
+      const { card } = renderCard({ savedSets: [workingSet({ weight: 122.5, reps: 8 })] });
+
+      // px-1 zamiast dziedziczonego px-3 z bazowego Input (24 px poziomego paddingu
+      // zjadało miejsce na trzecią cyfrę z połówką).
+      const weightInput = within(card).getAllByLabelText(/Set 1, kg/)[0] as HTMLElement;
+      const repsInput = within(card).getAllByLabelText(/Set 1, Powt\./)[0] as HTMLElement;
+      expect(weightInput.className).toContain('px-1');
+      expect(repsInput.className).toContain('px-1');
+
+      // Kolumny weight_reps: PREV 0.9fr | KG 1.25fr | POWT 0.85fr; nagłówek używa
+      // tego samego szablonu gridCols, więc wystarczy sprawdzić wszystkie gridy wierszy.
+      const grids = Array.from(card.querySelectorAll('div.grid'));
+      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[26px_minmax(0,0.9fr)_1.25fr_0.85fr_40px_44px]'));
+      // Nagłówek + wiersz serii — minimum 2 gridy z nowym szablonem.
+      expect(withTemplate.length).toBeGreaterThanOrEqual(2);
+    });
+
     it('karta nie używa martwej klasy .exercise-card-divider', () => {
       const { card } = renderCard({ savedSets: [workingSet()], onMetricsChange: vi.fn() });
       expect(card.querySelectorAll('.exercise-card-divider')).toHaveLength(0);
