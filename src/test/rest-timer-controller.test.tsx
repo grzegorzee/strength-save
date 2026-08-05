@@ -98,6 +98,60 @@ const twoSets = (): SetData[] => [
   { reps: 5, weight: 100, completed: false },
 ];
 
+// ── Z187: przerwa startuje też po serii ROZGRZEWKOWEJ (martwa gałąź warmupSeconds) ──
+
+describe('Z187: przerwa po serii rozgrzewkowej', () => {
+  const renderCardWithWarmup = (onRestStart: (exerciseId: string, seconds: number) => void) => {
+    const sets: SetData[] = [
+      { reps: 10, weight: 20, completed: false, isWarmup: true },
+      { reps: 5, weight: 100, completed: false },
+      { reps: 5, weight: 100, completed: false },
+    ];
+    return render(
+      <MemoryRouter>
+        <LanguageProvider>
+          <UnitProvider>
+            <ExerciseCard
+              exercise={exerciseA}
+              index={1}
+              savedSets={sets}
+              isEditable
+              onRestStart={onRestStart}
+            />
+          </UnitProvider>
+        </LanguageProvider>
+      </MemoryRouter>,
+    );
+  };
+
+  beforeEach(() => {
+    localStorage.removeItem('fittracker_rest_settings_v1');
+  });
+
+  it('odhaczenie serii W woła onRestStart z czasem warmupSeconds (45 s), bez dźwięku complete', async () => {
+    const onRestStart = vi.fn();
+    const { playTimerSound } = await import('@/lib/timer-sound');
+    vi.mocked(playTimerSound).mockClear();
+
+    const view = renderCardWithWarmup(onRestStart);
+    // Wiersz W jest pierwszy w tabeli — pierwszy przycisk "Zaznacz".
+    fireEvent.click(view.getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
+
+    expect(onRestStart).toHaveBeenCalledWith('ex-a', 45);
+    // Rozgrzewka nie jest pracą: zero dźwięku "complete" i zero allDone.
+    expect(vi.mocked(playTimerSound)).not.toHaveBeenCalledWith('complete');
+  });
+
+  it('niezmiennik: seria robocza dalej dostaje workingSeconds (90 s)', () => {
+    const onRestStart = vi.fn();
+    const view = renderCardWithWarmup(onRestStart);
+    // Drugi przycisk = pierwsza seria robocza.
+    fireEvent.click(view.getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[1]);
+
+    expect(onRestStart).toHaveBeenCalledWith('ex-a', 90);
+  });
+});
+
 const TwoCardsHarness = () => {
   const { restState, startRest, stopRest } = useRestTimerController();
   const cardProps = (exercise: Exercise) => ({

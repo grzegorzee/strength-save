@@ -495,28 +495,33 @@ const ExerciseCardInner = ({
     if (turningOn) void hapticImpactLight();
     if (turningOn && uid) trackTelemetryEvent(uid, 'action_set_checked');
 
+    // Z187: przerwa startuje po KAŻDEJ odhaczonej serii — także rozgrzewkowej
+    // (45 s z warmupSeconds; gałąź w resolveRestSeconds była martwa od X17C).
+    // Rozgrzewka nie wlicza się do allDone i nie gra dźwięku "complete".
+    if (turningOn && FEATURE_FLAGS.workoutTimers && !intervalSpec) {
+      // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
+      const workingAfter = newSets.filter(s => !s.isWarmup);
+      const allDone = !currentSet.isWarmup
+        && workingAfter.length > 0 && workingAfter.every(s => s.completed);
+      const seconds = resolveRestSeconds(loadRestSettings(), {
+        isWarmup: currentSet.isWarmup,
+        exerciseKey: exercise.name,
+        exerciseFinished: allDone,
+      });
+      unlockTimerSound();
+      // Z143: decyzja i stan u rodzica (jeden timer na sesję, przejmowanie przez
+      // ostatnią odhaczoną serię). Warunki startu zostają w karcie.
+      onRestStart?.(exercise.id, seconds);
+    }
     if (turningOn && !currentSet.isWarmup) {
       const workingAfter = newSets.filter(s => !s.isWarmup);
       const allDone = workingAfter.length > 0 && workingAfter.every(s => s.completed);
-      // Timer przerwy startuje w OBU przypadkach, różni się tylko długością:
-      // po ostatniej serii to przerwa na przejście do następnego ćwiczenia
-      // (dłuższa — dochodzi zmiana stanowiska i sprzętu).
+      // Sygnał ukończenia ćwiczenia: dłuższa przerwa "przejście dalej" wychodzi
+      // z resolveRestSeconds powyżej, tu zostaje dźwięk + haptyka.
       if (allDone) {
         unlockTimerSound();
         exerciseCompleteHaptic();
         playTimerSound('complete');
-      }
-      if (FEATURE_FLAGS.workoutTimers && !intervalSpec) {
-        // Dla ćwiczeń interwałowych (EMOM/AMRAP) pomijamy — rytm prowadzi timer interwałowy.
-        const seconds = resolveRestSeconds(loadRestSettings(), {
-          isWarmup: currentSet.isWarmup,
-          exerciseKey: exercise.name,
-          exerciseFinished: allDone,
-        });
-        unlockTimerSound();
-        // Z143: decyzja i stan u rodzica (jeden timer na sesję, przejmowanie przez
-        // ostatnią odhaczoną serię). Warunki startu zostają w karcie.
-        onRestStart?.(exercise.id, seconds);
       }
     }
   };
