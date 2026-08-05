@@ -890,6 +890,7 @@ export const pl = {
   'comp.share.addPhoto': 'Dodaj zdjęcie',
   'comp.share.imageAlt': 'Podsumowanie treningu',
   'comp.share.download': 'Pobierz',
+  'comp.share.saved': 'Zapisano ✓',
   'comp.share.share': 'Udostępnij',
   'comp.share.tplGradient': 'Gradient',
   'comp.share.tplPhoto': 'Zdjęcie',

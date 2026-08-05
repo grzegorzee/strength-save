@@ -194,6 +194,11 @@ function buildShareHtmlMinimal(data: ShareData, lang: LanguageCode, unit: UnitSy
   `;
 }
 
+// Z197: układ photo = nagłówek u góry, JEDEN spacer flex:1, cała treść
+// (statystyki + lista + stopka) sklejona w dolnej ~1/3 — dwa auto-marginesy
+// (nagłówek + stopka) dzieliły wolną przestrzeń po równo i centrowały liczby
+// dokładnie na wysokości twarzy na selfie. Scrim strefowy: przezroczysty do
+// ~45% wysokości, ciemny pas dopiero pod tekstem.
 export function buildShareHtmlWithPhoto(
   data: ShareData,
   photoDataUrl: string,
@@ -253,10 +258,6 @@ export function buildShareHtmlWithPhoto(
           <div style="font-size:32px;font-weight:800;margin-top:8px;text-shadow:0 2px 8px rgba(0,0,0,0.5);">${safeDayName}</div>
           <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-top:4px;">${safeDate}</div>
         </div>
-        <!-- Z197: JEDEN spacer — cała treść (statystyki + lista) klei się do dołu,
-             pas ~dolna 1/3, twarz na selfie zostaje czysta. Dwa auto-marginesy
-             (nagłówek + stopka) dzieliły wolną przestrzeń po równo i centrowały
-             liczby dokładnie na wysokości twarzy. -->
         <div style="flex:1"></div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:24px 0;">

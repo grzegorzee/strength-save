@@ -7,9 +7,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Download, Share2, Camera, X } from 'lucide-react';
+import { Loader2, Download, Share2, Camera, Check, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { downscalePhoto, generateWorkoutImage, type ShareData, type ShareTemplate } from '@/lib/share-utils';
+import { hapticSuccess } from '@/lib/haptics';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { cn } from '@/lib/utils';
@@ -42,6 +43,8 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   const [error, setError] = useState<string | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [template, setTemplate] = useState<ShareTemplate>(() => loadStoredTemplate());
+  // Z198: który przycisk pokazuje "Zapisano ✓" (null = żaden).
+  const [savedAction, setSavedAction] = useState<'download' | 'share' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const generate = async (photo: string | null, tpl: ShareTemplate) => {
@@ -113,17 +116,28 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   const shareFile = (): File | null =>
     blob ? new File([blob], `trening-${data.date}.jpg`, { type: 'image/jpeg' }) : null;
 
-  const systemShare = async (file: File) => {
+  // Z198: true = share przeszedł (system pokazał sheet i user coś wybrał),
+  // false = AbortError (zamknięty sheet) albo błąd — ZERO fałszywego sukcesu.
+  const systemShare = async (file: File): Promise<boolean> => {
     try {
       await navigator.share({
         title: t('comp.share.shareTitle', { dayName: data.dayName }),
         files: [file],
       });
+      return true;
     } catch (err) {
       // Zamknięcie sheeta (AbortError) to nie błąd — wzorzec Analytics.tsx.
-      if (err instanceof Error && err.name === 'AbortError') return;
+      if (err instanceof Error && err.name === 'AbortError') return false;
       setError(t('comp.share.generateError'));
+      return false;
     }
+  };
+
+  // Z198: widoczny sukces — "Zapisano ✓" + haptyka na ~1.8 s (wzorzec ApiKeysCard).
+  const markSaved = (action: 'download' | 'share') => {
+    setSavedAction(action);
+    void hapticSuccess();
+    window.setTimeout(() => setSavedAction(null), 1800);
   };
 
   const handleDownload = async () => {
@@ -132,20 +146,21 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
     // Z179: WKWebView ignoruje <a download> — natywnie "Pobierz" idzie przez
     // share sheet (iOS ma tam "Zapisz obraz"), bez nowych pluginów.
     if (Capacitor.isNativePlatform() && file && navigator.canShare?.({ files: [file] })) {
-      await systemShare(file);
+      if (await systemShare(file)) markSaved('download');
       return;
     }
     const a = document.createElement('a');
     a.href = imageUrl;
     a.download = `trening-${data.date}.jpg`;
     a.click();
+    markSaved('download');
   };
 
   const handleShare = async () => {
     const file = shareFile();
     if (!file) return;
     if (navigator.canShare?.({ files: [file] })) {
-      await systemShare(file);
+      if (await systemShare(file)) markSaved('share');
     } else {
       await handleDownload();
     }
@@ -232,12 +247,20 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
             />
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={handleDownload}>
-                <Download className="h-4 w-4 mr-2" />
-                {t('comp.share.download')}
+                {savedAction === 'download' ? (
+                  <Check className="h-4 w-4 mr-2 text-fitness-success" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                {savedAction === 'download' ? t('comp.share.saved') : t('comp.share.download')}
               </Button>
               <Button className="flex-1" onClick={handleShare}>
-                <Share2 className="h-4 w-4 mr-2" />
-                {t('comp.share.share')}
+                {savedAction === 'share' ? (
+                  <Check className="h-4 w-4 mr-2" />
+                ) : (
+                  <Share2 className="h-4 w-4 mr-2" />
+                )}
+                {savedAction === 'share' ? t('comp.share.saved') : t('comp.share.share')}
               </Button>
             </div>
           </div>

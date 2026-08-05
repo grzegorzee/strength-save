@@ -869,6 +869,7 @@ export const en: Record<keyof typeof pl, string> = {
   'comp.share.addPhoto': 'Add photo',
   'comp.share.imageAlt': 'Workout summary',
   'comp.share.download': 'Download',
+  'comp.share.saved': 'Saved ✓',
   'comp.share.share': 'Share',
   'comp.share.tplGradient': 'Gradient',
   'comp.share.tplPhoto': 'Photo',
