@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
+import tailwindcssPlugin from "tailwindcss/plugin";
 
 export default {
   darkMode: ["class"],
@@ -125,5 +126,13 @@ export default {
       },
     },
   },
-  plugins: [tailwindcssAnimate],
+  plugins: [
+    tailwindcssAnimate,
+    // Z199: sticky hover w WKWebView — na dotyku :hover przykleja się po tapie
+    // (przyciski zostawały "podświetlone"). Wariant globalny: WSZYSTKIE `hover:`
+    // w apce działają wyłącznie przy realnym kursorze, bez ruszania 100+ komponentów.
+    tailwindcssPlugin(({ addVariant }) => {
+      addVariant("hover", "@media (hover: hover) and (pointer: fine) { &:hover }");
+    }),
+  ],
 } satisfies Config;
