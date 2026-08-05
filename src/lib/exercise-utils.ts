@@ -215,14 +215,14 @@ export const sanitizeSets = (
   if (!sets || sets.length === 0) {
     return createEmptySets(expectedCount);
   }
-  const sanitized = sets.map(set => ({
+  // Z184: ZERO fabrykowania wiersza rozgrzewkowego. Draft jest jedynym źródłem prawdy
+  // o seriach — W przy tworzeniu NOWEJ listy dodają createEmptySets/createPrefilledSets,
+  // a usunięta przez usera rozgrzewka nie może wracać po resume.
+  return sets.map(set => ({
     reps: set?.reps ?? 0,
     weight: set?.weight ?? 0,
     completed: set?.completed ?? false,
     ...(set?.isWarmup && { isWarmup: true }),
     ...carrySetExtras(set),
   }));
-
-  if (sanitized.some(s => s.isWarmup)) return sanitized;
-  return [{ reps: 0, weight: 0, completed: false, isWarmup: true }, ...sanitized];
 };

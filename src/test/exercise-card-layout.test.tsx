@@ -122,9 +122,8 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       const { card } = renderCard({ savedSets: sets, trackingType: 'duration', exercise: exercise({ sets: '2 x 60s' }) });
 
       expect(columnHeader(card, 'Czas')).toBeTruthy();
-      // sanitizeSets dokłada wiersz rozgrzewki, gdy w zapisie go nie ma → 1 W + 2 robocze.
-      expect(within(card).getAllByLabelText(/Czas/)).toHaveLength(3);
-      expect(warmupRowLabel(card)).toBeTruthy();
+      // Z184: sanitizeSets niczego nie fabrykuje — zapis bez W renderuje się bez W.
+      expect(within(card).getAllByLabelText(/Czas/)).toHaveLength(2);
       expect(within(card).getByText('1')).toBeTruthy();
       expect(within(card).getByText('2')).toBeTruthy();
     });
@@ -134,6 +133,22 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       const { card } = renderCard({ savedSets: sets });
       expect(within(card).getAllByRole('button', { name: /Odznacz/i })).toHaveLength(1);
       expect(within(card).getAllByRole('button', { name: /Odhacz|Zaznacz/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('Z184: draft bez rozgrzewki nie wycieka fabrykatem W do onSetsChange po akcji usera', () => {
+      const spy = vi.fn();
+      const sets: SetData[] = [
+        workingSet({ weight: 60, reps: 8 }),
+        workingSet({ weight: 60, reps: 8 }),
+      ];
+      const { card } = renderCard({ savedSets: sets, onSetsChange: spy });
+
+      // Akcja usera: odhaczenie pierwszej serii roboczej.
+      fireEvent.click(within(card).getAllByRole('button', { name: /Odhacz|Zaznacz/i })[0]);
+
+      const emitted = spy.mock.calls.at(-1)?.[1] as SetData[];
+      expect(emitted).toHaveLength(2);
+      expect(emitted.some(s => s.isWarmup)).toBe(false);
     });
 
     it('nagłówek karty jest pierwszy w karcie', () => {

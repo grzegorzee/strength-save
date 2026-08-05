@@ -110,16 +110,16 @@ describe('sanitizeSets', () => {
     expect(sets).toHaveLength(4);
   });
 
-  it('adds warmup if missing', () => {
+  it('Z184: NIE dopisuje wiersza rozgrzewkowego, gdy zapis go nie ma (usunięta W nie wraca po resume)', () => {
     const input = [
       { reps: 8, weight: 40, completed: true },
       { reps: 8, weight: 40, completed: true },
     ];
     const sets = sanitizeSets(input, 3);
-    expect(sets[0].isWarmup).toBe(true);
-    expect(sets[0].reps).toBe(0);
-    expect(sets[1].reps).toBe(8);
-    expect(sets[1].weight).toBe(40);
+    expect(sets).toHaveLength(2);
+    expect(sets.some(s => s.isWarmup)).toBe(false);
+    expect(sets[0].reps).toBe(8);
+    expect(sets[0].weight).toBe(40);
   });
 
   it('preserves warmup if already present', () => {
