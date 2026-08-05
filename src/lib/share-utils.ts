@@ -199,7 +199,9 @@ export function buildShareHtmlWithPhoto(
   photoDataUrl: string,
   lang: LanguageCode,
   unit: UnitSystem,
-  dim = 0.6,
+  // Z197: 0.6 dawało brightness(0.40) na CAŁYM zdjęciu — twarz była zabita,
+  // a tekst i tak leży na ciemnym pasie scrimu. 0.35 = brightness(0.65).
+  dim = 0.35,
 ): string {
   const safeDayName = escapeHtml(data.dayName);
   const safeDate = escapeHtml(
@@ -209,7 +211,8 @@ export function buildShareHtmlWithPhoto(
   );
   const tonnageStr = formatTonnage(data.tonnage, unit);
 
-  const exerciseRows = data.exercises.slice(0, 4).map(ex => {
+  // Z197: max 3 pozycje — dolny pas z treścią nie może urosnąć ponad 1/3 wysokości.
+  const exerciseRows = data.exercises.slice(0, 3).map(ex => {
     const safeName = escapeHtml(ex.name);
     const safeSets = escapeHtml(ex.sets);
     return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.15);">
@@ -218,8 +221,8 @@ export function buildShareHtmlWithPhoto(
     </div>`;
   }).join('');
 
-  const moreText = data.exercises.length > 4
-    ? `<div style="font-size:12px;color:rgba(255,255,255,0.6);padding-top:6px;">${escapeHtml(translate(lang, 'share.more', { n: data.exercises.length - 4 }))}</div>`
+  const moreText = data.exercises.length > 3
+    ? `<div style="font-size:12px;color:rgba(255,255,255,0.6);padding-top:6px;">${escapeHtml(translate(lang, 'share.more', { n: data.exercises.length - 3 }))}</div>`
     : '';
 
   const prBadges = data.prs.slice(0, 3).map(pr =>
@@ -239,17 +242,22 @@ export function buildShareHtmlWithPhoto(
       " />
       <div style="
         position:absolute;top:0;left:0;width:100%;height:100%;
-        background:linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 60%, rgba(0,0,0,0.85) 100%);
+        background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.15) 45%, rgba(0,0,0,0.75) 68%, rgba(0,0,0,0.92) 100%);
       "></div>
       <div style="
         position:relative;z-index:1;
         padding:48px 36px;display:flex;flex-direction:column;height:100%;
       ">
-        <div style="margin-bottom:auto;">
+        <div>
           <div style="font-size:13px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.workoutDone'))}</div>
           <div style="font-size:32px;font-weight:800;margin-top:8px;text-shadow:0 2px 8px rgba(0,0,0,0.5);">${safeDayName}</div>
           <div style="font-size:15px;color:rgba(255,255,255,0.7);margin-top:4px;">${safeDate}</div>
         </div>
+        <!-- Z197: JEDEN spacer — cała treść (statystyki + lista) klei się do dołu,
+             pas ~dolna 1/3, twarz na selfie zostaje czysta. Dwa auto-marginesy
+             (nagłówek + stopka) dzieliły wolną przestrzeń po równo i centrowały
+             liczby dokładnie na wysokości twarzy. -->
+        <div style="flex:1"></div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:24px 0;">
           <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">

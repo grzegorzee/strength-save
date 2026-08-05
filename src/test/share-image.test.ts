@@ -83,3 +83,49 @@ describe('szablony share z logo (Z180)', () => {
     expect(minimal).toContain('#0b0b0f');
   });
 });
+
+// Z197: "na zdjęciu liczby nachodzą mi na nos" — dwa auto-marginesy w jednym
+// flex-column centrowały statystyki w pionie (pas 35-70% wysokości = twarz na
+// selfie), a liniowy scrim + dim 0.6 zabijały całe zdjęcie.
+describe('szablon photo: treść w dolnej 1/3, twarz czysta (Z197)', () => {
+  const manyExercises: ShareData = {
+    ...shareData,
+    exercises: [
+      { name: 'Przysiad', sets: '3 x 5' },
+      { name: 'RDL', sets: '3 x 6' },
+      { name: 'Prasa', sets: '3 x 10' },
+      { name: 'Uginanie nóg', sets: '4 x 12' },
+      { name: 'Wspięcia', sets: '3 x 15' },
+    ],
+  };
+
+  it('nagłówek bez margin-bottom:auto + JEDEN spacer flex:1 po nagłówku', async () => {
+    const { buildShareHtmlWithPhoto } = await import('@/lib/share-utils');
+    const html = buildShareHtmlWithPhoto(manyExercises, 'data:image/jpeg;base64,AAA', 'pl', 'kg');
+
+    expect(html).not.toContain('margin-bottom:auto');
+    expect(html).toContain('flex:1');
+  });
+
+  it('scrim jest strefowy (przezroczysty do ~45% wysokości), dim default 0.35', async () => {
+    const { buildShareHtmlWithPhoto } = await import('@/lib/share-utils');
+    const html = buildShareHtmlWithPhoto(manyExercises, 'data:image/jpeg;base64,AAA', 'pl', 'kg');
+
+    expect(html).toContain('rgba(0,0,0,0) 0%');
+    expect(html).toContain('rgba(0,0,0,0.15) 45%');
+    // dim 0.35 → brightness(0.65): twarz przestaje być zabita.
+    expect(html).toContain('brightness(0.65)');
+  });
+
+  it('lista ćwiczeń max 3 pozycje + "+N więcej"', async () => {
+    const { buildShareHtmlWithPhoto } = await import('@/lib/share-utils');
+    const html = buildShareHtmlWithPhoto(manyExercises, 'data:image/jpeg;base64,AAA', 'pl', 'kg');
+
+    expect(html).toContain('Przysiad');
+    expect(html).toContain('RDL');
+    expect(html).toContain('Prasa');
+    expect(html).not.toContain('Uginanie nóg');
+    // 5 ćwiczeń - 3 pokazane = "+2 więcej".
+    expect(html).toMatch(/\+\s*2/);
+  });
+});
