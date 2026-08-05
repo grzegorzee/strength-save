@@ -17,6 +17,10 @@ vi.mock('@/lib/rest-notification', () => ({
   scheduleRestEndNotification: vi.fn().mockResolvedValue(undefined),
   cancelRestEndNotification: vi.fn().mockResolvedValue(undefined),
 }));
+// Z189: raport wyjątku sygnału — moduł ciągnie Firestore, więc mock.
+vi.mock('@/lib/global-error-telemetry', () => ({
+  reportClientErrorWithCurrentUid: vi.fn(),
+}));
 
 // Harness = właściciel stanu (jak kontroler w WorkoutDay po Z188): trzyma deadline,
 // obsługuje onAdjust dokładnie tak jak useRestTimerController.adjustRest.
@@ -180,5 +184,22 @@ describe('RestBar (Z136)', () => {
     expect(screen.queryByTestId('rest-fullscreen')).toBeNull();
     fireEvent.click(screen.getByTestId('rest-bar-expand'));
     expect(screen.getByTestId('rest-fullscreen')).toBeTruthy();
+  });
+
+  it('Z189: wyjątek sygnału końca NIE blokuje onFinished (stan zawsze posprzątany)', async () => {
+    const { playTimerSound } = await import('@/lib/timer-sound');
+    vi.mocked(playTimerSound).mockImplementation(() => {
+      throw new Error('AudioContext closed');
+    });
+    try {
+      const onFinished = vi.fn();
+      renderBar({ seconds: 5, onFinished });
+
+      act(() => { vi.advanceTimersByTime(6_000); });
+
+      expect(onFinished).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.mocked(playTimerSound).mockReset();
+    }
   });
 });

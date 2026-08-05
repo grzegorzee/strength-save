@@ -176,6 +176,23 @@ describe('useRestTimerController — deadline i persystencja (Z188)', () => {
     expect(result.current.restState).toBeNull();
     expect(localStorage.getItem(KEY)).toBeNull();
   });
+
+  it('Z189: watchdog gasi wiszący stan po >3 s od deadline (RestBar odmontowany przez błąd)', () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useRestTimerController());
+      act(() => result.current.startRest('ex-a', 2));
+      expect(result.current.restState).not.toBeNull();
+
+      // 2 s przerwy + 3 s tolerancji + zapas na ticki watchdoga (1000 ms).
+      act(() => { vi.advanceTimersByTime(2_000 + 3_000 + 2_000); });
+
+      expect(result.current.restState).toBeNull();
+      expect(localStorage.getItem(KEY)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 // ── Harness: dwie karty + wspólny właściciel stanu (jak WorkoutDay po Z143) ──

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { cancelRestEndNotification } from '@/lib/rest-notification';
 
 // Z143 (X18B): JEDEN timer przerwy na sesję. Stan przerwy mieszka w WorkoutDay
@@ -108,6 +108,22 @@ export const useRestTimerController = () => {
       clearPersistedRestState();
     }
   }, []);
+
+  // Z189: watchdog samonaprawy. Koniec przerwy w foregroundzie zeruje stan przez
+  // RestBar → onFinished, ale gdy pasek zniknie inaczej (błąd renderu, unmount),
+  // stan mógłby wisieć wiecznie. Deadline przekroczony o >3 s = nikt nie posprzątał:
+  // gasimy stan, czyścimy localStorage i anulujemy wiszącą notyfikację.
+  useEffect(() => {
+    if (!restState) return;
+    const id = setInterval(() => {
+      if (Date.now() - restState.deadlineAt > 3000) {
+        setRestState(null);
+        clearPersistedRestState();
+        void cancelRestEndNotification();
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [restState]);
 
   return { restState, startRest, adjustRest, stopRest, resumeFromStorage };
 };

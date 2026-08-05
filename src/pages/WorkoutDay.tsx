@@ -52,7 +52,7 @@ import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { addAppStateListener } from '@/lib/app-lifecycle';
-import { deriveWorkoutSessionPhase, hasRemainingWork, isActiveTrainingPhase } from '@/lib/workout-session-state';
+import { deriveWorkoutSessionPhase, isActiveTrainingPhase, shouldStartRest } from '@/lib/workout-session-state';
 import { cancelRestEndNotification } from '@/lib/rest-notification';
 import { resolveWorkoutHydration } from '@/lib/workout-hydration';
 import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
@@ -220,8 +220,10 @@ const WorkoutDay = () => {
   // Z144: ostatnia seria treningu nie startuje przerwy. Koniec treningu = koniec
   // odliczania czegokolwiek: gasimy też biegnącą przerwę i jej notyfikację.
   // Sygnał końca serii (dźwięk/haptyka z odhaczenia) zostaje w karcie bez zmian.
+  // Z189: bramka jest fail-open (shouldStartRest) — pusta/nie zasiana lista
+  // ćwiczeń dnia startuje timer zamiast go gasić.
   const handleRestStart = useCallback((exerciseId: string, seconds: number) => {
-    const workRemains = hasRemainingWork(
+    const workRemains = shouldStartRest(
       exerciseSetsRef.current,
       skippedExercisesRef.current,
       dayExercisesRef.current,

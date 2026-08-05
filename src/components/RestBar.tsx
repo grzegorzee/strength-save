@@ -11,6 +11,7 @@ import {
 import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { hapticRestEnd } from '@/lib/haptics';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 
 interface RestBarProps {
   /** Z188: deadline przychodzi z kontrolera (WorkoutDay) — RestBar nic nie liczy sam. */
@@ -85,17 +86,27 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, onSkip
 
   // Koniec w foregroundzie: JS żyje, więc sygnał gramy sami, a systemowy anulujemy
   // (inaczej user dostałby go drugi raz, już po fakcie).
+  // Z189: NAJPIERW stan (onFinished), POTEM sygnały — wyjątek dźwięku/haptyki nie
+  // ma prawa zostawić paska "Koniec przerwy" wiszącego na zawsze.
   useEffect(() => {
     if (!done || finishedRef.current) return;
     finishedRef.current = true;
-    void cancelRestEndNotification();
-    playTimerSound('finish');
-    // MOCNY sygnał, nie lekki impuls: user zgłosił po treningu „cicha wibracja,
-    // nic więcej". Telefon leży obok ławki albo w kieszeni.
-    void hapticRestEnd();
     // Z143: właścicielem stanu jest rodzic — koniec przerwy zeruje stan (karta
     // może się przygasić, Z145; pasek znika zamiast wisieć jako „Koniec przerwy").
     onFinished?.();
+    try {
+      void cancelRestEndNotification();
+      playTimerSound('finish');
+      // MOCNY sygnał, nie lekki impuls: user zgłosił po treningu „cicha wibracja,
+      // nic więcej". Telefon leży obok ławki albo w kieszeni.
+      void hapticRestEnd();
+    } catch (error) {
+      reportClientErrorWithCurrentUid({
+        code: 'rest-finish-signal-failed',
+        phase: 'other',
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    }
   }, [done, onFinished]);
 
   const handleSkip = () => {

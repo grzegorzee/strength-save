@@ -3,6 +3,7 @@ import {
   deriveWorkoutSessionPhase,
   hasRemainingWork,
   isActiveTrainingPhase,
+  shouldStartRest,
   type WorkoutSessionPhaseInput,
 } from '@/lib/workout-session-state';
 
@@ -105,5 +106,23 @@ describe('hasRemainingWork (Z144)', () => {
       [],
       exercises,
     )).toBe(true);
+  });
+});
+
+describe('shouldStartRest — fail-open bramki końca treningu (Z189)', () => {
+  const done = { completed: true };
+  const open = { completed: false };
+  const exercises = [{ id: 'ex-a' }, { id: 'ex-b' }];
+
+  it('PUSTA lista ćwiczeń dnia (jeszcze nie zasiana) → true (lepszy timer za dużo niż brak)', () => {
+    expect(shouldStartRest({ 'ex-a': [done] }, [], [])).toBe(true);
+  });
+
+  it('znana lista bez pozostałej pracy → false (ostatnia seria treningu gasi timer)', () => {
+    expect(shouldStartRest({ 'ex-a': [done], 'ex-b': [done] }, [], exercises)).toBe(false);
+  });
+
+  it('znana lista z pozostałą pracą → true', () => {
+    expect(shouldStartRest({ 'ex-a': [done], 'ex-b': [open] }, [], exercises)).toBe(true);
   });
 });

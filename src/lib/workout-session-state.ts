@@ -57,3 +57,12 @@ export const hasRemainingWork = (
     return sets.some((set) => !set.isWarmup && !set.completed);
   });
 };
+
+// Z189: decyzja o starcie przerwy jest FAIL-OPEN — pusta (jeszcze nie zasiana)
+// lista ćwiczeń dnia nie może gasić timera. Bramka "ostatnia seria treningu"
+// działa wyłącznie, gdy listę znamy. Lepszy timer za dużo niż brak timera.
+export const shouldStartRest = (
+  exerciseSets: Record<string, Array<{ completed: boolean; isWarmup?: boolean }>>,
+  skippedExercises: string[],
+  exercises: ReadonlyArray<{ id: string }>,
+): boolean => exercises.length === 0 || hasRemainingWork(exerciseSets, skippedExercises, exercises);
