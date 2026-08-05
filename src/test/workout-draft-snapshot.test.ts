@@ -43,6 +43,26 @@ const makeContext = (over: Partial<DraftSnapshotContext> = {}): DraftSnapshotCon
   ...over,
 });
 
+describe('sessionSwaps w snapshocie draftu (Z185)', () => {
+  const swaps = { 'ex-1': { id: 'ex-1__swap-wyciskanie', name: 'Wyciskanie', sets: '3 x 6-8' } };
+
+  it('override sessionSwaps trafia do snapshotu', () => {
+    const snapshot = buildWorkoutDraftSnapshot(makeContext(), { sessionSwaps: swaps });
+    expect(snapshot?.sessionSwaps).toEqual(swaps);
+  });
+
+  it('sessionSwaps dziedziczy się z previousDraft (snapshot techniczny go nie gubi)', () => {
+    const context = makeContext({ previousDraft: makePreviousDraft({ sessionSwaps: swaps }) });
+    const snapshot = buildWorkoutDraftSnapshot(context);
+    expect(snapshot?.sessionSwaps).toEqual(swaps);
+  });
+
+  it('brak sessionSwaps => pole nieobecne (legacy draft bez zmian)', () => {
+    const snapshot = buildWorkoutDraftSnapshot(makeContext());
+    expect(snapshot && 'sessionSwaps' in snapshot).toBe(false);
+  });
+});
+
 describe('buildWorkoutDraftSnapshot', () => {
   it('przenosi pendingWriteId i pendingWriteVersion z previousDraft', () => {
     const context = makeContext({

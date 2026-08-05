@@ -73,6 +73,37 @@ describe('buildDayFromDraft — dzień planu (regresja incydentu 2026-07-20)', (
     });
     expect(day.exercises[1].name).toBe('Wiosłowanie hantlem');
   });
+
+  it('Z185: klucz swapu "tylko dziś" ZASTĘPUJE kartę planu zamiast tworzyć drugą (restart sesji)', () => {
+    const day = buildDayFromDraft(planDay, {
+      dayId: 'day-1',
+      exerciseSets: { 'tpl-ex-29': sets(3), 'tpl-ex-30__swap-wioslowanie-hantlem': sets(3) },
+      exerciseNames: { 'tpl-ex-30__swap-wioslowanie-hantlem': 'Wiosłowanie hantlem' },
+    });
+    // Jedna karta na pozycji planowej tpl-ex-30 — z tożsamością swapu, zero extras.
+    expect(day.exercises.map((e) => e.id)).toEqual([
+      'tpl-ex-29',
+      'tpl-ex-30__swap-wioslowanie-hantlem',
+      'tpl-ex-31',
+    ]);
+    expect(day.exercises[1].name).toBe('Wiosłowanie hantlem');
+    expect(day.exercises[1].sets).toBe('3 serii');
+  });
+
+  it('Z185 niezmiennik: gdy draft ANORMALNIE ma oba klucze (plan + swap), nic nie znika z widoku', () => {
+    const day = buildDayFromDraft(planDay, {
+      dayId: 'day-1',
+      exerciseSets: { 'tpl-ex-30': sets(2), 'tpl-ex-30__swap-wioslowanie-hantlem': sets(3) },
+      exerciseNames: { 'tpl-ex-30__swap-wioslowanie-hantlem': 'Wiosłowanie hantlem' },
+    });
+    // Reprezentacja bez utraty edycji: karta planu zostaje, swap jako extras.
+    expect(day.exercises.map((e) => e.id)).toEqual([
+      'tpl-ex-29',
+      'tpl-ex-30',
+      'tpl-ex-31',
+      'tpl-ex-30__swap-wioslowanie-hantlem',
+    ]);
+  });
 });
 
 describe('buildDayFromDraft — szybki trening (bez dnia planu)', () => {

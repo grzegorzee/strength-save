@@ -30,8 +30,32 @@ export const buildDayFromDraft = (
   const planExercises = baseDay?.exercises ?? [];
   const planIds = new Set(planExercises.map((exercise) => exercise.id));
 
+  // Z185 (samonaprawa): klucz draftu `${planId}__swap-...` to swap "tylko dziś" —
+  // ZASTĘPUJE kartę planu planId zamiast dokładać drugą (po restarcie mapa
+  // sessionSwaps w stanie Reacta nie istnieje i draft renderował DWIE karty).
+  // Wyjątek: gdy draft anormalnie ma też klucz planu, karta planu zostaje,
+  // a swap idzie do extras (reprezentacja bez utraty możliwości edycji).
+  const swapKeyByPlanId = new Map<string, string>();
+  for (const key of Object.keys(draft.exerciseSets)) {
+    if (planIds.has(key)) continue;
+    const planId = planExercises.find((exercise) => key.startsWith(`${exercise.id}__swap-`))?.id;
+    if (planId && !draft.exerciseSets[planId] && !swapKeyByPlanId.has(planId)) {
+      swapKeyByPlanId.set(planId, key);
+    }
+  }
+  const claimedSwapKeys = new Set(swapKeyByPlanId.values());
+
   // 1. Ćwiczenia planu — ZAWSZE wszystkie, w kolejności planu.
   const fromPlan: Exercise[] = planExercises.map((exercise) => {
+    const swapKey = swapKeyByPlanId.get(exercise.id);
+    if (swapKey) {
+      return {
+        id: swapKey,
+        name: names[swapKey] || exercise.name,
+        sets: workingSetsLabel(draft.exerciseSets[swapKey]),
+        instructions: [],
+      };
+    }
     const draftSets = draft.exerciseSets[exercise.id];
     return {
       ...exercise,
@@ -44,7 +68,7 @@ export const buildDayFromDraft = (
 
   // 2. Ćwiczenia spoza planu (szybki trening, dodane w locie) — na końcu, w kolejności draftu.
   const extras: Exercise[] = Object.entries(draft.exerciseSets)
-    .filter(([exerciseId]) => !planIds.has(exerciseId))
+    .filter(([exerciseId]) => !planIds.has(exerciseId) && !claimedSwapKeys.has(exerciseId))
     .map(([exerciseId, sets]) => ({
       id: exerciseId,
       name: names[exerciseId] || exerciseId,

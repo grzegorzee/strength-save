@@ -697,6 +697,24 @@ describe('workoutDraftDb', () => {
     expect(loaded?.version).toBe(7);
   });
 
+  it('Z185: sessionSwaps przeżywa roundtrip przez IDB i fallback localStorage', async () => {
+    const swaps = { 'ex-1': { id: 'ex-1__swap-wyciskanie', name: 'Wyciskanie', sets: '3 x 6-8' } };
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, sessionSwaps: swaps });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(loaded?.sessionSwaps).toEqual(swaps);
+
+    // Fallback: IDB niedostępne — pole musi przejść przez kształt WorkoutDraft.
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    __resetWorkoutDraftDbConnectionForTests();
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, sessionSwaps: swaps });
+    const fromFallback = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(fromFallback?.sessionSwaps).toEqual(swaps);
+  });
+
   it('Z182: fallback localStorage z wyższą wersją wygrywa z IDB (najświeższy snapshot)', async () => {
     await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 5 });
     workoutDraft.save({

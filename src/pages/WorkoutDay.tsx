@@ -424,20 +424,23 @@ const WorkoutDay = () => {
       setExerciseMetrics(nextExerciseMetrics);
 
       setSkippedExercises(prev => prev.filter(id => id !== exerciseId));
-      setSessionSwaps(prev => ({
-        ...prev,
+      const nextSessionSwaps = {
+        ...sessionSwaps,
         [exerciseId]: { id: swappedId, name: pick.name, sets: currentSets, videoUrl: pick.videoUrl },
-      }));
+      };
+      setSessionSwaps(nextSessionSwaps);
 
       // Utrwal swap w drafcie od razu (istniejąca ścieżka autozapisu, wzorzec handleSkipExercise).
       // Bez tego draft z prefilled exerciseSets pokazywał stare ćwiczenie do następnego odhaczenia,
-      // a swap ginął przy odświeżeniu apki.
+      // a swap ginął przy odświeżeniu apki. Z185: mapa sessionSwaps idzie do draftu,
+      // żeby tożsamość swapu przeżyła restart apki.
       saveDraftSnapshot({
         exerciseNames: {
           ...(activeDraftRef.current?.exerciseNames ?? daySnapshotRef.current.names),
           [swappedId]: pick.name,
         },
         lastTouchedExerciseId: swappedId,
+        sessionSwaps: nextSessionSwaps,
       });
     }
     setSwapExerciseId(null);
@@ -838,6 +841,7 @@ const WorkoutDay = () => {
     dayNotes: string;
     skippedExercises: string[];
     warmupChecked?: string[];
+    sessionSwaps?: Record<string, { id: string; name: string; sets: string; videoUrl?: string }>;
   }) => {
     setSessionId(next.sessionId);
     setIsCompleted(next.completed);
@@ -848,6 +852,8 @@ const WorkoutDay = () => {
     setSkippedExercises(next.skippedExercises);
     // Z162: brak pola = nowa/inna sesja → rozgrzewka startuje czysta.
     setWarmupChecked(next.warmupChecked ?? []);
+    // Z185: swapy "tylko dziś" wracają z draftu po restarcie (persist w IDB/localStorage).
+    setSessionSwaps(next.sessionSwaps ?? {});
   }, []);
 
   useEffect(() => {
@@ -954,6 +960,7 @@ const WorkoutDay = () => {
         dayNotes: currentPageDraft.dayNotes,
         skippedExercises: currentPageDraft.skippedExercises,
         warmupChecked: currentPageDraft.warmupChecked,
+        sessionSwaps: currentPageDraft.sessionSwaps,
       });
 
       if (draftRecoveryDone.current !== currentPageDraft.sessionId && (draftHasData || currentPageDraft.finalSyncPending)) {

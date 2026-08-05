@@ -15,6 +15,8 @@ export interface WorkoutDraft {
   skippedExercises: string[];
   // Odhaczenia rozgrzewki (Z162) — pole additive, przeżywa round-trip przez fallback.
   warmupChecked?: string[];
+  // Swapy "tylko dziś" (Z185) — pole additive, przeżywa round-trip przez fallback.
+  sessionSwaps?: Record<string, { id: string; name: string; sets: string; videoUrl?: string }>;
   savedAt: number;
   // Znaczniki chmury i wersja draftu — bez nich roundtrip przez fallback
   // gubi baseline rewizji i produkuje fałszywe konflikty.

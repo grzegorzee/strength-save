@@ -33,6 +33,11 @@ export interface ActiveWorkoutDraft {
   // Odhaczone pozycje rozgrzewki/stretchingu po nameKey (Z162). Pole additive, bez bumpu
   // wersji IndexedDB; NIE wychodzi do Firestore (stan pomocniczy sesji, nie trening).
   warmupChecked?: string[];
+  // Swapy "tylko dziś" per planId (Z185). Pole additive, wyłącznie lokalne (IndexedDB +
+  // fallback localStorage) — NIE wychodzi do Firestore (rules mają schema-checks).
+  // Bez persystencji mapa żyła tylko w stanie Reacta i po restarcie draft renderował
+  // dwie karty (plan + swap).
+  sessionSwaps?: Record<string, { id: string; name: string; sets: string; videoUrl?: string }>;
   startedAt: number;
   /** Ostatnia realna akcja treningowa (serie/kg/notatki/metryki/skipy) — Z142.
    *  Bumpowana TYLKO przy zmianie treści draftu; snapshoty techniczne (scroll,
@@ -121,6 +126,22 @@ const normalizeExerciseMetrics = (value: unknown): Record<string, ExerciseMetric
 const normalizeStringArray = (value: unknown): string[] => (
   Array.isArray(value) ? value.map(item => String(item)) : []
 );
+
+const normalizeSessionSwaps = (
+  value: unknown,
+): Record<string, { id: string; name: string; sets: string; videoUrl?: string }> | undefined => {
+  if (!isRecord(value)) return undefined;
+  const entries = Object.entries(value)
+    .filter((entry): entry is [string, Record<string, unknown>] => isRecord(entry[1]))
+    .filter(([, swap]) => typeof swap.id === 'string' && typeof swap.name === 'string')
+    .map(([planId, swap]) => [planId, {
+      id: String(swap.id),
+      name: String(swap.name),
+      sets: String(swap.sets ?? ''),
+      ...(typeof swap.videoUrl === 'string' && { videoUrl: swap.videoUrl }),
+    }] as const);
+  return Object.fromEntries(entries);
+};
 
 const toNumberOr = (value: unknown, fallback: number): number => {
   const parsed = Number(value);
@@ -216,6 +237,10 @@ const normalizeDraft = (value: unknown, fallbackUserId?: string): ActiveWorkoutD
     ...(Array.isArray(value.warmupChecked) && {
       warmupChecked: value.warmupChecked.filter((key): key is string => typeof key === 'string'),
     }),
+    ...(value.sessionSwaps !== undefined && (() => {
+      const swaps = normalizeSessionSwaps(value.sessionSwaps);
+      return swaps !== undefined ? { sessionSwaps: swaps } : {};
+    })()),
     startedAt: toNumberOr(value.startedAt, now),
     ...(value.lastActivityAt !== undefined && { lastActivityAt: toNumberOr(value.lastActivityAt, now) }),
     ...(value.finalizedAt !== undefined && { finalizedAt: toNumberOr(value.finalizedAt, now) }),
@@ -284,6 +309,7 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     dayNotes: draft.dayNotes,
     skippedExercises: draft.skippedExercises,
     ...(draft.warmupChecked !== undefined && { warmupChecked: draft.warmupChecked }),
+    ...(draft.sessionSwaps !== undefined && { sessionSwaps: draft.sessionSwaps }),
     savedAt: draft.updatedAt,
     ...(draft.cloudRevision != null && { cloudRevision: draft.cloudRevision }),
     ...(draft.cloudUpdatedAt != null && { cloudUpdatedAt: draft.cloudUpdatedAt }),
@@ -778,6 +804,7 @@ const resolveFresherFallback = (
     dayNotes: fallback.dayNotes,
     skippedExercises: fallback.skippedExercises,
     ...(fallback.warmupChecked !== undefined && { warmupChecked: fallback.warmupChecked }),
+    ...(fallback.sessionSwaps !== undefined && { sessionSwaps: fallback.sessionSwaps }),
     ...(fallback.cloudRevision !== undefined && { cloudRevision: fallback.cloudRevision }),
     ...(fallback.cloudUpdatedAt !== undefined && { cloudUpdatedAt: fallback.cloudUpdatedAt }),
     updatedAt: fallback.updatedAt,

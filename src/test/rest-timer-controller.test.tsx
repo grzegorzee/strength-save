@@ -122,8 +122,9 @@ const TwoCardsHarness = () => {
 };
 
 const checkFirstOpenSet = (container: HTMLElement) => {
-  // sanitizeSets dokłada wiersz rozgrzewki: [0]=W (nie startuje przerwy), [1]=Set 1.
-  fireEvent.click(within(container).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[1]);
+  // Z184: sanitizeSets niczego nie fabrykuje — savedSets bez W renderuje same serie
+  // robocze, więc pierwsza otwarta seria jest pod indeksem [0].
+  fireEvent.click(within(container).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
 };
 
 describe('jeden RestBar na sesję (Z143)', () => {

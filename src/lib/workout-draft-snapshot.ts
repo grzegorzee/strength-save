@@ -133,6 +133,13 @@ export const buildWorkoutDraftSnapshot = (
       : previousDraft?.lastTouchedExerciseId !== undefined
         ? { lastTouchedExerciseId: previousDraft.lastTouchedExerciseId }
         : {}),
+    // Z185: swapy "tylko dziś" przeżywają każdy snapshot (techniczny też) — bez tego
+    // pierwszy autozapis po swapie gubił mapę i restart renderował dwie karty.
+    ...(overrides.sessionSwaps !== undefined
+      ? { sessionSwaps: overrides.sessionSwaps }
+      : previousDraft?.sessionSwaps !== undefined
+        ? { sessionSwaps: previousDraft.sessionSwaps }
+        : {}),
     exerciseNames: overrides.exerciseNames ?? previousDraft?.exerciseNames ?? context.dayNames,
     dayName: overrides.dayName ?? previousDraft?.dayName ?? context.dayName,
     dayFocus: overrides.dayFocus ?? previousDraft?.dayFocus ?? context.dayFocus,
