@@ -696,6 +696,96 @@ describe('workoutDraftDb', () => {
     expect(loaded?.cloudUpdatedAt).toBe(1730000000000);
     expect(loaded?.version).toBe(7);
   });
+
+  it('Z182: fallback localStorage z wyższą wersją wygrywa z IDB (najświeższy snapshot)', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 5 });
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: { 'ex-1': [{ reps: 6, weight: 85, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: 'nowszy zapis awaryjny',
+      skippedExercises: [],
+      savedAt: baseDraft.updatedAt + 100,
+      version: 8,
+    }, 'user-1');
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(loaded?.version).toBe(8);
+    expect(loaded?.dayNotes).toBe('nowszy zapis awaryjny');
+    expect(loaded?.exerciseSets['ex-1']).toEqual([{ reps: 6, weight: 85, completed: true }]);
+    // Pola, których fallback nie niesie, dziedziczone z rekordu IDB.
+    expect(loaded?.cycleId).toBe(baseDraft.cycleId);
+    expect(loaded?.exerciseMetrics).toEqual(baseDraft.exerciseMetrics);
+
+    // Zwycięzca od razu przepisany do IDB: kolejny odczyt bez fallbacku daje ten sam stan.
+    workoutDraft.clear('user-1');
+    const reloaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+    expect(reloaded?.version).toBe(8);
+    expect(reloaded?.dayNotes).toBe('nowszy zapis awaryjny');
+  });
+
+  it('Z182: loadActiveDraft też preferuje świeższy fallback tej samej sesji', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 5 });
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: { 'ex-1': [{ reps: 6, weight: 85, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: 'fallback aktywnej sesji',
+      skippedExercises: [],
+      savedAt: baseDraft.updatedAt + 100,
+      version: 8,
+    }, 'user-1');
+
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(loaded?.version).toBe(8);
+    expect(loaded?.dayNotes).toBe('fallback aktywnej sesji');
+  });
+
+  it('Z182 niezmiennik: fallback ze starszą wersją jest ignorowany (dzisiejsze zachowanie)', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 5 });
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: { 'ex-1': [{ reps: 1, weight: 10, completed: false }] },
+      exerciseNotes: {},
+      dayNotes: 'starszy zombie-fallback',
+      skippedExercises: [],
+      savedAt: baseDraft.updatedAt + 999,
+      version: 3,
+    }, 'user-1');
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(loaded?.version).toBe(5);
+    expect(loaded?.dayNotes).toBe(baseDraft.dayNotes);
+  });
+
+  it('Z182 niezmiennik: fallback INNEJ sesji nie podmienia draftu', async () => {
+    await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 5 });
+    workoutDraft.save({
+      sessionId: 'workout-obca-sesja',
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: { 'ex-9': [{ reps: 6, weight: 85, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: 'inna sesja',
+      skippedExercises: [],
+      savedAt: baseDraft.updatedAt + 100,
+      version: 9,
+    }, 'user-1');
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(loaded?.version).toBe(5);
+    expect(loaded?.dayNotes).toBe(baseDraft.dayNotes);
+  });
 });
 
 describe('hasDraftContent', () => {

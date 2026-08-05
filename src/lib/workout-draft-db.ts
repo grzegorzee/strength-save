@@ -756,6 +756,36 @@ const redirectDraftSave = async (incoming: ActiveWorkoutDraft, remoteSessionId: 
   });
 };
 
+// Z182: fallback localStorage może być NOWSZY niż rekord IDB (zapis awaryjny tuż przed
+// kill trafia do fallbacku, gdy IDB zawiedzie w połowie sesji, a po restarcie IDB znów
+// działa ze STARSZYM snapshotem). Najświeższy wygrywa: wyższa version, przy równych
+// tiebreaker nowszy updatedAt. Zwycięski rekord dziedziczy pola, których fallback nie
+// niesie, z rekordu IDB.
+const resolveFresherFallback = (
+  idbRecord: ActiveWorkoutDraft | null,
+  userId: string,
+): ActiveWorkoutDraft | null => {
+  if (!idbRecord) return null;
+  const fallback = withFallbackLoad(userId);
+  if (!fallback || fallback.sessionId !== idbRecord.sessionId) return null;
+  const fallbackNewer = fallback.version > idbRecord.version
+    || (fallback.version === idbRecord.version && fallback.updatedAt > idbRecord.updatedAt);
+  if (!fallbackNewer) return null;
+  return {
+    ...idbRecord,
+    exerciseSets: fallback.exerciseSets,
+    exerciseNotes: fallback.exerciseNotes,
+    dayNotes: fallback.dayNotes,
+    skippedExercises: fallback.skippedExercises,
+    ...(fallback.warmupChecked !== undefined && { warmupChecked: fallback.warmupChecked }),
+    ...(fallback.cloudRevision !== undefined && { cloudRevision: fallback.cloudRevision }),
+    ...(fallback.cloudUpdatedAt !== undefined && { cloudUpdatedAt: fallback.cloudUpdatedAt }),
+    updatedAt: fallback.updatedAt,
+    dirty: true,
+    version: fallback.version,
+  };
+};
+
 export const workoutDraftDb = {
   isSupported(): boolean {
     return getIndexedDb() !== null;
@@ -767,7 +797,14 @@ export const workoutDraftDb = {
     }
 
     try {
-      return await runRead(userId);
+      const record = await runRead(userId);
+      const fresher = resolveFresherFallback(record, userId);
+      if (fresher) {
+        // Przepis zwycięzcy do IDB przez saveActiveDraft (runWrite z guardem Z175).
+        await this.saveActiveDraft(fresher).catch(() => undefined);
+        return fresher;
+      }
+      return record;
     } catch {
       return withFallbackLoad(userId);
     }
@@ -780,7 +817,13 @@ export const workoutDraftDb = {
     }
 
     try {
-      return await runRead(userId, sessionId);
+      const record = await runRead(userId, sessionId);
+      const fresher = resolveFresherFallback(record, userId);
+      if (fresher) {
+        await this.saveActiveDraft(fresher).catch(() => undefined);
+        return fresher;
+      }
+      return record;
     } catch {
       const fallback = withFallbackLoad(userId);
       return fallback?.sessionId === sessionId ? fallback : null;
