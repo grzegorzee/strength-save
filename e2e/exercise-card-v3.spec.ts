@@ -228,6 +228,57 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(firstCard.getByLabel(/Set 1, (kg|lbs)/).first()).toHaveValue('100');
   });
 
+  // Z193: bramka warstw — incydent z builda 81: dialog wideo otwarty spod
+  // modalnego menu zostawiał body z pointer-events: none (X martwy, force-quit).
+  test('Z193: menu → dialog → X za pierwszym tapem, body bez pointer-events lock', async ({ page }) => {
+    await page.route('**/media.gjasionowicz.pl/**', (route) =>
+      route.fulfill({ path: 'e2e/fixtures/sample-video.mp4', contentType: 'video/mp4' }),
+    );
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+
+    // (a) menu ⋯ → Instrukcje → dialog → X zamyka za PIERWSZYM kliknięciem.
+    await firstCard.getByRole('button', { name: 'Więcej akcji' }).click();
+    await page.getByRole('menuitem', { name: 'Instrukcje' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Zamknij okno' }).click();
+    await expect(dialog).toHaveCount(0);
+
+    // Wszystkie kontrolki karty klikalne: odhaczenie serii działa od razu.
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).first().click();
+    await expect(firstCard.getByRole('button', { name: 'Odznacz serię' }).first()).toBeVisible();
+
+    // (c) po zamknięciu dialogu body nie ma pointer-events: none.
+    expect(await page.evaluate(() => document.body.style.pointerEvents)).not.toBe('none');
+
+    // (b) menu OTWARTE → tap w miniaturę wideo. Modalne menu pochłania pierwszy
+    // tap poza warstwą (standard: tap tylko zamyka menu) — kluczowe jest, że menu
+    // ZNIKA, a dialog otwarty kolejnym tapem działa i nie ląduje pod blokadą.
+    const cardWithThumb = page.locator('.exercise-card:has(.exercise-card-header video)').first();
+    const thumb = cardWithThumb.locator('.exercise-card-header button:has(video)').first();
+    await cardWithThumb.getByRole('button', { name: 'Więcej akcji' }).click();
+    await expect(page.getByRole('menu')).toBeVisible();
+    await thumb.click({ force: true });
+    await expect(page.getByRole('menu')).toHaveCount(0);
+    if (!(await page.getByRole('dialog').isVisible().catch(() => false))) {
+      await thumb.click();
+    }
+
+    const videoDialog = page.getByRole('dialog');
+    await expect(videoDialog).toBeVisible({ timeout: 5000 });
+    await expect(videoDialog.locator('video')).toBeVisible();
+    await videoDialog.getByRole('button', { name: 'Zamknij okno' }).click();
+    await expect(videoDialog).toHaveCount(0);
+
+    // Finał: zero locka na body — apka w pełni klikalna.
+    expect(await page.evaluate(() => document.body.style.pointerEvents)).not.toBe('none');
+  });
+
   test('pominięcie ćwiczenia z menu ⋯ usuwa kartę z listy', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
