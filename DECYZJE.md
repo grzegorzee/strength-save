@@ -5,11 +5,27 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-03 (X22 wdrożony: Z170-Z181, build 81)
+**Ostatnia aktualizacja:** 2026-08-06 (X24: dźwięk natywnie + głośność + tytuł pod animacją, Z200-Z202, build 83)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-06 — X24: dźwięk NATYWNIE + regulacja głośności + tytuł pod animacją (Z200-Z202, build 83)
+
+**Zgłoszenie usera po treningu na buildzie 82:** (1) „mam wybrany dźwięk klaksonu i nie działa, nic nie słychać między seriami", (2) „dźwięk między ćwiczeniami wleciał, ale mam głośność na full a ledwo co było słychać" + prośba o regulację głośności w aplikacji, (3) „jak otwieram żeby zobaczyć ćwiczenie, box jest za duży i nachodzi na animacje".
+
+**Root cause dźwięku (research potwierdzony źródłami, nie zgadnięty):** WKWebView ma WŁASNĄ sesję audio w OSOBNYM procesie — ignoruje kategorię AVAudioSession apki (WebKit bug 167788, otwarty od 2017), a AudioContext odpala w kategorii `ambient`: cichej, duckowanej przez inne sesje i wyciszanej przełącznikiem dzwonka (WebKit 237322). Do tego `GainNode`/`volume` na iOS w WKWebView NIE DZIAŁA wcale (Apple forum 82939 — celowa decyzja platformowa), więc żadne podbijanie gainu w JS nie mogło pomóc. Nasza własna sesja `.playback + .duckOthers` (aktywna cały czas) mogła wręcz DUCKOWAĆ ambient WebView, czyli własne sygnały. Kod JS był poprawny — grał w kanał, który system trzyma po cichu. To dokładnie „plan B: natywny AVAudioPlayer" zapisany 2026-07-24.
+
+**Z200 (natywne granie):** lokalny plugin `TimerSound` (`ios/App/App/TimerSoundPlugin.swift`, wzorzec WatchBridge, rejestracja w BridgeViewController) gra przez AVAudioPlayer pliki z root bundla — te same `rest_{bell,horn,alarm}.wav` co UNNotificationSound plus NOWE `timer_{tick,complete}.wav` (generator `scripts/generate-timer-signals.mjs`: fala trójkątna, częstotliwości i timing 1:1 z playSynth, kompresja tanh drive 2.8, mean -8/-9 dB jak rest_*.wav). `timer-sound.ts`: native-first dla finish/tick/complete ORAZ dla odsłuchu z Ustawień (odsłuch MUSI iść realnym kanałem — cała lekcja sagi dźwięku); fallback łańcuchowy WebAudio→synteza bez zmian; fallback WebAudio wzmocniony `navigator.audioSession.type='playback'` (iOS 17+, oficjalne wyjście z ambient). Web/Android: zachowanie jak dotąd (registerPlugin bez implementacji → reject → fallback).
+
+**Z201 (regulacja głośności):** suwak 20-100% (krok 5, domyślnie 100%) w Ustawieniach pod wyborem dźwięku, odsłuch przy puszczeniu; `timer-volume.ts` (localStorage `fittracker_timer_volume_v1`, clamp 0.2-1). Mnożnik idzie w: volume natywnego playera, gain pliku WebAudio, szczyt syntezy. Minimum 20% świadomie — pełne wyciszenie ma już przełącznik w Profilu, drugi ukryty stan „off" w suwaku to pułapka. Hint pod suwakiem: głośność powiadomienia przy zgaszonym ekranie reguluje SYSTEMOWA głośność dzwonka (tego nie obejdziemy — zasada iOS).
+
+**Z202 (tytuł pod animacją):** blok eyebrow + h1 `display-md` (2.75rem) leżał absolute na wideo 4:3 ExerciseDetail z gradientem od dołu — przy dłuższych nazwach zakrywał dolną część ruchu (nogi/stopy ćwiczącego). Tytuł przeniesiony POD hero, gradient zdjęty (służył wyłącznie czytelności białego tekstu na wideo).
+
+**Pułapka bramek (nauka na przyszłość):** `check:dist-smoke` NA BUILDZIE WEB zawsze pada białym ekranem — web ma base `/strength-save/` (gh-pages), a serwer smoke serwuje dist z roota → moduł wraca jako text/html. Poprawna kolejność bramek: `build:mobile` + `check:dist-smoke`, POTEM `build` (web) + `check:bundle-budget` + `check:dist-offline` (tak stoi w DECYZJE X19, łatwo przeoczyć). Druga pułapka: `npx gh-pages -d dist` przez hook rtk potrafi nie zadziałać — użyj `./node_modules/.bin/gh-pages -d dist` + `gh api .../pages/builds -X POST`.
+
+**Weryfikacja:** vitest 1217/1217 (nowe: natywna ścieżka z głośnością, plugin pada → fallback WebAudio, głośność w gain pliku i szczycie syntezy, suwak startuje 100%/zapisuje ułamek/wraca po montowaniu), typecheck 0, lint 0, build:mobile + dist-smoke PASS, build web + bundle-budget (1 532 678 / 1 536 000 B) + dist-offline PASS, e2e:mock 193/194 + warmup-persistence solo PASS 2/2 (flake pod obciążeniem równoległych buildów, spec bez związku ze zmianami). Commity: f6d11a98 (feat sound Z200+Z201), 2275a1d1 (fix ui Z202). **Deploy:** web `index-Cmt1AhVN.js` na live (potwierdzony curl-em po force rebuild). iOS build 83: upload SUCCEEDED, obie grupy podpięte (HTTP 204+204), whatsNew ustawiony, betaReviewState APPROVED — Robert dostaje build automatycznie. **Czeka na usera (checklist background/resume):** realny test na iPhone — głośność klaksonu między seriami przy włączonym ekranie, suwak głośności, powiadomienie przy zgaszonym ekranie (dzwonek systemowy!), podgląd ćwiczenia.
 
 ### 2026-08-05 — X23 WPIS ZBIORCZY: zgłoszenia z realnego treningu na buildzie 81 naprawione u źródła (Z182-Z199)
 
