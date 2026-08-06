@@ -741,6 +741,8 @@ export const pl = {
   'rest.sound.alarm': 'Alarm',
   'rest.sound.preview': 'Odsłuchaj',
   'rest.sound.hint': 'Tapnij, żeby posłuchać. Ten sam dźwięk leci w powiadomieniu przy zgaszonym ekranie.',
+  'rest.volume.title': 'Głośność sygnałów',
+  'rest.volume.hint': 'Dotyczy dźwięków w aplikacji. Głośność powiadomienia przy zgaszonym ekranie ustawiasz systemową głośnością dzwonka.',
   'rest.keepAwake': 'Nie wygaszaj ekranu podczas treningu',
   'rest.keepAwakeHint': 'Ekran zostaje włączony do końca treningu. Zużywa więcej baterii, ale dźwięk i timer działają zawsze.',
   'rest.settings.title': 'Przerwy między seriami',

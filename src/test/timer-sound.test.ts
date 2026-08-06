@@ -14,8 +14,18 @@ type FakeSource = {
   start: ReturnType<typeof vi.fn>;
 };
 
+type FakeGain = {
+  connect: ReturnType<typeof vi.fn>;
+  gain: {
+    value: number;
+    setValueAtTime: ReturnType<typeof vi.fn>;
+    exponentialRampToValueAtTime: ReturnType<typeof vi.fn>;
+  };
+};
+
 const createdSources: FakeSource[] = [];
 const createdOscillators: Array<Record<string, unknown>> = [];
+const createdGains: FakeGain[] = [];
 const decodeAudioData = vi.fn(async () => ({ duration: 2.1 }));
 const resume = vi.fn(async () => undefined);
 
@@ -30,8 +40,8 @@ class FakeAudioContext {
     createdSources.push(source);
     return source;
   }
-  createGain() {
-    return {
+  createGain(): FakeGain {
+    const gain: FakeGain = {
       connect: vi.fn(),
       gain: {
         value: 1,
@@ -39,6 +49,8 @@ class FakeAudioContext {
         exponentialRampToValueAtTime: vi.fn(),
       },
     };
+    createdGains.push(gain);
+    return gain;
   }
   createOscillator() {
     const osc = {
@@ -64,6 +76,7 @@ beforeEach(() => {
   vi.resetModules();
   createdSources.length = 0;
   createdOscillators.length = 0;
+  createdGains.length = 0;
   decodeAudioData.mockClear();
   resume.mockClear();
   fetchMock.mockClear();
@@ -186,5 +199,95 @@ describe('Z177: AudioContext odporny na iOS (interrupted/closed)', () => {
     const { playTimerSound } = await importTimerSound();
 
     expect(() => playTimerSound('tick')).not.toThrow();
+  });
+});
+
+// Z201: regulacja głośności z Ustawień (zgłoszenie usera 2026-08-06: „głośność
+// na full a ledwo co było słychać") — mnożnik idzie w gain pliku i szczyt syntezy.
+describe('Z201: głośność sygnałów na ścieżce WebAudio', () => {
+  it('głośność z ustawień idzie w gain odtwarzanego pliku', async () => {
+    localStorage.setItem('fittracker_timer_volume_v1', '0.5');
+    const { playTimerSound } = await importTimerSound();
+
+    playTimerSound('finish');
+    await flushAsync();
+
+    expect(createdGains.at(-1)?.gain.value).toBe(0.5);
+  });
+
+  it('głośność skaluje szczyt syntezy (tick: 0.85 × 0.5)', async () => {
+    localStorage.setItem('fittracker_timer_volume_v1', '0.5');
+    const { playTimerSound } = await importTimerSound();
+
+    playTimerSound('tick');
+    await flushAsync();
+
+    const ramps = createdGains.at(-1)?.gain.exponentialRampToValueAtTime.mock.calls ?? [];
+    expect(ramps[0]?.[0]).toBeCloseTo(0.425);
+  });
+});
+
+// Z200: na iOS sygnały grają NATYWNIE (AVAudioPlayer przez plugin TimerSound) —
+// WebAudio w WKWebView gra ledwo słyszalnie na fizycznym urządzeniu (osobna sesja
+// audio WebView w kategorii ambient; GainNode na iOS nie działa). Ten describe
+// jest OSTATNI w pliku: doMock @capacitor/core nie może zatruć wcześniejszych.
+describe('Z200: natywna ścieżka sygnałów na iOS', () => {
+  const playMock = vi.fn(async (_o: { file: string; volume: number }) => undefined);
+
+  const importNative = async () => {
+    vi.doMock('@capacitor/core', () => ({
+      Capacitor: { isNativePlatform: () => true },
+      registerPlugin: () => ({ play: playMock }),
+    }));
+    return import('@/lib/timer-sound');
+  };
+
+  beforeEach(() => {
+    playMock.mockClear();
+    playMock.mockImplementation(async () => undefined);
+  });
+
+  it('finish gra wybrany plik przez plugin z głośnością z ustawień (zero WebAudio)', async () => {
+    localStorage.setItem('fittracker_timer_volume_v1', '0.6');
+    const { playTimerSound } = await importNative();
+
+    playTimerSound('finish');
+    await flushAsync();
+
+    expect(playMock).toHaveBeenCalledWith({ file: 'rest_bell.wav', volume: 0.6 });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(createdOscillators).toHaveLength(0);
+  });
+
+  it('tick i complete grają pliki sygnałów z bundla', async () => {
+    const { playTimerSound } = await importNative();
+
+    playTimerSound('tick');
+    playTimerSound('complete');
+    await flushAsync();
+
+    expect(playMock).toHaveBeenCalledWith(expect.objectContaining({ file: 'timer_tick.wav' }));
+    expect(playMock).toHaveBeenCalledWith(expect.objectContaining({ file: 'timer_complete.wav' }));
+  });
+
+  it('plugin pada → fallback WebAudio gra plik jak dotąd', async () => {
+    playMock.mockImplementation(async () => { throw new Error('plugin unavailable'); });
+    const { playTimerSound } = await importNative();
+
+    playTimerSound('finish');
+    await flushAsync();
+
+    expect(createdSources).toHaveLength(1);
+    expect(createdSources[0].start).toHaveBeenCalledTimes(1);
+  });
+
+  it('previewRestSound z Ustawień idzie tą samą natywną ścieżką', async () => {
+    const { previewRestSound } = await importNative();
+
+    previewRestSound('rest_horn.wav');
+    await flushAsync();
+
+    expect(playMock).toHaveBeenCalledWith(expect.objectContaining({ file: 'rest_horn.wav' }));
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

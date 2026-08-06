@@ -2,14 +2,50 @@
 // Współdzielony AudioContext odblokowywany na gest startu — dzięki temu beep odpalony
 // później z setInterval NIE jest blokowany przez politykę autoplay na iOS/Safari.
 
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { loadRestSound, restSoundUrl } from '@/lib/rest-sound';
+import { loadTimerVolume } from '@/lib/timer-volume';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
+
+// Z200: na iOS sygnały grają NATYWNIE (AVAudioPlayer, TimerSoundPlugin.swift) —
+// WebAudio w WKWebView na fizycznym urządzeniu gra ledwo słyszalnie mimo pełnej
+// głośności (zgłoszenie usera po treningu na buildzie 82). To plan B zapisany
+// w DECYZJE.md 2026-07-24. WebAudio zostaje fallbackiem (web/Android/błąd pluginu).
+interface TimerSoundNativeApi {
+  play(options: { file: string; volume: number }): Promise<void>;
+}
+
+const TimerSoundNative = registerPlugin<TimerSoundNativeApi>('TimerSound');
+
+// Sygnały tick/complete jako pliki w bundlu iOS (generator:
+// scripts/generate-timer-signals.mjs, timing 1:1 z playSynth poniżej).
+const SIGNAL_FILES: Record<'tick' | 'complete', string> = {
+  tick: 'timer_tick.wav',
+  complete: 'timer_complete.wav',
+};
+
+/** Odtwórz natywnie. false = nie zagrało (web / plugin niedostępny / błąd). */
+const playNative = async (file: string): Promise<boolean> => {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    await TimerSoundNative.play({ file, volume: loadTimerVolume() });
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 let ctx: AudioContext | null = null;
 
 const getCtx = (): AudioContext | null => {
   if (typeof window === 'undefined') return null;
   try {
+    // Z200: WebKit odpala AudioContext w kategorii 'ambient' (cicha, duckowana,
+    // wyciszana przełącznikiem dzwonka) — od iOS 17 da się to przestawić z JS
+    // (WebKit bug 237322). Wzmacnia fallback WebAudio; ścieżka główna na iOS
+    // i tak gra natywnie.
+    const audioSession = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    if (audioSession) audioSession.type = 'playback';
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
     // Z177: system potrafi ZAMKNĄĆ kontekst (media sessions wideo z Z176);
@@ -65,7 +101,7 @@ const playFile = async (file: string): Promise<boolean> => {
     const source = c.createBufferSource();
     source.buffer = buffer;
     const gain = c.createGain();
-    gain.gain.value = 1;
+    gain.gain.value = loadTimerVolume();
     source.connect(gain);
     gain.connect(c.destination);
     source.start();
@@ -75,10 +111,15 @@ const playFile = async (file: string): Promise<boolean> => {
   }
 };
 
-/** Odsłuch z Ustawień: gra podany plik natychmiast, niezależnie od wyboru. */
+/** Odsłuch z Ustawień: gra podany plik natychmiast, niezależnie od wyboru.
+ *  Native-first jak playTimerSound — odsłuch MUSI odzwierciedlać realny kanał,
+ *  inaczej ocena głośności w Ustawieniach kłamie (cała lekcja sagi dźwięku). */
 export const previewRestSound = (file: string): void => {
-  void playFile(file).then((played) => {
-    if (!played) playSynth('finish');
+  void playNative(file).then((native) => {
+    if (native) return;
+    void playFile(file).then((played) => {
+      if (!played) playSynth('finish');
+    });
   });
 };
 
@@ -125,16 +166,21 @@ const isSoundEnabled = (): boolean => {
 export const playTimerSound = (kind: 'tick' | 'finish' | 'complete' = 'finish'): void => {
   if (!isSoundEnabled()) return;
 
-  // Koniec przerwy: realny plik przez WebAudio (bez wpisu Now Playing).
-  // Gdy się nie uda — synteza, żeby nie zostać z ciszą.
-  if (kind === 'finish') {
-    void playFile(loadRestSound().file).then((played) => {
-      if (!played) playSynth(kind);
-    });
-    return;
-  }
-
-  playSynth(kind);
+  const file = kind === 'finish' ? loadRestSound().file : SIGNAL_FILES[kind];
+  void playNative(file).then((native) => {
+    if (native) return;
+    // Koniec przerwy: realny plik przez WebAudio (bez wpisu Now Playing).
+    // Gdy się nie uda — synteza, żeby nie zostać z ciszą.
+    if (kind === 'finish') {
+      void playFile(file).then((played) => {
+        if (!played) playSynth(kind);
+      });
+      return;
+    }
+    // tick/complete na webie zostają przy syntezie (pliki sygnałów żyją tylko
+    // w bundlu iOS — web assets ich nie mają).
+    playSynth(kind);
+  });
 };
 
 const playSynth = (kind: 'tick' | 'finish' | 'complete'): void => {
@@ -145,19 +191,22 @@ const playSynth = (kind: 'tick' | 'finish' | 'complete'): void => {
     if (!c) return;
     resumeIfNotRunning(c);
     const now = c.currentTime;
+    // Z201: regulacja głośności z Ustawień skaluje też syntezę — minimum 0.2
+    // (timer-volume), więc exponentialRamp nigdy nie dostaje zera.
+    const peak = PEAK_GAIN * loadTimerVolume();
     if (kind === 'tick') {
-      beepAt(c, now, 880, 0.12);
+      beepAt(c, now, 880, 0.12, peak);
     } else if (kind === 'complete') {
-      beepAt(c, now, 880, 0.12);
-      beepAt(c, now + 0.15, 1175, 0.12);
-      beepAt(c, now + 0.30, 1568, 0.2);
+      beepAt(c, now, 880, 0.12, peak);
+      beepAt(c, now + 0.15, 1175, 0.12, peak);
+      beepAt(c, now + 0.30, 1568, 0.2, peak);
     } else {
       // Koniec przerwy: wyraźna, wznosząca sekwencja „wracaj do sztangi".
       // Dwa ciche tony gubiły się na siłowni — teraz cztery, dłuższe, z domknięciem.
-      beepAt(c, now, 880, 0.16);
-      beepAt(c, now + 0.20, 1175, 0.16);
-      beepAt(c, now + 0.40, 1568, 0.16);
-      beepAt(c, now + 0.62, 1568, 0.32);
+      beepAt(c, now, 880, 0.16, peak);
+      beepAt(c, now + 0.20, 1175, 0.16, peak);
+      beepAt(c, now + 0.40, 1568, 0.16, peak);
+      beepAt(c, now + 0.62, 1568, 0.32, peak);
     }
   } catch (err) {
     reportClientErrorWithCurrentUid({

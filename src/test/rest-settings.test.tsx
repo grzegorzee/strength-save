@@ -10,6 +10,7 @@ vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid
 
 import { RestSettingsCard } from '@/components/RestSettingsCard';
 import { loadRestSettings, saveRestSettings, DEFAULT_REST_SETTINGS, resolveRestSeconds } from '@/lib/rest-timer';
+import { loadTimerVolume, saveTimerVolume } from '@/lib/timer-volume';
 
 beforeEach(() => {
   localStorage.clear();
@@ -67,6 +68,30 @@ describe('RestSettingsCard', () => {
     renderCard();
     expect((screen.getByLabelText(/Przerwa między seriami/i) as HTMLInputElement).value).toBe('111');
     expect((screen.getByLabelText(/Przerwa między ćwiczeniami/i) as HTMLInputElement).value).toBe('333');
+  });
+
+  // Z201: regulacja głośności (zgłoszenie usera 2026-08-06: „głośność na full
+  // a ledwo co było słychać").
+  it('suwak głośności startuje na 100% i zapisuje ułamek do ustawień', () => {
+    renderCard();
+    const slider = screen.getByTestId('rest-volume-slider') as HTMLInputElement;
+    expect(slider.value).toBe('100');
+
+    fireEvent.change(slider, { target: { value: '60' } });
+    expect(loadTimerVolume()).toBe(0.6);
+    expect(screen.getByText('60%')).toBeTruthy();
+  });
+
+  it('puszczenie suwaka odsłuchuje sygnał bez wyjątku (jsdom bez AudioContext)', () => {
+    renderCard();
+    const slider = screen.getByTestId('rest-volume-slider');
+    expect(() => fireEvent.pointerUp(slider)).not.toThrow();
+  });
+
+  it('zapisana głośność wraca na suwak przy montowaniu', () => {
+    saveTimerVolume(0.4);
+    renderCard();
+    expect((screen.getByTestId('rest-volume-slider') as HTMLInputElement).value).toBe('40');
   });
 });
 

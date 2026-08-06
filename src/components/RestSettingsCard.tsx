@@ -6,6 +6,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { loadRestSettings, saveRestSettings, type RestSettings } from '@/lib/rest-timer';
 import { REST_SOUNDS, loadRestSound, saveRestSound, type RestSoundId } from '@/lib/rest-sound';
+import { loadTimerVolume, saveTimerVolume } from '@/lib/timer-volume';
 import { previewRestSound } from '@/lib/timer-sound';
 import { isKeepAwakeEnabled, setKeepAwakeEnabled } from '@/lib/keep-awake';
 
@@ -36,6 +37,7 @@ export const RestSettingsCard = () => {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<RestSettings>(() => loadRestSettings());
   const [sound, setSound] = useState<RestSoundId>(() => loadRestSound().id);
+  const [volumePct, setVolumePct] = useState<number>(() => Math.round(loadTimerVolume() * 100));
   const [keepAwake, setKeepAwake] = useState<boolean>(() => isKeepAwakeEnabled());
 
   const update = (field: Field, rawValue: number) => {
@@ -132,6 +134,39 @@ export const RestSettingsCard = () => {
             ))}
           </div>
           <p className="text-[11px] text-muted-foreground/70">{t('rest.sound.hint')}</p>
+        </div>
+
+        {/* Regulacja głośności (Z201, zgłoszenie usera 2026-08-06: „głośność na full,
+            a ledwo słychać"). Odsłuch przy puszczeniu suwaka — ocena głośności bez
+            realnego dźwięku to zgadywanie. Nie dotyczy powiadomień przy zgaszonym
+            ekranie (systemowa głośność dzwonka), stąd hint. */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label htmlFor="rest-volume" className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              {t('rest.volume.title')}
+            </label>
+            <span className="text-sm font-bold tabular-nums">{volumePct}%</span>
+          </div>
+          <input
+            id="rest-volume"
+            type="range"
+            min={20}
+            max={100}
+            step={5}
+            value={volumePct}
+            data-testid="rest-volume-slider"
+            aria-label={t('rest.volume.title')}
+            onChange={(e) => {
+              const pct = parseInt(e.target.value, 10);
+              if (!Number.isFinite(pct)) return;
+              setVolumePct(pct);
+              saveTimerVolume(pct / 100);
+            }}
+            onPointerUp={() => previewRestSound(loadRestSound().file)}
+            onKeyUp={() => previewRestSound(loadRestSound().file)}
+            className="h-2 w-full cursor-pointer appearance-none rounded-full bg-surface-highest accent-primary"
+          />
+          <p className="text-[11px] text-muted-foreground/70">{t('rest.volume.hint')}</p>
         </div>
 
         {/* Blokada wygaszania: przy włączonym ekranie dźwięk gra zawsze, bo robi to

@@ -726,6 +726,8 @@ export const en: Record<keyof typeof pl, string> = {
   'rest.sound.alarm': 'Alarm',
   'rest.sound.preview': 'Play',
   'rest.sound.hint': 'Tap to listen. The same sound plays in the notification when the screen is off.',
+  'rest.volume.title': 'Signal volume',
+  'rest.volume.hint': 'Applies to in-app sounds. Notification volume with the screen off follows the system ringer volume.',
   'rest.keepAwake': 'Keep screen on during workout',
   'rest.keepAwakeHint': 'The screen stays on until the workout ends. Uses more battery, but sound and timer always work.',
   'rest.settings.title': 'Rest between sets',
