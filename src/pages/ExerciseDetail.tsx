@@ -88,8 +88,6 @@ const ExerciseDetail = () => {
             <Dumbbell className="h-16 w-16 text-muted-foreground/30" />
           </div>
         )}
-        {/* Z176: pointer-events-none — gradient nie może blokować tapnięć w controls. */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent pointer-events-none" />
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -103,10 +101,14 @@ const ExerciseDetail = () => {
             <Play className="h-6 w-6 fill-current" />
           </span>
         )}
-        <div className="absolute bottom-4 left-5 right-5">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">{typeText} / {localizeCategory(exercise.category, lang)}</p>
-          <h1 className="mt-1 font-heading text-display-md font-bold uppercase leading-[0.95] tracking-tight">{localizeExerciseName(exercise.name, lang)}</h1>
-        </div>
+      </div>
+
+      {/* Z202: tytuł POD animacją, nie na niej — blok display-md z gradientem
+          zakrywał dolną część wideo 4:3 (nogi/stopy ćwiczącego), a przy długich
+          nazwach potrafił zasłonić połowę ruchu (zgłoszenie usera 2026-08-06). */}
+      <div className="px-5 pt-5">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">{typeText} / {localizeCategory(exercise.category, lang)}</p>
+        <h1 className="mt-1 font-heading text-display-md font-bold uppercase leading-[0.95] tracking-tight">{localizeExerciseName(exercise.name, lang)}</h1>
       </div>
 
       <div className="space-y-8 px-5 pt-6">
