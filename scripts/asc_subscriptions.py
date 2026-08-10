@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
 # Tworzy produkty subskrypcji Strength Save PRO w App Store Connect przez ASC API.
-# Decyzje (DECYZJE.md cz. 10): PL 14,99 zl/mies + 99,99 zl/rok; US $2.99/$19.99;
-# triale: monthly 14 dni FREE_TRIAL, yearly 30 dni (ONE_MONTH) FREE_TRIAL; bez lifetime.
-# Reszta terytoriow: equalizacja Apple od ceny USA. Idempotentny (sprawdza istniejace zasoby).
+# X25/Z207: monthly 14,99 PLN / 3.99 USD + 7 dni; yearly 119,99 PLN /
+# 31.99 USD + 14 dni. Reszta terytoriow: equalizacja Apple od ceny USA.
+# Zmiany cen sa planowane z dwudniowym wyprzedzeniem; niezmienne oferty intro sa
+# usuwane i odtwarzane tylko tam, gdzie read-back wykazuje stary kontrakt.
 #
 # Uzycie:
 #   uv run --with pyjwt --with cryptography python scripts/asc_subscriptions.py setup
 #   uv run --with pyjwt --with cryptography python scripts/asc_subscriptions.py prices
 #   uv run --with pyjwt --with cryptography python scripts/asc_subscriptions.py offers
+#   uv run --with pyjwt --with cryptography python scripts/asc_subscriptions.py dry-run
+#   uv run --with pyjwt --with cryptography python scripts/asc_subscriptions.py apply
 #   uv run --with pyjwt --with cryptography python scripts/asc_subscriptions.py status
-import sys, time, json, urllib.request, urllib.error, urllib.parse
+import base64
+import datetime
+import os
+import sys
+import time
+import json
+import urllib.request
+import urllib.error
+import urllib.parse
 import jwt
 
 KEY_ID = "UD43687FB9"
@@ -19,14 +30,18 @@ APP_ID = "6777446137"
 BASE = "https://api.appstoreconnect.apple.com"
 
 GROUP_NAME = "Strength Save PRO"
+PRICE_START_DATE = os.environ.get(
+    "X25_PRICE_START_DATE",
+    (datetime.date.today() + datetime.timedelta(days=2)).isoformat(),
+)
 PRODUCTS = {
     "monthly": {
         "productId": "strengthsave_pro_monthly",
         "name": "PRO Monthly",
         "period": "ONE_MONTH",
-        "trial": "TWO_WEEKS",
+        "trial": "ONE_WEEK",
         "price_pl": "14.99",
-        "price_us": "4.99",
+        "price_us": "3.99",
         "loc": {
             "en-US": ("PRO Monthly", "Full access: unlimited plans, AI Coach, analytics."),
             "pl": ("PRO Miesięczny", "Nielimitowane plany, Trener AI, pełna analityka."),
@@ -36,12 +51,12 @@ PRODUCTS = {
         "productId": "strengthsave_pro_yearly",
         "name": "PRO Yearly",
         "period": "ONE_YEAR",
-        "trial": "ONE_MONTH",
-        "price_pl": "99.99",
-        "price_us": "29.99",
+        "trial": "TWO_WEEKS",
+        "price_pl": "119.99",
+        "price_us": "31.99",
         "loc": {
-            "en-US": ("PRO Yearly", "Full access for a year. Best value: 5 months free."),
-            "pl": ("PRO Roczny", "Pełny dostęp na rok. 5 miesięcy gratis."),
+            "en-US": ("PRO Yearly", "Full access for one year."),
+            "pl": ("PRO Roczny", "Pełny dostęp przez rok."),
         },
     },
 }
@@ -55,16 +70,37 @@ def token():
 
 
 def req(method, path, body=None):
-    data = json.dumps(body).encode() if body is not None else None
-    r = urllib.request.Request(BASE + path, data=data, method=method,
-                               headers={"Authorization": "Bearer " + token(), "Content-Type": "application/json"})
-    try:
-        resp = urllib.request.urlopen(r)
-        raw = resp.read()
-        return resp.status, (json.loads(raw) if raw else {})
-    except urllib.error.HTTPError as e:
-        raw = e.read()
-        return e.code, (json.loads(raw) if raw else {})
+    attempts = 4 if method == "GET" else 3
+    for attempt in range(attempts):
+        data = json.dumps(body).encode() if body is not None else None
+        request = urllib.request.Request(
+            BASE + path,
+            data=data,
+            method=method,
+            headers={
+                "Authorization": "Bearer " + token(),
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            response = urllib.request.urlopen(request)
+            raw = response.read()
+            return response.status, (json.loads(raw) if raw else {})
+        except urllib.error.HTTPError as error:
+            raw = error.read()
+            payload = json.loads(raw) if raw else {}
+            retryable = error.code == 429 or (
+                method == "GET" and error.code in (500, 502, 503, 504)
+            )
+            if retryable and attempt + 1 < attempts:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            return error.code, payload
+        except urllib.error.URLError as error:
+            if method == "GET" and attempt + 1 < attempts:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            return 0, {"error": str(error)}
 
 
 def die(msg, payload=None):
@@ -86,6 +122,23 @@ def get_all(path):
         nxt = resp.get("links", {}).get("next")
         url = nxt.replace(BASE, "") if nxt else None
     return items
+
+
+def get_all_with_included(path):
+    """GET z paginacja, zachowujac zasoby z `included` potrzebne do read-backu."""
+    items = []
+    included = {}
+    url = path
+    while url:
+        status, resp = req("GET", url)
+        if status != 200:
+            die(f"GET {url} -> {status}", resp)
+        items.extend(resp.get("data", []))
+        for resource in resp.get("included", []):
+            included[resource["id"]] = resource
+        nxt = resp.get("links", {}).get("next")
+        url = nxt.replace(BASE, "") if nxt else None
+    return items, included
 
 
 def find_or_create_group():
@@ -178,14 +231,194 @@ def find_price_point(sub_id, territory, price):
     die(f"brak price pointu {price} dla {territory}; dostepne w okolicy: {[v for v in avail if abs(float(v)-float(price))<3]}")
 
 
-def set_price(sub_id, price_point_id, territory_id):
-    # Terytorium wynika z price pointu — relacja territory w create jest odrzucana (409).
+def territory_from_price_point(price_point):
+    try:
+        padded = price_point["id"] + "=" * (-len(price_point["id"]) % 4)
+        return json.loads(base64.b64decode(padded)).get("t")
+    except Exception:
+        return (price_point.get("relationships", {}).get("territory", {}).get("data") or {}).get("id")
+
+
+def desired_price_points(sub_id, product):
+    """Jawne USA/POL plus pozostale storefronty z equalizacji wybranego USD."""
+    us_point = find_price_point(sub_id, "USA", product["price_us"])
+    pl_point = find_price_point(sub_id, "POL", product["price_pl"])
+    targets = {
+        "USA": {"id": us_point, "price": product["price_us"]},
+        "POL": {"id": pl_point, "price": product["price_pl"]},
+    }
+    equalized = get_all(
+        f"/v1/subscriptionPricePoints/{us_point}/equalizations"
+        "?limit=200&fields[subscriptionPricePoints]=customerPrice"
+    )
+    for point in equalized:
+        territory = territory_from_price_point(point)
+        if territory and territory not in ("USA", "POL"):
+            targets[territory] = {
+                "id": point["id"],
+                "price": point["attributes"]["customerPrice"],
+            }
+    return targets
+
+
+def get_price_records(sub_id):
+    prices, included = get_all_with_included(
+        f"/v1/subscriptions/{sub_id}/prices"
+        "?include=subscriptionPricePoint,territory&limit=200"
+    )
+    records = []
+    for price in prices:
+        relationships = price.get("relationships", {})
+        point_ref = relationships.get("subscriptionPricePoint", {}).get("data") or {}
+        territory_ref = relationships.get("territory", {}).get("data") or {}
+        point = included.get(point_ref.get("id"), {})
+        territory = included.get(territory_ref.get("id"), {}).get("id", territory_ref.get("id"))
+        records.append({
+            "id": price["id"],
+            "territory": territory,
+            "price": point.get("attributes", {}).get("customerPrice"),
+            "startDate": price.get("attributes", {}).get("startDate"),
+        })
+    return records
+
+
+def price_actions(sub_id, product):
+    targets = desired_price_points(sub_id, product)
+    records = get_price_records(sub_id)
+    by_territory = {}
+    for record in records:
+        by_territory.setdefault(record["territory"], []).append(record)
+    actions = []
+    for territory, target in targets.items():
+        current = by_territory.get(territory, [])
+        exact = [r for r in current if r["price"] == target["price"]]
+        wrong_future = [
+            r for r in current
+            if r["startDate"] is not None and r["price"] != target["price"]
+        ]
+        if exact and not wrong_future:
+            continue
+        actions.append({
+            "territory": territory,
+            "target": target,
+            "delete": wrong_future,
+            "create": not exact,
+        })
+    return actions, targets, records
+
+
+def set_price(sub_id, price_point_id):
+    # Terytorium wynika z price pointu; startDate planuje bezpieczna zmiane ceny.
     status, resp = req("POST", "/v1/subscriptionPrices", {
         "data": {"type": "subscriptionPrices",
+                 "attributes": {
+                     "startDate": PRICE_START_DATE,
+                     "preserveCurrentPrice": False,
+                 },
                  "relationships": {
                      "subscription": {"data": {"type": "subscriptions", "id": sub_id}},
                      "subscriptionPricePoint": {"data": {"type": "subscriptionPricePoints", "id": price_point_id}}}}})
     return status, resp
+
+
+def apply_prices(sub_ids):
+    total_created = 0
+    total_deleted = 0
+    for key, product in PRODUCTS.items():
+        sid = sub_ids[key]
+        actions, targets, _ = price_actions(sid, product)
+        print(f"{product['productId']}: price changes={len(actions)}/{len(targets)} start={PRICE_START_DATE}")
+        for action in actions:
+            for old in action["delete"]:
+                status, resp = req("DELETE", f"/v1/subscriptionPrices/{old['id']}")
+                if status != 204:
+                    die(f"delete scheduled price {action['territory']} -> {status}", resp)
+                total_deleted += 1
+            if action["create"]:
+                status, resp = set_price(sid, action["target"]["id"])
+                if status != 201:
+                    die(f"set price {action['territory']} -> {status}", resp)
+                total_created += 1
+            if (total_created + total_deleted) % 50 == 0:
+                print(f"  price progress: created={total_created} deleted={total_deleted}", flush=True)
+    print(f"PRICES APPLY OK created={total_created} deletedScheduled={total_deleted}")
+
+
+def get_offer_map(sub_id):
+    offers = get_all(
+        f"/v1/subscriptions/{sub_id}/introductoryOffers?include=territory&limit=200"
+    )
+    result = {}
+    for offer in offers:
+        territory = (
+            offer.get("relationships", {}).get("territory", {}).get("data") or {}
+        ).get("id")
+        if territory:
+            result.setdefault(territory, []).append(offer)
+    return result
+
+
+def offer_actions(sub_id, product, territories):
+    existing = get_offer_map(sub_id)
+    expected = (product["trial"], "FREE_TRIAL", 1)
+    actions = []
+    for territory in territories:
+        offers = existing.get(territory, [])
+        exact = [
+            offer for offer in offers
+            if (
+                offer["attributes"].get("duration"),
+                offer["attributes"].get("offerMode"),
+                offer["attributes"].get("numberOfPeriods"),
+            ) == expected
+        ]
+        wrong = [offer for offer in offers if offer not in exact]
+        if len(exact) == 1 and not wrong:
+            continue
+        actions.append({
+            "territory": territory,
+            "delete": wrong + exact[1:],
+            "create": len(exact) == 0,
+        })
+    return actions, existing
+
+
+def create_offer(sub_id, product, territory):
+    return req("POST", "/v1/subscriptionIntroductoryOffers", {
+        "data": {"type": "subscriptionIntroductoryOffers",
+                 "attributes": {
+                     "duration": product["trial"],
+                     "offerMode": "FREE_TRIAL",
+                     "numberOfPeriods": 1,
+                 },
+                 "relationships": {
+                     "subscription": {"data": {"type": "subscriptions", "id": sub_id}},
+                     "territory": {"data": {"type": "territories", "id": territory}}}}})
+
+
+def apply_offers(sub_ids):
+    territories = [t["id"] for t in get_all("/v1/territories?limit=200")]
+    total_created = 0
+    total_deleted = 0
+    for key, product in PRODUCTS.items():
+        sid = sub_ids[key]
+        actions, _ = offer_actions(sid, product, territories)
+        print(f"{product['productId']}: offer changes={len(actions)}/{len(territories)} target={product['trial']}")
+        for action in actions:
+            for old in action["delete"]:
+                status, resp = req("DELETE", f"/v1/subscriptionIntroductoryOffers/{old['id']}")
+                if status != 204:
+                    die(f"delete intro {action['territory']} -> {status}", resp)
+                total_deleted += 1
+            if action["create"]:
+                status, resp = create_offer(sid, product, action["territory"])
+                if status != 201:
+                    die(f"create intro {action['territory']} -> {status}", resp)
+                total_created += 1
+            if (total_created + total_deleted) % 50 == 0:
+                print(f"  offer progress: created={total_created} deleted={total_deleted}", flush=True)
+        print(f"  done: created={total_created} deleted={total_deleted}")
+    print(f"OFFERS APPLY OK created={total_created} deleted={total_deleted}")
 
 
 def cmd_setup():
@@ -197,82 +430,108 @@ def cmd_setup():
 
 
 def cmd_prices():
-    sub_ids = get_sub_ids()
-    for key, p in PRODUCTS.items():
-        sid = sub_ids[key]
-        print(f"== {p['productId']} ==")
-        # 1) USA (kotwica do equalizacji) + Polska (jawnie, decyzja usera)
-        us_pp = find_price_point(sid, "USA", p["price_us"])
-        pl_pp = find_price_point(sid, "POL", p["price_pl"])
-        for terr, pp in (("USA", us_pp), ("POL", pl_pp)):
-            status, resp = set_price(sid, pp, terr)
-            print(f"  cena {terr}: {status}" + ("" if status == 201 else f" {json.dumps(resp)[:300]}"))
-        # 2) Reszta swiata: equalizacja od price pointu USA
-        eq = get_all(f"/v1/subscriptionPricePoints/{us_pp}/equalizations?limit=200&fields[subscriptionPricePoints]=customerPrice")
-        done, skipped, errors = 0, 0, 0
-        for pt in eq:
-            # ID price pointu to base64 JSON {"s": subId, "t": "TERYTORIUM", "p": ...}
-            try:
-                import base64
-                pad = pt["id"] + "=" * (-len(pt["id"]) % 4)
-                terr = json.loads(base64.b64decode(pad)).get("t")
-            except Exception:
-                terr = pt.get("relationships", {}).get("territory", {}).get("data", {}).get("id")
-            if not terr or terr in ("USA", "POL"):
-                continue
-            status, resp = set_price(sid, pt["id"], terr)
-            if status == 201:
-                done += 1
-            elif status == 409:
-                skipped += 1  # cena juz ustawiona
-            else:
-                errors += 1
-                if errors <= 3:
-                    print(f"  cena {terr}: {status} {json.dumps(resp)[:200]}")
-        print(f"  equalizacja: {done} ustawione, {skipped} pominiete, {errors} bledy")
-    print("PRICES OK")
+    apply_prices(get_sub_ids())
 
 
 def cmd_offers():
-    sub_ids = get_sub_ids()
+    apply_offers(get_sub_ids())
+
+
+def build_plan(sub_ids):
     territories = [t["id"] for t in get_all("/v1/territories?limit=200")]
-    for key, p in PRODUCTS.items():
-        sid = sub_ids[key]
-        # API wymaga relacji territory — jedna oferta na terytorium.
-        existing = set()
-        for o in get_all(f"/v1/subscriptions/{sid}/introductoryOffers?include=territory&limit=200"):
-            t = o.get("relationships", {}).get("territory", {}).get("data") or {}
-            existing.add(t.get("id"))
-        done, errors = 0, 0
-        for terr in territories:
-            if terr in existing:
-                continue
-            status, resp = req("POST", "/v1/subscriptionIntroductoryOffers", {
-                "data": {"type": "subscriptionIntroductoryOffers",
-                         "attributes": {"duration": p["trial"], "offerMode": "FREE_TRIAL", "numberOfPeriods": 1},
-                         "relationships": {
-                             "subscription": {"data": {"type": "subscriptions", "id": sid}},
-                             "territory": {"data": {"type": "territories", "id": terr}}}}})
-            if status == 201:
-                done += 1
-            else:
-                errors += 1
-                if errors <= 3:
-                    print(f"  {terr}: {status} {json.dumps(resp)[:250]}")
-        print(f"{p['productId']}: trial {p['trial']} -> {done} terytoriow OK, {len(existing)} bylo, {errors} bledow")
-    print("OFFERS OK")
+    plan = {}
+    for key, product in PRODUCTS.items():
+        price_changes, price_targets, price_records = price_actions(sub_ids[key], product)
+        offer_changes, offers = offer_actions(sub_ids[key], product, territories)
+        plan[key] = {
+            "product": product,
+            "priceChanges": price_changes,
+            "priceTargets": price_targets,
+            "priceRecords": price_records,
+            "offerChanges": offer_changes,
+            "offers": offers,
+            "territories": territories,
+        }
+    return plan
+
+
+def print_plan(plan, label):
+    price_changes = 0
+    offer_changes = 0
+    for key, item in plan.items():
+        product = item["product"]
+        price_changes += len(item["priceChanges"])
+        offer_changes += len(item["offerChanges"])
+        samples = {}
+        for territory in ("POL", "USA"):
+            samples[territory] = [
+                {"price": row["price"], "startDate": row["startDate"]}
+                for row in item["priceRecords"]
+                if row["territory"] == territory
+            ]
+        offer_summary = {}
+        for offers in item["offers"].values():
+            for offer in offers:
+                attrs = offer["attributes"]
+                signature = (
+                    attrs.get("duration"),
+                    attrs.get("offerMode"),
+                    attrs.get("numberOfPeriods"),
+                )
+                offer_summary[signature] = offer_summary.get(signature, 0) + 1
+        print(
+            f"{label} {key}: target POL={product['price_pl']} USA={product['price_us']} "
+            f"trial={product['trial']} priceChanges={len(item['priceChanges'])}/"
+            f"{len(item['priceTargets'])} offerChanges={len(item['offerChanges'])}/"
+            f"{len(item['territories'])} samples={json.dumps(samples)} offers={offer_summary}"
+        )
+    return price_changes, offer_changes
+
+
+def cmd_dry_run():
+    plan = build_plan(get_sub_ids())
+    price_changes, offer_changes = print_plan(plan, "DRY_RUN")
+    print(
+        f"DRY_RUN TOTAL priceChanges={price_changes} offerChanges={offer_changes} "
+        f"priceStart={PRICE_START_DATE}"
+    )
+
+
+def cmd_apply():
+    sub_ids = get_sub_ids()
+    plan = build_plan(sub_ids)
+    price_changes, offer_changes = print_plan(plan, "BEFORE")
+    if price_changes:
+        apply_prices(sub_ids)
+    if offer_changes:
+        apply_offers(sub_ids)
+    ensure_sub_localizations(sub_ids)
+    verified = build_plan(sub_ids)
+    remaining_prices, remaining_offers = print_plan(verified, "READ_BACK")
+    if remaining_prices or remaining_offers:
+        die(f"read-back mismatch: prices={remaining_prices} offers={remaining_offers}")
+    print("APPLY + READ_BACK OK")
 
 
 def cmd_status():
     sub_ids = get_sub_ids()
+    plan = build_plan(sub_ids)
+    print_plan(plan, "STATUS")
     for key, sid in sub_ids.items():
         status, resp = req("GET", f"/v1/subscriptions/{sid}")
         a = resp["data"]["attributes"]
-        prices = get_all(f"/v1/subscriptions/{sid}/prices?include=subscriptionPricePoint,territory&limit=200")
-        offers = get_all(f"/v1/subscriptions/{sid}/introductoryOffers?limit=200")
-        print(f"{a['productId']}: state={a['state']} period={a['subscriptionPeriod']} prices={len(prices)} introOffers={len(offers)}")
+        prices = plan[key]["priceRecords"]
+        offers = sum(len(value) for value in plan[key]["offers"].values())
+        print(f"{a['productId']}: state={a['state']} period={a['subscriptionPeriod']} prices={len(prices)} introOffers={offers}")
 
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
-    {"setup": cmd_setup, "prices": cmd_prices, "offers": cmd_offers, "status": cmd_status}[cmd]()
+    {
+        "setup": cmd_setup,
+        "prices": cmd_prices,
+        "offers": cmd_offers,
+        "dry-run": cmd_dry_run,
+        "apply": cmd_apply,
+        "status": cmd_status,
+    }[cmd]()
