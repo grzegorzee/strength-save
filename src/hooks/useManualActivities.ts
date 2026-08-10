@@ -41,8 +41,9 @@ const writeE2EActivities = (activities: ManualActivity[]): void => {
   try { window.localStorage.setItem(E2E_KEY, JSON.stringify(activities)); } catch { /* ignore */ }
 };
 
-/** CRUD ręcznych wpisów cardio (Z111). Edycja/usuwanie DOTYCZY tylko tej kolekcji — Strava read-only. */
-export const useManualActivities = (userId: string) => {
+/** CRUD ręcznych wpisów cardio (Z111). Edycja/usuwanie DOTYCZY tylko tej kolekcji — Strava read-only.
+ * Z214: sinceDate zawęża listener do ostatniego okna (Dashboard: bieżący tydzień). */
+export const useManualActivities = (userId: string, sinceDate?: string) => {
   const [activities, setActivities] = useState<ManualActivity[]>(readE2EActivities);
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -59,6 +60,7 @@ export const useManualActivities = (userId: string) => {
     const q = query(
       collection(db, MANUAL_ACTIVITIES_COLLECTION),
       where('userId', '==', userId),
+      ...(sinceDate ? [where('date', '>=', sinceDate)] : []),
       orderBy('date', 'desc'),
       limit(MANUAL_ACTIVITIES_LISTENER_LIMIT),
     );
@@ -79,7 +81,7 @@ export const useManualActivities = (userId: string) => {
     );
 
     return () => unsubscribe();
-  }, [userId]);
+  }, [userId, sinceDate]);
 
   const addActivity = useCallback(async (input: ManualActivityInput): Promise<{ ok: boolean; error?: string }> => {
     const sanitized = sanitizeManualActivity(input);

@@ -44,6 +44,7 @@ import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
+import { weeklyStravaKm, currentWeekCardio } from '@/lib/activity-window';
 import { useSubscription } from '@/hooks/useSubscription';
 import { buildWatchCapabilitySnapshot } from '@/lib/device-management';
 
@@ -148,6 +149,13 @@ const Dashboard = () => {
   const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
+  // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
+  // przy mouncie — wszystkie pochodne (thisWeek, todayTraining, draftResume,
+  // weeklyKm, kafle tygodnia) przeliczają się same przez zależność od `today`.
+  const today = useToday();
+  // Z214: karty Dashboardu liczą wyłącznie bieżący tydzień planu, więc listener
+  // aktywności dostaje okno od poniedziałku zamiast pełnych 500 rekordów.
+  const activityWindowStart = formatLocalDate(getStartOfPlanWeek(today));
   const {
     activities: unifiedActivities,
     stravaActivities,
@@ -155,7 +163,7 @@ const Dashboard = () => {
     addActivity,
     updateActivity,
     deleteActivity,
-  } = useActivities(uid, canUseStrava);
+  } = useActivities(uid, canUseStrava, activityWindowStart);
   const { cycles, isLoaded: cyclesLoaded, archiveCurrentPlan, createActiveCycle } = usePlanCycles(uid);
   const { toast } = useToast();
   const [isRepeating, setIsRepeating] = useState(false);
@@ -185,10 +193,6 @@ const Dashboard = () => {
   const latestMeasurement = getLatestMeasurement();
   const totalWeight = getTotalWeight();
 
-  // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
-  // przy mouncie — wszystkie pochodne (thisWeek, todayTraining, draftResume,
-  // weeklyKm, kafle tygodnia) przeliczają się same przez zależność od `today`.
-  const today = useToday();
   const thisWeek = useMemo(() => {
     if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today);
     const start = parseLocalDate(planStartDate);
@@ -465,18 +469,12 @@ const Dashboard = () => {
     return null;
   }, [workouts, trainingPlan]);
 
-  // Weekly Strava km counter (Mon-Sun)
+  // Weekly Strava km counter (Mon-Sun) — logika w activity-window (Z214, test fixture >500).
   const weeklyKm = useMemo(() => {
-    if (!stravaConnection.connected) return 0;
     const monday = getStartOfPlanWeek(today);
-    const mondayStr = formatLocalDate(monday);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    const sundayStr = formatLocalDate(sunday);
-
-    return stravaActivities
-      .filter(a => a.date >= mondayStr && a.date <= sundayStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit')
-      .reduce((sum, a) => sum + (a.distance || 0), 0) / 1000;
+    return weeklyStravaKm(stravaActivities, stravaConnection.connected, formatLocalDate(monday), formatLocalDate(sunday));
   }, [stravaActivities, stravaConnection.connected, today]);
 
   // Greeting
@@ -1008,17 +1006,13 @@ const Dashboard = () => {
               items.push({ type: 'training', dayId: day.id, date, dateStr: dateKey });
             });
 
-            // Cardio bieżącego tygodnia: wpisy manualne ZAWSZE, Strava gdy połączona.
+            // Cardio bieżącego tygodnia: wpisy manualne ZAWSZE, Strava gdy połączona
+            // (logika w activity-window — Z214, test fixture >500).
             if (thisWeek.length > 0) {
               const mondayDate = getStartOfPlanWeek(today);
-              const mondayStr = formatLocalDate(mondayDate);
               const sundayDate = new Date(mondayDate);
               sundayDate.setDate(sundayDate.getDate() + 6);
-              const sundayStr = formatLocalDate(sundayDate);
-
-              unifiedActivities
-                .filter(a => a.source === 'manual' || stravaConnection.connected)
-                .filter(a => a.date >= mondayStr && a.date <= sundayStr && a.type !== 'WeightTraining' && a.type !== 'Crossfit')
+              currentWeekCardio(unifiedActivities, stravaConnection.connected, formatLocalDate(mondayDate), formatLocalDate(sundayDate))
                 .forEach(activity => {
                   items.push({ type: 'activity', activity, dateStr: activity.date });
                 });

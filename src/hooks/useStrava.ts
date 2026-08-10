@@ -21,7 +21,11 @@ const EMPTY_ACTIVITIES: StravaActivity[] = [];
 const EMPTY_CONNECTION: StravaConnection = { connected: false };
 const noop = async () => ({ ok: false as const, message: 'Strava disabled' });
 
-export const useStrava = (userId: string, enabled: boolean = true) => {
+// Z214: sinceDate (YYYY-MM-DD) zawęża listener do ostatniego okna — Dashboard
+// potrzebuje tylko bieżącego tygodnia, DayPlan tylko dnia. Bez sinceDate pełny
+// limit (widoki historii/analityki). Wyniki UI identyczne: filtry kart są
+// zawsze ostrzejsze lub równe oknu.
+export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: string) => {
   const { t } = useTranslation();
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -40,6 +44,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     const activitiesQuery = query(
       collection(db, STRAVA_ACTIVITIES_COLLECTION),
       where('userId', '==', userId),
+      ...(sinceDate ? [where('date', '>=', sinceDate)] : []),
       orderBy('date', 'desc'),
       limit(STRAVA_ACTIVITY_LISTENER_LIMIT)
     );
@@ -65,7 +70,7 @@ export const useStrava = (userId: string, enabled: boolean = true) => {
     return () => unsubscribe();
     // t pominięte celowo: użyte tylko w komunikacie błędu; dodanie re-subskrybowałoby listener przy zmianie języka
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, enabled]);
+  }, [userId, enabled, sinceDate]);
 
   // Subscribe to user's Strava connection status
   useEffect(() => {

@@ -9,15 +9,15 @@ import type { UnifiedActivity } from '@/types/strava';
  * strumieniu (malejąco po dacie). Konsumenci listujący cardio używają TEGO hooka;
  * komponenty czysto-Stravowe (Race Predictor, HR Zones itd.) zostają na useStrava.
  */
-export const useActivities = (userId: string, stravaEnabled: boolean = true) => {
-  const { activities: stravaActivities, connection, isLoaded: stravaLoaded } = useStrava(userId, stravaEnabled);
+export const useActivities = (userId: string, stravaEnabled: boolean = true, sinceDate?: string) => {
+  const { activities: stravaActivities, connection, isLoaded: stravaLoaded } = useStrava(userId, stravaEnabled, sinceDate);
   const {
     activities: manualActivities,
     addActivity,
     updateActivity,
     deleteActivity,
     isLoaded: manualLoaded,
-  } = useManualActivities(userId);
+  } = useManualActivities(userId, sinceDate);
 
   const activities: UnifiedActivity[] = useMemo(
     () => mergeActivities(stravaActivities, manualActivities),
