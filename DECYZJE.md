@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-10 (plan X25: rejestracja, cennik/triale, koszty chmury; onboarding zamrożony)
+**Ostatnia aktualizacja:** 2026-08-10 (X25 rozszerzony na web, iOS, Android, Apple Watch i Garmin; onboarding zamrożony)
 
 ---
 
@@ -26,6 +26,10 @@
 **Stan chmury i obu platform:** Firebase iOS ma Team ID `J4CRD2SA6D` i App Attest TTL 3600 s. Android ma Play Integrity TTL 3600 s, aktywne `playintegrity.googleapis.com` oraz SHA-256 upload key w Firebase. Wymagane `firebaseappcheck.googleapis.com` jest aktywne. `syncUserProfile` wdrożono i ma stan ACTIVE. Kontrolowane produkcyjne smoki dla dokładnych App ID obu platform przeszły `profile -> email code -> verify -> onboarding.in_progress`; oba konta techniczne usunięto przez `deleteOwnAccount`, a tymczasowe debug tokeny unieważniono. Emulator obu platform i web invite-only: 7/7 PASS. Pozostają prawdziwe atestacje z dystrybucji sklepowej: iOS build 84 z TestFlight i Android AAB `versionCode 6` z Play Internal.
 
 **Decyzja release Android równolegle z iOS:** obie aplikacje wychodzą w tym samym publicznym oknie. Parytet obejmuje rejestrację, paywall, ceny, triale, restore i smoke zakupu. AAB 6 jest podpisany i przechodzi Gradle `assembleDebug` + `bundleRelease`; po stronie Play pozostają konto/aplikacja, pierwszy upload, akceptacja Play App Signing, dodanie SHA-1 i SHA-256 certyfikatu App signing do Firebase, powiązanie projektu Cloud w Play Integrity oraz produkty Google Play podłączone do RevenueCat.
+
+**Decyzja: jeden produkt na pięciu powierzchniach:** zakres X25 obejmuje także web PWA, osadzony w iOS Apple Watch oraz samodzielną aplikację Garmin Connect IQ. Jedno konto i entitlement `pro` obejmują wszystkie powierzchnie bez osobnej opłaty za zegarki. Checkout i restore pozostają w App Store/Google Play; web pokazuje zsynchronizowany status i prowadzi do właściwej aplikacji mobilnej, a zegarki respektują capability/entitlement z iPhone albo backendu. Spójność oznacza te same identyfikatory, kanoniczne kg, ustawienia, PL/EN, stan sesji, offline/retry/dedup i wynik historii, ale nie sztuczne kopiowanie pełnego UI telefonu na mały ekran.
+
+**Zakres parytetu zegarków przed wydaniem:** najpierw powstaje macierz funkcji i wersjonowany kontrakt. Apple Watch zachowuje WatchConnectivity, lokalny merge, HealthKit, one-tap i widgets, a potwierdzone braki wobec Garmin v3 są domykane bez odbierania funkcji: szybki trening, przerwy 90/150, czas/serie/tonaż, discard i jawny retry. Garmin zachowuje parowanie, kompaktowe endpointy, FIT, EventQueue i lokalne ustawienia; dochodzą testy entitlement/revoke/konflikt oraz eksport `.iq` dla wszystkich rodzin z manifestu. Release gate obejmuje web, iOS+Watch, Android i Connect IQ oraz realne scenariusze iOS<->Watch<->web i Android<->Garmin<->web bez utraty i duplikacji danych.
 
 **Naprawa bramki web Z219:** `check-dist-smoke` wcześniej otwierał `/`, mimo że produkcyjny build ma Vite base `/strength-save/`, i zwracał `index.html` zamiast modułów JS. Skrypt wykrywa teraz base z wygenerowanego `index.html` i poprawnie testuje build web oraz relatywny build mobile. Pełna regresja po rozszerzeniu Android: aplikacja 1224/1224, Functions 156/156 aktywnych, emulator 7/7, E2E 194/194, lint/typecheck/build/mobile/dist/offline/bundle, Xcode generic simulator oraz Gradle PASS.
 

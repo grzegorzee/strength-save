@@ -1,13 +1,29 @@
-# PLAN X25: rejestracja, monetyzacja, koszty chmury i release
+# PLAN X25: jeden produkt na web, iOS, Android, Apple Watch i Garmin
 
 **Data:** 2026-08-10  
-**Cel:** usunac blokery publicznego wydania Strength Save, obnizyc koszt Firestore bez utraty funkcji i wdrozyc poprawny cennik/triale.  
+**Cel:** usunac blokery publicznego wydania Strength Save, ujednolicic web, iOS, Android, Apple Watch i Garmin, obnizyc koszt chmury bez utraty funkcji oraz wdrozyc poprawny cennik/triale.  
 **Tryb:** autonomiczny `/goal` + `/loop`, test-first, commit po kazdej zamknietej fazie.  
 **Poza zakresem X25:** przebudowa i skracanie onboardingu. Obecny onboarding jest zamrozony.
 
 ---
 
 ## 0. Decyzje i niezmienniki
+
+### Piec powierzchni, jeden produkt
+
+| Powierzchnia | Rola w produkcie | Zrodlo tozsamosci i danych | Dystrybucja |
+|---|---|---|---|
+| Web PWA | pelny plan, historia, analityka, ustawienia i zarzadzanie urzadzeniami | Firebase Auth + Firestore; web pozostaje invite-only | GitHub Pages |
+| iOS | pelna aplikacja mobilna, zakup App Store i most Apple Watch | Firebase Auth + lokalny draft + Firestore + RevenueCat | App Store/TestFlight |
+| Android | pelna aplikacja mobilna, zakup Google Play | Firebase Auth + lokalny draft + Firestore + RevenueCat | Google Play |
+| Apple Watch | sparowany kontroler treningu, HealthKit i kolejka offline | snapshot i zdarzenia przez WatchConnectivity; iPhone pozostaje zrodlem prawdy | target w tej samej paczce iOS |
+| Garmin | samodzielny sparowany klient treningu, FIT i kolejka offline | token urzadzenia mapowany serwerowo do uid; kompaktowe endpointy Functions | Connect IQ Store |
+
+- Spojnosc nie oznacza kopiowania kazdego ekranu na maly zegarek. Oznacza te same identyfikatory, znaczenie serii, jednostki, ustawienia, stan treningu, entitlement, nazewnictwo PL/EN i wynik synchronizacji, przy interfejsie dopasowanym do urzadzenia.
+- Jedno konto i jeden entitlement `pro` obejmuja web, iOS, Android, Apple Watch i Garmin. Nie ma osobnej oplaty za zegarki.
+- Zakup i restore odbywaja sie w aplikacjach iOS/Android przez ich sklepy. Web pokazuje ten sam status dostepu i bezpieczna sciezke do aplikacji mobilnej; Apple Watch i Garmin nie implementuja osobnego checkoutu.
+- Apple Watch dziedziczy bezpieczny stan konta i mozliwosci z iPhone. Garmin korzysta z serwerowo zweryfikowanego tokenu urzadzenia. Wylogowanie, usuniecie konta i odpiecie urzadzenia maja uniewazniac dalszy dostep.
+- Brak aktywnego PRO nigdy nie usuwa historii ani lokalnych niewyslanych zdarzen. Zachowanie po wygasnieciu ma byc zgodne z obecnym kontraktem aplikacji i wdrozone z kompatybilna migracja, bez naglego odebrania istniejacej funkcji.
 
 ### Cennik docelowy
 
@@ -19,7 +35,7 @@
 - Trial miesieczny: **7 dni**.
 - Trial roczny: **14 dni**.
 - Na paywallu roczny jest zaznaczony domyslnie.
-- Cena, okres, oszczednosc i trial maja pochodzic z metadanych RevenueCat/App Store, a nie z hardkodowanych napisow.
+- Cena, okres, oszczednosc i trial maja pochodzic z metadanych RevenueCat/App Store/Google Play, a nie z hardkodowanych napisow.
 - Obietnica triala jest widoczna tylko dla usera z potwierdzona eligibility. `unknown` i `ineligible` pokazuja zwykle CTA subskrypcji bez obietnicy darmowego okresu.
 
 ### Zamrozenie onboardingu
@@ -43,6 +59,13 @@ Wolno naprawic rejestracje i weryfikacje email przed onboardingiem oraz paywall 
 6. Istniejacy user z wygasla subskrypcja zachowuje odczyt i eksport swoich danych.
 7. Nie zapisuj ani nie usuwaj produkcyjnych danych userow w testach i diagnostyce.
 8. Nie ruszaj `animacje-cwiczen/`. Wygenerowane pliki Android zostaly odswiezone przez `cap sync android`; zachowaj wpisy App Check, Keep Awake i Keyboard.
+9. Kanoniczna masa w danych i eventach to kg; lbs jest tylko warstwa prezentacji. Wszystkie powierzchnie musza pokazac ten sam wynik po konwersji i nie moga zaokraglac wartosci przy synchronizacji.
+10. `exerciseId`, `dayId`, `sessionId`, `eventId`, indeks serii i czas zdarzenia maja to samo znaczenie na kazdej powierzchni. Kazdy event jest idempotentny, a ACK nastepuje dopiero po trwalym zapisie.
+11. Snapshot z telefonu/backendu nie moze nadpisac nowszych lokalnych serii zegarka. Merge zachowuje lokalny postep, deduplikuje retry i ma jawna polityke konfliktu.
+12. Domyslne przerwy to 90 s miedzy seriami i 150 s miedzy cwiczeniami. Lokalna zmiana na zegarku nie moze zostac po cichu wyzerowana przez stary snapshot.
+13. PL/EN, nazwa Strength Save, ikony, zielony akcent, terminy `trening`, `seria`, `przerwa`, `synchronizacja` oraz komunikaty offline maja byc spojne znaczeniowo na wszystkich klientach.
+14. Apple Health/HealthKit i Garmin FIT nie moga tworzyc podwojnego treningu dla tej samej sesji. Import/sync z zegarka ma zachowac pojedyncza kanoniczna sesje Strength Save.
+15. Apple Watch i Garmin musza miec wyjscie z kazdego stanu: ponow synchronizacje, pomin przerwe, zakoncz albo odrzuc trening, odswiez plan, odparuj urzadzenie. Brak lacznosci nie jest stanem bez wyjscia.
 
 ---
 
@@ -82,6 +105,14 @@ To jest niespojnosc auth klient/backend, nie blad onboardingu ani wpisanego adre
 - telemetria probuje flush co 30 s, co przy stale naplywajacych eventach moze dac do 120 zapisow/h;
 - rejestracja push wywoluje backend przy kazdym starcie aplikacji i odswieza `lastSeenAt` nawet bez zmiany tokenu.
 
+### Stan Apple Watch i Garmin
+
+- Apple Watch jest targetem watchOS 10+ osadzonym w paczce iOS (`StrengthWatch` + `StrengthWatchWidgets`). Ma plan dnia, start/finish, edycje i odhaczanie serii, one-tap log, timer przerwy, PL/EN, kg/lbs, HealthKit z tetnem, komplikacje i kolejke `transferUserInfo` z ACK po trwalym zapisie.
+- Apple Watch wymaga przed wydaniem pelnego testu na realnym iPhone + Watch: zerwana lacznosc, restart obu aplikacji, background, finish, HealthKit bez duplikatu i poprawny stan po nowym dniu. Brakuje pelnego parytetu operacyjnego z Garminem: szybki trening, przerwa miedzy cwiczeniami, widok czasu/statystyk sesji i jawne odrzucenie lokalnego treningu.
+- Garmin Connect IQ v3 dziala na epix Gen 2 i w symulatorze. Ma parowanie kodem, plan dnia, szybki trening, edycje serii, przerwy 90/150, zegar i statystyki sesji, odrzucenie, FIT z HR, lokalna kolejke oraz backend `garminPair`/`garminDay`/`garminIngest`.
+- Garmin nie jest jeszcze gotowy do Store: trzeba zbudowac i przetestowac eksport `.iq` na wszystkich deklarowanych rodzinach, sprawdzic layout okragly/prostokatny oraz touch/non-touch, przygotowac listing PL/EN, privacy i wykonac test na realnym zegarku bez zapisu na prywatne konto usera.
+- WatchConnectivity nie generuje odczytow chmury per seria. Garmin ma zachowac kompaktowy payload i lokalna kolejke; bez pollingu per sekunda i bez osobnego zapisu telemetrycznego per klik.
+
 ---
 
 ## 2. Kolejnosc wykonania
@@ -95,16 +126,29 @@ To jest niespojnosc auth klient/backend, nie blad onboardingu ani wpisanego adre
 
 **Brama fazy:** nowy user na iOS i Android dochodzi do niezmienionego onboardingu; web bez invite nadal nie tworzy profilu; screenshotowy blad nie wystepuje.
 
-### FAZA 2 - trial, cennik i poprawny paywall
+### FAZA 2 - wspolny kontrakt pieciu powierzchni i parytet zegarkow
+
+- [ ] **Z223: macierz funkcji i kontrakt danych.** Utworz `docs/CROSS-PLATFORM-PARITY.md` z wierszami dla web/iOS/Android/Apple Watch/Garmin: auth, entitlement, plan dnia, planowy i szybki trening, typy serii, edycja, przerwy, czas/statystyki sesji, finish/discard, offline, konflikt, health/FIT, PL/EN, kg/lbs, sync i delete/logout. Dla kazdego wiersza oznacz `pelny`, `urzadzeniowo uproszczony`, `nie dotyczy` albo `brak`; kazdy brak ma task i test. Zamroz wspolne fixture planu i eventow przed implementacja.
+- [ ] **Z224: wersjonowany protokol i jedna semantyka.** Ujednolic znaczenie `uid/deviceId/dayId/sessionId/exerciseId/setIndex/eventId/at`, kg, czasu, typow serii oraz ustawien 90/150 bez rozwalania kompaktowego Garmin `v` ani payloadu Watch. Dodaj jawne wersjonowanie, parsery kompatybilne wstecz, limity rozmiaru, test nowych klientow ze starym serwerem i starych klientow z nowym serwerem. Event wolno ACK dopiero po trwalym zapisie; retry nie tworzy duplikatu.
+- [ ] **Z225: Apple Watch do wspolnego standardu.** Zachowaj dzialajace WatchConnectivity, lokalny merge, HealthKit, one-tap i komplikacje. Domknij braki wybrane przez macierz: szybki trening z bezpiecznej listy ostatnich cwiczen, przerwa 90/150, czas + serie + tonaz, jawne odrzucenie lokalnej sesji oraz czytelny pending/error/retry. Testy Swift/TS i realny iPhone + Watch: telefon offline, zerwany Bluetooth, kill/resume, nowy dzien, rownolegle odhaczenie, finish, discard, haptic i dokladnie jeden HKWorkout.
+- [ ] **Z226: Garmin do wspolnego standardu.** Zachowaj v3, FIT, lokalne ustawienia i kolejke. Zweryfikuj wspolny protokol, entitlement tokenu, revoke/logout/delete, wygasly token, retry/dedup ingest, zmiane dnia i konflikt z sesja telefonu. `garminDay` tylko przy starcie/manual refresh/rozsadnym TTL lub zmianie wersji, `garminIngest` paczkami/finalizacja; zero pollingu i zapisu per sekunda. Testuj na technicznym koncie, nigdy na prywatnym koncie usera.
+- [ ] **Z227: spojne zarzadzanie urzadzeniami i dostepem.** Web/iOS/Android pokazuja te same sparowane urzadzenia, ostatnia synchronizacje, oczekujace zdarzenia, stan Health/FIT i akcje odswiez/odlacz. Jedno `pro` obejmuje oba zegarki; Apple Watch dziedziczy capability snapshot z iPhone, Garmin dostaje minimalny serwerowo podpisany stan. Web nie sprzedaje i nie obiecuje triala, lecz pokazuje aktualny status i kieruje do odpowiedniej aplikacji mobilnej. Zero osobnego paywalla na zegarku.
+- [ ] **Z228: testy sekwencji miedzy powierzchniami.** Minimum: rozpocznij na iOS -> seria Watch -> edycja web -> powrot i finish; rozpocznij Android -> Garmin offline -> reconnect/ingest -> historia web; rownolegla seria telefon+zegarek; reinstall telefonu; logout/delete/revoke; wygasniecie triala podczas niewyslanej sesji. Wynik: jedna sesja, brak utraty/duplikatu, te same wartosci i jawny status sync.
+- [ ] **Z229: Connect IQ Store i watchOS release readiness.** Apple Watch target/widgets maja ten sam `MARKETING_VERSION` i build co iOS, poprawne signing/entitlements/privacy/Health review notes i sa w archive. Garmin: pobierz wszystkie rodziny z `manifest.xml`, build warning-free poza udokumentowanymi wyjatkami, eksport podpisanego `.iq`, test okragly/prostokatny i touch/non-touch, ikona 1024, screenshoty, opis/uprawnienia/privacy PL/EN oraz submit. Klucz developerski pozostaje poza repo z backupem.
+- [ ] **Z230: wspolny branding, copy i release contract.** Sprawdz nazwe, ikone, akcent, terminologie, PL/EN, jednostki, status offline/sync i obietnice funkcji w produkcie oraz listingach App Store/Google Play/Connect IQ. Nie obiecuj funkcji niedostepnej na danym urzadzeniu. Przygotuj jedna mape wersji i artefaktow: web commit, iOS+Watch build, Android versionCode i Garmin manifest version.
+
+**Brama fazy:** macierz nie ma nieudokumentowanych brakow P0/P1; ten sam plan i dwa treningi referencyjne daja identyczne kanoniczne dane na pieciu powierzchniach; realny Apple Watch i Garmin przechodza scenariusz offline -> reconnect bez utraty i duplikatow.
+
+### FAZA 3 - trial, cennik i poprawny paywall
 
 - [ ] **Z207: konfiguracja obu sklepow i RevenueCat.** App Store Connect: monthly 14,99 zl / $3.99 + `ONE_WEEK`; yearly 119,99 zl / $31.99 + `TWO_WEEKS`; pozostale terytoria przez equalizacje. Google Play: odpowiadajace subskrypcje/base plans/offers 7 i 14 dni, gdy aplikacja jest juz w Internal Testing. Podlacz oba sklepy do tego samego entitlement/offering w RevenueCat. Najpierw status/dry-run, potem zastosowanie i ponowny odczyt cen/ofert.
-- [ ] **Z208: eligibility-aware paywall na obu platformach.** iOS: `checkTrialOrIntroductoryPriceEligibility`. Android: uzyj aktualnego kontraktu RevenueCat dla dostepnych Play offers/purchase options i nie zakladaj eligibility na podstawie samego produktu. Trial pokazuj tylko przy potwierdzonym `eligible` lub dostepnej, kwalifikujacej opcji; `unknown` i `ineligible` nie dostaja trial copy. Obsluz brak Offering, brak intro price/offer, blad sieci i restore.
-- [ ] **Z209: dynamiczna prezentacja ceny.** Roczny domyslny. Pokaz lokalizowana cene laczna, cene efektywna/miesiac i oszczednosc wyliczona wzgledem pakietu monthly. Nie hardkoduj `4 miesiace gratis`, jezeli lokalne ceny daja inny wynik. Testy PL/EN i duzych cen.
-- [ ] **Z210: sandbox/TestFlight + Play Internal.** Na obu platformach: eligible monthly 7 dni, eligible yearly 14 dni, wykorzystany trial, `unknown`, purchase, cancel, restore, offline/error. Zweryfikuj teksty regulaminu, privacy, auto-renew i brak mylacej obietnicy.
+- [ ] **Z208: eligibility-aware paywall na obu platformach.** iOS: `checkTrialOrIntroductoryPriceEligibility`. Android: uzyj aktualnego kontraktu RevenueCat dla dostepnych Play offers/purchase options i nie zakladaj eligibility na podstawie samego produktu. Trial pokazuj tylko przy potwierdzonym `eligible` lub dostepnej, kwalifikujacej opcji; `unknown` i `ineligible` nie dostaja trial copy. Obsluz brak Offering, brak intro price/offer, blad sieci i restore. Usun z web copy zalozenie `tylko iPhone`; web ma wskazac odpowiednia aplikacje mobilna bez uruchamiania checkoutu.
+- [ ] **Z209: dynamiczna prezentacja ceny.** Roczny domyslny. Pokaz lokalizowana cene laczna, cene efektywna/miesiac i oszczednosc wyliczona wzgledem pakietu monthly. Nie hardkoduj `4 miesiace gratis`, jezeli lokalne ceny daja inny wynik. Testy PL/EN i duzych cen. Lista korzysci ma mowic o Apple Watch i Garmin zgodnie z faktycznie gotowa macierza, bez sugerowania osobnej oplaty.
+- [ ] **Z210: sandbox/TestFlight + Play Internal.** Na obu platformach: eligible monthly 7 dni, eligible yearly 14 dni, wykorzystany trial, `unknown`, purchase, cancel, restore, offline/error. Zweryfikuj teksty regulaminu, privacy, auto-renew i brak mylacej obietnicy. Po zakupie/restore stan `pro` ma dojsc do web, Apple Watch i sparowanego Garmina bez ponownego zakupu; wygasniecie nie moze usunac danych ani niewyslanej sesji.
 
-**Brama fazy:** paywall nigdy nie obiecuje triala bez potwierdzenia; ceny na ekranie sa identyczne ze StoreKit.
+**Brama fazy:** paywall nigdy nie obiecuje triala bez potwierdzenia; ceny sa identyczne z App Store/Google Play, a jeden entitlement poprawnie propaguje sie na wszystkie powierzchnie.
 
-### FAZA 3 - szybkie oszczednosci bez zmiany funkcji
+### FAZA 4 - szybkie oszczednosci bez zmiany funkcji
 
 - [ ] **Z211: batching telemetrii.** Flush z 30 s na 5 min, a dodatkowo przy `online`, przejsciu aplikacji w tlo i zamknieciu tam, gdzie platforma pozwala. Bufor localStorage i retry pozostaja. Test fake timers: maks. 12 okresowych flushy/h zamiast 120.
 - [ ] **Z212: deduplikacja push registration.** Lokalnie przechowuj hash tokenu, uid i czas potwierdzenia. Backend wywoluj tylko po zmianie tokenu/uid albo po 30 dniach. Event refresh tokenu musi natychmiast rejestrowac nowy token. Logout usuwa stan poprzedniego uid.
@@ -113,7 +157,7 @@ To jest niespojnosc auth klient/backend, nie blad onboardingu ani wpisanego adre
 
 **Brama fazy:** testy funkcjonalne 1:1; pomiar odczytow zimnego Dashboardu z raportem przed/po; cel <=100 dokumentow dla standardowego startu, bez ukrywania historii.
 
-### FAZA 4 - historia treningow i statystyki bez stalego listenera 500
+### FAZA 5 - historia treningow i statystyki bez stalego listenera 500
 
 - [ ] **Z215: mapa zaleznosci od calej historii.** Wypisz wszystkie komponenty liczace streak, PR, objetosc, wykresy i poprzedni ciezar. Dla kazdego okresl recent realtime, paginowana historia albo agregat. Nie implementuj, dopoki testy fixture nie zamroza obecnych wynikow.
 - [ ] **Z216: recent realtime + pagination.** Globalny listener nie moze zawsze pobierac 500 treningow i 365 pomiarow. Ostatnie treningi zostaja realtime; starsze sa pobierane kursorem na zadanie. `AutoSyncOnReconnect` ma synchronizowac kolejke/draft bez utrzymywania szerokiego listenera na kazdym ekranie.
@@ -122,14 +166,14 @@ To jest niespojnosc auth klient/backend, nie blad onboardingu ani wpisanego adre
 
 **Brama fazy:** wszystkie statystyki i historia sa identyczne, a stale subskrypcje nie skaluja sie z cala historia usera.
 
-### FAZA 5 - release engineering i dostepnosc
+### FAZA 6 - release engineering i dostepnosc
 
 - [x] **Z219: napraw web dist smoke.** Skrypt wykrywa base z wygenerowanego `index.html`, serwuje assety spod `/strength-save/` dla web i z relatywnego base dla mobile. **Dowod:** stary skrypt odtworzyl `#root pusty po 15 s`; po poprawce `check:dist-smoke` oraz `check:dist-offline` PASS na buildzie web.
 - [ ] **Z220: warningi a11y.** Dodaj wymagane `DialogTitle`/description albo prawidlowe wizualnie ukryte etykiety. Nie zmieniaj layoutu onboardingu. Usun podwojna rejestracje pluginu w testach.
 - [ ] **Z221: bundle.** Odzyskaj min. 150 KB zapasu initial JS przez istniejace granice routingu/dynamic import, bez podnoszenia limitu. Sprawdz start i offline na iPhone/mobile viewport.
 - [ ] **Z222: obserwowalnosc kosztow i funnelu.** Zdarzenia lokalnie buforowane: register_started/profile_created/email_verified/paywall_viewed/trial_started/purchase_failed. Bez danych treningowych i bez osobnego zapisu per klik. Dodaj dashboard/raport dzienny kosztow Firestore, Functions i maili w granicach dostepnych API.
 
-### FAZA 6 - pelne bramki i wydanie
+### FAZA 7 - pelne bramki i wydanie
 
 - [x] `npm run test` - 139 plikow, 1224 testy PASS po poprawce P0 obu platform
 - [x] `npm --prefix functions test` - 18 plikow PASS + 1 skipped, 156 PASS + 7 skipped
@@ -143,10 +187,14 @@ To jest niespojnosc auth klient/backend, nie blad onboardingu ani wpisanego adre
 - [x] Android `assembleDebug` + podpisany `bundleRelease` - BUILD SUCCESSFUL; AAB 15,5 MB, `versionCode 6`, podpis zweryfikowany, SHA-256 artefaktu `099bb88f842dcf6234e61fc9e1929e6ad80547b0a28b82f9859397a08f08303f`
 - [x] App Attest + Play Integrity config/API + Functions deploy - `syncUserProfile` ACTIVE, kontrolowane produkcyjne callable smoke iOS i Android PASS
 - [x] emulator auth/functions: 7/7, rejestracja iOS/Android + zachowanie web invite-only
-- [ ] Real devices: TestFlight iPhone App Attest oraz Play Internal Android Play Integrity; register -> email code -> obecny onboarding -> paywall -> trial/purchase -> pierwszy trening -> background/resume -> sync
-- [ ] Metadata obu sklepow: screenshoty IAP, opis, privacy/data safety, review notes i konto demo
+- [ ] Kontrakt/macierze: wspolne fixture i testy kompatybilnosci web/iOS/Android/Apple Watch/Garmin oraz brak nieudokumentowanych roznic P0/P1
+- [ ] Apple Watch: build targetu i widgets w archive + realny iPhone/Watch, offline/reconnect/kill-resume/finish/discard/HealthKit bez duplikatu
+- [ ] Garmin: testy Functions i kontraktu + build na wszystkich urzadzeniach manifestu + podpisany eksport `.iq` + realny epix + smoke backendu na koncie technicznym
+- [ ] Real devices mobile: TestFlight iPhone App Attest oraz Play Internal Android Play Integrity; register -> email code -> obecny onboarding -> paywall -> trial/purchase -> pierwszy trening -> background/resume -> sync
+- [ ] Cross-device E2E: iOS<->Watch<->web oraz Android<->Garmin<->web, w tym offline, retry, konflikt, logout/revoke i jedna sesja w historii
+- [ ] Metadata trzech sklepow: App Store, Google Play i Connect IQ; screenshoty, opis, privacy/data safety/uprawnienia Health/FIT, review notes i konto demo/techniczne
 - [ ] Wpis zbiorczy X25 do `DECYZJE.md`, aktualizacja `PLAN.md` i `docs/PLAN_RELEASE_1.0.md`
-- [ ] Web deploy z zielonego commita; build iOS 84 do obu grup TestFlight oraz AAB 6 do Play Internal. Publiczny release ma byc wspolnym checkpointem obu platform.
+- [ ] Web deploy z zielonego commita; build iOS+Apple Watch do obu grup TestFlight, AAB Android do Play Internal i Garmin `.iq` zaakceptowany w Connect IQ. Publiczny release ma byc wspolnym checkpointem calego produktu; jezeli Connect IQ publikuje automatycznie po review, udokumentuj najblizsze mozliwe wspolne okno.
 
 ---
 
@@ -154,11 +202,14 @@ To jest niespojnosc auth klient/backend, nie blad onboardingu ani wpisanego adre
 
 1. `test(auth): odtworz brak profilu po rejestracji native (Z203)`
 2. `fix(auth): atestowana rejestracja i odporny bootstrap profilu iOS/Android (Z204-Z206)`
-3. `fix(iap): trial 7/14 i eligibility-aware paywall (Z207-Z210)`
-4. `perf(firebase): batching telemetrii i deduplikacja push (Z211-Z212)`
-5. `perf(firebase): waskie zapytania dashboardu i paginacja (Z213-Z218)`
-6. `fix(release): smoke a11y i zapas bundle (Z219-Z222)`
-7. `chore(release): bramki dokumentacja i build X25`
+3. `test(parity): macierz i wersjonowany kontrakt pieciu powierzchni (Z223-Z224)`
+4. `feat(watch): parytet Apple Watch i Garmin bez utraty offline (Z225-Z226)`
+5. `feat(devices): wspolny entitlement zarzadzanie i cross-device e2e (Z227-Z230)`
+6. `fix(iap): trial 7/14 i eligibility-aware paywall (Z207-Z210)`
+7. `perf(firebase): batching telemetrii i deduplikacja push (Z211-Z212)`
+8. `perf(firebase): waskie zapytania dashboardu i paginacja (Z213-Z218)`
+9. `fix(release): smoke a11y i zapas bundle (Z219-Z222)`
+10. `chore(release): bramki dokumentacja i build X25 wszystkich powierzchni`
 
 Stage'uj pliki imiennie. Nigdy `git add -A`. Nie lacz deployu Functions z niezweryfikowana zmiana klienta auth.
 
@@ -170,9 +221,13 @@ X25 jest zakonczony dopiero, gdy:
 
 1. blad `User profile missing` nie wystepuje i nowy user iOS oraz Android dochodzi do obecnego onboardingu;
 2. web bez invite nadal nie tworzy konta aplikacyjnego;
-3. App Store i paywall maja ceny 14,99/119,99 zl oraz $3.99/$31.99 i triale 7/14;
-4. trial copy jest zgodne z eligibility;
-5. funkcje aplikacji, historia, offline i synchronizacja pozostaja 1:1;
-6. raport przed/po pokazuje spadek odczytow i zapisow;
-7. wszystkie bramki sa zielone, web/functions wdrozone, a nowe buildy sa na TestFlight i Play Internal przed wspolnym publicznym wydaniem;
-8. onboarding nie zostal przebudowany ani skrocony w ramach tej pracy.
+3. macierz web/iOS/Android/Apple Watch/Garmin nie ma nieudokumentowanego braku P0/P1, a roznice urzadzeniowe sa jawne i celowe;
+4. App Store, Google Play i paywall maja ceny 14,99/119,99 zl oraz $3.99/$31.99 i triale 7/14;
+5. trial copy jest zgodne z eligibility, a jedno `pro` obejmuje wszystkie powierzchnie bez osobnego zakupu na zegarku;
+6. Apple Watch przechodzi real-device offline/reconnect/kill-resume i tworzy dokladnie jeden HKWorkout;
+7. Garmin przechodzi real-device offline/reconnect/ingest, tworzy FIT, nie duplikuje sesji i ma zaakceptowany artefakt Connect IQ;
+8. identyczne fixture daja te same kanoniczne serie, czas, tonaz i stan treningu na wszystkich klientach;
+9. funkcje aplikacji, historia, offline i synchronizacja pozostaja 1:1, a kazdy blad ma retry/discard/revoke;
+10. raport przed/po pokazuje spadek odczytow i zapisow, lacznie z budzetem requestow Garmin;
+11. wszystkie bramki sa zielone, web/functions wdrozone, iOS+Watch jest na TestFlight, Android w Play Internal, a Garmin zaakceptowany/gotowy w Connect IQ przed wspolnym publicznym wydaniem;
+12. onboarding nie zostal przebudowany ani skrocony w ramach tej pracy.
