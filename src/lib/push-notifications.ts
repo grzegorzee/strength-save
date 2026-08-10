@@ -3,6 +3,13 @@ import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import type { Notification } from '@capacitor-firebase/messaging';
 import { httpsCallable } from 'firebase/functions';
 import { functions, firebaseConfig } from './firebase';
+import {
+  hashPushToken,
+  shouldRegisterPushToken,
+  readPushRegistrationState,
+  markPushTokenConfirmed,
+  clearPushRegistrationState,
+} from './push-registration-state';
 
 // Rejestracja tokenu FCM użytkownika do powiadomień push (admin wysyła przez adminSendPush,
 // codzienne przypomnienie przez dailyTrainingReminder). Web push: VAPID z env
@@ -64,9 +71,19 @@ const deviceId = (): string => {
   return next;
 };
 
-async function saveToken(token: string): Promise<boolean> {
+// Z212: backend wołamy tylko po zmianie tokenu/uid albo po 30 dniach od
+// potwierdzenia. Refresh z nowym tokenem ma inny hash, więc idzie natychmiast.
+// `force` (świadoma akcja usera z Ustawień) pomija dedup — wyjście z każdego
+// zablokowanego stanu bez czekania 30 dni.
+async function saveToken(uid: string, token: string, opts: { force?: boolean } = {}): Promise<boolean> {
   try {
+    const tokenHash = await hashPushToken(token);
+    const now = Date.now();
+    if (!opts.force && !shouldRegisterPushToken(readPushRegistrationState(), tokenHash, uid, now)) {
+      return true; // token potwierdzony niedawno dla tego uid — zero callable
+    }
     await httpsCallable<{ token: string; deviceId: string }, { success: boolean }>(functions, 'registerPushToken')({ token, deviceId: deviceId() });
+    markPushTokenConfirmed(tokenHash, uid, now);
     return true;
   } catch (e) {
     console.error('[push] save token error', e);
@@ -76,13 +93,20 @@ async function saveToken(token: string): Promise<boolean> {
 
 /** Usuń token przypisany do bieżącego urządzenia przed zmianą konta. */
 export async function unregisterPushForUser(): Promise<void> {
-  if (!Capacitor.isNativePlatform() && !isWebPushSupported()) return;
+  if (!Capacitor.isNativePlatform() && !isWebPushSupported()) {
+    clearPushRegistrationState(); // Z212: logout zawsze usuwa stan poprzedniego uid
+    return;
+  }
   try {
     const token = Capacitor.isNativePlatform()
       ? (await FirebaseMessaging.getToken()).token
       : Notification.permission === 'granted' ? await getWebPushToken() : null;
-    if (!token) return;
+    if (!token) {
+      clearPushRegistrationState();
+      return;
+    }
     await httpsCallable<{ token: string }, { success: boolean }>(functions, 'unregisterPushToken')({ token });
+    clearPushRegistrationState();
   } catch (error) {
     throw new Error(`PUSH_TOKEN_REVOKE_FAILED: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -115,7 +139,7 @@ export async function registerPushForUser(uid: string): Promise<PushRegistration
     try {
       const token = await getWebPushToken();
       if (!token) return { status: 'no-token', permission: 'granted', tokenSaved: false };
-      const tokenSaved = await saveToken(token);
+      const tokenSaved = await saveToken(uid, token);
       return tokenSaved
         ? { status: 'registered', permission: 'granted', tokenSaved: true, tokenSuffix: token.slice(-8) }
         : { status: 'error', permission: 'granted', tokenSaved: false, error: 'TOKEN_SAVE_FAILED' };
@@ -133,7 +157,7 @@ export async function registerPushForUser(uid: string): Promise<PushRegistration
     if (!token) {
       return { status: 'no-token', permission: 'granted', tokenSaved: false };
     }
-    const tokenSaved = await saveToken(token);
+    const tokenSaved = await saveToken(uid, token);
     if (!tokenSaved) {
       return {
         status: 'error',
@@ -162,7 +186,7 @@ export async function requestPushPermission(uid: string): Promise<boolean> {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') return false;
       const token = await getWebPushToken();
-      return !!token && await saveToken(token);
+      return !!token && await saveToken(uid, token, { force: true });
     } catch (e) {
       console.error('[push] web request error', e);
       return false;
@@ -172,7 +196,7 @@ export async function requestPushPermission(uid: string): Promise<boolean> {
     const { receive } = await FirebaseMessaging.requestPermissions();
     if (receive !== 'granted') return false;
     const { token } = await FirebaseMessaging.getToken();
-    return !!token && await saveToken(token);
+    return !!token && await saveToken(uid, token, { force: true });
   } catch (e) {
     console.error('[push] request error', e);
     return false;
@@ -184,7 +208,9 @@ export function listenPushTokenRefresh(uid: string): () => void {
   let handle: { remove: () => void } | null = null;
   void FirebaseMessaging.addListener('tokenReceived', (event: { token?: string }) => {
     if (event?.token) {
-      void saveToken(event.token).then((saved) => {
+      // Z212: nowy token = inny hash = natychmiastowa rejestracja; ten sam
+      // token (iOS emituje event przy każdym getToken) = dedup, zero callable.
+      void saveToken(uid, event.token).then((saved) => {
         if (!saved) console.warn('[push] refreshed token was not saved');
       });
     }
