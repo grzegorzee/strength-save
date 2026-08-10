@@ -37,4 +37,12 @@
   <string id="DiscardWorkout">Discard workout</string>
   <string id="DiscardConfirm">Discard without saving?</string>
   <string id="Discarded">Discarded</string>
+  <string id="UnitLabel">Units</string>
+  <string id="ProRequired">Strength Save PRO required. Retry after renewal.</string>
+  <string id="DurationUnit">seconds</string>
+  <string id="DistanceUnit">metres</string>
+  <string id="AssistUnit">assistance</string>
+  <string id="Warmup">Warm-up</string>
+  <string id="WorkingSet">Working set</string>
+  <string id="Refresh">Refresh plan</string>
 </strings>

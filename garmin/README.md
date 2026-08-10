@@ -6,7 +6,7 @@ pobranie dnia (`garminDay`), odhaczanie serii ze stepperem, rest timer
 z wibracją, natywna sesja siłowa (FIT z HR) do Garmin Connect,
 kolejka offline i wysyłka treningu do `garminIngest`.
 
-## STATUS: DZIAŁA NA ZEGARKU, v3 GOTOWE (2026-07-28)
+## STATUS: v3 + kontrakt X25 zbudowany, czeka na bramę fizyczną (2026-08-10)
 
 SDK 9.2.0 zainstalowany, apka skompilowana, sparowana i przetestowana na
 epix (Gen 2) usera + w symulatorze (zrzuty). UI v2: lista dnia jako natywne
@@ -25,6 +25,14 @@ kolejkę i stan LOKALNIE (FIT do kosza, nic nie wysyła) — wyjście ze stanu
 (zegarek jest MTP-only; Garmin Express musi być zamknięty). Do publikacji w
 Store zostało: pobranie urządzeń fr255/265/955/965 + venu2/3 w SDK
 Managerze, ikona 1024x1024, screenshoty, formularz (sekcje A-D niżej).
+
+X25 zachowuje całą architekturę v3 i dodaje: kontrolę jednego entitlementu
+`pro` w pair/day/ingest, revocable token z TTL 180 dni, logout/delete revoke,
+cztery typy serii + warm-up w addytywnym protokole v1, kg/lbs wyłącznie w UI,
+jedną kanoniczną sesję telefonu+Garmina z per-set LWW oraz odporny nowy dzień.
+Kontekst dnia ma cache 15 min i ręczny refresh; aktywna EventQueue blokuje
+podmianę dnia do trwałego ACK. Typowy trening używa 1 requestu `garminDay` i
+1 finalnego `garminIngest`; UI timer/FIT/EventQueue nie zapisują nic co sekundę.
 
 ## KROKI USERA
 
@@ -87,7 +95,8 @@ możliwości wydania aktualizacji istniejącej apki. Trzymaj kopię w
 
 - `source/Api.mc` — makeWebRequest do Cloud Functions (Bearer token
   urządzenia z Application.Storage; limit odpowiedzi ~8KB → kompaktowy
-  kontrakt `garminDay`: `{v,d,y,n,f,e:[{i,n,t,p,s:[[reps,kg]]}]}`).
+  kontrakt `garminDay`: legacy `[reps,kg]` pozostaje, a nowy klient dostaje
+  `{v,d,y,n,z,e:[{i,n,k,s:[[reps,kg,duration,distance,assist,warmup]]}]}`.
 - `source/EventQueue.mc` — kolejka zdarzeń w Storage (idempotentne
   eventId), flush przy łączności, wysyłka finalna przy zakończeniu.
 - `source/SessionRecorder.mc` — ActivityRecording (strength) start przy

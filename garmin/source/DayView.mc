@@ -9,6 +9,7 @@ import Toybox.WatchUi;
 // poprawny layout na okrągłych ekranach każdego urządzenia bez ręcznego
 // liczenia marginesów, marquee długich nazw za darmo.
 class DayView extends WatchUi.View {
+    const DAY_CACHE_TTL_MS = 15 * 60 * 1000;
     var loading as Boolean = true;
     var errorCode as Number = 0;
 
@@ -22,11 +23,15 @@ class DayView extends WatchUi.View {
         // zawsze) albo brak listy ostatnich ćwiczeń. Wyjątek: szybki trening
         // z niewysłanymi seriami — jego kontekstu nie wolno nadpisać (reguła 5).
         var day = WorkoutState.day();
-        var keepQuick = WorkoutState.isQuick() && EventQueue.size() > 0;
+        var keepSession = EventQueue.size() > 0;
+        var fetchedAt = Application.Storage.getValue("dayFetchedAt");
+        var ttlExpired = fetchedAt == null
+            || WorkoutState.nowMs() - (fetchedAt as Long).toLong() > DAY_CACHE_TTL_MS;
         var stale = day == null
             || !(day["d"] as String).equals(WorkoutState.todayString())
-            || Application.Storage.getValue("recents") == null;
-        if (stale && !keepQuick) {
+            || Application.Storage.getValue("recents") == null
+            || ttlExpired;
+        if (stale && !keepSession) {
             fetch();
         } else {
             loading = false;
@@ -53,6 +58,7 @@ class DayView extends WatchUi.View {
             WatchUi.requestUpdate();
             return;
         }
+        Application.Storage.setValue("dayFetchedAt", WorkoutState.nowMs());
         // Lista ostatnich ćwiczeń do szybkiego treningu (też w dni wolne).
         if (data.hasKey("r")) {
             Application.Storage.setValue("recents", data["r"]);
@@ -84,9 +90,11 @@ class DayView extends WatchUi.View {
             return;
         }
         if (errorCode != 0) {
-            var message = errorCode >= 500
-                ? WatchUi.loadResource(Rez.Strings.ServerError) as String
-                : WatchUi.loadResource(Rez.Strings.NoConnection) as String;
+            var message = errorCode == 403
+                ? WatchUi.loadResource(Rez.Strings.ProRequired) as String
+                : (errorCode >= 500
+                    ? WatchUi.loadResource(Rez.Strings.ServerError) as String
+                    : WatchUi.loadResource(Rez.Strings.NoConnection) as String);
             dc.drawText(cx, h * 45 / 100, Graphics.FONT_XTINY, message,
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
             dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
@@ -124,6 +132,8 @@ class DayMenu extends WatchUi.Menu2 {
     var restSetIndex as Number = -1;
     var restExIndex as Number = -1;
     var sessionIndex as Number = -1;
+    var unitIndex as Number = -1;
+    var refreshIndex as Number = -1;
 
     function initialize() {
         var day = WorkoutState.day();
@@ -178,6 +188,11 @@ class DayMenu extends WatchUi.Menu2 {
         nextIndex += 1;
 
         addItem(new WatchUi.MenuItem(
+            WatchUi.loadResource(Rez.Strings.UnitLabel) as String, AppSettings.unitLabel(), :unit, {}));
+        unitIndex = nextIndex;
+        nextIndex += 1;
+
+        addItem(new WatchUi.MenuItem(
             WatchUi.loadResource(Rez.Strings.RestSetLabel) as String, AppSettings.restSetLabel(), :restSet, {}));
         restSetIndex = nextIndex;
         nextIndex += 1;
@@ -185,6 +200,11 @@ class DayMenu extends WatchUi.Menu2 {
         addItem(new WatchUi.MenuItem(
             WatchUi.loadResource(Rez.Strings.RestExLabel) as String, AppSettings.restExerciseLabel(), :restEx, {}));
         restExIndex = nextIndex;
+        nextIndex += 1;
+
+        addItem(new WatchUi.MenuItem(
+            WatchUi.loadResource(Rez.Strings.Refresh) as String, null, :refresh, {}));
+        refreshIndex = nextIndex;
     }
 
     function exerciseSubLabel(index as Number) as String {
@@ -202,8 +222,9 @@ class DayMenu extends WatchUi.Menu2 {
             if (WorkoutState.isDone(index, j)) { doneCount += 1; }
         }
         var label = doneCount.toString() + "/" + sets.size().toString();
-        if (exercise.hasKey("t")) {
-            label += " · " + (exercise["t"] as String);
+        var target = WorkoutState.targetLabel(exercise);
+        if (target != null) {
+            label += " · " + target;
         }
         return label;
     }
@@ -227,6 +248,9 @@ class DayMenu extends WatchUi.Menu2 {
         }
         if (stepIndex >= 0) {
             (getItem(stepIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.stepLabel());
+        }
+        if (unitIndex >= 0) {
+            (getItem(unitIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.unitLabel());
         }
         if (restSetIndex >= 0) {
             (getItem(restSetIndex) as WatchUi.MenuItem).setSubLabel(AppSettings.restSetLabel());
@@ -293,6 +317,9 @@ class DayMenuDelegate extends WatchUi.Menu2InputDelegate {
             AppSettings.cycleWeightStep();
             item.setSubLabel(AppSettings.stepLabel());
             WatchUi.requestUpdate();
+        } else if (id == :unit) {
+            AppSettings.cycleUnit();
+            rebuildMenu();
         } else if (id == :restSet) {
             AppSettings.cycleRestSetSeconds();
             item.setSubLabel(AppSettings.restSetLabel());
@@ -301,6 +328,17 @@ class DayMenuDelegate extends WatchUi.Menu2InputDelegate {
             AppSettings.cycleRestExerciseSeconds();
             item.setSubLabel(AppSettings.restExerciseLabel());
             WatchUi.requestUpdate();
+        } else if (id == :refresh) {
+            // Lifecycle/manual fetch only; pending session keeps its pinned day.
+            if (EventQueue.size() > 0) {
+                if (WatchUi has :showToast) {
+                    WatchUi.showToast(WatchUi.loadResource(Rez.Strings.FinishFirst) as String, null);
+                }
+                return;
+            }
+            Application.Storage.deleteValue("dayFetchedAt");
+            var refreshView = new DayView();
+            WatchUi.switchToView(refreshView, new DayDelegate(refreshView), WatchUi.SLIDE_RIGHT);
         } else if (id == :session) {
             WatchUi.pushView(new SessionView(), new SessionDelegate(), WatchUi.SLIDE_LEFT);
         } else if (id == :discard) {
@@ -322,10 +360,14 @@ class RecentsMenu extends WatchUi.Menu2 {
         Menu2.initialize({ :title => WatchUi.loadResource(Rez.Strings.AddExercise) as String });
         for (var i = 0; i < recents.size(); i++) {
             var recent = recents[i] as Dictionary;
-            var weightKg = recent["w"];
-            var sub = AppSettings.formatKg(
-                    weightKg instanceof Float ? weightKg as Float : (weightKg as Number).toFloat())
-                + " kg × " + (recent["p"] as Number).toString();
+            var preview = {
+                "k" => recent.hasKey("k") ? recent["k"] : "weight_reps",
+                "s" => [[recent["p"], recent["w"],
+                    recent.hasKey("d") ? recent["d"] : 0,
+                    recent.hasKey("m") ? recent["m"] : 0,
+                    recent.hasKey("a") ? recent["a"] : 0]],
+            };
+            var sub = WorkoutState.targetLabel(preview);
             addItem(new WatchUi.MenuItem(recent["n"] as String, sub, i, {}));
         }
     }
@@ -394,11 +436,23 @@ class FinishConfirmDelegate extends WatchUi.ConfirmationDelegate {
         // ok=false: zdarzenia zostają w kolejce (sublabel "do wysłania"), retry
         // przy kolejnym zakończeniu — ingest jest idempotentny.
         if (WatchUi has :showToast) {
-            WatchUi.showToast(WatchUi.loadResource(ok ? Rez.Strings.Saved : Rez.Strings.NoConnection) as String, null);
+            var code = Application.Storage.getValue("lastIngestCode");
+            var message = ok
+                ? Rez.Strings.Saved
+                : (code != null && (code as Number) == 403 ? Rez.Strings.ProRequired : Rez.Strings.NoConnection);
+            WatchUi.showToast(WatchUi.loadResource(message) as String, null);
         }
         if (ok && WorkoutState.isQuick()) {
             // Szybki trening wysłany: wróć do świeżo pobranego dnia z planu.
             WorkoutState.clearQuick();
+            var dayView = new DayView();
+            WatchUi.switchToView(dayView, new DayDelegate(dayView), WatchUi.SLIDE_RIGHT);
+            return;
+        }
+        var currentDay = WorkoutState.day();
+        if (ok && currentDay != null
+            && !(currentDay["d"] as String).equals(WorkoutState.todayString())) {
+            Application.Storage.deleteValue("dayFetchedAt");
             var dayView = new DayView();
             WatchUi.switchToView(dayView, new DayDelegate(dayView), WatchUi.SLIDE_RIGHT);
             return;

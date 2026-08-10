@@ -2,8 +2,8 @@
 // waliduje, deduplikuje po eventId (kolejka offline może dostarczyć podwójnie),
 // składa WorkoutSession ze snapshotami nazw (architektura snapshot+resolver)
 // i zapisuje przez Admin SDK pod idempotentnym docId garmin-<deviceId>-<workoutId>.
-// Guard jednoczesności (TWARDA ZASADA 4): completed sesja tego dnia planu już
-// istnieje => zapis jako osobna sesja ad-hoc, żadnego mergowania.
+// X25: planowa sesja telefonu i Garmina ma jeden kanoniczny dokument. Konflikty
+// serii rozstrzyga updatedAt per set (fallback: updatedAt sesji), nowsza wygrywa.
 
 export const GARMIN_PROTOCOL_VERSION = 1 as const;
 
@@ -39,7 +39,10 @@ export interface GarminIngestPayload {
 }
 
 export interface GarminIngestDeps {
-  hasCompletedSessionForDay(uid: string, date: string, dayId: string): Promise<boolean>;
+  findCanonicalSession(uid: string, date: string, dayId: string): Promise<{
+    docId: string;
+    doc: Record<string, unknown>;
+  } | null>;
   saveWorkout(docId: string, doc: Record<string, unknown>): Promise<void>;
   now(): number;
 }
@@ -254,20 +257,15 @@ export interface GarminSessionDoc {
       durationSec?: number;
       distanceM?: number;
       assistWeight?: number;
+      /** Server-side LWW timestamp for cross-device conflict resolution. */
+      updatedAt?: number;
     }>;
   }>;
 }
 
-export function buildSessionFromEvents(
-  payload: GarminIngestPayload,
-  uid: string,
-  deviceId: string,
-  options: { adhoc: boolean },
-): GarminSessionDoc {
-  // Dedup po eventId, potem local-wins po timestamp per (exerciseId, setIndex).
+const selectedSetEvents = (events: GarminIngestEvent[]): GarminIngestEvent[] => {
   const byEventId = new Map<string, GarminIngestEvent>();
-  for (const event of payload.events) {
-    // Retry tego samego eventId nie może zmienić wcześniej przyjętej treści.
+  for (const event of events) {
     if (!byEventId.has(event.id)) byEventId.set(event.id, event);
   }
   const bySet = new Map<string, GarminIngestEvent>();
@@ -278,10 +276,30 @@ export function buildSessionFromEvents(
       bySet.set(key, event);
     }
   }
+  return [...bySet.values()].sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
+};
 
+const setFromEvent = (event: GarminIngestEvent) => ({
+  reps: event.reps,
+  weight: event.weight,
+  completed: true,
+  ...(event.isWarmup ? { isWarmup: true } : {}),
+  ...(event.durationSec !== undefined ? { durationSec: event.durationSec } : {}),
+  ...(event.distanceM !== undefined ? { distanceM: event.distanceM } : {}),
+  ...(event.assistWeight !== undefined ? { assistWeight: event.assistWeight } : {}),
+  updatedAt: event.at,
+});
+
+export function buildSessionFromEvents(
+  payload: GarminIngestPayload,
+  uid: string,
+  deviceId: string,
+  options: { adhoc: boolean },
+): GarminSessionDoc {
+  // Dedup po eventId, potem local-wins po timestamp per (exerciseId, setIndex).
   const exercisesOrder: string[] = [];
   const exercisesMap = new Map<string, { name: string; sets: Map<number, GarminIngestEvent> }>();
-  for (const event of [...bySet.values()].sort((a, b) => a.at - b.at)) {
+  for (const event of selectedSetEvents(payload.events)) {
     if (!exercisesMap.has(event.exerciseId)) {
       exercisesMap.set(event.exerciseId, { name: event.exerciseName, sets: new Map() });
       exercisesOrder.push(event.exerciseId);
@@ -313,25 +331,175 @@ export function buildSessionFromEvents(
       return {
         exerciseId,
         name: entry.name,
-        sets: indexes.map((index) => {
-          const event = entry.sets.get(index)!;
-          return {
-            reps: event.reps,
-            weight: event.weight,
-            completed: true,
-            ...(event.isWarmup ? { isWarmup: true } : {}),
-            ...(event.durationSec !== undefined ? { durationSec: event.durationSec } : {}),
-            ...(event.distanceM !== undefined ? { distanceM: event.distanceM } : {}),
-            ...(event.assistWeight !== undefined ? { assistWeight: event.assistWeight } : {}),
-          };
+        sets: Array.from({ length: indexes.at(-1)! + 1 }, (_, index) => {
+          const event = entry.sets.get(index);
+          return event
+            ? setFromEvent(event)
+            : { reps: 0, weight: 0, completed: false };
         }),
       };
     }),
   };
 }
 
+type ExistingExercise = {
+  exerciseId?: unknown;
+  name?: unknown;
+  sets?: unknown;
+  [key: string]: unknown;
+};
+
+/** Merge only Garmin-touched sets; unrelated phone data and exercise metadata survive. */
+export function mergeGarminIntoCanonical(
+  canonical: Record<string, unknown>,
+  payload: GarminIngestPayload,
+  now: number,
+): Record<string, unknown> {
+  const sessionUpdatedAt = typeof canonical.updatedAt === "number"
+    ? canonical.updatedAt
+    : typeof canonical.completedAt === "number" ? canonical.completedAt : 0;
+  const exercises = Array.isArray(canonical.exercises)
+    ? canonical.exercises.map((exercise) => {
+      const copy = { ...(exercise as ExistingExercise) };
+      if (Array.isArray(copy.sets)) {
+        copy.sets = copy.sets.map((set) => {
+          const setCopy = { ...(set as Record<string, unknown>) };
+          return typeof setCopy.updatedAt === "number"
+            ? setCopy
+            : { ...setCopy, updatedAt: sessionUpdatedAt };
+        });
+      }
+      return copy;
+    })
+    : [];
+  let changed = canonical.dayId !== payload.dayId
+    || canonical.date !== payload.date
+    || canonical.completed !== true;
+
+  for (const event of selectedSetEvents(payload.events)) {
+    let exercise = exercises.find((candidate) => candidate.exerciseId === event.exerciseId);
+    if (!exercise) {
+      exercise = { exerciseId: event.exerciseId, name: event.exerciseName, sets: [] };
+      exercises.push(exercise);
+    }
+    const sets = Array.isArray(exercise.sets)
+      ? exercise.sets.map((set) => ({ ...(set as Record<string, unknown>) }))
+      : [];
+    const current = sets[event.setIndex];
+    const currentUpdatedAt = typeof current?.updatedAt === "number" ? current.updatedAt : sessionUpdatedAt;
+    if (!current || event.at > currentUpdatedAt) {
+      while (sets.length < event.setIndex) sets.push({ reps: 0, weight: 0, completed: false });
+      sets[event.setIndex] = setFromEvent(event);
+      changed = true;
+    }
+    exercise.sets = sets;
+  }
+
+  const existingCompletedAt = typeof canonical.completedAt === "number" ? canonical.completedAt : 0;
+  const existingStartedAt = typeof canonical.startedAt === "number" ? canonical.startedAt : undefined;
+  const startedAt = payload.startedAt === undefined
+    ? existingStartedAt
+    : existingStartedAt === undefined ? payload.startedAt : Math.min(existingStartedAt, payload.startedAt);
+  const completedAt = Math.max(existingCompletedAt, payload.finishedAt);
+  const durationSec = startedAt !== undefined
+    ? Math.max(0, Math.round((completedAt - startedAt) / 1000))
+    : undefined;
+  if (startedAt !== existingStartedAt
+    || completedAt !== existingCompletedAt
+    || (durationSec !== undefined && durationSec !== canonical.durationSec)) changed = true;
+  if (!changed) return canonical;
+  return {
+    ...canonical,
+    dayId: payload.dayId,
+    date: payload.date,
+    completed: true,
+    exercises,
+    ...(startedAt !== undefined ? { startedAt } : {}),
+    completedAt,
+    ...(startedAt !== undefined
+      ? { durationSec }
+      : {}),
+    updatedAt: now,
+    revision: (typeof canonical.revision === "number" ? canonical.revision : 0) + 1,
+  };
+}
+
+/**
+ * Final transaction guard for a phone write racing after the initial Garmin query.
+ * Per-set timestamps win; a missing set is additive, never a reason to drop data.
+ */
+export function mergeCanonicalWorkoutDocuments(
+  current: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+  now: number,
+): Record<string, unknown> {
+  const currentAt = typeof current.updatedAt === "number" ? current.updatedAt : 0;
+  const incomingAt = typeof incoming.updatedAt === "number" ? incoming.updatedAt : 0;
+  const exercises = Array.isArray(current.exercises)
+    ? current.exercises.map((exercise) => {
+      const copy = { ...(exercise as ExistingExercise) };
+      copy.sets = Array.isArray(copy.sets)
+        ? copy.sets.map((set) => ({ ...(set as Record<string, unknown>) }))
+        : [];
+      return copy;
+    })
+    : [];
+
+  if (Array.isArray(incoming.exercises)) {
+    for (const rawIncomingExercise of incoming.exercises) {
+      const incomingExercise = rawIncomingExercise as ExistingExercise;
+      const exerciseId = typeof incomingExercise.exerciseId === "string" ? incomingExercise.exerciseId : "";
+      if (!exerciseId) continue;
+      const target = exercises.find((exercise) => exercise.exerciseId === exerciseId);
+      if (!target) {
+        exercises.push({ ...incomingExercise });
+        continue;
+      }
+      const targetSets = Array.isArray(target.sets) ? target.sets : [];
+      const incomingSets = Array.isArray(incomingExercise.sets) ? incomingExercise.sets : [];
+      for (let index = 0; index < incomingSets.length; index += 1) {
+        const incomingSet = incomingSets[index] as Record<string, unknown> | undefined;
+        if (!incomingSet) continue;
+        const currentSet = targetSets[index] as Record<string, unknown> | undefined;
+        const incomingSetAt = typeof incomingSet.updatedAt === "number" ? incomingSet.updatedAt : incomingAt;
+        const currentSetAt = typeof currentSet?.updatedAt === "number" ? currentSet.updatedAt : currentAt;
+        if (!currentSet || incomingSetAt > currentSetAt) {
+          while (targetSets.length < index) targetSets.push({ reps: 0, weight: 0, completed: false });
+          targetSets[index] = { ...incomingSet };
+        }
+      }
+      target.sets = targetSets;
+    }
+  }
+
+  const currentCompletedAt = typeof current.completedAt === "number" ? current.completedAt : 0;
+  const incomingCompletedAt = typeof incoming.completedAt === "number" ? incoming.completedAt : 0;
+  const currentStartedAt = typeof current.startedAt === "number" ? current.startedAt : undefined;
+  const incomingStartedAt = typeof incoming.startedAt === "number" ? incoming.startedAt : undefined;
+  const startedAt = currentStartedAt === undefined
+    ? incomingStartedAt
+    : incomingStartedAt === undefined ? currentStartedAt : Math.min(currentStartedAt, incomingStartedAt);
+  const completedAt = Math.max(currentCompletedAt, incomingCompletedAt);
+  const currentRevision = typeof current.revision === "number" ? current.revision : 0;
+  const incomingRevision = typeof incoming.revision === "number" ? incoming.revision : 0;
+
+  return {
+    ...incoming,
+    ...current,
+    exercises,
+    completed: current.completed === true || incoming.completed === true,
+    ...(startedAt !== undefined ? { startedAt } : {}),
+    ...(completedAt > 0 ? { completedAt } : {}),
+    ...(startedAt !== undefined && completedAt > 0
+      ? { durationSec: Math.max(0, Math.round((completedAt - startedAt) / 1000)) }
+      : {}),
+    updatedAt: now,
+    revision: Math.max(currentRevision, incomingRevision) + 1,
+  };
+}
+
 export type IngestResult =
-  | { ok: true; docId: string; adhoc: boolean }
+  | { ok: true; docId: string; adhoc: boolean; merged: boolean }
   | { ok: false; reason: "invalid" };
 
 export async function runGarminIngest(
@@ -343,9 +511,17 @@ export async function runGarminIngest(
   const payload = validateIngestPayload(raw);
   if (!payload) return { ok: false, reason: "invalid" };
 
-  const adhoc = await deps.hasCompletedSessionForDay(uid, payload.date, payload.dayId);
-  const session = buildSessionFromEvents(payload, uid, deviceId, { adhoc });
+  const adhoc = payload.dayId.startsWith("adhoc-");
+  const canonical = adhoc
+    ? null
+    : await deps.findCanonicalSession(uid, payload.date, payload.dayId);
+  if (canonical) {
+    const merged = mergeGarminIntoCanonical(canonical.doc, payload, deps.now());
+    if (merged !== canonical.doc) await deps.saveWorkout(canonical.docId, merged);
+    return { ok: true, docId: canonical.docId, adhoc: false, merged: true };
+  }
+  const session = buildSessionFromEvents(payload, uid, deviceId, { adhoc: false });
   const { id, ...doc } = session;
   await deps.saveWorkout(id, { ...doc, updatedAt: deps.now() });
-  return { ok: true, docId: id, adhoc };
+  return { ok: true, docId: id, adhoc, merged: false };
 }

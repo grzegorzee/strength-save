@@ -82,7 +82,7 @@ describe('Garmin protocol compatibility (X25/Z224)', () => {
     let releaseSave: (() => void) | null = null;
     const saveGate = new Promise<void>(resolve => { releaseSave = resolve; });
     const deps: GarminIngestDeps = {
-      hasCompletedSessionForDay: vi.fn(async () => false),
+      findCanonicalSession: vi.fn(async () => null),
       saveWorkout: vi.fn(async () => saveGate),
       now: () => fixture.plannedSession.events.at(-1)!.at,
     };
@@ -96,4 +96,3 @@ describe('Garmin protocol compatibility (X25/Z224)', () => {
     await expect(operation).resolves.toMatchObject({ ok: true });
   });
 });
-

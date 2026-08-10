@@ -6,6 +6,8 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 // zależnościami (wzorzec weekly-digest) — testowalna bez emulatora.
 
 export const PAIR_CODE_TTL_MS = 10 * 60 * 1000;
+/** Device tokens are revocable and also expire even if a user never unpairs. */
+export const DEVICE_TOKEN_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
 export interface PairCodeDoc {
   uid: string;
@@ -23,6 +25,8 @@ export interface DeviceTokenDoc {
   createdAt: number;
   lastUsedAt: number;
   revokedAt: number | null;
+  /** Epoch ms. Missing legacy values fall back to createdAt + TTL. */
+  expiresAt?: number;
 }
 
 export interface GarminPairDeps {
@@ -91,6 +95,7 @@ export async function exchangeCode(deps: GarminPairDeps, rawCode: unknown): Prom
     createdAt: now,
     lastUsedAt: now,
     revokedAt: null,
+    expiresAt: now + DEVICE_TOKEN_TTL_MS,
   });
   await deps.markCodeUsed(codeHash);
   return { ok: true, token, deviceId: deviceIdFromTokenHash(tokenHash), uid: doc.uid };
@@ -108,6 +113,8 @@ export async function authenticateDevice(deps: GarminPairDeps, rawToken: unknown
   const tokenHash = hashSecret(token, deps.pepper);
   const doc = await deps.getDeviceToken(tokenHash);
   if (!doc || doc.revokedAt !== null) return null;
+  const expiresAt = doc.expiresAt ?? doc.createdAt + DEVICE_TOKEN_TTL_MS;
+  if (deps.now() > expiresAt) return null;
   const previousUse = doc.lastUsedAt;
   await deps.touchDeviceToken(tokenHash, deps.now());
   return { uid: doc.uid, deviceId: deviceIdFromTokenHash(tokenHash), lastUsedAt: previousUse };

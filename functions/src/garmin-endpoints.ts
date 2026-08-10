@@ -10,8 +10,10 @@ import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import {
   authenticateDevice,
+  DEVICE_TOKEN_TTL_MS,
   deviceIdFromTokenHash,
   exchangeCode,
+  hashSecret,
   randomDeviceToken,
   randomPairCode,
   startPairing,
@@ -20,13 +22,22 @@ import {
   type DeviceTokenDoc,
 } from "./garmin-pair";
 import {
+  resolveGarminEntitlement,
+  type GarminCapabilitySnapshot,
+  type GarminEntitlementProfile,
+} from "./garmin-entitlement";
+import {
   buildGarminDayContext,
   buildRecentExercises,
   isGarminResponseWithinLimit,
   type GarminPlanDay,
   type GarminWorkout,
 } from "./garmin-day";
-import { runGarminIngest } from "./garmin-ingest";
+import {
+  mergeCanonicalWorkoutDocuments,
+  runGarminIngest,
+  type GarminTrackingType,
+} from "./garmin-ingest";
 
 const garminPepper = defineSecret("API_KEY_PEPPER");
 
@@ -71,6 +82,11 @@ const makePairDeps = (pepper: string): GarminPairDeps => ({
 /** Callable: user w Ustawieniach generuje kod parowania. */
 export const garminPairStart = onCall({ secrets: [garminPepper] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  const profileSnap = await getDb().collection("users").doc(request.auth.uid).get();
+  const entitlement = resolveGarminEntitlement(
+    profileSnap.exists ? profileSnap.data() as GarminEntitlementProfile : undefined,
+  );
+  if (!entitlement.active) throw new HttpsError("permission-denied", "PRO required");
   const label = typeof request.data?.label === "string" && request.data.label.trim()
     ? request.data.label.trim()
     : "Garmin";
@@ -85,6 +101,10 @@ export const garminDevices = onCall(async (request) => {
     .where("uid", "==", request.auth.uid).get();
   const devices = snap.docs
     .filter((doc) => (doc.data() as DeviceTokenDoc).revokedAt === null)
+    .filter((doc) => {
+      const data = doc.data() as DeviceTokenDoc;
+      return Date.now() <= (data.expiresAt ?? data.createdAt + DEVICE_TOKEN_TTL_MS);
+    })
     .map((doc) => {
       const data = doc.data() as DeviceTokenDoc;
       return {
@@ -92,9 +112,23 @@ export const garminDevices = onCall(async (request) => {
         label: data.label,
         createdAt: data.createdAt,
         lastUsedAt: data.lastUsedAt,
+        expiresAt: data.expiresAt ?? null,
       };
     });
   return { devices };
+});
+
+/** Callable used by account logout/delete flows: all Garmin bearer tokens stop. */
+export const garminRevokeAllDevices = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  const snap = await getDb().collection(DEVICE_TOKENS_COLLECTION)
+    .where("uid", "==", request.auth.uid).get();
+  const active = snap.docs.filter((doc) => (doc.data() as DeviceTokenDoc).revokedAt === null);
+  const batch = getDb().batch();
+  const revokedAt = Date.now();
+  for (const doc of active) batch.update(doc.ref, { revokedAt });
+  if (active.length > 0) await batch.commit();
+  return { revoked: active.length };
 });
 
 /** Callable: odłączenie urządzenia (revoke tokenu). */
@@ -121,6 +155,16 @@ export const garminPair = onRequest({ secrets: [garminPepper] }, async (req, res
   if (!result.ok) {
     logger.info("garminPair rejected", { reason: result.reason });
     res.status(401).json({ error: result.reason });
+    return;
+  }
+  const profileSnap = await getDb().collection("users").doc(result.uid).get();
+  const entitlement = resolveGarminEntitlement(
+    profileSnap.exists ? profileSnap.data() as GarminEntitlementProfile : undefined,
+  );
+  if (!entitlement.active) {
+    const tokenHash = hashSecret(result.token, garminPepper.value());
+    await getDb().collection(DEVICE_TOKENS_COLLECTION).doc(tokenHash).update({ revokedAt: Date.now() });
+    res.status(403).json({ error: "pro-required", z: entitlement.snapshot });
     return;
   }
   res.json({ token: result.token, deviceId: result.deviceId });
@@ -154,21 +198,37 @@ const sendGarminDayPayload = (
 async function authorizedDevice(
   pepper: string,
   authorizationHeader: unknown,
-): Promise<{ uid: string; deviceId: string } | { status: number; error: string }> {
+): Promise<{
+  uid: string;
+  deviceId: string;
+  entitlement: GarminCapabilitySnapshot;
+} | { status: number; error: string; entitlement?: GarminCapabilitySnapshot }> {
   const token = bearerToken(authorizationHeader);
   if (!token) return { status: 401, error: "missing-token" };
   const deps = makePairDeps(pepper);
   const auth = await authenticateDevice(deps, token);
   if (!auth) return { status: 401, error: "invalid-token" };
   if (Date.now() - auth.lastUsedAt < MIN_REQUEST_INTERVAL_MS) return { status: 429, error: "rate-limited" };
-  return { uid: auth.uid, deviceId: auth.deviceId };
+  const profileSnap = await getDb().collection("users").doc(auth.uid).get();
+  const entitlement = resolveGarminEntitlement(
+    profileSnap.exists ? profileSnap.data() as GarminEntitlementProfile : undefined,
+  );
+  if (!entitlement.active) return {
+    status: 403,
+    error: "pro-required",
+    entitlement: entitlement.snapshot,
+  };
+  return { uid: auth.uid, deviceId: auth.deviceId, entitlement: entitlement.snapshot };
 }
 
 /** HTTP: kontekst dnia dla zegarka (kompaktowy JSON < 8KB). */
 export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res) => {
   const auth = await authorizedDevice(garminPepper.value(), req.headers.authorization);
   if ("status" in auth) {
-    res.status(auth.status).json({ error: auth.error });
+    res.status(auth.status).json({
+      error: auth.error,
+      ...("entitlement" in auth ? { z: auth.entitlement } : {}),
+    });
     return;
   }
   const date = typeof req.query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
@@ -192,7 +252,7 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
   const recentsField = recents.length > 0 ? { r: recents } : {};
 
   if (!Array.isArray(planDays) || planDays.length === 0) {
-    sendGarminDayPayload(res, { v: 1, d: date, rest: true, ...recentsField });
+    sendGarminDayPayload(res, { v: 1, d: date, rest: true, z: auth.entitlement, ...recentsField });
     return;
   }
 
@@ -206,12 +266,25 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
     if (text) notes[data.exerciseName] = text;
   }
 
-  const context = buildGarminDayContext(planDays, workouts, date, notes);
+  const customExercisesSnap = await db.collection("custom_exercises")
+    .where("userId", "==", auth.uid).limit(100).get();
+  const trackingByName: Record<string, GarminTrackingType> = {};
+  const supportedTracking = new Set<GarminTrackingType>([
+    "weight_reps", "duration", "weight_distance_duration", "assisted_bodyweight",
+  ]);
+  for (const doc of customExercisesSnap.docs) {
+    const data = doc.data() as { name?: unknown; tracking?: unknown };
+    if (typeof data.name === "string" && supportedTracking.has(data.tracking as GarminTrackingType)) {
+      trackingByName[data.name.toLocaleLowerCase("pl")] = data.tracking as GarminTrackingType;
+    }
+  }
+
+  const context = buildGarminDayContext(planDays, workouts, date, notes, trackingByName);
   if (!context) {
-    sendGarminDayPayload(res, { v: 1, d: date, rest: true, ...recentsField });
+    sendGarminDayPayload(res, { v: 1, d: date, rest: true, z: auth.entitlement, ...recentsField });
     return;
   }
-  sendGarminDayPayload(res, { ...context, ...recentsField });
+  sendGarminDayPayload(res, { ...context, z: auth.entitlement, ...recentsField });
 });
 
 /** HTTP: paczka zdarzeń odhaczeń + zakończenie treningu z zegarka. */
@@ -222,23 +295,35 @@ export const garminIngest = onRequest({ secrets: [garminPepper] }, async (req, r
   }
   const auth = await authorizedDevice(garminPepper.value(), req.headers.authorization);
   if ("status" in auth) {
-    res.status(auth.status).json({ error: auth.error });
+    res.status(auth.status).json({
+      error: auth.error,
+      ...("entitlement" in auth ? { z: auth.entitlement } : {}),
+    });
     return;
   }
 
   const result = await runGarminIngest({
-    hasCompletedSessionForDay: async (uid, date, dayId) => {
+    findCanonicalSession: async (uid, date, dayId) => {
       const snap = await getDb().collection("workouts")
         .where("userId", "==", uid)
         .where("date", "==", date)
-        .where("dayId", "==", dayId)
-        .where("completed", "==", true)
-        .limit(1)
         .get();
-      return !snap.empty;
+      const candidates = snap.docs
+        .filter((doc) => doc.data()?.dayId === dayId)
+        .sort((a, b) => Number(b.data()?.updatedAt ?? b.data()?.completedAt ?? 0)
+          - Number(a.data()?.updatedAt ?? a.data()?.completedAt ?? 0));
+      const canonical = candidates[0];
+      return canonical ? { docId: canonical.id, doc: canonical.data() } : null;
     },
     saveWorkout: async (docId, doc) => {
-      await getDb().collection("workouts").doc(docId).set(doc);
+      const ref = getDb().collection("workouts").doc(docId);
+      await getDb().runTransaction(async (transaction) => {
+        const current = await transaction.get(ref);
+        const next = current.exists
+          ? mergeCanonicalWorkoutDocuments(current.data()!, doc, Date.now())
+          : doc;
+        transaction.set(ref, next);
+      });
     },
     now: () => Date.now(),
   }, auth.uid, auth.deviceId, req.body);
@@ -247,6 +332,8 @@ export const garminIngest = onRequest({ secrets: [garminPepper] }, async (req, r
     res.status(400).json({ error: result.reason });
     return;
   }
-  logger.info("garminIngest saved", { uid: auth.uid, docId: result.docId, adhoc: result.adhoc });
-  res.json({ saved: true, docId: result.docId, adhoc: result.adhoc });
+  logger.info("garminIngest saved", {
+    uid: auth.uid, docId: result.docId, adhoc: result.adhoc, merged: result.merged,
+  });
+  res.json({ saved: true, docId: result.docId, adhoc: result.adhoc, merged: result.merged });
 });

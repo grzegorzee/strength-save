@@ -82,6 +82,16 @@ Kod zamyka G04, G05, G07, G08, G09, G10 i G14: quick workout korzysta z małej l
 
 Dowód automatyczny: `src/test/watch-swift-contract.test.ts`, `src/test/watch-set-conflict.test.ts`, `src/test/watch-contract.test.ts`, `src/test/watch-event-router.test.tsx`, `src/test/watch-workout-sync.test.tsx`, `src/test/watch-quick-route.test.ts`, `src/test/watch-plan-preview.test.tsx` i `src/test/cross-platform-protocol.test.ts` — 37/37 PASS; pełny `npm run test` — 144 pliki/1252 PASS; Xcode `App` generic iOS Simulator — exit 0.
 
+## Delta Z226 — Garmin
+
+Kod zamyka implementacyjnie G03, G06, G11, G13 i garminową część G17. Token urządzenia nadal jest minimalny i zahashowany, ale ma teraz 180-dniowy TTL, ręczny revoke, revoke-all przed zakończeniem logoutu oraz serwerową kontrolę jednego entitlementu `pro` przy pair/day/ingest. `403 pro-required` nie usuwa tokenu ani EventQueue, więc odnowienie PRO pozwala ponowić finalny batch; `401` po revoke/expiry wymaga ponownego sparowania, lecz również nie kasuje sesji offline. Delete account usuwa `device_pair_codes` i `device_tokens` po `uid`.
+
+`garminDay.v=1` zachowuje legacy tuple `[reps,kg]`, a dla nowego klienta dodaje tracking i pola `[durationSec,distanceM,assistWeightKg,warmup]`; EventQueue wysyła jednocześnie stare aliasy oraz wspólną kopertę v1. Zegarek edytuje wszystkie cztery trackingi i warm-up, przechowuje wyłącznie kanoniczne kg, a kg/lbs zmienia tylko prezentację oraz przelicza krok dokładną stałą `0.45359237`. Plan jest pobierany przy wejściu, ręcznym refreshu albo po TTL 15 min — nigdy per set ani per sekundę; aktywna kolejka przypina stary dzień aż do ACK.
+
+G11 nie tworzy już cichej sesji `(Garmin)`. Backend wyszukuje kanoniczny workout tego samego `uid/date/dayId`, scala tylko dotknięte serie według per-set `updatedAt`/`at`, a końcowy zapis ma transakcyjny drugi merge na wypadek równoległej edycji telefonu. Retry po utraconym ACK rozpoznaje identyczny wynik i nie podbija `revision` ani nie wykonuje drugiego zapisu.
+
+Dowód automatyczny: `functions/src/garmin-entitlement.test.ts`, `garmin-pair.test.ts`, `garmin-day.test.ts`, `garmin-ingest.test.ts`, `garmin-conflict.test.ts`, `garmin-protocol.test.ts`, `garmin-client-contract.test.ts`, `garmin-units.test.ts` i `security.test.ts`; pełne Functions 175 PASS, aplikacja 1253 PASS. SDK Connect IQ 9.2.0 buduje epix2, fenix7, fr255, venu3 i vivoactive5. G03/G11/G17 pozostają produkcyjnie warunkowe do scenariusza G1-G9 na fizycznym Garminie i koncie technicznym; Z227 doda wspólny ekran urządzeń oraz podpisany capability snapshot.
+
 ## Dowody audytu
 
 - React/web/iOS/Android: `src/types/index.ts`, `src/lib/workout-draft-db.ts`, `src/lib/workout-sync-engine.ts`, `src/lib/purchases.ts`, `src/hooks/useSubscription.ts`.

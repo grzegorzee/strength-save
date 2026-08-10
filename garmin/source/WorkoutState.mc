@@ -8,7 +8,8 @@ import Toybox.Time.Gregorian;
 // (Storage — przeżywa wyjście z apki), kolejka zdarzeń do garminIngest.
 // mode: "plan" (dzień z garminDay) | "quick" (szybki trening ad-hoc).
 module WorkoutState {
-    // day: {v,d,y,n,f,e:[{i,n,t,p,s:[[reps,kg]]}]}; done: {"exIdx#setIdx" => [reps,kg,atMs]}
+    // day: {v,d,y,n,f,e:[{i,n,k,p,s:[[reps,kg,duration,distance,assist,warmup]]}]}
+    // done uses the same compact values plus atMs. Legacy [reps,kg] remains valid.
     function day() as Dictionary or Null {
         return Application.Storage.getValue("day") as Dictionary or Null;
     }
@@ -65,13 +66,62 @@ module WorkoutState {
         if (d == null) { return; }
         var reps = recent["p"] as Number;
         var weightKg = recent["w"];
+        var tracking = recent.hasKey("k") ? recent["k"] : "weight_reps";
+        var compact = [reps, weightKg];
+        if ("duration".equals(tracking)) {
+            compact = [0, 0, recent.hasKey("d") ? recent["d"] : 0];
+        } else if ("weight_distance_duration".equals(tracking)) {
+            compact = [reps, weightKg,
+                recent.hasKey("d") ? recent["d"] : 0,
+                recent.hasKey("m") ? recent["m"] : 0];
+        } else if ("assisted_bodyweight".equals(tracking)) {
+            compact = [reps, 0, 0, 0, recent.hasKey("a") ? recent["a"] : 0];
+        }
         var exercises = d["e"] as Array;
         exercises.add({
             "i" => recent["i"],
             "n" => recent["n"],
-            "s" => [[reps, weightKg], [reps, weightKg], [reps, weightKg]],
+            "k" => tracking,
+            "s" => [compact, compact, compact],
         });
         Application.Storage.setValue("day", d);
+    }
+
+    function asFloat(value) as Float {
+        return value instanceof Float ? value as Float : (value as Number).toFloat();
+    }
+
+    function compactValue(pair as Array, index as Number) {
+        return index < pair.size() ? pair[index] : 0;
+    }
+
+    function trackingFor(exercise as Dictionary) as String {
+        return exercise.hasKey("k") ? exercise["k"] as String : "weight_reps";
+    }
+
+    function targetLabel(exercise as Dictionary) as String or Null {
+        var sets = exercise["s"] as Array;
+        if (sets.size() == 0) { return null; }
+        var pair = sets[0] as Array;
+        var tracking = trackingFor(exercise);
+        var reps = compactValue(pair, 0) as Number;
+        var kg = asFloat(compactValue(pair, 1));
+        if ("duration".equals(tracking)) {
+            var durationOnly = compactValue(pair, 2) as Number;
+            return durationOnly > 0 ? AppSettings.formatSeconds(durationOnly) : null;
+        }
+        if ("weight_distance_duration".equals(tracking)) {
+            var distance = compactValue(pair, 3) as Number;
+            var carryDuration = compactValue(pair, 2) as Number;
+            return AppSettings.formatWeight(kg) + " " + AppSettings.unitLabel()
+                + " · " + distance.toString() + " m · " + AppSettings.formatSeconds(carryDuration);
+        }
+        if ("assisted_bodyweight".equals(tracking)) {
+            var assist = asFloat(compactValue(pair, 4));
+            return reps.toString() + " × -" + AppSettings.formatWeight(assist) + " " + AppSettings.unitLabel();
+        }
+        if (reps == 0 && kg.abs() < 0.001) { return null; }
+        return AppSettings.formatWeight(kg) + " " + AppSettings.unitLabel() + " × " + reps.toString();
     }
 
     // Serie logowane są po kolei, więc ciągły prefiks done == liczba zaliczonych.
@@ -139,7 +189,17 @@ module WorkoutState {
     }
 
     // Odhaczenie serii: lokalny stan + zdarzenie do kolejki.
-    function logSet(exIdx as Number, setIdx as Number, reps as Number, weightKg as Float) as Void {
+    function logSet(
+        exIdx as Number,
+        setIdx as Number,
+        reps as Number,
+        weightKg as Float,
+        durationSec as Number,
+        distanceM as Number,
+        assistWeightKg as Float,
+        isWarmup as Boolean,
+        tracking as String
+    ) as Void {
         ensureWorkoutStarted();
         var d = day();
         if (d == null) { return; }
@@ -147,17 +207,37 @@ module WorkoutState {
         var exercise = exercises[exIdx] as Dictionary;
 
         var progress = done();
-        progress[exIdx.toString() + "#" + setIdx.toString()] = [reps, weightKg, nowMs()];
+        var at = nowMs();
+        progress[exIdx.toString() + "#" + setIdx.toString()] = [
+            reps, weightKg, at, durationSec, distanceM, assistWeightKg, isWarmup ? 1 : 0,
+        ];
         Application.Storage.setValue("done", progress);
 
+        var eventId = "e-" + at.toString() + "-" + exIdx.toString() + "-" + setIdx.toString();
         EventQueue.push({
-            "id" => "e-" + nowMs().toString() + "-" + exIdx.toString() + "-" + setIdx.toString(),
+            "id" => eventId,
             "exerciseId" => exercise["i"],
             "exerciseName" => exercise["n"],
             "setIndex" => setIdx,
             "reps" => reps,
             "weight" => weightKg,
-            "at" => nowMs(),
+            "at" => at,
+            "protocolVersion" => 1,
+            "eventId" => eventId,
+            "canonicalType" => "set_logged",
+            "dayId" => d["y"],
+            "sessionId" => Application.Storage.getValue("workoutId"),
+            "deviceId" => Application.Storage.getValue("deviceId"),
+            "set" => {
+                "tracking" => tracking,
+                "completed" => true,
+                "isWarmup" => isWarmup,
+                "reps" => reps,
+                "weightKg" => weightKg,
+                "durationSec" => durationSec,
+                "distanceM" => distanceM,
+                "assistWeightKg" => assistWeightKg,
+            },
         });
     }
 
@@ -172,7 +252,10 @@ module WorkoutState {
         var src = sd == null ? d : sd as Dictionary;
         if (src == null) { callback.invoke(false); return; }
         var payload = {
+            "v" => 1,
+            "protocolVersion" => 1,
             "workoutId" => Application.Storage.getValue("workoutId"),
+            "sessionId" => Application.Storage.getValue("workoutId"),
             "date" => src["d"],
             "dayId" => src["y"],
             "dayName" => src["n"],
@@ -185,7 +268,8 @@ module WorkoutState {
         Api.ingest(payload, new Lang.Method($.WorkoutState, :onFinishResponse));
     }
 
-    function onFinishResponse(ok as Boolean) as Void {
+    function onFinishResponse(ok as Boolean, code as Number) as Void {
+        Application.Storage.setValue("lastIngestCode", code);
         if (ok) {
             EventQueue.clear();
             Application.Storage.setValue("workoutId", null);

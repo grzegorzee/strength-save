@@ -45,10 +45,13 @@ export const GDPR_USER_ID_COLLECTIONS = [
   "api_audit_logs",
   "notification_logs",
   "app_telemetry_daily",
+  "custom_exercises",
 ] as const;
 
 export const GDPR_UID_FIELD_COLLECTIONS = [
   "email_verification_codes",
+  "device_pair_codes",
+  "device_tokens",
 ] as const;
 
 export const GDPR_DIRECT_DOC_COLLECTIONS = [

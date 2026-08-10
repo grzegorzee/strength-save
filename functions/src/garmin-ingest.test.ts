@@ -25,7 +25,7 @@ const validPayload = () => ({
 const makeDeps = (over: Partial<GarminIngestDeps> = {}) => {
   const saved = new Map<string, Record<string, unknown>>();
   const deps: GarminIngestDeps = {
-    hasCompletedSessionForDay: vi.fn(async () => false),
+    findCanonicalSession: vi.fn(async () => null),
     saveWorkout: vi.fn(async (docId: string, doc: Record<string, unknown>) => { saved.set(docId, doc); }),
     now: () => NOW,
     ...over,
@@ -68,8 +68,8 @@ describe("buildSessionFromEvents (Z125)", () => {
       name: "Wyciskanie hantli (Lekki skos)",
     });
     expect(session.exercises[0].sets).toEqual([
-      { reps: 6, weight: 62.5, completed: true },
-      { reps: 6, weight: 62.5, completed: true },
+      { reps: 6, weight: 62.5, completed: true, updatedAt: NOW - 3000 },
+      { reps: 6, weight: 62.5, completed: true, updatedAt: NOW - 2000 },
     ]);
   });
 
@@ -80,7 +80,9 @@ describe("buildSessionFromEvents (Z125)", () => {
       { id: "b", exerciseId: "ex-1", exerciseName: "Wyciskanie", setIndex: 0, reps: 8, weight: 62.5, at: NOW - 1000 },
     ];
     const session = buildSessionFromEvents(validateIngestPayload(raw)!, "user-1", "dev123", { adhoc: false });
-    expect(session.exercises[0].sets).toEqual([{ reps: 8, weight: 62.5, completed: true }]);
+    expect(session.exercises[0].sets).toEqual([{
+      reps: 8, weight: 62.5, completed: true, updatedAt: NOW - 1000,
+    }]);
   });
 });
 
@@ -94,16 +96,40 @@ describe("runGarminIngest (Z125)", () => {
     expect(doc.durationSec).toBe(3600);
   });
 
-  it("guard jednoczesności: istnieje completed sesja tego dnia planu => zapis jako ad-hoc, zero nadpisania", async () => {
-    const { deps, saved } = makeDeps({ hasCompletedSessionForDay: vi.fn(async () => true) });
+  it("konflikt telefonu z Garminem scala do jednej kanonicznej sesji; nowsza seria wygrywa", async () => {
+    const phoneUpdatedAt = NOW - 4_000;
+    const { deps, saved } = makeDeps({
+      findCanonicalSession: vi.fn(async () => ({
+        docId: "phone-session-1",
+        doc: {
+          userId: "user-1", dayId: "day-1", date: "2026-07-20", completed: true,
+          updatedAt: phoneUpdatedAt,
+          exercises: [{
+            exerciseId: "ex-1", name: "Wyciskanie",
+            sets: [
+              { reps: 5, weight: 60, completed: true, updatedAt: NOW - 2_000 },
+              { reps: 7, weight: 60, completed: true, updatedAt: NOW - 4_000 },
+            ],
+          }],
+        },
+      })),
+    });
     const out = await runGarminIngest(deps, "user-1", "dev123", validPayload());
-    expect(out.ok).toBe(true);
-    if (!out.ok) throw new Error("unreachable");
-    expect(out.adhoc).toBe(true);
-    const doc = saved.get(out.docId)!;
-    expect(doc.dayId).not.toBe("day-1");
-    expect(String(doc.dayId)).toMatch(/^adhoc-2026-07-20-/);
-    expect(String(doc.dayName)).toContain("Garmin");
+    expect(out).toMatchObject({ ok: true, docId: "phone-session-1", merged: true, adhoc: false });
+    expect([...saved.keys()]).toEqual(["phone-session-1"]);
+    const doc = saved.get("phone-session-1")!;
+    expect(doc.dayId).toBe("day-1");
+    expect(doc.exercises).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        exerciseId: "ex-1",
+        sets: [
+          // Garmin set 0 jest starszy niż zapis telefonu i nie może go cofnąć.
+          expect.objectContaining({ reps: 5, weight: 60, completed: true }),
+          // Garmin set 1 jest nowszy niż zapis telefonu i wygrywa per set.
+          expect.objectContaining({ reps: 6, weight: 62.5, completed: true }),
+        ],
+      }),
+    ]));
   });
 
   it("niepoprawna paczka => invalid, zero zapisu", async () => {
@@ -111,5 +137,22 @@ describe("runGarminIngest (Z125)", () => {
     const out = await runGarminIngest(deps, "user-1", "dev123", { nope: 1 });
     expect(out).toEqual({ ok: false, reason: "invalid" });
     expect(saved.size).toBe(0);
+  });
+
+  it("lost-ACK retry tej samej paczki nie zapisuje ani nie podbija revision drugi raz", async () => {
+    const saved = new Map<string, Record<string, unknown>>();
+    const deps: GarminIngestDeps = {
+      findCanonicalSession: vi.fn(async (_uid, date, dayId) => {
+        const entry = [...saved.entries()].find(([, doc]) => doc.date === date && doc.dayId === dayId);
+        return entry ? { docId: entry[0], doc: entry[1] } : null;
+      }),
+      saveWorkout: vi.fn(async (docId, doc) => { saved.set(docId, doc); }),
+      now: () => NOW,
+    };
+    await runGarminIngest(deps, "user-1", "dev123", validPayload());
+    const first = structuredClone(saved.get("garmin-dev123-w-20260720-1")!);
+    await runGarminIngest(deps, "user-1", "dev123", validPayload());
+    expect(deps.saveWorkout).toHaveBeenCalledTimes(1);
+    expect(saved.get("garmin-dev123-w-20260720-1")).toEqual(first);
   });
 });

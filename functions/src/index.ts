@@ -76,6 +76,7 @@ export {
   garminPairStart,
   garminDevices,
   garminRevokeDevice,
+  garminRevokeAllDevices,
   garminPair,
   garminDay,
   garminIngest,

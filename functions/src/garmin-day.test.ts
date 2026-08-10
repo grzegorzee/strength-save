@@ -15,7 +15,7 @@ const day: GarminPlanDay = {
   focus: "Klatka / Przysiad",
   exercises: [
     { id: "ex-1", name: "Wyciskanie hantli (Lekki skos)", sets: "3 x 6-8" },
-    { id: "ex-2", name: "Przysiad ze sztangą (High Bar)", sets: "3 x 6-8" },
+    { id: "ex-2", name: "Plank", sets: "3 x 60", tracking: "duration" },
   ],
 };
 
@@ -42,11 +42,38 @@ describe("buildGarminDayContext (Z125)", () => {
     const ex1 = ctx!.e[0];
     // Góra zakresu dowieziona => cel +2.5 kg, reps do dołu zakresu (parytet z decideNextSet).
     expect(ex1.t).toBe("62.5 kg × 6");
+    expect(ex1.k).toBe("weight_reps");
     expect(ex1.s).toEqual([[6, 62.5], [6, 62.5], [6, 62.5]]);
     // Bez historii: puste serie wg liczby z planu, bez celu.
     const ex2 = ctx!.e[1];
     expect(ex2.t).toBeUndefined();
-    expect(ex2.s).toEqual([[0, 0], [0, 0], [0, 0]]);
+    expect(ex2.k).toBe("duration");
+    expect(ex2.s).toEqual([[0, 0, 0], [0, 0, 0], [0, 0, 0]]);
+  });
+
+  it("carries duration, distance, assistance and warm-up semantics in additive tuple fields", () => {
+    const trackedDay: GarminPlanDay = {
+      ...day,
+      exercises: [
+        { id: "duration", name: "Plank", sets: "1 x 60", tracking: "duration" },
+        { id: "carry", name: "Spacer farmera", sets: "1 x 40", tracking: "weight_distance_duration" },
+        { id: "assist", name: "Podciąganie wspomagane", sets: "1 x 8", tracking: "assisted_bodyweight" },
+      ],
+    };
+    const history: GarminWorkout[] = [{
+      date: "2026-07-19", completed: true,
+      exercises: [
+        { exerciseId: "duration", sets: [{ reps: 0, weight: 0, durationSec: 60, completed: true }] },
+        { exerciseId: "carry", sets: [{ reps: 0, weight: 24, distanceM: 40, durationSec: 55, completed: true, isWarmup: true }] },
+        { exerciseId: "assist", sets: [{ reps: 8, weight: 0, assistWeight: 25, completed: true }] },
+      ],
+    }];
+    const ctx = buildGarminDayContext([trackedDay], history, "2026-07-20", {});
+    expect(ctx?.e).toEqual([
+      expect.objectContaining({ k: "duration", s: [[0, 0, 60]] }),
+      expect.objectContaining({ k: "weight_distance_duration", s: [[0, 24, 55, 40, 0, 1]] }),
+      expect.objectContaining({ k: "assisted_bodyweight", s: [[8, 0, 0, 0, 25]] }),
+    ]);
   });
 
   it("wynik w zakresie => cel: ten sam ciężar, +1 powtórzenie", () => {
@@ -106,6 +133,20 @@ describe("buildRecentExercises", () => {
     ]);
     expect(recents.map((r) => r.i)).toEqual(["ex-1", "ex-2"]);
     expect(recents[0]).toEqual({ i: "ex-1", n: "Przysiad", w: 85, p: 5 });
+  });
+
+  it("quick-workout recents retain the four tracking fields", () => {
+    const recents = buildRecentExercises([{
+      date: "2026-07-20", completed: true,
+      exercises: [{
+        exerciseId: "carry", name: "Spacer farmera",
+        sets: [{ reps: 0, weight: 24, durationSec: 60, distanceM: 40, completed: true }],
+      }],
+    }]);
+    expect(recents[0]).toEqual({
+      i: "carry", n: "Spacer farmera", k: "weight_distance_duration",
+      w: 24, p: 0, d: 60, m: 40,
+    });
   });
 
   it("limit 10, brak snapshotu nazwy => exerciseId, bodyweight (0 kg) wchodzi", () => {

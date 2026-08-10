@@ -46,7 +46,7 @@ class SessionView extends WatchUi.View {
                 + (stats["sets"] as Number).toString(), center);
         dc.drawText(cx, h * 72 / 100, Graphics.FONT_SMALL,
             (WatchUi.loadResource(Rez.Strings.TonnageLabel) as String) + ": "
-                + AppSettings.formatKg(stats["tonnage"] as Float) + " kg", center);
+                + AppSettings.formatWeight(stats["tonnage"] as Float) + " " + AppSettings.unitLabel(), center);
     }
 }
 

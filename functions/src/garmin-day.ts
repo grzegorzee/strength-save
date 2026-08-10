@@ -4,10 +4,14 @@
 // (parytet reguł progress/hold z decideNextSet klienta pilnowany testami; plateau/ból/
 // deload zostają na telefonie — v2 po wydzieleniu silnika do wspólnego pakietu).
 
+import type { GarminTrackingType } from "./garmin-ingest";
+
 export interface GarminPlanExercise {
   id: string;
   name: string;
   sets: string;
+  /** Additive X25 field; old plan docs omit it and resolve by name/history. */
+  tracking?: GarminTrackingType;
 }
 
 export interface GarminPlanDay {
@@ -25,7 +29,15 @@ export interface GarminWorkout {
     exerciseId: string;
     /** Snapshot nazwy (architektura snapshot+resolver). */
     name?: string;
-    sets: Array<{ reps: number; weight: number; completed: boolean; isWarmup?: boolean }>;
+    sets: Array<{
+      reps: number;
+      weight: number;
+      completed: boolean;
+      isWarmup?: boolean;
+      durationSec?: number;
+      distanceM?: number;
+      assistWeight?: number;
+    }>;
   }>;
 }
 
@@ -49,12 +61,38 @@ export interface GarminRecentExercise {
   w: number;
   /** Powtórzenia z najcięższej serii ostatniego wykonania. */
   p: number;
+  /** Non-default tracking; omitted for legacy weight_reps. */
+  k?: GarminTrackingType;
+  /** duration seconds / distance metres / assistance kg. */
+  d?: number;
+  m?: number;
+  a?: number;
 }
+
+type GarminCompactSet = [number, number, number?, number?, number?, (0 | 1)?];
+
+const trackingFromSet = (set: GarminWorkout["exercises"][number]["sets"][number]): GarminTrackingType => {
+  if ((set.assistWeight ?? 0) > 0) return "assisted_bodyweight";
+  if ((set.distanceM ?? 0) > 0 || ((set.durationSec ?? 0) > 0 && set.weight > 0)) {
+    return "weight_distance_duration";
+  }
+  if ((set.durationSec ?? 0) > 0) return "duration";
+  return "weight_reps";
+};
 
 /** Ostatnio wykonywane ćwiczenia (dedup po exerciseId, najnowsze najpierw) —
  *  źródło wyboru dla szybkiego treningu na zegarku. */
 export function buildRecentExercises(workouts: GarminWorkout[], limit = 10): GarminRecentExercise[] {
-  const byId = new Map<string, { n: string; w: number; p: number; date: string }>();
+  const byId = new Map<string, {
+    n: string;
+    w: number;
+    p: number;
+    date: string;
+    k?: GarminTrackingType;
+    d?: number;
+    m?: number;
+    a?: number;
+  }>();
   for (const w of workouts) {
     if (!w.completed || !Array.isArray(w.exercises)) continue;
     for (const ex of w.exercises) {
@@ -63,15 +101,32 @@ export function buildRecentExercises(workouts: GarminWorkout[], limit = 10): Gar
       if (working.length === 0) continue;
       const existing = byId.get(ex.exerciseId);
       if (existing && existing.date >= w.date) continue;
+      const lastSet = working.at(-1)!;
       const weight = Math.max(...working.map((s) => s.weight));
       const reps = Math.max(...working.filter((s) => s.weight === weight).map((s) => s.reps));
-      byId.set(ex.exerciseId, { n: ex.name ?? ex.exerciseId, w: weight, p: reps, date: w.date });
+      const tracking = trackingFromSet(lastSet);
+      byId.set(ex.exerciseId, {
+        n: ex.name ?? ex.exerciseId,
+        w: weight,
+        p: reps,
+        date: w.date,
+        ...(tracking !== "weight_reps" ? { k: tracking } : {}),
+        ...(lastSet.durationSec !== undefined ? { d: lastSet.durationSec } : {}),
+        ...(lastSet.distanceM !== undefined ? { m: lastSet.distanceM } : {}),
+        ...(lastSet.assistWeight !== undefined ? { a: lastSet.assistWeight } : {}),
+      });
     }
   }
   return [...byId.entries()]
     .sort((a, b) => (a[1].date < b[1].date ? 1 : a[1].date > b[1].date ? -1 : 0))
     .slice(0, limit)
-    .map(([i, e]) => ({ i, n: e.n, w: e.w, p: e.p }));
+    .map(([i, e]) => ({
+      i, n: e.n, w: e.w, p: e.p,
+      ...(e.k ? { k: e.k } : {}),
+      ...(e.d !== undefined ? { d: e.d } : {}),
+      ...(e.m !== undefined ? { m: e.m } : {}),
+      ...(e.a !== undefined ? { a: e.a } : {}),
+    }));
 }
 
 export interface GarminDayContext {
@@ -93,8 +148,10 @@ export interface GarminDayContext {
     t?: string;
     /** Przypięta notatka (X14A), przycięta. */
     p?: string;
-    /** Working sets jako [reps, weightKg] — pre-fill do odhaczania. */
-    s: Array<[number, number]>;
+    /** Tracking type; legacy client ignores it and defaults to reps/weight. */
+    k: GarminTrackingType;
+    /** [reps, kg, durationSec?, distanceM?, assistKg?, warmup?]. */
+    s: GarminCompactSet[];
   }>;
 }
 
@@ -143,11 +200,77 @@ const lastExecution = (workouts: GarminWorkout[], exerciseId: string): { weight:
   return result;
 };
 
+const BUILTIN_TRACKING_BY_NAME: Record<string, GarminTrackingType> = {
+  "plank": "duration",
+  "plank boczny (side plank)": "duration",
+  "plank z dotykaniem barków": "duration",
+  "izometryczny chwyt farmera (farmer's hold)": "weight_distance_duration",
+  "spacer farmera (farmer's walk)": "weight_distance_duration",
+  "podciąganie wspomagane na maszynie": "assisted_bodyweight",
+  "dipy wspomagane na maszynie": "assisted_bodyweight",
+};
+
+const latestCompletedSet = (
+  workouts: GarminWorkout[],
+  exerciseId: string,
+): GarminWorkout["exercises"][number]["sets"][number] | null => {
+  let bestDate = "";
+  let result: GarminWorkout["exercises"][number]["sets"][number] | null = null;
+  for (const workout of workouts) {
+    if (!workout.completed || workout.date < bestDate) continue;
+    const exercise = workout.exercises.find((candidate) => candidate.exerciseId === exerciseId);
+    const completed = exercise?.sets.filter((set) => set.completed) ?? [];
+    if (completed.length > 0 && (workout.date > bestDate || result === null)) {
+      bestDate = workout.date;
+      result = completed.at(-1)!;
+    }
+  }
+  return result;
+};
+
+const resolveTracking = (
+  exercise: GarminPlanExercise,
+  workouts: GarminWorkout[],
+  trackingByName: Record<string, GarminTrackingType>,
+): GarminTrackingType => {
+  if (exercise.tracking) return exercise.tracking;
+  const override = trackingByName[exercise.name.toLocaleLowerCase("pl")];
+  if (override) return override;
+  const builtin = BUILTIN_TRACKING_BY_NAME[exercise.name.toLocaleLowerCase("pl")];
+  if (builtin) return builtin;
+  const historical = latestCompletedSet(workouts, exercise.id);
+  return historical ? trackingFromSet(historical) : "weight_reps";
+};
+
+const compactSet = (
+  tracking: GarminTrackingType,
+  target: { reps: number; weight: number } | null,
+  previous: GarminWorkout["exercises"][number]["sets"][number] | null,
+): GarminCompactSet => {
+  const reps = tracking === "assisted_bodyweight"
+    ? previous?.reps ?? target?.reps ?? 0
+    : target?.reps ?? (tracking === "weight_reps" ? 0 : previous?.reps ?? 0);
+  const weight = tracking === "weight_reps"
+    ? target?.weight ?? 0
+    : previous?.weight ?? 0;
+  if (tracking === "weight_reps") return [reps, weight];
+  if (tracking === "duration") return [0, 0, previous?.durationSec ?? 0];
+  if (tracking === "weight_distance_duration") {
+    return previous?.isWarmup
+      ? [reps, weight, previous?.durationSec ?? 0, previous?.distanceM ?? 0, previous?.assistWeight ?? 0, 1]
+      : [reps, weight, previous?.durationSec ?? 0, previous?.distanceM ?? 0];
+  }
+  return previous?.isWarmup
+    ? [reps, 0, 0, 0, previous?.assistWeight ?? 0, 1]
+    : [reps, 0, 0, 0, previous?.assistWeight ?? 0];
+};
+
 export function buildGarminDayContext(
   planDays: GarminPlanDay[],
   workouts: GarminWorkout[],
   date: string,
   pinnedNotesByName: Record<string, string>,
+  trackingByName: Record<string, GarminTrackingType> = {},
 ): GarminDayContext | null {
   const weekday = weekdayOf(date);
   const day = planDays.find((d) => d.weekday === weekday);
@@ -163,6 +286,8 @@ export function buildGarminDayContext(
       const count = parseSetCount(exercise.sets);
       const range = parseRepRange(exercise.sets);
       const last = lastExecution(workouts, exercise.id);
+      const previous = latestCompletedSet(workouts, exercise.id);
+      const tracking = resolveTracking(exercise, workouts, trackingByName);
 
       let target: { reps: number; weight: number } | null = null;
       if (last) {
@@ -177,12 +302,12 @@ export function buildGarminDayContext(
       }
 
       const note = pinnedNotesByName[exercise.name];
-      const sets: Array<[number, number]> = Array.from({ length: count }, () =>
-        target ? [target.reps, target.weight] : [0, 0]);
+      const sets = Array.from({ length: count }, () => compactSet(tracking, target, previous));
 
       return {
         i: exercise.id,
         n: exercise.name,
+        k: tracking,
         ...(target ? { t: `${formatKg(target.weight)} kg × ${target.reps}` } : {}),
         ...(note ? { p: note.slice(0, NOTE_MAX) } : {}),
         s: sets,

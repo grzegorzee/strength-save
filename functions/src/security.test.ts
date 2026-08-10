@@ -203,11 +203,16 @@ describe("GDPR collection coverage", () => {
       "strava_activities",
       "api_audit_logs",
       "notification_logs",
+      "custom_exercises",
     ]));
   });
 
   it("covers uid-keyed and direct-doc collections", () => {
     expect(GDPR_UID_FIELD_COLLECTIONS).toContain("email_verification_codes");
+    expect(GDPR_UID_FIELD_COLLECTIONS).toEqual(expect.arrayContaining([
+      "device_pair_codes",
+      "device_tokens",
+    ]));
     expect(GDPR_DIRECT_DOC_COLLECTIONS).toEqual(expect.arrayContaining([
       "strava_connections",
       "training_plans",

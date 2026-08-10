@@ -37,4 +37,12 @@
   <string id="DiscardWorkout">Odrzuć trening</string>
   <string id="DiscardConfirm">Odrzucić bez zapisu?</string>
   <string id="Discarded">Odrzucono</string>
+  <string id="UnitLabel">Jednostki</string>
+  <string id="ProRequired">Wymagany Strength Save PRO. Ponów po odnowieniu.</string>
+  <string id="DurationUnit">sekundy</string>
+  <string id="DistanceUnit">metry</string>
+  <string id="AssistUnit">asysta</string>
+  <string id="Warmup">Rozgrzewka</string>
+  <string id="WorkingSet">Seria robocza</string>
+  <string id="Refresh">Odśwież plan</string>
 </strings>

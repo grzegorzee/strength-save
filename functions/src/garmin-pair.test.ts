@@ -6,6 +6,7 @@ import {
   hashSecret,
   deviceIdFromTokenHash,
   PAIR_CODE_TTL_MS,
+  DEVICE_TOKEN_TTL_MS,
   type GarminPairDeps,
   type PairCodeDoc,
   type DeviceTokenDoc,
@@ -59,6 +60,7 @@ describe("exchangeCode (Z125)", () => {
     expect(out.token.length).toBeGreaterThanOrEqual(32);
     const tokenHash = hashSecret(out.token, PEPPER);
     expect(tokens.get(tokenHash)).toMatchObject({ uid: "user-1", label: "Fenix 8", revokedAt: null });
+    expect(tokens.get(tokenHash)?.expiresAt).toBe(NOW + DEVICE_TOKEN_TTL_MS);
     expect(out.deviceId).toBe(deviceIdFromTokenHash(tokenHash));
     expect(deps.markCodeUsed).toHaveBeenCalled();
   });
@@ -115,5 +117,15 @@ describe("authenticateDevice (Z125)", () => {
     const tokenHash = hashSecret(pair.token, PEPPER);
     tokens.set(tokenHash, { ...tokens.get(tokenHash)!, revokedAt: NOW });
     expect(await authenticateDevice(deps, pair.token)).toBeNull();
+  });
+
+  it("wygasły token jest odrzucany i nie dotyka lastUsedAt", async () => {
+    const { deps } = makeDeps();
+    await startPairing(deps, "user-1", "Fenix 8");
+    const pair = await exchangeCode(deps, "123456");
+    if (!pair.ok) throw new Error("pairing failed");
+    const late = { ...deps, now: () => NOW + DEVICE_TOKEN_TTL_MS + 1 };
+    expect(await authenticateDevice(late, pair.token)).toBeNull();
+    expect(deps.touchDeviceToken).not.toHaveBeenCalled();
   });
 });

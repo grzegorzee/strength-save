@@ -71,6 +71,13 @@ module Api {
             // Token cofnięty — powrót do parowania.
             Application.Storage.deleteValue("deviceToken");
         }
+        if (responseCode == 403) {
+            // Entitlement expired: keep token and every local event. A renewed
+            // subscription can retry without re-pairing or losing the workout.
+            Application.Storage.setValue("proBlocked", true);
+        } else if (responseCode == 200) {
+            Application.Storage.setValue("proBlocked", false);
+        }
         var cb = _dayCb;
         _dayCb = null;
         if (cb != null) {
@@ -79,7 +86,7 @@ module Api {
     }
 
     // Wysyłka paczki zdarzeń treningu (idempotentna po workoutId/eventId).
-    function ingest(payload as Dictionary, callback as Method(ok as Boolean) as Void) as Void {
+    function ingest(payload as Dictionary, callback as Method(ok as Boolean, code as Number) as Void) as Void {
         _ingestCb = callback;
         Communications.makeWebRequest(
             BASE + "/garminIngest",
@@ -94,8 +101,16 @@ module Api {
     }
 
     function onIngestResponse(responseCode as Number, data as Dictionary or String or Null) as Void {
+        if (responseCode == 401) {
+            Application.Storage.deleteValue("deviceToken");
+        }
+        if (responseCode == 403) {
+            Application.Storage.setValue("proBlocked", true);
+        } else if (responseCode == 200) {
+            Application.Storage.setValue("proBlocked", false);
+        }
         var cb = _ingestCb;
         _ingestCb = null;
-        if (cb != null) { (cb as Method).invoke(responseCode == 200); }
+        if (cb != null) { (cb as Method).invoke(responseCode == 200, responseCode); }
     }
 }

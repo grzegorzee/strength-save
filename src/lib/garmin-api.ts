@@ -55,3 +55,12 @@ export async function revokeGarminDevice(deviceId: string): Promise<void> {
   const call = httpsCallable<{ deviceId: string }, { revoked: boolean }>(functions, 'garminRevokeDevice');
   await call({ deviceId });
 }
+
+export async function revokeAllGarminDevices(): Promise<void> {
+  if (isE2EMode) {
+    try { window.localStorage.removeItem('fittracker_e2e_garmin_devices'); } catch { /* noop */ }
+    return;
+  }
+  const call = httpsCallable<Record<string, never>, { revoked: number }>(functions, 'garminRevokeAllDevices');
+  await call({});
+}

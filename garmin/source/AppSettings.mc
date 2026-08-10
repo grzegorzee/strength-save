@@ -6,7 +6,11 @@ import Toybox.WatchUi;
 // krok ciężaru oraz przerwy (między seriami i między ćwiczeniami — domyślne
 // 90/150 s w parytecie z telefonem, rest-timer.ts DEFAULT_REST_SETTINGS).
 module AppSettings {
-    const STEPS = [0.5, 1.0, 1.25, 2.5, 5.0];
+    // Canonical persistence is always kg. Pounds exist only in presentation
+    // and step input, using the exact international conversion constant.
+    const LB_TO_KG = 0.45359237;
+    const KG_STEPS = [0.5, 1.0, 1.25, 2.5, 5.0];
+    const LB_STEPS = [0.5, 1.0, 2.5, 5.0, 10.0];
     const REST_SET_STEPS = [30, 60, 90, 120, 150, 180, 240];
     const REST_EXERCISE_STEPS = [0, 60, 90, 120, 150, 180, 240, 300];
 
@@ -63,19 +67,46 @@ module AppSettings {
     }
 
     function weightStep() as Float {
-        var v = Application.Storage.getValue("weightStep");
-        return v == null ? 2.5 : (v as Float);
+        var key = usesLbs() ? "weightStepLb" : "weightStepKg";
+        var v = Application.Storage.getValue(key);
+        // Migrate the old kg-only setting without changing its meaning.
+        if (v == null && !usesLbs()) { v = Application.Storage.getValue("weightStep"); }
+        return v == null ? (usesLbs() ? 5.0 : 2.5) : (v as Float);
     }
 
     function cycleWeightStep() as Float {
+        var steps = usesLbs() ? LB_STEPS : KG_STEPS;
         var current = weightStep();
         var idx = 0;
-        for (var i = 0; i < STEPS.size(); i++) {
-            if (((STEPS[i] as Float) - current).abs() < 0.01) { idx = i; break; }
+        for (var i = 0; i < steps.size(); i++) {
+            if (((steps[i] as Float) - current).abs() < 0.01) { idx = i; break; }
         }
-        var next = STEPS[(idx + 1) % STEPS.size()] as Float;
-        Application.Storage.setValue("weightStep", next);
+        var next = steps[(idx + 1) % steps.size()] as Float;
+        Application.Storage.setValue(usesLbs() ? "weightStepLb" : "weightStepKg", next);
         return next;
+    }
+
+    function usesLbs() as Boolean {
+        return "lbs".equals(Application.Storage.getValue("unit"));
+    }
+
+    function cycleUnit() as String {
+        var next = usesLbs() ? "kg" : "lbs";
+        Application.Storage.setValue("unit", next);
+        return next;
+    }
+
+    function unitLabel() as String {
+        return usesLbs() ? "lbs" : "kg";
+    }
+
+    function weightStepKg() as Float {
+        return usesLbs() ? weightStep() * LB_TO_KG : weightStep();
+    }
+
+    function adjustWeightKg(valueKg as Float, direction as Number) as Float {
+        var next = valueKg + weightStepKg() * direction;
+        return next < 0.0 ? 0.0 : next;
     }
 
     // "82.5" bez zbędnych zer: 80 -> "80", 82.5 -> "82.5", 81.25 -> "81.25".
@@ -90,7 +121,11 @@ module AppSettings {
         return value.format("%.2f");
     }
 
+    function formatWeight(valueKg as Float) as String {
+        return formatKg(usesLbs() ? valueKg / LB_TO_KG : valueKg);
+    }
+
     function stepLabel() as String {
-        return formatKg(weightStep()) + " kg";
+        return formatKg(weightStep()) + " " + unitLabel();
     }
 }

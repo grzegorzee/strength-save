@@ -12,7 +12,11 @@ class ExerciseView extends WatchUi.View {
     var exIdx as Number;
     var reps as Number = 0;
     var weight as Float = 0.0;
-    var editReps as Boolean = false;
+    var durationSec as Number = 0;
+    var distanceM as Number = 0;
+    var assistWeight as Float = 0.0;
+    var isWarmup as Boolean = false;
+    var editField as Number = 0;
     var restLeft as Number = 0;
     // Jeden timer UI tykający cały czas widoczności widoku: odlicza przerwę
     // ORAZ odświeża mini zegar sesji (który tyka też poza przerwą).
@@ -52,14 +56,25 @@ class ExerciseView extends WatchUi.View {
         var sets = ex["s"] as Array;
         if (sets.size() == 0) { return; }
         var pair = sets[setIdx < sets.size() ? setIdx : sets.size() - 1] as Array;
-        reps = pair[0] as Number;
-        weight = (pair[1] as Number).toFloat();
+        reps = WorkoutState.compactValue(pair, 0) as Number;
+        weight = WorkoutState.asFloat(WorkoutState.compactValue(pair, 1));
+        durationSec = WorkoutState.compactValue(pair, 2) as Number;
+        distanceM = WorkoutState.compactValue(pair, 3) as Number;
+        assistWeight = WorkoutState.asFloat(WorkoutState.compactValue(pair, 4));
+        isWarmup = (WorkoutState.compactValue(pair, 5) as Number) == 1;
+        var tracking = WorkoutState.trackingFor(ex);
+        editField = "duration".equals(tracking) ? 0 : 1;
     }
 
     function logCurrent() as Void {
         var setIdx = nextSetIndex();
         if (setIdx < 0) { return; }
-        WorkoutState.logSet(exIdx, setIdx, reps, weight);
+        var ex = exercise();
+        if (ex == null) { return; }
+        WorkoutState.logSet(
+            exIdx, setIdx, reps, weight, durationSec, distanceM,
+            assistWeight, isWarmup, WorkoutState.trackingFor(ex)
+        );
         if (Attention has :vibrate) {
             Attention.vibrate([new Attention.VibeProfile(80, 300)]);
         }
@@ -81,6 +96,104 @@ class ExerciseView extends WatchUi.View {
 
     function startRest(seconds as Number) as Void {
         restLeft = seconds; // uiTimer już tyka
+    }
+
+    function fieldCount() as Number {
+        var ex = exercise();
+        if (ex == null) { return 1; }
+        var tracking = WorkoutState.trackingFor(ex);
+        if ("duration".equals(tracking)) { return 2; }
+        if ("weight_distance_duration".equals(tracking)) { return 4; }
+        return 3;
+    }
+
+    function warmupField() as Number {
+        return fieldCount() - 1;
+    }
+
+    function currentValue() as String {
+        var ex = exercise();
+        if (ex == null) { return ""; }
+        var tracking = WorkoutState.trackingFor(ex);
+        if (editField == warmupField()) {
+            return WatchUi.loadResource(isWarmup ? Rez.Strings.Warmup : Rez.Strings.WorkingSet) as String;
+        }
+        if ("duration".equals(tracking)) { return AppSettings.formatSeconds(durationSec); }
+        if ("weight_distance_duration".equals(tracking)) {
+            if (editField == 0) { return AppSettings.formatWeight(weight); }
+            if (editField == 1) { return distanceM.toString(); }
+            return AppSettings.formatSeconds(durationSec);
+        }
+        if ("assisted_bodyweight".equals(tracking)) {
+            return editField == 0 ? reps.toString() : AppSettings.formatWeight(assistWeight);
+        }
+        return editField == 0 ? reps.toString() : AppSettings.formatWeight(weight);
+    }
+
+    function currentUnit() as String {
+        var ex = exercise();
+        if (ex == null || editField == warmupField()) { return ""; }
+        var tracking = WorkoutState.trackingFor(ex);
+        if ("duration".equals(tracking)) {
+            return WatchUi.loadResource(Rez.Strings.DurationUnit) as String;
+        }
+        if ("weight_distance_duration".equals(tracking)) {
+            if (editField == 1) { return WatchUi.loadResource(Rez.Strings.DistanceUnit) as String; }
+            if (editField == 2) { return WatchUi.loadResource(Rez.Strings.DurationUnit) as String; }
+            return AppSettings.unitLabel();
+        }
+        if ("assisted_bodyweight".equals(tracking) && editField == 1) {
+            return (WatchUi.loadResource(Rez.Strings.AssistUnit) as String) + " " + AppSettings.unitLabel();
+        }
+        return editField == 0 ? WatchUi.loadResource(Rez.Strings.RepsUnit) as String : AppSettings.unitLabel();
+    }
+
+    function currentSummary() as String {
+        var ex = exercise();
+        if (ex == null) { return ""; }
+        var tracking = WorkoutState.trackingFor(ex);
+        if ("duration".equals(tracking)) { return ""; }
+        if ("weight_distance_duration".equals(tracking)) {
+            return AppSettings.formatWeight(weight) + " " + AppSettings.unitLabel()
+                + " · " + distanceM.toString() + " m · " + AppSettings.formatSeconds(durationSec);
+        }
+        if ("assisted_bodyweight".equals(tracking)) {
+            return reps.toString() + " × -" + AppSettings.formatWeight(assistWeight) + " " + AppSettings.unitLabel();
+        }
+        return reps.toString() + " " + (WatchUi.loadResource(Rez.Strings.RepsUnit) as String)
+            + " · " + AppSettings.formatWeight(weight) + " " + AppSettings.unitLabel();
+    }
+
+    function adjustCurrent(direction as Number) as Void {
+        var ex = exercise();
+        if (ex == null) { return; }
+        var tracking = WorkoutState.trackingFor(ex);
+        if (editField == warmupField()) {
+            isWarmup = !isWarmup;
+        } else if ("duration".equals(tracking)) {
+            var nextDuration = durationSec + direction * 5;
+            durationSec = nextDuration < 0 ? 0 : nextDuration;
+        } else if ("weight_distance_duration".equals(tracking)) {
+            if (editField == 0) { weight = AppSettings.adjustWeightKg(weight, direction); }
+            else if (editField == 1) {
+                var nextDistance = distanceM + direction * 5;
+                distanceM = nextDistance < 0 ? 0 : nextDistance;
+            } else {
+                var nextCarryDuration = durationSec + direction * 5;
+                durationSec = nextCarryDuration < 0 ? 0 : nextCarryDuration;
+            }
+        } else if ("assisted_bodyweight".equals(tracking)) {
+            if (editField == 0) {
+                var nextAssistReps = reps + direction;
+                reps = nextAssistReps < 0 ? 0 : nextAssistReps;
+            }
+            else { assistWeight = AppSettings.adjustWeightKg(assistWeight, direction); }
+        } else if (editField == 0) {
+            var nextReps = reps + direction;
+            reps = nextReps < 0 ? 0 : nextReps;
+        } else {
+            weight = AppSettings.adjustWeightKg(weight, direction);
+        }
     }
 
     function onShow() as Void {
@@ -133,9 +246,10 @@ class ExerciseView extends WatchUi.View {
         // Nagłówek: nazwa + cel (u góry okręgu węższy pas, stąd 66% szerokości).
         dc.drawText(cx, h * 12 / 100, Graphics.FONT_XTINY,
             fitText(dc, ex["n"] as String, Graphics.FONT_XTINY, w * 66 / 100), center);
-        if (ex.hasKey("t")) {
+        var target = WorkoutState.targetLabel(ex);
+        if (target != null) {
             dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, h * 21 / 100, Graphics.FONT_XTINY, ex["t"] as String, center);
+            dc.drawText(cx, h * 21 / 100, Graphics.FONT_XTINY, target, center);
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         }
 
@@ -167,17 +281,14 @@ class ExerciseView extends WatchUi.View {
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, h * 30 / 100, Graphics.FONT_XTINY, setLabel, center);
 
-        // Edytowana wartość duża w centrum, druga mała pod spodem.
-        var bigValue = editReps ? reps.toString() : AppSettings.formatKg(weight);
-        var bigUnit = editReps
-            ? WatchUi.loadResource(Rez.Strings.RepsUnit) as String
-            : "kg";
-        var smallValue = editReps
-            ? AppSettings.formatKg(weight) + " kg"
-            : reps.toString() + " " + (WatchUi.loadResource(Rez.Strings.RepsUnit) as String);
+        // Edytowana wartość duża w centrum; MENU przechodzi po polach typu serii.
+        var bigValue = currentValue();
+        var bigUnit = currentUnit();
+        var smallValue = currentSummary();
 
         dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 47 / 100, Graphics.FONT_NUMBER_MEDIUM, bigValue, center);
+        var bigFont = editField == warmupField() ? Graphics.FONT_SMALL : Graphics.FONT_NUMBER_MEDIUM;
+        dc.drawText(cx, h * 47 / 100, bigFont, bigValue, center);
         dc.drawText(cx, h * 62 / 100, Graphics.FONT_TINY, bigUnit, center);
         dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, h * 72 / 100, Graphics.FONT_XTINY, smallValue, center);
@@ -204,22 +315,13 @@ class ExerciseDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function onNextPage() as Boolean {
-        if (view.editReps) {
-            view.reps = view.reps > 0 ? view.reps - 1 : 0;
-        } else {
-            var step = AppSettings.weightStep();
-            view.weight = view.weight >= step ? view.weight - step : 0.0;
-        }
+        view.adjustCurrent(-1);
         WatchUi.requestUpdate();
         return true;
     }
 
     function onPreviousPage() as Boolean {
-        if (view.editReps) {
-            view.reps += 1;
-        } else {
-            view.weight += AppSettings.weightStep();
-        }
+        view.adjustCurrent(1);
         WatchUi.requestUpdate();
         return true;
     }
@@ -236,8 +338,8 @@ class ExerciseDelegate extends WatchUi.BehaviorDelegate {
     }
 
     function onMenu() as Boolean {
-        // MENU przełącza edytowane pole (reps <-> ciężar).
-        view.editReps = !view.editReps;
+        // MENU przełącza pola właściwe dla typu serii + warm-up/working.
+        view.editField = (view.editField + 1) % view.fieldCount();
         WatchUi.requestUpdate();
         return true;
     }
