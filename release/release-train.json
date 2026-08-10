@@ -13,7 +13,7 @@
     "checkout": ["ios", "android"]
   },
   "web": {
-    "commit": "0610d1a8",
+    "commit": "0bc40970",
     "url": "https://grzegorzee.github.io/strength-save/",
     "state": "not-deployed"
   },
