@@ -8,7 +8,7 @@ const AUTH_EMULATOR = 'http://127.0.0.1:9099';
 const FIRESTORE_EMULATOR = 'http://127.0.0.1:8081';
 const PROJECT_ID = 'fittracker-workouts';
 const PASSWORD = 'e2e-test-password-123';
-const APP_URL = 'http://localhost:8090/strength-save/';
+const APP_URL = 'http://localhost:8090/';
 
 async function createAuthUser(email: string): Promise<string> {
   const res = await fetch(

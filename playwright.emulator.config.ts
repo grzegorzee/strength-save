@@ -12,7 +12,7 @@ export default defineConfig({
   timeout: 45000,
   retries: process.env.CI ? 2 : 0,
   use: {
-    baseURL: 'http://localhost:8090/strength-save/',
+    baseURL: 'http://localhost:8090/',
     viewport: { width: 390, height: 844 },
     locale: 'pl-PL',
     actionTimeout: 10000,
@@ -26,7 +26,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev -- --port 8090 --strictPort',
-    url: 'http://localhost:8090/strength-save/',
+    url: 'http://localhost:8090/',
     reuseExistingServer: false,
     timeout: 30000,
     env: {

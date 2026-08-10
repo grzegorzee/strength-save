@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    base: isMobileBuild ? './' : '/strength-save/',
+    base: isMobileBuild ? './' : '/',
     define: {
       __APP_VERSION__: JSON.stringify(version),
     },
@@ -62,8 +62,8 @@ export default defineConfig(({ mode }) => {
           theme_color: '#0e0e0e',
           background_color: '#0e0e0e',
           display: 'standalone',
-          scope: '/strength-save/',
-          start_url: '/strength-save/',
+          scope: '/',
+          start_url: '/',
           icons: [
             {
               src: 'pwa-192x192.png',

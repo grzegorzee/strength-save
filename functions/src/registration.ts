@@ -756,7 +756,7 @@ export const createInvite = onCall({ secrets: [resendApiKey] }, async (request) 
   const timestamp = nowIso();
   const code = randomInviteCode();
   const inviteRef = getDb().collection(INVITES_COLLECTION).doc();
-  const inviteUrl = `https://grzegorzee.github.io/strength-save/?invite=${encodeURIComponent(code)}`;
+  const inviteUrl = `https://app.strengthsave.app/?invite=${encodeURIComponent(code)}`;
 
   await inviteRef.set({
     code,

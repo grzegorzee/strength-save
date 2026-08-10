@@ -275,7 +275,7 @@ const Profile = () => {
       <SectionCard label={t('profile.section.support')}>
         {isAdmin && <SettingRow icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
         <SettingRow icon={SlidersHorizontal} label={t('profile.support.advanced')} onClick={() => navigate('/settings')} />
-        <SettingRow icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://grzegorzee.github.io/strength-save/', '_blank')} />
+        <SettingRow icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://app.strengthsave.app/', '_blank')} />
         <SettingRow icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:kontakt@gjasionowicz.pl'; }} />
         <SettingRow icon={Info} label={t('profile.support.about')} onClick={() => toast({ title: t('profile.about.title'), description: t('profile.about.desc') })} />
       </SectionCard>

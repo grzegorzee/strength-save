@@ -9,7 +9,7 @@ import type { DigestPR, WeekComparison, WeekStats } from "./weekly-digest-stats"
 export type UnitSystem = "kg" | "lbs";
 
 const APP_DEEP_LINK = "strengthsave://open";
-const WEB_URL = "https://grzegorzee.github.io/strength-save/";
+const WEB_URL = "https://app.strengthsave.app/";
 
 const KG_TO_LBS = 2.2046226218;
 

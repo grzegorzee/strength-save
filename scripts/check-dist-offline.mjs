@@ -9,7 +9,7 @@ import { extname, join, normalize } from 'node:path';
 import { chromium } from 'playwright-core';
 
 const distDir = join(process.cwd(), 'dist');
-const BASE = '/strength-save/';
+const BASE = '/';
 const mime = {
   '.html': 'text/html',
   '.js': 'text/javascript',
