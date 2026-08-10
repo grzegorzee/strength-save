@@ -109,4 +109,26 @@ describe('WatchEventRouter', () => {
     });
     expect(navCount).toBe(countAfterFirst);
   });
+
+  it('quick-start otwiera istniejącą ścieżkę ad-hoc z bezpiecznie zakodowanym ćwiczeniem', async () => {
+    let path = '';
+    renderRouter((p) => { path = p; });
+    await waitFor(() => expect(listeners.length).toBe(1));
+
+    await act(async () => {
+      listeners[0]({
+        type: 'startQuickWorkout', date: today,
+        dayId: `adhoc-${today}-1786359000000`, at: 1786359000000,
+        exerciseId: 'bench-1', exerciseName: 'Wyciskanie / skos',
+        setCount: 3, reps: 8, weight: 72.5,
+      });
+    });
+
+    await waitFor(() => expect(path).toContain(`/workout/adhoc-${today}-1786359000000?`));
+    const query = new URLSearchParams(path.split('?')[1]);
+    expect(query.get('autostart')).toBe('true');
+    expect(query.get('quickExerciseName')).toBe('Wyciskanie / skos');
+    expect(query.get('quickWeight')).toBe('72.5');
+    expect(query.get('watchEventId')).toBe('legacy-startQuickWorkout-1786359000000');
+  });
 });

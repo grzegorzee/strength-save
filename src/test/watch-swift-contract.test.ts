@@ -1,0 +1,48 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+const root = process.cwd();
+const read = (path: string) => readFileSync(join(root, path), 'utf8');
+
+describe('Swift Apple Watch contract (X25/Z225)', () => {
+  it('trzyma własną kolejkę do ACK po trwałym zapisie i oferuje retry', () => {
+    const watch = read('ios/App/WatchApp/WorkoutStore.swift');
+    const phone = read('ios/App/App/WatchBridge/PhoneWatchSessionManager.swift');
+    expect(watch).toContain('watch.pendingEvents.v1');
+    expect(watch).toContain('func retryPendingEvents()');
+    expect(watch).toContain('ackedEventIds');
+    expect(phone).toContain('context["ackedEventIds"] = Array((previous + ids)');
+    expect(phone).toContain('pending.contains(where: { eventId(from: $0) == incomingId })');
+  });
+
+  it('rozróżnia HealthKit finish od discard i nie zapisuje HKWorkout po odrzuceniu', () => {
+    const health = read('ios/App/WatchApp/WorkoutSessionManager.swift');
+    const discardBody = health.split('func discard()')[1]?.split('\n    }')[0] ?? '';
+    expect(health).toContain('builder.finishWorkout');
+    expect(discardBody).toContain('builder.discardWorkout()');
+    expect(discardBody).not.toContain('finishWorkout');
+  });
+
+  it('ma 90/150, LWW per seria, quick workout, czas/serie/tonaż i jawny discard', () => {
+    const store = read('ios/App/WatchApp/WorkoutStore.swift');
+    const view = read('ios/App/WatchApp/ContentView.swift');
+    expect(store).toContain('payload?.restBetweenSetsSeconds ?? payload?.restSeconds ?? 90');
+    expect(store).toContain('payload?.restBetweenExercisesSeconds ?? 150');
+    expect(store).toContain('localAt >= remoteAt');
+    expect(store).toContain('func startQuickWorkout');
+    expect(store).toContain('func discardWorkout()');
+    expect(view).toContain('SessionStatsRow');
+    expect(view).toContain('QuickWorkoutListView');
+    expect(view).toContain('L10n.discardConfirm');
+  });
+
+  it('nie degraduje czterech typów serii do samego reps/kg', () => {
+    const models = read('ios/App/WatchApp/WorkoutModels.swift');
+    const editor = read('ios/App/WatchApp/ExerciseDetailView.swift');
+    for (const field of ['trackingType', 'durationSec', 'distanceM', 'assistWeight']) {
+      expect(models).toContain(field);
+      expect(editor).toContain(field);
+    }
+  });
+});

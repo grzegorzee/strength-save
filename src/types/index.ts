@@ -18,6 +18,8 @@ export interface SetData {
   distanceM?: number;
   /** Odciążenie asysty w kg (typ 'assisted_bodyweight', Z105) — efektywne obciążenie = masa ciała minus asysta. */
   assistWeight?: number;
+  /** Lokalny znacznik LWW telefon<->Watch; clampSet usuwa go przed Firestore. */
+  updatedAt?: number;
 }
 
 // Metryki autoregulacji per ćwiczenie (Faza 2 — model RZA). Wszystkie opcjonalne:

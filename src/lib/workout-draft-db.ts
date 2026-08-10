@@ -80,6 +80,8 @@ const normalizeSet = (set: unknown): SetData => {
       ? { distanceM: Number(set.distanceM) } : {}),
     ...(Number.isFinite(Number(set.assistWeight)) && Number(set.assistWeight) > 0
       ? { assistWeight: Number(set.assistWeight) } : {}),
+    ...(Number.isFinite(Number(set.updatedAt)) && Number(set.updatedAt) > 0
+      ? { updatedAt: Number(set.updatedAt) } : {}),
   };
 };
 

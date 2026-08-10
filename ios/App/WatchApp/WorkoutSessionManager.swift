@@ -86,6 +86,18 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
             }
         }
     }
+
+    /// Jawne odrzucenie nie może utworzyć HKWorkout. Builder kończy się przez
+    /// discardWorkout, więc finishWorkout nigdy nie jest wywołane dla tej sesji.
+    func discard() {
+        guard let session, let builder else { return }
+        session.end()
+        builder.discardWorkout()
+        self.session = nil
+        self.builder = nil
+        self.isSessionRunning = false
+        self.heartRate = nil
+    }
 }
 
 extension WorkoutSessionManager: HKWorkoutSessionDelegate {

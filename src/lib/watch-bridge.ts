@@ -2,6 +2,7 @@
 // Protokół JSON musi być zgodny z ios/App/WatchApp/WorkoutModels.swift.
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { SetData } from '@/types';
+import type { TrackingType } from '@/lib/set-tracking';
 import { loadRestSettings } from '@/lib/rest-timer';
 import {
   WORKOUT_PROTOCOL_VERSION,
@@ -40,6 +41,16 @@ export interface WatchExercisePayload {
   targetLabel?: string;
   /** Z122: przypięta notatka (X14A), przycięta do ekranu zegarka. */
   pinnedNote?: string;
+  trackingType?: TrackingType;
+}
+
+export interface WatchRecentExercisePayload {
+  id: string;
+  name: string;
+  setCount: number;
+  reps: number;
+  /** Kanoniczne kg; konwersja do lbs jest wyłącznie prezentacyjna na Watch. */
+  weight: number;
 }
 
 const WATCH_NOTE_MAX = 140;
@@ -51,11 +62,13 @@ export function buildWatchExercises(
   extras?: {
     targetLabelByExerciseId?: Record<string, string>;
     pinnedNoteByExerciseId?: Record<string, string>;
+    trackingByExerciseId?: Record<string, TrackingType>;
   },
 ): WatchExercisePayload[] {
   return exercises.map((exercise) => {
     const targetLabel = extras?.targetLabelByExerciseId?.[exercise.id];
     const note = extras?.pinnedNoteByExerciseId?.[exercise.id];
+    const trackingType = extras?.trackingByExerciseId?.[exercise.id];
     return {
       id: exercise.id,
       name: exercise.name,
@@ -63,6 +76,7 @@ export function buildWatchExercises(
       sets: exerciseSets[exercise.id] ?? [],
       ...(targetLabel ? { targetLabel } : {}),
       ...(note ? { pinnedNote: note.slice(0, WATCH_NOTE_MAX) } : {}),
+      ...(trackingType ? { trackingType } : {}),
     };
   });
 }
@@ -94,6 +108,8 @@ export interface WatchWorkoutPayload {
   /** Język UI zegarka (Z122): 'pl' | 'en' — spójny z telefonem. */
   lang?: string;
   exercises?: WatchExercisePayload[];
+  /** Mała lista lokalnego quick workout; działa także w payloadzie noWorkout. */
+  recentExercises?: WatchRecentExercisePayload[];
 }
 
 /** Jednostka usera — ten sam klucz co UnitContext na telefonie. */
@@ -143,7 +159,7 @@ interface WatchEventMetadata {
   id?: string;
   eventId?: string;
   protocolVersion?: typeof WORKOUT_PROTOCOL_VERSION;
-  canonicalType?: 'set_logged' | 'set_updated' | 'session_started' | 'session_finished';
+  canonicalType?: 'set_logged' | 'set_updated' | 'session_started' | 'session_finished' | 'session_discarded';
   sessionId?: string;
   deviceId?: string;
   uid?: string;
@@ -161,6 +177,10 @@ export interface WatchSetLoggedEvent extends WatchEventMetadata {
   at: number;
   /** Z122: zegarek prowadzi sesję HKWorkout — telefon NIE zapisuje drugiego treningu do Health. */
   hkSession?: boolean;
+  trackingType?: TrackingType;
+  durationSec?: number;
+  distanceM?: number;
+  assistWeight?: number;
 }
 
 export interface WatchWorkoutFinishedEvent extends WatchEventMetadata {
@@ -179,32 +199,28 @@ export interface WatchStartWorkoutEvent extends WatchEventMetadata {
   at: number;
 }
 
-export type WatchEvent = WatchSetLoggedEvent | WatchWorkoutFinishedEvent | WatchStartWorkoutEvent;
-
-export function parseWatchEvent(json: string): WatchEvent | null {
-  try {
-    const parsed = JSON.parse(json) as Record<string, unknown>;
-    if (!parsed || typeof parsed !== 'object') return null;
-    if (parsed.protocolVersion !== undefined && parsed.protocolVersion !== WORKOUT_PROTOCOL_VERSION) return null;
-    if (typeof parsed.date !== 'string' || typeof parsed.dayId !== 'string'
-      || typeof parsed.at !== 'number' || !Number.isFinite(parsed.at)) return null;
-
-    if (parsed.type === 'setLogged') {
-      if (typeof parsed.exerciseId !== 'string'
-        || !Number.isInteger(parsed.setIndex) || (parsed.setIndex as number) < 0
-        || typeof parsed.reps !== 'number' || !Number.isFinite(parsed.reps)
-        || typeof parsed.weight !== 'number' || !Number.isFinite(parsed.weight)
-        || typeof parsed.completed !== 'boolean') return null;
-      return parsed as unknown as WatchSetLoggedEvent;
-    }
-    if (parsed.type === 'workoutFinished' || parsed.type === 'startWorkout') {
-      return parsed as unknown as WatchWorkoutFinishedEvent | WatchStartWorkoutEvent;
-    }
-  } catch {
-    // ignorujemy uszkodzone eventy
-  }
-  return null;
+export interface WatchStartQuickWorkoutEvent extends WatchEventMetadata {
+  type: 'startQuickWorkout';
+  date: string;
+  dayId: string;
+  exerciseId: string;
+  exerciseName: string;
+  setCount: number;
+  reps: number;
+  weight: number;
+  at: number;
 }
+
+export interface WatchWorkoutDiscardedEvent extends WatchEventMetadata {
+  type: 'workoutDiscarded';
+  date: string;
+  dayId: string;
+  at: number;
+  hkSession?: boolean;
+}
+
+export type WatchEvent = WatchSetLoggedEvent | WatchWorkoutFinishedEvent | WatchStartWorkoutEvent
+  | WatchStartQuickWorkoutEvent | WatchWorkoutDiscardedEvent;
 
 export async function sendWorkoutToWatch(payload: WatchWorkoutPayload): Promise<void> {
   if (!isWatchBridgeSupported()) return;
@@ -241,6 +257,7 @@ export async function ackWatchEvents(ids: string[]): Promise<void> {
 export async function peekWatchEvents(): Promise<WatchEvent[]> {
   if (!isWatchBridgeSupported()) return [];
   try {
+    const { parseWatchEvent } = await import('@/lib/watch-event-parser');
     const { events } = await WatchBridge.peekEvents();
     return events.map(parseWatchEvent).filter((e): e is WatchEvent => e !== null);
   } catch {
@@ -253,6 +270,7 @@ export async function addWatchEventListener(
 ): Promise<PluginListenerHandle | null> {
   if (!isWatchBridgeSupported()) return null;
   try {
+    const { parseWatchEvent } = await import('@/lib/watch-event-parser');
     return await WatchBridge.addListener('watchEvent', ({ payload }) => {
       const event = parseWatchEvent(payload);
       if (event) onEvent(event);

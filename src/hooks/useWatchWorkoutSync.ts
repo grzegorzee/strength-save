@@ -7,6 +7,7 @@ import { useEffect, useRef } from 'react';
 import type { PluginListenerHandle } from '@capacitor/core';
 import type { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
+import type { TrackingType } from '@/lib/set-tracking';
 import {
   addWatchEventListener,
   ackWatchEvents,
@@ -21,6 +22,7 @@ import {
   type WatchEvent,
   type WatchSetLoggedEvent,
   type WatchWorkoutFinishedEvent,
+  type WatchWorkoutDiscardedEvent,
   type WatchWorkoutPayload,
   watchEventId,
 } from '@/lib/watch-bridge';
@@ -42,24 +44,29 @@ interface UseWatchWorkoutSyncOptions {
   targetLabels?: Record<string, string>;
   /** Z122: przypięte notatki per exerciseId. */
   pinnedNotes?: Record<string, string>;
+  trackingTypes?: Record<string, TrackingType>;
   /** Z122: język UI zegarka. */
   lang?: string;
   onSetLogged: (event: WatchSetLoggedEvent) => void | Promise<void>;
   onWorkoutFinished: (event: WatchWorkoutFinishedEvent) => void | Promise<void>;
+  onWorkoutDiscarded: (event: WatchWorkoutDiscardedEvent) => void | Promise<void>;
 }
 
 const SEND_DEBOUNCE_MS = 800;
 
 export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
-  const { enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, lang, onSetLogged, onWorkoutFinished } = options;
+  const { enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang, onSetLogged, onWorkoutFinished, onWorkoutDiscarded } = options;
 
   // Najnowsze callbacki bez restartu listenera.
-  const handlersRef = useRef({ onSetLogged, onWorkoutFinished });
-  handlersRef.current = { onSetLogged, onWorkoutFinished };
+  const handlersRef = useRef({ onSetLogged, onWorkoutFinished, onWorkoutDiscarded });
+  handlersRef.current = { onSetLogged, onWorkoutFinished, onWorkoutDiscarded };
   const contextRef = useRef({ enabled, date, dayId, sessionId });
   contextRef.current = { enabled, date, dayId, sessionId };
   // Dedup: event może przyjść live (listener) i drugi raz z drainEvents.
   const appliedRef = useRef<Set<string>>(new Set());
+  // Eventy Watch są porządkowane FIFO. Bez tego szybkie set -> discard mogły
+  // zapisywać się równolegle, a spóźniony set odtwarzał właśnie odrzucony draft.
+  const sequenceRef = useRef<Promise<void>>(Promise.resolve());
 
   // Wysyłka stanu na zegarek (debounce).
   useEffect(() => {
@@ -92,13 +99,14 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         exercises: buildWatchExercises(exercises, exerciseSets, {
           targetLabelByExerciseId: targetLabels,
           pinnedNoteByExerciseId: pinnedNotes,
+          trackingByExerciseId: trackingTypes,
         }),
       };
       void sendWorkoutToWatch(payload);
     }, SEND_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, lang]);
+  }, [enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang]);
 
   // Odbiór eventów: listener live + drain kolejki przy starcie i powrocie do foreground.
   useEffect(() => {
@@ -111,7 +119,8 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
       // Additive field: legacy Watch has none, a new Watch must match the active draft.
       if (event.sessionId && ctx.sessionId && event.sessionId !== ctx.sessionId) return;
 
-      if (event.type !== 'setLogged' && event.type !== 'workoutFinished') return;
+      if (event.type !== 'setLogged' && event.type !== 'workoutFinished'
+        && event.type !== 'workoutDiscarded') return;
       const key = watchEventId(event);
       if (appliedRef.current.has(key)) return;
       // Klucz dodany przed awaitem dedupuje równoległe dostarczenia (listener + drain),
@@ -121,8 +130,10 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
       try {
         if (event.type === 'setLogged') {
           await handlersRef.current.onSetLogged(event);
-        } else {
+        } else if (event.type === 'workoutFinished') {
           await handlersRef.current.onWorkoutFinished(event);
+        } else {
+          await handlersRef.current.onWorkoutDiscarded(event);
         }
         await ackWatchEvents([key]);
       } catch {
@@ -130,14 +141,18 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
       }
     };
 
+    const queueEvent = (event: WatchEvent) => {
+      sequenceRef.current = sequenceRef.current.then(() => applyEvent(event));
+    };
+
     const drain = () => {
       // Tylko peek: trwały ACK następuje po zapisaniu zmiany do draftu.
       if (!contextRef.current.enabled) return;
-      void peekWatchEvents().then((events) => events.forEach(event => { void applyEvent(event); }));
+      void peekWatchEvents().then((events) => events.forEach(queueEvent));
     };
 
     let handle: PluginListenerHandle | null = null;
-    void addWatchEventListener(event => { void applyEvent(event); }).then((h) => {
+    void addWatchEventListener(queueEvent).then((h) => {
       handle = h;
     });
     drain();

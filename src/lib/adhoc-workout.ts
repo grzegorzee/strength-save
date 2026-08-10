@@ -30,6 +30,31 @@ export const isAdhocDayId = (dayId: string): boolean => ADHOC_ID_RE.test(dayId);
 export const parseAdhocDate = (dayId: string): string | null =>
   ADHOC_ID_RE.exec(dayId)?.[1] ?? null;
 
+export interface WatchQuickExerciseParams {
+  id: string;
+  name: string;
+  setCount: number;
+  reps: number;
+  weight: number;
+}
+
+/** Walidowana granica między eventem sparowanego Watch a istniejącym ad-hoc UI. */
+export const parseWatchQuickExerciseParams = (
+  params: Pick<URLSearchParams, 'get'>,
+): WatchQuickExerciseParams | null => {
+  const id = params.get('quickExerciseId') ?? '';
+  const name = params.get('quickExerciseName') ?? '';
+  const setCount = Number(params.get('quickSetCount'));
+  const reps = Number(params.get('quickReps'));
+  const weight = Number(params.get('quickWeight'));
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(id)
+    || name.trim().length === 0 || name.length > 120
+    || !Number.isInteger(setCount) || setCount < 1 || setCount > 6
+    || !Number.isFinite(reps) || reps < 1 || reps > 1000
+    || !Number.isFinite(weight) || weight < 0 || weight > 2000) return null;
+  return { id, name: name.trim(), setCount, reps, weight };
+};
+
 /** Nowy syntetyczny dzień ad-hoc na wskazaną datę (start z Dashboardu). */
 export const createAdhocDay = (date: string, t: TranslateFn): TrainingDay => ({
   id: `adhoc-${date}-${nextAdhocTs()}`,

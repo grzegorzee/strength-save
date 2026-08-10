@@ -40,17 +40,32 @@ final class PhoneWatchSessionManager: NSObject {
         guard WCSession.isSupported() else {
             throw NSError(domain: "WatchBridge", code: 1, userInfo: [NSLocalizedDescriptionKey: "WCSession unsupported"])
         }
-        try WCSession.default.updateApplicationContext(["workout": json])
+        var context = WCSession.default.applicationContext
+        context["workout"] = json
+        try WCSession.default.updateApplicationContext(context)
     }
 
     // MARK: - Kolejka eventów
 
+    private func eventId(from eventJSON: String) -> String? {
+        guard let data = eventJSON.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return object["eventId"] as? String ?? object["id"] as? String
+    }
+
     private func enqueue(eventJSON: String) {
-        queue.sync {
+        let inserted = queue.sync { () -> Bool in
             var pending = UserDefaults.standard.stringArray(forKey: pendingKey) ?? []
+            if let incomingId = eventId(from: eventJSON),
+               pending.contains(where: { eventId(from: $0) == incomingId }) {
+                return false
+            }
             pending.append(eventJSON)
             UserDefaults.standard.set(pending, forKey: pendingKey)
+            return true
         }
+        guard inserted else { return }
         NotificationCenter.default.post(name: Self.eventReceivedNotification, object: nil, userInfo: ["event": eventJSON])
     }
 
@@ -75,6 +90,15 @@ final class PhoneWatchSessionManager: NSObject {
             }
             UserDefaults.standard.set(remaining, forKey: pendingKey)
         }
+        // ACK wraca na Watch dopiero po tym, jak webview potwierdzi trwały zapis
+        // draftu/usunięcia. Mergujemy context, aby nie wymazać planu dnia.
+        var context = WCSession.default.applicationContext
+        let previous = context["ackedEventIds"] as? [String] ?? []
+        context["ackedEventIds"] = Array((previous + ids).reduce(into: [String]()) { result, id in
+            if !result.contains(id) { result.append(id) }
+        }.suffix(100))
+        context["ackAt"] = Date().timeIntervalSince1970 * 1000
+        try? WCSession.default.updateApplicationContext(context)
     }
 
     private func handleIncoming(_ userInfo: [String: Any]) {
@@ -98,5 +122,11 @@ extension PhoneWatchSessionManager: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         handleIncoming(message)
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String: Any],
+                 replyHandler: @escaping ([String: Any]) -> Void) {
+        handleIncoming(message)
+        replyHandler(["queued": true])
     }
 }

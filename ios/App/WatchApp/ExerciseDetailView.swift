@@ -43,7 +43,7 @@ struct ExerciseDetailView: View {
                         NavigationLink {
                             SetEditorView(exerciseId: exerciseId, setIndex: index)
                         } label: {
-                            SetRow(index: index, set: set, sets: exercise.sets)
+                            SetRow(index: index, set: set, sets: exercise.sets, trackingType: exercise.trackingType)
                         }
                     }
                 }
@@ -60,6 +60,7 @@ struct SetRow: View {
     let index: Int
     let set: WatchSet
     let sets: [WatchSet]
+    let trackingType: String?
 
     private var label: String {
         if set.isWarmup == true { return L10n.warmup }
@@ -74,8 +75,8 @@ struct SetRow: View {
                 Text(label)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if set.reps > 0 || set.weight > 0 {
-                    Text("\(set.reps) × \(unit.toDisplay(set.weight).weightText) \(unit.label)")
+                if set.reps > 0 || set.weight > 0 || (set.durationSec ?? 0) > 0 || (set.distanceM ?? 0) > 0 || (set.assistWeight ?? 0) > 0 {
+                    Text(set.valueText(unit: unit, trackingType: trackingType))
                         .font(.body)
                 } else {
                     Text("—")
@@ -98,6 +99,9 @@ struct SetEditorView: View {
     @State private var reps: Int = 0
     /// Ciężar w jednostce WYŚWIETLANIA (kg lub lbs) — konwersja do kg przy zapisie.
     @State private var weight: Double = 0
+    @State private var durationSec: Int = 0
+    @State private var distanceM: Double = 0
+    @State private var assistWeight: Double = 0
     @State private var loaded = false
 
     private var currentSet: WatchSet? {
@@ -115,42 +119,85 @@ struct SetEditorView: View {
         return L10n.series(setIndex - warmupCount + 1)
     }
 
+    private var trackingType: String {
+        store.payload?.exercises?.first(where: { $0.id == exerciseId })?.trackingType ?? "weight_reps"
+    }
+
+    private var showsReps: Bool {
+        trackingType == "weight_reps" || trackingType == "bodyweight_reps" || trackingType == "assisted_bodyweight"
+    }
+
+    private var showsWeight: Bool {
+        trackingType == "weight_reps" || trackingType == "weight_distance_duration"
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 10) {
-                HStack {
-                    Text(L10n.reps)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Stepper(value: $reps, in: 0...100) {
-                        Text("\(reps)")
-                            .font(.title3.monospacedDigit())
+                if showsReps {
+                    HStack {
+                        Text(L10n.reps).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Stepper(value: $reps, in: 0...1000) {
+                            Text("\(reps)").font(.title3.monospacedDigit())
+                        }
                     }
                 }
 
-                HStack {
-                    Text(L10n.weight)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Stepper(value: $weight, in: 0...1100, step: store.weightUnit.step) {
-                        Text("\(weight.weightText) \(store.weightUnit.label)")
-                            .font(.title3.monospacedDigit())
+                if showsWeight {
+                    HStack {
+                        Text(L10n.weight).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Stepper(value: $weight, in: 0...4400, step: store.weightUnit.step) {
+                            Text("\(weight.weightText) \(store.weightUnit.label)").font(.title3.monospacedDigit())
+                        }
+                    }
+                    .focusable()
+                    .digitalCrownRotation(
+                        $weight,
+                        from: 0, through: 4400, by: store.weightUnit.step,
+                        sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true
+                    )
+                }
+
+                if trackingType == "duration" || trackingType == "weight_distance_duration" {
+                    HStack {
+                        Text(L10n.duration).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Stepper(value: $durationSec, in: 0...86400, step: 5) {
+                            Text("\(durationSec)").font(.title3.monospacedDigit())
+                        }
                     }
                 }
-                // Digital Crown też kręci ciężarem (krok jak stepper).
-                .focusable()
-                .digitalCrownRotation(
-                    $weight,
-                    from: 0, through: 1100, by: store.weightUnit.step,
-                    sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true
-                )
+
+                if trackingType == "weight_distance_duration" {
+                    HStack {
+                        Text(L10n.distance).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Stepper(value: $distanceM, in: 0...1_000_000, step: 5) {
+                            Text(distanceM.weightText).font(.title3.monospacedDigit())
+                        }
+                    }
+                }
+
+                if trackingType == "assisted_bodyweight" {
+                    HStack {
+                        Text(L10n.assistance).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Stepper(value: $assistWeight, in: 0...4400, step: store.weightUnit.step) {
+                            Text("\(assistWeight.weightText) \(store.weightUnit.label)").font(.title3.monospacedDigit())
+                        }
+                    }
+                }
 
                 Button {
                     store.logSet(
                         exerciseId: exerciseId, setIndex: setIndex, reps: reps,
-                        weight: store.weightUnit.toKg(weight)
+                        weight: store.weightUnit.toKg(weight),
+                        trackingType: trackingType,
+                        durationSec: trackingType == "duration" || trackingType == "weight_distance_duration" ? Double(durationSec) : nil,
+                        distanceM: trackingType == "weight_distance_duration" ? distanceM : nil,
+                        assistWeight: trackingType == "assisted_bodyweight" ? store.weightUnit.toKg(assistWeight) : nil
                     )
                     dismiss()
                 } label: {
@@ -169,12 +216,18 @@ struct SetEditorView: View {
             let unit = store.weightUnit
             reps = set.reps
             weight = unit.toDisplay(set.weight)
+            durationSec = Int(set.durationSec ?? 0)
+            distanceM = set.distanceM ?? 0
+            assistWeight = unit.toDisplay(set.assistWeight ?? 0)
             // Prefill z poprzedniej zaliczonej serii, żeby nie klikać od zera.
             if reps == 0 || weight == 0,
                let exercise = store.payload?.exercises?.first(where: { $0.id == exerciseId }) {
                 let prior = exercise.sets.prefix(setIndex).last(where: { $0.completed })
                 if reps == 0 { reps = prior?.reps ?? 0 }
                 if weight == 0 { weight = unit.toDisplay(prior?.weight ?? 0) }
+                if durationSec == 0 { durationSec = Int(prior?.durationSec ?? 0) }
+                if distanceM == 0 { distanceM = prior?.distanceM ?? 0 }
+                if assistWeight == 0 { assistWeight = unit.toDisplay(prior?.assistWeight ?? 0) }
             }
         }
     }

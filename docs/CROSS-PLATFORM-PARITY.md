@@ -76,10 +76,15 @@ Web, iOS i Android współdzielą aplikację React. Różnice między nimi są d
 
 Referencyjny wynik sesji planowej: status `finished`, 900 s, 6 zaliczonych serii i 1500 kg tonażu dla trzech serii `weight_reps`; zwycięzcą konfliktu `fixture-back-squat#1` jest `fixture-event-squat-1-watch-newer`. Odtworzenie tej samej listy eventów drugi raz nie może zmienić wyniku ani utworzyć drugiej sesji.
 
+## Delta Z225 — Apple Watch
+
+Kod zamyka G04, G05, G07, G08, G09, G10 i G14: quick workout korzysta z małej listy ukończonej historii i istniejącej ścieżki ad-hoc; `trackingType/durationSec/distanceM/assistWeight` przechodzą Watch -> draft bez degradacji; lokalne ustawienia 90/150 nie są resetowane snapshotem; widok sesji pokazuje czas, serie i tonaż; discard ma osobny terminalny event i `HKLiveWorkoutBuilder.discardWorkout()`; per-set `updatedAt` rozstrzyga równoległe zmiany; własna kolejka UserDefaults znika dopiero po trwałym ACK i ma error/retry. G02 i G16 celowo pozostają do Z227, a status produkcyjny powyższych pozycji pozostaje warunkowy do fizycznej bramy z `docs/X25-REAL-DEVICE-CHECKLIST.md`.
+
+Dowód automatyczny: `src/test/watch-swift-contract.test.ts`, `src/test/watch-set-conflict.test.ts`, `src/test/watch-contract.test.ts`, `src/test/watch-event-router.test.tsx`, `src/test/watch-workout-sync.test.tsx`, `src/test/watch-quick-route.test.ts`, `src/test/watch-plan-preview.test.tsx` i `src/test/cross-platform-protocol.test.ts` — 37/37 PASS; pełny `npm run test` — 144 pliki/1252 PASS; Xcode `App` generic iOS Simulator — exit 0.
+
 ## Dowody audytu
 
 - React/web/iOS/Android: `src/types/index.ts`, `src/lib/workout-draft-db.ts`, `src/lib/workout-sync-engine.ts`, `src/lib/purchases.ts`, `src/hooks/useSubscription.ts`.
 - Apple Watch: `src/lib/watch-bridge.ts`, `src/hooks/useWatchWorkoutSync.ts`, `ios/App/WatchApp/WorkoutModels.swift`, `ios/App/WatchApp/WorkoutStore.swift`.
 - Garmin: `functions/src/garmin-day.ts`, `functions/src/garmin-ingest.ts`, `functions/src/garmin-endpoints.ts`, `garmin/source/WorkoutState.mc`, `garmin/source/EventQueue.mc`.
 - Test fixture: `npm run test -- src/test/cross-platform-contract-fixture.test.ts` — 4/4 PASS.
-

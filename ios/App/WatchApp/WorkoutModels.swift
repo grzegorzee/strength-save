@@ -8,6 +8,19 @@ struct WatchSet: Codable, Hashable {
     var weight: Double
     var completed: Bool
     var isWarmup: Bool?
+    // Lokalny LWW telefon<->Watch. Pole nie trafia do Firestore.
+    var updatedAt: Double?
+    var durationSec: Double?
+    var distanceM: Double?
+    var assistWeight: Double?
+}
+
+struct WatchRecentExercise: Codable, Identifiable, Hashable {
+    var id: String
+    var name: String
+    var setCount: Int
+    var reps: Int
+    var weight: Double // kg
 }
 
 struct WatchExercise: Codable, Identifiable, Hashable {
@@ -18,6 +31,7 @@ struct WatchExercise: Codable, Identifiable, Hashable {
     var targetLabel: String?
     // Z122: przypięta notatka (X14A), przycięta na telefonie.
     var pinnedNote: String?
+    var trackingType: String?
     var sets: [WatchSet]
 
     var workingSets: [WatchSet] { sets.filter { $0.isWarmup != true } }
@@ -55,6 +69,7 @@ struct WatchWorkoutPayload: Codable {
     // Język UI zegarka (Z122): "pl"/"en", spójny z telefonem.
     var lang: String?
     var exercises: [WatchExercise]?
+    var recentExercises: [WatchRecentExercise]?
 }
 
 // Z122: minimalny słownik UI zegarka (PL/EN) — bez katalogów lokalizacji,
@@ -71,8 +86,14 @@ enum L10n {
     static var logSet: String { t("Zalicz serię", "Log set") }
     static var reps: String { t("Powt.", "Reps") }
     static var weight: String { t("Ciężar", "Weight") }
+    static var duration: String { t("Czas (s)", "Time (s)") }
+    static var distance: String { t("Dystans (m)", "Distance (m)") }
+    static var assistance: String { t("Asysta", "Assistance") }
     static var noExercise: String { t("Brak ćwiczenia", "No exercise") }
     static var pendingSync: String { t("Niezsynchronizowane serie — dojdą po odzyskaniu łączności.", "Unsynced sets — they will arrive once connection is back.") }
+    static func pendingEvents(_ n: Int) -> String { t("Oczekujące zdarzenia: \(n)", "Pending events: \(n)") }
+    static var syncError: String { t("Nie udało się wysłać. Dane są bezpieczne na zegarku.", "Could not send. Your data is safe on the watch.") }
+    static var retry: String { t("Spróbuj ponownie", "Retry") }
     static var openPhone: String { t("Otwórz Strength Save na iPhonie, żeby wysłać trening na zegarek.", "Open Strength Save on your iPhone to send the workout to the watch.") }
     static var workoutDone: String { t("Trening zakończony", "Workout finished") }
     static func doneSets(_ n: Int) -> String { t("Zaliczone serie: \(n). Szczegóły na iPhonie.", "Sets logged: \(n). Details on your iPhone.") }
@@ -85,6 +106,17 @@ enum L10n {
     static var finishAndSave: String { t("Zakończ i zapisz", "Finish and save") }
     static var back: String { t("Wróć", "Back") }
     static var rest: String { t("Odpoczynek", "Rest") }
+    static var quickWorkout: String { t("Szybki trening", "Quick workout") }
+    static var recentExercises: String { t("Ostatnie ćwiczenia", "Recent exercises") }
+    static var noRecentExercises: String { t("Zrób trening na telefonie, aby pojawiła się bezpieczna lista ćwiczeń.", "Complete a phone workout to build a safe exercise list.") }
+    static var stats: String { t("Czas · serie · tonaż", "Time · sets · volume") }
+    static var discardWorkout: String { t("Odrzuć trening", "Discard workout") }
+    static var discardConfirm: String { t("Odrzucić lokalną sesję? Zapisane serie zostaną usunięte po synchronizacji.", "Discard the local session? Logged sets will be removed after sync.") }
+    static var discard: String { t("Odrzuć", "Discard") }
+    static var restSettings: String { t("Ustawienia przerw", "Rest settings") }
+    static var betweenSets: String { t("Między seriami", "Between sets") }
+    static var betweenExercises: String { t("Między ćwiczeniami", "Between exercises") }
+    static var localSetting: String { t("Zmiana zostaje na zegarku i nie jest cicho resetowana snapshotem telefonu.", "The watch keeps this change and a phone snapshot will not silently reset it.") }
 }
 
 // Jednostka ciężaru: konwersja tylko w warstwie UI, zapis zawsze w kg.
@@ -106,6 +138,23 @@ enum WeightUnit: String {
         let kg = self == .kg ? display : display / Self.lbsPerKg
         // 2 miejsca wystarczą; bez tego po konwersji lbs zostaje szum floatów.
         return (kg * 100).rounded() / 100
+    }
+}
+
+extension WatchSet {
+    func valueText(unit: WeightUnit, trackingType: String?) -> String {
+        switch trackingType {
+        case "duration":
+            return "\(Int(durationSec ?? 0)) s"
+        case "weight_distance_duration":
+            return "\(unit.toDisplay(weight).weightText) \(unit.label) · \((distanceM ?? 0).weightText) m · \(Int(durationSec ?? 0)) s"
+        case "assisted_bodyweight":
+            return "\(reps) × -\(unit.toDisplay(assistWeight ?? 0).weightText) \(unit.label)"
+        case "bodyweight_reps":
+            return "\(reps) × BW"
+        default:
+            return "\(reps) × \(unit.toDisplay(weight).weightText) \(unit.label)"
+        }
     }
 }
 
@@ -140,7 +189,12 @@ enum WatchEvent {
         uid: String? = nil,
         deviceId: String,
         sessionId: String? = nil,
-        hkSession: Bool = false
+        hkSession: Bool = false,
+        at: Double = Date().timeIntervalSince1970 * 1000,
+        trackingType: String? = nil,
+        durationSec: Double? = nil,
+        distanceM: Double? = nil,
+        assistWeight: Double? = nil
     ) -> [String: Any] {
         let id = UUID().uuidString
         var value = metadata(
@@ -159,10 +213,14 @@ enum WatchEvent {
             "reps": reps,
             "weight": weight,
             "completed": completed,
-            "at": Date().timeIntervalSince1970 * 1000,
+            "at": at,
             // Z122: telefon pomija własny zapis Health, gdy sesję prowadzi zegarek.
             "hkSession": hkSession,
         ]) { _, new in new }
+        if let trackingType { value["trackingType"] = trackingType }
+        if let durationSec { value["durationSec"] = durationSec }
+        if let distanceM { value["distanceM"] = distanceM }
+        if let assistWeight { value["assistWeight"] = assistWeight }
         return value
     }
 
@@ -212,6 +270,62 @@ enum WatchEvent {
             "date": date,
             "dayId": dayId,
             "at": Date().timeIntervalSince1970 * 1000,
+        ]) { _, new in new }
+        return value
+    }
+
+    static func startQuickWorkout(
+        date: String,
+        dayId: String,
+        exercise: WatchRecentExercise,
+        uid: String? = nil,
+        deviceId: String
+    ) -> [String: Any] {
+        let id = UUID().uuidString
+        var value = metadata(
+            id: id,
+            canonicalType: "session_started",
+            uid: uid,
+            deviceId: deviceId,
+            sessionId: nil
+        )
+        value.merge([
+            "type": "startQuickWorkout",
+            "date": date,
+            "dayId": dayId,
+            "exerciseId": exercise.id,
+            "exerciseName": exercise.name,
+            "setCount": exercise.setCount,
+            "reps": exercise.reps,
+            "weight": exercise.weight,
+            "at": Date().timeIntervalSince1970 * 1000,
+        ]) { _, new in new }
+        return value
+    }
+
+    static func workoutDiscarded(
+        date: String,
+        dayId: String,
+        uid: String? = nil,
+        deviceId: String,
+        sessionId: String? = nil,
+        hkSession: Bool = false,
+        at: Double = Date().timeIntervalSince1970 * 1000
+    ) -> [String: Any] {
+        let id = UUID().uuidString
+        var value = metadata(
+            id: id,
+            canonicalType: "session_discarded",
+            uid: uid,
+            deviceId: deviceId,
+            sessionId: sessionId
+        )
+        value.merge([
+            "type": "workoutDiscarded",
+            "date": date,
+            "dayId": dayId,
+            "at": at,
+            "hkSession": hkSession,
         ]) { _, new in new }
         return value
     }

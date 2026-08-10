@@ -27,7 +27,7 @@ export const WatchEventRouter = () => {
     if (!isWatchBridgeSupported()) return;
 
     const handle = (event: WatchEvent) => {
-      if (event.type !== 'startWorkout') return;
+      if (event.type !== 'startWorkout' && event.type !== 'startQuickWorkout') return;
       const id = watchEventId(event);
       if (handledRef.current.has(id)) return;
       const today = formatLocalDate(new Date());
@@ -37,7 +37,19 @@ export const WatchEventRouter = () => {
       const target = `/workout/${event.dayId}`;
       // Trening już otwarty? Nie nawiguj ponownie (zresetowałoby stan strony).
       if (locationRef.current.pathname === target) return;
-      navigateRef.current(`${target}?date=${event.date}&autostart=true&watchEventId=${encodeURIComponent(id)}`);
+      const params = new URLSearchParams({
+        date: event.date,
+        autostart: 'true',
+        watchEventId: id,
+      });
+      if (event.type === 'startQuickWorkout') {
+        params.set('quickExerciseId', event.exerciseId);
+        params.set('quickExerciseName', event.exerciseName);
+        params.set('quickSetCount', String(event.setCount));
+        params.set('quickReps', String(event.reps));
+        params.set('quickWeight', String(event.weight));
+      }
+      navigateRef.current(`${target}?${params.toString()}`);
     };
 
     const peek = () => {

@@ -54,6 +54,7 @@ describe('useWatchWorkoutSync (R2-26)', () => {
     exerciseSets: {},
     onSetLogged,
     onWorkoutFinished: async () => undefined,
+    onWorkoutDiscarded: async () => undefined,
   }));
 
   it('bledny zapis draftu NIE zjada eventu: retry wywoluje handler ponownie, ack po sukcesie', async () => {
@@ -99,6 +100,7 @@ describe('useWatchWorkoutSync (R2-26)', () => {
       exerciseSets: { 'ex-1': [{ reps: 5, weight: 100, completed: false }] },
       onSetLogged: async () => undefined,
       onWorkoutFinished: async () => undefined,
+      onWorkoutDiscarded: async () => undefined,
     }));
 
     await vi.advanceTimersByTimeAsync(1000);
@@ -115,5 +117,33 @@ describe('useWatchWorkoutSync (R2-26)', () => {
     });
     expect(payload.deviceId).toMatch(/^phone-/);
     vi.useRealTimers();
+  });
+
+  it('przetwarza eventy kolejno i ACK-uje discard dopiero po trwałym usunięciu', async () => {
+    let releaseSet!: () => void;
+    const onSetLogged = vi.fn(() => new Promise<void>((resolve) => { releaseSet = resolve; }));
+    const onWorkoutDiscarded = vi.fn(async () => undefined);
+    renderHook(() => useWatchWorkoutSync({
+      enabled: true,
+      date: '2026-07-03',
+      dayId: 'day-1',
+      exercises: [],
+      exerciseSets: {},
+      onSetLogged,
+      onWorkoutFinished: async () => undefined,
+      onWorkoutDiscarded,
+    }));
+    await waitFor(() => expect(listeners.length).toBeGreaterThan(0));
+
+    listeners[0]({ ...setLoggedEvent, id: 'set-1' });
+    listeners[0]({
+      type: 'workoutDiscarded', id: 'discard-1', date: '2026-07-03', dayId: 'day-1', at: 222,
+    });
+    await waitFor(() => expect(onSetLogged).toHaveBeenCalledTimes(1));
+    expect(onWorkoutDiscarded).not.toHaveBeenCalled();
+
+    releaseSet();
+    await waitFor(() => expect(onWorkoutDiscarded).toHaveBeenCalledTimes(1));
+    expect(ackWatchEvents.mock.calls.map(([ids]) => ids[0])).toEqual(['set-1', 'discard-1']);
   });
 });

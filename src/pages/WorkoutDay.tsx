@@ -30,7 +30,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId } from '@/lib/adhoc-workout';
+import { adhocDayFromId, buildAdhocExerciseId, isAdhocDayId, parseWatchQuickExerciseParams } from '@/lib/adhoc-workout';
 import { syncWorkoutToHealth } from '@/lib/health-bridge';
 import { keepScreenAwake, allowScreenSleep } from '@/lib/keep-awake';
 import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
@@ -68,6 +68,7 @@ import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-eng
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
 import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
+import { mergeWatchSetEvent, stampChangedWatchSets } from '@/lib/watch-set-conflict';
 import {
   areWorkoutStartSourcesReady,
   buildStartDraft,
@@ -320,12 +321,28 @@ const WorkoutDay = () => {
 
   // Szybki trening (Z104): syntetyczny dzień ad-hoc nie istnieje w planie — odtwarzamy go z dayId.
   const isAdhocDay = !!dayId && isAdhocDayId(dayId);
+  const watchQuickExercise = useMemo(
+    () => isAdhocDay ? parseWatchQuickExerciseParams(searchParams) : null,
+    [isAdhocDay, searchParams],
+  );
   const baseDay = useMemo(() => {
     const fromPlan = trainingPlan.find(d => d.id === dayId);
     if (fromPlan) return fromPlan;
-    if (dayId && isAdhocDayId(dayId)) return adhocDayFromId(dayId, (key) => t(key as Parameters<typeof t>[0])) ?? undefined;
+    if (dayId && isAdhocDayId(dayId)) {
+      const adhoc = adhocDayFromId(dayId, (key) => t(key as Parameters<typeof t>[0]));
+      if (!adhoc || !watchQuickExercise) return adhoc ?? undefined;
+      return {
+        ...adhoc,
+        exercises: [{
+          id: watchQuickExercise.id,
+          name: watchQuickExercise.name,
+          sets: `${watchQuickExercise.setCount} x ${watchQuickExercise.reps}`,
+          instructions: [],
+        }],
+      };
+    }
     return undefined;
-  }, [trainingPlan, dayId, t]);
+  }, [trainingPlan, dayId, t, watchQuickExercise]);
   const draftForDaySnapshot = activeDraft && activeDraft.dayId === dayId && activeDraft.date === targetDate
     ? activeDraft
     : queuedDraft && queuedDraft.dayId === dayId && queuedDraft.date === targetDate
@@ -1564,13 +1581,13 @@ const WorkoutDay = () => {
 
   // Handler for ACTIVE WORKOUT - saves locally to IndexedDB, Firebase only on checkpoints/finish
   const handleSetsChange = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
-    const sanitizedSets = sets.map(s => ({
+    const sanitizedSets = stampChangedWatchSets(exerciseSetsRef.current[exerciseId], sets.map(s => ({
       reps: s.reps ?? 0,
       weight: s.weight ?? 0,
       completed: s.completed ?? false,
       ...(s.isWarmup && { isWarmup: true }),
       ...carrySetExtras(s),
-    }));
+    })), Date.now());
     const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
     const nextExerciseNotes = notes !== undefined
       ? { ...exerciseNotesRef.current, [exerciseId]: notes }
@@ -1600,11 +1617,9 @@ const WorkoutDay = () => {
     if (event.hkSession) watchHkSessionRef.current = true;
     const current = exerciseSetsRef.current[event.exerciseId];
     if (!current || event.setIndex < 0 || event.setIndex >= current.length) return;
-    const next = current.map((set, i) =>
-      i === event.setIndex
-        ? { ...set, reps: event.reps, weight: event.weight, completed: event.completed }
-        : set
-    );
+    const merged = mergeWatchSetEvent(current, event);
+    if (!merged.applied) return;
+    const next = merged.sets;
     setExerciseSets(nextSets => ({ ...nextSets, [event.exerciseId]: next }));
     const saved = await persistDraftSnapshot({
       exerciseSets: { ...exerciseSetsRef.current, [event.exerciseId]: next },
@@ -1644,6 +1659,17 @@ const WorkoutDay = () => {
     await completeWorkoutRef.current?.();
   }, [toast, t]);
 
+  const handleWatchWorkoutDiscarded = useCallback(async () => {
+    if (!sessionId) throw new Error('WATCH_DISCARD_WITHOUT_SESSION');
+    const result = await deleteWorkoutEverywhere(uid, sessionId);
+    if (!result.success) {
+      toast({ title: t('history.deleteFailed'), description: result.error, variant: 'destructive' });
+      throw new Error(result.error ?? 'WATCH_DISCARD_FAILED');
+    }
+    toast({ title: t('history.deleted') });
+    navigate('/');
+  }, [sessionId, uid, toast, t, navigate]);
+
   // Z122: etykiety celu tygodnia i przypięte notatki dla zegarka (gotowe stringi,
   // zegarek nie liczy nic sam).
   const watchTargetLabels = useMemo(() => {
@@ -1678,6 +1704,10 @@ const WorkoutDay = () => {
     return Object.keys(out).length > 0 ? out : undefined;
   }, [day, getPinnedNote]);
 
+  const watchTrackingTypes = useMemo(() => day ? Object.fromEntries(
+    day.exercises.map((exercise) => [exercise.id, resolveTracking(exercise.name)]),
+  ) : undefined, [day, resolveTracking]);
+
   useWatchWorkoutSync({
     enabled: isActiveTrainingPhase(sessionPhase) && !isViewingPastWorkout,
     uid,
@@ -1690,9 +1720,11 @@ const WorkoutDay = () => {
     exerciseSets,
     targetLabels: watchTargetLabels,
     pinnedNotes: watchPinnedNotes,
+    trackingTypes: watchTrackingTypes,
     lang,
     onSetLogged: handleWatchSetLogged,
     onWorkoutFinished: handleWatchWorkoutFinished,
+    onWorkoutDiscarded: handleWatchWorkoutDiscarded,
   });
 
   // Metryki (RPE/ból/jakość) — tryb edycji: tylko stan lokalny.
@@ -2030,6 +2062,13 @@ const WorkoutDay = () => {
 
   // Get previous sets for a specific exercise
   const getPreviousSets = (exerciseId: string, exerciseName?: string): SetData[] | undefined => {
+    if (watchQuickExercise?.id === exerciseId) {
+      return Array.from({ length: watchQuickExercise.setCount }, () => ({
+        reps: watchQuickExercise.reps,
+        weight: watchQuickExercise.weight,
+        completed: false,
+      }));
+    }
     const ex = previousWorkout?.exercises.find(e => e.exerciseId === exerciseId);
     if (ex?.sets && ex.sets.length > 0) return ex.sets;
     // Nowy cykl = nowe id — dopasuj po nazwie (snapshot w historii).

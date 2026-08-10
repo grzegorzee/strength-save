@@ -14,7 +14,7 @@ struct ContentView: View {
                             WorkoutListView(payload: payload, exercises: exercises)
                         }
                     } else {
-                        restDayView(date: payload.date)
+                        QuickWorkoutHomeView(date: payload.date)
                     }
                 } else {
                     waitingView
@@ -38,14 +38,14 @@ struct ContentView: View {
     }
 
     private func finishedView(exercises: [WatchExercise]) -> some View {
-        let done = exercises.reduce(0) { $0 + $1.completedWorkingCount }
+        let stats = store.sessionStats
         return VStack(spacing: 8) {
             Image(systemName: "checkmark.seal.fill")
                 .font(.title)
                 .foregroundStyle(.green)
             Text(L10n.workoutDone)
                 .font(.headline)
-            Text(L10n.doneSets(done))
+            Text(L10n.doneSets(stats.completedSets))
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
@@ -53,19 +53,6 @@ struct ContentView: View {
         .padding()
     }
 
-    private func restDayView(date: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: "moon.zzz.fill")
-                .font(.title)
-                .foregroundStyle(.teal)
-            Text(L10n.restDay)
-                .font(.headline)
-            Text(date)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .padding()
-    }
 }
 
 struct WorkoutListView: View {
@@ -74,6 +61,7 @@ struct WorkoutListView: View {
     let payload: WatchWorkoutPayload
     let exercises: [WatchExercise]
     @State private var confirmFinish = false
+    @State private var confirmDiscard = false
 
     private var allDone: Bool {
         exercises.allSatisfy { $0.isDone }
@@ -91,12 +79,28 @@ struct WorkoutListView: View {
                 }
             }
 
-            // Z122: kolejka transferUserInfo nie jest pusta = serie czekają na telefon.
-            if store.pendingEventCount > 0 && !store.isPhoneReachable {
+            if store.pendingEventCount > 0 {
                 Section {
-                    Label(L10n.pendingSync, systemImage: "arrow.triangle.2.circlepath")
+                    Label(L10n.pendingEvents(store.pendingEventCount), systemImage: "arrow.triangle.2.circlepath")
                         .font(.caption2)
                         .foregroundStyle(.orange)
+                }
+            }
+
+            if store.syncErrorMessage != nil {
+                Section {
+                    Text(L10n.syncError)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                    Button(L10n.retry) { store.retryPendingEvents() }
+                }
+            }
+
+            if store.isActive {
+                Section {
+                    SessionStatsRow()
+                } header: {
+                    Text(L10n.stats)
                 }
             }
 
@@ -148,8 +152,28 @@ struct WorkoutListView: View {
                         Label(L10n.finishWorkout, systemImage: "flag.checkered")
                             .foregroundStyle(allDone ? .green : .primary)
                     }
+                    Button(role: .destructive) {
+                        confirmDiscard = true
+                    } label: {
+                        Label(L10n.discardWorkout, systemImage: "trash")
+                    }
                 } footer: {
                     Text(L10n.finishFooter)
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    RestSettingsView()
+                } label: {
+                    Label(L10n.restSettings, systemImage: "timer")
+                }
+                if !store.isActive && !store.recentExercises.isEmpty {
+                    NavigationLink {
+                        QuickWorkoutListView()
+                    } label: {
+                        Label(L10n.quickWorkout, systemImage: "bolt.fill")
+                    }
                 }
             }
         }
@@ -163,9 +187,126 @@ struct WorkoutListView: View {
             }
             Button(L10n.back, role: .cancel) {}
         }
+        .confirmationDialog(
+            L10n.discardConfirm,
+            isPresented: $confirmDiscard,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.discard, role: .destructive) { store.discardWorkout() }
+            Button(L10n.back, role: .cancel) {}
+        }
         .navigationDestination(for: String.self) { exerciseId in
             if let exercise = store.payload?.exercises?.first(where: { $0.id == exerciseId }) {
                 ExerciseDetailView(exerciseId: exercise.id)
+            }
+        }
+    }
+}
+
+struct QuickWorkoutHomeView: View {
+    @EnvironmentObject var store: WorkoutStore
+    let date: String
+
+    var body: some View {
+        List {
+            Section {
+                Label(L10n.restDay, systemImage: "moon.zzz.fill")
+                    .foregroundStyle(.teal)
+                Text(date).font(.caption2).foregroundStyle(.secondary)
+            }
+            if store.pendingEventCount > 0 {
+                Section {
+                    Label(L10n.pendingEvents(store.pendingEventCount), systemImage: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(.orange)
+                    if store.syncErrorMessage != nil {
+                        Button(L10n.retry) { store.retryPendingEvents() }
+                    }
+                }
+            }
+            Section {
+                if store.recentExercises.isEmpty {
+                    Text(L10n.noRecentExercises).font(.caption2).foregroundStyle(.secondary)
+                } else {
+                    NavigationLink {
+                        QuickWorkoutListView()
+                    } label: {
+                        Label(L10n.quickWorkout, systemImage: "bolt.fill")
+                    }
+                }
+                NavigationLink {
+                    RestSettingsView()
+                } label: {
+                    Label(L10n.restSettings, systemImage: "timer")
+                }
+            }
+        }
+    }
+}
+
+struct QuickWorkoutListView: View {
+    @EnvironmentObject var store: WorkoutStore
+
+    var body: some View {
+        List(store.recentExercises) { exercise in
+            Button {
+                store.startQuickWorkout(exercise)
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(exercise.name).lineLimit(2)
+                    Text("\(exercise.setCount) × \(exercise.reps) · \(store.weightUnit.toDisplay(exercise.weight).weightText) \(store.weightUnit.label)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle(L10n.recentExercises)
+    }
+}
+
+struct SessionStatsRow: View {
+    @EnvironmentObject var store: WorkoutStore
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let stats = store.sessionStats
+            let seconds = stats.elapsedSeconds(at: context.date)
+            HStack {
+                Label(String(format: "%d:%02d", seconds / 60, seconds % 60), systemImage: "clock")
+                Spacer()
+                Text("\(stats.completedSets)")
+                Spacer()
+                Text("\(store.weightUnit.toDisplay(stats.volumeKg).weightText) \(store.weightUnit.label)")
+            }
+            .font(.caption2.monospacedDigit())
+        }
+    }
+}
+
+struct RestSettingsView: View {
+    @EnvironmentObject var store: WorkoutStore
+
+    var body: some View {
+        List {
+            restRow(title: L10n.betweenSets, seconds: store.restBetweenSetsSeconds) {
+                store.adjustRestBetweenSets(by: $0)
+            }
+            restRow(title: L10n.betweenExercises, seconds: store.restBetweenExercisesSeconds) {
+                store.adjustRestBetweenExercises(by: $0)
+            }
+            Text(L10n.localSetting).font(.caption2).foregroundStyle(.secondary)
+        }
+        .navigationTitle(L10n.restSettings)
+    }
+
+    private func restRow(title: String, seconds: Int, adjust: @escaping (Int) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.caption)
+            HStack {
+                Button { adjust(-15) } label: { Image(systemName: "minus.circle") }
+                Spacer()
+                Text("\(seconds) s").font(.headline.monospacedDigit())
+                Spacer()
+                Button { adjust(15) } label: { Image(systemName: "plus.circle") }
             }
         }
     }
@@ -190,7 +331,7 @@ struct QuickLogButton: View {
                         .foregroundStyle(.black.opacity(0.7))
                 }
                 Label(
-                    "\(suggestion.label) · \(suggestion.reps) × \(unit.toDisplay(suggestion.weight).weightText) \(unit.label)",
+                    "\(suggestion.label) · \(WatchSet(reps: suggestion.reps, weight: suggestion.weight, completed: false, isWarmup: nil, updatedAt: nil, durationSec: suggestion.durationSec, distanceM: suggestion.distanceM, assistWeight: suggestion.assistWeight).valueText(unit: unit, trackingType: suggestion.trackingType))",
                     systemImage: "checkmark"
                 )
                 .font(.body.bold())

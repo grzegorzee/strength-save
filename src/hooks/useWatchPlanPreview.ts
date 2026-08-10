@@ -16,9 +16,12 @@ import {
   isWatchBridgeSupported,
   sendWorkoutToWatch,
 } from '@/lib/watch-bridge';
+import { buildRecentWatchExercises } from '@/lib/watch-recent';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { WORKOUT_PROTOCOL_VERSION } from '@/lib/workout-protocol';
+import { exerciseLibrary } from '@/data/exerciseLibrary';
+import { getTrackingType } from '@/lib/set-tracking';
 
 interface UseWatchPlanPreviewOptions {
   uid: string | null;
@@ -30,6 +33,11 @@ interface UseWatchPlanPreviewOptions {
 }
 
 const SEND_DEBOUNCE_MS = 1200;
+
+const watchTrackingForName = (name: string) => {
+  const library = exerciseLibrary.find((exercise) => exercise.name === name);
+  return getTrackingType(library ?? { isBodyweight: isBodyweightExercise(name) });
+};
 
 export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWatchPlanPreviewOptions) {
   // Z164: zegarek dostaje język UI (kontrakt jak w useWatchWorkoutSync).
@@ -48,6 +56,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
           deviceId: getOrCreateWatchPhoneDeviceId(),
         } as const;
         const rest = getRestSettingsForWatch();
+        const recentExercises = buildRecentWatchExercises(workouts);
         const timerSettings = FEATURE_FLAGS.workoutTimers ? {
           restSeconds: getRestDefaultSeconds(),
           restBetweenSetsSeconds: rest.betweenSetsSeconds,
@@ -55,7 +64,14 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
         } : {};
 
         if (type !== 'training' || !day) {
-          await sendWorkoutToWatch({ ...protocol, type: 'noWorkout', date: today, sentAt: Date.now() });
+          await sendWorkoutToWatch({
+            ...protocol, type: 'noWorkout', date: today, sentAt: Date.now(),
+            timersEnabled: FEATURE_FLAGS.workoutTimers,
+            ...timerSettings,
+            unit: getUnitSystemForWatch(),
+            lang,
+            recentExercises,
+          });
           return;
         }
 
@@ -77,10 +93,12 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
             ...timerSettings,
             unit: getUnitSystemForWatch(),
             lang,
+            recentExercises,
             exercises: day.exercises.map((exercise) => ({
               id: exercise.id,
               name: exercise.name,
               setsLabel: exercise.sets,
+              trackingType: watchTrackingForName(exercise.name),
               sets: draft.exerciseSets[exercise.id] ?? [],
             })),
           });
@@ -121,10 +139,12 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
           ...timerSettings,
           unit: getUnitSystemForWatch(),
           lang,
+          recentExercises,
           exercises: day.exercises.map((exercise) => ({
             id: exercise.id,
             name: exercise.name,
             setsLabel: exercise.sets,
+            trackingType: watchTrackingForName(exercise.name),
             sets: createPrefilledSets(
               parseSetCount(exercise.sets),
               getPreviousSets(exercise.id, exercise.name),
