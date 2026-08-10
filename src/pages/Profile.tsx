@@ -42,7 +42,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const { uid, profile, isAdmin } = useCurrentUser();
   const { unit, setUnit } = useUnit();
-  const { logout, resetPassword } = useAuth();
+  const { logout, logoutAfterAccountDeletion, resetPassword } = useAuth();
   const { workouts } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
   const { t, lang, setLang } = useTranslation();
@@ -78,7 +78,7 @@ const Profile = () => {
     try {
       await deleteOwnAccount();
       // Konto Auth już nie istnieje — lokalny logout domyka sesję, gate przejmuje resztę.
-      await logout();
+      await logoutAfterAccountDeletion();
     } catch (err) {
       setDeletingAccount(false);
       toast({

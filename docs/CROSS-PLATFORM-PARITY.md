@@ -90,7 +90,17 @@ Kod zamyka implementacyjnie G03, G06, G11, G13 i garminową część G17. Token 
 
 G11 nie tworzy już cichej sesji `(Garmin)`. Backend wyszukuje kanoniczny workout tego samego `uid/date/dayId`, scala tylko dotknięte serie według per-set `updatedAt`/`at`, a końcowy zapis ma transakcyjny drugi merge na wypadek równoległej edycji telefonu. Retry po utraconym ACK rozpoznaje identyczny wynik i nie podbija `revision` ani nie wykonuje drugiego zapisu.
 
-Dowód automatyczny: `functions/src/garmin-entitlement.test.ts`, `garmin-pair.test.ts`, `garmin-day.test.ts`, `garmin-ingest.test.ts`, `garmin-conflict.test.ts`, `garmin-protocol.test.ts`, `garmin-client-contract.test.ts`, `garmin-units.test.ts` i `security.test.ts`; pełne Functions 175 PASS, aplikacja 1253 PASS. SDK Connect IQ 9.2.0 buduje epix2, fenix7, fr255, venu3 i vivoactive5. G03/G11/G17 pozostają produkcyjnie warunkowe do scenariusza G1-G9 na fizycznym Garminie i koncie technicznym; Z227 doda wspólny ekran urządzeń oraz podpisany capability snapshot.
+Dowód automatyczny: `functions/src/garmin-entitlement.test.ts`, `garmin-pair.test.ts`, `garmin-day.test.ts`, `garmin-ingest.test.ts`, `garmin-conflict.test.ts`, `garmin-protocol.test.ts`, `garmin-client-contract.test.ts`, `garmin-units.test.ts` i `security.test.ts`; pełne Functions 175 PASS, aplikacja 1253 PASS. SDK Connect IQ 9.2.0 buduje epix2, fenix7, fr255, venu3 i vivoactive5. G03/G11/G17 pozostają produkcyjnie warunkowe do scenariusza G1-G9 na fizycznym Garminie i koncie technicznym.
+
+## Delta Z227 — wspólny dostęp i urządzenia
+
+G02 i G15 są zamknięte implementacyjnie. Jeden callable `linkedDevices` buduje z chronionych kolekcji serwerowy read model Watch/Garmin dla tego samego zalogowanego `uid`; web, iOS i Android renderują z niego te same: last seen/sync, pending, offline/error, HealthKit/FIT oraz refresh/unlink. Web pokazuje potwierdzony stan `pro`, nie ma checkoutu ani copy triala i podaje oba miejsca instalacji mobile. Zegarki nie mają osobnego produktu ani paywalla.
+
+iPhone wysyła Apple Watch addytywny capability snapshot dopiero po zakończeniu ładowania subskrypcji. Revoked/expired blokuje tylko nowe akcje Watch; lokalna kolejka i retry zostają. Watch raportuje przez telefon wyłącznie ograniczoną telemetrię lifecycle (bez danych treningu/Health), a bezpośrednie odczyty i zapisy `device_statuses` są deny-all. Logout, delete i unlink wysyłają/persistują revoke bez cichego czyszczenia kolejki; G16 jest tym samym zamknięte w kodzie, lecz nadal wymaga sekwencji fizycznej Z228.
+
+Garmin otrzymuje w `garminDay`/odpowiedzi błędu minimalną kopertę `{v,a,t,x?,i,s}` podpisaną HMAC i związaną z `deviceId`. Zegarek nie wytwarza stanu lokalnie; backend nadal sprawdza świeży profil `users/{uid}.subscription` przy każdym day/ingest. Pending/FIT są raportowane tylko przy lifecycle fetch i finalnym batchu, więc koszt pozostaje 1 day + 1 ingest dla typowego treningu, bez chmury per set.
+
+Dowód automatyczny: aplikacja 147 plików/1261 PASS, Functions 179 PASS, rules 170 PASS, celowane kontrakty urządzeń/Watch/logout 10 PASS, lint i oba typechecki PASS. Web/mobile build, dist smoke i cold-offline PASS; Xcode `App` wraz z `StrengthWatch`/widgets oraz Monkey C epix2 PASS. Podział runtime po rozpoznaniu sesji obniżył initial JS z 1 539 828 B do 1 269 850 B, czyli 266 150 B zapasu bez zmiany limitu. Fizyczne zachowanie unlink/revoke/expiry jest jawnie przeniesione do Z228 i checklisty D1-D4.
 
 ## Dowody audytu
 

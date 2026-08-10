@@ -13,7 +13,7 @@ import { ExercisePicker } from '@/components/ExercisePicker';
 import type { TrainingDay, Exercise } from '@/data/trainingPlan';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
-import { useRequiresPaywall } from '@/hooks/useSubscription';
+import { isPaywallPlatform, useSubscription } from '@/hooks/useSubscription';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -77,6 +77,7 @@ import {
   findUniqueCycleForDate,
   type StartExerciseLike,
 } from '@/lib/workout-start';
+import { buildWatchCapabilitySnapshot } from '@/lib/device-management';
 
 const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
 // Z175: sesja provisional dostaje PIERWSZY checkpoint szybko — 5-minutowe okno bez
@@ -122,7 +123,11 @@ const WorkoutDay = () => {
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
-  const requiresPaywall = useRequiresPaywall();
+  const subscription = useSubscription();
+  const requiresPaywall = isPaywallPlatform() && !subscription.loading && !subscription.isPro;
+  const watchCapability = subscription.loading
+    ? undefined
+    : buildWatchCapabilitySnapshot(subscription);
   const {
     workouts,
     createWorkoutSession,
@@ -1722,6 +1727,7 @@ const WorkoutDay = () => {
     pinnedNotes: watchPinnedNotes,
     trackingTypes: watchTrackingTypes,
     lang,
+    capability: watchCapability,
     onSetLogged: handleWatchSetLogged,
     onWorkoutFinished: handleWatchWorkoutFinished,
     onWorkoutDiscarded: handleWatchWorkoutDiscarded,

@@ -212,6 +212,7 @@ describe("GDPR collection coverage", () => {
     expect(GDPR_UID_FIELD_COLLECTIONS).toEqual(expect.arrayContaining([
       "device_pair_codes",
       "device_tokens",
+      "device_statuses",
     ]));
     expect(GDPR_DIRECT_DOC_COLLECTIONS).toEqual(expect.arrayContaining([
       "strava_connections",

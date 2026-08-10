@@ -80,6 +80,9 @@ export {
   garminPair,
   garminDay,
   garminIngest,
+  linkedDevices,
+  reportAppleWatchStatus,
+  unlinkLinkedDevice,
 } from "./garmin-endpoints";
 // Codzienne poranne przypomnienie o treningu (tylko w dni treningowe).
 export { dailyTrainingReminder } from "./daily-reminder";

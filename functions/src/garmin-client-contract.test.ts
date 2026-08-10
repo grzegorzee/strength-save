@@ -41,4 +41,14 @@ describe("Connect IQ X25 client contract", () => {
     expect(day).toContain("Rez.Strings.Refresh");
     expect(day).not.toContain("Api.fetchDay(WorkoutState.todayString())");
   });
+
+  it("reports pending/FIT only on day lifecycle or final batch and stores server capability opaquely", () => {
+    const api = source("Api.mc");
+    const recorder = source("SessionRecorder.mc");
+    expect(api).toContain('"&p=" + EventQueue.size().toString()');
+    expect(api).toContain('payload["pendingEvents"] = EventQueue.size()');
+    expect(api).toContain('Application.Storage.setValue("proCapability"');
+    expect(recorder).toContain('setStatus("saved")');
+    expect(recorder).toContain('setStatus("discarded")');
+  });
 });

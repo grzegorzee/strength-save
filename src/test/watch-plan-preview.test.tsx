@@ -6,6 +6,8 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import type { TrainingDay } from '@/data/trainingPlan';
 
 const sendWorkoutToWatch = vi.fn(async (_payload: Record<string, unknown>) => undefined);
+const getWatchAvailability = vi.fn(async (): Promise<Record<string, unknown> | null> => null);
+const reportAppleWatchStatus = vi.fn(async () => ({ linked: true }));
 
 vi.mock('@/lib/watch-bridge', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/watch-bridge')>();
@@ -13,11 +15,16 @@ vi.mock('@/lib/watch-bridge', async (importOriginal) => {
     ...original,
     isWatchBridgeSupported: () => true,
     sendWorkoutToWatch: (payload: unknown) => sendWorkoutToWatch(payload as Record<string, unknown>),
+    getWatchAvailability: () => getWatchAvailability(),
   };
 });
 
 vi.mock('@/lib/workout-draft-db', () => ({
   workoutDraftDb: { loadActiveDraft: vi.fn(async () => null) },
+}));
+
+vi.mock('@/lib/garmin-api', () => ({
+  reportAppleWatchStatus: () => reportAppleWatchStatus(),
 }));
 
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
@@ -39,6 +46,8 @@ describe('useWatchPlanPreview — język w payloadzie (Z164)', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     localStorage.clear();
+    getWatchAvailability.mockResolvedValue(null);
+    reportAppleWatchStatus.mockResolvedValue({ linked: true });
   });
 
   const runPreview = async (lang: 'pl' | 'en') => {
@@ -73,5 +82,28 @@ describe('useWatchPlanPreview — język w payloadzie (Z164)', () => {
   it('PL: payload podglądu ma lang="pl"', async () => {
     const payload = await runPreview('pl');
     expect(payload.lang).toBe('pl');
+  });
+
+  it('server revoke overrides inherited PRO without deleting Watch data', async () => {
+    getWatchAvailability.mockResolvedValue({
+      supported: true, paired: true, watchAppInstalled: true, reachable: false,
+      deviceId: 'watch-12345678', pendingEvents: 3, healthStatus: 'ready',
+    });
+    reportAppleWatchStatus.mockResolvedValue({ linked: false });
+    localStorage.setItem('app-language', 'pl');
+    renderHook(
+      () => useWatchPlanPreview({
+        uid: 'u1', type: 'training', day, dateStr: '2026-07-28', workouts: [],
+        capability: { v: 1, active: true, tier: 'yearly' },
+      }),
+      { wrapper },
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    vi.useRealTimers();
+    await waitFor(() => expect(sendWorkoutToWatch).toHaveBeenCalled());
+    expect(sendWorkoutToWatch.mock.calls.at(-1)?.[0]).toMatchObject({
+      capability: { v: 1, active: false, tier: 'yearly' },
+    });
+    expect(localStorage.getItem('strength-save:apple-watch-linked-v1')).toBe('0');
   });
 });

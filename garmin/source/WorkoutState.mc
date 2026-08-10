@@ -264,6 +264,8 @@ module WorkoutState {
             "events" => EventQueue.all(),
         };
         SessionRecorder.stopAndSave();
+        payload["pendingEvents"] = EventQueue.size();
+        payload["fitStatus"] = SessionRecorder.status();
         _finishCb = callback;
         Api.ingest(payload, new Lang.Method($.WorkoutState, :onFinishResponse));
     }

@@ -13,6 +13,7 @@ import {
   getRestDefaultSeconds,
   getRestSettingsForWatch,
   getUnitSystemForWatch,
+  getWatchAvailability,
   isWatchBridgeSupported,
   sendWorkoutToWatch,
 } from '@/lib/watch-bridge';
@@ -22,6 +23,9 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { WORKOUT_PROTOCOL_VERSION } from '@/lib/workout-protocol';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { getTrackingType } from '@/lib/set-tracking';
+import type { WatchCapabilitySnapshot } from '@/lib/device-management';
+import { applyLastKnownWatchLink, saveAppleWatchLinkedState } from '@/lib/device-management';
+import { reportAppleWatchStatus } from '@/lib/garmin-api';
 
 interface UseWatchPlanPreviewOptions {
   uid: string | null;
@@ -30,6 +34,7 @@ interface UseWatchPlanPreviewOptions {
   day?: TrainingDay | null;
   dateStr?: string;
   workouts: WorkoutSession[];
+  capability?: WatchCapabilitySnapshot;
 }
 
 const SEND_DEBOUNCE_MS = 1200;
@@ -39,7 +44,7 @@ const watchTrackingForName = (name: string) => {
   return getTrackingType(library ?? { isBodyweight: isBodyweightExercise(name) });
 };
 
-export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWatchPlanPreviewOptions) {
+export function useWatchPlanPreview({ uid, type, day, dateStr, workouts, capability }: UseWatchPlanPreviewOptions) {
   // Z164: zegarek dostaje język UI (kontrakt jak w useWatchWorkoutSync).
   const { lang } = useTranslation();
 
@@ -55,6 +60,28 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
           uid,
           deviceId: getOrCreateWatchPhoneDeviceId(),
         } as const;
+        let inheritedCapability = applyLastKnownWatchLink(capability);
+        const watchStatus = await getWatchAvailability();
+        if (watchStatus?.paired && watchStatus.watchAppInstalled && watchStatus.deviceId) {
+          try {
+            const server = await reportAppleWatchStatus({
+              deviceId: watchStatus.deviceId,
+              label: watchStatus.label || 'Apple Watch',
+              paired: true,
+              watchAppInstalled: true,
+              reachable: watchStatus.reachable,
+              pendingEvents: Math.max(0, Math.floor(watchStatus.pendingEvents ?? 0)),
+              healthStatus: watchStatus.healthStatus ?? 'unknown',
+              lastSyncAt: watchStatus.lastSyncAt ?? null,
+            });
+            saveAppleWatchLinkedState(server.linked);
+            if (inheritedCapability) {
+              inheritedCapability = { ...inheritedCapability, active: inheritedCapability.active && server.linked };
+            }
+          } catch {
+            // Offline: last server-confirmed link state remains authoritative locally.
+          }
+        }
         const rest = getRestSettingsForWatch();
         const recentExercises = buildRecentWatchExercises(workouts);
         const timerSettings = FEATURE_FLAGS.workoutTimers ? {
@@ -70,6 +97,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
             ...timerSettings,
             unit: getUnitSystemForWatch(),
             lang,
+            capability: inheritedCapability,
             recentExercises,
           });
           return;
@@ -93,6 +121,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
             ...timerSettings,
             unit: getUnitSystemForWatch(),
             lang,
+            capability: inheritedCapability,
             recentExercises,
             exercises: day.exercises.map((exercise) => ({
               id: exercise.id,
@@ -139,6 +168,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
           ...timerSettings,
           unit: getUnitSystemForWatch(),
           lang,
+          capability: inheritedCapability,
           recentExercises,
           exercises: day.exercises.map((exercise) => ({
             id: exercise.id,
@@ -156,5 +186,5 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
     }, SEND_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [uid, type, day, dateStr, workouts, lang]);
+  }, [uid, type, day, dateStr, workouts, lang, capability]);
 }

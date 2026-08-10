@@ -7,7 +7,9 @@ struct ContentView: View {
         NavigationStack {
             Group {
                 if let payload = store.payload {
-                    if payload.type == "todayWorkout", let exercises = payload.exercises, !exercises.isEmpty {
+                    if payload.capability?.active == false {
+                        proRequiredView
+                    } else if payload.type == "todayWorkout", let exercises = payload.exercises, !exercises.isEmpty {
                         if store.isFinishedLocally {
                             finishedView(exercises: exercises)
                         } else {
@@ -22,6 +24,24 @@ struct ContentView: View {
             }
             .navigationTitle("Strength")
         }
+    }
+
+    private var proRequiredView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.title2)
+                .foregroundStyle(.orange)
+            Text(L10n.proRequired)
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+            if store.pendingEventCount > 0 {
+                Text(L10n.pendingEvents(store.pendingEventCount))
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                Button(L10n.retry) { store.retryPendingEvents() }
+            }
+        }
+        .padding()
     }
 
     private var waitingView: some View {

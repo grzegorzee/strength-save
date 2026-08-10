@@ -45,4 +45,17 @@ describe('Swift Apple Watch contract (X25/Z225)', () => {
       expect(editor).toContain(field);
     }
   });
+
+  it('dziedziczy capability PRO z iPhone i raportuje pending/Health bez danych treningu', () => {
+    const models = read('ios/App/WatchApp/WorkoutModels.swift');
+    const store = read('ios/App/WatchApp/WorkoutStore.swift');
+    const phone = read('ios/App/App/WatchBridge/PhoneWatchSessionManager.swift');
+    const view = read('ios/App/WatchApp/ContentView.swift');
+    expect(models).toContain('var capability: WatchCapabilitySnapshot?');
+    expect(store).toContain('payload?.capability?.active != false');
+    expect(store).toContain('"pendingEvents": pendingEventCount');
+    expect(store).toContain('"healthStatus": WorkoutSessionManager.shared.healthStatus');
+    expect(phone).toContain('applicationContext["deviceStatus"]');
+    expect(view).toContain('payload.capability?.active == false');
+  });
 });

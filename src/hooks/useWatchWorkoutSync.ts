@@ -28,6 +28,7 @@ import {
 } from '@/lib/watch-bridge';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { WORKOUT_PROTOCOL_VERSION } from '@/lib/workout-protocol';
+import { applyLastKnownWatchLink, type WatchCapabilitySnapshot } from '@/lib/device-management';
 
 interface UseWatchWorkoutSyncOptions {
   /** Wysyłka i aplikowanie eventów tylko przy aktywnym treningu. */
@@ -47,6 +48,7 @@ interface UseWatchWorkoutSyncOptions {
   trackingTypes?: Record<string, TrackingType>;
   /** Z122: język UI zegarka. */
   lang?: string;
+  capability?: WatchCapabilitySnapshot;
   onSetLogged: (event: WatchSetLoggedEvent) => void | Promise<void>;
   onWorkoutFinished: (event: WatchWorkoutFinishedEvent) => void | Promise<void>;
   onWorkoutDiscarded: (event: WatchWorkoutDiscardedEvent) => void | Promise<void>;
@@ -55,7 +57,7 @@ interface UseWatchWorkoutSyncOptions {
 const SEND_DEBOUNCE_MS = 800;
 
 export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
-  const { enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang, onSetLogged, onWorkoutFinished, onWorkoutDiscarded } = options;
+  const { enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang, capability, onSetLogged, onWorkoutFinished, onWorkoutDiscarded } = options;
 
   // Najnowsze callbacki bez restartu listenera.
   const handlersRef = useRef({ onSetLogged, onWorkoutFinished, onWorkoutDiscarded });
@@ -96,6 +98,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
         }),
         unit: getUnitSystemForWatch(),
         ...(lang ? { lang } : {}),
+        ...(capability ? { capability: applyLastKnownWatchLink(capability) } : {}),
         exercises: buildWatchExercises(exercises, exerciseSets, {
           targetLabelByExerciseId: targetLabels,
           pinnedNoteByExerciseId: pinnedNotes,
@@ -106,7 +109,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
     }, SEND_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang]);
+  }, [enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, trackingTypes, lang, capability]);
 
   // Odbiór eventów: listener live + drain kolejki przy starcie i powrocie do foreground.
   useEffect(() => {

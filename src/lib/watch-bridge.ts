@@ -8,12 +8,18 @@ import {
   WORKOUT_PROTOCOL_VERSION,
   isProtocolPayloadWithinLimit,
 } from '@/lib/workout-protocol';
+import { saveAppleWatchLinkedState, type WatchCapabilitySnapshot } from '@/lib/device-management';
 
 export interface WatchAvailability {
   supported: boolean;
   paired: boolean;
   watchAppInstalled: boolean;
   reachable: boolean;
+  deviceId?: string;
+  label?: string;
+  pendingEvents?: number;
+  healthStatus?: 'unknown' | 'ready' | 'active' | 'unavailable';
+  lastSyncAt?: number;
 }
 
 interface WatchBridgePluginApi {
@@ -107,6 +113,8 @@ export interface WatchWorkoutPayload {
   unit?: 'kg' | 'lbs';
   /** Język UI zegarka (Z122): 'pl' | 'en' — spójny z telefonem. */
   lang?: string;
+  /** Z227: one PRO capability inherited from the companion iPhone. */
+  capability?: WatchCapabilitySnapshot;
   exercises?: WatchExercisePayload[];
   /** Mała lista lokalnego quick workout; działa także w payloadzie noWorkout. */
   recentExercises?: WatchRecentExercisePayload[];
@@ -233,6 +241,20 @@ export async function sendWorkoutToWatch(payload: WatchWorkoutPayload): Promise<
   } catch (err) {
     console.warn('[watch-bridge] sendWorkout failed', err);
   }
+}
+
+/** Logout/delete cuts future Watch work while preserving its local pending queue. */
+export async function disableAppleWatchAccess(): Promise<void> {
+  saveAppleWatchLinkedState(false);
+  if (!isWatchBridgeSupported()) return;
+  await sendWorkoutToWatch({
+    v: WORKOUT_PROTOCOL_VERSION,
+    protocolVersion: WORKOUT_PROTOCOL_VERSION,
+    type: 'noWorkout',
+    date: new Date().toISOString().slice(0, 10),
+    sentAt: Date.now(),
+    capability: { v: 1, active: false, tier: 'none' },
+  });
 }
 
 export async function getWatchAvailability(): Promise<WatchAvailability | null> {

@@ -54,8 +54,9 @@ module Api {
     // Kontekst dnia (kompaktowy JSON) na wskazaną datę.
     function fetchDay(date as String, callback as Method(day as Dictionary or Null, code as Number) as Void) as Void {
         _dayCb = callback;
+        var telemetry = "&p=" + EventQueue.size().toString() + "&f=" + SessionRecorder.status();
         Communications.makeWebRequest(
-            BASE + "/garminDay?date=" + date,
+            BASE + "/garminDay?date=" + date + telemetry,
             null,
             {
                 :method => Communications.HTTP_REQUEST_METHOD_GET,
@@ -67,6 +68,10 @@ module Api {
     }
 
     function onDayResponse(responseCode as Number, data as Dictionary or String or Null) as Void {
+        if (data instanceof Dictionary && (data as Dictionary).hasKey("z")) {
+            // Opaque server-signed capability snapshot; never manufactured locally.
+            Application.Storage.setValue("proCapability", (data as Dictionary)["z"]);
+        }
         if (responseCode == 401) {
             // Token cofnięty — powrót do parowania.
             Application.Storage.deleteValue("deviceToken");
@@ -88,6 +93,8 @@ module Api {
     // Wysyłka paczki zdarzeń treningu (idempotentna po workoutId/eventId).
     function ingest(payload as Dictionary, callback as Method(ok as Boolean, code as Number) as Void) as Void {
         _ingestCb = callback;
+        payload["pendingEvents"] = EventQueue.size();
+        payload["fitStatus"] = SessionRecorder.status();
         Communications.makeWebRequest(
             BASE + "/garminIngest",
             payload,
@@ -101,6 +108,9 @@ module Api {
     }
 
     function onIngestResponse(responseCode as Number, data as Dictionary or String or Null) as Void {
+        if (data instanceof Dictionary && (data as Dictionary).hasKey("z")) {
+            Application.Storage.setValue("proCapability", (data as Dictionary)["z"]);
+        }
         if (responseCode == 401) {
             Application.Storage.deleteValue("deviceToken");
         }

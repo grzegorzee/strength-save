@@ -33,6 +33,11 @@ jedną kanoniczną sesję telefonu+Garmina z per-set LWW oraz odporny nowy dzie�
 Kontekst dnia ma cache 15 min i ręczny refresh; aktywna EventQueue blokuje
 podmianę dnia do trwałego ACK. Typowy trening używa 1 requestu `garminDay` i
 1 finalnego `garminIngest`; UI timer/FIT/EventQueue nie zapisują nic co sekundę.
+Odpowiedź day/ingest niesie też nieinterpretowaną przez zegarek, podpisaną
+serwerowo kopertę capability `{v,a,t,x?,i,s}` związaną z `deviceId`. Status
+pending i FIT jest raportowany tylko przy pobraniu lifecycle i finalizacji;
+wspólny panel web/iOS/Android czyta go przez callable, nigdy bezpośrednio z
+chronionego dokumentu tokenu.
 
 ## KROKI USERA
 
@@ -107,5 +112,6 @@ możliwości wydania aktualizacji istniejącej apki. Trzymaj kopię w
   z wibracją, mini zegar sesji) → SessionView (czas + serie + tonaż,
   swipe w lewo z ExerciseView albo pozycja "Sesja" w menu).
 
-Backend: `functions/src/garmin-pair|day|ingest|endpoints.ts` (testy vitest,
-rules deny-all dla `device_pair_codes`/`device_tokens`).
+Backend: `functions/src/garmin-pair|day|ingest|endpoints.ts` oraz
+`functions/src/linked-devices.ts` (testy vitest, rules deny-all dla
+`device_pair_codes`/`device_tokens`/`device_statuses`).

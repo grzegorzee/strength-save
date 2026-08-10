@@ -44,6 +44,8 @@ import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
+import { useSubscription } from '@/hooks/useSubscription';
+import { buildWatchCapabilitySnapshot } from '@/lib/device-management';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
@@ -130,6 +132,10 @@ const Dashboard = () => {
   const { t, lang } = useTranslation();
   const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const { uid, profile, isAdmin, canUseStrava } = useCurrentUser();
+  const subscription = useSubscription();
+  const watchCapability = subscription.loading
+    ? undefined
+    : buildWatchCapabilitySnapshot(subscription);
   const {
     workouts,
     getTotalWeight,
@@ -389,6 +395,7 @@ const Dashboard = () => {
     day: todayTraining.type === 'training' ? todayTraining.day : null,
     dateStr: todayTraining.type === 'training' ? todayTraining.dateStr : undefined,
     workouts,
+    capability: watchCapability,
   });
 
   // Calculate trends (last 4 weeks vs previous 4 weeks)

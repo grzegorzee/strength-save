@@ -19,6 +19,7 @@ import { auth, googleProvider, appleProvider } from '@/lib/firebase';
 import { logInPurchases, logOutPurchases } from '@/lib/purchases';
 import { unregisterPushForUser } from '@/lib/push-notifications';
 import { revokeAllGarminDevices } from '@/lib/garmin-api';
+import { disableAppleWatchAccess } from '@/lib/watch-bridge';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { useTranslation } from '@/contexts/LanguageContext';
 
@@ -153,17 +154,20 @@ export const useAuth = () => {
     }
   };
 
-  const logout = async () => {
+  const finishLogout = async (devicesAlreadyRevoked: boolean) => {
     try {
-      // Independent Garmin bearer tokens must be revoked before Firebase auth
-      // disappears; a failed revoke means logout is not falsely reported done.
-      await revokeAllGarminDevices();
+      // Independent watch access must be revoked before Firebase auth disappears.
+      // deleteOwnAccount already purged these docs, so it can skip the second callable.
+      if (!devicesAlreadyRevoked) await revokeAllGarminDevices();
+      await disableAppleWatchAccess();
       await unregisterPushForUser();
       await signOut(auth);
     } catch (err) {
       console.error('Logout error:', err instanceof Error ? err.message : err);
     }
   };
+  const logout = () => finishLogout(false);
+  const logoutAfterAccountDeletion = () => finishLogout(true);
 
   return {
     user,
@@ -176,5 +180,6 @@ export const useAuth = () => {
     loginWithEmail,
     resetPassword,
     logout,
+    logoutAfterAccountDeletion,
   };
 };

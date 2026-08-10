@@ -56,6 +56,8 @@ final class WorkoutStore: NSObject, ObservableObject {
         payload?.recentExercises ?? []
     }
 
+    var hasProAccess: Bool { payload?.capability?.active != false }
+
     var restBetweenSetsSeconds: Int {
         if defaults.object(forKey: restSetsOverrideKey) != nil {
             return max(15, min(600, defaults.integer(forKey: restSetsOverrideKey)))
@@ -254,6 +256,27 @@ final class WorkoutStore: NSObject, ObservableObject {
     /// nie jest dowodem zapisu do draftu.
     func refreshPendingCount() {
         pendingEventCount = pendingEvents.count
+        publishDeviceStatus()
+    }
+
+    private func publishDeviceStatus() {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        var context = session.applicationContext
+        var status: [String: Any] = [
+            "deviceId": watchDeviceId,
+            "label": WKInterfaceDevice.current().name,
+            "paired": true,
+            "watchAppInstalled": true,
+            "reachable": session.isReachable,
+            "pendingEvents": pendingEventCount,
+            "healthStatus": WorkoutSessionManager.shared.healthStatus,
+        ]
+        if defaults.object(forKey: "watch.lastSyncAt.v1") != nil {
+            status["lastSyncAt"] = defaults.double(forKey: "watch.lastSyncAt.v1")
+        }
+        context["deviceStatus"] = status
+        try? session.updateApplicationContext(context)
     }
 
     private var pendingEvents: [String] {
@@ -317,9 +340,11 @@ final class WorkoutStore: NSObject, ObservableObject {
             merged.exercises = incomingExercises
         }
         payload = merged
+        defaults.set(Date().timeIntervalSince1970 * 1000, forKey: "watch.lastSyncAt.v1")
         if let lang = merged.lang { L10n.lang = lang }
         persist()
         syncHealthSession()
+        publishDeviceStatus()
     }
 
     // MARK: - Akcje użytkownika
@@ -327,7 +352,7 @@ final class WorkoutStore: NSObject, ObservableObject {
     /// Start treningu z zegarka: lokalny override + event do telefonu
     /// (telefon nawiguje do WorkoutDay z autostartem i tworzy sesję).
     func startWorkout() {
-        guard let payload, payload.type == "todayWorkout", let dayId = payload.dayId else { return }
+        guard hasProAccess, let payload, payload.type == "todayWorkout", let dayId = payload.dayId else { return }
         objectWillChange.send()
         defaults.set("\(payload.date)|\(dayId)", forKey: localStartKey)
         rememberSessionStart(date: payload.date, dayId: dayId)
@@ -361,6 +386,7 @@ final class WorkoutStore: NSObject, ObservableObject {
         distanceM: Double? = nil,
         assistWeight: Double? = nil
     ) {
+        guard hasProAccess else { return }
         // Logowanie w trybie podglądu = niejawny start treningu.
         if !isActive { startWorkout() }
         guard var payload, var exercises = payload.exercises,
@@ -413,6 +439,7 @@ final class WorkoutStore: NSObject, ObservableObject {
     /// Lokalny quick workout korzysta tylko z listy wygenerowanej przez telefon
     /// z ukończonej historii i pozostaje w tej samej ścieżce ad-hoc po reconnect.
     func startQuickWorkout(_ exercise: WatchRecentExercise) {
+        guard hasProAccess else { return }
         let date = today
         let timestamp = Int(Date().timeIntervalSince1970 * 1000)
         let dayId = "adhoc-\(date)-\(timestamp)"
@@ -443,6 +470,7 @@ final class WorkoutStore: NSObject, ObservableObject {
             timersEnabled: previous?.timersEnabled,
             unit: previous?.unit,
             lang: previous?.lang,
+            capability: previous?.capability,
             exercises: [WatchExercise(
                 id: exercise.id,
                 name: exercise.name,
@@ -609,6 +637,7 @@ final class WorkoutStore: NSObject, ObservableObject {
             return id.map { !acknowledged.contains($0) } ?? true
         }
         defaults.set(remaining, forKey: pendingEventsKey)
+        defaults.set(Date().timeIntervalSince1970 * 1000, forKey: "watch.lastSyncAt.v1")
         if remaining.isEmpty { syncErrorMessage = nil }
         refreshPendingCount()
     }

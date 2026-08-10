@@ -19,6 +19,11 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
         super.init()
     }
 
+    var healthStatus: String {
+        guard HKHealthStore.isHealthDataAvailable() else { return "unavailable" }
+        return isSessionRunning ? "active" : "ready"
+    }
+
     func start() {
         guard HKHealthStore.isHealthDataAvailable(), session == nil else { return }
 

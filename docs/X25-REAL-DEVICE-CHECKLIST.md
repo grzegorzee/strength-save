@@ -42,3 +42,14 @@ Przed G1 utwórz konto techniczne z aktywnym PRO/comp i planem-fixture. Nie uży
 | G9 | quick workout offline -> discard; osobno plan workout -> finish | discard nie wysyła ingest i nie zapisuje FIT; finish tworzy dokładnie jeden FIT z HR i jeden kanoniczny workout | TODO REAL DEVICE |
 
 Do zamknięcia Z226 wymagane są logi HTTP/statusy G1-G9, screenshot pending/403/401/retry, eksport lub widok pojedynczego FIT w Garmin Connect oraz pojedynczy workout widoczny na web/Android. W sesji implementacyjnej `system_profiler SPUSBDataType` i `diskutil list` nie wykryły Garmina, więc brama fizyczna była zewnętrznie niemożliwa.
+
+## Z227-Z228 — wspólny ekran urządzeń i odcięcie dostępu
+
+| # | Sekwencja cross-device | Oczekiwany wynik i wymagany dowód | Status |
+|---|---|---|---|
+| D1 | Otwórz Ustawienia na web, iOS i Android po lifecycle Watch oraz finalnym Garmin ingest | te same dwa deviceId, last seen/sync, pending, HealthKit/FIT i sync status na trzech klientach | TODO REAL DEVICE |
+| D2 | Odłącz Apple Watch na web, pozostaw niewysłaną serię i uruchom iPhone/Watch offline | nowe akcje zablokowane po najbliższym lifecycle, kolejka nadal widoczna; jawny relink przywraca możliwość retry | TODO REAL DEVICE |
+| D3 | Odłącz Garmin na Androidzie i ponów day/ingest z lokalną kolejką | `401`, brak utraty kolejki; po re-pair retry zapisuje jedną sesję i jeden FIT | TODO REAL DEVICE |
+| D4 | Logout oraz delete osobnych kont technicznych przy obu zegarkach; sprawdź web po ponownym loginie | oba urządzenia odcięte, zero checkoutu/triala na web/zegarkach, historia i niewysłane lokalne eventy nie są kasowane w ciemno | TODO REAL DEVICE |
+
+Do zamknięcia Z228 dołącz screenshot wspólnego panelu z każdej powierzchni oraz log callable/HTTP dla unlink, revoke, expired i relink. Testy muszą używać wyłącznie kont technicznych i obejmować scenariusze treningowe z Z228, nie tylko ekran ustawień.

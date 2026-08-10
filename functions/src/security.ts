@@ -52,6 +52,7 @@ export const GDPR_UID_FIELD_COLLECTIONS = [
   "email_verification_codes",
   "device_pair_codes",
   "device_tokens",
+  "device_statuses",
 ] as const;
 
 export const GDPR_DIRECT_DOC_COLLECTIONS = [

@@ -436,6 +436,9 @@ add('device_pair_codes: write klienta DENIED (Z125)', false, await ok(() => setD
 add('device_tokens: read klienta DENIED (Z125)', false, await ok(() => getDoc(doc(db, 'device_tokens', 'jakis-hash'))));
 add('device_tokens: write klienta DENIED (Z125)', false, await ok(() => setDoc(doc(db, 'device_tokens', 'jakis-hash'), { uid: UID })));
 add('device_tokens: read admina DENIED (tokeny to sekrety, tylko Admin SDK) (Z125)', false, await ok(() => getDoc(doc(adminDb, 'device_tokens', 'jakis-hash'))));
+add('device_statuses: read klienta DENIED (Z227)', false, await ok(() => getDoc(doc(db, 'device_statuses', `apple_watch_${UID}_watch`))));
+add('device_statuses: write klienta DENIED (Z227)', false, await ok(() => setDoc(doc(db, 'device_statuses', `apple_watch_${UID}_watch`), { uid: UID })));
+add('device_statuses: read admina DENIED (lifecycle tylko przez callable) (Z227)', false, await ok(() => getDoc(doc(adminDb, 'device_statuses', `apple_watch_${UID}_watch`))));
 
 await env.cleanup();
 

@@ -565,6 +565,9 @@ service cloud.firestore {
     match /device_tokens/{tokenHash} {
       allow read, write: if false;
     }
+    match /device_statuses/{statusId} {
+      allow read, write: if false;
+    }
 
     // chat_conversations — REMOVED (AI Chat feature removed in v6.7.0)
   }

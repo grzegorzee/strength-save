@@ -10,6 +10,7 @@ final class PhoneWatchSessionManager: NSObject {
 
     static let eventReceivedNotification = Notification.Name("WatchBridgeEventReceived")
     private let pendingKey = "watchBridge.pendingEvents"
+    private let statusKey = "watchBridge.deviceStatus.v1"
     private let queue = DispatchQueue(label: "watchBridge.pending")
 
     private override init() {
@@ -28,12 +29,24 @@ final class PhoneWatchSessionManager: NSObject {
             return ["supported": false, "paired": false, "watchAppInstalled": false, "reachable": false]
         }
         let session = WCSession.default
-        return [
+        var info: [String: Any] = [
             "supported": true,
             "paired": session.isPaired,
             "watchAppInstalled": session.isWatchAppInstalled,
             "reachable": session.isReachable,
         ]
+        if let status = UserDefaults.standard.dictionary(forKey: statusKey) {
+            ["deviceId", "label", "healthStatus", "lastSyncAt"].forEach { key in
+                if let value = status[key] { info[key] = value }
+            }
+            let watchPending = status["pendingEvents"] as? Int ?? 0
+            let phonePending = UserDefaults.standard.stringArray(forKey: pendingKey)?.count ?? 0
+            info["pendingEvents"] = max(watchPending, phonePending)
+        } else {
+            info["pendingEvents"] = UserDefaults.standard.stringArray(forKey: pendingKey)?.count ?? 0
+            info["healthStatus"] = "unknown"
+        }
+        return info
     }
 
     func sendWorkout(json: String) throws {
@@ -118,6 +131,11 @@ extension PhoneWatchSessionManager: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
         handleIncoming(userInfo)
+    }
+
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        guard let status = applicationContext["deviceStatus"] as? [String: Any] else { return }
+        UserDefaults.standard.set(status, forKey: statusKey)
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {

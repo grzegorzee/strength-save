@@ -42,6 +42,13 @@ struct WatchExercise: Codable, Identifiable, Hashable {
     }
 }
 
+struct WatchCapabilitySnapshot: Codable {
+    var v: Int
+    var active: Bool
+    var tier: String
+    var expiresAt: String?
+}
+
 struct WatchWorkoutPayload: Codable {
     // X25/Z224: addytywne pola wersjonowanego protokołu. Stary Watch ignoruje
     // nieznane klucze, a nowy nadal dekoduje snapshoty bez tych pól.
@@ -68,6 +75,8 @@ struct WatchWorkoutPayload: Codable {
     var unit: String?
     // Język UI zegarka (Z122): "pl"/"en", spójny z telefonem.
     var lang: String?
+    // Z227: Apple Watch dziedziczy jeden stan PRO z iPhone'a. Brak = legacy allow.
+    var capability: WatchCapabilitySnapshot?
     var exercises: [WatchExercise]?
     var recentExercises: [WatchRecentExercise]?
 }
@@ -117,6 +126,7 @@ enum L10n {
     static var betweenSets: String { t("Między seriami", "Between sets") }
     static var betweenExercises: String { t("Między ćwiczeniami", "Between exercises") }
     static var localSetting: String { t("Zmiana zostaje na zegarku i nie jest cicho resetowana snapshotem telefonu.", "The watch keeps this change and a phone snapshot will not silently reset it.") }
+    static var proRequired: String { t("PRO jest nieaktywne. Odnów dostęp w aplikacji na telefonie.", "PRO is inactive. Renew access in the phone app.") }
 }
 
 // Jednostka ciężaru: konwersja tylko w warstwie UI, zapis zawsze w kg.

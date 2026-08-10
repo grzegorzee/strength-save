@@ -27,6 +27,11 @@ export interface DeviceTokenDoc {
   revokedAt: number | null;
   /** Epoch ms. Missing legacy values fall back to createdAt + TTL. */
   expiresAt?: number;
+  /** Z227: lifecycle/finalization status only; never written per set. */
+  pendingEvents?: number;
+  fitStatus?: "ready" | "active" | "saved" | "discarded" | "unavailable" | "unknown";
+  lastSyncAt?: number;
+  lastError?: string | null;
 }
 
 export interface GarminPairDeps {
@@ -104,6 +109,8 @@ export async function exchangeCode(deps: GarminPairDeps, rawCode: unknown): Prom
 export interface DeviceAuth {
   uid: string;
   deviceId: string;
+  /** Internal Firestore lookup only; never returned to the device. */
+  tokenHash: string;
   lastUsedAt: number;
 }
 
@@ -117,5 +124,5 @@ export async function authenticateDevice(deps: GarminPairDeps, rawToken: unknown
   if (deps.now() > expiresAt) return null;
   const previousUse = doc.lastUsedAt;
   await deps.touchDeviceToken(tokenHash, deps.now());
-  return { uid: doc.uid, deviceId: deviceIdFromTokenHash(tokenHash), lastUsedAt: previousUse };
+  return { uid: doc.uid, deviceId: deviceIdFromTokenHash(tokenHash), tokenHash, lastUsedAt: previousUse };
 }
