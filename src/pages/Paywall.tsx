@@ -11,7 +11,12 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useHardPaywall } from '@/hooks/useHardPaywall';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { localizeFocus } from '@/lib/plan-i18n';
-import { PRO_ENTITLEMENT } from '@/lib/purchases';
+import {
+  PRO_ENTITLEMENT,
+  resolvePurchaseOptions,
+  trialPresentation,
+  type ResolvedPurchaseOption,
+} from '@/lib/purchases';
 import { useToast } from '@/hooks/use-toast';
 
 // Paywall PRO. Wymogi App Review 3.1.2: widoczna cena i okres, długość trialu,
@@ -43,7 +48,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
   const { plan, planDurationWeeks } = useTrainingPlan(uid);
   const isNative = Capacitor.isNativePlatform();
 
-  const [packages, setPackages] = useState<Record<PlanKey, PurchasesPackage | null>>({ yearly: null, monthly: null });
+  const [options, setOptions] = useState<Record<PlanKey, ResolvedPurchaseOption | null>>({ yearly: null, monthly: null });
   const [loading, setLoading] = useState(isNative);
   const [loadError, setLoadError] = useState(false);
   const [selected, setSelected] = useState<PlanKey>('yearly');
@@ -59,7 +64,14 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
       const all = current?.availablePackages ?? [];
       const yearly = all.find(p => p.packageType === 'ANNUAL' || p.product.identifier.includes('yearly')) ?? null;
       const monthly = all.find(p => p.packageType === 'MONTHLY' || p.product.identifier.includes('monthly')) ?? null;
-      setPackages({ yearly, monthly });
+      // Z208: trial copy tylko przy potwierdzonej kwalifikacji (iOS eligibility / Play free option).
+      const resolved = await resolvePurchaseOptions(
+        [yearly, monthly].filter((p): p is PurchasesPackage => p !== null),
+        Capacitor.getPlatform(),
+      );
+      const byPkg = (pkg: PurchasesPackage | null) =>
+        pkg ? resolved.find(r => r.pkg.identifier === pkg.identifier) ?? null : null;
+      setOptions({ yearly: byPkg(yearly), monthly: byPkg(monthly) });
       if (!yearly && !monthly) setLoadError(true);
     } catch {
       setLoadError(true);
@@ -75,14 +87,16 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
     if (isPro) navigate(wasHard.current ? '/?welcome=1' : '/', { replace: true });
   }, [isPro, navigate]);
 
-  const trialDays: Record<PlanKey, number> = { yearly: 30, monthly: 14 };
-
   const handlePurchase = async () => {
-    const pkg = packages[selected];
-    if (!pkg || busy) return;
+    const option = options[selected];
+    if (!option || busy) return;
     setBusy(true);
     try {
-      const { customerInfo } = await Purchases.purchasePackage({ aPackage: pkg });
+      // Android: kupuj dokładnie tę opcję Play, którą pokazaliśmy (free trial albo base plan);
+      // żadnego dorozumianego trialu z samego produktu. iOS: standardowo pakiet.
+      const { customerInfo } = option.subscriptionOption
+        ? await Purchases.purchaseSubscriptionOption({ subscriptionOption: option.subscriptionOption })
+        : await Purchases.purchasePackage({ aPackage: option.pkg });
       if (customerInfo.entitlements.active[PRO_ENTITLEMENT]) {
         await refresh();
         navigate(successRoute(), { replace: true });
@@ -124,11 +138,17 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
     t('paywall.feature4'),
   ]), [t]);
 
-  const selectedPkg = packages[selected];
+  const selectedOption = options[selected];
+  const selectedPkg = selectedOption?.pkg ?? null;
+  const selectedTrial = selectedOption?.trial ?? { status: 'unknown' as const, days: null };
+  const selectedVariant = trialPresentation(selectedTrial);
   const legalLang = lang === 'pl' ? '-pl' : '';
 
   const PlanCard = ({ plan }: { plan: PlanKey }) => {
-    const pkg = packages[plan];
+    const option = options[plan];
+    const pkg = option?.pkg ?? null;
+    const trial = option?.trial ?? { status: 'unknown' as const, days: null };
+    const variant = trialPresentation(trial);
     const isSelected = selected === plan;
     return (
       <button
@@ -152,9 +172,12 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
                 </span>
               )}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {t('paywall.trialLine', { days: trialDays[plan] })}
-            </p>
+            {/* Z208: obietnica dni za darmo tylko przy potwierdzonym eligible. */}
+            {variant.line === 'trial' && trial.days != null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('paywall.trialLine', { days: trial.days })}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <div className="font-heading text-lg font-bold">
@@ -295,16 +318,25 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
               disabled={!selectedPkg || busy}
               onClick={() => void handlePurchase()}
             >
-              {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : t('paywall.cta', { days: trialDays[selected] })}
+              {busy
+                ? <Loader2 className="h-5 w-5 animate-spin" />
+                : selectedVariant.cta === 'trial' && selectedTrial.days != null
+                  ? t('paywall.cta', { days: selectedTrial.days })
+                  : t('paywall.ctaNoTrial')}
             </Button>
 
             {/* Wymóg App Review: jasne warunki odnowienia przy CTA. */}
             <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
-              {selectedPkg && t('paywall.renewalNote', {
-                days: trialDays[selected],
-                price: selectedPkg.product.priceString,
-                period: t(selected === 'yearly' ? 'paywall.periodYear' : 'paywall.periodMonth'),
-              })}
+              {selectedPkg && (selectedVariant.renewal === 'trial' && selectedTrial.days != null
+                ? t('paywall.renewalNote', {
+                    days: selectedTrial.days,
+                    price: selectedPkg.product.priceString,
+                    period: t(selected === 'yearly' ? 'paywall.periodYear' : 'paywall.periodMonth'),
+                  })
+                : t('paywall.renewalNoteNoTrial', {
+                    price: selectedPkg.product.priceString,
+                    period: t(selected === 'yearly' ? 'paywall.periodYear' : 'paywall.periodMonth'),
+                  }))}
             </p>
           </>
         )}
