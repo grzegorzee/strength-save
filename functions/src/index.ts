@@ -92,6 +92,8 @@ export { adminUserRepair } from "./repairs/admin-user-repair";
 export { revenuecatWebhook } from "./revenuecat";
 // Z217: agregat all-time treningów (kafle Dashboardu) + backfill na żądanie.
 export { onWorkoutWrittenAggregate, rebuildWorkoutAggregate } from "./workout-aggregate";
+// Z222: dzienny raport kosztów chmury (Monitoring API -> admin_cost_daily).
+export { dailyCostDigest } from "./cost-digest";
 
 const db = admin.firestore();
 const USERS_COLLECTION = "users";

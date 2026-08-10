@@ -19,6 +19,7 @@ import {
   type ResolvedPurchaseOption,
 } from '@/lib/purchases';
 import { useToast } from '@/hooks/use-toast';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
 
 // Paywall PRO. Wymogi App Review 3.1.2: widoczna cena i okres, długość trialu,
 // informacja o automatycznym odnowieniu, restore purchases, linki do Terms i Privacy.
@@ -83,6 +84,11 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
 
   useEffect(() => { void loadOfferings(); }, [loadOfferings]);
 
+  // Z222: funnel — jedno wejście na paywall per mount (licznik, bez treści).
+  useEffect(() => {
+    if (uid) trackTelemetryEvent(uid, 'paywall_viewed');
+  }, [uid]);
+
   // PRO aktywne (zakup/restore/comp) — paywall nie ma już nic do sprzedania.
   useEffect(() => {
     if (isPro) navigate(wasHard.current ? '/?welcome=1' : '/', { replace: true });
@@ -99,6 +105,8 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
         ? await Purchases.purchaseSubscriptionOption({ subscriptionOption: option.subscriptionOption })
         : await Purchases.purchasePackage({ aPackage: option.pkg });
       if (customerInfo.entitlements.active[PRO_ENTITLEMENT]) {
+        // Z222: funnel — zakup z potwierdzonym trialem liczy się jako start triala.
+        if (uid && option.trial.status === 'eligible') trackTelemetryEvent(uid, 'trial_started');
         await refresh();
         navigate(successRoute(), { replace: true });
       }
@@ -106,6 +114,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
       const cancelled = typeof error === 'object' && error !== null
         && 'userCancelled' in error && (error as { userCancelled?: boolean }).userCancelled;
       if (!cancelled) {
+        if (uid) trackTelemetryEvent(uid, 'purchase_failed'); // Z222: funnel
         toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
       }
     } finally {

@@ -116,6 +116,7 @@ await seedUser({ enabled: true });
 const telemetry = { userId: UID, date: '2026-06-08', updatedAt: '2026-06-08T00:00:00.000Z', counters: { sync_success: 1 } };
 add('create app_telemetry_daily (active)', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `t-${UID}`), telemetry)));
 add('create app_telemetry_daily z licznikiem spoza listy zablokowane', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', 't-evil'), { ...telemetry, counters: { evil_counter: 1 } })));
+add('create app_telemetry_daily z licznikami funnelu ALLOWED (Z222)', true, await ok(() => setDoc(doc(db, 'app_telemetry_daily', `t-${UID}-funnel`), { ...telemetry, counters: { register_started: 1, profile_created: 1, email_verified: 1, paywall_viewed: 2, trial_started: 1, purchase_failed: 1 } })));
 add('delete app_telemetry_daily zablokowane', false, await ok(() => deleteDoc(doc(db, 'app_telemetry_daily', `t-${UID}`))));
 add('create app_telemetry_daily z cudzym userId zablokowane', false, await ok(() => setDoc(doc(db, 'app_telemetry_daily', 't-x'), { ...telemetry, userId: OTHER_UID })));
 // X13A: merge-update liczników (dot-notation) = hasOnly z pełną listą nazw.
@@ -439,6 +440,11 @@ add('device_tokens: read admina DENIED (tokeny to sekrety, tylko Admin SDK) (Z12
 add('device_statuses: read klienta DENIED (Z227)', false, await ok(() => getDoc(doc(db, 'device_statuses', `apple_watch_${UID}_watch`))));
 add('device_statuses: write klienta DENIED (Z227)', false, await ok(() => setDoc(doc(db, 'device_statuses', `apple_watch_${UID}_watch`), { uid: UID })));
 add('device_statuses: read admina DENIED (lifecycle tylko przez callable) (Z227)', false, await ok(() => getDoc(doc(adminDb, 'device_statuses', `apple_watch_${UID}_watch`))));
+
+// === Z222: raport kosztow — tylko admin czyta, nikt z klienta nie pisze ===
+add('admin_cost_daily: read admina ALLOWED (Z222)', true, await ok(() => getDoc(doc(adminDb, 'admin_cost_daily', '2026-08-09'))));
+add('admin_cost_daily: read usera DENIED (Z222)', false, await ok(() => getDoc(doc(db, 'admin_cost_daily', '2026-08-09'))));
+add('admin_cost_daily: write admina DENIED (pisze tylko backend) (Z222)', false, await ok(() => setDoc(doc(adminDb, 'admin_cost_daily', '2026-08-09'), { date: '2026-08-09' })));
 
 // === Z217: agregat all-time (users/{uid}/aggregates) — pisze tylko backend ===
 add('aggregates: read wlasnego ALLOWED (Z217)', true, await ok(() => getDoc(doc(db, 'users', UID, 'aggregates', 'allTime'))));

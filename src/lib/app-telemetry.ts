@@ -41,7 +41,16 @@ export type TelemetryEventName =
   | 'action_plan_edited'
   | 'action_replan_completed'
   | 'action_export_data'
-  | 'action_strava_opened';
+  | 'action_strava_opened'
+  // Z222: funnel rejestracji i monetyzacji (liczniki bez treści, whitelist w rules).
+  // Eventy sprzed aktywacji konta czekają w buforze localStorage i dochodzą
+  // pierwszym flushem po aktywacji (hasSelfAccess odrzuca pending_verification).
+  | 'register_started'
+  | 'profile_created'
+  | 'email_verified'
+  | 'paywall_viewed'
+  | 'trial_started'
+  | 'purchase_failed';
 
 type PendingTelemetry = Record<string, Record<TelemetryEventName, number>>;
 

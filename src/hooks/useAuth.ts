@@ -21,7 +21,12 @@ import { unregisterPushForUser } from '@/lib/push-notifications';
 import { revokeAllGarminDevices } from '@/lib/garmin-api';
 import { disableAppleWatchAccess } from '@/lib/watch-bridge';
 import { readE2EAuthState } from '@/lib/e2e-auth';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
+
+// Z222: flaga sesyjna łączy register_started z profile_created (backend nie
+// sygnalizuje "utworzono" — najbliższy udany sync profilu po rejestracji = created).
+export const FUNNEL_REGISTERED_KEY = 'strength-save:funnel-registered';
 
 export const useAuth = () => {
   const { t } = useTranslation();
@@ -118,6 +123,12 @@ export const useAuth = () => {
       setError(null);
       await setPersistence(auth, browserLocalPersistence);
       await createUserWithEmailAndPassword(auth, email.trim(), password);
+      // Z222: funnel — bufor lokalny, flush dojdzie po aktywacji konta.
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        trackTelemetryEvent(uid, 'register_started');
+        try { sessionStorage.setItem(FUNNEL_REGISTERED_KEY, uid); } catch { /* brak storage = brak pary created */ }
+      }
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('auth.err.register');

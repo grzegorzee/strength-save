@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, FUNNEL_REGISTERED_KEY } from '@/hooks/useAuth';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { consumePendingInviteCode, readInviteCodeFromLocation, setPendingInviteCode } from '@/lib/pending-invite';
 import { redeemInvite, syncUserProfile, type AppUserProfile } from '@/lib/registration-api';
@@ -117,6 +118,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (cancelled) return;
+        // Z222: para do register_started — pierwszy udany sync profilu po
+        // rejestracji w tej sesji przeglądarki = profil utworzony.
+        try {
+          if (sessionStorage.getItem(FUNNEL_REGISTERED_KEY) === userId) {
+            sessionStorage.removeItem(FUNNEL_REGISTERED_KEY);
+            trackTelemetryEvent(userId, 'profile_created');
+          }
+        } catch { /* brak storage — pomijamy parę */ }
         setProfile(mapAppUserProfile(userId, syncedProfile, authProfileSeed));
         setProfileLoadError(null);
         setProfileLoaded(true);

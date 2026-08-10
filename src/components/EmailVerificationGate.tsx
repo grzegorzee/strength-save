@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, MailCheck, AlertCircle, ExternalLink } from 'lucide-react';
 import { requestEmailVerificationCode, verifyEmailCode } from '@/lib/registration-api';
+import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { useCurrentUser } from '@/contexts/UserContext';
 import { getInboxProviders } from '@/lib/inbox-links';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -20,6 +22,7 @@ const RESEND_COOLDOWN_SEC = 60;
 export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGateProps) => {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const { uid } = useCurrentUser();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -72,6 +75,8 @@ export const EmailVerificationGate = ({ email, onLogout }: EmailVerificationGate
     setError(null);
     try {
       await verifyEmailCode(code.trim());
+      // Z222: funnel — konto właśnie przeszło na active, flush dostarczy licznik.
+      if (uid) trackTelemetryEvent(uid, 'email_verified');
       toast({
         title: t('comp.emailGate.verifiedTitle'),
         description: t('comp.emailGate.verifiedDesc'),
