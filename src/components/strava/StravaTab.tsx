@@ -38,7 +38,7 @@ export const StravaTab = () => {
   // Z113: Training Load liczy też ręczne cardio (intensywność zastępuje HR).
   const { activities: manualActivities } = useManualActivities(uid);
   // Z115: sesje siłowe karmią CTL/ATL/TSB (sTRIMP).
-  const { workouts } = useFirebaseWorkouts(uid);
+  const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | 'all'>(new Date().getMonth() + 1);
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);

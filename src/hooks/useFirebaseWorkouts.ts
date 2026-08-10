@@ -30,7 +30,7 @@ import {
 import { useTranslation } from '@/contexts/LanguageContext';
 import { saveWorkoutBatchWithRevision } from '@/lib/workout-save';
 import { clampSet } from '@/lib/workout-sanitizers';
-import { getWorkoutReadSnapshot, subscribeWorkoutReads } from '@/lib/workout-read-store';
+import { getWorkoutReadSnapshot, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier } from '@/lib/workout-read-store';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
@@ -55,8 +55,11 @@ const cleanMetrics = (ex: { rpe?: number; pain?: number; quality?: number }): Re
   return out;
 };
 
-export const useFirebaseWorkoutReads = (userId: string) => {
-  const subscribe = useCallback((listener: () => void) => subscribeWorkoutReads(userId, listener), [userId]);
+export const useFirebaseWorkoutReads = (userId: string, measurementTier: MeasurementTier = 'full') => {
+  const subscribe = useCallback(
+    (listener: () => void) => subscribeWorkoutReads(userId, listener, measurementTier),
+    [userId, measurementTier],
+  );
   const getSnapshot = useCallback(() => getWorkoutReadSnapshot(userId), [userId]);
   const getServerSnapshot = useCallback(() => getWorkoutReadSnapshot(''), []);
 
@@ -203,16 +206,8 @@ export const useFirebaseWorkoutActions = (
     }
   }, [userId, t]);
 
-  const getLatestMeasurement = useCallback(() => {
-    // Najnowszy pomiar z faktycznymi danymi (measurements jest desc po dacie). Pomijamy
-    // puste/częściowe rekordy, by formularz prefillował się sensownymi wartościami,
-    // a nie pustkami (gdy najnowszy wpis nie ma jeszcze wypełnionych pól).
-    const hasValue = (m: BodyMeasurement) =>
-      m.weight != null || m.armLeft != null || m.armRight != null || m.chest != null ||
-      m.waist != null || m.hips != null || m.thighLeft != null || m.thighRight != null ||
-      m.calfLeft != null || m.calfRight != null;
-    return measurements.find(hasValue) ?? measurements[0];
-  }, [measurements]);
+  // Z213: jedna implementacja selekcji (pełna lista i sonda 'latest' dają ten sam wynik).
+  const getLatestMeasurement = useCallback(() => selectLatestMeasurement(measurements), [measurements]);
 
   // X17D Z138.5 (dług): ta funkcja liczyła tonaż BEZ filtra isWarmup, więc
   // Dashboard i Osiągnięcia pokazywały inną liczbę niż raport PDF i podsumowania —
@@ -599,8 +594,12 @@ export const useFirebaseWorkoutActions = (
   };
 };
 
-export const useFirebaseWorkouts = (userId: string) => {
-  const reads = useFirebaseWorkoutReads(userId);
+// Z213: opts.measurements steruje listenerem pomiarów per ekran:
+// 'full' (domyślnie) — pełna lista (ekrany Pomiary/Analityka/eksport),
+// 'latest' — sonda pod getLatestMeasurement (Dashboard, WorkoutDay),
+// 'none' — ekran nie czyta pomiarów wcale (sync, listy, profile).
+export const useFirebaseWorkouts = (userId: string, opts?: { measurements?: MeasurementTier }) => {
+  const reads = useFirebaseWorkoutReads(userId, opts?.measurements ?? 'full');
   const actions = useFirebaseWorkoutActions(userId, reads);
 
   return {

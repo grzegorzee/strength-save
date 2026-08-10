@@ -48,7 +48,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const { t, lang } = useTranslation();
   const { unit, fmt, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
-  const { workouts, getLatestMeasurement } = useFirebaseWorkouts(uid);
+  const { workouts, getLatestMeasurement } = useFirebaseWorkouts(uid, { measurements: 'latest' });
   const { customExercises } = useCustomExercises(uid);
   // Ciężar wagowy → jednostka usera; bodyweight pokazuje powtórzenia (bez konwersji).
   const dispVal = (v: number): number => (isBodyweight ? v : Math.round(toDisplay(v)));

@@ -41,7 +41,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
   const { t, lang } = useTranslation();
   const { toast } = useToast();
   const { isOnline } = useOnlineStatus();
-  const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer } = useFirebaseWorkouts(uid);
+  const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer } = useFirebaseWorkouts(uid, { measurements: 'none' });
   // Stan wpisów wydzielony do hooka (Z52) — Settings używa go do decyzji o renderze karty.
   const { isLoaded, drafts, queueEntries, setDrafts, setQueueEntries, listedEntries, reload: loadDraft } = useSyncCenterEntries(uid);
   const [syncingSessionIds, setSyncingSessionIds] = useState<string[]>([]);

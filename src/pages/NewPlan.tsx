@@ -64,7 +64,7 @@ const NewPlan = () => {
   const { fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
   const { plan: currentPlan, planDurationWeeks, planStartDate, savePlan } = useTrainingPlan(uid);
-  const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
+  const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { archiveCurrentPlan, createActiveCycle, getCycleById } = usePlanCycles(uid);
 
   const [phase, setPhase] = useState<'loading' | 'closeout' | 'wizard' | 'preview'>(fromCycleId ? 'loading' : 'wizard');

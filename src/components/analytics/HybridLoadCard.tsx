@@ -30,7 +30,7 @@ const WEEKS_SHOWN = 12;
 export const HybridLoadCard = () => {
   const { t, lang } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
-  const { workouts } = useFirebaseWorkouts(uid);
+  const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { activities, connection } = useActivities(uid, canUseStrava);
 
   const weekly = useMemo(() => {

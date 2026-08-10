@@ -43,7 +43,7 @@ const Profile = () => {
   const { uid, profile, isAdmin } = useCurrentUser();
   const { unit, setUnit } = useUnit();
   const { logout, logoutAfterAccountDeletion, resetPassword } = useAuth();
-  const { workouts } = useFirebaseWorkouts(uid);
+  const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { toast } = useToast();
   const { t, lang, setLang } = useTranslation();
 

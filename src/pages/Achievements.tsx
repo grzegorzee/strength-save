@@ -87,7 +87,7 @@ const Achievements = () => {
   const navigate = useNavigate();
   const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
-  const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid);
+  const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseRecord | null>(null);

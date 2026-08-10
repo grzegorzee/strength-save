@@ -25,7 +25,7 @@ const DayPlan = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
-  const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid);
+  const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava);
 

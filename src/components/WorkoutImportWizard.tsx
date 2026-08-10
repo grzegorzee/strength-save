@@ -29,7 +29,7 @@ type WizardStep = 'file' | 'mapping' | 'confirm' | 'writing' | 'done';
 export const WorkoutImportWizard = () => {
   const { t } = useTranslation();
   const { uid } = useCurrentUser();
-  const { importCsvSessions, deleteImportBatch } = useFirebaseWorkouts(uid);
+  const { importCsvSessions, deleteImportBatch } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
 
   const [open, setOpen] = useState(false);

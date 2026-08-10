@@ -40,7 +40,7 @@ const Cycles = () => {
   const { unit, toDisplay } = useUnit();
   const { uid } = useCurrentUser();
   const { cycles, isLoaded, createActiveCycle, deleteCycle, archiveCurrentPlan } = usePlanCycles(uid);
-  const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
+  const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { toast } = useToast();
   const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan } = useTrainingPlan(uid);
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);

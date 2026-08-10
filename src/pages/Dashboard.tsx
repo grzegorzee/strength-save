@@ -144,7 +144,7 @@ const Dashboard = () => {
     isLoaded,
     error,
     backfillHistoricalWorkouts
-  } = useFirebaseWorkouts(uid);
+  } = useFirebaseWorkouts(uid, { measurements: 'latest' });
   const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.

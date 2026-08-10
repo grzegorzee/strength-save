@@ -142,7 +142,7 @@ const WorkoutDay = () => {
     getLatestMeasurement,
     isLoaded: workoutsLoaded,
     workoutsFromCache,
-  } = useFirebaseWorkouts(uid);
+  } = useFirebaseWorkouts(uid, { measurements: 'latest' });
   const { plan: trainingPlan, swapExercise, isLoaded: planLoaded, progression, currentWeek } = useTrainingPlan(uid);
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
   // Dla własnych ćwiczeń źródłem prawdy o bodyweight jest pole z pickera,
