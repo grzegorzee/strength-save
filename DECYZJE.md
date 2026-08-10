@@ -11,6 +11,28 @@
 
 ## DECYZJE
 
+### 2026-08-10: aplikacja webowa pod https://app.strengthsave.app/ (custom domain zamiast github.io)
+
+**Decyzja:** Web apka serwowana z app.strengthsave.app (GitHub Pages custom domain). Landing (strengthsave.app, Vercel) linkuje do niej tylko z /download, a strona główna promuje wyłącznie mobilki (bez web apki w hero, testflightNote i FAQ).
+
+**Co zrobione:**
+- DNS: CNAME `app` -> grzegorzee.github.io (Cloudflare, DNS only, token w `_secrets/projekty/strengthsave-domain-admin.env`)
+- GitHub Pages: `cname=app.strengthsave.app`, `https_enforced=true` (cert Let's Encrypt wydany)
+- vite base `'/'` (web), PWA scope/start_url `'/'`, `public/CNAME` (bez niego deploy gh-pages kasuje custom domain)
+- playwright.config, playwright.emulator.config, e2e/emulator/plan-lifecycle, check:dist-offline: baseURL bez `/strength-save/`
+- Firebase Auth authorized domains + `app.strengthsave.app` (identitytoolkit admin/v2 PATCH; token z `--account g.jasionowicz@gmail.com` + nagłówek `x-goog-user-project`, konto grzegorzee nie ma uprawnień)
+- functions: `WEB_URL` digestu i `inviteUrl` na nową domenę (kod w repo, funkcje NIE przedeployowane; stare linki działają przez 301)
+- Landing: `WEB_APP_URL` -> nowa domena, hero eyebrow "iOS · Android · Apple Watch", testflightNote i FAQ bez promowania web apki
+
+**Dlaczego:** brandowy adres zamiast github.io; strona główna ma sprzedawać aplikacje mobilne, web zostaje jako kanał dla zaproszonych (karta na /download).
+
+**Weryfikacja:** vitest+lint+typecheck zielone, dist-smoke passed; https://app.strengthsave.app/ 200 z nowym bundlem (index-CDA1eN0R.js), strava-callback.html 200; stary URL github.io/strength-save 301 na nową domenę (ścieżka+query zachowane, więc Strava OAuth działa bez zmiany redirect_uri); bundle landinga na prod bez "Web app included", z nowym URL-em.
+
+**Ogony:**
+- `stravaRedirectUri` (param funkcji) wciąż wskazuje github.io; przy najbliższym deployu functions zaktualizować param i Authorization Callback Domain w ustawieniach apki Strava (do tego czasu 301 załatwia sprawę)
+- starzy userzy web PWA z github.io: zainstalowana PWA może serwować stary cache (SW nie zaktualizuje się przez redirect); rozwiązanie: wejście/reinstalacja z nowej domeny
+- RTK potrafi streszczać JSON z curl/gh do schematu; przy debugowaniu API używać `rtk proxy`
+
 ### 2026-08-10 — plan X25: najpierw rejestracja i release, onboarding zamrożony
 
 **Decyzja usera:** można wykonać wszystkie rekomendacje z audytu kosztów i gotowości do wydania, ale w X25 nie przebudowujemy ani nie skracamy onboardingu. Szczegółowy plan test-first i autonomiczny prompt `/goal` + `/loop` są zapisane w `docs/PLAN-X25-LAUNCH-2026-08-10.md` oraz `docs/PROMPT-X25-LOOP-2026-08-10.md`.
