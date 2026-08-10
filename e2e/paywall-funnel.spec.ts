@@ -6,7 +6,9 @@ import { setE2EAuthScenario, blockFirebase, expectHashRoute } from './helpers';
 // Native symulowane przez simulateNative w stanie e2e-auth (web ZERO zmian).
 
 const teaserTitle = /Twój plan jest gotowy|Your plan is ready/;
-const teaserCta = /Odblokuj 30 dni za darmo|Unlock 30 days free/;
+// Z208: teaser bez bezwarunkowej obietnicy dni za darmo (trial copy tylko przy
+// potwierdzonym eligible z RC — mock e2e nie ma sklepu, więc copy neutralne).
+const teaserCta = /Odblokuj pełny plan|Unlock your full plan/;
 const logoutLink = /Wyloguj|Log out/;
 
 test.describe('Hard paywall guard (onboarding wariant B)', () => {

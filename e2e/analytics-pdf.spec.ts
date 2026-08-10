@@ -15,6 +15,13 @@ import {
 test('raport treningowy PDF pobiera się z Podsumowania', async ({ page }) => {
   await setE2EAuthScenario(page, 'active-admin');
   await blockFirebase(page);
+  // WebKit ma navigator.share, więc handler szedłby w systemowy share sheet
+  // (nietestowalny headless) zamiast download. Wymuszamy ścieżkę fallback
+  // download na obu silnikach — to ją ten test weryfikuje (%PDF, nazwa pliku).
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'share', { value: undefined, configurable: true });
+    Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true });
+  });
   await setE2EWorkouts(page, [{
     id: 'pdf-1',
     userId: 'e2e-test-user',
