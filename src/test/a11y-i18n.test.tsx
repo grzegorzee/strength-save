@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import type { TrainingDay } from '@/data/trainingPlan';
 
@@ -15,7 +15,13 @@ const renderDialog = (lang: 'pl' | 'en') => {
   localStorage.setItem('app-language', lang);
   return render(
     <LanguageProvider>
-      <Dialog open><DialogContent>treść</DialogContent></Dialog>
+      {/* Z220: sr-only tytuł + jawny brak opisu — bez warningów Radix w suicie. */}
+      <Dialog open>
+        <DialogContent aria-describedby={undefined}>
+          <DialogTitle className="sr-only">Dialog</DialogTitle>
+          treść
+        </DialogContent>
+      </Dialog>
     </LanguageProvider>,
   );
 };

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell } from 'lucide-react';
 import {
   DropdownMenu,
@@ -1307,7 +1307,8 @@ const ExerciseCardInner = ({
           <DialogHeader>
             <DialogTitle className="text-base pr-6">{t('card.removeSetConfirmTitle')}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">{t('card.removeSetConfirmDesc')}</p>
+          {/* Z220: DialogDescription (te same klasy co <p>) — poprawne aria-describedby. */}
+          <DialogDescription>{t('card.removeSetConfirmDesc')}</DialogDescription>
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -1334,7 +1335,8 @@ const ExerciseCardInner = ({
 
       {/* ── Instructions Dialog (Z129.2: treść wyprowadzona z karty do menu ⋯) ── */}
       <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
-        <DialogContent className="max-w-[95vw] w-full sm:max-w-lg">
+        {/* Z220: treść instrukcji to nie "opis" — jawnie bez aria-describedby. */}
+        <DialogContent className="max-w-[95vw] w-full sm:max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="text-base pr-6">{localizedName}</DialogTitle>
           </DialogHeader>
@@ -1366,7 +1368,7 @@ const ExerciseCardInner = ({
       {/* ── Animation Dialog ── */}
       {animationUrl && (
         <Dialog open={showVideo} onOpenChange={(open) => { setShowVideo(open); if (!open) setVideoControls(false); }}>
-          <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6">
+          <DialogContent className="max-w-[95vw] w-full sm:max-w-lg p-3 sm:p-6" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle className="text-sm pr-6">{localizedName}</DialogTitle>
             </DialogHeader>

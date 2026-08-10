@@ -15,7 +15,13 @@ interface TimerSoundNativeApi {
   play(options: { file: string; volume: number }): Promise<void>;
 }
 
-const TimerSoundNative = registerPlugin<TimerSoundNativeApi>('TimerSound');
+// Z220: rejestracja przez globalny cache — re-import modułu (vi.resetModules
+// w testach) nie może rejestrować pluginu drugi raz w tym samym oknie.
+const getTimerSoundNative = (): TimerSoundNativeApi => {
+  const holder = globalThis as { __strengthSaveTimerSound?: TimerSoundNativeApi };
+  holder.__strengthSaveTimerSound ??= registerPlugin<TimerSoundNativeApi>('TimerSound');
+  return holder.__strengthSaveTimerSound;
+};
 
 // Sygnały tick/complete jako pliki w bundlu iOS (generator:
 // scripts/generate-timer-signals.mjs, timing 1:1 z playSynth poniżej).
@@ -28,7 +34,7 @@ const SIGNAL_FILES: Record<'tick' | 'complete', string> = {
 const playNative = async (file: string): Promise<boolean> => {
   if (!Capacitor.isNativePlatform()) return false;
   try {
-    await TimerSoundNative.play({ file, volume: loadTimerVolume() });
+    await getTimerSoundNative().play({ file, volume: loadTimerVolume() });
     return true;
   } catch {
     return false;
