@@ -45,6 +45,7 @@ import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { weeklyStravaKm, currentWeekCardio } from '@/lib/activity-window';
+import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { buildWatchCapabilitySnapshot } from '@/lib/device-management';
 
@@ -189,9 +190,15 @@ const Dashboard = () => {
   const [localDraft, setLocalDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
-  const completedCount = useMemo(() => workouts.filter(w => w.completed).length, [workouts]);
+  // Z217: kafle all-time z agregatu backendu (poprawne też przy >500 treningach);
+  // brak/uszkodzony dokument = fallback na dotychczasowe liczenie z okna listenera.
+  const aggregateTotals = useWorkoutAggregate(uid);
+  const completedCount = useMemo(
+    () => aggregateTotals?.workoutCount ?? workouts.filter(w => w.completed).length,
+    [aggregateTotals, workouts],
+  );
   const latestMeasurement = getLatestMeasurement();
-  const totalWeight = getTotalWeight();
+  const totalWeight = aggregateTotals?.totalTonnageKg ?? getTotalWeight();
 
   const thisWeek = useMemo(() => {
     if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today);

@@ -90,6 +90,8 @@ export { activityRollup } from "./activity-rollup";
 export { adminUserRepair } from "./repairs/admin-user-repair";
 // Webhook RevenueCat → users/{uid}.subscription (entitlement PRO).
 export { revenuecatWebhook } from "./revenuecat";
+// Z217: agregat all-time treningów (kafle Dashboardu) + backfill na żądanie.
+export { onWorkoutWrittenAggregate, rebuildWorkoutAggregate } from "./workout-aggregate";
 
 const db = admin.firestore();
 const USERS_COLLECTION = "users";

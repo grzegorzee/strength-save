@@ -440,6 +440,12 @@ add('device_statuses: read klienta DENIED (Z227)', false, await ok(() => getDoc(
 add('device_statuses: write klienta DENIED (Z227)', false, await ok(() => setDoc(doc(db, 'device_statuses', `apple_watch_${UID}_watch`), { uid: UID })));
 add('device_statuses: read admina DENIED (lifecycle tylko przez callable) (Z227)', false, await ok(() => getDoc(doc(adminDb, 'device_statuses', `apple_watch_${UID}_watch`))));
 
+// === Z217: agregat all-time (users/{uid}/aggregates) — pisze tylko backend ===
+add('aggregates: read wlasnego ALLOWED (Z217)', true, await ok(() => getDoc(doc(db, 'users', UID, 'aggregates', 'allTime'))));
+add('aggregates: read cudzego DENIED (Z217)', false, await ok(() => getDoc(doc(otherDb, 'users', UID, 'aggregates', 'allTime'))));
+add('aggregates: write klienta DENIED (Z217)', false, await ok(() => setDoc(doc(db, 'users', UID, 'aggregates', 'allTime'), { totals: { workoutCount: 9999 } })));
+add('aggregates: read admina ALLOWED (Z217)', true, await ok(() => getDoc(doc(adminDb, 'users', UID, 'aggregates', 'allTime'))));
+
 await env.cleanup();
 
 let failed = 0;
