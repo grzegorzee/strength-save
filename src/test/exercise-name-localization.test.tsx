@@ -19,6 +19,10 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
 vi.mock('@/hooks/useActivities', () => ({
   useActivities: () => ({ activities: [] }),
 }));
+// Z216: sheet importuje fetchWorkoutRange — mock odcina inicjalizację firebase w jsdom.
+vi.mock('@/lib/workout-read-store', () => ({
+  fetchWorkoutRange: vi.fn(async () => []),
+}));
 vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({ plan: [] }),
 }));

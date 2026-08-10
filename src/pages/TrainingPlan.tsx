@@ -143,7 +143,7 @@ const TrainingPlan = () => {
   const { t, lang } = useTranslation();
   const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
-  const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
+  const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   // Z112: zunifikowane cardio (Strava + wpisy manualne) w kalendarzu.

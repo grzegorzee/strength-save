@@ -30,7 +30,7 @@ import {
 import { useTranslation } from '@/contexts/LanguageContext';
 import { saveWorkoutBatchWithRevision } from '@/lib/workout-save';
 import { clampSet } from '@/lib/workout-sanitizers';
-import { getWorkoutReadSnapshot, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier } from '@/lib/workout-read-store';
+import { getWorkoutReadSnapshot, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier, type WorkoutTier } from '@/lib/workout-read-store';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
@@ -55,10 +55,14 @@ const cleanMetrics = (ex: { rpe?: number; pain?: number; quality?: number }): Re
   return out;
 };
 
-export const useFirebaseWorkoutReads = (userId: string, measurementTier: MeasurementTier = 'full') => {
+export const useFirebaseWorkoutReads = (
+  userId: string,
+  measurementTier: MeasurementTier = 'full',
+  workoutTier: WorkoutTier = 'full',
+) => {
   const subscribe = useCallback(
-    (listener: () => void) => subscribeWorkoutReads(userId, listener, measurementTier),
-    [userId, measurementTier],
+    (listener: () => void) => subscribeWorkoutReads(userId, listener, measurementTier, workoutTier),
+    [userId, measurementTier, workoutTier],
   );
   const getSnapshot = useCallback(() => getWorkoutReadSnapshot(userId), [userId]);
   const getServerSnapshot = useCallback(() => getWorkoutReadSnapshot(''), []);
@@ -598,8 +602,16 @@ export const useFirebaseWorkoutActions = (
 // 'full' (domyślnie) — pełna lista (ekrany Pomiary/Analityka/eksport),
 // 'latest' — sonda pod getLatestMeasurement (Dashboard, WorkoutDay),
 // 'none' — ekran nie czyta pomiarów wcale (sync, listy, profile).
-export const useFirebaseWorkouts = (userId: string, opts?: { measurements?: MeasurementTier }) => {
-  const reads = useFirebaseWorkoutReads(userId, opts?.measurements ?? 'full');
+// Z216: opts.workouts analogicznie dla treningów:
+// 'full' (domyślnie) — okno 500 (ekrany liczące z pełnej historii: WorkoutDay
+// z PR, Achievements, Analytics, eksport, backfill cykli),
+// 'recent' — okno 120 dla ekranów bieżących (Dashboard, DayPlan, nagłówek,
+// sync); liczby all-time dostarcza agregat Z217.
+export const useFirebaseWorkouts = (
+  userId: string,
+  opts?: { measurements?: MeasurementTier; workouts?: WorkoutTier },
+) => {
+  const reads = useFirebaseWorkoutReads(userId, opts?.measurements ?? 'full', opts?.workouts ?? 'full');
   const actions = useFirebaseWorkoutActions(userId, reads);
 
   return {

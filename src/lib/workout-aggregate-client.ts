@@ -13,6 +13,13 @@ export interface AllTimeAggregateTotals {
   firstWorkoutDate: string | null;
 }
 
+export interface AllTimeAggregate {
+  totals: AllTimeAggregateTotals;
+  /** Daty ukończonych treningów z mapy wkładów — streak liczony tą samą funkcją
+   * co dotąd (`calculateStreakDetails`), ale z PEŁNEJ historii, nie z okna. */
+  completedDates: string[];
+}
+
 const isNonNegativeNumber = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
@@ -41,4 +48,18 @@ export const sanitizeAggregateTotals = (data: unknown): AllTimeAggregateTotals |
     workoutsWithDuration: t.workoutsWithDuration,
     firstWorkoutDate,
   };
+};
+
+export const sanitizeAggregate = (data: unknown): AllTimeAggregate | null => {
+  const totals = sanitizeAggregateTotals(data);
+  if (totals === null) return null;
+  const contributions = (data as { contributions?: unknown }).contributions;
+  const completedDates: string[] = [];
+  if (typeof contributions === 'object' && contributions !== null) {
+    for (const value of Object.values(contributions as Record<string, unknown>)) {
+      const d = (value as { d?: unknown } | null)?.d;
+      if (typeof d === 'string' && d.length === 10) completedDates.push(d);
+    }
+  }
+  return { totals, completedDates };
 };

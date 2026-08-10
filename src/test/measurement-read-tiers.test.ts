@@ -2,8 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   MEASUREMENT_LISTENER_LIMIT,
   LATEST_MEASUREMENTS_PROBE,
+  WORKOUT_LISTENER_LIMIT,
+  RECENT_WORKOUTS_LIMIT,
   effectiveMeasurementTier,
   measurementLimitForTier,
+  effectiveWorkoutTier,
+  workoutLimitForTier,
   selectLatestMeasurement,
   subscribeWorkoutReads,
   getWorkoutReadSnapshot,
@@ -101,6 +105,46 @@ describe('Z213 — tiery listenera pomiarów', () => {
       metadata: { fromCache: false },
     });
     expect(getWorkoutReadSnapshot('user-1').measurements.map(m => m.id)).toEqual(['m-2', 'm-1']);
+    unsubscribe();
+  });
+});
+
+describe('Z216 — tiery listenera treningów', () => {
+  beforeEach(() => {
+    snapshotHandlers.length = 0;
+    unsubscribeSpies.length = 0;
+    limitCalls.length = 0;
+    vi.clearAllMocks();
+  });
+
+  it('effectiveWorkoutTier to maksimum aktywnych subskrybentów', () => {
+    expect(effectiveWorkoutTier([])).toBe('recent');
+    expect(effectiveWorkoutTier(['recent', 'recent'])).toBe('recent');
+    expect(effectiveWorkoutTier(['recent', 'full'])).toBe('full');
+  });
+
+  it('limity per tier: recent=120, full=500', () => {
+    expect(workoutLimitForTier('recent')).toBe(RECENT_WORKOUTS_LIMIT);
+    expect(workoutLimitForTier('full')).toBe(WORKOUT_LISTENER_LIMIT);
+    expect(RECENT_WORKOUTS_LIMIT).toBe(120);
+  });
+
+  it('subskrybent recent dostaje okno 120; dołączenie full restartuje listener na 500', () => {
+    const first = subscribeWorkoutReads('user-1', () => undefined, 'none', 'recent');
+    expect(limitCalls).toContain(RECENT_WORKOUTS_LIMIT);
+    expect(limitCalls).not.toContain(WORKOUT_LISTENER_LIMIT);
+
+    const second = subscribeWorkoutReads('user-1', () => undefined, 'none', 'full');
+    expect(limitCalls).toContain(WORKOUT_LISTENER_LIMIT);
+    expect(unsubscribeSpies[0]).toHaveBeenCalled(); // stary listener workouts zamknięty
+
+    second();
+    first();
+  });
+
+  it('domyślny tier bez argumentu pozostaje full (bez regresji dla nietkniętych)', () => {
+    const unsubscribe = subscribeWorkoutReads('user-1', () => undefined);
+    expect(limitCalls).toContain(WORKOUT_LISTENER_LIMIT);
     unsubscribe();
   });
 });

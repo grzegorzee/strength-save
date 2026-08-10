@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkoutReads } from '@/hooks/useFirebaseWorkouts';
+import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { useTranslation } from '@/contexts/LanguageContext';
 
 interface AppHeaderProps {
@@ -16,9 +17,13 @@ interface AppHeaderProps {
 export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
   const { uid } = useCurrentUser();
-  const { workouts, isLoaded } = useFirebaseWorkoutReads(uid);
+  // Z216: nagłówek jest na każdym ekranie — nie może trzymać szerokiego
+  // listenera (pomiary 'none', treningi okno recent). Licznik all-time daje
+  // agregat Z217; fallback z okna dotyczy tylko kont bez dokumentu agregatu.
+  const { workouts, isLoaded } = useFirebaseWorkoutReads(uid, 'none', 'recent');
+  const aggregate = useWorkoutAggregate(uid);
   const { isOnline, pendingOps } = useOnlineStatus();
-  const completedCount = workouts.filter((w) => w.completed).length;
+  const completedCount = aggregate?.totals.workoutCount ?? workouts.filter((w) => w.completed).length;
   const [statsOpen, setStatsOpen] = useState(false);
   const [celebration, setCelebration] = useState(0);
 
@@ -92,7 +97,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
         </div>
       </div>
 
-      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} />
+      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} uid={uid} />
     </header>
   );
 };

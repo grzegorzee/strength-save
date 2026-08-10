@@ -46,6 +46,28 @@ export const measurementLimitForTier = (tier: MeasurementTier): number => {
   return 0;
 };
 
+// Z216: tier listenera treningów. Najczęstsze ekrany (Dashboard, DayPlan,
+// nagłówek, sync) potrzebują tylko ostatniego okna — liczby all-time dostarcza
+// agregat Z217. Ekrany liczące z pełnej historii (WorkoutDay z PR, Achievements,
+// Analytics, eksport, backfill cykli) jawnie deklarują 'full'. Okno 120 ≈ pół
+// roku treningów 2-5x/tydzień — ostatni trening danego dnia planu i 12-tygodniowe
+// podsumowania zawsze się w nim mieszczą.
+export type WorkoutTier = 'recent' | 'full';
+export const RECENT_WORKOUTS_LIMIT = 120;
+
+const WORKOUT_TIER_RANK: Record<WorkoutTier, number> = { recent: 0, full: 1 };
+
+export const effectiveWorkoutTier = (tiers: Iterable<WorkoutTier>): WorkoutTier => {
+  let effective: WorkoutTier = 'recent';
+  for (const tier of tiers) {
+    if (WORKOUT_TIER_RANK[tier] > WORKOUT_TIER_RANK[effective]) effective = tier;
+  }
+  return effective;
+};
+
+export const workoutLimitForTier = (tier: WorkoutTier): number =>
+  (tier === 'full' ? WORKOUT_LISTENER_LIMIT : RECENT_WORKOUTS_LIMIT);
+
 /**
  * Najnowszy pomiar z faktycznymi danymi (lista jest desc po dacie). Puste/częściowe
  * wpisy pomijamy, by formularze prefillowały się sensownymi wartościami. Jedna
@@ -122,6 +144,9 @@ interface StoreEntry {
   // Z213: tier pomiarów per subskrybent; listener działa na maksimum aktywnych tierów.
   measurementTiers: Map<Listener, MeasurementTier>;
   activeMeasurementTier: MeasurementTier;
+  // Z216: analogiczny tier treningów (recent 120 / full 500).
+  workoutTiers: Map<Listener, WorkoutTier>;
+  activeWorkoutTier: WorkoutTier | null;
   unsubscribeWorkouts: Unsubscribe | null;
   unsubscribeMeasurements: Unsubscribe | null;
 }
@@ -154,6 +179,8 @@ const getOrCreateStore = (userId: string): StoreEntry => {
     listeners: new Set(),
     measurementTiers: new Map(),
     activeMeasurementTier: 'none',
+    workoutTiers: new Map(),
+    activeWorkoutTier: null,
     unsubscribeWorkouts: null,
     unsubscribeMeasurements: null,
   };
@@ -201,6 +228,42 @@ const ensureMeasurementListener = (userId: string, entry: StoreEntry): void => {
   );
 };
 
+// Z216: (re)startuje listener treningów zgodnie z maksymalnym tierem aktywnych
+// subskrybentów — wejście na ekran 'full' (Analytics, WorkoutDay) podnosi okno
+// do 500, powrót na ekrany 'recent' zwęża je do 120.
+const ensureWorkoutListener = (userId: string, entry: StoreEntry): void => {
+  const tier = effectiveWorkoutTier(entry.workoutTiers.values());
+  if (tier === entry.activeWorkoutTier && entry.unsubscribeWorkouts) return;
+
+  entry.unsubscribeWorkouts?.();
+  entry.activeWorkoutTier = tier;
+
+  const workoutsQuery = query(
+    collection(db, WORKOUTS_COLLECTION),
+    where('userId', '==', userId),
+    orderBy('date', 'desc'),
+    limit(workoutLimitForTier(tier)),
+  );
+
+  entry.unsubscribeWorkouts = onSnapshot(
+    workoutsQuery,
+    (snapshot) => {
+      emit(entry, {
+        workouts: snapshot.docs
+          .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
+          .filter((workout): workout is WorkoutSession => workout !== null),
+        isLoaded: true,
+        error: null,
+        workoutsFromCache: snapshot.metadata.fromCache,
+      });
+    },
+    (err) => {
+      console.error('Error fetching workouts:', err);
+      emit(entry, { isLoaded: true, error: err.message });
+    },
+  );
+};
+
 const startStore = (userId: string, entry: StoreEntry): void => {
   if (isBackendDisabledForMockE2E()) {
     if (!entry.snapshot.isLoaded) {
@@ -210,33 +273,7 @@ const startStore = (userId: string, entry: StoreEntry): void => {
     return;
   }
 
-  if (!entry.unsubscribeWorkouts) {
-    const workoutsQuery = query(
-      collection(db, WORKOUTS_COLLECTION),
-      where('userId', '==', userId),
-      orderBy('date', 'desc'),
-      limit(WORKOUT_LISTENER_LIMIT),
-    );
-
-    entry.unsubscribeWorkouts = onSnapshot(
-      workoutsQuery,
-      (snapshot) => {
-        emit(entry, {
-          workouts: snapshot.docs
-            .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
-            .filter((workout): workout is WorkoutSession => workout !== null),
-          isLoaded: true,
-          error: null,
-          workoutsFromCache: snapshot.metadata.fromCache,
-        });
-      },
-      (err) => {
-        console.error('Error fetching workouts:', err);
-        emit(entry, { isLoaded: true, error: err.message });
-      },
-    );
-  }
-
+  ensureWorkoutListener(userId, entry);
   ensureMeasurementListener(userId, entry);
 };
 
@@ -250,20 +287,24 @@ export const subscribeWorkoutReads = (
   userId: string,
   listener: Listener,
   measurementTier: MeasurementTier = 'full',
+  workoutTier: WorkoutTier = 'full',
 ): Unsubscribe => {
   if (!userId) return () => undefined;
 
   const entry = getOrCreateStore(userId);
   entry.listeners.add(listener);
   entry.measurementTiers.set(listener, measurementTier);
+  entry.workoutTiers.set(listener, workoutTier);
   startStore(userId, entry);
 
   return () => {
     entry.listeners.delete(listener);
     entry.measurementTiers.delete(listener);
+    entry.workoutTiers.delete(listener);
     if (entry.listeners.size === 0) {
       stopStore(userId, entry);
     } else if (!isBackendDisabledForMockE2E()) {
+      ensureWorkoutListener(userId, entry);
       ensureMeasurementListener(userId, entry);
     }
   };

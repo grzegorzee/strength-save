@@ -23,7 +23,7 @@ import { cleanupLegacySyncLeftovers } from '@/lib/workout-sync-cleanup';
 // w kolejce do ręcznego rozwiązania dialogiem w treningu.
 export const AutoSyncOnReconnect = () => {
   const { uid } = useCurrentUser();
-  const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer, workouts, isLoaded: workoutsLoaded } = useFirebaseWorkouts(uid, { measurements: 'none' });
+  const { createWorkoutSession, batchSaveWorkout, getWorkoutSessionFromServer, workouts, isLoaded: workoutsLoaded } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { toast } = useToast();
   const { t } = useTranslation();
   const runningRef = useRef(false);

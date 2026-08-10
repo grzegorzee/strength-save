@@ -25,7 +25,7 @@ const DayPlan = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
-  const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid, { measurements: 'none' });
+  const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { plan: trainingPlan } = useTrainingPlan(uid);
   // Z214: ekran dnia pokazuje wyłącznie dzisiejsze aktywności — okno od dziś.
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava, formatLocalDate(new Date()));

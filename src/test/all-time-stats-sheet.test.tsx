@@ -1,5 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
+
+// Z216: sheet importuje fetchWorkoutRange — mock odcina inicjalizację firebase w jsdom.
+vi.mock('@/lib/workout-read-store', () => ({
+  fetchWorkoutRange: vi.fn(async () => []),
+}));
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';

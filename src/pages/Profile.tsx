@@ -28,6 +28,7 @@ import {
 import { cn } from '@/lib/utils';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
+import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
   User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
@@ -43,11 +44,13 @@ const Profile = () => {
   const { uid, profile, isAdmin } = useCurrentUser();
   const { unit, setUnit } = useUnit();
   const { logout, logoutAfterAccountDeletion, resetPassword } = useAuth();
-  const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
+  const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { toast } = useToast();
   const { t, lang, setLang } = useTranslation();
 
-  const completedCount = workouts.filter((w) => w.completed).length;
+  // Z216/Z217: licznik all-time z agregatu; okno recent tylko fallbackiem.
+  const aggregate = useWorkoutAggregate(uid);
+  const completedCount = aggregate?.totals.workoutCount ?? workouts.filter((w) => w.completed).length;
   const tier = computeTier(completedCount, 0, lang);
 
   const [restTimer, setRestTimer] = useState(() => {

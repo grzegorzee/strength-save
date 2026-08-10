@@ -18,7 +18,7 @@ const AnalyticsWeeklyTab = () => {
   const { uid, canUseStrava } = useCurrentUser();
   const { t, lang } = useTranslation();
   const { fmt, fmtTonnage } = useUnit();
-  const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
+  const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   // Z113: podsumowanie tygodnia liczy Strava + ręczne cardio (unified).
   const { activities: stravaActivities } = useActivities(uid, canUseStrava);
   const { plan: trainingPlan } = useTrainingPlan(uid);

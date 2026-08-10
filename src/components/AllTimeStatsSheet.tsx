@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { dateLocale } from '@/i18n';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { buildAllTimeStats } from '@/lib/all-time-stats';
+import { fetchWorkoutRange } from '@/lib/workout-read-store';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { cn } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
@@ -11,7 +12,10 @@ import type { WorkoutSession } from '@/types';
 interface AllTimeStatsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Baza z listenera (okno recent) — natychmiastowy render bez czekania na sieć. */
   workouts: WorkoutSession[];
+  /** Z216: po otwarciu dociągamy PEŁNĄ historię kursorem (okno 120 by zaniżało liczby). */
+  uid?: string;
 }
 
 const formatDuration = (totalSec: number): string => {
@@ -28,13 +32,28 @@ const formatDuration = (totalSec: number): string => {
  * prawa wejść do ekranu treningu. Brak grywalizacji w logowaniu serii jest
  * wymieniany jako ZALETA Stronga, a odznaki „często tylko rozpraszają".
  */
-export const AllTimeStatsSheet = ({ open, onOpenChange, workouts }: AllTimeStatsSheetProps) => {
+export const AllTimeStatsSheet = ({ open, onOpenChange, workouts, uid }: AllTimeStatsSheetProps) => {
   const { t, lang } = useTranslation();
   const { fmt } = useUnit();
+  // Z216: pełna historia na żądanie — jedno pobranie per otwarcie arkusza.
+  // Błąd sieci = zostajemy przy oknie listenera (baza), bez blokowania UI.
+  const [fullHistory, setFullHistory] = useState<WorkoutSession[] | null>(null);
+  useEffect(() => {
+    if (!open || !uid) return;
+    let cancelled = false;
+    fetchWorkoutRange(uid, { fromDate: '2000-01-01', toDate: '2100-12-31' })
+      .then((all) => {
+        if (!cancelled && all.length > 0) setFullHistory(all);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [open, uid]);
+
   // Liczymy DOPIERO po otwarciu arkusza. Wcześniej `useMemo` biegł przy każdym
   // renderze nagłówka, czyli na każdym ekranie apki — niepotrzebna praca, a przy
   // uszkodzonym rekordzie treningu wywracało to całą stronę (crash 2026-07-20).
-  const stats = useMemo(() => (open ? buildAllTimeStats(workouts) : null), [open, workouts]);
+  const source = fullHistory ?? workouts;
+  const stats = useMemo(() => (open ? buildAllTimeStats(source) : null), [open, source]);
   if (!open || !stats) return null;
 
   // Z158: kafle tekstowe (ulubione ćwiczenie, data) — pełna szerokość i zawijanie

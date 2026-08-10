@@ -146,7 +146,7 @@ const Dashboard = () => {
     isLoaded,
     error,
     backfillHistoricalWorkouts
-  } = useFirebaseWorkouts(uid, { measurements: 'latest' });
+  } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
   const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
@@ -192,13 +192,13 @@ const Dashboard = () => {
 
   // Z217: kafle all-time z agregatu backendu (poprawne też przy >500 treningach);
   // brak/uszkodzony dokument = fallback na dotychczasowe liczenie z okna listenera.
-  const aggregateTotals = useWorkoutAggregate(uid);
+  const aggregate = useWorkoutAggregate(uid);
   const completedCount = useMemo(
-    () => aggregateTotals?.workoutCount ?? workouts.filter(w => w.completed).length,
-    [aggregateTotals, workouts],
+    () => aggregate?.totals.workoutCount ?? workouts.filter(w => w.completed).length,
+    [aggregate, workouts],
   );
   const latestMeasurement = getLatestMeasurement();
-  const totalWeight = aggregateTotals?.totalTonnageKg ?? getTotalWeight();
+  const totalWeight = aggregate?.totals.totalTonnageKg ?? getTotalWeight();
 
   const thisWeek = useMemo(() => {
     if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today);
@@ -210,7 +210,17 @@ const Dashboard = () => {
     return week.filter(e => e.date >= start);
   }, [trainingPlan, today, planStartDate, planStarted]);
 
-  const streakDetails = useMemo(() => calculateStreakDetails(workouts), [workouts]);
+  // Z216: streak z dat agregatu (pełna historia) TĄ SAMĄ funkcją co dotąd —
+  // okno recent 120 przycinałoby długie serie; fallback z okna dla kont bez agregatu.
+  const streakDetails = useMemo(() => {
+    if (aggregate) {
+      const dateWorkouts = aggregate.completedDates.map((date, i) => ({
+        id: `agg-${i}`, userId: uid, dayId: '', date, completed: true, exercises: [],
+      }));
+      return calculateStreakDetails(dateWorkouts as typeof workouts);
+    }
+    return calculateStreakDetails(workouts);
+  }, [aggregate, workouts, uid]);
   const streak = streakDetails.streak;
   // Tarcza uratowała poprzedni tydzień — pokaż to userowi, żeby wiedział, że seria wisi na włosku.
   const previousWeekFrozen = useMemo(() => {
