@@ -1680,6 +1680,8 @@ const WorkoutDay = () => {
 
   useWatchWorkoutSync({
     enabled: isActiveTrainingPhase(sessionPhase) && !isViewingPastWorkout,
+    uid,
+    ...(sessionId ? { sessionId } : {}),
     date: targetDate,
     dayId: day?.id,
     dayName: day?.dayName,

@@ -2,6 +2,11 @@
 // Protokół JSON musi być zgodny z ios/App/WatchApp/WorkoutModels.swift.
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core';
 import type { SetData } from '@/types';
+import { loadRestSettings } from '@/lib/rest-timer';
+import {
+  WORKOUT_PROTOCOL_VERSION,
+  isProtocolPayloadWithinLimit,
+} from '@/lib/workout-protocol';
 
 export interface WatchAvailability {
   supported: boolean;
@@ -63,8 +68,14 @@ export function buildWatchExercises(
 }
 
 export interface WatchWorkoutPayload {
+  /** X25: additive version fields; legacy Watch Codable safely ignores them. */
+  v?: typeof WORKOUT_PROTOCOL_VERSION;
+  protocolVersion?: typeof WORKOUT_PROTOCOL_VERSION;
   type: 'todayWorkout' | 'noWorkout';
   date: string;
+  uid?: string;
+  deviceId?: string;
+  sessionId?: string;
   dayId?: string;
   dayName?: string;
   focus?: string;
@@ -73,6 +84,9 @@ export interface WatchWorkoutPayload {
   active?: boolean;
   /** Domyślny odpoczynek między seriami (sekundy) — zegarek odpala timer po zaliczeniu serii. */
   restSeconds?: number;
+  /** X25: jawne ustawienia 90/150; restSeconds zostaje aliasem dla starego Watch. */
+  restBetweenSetsSeconds?: number;
+  restBetweenExercisesSeconds?: number;
   /** Globalna flaga timerów treningowych. Brak lub false wyłącza timer na zegarku. */
   timersEnabled?: boolean;
   /** Jednostka wyświetlania ciężaru na zegarku (model i eventy zawsze w kg). */
@@ -93,16 +107,49 @@ export function getUnitSystemForWatch(): 'kg' | 'lbs' {
 
 /** Ten sam klucz ustawień co RestTimer/ExerciseCard na telefonie. */
 export function getRestDefaultSeconds(): number {
+  return getRestSettingsForWatch().betweenSetsSeconds;
+}
+
+export function getRestSettingsForWatch(): {
+  betweenSetsSeconds: number;
+  betweenExercisesSeconds: number;
+} {
+  const settings = loadRestSettings();
+  return {
+    betweenSetsSeconds: settings.workingSeconds,
+    betweenExercisesSeconds: settings.betweenExercisesSeconds,
+  };
+}
+
+const WATCH_PHONE_DEVICE_ID_KEY = 'strength-save-watch-phone-device-id-v1';
+
+/** Opaque installation id for conflict diagnostics; never use uid as deviceId. */
+export function getOrCreateWatchPhoneDeviceId(): string {
   try {
-    const v = parseInt(localStorage.getItem('rest-timer-default') || '90', 10);
-    return Number.isFinite(v) && v > 0 ? v : 90;
+    const stored = localStorage.getItem(WATCH_PHONE_DEVICE_ID_KEY);
+    if (stored) return stored;
+    const suffix = typeof crypto?.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const created = `phone-${suffix}`;
+    localStorage.setItem(WATCH_PHONE_DEVICE_ID_KEY, created);
+    return created;
   } catch {
-    return 90;
+    return 'phone-unavailable';
   }
 }
 
-export interface WatchSetLoggedEvent {
+interface WatchEventMetadata {
   id?: string;
+  eventId?: string;
+  protocolVersion?: typeof WORKOUT_PROTOCOL_VERSION;
+  canonicalType?: 'set_logged' | 'set_updated' | 'session_started' | 'session_finished';
+  sessionId?: string;
+  deviceId?: string;
+  uid?: string;
+}
+
+export interface WatchSetLoggedEvent extends WatchEventMetadata {
   type: 'setLogged';
   date: string;
   dayId: string;
@@ -116,8 +163,7 @@ export interface WatchSetLoggedEvent {
   hkSession?: boolean;
 }
 
-export interface WatchWorkoutFinishedEvent {
-  id?: string;
+export interface WatchWorkoutFinishedEvent extends WatchEventMetadata {
   type: 'workoutFinished';
   date: string;
   dayId: string;
@@ -126,8 +172,7 @@ export interface WatchWorkoutFinishedEvent {
   hkSession?: boolean;
 }
 
-export interface WatchStartWorkoutEvent {
-  id?: string;
+export interface WatchStartWorkoutEvent extends WatchEventMetadata {
   type: 'startWorkout';
   date: string;
   dayId: string;
@@ -138,9 +183,22 @@ export type WatchEvent = WatchSetLoggedEvent | WatchWorkoutFinishedEvent | Watch
 
 export function parseWatchEvent(json: string): WatchEvent | null {
   try {
-    const parsed = JSON.parse(json);
-    if (parsed?.type === 'setLogged' || parsed?.type === 'workoutFinished' || parsed?.type === 'startWorkout') {
-      return parsed as WatchEvent;
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (parsed.protocolVersion !== undefined && parsed.protocolVersion !== WORKOUT_PROTOCOL_VERSION) return null;
+    if (typeof parsed.date !== 'string' || typeof parsed.dayId !== 'string'
+      || typeof parsed.at !== 'number' || !Number.isFinite(parsed.at)) return null;
+
+    if (parsed.type === 'setLogged') {
+      if (typeof parsed.exerciseId !== 'string'
+        || !Number.isInteger(parsed.setIndex) || (parsed.setIndex as number) < 0
+        || typeof parsed.reps !== 'number' || !Number.isFinite(parsed.reps)
+        || typeof parsed.weight !== 'number' || !Number.isFinite(parsed.weight)
+        || typeof parsed.completed !== 'boolean') return null;
+      return parsed as unknown as WatchSetLoggedEvent;
+    }
+    if (parsed.type === 'workoutFinished' || parsed.type === 'startWorkout') {
+      return parsed as unknown as WatchWorkoutFinishedEvent | WatchStartWorkoutEvent;
     }
   } catch {
     // ignorujemy uszkodzone eventy
@@ -150,6 +208,10 @@ export function parseWatchEvent(json: string): WatchEvent | null {
 
 export async function sendWorkoutToWatch(payload: WatchWorkoutPayload): Promise<void> {
   if (!isWatchBridgeSupported()) return;
+  if (!isProtocolPayloadWithinLimit(payload, 'watchContextBytes')) {
+    console.warn('[watch-bridge] workout context exceeds 256KB');
+    return;
+  }
   try {
     await WatchBridge.sendWorkout({ payload: JSON.stringify(payload) });
   } catch (err) {
@@ -166,7 +228,9 @@ export async function getWatchAvailability(): Promise<WatchAvailability | null> 
   }
 }
 
-export const watchEventId = (event: WatchEvent): string => event.id ?? `legacy-${event.type}-${event.at}`;
+export const watchEventId = (event: WatchEvent): string => (
+  event.eventId ?? event.id ?? `legacy-${event.type}-${event.at}`
+);
 
 export async function ackWatchEvents(ids: string[]): Promise<void> {
   if (!isWatchBridgeSupported() || ids.length === 0) return;

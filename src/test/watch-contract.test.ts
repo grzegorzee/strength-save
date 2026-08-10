@@ -1,7 +1,12 @@
 // Z122: kontrakt telefon<->zegarek — rozszerzenia v1 (cel tygodnia, przypięta
 // notatka, deduplikacja zapisu Health przez flagę hkSession w eventach).
-import { describe, it, expect } from 'vitest';
-import { buildWatchExercises, parseWatchEvent } from '@/lib/watch-bridge';
+import { beforeEach, describe, it, expect } from 'vitest';
+import {
+  buildWatchExercises,
+  getOrCreateWatchPhoneDeviceId,
+  getRestSettingsForWatch,
+  parseWatchEvent,
+} from '@/lib/watch-bridge';
 import type { Exercise } from '@/data/trainingPlan';
 
 const exercises: Exercise[] = [
@@ -58,5 +63,43 @@ describe('parseWatchEvent — hkSession (Z122)', () => {
       exerciseId: 'ex-1', setIndex: 0, reps: 6, weight: 62.5, completed: true, at: 1,
     }));
     expect(legacy?.type).toBe('setLogged');
+  });
+
+  it('odrzuca nieobsługiwaną wersję i niepełny event zamiast ACK błędnych danych', () => {
+    expect(parseWatchEvent(JSON.stringify({
+      protocolVersion: 999,
+      id: 'e1', type: 'setLogged', date: '2026-07-20', dayId: 'day-1',
+      exerciseId: 'ex-1', setIndex: 0, reps: 6, weight: 62.5, completed: true, at: 1,
+    }))).toBeNull();
+    expect(parseWatchEvent(JSON.stringify({
+      id: 'e2', type: 'setLogged', date: '2026-07-20', dayId: 'day-1', at: 2,
+    }))).toBeNull();
+  });
+});
+
+describe('Watch protocol metadata (X25/Z224)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('utrzymuje stabilny, niebędący uid identyfikator telefonu', () => {
+    const first = getOrCreateWatchPhoneDeviceId();
+    expect(first).toMatch(/^phone-/);
+    expect(getOrCreateWatchPhoneDeviceId()).toBe(first);
+  });
+
+  it('wysyła oba ustawienia przerw 90/150 z jednego źródła prawdy', () => {
+    expect(getRestSettingsForWatch()).toEqual({
+      betweenSetsSeconds: 90,
+      betweenExercisesSeconds: 150,
+    });
+    localStorage.setItem('fittracker_rest_settings_v1', JSON.stringify({
+      workingSeconds: 120,
+      warmupSeconds: 45,
+      betweenExercisesSeconds: 180,
+      perExercise: {},
+    }));
+    expect(getRestSettingsForWatch()).toEqual({
+      betweenSetsSeconds: 120,
+      betweenExercisesSeconds: 180,
+    });
   });
 });

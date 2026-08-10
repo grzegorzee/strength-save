@@ -19,12 +19,22 @@ final class WorkoutStore: NSObject, ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let storageKey = "watch.workoutPayload"
+    private let deviceIdKey = "watch.deviceId.v1"
     // Lokalny start z zegarka (sticky): "date|dayId" treningu wystartowanego na
     // zegarku zanim telefon potwierdzi sesję (payload active=true).
     private let localStartKey = "watch.localStart"
     // Trening zakończony z zegarka: "date|dayId" — UI pokazuje podsumowanie,
     // dopóki telefon nie przyśle nowego kontekstu.
     private let localFinishKey = "watch.localFinish"
+
+    /// Stabilny opaque installation id zegarka. Nie jest uid i nie daje dostępu
+    /// do backendu; służy wyłącznie do konfliktów/deduplikacji protokołu.
+    private var watchDeviceId: String {
+        if let stored = defaults.string(forKey: deviceIdKey), !stored.isEmpty { return stored }
+        let created = "watch-\(UUID().uuidString)"
+        defaults.set(created, forKey: deviceIdKey)
+        return created
+    }
 
     var isFinishedLocally: Bool {
         guard let payload, let dayId = payload.dayId else { return false }
@@ -177,7 +187,13 @@ final class WorkoutStore: NSObject, ObservableObject {
         objectWillChange.send()
         defaults.set("\(payload.date)|\(dayId)", forKey: localStartKey)
         WKInterfaceDevice.current().play(.start)
-        sendEvent(WatchEvent.startWorkout(date: payload.date, dayId: dayId))
+        sendEvent(WatchEvent.startWorkout(
+            date: payload.date,
+            dayId: dayId,
+            uid: payload.uid,
+            deviceId: watchDeviceId,
+            sessionId: payload.sessionId
+        ))
         WorkoutSessionManager.shared.start()
     }
 
@@ -219,6 +235,7 @@ final class WorkoutStore: NSObject, ObservableObject {
             sendEvent(WatchEvent.setLogged(
                 date: payload.date, dayId: dayId, exerciseId: exerciseId,
                 setIndex: setIndex, reps: reps, weight: weight, completed: true,
+                uid: payload.uid, deviceId: watchDeviceId, sessionId: payload.sessionId,
                 hkSession: WorkoutSessionManager.shared.isSessionRunning
             ))
         }
@@ -232,6 +249,7 @@ final class WorkoutStore: NSObject, ObservableObject {
         WKInterfaceDevice.current().play(.notification)
         sendEvent(WatchEvent.workoutFinished(
             date: payload.date, dayId: dayId,
+            uid: payload.uid, deviceId: watchDeviceId, sessionId: payload.sessionId,
             hkSession: WorkoutSessionManager.shared.isSessionRunning
         ))
         WorkoutSessionManager.shared.stop()

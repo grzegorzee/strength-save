@@ -8,9 +8,17 @@ import type { SetData, WorkoutSession } from '@/types';
 import { createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { formatLocalDate } from '@/lib/utils';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
-import { getRestDefaultSeconds, getUnitSystemForWatch, isWatchBridgeSupported, sendWorkoutToWatch } from '@/lib/watch-bridge';
+import {
+  getOrCreateWatchPhoneDeviceId,
+  getRestDefaultSeconds,
+  getRestSettingsForWatch,
+  getUnitSystemForWatch,
+  isWatchBridgeSupported,
+  sendWorkoutToWatch,
+} from '@/lib/watch-bridge';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { WORKOUT_PROTOCOL_VERSION } from '@/lib/workout-protocol';
 
 interface UseWatchPlanPreviewOptions {
   uid: string | null;
@@ -33,9 +41,21 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
     const timer = window.setTimeout(() => {
       void (async () => {
         const today = dateStr ?? formatLocalDate(new Date());
+        const protocol = {
+          v: WORKOUT_PROTOCOL_VERSION,
+          protocolVersion: WORKOUT_PROTOCOL_VERSION,
+          uid,
+          deviceId: getOrCreateWatchPhoneDeviceId(),
+        } as const;
+        const rest = getRestSettingsForWatch();
+        const timerSettings = FEATURE_FLAGS.workoutTimers ? {
+          restSeconds: getRestDefaultSeconds(),
+          restBetweenSetsSeconds: rest.betweenSetsSeconds,
+          restBetweenExercisesSeconds: rest.betweenExercisesSeconds,
+        } : {};
 
         if (type !== 'training' || !day) {
-          await sendWorkoutToWatch({ type: 'noWorkout', date: today, sentAt: Date.now() });
+          await sendWorkoutToWatch({ ...protocol, type: 'noWorkout', date: today, sentAt: Date.now() });
           return;
         }
 
@@ -44,15 +64,17 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
         const draft = await workoutDraftDb.loadActiveDraft(uid).catch(() => null);
         if (draft && draft.dayId === day.id && draft.date === today && !draft.completedLocally) {
           await sendWorkoutToWatch({
+            ...protocol,
             type: 'todayWorkout',
             date: today,
+            sessionId: draft.sessionId,
             dayId: day.id,
             dayName: day.dayName,
             focus: day.focus,
             sentAt: Date.now(),
             active: true,
             timersEnabled: FEATURE_FLAGS.workoutTimers,
-            ...(FEATURE_FLAGS.workoutTimers && { restSeconds: getRestDefaultSeconds() }),
+            ...timerSettings,
             unit: getUnitSystemForWatch(),
             lang,
             exercises: day.exercises.map((exercise) => ({
@@ -87,6 +109,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
         };
 
         await sendWorkoutToWatch({
+          ...protocol,
           type: 'todayWorkout',
           date: today,
           dayId: day.id,
@@ -95,7 +118,7 @@ export function useWatchPlanPreview({ uid, type, day, dateStr, workouts }: UseWa
           sentAt: Date.now(),
           active: false,
           timersEnabled: FEATURE_FLAGS.workoutTimers,
-          ...(FEATURE_FLAGS.workoutTimers && { restSeconds: getRestDefaultSeconds() }),
+          ...timerSettings,
           unit: getUnitSystemForWatch(),
           lang,
           exercises: day.exercises.map((exercise) => ({

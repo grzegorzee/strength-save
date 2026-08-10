@@ -29,6 +29,17 @@ export interface GarminWorkout {
   }>;
 }
 
+/** Practical Connect IQ makeWebRequest response budget over the phone bridge. */
+export const GARMIN_RESPONSE_MAX_BYTES = 8 * 1024;
+
+export const isGarminResponseWithinLimit = (payload: unknown): boolean => {
+  try {
+    return Buffer.byteLength(JSON.stringify(payload), "utf8") <= GARMIN_RESPONSE_MAX_BYTES;
+  } catch {
+    return false;
+  }
+};
+
 export interface GarminRecentExercise {
   /** exerciseId. */
   i: string;

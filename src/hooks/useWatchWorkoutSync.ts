@@ -11,7 +11,9 @@ import {
   addWatchEventListener,
   ackWatchEvents,
   buildWatchExercises,
+  getOrCreateWatchPhoneDeviceId,
   getRestDefaultSeconds,
+  getRestSettingsForWatch,
   getUnitSystemForWatch,
   isWatchBridgeSupported,
   peekWatchEvents,
@@ -23,10 +25,13 @@ import {
   watchEventId,
 } from '@/lib/watch-bridge';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
+import { WORKOUT_PROTOCOL_VERSION } from '@/lib/workout-protocol';
 
 interface UseWatchWorkoutSyncOptions {
   /** Wysyłka i aplikowanie eventów tylko przy aktywnym treningu. */
   enabled: boolean;
+  uid?: string;
+  sessionId?: string;
   date: string;
   dayId?: string;
   dayName?: string;
@@ -46,13 +51,13 @@ interface UseWatchWorkoutSyncOptions {
 const SEND_DEBOUNCE_MS = 800;
 
 export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
-  const { enabled, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, lang, onSetLogged, onWorkoutFinished } = options;
+  const { enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, lang, onSetLogged, onWorkoutFinished } = options;
 
   // Najnowsze callbacki bez restartu listenera.
   const handlersRef = useRef({ onSetLogged, onWorkoutFinished });
   handlersRef.current = { onSetLogged, onWorkoutFinished };
-  const contextRef = useRef({ enabled, date, dayId });
-  contextRef.current = { enabled, date, dayId };
+  const contextRef = useRef({ enabled, date, dayId, sessionId });
+  contextRef.current = { enabled, date, dayId, sessionId };
   // Dedup: event może przyjść live (listener) i drugi raz z drainEvents.
   const appliedRef = useRef<Set<string>>(new Set());
 
@@ -61,16 +66,27 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
     if (!isWatchBridgeSupported() || !enabled || !dayId || !exercises?.length) return;
 
     const timer = window.setTimeout(() => {
+      const rest = getRestSettingsForWatch();
       const payload: WatchWorkoutPayload = {
+        v: WORKOUT_PROTOCOL_VERSION,
+        protocolVersion: WORKOUT_PROTOCOL_VERSION,
         type: 'todayWorkout',
         date,
+        ...(uid ? { uid } : {}),
+        deviceId: getOrCreateWatchPhoneDeviceId(),
+        ...(sessionId ? { sessionId } : {}),
         dayId,
         dayName,
         focus,
         sentAt: Date.now(),
         active: true,
         timersEnabled: FEATURE_FLAGS.workoutTimers,
-        ...(FEATURE_FLAGS.workoutTimers && { restSeconds: getRestDefaultSeconds() }),
+        ...(FEATURE_FLAGS.workoutTimers && {
+          // `restSeconds` is the old-Watch alias. New clients use both explicit values.
+          restSeconds: getRestDefaultSeconds(),
+          restBetweenSetsSeconds: rest.betweenSetsSeconds,
+          restBetweenExercisesSeconds: rest.betweenExercisesSeconds,
+        }),
         unit: getUnitSystemForWatch(),
         ...(lang ? { lang } : {}),
         exercises: buildWatchExercises(exercises, exerciseSets, {
@@ -82,7 +98,7 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
     }, SEND_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [enabled, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, lang]);
+  }, [enabled, uid, sessionId, date, dayId, dayName, focus, exercises, exerciseSets, targetLabels, pinnedNotes, lang]);
 
   // Odbiór eventów: listener live + drain kolejki przy starcie i powrocie do foreground.
   useEffect(() => {
@@ -92,6 +108,8 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
       const ctx = contextRef.current;
       if (!ctx.enabled) return;
       if (event.date !== ctx.date || event.dayId !== ctx.dayId) return;
+      // Additive field: legacy Watch has none, a new Watch must match the active draft.
+      if (event.sessionId && ctx.sessionId && event.sessionId !== ctx.sessionId) return;
 
       if (event.type !== 'setLogged' && event.type !== 'workoutFinished') return;
       const key = watchEventId(event);
@@ -133,5 +151,5 @@ export function useWatchWorkoutSync(options: UseWatchWorkoutSyncOptions) {
       document.removeEventListener('visibilitychange', onVisible);
       void handle?.remove();
     };
-  }, [enabled, date, dayId]);
+  }, [enabled, date, dayId, sessionId]);
 }

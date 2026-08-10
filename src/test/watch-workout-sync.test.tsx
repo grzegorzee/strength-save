@@ -7,6 +7,7 @@ import type { WatchEvent } from '@/lib/watch-bridge';
 const listeners: Array<(e: WatchEvent) => void> = [];
 let peekedEvents: WatchEvent[] = [];
 const ackWatchEvents = vi.fn(async (_keys: string[]) => undefined);
+const sendWorkoutToWatch = vi.fn(async (_payload: unknown) => undefined);
 
 vi.mock('@/lib/watch-bridge', async (importOriginal) => {
   const original = await importOriginal<typeof import('@/lib/watch-bridge')>();
@@ -19,7 +20,7 @@ vi.mock('@/lib/watch-bridge', async (importOriginal) => {
     }),
     peekWatchEvents: vi.fn(async () => peekedEvents),
     ackWatchEvents: (keys: string[]) => ackWatchEvents(keys),
-    sendWorkoutToWatch: vi.fn(async () => undefined),
+    sendWorkoutToWatch: (payload: unknown) => sendWorkoutToWatch(payload),
   };
 });
 
@@ -42,6 +43,7 @@ describe('useWatchWorkoutSync (R2-26)', () => {
     vi.clearAllMocks();
     listeners.length = 0;
     peekedEvents = [];
+    localStorage.clear();
   });
 
   const renderSync = (onSetLogged: (event: unknown) => Promise<void>) => renderHook(() => useWatchWorkoutSync({
@@ -83,5 +85,35 @@ describe('useWatchWorkoutSync (R2-26)', () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(onSetLogged).toHaveBeenCalledTimes(1);
+  });
+
+  it('wysyła wersję, wspólne identyfikatory i oba czasy przerw w aktywnej sesji', async () => {
+    vi.useFakeTimers();
+    renderHook(() => useWatchWorkoutSync({
+      enabled: true,
+      uid: 'uid-x25',
+      sessionId: 'session-x25',
+      date: '2026-08-10',
+      dayId: 'day-x25',
+      exercises: [{ id: 'ex-1', name: 'Przysiad', sets: '3 x 5', instructions: [] }],
+      exerciseSets: { 'ex-1': [{ reps: 5, weight: 100, completed: false }] },
+      onSetLogged: async () => undefined,
+      onWorkoutFinished: async () => undefined,
+    }));
+
+    await vi.advanceTimersByTimeAsync(1000);
+    const payload = sendWorkoutToWatch.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      v: 1,
+      protocolVersion: 1,
+      uid: 'uid-x25',
+      sessionId: 'session-x25',
+      dayId: 'day-x25',
+      restSeconds: 90,
+      restBetweenSetsSeconds: 90,
+      restBetweenExercisesSeconds: 150,
+    });
+    expect(payload.deviceId).toMatch(/^phone-/);
+    vi.useRealTimers();
   });
 });

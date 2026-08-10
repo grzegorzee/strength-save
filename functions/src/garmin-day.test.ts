@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { buildGarminDayContext, buildRecentExercises, type GarminPlanDay, type GarminWorkout } from "./garmin-day";
+import {
+  GARMIN_RESPONSE_MAX_BYTES,
+  buildGarminDayContext,
+  buildRecentExercises,
+  isGarminResponseWithinLimit,
+  type GarminPlanDay,
+  type GarminWorkout,
+} from "./garmin-day";
 
 const day: GarminPlanDay = {
   id: "day-1",
@@ -71,7 +78,9 @@ describe("buildGarminDayContext (Z125)", () => {
     const workouts = bigDay.exercises.map((e) => workout(e.id, 100, 12));
     const notes = Object.fromEntries(bigDay.exercises.map((e) => [e.name, "n".repeat(140)]));
     const ctx = buildGarminDayContext([bigDay], workouts, "2026-07-20", notes);
-    expect(JSON.stringify(ctx).length).toBeLessThan(8 * 1024);
+    expect(GARMIN_RESPONSE_MAX_BYTES).toBe(8 * 1024);
+    expect(isGarminResponseWithinLimit(ctx)).toBe(true);
+    expect(isGarminResponseWithinLimit({ v: 1, value: "ą".repeat(5000) })).toBe(false);
   });
 });
 

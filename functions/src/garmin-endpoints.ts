@@ -19,7 +19,13 @@ import {
   type PairCodeDoc,
   type DeviceTokenDoc,
 } from "./garmin-pair";
-import { buildGarminDayContext, buildRecentExercises, type GarminPlanDay, type GarminWorkout } from "./garmin-day";
+import {
+  buildGarminDayContext,
+  buildRecentExercises,
+  isGarminResponseWithinLimit,
+  type GarminPlanDay,
+  type GarminWorkout,
+} from "./garmin-day";
 import { runGarminIngest } from "./garmin-ingest";
 
 const garminPepper = defineSecret("API_KEY_PEPPER");
@@ -126,6 +132,25 @@ const bearerToken = (header: unknown): string | null => {
   return match ? match[1] : null;
 };
 
+interface GarminJsonResponse {
+  status(code: number): GarminJsonResponse;
+  json(payload: unknown): unknown;
+}
+
+const sendGarminDayPayload = (
+  res: GarminJsonResponse,
+  payload: Record<string, unknown>,
+): void => {
+  if (!isGarminResponseWithinLimit(payload)) {
+    logger.error("garminDay payload exceeds transport budget", {
+      bytes: Buffer.byteLength(JSON.stringify(payload), "utf8"),
+    });
+    res.status(413).json({ v: 1, error: "payload-too-large" });
+    return;
+  }
+  res.json(payload);
+};
+
 async function authorizedDevice(
   pepper: string,
   authorizationHeader: unknown,
@@ -167,7 +192,7 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
   const recentsField = recents.length > 0 ? { r: recents } : {};
 
   if (!Array.isArray(planDays) || planDays.length === 0) {
-    res.json({ v: 1, d: date, rest: true, ...recentsField });
+    sendGarminDayPayload(res, { v: 1, d: date, rest: true, ...recentsField });
     return;
   }
 
@@ -183,10 +208,10 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
 
   const context = buildGarminDayContext(planDays, workouts, date, notes);
   if (!context) {
-    res.json({ v: 1, d: date, rest: true, ...recentsField });
+    sendGarminDayPayload(res, { v: 1, d: date, rest: true, ...recentsField });
     return;
   }
-  res.json({ ...context, ...recentsField });
+  sendGarminDayPayload(res, { ...context, ...recentsField });
 });
 
 /** HTTP: paczka zdarzeń odhaczeń + zakończenie treningu z zegarka. */

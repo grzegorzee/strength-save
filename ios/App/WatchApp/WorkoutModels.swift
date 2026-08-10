@@ -29,8 +29,15 @@ struct WatchExercise: Codable, Identifiable, Hashable {
 }
 
 struct WatchWorkoutPayload: Codable {
+    // X25/Z224: addytywne pola wersjonowanego protokołu. Stary Watch ignoruje
+    // nieznane klucze, a nowy nadal dekoduje snapshoty bez tych pól.
+    var v: Int?
+    var protocolVersion: Int?
     var type: String // "todayWorkout" | "noWorkout"
     var date: String // YYYY-MM-DD
+    var uid: String?
+    var deviceId: String?
+    var sessionId: String?
     var dayId: String?
     var dayName: String?
     var focus: String?
@@ -39,6 +46,8 @@ struct WatchWorkoutPayload: Codable {
     var active: Bool?
     // Domyślny odpoczynek między seriami (z ustawień telefonu), sekundy.
     var restSeconds: Int?
+    var restBetweenSetsSeconds: Int?
+    var restBetweenExercisesSeconds: Int?
     // Globalna flaga timerów treningowych. Brak/false = timer wyłączony.
     var timersEnabled: Bool?
     // Jednostka WYŚWIETLANIA ("kg"/"lbs"). Model i eventy zawsze trzymają kg.
@@ -101,9 +110,47 @@ enum WeightUnit: String {
 }
 
 enum WatchEvent {
-    static func setLogged(date: String, dayId: String, exerciseId: String, setIndex: Int, reps: Int, weight: Double, completed: Bool, hkSession: Bool = false) -> [String: Any] {
-        [
-            "id": UUID().uuidString,
+    private static func metadata(
+        id: String,
+        canonicalType: String,
+        uid: String?,
+        deviceId: String,
+        sessionId: String?
+    ) -> [String: Any] {
+        var value: [String: Any] = [
+            "protocolVersion": 1,
+            "id": id,
+            "eventId": id,
+            "canonicalType": canonicalType,
+            "deviceId": deviceId,
+        ]
+        if let uid { value["uid"] = uid }
+        if let sessionId { value["sessionId"] = sessionId }
+        return value
+    }
+
+    static func setLogged(
+        date: String,
+        dayId: String,
+        exerciseId: String,
+        setIndex: Int,
+        reps: Int,
+        weight: Double,
+        completed: Bool,
+        uid: String? = nil,
+        deviceId: String,
+        sessionId: String? = nil,
+        hkSession: Bool = false
+    ) -> [String: Any] {
+        let id = UUID().uuidString
+        var value = metadata(
+            id: id,
+            canonicalType: "set_logged",
+            uid: uid,
+            deviceId: deviceId,
+            sessionId: sessionId
+        )
+        value.merge([
             "type": "setLogged",
             "date": date,
             "dayId": dayId,
@@ -115,27 +162,57 @@ enum WatchEvent {
             "at": Date().timeIntervalSince1970 * 1000,
             // Z122: telefon pomija własny zapis Health, gdy sesję prowadzi zegarek.
             "hkSession": hkSession,
-        ]
+        ]) { _, new in new }
+        return value
     }
 
-    static func workoutFinished(date: String, dayId: String, hkSession: Bool = false) -> [String: Any] {
-        [
-            "id": UUID().uuidString,
+    static func workoutFinished(
+        date: String,
+        dayId: String,
+        uid: String? = nil,
+        deviceId: String,
+        sessionId: String? = nil,
+        hkSession: Bool = false
+    ) -> [String: Any] {
+        let id = UUID().uuidString
+        var value = metadata(
+            id: id,
+            canonicalType: "session_finished",
+            uid: uid,
+            deviceId: deviceId,
+            sessionId: sessionId
+        )
+        value.merge([
             "type": "workoutFinished",
             "date": date,
             "dayId": dayId,
             "at": Date().timeIntervalSince1970 * 1000,
             "hkSession": hkSession,
-        ]
+        ]) { _, new in new }
+        return value
     }
 
-    static func startWorkout(date: String, dayId: String) -> [String: Any] {
-        [
-            "id": UUID().uuidString,
+    static func startWorkout(
+        date: String,
+        dayId: String,
+        uid: String? = nil,
+        deviceId: String,
+        sessionId: String? = nil
+    ) -> [String: Any] {
+        let id = UUID().uuidString
+        var value = metadata(
+            id: id,
+            canonicalType: "session_started",
+            uid: uid,
+            deviceId: deviceId,
+            sessionId: sessionId
+        )
+        value.merge([
             "type": "startWorkout",
             "date": date,
             "dayId": dayId,
             "at": Date().timeIntervalSince1970 * 1000,
-        ]
+        ]) { _, new in new }
+        return value
     }
 }

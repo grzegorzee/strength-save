@@ -1,0 +1,294 @@
+{
+  "protocol": "strength-save-workout",
+  "protocolVersion": 1,
+  "canonicalUnit": "kg",
+  "restDefaults": {
+    "betweenSetsSec": 90,
+    "betweenExercisesSec": 150
+  },
+  "identity": {
+    "uid": "fixture-user-x25",
+    "phoneDeviceId": "fixture-phone-ios",
+    "watchDeviceId": "fixture-watch-apple",
+    "garminDeviceId": "fixture-garmin-epix2"
+  },
+  "plan": {
+    "date": "2026-08-10",
+    "dayId": "fixture-day-strength-a",
+    "dayName": {
+      "pl": "Siła A",
+      "en": "Strength A"
+    },
+    "focus": {
+      "pl": "Nogi i korpus",
+      "en": "Lower body and core"
+    },
+    "exercises": [
+      {
+        "exerciseId": "fixture-back-squat",
+        "name": {
+          "pl": "Przysiad ze sztangą",
+          "en": "Barbell back squat"
+        },
+        "tracking": "weight_reps",
+        "sets": [
+          { "setIndex": 0, "reps": 5, "weightKg": 100, "isWarmup": false },
+          { "setIndex": 1, "reps": 5, "weightKg": 100, "isWarmup": false },
+          { "setIndex": 2, "reps": 5, "weightKg": 100, "isWarmup": false }
+        ]
+      },
+      {
+        "exerciseId": "fixture-plank",
+        "name": { "pl": "Plank", "en": "Plank" },
+        "tracking": "duration",
+        "sets": [
+          { "setIndex": 0, "durationSec": 60, "isWarmup": false }
+        ]
+      },
+      {
+        "exerciseId": "fixture-farmer-walk",
+        "name": {
+          "pl": "Spacer farmera",
+          "en": "Farmer's walk"
+        },
+        "tracking": "weight_distance_duration",
+        "sets": [
+          { "setIndex": 0, "weightKg": 24, "distanceM": 40, "durationSec": 60, "isWarmup": false }
+        ]
+      },
+      {
+        "exerciseId": "fixture-assisted-pullup",
+        "name": {
+          "pl": "Podciąganie wspomagane",
+          "en": "Assisted pull-up"
+        },
+        "tracking": "assisted_bodyweight",
+        "sets": [
+          { "setIndex": 0, "reps": 8, "assistWeightKg": 25, "isWarmup": false }
+        ]
+      }
+    ]
+  },
+  "plannedSession": {
+    "sessionId": "fixture-session-planned-001",
+    "events": [
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-phone-ios",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": null,
+        "setIndex": null,
+        "eventId": "fixture-event-planned-start",
+        "at": 1786348800000,
+        "type": "session_started"
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-watch-apple",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": "fixture-back-squat",
+        "setIndex": 0,
+        "eventId": "fixture-event-squat-0",
+        "at": 1786348860000,
+        "type": "set_logged",
+        "set": { "tracking": "weight_reps", "reps": 5, "weightKg": 100, "completed": true, "isWarmup": false }
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-phone-ios",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": "fixture-back-squat",
+        "setIndex": 1,
+        "eventId": "fixture-event-squat-1-phone",
+        "at": 1786348950000,
+        "type": "set_logged",
+        "set": { "tracking": "weight_reps", "reps": 5, "weightKg": 95, "completed": true, "isWarmup": false }
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-watch-apple",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": "fixture-back-squat",
+        "setIndex": 1,
+        "eventId": "fixture-event-squat-1-watch-newer",
+        "at": 1786348980000,
+        "type": "set_updated",
+        "set": { "tracking": "weight_reps", "reps": 5, "weightKg": 100, "completed": true, "isWarmup": false }
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-watch-apple",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": "fixture-back-squat",
+        "setIndex": 2,
+        "eventId": "fixture-event-squat-2",
+        "at": 1786349070000,
+        "type": "set_logged",
+        "set": { "tracking": "weight_reps", "reps": 5, "weightKg": 100, "completed": true, "isWarmup": false }
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-watch-apple",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": "fixture-plank",
+        "setIndex": 0,
+        "eventId": "fixture-event-plank-0",
+        "at": 1786349160000,
+        "type": "set_logged",
+        "set": { "tracking": "duration", "durationSec": 60, "completed": true, "isWarmup": false }
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-garmin-epix2",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": "fixture-farmer-walk",
+        "setIndex": 0,
+        "eventId": "fixture-event-farmer-0",
+        "at": 1786349250000,
+        "type": "set_logged",
+        "set": { "tracking": "weight_distance_duration", "weightKg": 24, "distanceM": 40, "durationSec": 60, "completed": true, "isWarmup": false }
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-garmin-epix2",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": "fixture-assisted-pullup",
+        "setIndex": 0,
+        "eventId": "fixture-event-assisted-0",
+        "at": 1786349340000,
+        "type": "set_logged",
+        "set": { "tracking": "assisted_bodyweight", "reps": 8, "assistWeightKg": 25, "completed": true, "isWarmup": false }
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-phone-ios",
+        "dayId": "fixture-day-strength-a",
+        "sessionId": "fixture-session-planned-001",
+        "exerciseId": null,
+        "setIndex": null,
+        "eventId": "fixture-event-planned-finish",
+        "at": 1786349700000,
+        "type": "session_finished"
+      }
+    ],
+    "expected": {
+      "status": "finished",
+      "durationSec": 900,
+      "completedSetCount": 6,
+      "tonnageKg": 1500,
+      "winningEventBySet": {
+        "fixture-back-squat#1": "fixture-event-squat-1-watch-newer"
+      }
+    }
+  },
+  "quickSession": {
+    "sessionId": "fixture-session-quick-001",
+    "events": [
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-garmin-epix2",
+        "dayId": "adhoc-2026-08-10-1786350000000",
+        "sessionId": "fixture-session-quick-001",
+        "exerciseId": null,
+        "setIndex": null,
+        "eventId": "fixture-event-quick-start",
+        "at": 1786350000000,
+        "type": "session_started"
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-garmin-epix2",
+        "dayId": "adhoc-2026-08-10-1786350000000",
+        "sessionId": "fixture-session-quick-001",
+        "exerciseId": "fixture-back-squat",
+        "setIndex": 0,
+        "eventId": "fixture-event-quick-set-0",
+        "at": 1786350060000,
+        "type": "set_logged",
+        "set": { "tracking": "weight_reps", "reps": 8, "weightKg": 80, "completed": true, "isWarmup": false }
+      },
+      {
+        "protocolVersion": 1,
+        "uid": "fixture-user-x25",
+        "deviceId": "fixture-garmin-epix2",
+        "dayId": "adhoc-2026-08-10-1786350000000",
+        "sessionId": "fixture-session-quick-001",
+        "exerciseId": null,
+        "setIndex": null,
+        "eventId": "fixture-event-quick-discard",
+        "at": 1786350120000,
+        "type": "session_discarded"
+      }
+    ],
+    "expected": {
+      "status": "discarded",
+      "persistedWorkout": false
+    }
+  },
+  "compatibility": {
+    "legacyWatchEvent": {
+      "id": "legacy-watch-event-1",
+      "type": "setLogged",
+      "date": "2026-08-10",
+      "dayId": "fixture-day-strength-a",
+      "exerciseId": "fixture-back-squat",
+      "setIndex": 0,
+      "reps": 5,
+      "weight": 100,
+      "completed": true,
+      "at": 1786348860000,
+      "hkSession": true
+    },
+    "legacyGarminDay": {
+      "v": 1,
+      "d": "2026-08-10",
+      "y": "fixture-day-strength-a",
+      "n": "Siła A",
+      "e": [
+        {
+          "i": "fixture-back-squat",
+          "n": "Przysiad ze sztangą",
+          "s": [[5, 100], [5, 100], [5, 100]]
+        }
+      ]
+    },
+    "legacyGarminIngest": {
+      "workoutId": "legacy-garmin-workout-1",
+      "date": "2026-08-10",
+      "dayId": "fixture-day-strength-a",
+      "dayName": "Siła A",
+      "startedAt": 1786348800000,
+      "finishedAt": 1786349700000,
+      "events": [
+        {
+          "id": "legacy-garmin-event-1",
+          "exerciseId": "fixture-back-squat",
+          "exerciseName": "Przysiad ze sztangą",
+          "setIndex": 0,
+          "reps": 5,
+          "weight": 100,
+          "at": 1786348860000
+        }
+      ]
+    }
+  }
+}

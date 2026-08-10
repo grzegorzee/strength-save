@@ -57,6 +57,15 @@ describe('useWatchPlanPreview — język w payloadzie (Z164)', () => {
     const payload = await runPreview('en');
     expect(payload.type).toBe('todayWorkout');
     expect(payload.lang).toBe('en');
+    expect(payload).toMatchObject({
+      v: 1,
+      protocolVersion: 1,
+      uid: 'u1',
+      restSeconds: 90,
+      restBetweenSetsSeconds: 90,
+      restBetweenExercisesSeconds: 150,
+    });
+    expect(payload.deviceId).toMatch(/^phone-/);
     // Nazwy ćwiczeń zostają kanoniczne (zasada 5 planu X21).
     expect(JSON.stringify(payload)).toContain('Wyciskanie sztangi');
   });
