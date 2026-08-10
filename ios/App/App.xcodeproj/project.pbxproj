@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		1250B630B6A80D5E7EDCE5DE /* PhoneWatchSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */; };
 		12D8ECF61AF066F56A22D973 /* rest_alarm.wav in Resources */ = {isa = PBXBuildFile; fileRef = EDB64D0FA5C9B08409066C44 /* rest_alarm.wav */; };
+		A25B00000000000000000001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A25A00000000000000000001 /* PrivacyInfo.xcprivacy */; };
+		A25B00000000000000000002 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A25A00000000000000000002 /* PrivacyInfo.xcprivacy */; };
 		22F693C1DA97013DA19AA8F3 /* rest_bell.wav in Resources */ = {isa = PBXBuildFile; fileRef = A72EF495572C1E0A667E1690 /* rest_bell.wav */; };
 		2D3CE223881D42528AB322FF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 957D18FA556717B27228D48F /* GoogleService-Info.plist */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
@@ -109,6 +111,8 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A72EF495572C1E0A667E1690 /* rest_bell.wav */ = {isa = PBXFileReference; includeInIndex = 1; path = rest_bell.wav; sourceTree = "<group>"; };
 		A84DA980A7D4CDB27985A666 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A25A00000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A25A00000000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B00E71986D389E30627E5D55 /* PhoneWatchSessionManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhoneWatchSessionManager.swift; sourceTree = "<group>"; };
 		B7A5C154A80546659595207D /* WatchBridgePlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WatchBridgePlugin.swift; sourceTree = "<group>"; };
 		C5D6E7F8091A2B3C4D5E6F70 /* HealthSyncPlugin.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HealthSyncPlugin.swift; sourceTree = "<group>"; };
@@ -179,6 +183,7 @@
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
 				504EC3131FED79650016851F /* Info.plist */,
+				A25A00000000000000000001 /* PrivacyInfo.xcprivacy */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
 				957D18FA556717B27228D48F /* GoogleService-Info.plist */,
@@ -224,6 +229,7 @@
 				31504985F5AA4D1E0B1F2F17 /* Assets.xcassets */,
 				553AE42606DFFEAD2C43D706 /* WorkoutSessionManager.swift */,
 				C8D03C11A1B2C3D4E5F60708 /* WatchExtensionDelegate.swift */,
+				A25A00000000000000000002 /* PrivacyInfo.xcprivacy */,
 			);
 			name = WatchApp;
 			path = WatchApp;
@@ -373,6 +379,7 @@
 				12D8ECF61AF066F56A22D973 /* rest_alarm.wav in Resources */,
 				EAF1B75A6BB569968E2F9C69 /* timer_tick.wav in Resources */,
 				69F5840B10CCB6CF9FADC07D /* timer_complete.wav in Resources */,
+				A25B00000000000000000001 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -388,6 +395,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E55F2F0365B9CC0A919F20B5 /* Assets.xcassets in Resources */,
+				A25B00000000000000000002 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

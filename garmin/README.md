@@ -23,8 +23,11 @@ kolejkę i stan LOKALNIE (FIT do kosza, nic nie wysyła) — wyjście ze stanu
 "niewysłany trening" bez zapisu; serie niosą datę dnia startu sesji
 (sessionDay), nie datę wysyłki. Sideload na macOS: OpenMTP → GARMIN/Apps
 (zegarek jest MTP-only; Garmin Express musi być zamknięty). Do publikacji w
-Store zostało: pobranie urządzeń fr255/265/955/965 + venu2/3 w SDK
-Managerze, ikona 1024x1024, screenshoty, formularz (sekcje A-D niżej).
+Store: wszystkie 16 ID urządzeń z manifestu są pobrane i zbudowane w SDK
+9.2.0; podpisany export `.iq`, ikona 1024, listing PL/EN, uzasadnienia
+uprawnień i prawdziwe screenshoty FR255 + Venu Sq 2 są w
+`garmin/release/`. Pozostają fizyczne G1-G9, screenshot planu na izolowanym
+koncie review oraz upload/submit w portalu Connect IQ.
 
 X25 zachowuje całą architekturę v3 i dodaje: kontrolę jednego entitlementu
 `pro` w pair/day/ingest, revocable token z TTL 180 dni, logout/delete revoke,
@@ -41,17 +44,15 @@ chronionego dokumentu tokenu.
 
 ## KROKI USERA
 
-1. Zainstaluj SDK Manager: https://developer.garmin.com/connect-iq/sdk/
-   (logowanie kontem Garmin), pobierz najnowszy SDK (9.2.0+, 2026-06)
-   i co najmniej urządzenia: fenix7, fr965, venu3.
-2. VS Code + rozszerzenie "Monkey C" (menedżer podpowie).
-3. Wygeneruj klucz developerski: `openssl genrsa -out developer_key.pem 4096`
-   → `openssl pkcs8 -topk8 -inform PEM -outform DER -in developer_key.pem -out developer_key.der -nocrypt`
-   (ścieżkę podaj w build.sh / ustawieniach rozszerzenia).
-4. Build: `./build.sh <device>` (np. `./build.sh fenix7`) albo z VS Code
-   (Monkey C: Build). Symulator: `connectiq` + `monkeydo bin/strengthsave.prg fenix7`.
-5. Zweryfikuj listę `iq:product` w `manifest.xml` z dostępnymi w SDK
-   (id urządzeń bywają wersjonowane, np. fenix8solar47mm).
+1. Wykonaj G1-G9 z `docs/X25-REAL-DEVICE-CHECKLIST.md` na izolowanym
+   koncie technicznym i zachowaj dowód FIT/ingest bez duplikatu.
+2. Na tym samym koncie zrób 1-2 screenshoty z wypełnionym planem; nie kończ
+   testowego treningu na prywatnym koncie.
+3. W portalu Connect IQ wgraj paczkę opisaną w
+   `garmin/release/artifact.json`, dodaj materiały z `garmin/release/`, uruchom
+   walidację i **Submit for review**.
+4. Skopiuj klucz developerski do szyfrowanego backupu poza tym komputerem.
+   Lokalna kopia mode 600 już istnieje poza repo i ma identyczny checksum.
 
 ## PUBLIKACJA W CONNECT IQ STORE (krok po kroku)
 

@@ -1993,3 +1993,24 @@ rekordów używa roli admin zgodnie z Z90.4. Wynik 13/13 PASS.
 
 **Brama fizyczna:** iPhone offline, brak Watch/Android/Garmin. W1-W9, G1-G9 i D1-D4
 pozostają jawnie otwarte; automatyczne testy nie zostały przedstawione jako real-device.
+
+---
+
+## SESJA 2026-08-10 — X25 Z229: release readiness bez obchodzenia App Attest
+
+**Apple signing:** trzy targety zachowują manualne profile App Store. Próba
+Automatic provisioning szukała profili Development, a wymuszenie Apple Distribution
+konfliktowało targety i SPM, więc eksperyment wycofano. Nowo wygenerowany profil
+`Strength Save App Store` nadal nie ma entitlementu App Attest, ponieważ capability
+nie jest włączone na App ID. Decyzja: nie usuwać produkcyjnego App Attest; portalowe
+włączenie capability i podpisany archive pozostają twardą bramą.
+
+**Privacy/review:** aplikacja i Watch dostały osobne, uczciwe privacy manifests z
+UserDefaults `CA92.1`; oba są osadzone w zasobach. Review notes opisują jeden
+HKWorkout, brak paywalla na zegarku i wspólny entitlement.
+
+**Garmin Store:** manifest rozszerzono o prostokątny Venu Sq 2. Wszystkie 16 ID
+budują się na SDK 9.2.0, a podpisany export ma 27 PRG. Symulator potwierdza prawdziwy
+ekran aplikacji na FR255 (round/buttons) i Venu Sq 2 (rectangle/touch) bez konta i
+bez zakończenia treningu. Klucz i lokalny backup poza repo mają ten sam checksum;
+off-host backup, fizyczne G1-G9 i portalowy submit pozostają bramami.

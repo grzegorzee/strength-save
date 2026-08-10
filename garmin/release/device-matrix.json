@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "sdk": "9.2.0",
+  "devices": [
+    { "id": "fenix7", "shape": "round", "input": "touch-buttons" },
+    { "id": "fenix7s", "shape": "round", "input": "touch-buttons" },
+    { "id": "fenix7x", "shape": "round", "input": "touch-buttons" },
+    { "id": "fenix8solar47mm", "shape": "round", "input": "touch-buttons" },
+    { "id": "epix2", "shape": "round", "input": "touch-buttons" },
+    { "id": "epix2pro42mm", "shape": "round", "input": "touch-buttons" },
+    { "id": "epix2pro47mm", "shape": "round", "input": "touch-buttons" },
+    { "id": "epix2pro51mm", "shape": "round", "input": "touch-buttons" },
+    { "id": "fr255", "shape": "round", "input": "buttons" },
+    { "id": "fr265", "shape": "round", "input": "touch-buttons" },
+    { "id": "fr955", "shape": "round", "input": "touch-buttons" },
+    { "id": "fr965", "shape": "round", "input": "touch-buttons" },
+    { "id": "venu2", "shape": "round", "input": "touch-buttons" },
+    { "id": "venu3", "shape": "round", "input": "touch-buttons" },
+    { "id": "vivoactive5", "shape": "round", "input": "touch-buttons" },
+    { "id": "venusq2", "shape": "rectangle", "input": "touch-buttons" }
+  ],
+  "representativeSimulatorChecks": [
+    { "id": "epix2", "covers": ["round", "touch-buttons", "amoled"] },
+    { "id": "fr255", "covers": ["round", "buttons", "mip"] },
+    { "id": "venusq2", "covers": ["rectangle", "touch-buttons", "amoled"] }
+  ]
+}

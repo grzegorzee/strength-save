@@ -26,6 +26,7 @@
       <iq:product id="venu2"/>
       <iq:product id="venu3"/>
       <iq:product id="vivoactive5"/>
+      <iq:product id="venusq2"/>
     </iq:products>
     <iq:permissions>
       <iq:uses-permission id="Communications"/>
