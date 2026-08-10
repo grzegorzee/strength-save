@@ -23,6 +23,11 @@ export const ADMIN_DELETE_BATCH_SIZE = 450;
 export const STRAVA_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 export const STRAVA_OAUTH_STATE_BYTES = 32;
 
+// Publiczny Firebase App ID natywnej aplikacji iOS (GoogleService-Info.plist).
+// To nie jest sekret. Bez invite nowy profil wolno utworzyc tylko wtedy, gdy
+// callable zweryfikowal token App Check wystawiony dokladnie dla tej aplikacji.
+export const STRENGTH_SAVE_IOS_APP_CHECK_ID = "1:283539506094:ios:b7bb014c82f1e82666be3f";
+
 export const GDPR_USER_ID_COLLECTIONS = [
   "workouts",
   "measurements",
@@ -71,6 +76,15 @@ export function providerFromSignInProvider(provider: unknown): AuthProvider {
 
 export function providerGetsImmediateAccess(provider: AuthProvider): boolean {
   return provider === "google" || provider === "apple";
+}
+
+export function canCreateUserProfile(input: {
+  registrationOpen: boolean;
+  inviteValid: boolean;
+  appCheckAppId: string | undefined;
+}): boolean {
+  return input.registrationOpen
+    && (input.inviteValid || input.appCheckAppId === STRENGTH_SAVE_IOS_APP_CHECK_ID);
 }
 
 export function hasCallableAppAccess(profile: AccessProfile | undefined): boolean {

@@ -1,4 +1,5 @@
 /// <reference types="@capacitor-firebase/authentication" />
+/// <reference types="@capacitor-firebase/app-check" />
 /// <reference types="@capacitor-firebase/messaging" />
 import type { CapacitorConfig } from '@capacitor/cli';
 
@@ -6,6 +7,19 @@ const config: CapacitorConfig = {
   appId: 'com.grzegorzjasionowicz.strengthsave',
   appName: 'StrengthSave',
   webDir: 'dist',
+  experimental: {
+    ios: {
+      spm: {
+        // App Check i Firebase iOS SDK maja te sama tozsamosc pakietu SwiftPM.
+        // Symlink jest oficjalnym obejściem pluginu dla Capacitor CLI 8.4+.
+        packageOptions: {
+          '@capacitor-firebase/app-check': {
+            symlink: true,
+          },
+        },
+      },
+    },
+  },
   // Apka ma zachowywać się jak apka, nie jak strona: bez pinch-zoomu, który
   // rozjeżdżał layout i ucinał treść po bokach (incydent 2026-07-20).
   zoomEnabled: false,

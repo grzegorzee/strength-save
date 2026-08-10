@@ -6,7 +6,6 @@ import { readE2EAuthState } from '@/lib/e2e-auth';
 import { consumePendingInviteCode, readInviteCodeFromLocation, setPendingInviteCode } from '@/lib/pending-invite';
 import { redeemInvite, syncUserProfile, type AppUserProfile } from '@/lib/registration-api';
 import {
-  buildPendingAuthProfile,
   mapAppUserProfile,
   mapSubscription,
   resolveProfileLoadFailure,
@@ -94,51 +93,69 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
 
     let cancelled = false;
+    let unsubscribe: () => void = () => undefined;
 
-    const ensureUserDoc = async () => {
+    setProfile(null);
+    setProfileLoaded(false);
+    setProfileLoadError(null);
+
+    const bootstrapUserProfile = async () => {
       try {
         const inviteFromLocation = readInviteCodeFromLocation();
         if (inviteFromLocation) {
           setPendingInviteCode(inviteFromLocation);
         }
-        await syncUserProfile();
+        let syncedProfile = await syncUserProfile();
         const pendingInviteCode = consumePendingInviteCode();
         if (pendingInviteCode) {
           try {
             await redeemInvite(pendingInviteCode);
-            await syncUserProfile();
+            syncedProfile = await syncUserProfile();
           } catch (inviteError) {
             console.error('Failed to redeem invite after login:', inviteError);
           }
         }
+
+        if (cancelled) return;
+        setProfile(mapAppUserProfile(userId, syncedProfile, authProfileSeed));
+        setProfileLoadError(null);
+        setProfileLoaded(true);
+
+        // Subskrypcja startuje dopiero po idempotentnym utworzeniu profilu.
+        // Inaczej pierwszy pusty snapshot montowal bramke kodu przed zakonczeniem
+        // syncUserProfile i requestEmailVerificationCode widzial brak users/{uid}.
+        unsubscribe = onSnapshot(docRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.data() as AppUserProfile;
+            setProfile(mapAppUserProfile(userId, data, authProfileSeed));
+            setProfileLoadError(null);
+          } else if (snapshot.metadata.fromCache) {
+            // Callable wlasnie potwierdzil i zwrocil profil. Pusty pierwszy
+            // snapshot z lokalnego cache nie moze nadpisac tego stanu.
+            return;
+          } else {
+            setProfile(null);
+            setProfileLoadError('User profile missing after synchronization');
+          }
+          setProfileLoaded(true);
+        }, (err) => {
+          console.error('Error fetching user profile:', err);
+          setProfile((currentProfile) => resolveProfileLoadFailure(currentProfile));
+          setProfileLoadError(err.message || 'Profile load failed');
+          setProfileLoaded(true);
+        });
       } catch (err) {
         console.error('Error syncing user profile:', err);
         if (!cancelled) {
           const message = err instanceof Error ? err.message : 'Profile sync failed';
+          setProfile(null);
           setProfileLoadError(message);
           setProfileLoaded(true);
         }
       }
     };
 
-    void ensureUserDoc();
-
-    const unsubscribe = onSnapshot(docRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data() as AppUserProfile;
-        setProfile(mapAppUserProfile(userId, data, authProfileSeed));
-      } else {
-        // Doc not yet created, use auth data
-        setProfile(buildPendingAuthProfile(authProfileSeed));
-      }
-      setProfileLoadError(null);
-      setProfileLoaded(true);
-    }, (err) => {
-      console.error('Error fetching user profile:', err);
-      setProfile((currentProfile) => resolveProfileLoadFailure(currentProfile));
-      setProfileLoadError(err.message || 'Profile load failed');
-      setProfileLoaded(true);
-    });
+    void bootstrapUserProfile();
 
     return () => {
       cancelled = true;

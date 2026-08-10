@@ -27,6 +27,7 @@ import {
   readFeatureFlags,
   resendErrorMessage,
   buildGrantedSubscription,
+  canCreateUserProfile,
 } from "./security";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
@@ -349,17 +350,21 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
     // Flaga admina registrationOpen=false zamyka tworzenie nowych kont
     // (kill switch m.in. na nadużycie budżetu AI przez masowe konta Google/Apple).
     const flags = await readFeatureFlags(getDb());
-    if (flags.registrationOpen === false) {
-      throw new HttpsError("permission-denied", "Registration is currently closed");
-    }
+    const registrationOpen = flags.registrationOpen !== false;
     // Nie ufamy deklaracji platformy od klienta. Otwartą rejestrację mobilną
     // wolno włączyć dopiero po wdrożeniu wymuszanego App Check/attestation.
     const inviteCode = normalizeOptionalString(request.data?.inviteCode, 20);
-    const inviteValid = inviteCode ? await isInviteUsable(inviteCode, email) : false;
-    if (!inviteValid) {
+    const inviteValid = registrationOpen && inviteCode ? await isInviteUsable(inviteCode, email) : false;
+    if (!canCreateUserProfile({
+      registrationOpen,
+      inviteValid,
+      appCheckAppId: request.app?.appId,
+    })) {
       throw new HttpsError(
         "permission-denied",
-        "Rejestracja wymaga ważnego zaproszenia."
+        registrationOpen
+          ? "Rejestracja wymaga ważnego zaproszenia lub zweryfikowanej aplikacji."
+          : "Registration is currently closed"
       );
     }
     const immediateAccess = providerGetsImmediateAccess(provider);
@@ -404,7 +409,7 @@ export const syncUserProfile = onCall({ secrets: [resendApiKey] }, async (reques
       email,
       actorUid: uid,
       createdAt: timestamp,
-      metadata: { provider },
+      metadata: { provider, appCheckAppId: request.app?.appId || null },
     });
     if (immediateAccess) {
       await maybeSendWelcomeEmail(userRef, nextProfile);

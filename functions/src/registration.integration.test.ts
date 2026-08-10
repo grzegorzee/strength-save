@@ -1,12 +1,28 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as admin from "firebase-admin";
+import type { CallableRequest } from "firebase-functions/v2/https";
+
+const resendMock = vi.hoisted(() => ({
+  send: vi.fn(),
+}));
+
+vi.mock("resend", () => ({
+  Resend: class {
+    readonly emails = { send: resendMock.send };
+  },
+}));
+
 import {
   createWaitlistEntryCore,
   fcmTokenRegistrationDocId,
   processDeletionOperation,
+  requestEmailVerificationCode,
   registerPushTokenForUser,
+  syncUserProfile,
   unregisterPushTokenForUser,
+  verifyEmailCode,
 } from "./registration";
+import { STRENGTH_SAVE_IOS_APP_CHECK_ID } from "./security";
 
 const hasFirebaseEmulators = !!process.env.FIRESTORE_EMULATOR_HOST && !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
 const describeWithEmulators = hasFirebaseEmulators ? describe : describe.skip;
@@ -16,6 +32,7 @@ const projectId = process.env.GCLOUD_PROJECT || process.env.FIREBASE_CONFIG
 
 const collectionsToClean = [
   "users",
+  "config",
   "waitlist_entries",
   "waitlist_rate_limits",
   "fcm_token_registrations",
@@ -37,6 +54,39 @@ const collectionsToClean = [
   "api_rate_limits",
   "auth_audit_logs",
 ];
+
+const callableRequest = <T>(input: {
+  uid: string;
+  email: string;
+  data: T;
+  appId?: string;
+}): CallableRequest<T> => ({
+  data: input.data,
+  auth: {
+    uid: input.uid,
+    rawToken: "emulator-auth-token",
+    token: {
+      uid: input.uid,
+      sub: input.uid,
+      email: input.email,
+      name: "Test User",
+      firebase: { sign_in_provider: "password", identities: {} },
+    },
+  },
+  app: input.appId ? {
+    appId: input.appId,
+    token: {
+      app_id: input.appId,
+      aud: ["projects/strength-save-m1-test"],
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+      iss: "https://firebaseappcheck.googleapis.com/strength-save-m1-test",
+      sub: input.appId,
+    },
+  } : undefined,
+  rawRequest: {} as CallableRequest<T>["rawRequest"],
+  acceptsStreaming: false,
+});
 
 const cleanCollection = async (collection: string): Promise<void> => {
   const db = admin.firestore();
@@ -62,6 +112,10 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
   });
 
   beforeEach(async () => {
+    process.env.RESEND_API_KEY = "re_emulator_only";
+    process.env.API_KEY_PEPPER = "emulator-pepper";
+    resendMock.send.mockReset();
+    resendMock.send.mockResolvedValue({ data: { id: "email-emulator" }, error: null });
     await Promise.all(collectionsToClean.map(cleanCollection));
     const users = await admin.auth().listUsers();
     await Promise.all(users.users.map((user) => admin.auth().deleteUser(user.uid)));
@@ -95,6 +149,63 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
 
     await unregisterPushTokenForUser("user-b", token);
     expect((await tokenRef.get()).exists).toBe(false);
+  });
+
+  it("completes attested iOS registration through email verification and reaches onboarding state", async () => {
+    const uid = "attested-ios-user";
+    const email = "attested-ios@example.com";
+    const requestBase = { uid, email, appId: STRENGTH_SAVE_IOS_APP_CHECK_ID };
+
+    const syncResult = await syncUserProfile.run(callableRequest({
+      ...requestBase,
+      data: { language: "pl", inviteCode: null },
+    }));
+
+    expect(syncResult.profile).toMatchObject({
+      uid,
+      email,
+      status: "pending_verification",
+      access: { enabled: false },
+      onboardingCompleted: false,
+      onboarding: { state: "not_started" },
+    });
+
+    await expect(requestEmailVerificationCode.run(callableRequest({
+      ...requestBase,
+      data: { language: "pl" },
+    }))).resolves.toEqual({ sent: true });
+
+    const verificationSubject = String(resendMock.send.mock.calls[0]?.[0]?.subject || "");
+    const code = verificationSubject.match(/(\d{6})$/)?.[1];
+    expect(code).toMatch(/^\d{6}$/);
+
+    await expect(verifyEmailCode.run(callableRequest({
+      ...requestBase,
+      data: { code },
+    }))).resolves.toEqual({ verified: true });
+
+    const profile = (await admin.firestore().collection("users").doc(uid).get()).data();
+    expect(profile).toMatchObject({
+      status: "active",
+      access: { enabled: true },
+      onboardingCompleted: false,
+      onboarding: { state: "in_progress", version: 1 },
+    });
+    expect(profile?.verification?.emailVerifiedAt).toEqual(expect.any(String));
+    expect(resendMock.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps an unattested web registration without invite out of users", async () => {
+    const uid = "unattested-web-user";
+
+    await expect(syncUserProfile.run(callableRequest({
+      uid,
+      email: "unattested-web@example.com",
+      data: { language: "pl", inviteCode: null },
+    }))).rejects.toMatchObject({ code: "permission-denied" });
+
+    await expect(admin.firestore().collection("users").doc(uid).get())
+      .resolves.toMatchObject({ exists: false });
   });
 
   it("retries deletion after Auth disappeared and finishes Firestore purge idempotently", async () => {

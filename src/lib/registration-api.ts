@@ -1,4 +1,5 @@
 import { httpsCallable } from "firebase/functions";
+import { Capacitor } from "@capacitor/core";
 import { functions } from "@/lib/firebase";
 import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
@@ -15,6 +16,18 @@ function currentLanguage(): LanguageCode {
     if (saved && LANGUAGES.some((language) => language.code === saved)) return saved as LanguageCode;
   } catch { /* ignore */ }
   return detectLanguage();
+}
+
+async function callRegistrationFunction<RequestData, ResponseData>(
+  functionName: string,
+  data: RequestData,
+): Promise<ResponseData> {
+  if (Capacitor.getPlatform() === 'ios') {
+    const { callNativeAttestedFunction } = await import('@/lib/native-callable');
+    return callNativeAttestedFunction<RequestData, ResponseData>(functionName, data);
+  }
+  const fn = httpsCallable<RequestData, ResponseData>(functions, functionName);
+  return (await fn(data)).data;
 }
 
 export type AccountStatus = "pending_verification" | "active" | "suspended" | "deleted";
@@ -127,24 +140,24 @@ export async function syncUserProfile() {
       stravaConnected: false,
     };
   }
-  const fn = httpsCallable<
+  const result = await callRegistrationFunction<
     { language: LanguageCode; inviteCode: string | null },
     { profile: AppUserProfile }
-  >(functions, "syncUserProfile");
-  const result = await fn({
+  >("syncUserProfile", {
     language: currentLanguage(),
     inviteCode: getPendingInviteCode(),
   });
-  return result.data.profile;
+  return result.profile;
 }
 
 export async function requestEmailVerificationCode() {
   if (isE2EMode) {
     return { sent: true, alreadyVerified: false };
   }
-  const fn = httpsCallable<{ language: LanguageCode }, { sent: boolean; alreadyVerified?: boolean }>(functions, "requestEmailVerificationCode");
-  const result = await fn({ language: currentLanguage() });
-  return result.data;
+  return callRegistrationFunction<{ language: LanguageCode }, { sent: boolean; alreadyVerified?: boolean }>(
+    "requestEmailVerificationCode",
+    { language: currentLanguage() },
+  );
 }
 
 export async function verifyEmailCode(code: string) {
@@ -154,9 +167,7 @@ export async function verifyEmailCode(code: string) {
     }
     return { verified: true };
   }
-  const fn = httpsCallable<{ code: string }, { verified: boolean }>(functions, "verifyEmailCode");
-  const result = await fn({ code });
-  return result.data;
+  return callRegistrationFunction<{ code: string }, { verified: boolean }>("verifyEmailCode", { code });
 }
 
 export async function createWaitlistEntry(input: {

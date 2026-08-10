@@ -6,6 +6,7 @@ import {
   GDPR_USER_ID_COLLECTIONS,
   canUseApiExport,
   canUseStravaIntegration,
+  canCreateUserProfile,
   hasCallableAppAccess,
   isValidStravaOAuthState,
   providerFromSignInProvider,
@@ -37,6 +38,50 @@ describe("providerGetsImmediateAccess", () => {
     expect(providerGetsImmediateAccess("google")).toBe(true);
     expect(providerGetsImmediateAccess("apple")).toBe(true);
     expect(providerGetsImmediateAccess("password")).toBe(false);
+  });
+});
+
+describe("canCreateUserProfile", () => {
+  it("allows a valid invite without App Check", () => {
+    expect(canCreateUserProfile({
+      registrationOpen: true,
+      inviteValid: true,
+      appCheckAppId: undefined,
+    })).toBe(true);
+  });
+
+  it("allows the attested Strength Save iOS app without an invite", () => {
+    expect(canCreateUserProfile({
+      registrationOpen: true,
+      inviteValid: false,
+      appCheckAppId: "1:283539506094:ios:b7bb014c82f1e82666be3f",
+    })).toBe(true);
+  });
+
+  it("keeps web, missing and foreign App Check identities invite-only", () => {
+    expect(canCreateUserProfile({
+      registrationOpen: true,
+      inviteValid: false,
+      appCheckAppId: undefined,
+    })).toBe(false);
+    expect(canCreateUserProfile({
+      registrationOpen: true,
+      inviteValid: false,
+      appCheckAppId: "",
+    })).toBe(false);
+    expect(canCreateUserProfile({
+      registrationOpen: true,
+      inviteValid: false,
+      appCheckAppId: "1:283539506094:web:foreign",
+    })).toBe(false);
+  });
+
+  it("keeps the registration kill switch authoritative", () => {
+    expect(canCreateUserProfile({
+      registrationOpen: false,
+      inviteValid: true,
+      appCheckAppId: "1:283539506094:ios:b7bb014c82f1e82666be3f",
+    })).toBe(false);
   });
 });
 

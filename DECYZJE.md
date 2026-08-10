@@ -5,11 +5,25 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-06 (X24: dźwięk natywnie + głośność + tytuł pod animacją, Z200-Z202, build 83)
+**Ostatnia aktualizacja:** 2026-08-10 (plan X25: rejestracja, cennik/triale, koszty chmury; onboarding zamrożony)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-10 — plan X25: najpierw rejestracja i release, onboarding zamrożony
+
+**Decyzja usera:** można wykonać wszystkie rekomendacje z audytu kosztów i gotowości do wydania, ale w X25 nie przebudowujemy ani nie skracamy onboardingu. Szczegółowy plan test-first i autonomiczny prompt `/goal` + `/loop` są zapisane w `docs/PLAN-X25-LAUNCH-2026-08-10.md` oraz `docs/PROMPT-X25-LOOP-2026-08-10.md`.
+
+**Cennik (zastępuje wcześniejsze decyzje cenowe niżej w tym pliku):** miesięczny 14,99 zł / $3.99, roczny 119,99 zł / $31.99. Roczny odpowiada 10,00 zł / $2.67 miesięcznie i daje około 33% oszczędności, czyli praktycznie cztery miesiące gratis. Trial: 7 dni monthly i 14 dni yearly. Paywall ma używać cen i intro period z RevenueCat/StoreKit oraz pokazywać trial wyłącznie przy potwierdzonym `eligible`; `unknown` i `ineligible` bez obietnicy darmowego okresu.
+
+**Bloker znaleziony na realnym iPhone:** `User profile missing` nie pochodzi z onboardingu. Klient native udostępnia rejestrację bez invite, ale `syncUserProfile` po stronie Functions wymaga invite dla każdego brakującego `users/{uid}`. Firebase Auth tworzy konto, backend nie tworzy profilu, `UserContext` fabrykuje fallback `pending_verification`, a automatyczne `requestEmailVerificationCode` nie znajduje dokumentu usera. Właściwy fix X25: serwerowo weryfikowalna rejestracja native przez Firebase App Check/App Attest, web nadal invite-only, bez powrotu do spoofowalnego pola `platform`; dodatkowo odporny i idempotentny bootstrap profilu dla istniejących osieroconych kont Auth.
+
+**Priorytety po P0:** eligibility-aware paywall i nowe ceny/triale; batching telemetrii 30 s → 5 min/lifecycle; deduplikacja rejestracji push; węższe zapytania Dashboardu i paginacja historii; recent realtime + agregaty dopiero po testach równoważności; naprawa web dist-smoke, a11y i odzyskanie min. 150 KB zapasu bundle. Dane, pełna historia, offline, eksport i obecny flow onboardingu pozostają.
+
+**Implementacja P0 lokalnie (2026-08-10):** iOS pobiera natywny token Firebase App Check/App Attest przez `@capacitor-firebase/app-check`, a trzy callable rejestracyjne wysyłają oficjalną kopertę `{data}` z nagłówkami Firebase Auth i `X-Firebase-AppCheck`. Backend nie ufa klientowi: brak invite jest dozwolony wyłącznie, gdy zweryfikowany przez Functions `request.app.appId` jest równy `1:283539506094:ios:b7bb014c82f1e82666be3f`; kill switch `registrationOpen=false` ma pierwszeństwo. Web i każdy brakujący/obcy App Check ID pozostają invite-only. `UserContext` najpierw kończy idempotentny sync profilu, dopiero potem uruchamia listener, więc pusty snapshot nie fabrykuje profilu i nie montuje za wcześnie bramki kodu. Pełna regresja: aplikacja 1223/1223, Functions 155/155 aktywnych, E2E 194/194, lint/typecheck/build/mobile/offline/bundle oraz Xcode build PASS.
+
+**Stan wdrożenia P0 (aktualizacja):** Firebase iOS ma bundle `com.grzegorzjasionowicz.strengthsave`, Team ID `J4CRD2SA6D` i App Attest TTL 3600 s. Produkcyjny smoke wykryl, ze samo istnienie configu nie wystarcza: API `firebaseappcheck.googleapis.com` bylo wylaczone i exchange zwracal 403. API wlaczono przez Service Usage, `syncUserProfile` wdrozono, a kontrolowany smoke na technicznym koncie i tymczasowym debug tokenie przeszedl `profile -> email code -> verify -> onboarding.in_progress`; konto usunieto przez `deleteOwnAccount`, token uniewazniono. Pozostaje build 84 i smoke prawdziwego App Attest na realnym iPhone.
 
 ### 2026-08-06 — X24: dźwięk NATYWNIE + regulacja głośności + tytuł pod animacją (Z200-Z202, build 83)
 
