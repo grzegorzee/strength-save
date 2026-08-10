@@ -6,6 +6,7 @@ import type { WorkoutSession } from '../../src/types';
 import { mergePromotedDraft, type ActiveWorkoutDraft } from '../../src/lib/workout-draft-db';
 import { saveWorkoutBatchWithRevision } from '../../src/lib/workout-save';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '../../src/lib/workout-sync-engine';
+import { mergeDraftWithCloudWorkout } from '../../src/lib/workout-cross-device-merge';
 
 const AUTH_EMULATOR = 'http://127.0.0.1:9099';
 const FIRESTORE_EMULATOR = 'http://127.0.0.1:8081';
@@ -135,17 +136,22 @@ test('Emulator: dwóch klientów, ten sam trening — stale revision dostaje WOR
   }
 });
 
-test('Emulator Z87: local-wins po konflikcie rewizji dosyła wersję lokalną bez udziału usera', async () => {
+test('Emulator Z228: konflikt iOS/Watch/web scala nowsze serie do jednej sesji', async () => {
   const email = `workout-localwins-${Date.now()}@e2e.test`;
   const uid = await createAuthUser(email);
   await seedActiveUser(uid, email);
   const sessionId = `workout-${uid}-day-1-2026-07-03`;
-  await seedDoc(`workouts/${sessionId}`, workoutSeed(uid));
+  await seedDoc(`workouts/${sessionId}`, workoutSeed(uid, {
+    exercises: [{ exerciseId: 'ex-1', sets: [
+      { reps: 8, weight: 100, completed: true, updatedAt: 1000, updatedEventId: 'base-0' },
+      { reps: 8, weight: 100, completed: true, updatedAt: 1000, updatedEventId: 'base-1' },
+    ] }],
+  }));
 
   const other = await connectClient(email, `wlw-other-${Date.now()}`);
   const mine = await connectClient(email, `wlw-mine-${Date.now()}`);
 
-  // Draft "mojego" urządzenia: treść lokalna (reps=7), baseline chmury stale (revision 1).
+  // iOS ma serię Watch oraz nowszą lokalną serię, baseline chmury jest stale.
   const drafts = new Map<string, ActiveWorkoutDraft>();
   drafts.set(sessionId, {
     sessionId,
@@ -155,7 +161,10 @@ test('Emulator Z87: local-wins po konflikcie rewizji dosyła wersję lokalną be
     cycleId: null,
     sessionOrigin: 'remote',
     remoteSessionId: sessionId,
-    exerciseSets: { 'ex-1': [{ reps: 7, weight: 100, completed: true }] },
+    exerciseSets: { 'ex-1': [
+      { reps: 8, weight: 102.5, completed: true, updatedAt: 2000, updatedEventId: 'watch-set-0' },
+      { reps: 7, weight: 105, completed: true, updatedAt: 4000, updatedEventId: 'ios-set-1' },
+    ] },
     exerciseNotes: {},
     exerciseMetrics: {},
     dayNotes: '',
@@ -209,8 +218,14 @@ test('Emulator Z87: local-wins po konflikcie rewizji dosyła wersję lokalną be
   };
 
   try {
-    // Drugie urządzenie zapisuje w międzyczasie (revision 1 -> 2): klasyczny poranek z iPhone+web.
-    const otherWrite = await saveWorkoutBatchWithRevision(other.db, sessionId, payload(9), {
+    // Web zmienia set 0 później niż Watch; set 1 pozostaje starszym snapshotem.
+    const otherWrite = await saveWorkoutBatchWithRevision(other.db, sessionId, [{
+      exerciseId: 'ex-1',
+      sets: [
+        { reps: 9, weight: 107.5, completed: true, updatedAt: 3000, updatedEventId: 'web-set-0' },
+        { reps: 8, weight: 100, completed: true, updatedAt: 1000, updatedEventId: 'base-1' },
+      ],
+    }], {
       expectedRevision: 1,
       writeId: 'write-other',
     });
@@ -221,22 +236,26 @@ test('Emulator Z87: local-wins po konflikcie rewizji dosyła wersję lokalną be
     expect(conflictOutcome.success).toBe(false);
     expect(conflictOutcome.conflict).toBe(true);
 
-    // Local-wins (Z87) = sekwencja keepLocalOnConflict z WorkoutDay:
-    // baseline z serwera na draft, potem retry syncu. Zero dialogu, zero wyboru usera.
-    const server = await getDoc(doc(mine.db, 'workouts', sessionId));
+    // Sekwencja produkcyjnego keepLocalOnConflict: rebase per-set, świeża rewizja, retry.
+    const serverSnapshot = await getDoc(doc(mine.db, 'workouts', sessionId));
+    const server = { id: serverSnapshot.id, ...serverSnapshot.data() } as WorkoutSession;
     const current = drafts.get(sessionId)!;
     drafts.set(sessionId, {
-      ...current,
-      cloudRevision: Number(server.data()?.revision),
-      cloudUpdatedAt: Number(server.data()?.updatedAt),
+      ...mergeDraftWithCloudWorkout(current, server),
       version: current.version + 1,
     });
     const retryOutcome = await syncWorkoutSession(uid, sessionId, 'checkpoint', deps);
     expect(retryOutcome.success).toBe(true);
 
-    // Wersja lokalna wygrała: chmura ma reps=7, rewizja podbita nad zapis drugiego urządzenia.
+    // Jedna sesja ma nową edycję web set 0 i nową serię iOS set 1.
     const saved = await getDoc(doc(mine.db, 'workouts', sessionId));
-    expect((saved.data()?.exercises as { sets: { reps: number }[] }[])[0].sets[0].reps).toBe(7);
+    const sets = (saved.data()?.exercises as { sets: Array<{
+      reps: number; weight: number; updatedEventId?: string;
+    }> }[])[0].sets;
+    expect(sets).toMatchObject([
+      { reps: 9, weight: 107.5, updatedEventId: 'web-set-0' },
+      { reps: 7, weight: 105, updatedEventId: 'ios-set-1' },
+    ]);
     expect(Number(saved.data()?.revision)).toBeGreaterThanOrEqual(3);
   } finally {
     await Promise.all([deleteApp(other.app), deleteApp(mine.app)]);

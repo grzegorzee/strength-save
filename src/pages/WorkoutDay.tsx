@@ -66,9 +66,10 @@ import { reportClientError } from '@/lib/error-telemetry';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
-import { ackWatchEvents, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
+import { ackWatchEvents, getOrCreateWatchPhoneDeviceId, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
 import { mergeWatchSetEvent, stampChangedWatchSets } from '@/lib/watch-set-conflict';
+import { mergeDraftWithCloudWorkout } from '@/lib/workout-cross-device-merge';
 import {
   areWorkoutStartSourcesReady,
   buildStartDraft,
@@ -83,6 +84,10 @@ const CHECKPOINT_INTERVAL_MS = 5 * 60 * 1000;
 // Z175: sesja provisional dostaje PIERWSZY checkpoint szybko — 5-minutowe okno bez
 // próby promocji zostawiało baner "rozpoczęty offline" na Dashboardzie mimo sieci.
 const PROVISIONAL_FIRST_CHECKPOINT_MS = 15 * 1000;
+
+const newPhoneSetEventId = (): string => (
+  `${getOrCreateWatchPhoneDeviceId()}-${crypto.randomUUID()}`
+);
 
 type AutoSaveStatus =
   | 'idle'
@@ -190,8 +195,8 @@ const WorkoutDay = () => {
   // istnieje tylko dla isCompleted).
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingWorkout, setIsDeletingWorkout] = useState(false);
-  // Local-wins (Z87): konflikt wersji rozwiązujemy automatycznie na korzyść lokalnej.
-  // Limit prób per sesja zapisu chroni przed pętlą, gdy drugie urządzenie aktywnie pisze.
+  // Cross-device LWW (Z228): konflikt wersji rozwiązujemy per seria, zachowując
+  // najnowsze zmiany z obu urządzeń. Limit prób chroni przed aktywną pętlą zapisów.
   const conflictAutoResolveAttemptsRef = useRef(0);
   const keepLocalOnConflictRef = useRef<null | (() => Promise<void>)>(null);
   const [showWarmup, setShowWarmup] = useState(false);
@@ -748,8 +753,8 @@ const WorkoutDay = () => {
 
     if (!outcome.success) {
       if (outcome.conflict) {
-        // Local-wins (Z87): wersja lokalna zawsze wygrywa. Telemetria zostaje,
-        // żeby widzieć skalę zjawiska po wyłączeniu dialogu.
+        // Z228: pobierz świeży cloud snapshot, zrób deterministyczny rebase per seria
+        // i ponów zapis. Telemetria pozwala obserwować skalę konfliktów.
         void reportClientError(uid, {
           code: 'revision-conflict',
           phase: requiresFinalSync ? 'final' : 'checkpoint',
@@ -764,8 +769,8 @@ const WorkoutDay = () => {
           void keepLocalOnConflictRef.current?.();
           return { success: false, error: outcome.error };
         }
-        // Limit wyczerpany (drugie urządzenie aktywnie pisze): zostajemy przy lokalnym
-        // drafcie, danych nie tracimy, kolejny checkpoint ponowi zapis.
+        // Limit wyczerpany (drugie urządzenie aktywnie pisze): zostajemy przy drafcie
+        // po ostatnim rebase; danych nie tracimy, kolejny checkpoint ponowi zapis.
         setSaveError(t('workout.err.conflict'));
         setAutoSaveStatus(requiresFinalSync ? 'final-sync-pending' : 'error');
         return { success: false, error: outcome.error };
@@ -852,16 +857,30 @@ const WorkoutDay = () => {
     return { success: true };
   }, [uid, sessionId, workoutSyncDeps, persistDraftSnapshot, queueAutoSaveStatus, t, describeSyncError]);
 
-  // Local-wins (Z87): zachowaj lokalną wersję — podbij znacznik chmury w drafcie
-  // do stanu serwera i ponów zapis (świadome nadpisanie wersji z drugiego urządzenia).
+  // Konflikt cross-device: rebase per seria według (updatedAt, updatedEventId),
+  // następnie ponów zapis na świeżej rewizji. Ani cloud, ani lokalna nadwyżka nie giną.
   const keepLocalOnConflict = useCallback(async () => {
     if (!uid || !sessionId) return;
     try {
       const server = await getWorkoutSessionFromServer(sessionId);
-      await persistDraftSnapshot({
-        ...(server?.updatedAt !== undefined ? { cloudUpdatedAt: server.updatedAt } : {}),
-        ...(server?.revision !== undefined ? { cloudRevision: server.revision } : {}),
+      const current = activeDraftRef.current;
+      if (!server || !current || current.sessionId !== sessionId) return;
+      const merged = mergeDraftWithCloudWorkout(current, server);
+      const saved = await persistDraftSnapshot({
+        exerciseSets: merged.exerciseSets,
+        exerciseNotes: merged.exerciseNotes,
+        exerciseNames: merged.exerciseNames,
+        exerciseMetrics: merged.exerciseMetrics,
+        ...(server.updatedAt !== undefined ? { cloudUpdatedAt: server.updatedAt } : {}),
+        cloudRevision: Math.max(0, Math.floor(server.revision ?? 0)),
       }, { showStatus: false });
+      if (!saved) return;
+      exerciseSetsRef.current = saved.exerciseSets;
+      exerciseNotesRef.current = saved.exerciseNotes;
+      exerciseMetricsRef.current = saved.exerciseMetrics;
+      setExerciseSets(saved.exerciseSets);
+      setExerciseNotes(saved.exerciseNotes);
+      setExerciseMetrics(saved.exerciseMetrics);
       await syncDraftToFirebase(activeDraftRef.current?.finalSyncPending ? 'final' : 'checkpoint');
     } catch (err) {
       // Offline/timeout: zostajemy przy lokalnym drafcie, user widzi komunikat,
@@ -1571,16 +1590,20 @@ const WorkoutDay = () => {
 
   // Handler for EDIT MODE - only local state, no Firebase saves
   const handleSetsChangeLocal = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
-    const sanitizedSets = sets.map(s => ({
+    const sanitizedSets = stampChangedWatchSets(exerciseSetsRef.current[exerciseId], sets.map(s => ({
       reps: s.reps ?? 0,
       weight: s.weight ?? 0,
       completed: s.completed ?? false,
       ...(s.isWarmup && { isWarmup: true }),
       ...carrySetExtras(s),
-    }));
-    setExerciseSets(prev => ({ ...prev, [exerciseId]: sanitizedSets }));
+    })), Date.now(), newPhoneSetEventId());
+    const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
+    exerciseSetsRef.current = nextExerciseSets;
+    setExerciseSets(nextExerciseSets);
     if (notes !== undefined) {
-      setExerciseNotes(prev => ({ ...prev, [exerciseId]: notes }));
+      const nextExerciseNotes = { ...exerciseNotesRef.current, [exerciseId]: notes };
+      exerciseNotesRef.current = nextExerciseNotes;
+      setExerciseNotes(nextExerciseNotes);
     }
   }, []);
 
@@ -1592,7 +1615,7 @@ const WorkoutDay = () => {
       completed: s.completed ?? false,
       ...(s.isWarmup && { isWarmup: true }),
       ...carrySetExtras(s),
-    })), Date.now());
+    })), Date.now(), newPhoneSetEventId());
     const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
     const nextExerciseNotes = notes !== undefined
       ? { ...exerciseNotesRef.current, [exerciseId]: notes }

@@ -7,7 +7,7 @@ struct ContentView: View {
         NavigationStack {
             Group {
                 if let payload = store.payload {
-                    if payload.capability?.active == false {
+                    if payload.capability?.active == false && !store.canContinueCurrentWorkout {
                         proRequiredView
                     } else if payload.type == "todayWorkout", let exercises = payload.exercises, !exercises.isEmpty {
                         if store.isFinishedLocally {

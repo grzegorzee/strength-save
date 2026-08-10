@@ -58,6 +58,12 @@ final class WorkoutStore: NSObject, ObservableObject {
 
     var hasProAccess: Bool { payload?.capability?.active != false }
 
+    /// Trial może wygasnąć w trakcie lokalnej sesji. Wtedy domykamy dokładnie
+    /// tę sesję, lecz nie pozwalamy zacząć kolejnej. Revoke/logout fail-closed.
+    var canContinueCurrentWorkout: Bool {
+        hasProAccess || (payload?.capability?.inactiveReason == "expired" && isActive)
+    }
+
     var restBetweenSetsSeconds: Int {
         if defaults.object(forKey: restSetsOverrideKey) != nil {
             return max(15, min(600, defaults.integer(forKey: restSetsOverrideKey)))
@@ -328,9 +334,12 @@ final class WorkoutStore: NSObject, ObservableObject {
                     // Snapshot bez timestampu per seria nie jest dowodem, że jego
                     // treść jest nowsza (telefon mógł wysłać go przed drainem Watch).
                     let remoteAt = remoteSet.updatedAt ?? 0
+                    let localEventId = localSet.updatedEventId ?? ""
+                    let remoteEventId = remoteSet.updatedEventId ?? ""
                     // Legacy completed set without timestamp remains local-wins
                     // against an incomplete snapshot; v1 uses deterministic LWW.
-                    if localAt >= remoteAt && localAt > 0
+                    if (localAt > remoteAt
+                        || (localAt == remoteAt && localEventId >= remoteEventId)) && localAt > 0
                         || (localSet.completed && !remoteSet.completed && localSet.updatedAt == nil) {
                         sets[j] = localSet
                     }
@@ -386,7 +395,7 @@ final class WorkoutStore: NSObject, ObservableObject {
         distanceM: Double? = nil,
         assistWeight: Double? = nil
     ) {
-        guard hasProAccess else { return }
+        guard canContinueCurrentWorkout else { return }
         // Logowanie w trybie podglądu = niejawny start treningu.
         if !isActive { startWorkout() }
         guard var payload, var exercises = payload.exercises,
@@ -394,10 +403,12 @@ final class WorkoutStore: NSObject, ObservableObject {
               setIndex < exercises[exIndex].sets.count else { return }
 
         let eventAt = Date().timeIntervalSince1970 * 1000
+        let eventId = UUID().uuidString
         exercises[exIndex].sets[setIndex].reps = reps
         exercises[exIndex].sets[setIndex].weight = weight
         exercises[exIndex].sets[setIndex].completed = true
         exercises[exIndex].sets[setIndex].updatedAt = eventAt
+        exercises[exIndex].sets[setIndex].updatedEventId = eventId
         if let durationSec { exercises[exIndex].sets[setIndex].durationSec = durationSec }
         if let distanceM { exercises[exIndex].sets[setIndex].distanceM = distanceM }
         if let assistWeight { exercises[exIndex].sets[setIndex].assistWeight = assistWeight }
@@ -426,6 +437,7 @@ final class WorkoutStore: NSObject, ObservableObject {
                 date: payload.date, dayId: dayId, exerciseId: exerciseId,
                 setIndex: setIndex, reps: reps, weight: weight, completed: true,
                 uid: payload.uid, deviceId: watchDeviceId, sessionId: payload.sessionId,
+                eventId: eventId,
                 hkSession: WorkoutSessionManager.shared.isSessionRunning,
                 at: eventAt,
                 trackingType: trackingType ?? exercise.trackingType,
@@ -546,6 +558,7 @@ final class WorkoutStore: NSObject, ObservableObject {
                     var value = set
                     value.completed = false
                     value.updatedAt = nil
+                    value.updatedEventId = nil
                     return value
                 }
                 return reset

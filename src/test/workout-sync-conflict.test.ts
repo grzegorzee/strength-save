@@ -59,7 +59,7 @@ describe('workout sync conflicts', () => {
   });
 });
 
-describe('Z87: local-wins auto-resolve', () => {
+describe('Z87/Z228: bounded cross-device auto-resolve', () => {
   it('pozwala na auto-resolve poniżej limitu', () => {
     expect(shouldAutoResolveConflict(0)).toBe(true);
     expect(shouldAutoResolveConflict(MAX_CONFLICT_AUTO_RESOLVES - 1)).toBe(true);

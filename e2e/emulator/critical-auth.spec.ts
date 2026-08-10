@@ -1,10 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// Krytyczny flow na realnym Auth + Firestore (emulatory, prawdziwe firestore.rules):
+// Krytyczny flow na realnym Auth + Firestore + Functions (emulatory,
+// prawdziwe firestore.rules i produkcyjny callable syncUserProfile):
 // logowanie email/hasło i rozjazd statusów konta (active → dashboard,
 // pending_verification → bramka weryfikacji email).
-// Functions emulator nie jest podnoszony — syncUserProfile pada (connection refused),
-// app musi zbudować profil z seedowanego dokumentu users/{uid} (real rules read).
 
 const AUTH_EMULATOR = 'http://127.0.0.1:9099';
 const FIRESTORE_EMULATOR = 'http://127.0.0.1:8081';
@@ -122,6 +121,7 @@ test.describe('Emulator critical: auth + rules', () => {
       onboardingCompleted: true,
       access: { enabled: true },
       registration: { source: 'email' },
+      notifications: { welcomeSentAt: new Date().toISOString() },
     });
 
     await loginThroughUi(page, email);
@@ -166,6 +166,7 @@ test.describe('Emulator critical: auth + rules', () => {
     await seedUserProfile(uid, {
       uid, email, displayName: 'E2E Workout', role: 'user', status: 'active',
       onboardingCompleted: true, access: { enabled: true }, registration: { source: 'email' },
+      notifications: { welcomeSentAt: new Date().toISOString() },
     });
     await seedDoc(`training_plans/${uid}`, { days, durationWeeks: 12, startDate: today, updatedAt: new Date().toISOString() });
     await seedDoc(`plan_cycles/cycle-${uid}`, {

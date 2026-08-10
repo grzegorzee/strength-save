@@ -29,6 +29,16 @@ const countCompletedSets = (draft: DraftShape): number => {
     .filter((set) => set.completed === true).length;
 };
 
+const navigateWithinLoadedApp = async (page: Page, route: string) => {
+  await page.evaluate((nextRoute) => {
+    window.location.hash = `#${nextRoute}`;
+  }, route);
+  // WorkoutDay konsumuje autostart przez replaceState, więc query może zniknąć
+  // zanim Playwright odczyta URL. Tożsamością trasy jest pathname hasha.
+  const pathname = route.split('?')[0];
+  await expect(page).toHaveURL(new RegExp(`/#${pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\?.*)?$`));
+};
+
 // Odhacza 2 pierwsze serie pierwszego ćwiczenia z wpisanymi wartościami
 // i czeka, aż draft z 2 seriami wyląduje w IndexedDB.
 const checkTwoSets = async (page: Page) => {
@@ -114,13 +124,19 @@ test.describe('Edycja planu dnia w trakcie treningu (Z141)', () => {
     // Rozgrzanie lazy chunków (WorkoutDay, PlanEditor) ONLINE — offline dynamic
     // import z dev servera by padł, a w produkcji chunki są w cache PWA.
     await navigateAndWait(page, `/workout/day-1?date=${today}`);
-    await navigateAndWait(page, '/plan/edit');
+    // Sam #root to shell/Suspense i nie dowodzi pobrania lazy WorkoutDay.
+    await expect(page.getByRole('button', { name: 'Rozpocznij trening' })).toBeEnabled();
+    // Bez pełnego reloadu: oba lazy moduły muszą pozostać w pamięci tego dokumentu.
+    await navigateWithinLoadedApp(page, '/plan/edit');
     await expect(page.getByRole('heading', { name: 'Edytuj plan' })).toBeVisible();
     await clearWorkoutDraftDb(page, E2E_UID);
 
     await page.context().setOffline(true);
 
-    await navigateAndWait(page, `/workout/day-1?date=${today}&autostart=true`);
+    // Aplikacja i lazy chunki są już załadowane. Hash navigation nie pobiera ponownie
+    // index.html z dev servera, więc testuje właściwy runtime offline zamiast awarii goto.
+    const offlineRoute = `/workout/day-1?date=${today}&autostart=true`;
+    await navigateWithinLoadedApp(page, offlineRoute);
     await checkTwoSets(page);
 
     const draftBefore = await readWorkoutDraftDb(page, E2E_UID) as DraftShape;

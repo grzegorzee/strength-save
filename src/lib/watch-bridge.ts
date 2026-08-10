@@ -253,7 +253,7 @@ export async function disableAppleWatchAccess(): Promise<void> {
     type: 'noWorkout',
     date: new Date().toISOString().slice(0, 10),
     sentAt: Date.now(),
-    capability: { v: 1, active: false, tier: 'none' },
+    capability: { v: 1, active: false, tier: 'none', inactiveReason: 'revoked' },
   });
 }
 

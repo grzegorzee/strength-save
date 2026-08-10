@@ -10,15 +10,20 @@ const sameSetValue = (left: SetData | undefined, right: SetData): boolean => !!l
   && left.distanceM === right.distanceM
   && left.assistWeight === right.assistWeight;
 
-/** Stempluje wyłącznie realnie zmienione serie; metadata nie wycieka do Firestore. */
+/** Stempluje wyłącznie realnie zmienione serie wspólną wersją protokołu v1. */
 export const stampChangedWatchSets = (
   previous: SetData[] | undefined,
   next: SetData[],
   at: number,
+  eventId = `phone-${at}`,
 ): SetData[] => next.map((set, index) => {
   const old = previous?.[index];
-  if (sameSetValue(old, set)) return old?.updatedAt ? { ...set, updatedAt: old.updatedAt } : set;
-  return { ...set, updatedAt: at };
+  if (sameSetValue(old, set)) return old?.updatedAt ? {
+    ...set,
+    updatedAt: old.updatedAt,
+    ...(old.updatedEventId && { updatedEventId: old.updatedEventId }),
+  } : set;
+  return { ...set, updatedAt: at, updatedEventId: eventId };
 });
 
 export const mergeWatchSetEvent = (
@@ -27,7 +32,12 @@ export const mergeWatchSetEvent = (
 ): { sets: SetData[]; applied: boolean } => {
   if (event.setIndex < 0 || event.setIndex >= current.length) return { sets: current, applied: false };
   const existing = current[event.setIndex];
-  if ((existing.updatedAt ?? 0) > event.at) return { sets: current, applied: false };
+  const incomingEventId = event.eventId ?? event.id ?? `legacy-${event.type}-${event.at}`;
+  const existingAt = existing.updatedAt ?? 0;
+  if (existingAt > event.at
+    || (existingAt === event.at && (existing.updatedEventId ?? '').localeCompare(incomingEventId) >= 0)) {
+    return { sets: current, applied: false };
+  }
   return {
     applied: true,
     sets: current.map((set, index) => index === event.setIndex ? {
@@ -36,6 +46,7 @@ export const mergeWatchSetEvent = (
       weight: event.weight,
       completed: event.completed,
       updatedAt: event.at,
+      updatedEventId: incomingEventId,
       ...(event.durationSec !== undefined && { durationSec: event.durationSec }),
       ...(event.distanceM !== undefined && { distanceM: event.distanceM }),
       ...(event.assistWeight !== undefined && { assistWeight: event.assistWeight }),

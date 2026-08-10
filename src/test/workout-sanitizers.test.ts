@@ -28,6 +28,16 @@ describe('clampSet — nowe pola typów serii (Z105)', () => {
     expect(Object.values(out).every((v) => v !== undefined)).toBe(true);
   });
 
+  it('zachowuje wersję per seria wymaganą przez cross-device LWW', () => {
+    expect(clampSet({
+      reps: 8,
+      weight: 60,
+      completed: true,
+      updatedAt: 1234.9,
+      updatedEventId: 'watch-event-1',
+    })).toMatchObject({ updatedAt: 1234, updatedEventId: 'watch-event-1' });
+  });
+
   it('zachowuje dotychczasowe zachowanie dla reps/weight/isWarmup (regresja)', () => {
     expect(clampSet({ reps: 8.6, weight: 60.25, completed: true, isWarmup: true }))
       .toEqual({ reps: 9, weight: 60.25, completed: true, isWarmup: true });

@@ -43,6 +43,11 @@ const sameSets = (a: Record<string, SetData[]>, b: Record<string, SetData[]>): b
       && set.weight === bSets[i].weight
       && set.completed === bSets[i].completed
       && !!set.isWarmup === !!bSets[i].isWarmup
+      && set.durationSec === bSets[i].durationSec
+      && set.distanceM === bSets[i].distanceM
+      && set.assistWeight === bSets[i].assistWeight
+      && set.updatedAt === bSets[i].updatedAt
+      && set.updatedEventId === bSets[i].updatedEventId
     ));
   });
 };

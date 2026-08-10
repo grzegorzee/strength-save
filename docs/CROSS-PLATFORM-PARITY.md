@@ -102,6 +102,27 @@ Garmin otrzymuje w `garminDay`/odpowiedzi błędu minimalną kopertę `{v,a,t,x?
 
 Dowód automatyczny: aplikacja 147 plików/1261 PASS, Functions 179 PASS, rules 170 PASS, celowane kontrakty urządzeń/Watch/logout 10 PASS, lint i oba typechecki PASS. Web/mobile build, dist smoke i cold-offline PASS; Xcode `App` wraz z `StrengthWatch`/widgets oraz Monkey C epix2 PASS. Podział runtime po rozpoznaniu sesji obniżył initial JS z 1 539 828 B do 1 269 850 B, czyli 266 150 B zapasu bez zmiany limitu. Fizyczne zachowanie unlink/revoke/expiry jest jawnie przeniesione do Z228 i checklisty D1-D4.
 
+## Delta Z228 — sekwencje cross-device
+
+Kanoniczny zapis telefonu nie wycina już `updatedAt/updatedEventId`. Konflikt rewizji
+Firestore pobiera aktualny workout i wykonuje per-set rebase, dzięki czemu seria
+zmieniona na web oraz inna, nowsza seria z Watch pozostają w jednej sesji. Taki sam
+leksykograficzny tie-break dla identycznego czasu działa w Swift Watch i finalnej
+transakcji Garmin; replay tego samego eventu jest no-op. Reinstall telefonu rehydruje
+ten sam `sessionId`, po czym przyjmuje nowszy event zegarka.
+
+Capability Watch rozróżnia przyczynę braku dostępu: po `expired` można wyłącznie
+domknąć już rozpoczętą sesję i zachować pending retry, natomiast `revoked` po unlink,
+logout lub delete blokuje dalsze akcje. Historia ani kolejki nie są przy tym kasowane.
+
+Dowód automatyczny: `src/test/cross-device-sequences.test.ts`,
+`functions/src/cross-device-sequences.test.ts` i realny emulator Firestore w
+`e2e/emulator/workout-conflict.spec.ts`; pełne suite aplikacji 148/1268 i Functions
+180 PASS, E2E Auth/Firestore/Functions 13/13 i mock UI 194/194 PASS. Xcode `App` z Watch/widgets,
+Android `assembleDebug`, web/mobile/dist/offline i bundle 1 270 012/1 536 000 B
+(265 988 B zapasu) PASS. G10/G11/G16/G17 są zamknięte automatycznie, lecz ich status
+release pozostaje warunkowy do fizycznych W1-W9, G1-G9 i D1-D4.
+
 ## Dowody audytu
 
 - React/web/iOS/Android: `src/types/index.ts`, `src/lib/workout-draft-db.ts`, `src/lib/workout-sync-engine.ts`, `src/lib/purchases.ts`, `src/hooks/useSubscription.ts`.

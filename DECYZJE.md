@@ -1962,8 +1962,6 @@ const isPlanExpired = currentWeek > planDurationWeeks;
 
 **Do zrobienia ręcznie:** rotacja klucza OpenAI w dashboardzie OpenAI (sekret w Secret Manager: openai-api-key) — stary był publiczny w bundlu GH Pages do 2026-03-09.
 
----
-
 ## SESJA 2026-06-11 — grywalizacja: tarcza serii, odznaki specjalne, medale sezonów
 
 - **Tarcza serii (streak freeze):** `calculateStreakDetails` w `summary-utils.ts`. Tydzień bez 2 treningów nie zeruje serii, jeśli starszy tydzień jest zaliczony i poprzednia tarcza była >=4 tyg. wcześniej (max ~1/mies.). Bieżący tydzień nigdy nie łamie serii (naprawia reset w poniedziałek). Notka na Dashboardzie gdy tarcza uratowała zeszły tydzień.
@@ -1971,3 +1969,27 @@ const isPlanExpired = currentWeek > planDurationWeeks;
 - **Medale sezonów:** `season-medals.ts` (złoto >=85%, srebro >=65%, brąz >=40% frekwencji). Chip na closeout cyklu + sekcja "Półka medali" w Achievements.
 - Wdrożone: web (GH Pages) + iOS TestFlight build 27.
 - **UWAGA build 27 z czystego worktree:** w repo trwa równoległa praca nad Apple Watch (useWatchWorkoutSync, watch-bridge, target StrengthWatch w pbxproj — NIEZACOMMITOWANE). Deploy i build iOS zrobione z czystego HEAD, żeby nie wypuścić WIP. Numer buildu 27 podbity TYLKO w worktree — pbxproj w repo dalej ma 26; przy commitowaniu pracy nad Watch ustawić CURRENT_PROJECT_VERSION >= 28.
+
+---
+
+## SESJA 2026-08-10 — X25 Z228: deterministyczne sekwencje cross-device
+
+**Root cause danych:** `clampSet` wycinał `updatedAt` przed Firestore, a konflikt rewizji
+stosował globalne local-wins. W sekwencji iOS -> Watch -> edycja web -> finish starszy
+lokalny snapshot mógł cofnąć nowszą serię z web. Decyzja: jedna polityka per-set LWW
+`(updatedAt, updatedEventId)` w TS, Swift i Garmin Functions; konflikt pobiera cloud,
+robi rebase i retry na świeżej rewizji. Metadane są addytywne i zachowane w Firestore.
+
+**Root cause entitlementu Watch:** capability miało tylko `active=false`, więc expiry
+i revoke były nierozróżnialne. Decyzja: `inactiveReason=expired|revoked|inactive`;
+expiry pozwala domknąć wyłącznie już aktywną sesję i zachowuje pending, revoke blokuje
+nowe eventy fail-closed bez cichego kasowania kolejki.
+
+**E2E:** harness po utwardzeniu P0 nadal nie uruchamiał Functions i oczekiwał fallbacku
+profilu po błędzie `syncUserProfile`. Decyzja: E2E uruchamia Auth+Firestore+Functions,
+buduje Functions przed startem i generuje ignorowany fixture `.secret.local`, aby nie
+sięgać do Secret Manager. Fixture aktywnego usera ma wysłany welcome mail; naprawa 501
+rekordów używa roli admin zgodnie z Z90.4. Wynik 13/13 PASS.
+
+**Brama fizyczna:** iPhone offline, brak Watch/Android/Garmin. W1-W9, G1-G9 i D1-D4
+pozostają jawnie otwarte; automatyczne testy nie zostały przedstawione jako real-device.

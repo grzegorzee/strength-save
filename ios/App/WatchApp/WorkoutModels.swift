@@ -8,8 +8,9 @@ struct WatchSet: Codable, Hashable {
     var weight: Double
     var completed: Bool
     var isWarmup: Bool?
-    // Lokalny LWW telefon<->Watch. Pole nie trafia do Firestore.
+    // Wspólny LWW telefon<->Watch<->chmura; kanoniczny zapis zachowuje metadane.
     var updatedAt: Double?
+    var updatedEventId: String? = nil
     var durationSec: Double?
     var distanceM: Double?
     var assistWeight: Double?
@@ -47,6 +48,8 @@ struct WatchCapabilitySnapshot: Codable {
     var active: Bool
     var tier: String
     var expiresAt: String?
+    // Addytywne v1: expired może domknąć aktywną sesję; revoked nie może.
+    var inactiveReason: String?
 }
 
 struct WatchWorkoutPayload: Codable {
@@ -199,6 +202,7 @@ enum WatchEvent {
         uid: String? = nil,
         deviceId: String,
         sessionId: String? = nil,
+        eventId: String = UUID().uuidString,
         hkSession: Bool = false,
         at: Double = Date().timeIntervalSince1970 * 1000,
         trackingType: String? = nil,
@@ -206,9 +210,8 @@ enum WatchEvent {
         distanceM: Double? = nil,
         assistWeight: Double? = nil
     ) -> [String: Any] {
-        let id = UUID().uuidString
         var value = metadata(
-            id: id,
+            id: eventId,
             canonicalType: "set_logged",
             uid: uid,
             deviceId: deviceId,

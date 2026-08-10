@@ -66,6 +66,12 @@ Snapshot może nieść aktualne ustawienia usera. Stary Watch nadal czyta alias 
 5. `session_discarded` jest terminalne lokalnie i nie wolno tłumaczyć go na finish. Nie zapisuje WorkoutSession ani Health/FIT.
 6. Wygaśnięcie entitlementu blokuje nowe płatne akcje, ale nie kasuje eventów. Po odzyskaniu `pro` retry używa tych samych identyfikatorów.
 
+Kanoniczna seria w drafcie i Firestore zachowuje opcjonalne `updatedAt` oraz
+`updatedEventId`. Przy konflikcie rewizji klient pobiera świeży dokument, scala każdą
+serię osobno tym samym porządkiem `(updatedAt, updatedEventId)` i dopiero wtedy ponawia
+zapis na nowej rewizji. Globalne „cały lokalny snapshot wygrywa” nie jest zgodne z v1,
+bo mogłoby cofnąć nowszą edycję web albo innego telefonu.
+
 Referencyjny reducer jest w `src/lib/workout-protocol.ts`. Fixture v1 po dwukrotnym replayu nadal daje jedną sesję: 900 s, 6 serii i 1500 kg tonażu, a nowszy event Watch wygrywa konflikt `fixture-back-squat#1`.
 
 ## Trwałość i ACK
@@ -112,4 +118,5 @@ Nieznana przyszła wersja nie jest automatycznie interpretowana jako v1. Klient 
 - `src/test/watch-contract.test.ts` i `src/test/watch-workout-sync.test.tsx` — legacy Watch, wersja/identyfikatory, 90/150 i ACK po zapisie;
 - `functions/src/garmin-protocol.test.ts` — oba kierunki rolling compatibility, cztery typy i durable success;
 - `functions/src/garmin-ingest.test.ts` i `functions/src/garmin-day.test.ts` — idempotentny doc, konflikt i budżet 8 KiB.
-
+- `src/test/cross-device-sequences.test.ts` i `functions/src/cross-device-sequences.test.ts` — pełne sekwencje telefon/zegarek/web, reinstall, expiry/revoke oraz lost-ACK retry;
+- `e2e/emulator/workout-conflict.spec.ts` — realny konflikt rewizji Firestore i rebase dwóch niezależnie zmienionych serii do jednej sesji.

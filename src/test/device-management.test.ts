@@ -21,7 +21,13 @@ describe('cross-device access contract (Z227)', () => {
       expiresAt: '2026-08-17T12:00:00.000Z',
     });
     expect(buildWatchCapabilitySnapshot({ isPro: false, tier: 'none', expiresAt: null }))
-      .toEqual({ v: 1, active: false, tier: 'none' });
+      .toEqual({ v: 1, active: false, tier: 'none', inactiveReason: 'inactive' });
+    expect(buildWatchCapabilitySnapshot({
+      isPro: false,
+      tier: 'none',
+      expiresAt: null,
+      subscription: { status: 'expired' },
+    })).toEqual({ v: 1, active: false, tier: 'none', inactiveReason: 'expired' });
   });
 
   it('web points to both mobile stores and never exposes a web checkout', () => {
@@ -36,7 +42,11 @@ describe('cross-device access contract (Z227)', () => {
   it('a server-revoked Watch stays blocked offline until an explicit relink', () => {
     const capability = buildWatchCapabilitySnapshot({ isPro: true, tier: 'yearly', expiresAt: null });
     saveAppleWatchLinkedState(false);
-    expect(applyLastKnownWatchLink(capability)).toMatchObject({ active: false, tier: 'yearly' });
+    expect(applyLastKnownWatchLink(capability)).toMatchObject({
+      active: false,
+      tier: 'yearly',
+      inactiveReason: 'revoked',
+    });
     saveAppleWatchLinkedState(true);
     expect(applyLastKnownWatchLink(capability)).toMatchObject({ active: true, tier: 'yearly' });
   });

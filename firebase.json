@@ -22,6 +22,9 @@
     "firestore": {
       "port": 8081
     },
+    "functions": {
+      "port": 5001
+    },
     "ui": {
       "enabled": false
     },

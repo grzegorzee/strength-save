@@ -11,6 +11,7 @@ test-results/
 .env
 .env.local
 .env.*.local
+functions/.secret.local
 
 # IDE
 .vscode/

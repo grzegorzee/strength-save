@@ -68,8 +68,8 @@ describe("buildSessionFromEvents (Z125)", () => {
       name: "Wyciskanie hantli (Lekki skos)",
     });
     expect(session.exercises[0].sets).toEqual([
-      { reps: 6, weight: 62.5, completed: true, updatedAt: NOW - 3000 },
-      { reps: 6, weight: 62.5, completed: true, updatedAt: NOW - 2000 },
+      { reps: 6, weight: 62.5, completed: true, updatedAt: NOW - 3000, updatedEventId: "e1" },
+      { reps: 6, weight: 62.5, completed: true, updatedAt: NOW - 2000, updatedEventId: "e2" },
     ]);
   });
 
@@ -81,7 +81,7 @@ describe("buildSessionFromEvents (Z125)", () => {
     ];
     const session = buildSessionFromEvents(validateIngestPayload(raw)!, "user-1", "dev123", { adhoc: false });
     expect(session.exercises[0].sets).toEqual([{
-      reps: 8, weight: 62.5, completed: true, updatedAt: NOW - 1000,
+      reps: 8, weight: 62.5, completed: true, updatedAt: NOW - 1000, updatedEventId: "b",
     }]);
   });
 });

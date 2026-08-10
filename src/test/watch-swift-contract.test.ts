@@ -29,7 +29,7 @@ describe('Swift Apple Watch contract (X25/Z225)', () => {
     const view = read('ios/App/WatchApp/ContentView.swift');
     expect(store).toContain('payload?.restBetweenSetsSeconds ?? payload?.restSeconds ?? 90');
     expect(store).toContain('payload?.restBetweenExercisesSeconds ?? 150');
-    expect(store).toContain('localAt >= remoteAt');
+    expect(store).toContain('localAt > remoteAt');
     expect(store).toContain('func startQuickWorkout');
     expect(store).toContain('func discardWorkout()');
     expect(view).toContain('SessionStatsRow');
@@ -57,5 +57,26 @@ describe('Swift Apple Watch contract (X25/Z225)', () => {
     expect(store).toContain('"healthStatus": WorkoutSessionManager.shared.healthStatus');
     expect(phone).toContain('applicationContext["deviceStatus"]');
     expect(view).toContain('payload.capability?.active == false');
+  });
+
+  it('po expiry pozwala domknąć tylko rozpoczętą sesję, a revoke nadal odcina akcje', () => {
+    const models = read('ios/App/WatchApp/WorkoutModels.swift');
+    const store = read('ios/App/WatchApp/WorkoutStore.swift');
+    const view = read('ios/App/WatchApp/ContentView.swift');
+    expect(models).toContain('var inactiveReason: String?');
+    expect(store).toContain('var canContinueCurrentWorkout: Bool');
+    expect(store).toContain('payload?.capability?.inactiveReason == "expired" && isActive');
+    expect(store).toContain('guard canContinueCurrentWorkout else { return }');
+    expect(view).toContain('payload.capability?.active == false && !store.canContinueCurrentWorkout');
+  });
+
+  it('utrzymuje tie-break eventId w lokalnym snapshocie i evencie Watch', () => {
+    const models = read('ios/App/WatchApp/WorkoutModels.swift');
+    const store = read('ios/App/WatchApp/WorkoutStore.swift');
+    expect(models).toContain('var updatedEventId: String?');
+    expect(models).toContain('eventId: String = UUID().uuidString');
+    expect(store).toContain('localEventId >= remoteEventId');
+    expect(store).toContain('updatedEventId = eventId');
+    expect(store).toContain('eventId: eventId');
   });
 });

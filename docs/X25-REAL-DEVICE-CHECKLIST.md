@@ -53,3 +53,17 @@ Do zamknięcia Z226 wymagane są logi HTTP/statusy G1-G9, screenshot pending/403
 | D4 | Logout oraz delete osobnych kont technicznych przy obu zegarkach; sprawdź web po ponownym loginie | oba urządzenia odcięte, zero checkoutu/triala na web/zegarkach, historia i niewysłane lokalne eventy nie są kasowane w ciemno | TODO REAL DEVICE |
 
 Do zamknięcia Z228 dołącz screenshot wspólnego panelu z każdej powierzchni oraz log callable/HTTP dla unlink, revoke, expired i relink. Testy muszą używać wyłącznie kont technicznych i obejmować scenariusze treningowe z Z228, nie tylko ekran ustawień.
+
+### Dowód automatyczny Z228 (nie zastępuje D1-D4)
+
+- iOS -> Watch -> web edit -> iOS finish: jedna sesja, obie najnowsze serie, 1220 kg;
+- Android -> Garmin offline -> reconnect -> utracony ACK -> retry: jeden dokument i jedna revision końcowa;
+- równoległy telefon/Watch: deterministyczny tie-break po `updatedEventId`, replay no-op;
+- reinstall: rehydracja kanonicznego `sessionId`, potem nowszy event Watch;
+- entitlement: `expired` zachowuje możliwość finish/retry aktywnej sesji, `revoked` blokuje akcje bez skasowania kolejki;
+- emulator Auth/Firestore/Functions: 13/13 PASS, w tym produkcyjny callable `syncUserProfile` dla istniejącego profilu i realny konflikt rewizji.
+
+Detekcja urządzeń 2026-08-10: `xcrun xctrace list devices` pokazuje fizyczny iPhone
+wyłącznie jako offline oraz brak fizycznego Watch; `adb devices -l` jest puste;
+`system_profiler SPUSBDataType` nie pokazuje Garmina. Dlatego W1-W9, G1-G9 i D1-D4
+pozostają rzeczywistym `KROK USERA`, a Z225, Z226 i Z228 nie są odhaczone.

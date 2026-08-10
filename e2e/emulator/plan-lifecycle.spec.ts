@@ -129,6 +129,7 @@ test.describe('Emulator: cykl życia planu', () => {
       onboardingCompleted: false,
       access: { enabled: true },
       registration: { source: 'email' },
+      notifications: { welcomeSentAt: new Date().toISOString() },
     });
 
     await loginThroughUi(page, email);
@@ -197,6 +198,7 @@ test.describe('Emulator: cykl życia planu', () => {
       onboardingCompleted: true,
       access: { enabled: true },
       registration: { source: 'email' },
+      notifications: { welcomeSentAt: new Date().toISOString() },
     });
     await seedDoc(`training_plans/${uid}`, {
       days,
@@ -239,8 +241,10 @@ test.describe('Emulator: cykl życia planu', () => {
       exercises: [{ id: 'ex-1', name: 'Bench', sets: '3 x 5', instructions: [] }],
     }];
     await seedDoc(`users/${uid}`, {
-      uid, email, displayName: 'E2E Merge', role: 'user', status: 'active',
+      // Z90.4: narzędzia naprawcze są poprawnie ograniczone do administratora.
+      uid, email, displayName: 'E2E Merge', role: 'admin', status: 'active',
       onboardingCompleted: true, access: { enabled: true }, registration: { source: 'email' },
+      notifications: { welcomeSentAt: new Date().toISOString() },
     });
     await seedDoc(`plan_cycles/merge-primary-${uid}`, {
       userId: uid, days, durationWeeks: 4, startDate: '2026-03-02', endDate: '2026-03-28',

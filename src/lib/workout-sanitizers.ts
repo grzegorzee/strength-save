@@ -16,6 +16,12 @@ export const clampSet = (set: Partial<SetData>): SetData => ({
   ...(set.assistWeight !== undefined && {
     assistWeight: Math.max(0, Math.min(999, Number(set.assistWeight) || 0)),
   }),
+  ...(Number.isFinite(Number(set.updatedAt)) && Number(set.updatedAt) > 0 && {
+    updatedAt: Math.floor(Number(set.updatedAt)),
+  }),
+  ...(typeof set.updatedEventId === 'string' && set.updatedEventId.length > 0 && {
+    updatedEventId: set.updatedEventId.slice(0, 120),
+  }),
 });
 
 /** Completed warm-up sets do not make an exercise complete on their own. */

@@ -1355,7 +1355,8 @@ test.describe('Parowanie Garmin (Z125)', () => {
     });
 
     await navigateAndWait(page, '/settings');
-    const section = page.getByTestId('garmin-settings');
+    // Z227: Garmin i Apple Watch są w jednym panelu urządzeń i entitlementu.
+    const section = page.getByTestId('device-settings');
     await expect(section).toBeVisible();
 
     // Kod parowania (mock: 123456) z odliczaniem TTL.
@@ -1364,10 +1365,10 @@ test.describe('Parowanie Garmin (Z125)', () => {
     await expect(section.getByTestId('garmin-pair-code')).toContainText(/Wygasa za/);
 
     // Lista urządzeń + odłączenie.
-    await expect(section.getByTestId('garmin-device-row')).toHaveCount(1);
-    await expect(section.getByTestId('garmin-device-row')).toContainText('Fenix 8');
-    await section.getByTestId('garmin-device-revoke').click();
-    await expect(section.getByTestId('garmin-device-row')).toHaveCount(0);
+    await expect(section.getByTestId('linked-device-row')).toHaveCount(1);
+    await expect(section.getByTestId('linked-device-row')).toContainText('Fenix 8');
+    await section.getByTestId('linked-device-unlink').click();
+    await expect(section.getByTestId('linked-device-row')).toHaveCount(0);
   });
 });
 

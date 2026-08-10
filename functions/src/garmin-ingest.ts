@@ -259,6 +259,8 @@ export interface GarminSessionDoc {
       assistWeight?: number;
       /** Server-side LWW timestamp for cross-device conflict resolution. */
       updatedAt?: number;
+      /** Deterministic tie-break when timestamps are equal. */
+      updatedEventId?: string;
     }>;
   }>;
 }
@@ -288,6 +290,7 @@ const setFromEvent = (event: GarminIngestEvent) => ({
   ...(event.distanceM !== undefined ? { distanceM: event.distanceM } : {}),
   ...(event.assistWeight !== undefined ? { assistWeight: event.assistWeight } : {}),
   updatedAt: event.at,
+  updatedEventId: event.id,
 });
 
 export function buildSessionFromEvents(
@@ -387,7 +390,9 @@ export function mergeGarminIntoCanonical(
       : [];
     const current = sets[event.setIndex];
     const currentUpdatedAt = typeof current?.updatedAt === "number" ? current.updatedAt : sessionUpdatedAt;
-    if (!current || event.at > currentUpdatedAt) {
+    const currentEventId = typeof current?.updatedEventId === "string" ? current.updatedEventId : "";
+    if (!current || event.at > currentUpdatedAt
+      || (event.at === currentUpdatedAt && event.id > currentEventId)) {
       while (sets.length < event.setIndex) sets.push({ reps: 0, weight: 0, completed: false });
       sets[event.setIndex] = setFromEvent(event);
       changed = true;
@@ -463,7 +468,10 @@ export function mergeCanonicalWorkoutDocuments(
         const currentSet = targetSets[index] as Record<string, unknown> | undefined;
         const incomingSetAt = typeof incomingSet.updatedAt === "number" ? incomingSet.updatedAt : incomingAt;
         const currentSetAt = typeof currentSet?.updatedAt === "number" ? currentSet.updatedAt : currentAt;
-        if (!currentSet || incomingSetAt > currentSetAt) {
+        const incomingEventId = typeof incomingSet.updatedEventId === "string" ? incomingSet.updatedEventId : "";
+        const currentEventId = typeof currentSet?.updatedEventId === "string" ? currentSet.updatedEventId : "";
+        if (!currentSet || incomingSetAt > currentSetAt
+          || (incomingSetAt === currentSetAt && incomingEventId > currentEventId)) {
           while (targetSets.length < index) targetSets.push({ reps: 0, weight: 0, completed: false });
           targetSets[index] = { ...incomingSet };
         }
