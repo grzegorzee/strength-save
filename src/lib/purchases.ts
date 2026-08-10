@@ -177,6 +177,42 @@ export const resolvePurchaseOptions = async (
   }));
 };
 
+// === Z209: dynamiczna prezentacja ceny ===
+// Oszczędność i cena efektywna/miesiąc zawsze z realnych cen sklepu, nigdy hardkodowane.
+
+export interface YearlyValueSummary {
+  /** Lokalizowana cena efektywna/miesiąc pakietu rocznego (albo null, gdy nie da się policzyć). */
+  perMonth: string | null;
+  /** Pełne procenty oszczędności względem 12x monthly; null gdy brak porównania albo brak zysku. */
+  savingsPercent: number | null;
+}
+
+export const yearlyValueSummary = (
+  yearly: { price: number; currencyCode: string; pricePerMonthString?: string | null } | null | undefined,
+  monthly: { price: number; currencyCode: string } | null | undefined,
+  locale: string,
+): YearlyValueSummary => {
+  if (!yearly || !(yearly.price > 0)) return { perMonth: null, savingsPercent: null };
+
+  // Sklep zna swoje formatowanie najlepiej — preferuj pricePerMonthString z RC/StoreKit/Play.
+  let perMonth: string | null = yearly.pricePerMonthString ?? null;
+  if (!perMonth) {
+    try {
+      perMonth = new Intl.NumberFormat(locale, { style: 'currency', currency: yearly.currencyCode })
+        .format(yearly.price / 12);
+    } catch {
+      perMonth = null; // nieznana waluta/locale — lepiej nic niż zła kwota
+    }
+  }
+
+  let savingsPercent: number | null = null;
+  if (monthly && monthly.price > 0 && monthly.currencyCode === yearly.currencyCode) {
+    const pct = Math.round((1 - yearly.price / (12 * monthly.price)) * 100);
+    if (pct > 0) savingsPercent = pct;
+  }
+  return { perMonth, savingsPercent };
+};
+
 /** Mapowanie statusu trialu na wariant copy: tylko `eligible` dostaje obietnicę dni za darmo. */
 export const trialPresentation = (
   trial: TrialInfo,

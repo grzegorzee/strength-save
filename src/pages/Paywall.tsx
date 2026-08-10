@@ -15,6 +15,7 @@ import {
   PRO_ENTITLEMENT,
   resolvePurchaseOptions,
   trialPresentation,
+  yearlyValueSummary,
   type ResolvedPurchaseOption,
 } from '@/lib/purchases';
 import { useToast } from '@/hooks/use-toast';
@@ -143,6 +144,12 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
   const selectedTrial = selectedOption?.trial ?? { status: 'unknown' as const, days: null };
   const selectedVariant = trialPresentation(selectedTrial);
   const legalLang = lang === 'pl' ? '-pl' : '';
+  // Z209: oszczędność i cena efektywna/miesiąc z realnych cen sklepu, nie z copy.
+  const yearlyValue = yearlyValueSummary(
+    options.yearly?.pkg.product ?? null,
+    options.monthly?.pkg.product ?? null,
+    lang === 'pl' ? 'pl-PL' : 'en-US',
+  );
 
   const PlanCard = ({ plan }: { plan: PlanKey }) => {
     const option = options[plan];
@@ -166,9 +173,9 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
               <span className="font-heading text-sm font-bold uppercase tracking-wide">
                 {t(plan === 'yearly' ? 'paywall.yearly' : 'paywall.monthly')}
               </span>
-              {plan === 'yearly' && (
+              {plan === 'yearly' && yearlyValue.savingsPercent != null && (
                 <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
-                  {t('paywall.badgeBestValue')}
+                  {t('paywall.badgeSavings', { percent: yearlyValue.savingsPercent })}
                 </span>
               )}
             </div>
@@ -186,6 +193,11 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
             <div className="text-[11px] text-muted-foreground">
               {t(plan === 'yearly' ? 'paywall.perYear' : 'paywall.perMonth')}
             </div>
+            {plan === 'yearly' && yearlyValue.perMonth && (
+              <div className="text-[11px] text-muted-foreground">
+                {t('paywall.perMonthEffective', { price: yearlyValue.perMonth })}
+              </div>
+            )}
           </div>
         </div>
       </button>
