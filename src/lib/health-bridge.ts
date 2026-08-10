@@ -13,8 +13,8 @@ import type { WorkoutSession } from '@/types';
 import type { ManualActivity } from '@/lib/manual-activity';
 import { reportClientError } from '@/lib/error-telemetry';
 
-// Most natywny (Z116): iOS HealthKit przez lokalny plugin HealthSync
-// (ios/App/App/HealthSync/HealthSyncPlugin.swift). Web/Android bez Health = no-op.
+// Most natywny (Z116/Z230): iOS HealthKit i Android Health Connect przez
+// lokalne pluginy HealthSync. Web pozostaje jawnym no-op.
 // Dane zdrowotne nie opuszczają urządzenia; stan syncu i ustawienia per urządzenie.
 
 interface HealthSyncPluginApi {
@@ -66,7 +66,7 @@ const saveSyncState = (state: HealthSyncState): void => {
   } catch { /* ignore */ }
 };
 
-const buildIosBridge = (): HealthBridge => {
+const buildNativeBridge = (): HealthBridge => {
   const plugin = registerPlugin<HealthSyncPluginApi>('HealthSync');
   return {
     isAvailable: async () => {
@@ -93,8 +93,9 @@ let cachedBridge: HealthBridge | null = null;
 
 export const getHealthBridge = (): HealthBridge => {
   if (cachedBridge) return cachedBridge;
-  cachedBridge = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios'
-    ? buildIosBridge()
+  const platform = Capacitor.getPlatform();
+  cachedBridge = Capacitor.isNativePlatform() && (platform === 'ios' || platform === 'android')
+    ? buildNativeBridge()
     : noopHealthBridge;
   return cachedBridge;
 };

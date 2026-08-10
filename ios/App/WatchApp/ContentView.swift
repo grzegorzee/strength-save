@@ -138,7 +138,7 @@ struct WorkoutListView: View {
                             .frame(maxWidth: .infinity)
                             .foregroundStyle(.black)
                     }
-                    .listRowBackground(RoundedRectangle(cornerRadius: 12).fill(.green))
+                    .listRowBackground(RoundedRectangle(cornerRadius: 12).fill(Color.accentColor))
                 } footer: {
                     Text(L10n.startFooter)
                 }
@@ -359,7 +359,7 @@ struct QuickLogButton: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .listRowBackground(RoundedRectangle(cornerRadius: 12).fill(.green))
+        .listRowBackground(RoundedRectangle(cornerRadius: 12).fill(Color.accentColor))
     }
 }
 

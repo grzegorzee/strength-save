@@ -56,8 +56,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'prompt',
         includeAssets: ['favicon.png', 'favicon.svg'],
         manifest: {
-          name: 'StrengthSave - Tracker Treningowy',
-          short_name: 'StrengthSave',
+          name: 'Strength Save — Tracker treningowy',
+          short_name: 'Strength Save',
           description: 'Aplikacja do śledzenia treningów siłowych i postępów',
           theme_color: '#0e0e0e',
           background_color: '#0e0e0e',

@@ -5,7 +5,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.grzegorzjasionowicz.strengthsave',
-  appName: 'StrengthSave',
+  appName: 'Strength Save',
   webDir: 'dist',
   experimental: {
     ios: {

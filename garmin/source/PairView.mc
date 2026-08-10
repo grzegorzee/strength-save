@@ -60,7 +60,7 @@ class PairView extends WatchUi.View {
         }
         var x = cx - total / 2;
         for (var i = 0; i < digits.size(); i++) {
-            dc.setColor(i == cursor ? Graphics.COLOR_GREEN : Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(i == cursor ? Brand.ACCENT : Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
             dc.drawText(x, digitY, font, digits[i].toString(), Graphics.TEXT_JUSTIFY_LEFT);
             if (i == cursor) {
                 dc.fillRectangle(x, digitY + Graphics.getFontHeight(font) + 2, widths[i], 4);

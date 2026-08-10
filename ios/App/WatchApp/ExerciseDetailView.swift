@@ -205,7 +205,7 @@ struct SetEditorView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.green)
+                .tint(.accentColor)
             }
             .padding(.horizontal, 4)
         }

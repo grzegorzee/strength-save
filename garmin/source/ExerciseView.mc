@@ -248,7 +248,7 @@ class ExerciseView extends WatchUi.View {
             fitText(dc, ex["n"] as String, Graphics.FONT_XTINY, w * 66 / 100), center);
         var target = WorkoutState.targetLabel(ex);
         if (target != null) {
-            dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(Brand.ACCENT, Graphics.COLOR_TRANSPARENT);
             dc.drawText(cx, h * 21 / 100, Graphics.FONT_XTINY, target, center);
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         }
@@ -267,7 +267,7 @@ class ExerciseView extends WatchUi.View {
         var setIdx = nextSetIndex();
         var sets = ex["s"] as Array;
         if (setIdx < 0) {
-            dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(Brand.ACCENT, Graphics.COLOR_TRANSPARENT);
             dc.drawText(cx, h / 2, Graphics.FONT_SMALL,
                 WatchUi.loadResource(Rez.Strings.AllDone) as String, center);
             return;
@@ -286,7 +286,7 @@ class ExerciseView extends WatchUi.View {
         var bigUnit = currentUnit();
         var smallValue = currentSummary();
 
-        dc.setColor(Graphics.COLOR_GREEN, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(Brand.ACCENT, Graphics.COLOR_TRANSPARENT);
         var bigFont = editField == warmupField() ? Graphics.FONT_SMALL : Graphics.FONT_NUMBER_MEDIUM;
         dc.drawText(cx, h * 47 / 100, bigFont, bigValue, center);
         dc.drawText(cx, h * 62 / 100, Graphics.FONT_TINY, bigUnit, center);

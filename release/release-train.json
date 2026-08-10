@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "product": {
+    "name": "Strength Save",
+    "version": "1.0.0",
+    "accent": "#CCFC22",
+    "canonicalUnit": "kg",
+    "languages": ["pl", "en"]
+  },
+  "entitlement": {
+    "id": "pro",
+    "surfaces": ["web", "ios", "android", "apple-watch", "garmin"],
+    "checkout": ["ios", "android"]
+  },
+  "web": {
+    "commit": "0610d1a8",
+    "url": "https://grzegorzee.github.io/strength-save/",
+    "state": "not-deployed"
+  },
+  "functions": {
+    "commit": "28ebcc29",
+    "project": "fittracker-workouts",
+    "state": "deployed"
+  },
+  "ios": {
+    "version": "1.0.0",
+    "build": 84,
+    "state": "blocked-app-attest-profile"
+  },
+  "android": {
+    "version": "1.0.0",
+    "versionCode": 6,
+    "artifact": "android/app/build/outputs/bundle/release/app-release.aab",
+    "bytes": 16307381,
+    "sha256": "6269194373192f2f01dcdcd714a755f024c9caffa552a0158bed9ec4372af82d",
+    "state": "signed-local-awaiting-play-internal"
+  },
+  "garmin": {
+    "appId": "3b03f3dec24548779f335a38e08b013d",
+    "manifestSchemaVersion": 3,
+    "targetBinaries": 27,
+    "artifact": "garmin/bin/strengthsave.iq",
+    "bytes": 644900,
+    "sha256": "5f4f4b5d3b638b3b69d957d21573bb79d3b87c545e7f9a5c09bf7cac7c8a8c98",
+    "state": "signed-local-not-submitted"
+  }
+}

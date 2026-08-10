@@ -7,8 +7,8 @@
   "manifestDeviceIds": 16,
   "targetBinaries": 27,
   "path": "garmin/bin/strengthsave.iq",
-  "bytes": 643683,
-  "sha256": "1685a092c9e4b981fe3f38ced806998ca1f53876fa2d3b50ac36772b5e59a747",
+  "bytes": 644900,
+  "sha256": "5f4f4b5d3b638b3b69d957d21573bb79d3b87c545e7f9a5c09bf7cac7c8a8c98",
   "signingKeySha256": "63eee010b63c51cfb0d47b2a208eeb83917d7d68a4fb4e072b01c165875730e9",
   "status": "local-signed-not-submitted"
 }

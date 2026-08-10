@@ -61,8 +61,8 @@ Privacy policy: https://strengthsave.app/legal/privacy.html
 ### Local Connect IQ artifact — 2026-08-10
 
 - SDK 9.2.0; all 16 manifest devices build, exporting 27 signed target PRGs.
-- `garmin/bin/strengthsave.iq`: 643683 bytes, SHA-256
-  `1685a092c9e4b981fe3f38ced806998ca1f53876fa2d3b50ac36772b5e59a747`.
+- `garmin/bin/strengthsave.iq`: 644900 bytes, SHA-256
+  `5f4f4b5d3b638b3b69d957d21573bb79d3b87c545e7f9a5c09bf7cac7c8a8c98`.
 - Simulator PASS on unpaired FR255 (round/buttons) and Venu Sq 2
   (rectangle/touch); no workout or private account was touched.
 - Portal upload/validation, a populated-plan screenshot on the isolated review
