@@ -23,10 +23,16 @@ export const ADMIN_DELETE_BATCH_SIZE = 450;
 export const STRAVA_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 export const STRAVA_OAUTH_STATE_BYTES = 32;
 
-// Publiczny Firebase App ID natywnej aplikacji iOS (GoogleService-Info.plist).
-// To nie jest sekret. Bez invite nowy profil wolno utworzyc tylko wtedy, gdy
-// callable zweryfikowal token App Check wystawiony dokladnie dla tej aplikacji.
+// Publiczne Firebase App ID natywnych aplikacji (pliki konfiguracyjne Firebase).
+// To nie sa sekrety. Bez invite nowy profil wolno utworzyc tylko wtedy, gdy
+// callable zweryfikowal token App Check wystawiony dokladnie dla jednej z nich.
 export const STRENGTH_SAVE_IOS_APP_CHECK_ID = "1:283539506094:ios:b7bb014c82f1e82666be3f";
+export const STRENGTH_SAVE_ANDROID_APP_CHECK_ID = "1:283539506094:android:d247e84bda5834fe66be3f";
+
+const STRENGTH_SAVE_NATIVE_APP_CHECK_IDS = new Set([
+  STRENGTH_SAVE_IOS_APP_CHECK_ID,
+  STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
+]);
 
 export const GDPR_USER_ID_COLLECTIONS = [
   "workouts",
@@ -84,7 +90,10 @@ export function canCreateUserProfile(input: {
   appCheckAppId: string | undefined;
 }): boolean {
   return input.registrationOpen
-    && (input.inviteValid || input.appCheckAppId === STRENGTH_SAVE_IOS_APP_CHECK_ID);
+    && (input.inviteValid || (
+      input.appCheckAppId !== undefined
+      && STRENGTH_SAVE_NATIVE_APP_CHECK_IDS.has(input.appCheckAppId)
+    ));
 }
 
 export function hasCallableAppAccess(profile: AccessProfile | undefined): boolean {

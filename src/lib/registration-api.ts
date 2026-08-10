@@ -22,7 +22,8 @@ async function callRegistrationFunction<RequestData, ResponseData>(
   functionName: string,
   data: RequestData,
 ): Promise<ResponseData> {
-  if (Capacitor.getPlatform() === 'ios') {
+  const platform = Capacitor.getPlatform();
+  if (platform === 'ios' || platform === 'android') {
     const { callNativeAttestedFunction } = await import('@/lib/native-callable');
     return callNativeAttestedFunction<RequestData, ResponseData>(functionName, data);
   }

@@ -4,6 +4,8 @@ import {
   GDPR_DIRECT_DOC_COLLECTIONS,
   GDPR_UID_FIELD_COLLECTIONS,
   GDPR_USER_ID_COLLECTIONS,
+  STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
+  STRENGTH_SAVE_IOS_APP_CHECK_ID,
   canUseApiExport,
   canUseStravaIntegration,
   canCreateUserProfile,
@@ -54,7 +56,15 @@ describe("canCreateUserProfile", () => {
     expect(canCreateUserProfile({
       registrationOpen: true,
       inviteValid: false,
-      appCheckAppId: "1:283539506094:ios:b7bb014c82f1e82666be3f",
+      appCheckAppId: STRENGTH_SAVE_IOS_APP_CHECK_ID,
+    })).toBe(true);
+  });
+
+  it("allows the attested Strength Save Android app without an invite", () => {
+    expect(canCreateUserProfile({
+      registrationOpen: true,
+      inviteValid: false,
+      appCheckAppId: STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
     })).toBe(true);
   });
 
@@ -74,13 +84,18 @@ describe("canCreateUserProfile", () => {
       inviteValid: false,
       appCheckAppId: "1:283539506094:web:foreign",
     })).toBe(false);
+    expect(canCreateUserProfile({
+      registrationOpen: true,
+      inviteValid: false,
+      appCheckAppId: "1:283539506094:android:foreign",
+    })).toBe(false);
   });
 
   it("keeps the registration kill switch authoritative", () => {
     expect(canCreateUserProfile({
       registrationOpen: false,
       inviteValid: true,
-      appCheckAppId: "1:283539506094:ios:b7bb014c82f1e82666be3f",
+      appCheckAppId: STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
     })).toBe(false);
   });
 });

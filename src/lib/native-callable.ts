@@ -3,7 +3,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { auth, firebaseConfig } from '@/lib/firebase';
 
 // Import pakietu runtime dolacza webowy Firebase App Check do krytycznego chunka,
-// mimo ze ta sciezka dziala tylko na iOS. Natywny plugin rejestrujemy bezposrednio,
+// mimo ze ta sciezka dziala tylko natywnie. Plugin rejestrujemy bezposrednio,
 // a z paczki bierzemy wylacznie wymazywany przez TS typ kontraktu.
 const FirebaseAppCheck = registerPlugin<FirebaseAppCheckPlugin>('FirebaseAppCheck');
 
@@ -32,6 +32,9 @@ export class CallableProtocolError extends Error {
 
 const normalizeCallableCode = (status: string | undefined): string =>
   (status || 'INTERNAL').toLowerCase().replace(/_/g, '-');
+
+export const supportsNativeAttestation = (platform: string): boolean =>
+  platform === 'ios' || platform === 'android';
 
 export async function invokeCallableProtocol<RequestData, ResponseData>(input: {
   functionName: string;
@@ -94,8 +97,11 @@ export async function callNativeAttestedFunction<RequestData, ResponseData>(
   functionName: string,
   data: RequestData,
 ): Promise<ResponseData> {
-  if (Capacitor.getPlatform() !== 'ios') {
-    throw new CallableProtocolError('failed-precondition', 'Native attestation is available only on iOS.');
+  if (!supportsNativeAttestation(Capacitor.getPlatform())) {
+    throw new CallableProtocolError(
+      'failed-precondition',
+      'Native attestation is available only on iOS and Android.',
+    );
   }
   if (!firebaseConfig.projectId) {
     throw new CallableProtocolError('failed-precondition', 'Firebase project is not configured.');

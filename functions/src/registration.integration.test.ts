@@ -22,7 +22,10 @@ import {
   unregisterPushTokenForUser,
   verifyEmailCode,
 } from "./registration";
-import { STRENGTH_SAVE_IOS_APP_CHECK_ID } from "./security";
+import {
+  STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
+  STRENGTH_SAVE_IOS_APP_CHECK_ID,
+} from "./security";
 
 const hasFirebaseEmulators = !!process.env.FIRESTORE_EMULATOR_HOST && !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
 const describeWithEmulators = hasFirebaseEmulators ? describe : describe.skip;
@@ -151,10 +154,17 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
     expect((await tokenRef.get()).exists).toBe(false);
   });
 
-  it("completes attested iOS registration through email verification and reaches onboarding state", async () => {
-    const uid = "attested-ios-user";
-    const email = "attested-ios@example.com";
-    const requestBase = { uid, email, appId: STRENGTH_SAVE_IOS_APP_CHECK_ID };
+  it.each([
+    ["iOS", "ios", STRENGTH_SAVE_IOS_APP_CHECK_ID],
+    ["Android", "android", STRENGTH_SAVE_ANDROID_APP_CHECK_ID],
+  ])("completes attested %s registration through email verification and reaches onboarding state", async (
+    _platformName,
+    platformSlug,
+    appId,
+  ) => {
+    const uid = `attested-${platformSlug}-user`;
+    const email = `attested-${platformSlug}@example.com`;
+    const requestBase = { uid, email, appId };
 
     const syncResult = await syncUserProfile.run(callableRequest({
       ...requestBase,

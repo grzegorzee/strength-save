@@ -9,6 +9,11 @@ import { extname, join, normalize } from 'node:path';
 import { chromium } from 'playwright-core';
 
 const distDir = join(process.cwd(), 'dist');
+const indexHtml = await readFile(join(distDir, 'index.html'), 'utf8');
+const entrySource = indexHtml.match(/<script[^>]+src="([^"]+\/assets\/[^"]+\.js)"/)?.[1] ?? '';
+const basePath = entrySource.startsWith('/')
+  ? entrySource.slice(0, entrySource.indexOf('assets/'))
+  : '/';
 const mime = {
   '.html': 'text/html',
   '.js': 'text/javascript',
@@ -23,8 +28,11 @@ const mime = {
 
 const server = createServer(async (req, res) => {
   const urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-  const safePath = normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
-  const filePath = join(distDir, safePath === '/' ? 'index.html' : safePath);
+  const relativePath = basePath !== '/' && urlPath.startsWith(basePath)
+    ? urlPath.slice(basePath.length)
+    : urlPath.replace(/^\//, '');
+  const safePath = normalize(relativePath).replace(/^(\.\.[/\\])+/, '');
+  const filePath = join(distDir, safePath === '' ? 'index.html' : safePath);
   try {
     const body = await readFile(filePath);
     res.writeHead(200, { 'Content-Type': mime[extname(filePath)] ?? 'application/octet-stream' });
@@ -47,7 +55,7 @@ page.on('pageerror', (error) => pageErrors.push(error.stack || error.message));
 
 let rootRendered = false;
 try {
-  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load', timeout: 30_000 });
+  await page.goto(`http://127.0.0.1:${port}${basePath}`, { waitUntil: 'load', timeout: 30_000 });
   await page.waitForFunction(
     () => (document.getElementById('root')?.children.length ?? 0) > 0,
     undefined,

@@ -1,8 +1,10 @@
 # TODO: aktywacja web push + Android Google Play (2026-07-17)
 
-> Stan wyjściowy: kod web push wdrożony (uśpiony bez klucza VAPID); Android release-ready
+> Stan 2026-08-10: kod web push wdrożony (uśpiony bez klucza VAPID); Android AAB 6 release-ready
 > (podpisany `android/app/build/outputs/bundle/release/app-release.aab`, keystore w
-> `~/FIRMA/_secrets/android/`). Kroki oznaczone [USER] wymagają Ciebie; [AGENT] wykonuje
+> `~/FIRMA/_secrets/android/`). App Check/Play Integrity jest gotowy po stronie kodu i Firebase:
+> API aktywne, TTL 1 h, SHA-256 upload key zarejestrowany, produkcyjny kontrolowany smoke PASS.
+> Kroki oznaczone [USER] wymagają Ciebie; [AGENT] wykonuje
 > asystent na hasło. Szczegółowy przewodnik: rozmowa z 2026-07-17 (sesja X13).
 
 ---
@@ -37,16 +39,19 @@
 
 ### B3. Pierwszy upload (testy wewnętrzne)
 
+- [x] [AGENT] Klient Android korzysta z natywnego App Check/Play Integrity; backend akceptuje wyłącznie dokładny Android App ID, web pozostaje invite-only. Emulator 7/7, produkcyjny smoke debug App Check PASS.
+- [x] [AGENT] `playintegrity.googleapis.com` aktywne, config App Check TTL 3600 s, SHA-256 upload key dodany do Firebase; podpisany AAB `versionCode 6` ma zweryfikowany podpis i SHA-256 `099bb88f842dcf6234e61fc9e1929e6ad80547b0a28b82f9859397a08f08303f`.
 - [ ] [USER] Testing -> **Internal testing** -> Create new release -> **zaakceptuj Play App Signing** (Google przejmuje klucz podpisu; nasz keystore = upload key) -> wgraj `app-release.aab` -> notes "Pierwszy build testowy 1.0.0".
-- [ ] [USER] Setup -> **App signing** -> skopiuj SHA-1 z "App signing key certificate" i podeślij agentowi.
-- [ ] [AGENT] Dodanie SHA-1 App Signing do Firebase (`firebase apps:android:sha:create`) - bez tego logowanie Google nie działa w buildach ze sklepu (SHA-1 upload key już dodany).
+- [ ] [USER] Setup -> **App signing** -> skopiuj SHA-1 i SHA-256 z "App signing key certificate" i podeślij agentowi.
+- [ ] [AGENT] Dodanie SHA-1 i SHA-256 App Signing do Firebase: SHA-1 dla Google Sign-In, SHA-256 dla App Check/Play Integrity.
+- [ ] [USER] Play Console -> App integrity -> Play Integrity API -> połącz istniejący projekt Cloud `fittracker-workouts`.
 - [ ] [USER] Testers -> lista mailowa (Ty + Robert) -> wyślij link "Join on the web".
-- [ ] [USER] Instalacja ze Sklepu Play przez link testera, smoke test na telefonie (login Google, trening, sync).
+- [ ] [USER] Instalacja ze Sklepu Play przez link testera, smoke test na telefonie: rejestracja email -> kod -> obecny onboarding; login Google; trening; background/resume; sync. Tylko instalacja z Play potwierdza prawdziwy werdykt `PLAY_RECOGNIZED`.
 
 ### B4. Przed wyjściem poza testy wewnętrzne
 
-- [ ] [AGENT] Subskrypcje Android: produkty w Google Play Billing + podpięcie w RevenueCat (możliwe dopiero, gdy apka jest w internal testing) - dziś RevenueCat skonfigurowany tylko z ASC; bez tego paywall na Androidzie nie sprzeda.
-- [ ] [AGENT] Kolejne buildy na hasło "nowy AAB": bump `versionCode` w `android/app/build.gradle` (teraz 5; `versionName` zostaje 1.0.0), build:mobile -> cap sync android -> bundleRelease.
+- [ ] [AGENT] Subskrypcje Android: monthly 14,99 zł / $3.99 z trialem 7 dni i yearly 119,99 zł / $31.99 z trialem 14 dni; Google Play Billing + podpięcie do tego samego entitlement/offering RevenueCat co iOS. Możliwe po Internal Testing; bez tego paywall Android nie sprzeda.
+- [ ] [AGENT] Kolejne buildy: bump `versionCode` w `android/app/build.gradle` (teraz 6; `versionName` 1.0.0), `build:mobile` -> `cap sync android` -> `bundleRelease`.
 - [ ] [AGENT] Store listing do publikacji: opisy (krótki 80 / pełny 4000 zgodnie z Writing Guard), feature graphic 1024x500, screenshoty telefoniczne (min 2).
 - [ ] [USER] (konto osobiste) zamknięte testy: 12 testerów / 14 dni przed produkcją.
 

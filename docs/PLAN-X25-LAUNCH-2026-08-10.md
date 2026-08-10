@@ -37,12 +37,12 @@ Wolno naprawic rejestracje i weryfikacje email przed onboardingiem oraz paywall 
 
 1. Zadna funkcja ani historia usera nie znika. Starsze dane wolno ladowac stronicami lub na zadanie.
 2. Lokalny IndexedDB, draft treningu, synchronizacja po odzyskaniu sieci i checkpointy treningu pozostaja.
-3. Web pozostaje invite-only. Publiczna rejestracja bez invite dotyczy natywnego iOS dopiero po serwerowo weryfikowalnej atestacji.
+3. Web pozostaje invite-only. Publiczna rejestracja bez invite dotyczy natywnych aplikacji iOS i Android dopiero po serwerowo weryfikowalnej atestacji.
 4. Nie wolno ponownie zaufac polu `platform` wysylanemu przez klienta.
 5. `registrationOpen=false` nadal natychmiast zamyka tworzenie nowych kont.
 6. Istniejacy user z wygasla subskrypcja zachowuje odczyt i eksport swoich danych.
 7. Nie zapisuj ani nie usuwaj produkcyjnych danych userow w testach i diagnostyce.
-8. Nie ruszaj zastanych zmian `android/app/capacitor.build.gradle`, `android/capacitor.settings.gradle` ani `animacje-cwiczen/`.
+8. Nie ruszaj `animacje-cwiczen/`. Wygenerowane pliki Android zostaly odswiezone przez `cap sync android`; zachowaj wpisy App Check, Keep Awake i Keyboard.
 
 ---
 
@@ -50,14 +50,14 @@ Wolno naprawic rejestracje i weryfikacje email przed onboardingiem oraz paywall 
 
 ### Wyniki audytu 2026-08-10
 
-- aplikacja: 137 plikow testowych, 1217 testow PASS;
-- backend Functions: 18 plikow PASS + 1 skipped, 151 testow PASS + 4 skipped;
+- aplikacja: 139 plikow testowych, 1224 testy PASS;
+- backend Functions: 18 plikow PASS + 1 skipped, 156 testow PASS + 7 skipped;
 - E2E mock: 194 PASS;
 - typecheck, lint, build web: PASS;
 - build mobile + mobile dist smoke: PASS;
 - web dist offline: PASS;
-- web `check:dist-smoke`: falszywy FAIL, bo skrypt otwiera `/`, a assety buildu web maja base `/strength-save/`;
-- initial JS: 1 532 678 B przy limicie 1 536 000 B, tylko ok. 3,3 KB zapasu;
+- web `check:dist-smoke`: naprawiony; wykrywa base z `dist/index.html` i przechodzi dla `/strength-save/` oraz mobile `./`;
+- initial JS: 1 532 843 B przy limicie 1 536 000 B, tylko ok. 3,2 KB zapasu;
 - warningi: brak `DialogTitle`/description w czesci dialogow, podwojna rejestracja testowego pluginu natywnego, React Router future flags, deprecated `punycode`.
 
 ### P0: blokada rejestracji widoczna na iPhone
@@ -88,19 +88,19 @@ To jest niespojnosc auth klient/backend, nie blad onboardingu ani wpisanego adre
 
 ### FAZA 1 - P0 rejestracja i weryfikacja email
 
-- [x] **Z203: testy regresyjne kontraktu rejestracji.** Dodaj czerwone testy: attested native bez invite tworzy profil; web/unattested bez invite jest odrzucony; poprawny invite dziala; `registrationOpen=false` blokuje; brak dokumentu nie pokazuje bramki weryfikacji przed zakonczonym sync; osierocone konto Auth odzyskuje profil po poprawnym sync. **Dowod:** `functions/src/security.test.ts`, `src/test/native-callable.test.ts`, `src/test/user-provider-bootstrap.test.tsx`; najpierw czerwone, po implementacji 22 + 4 + 2 testy PASS.
-- [x] **Z204: serwerowo weryfikowalna rejestracja native.** Wdrozenie Firebase App Check dla iOS z App Attest w trybie kontrolowanym. `syncUserProfile` moze utworzyc profil bez invite tylko dla zaakceptowanego natywnego App ID z prawidlowym App Check. Web nadal wymaga invite. Nie uzywaj deklaracji `platform`. Jesli potrzebny jest most miedzy natywnym tokenem App Check i JS Functions, wybierz oficjalnie wspierana integracje po sprawdzeniu aktualnej dokumentacji; opisz architekture w `DECYZJE.md`. **Dowod:** iOS Firebase App ma bundle `com.grzegorzjasionowicz.strengthsave`, Team ID `J4CRD2SA6D`; App Attest config istnieje z TTL 3600 s; wymagane `firebaseappcheck.googleapis.com` wlaczone 2026-08-10; `syncUserProfile` wdrozone w `us-central1`; produkcyjny App Check exchange i attested profile creation PASS.
+- [x] **Z203: testy regresyjne kontraktu rejestracji.** Dodaj czerwone testy: attested native bez invite tworzy profil; web/unattested bez invite jest odrzucony; poprawny invite dziala; `registrationOpen=false` blokuje; brak dokumentu nie pokazuje bramki weryfikacji przed zakonczonym sync; osierocone konto Auth odzyskuje profil po poprawnym sync. **Dowod:** `functions/src/security.test.ts`, `src/test/native-callable.test.ts`, `src/test/user-provider-bootstrap.test.tsx`; po rozszerzeniu na obie platformy 23 + 5 + 2 testy PASS.
+- [x] **Z204: serwerowo weryfikowalna rejestracja native.** Firebase App Check dziala dla iOS/App Attest i Android/Play Integrity. `syncUserProfile` moze utworzyc profil bez invite tylko dla dokladnego App ID iOS albo Android z prawidlowym App Check. Web nadal wymaga invite; backend nie ufa deklaracji `platform`. **Dowod iOS:** bundle `com.grzegorzjasionowicz.strengthsave`, Team ID `J4CRD2SA6D`, App Attest TTL 3600 s. **Dowod Android:** App ID `1:283539506094:android:d247e84bda5834fe66be3f`, Play Integrity TTL 3600 s, API `playintegrity.googleapis.com` wlaczone, SHA-256 upload key dodany do Firebase, plugin dolaczony przez `cap sync android`. Wspolny adapter przesyla oficjalna koperte `{data}` z Firebase Auth i `X-Firebase-AppCheck`. `syncUserProfile` wdrozone w `us-central1` i ACTIVE.
 - [x] **Z205: odporny bootstrap profilu.** `UserContext` nie moze traktowac brakujacego dokumentu jak gotowego profilu do weryfikacji, zanim `syncUserProfile` zakonczy sie sukcesem. Dodaj stan `syncing/error/retry`, czytelny lokalizowany komunikat i retry. Po naprawie atestacji istniejace osierocone konto Auth ma samo utworzyc profil bez ponownej rejestracji. **Dowod:** listener startuje dopiero po udanym idempotentnym `syncUserProfile`; brak profilu lub blad sync pokazuje istniejacy lokalizowany ekran z `Odswiez`/`Refresh`, nie bramke kodu; test bootstrapu 2/2 PASS.
-- [ ] **Z206: test produkcyjny bez dotykania danych usera.** Emulator: pelna sekwencja register -> profile -> code -> verify -> onboarding route. Produkcja/TestFlight: nowe techniczne konto, sprawdzenie dokumentu i maila, potem usuniecie wyłącznie tego konta testowego kontrolowanym mechanizmem. Functions deploy dopiero po testach. **Stan:** emulator 6/6 PASS; produkcyjny smoke na technicznym koncie `+x25smoke` PASS (`profile -> code -> verify -> onboarding.in_progress`), konto usuniete przez `deleteOwnAccount`, tymczasowy debug token uniewazniony; pozostaje smoke prawdziwego App Attest na buildzie 84 z realnego iPhone.
+- [ ] **Z206: test produkcyjny bez dotykania danych usera.** Emulator: pelna sekwencja register -> profile -> code -> verify -> onboarding route dla iOS i Android. Produkcja: nowe techniczne konto, sprawdzenie dokumentu i maila, potem usuniecie wyłącznie tego konta testowego kontrolowanym mechanizmem. **Stan:** emulator 7/7 PASS; kontrolowane produkcyjne smoki dla dokladnych App ID iOS oraz Android PASS (`profile -> code -> verify -> onboarding.in_progress`), konta usuniete przez `deleteOwnAccount`, tymczasowe debug tokeny uniewaznione. Pozostaja dwa testy prawdziwej atestacji: App Attest na buildzie iOS 84 z realnego iPhone oraz Play Integrity na AAB `versionCode 6` zainstalowanym z Google Play Internal Testing.
 
-**Brama fazy:** nowy user na iOS dochodzi do niezmienionego onboardingu; web bez invite nadal nie tworzy profilu; screenshotowy blad nie wystepuje.
+**Brama fazy:** nowy user na iOS i Android dochodzi do niezmienionego onboardingu; web bez invite nadal nie tworzy profilu; screenshotowy blad nie wystepuje.
 
 ### FAZA 2 - trial, cennik i poprawny paywall
 
-- [ ] **Z207: konfiguracja App Store Connect.** Zmien `scripts/asc_subscriptions.py` i ASC: monthly 14,99 zl / $3.99 + `ONE_WEEK`; yearly 119,99 zl / $31.99 + `TWO_WEEKS`; pozostale terytoria przez equalizacje. Najpierw tryb/status bez zapisu, potem zastosowanie i ponowny odczyt wszystkich cen/ofert.
-- [ ] **Z208: eligibility-aware paywall.** Uzyj `checkTrialOrIntroductoryPriceEligibility` dla obu product identifiers. Trial pokazuj tylko przy `eligible`; `unknown` i `ineligible` nie dostaja trial copy. Dlugosc triala i okres odnowienia czytaj z produktu/intro offer. Obsluz brak Offering, brak intro price, blad sieci i restore.
+- [ ] **Z207: konfiguracja obu sklepow i RevenueCat.** App Store Connect: monthly 14,99 zl / $3.99 + `ONE_WEEK`; yearly 119,99 zl / $31.99 + `TWO_WEEKS`; pozostale terytoria przez equalizacje. Google Play: odpowiadajace subskrypcje/base plans/offers 7 i 14 dni, gdy aplikacja jest juz w Internal Testing. Podlacz oba sklepy do tego samego entitlement/offering w RevenueCat. Najpierw status/dry-run, potem zastosowanie i ponowny odczyt cen/ofert.
+- [ ] **Z208: eligibility-aware paywall na obu platformach.** iOS: `checkTrialOrIntroductoryPriceEligibility`. Android: uzyj aktualnego kontraktu RevenueCat dla dostepnych Play offers/purchase options i nie zakladaj eligibility na podstawie samego produktu. Trial pokazuj tylko przy potwierdzonym `eligible` lub dostepnej, kwalifikujacej opcji; `unknown` i `ineligible` nie dostaja trial copy. Obsluz brak Offering, brak intro price/offer, blad sieci i restore.
 - [ ] **Z209: dynamiczna prezentacja ceny.** Roczny domyslny. Pokaz lokalizowana cene laczna, cene efektywna/miesiac i oszczednosc wyliczona wzgledem pakietu monthly. Nie hardkoduj `4 miesiace gratis`, jezeli lokalne ceny daja inny wynik. Testy PL/EN i duzych cen.
-- [ ] **Z210: sandbox/TestFlight.** Scenariusze: eligible monthly 7 dni, eligible yearly 14 dni, wykorzystany trial, `unknown`, purchase, cancel, restore, offline/error. Zweryfikuj teksty regulaminu, privacy, auto-renew i brak mylacej obietnicy.
+- [ ] **Z210: sandbox/TestFlight + Play Internal.** Na obu platformach: eligible monthly 7 dni, eligible yearly 14 dni, wykorzystany trial, `unknown`, purchase, cancel, restore, offline/error. Zweryfikuj teksty regulaminu, privacy, auto-renew i brak mylacej obietnicy.
 
 **Brama fazy:** paywall nigdy nie obiecuje triala bez potwierdzenia; ceny na ekranie sa identyczne ze StoreKit.
 
@@ -124,35 +124,36 @@ To jest niespojnosc auth klient/backend, nie blad onboardingu ani wpisanego adre
 
 ### FAZA 5 - release engineering i dostepnosc
 
-- [ ] **Z219: napraw web dist smoke.** Skrypt ma respektowac Vite `base` i sprawdzac prawidlowy URL/assety dla web oraz `/` dla mobile. Test musi najpierw odtworzyc stary falszywy FAIL.
+- [x] **Z219: napraw web dist smoke.** Skrypt wykrywa base z wygenerowanego `index.html`, serwuje assety spod `/strength-save/` dla web i z relatywnego base dla mobile. **Dowod:** stary skrypt odtworzyl `#root pusty po 15 s`; po poprawce `check:dist-smoke` oraz `check:dist-offline` PASS na buildzie web.
 - [ ] **Z220: warningi a11y.** Dodaj wymagane `DialogTitle`/description albo prawidlowe wizualnie ukryte etykiety. Nie zmieniaj layoutu onboardingu. Usun podwojna rejestracje pluginu w testach.
 - [ ] **Z221: bundle.** Odzyskaj min. 150 KB zapasu initial JS przez istniejace granice routingu/dynamic import, bez podnoszenia limitu. Sprawdz start i offline na iPhone/mobile viewport.
 - [ ] **Z222: obserwowalnosc kosztow i funnelu.** Zdarzenia lokalnie buforowane: register_started/profile_created/email_verified/paywall_viewed/trial_started/purchase_failed. Bez danych treningowych i bez osobnego zapisu per klik. Dodaj dashboard/raport dzienny kosztow Firestore, Functions i maili w granicach dostepnych API.
 
 ### FAZA 6 - pelne bramki i wydanie
 
-- [x] `npm run test` - 139 plikow, 1223 testy PASS po poprawce P0
-- [x] `npm --prefix functions test` - 18 plikow PASS + 1 skipped, 155 PASS + 4 skipped
+- [x] `npm run test` - 139 plikow, 1224 testy PASS po poprawce P0 obu platform
+- [x] `npm --prefix functions test` - 18 plikow PASS + 1 skipped, 156 PASS + 7 skipped
 - [x] `npm run typecheck`
 - [x] `npm --prefix functions run typecheck`
 - [x] `npm run lint`
-- [ ] `npm run build && npm run check:bundle-budget && npm run check:dist-smoke && npm run check:dist-offline` - build, budget i offline PASS; web dist-smoke pozostaje Z219, bo nie respektuje base `/strength-save/`
-- [x] `npm run build:mobile && npm run check:dist-smoke` - PASS; natywny adapter 1,86 kB, Firebase 732,22 kB
+- [x] `npm run build && npm run check:bundle-budget && npm run check:dist-smoke && npm run check:dist-offline` - PASS; initial JS 1 532 843 / 1 536 000 B
+- [x] `npm run build:mobile && npm run check:dist-smoke` - PASS; natywny adapter 1,93 kB, Firebase 732,22 kB
 - [x] `npm run e2e:mock` - 194/194 PASS
-- [x] kontrolny build Xcode iOS Simulator bez podpisu - exit 0, plugin App Check rozwiazany przez SwiftPM
-- [x] App Attest config + API + Functions deploy - `syncUserProfile` successful update, produkcyjny attested callable smoke PASS
-- [ ] emulator auth/functions/rules: nowa rejestracja i zachowanie web invite-only
-- [ ] TestFlight na realnym iPhone: register -> email code -> obecny onboarding -> paywall -> trial/purchase -> pierwszy trening -> background/resume -> sync
-- [ ] App Store metadata: screenshot IAP, opis, privacy, review notes i konto demo
+- [x] kontrolny build Xcode iOS Simulator bez podpisu - exit 0 przy `generic/platform=iOS Simulator`, plugin App Check rozwiazany przez SwiftPM
+- [x] Android `assembleDebug` + podpisany `bundleRelease` - BUILD SUCCESSFUL; AAB 15,5 MB, `versionCode 6`, podpis zweryfikowany, SHA-256 artefaktu `099bb88f842dcf6234e61fc9e1929e6ad80547b0a28b82f9859397a08f08303f`
+- [x] App Attest + Play Integrity config/API + Functions deploy - `syncUserProfile` ACTIVE, kontrolowane produkcyjne callable smoke iOS i Android PASS
+- [x] emulator auth/functions: 7/7, rejestracja iOS/Android + zachowanie web invite-only
+- [ ] Real devices: TestFlight iPhone App Attest oraz Play Internal Android Play Integrity; register -> email code -> obecny onboarding -> paywall -> trial/purchase -> pierwszy trening -> background/resume -> sync
+- [ ] Metadata obu sklepow: screenshoty IAP, opis, privacy/data safety, review notes i konto demo
 - [ ] Wpis zbiorczy X25 do `DECYZJE.md`, aktualizacja `PLAN.md` i `docs/PLAN_RELEASE_1.0.md`
-- [ ] Deploy Functions/web tylko z zielonego commita; nowy build iOS z kolejnym wolnym `CURRENT_PROJECT_VERSION`; dystrybucja do obu grup TestFlight
+- [ ] Web deploy z zielonego commita; build iOS 84 do obu grup TestFlight oraz AAB 6 do Play Internal. Publiczny release ma byc wspolnym checkpointem obu platform.
 
 ---
 
 ## 3. Strategia commitow i wdrozen
 
 1. `test(auth): odtworz brak profilu po rejestracji native (Z203)`
-2. `fix(auth): atestowana rejestracja i odporny bootstrap profilu (Z204-Z206)`
+2. `fix(auth): atestowana rejestracja i odporny bootstrap profilu iOS/Android (Z204-Z206)`
 3. `fix(iap): trial 7/14 i eligibility-aware paywall (Z207-Z210)`
 4. `perf(firebase): batching telemetrii i deduplikacja push (Z211-Z212)`
 5. `perf(firebase): waskie zapytania dashboardu i paginacja (Z213-Z218)`
@@ -167,11 +168,11 @@ Stage'uj pliki imiennie. Nigdy `git add -A`. Nie lacz deployu Functions z niezwe
 
 X25 jest zakonczony dopiero, gdy:
 
-1. blad `User profile missing` nie wystepuje i nowy user iOS dochodzi do obecnego onboardingu;
+1. blad `User profile missing` nie wystepuje i nowy user iOS oraz Android dochodzi do obecnego onboardingu;
 2. web bez invite nadal nie tworzy konta aplikacyjnego;
 3. App Store i paywall maja ceny 14,99/119,99 zl oraz $3.99/$31.99 i triale 7/14;
 4. trial copy jest zgodne z eligibility;
 5. funkcje aplikacji, historia, offline i synchronizacja pozostaja 1:1;
 6. raport przed/po pokazuje spadek odczytow i zapisow;
-7. wszystkie bramki sa zielone, web/functions wdrozone, a nowy build jest na TestFlight;
+7. wszystkie bramki sa zielone, web/functions wdrozone, a nowe buildy sa na TestFlight i Play Internal przed wspolnym publicznym wydaniem;
 8. onboarding nie zostal przebudowany ani skrocony w ramach tej pracy.

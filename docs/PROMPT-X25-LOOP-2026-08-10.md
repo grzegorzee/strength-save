@@ -3,7 +3,7 @@
 ## Wiadomosc do wklejenia w nowym oknie
 
 ```text
-/goal Wykonaj w calosci docs/PLAN-X25-LAUNCH-2026-08-10.md. Najpierw przeczytaj CLAUDE.md, caly plan X25, git status i git log. Pracuj autonomicznie przez /loop, zawsze od pierwszego nieodhaczonego zadania, test-first i z dowodem przy checkboxie. P0: napraw „User profile missing” przez serwerowo weryfikowalna rejestracje native, zachowujac web invite-only. Potem trial 7/14, ceny 14,99/119,99 zl i $3.99/$31.99, eligibility-aware paywall, redukcja kosztow Firestore, smoke/a11y/bundle, pelne bramki i wydanie. NIE przebudowuj onboardingu i nie ruszaj zastanych zmian Android/animacje. Nie pytaj o odwracalne decyzje; zatrzymaj sie tylko przy realnym nieodwracalnym blokerze lub kroku wymagajacym konta/urzadzenia usera.
+/goal Wykonaj w calosci docs/PLAN-X25-LAUNCH-2026-08-10.md dla iOS i Android wydawanych w tym samym czasie. Najpierw przeczytaj CLAUDE.md, caly plan X25, git status i git log. Pracuj autonomicznie przez /loop, zawsze od pierwszego niezablokowanego checkboxa, test-first i z dowodem przy zadaniu. P0 „User profile missing” ma juz wspolny kontrakt App Check dla iOS/App Attest i Android/Play Integrity; nie cofaj go, web pozostaje invite-only. Dalej wdroz trial 7/14, ceny 14,99/119,99 zl i $3.99/$31.99 w App Store, Google Play i RevenueCat, eligibility-aware paywall, redukcje kosztow Firestore, smoke/a11y/bundle, pelne bramki i wspolny release obu platform. NIE przebudowuj onboardingu i nie ruszaj `animacje-cwiczen/`. Nie pytaj o odwracalne decyzje; kroki zalezne od Play Console lub realnego urzadzenia zapisuj jako KROK USERA i kontynuuj cala niezalezna prace.
 ```
 
 Po uruchomieniu goal wlacz petle komunikatem:
@@ -14,11 +14,12 @@ Po uruchomieniu goal wlacz petle komunikatem:
 
 ## Stan startowy po sesji 2026-08-10
 
-- Z203 i Z205 sa wykonane lokalnie; nie implementuj ich od nowa, tylko zweryfikuj diff i testy.
-- Z204 jest wykonane: App Attest config i Team ID potwierdzone, wymagane API wlaczone, `syncUserProfile` wdrozone, produkcyjny attested callable smoke PASS.
-- Z206 ma emulator 6/6 i produkcyjny smoke PASS; pozostaje smoke prawdziwego App Attest na buildzie 84 z realnego iPhone.
-- Ostatnie bramki: aplikacja 1223 PASS, Functions 155 aktywnych PASS, E2E 194 PASS, lint/typecheck/build/mobile/offline/bundle/Xcode PASS.
-- Po dystrybucji i smoke builda 84 domknij Z206. Pierwszym kolejnym niezaleznym zadaniem jest Z207.
+- Z203-Z205 sa wykonane i wdrozone; nie implementuj ich od nowa. Backend akceptuje tylko dokladne zweryfikowane App ID iOS/Android, a web bez invite jest odrzucany.
+- iOS: App Attest TTL 3600 s, API aktywne, build 84 przygotowany; produkcyjny kontrolowany smoke PASS.
+- Android: Play Integrity TTL 3600 s, API aktywne, SHA-256 upload key w Firebase, plugin zsynchronizowany, AAB `versionCode 6` podpisany; produkcyjny kontrolowany smoke PASS.
+- Z206 ma emulator 7/7 i produkcyjne smoki dla obu App ID. Pozostaja prawdziwe atestacje: build 84 z TestFlight na iPhone i AAB 6 z Play Internal na Androidzie.
+- Ostatnie bramki: aplikacja 1224 PASS, Functions 156 aktywnych PASS, E2E 194 PASS, lint/typecheck/build/mobile/dist/offline/bundle, Xcode i Gradle PASS.
+- Z219 jest wykonane: web dist smoke respektuje Vite base. Pierwszym kolejnym niezaleznym zadaniem jest Z207; Z206 domknij po dystrybucji obu buildow.
 
 ---
 
@@ -47,9 +48,10 @@ Pracujesz w `/Users/grzegorzjasionowicz/FIRMA/projekty/strength_save` nad X25. U
 
 Aktualny blad na iPhone: po utworzeniu Firebase Auth brakuje `users/{uid}`. Klient native pokazuje otwarta rejestracje bez invite (`src/pages/Login.tsx`), ale backend `syncUserProfile` odrzuca kazdy nowy profil bez invite (`functions/src/registration.ts`). `UserContext` buduje wtedy fallback `pending_verification`, a `EmailVerificationGate` wywoluje `requestEmailVerificationCode`, ktore zwraca `User profile missing`.
 
-Napraw kontrakt, nie symptom:
+Zachowaj naprawiony kontrakt, nie wracaj do symptomu:
 
-- native iOS bez invite: dozwolony tylko po serwerowo weryfikowalnym Firebase App Check/App Attest i dla zatwierdzonego app ID;
+- native iOS bez invite: dozwolony tylko po Firebase App Check/App Attest i dla zatwierdzonego App ID;
+- native Android bez invite: dozwolony tylko po Firebase App Check/Play Integrity i dla zatwierdzonego App ID;
 - web/unattested bez invite: nadal odrzucony;
 - poprawny invite: nadal dziala;
 - `registrationOpen=false`: nadal blokuje;
@@ -57,17 +59,17 @@ Napraw kontrakt, nie symptom:
 - nie tworz profilu klientem ani przez poluzowanie Firestore rules;
 - `UserContext` nie moze pokazac bramki kodu, dopoki profil nie zostal pomyslnie utworzony/zaladowany;
 - istniejace osierocone konto Auth ma odzyskac profil przez idempotentny retry po wdrozeniu poprawki;
-- pelna sekwencja emulator/TestFlight: register -> profile -> send code -> verify -> istniejacy onboarding.
+- pelna sekwencja emulator/TestFlight/Play Internal: register -> profile -> send code -> verify -> istniejacy onboarding.
 
-Przed wyborem integracji App Check sprawdz aktualna oficjalna dokumentacje Firebase i kompatybilnosc z Capacitor. Jezeli natywny token trzeba polaczyc z webowym SDK Functions, uzyj wspieranej integracji albo jawnego, przetestowanego adaptera; nie zakladaj, ze dwa Firebase app IDs automatycznie dziela tokeny. Enforce wlaczaj stopniowo i tylko po smoke monitoringu, ale sam `syncUserProfile` musi sprawdzac atestacje zanim zezwoli na brak invite.
+Adapter App Check jest juz wdrozony w `src/lib/native-callable.ts`; iOS i Android pobieraja token natywnym pluginem, a callable dostaje oficjalne naglowki. Nie zamieniaj go na webowy App Check w WKWebView bez dowodu kompatybilnosci. Enforce wlaczaj stopniowo i tylko po smoke monitoringu, ale `syncUserProfile` musi zawsze sprawdzac atestacje zanim zezwoli na brak invite.
 
 ### Zakres monetizacji
 
 - monthly: 14,99 zl / $3.99, trial 7 dni;
 - yearly: 119,99 zl / $31.99, trial 14 dni;
 - roczny domyslny; ok. 33% oszczednosci, ok. 4 miesiace gratis;
-- zrodlo prawdy ceny i triala: StoreKit/RevenueCat;
-- eligibility sprawdzane dla kazdego produktu;
+- zrodlo prawdy ceny i triala: App Store/Google Play przez RevenueCat;
+- eligibility albo dostepna kwalifikujaca oferta sprawdzana per produkt i platforma;
 - `eligible`: wolno pokazac trial;
 - `ineligible`/`unknown`: zwykla subskrypcja bez obietnicy triala;
 - zachowaj restore, Terms, Privacy, auto-renew copy i obsluge bledow.
@@ -76,23 +78,30 @@ Przed wyborem integracji App Check sprawdz aktualna oficjalna dokumentacje Fireb
 
 Nie zmieniaj `src/pages/Onboarding.tsx`, `src/components/PlanWizard.tsx`, `src/components/PlanPreview.tsx`, liczby krokow, tekstow ani layoutu onboardingu. Mozesz zmieniac auth/weryfikacje przed nim i paywall po nim. Jezeli test wymaga zmiany setupu auth, nie zmieniaj asercji dotyczacych obecnego wizardu.
 
+### Parytet iOS i Android
+
+- Obie aplikacje maja wyjsc w tym samym publicznym oknie. Nie oznaczaj release jako gotowy, gdy tylko jedna platforma ma dzialajaca rejestracje, trial lub zakup.
+- Kazda zmiana auth/IAP ma test kontraktu wspolnego oraz osobne potwierdzenie zachowania StoreKit i Google Play Billing.
+- Kolejny checkpoint dystrybucyjny to iOS build 84 w obu grupach TestFlight i Android AAB 6 w Play Internal.
+- Po przyjeciu Play App Signing pobierz SHA-1 i SHA-256 certyfikatu App signing. Dodaj oba do Firebase; SHA-1 jest potrzebny Google Sign-In, SHA-256 App Check/Play Integrity.
+- W Play Console polacz projekt Cloud `fittracker-workouts` w App integrity -> Play Integrity API. Dopiero instalacja ze sklepu jest dowodem prawdziwego tokenu `PLAY_RECOGNIZED`.
+- Subskrypcje Google Play i ich triale musza byc podlaczone do tego samego entitlement/offering RevenueCat co iOS przed publicznym wydaniem.
+
 ### Koszty bez utraty funkcji
 
 Kolejnosc: telemetria 5 min/lifecycle, push token dedupe, latest measurement/active cycle na Dashboardzie, ograniczone activities + paginacja, dopiero potem recent realtime workouts + paginowana historia/agregaty. Nie zmniejszaj po prostu limitu 500, jesli zepsuje to streak, PR, all-time lub poprzedni ciezar. Najpierw test rownowaznosci na fixture >500 rekordow i pomiar odczytow przed/po.
 
 ### Twarde zasady repozytorium
 
-- Nie ruszaj ani nie cofaj zastanych zmian:
-  - `android/app/capacitor.build.gradle`
-  - `android/capacitor.settings.gradle`
-  - `animacje-cwiczen/`
+- Nie ruszaj ani nie cofaj `animacje-cwiczen/`.
+- Nie usuwaj wygenerowanych wpisow App Check, Keep Awake ani Keyboard z `android/app/capacitor.build.gradle` i `android/capacitor.settings.gradle`.
 - Dane usera sa swiete. Zero eksperymentalnych zapisow/usuniec na produkcji.
 - Zachowaj PL/EN dla kazdego nowego tekstu.
 - Zachowaj local-first, offline, background/resume i idempotencje synchronizacji.
 - Nie podnos limitu bundle. Cel: min. 150 KB zapasu.
 - Nie obchodz App Check poluzowaniem rules lub zaufaniem do klienta.
 - Nie deployuj czerwonego commita. Functions i klient auth musza byc kompatybilne w kolejnosci wdrozenia.
-- Krok wymagajacy Firebase/App Store Connect/realnego iPhone wykonaj sam, jesli sesja ma dostep. W przeciwnym razie udokumentuj dokladny `KROK USERA`, ale kontynuuj wszystkie niezalezne zadania.
+- Krok wymagajacy Firebase/App Store Connect/Play Console/realnego urzadzenia wykonaj sam, jesli sesja ma dostep. W przeciwnym razie udokumentuj dokladny `KROK USERA`, ale kontynuuj wszystkie niezalezne zadania.
 
 ### Bramy i stop
 
@@ -100,10 +109,10 @@ Pelna lista bramek jest w FAZIE 6 planu. Pętla konczy sie dopiero po spelnieniu
 
 1. tabele Z203-Z222 z commitami i dowodami;
 2. root cause i dowod naprawy `User profile missing`;
-3. status App Check i web invite-only;
-4. status cen/triali w ASC i RevenueCat;
+3. status App Attest, Play Integrity i web invite-only;
+4. status cen/triali w ASC, Google Play i RevenueCat;
 5. pomiar Firestore przed/po;
 6. wyniki wszystkich testow/buildow/E2E;
-7. status deployu Functions/web/TestFlight;
+7. status deployu Functions/web/TestFlight/Play Internal oraz wspolnego release;
 8. jawne potwierdzenie, ze onboarding nie byl przebudowywany;
 9. tylko rzeczywiste pozostale `KROKI USERA`.

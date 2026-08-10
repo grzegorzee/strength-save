@@ -20,9 +20,19 @@ vi.mock('@capacitor/core', () => ({
   }),
 }));
 
-import { callNativeAttestedFunction, invokeCallableProtocol } from '@/lib/native-callable';
+import {
+  callNativeAttestedFunction,
+  invokeCallableProtocol,
+  supportsNativeAttestation,
+} from '@/lib/native-callable';
 
 describe('native attested callable protocol', () => {
+  it('is available only for the two native store applications', () => {
+    expect(supportsNativeAttestation('ios')).toBe(true);
+    expect(supportsNativeAttestation('android')).toBe(true);
+    expect(supportsNativeAttestation('web')).toBe(false);
+  });
+
   it('sends only the callable data envelope with Auth and App Check headers', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({ result: { profile: { uid: 'u1' } } }), {
       status: 200,
@@ -94,7 +104,7 @@ describe('native attested callable protocol', () => {
   });
 
   it('initializes App Check and combines its token with the current JS Auth token', async () => {
-    nativeMocks.platform = 'ios';
+    nativeMocks.platform = 'android';
     nativeMocks.auth.currentUser = { getIdToken: vi.fn().mockResolvedValue('auth-token') };
     nativeMocks.initialize.mockResolvedValue(undefined);
     nativeMocks.getToken.mockResolvedValue({ token: 'app-check-token', expireTimeMillis: Date.now() + 60_000 });
