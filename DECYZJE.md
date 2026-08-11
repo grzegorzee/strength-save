@@ -5,11 +5,29 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-11 (redesign Profilu wariant A WDROŻONY: web live, iOS 91 APPROVED, Android AAB v7 gotowy)
+**Ostatnia aktualizacja:** 2026-08-11 (przełożenie treningu + krok marketingowy onboardingu: kroki 1-10 w kodzie, deploy pre-autoryzowany w toku)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-11: Przełożenie treningu (scheduleOverrides) + krok marketingowy onboardingu — kroki 1-10 wdrożone w kodzie
+
+**Co (spec `docs/superpowers/specs/2026-08-11-przelozenie-treningu-onboarding-marketing-design.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-PRZELOZENIE-ONBOARDING-2026-08-11.md`, commity `683f05f0`→`108645fb`):**
+
+*Feature A — przełożenie treningu:* (1) kanoniczny resolver `resolvePlannedDay(dateISO, planDays, scheduleOverrides)` w `src/lib/plan-schedule.ts` (override: null = wolne, osierocony dayId ignorowany z fallbackiem weekday) + wspólny fixture `fixtures/cross-platform/schedule-overrides-v1.json` (14 przypadków); (2) rules: `scheduleOverrides` w hasOnly `training_plans` + `is map` + limit 60 wpisów (głęboka walidacja kluczy YYYY-MM-DD i wartości string|null w kodzie — rules nie iterują po mapach, konwencja Z41); (3) `src/lib/schedule-overrides.ts`: sanitize, pruning >28 dni, `buildScheduleMove` (move {A: null, B: dayId} / swap jako JEDNA mapa = atomowy zapis pola + LWW), czyszczenie przy zmianie zestawu dni w transakcji zapisu planu (edycja ćwiczeń NIE czyści); `moveScheduledDay` w `useTrainingPlan` offline-first (setDoc merge do lokalnej kolejki, bez blokowania na potwierdzeniu); (4) UI: `RescheduleSheet` (14 dni, zajętość, zapowiedź swapu), akcja na karcie dnia (ukryta dla ukończonych/przeszłych; żywy draft = toast blokady), `MissedWorkoutBanner` + `findMissedWorkout` (7 dni wstecz, [Zrób dziś] tylko gdy dziś wolne, krzyżyk = odrzucenie zapamiętane per data), Dashboard/`useWatchPlanPreview` liczą przez resolver; (5) mirror resolvera w `functions/src/garmin-day.ts` (`resolvePlannedGarminDay`) + `garminDay` czyta pole z dokumentu planu, parity web↔functions na wspólnym fixture, protokół CIQ bez zmian; (6) hak e2e `setE2EPlanMeta` seeduje overrides + spec `e2e/reschedule.spec.ts`.
+
+*Feature B — krok marketingowy onboardingu:* dedykowany ekran `OnboardingMarketingStep` (wzorzec Runna "Be the first to know": mock powiadomienia w HTML/CSS, [Jasne, wchodzę!]/[Nie, dzięki], treść oświadczenia na ekranie, zero pre-selekcji) po konfiguracji planu, przed PlanPreview — pozycja wg realnej struktury (zgody prawne są na Welcome, nie na końcu jak zakładał spec). Zapis ISTNIEJĄCYM `recordConsent`: granted/withdrawn (odmowa też do logu), kanał `onboarding-marketing-step` (nowa wartość CHANNELS w functions), wersja dokumentu bez zmian; mirror.marketingVersion = odpowiedź zapamiętana (krok nie wraca); wstecz bez zapisu; awaria zapisu = komunikat + retry (wzorzec Welcome). Welcome ma teraz DOKŁADNIE 3 checkboxy (`showMarketing={false}` tylko w PlanWizard); ConsentGate/ConsentSettings nietknięte.
+
+**Dlaczego:** user nie mógł przenieść niezrobionego treningu na inny dzień ("dzisiaj nie byłem na treningu, chcę go zrobić jutro" — wzorzec Runny); zgoda marketingowa jako 4. checkbox na ekranie prawnym miała zerową konwersję perswazyjną i mieszała marketing z RODO. Drag&drop świadomie POZA v1 (ryzyko regresji touch w WKWebView).
+
+**Niezmienniki (zasada #5):** przełożenie zmienia wyłącznie mapowanie data→dzień (historia, drafty, listy ćwiczeń, progresja po exercise.id, cykle i id dni X19 nietknięte — testy sekwencji `reschedule-sequence.test.ts`); bez overrides wszystkie funkcje harmonogramu działają bajt w bajt jak dotąd; stare wywołania `buildGarminDayContext` bez zmian.
+
+**Weryfikacja (krok 10, wszystko zielone):** unit 1478/1478 (49 nowych testów), functions 218/218, `test:rules` (JDK21), `build` + `build:mobile` + `check:dist-smoke`, `e2e:mock` 195/195, parity web↔functions 15/15, typecheck + lint obu paczek.
+
+**Deploy:** kroki 12-13 (rules → functions → web → iOS 92 → Android v8) pre-autoryzowane przez usera w sesji planowania 2026-08-11.
+
+---
 
 ### 2026-08-11: Redesign Profilu wariant A — kroki 1-6 wdrożone w kodzie (deploy: czeka na zgodę usera)
 
