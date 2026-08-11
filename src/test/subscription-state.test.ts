@@ -12,7 +12,7 @@ describe('mapSubscription', () => {
 
   it('normalizuje nieznane wartości do none', () => {
     const sub = mapSubscription({ tier: 'platinum', status: 'weird' });
-    expect(sub).toEqual({ tier: 'none', status: 'none', expiresAt: null });
+    expect(sub).toEqual({ tier: 'none', status: 'none', startedAt: null, expiresAt: null });
   });
 
   it('zachowuje poprawne pola', () => {
@@ -21,7 +21,7 @@ describe('mapSubscription', () => {
       productId: 'strengthsave_pro_yearly', willRenew: true, updatedAt: PAST,
     });
     expect(sub).toEqual({
-      tier: 'yearly', status: 'active', expiresAt: FUTURE,
+      tier: 'yearly', status: 'active', startedAt: null, expiresAt: FUTURE,
       productId: 'strengthsave_pro_yearly', willRenew: true, updatedAt: PAST,
     });
   });

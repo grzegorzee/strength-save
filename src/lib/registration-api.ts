@@ -70,6 +70,7 @@ export interface AppUserProfile {
   subscription?: {
     tier?: string;
     status?: string;
+    startedAt?: string | null;
     expiresAt?: string | null;
     productId?: string;
     willRenew?: boolean;

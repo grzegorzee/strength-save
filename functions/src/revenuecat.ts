@@ -21,6 +21,7 @@ interface RcEvent {
   aliases?: string[];
   product_id?: string;
   period_type?: string;
+  purchased_at_ms?: number;
   expiration_at_ms?: number;
   event_timestamp_ms?: number;
   store?: string;
@@ -53,6 +54,8 @@ export const resolveUid = (event: RcEvent): string | null => {
 export interface SubscriptionWrite {
   tier: "monthly" | "yearly" | "trial" | "none";
   status: "active" | "expired" | "billing_issue" | "none";
+  /** Początek bieżącego okresu (purchased_at_ms) — wyświetlany w apce jako "aktywna od". */
+  startedAt: string | null;
   expiresAt: string | null;
   productId: string | null;
   willRenew: boolean;
@@ -74,6 +77,7 @@ export const mapEventToSubscription = (event: RcEvent, nowIso: string): Subscrip
   const eventTimestamp = Number.isFinite(event.event_timestamp_ms) ? Number(event.event_timestamp_ms) : Date.parse(nowIso);
   const base = {
     tier: baseTier,
+    startedAt: event.purchased_at_ms ? new Date(event.purchased_at_ms).toISOString() : null,
     expiresAt,
     productId,
     updatedAt: new Date(eventTimestamp).toISOString(),

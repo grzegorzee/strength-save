@@ -7,6 +7,8 @@ export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
 export interface SubscriptionState {
   tier: SubscriptionTier;
   status: 'active' | 'expired' | 'billing_issue' | 'cancelled' | 'none';
+  /** Początek bieżącego okresu (webhook RC, purchased_at_ms) — brak w dokumentach sprzed 2026-08-11. */
+  startedAt?: string | null;
   expiresAt: string | null;
   productId?: string;
   willRenew?: boolean;
@@ -21,6 +23,7 @@ export const mapSubscription = (raw: AppUserProfile['subscription']): Subscripti
   return {
     tier: TIERS.includes(raw.tier as SubscriptionTier) ? (raw.tier as SubscriptionTier) : 'none',
     status: SUB_STATUSES.includes(raw.status as SubscriptionState['status']) ? (raw.status as SubscriptionState['status']) : 'none',
+    startedAt: raw.startedAt ?? null,
     expiresAt: raw.expiresAt ?? null,
     ...(raw.productId && { productId: raw.productId }),
     ...(raw.willRenew !== undefined && { willRenew: raw.willRenew }),

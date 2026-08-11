@@ -68,6 +68,21 @@ describe("mapEventToSubscription", () => {
     expect(sub).toMatchObject({ tier: "none", status: "expired", willRenew: false });
   });
 
+  it("purchased_at_ms => startedAt (poczatek biezacego okresu do UI)", () => {
+    const sub = mapEventToSubscription({
+      type: "RENEWAL", product_id: "strengthsave_pro_yearly",
+      period_type: "NORMAL", purchased_at_ms: Date.parse("2026-08-11T10:00:00.000Z"), expiration_at_ms: EXP_MS,
+    }, NOW);
+    expect(sub).toMatchObject({ startedAt: "2026-08-11T10:00:00.000Z" });
+  });
+
+  it("brak purchased_at_ms => startedAt null (stare eventy/testowe payloady)", () => {
+    const sub = mapEventToSubscription({
+      type: "INITIAL_PURCHASE", product_id: "strengthsave_pro_monthly", expiration_at_ms: EXP_MS,
+    }, NOW);
+    expect(sub).toMatchObject({ startedAt: null });
+  });
+
   it("TEST i nieznane eventy => null (bez zmiany stanu)", () => {
     expect(mapEventToSubscription({ type: "TEST" }, NOW)).toBeNull();
     expect(mapEventToSubscription({ type: "SUBSCRIBER_ALIAS" }, NOW)).toBeNull();

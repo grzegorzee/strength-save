@@ -12,6 +12,9 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { LANGUAGES, type LanguageCode } from '@/i18n';
 import { computeTier } from '@/lib/tier';
 import { deleteOwnAccount } from '@/lib/registration-api';
+import { useSubscription, isPaywallPlatform } from '@/hooks/useSubscription';
+import { summarizeSubscription } from '@/lib/subscription-summary';
+import { dateLocale } from '@/i18n';
 import { SectionCard } from '@/components/kinetic/SectionCard';
 import { SettingRow } from '@/components/kinetic/SettingRow';
 import { TierBadge } from '@/components/kinetic/TierBadge';
@@ -33,7 +36,7 @@ import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
   User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
-  ScrollText, Ruler, Trophy, Shield,
+  ScrollText, Ruler, Trophy, Shield, Gem, CreditCard,
 } from 'lucide-react';
 
 const REST_TIMER_KEY = 'rest-timer-default';
@@ -53,6 +56,25 @@ const Profile = () => {
   const aggregate = useWorkoutAggregate(uid);
   const completedCount = aggregate?.totals.workoutCount ?? workouts.filter((w) => w.completed).length;
   const tier = computeTier(completedCount, 0, lang);
+
+  const subscriptionInfo = useSubscription();
+  const subSummary = summarizeSubscription({
+    isAdmin,
+    isPro: subscriptionInfo.isPro,
+    tier: subscriptionInfo.tier,
+    startedAt: subscriptionInfo.startedAt,
+    expiresAt: subscriptionInfo.expiresAt,
+    subscription: subscriptionInfo.subscription,
+  });
+  const formatSubDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' });
+  const subDescription = subSummary.detailKey
+    ? t(subSummary.detailKey)
+    : [
+        subSummary.fromIso && t('subscription.activeFrom', { date: formatSubDate(subSummary.fromIso) }),
+        subSummary.untilIso && subSummary.untilKind
+          && t(({ renews: 'subscription.renews', expires: 'subscription.expires', grace: 'subscription.grace', trialEnds: 'subscription.trialEnds' } as const)[subSummary.untilKind], { date: formatSubDate(subSummary.untilIso) }),
+      ].filter(Boolean).join(' · ');
 
   const [restTimer, setRestTimer] = useState(() => {
     try { return localStorage.getItem(REST_TIMER_KEY) || '90'; } catch { return '90'; }
@@ -214,6 +236,21 @@ const Profile = () => {
         <SettingRow icon={User} label={t('profile.account.edit')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
         <SettingRow icon={Lock} label={t('profile.account.password')} onClick={handleChangePassword} />
         <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings?section=data')} />
+      </SectionCard>
+
+      {/* SUBSKRYPCJA — tylko odczyt stanu; zarządzanie i zakup wyłącznie na platformie paywalla (natywny iOS) */}
+      <SectionCard label={t('subscription.section')}>
+        <SettingRow icon={Gem} label={t(subSummary.planKey)} description={subDescription || undefined} />
+        {isPaywallPlatform() && subSummary.hasStoreSubscription && (
+          <SettingRow
+            icon={CreditCard}
+            label={t('subscription.manage')}
+            onClick={() => window.open('https://apps.apple.com/account/subscriptions', '_blank')}
+          />
+        )}
+        {isPaywallPlatform() && !subscriptionInfo.isPro && (
+          <SettingRow icon={CreditCard} label={t('subscription.upgrade')} onClick={() => navigate('/paywall')} />
+        )}
       </SectionCard>
 
       {/* WORKOUT PREFERENCES */}

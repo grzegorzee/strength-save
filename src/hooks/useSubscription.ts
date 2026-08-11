@@ -18,6 +18,8 @@ export interface SubscriptionInfo {
   isPro: boolean;
   /** Aktywny tier (none gdy brak). */
   tier: SubscriptionTier;
+  /** Początek bieżącego okresu (ISO) — Firestore startedAt, fallback RC latestPurchaseDate. */
+  startedAt: string | null;
   /** Koniec bieżącego okresu (ISO) — null dla comp/admin. */
   expiresAt: string | null;
   /** Stan z Firestore (do ekranów zarządzania). */
@@ -30,15 +32,16 @@ export interface SubscriptionInfo {
 
 interface RcState {
   active: boolean;
+  startedAt: string | null;
   expiresAt: string | null;
   productId: string | null;
 }
 
-const readRcState = (info: { entitlements: { active: Record<string, { expirationDate?: string | null; productIdentifier?: string }> } }): RcState => {
+const readRcState = (info: { entitlements: { active: Record<string, { expirationDate?: string | null; latestPurchaseDate?: string; productIdentifier?: string }> } }): RcState => {
   const ent = info.entitlements.active[PRO_ENTITLEMENT];
   return ent
-    ? { active: true, expiresAt: ent.expirationDate ?? null, productId: ent.productIdentifier ?? null }
-    : { active: false, expiresAt: null, productId: null };
+    ? { active: true, startedAt: ent.latestPurchaseDate ?? null, expiresAt: ent.expirationDate ?? null, productId: ent.productIdentifier ?? null }
+    : { active: false, startedAt: null, expiresAt: null, productId: null };
 };
 
 export const useSubscription = (): SubscriptionInfo => {
@@ -89,9 +92,16 @@ export const useSubscription = (): SubscriptionInfo => {
     ? null
     : (fsActive ? fsSub!.expiresAt : rc?.expiresAt ?? null);
 
+  // Dokumenty sprzed 2026-08-11 nie mają startedAt (webhook zapisuje je od tej daty),
+  // więc na native dziura łatana jest datą ostatniego zakupu z CustomerInfo.
+  const startedAt = isAdmin || tier === 'comp'
+    ? null
+    : (fsActive ? fsSub!.startedAt ?? rc?.startedAt ?? null : rc?.startedAt ?? null);
+
   return {
     isPro,
     tier,
+    startedAt,
     expiresAt,
     subscription: fsSub,
     loading: !profileLoaded || !rcLoaded,
