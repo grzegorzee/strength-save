@@ -19,6 +19,9 @@ vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({ uid: 'test-uid' }),
 }));
 vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
+// ExerciseCard -> error-telemetry -> firebase: bez mocka realny init Firebase
+// wywala caly plik na CI (runner nie ma .env, auth/invalid-api-key).
+vi.mock('@/lib/error-telemetry', () => ({ reportClientError: vi.fn() }));
 vi.mock('@/lib/timer-sound', () => ({
   playTimerSound: vi.fn(),
   unlockTimerSound: vi.fn(),

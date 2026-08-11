@@ -41,12 +41,14 @@ describe('ExercisePicker (Z69)', () => {
     expect(screen.queryByText('Przysiad ze sztangą (High Bar)')).toBeNull();
   });
 
+  // 30 s: re-render pelnej biblioteki cwiczen pod coverage na runnerze CI
+  // potrafi przekroczyc domyslne 15 s (lokalnie test schodzi w <1 s).
   it('chip kategorii zawęża listę', () => {
     renderPicker();
     fireEvent.click(screen.getByRole('button', { name: 'Plecy' }));
     expect(screen.getByText('Wiosłowanie hantlami na ławce (przodem)')).toBeTruthy();
     expect(screen.queryByText('Wyciskanie sztangi na ławce płaskiej')).toBeNull();
-  });
+  }, 30000);
 
   it('excludeNames ukrywa pozycję', () => {
     renderPicker({ excludeNames: ['Wyciskanie sztangi na ławce płaskiej'] });

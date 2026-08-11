@@ -110,6 +110,11 @@ jobs:
       - run: npm run ios:simulator:smoke
 
   build-and-deploy:
+    # Kanoniczny deploy web to lokalne `npm run deploy` (gh-pages, CLAUDE.md);
+    # Pages jest w trybie legacy (source: branch gh-pages), wiec deploy-pages
+    # z Actions i tak by padl. Wlacz swiadomie przez var ENABLE_PAGES_DEPLOY
+    # po przelaczeniu Pages na build_type=workflow.
+    if: vars.ENABLE_PAGES_DEPLOY == 'true'
     runs-on: ubuntu-latest
     environment: production
     needs: [quality, ios-simulator-smoke]
