@@ -11,7 +11,15 @@
 
 ## DECYZJE
 
-### 2026-08-11: X26 sesja 2 — deployed evidence (web + functions + landing; iOS 85 BLOCKED na App Attest)
+### 2026-08-11: X26 sesja 2 c.d. — iOS 85 WYDANY (App Attest naprawiony), CI zielony fix, cennik FINALNY 119,99 zł
+
+**iOS build 85 (odblokowany i wydany):** user włączył App Attest w portalu, ale samo włączenie unieważniło WSZYSTKIE trzy profile (App/Watch/Widgets: stan INVALID w portalu, lokalne kopie sprzed zmiany bez entitlementu). Naprawa bez klikania w portalu: ASC API delete+create wszystkich 3 profili (te same nazwy, cert DISTRIBUTION F52LLKV85G, ACTIVE), instalacja świeżych .mobileprovision (stare w backupie), weryfikacja `appattest-environment: [development, production]` w profilu App. `ExportOptions-manual.plist` przepięty z UUID na NAZWY profili (odporność na przyszłe regeneracje; plik gitignored, zmiana lokalna). Rezultat: archive SUCCEEDED, export, upload (Delivery UUID 58c4a57a), build 85 VALID, obie grupy TestFlight podpięte, whatsNew ustawione, Beta App Review **APPROVED**. Lekcja: włączenie capability na App ID ZAWSZE unieważnia istniejące profile; regeneruj przez ASC API (profiles delete+create) i trzymaj ExportOptions na nazwach.
+
+**Cennik (decyzja OSTATECZNA usera, zamyka A3):** roczny **119,99 zł / $31.99** (miesięczny 14,99 zł / $3.99 bez zmian). Zaplanowana w ASC zmiana z X25 (od 2026-08-12) zostaje. Opcjonalny wariant na launch: intro/promo 99,99 zł za pierwszy rok przy cenie katalogowej 119,99.
+
+**CI "Deploy to GitHub Pages" (czerwony od ~2026-08-03, spam maili o failach):** trzy przyczyny naprawione: (1) `rest-timer-controller.test.tsx` bez mocka `@/lib/error-telemetry` ciągnął realny init Firebase — na runnerze bez .env padał cały plik z `auth/invalid-api-key`; (2) test chipa kategorii w `exercise-picker.test.tsx` przekraczał 15 s pod coverage (timeout 30 s); (3) `ios-simulator-smoke` nie miał sekretu `VITE_REVENUECAT_APPLE_API_KEY` (dodany przez `gh secret set`). Dodatkowo `build-and-deploy` (deploy Pages z Actions) za flagą `vars.ENABLE_PAGES_DEPLOY` — kanoniczny deploy web to lokalne `npm run deploy` (gh-pages), Pages jest w trybie legacy (source: branch), więc `deploy-pages` i tak by padał. `firebase-contract-deploy` dalej wyłączony (brak `ENABLE_FIREBASE_DEPLOY`).
+
+### 2026-08-11: X26 sesja 2 — deployed evidence (web + functions + landing; iOS 85 BLOCKED na App Attest → rozwiązane wyżej)
 
 **Bramki (wszystkie zielone przed deployami):** vitest 1343 PASS (165 plików), typecheck, lint, e2e:mock 194/194 PASS (1.9 min, po restarcie vite + czyszczeniu node_modules/.vite wg lekcji #9), build, dist-smoke PASS, bundle-budget PASS (initial JS 1 276 965 / 1 536 000 B).
 
