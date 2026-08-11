@@ -87,7 +87,7 @@ scenariusze sekwencji, dane usera święte).
   bump versionCode (+1), `build:mobile` + `cap sync android` +
   `gradlew bundleRelease`, weryfikacja `jar verified` + SHA-256 do DECYZJE.
   Upload do Play POZA zakresem (weryfikacja konta u Google).
-- [ ] **13. Zamknięcie.** Aktualizacja DECYZJE.md o dowody deployu
+- [x] **13. Zamknięcie.** Aktualizacja DECYZJE.md o dowody deployu
   (hash weba, nr builda iOS, SHA AAB), push, podsumowanie dla usera:
   co zmienione, jakie testy, co zostało po jego stronie (testy urządzeniowe:
   scenariusz przełożenia + onboarding na TestFlight; Play po weryfikacji).

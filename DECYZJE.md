@@ -25,7 +25,9 @@
 
 **Weryfikacja (krok 10, wszystko zielone):** unit 1478/1478 (49 nowych testów), functions 218/218, `test:rules` (JDK21), `build` + `build:mobile` + `check:dist-smoke`, `e2e:mock` 195/195, parity web↔functions 15/15, typecheck + lint obu paczek.
 
-**Deploy:** kroki 12-13 (rules → functions → web → iOS 92 → Android v8) pre-autoryzowane przez usera w sesji planowania 2026-08-11.
+**Deploy (krok 12, pre-autoryzowany, WYKONANY 2026-08-11 wieczór):** rules released; functions `garminDay` + `recordConsent` updated (us-central1); web live `index-DIuIrMmX.js` (gh-pages `162b1715`, Pages built, hash zweryfikowany na app.strengthsave.app); iOS build **92** upload SUCCEEDED, obie grupy TestFlight podpięte (HTTP 204/204, whatsNew 200), betaReviewState **APPROVED**; Android AAB **versionCode 8** `jar verified`, SHA-256 `e9020d60a89b58373df18e313145f0e3798737ae45c4b146aeaa72a10cc5adce` (upload do Play poza zakresem — konto czeka na weryfikację Google). NASTĘPNY bump iOS = 93, versionCode = 9.
+
+**Po stronie usera:** testy urządzeniowe na TestFlight (build 92): scenariusz przełożenia (przełóż → start → wyjście → szybki trening → powrót → dokończenie → sync + baner niezrobionego treningu) oraz przejście onboardingu na świeżym koncie (krok marketingowy + 3 checkboxy); Play upload po weryfikacji konta Google.
 
 ---
 
