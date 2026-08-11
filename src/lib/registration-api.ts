@@ -1,6 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import { Capacitor } from "@capacitor/core";
 import { functions } from "@/lib/firebase";
+import type { ConsentMirror } from "@/lib/legal-versions";
 import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
 
@@ -50,6 +51,8 @@ export interface AppUserProfile {
     state?: "not_started" | "in_progress" | "completed";
     version?: number;
   };
+  /** Mirror zgód pisany przez recordConsent (klient tylko czyta). */
+  consents?: ConsentMirror;
   verification?: {
     emailVerifiedAt?: string | null;
     lastCodeSentAt?: string | null;

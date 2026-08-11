@@ -1,4 +1,5 @@
 import type { AppUserProfile } from '@/lib/registration-api';
+import type { ConsentMirror } from '@/lib/legal-versions';
 import type { LanguageCode } from '@/i18n';
 
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
@@ -71,6 +72,8 @@ export interface UserProfile {
     restTimerSec?: number;
     timerSound?: boolean;
   };
+  /** Mirror zgód z users/{uid}.consents; bramka re-consent czyta go z profilu. */
+  consents?: ConsentMirror;
 }
 
 interface AuthProfileSeed {
@@ -113,6 +116,9 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   features: data.features || undefined,
   subscription: mapSubscription(data.subscription),
   preferences: data.preferences || undefined,
+  // Incydent 2026-08-11 (build 87): bez przeniesienia mirrora zgód bramka
+  // re-consent nie miała się jak zamknąć po udanym recordConsent.
+  consents: data.consents || undefined,
 });
 
 export const resolveProfileLoadFailure = (lastKnownProfile: UserProfile | null): UserProfile | null =>
