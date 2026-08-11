@@ -56,7 +56,8 @@ CLAUDE.md projektu (zasady Karpathy, checklist wdrożeniowy, i18n w OBU plikach)
   `npm run build` + `npm run check:dist-smoke` (na build:mobile, patrz
   CLAUDE.md). Wszystko zielone.
 - [x] **8. DECYZJE.md.** Wpis: co, dlaczego, spec, weryfikacja.
-- [ ] **9. STOP: zapytaj usera o deploy.** Web `npm run deploy` + iOS bump
+- [x] **9. STOP: zapytaj usera o deploy.** (pytanie zadane 2026-08-11, pętla
+  zakończona; uwaga: w międzyczasie wyszedł build 90, więc bump = 91, nie 89) Web `npm run deploy` + iOS bump
   88 → 89 + `release-ios.sh` + `testflight_external.py` DOPIERO po jego zgodzie
   (równolegle działa agent subskrypcji, build może mieć wejść wspólny).
 
