@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-11 (redesign Profilu wariant A: kroki 1-6 w kodzie, deploy czeka na zgodę)
+**Ostatnia aktualizacja:** 2026-08-11 (redesign Profilu wariant A WDROŻONY: web live, iOS 91 APPROVED, Android AAB v7 gotowy)
 
 ---
 
@@ -20,7 +20,7 @@
 
 **Weryfikacja:** vitest 172 pliki / 1397 PASS, w tym nowe: `tier-labels` (etykiety PL+EN), `profile-header-chips` (hasProPlan per planKey + render), `profile-sections` (niezmiennik zasady #5: wszystkie wiersze/akcje obecne, kolejność sekcji, stany powiadomień, reset za potwierdzeniem, sekwencje sheet↔Profil dla przerwy/dźwięku/timera), zębatka w `rest-bar`. Typecheck, lint, `build`, `build:mobile` + `check:dist-smoke` zielone. Pułapka z wdrożenia: nowy transitive import `@/lib/firebase` (RestBar→WorkoutSettingsSheet) wywalił 2 testy ExerciseCard na realnym `initializeAuth` — fix: mock `@/lib/firebase` w tych testach.
 
-**Deploy:** web `npm run deploy` + iOS bump i TestFlight DOPIERO po zgodzie usera (równolegle działał agent subskrypcji; build 90 już wydany, następny bump wg stanu repo w momencie zgody).
+**Deploy (za zgodą usera "wdrażaj", 2026-08-11 wieczór):** web LIVE `index-cuBgCpM2.js` ✔; iOS build 91 TestFlight (archive+export+upload, obie grupy, whatsNew, Beta App Review APPROVED; Delivery `c24c7e6c`) ✔; Android AAB `versionCode 7` podpisany (`jar verified`, SHA-256 `7efc4145…b079dcd3`), gotowy do Play — upload zablokowany do końca weryfikacji konta organizacji przez Google ✔; Watch bez zmian kodu, jedzie w archiwum 91 ✔; Garmin nietknięty (protokół bez zmian) ✔. Następny bump iOS = 92.
 
 ### 2026-08-11: Build 90 — sekcja "Subskrypcja" w Profilu + startedAt z webhooka RC (wdrożone: functions + web + iOS)
 

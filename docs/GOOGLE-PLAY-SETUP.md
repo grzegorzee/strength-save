@@ -24,8 +24,8 @@ nie zapisywac w tym drzewie.** Te dane sa w pamieci sesji Claude
 | Element | Stan |
 |---|---|
 | `applicationId` | `com.grzegorzjasionowicz.strengthsave` |
-| Wersja | `versionName 1.0.0`, `versionCode 6` |
-| Podpisany AAB | `android/app/build/outputs/bundle/release/app-release.aab`, 16 311 666 B, SHA-256 `d30c3e5ad6ea9a2335ba8e90e973a6fbd2884c6184574594daa3856a9a2ff351` (build 2026-08-11) |
+| Wersja | `versionName 1.0.0`, `versionCode 7` (redesign Profilu wariant A) |
+| Podpisany AAB | `android/app/build/outputs/bundle/release/app-release.aab`, SHA-256 `7efc414531459845a88d24f004efba3390d0b9ba8b264ad0fec7ec94b079dcd3` (build 2026-08-11 wieczór, `jar verified`) |
 | Upload key | keystore `FIRMA/_secrets/android/strength-save-release.keystore`, alias `STRENGTH`, wazny do 2053-12-02 |
 | Upload key SHA-1 | `61:75:B0:23:AE:29:5A:97:E1:5A:07:1A:92:E0:28:0D:88:0C:70:A0` |
 | Upload key SHA-256 | `8F:65:CB:13:AD:7B:7D:FE:08:71:DD:AA:CE:C3:B3:A4:52:4B:90:A4:8E:E0:95:3C:6C:37:BA:9B:E3:7A:9C:65` |
