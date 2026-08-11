@@ -47,6 +47,10 @@ vi.mock('@/hooks/useSubscription', () => ({
   isPaywallPlatform: () => false,
 }));
 vi.mock('@/hooks/useWorkoutAggregate', () => ({ useWorkoutAggregate: () => null }));
+const pushFixture = vi.hoisted(() => ({ permission: 'granted' }));
+vi.mock('@/lib/push-notifications', () => ({
+  getPushPermission: vi.fn(async () => pushFixture.permission),
+}));
 
 import Profile from '@/pages/Profile';
 
@@ -70,6 +74,7 @@ const sectionByLabel = (container: HTMLElement, label: string): HTMLElement => {
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
+  pushFixture.permission = 'granted';
 });
 
 describe('krok 3: reorganizacja sekcji Profilu', () => {
@@ -114,5 +119,19 @@ describe('krok 3: reorganizacja sekcji Profilu', () => {
     // Stopka akcji
     expect(getByText('Wyloguj')).toBeTruthy();
     expect(getByText('Usuń konto i wszystkie dane')).toBeTruthy();
+  });
+});
+
+describe('krok 4: stan w wierszu Powiadomienia (getPushPermission)', () => {
+  it('zgoda granted → "Włączone"', async () => {
+    pushFixture.permission = 'granted';
+    const { findByText } = renderProfile();
+    expect(await findByText('Włączone')).toBeTruthy();
+  });
+
+  it.each(['prompt', 'denied', 'unsupported'])('zgoda %s → "Wyłączone"', async (permission) => {
+    pushFixture.permission = permission;
+    const { findByText } = renderProfile();
+    expect(await findByText('Wyłączone')).toBeTruthy();
   });
 });

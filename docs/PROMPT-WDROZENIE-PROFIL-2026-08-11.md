@@ -43,7 +43,7 @@ CLAUDE.md projektu (zasady Karpathy, checklist wdrożeniowy, i18n w OBU plikach)
   O aplikacji) → SYSTEM (Ustawienia zaawansowane, Admin tylko dla admina) →
   Wyloguj + Usuń konto. Test niezmiennika: wszystkie dotychczasowe
   akcje/wiersze obecne.
-- [ ] **4. Stan w wierszu Powiadomienia.** `getPushPermission()` jak
+- [x] **4. Stan w wierszu Powiadomienia.** `getPushPermission()` jak
   w `NotificationSettings`: `granted` = "Włączone", inaczej "Wyłączone".
   Klucze i18n w obu plikach.
 - [ ] **5. Potwierdzenie resetu hasła.** Dialog ("Wyślemy link resetu na X.

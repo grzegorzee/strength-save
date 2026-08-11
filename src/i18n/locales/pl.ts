@@ -50,6 +50,8 @@ export const pl = {
   'profile.pref.units': 'Jednostki',
   'profile.section.app': 'Aplikacja',
   'profile.app.notifications': 'Powiadomienia',
+  'profile.app.notificationsOn': 'Włączone',
+  'profile.app.notificationsOff': 'Wyłączone',
   'profile.app.sound': 'Dźwięk timera',
   'profile.app.language': 'Język',
   'profile.deleteAccount': 'Usuń konto i wszystkie dane',

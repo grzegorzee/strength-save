@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
+import { getPushPermission } from '@/lib/push-notifications';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
   User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
@@ -90,6 +91,17 @@ const Profile = () => {
     setWorkoutTimersEnabled(value);
     setTimersOn(value);
   };
+  // Krok 4 (spec 2026-08-11): stan zgody push widoczny w wierszu Powiadomienia
+  // bez wchodzenia głębiej. Źródło prawdy: uprawnienie na urządzeniu, jak
+  // w NotificationSettings. null = jeszcze nie odczytano (bez tekstu).
+  const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getPushPermission().then((permission) => {
+      if (!cancelled) setPushEnabled(permission === 'granted');
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
   const [savingName, setSavingName] = useState(false);
@@ -307,7 +319,12 @@ const Profile = () => {
 
       {/* APLIKACJA */}
       <SectionCard label={t('profile.section.app')}>
-        <SettingRow icon={Bell} label={t('profile.app.notifications')} onClick={() => navigate('/settings?section=notifications')} />
+        <SettingRow
+          icon={Bell}
+          label={t('profile.app.notifications')}
+          value={pushEnabled == null ? undefined : t(pushEnabled ? 'profile.app.notificationsOn' : 'profile.app.notificationsOff')}
+          onClick={() => navigate('/settings?section=notifications')}
+        />
         <SettingRow
           icon={Globe}
           label={t('profile.app.language')}
