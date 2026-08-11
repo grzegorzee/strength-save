@@ -48,7 +48,7 @@ scenariusze sekwencji, dane usera święte).
 - [x] **2. Rules.** `scheduleOverrides` w hasOnly dokumentu planu + walidacja
   kształtu (mapa, klucze YYYY-MM-DD, wartości string|null). Testy rules
   czerwone → zielone (`test:rules`, JDK21).
-- [ ] **3. Zapis/odczyt.** `useTrainingPlan` (albo właściwy właściciel zapisu
+- [x] **3. Zapis/odczyt.** `useTrainingPlan` (albo właściwy właściciel zapisu
   planu): zapis atomowy przeniesienia ({A: null, B: dayId} / swap), pruning
   >28 dni, czyszczenie przy zmianie/resecie planu, offline jak reszta planu.
   Testy: atomowość, pruning, czyszczenie, LWW.

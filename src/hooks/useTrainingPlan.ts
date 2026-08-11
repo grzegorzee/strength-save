@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   doc,
   getDoc,
+  setDoc,
   updateDoc,
   onSnapshot,
   collection,
@@ -12,7 +13,12 @@ import {
 import { db } from '@/lib/firebase';
 import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { getStartOfPlanWeek } from '@/lib/plan-schedule';
+import { getStartOfPlanWeek, type ScheduleOverrides } from '@/lib/plan-schedule';
+import {
+  buildScheduleMove,
+  sanitizeScheduleOverrides,
+  shouldClearOverridesOnPlanSave,
+} from '@/lib/schedule-overrides';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
 import { resolvePlanDaysForSave, saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
@@ -37,6 +43,8 @@ export const useTrainingPlan = (userId: string) => {
   // Z172: błąd snapshotu — plan usera ZOSTAJE w stanie (nie podmieniamy na default),
   // konsument może pokazać komunikat zamiast cudzego planu.
   const [planError, setPlanError] = useState(false);
+  // Przełożenia treningów (spec 2026-08-11): mapa data -> dayId|null.
+  const [scheduleOverrides, setScheduleOverrides] = useState<ScheduleOverrides>({});
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
@@ -54,10 +62,11 @@ export const useTrainingPlan = (userId: string) => {
       try {
         const raw = window.localStorage.getItem('fittracker_e2e_plan');
         if (raw) {
-          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number };
+          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number; scheduleOverrides?: unknown };
           if (data.startDate) setPlanStartDate(data.startDate);
           setProgression(sanitizeProgressionConfig(data.progression));
           if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
+          setScheduleOverrides(sanitizeScheduleOverrides(data.scheduleOverrides));
           const days = data.days !== undefined ? sanitizeTrainingPlanDays(data.days) : null;
           if (days) {
             setPlan(days);
@@ -89,12 +98,14 @@ export const useTrainingPlan = (userId: string) => {
           if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
           if (data.startDate) setPlanStartDate(data.startDate);
           setProgression(sanitizeProgressionConfig(data.progression));
+          setScheduleOverrides(sanitizeScheduleOverrides(data.scheduleOverrides));
           setPlanRevision(typeof data.revision === 'number' ? Math.max(0, Math.floor(data.revision)) : 0);
         } else {
           // No custom plan, use default
           setPlan(defaultPlan);
           setIsCustom(false);
           setPlanRevision(0);
+          setScheduleOverrides({});
         }
         setPlanError(false);
         setIsLoaded(true);
@@ -193,12 +204,16 @@ export const useTrainingPlan = (userId: string) => {
           alignedPlan = resolvePlanDaysForSave(newPlan, cycles.filter(cycle => cycle.status === 'active'));
         } catch { /* noop */ }
       }
+      // Przełożenia: zmiana zestawu dni czyści scheduleOverrides jak w transakcji
+      // prod; edycja ćwiczeń je zachowuje (bez tego e2e zapis by je dropował).
+      const nextOverrides = shouldClearOverridesOnPlanSave(plan, alignedPlan) ? {} : scheduleOverrides;
       try {
         window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify({
           days: alignedPlan,
           durationWeeks: nextDurationWeeks,
           ...(nextStartDate ? { startDate: nextStartDate } : {}),
           ...(nextProgression ? { progression: nextProgression } : {}),
+          ...(Object.keys(nextOverrides).length > 0 ? { scheduleOverrides: nextOverrides } : {}),
         }));
       } catch { /* noop */ }
       setPlan(alignedPlan);
@@ -206,6 +221,7 @@ export const useTrainingPlan = (userId: string) => {
       setPlanDurationWeeks(nextDurationWeeks);
       setPlanStartDate(nextStartDate);
       setProgression(nextProgression ?? null);
+      setScheduleOverrides(nextOverrides);
       return { success: true };
     }
     try {
@@ -232,7 +248,47 @@ export const useTrainingPlan = (userId: string) => {
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, [userId, isLoaded, planDurationWeeks, planStartDate, planRevision, progression, t]);
+  }, [userId, isLoaded, plan, scheduleOverrides, planDurationWeeks, planStartDate, planRevision, progression, t]);
+
+  /**
+   * Przełożenie treningu z daty na datę (spec 2026-08-11): jedna nowa mapa
+   * scheduleOverrides (move {A: null, B: dayId} albo swap) w JEDNYM zapisie pola
+   * (atomowość, LWW). Zapis offline-first: setDoc merge trafia od razu do lokalnej
+   * kolejki Firestore (snapshot dostarcza stan bez sieci), promise potwierdza
+   * dopiero serwer — nie blokujemy na nim wyniku.
+   */
+  const moveScheduledDay = useCallback(async (
+    fromDateISO: string,
+    toDateISO: string,
+  ): Promise<{ success: boolean; swapped?: boolean }> => {
+    if (!userId || !isLoaded) return { success: false };
+    const move = buildScheduleMove({
+      overrides: scheduleOverrides,
+      planDays: plan,
+      fromISO: fromDateISO,
+      toISO: toDateISO,
+      todayISO: formatLocalDate(new Date()),
+    });
+    if (!move.ok) return { success: false };
+    if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+      try {
+        const raw = window.localStorage.getItem('fittracker_e2e_plan');
+        const data = raw ? JSON.parse(raw) : {};
+        window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify({ ...data, scheduleOverrides: move.overrides }));
+      } catch { /* noop */ }
+      setScheduleOverrides(move.overrides);
+      return { success: true, swapped: move.swapped };
+    }
+    setDoc(doc(db, PLAN_COLLECTION, userId), {
+      scheduleOverrides: move.overrides,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((err) => {
+      console.error('Error saving schedule override:', err);
+      void reportClientError(userId, { code: 'schedule-override-save', phase: 'other', detail: String(err) });
+    });
+    setScheduleOverrides(move.overrides);
+    return { success: true, swapped: move.swapped };
+  }, [userId, isLoaded, plan, scheduleOverrides]);
 
   const swapExercise = useCallback(async (
     dayId: string,
@@ -365,6 +421,8 @@ export const useTrainingPlan = (userId: string) => {
     isLoaded,
     planError,
     isCustom,
+    scheduleOverrides,
+    moveScheduledDay,
     planDurationWeeks,
     planStartDate,
     progression,

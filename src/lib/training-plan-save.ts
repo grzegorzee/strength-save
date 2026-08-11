@@ -10,6 +10,7 @@ import {
 import type { TrainingDay } from '../data/trainingPlan';
 import type { ProgressionConfig } from './progression-engine';
 import { alignPlanDaysWithCycleIds, buildActiveCyclePlanPatch } from './plan-cycle-utils';
+import { shouldClearOverridesOnPlanSave } from './schedule-overrides';
 
 const PLAN_COLLECTION = 'training_plans';
 const CYCLES_COLLECTION = 'plan_cycles';
@@ -80,6 +81,12 @@ export const saveTrainingPlanWithRevision = async (
         activeCycles.filter(snapshot => snapshot.exists()).map(snapshot => snapshot.data() as { days?: TrainingDay[]; startDate?: string }),
       );
 
+    // Przełożenia (spec 2026-08-11): zmiana zestawu dni / reset czyści
+    // scheduleOverrides razem z planem; edycja ćwiczeń wewnątrz dni nie.
+    const currentDays = Array.isArray(current.data()?.days)
+      ? (current.data()!.days as TrainingDay[])
+      : undefined;
+
     transaction.set(planRef, {
       days: alignedPlan,
       updatedAt: new Date().toISOString(),
@@ -87,6 +94,7 @@ export const saveTrainingPlanWithRevision = async (
       revision: currentRevision + 1,
       ...(params.startDate ? { startDate: params.startDate } : {}),
       ...(params.progression !== undefined ? { progression: params.progression } : {}),
+      ...(shouldClearOverridesOnPlanSave(currentDays, alignedPlan) ? { scheduleOverrides: {} } : {}),
     }, { merge: true });
 
     if (params.syncActiveCycle !== false) {
