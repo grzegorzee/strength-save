@@ -45,7 +45,7 @@ scenariusze sekwencji, dane usera święte).
   (override → weekday fallback, null = wolne, osierocony dayId ignorowany).
   Wspólny fixture przypadków (do parity z functions). Testy jednostkowe
   wszystkich reguł.
-- [ ] **2. Rules.** `scheduleOverrides` w hasOnly dokumentu planu + walidacja
+- [x] **2. Rules.** `scheduleOverrides` w hasOnly dokumentu planu + walidacja
   kształtu (mapa, klucze YYYY-MM-DD, wartości string|null). Testy rules
   czerwone → zielone (`test:rules`, JDK21).
 - [ ] **3. Zapis/odczyt.** `useTrainingPlan` (albo właściwy właściciel zapisu

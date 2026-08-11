@@ -156,8 +156,19 @@ service cloud.firestore {
     // zostaje w kodzie — rules nie iterują po tablicach.
     function validTrainingPlanShape() {
       return request.resource.data.keys().hasOnly([
-        'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision', 'progression'
+        'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision', 'progression', 'scheduleOverrides'
       ])
+      // Przełożenia treningów (spec 2026-08-11): mapa data -> dayId|null, okno max
+      // 42 dni (pruning 28 wstecz + horyzont 14 do przodu) => limit 60 z zapasem.
+      // Klucze YYYY-MM-DD i wartości string|null waliduje kod zapisu — rules nie
+      // iterują po mapach (konwencja Z41 jak przy days).
+      && (
+        !('scheduleOverrides' in request.resource.data)
+        || (
+          request.resource.data.scheduleOverrides is map
+          && request.resource.data.scheduleOverrides.size() <= 60
+        )
+      )
       // Progresja programowa (Z119): zamknięta mapa {enabled, deloadEveryWeeks?, deloadDecisions?}.
       && (
         !('progression' in request.resource.data)

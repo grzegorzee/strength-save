@@ -257,6 +257,15 @@ const validPlan = { days: [], durationWeeks: 12, startDate: '2026-06-08', update
 add('training_plans: zgodny dokument ALLOWED', true, await ok(() => setDoc(doc(db, 'training_plans', UID), validPlan)));
 add('training_plans: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, blob: 'x'.repeat(10) })));
 add('training_plans: days nie-lista DENIED', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, days: 'oops' })));
+// scheduleOverrides (przełożenia treningów, spec 2026-08-11): mapa data -> dayId|null.
+// Głęboka walidacja kluczy (YYYY-MM-DD) i wartości (string|null) w kodzie zapisu —
+// rules nie iterują po mapach (konwencja Z41 jak przy days).
+add('training_plans: scheduleOverrides mapa {data: dayId|null} ALLOWED', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, scheduleOverrides: { '2026-08-10': null, '2026-08-11': 'day-1' } })));
+add('training_plans: scheduleOverrides pusta mapa ALLOWED', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, scheduleOverrides: {} })));
+add('training_plans: scheduleOverrides nie-mapa DENIED', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, scheduleOverrides: 'oops' })));
+add('training_plans: scheduleOverrides lista DENIED', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, scheduleOverrides: ['2026-08-10'] })));
+const oversizedOverrides = Object.fromEntries(Array.from({ length: 61 }, (_, i) => [`2026-01-${String((i % 28) + 1).padStart(2, '0')}-${i}`, null]));
+add('training_plans: scheduleOverrides ponad limit 60 wpisow DENIED', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { ...validPlan, scheduleOverrides: oversizedOverrides })));
 
 // measurements: zamkniety schemat + typy
 await env.clearFirestore();
