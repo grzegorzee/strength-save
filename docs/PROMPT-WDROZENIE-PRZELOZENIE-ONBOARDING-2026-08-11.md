@@ -74,7 +74,7 @@ scenariusze sekwencji, dane usera święte).
   marketingu (parametryzacja, NIE zmiana globalna). Testy: onboarding ma 3,
   ConsentGate i ConsentSettings bez regresu (ich istniejące testy zielone
   bez zmiany asercji), parity wersji dokumentów bez zmian.
-- [ ] **10. Bramki całości.** `npm run test` + `typecheck` + `lint` +
+- [x] **10. Bramki całości.** `npm run test` + `typecheck` + `lint` +
   `npm run build` + `build:mobile` + `check:dist-smoke` + testy functions +
   `test:rules` + `e2e:mock`. Wszystko zielone.
 - [ ] **11. DECYZJE.md.** Wpis: co, dlaczego, spec, weryfikacja, commity.
