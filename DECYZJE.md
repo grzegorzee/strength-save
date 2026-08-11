@@ -5,11 +5,22 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-11 (build 90: sekcja Subskrypcja w Profilu + startedAt z webhooka RC)
+**Ostatnia aktualizacja:** 2026-08-11 (redesign Profilu wariant A: kroki 1-6 w kodzie, deploy czeka na zgodę)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-11: Redesign Profilu wariant A — kroki 1-6 wdrożone w kodzie (deploy: czeka na zgodę usera)
+
+**Co (spec `docs/superpowers/specs/2026-08-11-profil-redesign-design.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-PROFIL-2026-08-11.md`, commity `b06b4ff9`→`382fcba0`):**
+(1) rename poziomów gamifikacyjnych: "Pro Tier"→"Veteran", "Elite Tier"→"Elite" (progi w `tier.ts` bez zmian); (2) chipy nagłówka: [PRO] wypełniony primary tylko dla planu płatnego/trial/comp/admin (`hasProPlan(planKey)`, darmowy user BEZ chipa FREE) + [poziom] outline wyciszony zawsze (`ProfileHeaderChips` zastąpił `TierBadge`); (3) reorganizacja sekcji: Nagłówek → TRENING (rename z "Preferencje treningu", wchodzi Dźwięk z "Aplikacji") → TWOJE DANE → SUBSKRYPCJA (kod 1:1, tylko pozycja) → KONTO → APLIKACJA → POMOC (rename z "Wsparcie") → SYSTEM (nowa: Zaawansowane + Admin) → Wyloguj + Usuń konto; (4) wiersz Powiadomienia pokazuje stan z `getPushPermission()` (granted = Włączone, inaczej Wyłączone); (5) reset hasła za dialogiem potwierdzenia (wcześniej mail leciał po jednym tapnięciu); (6) faza 2: zębatka przy RestBar otwiera bottom sheet (timer wł/wył, domyślna przerwa, dźwięk) — TE SAME klucze zapisu co Profil, stałe wyniesione do `lib/workout-preferences.ts`, zero zmian logiki zapisu.
+
+**Dlaczego:** sekcje Profilu odzwierciedlały historię kodu, nie model mentalny usera (ustawienia timera w dwóch sekcjach, "Wsparcie" jako worek na Admin/Zaawansowane); badge "Pro Tier" z gamifikacji zderzał się znaczeniowo z planem PRO z sekcji Subskrypcja; ustawienia zmieniane najczęściej (timer, przerwa, dźwięk) mają być najwyżej i dostępne z ekranu treningu.
+
+**Weryfikacja:** vitest 172 pliki / 1397 PASS, w tym nowe: `tier-labels` (etykiety PL+EN), `profile-header-chips` (hasProPlan per planKey + render), `profile-sections` (niezmiennik zasady #5: wszystkie wiersze/akcje obecne, kolejność sekcji, stany powiadomień, reset za potwierdzeniem, sekwencje sheet↔Profil dla przerwy/dźwięku/timera), zębatka w `rest-bar`. Typecheck, lint, `build`, `build:mobile` + `check:dist-smoke` zielone. Pułapka z wdrożenia: nowy transitive import `@/lib/firebase` (RestBar→WorkoutSettingsSheet) wywalił 2 testy ExerciseCard na realnym `initializeAuth` — fix: mock `@/lib/firebase` w tych testach.
+
+**Deploy:** web `npm run deploy` + iOS bump i TestFlight DOPIERO po zgodzie usera (równolegle działał agent subskrypcji; build 90 już wydany, następny bump wg stanu repo w momencie zgody).
 
 ### 2026-08-11: Build 90 — sekcja "Subskrypcja" w Profilu + startedAt z webhooka RC (wdrożone: functions + web + iOS)
 
