@@ -42,18 +42,21 @@ export async function invokeCallableProtocol<RequestData, ResponseData>(input: {
   projectId: string;
   region: string;
   authToken: string;
-  appCheckToken: string;
+  appCheckToken?: string;
   fetchImpl?: typeof fetch;
 }): Promise<ResponseData> {
   const fetchImpl = input.fetchImpl ?? fetch;
   const url = `https://${input.region}-${input.projectId}.cloudfunctions.net/${input.functionName}`;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${input.authToken}`,
+    'Content-Type': 'application/json',
+  };
+  if (input.appCheckToken) {
+    headers['X-Firebase-AppCheck'] = input.appCheckToken;
+  }
   const response = await fetchImpl(url, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${input.authToken}`,
-      'Content-Type': 'application/json',
-      'X-Firebase-AppCheck': input.appCheckToken,
-    },
+    headers,
     body: JSON.stringify({ data: input.data }),
   });
 
@@ -112,10 +115,9 @@ export async function callNativeAttestedFunction<RequestData, ResponseData>(
     throw new CallableProtocolError('unauthenticated', 'Must be logged in');
   }
 
-  await ensureNativeAppCheck();
-  const [authToken, appCheck] = await Promise.all([
+  const [authToken, appCheckToken] = await Promise.all([
     currentUser.getIdToken(),
-    FirebaseAppCheck.getToken({ forceRefresh: false }),
+    fetchAppCheckTokenBestEffort(),
   ]);
 
   return invokeCallableProtocol<RequestData, ResponseData>({
@@ -124,6 +126,21 @@ export async function callNativeAttestedFunction<RequestData, ResponseData>(
     projectId: firebaseConfig.projectId,
     region: 'us-central1',
     authToken,
-    appCheckToken: appCheck.token,
+    appCheckToken,
   });
+}
+
+// Attestacja to zależność zewnętrzna (Secure Enclave, serwery Apple, wymiana
+// w Firebase). Jej awaria nie może odcinać logowania: backend nie wymusza
+// App Check na callables, więc przy braku tokenu wysyłamy request bez nagłówka
+// (incydent 2026-08-11: DeviceCheck zamiast App Attest blokował każde konto).
+async function fetchAppCheckTokenBestEffort(): Promise<string | undefined> {
+  try {
+    await ensureNativeAppCheck();
+    const appCheck = await FirebaseAppCheck.getToken({ forceRefresh: false });
+    return appCheck.token || undefined;
+  } catch (error) {
+    console.warn('[native-callable] App Check unavailable, calling without attestation:', error);
+    return undefined;
+  }
 }

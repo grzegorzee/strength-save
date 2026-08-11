@@ -132,4 +132,38 @@ describe('native attested callable protocol', () => {
 
     vi.unstubAllGlobals();
   });
+
+  // Incydent 2026-08-11: attestacja padała na urządzeniu (DeviceCheck zamiast
+  // App Attest → FAILED_PRECONDITION) i blokowała logowanie na KAŻDYM koncie.
+  // Backend nie wymusza App Check, więc brak tokenu nie może odcinać sesji.
+  it('falls back to a request without App Check header when attestation fails', async () => {
+    nativeMocks.platform = 'ios';
+    nativeMocks.auth.currentUser = { getIdToken: vi.fn().mockResolvedValue('auth-token') };
+    nativeMocks.initialize.mockResolvedValue(undefined);
+    nativeMocks.getToken.mockRejectedValue(new Error('The operation couldn’t be completed. (com.firebase.appCheck error 0.)'));
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ result: { profile: { uid: 'u1' } } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(callNativeAttestedFunction('syncUserProfile', { language: 'pl' }))
+      .resolves.toEqual({ profile: { uid: 'u1' } });
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    expect(requestInit.headers).toEqual({
+      Authorization: 'Bearer auth-token',
+      'Content-Type': 'application/json',
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('still fails when App Check init itself rejects but auth token is unavailable', async () => {
+    nativeMocks.platform = 'ios';
+    nativeMocks.auth.currentUser = null;
+
+    await expect(callNativeAttestedFunction('syncUserProfile', {}))
+      .rejects.toMatchObject({ code: 'unauthenticated' });
+  });
 });
