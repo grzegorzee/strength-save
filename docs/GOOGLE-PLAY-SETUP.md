@@ -50,15 +50,29 @@ Zrobione:
       zbedny. Dane firmy zgodne z profilem D&B (szczegoly poza repo).
 - [x] Konto organizacji utworzone, nazwa konta `Strength Save`.
 
+- [x] Dokumenty tozsamosci **przeslane**, Google prowadzi weryfikacje
+      ("moze potrwac kilka dni", po zakonczeniu mail do wlasciciela konta).
+      Dokumentow nie wolno edytowac przed wgraniem, bo to konczy sie
+      niepowodzeniem weryfikacji i wplywa na dostepnosc aplikacji.
+
 Otwarte (blokuje wszystko dalsze):
 
-- [ ] **Zweryfikuj swoja tozsamosc**: oficjalny dokument. Google ostrzega, zeby
-      nie edytowac ani nie zmieniac dokumentow, bo to konczy sie niepowodzeniem
-      weryfikacji. Kilka dni.
-- [ ] **Zweryfikuj numery telefonow** oraz weryfikacja organizacji i
-      zatwierdzenie dokumentow przez Google.
-- [ ] **Czekanie na REGON** po stronie usera (stan 2026-08-11), potrzebny do
-      dokumentow weryfikacyjnych firmy.
+- [ ] **Zweryfikuj numery telefonow**: osobne zadanie, niezalezne od dokumentow,
+      mozna domknac nie czekajac na wynik weryfikacji tozsamosci.
+- [ ] Zatwierdzenie weryfikacji organizacji i dokumentow przez Google.
+
+Dokument firmy dla JDG: **zaswiadczenie o numerze REGON** (odpis z KRS nie
+dotyczy, JDG jest w CEIDG). Numer REGON istnieje od rejestracji dzialalnosci,
+czeka sie wylacznie na zaswiadczenie. Wydruk z `wyszukiwarkaregon.stat.gov.pl`
+jest od reki i bezplatny, formalne zaswiadczenie przez biznes.gov.pl (Profil
+Zaufany) ma ustawowe 7 dni roboczych, a wersja elektroniczna ma taka sama moc
+prawna jak papierowa.
+
+### Punkt wznowienia
+
+Wracamy do tematu, gdy przyjdzie mail o akceptacji konta. Wtedy sekcja 6 od
+kroku 1. Nic wczesniej nie da sie ruszyc, bo "Utworz aplikacje" jest wyszarzone,
+a Play Developer API nie tworzy aplikacji.
 
 Przycisk **Utworz aplikacje jest wyszarzony** do czasu potwierdzenia wlasnosci
 konta. Dopoki weryfikacja nie przejdzie, nie da sie utworzyc aplikacji ani
