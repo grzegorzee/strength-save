@@ -55,6 +55,7 @@ import { AVAILABLE_FEATURES, type AdminUser, type AdminUserDetails, type Feature
 import { sortUsersByActivity } from '@/lib/admin-activity';
 import { logAdminAction } from '@/lib/admin-audit';
 import { AdminAuditLog } from './AdminAuditLog';
+import { AdminConsentsLog } from './AdminConsentsLog';
 import { useCurrentUser } from '@/contexts/UserContext';
 
 const ADMIN_USERS_LISTENER_LIMIT = 200;
@@ -857,6 +858,9 @@ const AdminDashboard = () => {
 
       {/* Z101: dziennik akcji administracyjnych */}
       <AdminAuditLog userEmailByUid={Object.fromEntries(users.map((u) => [u.uid, u.email]))} />
+
+      {/* Pakiet prawny v2: log zgód + eksport CSV (data, godzina UTC, IP) */}
+      <AdminConsentsLog userEmailByUid={Object.fromEntries(users.map((u) => [u.uid, u.email]))} />
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">

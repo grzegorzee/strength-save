@@ -5,11 +5,25 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-11 (build 86: fix logowania iOS — App Check używał DeviceCheck zamiast App Attest)
+**Ostatnia aktualizacja:** 2026-08-11 (pakiet prawny v2: dokumenty 2.0 + consent engine z logiem IP + eksport CSV)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-11: Pakiet prawny v2 — dokumenty 2.0, consent engine, compliance (3 plany, spec: docs/superpowers/specs/2026-08-11-legal-pack-design.md)
+
+**Kontekst:** dwa raporty deep research (audyt prawny UE+USA) wykazały luki P0: jeden zbiorczy checkbox zgód naruszał RODO (zgoda zdrowotna art. 9 musi być odrębna i wyraźna; polityki prywatności się nie "akceptuje"), zgoda nigdzie nie była zapisywana (zero dowodu), brak dokumentu MHMDA (stan Waszyngton, bez progów, private right of action). Decyzje usera: marketing z opt-in, arbitraż US z 30-dniowym opt-out, wszystkie zgody wyciągalne do CSV z datą+godziną+IP, stare /legal/*.html usunięte (buildy <=85 to tylko testy TF).
+
+**Plan 1 (landing, repo strength_save_landing, commit 7ab1f34, LIVE na Vercel):** Regulamin 2.0 i Privacy 2.0 PL/EN (assumption of risk z carve-outem 385(3)/473 kc dla UE, reklamacje 14 dni + wymagania techniczne z UŚUDE, sekcja arbitrażowa "U.S. residents only", klauzule API: Strava 48h/Usage Data/zakaz AI, HealthKit, Health Connect, Garmin; rejestr zgód z IP jako nowe przetwarzanie; karencja 30 dni), NOWE: Polityka Cookies 1.0 (zero trackerów = bez banera) i Consumer Health Data Privacy Policy 1.0 EN (MHMDA/NV, osobny link w stopce — twardy wymóg ustawy). Źródło dokumentów: src/data/legal/*.html + build-legal.mjs (JSON generowany); archiwum wersji /legal-archive/. Benchmarki konkurencji (Hevy, Strong) potwierdziły, że oba mają słabe dokumenty (Hevy: zero medical disclaimera; Strong: retencja "indefinitely").
+
+**Plan 2 (consent engine, commit cf4139f6):** 4 rozdzielone checkboxy w onboardingu (regulamin+16 lat, zapoznanie z privacy, WYRAŹNA zgoda zdrowotna, opcjonalny marketing), Cloud Function recordConsent (IP z x-forwarded-for, timestamp serwerowy, pełna treść oświadczenia + wersja dokumentu, batch do kolekcji consents + mirror users/{uid}.consents), ConsentGate (re-consent istniejących userów; bump wersji w legal-versions.ts = re-consent), ustawienia zgód (wycofanie zdrowotnej blokuje pomiary + metryki RPE/ból, konto zostaje — zasada #6: stan ma wyjście), rules (consents: read admin, write tylko backend; mirror poza whitelistą users). Kolekcja consents CELOWO poza kasowaniem GDPR (dowód rozliczalności, opisane w polityce). E2e bypass na VITE_E2E_MODE (seedowani userzy nie mają mirrora).
+
+**Plan 3 (admin+compliance):** panel admina: karta "Log zgód" + eksport CSV (createdAtUtc, email, uid, typ, akcja, wersja, język, kanał, wersja aplikacji, IP, treść oświadczenia; RFC 4180 + BOM dla Excela). Dokumenty wewnętrzne: docs/legal/RCPD.md (obowiązkowy mimo solo dev — art. 30 ust. 5, bo dane art. 9), PROCEDURA-NARUSZEN.md (72h), REJESTR-WERSJI.md (procedura bumpa dokumentów: functions PRZED webem), DPA-CHECKLIST.md. Digest zweryfikowany: czysto serwisowy (zero treści promo w szablonie), więc bez osobnej zgody; przy dodaniu promo → gate na marketingGranted.
+
+**Weryfikacja:** vitest front 167 plików/1358+ PASS (w tym nowe: consents walidacja+IP+mirror, parity wersji src/functions, PlanWizard 3 checkboxy, ConsentGate, CSV), functions 210 PASS, rules 183 PASS (5 nowych o consents), lint 0, typecheck OK, build+dist-smoke OK, e2e:mock 194 PASS (1 test zaktualizowany na nowe checkboxy). Deploy: rules + functions:recordConsent + web + landing LIVE.
+
+**Zastrzeżenie:** dokumenty to kompletne wersje robocze na bazie raportów; przed launchem przegląd radcy prawnego (miejsca sporne oznaczone w spec "do potwierdzenia z prawnikiem": m.in. blokujący charakter zgody zdrowotnej w onboardingu, koszty arbitrażu AAA).
 
 ### 2026-08-11: Build 86 — logowanie iOS martwe na buildzie 85 (App Check: DeviceCheck zamiast App Attest)
 
