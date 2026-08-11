@@ -11,6 +11,10 @@
 
 ## DECYZJE
 
+### 2026-08-11: Build 88 — bramka zgód wisiała na spinnerze mimo udanego zapisu (mapper gubił mirror)
+
+**Zgłoszenie usera (build 87, 17:27):** zaakceptował 4 zgody, spinner kręcił się w nieskończoność. **Dowody, nie hipoteza:** log `recordConsent` 15:27:36 UTC "Callable request verification passed" (auth VALID, app MISSING = fallback z builda 86 działał), Firestore `users/{uid}` updateTime 15:27:37 z KOMPLETNYM mirrorem (terms 2.0, privacy 2.0, health 1.0, marketing 1.0) zgodnym co do znaku z `LEGAL_VERSIONS`. Backend działał; `mapAppUserProfile` budował profil pole po polu i NIE przenosił `consents`, więc `needsConsentRefresh` nigdy nie robiło się false. Dotyczyło KAŻDEGO usera na 87 i na web (index-CcUCiX0m). **Fix:** przeniesienie pola + typy (`ConsentMirror` w `AppUserProfile` i `UserProfile`); test czerwony przed fixem w `user-profile.test.ts`. Vitest 1362 PASS. **Wdrożone:** web `index-DyYGCCbr.js` LIVE, iOS build 88 na TestFlight (obie grupy, Beta App Review APPROVED). Następny bump = 89. **Do rozważenia (sesja legal):** ConsentGate po sukcesie trzyma spinner bez timeoutu czekając na snapshot — reguła #6 wymaga wyjścia (timeout + komunikat). **Lekcja:** mapper typu "pole po polu" to miejsce, gdzie nowe pola dokumentu giną domyślnie; test nowej funkcji musi pokrywać CAŁĄ pętlę (zapis → snapshot → warunek UI), nie tylko zapis.
+
 ### 2026-08-11: Pakiet prawny v2 — dokumenty 2.0, consent engine, compliance (3 plany, spec: docs/superpowers/specs/2026-08-11-legal-pack-design.md)
 
 **Kontekst:** dwa raporty deep research (audyt prawny UE+USA) wykazały luki P0: jeden zbiorczy checkbox zgód naruszał RODO (zgoda zdrowotna art. 9 musi być odrębna i wyraźna; polityki prywatności się nie "akceptuje"), zgoda nigdzie nie była zapisywana (zero dowodu), brak dokumentu MHMDA (stan Waszyngton, bez progów, private right of action). Decyzje usera: marketing z opt-in, arbitraż US z 30-dniowym opt-out, wszystkie zgody wyciągalne do CSV z datą+godziną+IP, stare /legal/*.html usunięte (buildy <=85 to tylko testy TF).
