@@ -62,7 +62,7 @@ scenariusze sekwencji, dane usera święte).
 - [x] **6. garminDay.** Mirror resolvera w `functions/src/garmin-day.ts`
   (czyta scheduleOverrides), testy w `garmin-day.test.ts` + test parity
   web↔functions na wspólnym fixture (wzorzec cross-platform-contract).
-- [ ] **7. Watch preview + e2e.** Test w `watch-plan-preview.test.tsx`
+- [x] **7. Watch preview + e2e.** Test w `watch-plan-preview.test.tsx`
   (przełożony dzień widoczny w preview). Hak e2e-mock seeduje overrides;
   `e2e:mock` zielone (przy failach NAJPIERW świeży dev server, zasada #9).
 - [ ] **8. Krok marketingowy.** Komponent kroku (nagłówek, korzyści, mock

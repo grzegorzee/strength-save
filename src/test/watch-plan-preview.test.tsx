@@ -28,6 +28,7 @@ vi.mock('@/lib/garmin-api', () => ({
 }));
 
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
+import { resolvePlannedDay } from '@/lib/plan-schedule';
 
 const day: TrainingDay = {
   id: 'day-1',
@@ -82,6 +83,27 @@ describe('useWatchPlanPreview — język w payloadzie (Z164)', () => {
   it('PL: payload podglądu ma lang="pl"', async () => {
     const payload = await runPreview('pl');
     expect(payload.lang).toBe('pl');
+  });
+
+  it('przełożony dzień (scheduleOverrides) jedzie w preview pod NOWĄ datą', async () => {
+    // Dashboard liczy dzień przez resolver z overrides i przekazuje go tutaj —
+    // preview na dacie normalnie wolnej (wtorek 2026-07-28) niesie przełożony dzień.
+    const overrides = { '2026-07-27': null, '2026-07-28': 'day-1' };
+    const resolved = resolvePlannedDay('2026-07-28', [day], overrides);
+    expect(resolved?.id).toBe('day-1');
+
+    localStorage.setItem('app-language', 'pl');
+    renderHook(
+      () => useWatchPlanPreview({ uid: 'u1', type: 'training', day: resolved!, dateStr: '2026-07-28', workouts: [] }),
+      { wrapper },
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    vi.useRealTimers();
+    await waitFor(() => expect(sendWorkoutToWatch).toHaveBeenCalled());
+    const payload = sendWorkoutToWatch.mock.calls.at(-1)?.[0] ?? {};
+    expect(payload).toMatchObject({ type: 'todayWorkout', dayId: 'day-1', date: '2026-07-28' });
+    // Dzień źródłowy (poniedziałek) zwolniony: resolver nie daje treningu.
+    expect(resolvePlannedDay('2026-07-27', [day], overrides)).toBeNull();
   });
 
   it('server revoke overrides inherited PRO without deleting Watch data', async () => {
