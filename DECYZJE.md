@@ -5,11 +5,19 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-11 (pakiet prawny v2: dokumenty 2.0 + consent engine z logiem IP + eksport CSV)
+**Ostatnia aktualizacja:** 2026-08-11 (build 90: sekcja Subskrypcja w Profilu + startedAt z webhooka RC)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-11: Build 90 — sekcja "Subskrypcja" w Profilu + startedAt z webhooka RC (wdrożone: functions + web + iOS)
+
+**Feature (zgłoszenie usera):** "od kiedy do kiedy mam premium" widoczne w apce. Spec: `docs/superpowers/specs/2026-08-11-subscription-section-design.md`.
+
+**Zakres:** (1) webhook RC zapisuje `startedAt` z `purchased_at_ms` (początek bieżącego okresu; dokumenty sprzed zmiany dostaną pole przy najbliższym evencie); (2) klient: `startedAt` w `SubscriptionState`/`useSubscription` z fallbackiem `latestPurchaseDate` z CustomerInfo na native; (3) czysty formatter `subscription-summary.ts` (admin/comp/trial/monthly/yearly z odnawia-wygasa-grace/brak) + sekcja w Profilu z "Zarządzaj subskrypcją" (App Store) i "Przejdź na PRO" tylko na platformie paywalla. Weryfikacja builda 86 po drodze: metryki pokazały pierwszą udaną wymianę `ExchangeAppAttestAttestation` 200 w historii projektu (fix App Check potwierdzony na urządzeniu).
+
+**Deploy:** functions `revenuecatWebhook` ✔, web `index-fv6Dq5H5.js` live (zawiera też fix bramki zgód z builda 88) ✔, iOS build 90 TestFlight (obie grupy, Beta App Review APPROVED) ✔. Build 89 pominięty celowo: równoległa sesja wydała 88 (fix bramki zgód), user wyznaczył 90 dla tego feature'u. Następny bump = 91. Testy: 1371/1371 (w tym 8 nowych formattera, 2 webhooka).
 
 ### 2026-08-11: Build 88 — bramka zgód wisiała na spinnerze mimo udanego zapisu (mapper gubił mirror)
 
