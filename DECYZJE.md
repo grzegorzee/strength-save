@@ -11,6 +11,26 @@
 
 ## DECYZJE
 
+### 2026-08-11: X26 sesja 1 — feedback z przeglądu builda 84 WDROŻONY w kodzie (Z231-Z247)
+
+**Źródło:** przegląd usera na iPhone (8 screenshotów + głosowe zgłoszenia) + wymóg Play (URL usuwania konta). Plan: `docs/PLAN-X26-2026-08-11.md`, research planów: `docs/RESEARCH-PLANY-TRENINGOWE-2026-08-11.md`.
+
+**Decyzje:**
+- Onboarding ODMROŻONY (uchyla zamrożenie z X25): "Witaj w Strength Save" zamiast "Iron Zone", checkbox zgód (regulamin+prywatność) blokujący Dalej, pole imienia z zapisem do displayName, `termsAcceptedAt` w mapie onboarding (rules bez zmian).
+- Root cause strzałki wstecz z Podglądu planu: XOR-owy render w Onboarding remountował PlanWizard i `useState` wracał na krok 1; fix przez `resumeStep` (wzorzec `startAtPrecision` z NewPlan). Swipe-back wyłączony w onboardingu.
+- Paywall: "Trener AI" (martwy wpis, stack AI usunięty 2026-07-03) → "Inteligentna progresja"; Strava zdjęta z piedestału ("i integracje"). Ryzyko App Review 2.3 zamknięte.
+- Wylogowanie: dialog potwierdzenia + spinner; cleanup (garmin/watch/push) równolegle `Promise.allSettled` z timeoutem 3 s przed signOut (było 4 sekwencyjne awaity = 3-5 s martwego przycisku).
+- Usuwanie konta: Auth kasowany OD RAZU, dane po 30-dniowej karencji (cron `resumeDeletionOperations`, zapytanie tylko po `purgeAfter` bez composite indexu); mail powiadomienia do operatora (kontakt@gjasionowicz.pl przez Resend, best-effort). Anulowanie w karencji: ręcznie wg instrukcji z maila.
+- Język: domyślnie EN, polski TYLKO dla polskiego locale; zapisany wybór usera wygrywa.
+- Reset onboardingu z powrotem dla każdego usera (osobna karta w Ustawieniach; od Z90.4 był za isAdmin).
+- 12 nowych gotowych planów (24 łącznie): Nippard minimalist, BWS full body, GZCLP, kalistenika RR, Strong Curves, PHUL, 5/3/1 BBB, RP mezocykl, PHAT, UL+PPL hybrid, nSuns, Arnold Split. 100% ćwiczeń z istniejącej biblioteki.
+- Strona usuwania konta: NA ŻYCZENIE USERA bez statycznego HTML — istniejąca strona React `https://strengthsave.app/delete-account` (copy o karencji 30 dni) + redirect 308 z `/legal/delete-account.html` (repo landing, commit 4d504e9). Ten URL wpisać w Play Console.
+- Z245 (kadr modala animacji 4:3) był już naprawiony w HEAD — bez zmian.
+
+**Weryfikacja:** vitest app 1343 PASS (165 plików), functions 198 PASS, typecheck+lint czyste; commity 4d3a96c8, da608657, 05def0f3, 08ef1f18, 5aa0fd45.
+
+**Ogony (sesja 2, prompt: `docs/PROMPT-X26-KONTYNUACJA.md`):** e2e mock + build + dist-smoke, deploy web/functions/landing, iOS build 85 + TestFlight (obie grupy), weryfikacje URL, aktualizacja stanu animacji (137/243). Otwarte decyzje usera: A1 strzałka na paywallu (rekomendacja: zostawić), A2 web billing (później), A3 cennik roczny 99,99 (dziś, user akceptował) vs 119,99 zł (decyzja X25, zmiana ASC planowana od 2026-08-12). Polityka prywatności na landingu nadal wspomina "Trenera AI" — do poprawy przy aktualizacji legali.
+
 ### 2026-08-10: aplikacja webowa pod https://app.strengthsave.app/ (custom domain zamiast github.io)
 
 **Decyzja:** Web apka serwowana z app.strengthsave.app (GitHub Pages custom domain). Landing (strengthsave.app, Vercel) linkuje do niej tylko z /download, a strona główna promuje wyłącznie mobilki (bez web apki w hero, testflightNote i FAQ).
