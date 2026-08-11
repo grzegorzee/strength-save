@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
+import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
@@ -374,14 +375,14 @@ const Profile = () => {
           <p className="text-xs text-muted-foreground">{t('profile.about.version', { version: __APP_VERSION__ })}</p>
           <div className="flex gap-4 text-sm">
             <a
-              href={`https://strengthsave.app/legal/terms${lang === 'pl' ? '-pl' : ''}.html`}
+              href={TERMS_URL}
               target="_blank" rel="noopener noreferrer"
               className="underline underline-offset-2 text-fitness-cyan"
             >
               {t('paywall.terms')}
             </a>
             <a
-              href={`https://strengthsave.app/legal/privacy${lang === 'pl' ? '-pl' : ''}.html`}
+              href={PRIVACY_URL}
               target="_blank" rel="noopener noreferrer"
               className="underline underline-offset-2 text-fitness-cyan"
             >

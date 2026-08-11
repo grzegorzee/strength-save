@@ -8,6 +8,7 @@ import { PlanBuilder } from '@/components/PlanBuilder';
 import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
+import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, planDaysMismatch, WEEKDAYS } from '@/lib/plan-cycle-utils';
 
 // 'elite' usunięte (Z72): mapowało się na advanced — iluzoryczny wybór. Legacy wartości
@@ -254,9 +255,9 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     </button>
                     <p className="text-[13px] leading-snug">
                       {t('ob.welcome.legalPrefix')}{' '}
-                      <a href={`https://strengthsave.app/legal/terms${lang === 'pl' ? '-pl' : ''}.html`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-fitness-cyan">{t('ob.welcome.legalTerms')}</a>{' '}
+                      <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-fitness-cyan">{t('ob.welcome.legalTerms')}</a>{' '}
                       {t('ob.welcome.legalAnd')}{' '}
-                      <a href={`https://strengthsave.app/legal/privacy${lang === 'pl' ? '-pl' : ''}.html`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-fitness-cyan">{t('ob.welcome.legalPrivacy')}</a>.
+                      <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-fitness-cyan">{t('ob.welcome.legalPrivacy')}</a>.
                     </p>
                   </div>
                 </div>

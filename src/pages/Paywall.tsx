@@ -20,6 +20,7 @@ import {
 } from '@/lib/purchases';
 import { useToast } from '@/hooks/use-toast';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 
 // Paywall PRO. Wymogi App Review 3.1.2: widoczna cena i okres, długość trialu,
 // informacja o automatycznym odnowieniu, restore purchases, linki do Terms i Privacy.
@@ -30,7 +31,6 @@ import { trackTelemetryEvent } from '@/lib/app-telemetry';
 // potem cennik BEZ strzałki wstecz; jedyna ucieczka to "Wyloguj". Po zakupie/trialu
 // dashboard z confetti (/?welcome=1).
 
-const LEGAL_BASE = 'https://strengthsave.app/legal';
 
 type PlanKey = 'yearly' | 'monthly';
 
@@ -154,7 +154,6 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
   const selectedPkg = selectedOption?.pkg ?? null;
   const selectedTrial = selectedOption?.trial ?? { status: 'unknown' as const, days: null };
   const selectedVariant = trialPresentation(selectedTrial);
-  const legalLang = lang === 'pl' ? '-pl' : '';
   // Z209: oszczędność i cena efektywna/miesiąc z realnych cen sklepu, nie z copy.
   const yearlyValue = yearlyValueSummary(
     options.yearly?.pkg.product ?? null,
@@ -370,10 +369,10 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
               {t('paywall.restore')}
             </button>
           )}
-          <a href={`${LEGAL_BASE}/terms${legalLang}.html`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+          <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
             {t('paywall.terms')}
           </a>
-          <a href={`${LEGAL_BASE}/privacy${legalLang}.html`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+          <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
             {t('paywall.privacy')}
           </a>
         </div>
