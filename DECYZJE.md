@@ -5,11 +5,24 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-10 (X25 rozszerzony na web, iOS, Android, Apple Watch i Garmin; onboarding zamrożony)
+**Ostatnia aktualizacja:** 2026-08-11 (X26 sesja 2: deploye web/functions/landing, iOS 85 BLOCKED na App Attest)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-11: X26 sesja 2 — deployed evidence (web + functions + landing; iOS 85 BLOCKED na App Attest)
+
+**Bramki (wszystkie zielone przed deployami):** vitest 1343 PASS (165 plików), typecheck, lint, e2e:mock 194/194 PASS (1.9 min, po restarcie vite + czyszczeniu node_modules/.vite wg lekcji #9), build, dist-smoke PASS, bundle-budget PASS (initial JS 1 276 965 / 1 536 000 B).
+
+**Deployed evidence:**
+- **Web:** `npm run deploy` (gh-pages) — https://app.strengthsave.app/ serwuje `index-DXkvGdPz.js` (weryfikacja curl; poprzednio index-CDA1eN0R.js). Bundle zawiera Z231-Z246 + Z249 (czyste URL-e legal).
+- **Functions:** `firebase deploy --only functions --project fittracker-workouts` — Deploy complete, wszystkie funkcje zaktualizowane. `functions:list`: `deleteOwnAccount` (v2 callable, secret RESEND_API_KEY zbindowany bez błędu) i `resumeDeletionOperations` (v2 scheduled) ACTIVE. Logi po deployu czyste (scheduler odpala się co godzinę, same rutynowe starty instancji). Weryfikacja Z238 bez dotykania realnych kont. Secret `strava-redirect-uri` NIE zmieniony (decyzja: dopiero razem z Authorization Callback Domain w apce Strava; 301 z github.io nadal działa).
+- **Landing (Vercel prod):** stan Z247+legal-cleanup+Z250 live: /delete-account 200; /legal/{privacy,privacy-pl,terms,terms-pl,delete-account}.html → 308 na /privacy, /terms, /delete-account; /privacy i /terms 200; treść privacy bez wzmianek o AI. INCYDENT: agent 2 (ta sesja) zdeployował landing z 8c62329 (HEAD w momencie startu kroku; deploy przez git worktree, bo working tree miał niezacommitowaną pracę agenta legal), przez co na kilka minut cofnął świeżo zdeployowany Z250 (86b6e2b); wykryte po commicie 49e7ded2 w repo app, natychmiastowy redeploy z 86b6e2b przywrócił stan. Lekcja: przy równoległych sesjach przed deployem porównaj HEAD repo i stan proda, nie polegaj na snapshotcie z początku sesji.
+- **iOS build 85: BLOCKED (krok usera).** CURRENT_PROJECT_VERSION 84 → 85 zbumpowany (6 wystąpień, commit 2d57b0a6, MARKETING_VERSION 1.0.0 bez zmian). `scripts/release-ios.sh` failuje na archive: profil "Strength Save App Store" nie zawiera capability App Attest (`com.apple.developer.devicecheck.appattest-environment`) — dokładnie tak, jak przewidział Z229/X25 (entitlement celowo nieusuwany). Odblokowanie: user w Apple Developer portal włącza App Attest dla App ID `com.grzegorzjasionowicz.strengthsave` i odtwarza profil "Strength Save App Store", potem `scripts/release-ios.sh` + `testflight_external.py 85` (obie grupy + Beta App Review).
+- **Z248 (dokumentacja):** FAZA 7 planu zaktualizowana: 137/243 klipów na CDN (`_cdn/`: 137 mp4 + 137 jpg), kolejka `_STATUS.md`: 131 PASS, 16 FAIL (7 ODŁOŻONE), 96 TODO. Produkcja klipów = osobna sesja z budżetem Higgsfield.
+
+**Otwarte decyzje usera (bez zmian):** A1 strzałka na paywallu (rekomendacja: zostawić), A2 web billing (odłożone), A3 cennik roczny 99,99 vs 119,99 zł (zmiana ASC z X25 planowana od 2026-08-12; w tej sesji ZERO zmian cen). Po odblokowaniu profilu: testy urządzeniowe builda 85. Play Console: URL usuwania konta https://strengthsave.app/delete-account (live). Przy submisji ASC/Play wpisać czyste URL-e https://strengthsave.app/privacy i /terms.
 
 ### 2026-08-11: X26 sesja 1 — feedback z przeglądu builda 84 WDROŻONY w kodzie (Z231-Z247)
 
