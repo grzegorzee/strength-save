@@ -28,6 +28,7 @@ export interface PlanWizardChoice {
   objective: PlanObjective;
   daysPerWeek: number;
   templateId?: string;      // undefined = plan własny (PlanBuilder)
+  name?: string;            // imię z kroku Welcome (tylko onboarding, askName)
 }
 
 const DEFAULT_DAYS: Record<number, Weekday[]> = {
@@ -130,9 +131,16 @@ interface PlanWizardProps {
   socialProof?: boolean;
   /** Dyskretna zapowiedź trialu na ekranie Welcome (tylko onboarding na iOS — nie replan, nie web). */
   trialNotice?: boolean;
+  /** Checkbox akceptacji regulaminu/prywatności na Welcome; blokuje Dalej (tylko onboarding). */
+  legalConsent?: boolean;
+  /** Pole imienia na Welcome (tylko onboarding); wynik trafia do PlanWizardChoice.name. */
+  askName?: boolean;
+  initialName?: string;
   initial?: { level?: WizardLevel; objective?: PlanObjective; daysPerWeek?: number };
   /** Poprzedni wybór (powrót z preview) — przywraca selekcje, datę startu i własny plan zamiast zaczynać od zera. */
   resume?: PlanWizardChoice | null;
+  /** Krok startowy przy powrocie z podglądu (Z232) — bez tego remount wizarda cofa na krok 1. */
+  resumeStep?: number;
   /** Klucz localStorage dla szkicu PlanBuildera (tryb "własny plan"). */
   builderDraftKey?: string;
   startAtPrecision?: boolean;
@@ -143,13 +151,13 @@ interface PlanWizardProps {
   onExitBack?: () => void;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, resume, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, askName, initialName, initial, resume, resumeStep, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
 
   const initialDays = resume?.daysPerWeek ?? initial?.daysPerWeek ?? 4;
   const resumedCustomPlan = resume && !resume.templateId ? resume : null;
-  const [step, setStep] = useState(showWelcome ? 1 : startAtPrecision ? 5 : 2);
+  const [step, setStep] = useState(resumeStep ?? (showWelcome ? 1 : startAtPrecision ? 5 : 2));
   const [level, setLevel] = useState<WizardLevel>(sanitizeWizardLevel(resume?.level ?? initial?.level) ?? 'beginner');
   const [objective, setObjective] = useState<PlanObjective>(resume?.objective ?? initial?.objective ?? 'build_muscle');
   const [daysPerWeek, setDaysPerWeek] = useState(initialDays);
@@ -162,6 +170,9 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
   const [picked, setPicked] = useState<PlanTemplate | null>(() =>
     resume?.templateId ? planTemplates.find((p) => p.id === resume.templateId) ?? null : null);
   const [reachedViaSteps, setReachedViaSteps] = useState(!startAtPrecision);
+  const [userName, setUserName] = useState(resume?.name ?? initialName ?? '');
+  // Powrót z podglądu (resume) = zgoda była już zaznaczona przy pierwszym przejściu kroku 1.
+  const [legalAccepted, setLegalAccepted] = useState(Boolean(resume));
 
   const recommended = useMemo(() => getRecommendedPlan(objective, level, daysPerWeek), [objective, level, daysPerWeek]);
   const chosen = picked ?? recommended;
@@ -172,7 +183,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
 
   const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string) =>
-    onConfirm({ days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId });
+    onConfirm({ days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId, name: userName.trim() || undefined });
 
   const confirmTemplate = () => fire(applyWeekdaysToPlanDays(chosen.days, trainingDays), chosen.durationWeeks, chosen.id);
 
@@ -200,7 +211,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
         {step === 1 && (
           <>
             <StepHeader step={1} total={5} onBack={onExitBack} />
-            <div className="flex-1 flex flex-col justify-center py-10">
+            <div className="flex-1 flex flex-col justify-center py-6">
               <h1 className="font-heading font-bold text-5xl leading-[1.05] tracking-tight">
                 {t('ob.welcome.title1')}<br />
                 <span className="text-primary">{t('ob.welcome.title2')}</span>
@@ -209,8 +220,49 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
               {trialNotice && (
                 <p className="mt-4 text-[13px] text-fitness-cyan">{t('ob.welcome.trialNotice')}</p>
               )}
+              {askName && (
+                <div className="mt-7">
+                  <label htmlFor="ob-name" className="block text-xs font-medium uppercase tracking-widest text-muted-foreground mb-2">{t('ob.welcome.nameQ')}</label>
+                  <input
+                    id="ob-name"
+                    data-testid="ob-name-input"
+                    type="text"
+                    value={userName}
+                    maxLength={60}
+                    onChange={e => setUserName(e.target.value)}
+                    placeholder={t('ob.welcome.namePlaceholder')}
+                    className="w-full rounded-2xl bg-surface-low px-4 py-3.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              )}
+              {legalConsent && (
+                <div className="mt-5">
+                  <p className="text-[13px] text-muted-foreground">{t('ob.welcome.legalIntro')}</p>
+                  <div className="mt-2 flex items-start gap-3 rounded-2xl bg-surface-low p-4">
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={legalAccepted}
+                      data-testid="ob-legal-accept"
+                      onClick={() => setLegalAccepted(v => !v)}
+                      className={cn(
+                        'mt-0.5 h-6 w-6 shrink-0 rounded-md flex items-center justify-center transition-colors',
+                        legalAccepted ? 'bg-primary text-primary-foreground' : 'border-2 border-surface-highest',
+                      )}
+                    >
+                      {legalAccepted && <Check className="h-4 w-4" />}
+                    </button>
+                    <p className="text-[13px] leading-snug">
+                      {t('ob.welcome.legalPrefix')}{' '}
+                      <a href={`https://strengthsave.app/legal/terms${lang === 'pl' ? '-pl' : ''}.html`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-fitness-cyan">{t('ob.welcome.legalTerms')}</a>{' '}
+                      {t('ob.welcome.legalAnd')}{' '}
+                      <a href={`https://strengthsave.app/legal/privacy${lang === 'pl' ? '-pl' : ''}.html`} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-fitness-cyan">{t('ob.welcome.legalPrivacy')}</a>.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-            <PrimaryButton onClick={() => setStep(2)}>{t('ob.next')} <ArrowRight className="h-4 w-4" /></PrimaryButton>
+            <PrimaryButton onClick={() => setStep(2)} disabled={legalConsent && !legalAccepted}>{t('ob.next')} <ArrowRight className="h-4 w-4" /></PrimaryButton>
             {socialProof && <p className="text-center text-[11px] font-medium tracking-widest uppercase text-muted-foreground mt-4">{t('ob.social')}</p>}
           </>
         )}
@@ -263,9 +315,10 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
             <div className="flex-1 space-y-4">
               <div className="rounded-2xl bg-surface-low p-4">
                 <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">{t('ob.protocol.daysQ')}</p>
-                <div className="flex gap-2">
+                {/* Z233: te same kółka co wybór dni tygodnia niżej — jedna geometria kontrolek. */}
+                <div className="flex justify-between gap-1.5">
                   {[2, 3, 4, 5, 6].map(n => (
-                    <button key={n} onClick={() => setDays(n)} className={cn('flex-1 h-11 rounded-xl font-heading font-bold transition-colors', daysPerWeek === n ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}>{n}</button>
+                    <button key={n} onClick={() => setDays(n)} className={cn('h-11 w-11 rounded-full font-heading font-bold transition-colors', daysPerWeek === n ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}>{n}</button>
                   ))}
                 </div>
               </div>
@@ -294,17 +347,18 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
                     const ds = formatLocalDate(d);
                     const on = ds === startDate;
                     return (
-                      <button key={ds} onClick={() => setStartDate(ds)} className={cn('shrink-0 w-16 rounded-xl py-2 flex flex-col items-center transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}>
+                      <button key={ds} onClick={() => setStartDate(ds)} className={cn('shrink-0 w-16 rounded-full py-2 flex flex-col items-center transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}>
                         <span className="text-[10px] font-medium uppercase">{i === 0 ? t('ob.today') : d.toLocaleDateString(dateLocale(lang), { month: 'short' })}</span>
                         <span className="font-heading font-bold text-lg leading-none mt-0.5">{d.getDate()}</span>
                       </button>
                     );
                   })}
                 </div>
-                <label className="mt-3 flex items-center gap-2 text-[12px] text-muted-foreground cursor-pointer">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>{t('ob.protocol.specificDate')}</span>
-                  <input type="date" value={startDate} min={formatLocalDate(new Date())} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-foreground outline-none" />
+                {/* Z233: kalendarz jako pełnowymiarowa kontrolka, nie podpis — natywny date picker po tapnięciu. */}
+                <label className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-surface-highest px-4 py-3 cursor-pointer">
+                  <Calendar className="h-4 w-4 text-fitness-cyan shrink-0" />
+                  <span className="flex-1 text-[13px] font-medium">{t('ob.protocol.specificDate')}</span>
+                  <input type="date" value={startDate} min={formatLocalDate(new Date())} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-foreground outline-none text-right font-medium" />
                 </label>
                 <p className="text-[11px] text-muted-foreground mt-2">
                   {t('ob.protocol.startPreview', {
@@ -321,43 +375,46 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
         {step === 5 && mode === 'recommend' && (
           <>
             <StepHeader step={5} total={5} onBack={() => (reachedViaSteps ? setStep(4) : onExitBack?.())} />
-            <div className="mt-7 mb-5">
-              <p className="text-xs font-medium uppercase tracking-widest text-primary mb-2">{t('ob.precision.kicker')}</p>
-              <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">{t('ob.precision.title')}</h1>
-              <p className="text-muted-foreground mt-2">{picked ? t('ob.precision.chosen') : t('ob.precision.recommended', { name: localizePlanName(chosen.id, chosen.name, lang) })}</p>
+            {/* Z234: kompaktowy układ — CTA "Podgląd planu" ma się mieścić bez scrolla na iPhone. */}
+            <div className="mt-5 mb-4">
+              <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1.5">{t('ob.precision.kicker')}</p>
+              <h1 className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.precision.title')}</h1>
+              <p className="text-muted-foreground text-[14px] mt-1.5">{picked ? t('ob.precision.chosen') : t('ob.precision.recommended', { name: localizePlanName(chosen.id, chosen.name, lang) })}</p>
               {startAtPrecision && (
-                <button onClick={() => setStep(2)} className="mt-3 inline-flex items-center gap-1.5 text-[13px] text-fitness-cyan font-medium">
+                <button onClick={() => setStep(2)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-fitness-cyan font-medium">
                   <SlidersHorizontal className="h-3.5 w-3.5" />{t('ob.precision.change')}
                 </button>
               )}
             </div>
-            <div className="flex-1 space-y-3">
-              <div className="rounded-2xl bg-surface-low p-5">
-                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</p>
-                <h2 className="font-heading font-bold text-2xl text-primary mt-1 leading-tight">{localizePlanName(chosen.id, chosen.name, lang)}</h2>
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {OBJECTIVE_TAGS[chosen.objective].map(tag => (
-                    <span key={tag} className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-surface-highest text-muted-foreground">{t(tag)}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-surface-low p-4">
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
-                  <p className="font-heading font-bold text-2xl mt-1"><span className="text-fitness-cyan">{chosen.durationWeeks}</span> <span className="text-sm text-muted-foreground font-sans font-medium">{t('ob.precision.weeks')}</span></p>
-                </div>
-                <div className="rounded-2xl bg-surface-low p-4">
-                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.frequency')}</p>
-                  <p className="font-heading font-bold text-2xl mt-1"><span className="text-primary">{chosen.daysPerWeek}</span> <span className="text-sm text-muted-foreground font-sans font-medium">{t('ob.precision.daysWk')}</span></p>
-                </div>
-              </div>
+            <div className="flex-1 space-y-2.5">
               <div className="rounded-2xl bg-surface-low p-4">
-                <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.volume')}</p>
-                <p className="font-heading font-bold text-2xl mt-1">{Math.round(toDisplay(estimateMonthlyVolume(chosen))).toLocaleString(dateLocale(lang))} <span className="text-sm text-muted-foreground font-sans font-medium">{t('ob.precision.kgMonth', { unit })}</span></p>
+                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</p>
+                <div className="flex items-center justify-between gap-2 mt-0.5">
+                  <h2 className="font-heading font-bold text-xl text-primary leading-tight">{localizePlanName(chosen.id, chosen.name, lang)}</h2>
+                  <div className="flex flex-wrap gap-1.5 justify-end">
+                    {OBJECTIVE_TAGS[chosen.objective].map(tag => (
+                      <span key={tag} className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-surface-highest text-muted-foreground">{t(tag)}</span>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="rounded-2xl bg-surface-low p-4 space-y-1.5">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-2xl bg-surface-low p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
+                  <p className="font-heading font-bold text-lg mt-0.5"><span className="text-fitness-cyan">{chosen.durationWeeks}</span> <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.weeks')}</span></p>
+                </div>
+                <div className="rounded-2xl bg-surface-low p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.frequency')}</p>
+                  <p className="font-heading font-bold text-lg mt-0.5"><span className="text-primary">{chosen.daysPerWeek}</span> <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.daysWk')}</span></p>
+                </div>
+                <div className="rounded-2xl bg-surface-low p-3">
+                  <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.volume')}</p>
+                  <p className="font-heading font-bold text-lg mt-0.5">{Math.round(toDisplay(estimateMonthlyVolume(chosen))).toLocaleString(dateLocale(lang))} <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.kgMonth', { unit })}</span></p>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-surface-low p-3 space-y-1">
                 {chosen.days.map((d, i) => (
-                  <div key={d.id} className="text-[13px] flex gap-2">
+                  <div key={d.id} className="text-[12px] flex gap-2">
                     <span className="text-fitness-cyan font-bold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
                     <span className="text-muted-foreground">{localizeFocus(d.focus, lang)} · {d.exercises.length} {t('ob.precision.exercises')}</span>
                   </div>
@@ -373,11 +430,11 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, initial, res
                 ) : null;
               })()}
               <div className="flex gap-2">
-                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-3 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-fitness-cyan" />{t('ob.precision.browse')}</button>
-                <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-3 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-fitness-cyan" />{t('ob.precision.own')}</button>
+                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-fitness-cyan" />{t('ob.precision.browse')}</button>
+                <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-fitness-cyan" />{t('ob.precision.own')}</button>
               </div>
             </div>
-            <div className="pt-5">
+            <div className="pt-4">
               <PrimaryButton onClick={confirmTemplate} disabled={isSaving}>
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 {t(confirmLabelKey)}

@@ -171,7 +171,8 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
     <HashRouter>
       <AuthenticatedRouteRedirect isNewUser={isNewUser} />
       <ProductTelemetry />
-      <IosSwipeBack />
+      {/* Z232: gest krawędziowy w onboardingu wyrzucałby z kreatora (kroki nie są trasami) i kasował wybory. */}
+      {!isNewUser && <IosSwipeBack />}
       {!isNewUser && <WatchEventRouter />}
       {!isNewUser && <ActiveWorkoutResume />}
       <ErrorBoundary uid={uid} fallback={(reset, error, code) => <RouteCrashFallback onReset={reset} error={error} code={code} />}>

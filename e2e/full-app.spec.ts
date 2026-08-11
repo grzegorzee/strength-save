@@ -80,7 +80,7 @@ test.describe('Page Load Smoke Tests', () => {
 
   test('New Plan (/new-plan) loads', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await expect(page.getByRole('heading', { name: /Witaj w Iron Zone|Twój precyzyjny protokół/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Witaj w Strength Save|Twój spersonalizowany plan treningowy/ })).toBeVisible();
   });
 
   test('404 page for unknown route', async ({ page }) => {
@@ -458,6 +458,9 @@ test.describe('Onboarding z podglądem (Z73)', () => {
 
   test('wybór planu w onboardingu pokazuje podgląd PRZED zapisem, swap działa', async ({ page }) => {
     await navigateAndWait(page, '/');
+    // Z231: krok 1 wymaga akceptacji regulaminu i polityki prywatności.
+    await expect(page.getByRole('button', { name: 'Dalej', exact: true })).toBeDisabled();
+    await page.getByTestId('ob-legal-accept').click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
     await page.getByRole('button', { name: 'Następny krok' }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();

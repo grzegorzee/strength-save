@@ -77,7 +77,7 @@ test.describe('Auth and registration flows', () => {
     await setE2EAuthScenario(page, 'new-invited-user', { displayName: 'Invite Tester' });
     await navigateAndWait(page, '/');
 
-    await expect(page.getByRole('heading', { name: 'Witaj w Iron Zone' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Witaj w Strength Save' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Dalej' })).toBeVisible();
   });
 

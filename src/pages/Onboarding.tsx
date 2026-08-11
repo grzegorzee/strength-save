@@ -17,7 +17,7 @@ import type { TrainingDay } from '@/data/trainingPlan';
 const Onboarding = () => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
   const { savePlan } = useTrainingPlan(uid);
   const { createActiveCycle } = usePlanCycles(uid);
   const [isSaving, setIsSaving] = useState(false);
@@ -45,8 +45,10 @@ const Onboarding = () => {
       createActiveCycle,
       markOnboardingComplete: async () => updateDoc(doc(db, 'users', uid), {
         onboardingCompleted: true,
-        onboarding: { state: 'completed', version: 2 },
+        // termsAcceptedAt: zgoda z kroku Welcome (checkbox blokuje Dalej, więc tu zawsze zaznaczona).
+        onboarding: { state: 'completed', version: 2, termsAcceptedAt: new Date().toISOString() },
         trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
+        ...(confirmed.name && confirmed.name !== profile?.displayName ? { displayName: confirmed.name } : {}),
       }),
     });
     if (!result.success) {
@@ -84,7 +86,11 @@ const Onboarding = () => {
       showWelcome
       socialProof
       trialNotice={requiresPaywall}
+      legalConsent
+      askName
+      initialName={(profile?.displayName ?? '').split(' ')[0] || ''}
       resume={choice ?? undefined}
+      resumeStep={choice ? 5 : undefined}
       builderDraftKey={`ss-plan-builder-draft_${uid}`}
       confirmLabelKey="newplan.toReview"
       onConfirm={handleWizardConfirm}
