@@ -75,6 +75,21 @@ const Profile = () => {
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
   const deleteConfirmWord = lang === 'pl' ? 'USUŃ' : 'DELETE';
+  // Z237: wylogowanie z potwierdzeniem i widocznym stanem — bez tego przycisk
+  // wyglądał na martwy przez czas cleanupu urządzeń.
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+      setLogoutConfirmOpen(false);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     setDeletingAccount(true);
@@ -275,18 +290,38 @@ const Profile = () => {
       <SectionCard label={t('profile.section.support')}>
         {isAdmin && <SettingRow icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
         <SettingRow icon={SlidersHorizontal} label={t('profile.support.advanced')} onClick={() => navigate('/settings')} />
-        <SettingRow icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://app.strengthsave.app/', '_blank')} />
+        {/* Z241: help prowadził do samej apki (app.strengthsave.app) — teraz landing z FAQ. */}
+        <SettingRow icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://strengthsave.app/', '_blank')} />
         <SettingRow icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:kontakt@gjasionowicz.pl'; }} />
-        <SettingRow icon={Info} label={t('profile.support.about')} onClick={() => toast({ title: t('profile.about.title'), description: t('profile.about.desc') })} />
+        <SettingRow icon={Info} label={t('profile.support.about')} onClick={() => setAboutOpen(true)} />
       </SectionCard>
 
       <Button
         variant="outline"
-        onClick={logout}
+        onClick={() => setLogoutConfirmOpen(true)}
         className="h-12 w-full rounded-xl border-destructive/30 bg-destructive/5 font-bold uppercase tracking-[0.12em] text-destructive hover:bg-destructive/10"
       >
         <LogOut className="mr-2 h-4 w-4" /> {t('profile.logout')}
       </Button>
+
+      {/* Logout confirm dialog (Z237) */}
+      <Dialog open={logoutConfirmOpen} onOpenChange={(open) => { if (!loggingOut) setLogoutConfirmOpen(open); }}>
+        <DialogContent className="rounded-xl border-0 bg-surface-low">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase">{t('profile.logoutConfirm.title')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('profile.logoutConfirm.desc')}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setLogoutConfirmOpen(false)} disabled={loggingOut}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="destructive" onClick={handleLogout} disabled={loggingOut} data-testid="logout-confirm">
+              {loggingOut ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LogOut className="mr-2 h-4 w-4" />}
+              {t('profile.logout')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <button
         onClick={() => { setDeleteConfirmInput(''); setDeleteAccountOpen(true); }}
@@ -326,6 +361,33 @@ const Profile = () => {
               {t('profile.deleteAccount.confirm')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* About dialog (Z241): wersja + linki prawne zamiast znikającego toastu */}
+      <Dialog open={aboutOpen} onOpenChange={setAboutOpen}>
+        <DialogContent className="rounded-xl border-0 bg-surface-low">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase">{t('profile.about.title')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('profile.about.desc')}</p>
+          <p className="text-xs text-muted-foreground">{t('profile.about.version', { version: __APP_VERSION__ })}</p>
+          <div className="flex gap-4 text-sm">
+            <a
+              href={`https://strengthsave.app/legal/terms${lang === 'pl' ? '-pl' : ''}.html`}
+              target="_blank" rel="noopener noreferrer"
+              className="underline underline-offset-2 text-fitness-cyan"
+            >
+              {t('paywall.terms')}
+            </a>
+            <a
+              href={`https://strengthsave.app/legal/privacy${lang === 'pl' ? '-pl' : ''}.html`}
+              target="_blank" rel="noopener noreferrer"
+              className="underline underline-offset-2 text-fitness-cyan"
+            >
+              {t('paywall.privacy')}
+            </a>
+          </div>
         </DialogContent>
       </Dialog>
 

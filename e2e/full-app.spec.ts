@@ -163,6 +163,8 @@ test.describe('Dashboard Features', () => {
     await expectPageRendered(page);
     await expect(page.getByText('Backup i przywracanie')).toBeVisible();
     await expect(page.getByText('Narzędzia naprawcze')).toHaveCount(0);
+    // Z242: reset onboardingu jest dostępny dla każdego usera (poza akordeonem admina).
+    await expect(page.getByText('Reset planu')).toBeVisible();
 
     await setE2EAuthScenario(page, 'active-admin');
     // Zmiana samego hasha nie przeładowuje dokumentu — reload wykonuje initScript admina.

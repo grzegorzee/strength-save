@@ -254,28 +254,39 @@ const Settings = () => {
                 disabled={!workoutsLoaded}
               />
 
-              <div>
-                <p className="text-sm font-medium mb-1">{t('settings.resetPlan.title')}</p>
-                <p className="text-xs text-muted-foreground mb-2">{t('settings.resetPlan.description')}</p>
-                <Button
-                  variant="outline"
-                  className="w-full border-fitness-warning text-fitness-warning hover:bg-fitness-warning/10"
-                  onClick={() => setResetConfirmOpen(true)}
-                  disabled={isResettingOnboarding}
-                >
-                  {isResettingOnboarding ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                  )}
-                  {t('settings.resetPlan.button')}
-                </Button>
-              </div>
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
       </Card>
       )}
+
+      {/* Z242: reset onboardingu z powrotem dla KAŻDEGO usera — Z90.4 schował go
+          za isAdmin razem z narzędziami naprawczymi, a to jedyna ścieżka
+          przejścia kreatora od nowa. Pozostałe naprawy zostają admin-only. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <RotateCcw className="h-5 w-5 text-primary" />
+            {t('settings.resetPlan.title')}
+          </CardTitle>
+          <CardDescription>{t('settings.resetPlan.description')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            className="w-full border-fitness-warning text-fitness-warning hover:bg-fitness-warning/10"
+            onClick={() => setResetConfirmOpen(true)}
+            disabled={isResettingOnboarding}
+          >
+            {isResettingOnboarding ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4 mr-2" />
+            )}
+            {t('settings.resetPlan.button')}
+          </Button>
+        </CardContent>
+      </Card>
 
       <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <AlertDialogContent>

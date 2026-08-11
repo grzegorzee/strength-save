@@ -12,7 +12,10 @@ export const LANGUAGES = [
 export type LanguageCode = (typeof LANGUAGES)[number]['code'];
 export type TranslationKey = keyof typeof pl;
 
-export const DEFAULT_LANGUAGE: LanguageCode = 'pl';
+// Z239: domyślnie angielski dla całego świata; polski dostaje tylko urządzenie
+// z polskim locale (detectLanguage). Zapisany wybór usera (localStorage/chmura)
+// zawsze wygrywa nad detekcją.
+export const DEFAULT_LANGUAGE: LanguageCode = 'en';
 
 export const locales: Record<LanguageCode, Record<TranslationKey, string>> = { pl, en };
 

@@ -155,3 +155,24 @@ export function adminMessageEmailHtml(body: string): string {
     <p style="margin-top:24px;font-size:12px;color:#888">Strength Save</p>
   </div>`;
 }
+
+// ── Powiadomienie operatora o samodzielnym usunięciu konta (Z238) ─────────────
+// Mail wewnętrzny (do operatora aplikacji), więc tylko PL.
+export function selfDeletionNoticeSubject(email: string): string {
+  return `Strength Save: użytkownik ${email} usunął konto`;
+}
+
+export function selfDeletionNoticeHtml(email: string, uid: string, purgeAfterIso: string): string {
+  const e = esc(email);
+  const u = esc(uid);
+  const date = esc(purgeAfterIso.slice(0, 10));
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#111">
+    <p style="font-weight:700;font-size:18px;color:#0e0e0e;margin:0 0 16px">Strength Save</p>
+    <div style="font-size:15px;line-height:1.6">
+      <p>Użytkownik <strong>${e}</strong> (uid: <code>${u}</code>) usunął swoje konto.</p>
+      <p>Logowanie zostało zablokowane od razu. Dane zostaną trwale wymazane po 30 dniach karencji: <strong>${date}</strong> (cron resumeDeletionOperations).</p>
+      <p>Aby anulować usunięcie przed tą datą: usuń dokument <code>deletion_operations/${u}</code>, usuń pole <code>deletionPending</code> z <code>users/${u}</code> i utwórz ponownie konto Auth z tym samym uid (Admin SDK importUsers) albo skontaktuj się z użytkownikiem w sprawie nowego konta.</p>
+    </div>
+    <p style="margin-top:24px;font-size:12px;color:#888">Strength Save</p>
+  </div>`;
+}

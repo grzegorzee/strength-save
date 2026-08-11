@@ -169,9 +169,15 @@ export const useAuth = () => {
     try {
       // Independent watch access must be revoked before Firebase auth disappears.
       // deleteOwnAccount already purged these docs, so it can skip the second callable.
-      if (!devicesAlreadyRevoked) await revokeAllGarminDevices();
-      await disableAppleWatchAccess();
-      await unregisterPushForUser();
+      // Z237: cleanup równolegle z twardym timeoutem — dwa zimne callable wykonywane
+      // sekwencyjnie trzymały UI 3-5 s bez feedbacku; signOut nie może na nich wisieć
+      // w nieskończoność.
+      const cleanup = Promise.allSettled([
+        devicesAlreadyRevoked ? Promise.resolve() : revokeAllGarminDevices(),
+        disableAppleWatchAccess(),
+        unregisterPushForUser(),
+      ]);
+      await Promise.race([cleanup, new Promise((resolve) => setTimeout(resolve, 3000))]);
       await signOut(auth);
     } catch (err) {
       console.error('Logout error:', err instanceof Error ? err.message : err);

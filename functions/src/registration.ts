@@ -15,6 +15,8 @@ import {
   inviteEmailHtml,
   accessChangedEmailHtml,
   adminMessageEmailHtml,
+  selfDeletionNoticeSubject,
+  selfDeletionNoticeHtml,
 } from "./email-templates";
 import {
   ADMIN_DELETE_BATCH_SIZE,
@@ -1216,6 +1218,11 @@ async function purgeUserData(uid: string, deps: DeletionOperationDeps = {}): Pro
   return deletedCounts;
 }
 
+const errorCodeOf = (error: unknown): string =>
+  typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code)
+    : "";
+
 export async function processDeletionOperation(uid: string, deps: DeletionOperationDeps = {}): Promise<Record<string, number>> {
   const db = getDb();
   const operationRef = db.collection(DELETION_OPERATIONS_COLLECTION).doc(uid);
@@ -1225,19 +1232,16 @@ export async function processDeletionOperation(uid: string, deps: DeletionOperat
   try {
     const deletedCounts = await purgeUserData(uid, deps);
 
-    await admin.auth().deleteUser(uid);
+    // Z238: przy usuwaniu po karencji konto Auth jest już skasowane — to nie błąd.
+    try {
+      await admin.auth().deleteUser(uid);
+    } catch (error) {
+      if (errorCodeOf(error) !== "auth/user-not-found") throw error;
+    }
     await db.collection(USERS_COLLECTION).doc(uid).delete();
     await operationRef.set({ state: "completed", completedAt: nowIso(), updatedAt: nowIso(), deletedCounts }, { merge: true });
     return deletedCounts;
   } catch (error) {
-    const code = typeof error === "object" && error !== null && "code" in error
-      ? String((error as { code?: unknown }).code)
-      : "";
-    if (code === "auth/user-not-found") {
-      await db.collection(USERS_COLLECTION).doc(uid).delete();
-      await operationRef.set({ state: "completed", completedAt: nowIso(), updatedAt: nowIso() }, { merge: true });
-      return {};
-    }
     await operationRef.set({
       state: "failed",
       updatedAt: nowIso(),
@@ -1260,6 +1264,49 @@ export async function requestDeletionOperation(uid: string, requestedBy: string,
   }, { merge: true });
   await getDb().collection(USERS_COLLECTION).doc(uid).set({ deletionPending: { requestedAt: timestamp, requestedBy } }, { merge: true });
   return processDeletionOperation(uid, deps);
+}
+
+// ── Z238: samodzielne usunięcie konta z 30-dniową karencją ────────────────────
+// Konto Auth znika OD RAZU (logowanie zablokowane, email zwolniony), ale purge
+// danych odkłada się o SELF_DELETE_GRACE_DAYS — okno na przywrócenie po pomyłce.
+// Purge wykonuje cron resumeDeletionOperations, gdy purgeAfter minie.
+export const SELF_DELETE_GRACE_DAYS = 30;
+
+export const computePurgeAfter = (nowMs: number): string =>
+  new Date(nowMs + SELF_DELETE_GRACE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+export const isScheduledDeletionDue = (
+  operation: { state?: unknown; purgeAfter?: unknown },
+  nowIsoString: string,
+): boolean =>
+  operation.state === "scheduled"
+  && typeof operation.purgeAfter === "string"
+  && operation.purgeAfter <= nowIsoString;
+
+export async function scheduleSelfDeletion(uid: string): Promise<string> {
+  const timestamp = nowIso();
+  const purgeAfter = computePurgeAfter(Date.now());
+  // Najpierw zapis operacji (idempotentny), potem kasowanie Auth: gdyby deleteUser
+  // padł, user może ponowić (token ID żyje do wygaśnięcia), a cron i tak nie
+  // wykona purge przed purgeAfter.
+  await getDb().collection(DELETION_OPERATIONS_COLLECTION).doc(uid).set({
+    uid,
+    state: "scheduled",
+    requestedAt: timestamp,
+    requestedBy: uid,
+    updatedAt: timestamp,
+    purgeAfter,
+    attempts: 0,
+  }, { merge: true });
+  await getDb().collection(USERS_COLLECTION).doc(uid).set({
+    deletionPending: { requestedAt: timestamp, requestedBy: uid, purgeAfter },
+  }, { merge: true });
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (error) {
+    if (errorCodeOf(error) !== "auth/user-not-found") throw error;
+  }
+  return purgeAfter;
 }
 
 export const adminDeleteUser = onCall(async (request) => {
@@ -1331,8 +1378,9 @@ export const adminGrantSubscription = onCall(async (request) => {
   return { success: true, subscription: granted };
 });
 
-// Self-service usunięcie własnego konta (wymóg Apple 5.1.1(v)).
-export const deleteOwnAccount = onCall(async (request) => {
+// Self-service usunięcie własnego konta (wymóg Apple 5.1.1(v) + Play account deletion).
+// Z238: konto zamyka się od razu (Auth usunięty), dane po 30-dniowej karencji (cron).
+export const deleteOwnAccount = onCall({ secrets: [resendApiKey] }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   const uid = request.auth.uid;
 
@@ -1340,8 +1388,24 @@ export const deleteOwnAccount = onCall(async (request) => {
   if (profile.data()?.role === "admin") {
     throw new HttpsError("failed-precondition", "Konto admina nie może usunąć samo siebie.");
   }
+  const email = normalizeOptionalString(profile.data()?.email, 200)
+    || normalizeOptionalString(request.auth.token.email, 200)
+    || "(brak adresu)";
 
-  const deletedCounts = await requestDeletionOperation(uid, uid);
+  const purgeAfter = await scheduleSelfDeletion(uid);
+
+  // Powiadomienie operatora — best-effort, nie blokuje usunięcia konta.
+  try {
+    await sendEmail({
+      to: "kontakt@gjasionowicz.pl",
+      subject: selfDeletionNoticeSubject(email),
+      html: selfDeletionNoticeHtml(email, uid, purgeAfter),
+      type: "self_deletion_notice",
+      userId: null,
+    });
+  } catch (error) {
+    console.error("Failed to send self deletion notice", error);
+  }
 
   await writeAuthAuditLog({
     eventType: "user_self_deleted",
@@ -1351,12 +1415,12 @@ export const deleteOwnAccount = onCall(async (request) => {
     createdAt: nowIso(),
     metadata: {
       deletedUidHash: sanitizedIdentifierHash(uid),
-      deletedCounts,
+      purgeAfter,
     },
   }).catch((error) => {
     console.error("Failed to write sanitized self delete audit log", error);
   });
-  return { success: true };
+  return { success: true, purgeAfter };
 });
 
 // Worker uprzywilejowany: kończy operacje przerwane po częściowym purge lub po usunięciu Auth.
@@ -1371,6 +1435,21 @@ export const resumeDeletionOperations = onSchedule("every 60 minutes", async () 
       await processDeletionOperation(operation.id);
     } catch (error) {
       console.error("Deletion operation retry failed", { uidHash: sanitizedIdentifierHash(operation.id), error });
+    }
+  }
+
+  // Z238: purge zaplanowany po karencji. Zapytanie tylko po purgeAfter (pole mają
+  // wyłącznie operacje scheduled — bez composite indexu, lekcja X13); filtr state
+  // w kodzie na wypadek doców przejściowych.
+  const nowIsoString = nowIso();
+  const due = await getDb().collection(DELETION_OPERATIONS_COLLECTION)
+    .where("purgeAfter", "<=", nowIsoString).limit(25).get();
+  for (const operation of due.docs) {
+    if (!isScheduledDeletionDue(operation.data(), nowIsoString)) continue;
+    try {
+      await processDeletionOperation(operation.id);
+    } catch (error) {
+      console.error("Scheduled deletion purge failed", { uidHash: sanitizedIdentifierHash(operation.id), error });
     }
   }
 });

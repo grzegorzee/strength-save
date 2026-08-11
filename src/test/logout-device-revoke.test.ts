@@ -2,18 +2,23 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-describe('logout revokes paired watch access (X25/Z226-Z227)', () => {
-  it('awaits server revoke and disables Watch before push cleanup and Firebase sign-out', () => {
+describe('logout revokes paired watch access (X25/Z226-Z227, Z237)', () => {
+  it('runs revoke, Watch disable and push cleanup in parallel with a timeout, all before Firebase sign-out', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/hooks/useAuth.ts'), 'utf8');
-    const revoke = source.indexOf('await revokeAllGarminDevices()');
-    const watch = source.indexOf('await disableAppleWatchAccess()');
-    const push = source.indexOf('await unregisterPushForUser()');
+    const cleanup = source.indexOf('Promise.allSettled');
+    const revoke = source.indexOf('revokeAllGarminDevices()');
+    const watch = source.indexOf('disableAppleWatchAccess()');
+    const push = source.indexOf('unregisterPushForUser()');
+    const race = source.indexOf('Promise.race');
     const auth = source.indexOf('await signOut(auth)');
-    expect(revoke).toBeGreaterThan(0);
-    expect(watch).toBeGreaterThan(revoke);
-    expect(watch).toBeLessThan(push);
-    expect(revoke).toBeLessThan(push);
-    expect(push).toBeLessThan(auth);
+    // Cleanup musi być równoległy (allSettled), ograniczony czasowo (race z timeoutem)
+    // i w całości PRZED signOut — po zniknięciu auth callable revoke już nie przejdzie.
+    expect(cleanup).toBeGreaterThan(0);
+    expect(revoke).toBeGreaterThan(cleanup);
+    expect(watch).toBeGreaterThan(cleanup);
+    expect(push).toBeGreaterThan(cleanup);
+    expect(race).toBeGreaterThan(cleanup);
+    expect(auth).toBeGreaterThan(race);
   });
 
   it('delete-account flow does not call a revoked-auth callable a second time', () => {
