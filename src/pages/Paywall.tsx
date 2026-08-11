@@ -132,7 +132,9 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
         toast({ title: t('paywall.restored') });
         navigate(successRoute(), { replace: true });
       } else {
-        toast({ title: t('paywall.restoreNone') });
+        // Z236: entitlement jest per konto Strength Save (RC appUserID = uid), więc
+        // brak zakupu na tym Apple ID nie oznacza braku PRO — podpowiadamy logowanie.
+        toast({ title: t('paywall.restoreNone'), description: t('paywall.restoreNoneHint') });
       }
     } catch {
       toast({ title: t('paywall.purchaseError'), variant: 'destructive' });
