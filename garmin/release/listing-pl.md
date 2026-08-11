@@ -27,4 +27,4 @@ Jedno aktywne Strength Save PRO obejmuje web, iOS, Android, Apple Watch i Garmin
 
 ## Prywatność
 
-Zegarek przechowuje lokalnie minimalny, odwoływalny token urządzenia, plan dnia i niewysłane zdarzenia. Nie przechowuje hasła ani tokenu Firebase. Dane treningowe trafiają do konta użytkownika dopiero po trwałym ACK backendu. Polityka prywatności: https://strengthsave.app/legal/privacy.html
+Zegarek przechowuje lokalnie minimalny, odwoływalny token urządzenia, plan dnia i niewysłane zdarzenia. Nie przechowuje hasła ani tokenu Firebase. Dane treningowe trafiają do konta użytkownika dopiero po trwałym ACK backendu. Polityka prywatności: https://strengthsave.app/privacy

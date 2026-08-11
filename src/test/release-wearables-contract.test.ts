@@ -47,7 +47,7 @@ describe('Z229 — release contract Apple Watch and Garmin', () => {
       expect(listing).toContain('Fit');
       expect(listing).toContain('Sensor');
       expect(listing).toContain('UserProfile');
-      expect(listing).toContain('https://strengthsave.app/legal/privacy.html');
+      expect(listing).toContain('https://strengthsave.app/privacy');
     }
     expect(pngSize('garmin/release/store-icon-1024.png')).toEqual({ width: 1024, height: 1024 });
     expect(pngSize('garmin/release/screenshots/fr255-pairing-round.png')).toEqual({ width: 419, height: 629 });

@@ -27,4 +27,4 @@ One active Strength Save PRO entitlement covers web, iOS, Android, Apple Watch, 
 
 ## Privacy
 
-The watch stores only a minimal revocable device token, today's plan, and unsent events locally. It never stores a password or Firebase token. Workout data reaches the user's account only after durable backend acknowledgement. Privacy policy: https://strengthsave.app/legal/privacy.html
+The watch stores only a minimal revocable device token, today's plan, and unsent events locally. It never stores a password or Firebase token. Workout data reaches the user's account only after durable backend acknowledgement. Privacy policy: https://strengthsave.app/privacy

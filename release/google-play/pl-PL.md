@@ -19,6 +19,6 @@ Jedna subskrypcja Strength Save PRO obejmuje każdego obsługiwanego klienta Str
 
 Strength Save przekazuje informacje fitness, a nie porady medyczne. Ćwicz w granicach swoich możliwości i w razie potrzeby skonsultuj się ze specjalistą.
 
-Polityka prywatności: https://strengthsave.app/legal/privacy.html
+Polityka prywatności: https://strengthsave.app/privacy
 
-Warunki korzystania: https://strengthsave.app/legal/terms-pl.html
+Warunki korzystania: https://strengthsave.app/terms

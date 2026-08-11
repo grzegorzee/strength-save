@@ -19,6 +19,6 @@ One Strength Save PRO subscription covers every supported Strength Save client. 
 
 Strength Save provides fitness information, not medical advice. Exercise within your abilities and consult a qualified professional when needed.
 
-Privacy Policy: https://strengthsave.app/legal/privacy.html
+Privacy Policy: https://strengthsave.app/privacy
 
-Terms of Use: https://strengthsave.app/legal/terms.html
+Terms of Use: https://strengthsave.app/terms

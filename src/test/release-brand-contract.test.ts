@@ -35,7 +35,10 @@ describe('Z230 — one Strength Save release and brand contract', () => {
 
     for (const listing of stores) {
       expect(listing).toContain('Strength Save');
-      expect(listing).toMatch(/https:\/\/strengthsave\.app\/legal\/privacy\.html/);
+      // Z250: czyste URL-e legal (React /privacy dobiera język); /legal/*.html
+      // zostaje na landingu jako źródło treści, ale metadane go nie linkują.
+      expect(listing).toMatch(/https:\/\/strengthsave\.app\/privacy/);
+      expect(listing).not.toMatch(/strengthsave\.app\/legal\//);
       expect(listing).not.toMatch(/30[- ]day|30 dni|5 months free|5 mies/i);
       expect(listing).not.toMatch(/best|najlepsz|guarantee|gwaranc/i);
     }
