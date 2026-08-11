@@ -1,0 +1,96 @@
+{
+  "contract": "strength-save-schedule-overrides",
+  "contractVersion": 1,
+  "description": "Kanoniczne przypadki resolvera resolvePlannedDay(dateISO, planDays, scheduleOverrides). Ta sama tabela przechodzi przez resolver webowy (src/lib/plan-schedule.ts) i funkcyjny (functions/src/garmin-day.ts); wyniki muszą być identyczne (parity web<->functions).",
+  "planDays": [
+    { "id": "day-1", "dayName": "Poniedziałek", "weekday": "monday", "focus": "Klatka", "exercises": [] },
+    { "id": "day-2", "dayName": "Środa", "weekday": "wednesday", "focus": "Plecy", "exercises": [] },
+    { "id": "day-3", "dayName": "Piątek", "weekday": "friday", "focus": "Barki", "exercises": [] }
+  ],
+  "cases": [
+    {
+      "name": "brak override, dzień treningowy: reguła weekday",
+      "date": "2026-08-10",
+      "overrides": {},
+      "expected": "day-1"
+    },
+    {
+      "name": "brak override, dzień wolny: null",
+      "date": "2026-08-11",
+      "overrides": {},
+      "expected": null
+    },
+    {
+      "name": "override przenosi trening na dzień normalnie wolny",
+      "date": "2026-08-11",
+      "overrides": { "2026-08-11": "day-1" },
+      "expected": "day-1"
+    },
+    {
+      "name": "override null zwalnia dzień treningowy",
+      "date": "2026-08-10",
+      "overrides": { "2026-08-10": null },
+      "expected": null
+    },
+    {
+      "name": "para przeniesienia {A: null, B: dayId}: źródło wolne",
+      "date": "2026-08-10",
+      "overrides": { "2026-08-10": null, "2026-08-11": "day-1" },
+      "expected": null
+    },
+    {
+      "name": "para przeniesienia {A: null, B: dayId}: cel ma trening",
+      "date": "2026-08-11",
+      "overrides": { "2026-08-10": null, "2026-08-11": "day-1" },
+      "expected": "day-1"
+    },
+    {
+      "name": "swap {A: dayIdB, B: dayIdA}: data A dostaje dzień B",
+      "date": "2026-08-10",
+      "overrides": { "2026-08-10": "day-2", "2026-08-12": "day-1" },
+      "expected": "day-2"
+    },
+    {
+      "name": "swap {A: dayIdB, B: dayIdA}: data B dostaje dzień A",
+      "date": "2026-08-12",
+      "overrides": { "2026-08-10": "day-2", "2026-08-12": "day-1" },
+      "expected": "day-1"
+    },
+    {
+      "name": "osierocony dayId na dniu treningowym: wpis ignorowany, fallback weekday",
+      "date": "2026-08-10",
+      "overrides": { "2026-08-10": "day-999" },
+      "expected": "day-1"
+    },
+    {
+      "name": "osierocony dayId na dniu wolnym: wpis ignorowany, weekday daje null",
+      "date": "2026-08-11",
+      "overrides": { "2026-08-11": "day-999" },
+      "expected": null
+    },
+    {
+      "name": "override dotyczy konkretnej daty, nie weekday: kolejny tydzień bez zmian",
+      "date": "2026-08-17",
+      "overrides": { "2026-08-10": null, "2026-08-11": "day-1" },
+      "expected": "day-1"
+    },
+    {
+      "name": "override podmienia dzień treningowy na inny dzień planu",
+      "date": "2026-08-10",
+      "overrides": { "2026-08-10": "day-3" },
+      "expected": "day-3"
+    },
+    {
+      "name": "override innej daty nie dotyka dnia wolnego",
+      "date": "2026-08-18",
+      "overrides": { "2026-08-11": "day-1" },
+      "expected": null
+    },
+    {
+      "name": "sobota bez treningu w planie i bez override: null",
+      "date": "2026-08-15",
+      "overrides": {},
+      "expected": null
+    }
+  ]
+}

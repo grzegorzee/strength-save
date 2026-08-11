@@ -40,7 +40,7 @@ scenariusze sekwencji, dane usera święte).
 
 ## STAN (odhaczaj [x] po weryfikacji, commituj ten plik razem z krokiem)
 
-- [ ] **1. Resolver + model.** Czysta funkcja `resolvePlannedDay(dateISO,
+- [x] **1. Resolver + model.** Czysta funkcja `resolvePlannedDay(dateISO,
   planDays, scheduleOverrides)` w jednym module web; reguły ze specu
   (override → weekday fallback, null = wolne, osierocony dayId ignorowany).
   Wspólny fixture przypadków (do parity z functions). Testy jednostkowe

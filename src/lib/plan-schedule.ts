@@ -1,5 +1,5 @@
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
-import { formatLocalDate } from '@/lib/utils';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 const WEEKDAY_TO_JS_DAY: Record<Weekday, number> = {
   sunday: 0,
@@ -48,6 +48,35 @@ export const getScheduledDateForDay = (weekStart: Date, weekday: Weekday): Date 
 export const getTrainingDayForDate = (planDays: TrainingDay[], date: Date): TrainingDay | null => {
   const jsDay = startOfLocalDay(date).getDay();
   return planDays.find((day) => WEEKDAY_TO_JS_DAY[day.weekday] === jsDay) ?? null;
+};
+
+/**
+ * Przełożenia treningów (spec 2026-08-11): mapa data -> dayId obowiązujący tego
+ * dnia; null = dzień wolny (domyślny trening przeniesiono gdzie indziej).
+ * Wpis dotyczy KONKRETNEJ daty (YYYY-MM-DD), nie weekday.
+ */
+export type ScheduleOverrides = Record<string, string | null>;
+
+/**
+ * Kanoniczny resolver data -> dzień planu (kontrakt między serwisami; lustrzana
+ * kopia w functions/src/garmin-day.ts, parity pilnowane wspólnym fixture
+ * fixtures/cross-platform/schedule-overrides-v1.json):
+ * 1. wpis w scheduleOverrides[dateISO]: null = dzień wolny; dayId spoza planu
+ *    (osierocony po zmianie planu) = wpis ignorowany, spada do reguły 2;
+ * 2. brak wpisu: dotychczasowa reguła po weekday.
+ */
+export const resolvePlannedDay = (
+  dateISO: string,
+  planDays: TrainingDay[],
+  scheduleOverrides?: ScheduleOverrides | null,
+): TrainingDay | null => {
+  if (scheduleOverrides && Object.prototype.hasOwnProperty.call(scheduleOverrides, dateISO)) {
+    const overrideDayId = scheduleOverrides[dateISO];
+    if (overrideDayId === null) return null;
+    const overridden = planDays.find((day) => day.id === overrideDayId);
+    if (overridden) return overridden;
+  }
+  return getTrainingDayForDate(planDays, parseLocalDate(dateISO));
 };
 
 export const getScheduledTrainingForDate = (planDays: TrainingDay[], date: Date): ScheduledTrainingDay | null => {
