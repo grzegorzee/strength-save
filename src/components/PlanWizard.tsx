@@ -267,7 +267,9 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               {legalConsent && (
                 <div className="mt-5">
                   <p className="text-[13px] text-muted-foreground mb-2">{t('ob.welcome.legalIntro')}</p>
-                  <ConsentCheckboxes value={consents} onChange={setConsents} />
+                  {/* Krok 9 (spec 2026-08-11): marketing zszedł z Welcome na dedykowany
+                      krok onboardingu — tu zostają 3 obowiązkowe oświadczenia. */}
+                  <ConsentCheckboxes value={consents} onChange={setConsents} showMarketing={false} />
                   {consentError && (
                     <p className="mt-2 text-[13px] text-destructive" data-testid="consent-error">{t('consent.saveError')}</p>
                   )}

@@ -35,7 +35,7 @@ describe('PlanWizard Welcome (Z231 + pakiet prawny v2)', () => {
     localStorage.setItem('app-language', 'pl');
   });
 
-  it('CTA Dalej zablokowane, dopóki 3 obowiązkowe zgody nie są zaznaczone; marketing NIE jest wymagany', () => {
+  it('CTA Dalej zablokowane, dopóki 3 obowiązkowe zgody nie są zaznaczone; onboarding ma DOKŁADNIE 3 checkboxy (marketing na osobnym kroku)', () => {
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
@@ -47,20 +47,21 @@ describe('PlanWizard Welcome (Z231 + pakiet prawny v2)', () => {
     expect(next).toBeDisabled();
     fireEvent.click(screen.getByTestId('consent-health'));
     expect(next).not.toBeDisabled();
-    // marketing pozostaje odznaczony i nie blokuje
-    expect(screen.getByTestId('consent-marketing')).toHaveAttribute('aria-checked', 'false');
+    // Krok 9 (spec 2026-08-11): checkbox marketingowy zszedł z Welcome na
+    // dedykowany krok onboardingu — na ekranie zgód są DOKŁADNIE 3 pola.
+    expect(screen.queryByTestId('consent-marketing')).toBeNull();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
   });
 
-  it('przejście kroku 1 wywołuje onLegalConsent z zaznaczonym wyborem', async () => {
+  it('przejście kroku 1 wywołuje onLegalConsent z zaznaczonym wyborem (marketing zawsze false)', async () => {
     const onLegalConsent = vi.fn(async (_selection: ConsentSelection) => {});
     render(withProviders(
       <PlanWizard showWelcome legalConsent onLegalConsent={onLegalConsent} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
     tickRequired();
-    fireEvent.click(screen.getByTestId('consent-marketing'));
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
     await waitFor(() => expect(onLegalConsent).toHaveBeenCalledTimes(1));
-    expect(onLegalConsent.mock.calls[0][0]).toEqual({ terms: true, privacy: true, health: true, marketing: true });
+    expect(onLegalConsent.mock.calls[0][0]).toEqual({ terms: true, privacy: true, health: true, marketing: false });
   });
 
   it('odrzucenie onLegalConsent zatrzymuje przejście i pokazuje błąd', async () => {

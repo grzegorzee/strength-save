@@ -70,7 +70,7 @@ scenariusze sekwencji, dane usera święte).
   specu (przedostatni przed zgodami prawnymi; potwierdź strukturą
   `Onboarding.tsx`), i18n PL/EN. Testy: granted/declined/wstecz-bez-zapisu,
   onboarding kończy się w obu ścieżkach, awaria zapisu nie wywraca flow.
-- [ ] **9. Checkboxy 4→3.** Wariant onboardingu `ConsentCheckboxes` bez
+- [x] **9. Checkboxy 4→3.** Wariant onboardingu `ConsentCheckboxes` bez
   marketingu (parametryzacja, NIE zmiana globalna). Testy: onboarding ma 3,
   ConsentGate i ConsentSettings bez regresu (ich istniejące testy zielone
   bez zmiany asercji), parity wersji dokumentów bez zmian.
