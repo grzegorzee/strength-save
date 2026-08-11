@@ -224,36 +224,7 @@ const Profile = () => {
         <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} tierLabel={tier.label} />
       </div>
 
-      {/* TWOJE DANE (Z90): dojścia do sekcji sprzed wycinki mobilnego drawera */}
-      <SectionCard label={t('profile.section.data')}>
-        <SettingRow icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
-        <SettingRow icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
-        <SettingRow icon={Trophy} label={t('nav.achievements')} onClick={() => navigate('/achievements')} />
-      </SectionCard>
-
-      {/* ACCOUNT */}
-      <SectionCard label={t('profile.section.account')}>
-        <SettingRow icon={User} label={t('profile.account.edit')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
-        <SettingRow icon={Lock} label={t('profile.account.password')} onClick={handleChangePassword} />
-        <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings?section=data')} />
-      </SectionCard>
-
-      {/* SUBSKRYPCJA — tylko odczyt stanu; zarządzanie i zakup wyłącznie na platformie paywalla (natywny iOS) */}
-      <SectionCard label={t('subscription.section')}>
-        <SettingRow icon={Gem} label={t(subSummary.planKey)} description={subDescription || undefined} />
-        {isPaywallPlatform() && subSummary.hasStoreSubscription && (
-          <SettingRow
-            icon={CreditCard}
-            label={t('subscription.manage')}
-            onClick={() => window.open('https://apps.apple.com/account/subscriptions', '_blank')}
-          />
-        )}
-        {isPaywallPlatform() && !subscriptionInfo.isPro && (
-          <SettingRow icon={CreditCard} label={t('subscription.upgrade')} onClick={() => navigate('/paywall')} />
-        )}
-      </SectionCard>
-
-      {/* WORKOUT PREFERENCES */}
+      {/* TRENING (spec 2026-08-11): wszystko, co user rusza często, w jednej sekcji wysoko */}
       <SectionCard label={t('profile.section.preferences')} labelAccent="secondary">
         <SettingRow
           icon={Timer}
@@ -275,6 +246,11 @@ const Profile = () => {
             )}
           />
         )}
+        {/* Z177 (reguła 6): wiersz Dźwięk ZAWSZE widoczny — schowany za przełącznikiem
+            „Timer przerwy" (Z157) robił pułapkę: wyłączony timer + wyłączony dźwięk
+            = brak drogi powrotu do ustawienia dźwięku. Dźwięk dotyczy też
+            zakończenia ćwiczenia, nie tylko timera przerwy. */}
+        <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
         <SettingRow
           icon={Scale}
           label={t('profile.pref.units')}
@@ -300,14 +276,38 @@ const Profile = () => {
         />
       </SectionCard>
 
-      {/* APP SETTINGS */}
+      {/* TWOJE DANE (Z90): dojścia do sekcji sprzed wycinki mobilnego drawera */}
+      <SectionCard label={t('profile.section.data')}>
+        <SettingRow icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
+        <SettingRow icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
+        <SettingRow icon={Trophy} label={t('nav.achievements')} onClick={() => navigate('/achievements')} />
+      </SectionCard>
+
+      {/* SUBSKRYPCJA — tylko odczyt stanu; zarządzanie i zakup wyłącznie na platformie paywalla (natywny iOS) */}
+      <SectionCard label={t('subscription.section')}>
+        <SettingRow icon={Gem} label={t(subSummary.planKey)} description={subDescription || undefined} />
+        {isPaywallPlatform() && subSummary.hasStoreSubscription && (
+          <SettingRow
+            icon={CreditCard}
+            label={t('subscription.manage')}
+            onClick={() => window.open('https://apps.apple.com/account/subscriptions', '_blank')}
+          />
+        )}
+        {isPaywallPlatform() && !subscriptionInfo.isPro && (
+          <SettingRow icon={CreditCard} label={t('subscription.upgrade')} onClick={() => navigate('/paywall')} />
+        )}
+      </SectionCard>
+
+      {/* KONTO */}
+      <SectionCard label={t('profile.section.account')}>
+        <SettingRow icon={User} label={t('profile.account.edit')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
+        <SettingRow icon={Lock} label={t('profile.account.password')} onClick={handleChangePassword} />
+        <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings?section=data')} />
+      </SectionCard>
+
+      {/* APLIKACJA */}
       <SectionCard label={t('profile.section.app')}>
         <SettingRow icon={Bell} label={t('profile.app.notifications')} onClick={() => navigate('/settings?section=notifications')} />
-        {/* Z177 (reguła 6): wiersz Dźwięk ZAWSZE widoczny — schowany za przełącznikiem
-            „Timer przerwy" (Z157) robił pułapkę: wyłączony timer + wyłączony dźwięk
-            = brak drogi powrotu do ustawienia dźwięku. Dźwięk dotyczy też
-            zakończenia ćwiczenia, nie tylko timera przerwy. */}
-        <SettingRow icon={Volume2} label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
         <SettingRow
           icon={Globe}
           label={t('profile.app.language')}
@@ -324,14 +324,18 @@ const Profile = () => {
         />
       </SectionCard>
 
-      {/* SUPPORT */}
+      {/* POMOC */}
       <SectionCard label={t('profile.section.support')}>
-        {isAdmin && <SettingRow icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
-        <SettingRow icon={SlidersHorizontal} label={t('profile.support.advanced')} onClick={() => navigate('/settings')} />
         {/* Z241: help prowadził do samej apki (app.strengthsave.app) — teraz landing z FAQ. */}
         <SettingRow icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://strengthsave.app/', '_blank')} />
         <SettingRow icon={Mail} label={t('profile.support.contact')} onClick={() => { window.location.href = 'mailto:kontakt@gjasionowicz.pl'; }} />
         <SettingRow icon={Info} label={t('profile.support.about')} onClick={() => setAboutOpen(true)} />
+      </SectionCard>
+
+      {/* SYSTEM (spec 2026-08-11): Zaawansowane i Admin przestają udawać "Wsparcie" */}
+      <SectionCard label={t('profile.section.system')}>
+        <SettingRow icon={SlidersHorizontal} label={t('profile.support.advanced')} onClick={() => navigate('/settings')} />
+        {isAdmin && <SettingRow icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
       </SectionCard>
 
       <Button

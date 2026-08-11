@@ -36,7 +36,7 @@ CLAUDE.md projektu (zasady Karpathy, checklist wdrożeniowy, i18n w OBU plikach)
   primary, tylko gdy `summarizeSubscription.planKey` wskazuje plan
   płatny/comp/admin; darmowy user BEZ chipa FREE) + [poziom] (outline,
   wyciszony, zawsze). Testy: PRO tylko dla płatnych, poziom zawsze.
-- [ ] **3. Reorganizacja sekcji `Profile.tsx`.** Kolejność: Nagłówek → TRENING
+- [x] **3. Reorganizacja sekcji `Profile.tsx`.** Kolejność: Nagłówek → TRENING
   (rename z "Preferencje treningu"; wchodzi Dźwięk z "Aplikacji") → TWOJE DANE
   → SUBSKRYPCJA (kod sekcji 1:1, tylko pozycja) → KONTO → APLIKACJA
   (Powiadomienia, Język) → POMOC (rename z "Wsparcie": Centrum pomocy, Kontakt,
