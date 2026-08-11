@@ -1,6 +1,20 @@
 import UIKit
 import Capacitor
 import AVFoundation
+import FirebaseCore
+import FirebaseAppCheck
+
+/// App Attest zamiast domyślnego DeviceCheck. Fabryka MUSI być zarejestrowana
+/// zanim cokolwiek dotknie Firebase: plugin authentication tworzy instancję
+/// App Check przy starcie bridge'a i wtedy provider jest już zamrożony.
+/// Rejestracja dopiero w JS (FirebaseAppCheck.initialize) przychodziła za późno,
+/// token szedł przez DeviceCheck, a konsola ma tylko App Attest → wymiana padała
+/// FAILED_PRECONDITION i logowanie umierało na każdym koncie (incydent 2026-08-11).
+final class StrengthAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
+    func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+        return AppAttestProvider(app: app)
+    }
+}
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -8,6 +22,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        AppCheck.setAppCheckProviderFactory(StrengthAppCheckProviderFactory())
+        if FirebaseApp.app() == nil {
+            FirebaseApp.configure()
+        }
         // Aktywuj sesję Watch jak najwcześniej — eventy z zegarka (transferUserInfo)
         // muszą trafić do kolejki nawet zanim załaduje się webview.
         PhoneWatchSessionManager.shared.activate()
