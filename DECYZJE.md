@@ -5,13 +5,23 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-11 (X26 sesja 2: deploye web/functions/landing, iOS 85 BLOCKED na App Attest)
+**Ostatnia aktualizacja:** 2026-08-11 (build 86: fix logowania iOS — App Check używał DeviceCheck zamiast App Attest)
 
 ---
 
 ## DECYZJE
 
-### 2026-08-11: X26 sesja 2 c.d. — iOS 85 WYDANY (App Attest naprawiony), CI zielony fix, cennik FINALNY 119,99 zł
+### 2026-08-11: Build 86 — logowanie iOS martwe na buildzie 85 (App Check: DeviceCheck zamiast App Attest)
+
+**Zgłoszenie usera:** ekran "Nie udało się wczytać profilu" po zalogowaniu, na OBU kontach (g.jasionowicz@gmail.com i grzegorzee@gmail.com), build 85 z TestFlight.
+
+**Root cause (dowody z metryk GCP, nie hipoteza):** na iOS `syncUserProfile` idzie przez `callNativeAttestedFunction`, który najpierw pobiera token App Check. Fabryka providera App Attest była rejestrowana dopiero, gdy JS zawołał `FirebaseAppCheck.initialize()` — a instancja App Check powstawała wcześniej (plugin `@capacitor-firebase/authentication` + `FirebaseApp.configure()` w `load()` pluginu przy starcie bridge'a) z DOMYŚLNYM providerem DeviceCheck. Konsola Firebase ma skonfigurowany tylko App Attest, więc `ExchangeDeviceCheckToken` zwracał 400 FAILED_PRECONDITION, `getToken` rzucał i request o profil NIGDY nie wychodził z telefonu (zero wpisów w logach Cloud Run w oknie awarii; metryki serviceruntime: przez cały tydzień ZERO wymian App Attest, 2x DeviceCheck 400 dokładnie w oknach prób logowania usera). Błąd niezależny od konta — blokował każdego użytkownika natywnego iOS.
+
+**Fix 1 (root cause, `AppDelegate.swift`):** rejestracja `StrengthAppCheckProviderFactory` (AppAttestProvider) + `FirebaseApp.configure()` jako PIERWSZE linie `didFinishLaunching`, zanim bridge Capacitora załaduje pluginy Firebase. Moduły `FirebaseCore`/`FirebaseAppCheck` widoczne w targecie App transytywnie przez SPM (bez zmian w pbxproj; zweryfikowane `xcodebuild ... BUILD SUCCEEDED`).
+
+**Fix 2 (wyjście z błędu, `src/lib/native-callable.ts`):** token App Check pobierany best-effort. Gdy attestacja padnie (zależność zewnętrzna: Secure Enclave/serwery Apple/wymiana Firebase), request idzie BEZ nagłówka `X-Firebase-AppCheck` — backend nie wymusza App Check na callables, a rejestrację nowych kont i tak gate'uje serwerowo `canCreateUserProfile`. Zasada #6 z CLAUDE.md: stan błędu musi mieć wyjście; wcześniej awaria attestacji trwale odcinała logowanie. Test: `native-callable.test.ts` ("falls back to a request without App Check header when attestation fails").
+
+**Weryfikacja po wydaniu 86:** logowanie na realnym urządzeniu + w metrykach `serviceruntime.googleapis.com/api/request_count` dla `firebaseappcheck.googleapis.com` mają się pojawić wymiany `ExchangeAppAttestAttestation/Assertion` z kodem 200 (dotąd zero w historii projektu).
 
 **iOS build 85 (odblokowany i wydany):** user włączył App Attest w portalu, ale samo włączenie unieważniło WSZYSTKIE trzy profile (App/Watch/Widgets: stan INVALID w portalu, lokalne kopie sprzed zmiany bez entitlementu). Naprawa bez klikania w portalu: ASC API delete+create wszystkich 3 profili (te same nazwy, cert DISTRIBUTION F52LLKV85G, ACTIVE), instalacja świeżych .mobileprovision (stare w backupie), weryfikacja `appattest-environment: [development, production]` w profilu App. `ExportOptions-manual.plist` przepięty z UUID na NAZWY profili (odporność na przyszłe regeneracje; plik gitignored, zmiana lokalna). Rezultat: archive SUCCEEDED, export, upload (Delivery UUID 58c4a57a), build 85 VALID, obie grupy TestFlight podpięte, whatsNew ustawione, Beta App Review **APPROVED**. Lekcja: włączenie capability na App ID ZAWSZE unieważnia istniejące profile; regeneruj przez ASC API (profiles delete+create) i trzymaj ExportOptions na nazwach.
 
