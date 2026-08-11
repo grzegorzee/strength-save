@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const recordConsents = vi.fn(async () => {});
@@ -76,6 +76,27 @@ describe('ConsentGate', () => {
     renderGate(profileWith({ marketingGranted: true }));
     expect(screen.queryByTestId('consent-marketing')).toBeNull();
     expect(screen.getByTestId('consent-terms')).toBeInTheDocument();
+  });
+
+  // Reguła #6: sukces zapisu bez zamknięcia bramki (snapshot nie dojechał) nie
+  // może zostawić usera ze spinnerem bez wyjścia — po timeoucie przycisk wraca.
+  it('po timeoucie oczekiwania na snapshot spinner znika i jest wyjście (retry)', async () => {
+    vi.useFakeTimers();
+    try {
+      renderGate(profileWith(undefined));
+      fireEvent.click(screen.getByTestId('consent-terms'));
+      fireEvent.click(screen.getByTestId('consent-privacy'));
+      fireEvent.click(screen.getByTestId('consent-health'));
+      fireEvent.click(screen.getByTestId('consent-gate-submit'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(recordConsents).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('consent-gate-submit')).toBeDisabled();
+      await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+      expect(screen.getByTestId('consent-gate-error')).toBeInTheDocument();
+      expect(screen.getByTestId('consent-gate-submit')).not.toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('błąd zapisu pokazuje komunikat i odblokowuje przycisk', async () => {

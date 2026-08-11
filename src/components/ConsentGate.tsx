@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,20 +21,38 @@ import type { UserProfile } from '@/lib/user-profile';
 // (krok Welcome), więc bramka ich nie dotyczy. Zniknięcie bramki napędza
 // onSnapshot na users/{uid}: recordConsent aktualizuje mirror consents.
 
+// Reguła #6 (incydent buildu 87): po udanym zapisie czekamy na snapshot mirrora,
+// ale NIE w nieskończoność — po timeoucie spinner znika i przycisk wraca (retry
+// jest bezpieczny, recordConsent nadpisuje te same zgody).
+const SNAPSHOT_TIMEOUT_MS = 12_000;
+
 export const ConsentGate = ({ profile }: { profile: UserProfile | null }) => {
   const { t, lang } = useTranslation();
   const [selection, setSelection] = useState<ConsentSelection>(EMPTY_CONSENT_SELECTION);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
 
   const marketingAlreadyGranted = getConsentMirror(profile)?.marketingGranted === true;
+
+  useEffect(() => () => {
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+  }, []);
 
   const submit = async () => {
     setSaving(true);
     setError(false);
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     try {
       await recordConsents(buildConsentSubmissions(t, selection), lang);
       // Bramkę zamyka aktualizacja mirrora users/{uid}.consents przez onSnapshot.
+      // Jeśli snapshot nie dojedzie w rozsądnym czasie, oddajemy sterowanie
+      // userowi (komunikat współdzieli copy saveError do czasu wolnego okna
+      // na nowe klucze i18n — pliki locales edytuje równoległa sesja).
+      timeoutRef.current = window.setTimeout(() => {
+        setError(true);
+        setSaving(false);
+      }, SNAPSHOT_TIMEOUT_MS);
     } catch {
       setError(true);
       setSaving(false);
