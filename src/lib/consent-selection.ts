@@ -61,8 +61,33 @@ export function buildConsentSubmissions(
   return entries;
 }
 
+/**
+ * Wpis z dedykowanego kroku marketingowego onboardingu (spec 2026-08-11).
+ * Odmowa też trafia do logu (action=withdrawn) — dowód rozliczalności i pamięć
+ * "user odpowiedział" (mirror.marketingVersion ustawiona w obu ścieżkach).
+ */
+export function buildMarketingStepSubmission(
+  t: (key: TranslationKey) => string,
+  granted: boolean,
+): ConsentSubmission {
+  return {
+    type: 'marketing',
+    action: granted ? 'granted' : 'withdrawn',
+    statementText: t('consent.marketing'),
+  };
+}
+
 export const getConsentMirror = (profile: UserProfile | null): ConsentMirror | undefined =>
   (profile as (UserProfile & { consents?: ConsentMirror }) | null)?.consents;
+
+/**
+ * Czy pokazać krok marketingowy onboardingu: tylko gdy user jeszcze nigdy nie
+ * odpowiedział (mirror bez marketingVersion). E2E omija krok jak resztę zgód.
+ */
+export const shouldShowMarketingStep = (profile: UserProfile | null): boolean => {
+  if (isConsentBypassed) return false;
+  return getConsentMirror(profile)?.marketingVersion === undefined;
+};
 
 /** Czy pokazać bramkę re-consent (poza trybami e2e). */
 export const needsConsentRefresh = (profile: UserProfile | null): boolean => {

@@ -1908,6 +1908,15 @@ export const pl = {
   'ob.welcome.nameQ': 'Jak masz na imię?',
   'ob.welcome.namePlaceholder': 'Twoje imię (opcjonalnie)',
   'ob.welcome.legalIntro': 'Zacznijmy od formalności.',
+  // Dedykowany krok marketingowy onboardingu (spec 2026-08-11).
+  'obMarketing.title1': 'Bądź pierwszy',
+  'obMarketing.title2': 'w kolejce',
+  'obMarketing.desc': 'Nowe funkcje, materiały treningowe i promocje prosto od nas. Zero spamu, wypiszesz się jednym tapnięciem.',
+  'obMarketing.mockTitle': 'Nowy plan treningowy dostępny 💪',
+  'obMarketing.mockBody': 'Sprawdź świeże szablony i wskazówki progresji.',
+  'obMarketing.mockTime': 'teraz',
+  'obMarketing.accept': 'Jasne, wchodzę!',
+  'obMarketing.decline': 'Nie, dzięki',
   // Zgody rozdzielone (pakiet prawny v2). Teksty oświadczeń trafiają 1:1 do
   // logu zgód (recordConsent) — zmiana treści wymaga bumpa wersji w
   // src/lib/legal-versions.ts.

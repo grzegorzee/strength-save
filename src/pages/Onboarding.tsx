@@ -8,7 +8,13 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 import { PlanPreview } from '@/components/PlanPreview';
-import { buildConsentSubmissions, type ConsentSelection } from '@/lib/consent-selection';
+import { OnboardingMarketingStep } from '@/components/OnboardingMarketingStep';
+import {
+  buildConsentSubmissions,
+  buildMarketingStepSubmission,
+  shouldShowMarketingStep,
+  type ConsentSelection,
+} from '@/lib/consent-selection';
 import { recordConsents } from '@/lib/consents-api';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
@@ -28,12 +34,41 @@ const Onboarding = () => {
   const [reviewDays, setReviewDays] = useState<TrainingDay[]>([]);
   const [showPreview, setShowPreview] = useState(false);
   const requiresPaywall = useRequiresPaywall();
+  // Dedykowany krok marketingowy (spec 2026-08-11): po konfiguracji planu,
+  // przed podglądem. Pokazywany raz — odpowiedź (też odmowa) ląduje w mirrorze
+  // zgód, więc user nigdy nie zobaczy go ponownie. E2E omija jak resztę zgód.
+  const [marketingPrompt, setMarketingPrompt] = useState(false);
+  const [marketingSaving, setMarketingSaving] = useState(false);
+  const [marketingError, setMarketingError] = useState(false);
+  const [marketingAnswered, setMarketingAnswered] = useState(false);
 
   const handleWizardConfirm = (c: PlanWizardChoice) => {
     setChoice(c);
     setReviewDays(c.days);
-    setShowPreview(true);
     setError(null);
+    if (!marketingAnswered && shouldShowMarketingStep(profile)) {
+      setMarketingPrompt(true);
+      return;
+    }
+    setShowPreview(true);
+  };
+
+  // Zapis wyboru przez ISTNIEJĄCY recordConsent (odmowa też do logu, kanał
+  // onboarding-marketing-step). Awaria zapisu = komunikat + retry tym samym
+  // przyciskiem (jak zgody na Welcome); onboarding się nie wywraca.
+  const handleMarketingAnswer = async (granted: boolean) => {
+    setMarketingSaving(true);
+    setMarketingError(false);
+    try {
+      await recordConsents([buildMarketingStepSubmission(t, granted)], lang, 'onboarding-marketing-step');
+      setMarketingAnswered(true);
+      setMarketingPrompt(false);
+      setShowPreview(true);
+    } catch {
+      setMarketingError(true);
+    } finally {
+      setMarketingSaving(false);
+    }
   };
 
   // Zapis zgód z kroku Welcome do logu (Cloud Function recordConsent: IP,
@@ -75,6 +110,18 @@ const Onboarding = () => {
       setIsSaving(false);
     }
   };
+
+  if (choice && marketingPrompt) {
+    return (
+      <OnboardingMarketingStep
+        onAccept={() => handleMarketingAnswer(true)}
+        onDecline={() => handleMarketingAnswer(false)}
+        onBack={() => { setMarketingPrompt(false); setMarketingError(false); }}
+        isSaving={marketingSaving}
+        error={marketingError}
+      />
+    );
+  }
 
   if (choice && showPreview) {
     return (

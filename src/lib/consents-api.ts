@@ -8,12 +8,17 @@ import { isConsentBypassed, type ConsentSubmission } from '@/lib/consent-selecti
 // z serwera (rozliczalność art. 7 ust. 1 RODO), więc klient NIE pisze do
 // kolekcji consents bezpośrednio (rules blokują).
 
-export async function recordConsents(entries: ConsentSubmission[], lang: 'pl' | 'en'): Promise<void> {
+export async function recordConsents(
+  entries: ConsentSubmission[],
+  lang: 'pl' | 'en',
+  /** Dedykowany kanał logu (np. ekran marketingowy onboardingu) zamiast platformy. */
+  channelOverride?: 'onboarding-marketing-step',
+): Promise<void> {
   if (entries.length === 0) return;
   if (isConsentBypassed) return;
 
   const platform = Capacitor.getPlatform();
-  const channel = platform === 'ios' || platform === 'android' ? platform : 'web';
+  const channel = channelOverride ?? (platform === 'ios' || platform === 'android' ? platform : 'web');
   const appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown';
 
   const call = httpsCallable(functions, 'recordConsent');

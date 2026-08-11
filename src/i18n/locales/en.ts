@@ -1884,6 +1884,15 @@ export const en: Record<keyof typeof pl, string> = {
   'ob.welcome.nameQ': "What's your name?",
   'ob.welcome.namePlaceholder': 'Your name (optional)',
   'ob.welcome.legalIntro': 'First, the formalities.',
+  // Dedykowany krok marketingowy onboardingu (spec 2026-08-11).
+  'obMarketing.title1': 'Be the first',
+  'obMarketing.title2': 'to know',
+  'obMarketing.desc': 'New features, training materials and promos straight from us. No spam, unsubscribe with one tap.',
+  'obMarketing.mockTitle': 'New training plan available 💪',
+  'obMarketing.mockBody': 'Check out fresh templates and progression tips.',
+  'obMarketing.mockTime': 'now',
+  'obMarketing.accept': "I'm in!",
+  'obMarketing.decline': 'No, thanks',
   // Rozdzielone zgody (pakiet prawny v2). Teksty oświadczeń trafiają 1:1 do
   // logu zgód (recordConsent) — zmiana treści wymaga bumpa wersji w
   // src/lib/legal-versions.ts.

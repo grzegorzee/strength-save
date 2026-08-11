@@ -132,3 +132,33 @@ describe("buildConsentMirror", () => {
     });
   });
 });
+
+// Krok marketingowy onboardingu (spec 2026-08-11): dedykowany kanał w logu
+// odróżnia zgodę z osobnego ekranu od checkboxa na Welcome.
+describe("kanał onboarding-marketing-step", () => {
+  it("akceptuje zgodę i odmowę marketingu z kanału kroku onboardingu", () => {
+    const marketingEntry = {
+      type: "marketing",
+      action: "granted",
+      docVersion: LEGAL_VERSIONS.marketing,
+      lang: "pl",
+      statementText: "Chcę otrzymywać informacje marketingowe.",
+    };
+    const parsed = parseConsentPayload({
+      entries: [marketingEntry],
+      channel: "onboarding-marketing-step",
+      appVersion: "1.0.0 (92)",
+    });
+    expect(parsed.channel).toBe("onboarding-marketing-step");
+    const declined = parseConsentPayload({
+      entries: [{ ...marketingEntry, action: "withdrawn" }],
+      channel: "onboarding-marketing-step",
+      appVersion: "1.0.0 (92)",
+    });
+    expect(declined.entries[0].action).toBe("withdrawn");
+    // Mirror: odmowa też zapisuje wersję — krok nie pokaże się drugi raz.
+    const mirror = buildConsentMirror(declined.entries);
+    expect(mirror["consents.marketingGranted"]).toBe(false);
+    expect(mirror["consents.marketingVersion"]).toBe(LEGAL_VERSIONS.marketing);
+  });
+});

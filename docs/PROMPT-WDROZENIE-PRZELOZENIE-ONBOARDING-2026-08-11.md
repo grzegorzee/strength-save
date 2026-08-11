@@ -65,7 +65,7 @@ scenariusze sekwencji, dane usera święte).
 - [x] **7. Watch preview + e2e.** Test w `watch-plan-preview.test.tsx`
   (przełożony dzień widoczny w preview). Hak e2e-mock seeduje overrides;
   `e2e:mock` zielone (przy failach NAJPIERW świeży dev server, zasada #9).
-- [ ] **8. Krok marketingowy.** Komponent kroku (nagłówek, korzyści, mock
+- [x] **8. Krok marketingowy.** Komponent kroku (nagłówek, korzyści, mock
   powiadomienia w HTML/CSS, [Jasne, wchodzę!] / [Nie, dzięki]), pozycja wg
   specu (przedostatni przed zgodami prawnymi; potwierdź strukturą
   `Onboarding.tsx`), i18n PL/EN. Testy: granted/declined/wstecz-bez-zapisu,

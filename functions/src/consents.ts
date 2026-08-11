@@ -16,7 +16,9 @@ import {
 export const CONSENTS_COLLECTION = "consents";
 const USERS_COLLECTION = "users";
 
-const CHANNELS = ["web", "ios", "android"] as const;
+// "onboarding-marketing-step": dedykowany ekran zgody marketingowej w
+// onboardingu (spec 2026-08-11) — kanał odróżnia go w logu od checkboxa Welcome.
+const CHANNELS = ["web", "ios", "android", "onboarding-marketing-step"] as const;
 const LANGS = ["pl", "en"] as const;
 const MAX_ENTRIES = 8;
 const MAX_STATEMENT_LENGTH = 2000;
