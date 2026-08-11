@@ -78,7 +78,7 @@ scenariusze sekwencji, dane usera święte).
   `npm run build` + `build:mobile` + `check:dist-smoke` + testy functions +
   `test:rules` + `e2e:mock`. Wszystko zielone.
 - [x] **11. DECYZJE.md.** Wpis: co, dlaczego, spec, weryfikacja, commity.
-- [ ] **12. Deploy wszystkie serwisy (pre-autoryzowany, zasada 7).**
+- [x] **12. Deploy wszystkie serwisy (pre-autoryzowany, zasada 7).**
   Kolejność: rules → functions (garminDay) → web `npm run deploy` +
   weryfikacja hash live → iOS: pgrep, bump CURRENT_PROJECT_VERSION z repo
   (+1, 6 wystąpień), `scripts/release-ios.sh "<co testować>"` (auto
