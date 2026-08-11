@@ -508,6 +508,18 @@ const WorkoutDay = () => {
     draftLoaded: isDraftLoaded,
   });
 
+  // Z244: gdy źródła startu nie wstają (słaba sieć), przycisk startu nie może
+  // wisieć martwy bez wyjścia — po 8 s pokazujemy komunikat i opcję odświeżenia.
+  const [startSourcesTimedOut, setStartSourcesTimedOut] = useState(false);
+  useEffect(() => {
+    if (startSourcesReady) {
+      setStartSourcesTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => setStartSourcesTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [startSourcesReady]);
+
   // Jawna faza sesji (Z57): jedno źródło prawdy dla renderu zamiast kombinacji flag.
   const sessionPhase = useMemo(() => deriveWorkoutSessionPhase({
     sessionId,
@@ -2763,14 +2775,30 @@ const WorkoutDay = () => {
 
       {!isWorkoutStarted && !isViewingPastWorkout && !isCompleted && (
         <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/85 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
+          {/* Z244: przycisk nie może wyglądać na martwy — dopóki źródła startu się
+              ładują, pokazujemy to wprost; po 8 s dajemy wyjście (odśwież). */}
+          {!startSourcesReady && startSourcesTimedOut && (
+            <p className="mb-2 text-center text-[12px] text-fitness-warning">{t('workout.loadingStartStuck')}</p>
+          )}
           <Button
             size="lg"
             className="kinetic-primary-button w-full py-6 text-base hover:brightness-105"
-            onClick={handleStartWorkout}
-            disabled={isExplicitSaving || !startSourcesReady}
+            onClick={() => {
+              if (!startSourcesReady && startSourcesTimedOut) {
+                window.location.reload();
+                return;
+              }
+              void handleStartWorkout();
+            }}
+            disabled={isExplicitSaving || (!startSourcesReady && !startSourcesTimedOut)}
           >
-            {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Play className="h-5 w-5 mr-2 fill-current" />}
-            {t('dash.startWorkout')}
+            {!startSourcesReady && startSourcesTimedOut ? (
+              <>{t('workout.reload')}</>
+            ) : isExplicitSaving || !startSourcesReady ? (
+              <><Loader2 className="h-5 w-5 mr-2 animate-spin" />{startSourcesReady ? t('dash.startWorkout') : t('workout.loadingStart')}</>
+            ) : (
+              <><Play className="h-5 w-5 mr-2 fill-current" />{t('dash.startWorkout')}</>
+            )}
           </Button>
         </div>
       )}

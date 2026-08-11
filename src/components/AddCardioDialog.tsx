@@ -124,8 +124,9 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {/* Typ: grid jedna warstwa */}
-        <div className="grid grid-cols-5 gap-1.5" data-testid="cardio-type-grid">
+        {/* Typ: grid jedna warstwa. Z243: 4 kolumny + break-words — dłuższe etykiety
+            (Wędrówka, Skakanka, Rower stac., Indoor ride) nie wychodzą poza kafel. */}
+        <div className="grid grid-cols-4 gap-1.5" data-testid="cardio-type-grid">
           {MANUAL_ACTIVITY_TYPES.map((option) => (
             <button
               key={option}
@@ -133,12 +134,12 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
               onClick={() => setType(option)}
               aria-pressed={type === option}
               className={cn(
-                'flex flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-[10px] font-bold uppercase tracking-wide transition-colors',
+                'flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-center text-[10px] font-bold uppercase leading-tight tracking-wide transition-colors',
                 type === option ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
               )}
             >
               <span className="text-base">{TYPE_ICONS[option]}</span>
-              {t(`cardio.type.${option}` as Parameters<typeof t>[0])}
+              <span className="min-w-0 max-w-full break-words">{t(`cardio.type.${option}` as Parameters<typeof t>[0])}</span>
             </button>
           ))}
         </div>

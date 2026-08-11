@@ -1850,6 +1850,9 @@ export const pl = {
   'err.planNotLoaded': 'Plan jeszcze się ładuje. Spróbuj za chwilę.',
   'err.planOffline': 'Brak połączenia z internetem. Zmiany planu wymagają sieci, spróbuj po odzyskaniu zasięgu.',
   'weekly.noData': 'Brak danych treningowych w tym tygodniu.',
+  'workout.loadingStart': 'Wczytywanie danych…',
+  'workout.loadingStartStuck': 'Wczytywanie trwa dłużej niż zwykle. Sprawdź połączenie i spróbuj ponownie.',
+  'workout.reload': 'Odśwież',
   // === onboarding v2 (ob.*) ===
   'ob.brand': 'STRENGTH SAVE',
   'ob.next': 'Dalej',
