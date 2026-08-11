@@ -1,0 +1,6 @@
+# Media zostaja lokalnie (publiczne repo; klipy zyja na CDN)
+*.mp4
+*.png
+*.jpg
+_cdn/
+__pycache__/
