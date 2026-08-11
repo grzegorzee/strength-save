@@ -28,7 +28,7 @@ CLAUDE.md projektu (zasady Karpathy, checklist wdrożeniowy, i18n w OBU plikach)
 
 ## STAN (odhaczaj [x] po weryfikacji, commituj ten plik razem z krokiem)
 
-- [ ] **1. Rename poziomów gamifikacyjnych.** `pl.ts` + `en.ts`:
+- [x] **1. Rename poziomów gamifikacyjnych.** `pl.ts` + `en.ts`:
   `tier.proTier` → "Veteran", `tier.eliteTier` → "Elite" (bez słowa "Tier").
   `src/lib/tier.ts` bez zmian progów. Test etykiet jeśli istnieje, inaczej
   snapshot użycia.
