@@ -40,9 +40,7 @@ import {
   ScrollText, Ruler, Trophy, Shield, Gem, CreditCard,
 } from 'lucide-react';
 
-const REST_TIMER_KEY = 'rest-timer-default';
-const SOUND_KEY = 'timer-sound-enabled';
-const REST_OPTIONS = ['30', '45', '60', '90', '120', '180'];
+import { REST_TIMER_KEY, SOUND_KEY, REST_OPTIONS } from '@/lib/workout-preferences';
 
 const Profile = () => {
   const navigate = useNavigate();

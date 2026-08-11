@@ -21,6 +21,16 @@ vi.mock('@/lib/rest-notification', () => ({
 vi.mock('@/lib/global-error-telemetry', () => ({
   reportClientErrorWithCurrentUid: vi.fn(),
 }));
+// Krok 6 (spec 2026-08-11): zębatka na pasku renderuje WorkoutSettingsSheet,
+// który pisze do Firestore i czyta uid — mocki jak w profile-sections.
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(() => ({})),
+  updateDoc: vi.fn(async () => {}),
+}));
+vi.mock('@/lib/firebase', () => ({ db: {} }));
+vi.mock('@/contexts/UserContext', () => ({
+  useCurrentUser: () => ({ uid: 'u1', profile: null, isAdmin: false }),
+}));
 
 // Harness = właściciel stanu (jak kontroler w WorkoutDay po Z188): trzyma deadline,
 // obsługuje onAdjust dokładnie tak jak useRestTimerController.adjustRest.
@@ -184,6 +194,13 @@ describe('RestBar (Z136)', () => {
     expect(screen.queryByTestId('rest-fullscreen')).toBeNull();
     fireEvent.click(screen.getByTestId('rest-bar-expand'));
     expect(screen.getByTestId('rest-fullscreen')).toBeTruthy();
+  });
+
+  it('krok 6: zębatka przy pasku otwiera arkusz ustawień treningu', () => {
+    renderBar({ seconds: 90 });
+    fireEvent.click(screen.getByTestId('rest-bar-settings'));
+    expect(screen.getByText('Ustawienia treningu')).toBeTruthy();
+    expect(screen.getByText('Dźwięk timera')).toBeTruthy();
   });
 
   it('Z189: wyjątek sygnału końca NIE blokuje onFinished (stan zawsze posprzątany)', async () => {

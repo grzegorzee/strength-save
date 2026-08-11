@@ -11,9 +11,12 @@ import { UnitProvider } from '@/contexts/UnitContext';
 // Vite define nie działa w vitest bez wpisu w configu — stub lokalny.
 vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
 
+const firestoreFixture = vi.hoisted(() => ({
+  updateDoc: vi.fn(async () => {}),
+}));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
-  updateDoc: vi.fn(async () => {}),
+  updateDoc: firestoreFixture.updateDoc,
 }));
 vi.mock('firebase/storage', () => ({
   ref: vi.fn(() => ({})),
@@ -56,6 +59,8 @@ vi.mock('@/lib/push-notifications', () => ({
 }));
 
 import Profile from '@/pages/Profile';
+import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
+import { readWorkoutTimersSetting } from '@/lib/workout-timers-setting';
 
 const renderProfile = () =>
   render(
@@ -79,7 +84,19 @@ beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
   pushFixture.permission = 'granted';
   authFixture.resetPassword.mockClear();
+  firestoreFixture.updateDoc.mockClear();
 });
+
+const renderSheet = () =>
+  render(
+    <MemoryRouter>
+      <LanguageProvider>
+        <UnitProvider>
+          <WorkoutSettingsSheet open onOpenChange={() => {}} />
+        </UnitProvider>
+      </LanguageProvider>
+    </MemoryRouter>,
+  );
 
 describe('krok 3: reorganizacja sekcji Profilu', () => {
   it('sekcje w kolejności: Trening → Twoje dane → Subskrypcja → Konto → Aplikacja → Pomoc → System', () => {
@@ -158,5 +175,52 @@ describe('krok 5: potwierdzenie resetu hasła', () => {
     fireEvent.click(getByText('Anuluj'));
     await waitFor(() => expect(queryByText(/Wyślemy link resetu/)).toBeNull());
     expect(authFixture.resetPassword).not.toHaveBeenCalled();
+  });
+});
+
+// Krok 6 (spec 2026-08-11): skrót w treningu pisze i czyta TE SAME klucze co
+// Profil (localStorage + preferences.* w Firestore) — test SEKWENCJI obu kierunków.
+describe('krok 6: WorkoutSettingsSheet ↔ Profil (te same klucze zapisu)', () => {
+  it('zmiana domyślnej przerwy w sheet → localStorage + preferences.restTimerSec + widoczna w Profilu', async () => {
+    const sheet = renderSheet();
+    fireEvent.click(sheet.getByLabelText('Domyślny czas odpoczynku'));
+    fireEvent.click(await sheet.findByText('120s'));
+    expect(localStorage.getItem('rest-timer-default')).toBe('120');
+    expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(expect.anything(), { 'preferences.restTimerSec': 120 });
+    sheet.unmount();
+
+    const profil = renderProfile();
+    expect(profil.getByLabelText('Domyślny czas odpoczynku').textContent).toContain('120');
+  });
+
+  it('wyłączenie dźwięku w sheet → localStorage + preferences.timerSound + widoczne w Profilu', () => {
+    const sheet = renderSheet();
+    fireEvent.click(sheet.getByLabelText('Dźwięk timera'));
+    expect(localStorage.getItem('timer-sound-enabled')).toBe('false');
+    expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(expect.anything(), { 'preferences.timerSound': false });
+    sheet.unmount();
+
+    const profil = renderProfile();
+    expect(profil.getByLabelText('Dźwięk timera').getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('wyłączenie dźwięku w Profilu → widoczne w sheet (kierunek odwrotny)', () => {
+    const profil = renderProfile();
+    fireEvent.click(profil.getByLabelText('Dźwięk timera'));
+    expect(localStorage.getItem('timer-sound-enabled')).toBe('false');
+    profil.unmount();
+
+    const sheet = renderSheet();
+    expect(sheet.getByLabelText('Dźwięk timera').getAttribute('aria-checked')).toBe('false');
+  });
+
+  it('wyłączenie timera w sheet → ten sam klucz co Profil + widoczne w Profilu', () => {
+    const sheet = renderSheet();
+    fireEvent.click(sheet.getByLabelText('Timer przerwy'));
+    expect(readWorkoutTimersSetting()).toBe(false);
+    sheet.unmount();
+
+    const profil = renderProfile();
+    expect(profil.getByLabelText('Timer przerwy').getAttribute('aria-checked')).toBe('false');
   });
 });

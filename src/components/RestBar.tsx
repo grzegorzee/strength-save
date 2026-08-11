@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Timer } from 'lucide-react';
+import { X, Timer, Settings } from 'lucide-react';
+import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import {
@@ -49,6 +50,8 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, onSkip
   const { t } = useTranslation();
   const [, forceTick] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  // Krok 6 (spec 2026-08-11): skrót do ustawień treningowych przy pasku przerwy.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const finishedRef = useRef(false);
 
   // Z188: t i exerciseLabel czytane z refów — ich zmiana (język, nazwa ćwiczenia)
@@ -161,22 +164,35 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, onSkip
           aria-hidden="true"
         />
         <div className="relative">
-          <button
-            type="button"
-            onClick={() => setExpanded(true)}
-            aria-label={t('rest.bar.expand')}
-            data-testid="rest-bar-expand"
-            className="flex w-full items-center gap-2 text-left"
-          >
-            <Timer className={cn('h-4 w-4 shrink-0', done ? 'text-fitness-success' : 'text-primary')} />
-            <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-              {t('rest.bar.title')}
-            </span>
-            <span className={cn('truncate text-xl font-bold tabular-nums', done && 'text-fitness-success')}>{label}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              aria-label={t('rest.bar.expand')}
+              data-testid="rest-bar-expand"
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
+            >
+              <Timer className={cn('h-4 w-4 shrink-0', done ? 'text-fitness-success' : 'text-primary')} />
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                {t('rest.bar.title')}
+              </span>
+              <span className={cn('truncate text-xl font-bold tabular-nums', done && 'text-fitness-success')}>{label}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              aria-label={t('workout.settingsSheet.title')}
+              data-testid="rest-bar-settings"
+              className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-background/60"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          </div>
           {controls}
         </div>
       </div>
+
+      <WorkoutSettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
 
       {/* Widok pełnoekranowy — duże odliczanie, gdy telefon leży obok. */}
       {expanded && (

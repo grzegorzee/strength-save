@@ -52,6 +52,7 @@ export const pl = {
   'profile.pref.units': 'Jednostki',
   'profile.section.app': 'Aplikacja',
   'profile.app.notifications': 'Powiadomienia',
+  'workout.settingsSheet.title': 'Ustawienia treningu',
   'profile.app.notificationsOn': 'Włączone',
   'profile.app.notificationsOff': 'Wyłączone',
   'profile.app.sound': 'Dźwięk timera',

@@ -50,6 +50,7 @@ export const en: Record<keyof typeof pl, string> = {
   'profile.pref.units': 'Units',
   'profile.section.app': 'App settings',
   'profile.app.notifications': 'Notifications',
+  'workout.settingsSheet.title': 'Workout settings',
   'profile.app.notificationsOn': 'Enabled',
   'profile.app.notificationsOff': 'Disabled',
   'profile.app.sound': 'Timer sound',

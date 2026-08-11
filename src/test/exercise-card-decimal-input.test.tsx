@@ -16,6 +16,9 @@ vi.mock('@/contexts/UserContext', () => ({
 }));
 vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
 vi.mock('@/lib/error-telemetry', () => ({ reportClientError: vi.fn() }));
+// Krok 6: RestBar renderuje WorkoutSettingsSheet — moduł ciągnie realny init
+// Firebase (initializeAuth pada w jsdom), więc mock.
+vi.mock('@/lib/firebase', () => ({ db: {} }));
 
 const exercise: Exercise = {
   id: 'ex-1',

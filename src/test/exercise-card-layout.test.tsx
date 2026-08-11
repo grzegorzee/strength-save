@@ -15,6 +15,9 @@ vi.mock('@/contexts/UserContext', () => ({
 vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
 // Z171: removeSet raportuje stale-ref do client_errors — moduł ciągnie Firestore, więc mock.
 vi.mock('@/lib/error-telemetry', () => ({ reportClientError: vi.fn() }));
+// Krok 6: RestBar renderuje WorkoutSettingsSheet — moduł ciągnie realny init
+// Firebase (initializeAuth pada w jsdom), więc mock.
+vi.mock('@/lib/firebase', () => ({ db: {} }));
 
 // Mapa animacji jest dziś pusta (żadne ćwiczenie nie ma pliku) — mock pozwala
 // przetestować OBIE gałęzie miniatury: z animacją i bez.

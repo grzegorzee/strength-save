@@ -48,7 +48,7 @@ CLAUDE.md projektu (zasady Karpathy, checklist wdrożeniowy, i18n w OBU plikach)
   Klucze i18n w obu plikach.
 - [x] **5. Potwierdzenie resetu hasła.** Dialog ("Wyślemy link resetu na X.
   Wysłać?") przed wysyłką maila. Test: mail dopiero po potwierdzeniu.
-- [ ] **6. Faza 2: skrót w treningu.** Ikona zębatki przy pasku przerwy
+- [x] **6. Faza 2: skrót w treningu.** Ikona zębatki przy pasku przerwy
   (RestBar) otwiera bottom sheet: domyślna przerwa, dźwięk, timer wł/wył.
   TE SAME klucze zapisu co Profil (localStorage + `preferences.*`). Test
   sekwencji: zmiana w sheet widoczna w Profilu i odwrotnie.
