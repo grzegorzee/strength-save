@@ -52,7 +52,7 @@ CLAUDE.md projektu (zasady Karpathy, checklist wdrożeniowy, i18n w OBU plikach)
   (RestBar) otwiera bottom sheet: domyślna przerwa, dźwięk, timer wł/wył.
   TE SAME klucze zapisu co Profil (localStorage + `preferences.*`). Test
   sekwencji: zmiana w sheet widoczna w Profilu i odwrotnie.
-- [ ] **7. Bramki całości.** `npm run test` + `typecheck` + `lint` +
+- [x] **7. Bramki całości.** `npm run test` + `typecheck` + `lint` +
   `npm run build` + `npm run check:dist-smoke` (na build:mobile, patrz
   CLAUDE.md). Wszystko zielone.
 - [ ] **8. DECYZJE.md.** Wpis: co, dlaczego, spec, weryfikacja.
