@@ -18,6 +18,8 @@ import { PreferenceSync } from '@/components/PreferenceSync';
 import { PushRegistrar } from '@/components/PushRegistrar';
 import { IosSwipeBack } from '@/components/IosSwipeBack';
 import { EmailVerificationGate } from '@/components/EmailVerificationGate';
+import { ConsentGate } from '@/components/ConsentGate';
+import { needsConsentRefresh } from '@/lib/consent-selection';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { initGlobalErrorTelemetry, setGlobalErrorTelemetryUid } from '@/lib/global-error-telemetry';
 
@@ -165,6 +167,11 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
         onLogout={onLogout}
       />
     );
+  }
+  // Re-consent (pakiet prawny v2): komplet aktualnych zgód wymagany przed
+  // trasami. Nowi userzy zbierają zgody w onboardingu (krok Welcome).
+  if (!isNewUser && needsConsentRefresh(profile)) {
+    return <ConsentGate profile={profile} />;
   }
 
   return (

@@ -8,6 +8,8 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 import { PlanPreview } from '@/components/PlanPreview';
+import { buildConsentSubmissions, type ConsentSelection } from '@/lib/consent-selection';
+import { recordConsents } from '@/lib/consents-api';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
 import type { TrainingDay } from '@/data/trainingPlan';
@@ -32,6 +34,13 @@ const Onboarding = () => {
     setReviewDays(c.days);
     setShowPreview(true);
     setError(null);
+  };
+
+  // Zapis zgód z kroku Welcome do logu (Cloud Function recordConsent: IP,
+  // timestamp serwerowy, wersje dokumentów). Odrzucenie zatrzymuje przejście
+  // kroku — bez wpisu w logu nie ma dowodu zgody.
+  const handleLegalConsent = async (selection: ConsentSelection) => {
+    await recordConsents(buildConsentSubmissions(t, selection), lang);
   };
 
   const handleConfirm = async () => {
@@ -87,6 +96,7 @@ const Onboarding = () => {
       socialProof
       trialNotice={requiresPaywall}
       legalConsent
+      onLegalConsent={handleLegalConsent}
       askName
       initialName={(profile?.displayName ?? '').split(' ')[0] || ''}
       resume={choice ?? undefined}

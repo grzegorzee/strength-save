@@ -460,9 +460,13 @@ test.describe('Onboarding z podglądem (Z73)', () => {
 
   test('wybór planu w onboardingu pokazuje podgląd PRZED zapisem, swap działa', async ({ page }) => {
     await navigateAndWait(page, '/');
-    // Z231: krok 1 wymaga akceptacji regulaminu i polityki prywatności.
+    // Pakiet prawny v2: krok 1 wymaga 3 rozdzielonych zgód (regulamin+wiek,
+    // privacy, zdrowie art. 9); marketing jest opcjonalny i zostaje pusty.
     await expect(page.getByRole('button', { name: 'Dalej', exact: true })).toBeDisabled();
-    await page.getByTestId('ob-legal-accept').click();
+    await page.getByTestId('consent-terms').click();
+    await page.getByTestId('consent-privacy').click();
+    await expect(page.getByRole('button', { name: 'Dalej', exact: true })).toBeDisabled();
+    await page.getByTestId('consent-health').click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
     await page.getByRole('button', { name: 'Następny krok' }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();

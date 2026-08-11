@@ -22,6 +22,7 @@ import { getExerciseNoteHistory } from '@/lib/exercise-notes';
 import { hapticSuccess } from '@/lib/haptics';
 import { Capacitor } from '@capacitor/core';
 import { InAppReview } from '@capacitor-community/in-app-review';
+import { useHealthConsent } from '@/hooks/useHealthConsent';
 import { shouldRequestReview, readLastReviewPromptAt, markReviewPromptShown } from '@/lib/review-prompt';
 import { getRzaAdvice } from '@/lib/rza-progression';
 import { findWorkoutForRoute } from '@/lib/workout-lookup';
@@ -128,6 +129,9 @@ const WorkoutDay = () => {
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const { uid } = useCurrentUser();
+  // Wycofana zgoda zdrowotna chowa panel metryk RPE/ból/jakość (brak
+  // onMetricsChange = ExerciseCard nie renderuje chipa ani inputów).
+  const healthConsent = useHealthConsent();
   const subscription = useSubscription();
   const requiresPaywall = isPaywallPlatform() && !subscription.loading && !subscription.isPro;
   const watchCapability = subscription.loading
@@ -2512,7 +2516,7 @@ const WorkoutDay = () => {
               isBodyweight={resolveIsBodyweight(exercise.name)}
               historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
               metrics={exerciseMetrics[exercise.id]}
-              onMetricsChange={handleMetricsChangeLocal}
+              onMetricsChange={healthConsent ? handleMetricsChangeLocal : undefined}
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
               pinnedNote={getPinnedNote(exercise.name)}
               onPinnedNoteSave={savePinnedNote}
@@ -2630,7 +2634,7 @@ const WorkoutDay = () => {
               lastNote={exerciseInsights.get(exercise.id)?.lastNote}
               historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
               metrics={exerciseMetrics[exercise.id]}
-              onMetricsChange={handleMetricsChange}
+              onMetricsChange={healthConsent ? handleMetricsChange : undefined}
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}
               rzaAdvice={exerciseInsights.get(exercise.id)?.rzaAdvice}
               pinnedNote={getPinnedNote(exercise.name)}

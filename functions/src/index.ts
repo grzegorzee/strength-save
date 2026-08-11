@@ -94,6 +94,8 @@ export { revenuecatWebhook } from "./revenuecat";
 export { onWorkoutWrittenAggregate, rebuildWorkoutAggregate } from "./workout-aggregate";
 // Z222: dzienny raport kosztów chmury (Monitoring API -> admin_cost_daily).
 export { dailyCostDigest } from "./cost-digest";
+// Pakiet prawny v2: log zgód z IP i timestampem serwerowym (rozliczalność RODO).
+export { recordConsent } from "./consents";
 
 const db = admin.firestore();
 const USERS_COLLECTION = "users";

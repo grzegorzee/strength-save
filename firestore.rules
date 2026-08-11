@@ -333,6 +333,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Log zgód (pakiet prawny v2): zapis WYŁĄCZNIE przez Cloud Function
+    // recordConsent (Admin SDK omija rules) — klient nie zna swojego IP,
+    // a timestamp musi być serwerowy. Odczyt tylko panel admina (eksport CSV).
+    match /consents/{consentId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /notification_logs/{logId} {
       allow read, write: if false;
     }

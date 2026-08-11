@@ -8,7 +8,8 @@ import { PlanBuilder } from '@/components/PlanBuilder';
 import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
+import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
+import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
 import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, planDaysMismatch, WEEKDAYS } from '@/lib/plan-cycle-utils';
 
 // 'elite' usunięte (Z72): mapowało się na advanced — iluzoryczny wybór. Legacy wartości
@@ -132,8 +133,13 @@ interface PlanWizardProps {
   socialProof?: boolean;
   /** Dyskretna zapowiedź trialu na ekranie Welcome (tylko onboarding na iOS — nie replan, nie web). */
   trialNotice?: boolean;
-  /** Checkbox akceptacji regulaminu/prywatności na Welcome; blokuje Dalej (tylko onboarding). */
+  /** Rozdzielone checkboxy zgód na Welcome (pakiet prawny v2); obowiązkowe blokują Dalej (tylko onboarding). */
   legalConsent?: boolean;
+  /**
+   * Zapis zgód przy przejściu z kroku 1 (wywoływane raz, przed setStep(2)).
+   * Odrzucenie promisa zatrzymuje przejście — zgody muszą trafić do logu.
+   */
+  onLegalConsent?: (selection: ConsentSelection) => Promise<void>;
   /** Pole imienia na Welcome (tylko onboarding); wynik trafia do PlanWizardChoice.name. */
   askName?: boolean;
   initialName?: string;
@@ -152,7 +158,7 @@ interface PlanWizardProps {
   onExitBack?: () => void;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, askName, initialName, initial, resume, resumeStep, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, onLegalConsent, askName, initialName, initial, resume, resumeStep, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
 
@@ -172,8 +178,30 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     resume?.templateId ? planTemplates.find((p) => p.id === resume.templateId) ?? null : null);
   const [reachedViaSteps, setReachedViaSteps] = useState(!startAtPrecision);
   const [userName, setUserName] = useState(resume?.name ?? initialName ?? '');
-  // Powrót z podglądu (resume) = zgoda była już zaznaczona przy pierwszym przejściu kroku 1.
-  const [legalAccepted, setLegalAccepted] = useState(Boolean(resume));
+  // Powrót z podglądu (resume) = zgody były już zaznaczone (i zapisane) przy pierwszym przejściu kroku 1.
+  const [consents, setConsents] = useState<ConsentSelection>(
+    resume ? { terms: true, privacy: true, health: true, marketing: false } : EMPTY_CONSENT_SELECTION,
+  );
+  const [consentsRecorded, setConsentsRecorded] = useState(Boolean(resume));
+  const [consentSaving, setConsentSaving] = useState(false);
+  const [consentError, setConsentError] = useState(false);
+
+  const advanceFromWelcome = async () => {
+    if (legalConsent && onLegalConsent && !consentsRecorded) {
+      setConsentSaving(true);
+      setConsentError(false);
+      try {
+        await onLegalConsent(consents);
+        setConsentsRecorded(true);
+      } catch {
+        setConsentError(true);
+        return;
+      } finally {
+        setConsentSaving(false);
+      }
+    }
+    setStep(2);
+  };
 
   const recommended = useMemo(() => getRecommendedPlan(objective, level, daysPerWeek), [objective, level, daysPerWeek]);
   const chosen = picked ?? recommended;
@@ -238,32 +266,20 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               )}
               {legalConsent && (
                 <div className="mt-5">
-                  <p className="text-[13px] text-muted-foreground">{t('ob.welcome.legalIntro')}</p>
-                  <div className="mt-2 flex items-start gap-3 rounded-2xl bg-surface-low p-4">
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={legalAccepted}
-                      data-testid="ob-legal-accept"
-                      onClick={() => setLegalAccepted(v => !v)}
-                      className={cn(
-                        'mt-0.5 h-6 w-6 shrink-0 rounded-md flex items-center justify-center transition-colors',
-                        legalAccepted ? 'bg-primary text-primary-foreground' : 'border-2 border-surface-highest',
-                      )}
-                    >
-                      {legalAccepted && <Check className="h-4 w-4" />}
-                    </button>
-                    <p className="text-[13px] leading-snug">
-                      {t('ob.welcome.legalPrefix')}{' '}
-                      <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-fitness-cyan">{t('ob.welcome.legalTerms')}</a>{' '}
-                      {t('ob.welcome.legalAnd')}{' '}
-                      <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 text-fitness-cyan">{t('ob.welcome.legalPrivacy')}</a>.
-                    </p>
-                  </div>
+                  <p className="text-[13px] text-muted-foreground mb-2">{t('ob.welcome.legalIntro')}</p>
+                  <ConsentCheckboxes value={consents} onChange={setConsents} />
+                  {consentError && (
+                    <p className="mt-2 text-[13px] text-destructive" data-testid="consent-error">{t('consent.saveError')}</p>
+                  )}
                 </div>
               )}
             </div>
-            <PrimaryButton onClick={() => setStep(2)} disabled={legalConsent && !legalAccepted}>{t('ob.next')} <ArrowRight className="h-4 w-4" /></PrimaryButton>
+            <PrimaryButton
+              onClick={advanceFromWelcome}
+              disabled={(legalConsent && !hasRequiredConsents(consents)) || consentSaving}
+            >
+              {consentSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{t('ob.next')} <ArrowRight className="h-4 w-4" /></>}
+            </PrimaryButton>
             {socialProof && <p className="text-center text-[11px] font-medium tracking-widest uppercase text-muted-foreground mt-4">{t('ob.social')}</p>}
           </>
         )}

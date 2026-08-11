@@ -452,6 +452,18 @@ add('aggregates: read cudzego DENIED (Z217)', false, await ok(() => getDoc(doc(o
 add('aggregates: write klienta DENIED (Z217)', false, await ok(() => setDoc(doc(db, 'users', UID, 'aggregates', 'allTime'), { totals: { workoutCount: 9999 } })));
 add('aggregates: read admina ALLOWED (Z217)', true, await ok(() => getDoc(doc(adminDb, 'users', UID, 'aggregates', 'allTime'))));
 
+// === Pakiet prawny v2: log zgód (consents) — pisze tylko Cloud Function ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser({ enabled: true }, 'active', ADMIN_UID, 'admin');
+const consentDoc = { uid: UID, type: 'terms', action: 'granted', docVersion: '2.0', lang: 'pl', statementText: 'x', channel: 'web', appVersion: '1.0.0', ip: '203.0.113.7', createdAt: Timestamp.now() };
+await seedDoc('consents', 'c1', consentDoc);
+add('consents: read klienta DENIED (log zgód czyta tylko admin)', false, await ok(() => getDoc(doc(db, 'consents', 'c1'))));
+add('consents: create klienta DENIED (IP i timestamp muszą być serwerowe)', false, await ok(() => setDoc(doc(db, 'consents', 'c2'), consentDoc)));
+add('consents: read admina ALLOWED (eksport CSV w panelu)', true, await ok(() => getDoc(doc(adminDb, 'consents', 'c1'))));
+add('consents: write admina DENIED (pisze tylko recordConsent)', false, await ok(() => setDoc(doc(adminDb, 'consents', 'c3'), consentDoc)));
+add('users: update pola consents z klienta DENIED (mirror pisze tylko backend)', false, await ok(() => updateDoc(doc(db, 'users', UID), { consents: { healthGranted: false } })));
+
 await env.cleanup();
 
 let failed = 0;

@@ -4,6 +4,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
 import { MeasurementsForm } from '@/components/MeasurementsForm';
+import { useHealthConsent } from '@/hooks/useHealthConsent';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,7 @@ const Measurements = () => {
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const { fmt, fmtLength } = useUnit();
+  const healthConsent = useHealthConsent();
 
   const latestMeasurement = getLatestMeasurement();
 
@@ -74,15 +76,30 @@ const Measurements = () => {
 
   return (
     <div className="space-y-6">
-      {/* Z118: propozycja wagi ze Zdrowia (istniejąca ścieżka zapisu, zawsze za zgodą) */}
-      <HealthWeightSuggestion
-        measurements={measurements}
-        onAccept={async (sample) => {
-          await handleSave({ date: sample.date, weight: Math.round(sample.kg * 10) / 10 });
-        }}
-      />
+      {/* Wycofana zgoda zdrowotna (art. 9 RODO) blokuje NOWE zapisy pomiarów;
+          historia zostaje widoczna, ponowna zgoda w Ustawieniach. */}
+      {!healthConsent && (
+        <div className="rounded-2xl border border-fitness-warning bg-fitness-warning/10 p-4" data-testid="health-consent-banner">
+          <p className="text-sm text-fitness-warning">{t('consent.healthBlockedBanner')}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/settings?section=consents')}>
+            {t('consent.healthBlockedCta')}
+          </Button>
+        </div>
+      )}
 
-      <MeasurementsForm latestMeasurement={latestMeasurement} onSave={handleSave} />
+      {healthConsent && (
+        <>
+          {/* Z118: propozycja wagi ze Zdrowia (istniejąca ścieżka zapisu, zawsze za zgodą) */}
+          <HealthWeightSuggestion
+            measurements={measurements}
+            onAccept={async (sample) => {
+              await handleSave({ date: sample.date, weight: Math.round(sample.kg * 10) / 10 });
+            }}
+          />
+
+          <MeasurementsForm latestMeasurement={latestMeasurement} onSave={handleSave} />
+        </>
+      )}
 
       {/* Backup mieszka w Ustawieniach (Z81) — tu tylko drogowskaz, koniec zdublowanej sekcji. */}
       <Button

@@ -19,6 +19,7 @@ import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { NotificationSettings } from '@/components/NotificationSettings';
+import { ConsentSettings } from '@/components/ConsentSettings';
 import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
 import { RestSettingsCard } from '@/components/RestSettingsCard';
 import { WorkoutImportWizard } from '@/components/WorkoutImportWizard';
@@ -179,6 +180,11 @@ const Settings = () => {
 
       {/* Kalkulator talerzy (Z107): inwentarz per urządzenie */}
       <PlateInventorySettings />
+
+      {/* Zgody (pakiet prawny v2): marketing + dane zdrowotne, art. 7 ust. 3 RODO */}
+      <div id="settings-consents" className="scroll-mt-20">
+        <ConsentSettings />
+      </div>
 
       <div id="settings-data" className="scroll-mt-20">
       <DataManagement

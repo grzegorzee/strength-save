@@ -34,6 +34,9 @@ const STRENGTH_SAVE_NATIVE_APP_CHECK_IDS = new Set([
   STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
 ]);
 
+// UWAGA: kolekcja `consents` jest CELOWO poza listami kasowania — wpisy logu
+// zgód są dowodem rozliczalności (art. 7 ust. 1 RODO) i przeżywają usunięcie
+// konta; retencja opisana w Polityce Prywatności (sekcje 5 i 10).
 export const GDPR_USER_ID_COLLECTIONS = [
   "workouts",
   "measurements",
