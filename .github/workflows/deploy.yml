@@ -36,6 +36,9 @@ jobs:
 
       - run: npm ci --prefix functions
 
+      # test:functions:emulator, test:rules i e2e:emulator wolaja globalne `firebase`
+      - run: npm i -g firebase-tools@15
+
       - run: npx playwright install --with-deps chromium webkit
 
       - run: npm run typecheck
