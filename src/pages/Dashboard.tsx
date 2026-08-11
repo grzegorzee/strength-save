@@ -26,6 +26,8 @@ import { useUnit } from '@/contexts/UnitContext';
 import { calculateStreakDetails, getWeekBounds } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
+import { RescheduleSheet } from '@/components/RescheduleSheet';
+import { MissedWorkoutBanner } from '@/components/MissedWorkoutBanner';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek } from '@/lib/plan-schedule';
@@ -147,7 +149,7 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
@@ -201,14 +203,14 @@ const Dashboard = () => {
   const totalWeight = aggregate?.totals.totalTonnageKg ?? getTotalWeight();
 
   const thisWeek = useMemo(() => {
-    if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today);
+    if (!planStartDate) return getScheduledTrainingWeek(trainingPlan, today, scheduleOverrides);
     const start = parseLocalDate(planStartDate);
     // Plan jeszcze nie wystartował → pokaż PIERWSZY tydzień planu (daty od startu) jako zapowiedź,
     // zamiast dat bieżącego tygodnia (które myliły jako "plan tygodnia").
-    if (!planStarted) return getScheduledTrainingWeek(trainingPlan, start);
-    const week = getScheduledTrainingWeek(trainingPlan, today);
+    if (!planStarted) return getScheduledTrainingWeek(trainingPlan, start, scheduleOverrides);
+    const week = getScheduledTrainingWeek(trainingPlan, today, scheduleOverrides);
     return week.filter(e => e.date >= start);
-  }, [trainingPlan, today, planStartDate, planStarted]);
+  }, [trainingPlan, today, planStartDate, planStarted, scheduleOverrides]);
 
   // Z216: streak z dat agregatu (pełna historia) TĄ SAMĄ funkcją co dotąd —
   // okno recent 120 przycinałoby długie serie; fallback z okna dla kont bez agregatu.
@@ -368,14 +370,14 @@ const Dashboard = () => {
 
     // Plan hasn't started yet — don't push a training for today; point to the first session.
     if (planStartDate && today < parseLocalDate(planStartDate)) {
-      const nextEntry = getNextScheduledTraining(trainingPlan, today);
+      const nextEntry = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides });
       return { type: 'rest' as const, nextDay: nextEntry?.day ?? null };
     }
 
-    const todayEntry = getScheduledTrainingForDate(trainingPlan, today);
+    const todayEntry = getScheduledTrainingForDate(trainingPlan, today, scheduleOverrides);
 
     if (!todayEntry) {
-      const nextEntry = getNextScheduledTraining(trainingPlan, today);
+      const nextEntry = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides });
       return { type: 'rest' as const, nextDay: nextEntry?.day ?? null };
     }
 
@@ -393,7 +395,33 @@ const Dashboard = () => {
       return { type: 'completed' as const, day, workout: todayWorkout, dateStr: todayEntry.dateKey };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
-  }, [trainingPlan, today, workouts, planStartDate, workoutToDay]);
+  }, [trainingPlan, today, workouts, planStartDate, workoutToDay, scheduleOverrides]);
+
+  // Przełożenie treningu (spec 2026-08-11): stan sheeta + handlery. Blokada
+  // żywego draftu dnia źródłowego — komunikat zamiast otwarcia (spec, brzeg 2).
+  const [rescheduleFrom, setRescheduleFrom] = useState<string | null>(null);
+  const todayISO = formatLocalDate(today);
+  const openReschedule = (fromDateISO: string, dayId: string) => {
+    if (isDraftContinuableToday(localDraft, fromDateISO) && localDraft.dayId === dayId) {
+      toast({ title: t('reschedule.draftBlocked'), variant: 'destructive' });
+      return;
+    }
+    setRescheduleFrom(fromDateISO);
+  };
+  const handleRescheduleSelect = async (toDateISO: string) => {
+    if (!rescheduleFrom) return;
+    const result = await moveScheduledDay(rescheduleFrom, toDateISO);
+    setRescheduleFrom(null);
+    toast(result.success
+      ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
+      : { title: t('reschedule.failed'), variant: 'destructive' });
+  };
+  const handleMissedDoToday = async (fromDateISO: string) => {
+    const result = await moveScheduledDay(fromDateISO, todayISO);
+    toast(result.success
+      ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
+      : { title: t('reschedule.failed'), variant: 'destructive' });
+  };
 
   // Z174: JEDNA prawda o aktywnej sesji. Gdy karta dnia pokazuje CTA kontynuacji,
   // baner sync degraduje się do wiersza informacyjnego (bez drugiego przycisku).
@@ -1009,6 +1037,18 @@ const Dashboard = () => {
             progression={progression}
           />
         )}
+        {/* Przełożenie: baner niezrobionego treningu (spec 2026-08-11, wejście 2) */}
+        {planStarted && (
+          <MissedWorkoutBanner
+            planDays={trainingPlan}
+            overrides={scheduleOverrides}
+            workouts={workouts}
+            todayISO={todayISO}
+            planStartDate={planStartDate}
+            onDoToday={handleMissedDoToday}
+            onReschedule={(fromDateISO) => setRescheduleFrom(fromDateISO)}
+          />
+        )}
         <div className="grid gap-3">
           {(() => {
             // Build unified timeline: training days + cardio (Strava + manualne, Z112)
@@ -1054,6 +1094,10 @@ const Dashboard = () => {
                     day={trainingPlan.find(d => d.id === item.dayId)!}
                     latestWorkout={workoutForDate}
                     trainingDate={item.date}
+                    // Blokady przełożenia (spec): dzień ukończony i przeszłość bez akcji.
+                    onReschedule={!workoutForDate?.completed && item.dateStr >= todayISO
+                      ? () => openReschedule(item.dateStr, item.dayId)
+                      : undefined}
                     onClick={() => {
                       // Z174: żywy draft tego dnia → kontynuacja sesji (?session=),
                       // NIGDY autostart (autostart potrafił nadpisać draft wersją 1).
@@ -1101,6 +1145,16 @@ const Dashboard = () => {
         <BarChart3 className="h-4 w-4 mr-2" />
         {t('dash.seeAnalytics')}
       </Button>
+
+      <RescheduleSheet
+        open={rescheduleFrom !== null}
+        onOpenChange={(open) => { if (!open) setRescheduleFrom(null); }}
+        fromDateISO={rescheduleFrom}
+        planDays={trainingPlan}
+        overrides={scheduleOverrides}
+        onSelect={handleRescheduleSelect}
+        todayISO={todayISO}
+      />
     </div>
   );
 };

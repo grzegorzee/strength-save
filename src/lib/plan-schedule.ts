@@ -79,11 +79,17 @@ export const resolvePlannedDay = (
   return getTrainingDayForDate(planDays, parseLocalDate(dateISO));
 };
 
-export const getScheduledTrainingForDate = (planDays: TrainingDay[], date: Date): ScheduledTrainingDay | null => {
-  const day = getTrainingDayForDate(planDays, date);
+export const getScheduledTrainingForDate = (
+  planDays: TrainingDay[],
+  date: Date,
+  overrides?: ScheduleOverrides,
+): ScheduledTrainingDay | null => {
+  const localDate = startOfLocalDay(date);
+  const day = overrides
+    ? resolvePlannedDay(formatLocalDate(localDate), planDays, overrides)
+    : getTrainingDayForDate(planDays, date);
   if (!day) return null;
 
-  const localDate = startOfLocalDay(date);
   return {
     day,
     date: localDate,
@@ -91,8 +97,26 @@ export const getScheduledTrainingForDate = (planDays: TrainingDay[], date: Date)
   };
 };
 
-export const getScheduledTrainingWeek = (planDays: TrainingDay[], referenceDate: Date): ScheduledTrainingDay[] => {
+export const getScheduledTrainingWeek = (
+  planDays: TrainingDay[],
+  referenceDate: Date,
+  overrides?: ScheduleOverrides,
+): ScheduledTrainingDay[] => {
   const weekStart = getStartOfPlanWeek(referenceDate);
+
+  // Przełożenia: iteracja po 7 dniach tygodnia przez resolver — override może
+  // postawić trening na dacie bez dnia planu (np. sobota). Bez overrides stara
+  // ścieżka zostaje bez zmian (niezmiennik zasady #5).
+  if (overrides && Object.keys(overrides).length > 0) {
+    const week: ScheduledTrainingDay[] = [];
+    for (let offset = 0; offset < 7; offset += 1) {
+      const date = startOfLocalDay(weekStart);
+      date.setDate(weekStart.getDate() + offset);
+      const scheduled = getScheduledTrainingForDate(planDays, date, overrides);
+      if (scheduled) week.push(scheduled);
+    }
+    return week;
+  }
 
   return [...planDays]
     .sort((left, right) => WEEKDAY_TO_OFFSET_FROM_MONDAY[left.weekday] - WEEKDAY_TO_OFFSET_FROM_MONDAY[right.weekday])
@@ -109,15 +133,15 @@ export const getScheduledTrainingWeek = (planDays: TrainingDay[], referenceDate:
 export const getNextScheduledTraining = (
   planDays: TrainingDay[],
   fromDate: Date,
-  options: { includeSameDay?: boolean; searchDays?: number } = {}
+  options: { includeSameDay?: boolean; searchDays?: number; overrides?: ScheduleOverrides } = {}
 ): ScheduledTrainingDay | null => {
-  const { includeSameDay = false, searchDays = 14 } = options;
+  const { includeSameDay = false, searchDays = 14, overrides } = options;
   const start = startOfLocalDay(fromDate);
 
   for (let offset = includeSameDay ? 0 : 1; offset <= searchDays; offset += 1) {
     const date = startOfLocalDay(start);
     date.setDate(start.getDate() + offset);
-    const scheduled = getScheduledTrainingForDate(planDays, date);
+    const scheduled = getScheduledTrainingForDate(planDays, date, overrides);
     if (scheduled) {
       return scheduled;
     }

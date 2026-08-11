@@ -1,3 +1,4 @@
+import { CalendarClock } from 'lucide-react';
 import { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate } from '@/lib/utils';
@@ -9,9 +10,11 @@ interface TrainingDayCardProps {
   latestWorkout?: WorkoutSession;
   trainingDate?: Date;
   onClick: () => void;
+  /** Akcja "Przełóż trening" (spec 2026-08-11); brak = ikona ukryta (dzień ukończony/przeszły). */
+  onReschedule?: () => void;
 }
 
-export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: TrainingDayCardProps) => {
+export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onReschedule }: TrainingDayCardProps) => {
   const { t, lang } = useTranslation();
   const todayStr = formatLocalDate(new Date());
   const trainingDateStr = trainingDate ? formatLocalDate(trainingDate) : undefined;
@@ -64,6 +67,18 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick }: T
           {localizeFocus(day.focus, lang)} · 🏋️ {day.exercises.length}
         </p>
       </div>
+
+      {/* Przełożenie treningu */}
+      {onReschedule && (
+        <button
+          type="button"
+          aria-label={t('reschedule.action')}
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-primary/10 shrink-0"
+          onClick={(e) => { e.stopPropagation(); onReschedule(); }}
+        >
+          <CalendarClock className="h-4 w-4" />
+        </button>
+      )}
 
       {/* Chevron */}
       <span className="text-lg text-muted-foreground/40 shrink-0">›</span>

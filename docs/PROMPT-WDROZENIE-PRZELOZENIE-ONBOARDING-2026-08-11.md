@@ -52,7 +52,7 @@ scenariusze sekwencji, dane usera święte).
   planu): zapis atomowy przeniesienia ({A: null, B: dayId} / swap), pruning
   >28 dni, czyszczenie przy zmianie/resecie planu, offline jak reszta planu.
   Testy: atomowość, pruning, czyszczenie, LWW.
-- [ ] **4. UI przełożenia.** Bottom sheet (14 dni, zajętość, komunikat swap)
+- [x] **4. UI przełożenia.** Bottom sheet (14 dni, zajętość, komunikat swap)
   + akcja na karcie dnia + baner niezrobionego treningu ([Zrób dziś] /
   [Przełóż] / odrzucenie z pamięcią). Blokady: żywy draft dnia, dzień
   ukończony, tylko dziś-i-przód. Testy komponentów + i18n PL/EN.
