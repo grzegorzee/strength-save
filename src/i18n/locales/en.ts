@@ -40,6 +40,8 @@ export const en: Record<keyof typeof pl, string> = {
   'profile.section.account': 'Account',
   'profile.account.edit': 'Edit profile',
   'profile.account.password': 'Change password',
+  'profile.resetConfirm.desc': 'We will send a reset link to {email}. Send it?',
+  'profile.resetConfirm.send': 'Send',
   'profile.account.privacy': 'Privacy',
   'profile.section.preferences': 'Training',
   'profile.restTimerToggle': 'Rest timer',

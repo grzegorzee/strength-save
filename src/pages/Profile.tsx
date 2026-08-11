@@ -115,6 +115,9 @@ const Profile = () => {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  // Krok 5 (spec 2026-08-11): reset hasła za potwierdzeniem — jedno tapnięcie
+  // w wiersz nie wysyła już maila od razu.
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -204,6 +207,7 @@ const Profile = () => {
   const handleChangePassword = async () => {
     if (!profile?.email) return;
     const ok = await resetPassword(profile.email);
+    setResetConfirmOpen(false);
     toast(ok
       ? { title: t('profile.toast.sent'), description: t('profile.toast.passwordLink', { email: profile.email }) }
       : { title: t('profile.toast.error'), description: t('profile.toast.linkFailed'), variant: 'destructive' });
@@ -313,7 +317,7 @@ const Profile = () => {
       {/* KONTO */}
       <SectionCard label={t('profile.section.account')}>
         <SettingRow icon={User} label={t('profile.account.edit')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
-        <SettingRow icon={Lock} label={t('profile.account.password')} onClick={handleChangePassword} />
+        <SettingRow icon={Lock} label={t('profile.account.password')} onClick={() => { if (profile?.email) setResetConfirmOpen(true); }} />
         <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings?section=data')} />
       </SectionCard>
 
@@ -362,6 +366,24 @@ const Profile = () => {
       >
         <LogOut className="mr-2 h-4 w-4" /> {t('profile.logout')}
       </Button>
+
+      {/* Reset password confirm dialog (krok 5, spec 2026-08-11) */}
+      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <DialogContent className="rounded-xl border-0 bg-surface-low">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase">{t('profile.account.password')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('profile.resetConfirm.desc', { email: profile?.email ?? '' })}</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setResetConfirmOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleChangePassword} className="kinetic-primary-button">
+              {t('profile.resetConfirm.send')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Logout confirm dialog (Z237) */}
       <Dialog open={logoutConfirmOpen} onOpenChange={(open) => { if (!loggingOut) setLogoutConfirmOpen(open); }}>

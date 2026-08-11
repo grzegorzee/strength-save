@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, within } from '@testing-library/react';
+import { fireEvent, render, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -28,11 +28,14 @@ vi.mock('@/contexts/UserContext', () => ({
     isAdmin: true,
   }),
 }));
+const authFixture = vi.hoisted(() => ({
+  resetPassword: vi.fn(async () => true),
+}));
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     logout: vi.fn(),
     logoutAfterAccountDeletion: vi.fn(),
-    resetPassword: vi.fn(async () => true),
+    resetPassword: authFixture.resetPassword,
   }),
 }));
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
@@ -75,6 +78,7 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
   pushFixture.permission = 'granted';
+  authFixture.resetPassword.mockClear();
 });
 
 describe('krok 3: reorganizacja sekcji Profilu', () => {
@@ -133,5 +137,26 @@ describe('krok 4: stan w wierszu Powiadomienia (getPushPermission)', () => {
     pushFixture.permission = permission;
     const { findByText } = renderProfile();
     expect(await findByText('Wyłączone')).toBeTruthy();
+  });
+});
+
+describe('krok 5: potwierdzenie resetu hasła', () => {
+  it('klik "Zmień hasło" otwiera dialog, mail leci DOPIERO po potwierdzeniu', async () => {
+    const { getByText, findByText } = renderProfile();
+    fireEvent.click(getByText('Zmień hasło'));
+    // Sam klik w wiersz nie wysyła maila.
+    expect(authFixture.resetPassword).not.toHaveBeenCalled();
+    expect(await findByText(/Wyślemy link resetu na tester@example\.com/)).toBeTruthy();
+    fireEvent.click(getByText('Wyślij'));
+    await waitFor(() => expect(authFixture.resetPassword).toHaveBeenCalledWith('tester@example.com'));
+  });
+
+  it('anulowanie dialogu nie wysyła maila', async () => {
+    const { getByText, findByText, queryByText } = renderProfile();
+    fireEvent.click(getByText('Zmień hasło'));
+    expect(await findByText(/Wyślemy link resetu/)).toBeTruthy();
+    fireEvent.click(getByText('Anuluj'));
+    await waitFor(() => expect(queryByText(/Wyślemy link resetu/)).toBeNull());
+    expect(authFixture.resetPassword).not.toHaveBeenCalled();
   });
 });

@@ -42,6 +42,8 @@ export const pl = {
   'profile.section.account': 'Konto',
   'profile.account.edit': 'Edytuj profil',
   'profile.account.password': 'Zmień hasło',
+  'profile.resetConfirm.desc': 'Wyślemy link resetu na {email}. Wysłać?',
+  'profile.resetConfirm.send': 'Wyślij',
   'profile.account.privacy': 'Prywatność',
   'profile.section.preferences': 'Trening',
   'profile.restTimerToggle': 'Timer przerwy',
