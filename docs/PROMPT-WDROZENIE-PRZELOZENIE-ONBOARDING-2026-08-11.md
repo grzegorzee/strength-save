@@ -59,7 +59,7 @@ scenariusze sekwencji, dane usera święte).
 - [x] **5. Test sekwencji przełożenia.** Scenariusz 8 ze specu (przełóż →
   start → wyjście → szybki trening → powrót → dokończenie → sync) + granica
   tygodnia (przypadek 5). Dashboard/WorkoutDay spójne po każdym kroku.
-- [ ] **6. garminDay.** Mirror resolvera w `functions/src/garmin-day.ts`
+- [x] **6. garminDay.** Mirror resolvera w `functions/src/garmin-day.ts`
   (czyta scheduleOverrides), testy w `garmin-day.test.ts` + test parity
   web↔functions na wspólnym fixture (wzorzec cross-platform-contract).
 - [ ] **7. Watch preview + e2e.** Test w `watch-plan-preview.test.tsx`

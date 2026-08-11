@@ -164,3 +164,38 @@ describe("buildRecentExercises", () => {
     ])).toEqual([]);
   });
 });
+
+// Przełożenia treningów (spec 2026-08-11): lustrzany resolver scheduleOverrides.
+// Parity z resolverem webowym pilnuje wspólny fixture
+// fixtures/cross-platform/schedule-overrides-v1.json (test w src/test).
+describe("buildGarminDayContext + scheduleOverrides", () => {
+  const tuesday = "2026-07-21";
+  const monday = "2026-07-20";
+
+  it("override null: dzień treningowy staje się wolny (null)", () => {
+    const ctx = buildGarminDayContext([day], [], monday, {}, {}, { [monday]: null });
+    expect(ctx).toBeNull();
+  });
+
+  it("override przenosi dzień na datę normalnie wolną", () => {
+    const ctx = buildGarminDayContext([day], [], tuesday, {}, {}, { [tuesday]: "day-1" });
+    expect(ctx).not.toBeNull();
+    expect(ctx!.y).toBe("day-1");
+    expect(ctx!.d).toBe(tuesday);
+  });
+
+  it("osierocony dayId ignorowany: fallback do reguły weekday", () => {
+    expect(buildGarminDayContext([day], [], monday, {}, {}, { [monday]: "day-999" })!.y).toBe("day-1");
+    expect(buildGarminDayContext([day], [], tuesday, {}, {}, { [tuesday]: "day-999" })).toBeNull();
+  });
+
+  it("brak mapy: zachowanie dotychczasowe (reguła weekday)", () => {
+    expect(buildGarminDayContext([day], [], monday, {})!.y).toBe("day-1");
+    expect(buildGarminDayContext([day], [], tuesday, {})).toBeNull();
+  });
+
+  it("wartość spoza kontraktu (nie string/null) ignorowana jak osierocona", () => {
+    const dirty = { [monday]: 7 } as unknown as Record<string, string | null>;
+    expect(buildGarminDayContext([day], [], monday, {}, {}, dirty)!.y).toBe("day-1");
+  });
+});

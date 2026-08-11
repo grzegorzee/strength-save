@@ -38,6 +38,7 @@ import {
   buildRecentExercises,
   isGarminResponseWithinLimit,
   type GarminPlanDay,
+  type GarminScheduleOverrides,
   type GarminWorkout,
 } from "./garmin-day";
 import {
@@ -387,6 +388,12 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
   const db = getDb();
   const planSnap = await db.collection("training_plans").doc(auth.uid).get();
   const planDays = (planSnap.exists ? planSnap.data()?.days : null) as GarminPlanDay[] | null;
+  // Przełożenia treningów (spec 2026-08-11): resolver ignoruje wpisy spoza
+  // kontraktu, więc wystarczy odsiać nie-mapę.
+  const rawOverrides = planSnap.exists ? planSnap.data()?.scheduleOverrides : null;
+  const scheduleOverrides = (rawOverrides && typeof rawOverrides === "object" && !Array.isArray(rawOverrides)
+    ? rawOverrides
+    : null) as GarminScheduleOverrides | null;
 
   // Historia do pre-fill/celów: ostatnie 60 dni (1 kwerenda na start treningu, bez pollingu).
   // Pobierana też w dni wolne — z niej budujemy listę ostatnich ćwiczeń (r) dla
@@ -428,7 +435,7 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
     }
   }
 
-  const context = buildGarminDayContext(planDays, workouts, date, notes, trackingByName);
+  const context = buildGarminDayContext(planDays, workouts, date, notes, trackingByName, scheduleOverrides);
   if (!context) {
     sendGarminDayPayload(res, { v: 1, d: date, rest: true, z: auth.entitlement, ...recentsField });
     return;

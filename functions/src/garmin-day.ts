@@ -163,6 +163,35 @@ const weekdayOf = (date: string): string => {
   return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 };
 
+/** Przełożenia treningów (spec 2026-08-11): mapa data YYYY-MM-DD -> dayId | null. */
+export type GarminScheduleOverrides = Record<string, string | null>;
+
+/**
+ * LUSTRZANA kopia kanonicznego resolvera webowego resolvePlannedDay
+ * (src/lib/plan-schedule.ts) — parity pilnuje wspólny fixture
+ * fixtures/cross-platform/schedule-overrides-v1.json:
+ * 1. wpis w scheduleOverrides[date]: null = dzień wolny; dayId spoza planu
+ *    (osierocony po zmianie planu) lub wartość spoza kontraktu = wpis
+ *    ignorowany, spada do reguły 2;
+ * 2. brak wpisu: dotychczasowa reguła po weekday.
+ */
+export const resolvePlannedGarminDay = (
+  date: string,
+  planDays: GarminPlanDay[],
+  scheduleOverrides?: GarminScheduleOverrides | null,
+): GarminPlanDay | null => {
+  if (scheduleOverrides && Object.prototype.hasOwnProperty.call(scheduleOverrides, date)) {
+    const overrideDayId = scheduleOverrides[date];
+    if (overrideDayId === null) return null;
+    if (typeof overrideDayId === "string") {
+      const overridden = planDays.find((d) => d.id === overrideDayId);
+      if (overridden) return overridden;
+    }
+  }
+  const weekday = weekdayOf(date);
+  return planDays.find((d) => d.weekday === weekday) ?? null;
+};
+
 const parseRepRange = (setsStr: string): { min: number; max: number } => {
   const range = setsStr.match(/(\d+)\s*-\s*(\d+)/);
   if (range) return { min: parseInt(range[1], 10), max: parseInt(range[2], 10) };
@@ -271,9 +300,9 @@ export function buildGarminDayContext(
   date: string,
   pinnedNotesByName: Record<string, string>,
   trackingByName: Record<string, GarminTrackingType> = {},
+  scheduleOverrides?: GarminScheduleOverrides | null,
 ): GarminDayContext | null {
-  const weekday = weekdayOf(date);
-  const day = planDays.find((d) => d.weekday === weekday);
+  const day = resolvePlannedGarminDay(date, planDays, scheduleOverrides);
   if (!day) return null;
 
   return {
