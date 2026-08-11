@@ -32,7 +32,7 @@ CLAUDE.md projektu (zasady Karpathy, checklist wdrożeniowy, i18n w OBU plikach)
   `tier.proTier` → "Veteran", `tier.eliteTier` → "Elite" (bez słowa "Tier").
   `src/lib/tier.ts` bez zmian progów. Test etykiet jeśli istnieje, inaczej
   snapshot użycia.
-- [ ] **2. Chipy nagłówka.** Pod nickiem i emailem rząd: [PRO] (wypełniony
+- [x] **2. Chipy nagłówka.** Pod nickiem i emailem rząd: [PRO] (wypełniony
   primary, tylko gdy `summarizeSubscription.planKey` wskazuje plan
   płatny/comp/admin; darmowy user BEZ chipa FREE) + [poziom] (outline,
   wyciszony, zawsze). Testy: PRO tylko dla płatnych, poziom zawsze.

@@ -18,6 +18,13 @@ export interface SubscriptionSummary {
   hasStoreSubscription: boolean;
 }
 
+/**
+ * Chip PRO w nagłówku Profilu (spec 2026-08-11): każdy plan poza darmowym
+ * (płatny/trial/comp/admin). Darmowy user nie dostaje chipa FREE.
+ */
+export const hasProPlan = (planKey: SubscriptionSummary['planKey']): boolean =>
+  planKey !== 'subscription.none';
+
 const EMPTY: Omit<SubscriptionSummary, 'planKey' | 'detailKey'> = {
   fromIso: null,
   untilIso: null,

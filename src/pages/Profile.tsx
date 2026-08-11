@@ -13,11 +13,11 @@ import { LANGUAGES, type LanguageCode } from '@/i18n';
 import { computeTier } from '@/lib/tier';
 import { deleteOwnAccount } from '@/lib/registration-api';
 import { useSubscription, isPaywallPlatform } from '@/hooks/useSubscription';
-import { summarizeSubscription } from '@/lib/subscription-summary';
+import { summarizeSubscription, hasProPlan } from '@/lib/subscription-summary';
 import { dateLocale } from '@/i18n';
 import { SectionCard } from '@/components/kinetic/SectionCard';
 import { SettingRow } from '@/components/kinetic/SettingRow';
-import { TierBadge } from '@/components/kinetic/TierBadge';
+import { ProfileHeaderChips } from '@/components/kinetic/ProfileHeaderChips';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
@@ -221,7 +221,7 @@ const Profile = () => {
         </div>
         <h1 className="font-heading text-3xl font-bold uppercase italic tracking-tight">{profile?.displayName || t('profile.title')}</h1>
         {profile?.email && <p className="text-sm text-muted-foreground">{profile.email}</p>}
-        <TierBadge label={tier.label} />
+        <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} tierLabel={tier.label} />
       </div>
 
       {/* TWOJE DANE (Z90): dojścia do sekcji sprzed wycinki mobilnego drawera */}
