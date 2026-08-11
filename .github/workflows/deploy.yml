@@ -17,7 +17,9 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 20 min nie starczalo: pelny zestaw (coverage + functions + emulator +
+    # rules + build + 3x e2e) trwa ~25-35 min na runnerze GitHuba.
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
