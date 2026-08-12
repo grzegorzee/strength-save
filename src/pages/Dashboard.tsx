@@ -21,6 +21,8 @@ import { LapseTray } from '@/components/LapseTray';
 import { collectLapsedDates, detectLapse } from '@/lib/lapse-detection';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
+import { VacationDialog } from '@/components/VacationDialog';
+import { buildVacationMode, isVacationActive, resolveDeloadWeek, type VacationActivity } from '@/lib/vacation-mode';
 import { buildWeekCardModel } from '@/lib/week-card';
 import { isDeloadWeek } from '@/lib/progression-engine';
 import { recoveryTipKeys } from '@/lib/recovery-tips';
@@ -160,7 +162,7 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode, vacation, setVacation } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
@@ -478,8 +480,9 @@ const Dashboard = () => {
       planStartDate,
       dismissed: lapseDismissed,
       reducedMode,
+      vacation,
     });
-  }, [planStarted, isLoaded, planIsLoaded, localDraft, trainingPlan, scheduleOverrides, workouts, todayISO, skippedDates, planStartDate, lapseDismissed, reducedMode]);
+  }, [planStarted, isLoaded, planIsLoaded, localDraft, trainingPlan, scheduleOverrides, workouts, todayISO, skippedDates, planStartDate, lapseDismissed, reducedMode, vacation]);
   const [lapseOpen, setLapseOpen] = useState(false);
   const lapseShownRef = useRef<string | null>(null);
   useEffect(() => {
@@ -546,6 +549,27 @@ const Dashboard = () => {
     void (async () => {
       const result = await setReducedMode(null);
       if (result.success) toast({ title: t('rmode.toastOff') });
+    })();
+  };
+
+  // Tryb urlopu (spec C4): dialog + badge; kolizja z C3 rozstrzygana w dialogach.
+  const [vacationOpen, setVacationOpen] = useState(false);
+  const handleVacationEnable = (startISO: string, days: number, activity: VacationActivity) => {
+    setVacationOpen(false);
+    const mode = buildVacationMode(startISO, days, activity);
+    void (async () => {
+      const result = await setVacation(mode);
+      if (result.success) {
+        const fmtDate = (iso: string) => parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        toast({ title: t('vac.toastOn', { from: fmtDate(mode.startDate), to: fmtDate(mode.endDate), weeks: mode.extendedWeeks }) });
+      }
+    })();
+  };
+  const handleVacationCancel = () => {
+    setVacationOpen(false);
+    void (async () => {
+      const result = await setVacation(null);
+      if (result.success) toast({ title: t('vac.toastOff') });
     })();
   };
   const handleRescheduleSelect = async (toDateISO: string) => {
@@ -820,6 +844,23 @@ const Dashboard = () => {
         </button>
       )}
 
+      {/* Urlop (spec C4): stan jawny, anulowanie w każdej chwili */}
+      {isVacationActive(vacation, todayISO) && vacation && (
+        <button
+          type="button"
+          data-testid="vacation-badge"
+          onClick={() => setVacationOpen(true)}
+          className="flex w-full items-center justify-between rounded-xl border border-fitness-cyan/40 bg-fitness-cyan/10 px-4 py-2.5 text-left text-sm font-semibold text-fitness-cyan"
+        >
+          <span>
+            {t('vac.badge', {
+              date: parseLocalDate(vacation.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }),
+            })}
+          </span>
+          <span className="text-xs font-normal underline underline-offset-2">{t('vac.cancel')}</span>
+        </button>
+      )}
+
       {/* Today's training card */}
       {todayTraining.type === 'training' && (() => {
         // Z88: KAŻDY nieukończony dzisiejszy szkic = "Kontynuuj trening", także w pełni
@@ -907,10 +948,11 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Karta tygodnia (Runna p.1, spec B1): checkmarki dni + pasek sesji + tonaż */}
+      {/* Karta tygodnia (Runna p.1, spec B1): checkmarki dni + pasek sesji + tonaż.
+          Spec C4: przerwa urlopowa pełni rolę deloadu (nie dubluje się). */}
       <WeekCard
         model={weekCardModel}
-        isDeloadWeek={progression ? isDeloadWeek(currentWeek, progression) : false}
+        isDeloadWeek={progression ? resolveDeloadWeek(currentWeek, progression, vacation, planStartDate) : false}
       />
 
 
@@ -1372,6 +1414,18 @@ const Dashboard = () => {
         todayISO={todayISO}
         onEnable={handleReducedModeEnable}
         onDisable={handleReducedModeDisable}
+        blockedLabel={vacation ? t('rmode.blockedByVacation') : undefined}
+      />
+
+      {/* Tryb urlopu (Runna p.1, spec C4) */}
+      <VacationDialog
+        open={vacationOpen}
+        onOpenChange={setVacationOpen}
+        vacation={vacation}
+        reducedModeActive={isReducedModeActive(reducedMode, todayISO)}
+        todayISO={todayISO}
+        onEnable={handleVacationEnable}
+        onCancel={handleVacationCancel}
       />
     </div>
   );

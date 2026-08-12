@@ -42,6 +42,9 @@ import {
 import { PR_BACKFILL_LIFTS, PR_BACKFILL_SOFT_WARN_KG, sanitizePRBackfill, type PRBackfillLift } from '@/lib/pr-backfill';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
+import { VacationDialog } from '@/components/VacationDialog';
+import { buildVacationMode, isVacationActive, type VacationActivity } from '@/lib/vacation-mode';
+import { Plane } from 'lucide-react';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { BatteryLow } from 'lucide-react';
@@ -193,8 +196,8 @@ const Profile = () => {
     toast({ title: t('profile.langSaved') });
   };
 
-  // Tryb "nie na 100%" (Runna p.1, spec C3): wejście z sekcji TRENING.
-  const { reducedMode, setReducedMode } = useTrainingPlan(uid);
+  // Tryby C3/C4 (Runna p.1): wejście z sekcji TRENING; jeden tryb naraz.
+  const { reducedMode, setReducedMode, vacation, setVacation } = useTrainingPlan(uid);
   const [rmodeOpen, setRmodeOpen] = useState(false);
   const todayISO = formatLocalDate(new Date());
   const rmodeActive = isReducedModeActive(reducedMode, todayISO);
@@ -217,6 +220,28 @@ const Profile = () => {
     void (async () => {
       const result = await setReducedMode(null);
       if (result.success) toast({ title: t('rmode.toastOff') });
+    })();
+  };
+
+  // Tryb urlopu (Runna p.1, spec C4).
+  const [vacOpen, setVacOpen] = useState(false);
+  const fmtVacDate = (iso: string) =>
+    parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+  const handleVacEnable = (startISO: string, days: number, activity: VacationActivity) => {
+    setVacOpen(false);
+    const mode = buildVacationMode(startISO, days, activity);
+    void (async () => {
+      const result = await setVacation(mode);
+      if (result.success) {
+        toast({ title: t('vac.toastOn', { from: fmtVacDate(mode.startDate), to: fmtVacDate(mode.endDate), weeks: mode.extendedWeeks }) });
+      }
+    })();
+  };
+  const handleVacCancel = () => {
+    setVacOpen(false);
+    void (async () => {
+      const result = await setVacation(null);
+      if (result.success) toast({ title: t('vac.toastOff') });
     })();
   };
 
@@ -373,6 +398,17 @@ const Profile = () => {
           label={t('rmode.title')}
           value={rmodeActive ? t('rmode.activeUntil', { date: rmodeEndLabel }) : undefined}
           onClick={() => setRmodeOpen(true)}
+        />
+        {/* Tryb urlopu (Runna p.1, spec C4) */}
+        <SettingRow
+          icon={Plane}
+          label={t('vac.title')}
+          value={vacation
+            ? (isVacationActive(vacation, todayISO)
+              ? t('vac.badge', { date: fmtVacDate(vacation.endDate) })
+              : t('vac.range', { from: fmtVacDate(vacation.startDate), to: fmtVacDate(vacation.endDate) }))
+            : undefined}
+          onClick={() => setVacOpen(true)}
         />
       </SectionCard>
 
@@ -588,6 +624,18 @@ const Profile = () => {
         todayISO={todayISO}
         onEnable={handleRmodeEnable}
         onDisable={handleRmodeDisable}
+        blockedLabel={vacation ? t('rmode.blockedByVacation') : undefined}
+      />
+
+      {/* Tryb urlopu (Runna p.1, spec C4) */}
+      <VacationDialog
+        open={vacOpen}
+        onOpenChange={setVacOpen}
+        vacation={vacation}
+        reducedModeActive={rmodeActive}
+        todayISO={todayISO}
+        onEnable={handleVacEnable}
+        onCancel={handleVacCancel}
       />
 
       {/* Backfill rekordów sprzed instalacji (Runna p.1, spec A5) */}

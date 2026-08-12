@@ -81,6 +81,8 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
     skipPastDates: vi.fn(async () => ({ success: true })),
     reducedMode: null,
     setReducedMode: vi.fn(async () => ({ success: true })),
+    vacation: null,
+    setVacation: vi.fn(async () => ({ success: true })),
     currentWeek: 1,
     isPlanExpired: false,
     weeksRemaining: 11,

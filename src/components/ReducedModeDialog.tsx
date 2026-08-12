@@ -17,6 +17,8 @@ interface ReducedModeDialogProps {
   todayISO: string;
   onEnable: (level: ReducedModeLevel, days: number) => void;
   onDisable: () => void;
+  /** Spec C4: kolizja z urlopem — komunikat zamiast formularza (jeden tryb naraz). */
+  blockedLabel?: string;
 }
 
 const LEVEL_KEYS = {
@@ -27,7 +29,7 @@ const LEVEL_KEYS = {
 
 const DAY_OPTIONS = [3, 7, 14] as const;
 
-export const ReducedModeDialog = ({ open, onOpenChange, mode, todayISO, onEnable, onDisable }: ReducedModeDialogProps) => {
+export const ReducedModeDialog = ({ open, onOpenChange, mode, todayISO, onEnable, onDisable, blockedLabel }: ReducedModeDialogProps) => {
   const { t, lang } = useTranslation();
   const [level, setLevel] = useState<ReducedModeLevel>('lighter');
   const [days, setDays] = useState<number>(7);
@@ -45,7 +47,11 @@ export const ReducedModeDialog = ({ open, onOpenChange, mode, todayISO, onEnable
           <DialogDescription>{t('rmode.desc')}</DialogDescription>
         </DialogHeader>
 
-        {active && mode ? (
+        {blockedLabel && !active ? (
+          <p className="rounded-xl border border-fitness-warning bg-fitness-warning/10 px-4 py-3 text-sm text-fitness-warning" data-testid="rmode-blocked">
+            {blockedLabel}
+          </p>
+        ) : active && mode ? (
           <>
             <div className="rounded-xl border border-fitness-warning bg-fitness-warning/10 px-4 py-3">
               <p className="text-sm font-semibold text-fitness-warning">

@@ -30,6 +30,8 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({
     reducedMode: null,
     setReducedMode: vi.fn(async () => ({ success: true })),
+    vacation: null,
+    setVacation: vi.fn(async () => ({ success: true })),
   }),
 }));
 vi.mock('@/contexts/UserContext', () => ({

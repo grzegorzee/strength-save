@@ -27,7 +27,31 @@ export interface ReducedModePushDeps {
   deleteRegistrations: (registrationIds: string[]) => Promise<void>;
 }
 
-export async function runReducedModeEndingPush(deps: ReducedModePushDeps): Promise<{
+export interface ModeEndingTexts {
+  title: { pl: string; en: string };
+  body: { pl: string; en: string };
+}
+
+const REDUCED_MODE_TEXTS: ModeEndingTexts = {
+  title: { pl: "Tryb lżejszy kończy się dziś 🔄", en: "Easy mode ends today 🔄" },
+  body: {
+    pl: "Od jutra wracamy stopniowo: najpierw ~85%, potem ~92%, potem pełna moc.",
+    en: "From tomorrow we ramp back up: ~85%, then ~92%, then full power.",
+  },
+};
+
+export const VACATION_TEXTS: ModeEndingTexts = {
+  title: { pl: "Urlop kończy się dziś 🏋️", en: "Vacation ends today 🏋️" },
+  body: {
+    pl: "Witaj z powrotem! Wracamy stopniowo: ~85%, potem ~92%, potem pełna moc.",
+    en: "Welcome back! We ramp up gradually: ~85%, then ~92%, then full power.",
+  },
+};
+
+export async function runReducedModeEndingPush(
+  deps: ReducedModePushDeps,
+  texts: ModeEndingTexts = REDUCED_MODE_TEXTS,
+): Promise<{
   candidates: number;
   sent: number;
   failed: number;
@@ -67,10 +91,8 @@ export async function runReducedModeEndingPush(deps: ReducedModePushDeps): Promi
     const userRegistrations = byUser.get(uid) ?? [];
     const tokens = userRegistrations.map((registration) => registration.token);
     const lang = user.language === "en" ? "en" : "pl";
-    const title = lang === "en" ? "Easy mode ends today 🔄" : "Tryb lżejszy kończy się dziś 🔄";
-    const body = lang === "en"
-      ? "From tomorrow we ramp back up: ~85%, then ~92%, then full power."
-      : "Od jutra wracamy stopniowo: najpierw ~85%, potem ~92%, potem pełna moc.";
+    const title = texts.title[lang];
+    const body = texts.body[lang];
 
     try {
       for (let index = 0; index < tokens.length; index += 500) {
@@ -97,6 +119,59 @@ export async function runReducedModeEndingPush(deps: ReducedModePushDeps): Promi
 
   return { candidates, sent, failed, invalidTokens };
 }
+
+// Push konca urlopu (spec C4): ten sam rdzen, inna kwerenda i tresc.
+export const vacationEndingPush = onSchedule(
+  {
+    schedule: "every day 18:10",
+    timeZone: "Europe/Warsaw",
+    timeoutSeconds: 300,
+  },
+  async () => {
+    const db = admin.firestore();
+    const todayDate = new Date().toISOString().slice(0, 10);
+    logger.info(`[vacationPush] start, data: ${todayDate}`);
+
+    const result = await runReducedModeEndingPush({
+      getUsersWithModeEndingToday: async () => {
+        const snap = await db.collection("training_plans")
+          .where("vacation.endDate", "==", todayDate)
+          .get();
+        return snap.docs.map((doc) => doc.id);
+      },
+      listTokenRegistrations: async () => {
+        const snap = await db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).get();
+        return snap.docs.map((doc) => ({
+          id: doc.id,
+          userId: String(doc.data().userId ?? ""),
+          token: typeof doc.data().token === "string" ? doc.data().token as string : "",
+        }));
+      },
+      getUsers: async (userIds) => {
+        const snapshots: admin.firestore.DocumentSnapshot[] = [];
+        for (let i = 0; i < userIds.length; i += 300) {
+          snapshots.push(...await db.getAll(...userIds.slice(i, i + 300).map((uid) => db.collection("users").doc(uid))));
+        }
+        return new Map(snapshots
+          .filter((snap) => snap.exists)
+          .map((snap) => [snap.id, snap.data() as ReminderUser]));
+      },
+      sendMulticast: (tokens, title, body) => admin.messaging().sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+        data: { type: "vacation-ending" },
+        apns: { payload: { aps: { sound: "default" } } },
+      }),
+      deleteRegistrations: async (registrationIds) => {
+        await Promise.all(registrationIds.map((id) => (
+          db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).doc(id).delete()
+        )));
+      },
+    }, VACATION_TEXTS);
+
+    logger.info("[vacationPush] done", result);
+  },
+);
 
 export const reducedModeEndingPush = onSchedule(
   {

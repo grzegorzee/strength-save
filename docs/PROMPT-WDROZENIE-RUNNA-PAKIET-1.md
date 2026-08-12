@@ -98,7 +98,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **14. Tryb "nie na 100%".** Model okresu + redukcja propozycji + rampa
   powrotu + badge + wyłączalność (spec C3). Push przed końcem (functions
   + testy). Test pełnego cyklu życia trybu i kolizji z deloadem.
-- [ ] **15. Tryb urlopu.** Deklaracja z datami, przetasowanie deloadu,
+- [x] **15. Tryb urlopu.** Deklaracja z datami, przetasowanie deloadu,
   wydłużenie cyklu o pełne tygodnie (id dni bez zmian, X19), rampa, push
   powrotny, anulowanie, wykluczenie z C3 (spec C4). Testy silnika + sekwencji.
 - [ ] **16. Ad-hoc zasila silnik.** Audyt przepływu (tonaż tygodnia, historia

@@ -182,8 +182,20 @@ service cloud.firestore {
     function validTrainingPlanShape() {
       return request.resource.data.keys().hasOnly([
         'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision', 'progression', 'scheduleOverrides',
-        'skippedDates', 'reducedMode'
+        'skippedDates', 'reducedMode', 'vacation'
       ])
+      // Tryb urlopu (Runna p.1, spec C4): zamknieta mapa okresu + aktywnosci.
+      && (
+        !('vacation' in request.resource.data)
+        || (
+          request.resource.data.vacation is map
+          && request.resource.data.vacation.keys().hasOnly(['startDate', 'endDate', 'activity', 'extendedWeeks'])
+          && request.resource.data.vacation.startDate is string
+          && request.resource.data.vacation.endDate is string
+          && request.resource.data.vacation.activity in ['none', 'mains_only']
+          && request.resource.data.vacation.extendedWeeks is number
+        )
+      )
       // Tryb "nie na 100%" (Runna p.1, spec C3): zamknieta mapa okresu + poziomu.
       && (
         !('reducedMode' in request.resource.data)

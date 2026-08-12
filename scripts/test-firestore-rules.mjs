@@ -54,6 +54,9 @@ add('update training_plans ze skippedDates zlego typu zablokowane', false, await
 add('update training_plans z reducedMode (zamknieta mapa)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { reducedMode: { startDate: '2026-08-12', endDate: '2026-08-18', level: 'lighter' } }, { merge: true })));
 add('update training_plans z reducedMode zlym poziomem zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { reducedMode: { startDate: '2026-08-12', endDate: '2026-08-18', level: 'hard' } }, { merge: true })));
 add('update training_plans z reducedMode nadmiarowym kluczem zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { reducedMode: { startDate: '2026-08-12', endDate: '2026-08-18', level: 'pause', extra: 1 } }, { merge: true })));
+// Tryb urlopu (Runna p.1, spec C4): zamknieta mapa.
+add('update training_plans z vacation (zamknieta mapa)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { vacation: { startDate: '2026-08-17', endDate: '2026-08-23', activity: 'none', extendedWeeks: 1 } }, { merge: true })));
+add('update training_plans z vacation zla aktywnoscia zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { vacation: { startDate: '2026-08-17', endDate: '2026-08-23', activity: 'party', extendedWeeks: 1 } }, { merge: true })));
 
 // cross-user + admin na tych samych danych
 await seedUser(undefined, 'active', OTHER_UID);

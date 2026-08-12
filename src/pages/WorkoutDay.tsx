@@ -50,6 +50,7 @@ import { saveWorkoutSessionRating } from '@/lib/workout-save';
 import { computeCompletionSummary } from '@/lib/workout-completion-summary';
 import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
 import { backfillWeightForExercise, filterPRsAgainstBackfill } from '@/lib/pr-backfill';
+import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { HoldToFinishButton } from '@/components/HoldToFinishButton';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
@@ -154,7 +155,7 @@ const WorkoutDay = () => {
     isLoaded: workoutsLoaded,
     workoutsFromCache,
   } = useFirebaseWorkouts(uid, { measurements: 'latest' });
-  const { plan: trainingPlan, swapExercise, isLoaded: planLoaded, progression, currentWeek, planDurationWeeks, reducedMode } = useTrainingPlan(uid);
+  const { plan: trainingPlan, swapExercise, isLoaded: planLoaded, progression, currentWeek, planDurationWeeks, reducedMode, vacation } = useTrainingPlan(uid);
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
   // Dla własnych ćwiczeń źródłem prawdy o bodyweight jest pole z pickera,
   // nie heurystyka po nazwie (Z71d).
@@ -600,8 +601,9 @@ const WorkoutDay = () => {
           : getNextSetAdvice(workouts, exercise.id, exercise.sets, index, {
             isBodyweight: exTracking === 'assisted_bodyweight' ? true : resolveIsBodyweight(exercise.name),
             isSuperset: exercise.isSuperset,
-            // Spec C3 (Runna p.1): tryb "nie na 100%" obniża propozycje.
-            reducedMode,
+            // Spec C3/C4 (Runna p.1): tryb "nie na 100%" albo urlop obniżają
+            // propozycje (jeden naraz — kolizję blokują dialogi).
+            reducedMode: reducedMode ?? vacationToAdviceWindow(vacation),
           }, lang, unit),
         historicalBest: getExerciseBest1RM(workouts, exercise.id),
         rzaAdvice: getRzaAdvice(workouts, exercise.id, exercise.name),
@@ -610,7 +612,7 @@ const WorkoutDay = () => {
       });
     });
     return map;
-  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight, resolveTracking, reducedMode]);
+  }, [day, workouts, previousWorkout, previousSetsByName, lang, unit, resolveIsBodyweight, resolveTracking, reducedMode, vacation]);
 
   // Z120: cele tygodnia z silnika progresji — tylko dla planu z włączoną progresją
   // (ad-hoc nie ma tygodnia planu). Czysta kalkulacja, zero zapisów.

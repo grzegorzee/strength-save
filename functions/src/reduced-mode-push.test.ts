@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { runReducedModeEndingPush, type ReducedModePushDeps } from "./reduced-mode-push";
+import { runReducedModeEndingPush, VACATION_TEXTS, type ReducedModePushDeps } from "./reduced-mode-push";
 
 // Runna pakiet 1, krok 14 (spec C3): push w ostatnim dniu trybu "nie na 100%".
 
@@ -43,6 +43,12 @@ describe("runReducedModeEndingPush", () => {
     const result = await runReducedModeEndingPush(nobody);
     expect(result.candidates).toBe(0);
     expect(nobody.sendMulticast).not.toHaveBeenCalled();
+  });
+
+  it("tresc urlopowa (spec C4) idzie przez ten sam rdzen", async () => {
+    const deps = baseDeps();
+    await runReducedModeEndingPush(deps, VACATION_TEXTS);
+    expect(vi.mocked(deps.sendMulticast).mock.calls[0][1]).toContain("Urlop");
   });
 
   it("sprzata martwe tokeny FCM", async () => {
