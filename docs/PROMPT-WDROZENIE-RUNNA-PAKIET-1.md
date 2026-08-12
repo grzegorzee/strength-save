@@ -74,7 +74,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **8. Dashboard: kolejność + dzień wolny.** Sekcje wg B2, karta
   regeneracji, "Szybki trening" na dole. Test niezmiennika: wszystkie
   dotychczasowe elementy Dashboardu obecne (wzorzec profile-sections).
-- [ ] **9. WorkoutDay: przerwa-hero + press-and-hold.** Prezentacja dwóch
+- [x] **9. WorkoutDay: przerwa-hero + press-and-hold.** Prezentacja dwóch
   stanów (B3), przytrzymanie na "Zakończ" z fallbackiem a11y, skip tanim
   tapem. Mechanika timera bez zmian (test: te same wywołania notyfikacji
   co przed zmianą).

@@ -746,6 +746,7 @@ export const en: Record<keyof typeof pl, string> = {
   'import.done': 'Imported {n} workouts. Find them in History, records and charts.',
   'warmupgen.button': 'Generate warmup (%1RM)',
   'rest.bar.title': 'Rest',
+  'rest.bar.next': 'Next: {value}',
   'rest.bar.skip': 'Skip',
   'rest.bar.done': 'Rest over',
   'rest.bar.expand': 'Expand rest timer',
@@ -1247,6 +1248,7 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.completedLocallyTitle': 'Workout completed locally',
   'workout.greatJob': 'Great job!',
   // Completion sequence (Runna pack 1): 1-tap rating + summary.
+  'workout.holdToFinishHint': 'Hold to finish the workout.',
   'workout.completion.rateTitle': 'How was it?',
   'workout.completion.rateSkip': 'Skip rating',
   'workout.completion.rateUp': 'Good',

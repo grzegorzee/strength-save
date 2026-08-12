@@ -761,6 +761,7 @@ export const pl = {
   'warmupgen.button': 'Wygeneruj rozgrzewkę (%1RM)',
   // kalkulator talerzy (Z107)
   'rest.bar.title': 'Przerwa',
+  'rest.bar.next': 'Następne: {value}',
   'rest.bar.skip': 'Pomiń',
   'rest.bar.done': 'Koniec przerwy',
   'rest.bar.expand': 'Rozwiń timer przerwy',
@@ -1268,6 +1269,7 @@ export const pl = {
   'workout.completedLocallyTitle': 'Trening ukończony lokalnie',
   'workout.greatJob': 'Świetna robota!',
   // Sekwencja completion (Runna pakiet 1): ocena 1 tapem + podsumowanie.
+  'workout.holdToFinishHint': 'Przytrzymaj, aby zakończyć trening.',
   'workout.completion.rateTitle': 'Jak było?',
   'workout.completion.rateSkip': 'Pomiń ocenę',
   'workout.completion.rateUp': 'Dobrze',

@@ -22,6 +22,8 @@ interface RestBarProps {
   /** Zmiana wartości = START NOWEJ przerwy (wzorzec runId z IntervalTimer). */
   runId: number;
   exerciseLabel: string;
+  /** Runna p.1 (spec B3): "Następne: 80 kg × 8" w stanie hero aktywnej przerwy. */
+  nextSetLabel?: string;
   onSkip: () => void;
   /** Z188: korekta ±15 s idzie do właściciela stanu (kontroler persystuje deadline). */
   onAdjust: (deltaSeconds: number) => void;
@@ -46,7 +48,7 @@ const mmss = (total: number): string => {
  * `setInterval` służy WYŁĄCZNIE do odświeżania widoku, gdy apka jest na wierzchu.
  * Sygnał końca przy zgaszonym ekranie dostarcza system (local notification).
  */
-export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, onSkip, onAdjust, onFinished }: RestBarProps) => {
+export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSetLabel, onSkip, onAdjust, onFinished }: RestBarProps) => {
   const { t } = useTranslation();
   const [, forceTick] = useState(0);
   const [expanded, setExpanded] = useState(false);
@@ -176,7 +178,9 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, onSkip
               <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 {t('rest.bar.title')}
               </span>
-              <span className={cn('truncate text-xl font-bold tabular-nums', done && 'text-fitness-success')}>{label}</span>
+              {/* Runna p.1 (B3): countdown w kompaktowym wierszu tylko po końcu —
+                  aktywna przerwa pokazuje go w bloku hero niżej. */}
+              {done && <span className="truncate text-xl font-bold tabular-nums text-fitness-success">{label}</span>}
             </button>
             <button
               type="button"
@@ -188,6 +192,20 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, onSkip
               <Settings className="h-4 w-4" />
             </button>
           </div>
+          {/* Runna p.1 (spec B3): aktywna przerwa rośnie do hero — wielki
+              countdown + jedna linia "Następne". Czysto prezentacyjne:
+              deadline/notyfikacje/tick nietknięte; po końcu pasek wraca
+              do zwykłego rozmiaru. */}
+          {!done && (
+            <div className="py-1.5 text-center" data-testid="rest-bar-hero">
+              <span className="block text-5xl font-bold tabular-nums leading-none">{label}</span>
+              {nextSetLabel && (
+                <span className="mt-1.5 block text-sm text-muted-foreground">
+                  {t('rest.bar.next', { value: nextSetLabel })}
+                </span>
+              )}
+            </div>
+          )}
           {controls}
         </div>
       </div>

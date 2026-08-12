@@ -1184,6 +1184,15 @@ const ExerciseCardInner = ({
             totalSeconds={restRun.totalSeconds}
             runId={restRun.runId}
             exerciseLabel={localizedName}
+            // Runna p.1 (spec B3): "Następne: X kg × N" w hero przerwy —
+            // pierwsza nieodhaczona seria robocza tej karty.
+            nextSetLabel={(() => {
+              const next = sets.find((set) => !set.completed && !set.isWarmup);
+              if (!next) return undefined;
+              return next.weight > 0
+                ? `${Math.round(toDisplay(next.weight) * 2) / 2} ${unit} × ${next.reps}`
+                : `× ${next.reps}`;
+            })()}
             onSkip={() => onRestStop?.()}
             onAdjust={(delta) => onRestAdjust?.(delta)}
             onFinished={onRestStop}

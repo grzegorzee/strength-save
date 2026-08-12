@@ -39,7 +39,8 @@ const OwnerHarness = ({
   runId = 1,
   onSkip = vi.fn(),
   onFinished,
-}: { seconds?: number; runId?: number; onSkip?: () => void; onFinished?: () => void }) => {
+  nextSetLabel,
+}: { seconds?: number; runId?: number; onSkip?: () => void; onFinished?: () => void; nextSetLabel?: string }) => {
   const [state, setState] = useState(() => ({
     deadlineAt: Date.now() + seconds * 1000,
     totalSeconds: seconds,
@@ -50,6 +51,7 @@ const OwnerHarness = ({
       totalSeconds={state.totalSeconds}
       runId={runId}
       exerciseLabel="Przysiad"
+      nextSetLabel={nextSetLabel}
       onSkip={onSkip}
       onAdjust={(delta) => setState((current) => ({
         deadlineAt: Math.max(Date.now(), current.deadlineAt + delta * 1000),
@@ -99,6 +101,12 @@ describe('RestBar (Z136)', () => {
     const { onSkip } = renderBar({ seconds: 90 });
     fireEvent.click(screen.getByRole('button', { name: /Pomiń/i }));
     expect(onSkip).toHaveBeenCalledTimes(1);
+  });
+
+  it('Runna p.1 (B3): aktywna przerwa rośnie do hero — wielki countdown + linia "Następne"', () => {
+    renderBar({ seconds: 90, nextSetLabel: '100 kg × 8' });
+    expect(screen.getByTestId('rest-bar-hero')).toBeTruthy();
+    expect(screen.getByTestId('rest-bar')).toHaveTextContent('Następne: 100 kg × 8');
   });
 
   it('start PLANUJE powiadomienie systemowe na deadline', () => {
