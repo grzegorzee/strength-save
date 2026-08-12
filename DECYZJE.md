@@ -25,7 +25,9 @@
 
 **Weryfikacja (krok 17, wszystko zielone):** unit 1614/1614, `typecheck` + `lint`, `build` + `build:mobile` + `check:dist-smoke` (bundle startuje w Chromium), `test:rules` 203/203 (JDK21 z homebrew: `JAVA_HOME=/opt/homebrew/opt/openjdk@21`), testy functions 222 passed / 7 skipped, `e2e:mock` 196/196 (2.9 min, świeży vite).
 
-**Deploy:** krok 18 (pre-autoryzowany) — wpis uzupełni się po wykonaniu.
+**Deploy (krok 18, pre-autoryzowany, WYKONANY 2026-08-12):** functions `Deploy complete` na fittracker-workouts, w tym NOWE `reducedModeEndingPush` + `vacationEndingPush` (Successful create, us-central1); web live `index-Dvg_7x86.js` (gh-pages Published, hash zweryfikowany na app.strengthsave.app); iOS build **95** UPLOAD SUCCEEDED (Delivery UUID dd9bfa15-6dff-4411-a44f-bcba217fdf02), obie grupy TestFlight podpięte (HTTP 204/204, whatsNew 200), betaReviewState **APPROVED**; Android AAB **versionCode 11** BUILD SUCCESSFUL, `jar verified`, SHA-256 `16fde5c7c793b913aa5ae835831a35a3ef62b30e8185355156a8030e5796628d` (upload do Play poza zakresem — konto czeka na weryfikację Google). NASTĘPNY bump iOS = 96, versionCode = 12.
+
+**Po stronie usera:** testy urządzeniowe wydania 2 na iPhone (build 95): pomiń trening z menu karty dnia i cofnięcie, tray zaległości po 3+ dniach przerwy (każda z opcji), tryb "nie na 100%" (wejście z Profilu i traya, badge, rampa po końcu, push przed końcem), tryb urlopu (deklaracja z datami, push powrotny, anulowanie), szybki trening → propozycja ciężaru w planie uwzględnia ad-hoc.
 
 ### 2026-08-12: Runna pakiet 1, WYDANIE 1 (pętla sesji + tydzień) — kroki 1-10 wdrożone w kodzie
 
