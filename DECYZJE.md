@@ -5,11 +5,26 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-12 (PRO wydanie B: header z avatarem i inboxem + Postępy w nav — web + iOS 97 + AAB v13)
+**Ostatnia aktualizacja:** 2026-08-12 (PRO wydanie C: moment WOW po treningu — web + iOS 98 + AAB v14)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-12: PRO wydanie C — moment WOW po treningu (WYDANE)
+
+**Co (plan `docs/PLAN-PRO-C-2026-08-12.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-PRO.md`, commity `2935075a`→`8d9b442b`):**
+(T1) każdy PR w podsumowaniu z deltą względem poprzedniego rekordu (`formatPRDelta` w pr-utils, "+5 kg"/"+2"/"+30s"; pierwszy rekord bez bazy = bez delty); (T2) karta metryk z hierarchią hero: tonaż text-5xl jako jedyna dominująca liczba (wzorzec WHOOP), czas+serie drugorzędne w rzędzie; stara karta „Trening ukończony" z siatką 2×2 USUNIĘTA (dublowała metryki) — zostaje wyłącznie baner sync-pending (status ≠ gratulacja, zasada 6), licznik ćwiczeń w nagłówku listy („Ćwiczenia (N)"); (T3) confetti tylko dla rzadkich momentów: prop `bigMoment ?? prs.length > 0` (furtka pod kamienie milowe PRO-D), zwykły trening = czysty ekran + AutoAdvance min(celebrationMs,1200); Dashboard confetti wyłącznie `?welcome=1` (po `?celebrate=1` zostaje highlight + „+1" w headerze); (T4) toast live PR z deltą (bestBefore w stanie pending — ten sam baseline max(historia, backfill) co detekcja), haptyka już była.
+
+**Dlaczego:** jedna liczba czytelna z wyciągniętej ręki zamiast trzech równych kolumn i drugiej karty z czterema; delta odpowiada na "o ile lepiej", nie tylko "lepiej"; confetti codziennie = confetti nigdy (inflacja nagrody).
+
+**Root cause'y napotkane:** test polityki confetti z planu sam się unieważniał (mock ConfettiBurst wołał onDone synchronicznie w renderze → setStage wyrzucał confetti z DOM przed asercją; fix: mock bez onDone); AutoAdvance z planu miał sztywne 1200 ms, a stare testy sekwencji przekazują celebrationMs=30 i czekają waitForem 1000 ms (fix: min(celebrationMs, 1200)).
+
+**Weryfikacja (wszystko zielone):** unit 1632/1632 (209 plików; nowe: delta 2, confetti 2, formatPRValue z B), typecheck, lint, build, `check:no-emoji` (169), e2e pełne **392/392** (świeży vite, 4.2 min).
+
+**Deploy (pre-autoryzowany, WYKONANY):** web live `index-DaIzuDtB.js` (Published, hash zweryfikowany); iOS build **98** upload OK, `StrengthWatch.app` w IPA, obie grupy TestFlight (204/204, whatsNew 200), betaReviewState **APPROVED**; Android AAB **versionCode 14** BUILD SUCCESSFUL, `jar verified`, SHA-256 `961319d2045e9da4e4b7c8180cc5256871643f939c19ff56d53d2c5dd984c792`. Wersje marketingowe 1.0.0 bez zmian. NASTĘPNY bump iOS = 99, versionCode = 15.
+
+**Po stronie usera:** scenariusz sekwencji na iPhone: serie z live PR (wibracja + toast z deltą) → wyjście → powrót → zakończenie bez PR (czysty ekran, bez confetti) i z PR (confetti + delty) → hero-tonaż → Dashboard bez drugiego confetti.
 
 ### 2026-08-12: PRO wydanie B — avatar w headerze, centrum powiadomień, Postępy w bottom nav (WYDANE)
 

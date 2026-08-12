@@ -66,7 +66,9 @@
 - [x] C-T2: hero-tonaż + likwidacja duplikatu metryk (aac26fdc; stara karta 2×2 usunięta, zostaje TYLKO baner sync-pending, licznik ćwiczeń w nagłówku listy, osierocony totalRepsCount usunięty)
 - [x] C-T3: polityka confetti (8401be76; bigMoment ?? prs>0, AutoAdvance z capem min(celebrationMs,1200), Dashboard confetti tylko ?welcome=1; 1632 unit zielonych)
 - [x] C-T4: haptyka + delta przy live PR (bb8851eb; hapticSuccess już był w toaście livePR — dodana delta przez bestBefore w stanie pending, i18n {delta} w obu locale; haptyka do sprawdzenia na urządzeniu przy testach usera)
-- [ ] WYDANIE C: jak wyżej
+- [x] WYDANIE C: jak wyżej (web live index-DaIzuDtB.js; iOS 98 APPROVED obie grupy,
+      Watch w IPA; AAB v14 jar verified SHA-256 961319d2…c792; e2e 392/392;
+      NASTĘPNY bump iOS = 99, versionCode = 15)
 
 ### Plan D — Gamifikacja progresu (docs/PLAN-PRO-D-2026-08-12.md) [wymaga B]
 - [ ] D-T1: komponent `AchievementBadge`
