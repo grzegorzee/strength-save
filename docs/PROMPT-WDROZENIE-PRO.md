@@ -56,7 +56,7 @@
 - [x] B-T1: moduł inboxa `notification-inbox.ts` (7f30bfa0; TDD 4 testy, storage per uid limit 50, test w src/test/ jak w A-T2; 1621 unit zielonych)
 - [x] B-T2: dzwonek + sheet powiadomień w headerze (9f280084; sheet zawsze zamontowany wg lekcji b.92, i18n w obu locale, 1624 unit zielonych)
 - [x] B-T3: avatar w headerze + Postępy w bottom nav (c2b952f7; rootPaths z /achievements+/analytics bez /profile, e2e mobile-nav zaktualizowane 8/8, 1625 unit zielonych)
-- [ ] B-T4: emisja zdarzeń PR do inboxa
+- [x] B-T4: emisja zdarzeń PR do inboxa (f8909b77; formatPRValue wyniesiony do pr-utils i użyty w completion+inboxie, TDD 3 nowe testy, 1628 unit zielonych)
 - [ ] WYDANIE B: jak wyżej
 
 ### Plan C — Moment WOW po treningu (docs/PLAN-PRO-C-2026-08-12.md) [wymaga A]
@@ -152,3 +152,7 @@
   zaktualizowany do nowego niezmiennika (Postępy w 5. slocie, Profil przez avatar) i
   przechodzi 8/8. Etykieta achievements w sidebarze zmienia się z 'Osiągnięcia' na
   'Postępy' (labelKey wspólny, świadomie wg planu).
+- 2026-08-12 B-T4: TDD na formatPRValue (wyniesiona logika); samo okablowanie emisji
+  w handleCompleteWorkout (2k-liniowa strona, glue code) weryfikuje scenariusz
+  sekwencji przy WYDANIU B, nie osobny unit z pełnym renderem strony. Nazwa ćwiczenia
+  w inboxie przez localizeExerciseName (jak toast livePR).
