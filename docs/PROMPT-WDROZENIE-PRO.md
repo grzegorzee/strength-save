@@ -44,7 +44,7 @@
 - [x] A-T3: badge'e ExerciseCard (9c41fc9e; 🎯📅⬆⬇↺🏆 → Target/CalendarCheck/Trending/RotateCcw/Trophy, żaden test nie asertował emoji)
 - [x] A-T4: DayPlan + Dashboard (sekcje, pusty stan, regeneracja) (b2ccefa9; 💪🧘🔥⚡⏱️🔄 → Dumbbell/Leaf/Flame/Zap/Timer/Repeat)
 - [x] A-T5: karty cardio/Strava na wspólnej mapie (c67f78c8; 3 lokalne mapy emoji usunięte, CardioPR bez pola emoji, kudos bez 👍)
-- [ ] A-T6: toasty PR, Analytics badge, puste stany Strava
+- [x] A-T6: toasty PR, Analytics badge, puste stany Strava (911a5f36; i18n bez 🏆, badge Trophy+fitness-warning, Footprints w StravaTab/RacePredictor, allowlist i18n oczyszczona)
 - [ ] A-T7: share card bez emoji
 - [ ] A-T8: bramka `check:no-emoji` + domknięcie resztek
 - [ ] WYDANIE A: pełny checklist z CLAUDE.md → web deploy + iOS (z Watch) TestFlight
@@ -124,3 +124,6 @@
   CardioPersonalBests mapuje kategorię PR na ikonę (Footprints/Ruler/Mountain/Medal,
   kolor fitness-warning bo niesie informację PR). Kudos w StravaActivityDetail bez 👍
   (etykieta już mówi co to za liczba). Oba w duchu planu: emoji w stringu → bez ikony.
+- 2026-08-12 A-T6: RacePredictor na jednej ikonie Footprints (wariant mniejszy z planu);
+  usunięty martwy wpis RacePredictor z ALLOWLIST guardu i18n (mapa z kluczem
+  'Półmaraton' zniknęła, wpis osłabiałby guard).
