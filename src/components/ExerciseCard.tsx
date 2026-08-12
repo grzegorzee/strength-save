@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell } from 'lucide-react';
+import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell, Target, CalendarCheck, TrendingUp, TrendingDown, RotateCcw, Trophy } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -123,7 +123,7 @@ const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
         styles[advice.kind],
       )}
     >
-      🎯 {labels[advice.kind]}: {target}
+      <Target className="h-3 w-3" aria-hidden /> {labels[advice.kind]}: {target}
     </span>
   );
 };
@@ -166,7 +166,7 @@ const WeeklyTargetBadge = ({ target }: { target: WeeklyTarget }) => {
         styles[target.kind],
       )}
     >
-      📅 {labels[target.kind]}: {value}
+      <CalendarCheck className="h-3 w-3" aria-hidden /> {labels[target.kind]}: {value}
     </span>
   );
 };
@@ -185,7 +185,8 @@ const RzaAdviceBadge = ({ advice }: { advice: RzaAdvice }) => {
     deload: t('card.rzaDeload'),
     repeat: t('card.rzaRepeat'),
   };
-  const icon = advice.decision === 'progress' ? '⬆' : advice.decision === 'deload' ? '⬇' : '↺';
+  const Icon = advice.decision === 'progress' ? TrendingUp
+    : advice.decision === 'deload' ? TrendingDown : RotateCcw;
   const next = `${Math.round(toDisplay(advice.nextKg) * 10) / 10} ${unit}`;
   return (
     <span
@@ -195,7 +196,7 @@ const RzaAdviceBadge = ({ advice }: { advice: RzaAdvice }) => {
         styles[advice.decision],
       )}
     >
-      {icon} {labels[advice.decision]}: {next}
+      <Icon className="h-3 w-3" aria-hidden /> {labels[advice.decision]}: {next}
     </span>
   );
 };
@@ -1029,7 +1030,7 @@ const ExerciseCardInner = ({
                   data-testid="live-pr-badge"
                   className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-success bg-fitness-success/10 text-fitness-success"
                 >
-                  🏆 PR {Math.round(toDisplay(livePRWeight))} {unit}
+                  <Trophy className="h-3 w-3" aria-hidden /> PR {Math.round(toDisplay(livePRWeight))} {unit}
                 </span>
               )}
               {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} />
