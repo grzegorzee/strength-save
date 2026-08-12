@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -933,7 +933,10 @@ const Dashboard = () => {
       {todayTraining.type === 'rest' && (
         <Card className="bg-muted/30" data-testid="recovery-card">
           <CardContent className="py-4 px-5">
-            <p className="text-sm font-medium">{t('dash.recovery.title')} 🧘</p>
+            <p className="text-sm font-medium flex items-center gap-1.5">
+              {t('dash.recovery.title')}
+              <Leaf className="h-4 w-4 text-muted-foreground" aria-hidden />
+            </p>
             <ul className="mt-1.5 space-y-1">
               {recoveryTipKeys(yesterdayFocus).map((key) => (
                 <li key={key} className="text-xs text-muted-foreground">{t(key)}</li>

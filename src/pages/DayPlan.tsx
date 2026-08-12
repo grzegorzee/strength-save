@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Dumbbell, Info, Play, Moon, Sun, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Dumbbell, Info, Play, Moon, Sun, CheckCircle, ChevronDown, ChevronUp, Leaf, Flame, Zap, Timer, Repeat } from 'lucide-react';
 import { getTrainingRules } from '@/data/trainingPlan';
 import { exerciseLibrary } from '@/data/exerciseLibrary';
 import { slugifyExercise } from '@/lib/exercise-media';
@@ -104,7 +104,9 @@ const DayPlan = () => {
           <CardContent className="space-y-4">
             <div className="text-center py-8">
               <div className={`h-20 w-20 rounded-full mx-auto mb-4 flex items-center justify-center ${isWorkoutCompleted ? 'bg-fitness-success/20' : 'bg-muted'}`}>
-                <span className="text-4xl">{isWorkoutCompleted ? '💪' : '🧘'}</span>
+                {isWorkoutCompleted
+                  ? <Dumbbell className="h-9 w-9 text-fitness-success" />
+                  : <Leaf className="h-9 w-9 text-muted-foreground" />}
               </div>
               <h3 className="text-xl font-semibold mb-2">
                 {isWorkoutCompleted
@@ -217,7 +219,7 @@ const DayPlan = () => {
             className="w-full flex items-center justify-between p-3 rounded-xl bg-orange-500/5 border border-orange-500/20 text-left"
           >
             <div className="flex items-center gap-2">
-              <span className="text-lg">🔥</span>
+              <Flame className="h-4 w-4 text-fitness-warning" aria-hidden />
               <span className="font-medium text-sm">{t('dayplan.warmup')}</span>
             </div>
             {showWarmup ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
@@ -239,9 +241,9 @@ const DayPlan = () => {
           {/* Training Rules */}
           <Alert>
             <AlertDescription className="space-y-1 text-sm">
-              <p>⚡ {trainingRules.weight}</p>
-              <p>⏱️ {trainingRules.restMain}</p>
-              <p>🔄 {trainingRules.supersets}</p>
+              <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />{trainingRules.weight}</p>
+              <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />{trainingRules.restMain}</p>
+              <p className="flex items-center gap-2"><Repeat className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />{trainingRules.supersets}</p>
             </AlertDescription>
           </Alert>
 
@@ -298,7 +300,7 @@ const DayPlan = () => {
             className="w-full flex items-center justify-between p-3 rounded-xl bg-fitness-cyan/5 border border-fitness-cyan/20 text-left"
           >
             <div className="flex items-center gap-2">
-              <span className="text-lg">🧘</span>
+              <Leaf className="h-4 w-4 text-fitness-cyan" aria-hidden />
               <span className="font-medium text-sm">{t('dayplan.stretching')}</span>
             </div>
             {showStretching ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
