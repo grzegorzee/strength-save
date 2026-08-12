@@ -231,6 +231,11 @@ add('user update maxHRManualOverride zly typ DENIED', false, await ok(() => upda
 add('user update zwyklego pola profilu (displayName)', true, await ok(() => updateDoc(doc(db, 'users', UID), { displayName: 'G' })));
 add('user update trainingProfile podczas onboardingu', true, await ok(() => updateDoc(doc(db, 'users', UID), { trainingProfile: { level: 'beginner', objective: 'build_muscle', daysPerWeek: 3 } })));
 add('user update subscription zablokowane', false, await ok(() => updateDoc(doc(db, 'users', UID), { subscription: { tier: 'yearly', status: 'active' } })));
+// Backfill rekordow (Runna p.1, spec A5): zamknieta mapa boi glownych.
+add('user update prBackfill (boje glowne) ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { prBackfill: { squat: 140, bench: 100, deadlift: 180 } })));
+add('user update prBackfill z nieznanym kluczem DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { prBackfill: { curl: 50 } })));
+add('user update prBackfill ze zlym typem DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { prBackfill: { squat: 'duzo' } })));
+add('user update prBackfill poza limitem DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { prBackfill: { squat: 700 } })));
 add('zapis Max HR przez admin SDK (sciezka callable saveMaxHR)', true, await ok(() => env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(ctx.firestore(), 'users', UID), { estimatedMaxHR: 190, maxHRManualOverride: true }, { merge: true });
 })));

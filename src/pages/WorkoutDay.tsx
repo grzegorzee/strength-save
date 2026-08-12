@@ -49,6 +49,7 @@ import { db } from '@/lib/firebase';
 import { saveWorkoutSessionRating } from '@/lib/workout-save';
 import { computeCompletionSummary } from '@/lib/workout-completion-summary';
 import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
+import { backfillWeightForExercise, filterPRsAgainstBackfill } from '@/lib/pr-backfill';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
@@ -133,7 +134,7 @@ const WorkoutDay = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { t, lang } = useTranslation();
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
   // Wycofana zgoda zdrowotna chowa panel metryk RPE/ból/jakość (brak
   // onMetricsChange = ExerciseCard nie renderuje chipa ani inputów).
   const healthConsent = useHealthConsent();
@@ -1645,6 +1646,22 @@ const WorkoutDay = () => {
   const livePRSourceRef = useRef(livePRSourceWorkouts);
   livePRSourceRef.current = livePRSourceWorkouts;
 
+  // Spec A5: backfill rekordów sprzed instalacji — baseline detekcji PR
+  // (max z historią w apce), zmapowany na id ćwiczeń bieżącego dnia.
+  const backfillByExerciseId = useMemo(() => {
+    const map = new Map<string, number>();
+    const backfill = profile?.prBackfill;
+    if (backfill && day) {
+      for (const exercise of day.exercises) {
+        const weight = backfillWeightForExercise(exercise.name, backfill);
+        if (weight > 0) map.set(exercise.id, weight);
+      }
+    }
+    return map;
+  }, [profile?.prBackfill, day]);
+  const backfillRef = useRef(backfillByExerciseId);
+  backfillRef.current = backfillByExerciseId;
+
   // Handler for ACTIVE WORKOUT - saves locally to IndexedDB, Firebase only on checkpoints/finish
   const handleSetsChange = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = stampChangedWatchSets(exerciseSetsRef.current[exerciseId], sets.map(s => ({
@@ -1659,7 +1676,11 @@ const WorkoutDay = () => {
     const livePR = detectLiveWeightPR({
       previousSets: exerciseSetsRef.current[exerciseId],
       nextSets: sanitizedSets,
-      bestBefore: bestPreviousWeight(livePRSourceRef.current, exerciseId),
+      // Spec A5: baseline = max(historia w apce, backfill sprzed instalacji).
+      bestBefore: Math.max(
+        bestPreviousWeight(livePRSourceRef.current, exerciseId),
+        backfillRef.current.get(exerciseId) ?? 0,
+      ),
     });
 
     const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
@@ -2061,11 +2082,13 @@ const WorkoutDay = () => {
           bodyWeightKg: getLatestMeasurement()?.weight ?? null,
         },
       );
-      setSessionPRs(newPRs);
-      if (newPRs.length > 0) {
-        const prNames = newPRs.map(pr => pr.exerciseName).join(', ');
+      // Spec A5: rekord sprzed instalacji wyższy niż wynik = brak gratulacji.
+      const effectivePRs = filterPRsAgainstBackfill(newPRs, id => backfillByExerciseId.get(id) ?? 0);
+      setSessionPRs(effectivePRs);
+      if (effectivePRs.length > 0) {
+        const prNames = effectivePRs.map(pr => pr.exerciseName).join(', ');
         toast({
-          title: t('workout.toast.newPRTitle', { n: newPRs.length }),
+          title: t('workout.toast.newPRTitle', { n: effectivePRs.length }),
           description: prNames,
         });
       } else {

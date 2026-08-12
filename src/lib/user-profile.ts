@@ -1,4 +1,5 @@
 import type { AppUserProfile } from '@/lib/registration-api';
+import { sanitizePRBackfill, type PRBackfill } from '@/lib/pr-backfill';
 import type { ConsentMirror } from '@/lib/legal-versions';
 import type { LanguageCode } from '@/i18n';
 
@@ -77,6 +78,8 @@ export interface UserProfile {
   };
   /** Mirror zgód z users/{uid}.consents; bramka re-consent czyta go z profilu. */
   consents?: ConsentMirror;
+  /** Rekordy sprzed instalacji (Runna p.1, spec A5) — baseline detekcji PR. */
+  prBackfill?: PRBackfill;
 }
 
 interface AuthProfileSeed {
@@ -122,6 +125,8 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   // Incydent 2026-08-11 (build 87): bez przeniesienia mirrora zgód bramka
   // re-consent nie miała się jak zamknąć po udanym recordConsent.
   consents: data.consents || undefined,
+  // Lekcja builda 88: mapper pole-po-polu — nowe pole bez wpisu tutaj znika.
+  prBackfill: sanitizePRBackfill(data.prBackfill),
 });
 
 export const resolveProfileLoadFailure = (lastKnownProfile: UserProfile | null): UserProfile | null =>

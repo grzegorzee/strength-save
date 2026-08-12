@@ -37,15 +37,16 @@ import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
   User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
-  ScrollText, Ruler, Trophy, Shield, Gem, CreditCard,
+  ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
 } from 'lucide-react';
+import { PR_BACKFILL_LIFTS, PR_BACKFILL_SOFT_WARN_KG, sanitizePRBackfill, type PRBackfillLift } from '@/lib/pr-backfill';
 
 import { REST_TIMER_KEY, SOUND_KEY, REST_OPTIONS } from '@/lib/workout-preferences';
 
 const Profile = () => {
   const navigate = useNavigate();
   const { uid, profile, isAdmin } = useCurrentUser();
-  const { unit, setUnit } = useUnit();
+  const { unit, setUnit, toDisplay, fromInput } = useUnit();
   const { logout, logoutAfterAccountDeletion, resetPassword } = useAuth();
   const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { toast } = useToast();
@@ -187,6 +188,52 @@ const Profile = () => {
     toast({ title: t('profile.langSaved') });
   };
 
+  // Backfill rekordów sprzed instalacji (Runna p.1, spec A5). Inputy w jednostce
+  // usera, zapis w kg kanonicznych; pusty formularz = wyczyszczenie backfillu.
+  const emptyBackfillInputs: Record<PRBackfillLift, string> = { squat: '', bench: '', deadlift: '' };
+  const backfillLabelKeys = {
+    squat: 'profile.backfill.squat',
+    bench: 'profile.backfill.bench',
+    deadlift: 'profile.backfill.deadlift',
+  } as const;
+  const [backfillOpen, setBackfillOpen] = useState(false);
+  const [backfillInputs, setBackfillInputs] = useState(emptyBackfillInputs);
+  const [savingBackfill, setSavingBackfill] = useState(false);
+
+  const openBackfill = () => {
+    const stored = profile?.prBackfill;
+    setBackfillInputs({
+      squat: stored?.squat ? String(Math.round(toDisplay(stored.squat) * 2) / 2) : '',
+      bench: stored?.bench ? String(Math.round(toDisplay(stored.bench) * 2) / 2) : '',
+      deadlift: stored?.deadlift ? String(Math.round(toDisplay(stored.deadlift) * 2) / 2) : '',
+    });
+    setBackfillOpen(true);
+  };
+
+  const backfillKg = (lift: PRBackfillLift): number | null => {
+    const value = parseFloat(backfillInputs[lift].replace(',', '.'));
+    return Number.isFinite(value) && value > 0 ? fromInput(value) : null;
+  };
+
+  const handleSaveBackfill = async () => {
+    const parsed: Record<string, number> = {};
+    for (const lift of PR_BACKFILL_LIFTS) {
+      const kg = backfillKg(lift);
+      if (kg !== null) parsed[lift] = kg;
+    }
+    setSavingBackfill(true);
+    try {
+      // Pusta mapa = user świadomie czyści backfill (stan ma wyjście, reguła #6).
+      await updateDoc(doc(db, 'users', uid), { prBackfill: sanitizePRBackfill(parsed) ?? {} });
+      toast({ title: t('profile.toast.saved'), description: t('profile.backfill.saved') });
+      setBackfillOpen(false);
+    } catch {
+      toast({ title: t('profile.toast.error'), description: t('profile.toast.saveFailed'), variant: 'destructive' });
+    } finally {
+      setSavingBackfill(false);
+    }
+  };
+
   const handleSaveName = async () => {
     const trimmed = nameInput.trim();
     if (!trimmed) return;
@@ -295,6 +342,12 @@ const Profile = () => {
         <SettingRow icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
         <SettingRow icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
         <SettingRow icon={Trophy} label={t('nav.achievements')} onClick={() => navigate('/achievements')} />
+        <SettingRow
+          icon={Medal}
+          label={t('profile.backfill.title')}
+          value={profile?.prBackfill ? t('profile.backfill.set') : undefined}
+          onClick={openBackfill}
+        />
       </SectionCard>
 
       {/* SUBSKRYPCJA — tylko odczyt stanu; zarządzanie i zakup wyłącznie na platformie paywalla (natywny iOS) */}
@@ -483,6 +536,43 @@ const Profile = () => {
           <DialogFooter>
             <Button onClick={handleSaveName} disabled={savingName || !nameInput.trim()} className="kinetic-primary-button">
               {savingName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Backfill rekordów sprzed instalacji (Runna p.1, spec A5) */}
+      <Dialog open={backfillOpen} onOpenChange={setBackfillOpen}>
+        <DialogContent className="rounded-xl border-0 bg-surface-low" data-testid="backfill-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase">{t('profile.backfill.title')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t('profile.backfill.desc')}</p>
+          <div className="space-y-3">
+            {PR_BACKFILL_LIFTS.map((lift) => {
+              const kg = backfillKg(lift);
+              return (
+                <div key={lift} className="space-y-1">
+                  <label htmlFor={`backfill-${lift}`} className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t(backfillLabelKeys[lift])} ({unit})
+                  </label>
+                  <Input
+                    id={`backfill-${lift}`}
+                    inputMode="decimal"
+                    value={backfillInputs[lift]}
+                    onChange={(e) => setBackfillInputs((prev) => ({ ...prev, [lift]: e.target.value }))}
+                    placeholder="0"
+                  />
+                  {kg !== null && kg > PR_BACKFILL_SOFT_WARN_KG && (
+                    <p className="text-xs text-fitness-warning">{t('profile.backfill.softWarn')}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSaveBackfill} disabled={savingBackfill} className="kinetic-primary-button">
+              {savingBackfill ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} {t('common.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

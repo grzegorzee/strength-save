@@ -53,6 +53,8 @@ export interface AppUserProfile {
   };
   /** Mirror zgód pisany przez recordConsent (klient tylko czyta). */
   consents?: ConsentMirror;
+  /** Rekordy sprzed instalacji (Runna p.1, spec A5): klient pisze z Profilu. */
+  prBackfill?: { squat?: number; bench?: number; deadlift?: number };
   verification?: {
     emailVerifiedAt?: string | null;
     lastCodeSentAt?: string | null;
