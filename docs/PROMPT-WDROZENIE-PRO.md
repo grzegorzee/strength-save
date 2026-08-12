@@ -63,7 +63,7 @@
 
 ### Plan C — Moment WOW po treningu (docs/PLAN-PRO-C-2026-08-12.md) [wymaga A]
 - [x] C-T1: delta w liście PR podsumowania (2935075a; formatPRDelta w pr-utils, TDD 2 testy — w drugim volumeDeltaPct:null bo '+5%' tonażu psuł asercję planu; 1630 unit zielonych)
-- [ ] C-T2: hero-tonaż + likwidacja duplikatu metryk
+- [x] C-T2: hero-tonaż + likwidacja duplikatu metryk (aac26fdc; stara karta 2×2 usunięta, zostaje TYLKO baner sync-pending, licznik ćwiczeń w nagłówku listy, osierocony totalRepsCount usunięty)
 - [ ] C-T3: polityka confetti (rzadkie momenty)
 - [ ] C-T4: haptyka + delta przy live PR
 - [ ] WYDANIE C: jak wyżej
@@ -158,3 +158,7 @@
   w handleCompleteWorkout (2k-liniowa strona, glue code) weryfikuje scenariusz
   sekwencji przy WYDANIU B, nie osobny unit z pełnym renderem strony. Nazwa ćwiczenia
   w inboxie przez localizeExerciseName (jak toast livePR).
+- 2026-08-12 C-T2: stan sync-pending zachowany jako osobny baner (plan kazał usunąć
+  nagłówek gratulacyjny; "czeka na synchronizację" to STATUS, nie gratulacja — jego
+  usunięcie łamałoby zasadę 6 CLAUDE.md). Klucze workout.summary/statExercises/statReps
+  zostają w locale (osierocone w kodzie, nieszkodliwe, mogą wrócić).
