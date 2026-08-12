@@ -2253,6 +2253,12 @@ const WorkoutDay = () => {
       // a brak/utrata oceny = brak sygnału, nic nie wisi (reguła #6).
       void saveWorkoutSessionRating(db, sessionId, rating, reasons).catch(() => {});
     };
+    // Spec A3: edycja z podsumowania przez istniejący tryb edycji. Gasimy
+    // justCompleted, żeby po powrocie z edycji celebracja nie wróciła zombie.
+    const handleEditFromSummary = () => {
+      setJustCompleted(false);
+      setIsEditing(true);
+    };
     return (
       <div className="space-y-6 pb-20">
         <div className="flex items-center gap-4">
@@ -2264,7 +2270,7 @@ const WorkoutDay = () => {
             <p className="text-muted-foreground">{localizeFocus(day.focus, lang)}</p>
           </div>
           {!isFinalSyncPending && (
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Button variant="outline" size="sm" onClick={handleEditFromSummary}>
               <Pencil className="h-4 w-4 mr-2" />
               {t('dash.edit')}
             </Button>
@@ -2302,6 +2308,7 @@ const WorkoutDay = () => {
           fmtDuration={fmtDuration}
           prs={sessionPRs}
           onRate={handleSessionRate}
+          onEditSets={isFinalSyncPending ? undefined : handleEditFromSummary}
         >
         <Card className={cn(
           "border-fitness-success bg-fitness-success/10",

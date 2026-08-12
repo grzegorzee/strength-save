@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Check, ThumbsDown, ThumbsUp, Trophy, X } from 'lucide-react';
+import { Check, Pencil, ThumbsDown, ThumbsUp, Trophy, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
@@ -25,6 +25,8 @@ interface WorkoutCompletionSequenceProps {
   fmtDuration: (sec: number) => string;
   prs: PRComparison[];
   onRate: (rating: WorkoutSessionRating, reasons: WorkoutSessionRatingReason[]) => void;
+  /** Edycja serii z podsumowania (spec A3). Brak = edycja niedostępna (np. final sync pending). */
+  onEditSets?: () => void;
   celebrationMs?: number;
   children?: ReactNode;
 }
@@ -44,6 +46,7 @@ export const WorkoutCompletionSequence = ({
   fmtDuration,
   prs,
   onRate,
+  onEditSets,
   celebrationMs = 2200,
   children,
 }: WorkoutCompletionSequenceProps) => {
@@ -189,6 +192,17 @@ export const WorkoutCompletionSequence = ({
               )}
               {deltaText && <p>{t('workout.completion.volumeVsPrev', { delta: deltaText })}</p>}
             </div>
+          )}
+          {onEditSets && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-3 w-full gap-1.5 text-muted-foreground"
+              onClick={onEditSets}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {t('workout.completion.editSets')}
+            </Button>
           )}
         </CardContent>
       </Card>

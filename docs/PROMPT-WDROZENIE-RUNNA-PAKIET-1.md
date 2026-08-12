@@ -54,7 +54,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
   deterministyczne (tonaż, czas, serie, PR per ćwiczenie, plan vs wykonanie)
   → powrót z podświetlonym następnym dniem (spec A1). Brzegi: pusta sesja
   bez celebracji, ocena pomijalna, offline. Testy komponentów + sekwencji.
-- [ ] **3. Edycja serii z podsumowania.** BEZ osobnego ekranu po "Zakończ"
+- [x] **3. Edycja serii z podsumowania.** BEZ osobnego ekranu po "Zakończ"
   (decyzja 2026-08-12): edycja inline ciężaru/powtórzeń dostępna z ekranu
   podsumowania completion (spec A3), przez istniejącą ścieżkę edycji sesji;
   sanityzacja kg; test: poprawka widoczna w historii i danych silnika.

@@ -95,6 +95,18 @@ describe('WorkoutCompletionSequence', () => {
     expect(screen.queryByText(/Dzięki/)).toBeNull();
   });
 
+  it('edycja z podsumowania: przycisk "Popraw serie" woła onEditSets (spec A3)', () => {
+    const onEditSets = vi.fn();
+    renderSequence({ justCompleted: false, onEditSets });
+    fireEvent.click(screen.getByRole('button', { name: 'Popraw serie' }));
+    expect(onEditSets).toHaveBeenCalledTimes(1);
+  });
+
+  it('bez onEditSets (final sync pending) przycisku edycji nie ma', () => {
+    renderSequence({ justCompleted: false });
+    expect(screen.queryByRole('button', { name: 'Popraw serie' })).toBeNull();
+  });
+
   it('podsumowanie: plan vs wykonanie, delta wolumenu i blok PR per ćwiczenie', async () => {
     renderSequence({
       justCompleted: false,

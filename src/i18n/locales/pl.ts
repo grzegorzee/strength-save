@@ -1263,6 +1263,7 @@ export const pl = {
   'workout.completion.saveRating': 'Zapisz ocenę',
   'workout.completion.rateThanks': 'Dzięki! To pomaga dobierać ciężary.',
   'workout.completion.statTonnage': 'Tonaż',
+  'workout.completion.editSets': 'Popraw serie',
   'workout.completion.planSets': '{done} z {planned} zaplanowanych serii',
   'workout.completion.volumeVsPrev': 'Wolumen {delta} vs poprzednia sesja tego dnia',
   'workout.completion.prTitle': 'Nowe rekordy',

@@ -1242,6 +1242,7 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.completion.saveRating': 'Save rating',
   'workout.completion.rateThanks': 'Thanks! This helps calibrate your weights.',
   'workout.completion.statTonnage': 'Tonnage',
+  'workout.completion.editSets': 'Fix sets',
   'workout.completion.planSets': '{done} of {planned} planned sets',
   'workout.completion.volumeVsPrev': 'Volume {delta} vs last session of this day',
   'workout.completion.prTitle': 'New records',
