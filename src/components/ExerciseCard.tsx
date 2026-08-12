@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell, Target, CalendarCheck, TrendingUp, TrendingDown, RotateCcw, Trophy } from 'lucide-react';
+import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell, Target, CalendarCheck, TrendingUp, TrendingDown, RotateCcw, Trophy, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1148,7 +1148,7 @@ const ExerciseCardInner = ({
             {(tracking === 'duration' || tracking === 'weight_distance_duration') && (
               <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colDuration')}</span>
             )}
-            <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">✓</span>
+            <span className="flex items-center justify-center"><Check className="h-3 w-3 text-muted-foreground/50" aria-hidden /></span>
             <span />
           </div>
         ) : (
@@ -1159,7 +1159,7 @@ const ExerciseCardInner = ({
             <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{unit}</span>
           )}
           <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colReps')}</span>
-          <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">✓</span>
+          <span className="flex items-center justify-center"><Check className="h-3 w-3 text-muted-foreground/50" aria-hidden /></span>
           <span />
         </div>
         )}

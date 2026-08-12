@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/sheet';
 import type { StravaActivity } from '@/types/strava';
 import { HR_ZONES } from '@/types/strava';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Home } from 'lucide-react';
 import { getActivityIcon } from '@/lib/activity-icons';
 import { getHRZone, getHRZoneConfig, getHRPercent } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -121,7 +121,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
             </div>
           </div>
           {activity.trainer && (
-            <Badge variant="secondary" className="w-fit mt-2">🏠 {t('strava.detail.indoor')}</Badge>
+            <Badge variant="secondary" className="w-fit mt-2 gap-1"><Home className="h-3 w-3" aria-hidden />{t('strava.detail.indoor')}</Badge>
           )}
         </SheetHeader>
 

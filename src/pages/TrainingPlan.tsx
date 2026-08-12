@@ -11,7 +11,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarDays, Dumbbell, Pencil, CheckCircle, HeartPulse } from 'lucide-react';
+import { CalendarDays, Dumbbell, Pencil, CheckCircle, HeartPulse, Zap, Timer } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -296,9 +296,9 @@ const TrainingPlan = () => {
         <div className="exercise-card-divider mx-6" />
 
         {/* Rules tip */}
-        <div className="mx-6 mt-5 mb-5 py-3 px-4 rounded-xl bg-primary/[0.04] border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed">
-          <strong className="text-muted-foreground">⚡ {trainingRules.weight}</strong><br />
-          ⏱️ {trainingRules.restMain} • {trainingRules.restIsolation}
+        <div className="mx-6 mt-5 mb-5 py-3 px-4 rounded-xl bg-primary/[0.04] border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed space-y-1">
+          <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0" aria-hidden /><strong className="text-muted-foreground">{trainingRules.weight}</strong></p>
+          <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
         </div>
 
         {/* Week navigation */}

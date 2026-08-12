@@ -65,11 +65,11 @@ describe('ShareWorkoutDialog — stan Zapisano (Z198)', () => {
     const download = await screen.findByRole('button', { name: /Pobierz/i });
     fireEvent.click(download);
 
-    await waitFor(() => expect(screen.getByText('Zapisano ✓')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Zapisano')).toBeTruthy());
     expect(hapticSuccess).toHaveBeenCalledTimes(1);
 
     // Po ~1.8 s przycisk wraca do "Pobierz".
-    await waitFor(() => expect(screen.queryByText('Zapisano ✓')).toBeNull(), { timeout: 3000 });
+    await waitFor(() => expect(screen.queryByText('Zapisano')).toBeNull(), { timeout: 3000 });
     expect(screen.getByRole('button', { name: /Pobierz/i })).toBeTruthy();
   });
 
@@ -84,7 +84,7 @@ describe('ShareWorkoutDialog — stan Zapisano (Z198)', () => {
 
     // Chwila na przetworzenie odrzuconego promise.
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(screen.queryByText('Zapisano ✓')).toBeNull();
+    expect(screen.queryByText('Zapisano')).toBeNull();
     expect(hapticSuccess).not.toHaveBeenCalled();
   });
 
@@ -95,6 +95,6 @@ describe('ShareWorkoutDialog — stan Zapisano (Z198)', () => {
     const share = await screen.findByRole('button', { name: /Udostępnij/i });
     fireEvent.click(share);
 
-    await waitFor(() => expect(screen.getByText('Zapisano ✓')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Zapisano')).toBeTruthy());
   });
 });
