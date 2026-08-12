@@ -4,6 +4,7 @@ import { parseRepRange, isIsolationExercise, type RepRange } from '@/lib/exercis
 import { decideNextSet, lastSessionRatedTooHeavy, type NextSetDecision } from '@/lib/progression-engine';
 import { translate, type LanguageCode } from '@/i18n';
 import { formatWeight, type UnitSystem } from '@/lib/units';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 
 // Sugestia następnej serii: konkretny cel (ciężar × powtórzenia) z TRENDU całej historii,
 // nie tylko ostatniego treningu. Deterministyczna i darmowa — AI dokłada się tylko on-demand.
@@ -21,6 +22,8 @@ export interface NextSetAdvice {
 
 // Ile dni zastoju traktujemy jako plateau (próg deload).
 const PLATEAU_MIN_SESSIONS = 4;
+// Spec C2 (Runna p.1): przerwa od ćwiczenia >= tylu dni = lżejsze wejście -10%.
+export const COMEBACK_BREAK_DAYS = 14;
 
 const reasonText = (
   decision: NextSetDecision,
@@ -54,6 +57,8 @@ const reasonText = (
       return translate(lang, 'nsadvice.hold.inrange', { max: repRange.max });
     case 'hold.rated':
       return translate(lang, 'nsadvice.hold.rated');
+    case 'deload.break':
+      return translate(lang, 'nsadvice.deload.break', { weight: disp(decision.targetWeight), unit });
   }
 };
 
@@ -62,7 +67,7 @@ export const getNextSetAdvice = (
   exerciseId: string,
   setsStr: string,
   exerciseIndex: number,
-  options?: { isBodyweight?: boolean; isSuperset?: boolean },
+  options?: { isBodyweight?: boolean; isSuperset?: boolean; todayISO?: string },
   lang: LanguageCode = 'pl',
   unit: UnitSystem = 'kg',
 ): NextSetAdvice | null => {
@@ -81,6 +86,12 @@ export const getNextSetAdvice = (
   const plateau = detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight);
   const increment = isIsolationExercise(exerciseIndex, options?.isSuperset) ? 1 : 2.5;
 
+  // Spec C2 (Runna p.1): ostatnia sesja ćwiczenia 14+ dni temu = comeback -10%.
+  const todayISO = options?.todayISO ?? formatLocalDate(new Date());
+  const breakDays = Math.floor(
+    (parseLocalDate(todayISO).getTime() - parseLocalDate(last.date).getTime()) / 86_400_000,
+  );
+
   const decision = decideNextSet({
     lastWeight,
     lastReps,
@@ -90,6 +101,7 @@ export const getNextSetAdvice = (
     isPlateau: plateau.isPlateau,
     // Spec A2 (Runna p.1): "za ciężko" z oceny sesji gasi podbicie w propozycji.
     lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exerciseId),
+    longBreak: breakDays >= COMEBACK_BREAK_DAYS,
   });
 
   return {

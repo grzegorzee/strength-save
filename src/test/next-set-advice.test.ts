@@ -20,7 +20,7 @@ describe('getNextSetAdvice', () => {
 
   it('dowiózł górę zakresu → progress: +2.5 kg (compound), reset reps do dołu', () => {
     const ws = [wk('w1', '2026-05-01', 80, 8)]; // 8 = górna granica 6-8
-    const advice = getNextSetAdvice(ws, 'bench', '3 x 6-8', 0)!;
+    const advice = getNextSetAdvice(ws, 'bench', '3 x 6-8', 0, { todayISO: '2026-05-14' })!;
     expect(advice.kind).toBe('progress');
     expect(advice.targetWeight).toBe(82.5);
     expect(advice.targetReps).toBe(6);
@@ -28,14 +28,14 @@ describe('getNextSetAdvice', () => {
 
   it('izolacja (index >= 3) dostaje +1 kg', () => {
     const ws = [wk('w1', '2026-05-01', 20, 12)];
-    const advice = getNextSetAdvice(ws, 'bench', '3 x 10-12', 4)!;
+    const advice = getNextSetAdvice(ws, 'bench', '3 x 10-12', 4, { todayISO: '2026-05-02' })!;
     expect(advice.kind).toBe('progress');
     expect(advice.targetWeight).toBe(21);
   });
 
   it('w zakresie → hold, ten sam ciężar, dorzuć powtórzenia', () => {
     const ws = [wk('w1', '2026-05-01', 80, 7)]; // 7 mieści się w 6-8
-    const advice = getNextSetAdvice(ws, 'bench', '3 x 6-8', 0)!;
+    const advice = getNextSetAdvice(ws, 'bench', '3 x 6-8', 0, { todayISO: '2026-05-14' })!;
     expect(advice.kind).toBe('hold');
     expect(advice.targetWeight).toBe(80);
     expect(advice.targetReps).toBe(8);
@@ -43,7 +43,7 @@ describe('getNextSetAdvice', () => {
 
   it('poniżej zakresu → hold, dobij do dołu zakresu', () => {
     const ws = [wk('w1', '2026-05-01', 80, 4)];
-    const advice = getNextSetAdvice(ws, 'bench', '3 x 6-8', 0)!;
+    const advice = getNextSetAdvice(ws, 'bench', '3 x 6-8', 0, { todayISO: '2026-05-14' })!;
     expect(advice.kind).toBe('hold');
     expect(advice.targetWeight).toBe(80);
     expect(advice.targetReps).toBe(6);
@@ -58,7 +58,7 @@ describe('getNextSetAdvice', () => {
       wk('w4', '2026-05-10', 100, 8),
       wk('w5', '2026-05-13', 100, 8),
     ];
-    const advice = getNextSetAdvice(ws, 'bench', '3 x 6-8', 0)!;
+    const advice = getNextSetAdvice(ws, 'bench', '3 x 6-8', 0, { todayISO: '2026-05-14' })!;
     expect(advice.kind).toBe('deload');
     expect(advice.targetWeight).toBe(90);
   });

@@ -609,6 +609,13 @@ export const en: Record<keyof typeof pl, string> = {
   'skipday.restore': 'Restore workout',
   'skipday.toastSkipped': 'Workout skipped. The progression engine will account for it.',
   'skipday.toastRestored': 'Workout restored to the plan.',
+  // Lapse tray (Runna p.1, spec C2) — neutral tone.
+  'lapse.title': 'Let\'s get back on track',
+  'lapse.staleDesc': 'Your {day} workout from {date} is waiting. No pressure — pick what to do with it.',
+  'lapse.weekDesc': 'No sessions last week. Let\'s ease back in, starting today.',
+  'lapse.continue': 'Continue from today',
+  'lapse.continueDesc': 'Overdue sessions get skipped and the engine will suggest a lighter comeback.',
+  'lapse.toastContinued': 'Back from today. Weight suggestions will be more conservative.',
   'reschedule.sheetTitle': 'Reschedule workout',
   'reschedule.sheetDesc': '{name} from {date}. Pick a new day (next 14 days).',
   'reschedule.free': 'free',
@@ -1512,6 +1519,7 @@ export const en: Record<keyof typeof pl, string> = {
   'nsadvice.hold.below': 'Keep {weight} {unit} and work up to {min} reps.',
   'nsadvice.hold.inrange': 'Same weight — add reps toward {max}.',
   'nsadvice.hold.rated': 'You rated the last session: too heavy. Staying at the current load — nail confident reps.',
+  'nsadvice.deload.break': 'Back after a break — go lighter: aim for {weight} {unit} with confident reps.',
   // === L3 lib/data ===
   'progress.repeat': 'Repeat',
   'progress.maintainWeight': 'Hold weight',

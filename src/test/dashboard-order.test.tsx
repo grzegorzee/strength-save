@@ -62,6 +62,7 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
     progression: null,
     skippedDates: [],
     setDaySkipped: vi.fn(async () => ({ success: true })),
+    skipPastDates: vi.fn(async () => ({ success: true })),
     currentWeek: 3,
     isPlanExpired: false,
     weeksRemaining: 9,

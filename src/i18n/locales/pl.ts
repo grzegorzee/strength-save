@@ -616,6 +616,13 @@ export const pl = {
   'skipday.restore': 'Przywróć trening',
   'skipday.toastSkipped': 'Trening odpuszczony. Silnik progresji to uwzględni.',
   'skipday.toastRestored': 'Trening przywrócony do planu.',
+  // Tray zaległości (Runna p.1, spec C2) — ton neutralny, zero pretensji.
+  'lapse.title': 'Wróćmy do planu',
+  'lapse.staleDesc': 'Trening {day} z {date} czeka. Bez presji — wybierz, co z nim zrobić.',
+  'lapse.weekDesc': 'W zeszłym tygodniu nie było żadnej sesji. Wracamy spokojnie, od dziś.',
+  'lapse.continue': 'Kontynuuj od dziś',
+  'lapse.continueDesc': 'Zaległe sesje odpuszczamy, a silnik zaproponuje lżejsze wejście po przerwie.',
+  'lapse.toastContinued': 'Wracamy od dziś. Propozycje ciężarów będą ostrożniejsze.',
   'reschedule.sheetTitle': 'Przełóż trening',
   'reschedule.sheetDesc': '{name} z {date}. Wybierz nowy dzień (najbliższe 14 dni).',
   'reschedule.free': 'wolne',
@@ -1534,6 +1541,7 @@ export const pl = {
   'nsadvice.hold.below': 'Utrzymaj {weight} {unit} i dobij do {min} powt.',
   'nsadvice.hold.inrange': 'Ten sam ciężar — dorzuć powtórzenia w stronę {max}.',
   'nsadvice.hold.rated': 'Ostatnią sesję oceniłeś: za ciężko. Zostajemy przy obecnym obciążeniu, dowieź pewne powtórzenia.',
+  'nsadvice.deload.break': 'Po przerwie wracamy lżej: celuj {weight} {unit} i pewne powtórzenia.',
   // === L3 lib/data ===
   'progress.repeat': 'Powtórz',
   'progress.maintainWeight': 'Utrzymaj ciężar',

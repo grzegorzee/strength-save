@@ -67,7 +67,7 @@ export const isDeloadWeek = (weekIndex: number, config: ProgressionConfig): bool
 // ===== Z120: wspólna decyzja double progression (używana przez next-set-advice i cele tygodniowe) =====
 
 export type NextSetReasonKey =
-  | 'deload.bw' | 'deload.weight'
+  | 'deload.bw' | 'deload.weight' | 'deload.break'
   | 'bw.progress' | 'bw.hold'
   | 'progress' | 'hold.below' | 'hold.inrange'
   | 'hold.rated';
@@ -93,8 +93,11 @@ export const decideNextSet = (input: {
   /** Spec A2 (Runna p.1): ostatnia sesja oceniona "za ciężko" gasi podbicie.
    *  Działa WYŁĄCZNIE na gałęzie progress; deload przy plateau ma priorytet. */
   lastRatedTooHeavy?: boolean;
+  /** Spec C2 (Runna p.1): długa przerwa od ćwiczenia = lżejsze wejście -10%
+   *  ("Kontynuuj od dziś" — propozycja, nic nie nadpisuje planu). */
+  longBreak?: boolean;
 }): NextSetDecision => {
-  const { lastWeight, lastReps, repRange, isBodyweight, increment, isPlateau, lastRatedTooHeavy } = input;
+  const { lastWeight, lastReps, repRange, isBodyweight, increment, isPlateau, lastRatedTooHeavy, longBreak } = input;
 
   // Deload ma priorytet: jeśli wynik stoi od kilku sesji, odpuść i wróć z impetem.
   if (isPlateau) {
@@ -103,6 +106,12 @@ export const decideNextSet = (input: {
     }
     const deloadWeight = Math.max(0, Math.round(lastWeight * 0.9 * 2) / 2); // -10%, do 0.5 kg
     return { kind: 'deload', targetWeight: deloadWeight, targetReps: repRange.max, reasonKey: 'deload.weight' };
+  }
+
+  // Comeback po przerwie (spec C2): -10% na wejście, pewne powtórzenia.
+  if (longBreak && !isBodyweight) {
+    const comebackWeight = Math.max(0, Math.round(lastWeight * 0.9 * 2) / 2);
+    return { kind: 'deload', targetWeight: comebackWeight, targetReps: repRange.max, reasonKey: 'deload.break' };
   }
 
   // Bodyweight: progresja przez powtórzenia.

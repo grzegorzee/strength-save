@@ -331,6 +331,32 @@ export const useTrainingPlan = (userId: string) => {
     return { success: true };
   }, [userId, isLoaded, skippedDates]);
 
+  /** Spec C2 ("Kontynuuj od dziś"): masowe odpuszczenie zaległych dat JEDNYM zapisem pola. */
+  const skipPastDates = useCallback(async (dates: string[]): Promise<{ success: boolean }> => {
+    if (!userId || !isLoaded) return { success: false };
+    if (dates.length === 0) return { success: true };
+    const todayISO = formatLocalDate(new Date());
+    const next = [...new Set([...pruneSkippedDates(skippedDates, todayISO), ...dates])].sort().slice(0, 60);
+    if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+      try {
+        const raw = window.localStorage.getItem('fittracker_e2e_plan');
+        const data = raw ? JSON.parse(raw) : {};
+        window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify({ ...data, skippedDates: next }));
+      } catch { /* noop */ }
+      setSkippedDates(next);
+      return { success: true };
+    }
+    setDoc(doc(db, PLAN_COLLECTION, userId), {
+      skippedDates: next,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((err) => {
+      console.error('Error saving skipped dates:', err);
+      void reportClientError(userId, { code: 'skipped-dates-save', phase: 'other', detail: String(err) });
+    });
+    setSkippedDates(next);
+    return { success: true };
+  }, [userId, isLoaded, skippedDates]);
+
   const swapExercise = useCallback(async (
     dayId: string,
     exerciseId: string,
@@ -466,6 +492,7 @@ export const useTrainingPlan = (userId: string) => {
     moveScheduledDay,
     skippedDates,
     setDaySkipped,
+    skipPastDates,
     planDurationWeeks,
     planStartDate,
     progression,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
@@ -17,6 +17,8 @@ import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
 import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { WeekCard } from '@/components/WeekCard';
+import { LapseTray } from '@/components/LapseTray';
+import { collectLapsedDates, detectLapse } from '@/lib/lapse-detection';
 import { buildWeekCardModel } from '@/lib/week-card';
 import { isDeloadWeek } from '@/lib/progression-engine';
 import { recoveryTipKeys } from '@/lib/recovery-tips';
@@ -156,7 +158,7 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
@@ -451,6 +453,71 @@ const Dashboard = () => {
     if (result.success) {
       toast({ title: skipped ? t('skipday.toastRestored') : t('skipday.toastSkipped') });
     }
+  };
+
+  // Tray zaległości (Runna p.1, spec C2): odrzucenie zapamiętane per zaległość,
+  // detekcja milczy przy żywym drafcie (user jest w trakcie sesji).
+  const [lapseDismissed, setLapseDismissed] = useState<string[]>(() => {
+    try {
+      const raw = window.localStorage.getItem('fittracker_lapse_dismissed_v1');
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const lapse = useMemo(() => {
+    if (!planStarted || !isLoaded || !planIsLoaded || localDraft) return null;
+    return detectLapse({
+      planDays: trainingPlan,
+      overrides: scheduleOverrides,
+      workouts,
+      todayISO,
+      skippedDates,
+      planStartDate,
+      dismissed: lapseDismissed,
+    });
+  }, [planStarted, isLoaded, planIsLoaded, localDraft, trainingPlan, scheduleOverrides, workouts, todayISO, skippedDates, planStartDate, lapseDismissed]);
+  const [lapseOpen, setLapseOpen] = useState(false);
+  const lapseShownRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lapse && lapseShownRef.current !== lapse.dismissKey) {
+      lapseShownRef.current = lapse.dismissKey;
+      setLapseOpen(true);
+    }
+  }, [lapse]);
+  const rememberLapseDismiss = (key: string) => {
+    const next = [...lapseDismissed, key].slice(-50);
+    setLapseDismissed(next);
+    try { window.localStorage.setItem('fittracker_lapse_dismissed_v1', JSON.stringify(next)); } catch { /* noop */ }
+  };
+  // Zamknięcie (X albo po akcji) = odrzucenie zapamiętane; po akcji trigger
+  // i tak znika, więc wpis jest nieszkodliwy. Sheet domykamy PRZED mutacją.
+  const handleLapseOpenChange = (open: boolean) => {
+    if (!open && lapse) rememberLapseDismiss(lapse.dismissKey);
+    setLapseOpen(open);
+  };
+  const handleLapseSkip = (dateISO: string) => {
+    handleLapseOpenChange(false);
+    void handleToggleSkip(dateISO);
+  };
+  const handleLapseMove = (dateISO: string) => {
+    handleLapseOpenChange(false);
+    setRescheduleFrom(dateISO);
+  };
+  const handleLapseContinue = () => {
+    handleLapseOpenChange(false);
+    const dates = collectLapsedDates({
+      planDays: trainingPlan,
+      overrides: scheduleOverrides,
+      workouts,
+      todayISO,
+      skippedDates,
+      planStartDate,
+    });
+    void (async () => {
+      const result = await skipPastDates(dates);
+      if (result.success) toast({ title: t('lapse.toastContinued') });
+    })();
   };
   const handleRescheduleSelect = async (toDateISO: string) => {
     const fromDateISO = rescheduleFrom;
@@ -1238,6 +1305,16 @@ const Dashboard = () => {
         overrides={scheduleOverrides}
         onSelect={handleRescheduleSelect}
         todayISO={todayISO}
+      />
+
+      {/* Tray zaległości (Runna p.1, spec C2) */}
+      <LapseTray
+        open={lapseOpen && lapse !== null}
+        onOpenChange={handleLapseOpenChange}
+        lapse={lapse}
+        onSkip={handleLapseSkip}
+        onMove={handleLapseMove}
+        onContinueToday={handleLapseContinue}
       />
     </div>
   );

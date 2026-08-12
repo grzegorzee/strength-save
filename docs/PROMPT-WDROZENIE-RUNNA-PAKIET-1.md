@@ -92,7 +92,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **12. Pomiń trening.** Stan skipped per data (model, rules, UI w menu
   karty dnia i w trayu), odwracalny, wygaszony checkmark w tygodniu,
   silnik neutralny wobec skipa (spec C1). Testy modelu + rules + UI.
-- [ ] **13. Tray zaległości (minimalny).** Trigger, sheet [Pomiń]/[Przenieś]/
+- [x] **13. Tray zaległości (minimalny).** Trigger, sheet [Pomiń]/[Przenieś]/
   [Kontynuuj od dziś z propozycją silnika], pamięć odrzucenia, cisza przy
   aktywnym drafcie (spec C2). Test sekwencji: zaległość → każda opcja.
 - [ ] **14. Tryb "nie na 100%".** Model okresu + redukcja propozycji + rampa
