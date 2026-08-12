@@ -11,10 +11,18 @@ export interface ShareData {
   duration: string;
   prs: string[];
   streak: number;
+  /** Odhaczone serie robocze (szablon story, Runna p.1). */
+  completedSets?: number;
+  /** Postęp planu do paska "Tydzień N z M" (szablon story). Brak/null = bez paska. */
+  week?: { current: number; total: number } | null;
 }
 
-// Z180: trzy szablony obrazu podsumowania. 'photo' wymaga zdjęcia usera.
-export type ShareTemplate = 'gradient' | 'photo' | 'minimal';
+// Z180: szablony obrazu podsumowania. 'photo' wymaga zdjęcia usera.
+// 'story' (Runna p.1, spec A4): layout wg raportu cz. 2 sekcja 3.2.
+export type ShareTemplate = 'gradient' | 'photo' | 'minimal' | 'story';
+
+/** Hero-statystyka szablonu story wybierana przez usera (spec A4). */
+export type ShareHero = 'tonnage' | 'pr' | 'duration';
 
 // Z179: maksymalne wymiary zdjęcia usera (format IG Story przy scale 2).
 const SHARE_PHOTO_MAX = { width: 1080, height: 1920 };
@@ -152,6 +160,104 @@ export function buildShareHtml(
       ${prSection}
 
       ${renderFooter(true)}
+    </div>
+  `;
+}
+
+// Runna p.1 (spec A4): szablon story wg raportu cz. 2 sekcja 3.2 — prawie-czerń
+// z glow limonki, glass panel 24 px, JEDNA hero-statystyka wybierana przez
+// usera (ogromne cyfry w limonce), rząd 3 mniejszych liczb, pasek "Tydzień
+// N z M", brand strengthsave.app. Brzeg: hero 'pr' bez rekordów i 'duration'
+// bez czasu degradują do tonażu.
+const LIME = '#cefc22';
+
+export function buildShareHtmlStory(
+  data: ShareData,
+  lang: LanguageCode,
+  unit: UnitSystem,
+  hero: ShareHero = 'tonnage',
+): string {
+  const safeDayName = escapeHtml(data.dayName);
+  const safeDate = escapeHtml(
+    parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
+      weekday: 'long', day: 'numeric', month: 'long',
+    })
+  );
+  const tonnageStr = escapeHtml(formatTonnage(data.tonnage, unit));
+
+  const effectiveHero: ShareHero =
+    (hero === 'pr' && data.prs.length === 0) || (hero === 'duration' && !data.duration)
+      ? 'tonnage'
+      : hero;
+
+  const heroBlock = (() => {
+    if (effectiveHero === 'pr') {
+      return `
+        <div style="display:inline-block;background:${LIME};color:#0b0b0f;border-radius:999px;padding:4px 14px;font-size:13px;font-weight:800;letter-spacing:1px;">PR</div>
+        <div style="font-size:34px;font-weight:800;color:${LIME};margin-top:12px;line-height:1.2;">${escapeHtml(data.prs[0])}</div>`;
+    }
+    if (effectiveHero === 'duration') {
+      return `
+        <div style="font-size:68px;font-weight:800;color:${LIME};letter-spacing:-2px;line-height:1;">${escapeHtml(data.duration)}</div>
+        <div style="font-size:13px;color:#8b93a1;margin-top:10px;text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.duration'))}</div>`;
+    }
+    return `
+      <div style="font-size:68px;font-weight:800;color:${LIME};letter-spacing:-2px;line-height:1;">${tonnageStr}</div>
+      <div style="font-size:13px;color:#8b93a1;margin-top:10px;text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.tonnage'))}</div>`;
+  })();
+
+  const statCell = (value: string, label: string, border: boolean): string => `
+    <div style="flex:1;text-align:center;${border ? 'border-left:1px solid rgba(255,255,255,0.12);' : ''}">
+      <div style="font-size:22px;font-weight:700;color:#fff;">${value}</div>
+      <div style="font-size:11px;color:#8b93a1;margin-top:2px;text-transform:uppercase;letter-spacing:1px;">${label}</div>
+    </div>`;
+
+  const weekBar = data.week && data.week.total > 0
+    ? `
+      <div style="margin-top:26px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#8b93a1;margin-bottom:6px;">
+          <span>${escapeHtml(translate(lang, 'share.weekProgress', { current: data.week.current, total: data.week.total }))}</span>
+        </div>
+        <div style="height:6px;border-radius:999px;background:rgba(255,255,255,0.12);overflow:hidden;">
+          <div style="height:100%;width:${Math.max(0, Math.min(100, Math.round((data.week.current / data.week.total) * 100)))}%;background:${LIME};"></div>
+        </div>
+      </div>`
+    : '';
+
+  return `
+    <div style="
+      width:540px;height:960px;position:relative;overflow:hidden;
+      background:#07080a;color:#fff;font-family:system-ui,-apple-system,sans-serif;
+    ">
+      <div style="position:absolute;top:-160px;right:-160px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle, rgba(206,252,34,0.22) 0%, rgba(206,252,34,0) 70%);"></div>
+      <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;padding:125px 32px;">
+        <div style="
+          background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+          border-radius:24px;padding:30px 28px;display:flex;flex-direction:column;margin:auto 0;
+        ">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <img src="${appIcon}" style="width:22px;height:22px;border-radius:5px;opacity:0.85;" />
+              <span style="font-size:12px;color:#8b93a1;">Strength Save</span>
+            </div>
+            <span style="font-size:12px;color:#8b93a1;">${safeDayName}, ${safeDate}</span>
+          </div>
+
+          <div style="text-align:center;margin:44px 0;">
+            ${heroBlock}
+          </div>
+
+          <div style="display:flex;">
+            ${statCell(escapeHtml(data.duration || '—'), escapeHtml(translate(lang, 'share.duration')), false)}
+            ${statCell(String(data.completedSets ?? 0), escapeHtml(translate(lang, 'share.sets')), true)}
+            ${statCell(String(data.exercises.length), escapeHtml(translate(lang, 'share.exercises')), true)}
+          </div>
+
+          ${weekBar}
+        </div>
+
+        <div style="text-align:center;font-size:12px;color:#8b93a1;letter-spacing:1px;">strengthsave.app</div>
+      </div>
     </div>
   `;
 }
@@ -294,6 +400,7 @@ export async function generateWorkoutImage(
   lang: LanguageCode = 'pl',
   unit: UnitSystem = 'kg',
   template: ShareTemplate = 'gradient',
+  hero: ShareHero = 'tonnage',
 ): Promise<Blob> {
   // Z179: lazy import — html2canvas-pro (~150 KB) schodzi z chunka WorkoutDay,
   // ładuje się dopiero przy pierwszym otwarciu dialogu share.
@@ -305,7 +412,9 @@ export async function generateWorkoutImage(
   const usePhoto = template === 'photo' && photoDataUrl;
   container.innerHTML = usePhoto
     ? buildShareHtmlWithPhoto(data, photoDataUrl, lang, unit)
-    : buildShareHtml(data, lang, unit, template === 'minimal' ? 'minimal' : 'gradient');
+    : template === 'story'
+      ? buildShareHtmlStory(data, lang, unit, hero)
+      : buildShareHtml(data, lang, unit, template === 'minimal' ? 'minimal' : 'gradient');
 
   document.body.appendChild(container);
 

@@ -61,7 +61,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **4. Ocena zasila silnik.** "Za ciężko" obniża NASTĘPNĄ propozycję,
   kciuk góra = normalna progresja, brak oceny = zachowanie identyczne jak
   dziś (spec A2). Test sekwencji dwóch sesji.
-- [ ] **5. Share card + celebracja PR.** Render HTML/CSS 1080x1920 wg layoutu
+- [x] **5. Share card + celebracja PR.** Render HTML/CSS 1080x1920 wg layoutu
   z raportu cz. 2 sekcja 3.2 (hero wybierane, glass, limonka), share sheet,
   PR toast w sesji (spec A4). Test renderu (snapshot DOM) + brzegi.
 - [ ] **6. Backfill rekordów.** Ręczne stare PR-y w bojach głównych (Profil,

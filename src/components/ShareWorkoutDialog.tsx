@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, Share2, Camera, Check, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
-import { downscalePhoto, generateWorkoutImage, type ShareData, type ShareTemplate } from '@/lib/share-utils';
+import { downscalePhoto, generateWorkoutImage, type ShareData, type ShareHero, type ShareTemplate } from '@/lib/share-utils';
 import { hapticSuccess } from '@/lib/haptics';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -27,10 +27,13 @@ const TEMPLATE_STORAGE_KEY = 'fittracker_share_template_v1';
 const loadStoredTemplate = (): ShareTemplate => {
   try {
     const raw = localStorage.getItem(TEMPLATE_STORAGE_KEY);
-    // 'photo' bez zdjęcia nie ma sensu na starcie — degraduje do gradientu.
-    return raw === 'minimal' ? 'minimal' : 'gradient';
+    // 'photo' bez zdjęcia nie ma sensu na starcie — degraduje do domyślnego.
+    // Runna p.1 (spec A4): nowy domyślny szablon 'story'; jawnie zapisany wybór
+    // gradient/minimal zostaje uszanowany.
+    if (raw === 'minimal' || raw === 'gradient') return raw;
+    return 'story';
   } catch {
-    return 'gradient';
+    return 'story';
   }
 };
 
@@ -43,16 +46,18 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   const [error, setError] = useState<string | null>(null);
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [template, setTemplate] = useState<ShareTemplate>(() => loadStoredTemplate());
+  // Runna p.1 (spec A4): hero-statystyka szablonu story wybierana przez usera.
+  const [hero, setHero] = useState<ShareHero>('tonnage');
   // Z198: który przycisk pokazuje "Zapisano ✓" (null = żaden).
   const [savedAction, setSavedAction] = useState<'download' | 'share' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const generate = async (photo: string | null, tpl: ShareTemplate) => {
+  const generate = async (photo: string | null, tpl: ShareTemplate, heroSel: ShareHero = hero) => {
     setIsGenerating(true);
     setError(null);
     if (imageUrl) URL.revokeObjectURL(imageUrl);
     try {
-      const result = await generateWorkoutImage(data, photo || undefined, lang, unit, tpl);
+      const result = await generateWorkoutImage(data, photo || undefined, lang, unit, tpl, heroSel);
       setBlob(result);
       setImageUrl(URL.createObjectURL(result));
     } catch {
@@ -73,6 +78,11 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
     void generate(photoDataUrl, tpl);
   };
 
+  const selectHero = (heroSel: ShareHero) => {
+    setHero(heroSel);
+    void generate(photoDataUrl, template, heroSel);
+  };
+
   useEffect(() => {
     if (!open) {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
@@ -81,10 +91,11 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
       setError(null);
       setPhotoDataUrl(null);
       setTemplate(loadStoredTemplate());
+      setHero('tonnage');
       return;
     }
 
-    void generate(null, loadStoredTemplate());
+    void generate(null, loadStoredTemplate(), 'tonnage');
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,9 +178,17 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   };
 
   const templates: Array<{ id: ShareTemplate; label: string }> = [
+    { id: 'story', label: t('comp.share.tplStory') },
     { id: 'gradient', label: t('comp.share.tplGradient') },
     { id: 'photo', label: t('comp.share.tplPhoto') },
     { id: 'minimal', label: t('comp.share.tplMinimal') },
+  ];
+
+  // Hero tylko dla story; opcje bez danych znikają (brak PR = zostaje tonaż).
+  const heroOptions: Array<{ id: ShareHero; label: string }> = [
+    { id: 'tonnage', label: t('comp.share.heroTonnage') },
+    ...(data.duration ? [{ id: 'duration' as const, label: t('comp.share.heroDuration') }] : []),
+    ...(data.prs.length > 0 ? [{ id: 'pr' as const, label: t('comp.share.heroPR') }] : []),
   ];
 
   return (
@@ -197,6 +216,26 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
             </button>
           ))}
         </div>
+
+        {/* Runna p.1 (spec A4): wybór hero-statystyki dla szablonu story */}
+        {template === 'story' && heroOptions.length > 1 && (
+          <div className="flex gap-1.5" data-testid="share-hero-chips">
+            {heroOptions.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => selectHero(id)}
+                aria-pressed={hero === id}
+                className={cn(
+                  'flex-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+                  hero === id ? 'bg-fitness-success text-background' : 'bg-surface-highest text-muted-foreground',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Photo toggle */}
         <div className="flex items-center gap-2">

@@ -48,6 +48,7 @@ import { detectNewPRs, getExerciseBest1RM, type PRComparison } from '@/lib/pr-ut
 import { db } from '@/lib/firebase';
 import { saveWorkoutSessionRating } from '@/lib/workout-save';
 import { computeCompletionSummary } from '@/lib/workout-completion-summary';
+import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
@@ -151,7 +152,7 @@ const WorkoutDay = () => {
     isLoaded: workoutsLoaded,
     workoutsFromCache,
   } = useFirebaseWorkouts(uid, { measurements: 'latest' });
-  const { plan: trainingPlan, swapExercise, isLoaded: planLoaded, progression, currentWeek } = useTrainingPlan(uid);
+  const { plan: trainingPlan, swapExercise, isLoaded: planLoaded, progression, currentWeek, planDurationWeeks } = useTrainingPlan(uid);
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
   // Dla własnych ćwiczeń źródłem prawdy o bodyweight jest pole z pickera,
   // nie heurystyka po nazwie (Z71d).
@@ -201,6 +202,10 @@ const WorkoutDay = () => {
   // Wejście w ukończony trening z historii NIE dostaje celebracji ani oceny.
   const [justCompleted, setJustCompleted] = useState(false);
   const [sessionPRs, setSessionPRs] = useState<PRComparison[]>([]);
+  // Runna p.1 (spec A4): PR na żywo — badge per ćwiczenie + jednorazowy toast.
+  const [livePRWeights, setLivePRWeights] = useState<Record<string, number>>({});
+  const [livePRPending, setLivePRPending] = useState<{ exerciseId: string; weight: number } | null>(null);
+  const livePRToastedRef = useRef<Set<string>>(new Set());
   // Z161: usuwanie ZAPISANEGO treningu z widoku podsumowania — ta sama ścieżka co
   // Historia (deleteWorkoutEverywhere: dokument + szkic IDB + kolejka syncu, nigdy
   // goły deleteDoc). Trening w toku nie renderuje tej akcji (widok podsumowania
@@ -1631,6 +1636,15 @@ const WorkoutDay = () => {
     }
   }, []);
 
+  // Runna p.1 (spec A4): baza do PR na żywo — poprzednie UKOŃCZONE sesje bez
+  // bieżącej; ref, żeby handleSetsChange (useCallback) widział świeże dane.
+  const livePRSourceWorkouts = useMemo(
+    () => workouts.filter(w => w.completed && w.id !== sessionId),
+    [workouts, sessionId],
+  );
+  const livePRSourceRef = useRef(livePRSourceWorkouts);
+  livePRSourceRef.current = livePRSourceWorkouts;
+
   // Handler for ACTIVE WORKOUT - saves locally to IndexedDB, Firebase only on checkpoints/finish
   const handleSetsChange = useCallback((exerciseId: string, sets: SetData[], notes?: string) => {
     const sanitizedSets = stampChangedWatchSets(exerciseSetsRef.current[exerciseId], sets.map(s => ({
@@ -1640,6 +1654,14 @@ const WorkoutDay = () => {
       ...(s.isWarmup && { isWarmup: true }),
       ...carrySetExtras(s),
     })), Date.now(), newPhoneSetEventId());
+    // Runna p.1 (spec A4): PR na żywo — porównanie ze stanem SPRZED tej zmiany
+    // (exerciseSetsRef jeszcze nie zaktualizowany).
+    const livePR = detectLiveWeightPR({
+      previousSets: exerciseSetsRef.current[exerciseId],
+      nextSets: sanitizedSets,
+      bestBefore: bestPreviousWeight(livePRSourceRef.current, exerciseId),
+    });
+
     const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
     const nextExerciseNotes = notes !== undefined
       ? { ...exerciseNotesRef.current, [exerciseId]: notes }
@@ -1661,7 +1683,26 @@ const WorkoutDay = () => {
     });
 
     setSaveError(null);
+
+    if (livePR !== null) {
+      setLivePRWeights(prev => (prev[exerciseId] ?? 0) >= livePR ? prev : { ...prev, [exerciseId]: livePR });
+      setLivePRPending({ exerciseId, weight: livePR });
+    }
   }, [saveDraftSnapshot]);
+
+  // Toast PR na żywo poza handlerem serii: świeże t/fmt/day bez poszerzania
+  // zależności useCallback (wzorzec ref + pending state). Jeden toast per
+  // ćwiczenie per sesja; badge zostaje do końca treningu.
+  useEffect(() => {
+    if (!livePRPending) return;
+    const { exerciseId, weight } = livePRPending;
+    setLivePRPending(null);
+    if (livePRToastedRef.current.has(exerciseId)) return;
+    livePRToastedRef.current.add(exerciseId);
+    const name = day?.exercises.find(e => e.id === exerciseId)?.name ?? '';
+    toast({ title: t('workout.toast.livePR', { name: localizeExerciseName(name, lang), value: fmt(weight) }) });
+    void hapticSuccess();
+  }, [livePRPending, day, t, lang, fmt, toast]);
 
   // Apple Watch: serie zalogowane na zegarku trafiają do draftu jak ręczne zmiany.
   const handleWatchSetLogged = useCallback(async (event: WatchSetLoggedEvent) => {
@@ -2259,6 +2300,12 @@ const WorkoutDay = () => {
       setJustCompleted(false);
       setIsEditing(true);
     };
+    // Spec A4: PR-y sesji jako teksty na share card (hero 'Rekord').
+    const sharePRLabels = sessionPRs.map(pr => pr.type === 'reps'
+      ? `${pr.exerciseName} ×${pr.newValue}`
+      : pr.type === 'duration'
+        ? `${pr.exerciseName} ${fmtDuration(pr.newValue)}`
+        : `${pr.exerciseName} ${fmt(pr.newValue)}`);
     return (
       <div className="space-y-6 pb-20">
         <div className="flex items-center gap-4">
@@ -2520,9 +2567,14 @@ const WorkoutDay = () => {
             tonnage: Object.values(exerciseSets).reduce(
               (t, sets) => t + sets.filter(s => s.completed && !s.isWarmup).reduce((s, set) => s + set.reps * set.weight, 0), 0
             ),
-            duration: '',
-            prs: [],
+            duration: sessionDurationSec != null ? fmtDuration(sessionDurationSec) : '',
+            prs: sharePRLabels,
             streak: calculateStreak(workouts),
+            completedSets: completedSetsCount,
+            // Pasek "Tydzień N z M" tylko dla dnia z planu (ad-hoc bez cyklu).
+            week: !isAdhocDay && planDurationWeeks > 0
+              ? { current: Math.max(1, currentWeek), total: planDurationWeeks }
+              : null,
           }}
           open={showShare}
           onOpenChange={setShowShare}
@@ -2677,6 +2729,7 @@ const WorkoutDay = () => {
               weeklyTarget={weeklyTargets?.[exercise.id]}
               lastNote={exerciseInsights.get(exercise.id)?.lastNote}
               historicalBest={exerciseInsights.get(exercise.id)?.historicalBest}
+              livePRWeight={livePRWeights[exercise.id] ?? null}
               metrics={exerciseMetrics[exercise.id]}
               onMetricsChange={healthConsent ? handleMetricsChange : undefined}
               defaultMetricsVisible={exercise.instructions?.some((i) => i.content.includes('RPE'))}

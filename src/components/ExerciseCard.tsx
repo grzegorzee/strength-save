@@ -219,6 +219,8 @@ interface ExerciseCardProps {
   lastNote?: string;
   /** Najlepszy historyczny wynik (1RM) tego ćwiczenia — badge BEST w nagłówku. */
   historicalBest?: ExerciseBest;
+  /** PR na żywo w tej sesji (Runna p.1, spec A4) — badge PR przy nazwie. */
+  livePRWeight?: number | null;
   /** Metryki autoregulacji (RPE/ból/jakość) zapisane dla tego ćwiczenia. */
   metrics?: ExerciseMetrics;
   onMetricsChange?: (exerciseId: string, metrics: ExerciseMetrics) => void;
@@ -339,6 +341,7 @@ const ExerciseCardInner = ({
   weeklyTarget,
   lastNote,
   historicalBest,
+  livePRWeight,
   metrics,
   onMetricsChange,
   defaultMetricsVisible = false,
@@ -1019,6 +1022,14 @@ const ExerciseCardInner = ({
                 >
                   <Star className="h-3 w-3 fill-current" />
                   {t('card.best')} {Math.round(toDisplay(historicalBest.best1RM))} {unit}
+                </span>
+              )}
+              {livePRWeight != null && (
+                <span
+                  data-testid="live-pr-badge"
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-success bg-fitness-success/10 text-fitness-success"
+                >
+                  🏆 PR {Math.round(toDisplay(livePRWeight))} {unit}
                 </span>
               )}
               {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} />
