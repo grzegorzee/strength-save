@@ -161,23 +161,28 @@ export const WorkoutCompletionSequence = ({
         <p className="text-sm text-muted-foreground">{t('workout.completion.rateThanks')}</p>
       )}
       <Card>
-        <CardContent className="py-5">
-          <div className="grid grid-cols-3 gap-3 text-center">
+        <CardContent className="py-6">
+          {/* Hero: jedna dominująca liczba (wzorzec WHOOP: czytelna z wyciągniętej ręki) */}
+          <div className="text-center">
+            <p className="font-heading text-5xl font-extrabold tabular-nums text-fitness-success leading-none">
+              {fmtTonnage(summary.volumeKg)}
+            </p>
+            <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              {t('workout.completion.statTonnage')}
+            </p>
+          </div>
+          {/* Metryki drugorzędne w jednym rzędzie */}
+          <div className="mt-5 flex items-center justify-center gap-6 text-center">
             <div>
-              <p className="font-heading text-2xl font-extrabold tabular-nums text-fitness-success">
-                {fmtTonnage(summary.volumeKg)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{t('workout.completion.statTonnage')}</p>
-            </div>
-            <div>
-              <p className="font-heading text-2xl font-extrabold tabular-nums">
+              <p className="font-heading text-xl font-bold tabular-nums">
                 {durationSec != null ? fmtDuration(durationSec) : '—'}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{t('workout.statTime')}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{t('workout.statTime')}</p>
             </div>
+            <div className="h-8 w-px bg-border" aria-hidden />
             <div>
-              <p className="font-heading text-2xl font-extrabold tabular-nums">{summary.completedSets}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{t('workout.statSets')}</p>
+              <p className="font-heading text-xl font-bold tabular-nums">{summary.completedSets}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{t('workout.statSets')}</p>
             </div>
           </div>
           {(summary.planPct !== null || deltaText) && (

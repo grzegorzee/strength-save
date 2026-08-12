@@ -2247,10 +2247,6 @@ const WorkoutDay = () => {
     (total, sets) => total + sets.filter(s => s.completed && !s.isWarmup).length,
     0
   );
-  const totalRepsCount = Object.values(exerciseSets).reduce(
-    (total, sets) => total + sets.filter(s => s.completed && !s.isWarmup).reduce((sum, s) => sum + s.reps, 0),
-    0
-  );
   // Czas trwania do podsumowania: trwały durationSec z zapisanej sesji, a dla świeżo
   // zakończonego lokalnie treningu fallback ze znaczników draftu (finalizedAt/startedAt).
   const currentWorkoutForDuration = workouts.find(w => w.id === sessionId);
@@ -2402,43 +2398,21 @@ const WorkoutDay = () => {
           onRate={handleSessionRate}
           onEditSets={isFinalSyncPending ? undefined : handleEditFromSummary}
         >
-        <Card className={cn(
-          "border-fitness-success bg-fitness-success/10",
-          isFinalSyncPending && "border-fitness-warning bg-fitness-warning/10"
-        )}>
-          <CardHeader>
-            <CardTitle className={cn(
-              "flex items-center gap-2 text-fitness-success",
-              isFinalSyncPending && "text-fitness-warning"
-            )}>
-              <Check className="h-6 w-6" />
-              {isFinalSyncPending ? t('workout.completedLocallyTitle') : t('workout.completedTitle')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              {isFinalSyncPending ? t('workout.waitingSyncDesc') : t('workout.greatJob')}
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-background rounded-lg">
-                <p className="text-2xl font-bold">{exerciseCount}</p>
-                <p className="text-xs text-muted-foreground">{t('workout.statExercises')}</p>
-              </div>
-              <div className="text-center p-3 bg-background rounded-lg">
-                <p className="text-2xl font-bold">{completedSetsCount}</p>
-                <p className="text-xs text-muted-foreground">{t('workout.statSets')}</p>
-              </div>
-              <div className="text-center p-3 bg-background rounded-lg">
-                <p className="text-2xl font-bold">{totalRepsCount}</p>
-                <p className="text-xs text-muted-foreground">{t('workout.statReps')}</p>
-              </div>
-              <div className="text-center p-3 bg-background rounded-lg">
-                <p className="text-2xl font-bold tabular-nums">{sessionDurationSec != null ? fmtDuration(sessionDurationSec) : '—'}</p>
-                <p className="text-xs text-muted-foreground">{t('workout.statTime')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* PRO-C T2: metryki żyją w hero-karcie sekwencji completion — tu zostaje
+            wyłącznie baner stanu "czeka na synchronizację" (status, nie gratulacja). */}
+        {isFinalSyncPending && (
+          <Card className="border-fitness-warning bg-fitness-warning/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-fitness-warning">
+                <Check className="h-6 w-6" />
+                {t('workout.completedLocallyTitle')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">{t('workout.waitingSyncDesc')}</p>
+            </CardContent>
+          </Card>
+        )}
 
         {dayNotes && (
           <Card className="bg-muted/30">
@@ -2454,7 +2428,7 @@ const WorkoutDay = () => {
         <div className="space-y-2">
           <h3 className="font-semibold flex items-center gap-2">
             <Eye className="h-4 w-4" />
-            {t('workout.summary')}
+            {t('workout.completion.exercisesCount', { n: exerciseCount })}
           </h3>
           {day.exercises.map((exercise, index) => {
             const isSkipped = skippedExercises.includes(exercise.id);

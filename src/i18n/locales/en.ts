@@ -822,6 +822,7 @@ export const en: Record<keyof typeof pl, string> = {
   'inbox.empty.desc': 'Records, weekly reports and plan changes will show up here.',
   'inbox.pr.title': 'New record: {name}',
   'inbox.pr.body': '{value}',
+  'workout.completion.exercisesCount': 'Exercises ({n})',
   'stats.workouts': 'Workouts',
   'stats.timeInGym': 'Time in the gym',
   'stats.tonnage': 'Weight lifted',
