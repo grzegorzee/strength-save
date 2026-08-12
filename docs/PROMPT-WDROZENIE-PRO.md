@@ -43,7 +43,7 @@
 - [x] A-T2: TrainingDayCard bez emoji (45630828; test w src/test/ zamiast components/__tests__, 1617 testów zielonych)
 - [x] A-T3: badge'e ExerciseCard (9c41fc9e; 🎯📅⬆⬇↺🏆 → Target/CalendarCheck/Trending/RotateCcw/Trophy, żaden test nie asertował emoji)
 - [x] A-T4: DayPlan + Dashboard (sekcje, pusty stan, regeneracja) (b2ccefa9; 💪🧘🔥⚡⏱️🔄 → Dumbbell/Leaf/Flame/Zap/Timer/Repeat)
-- [ ] A-T5: karty cardio/Strava na wspólnej mapie
+- [x] A-T5: karty cardio/Strava na wspólnej mapie (c67f78c8; 3 lokalne mapy emoji usunięte, CardioPR bez pola emoji, kudos bez 👍)
 - [ ] A-T6: toasty PR, Analytics badge, puste stany Strava
 - [ ] A-T7: share card bez emoji
 - [ ] A-T8: bramka `check:no-emoji` + domknięcie resztek
@@ -120,3 +120,7 @@
   `src/test/` (konwencja repo; guard i18n Z168 skanuje components/ i wykrywał polskie
   znaki w nazwach testów). Intencja planu bez zmian. Przy okazji tło missed ujednolicone
   do `bg-destructive/10` (zasada 8 CLAUDE.md, wg wzorca z planu).
+- 2026-08-12 A-T5: pole `emoji` usunięte z interfejsu CardioPR (nierenderowalne w lucide);
+  CardioPersonalBests mapuje kategorię PR na ikonę (Footprints/Ruler/Mountain/Medal,
+  kolor fitness-warning bo niesie informację PR). Kudos w StravaActivityDetail bez 👍
+  (etykieta już mówi co to za liczba). Oba w duchu planu: emoji w stringu → bez ikony.
