@@ -1,4 +1,4 @@
-import { CalendarClock, CircleSlash, RotateCcw } from 'lucide-react';
+import { CalendarClock, CheckCircle2, CircleSlash, Dumbbell, RotateCcw, XCircle } from 'lucide-react';
 import { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate } from '@/lib/utils';
@@ -43,10 +43,14 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
     >
       {/* Icon */}
       <div className={cn(
-        "h-[42px] w-[42px] rounded-xl flex items-center justify-center shrink-0 text-xl",
-        isCompleted ? "bg-fitness-success/10" : isMissed ? "bg-red-500/[0.08]" : "bg-primary/10"
+        "h-[42px] w-[42px] rounded-xl flex items-center justify-center shrink-0",
+        isCompleted ? "bg-fitness-success/10" : isMissed ? "bg-destructive/10" : "bg-primary/10"
       )}>
-        {isCompleted ? '✅' : isMissed ? '❌' : '🏋️'}
+        {isCompleted
+          ? <CheckCircle2 className="h-5 w-5 text-fitness-success" />
+          : isMissed
+            ? <XCircle className="h-5 w-5 text-destructive" />
+            : <Dumbbell className="h-5 w-5 text-primary" />}
       </div>
 
       {/* Info */}
@@ -74,8 +78,11 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
             </span>
           )}
         </div>
-        <p className="text-[13px] text-muted-foreground mt-1">
-          {localizeFocus(day.focus, lang)} · 🏋️ {day.exercises.length}
+        <p className="text-[13px] text-muted-foreground mt-1 flex items-center gap-1">
+          {localizeFocus(day.focus, lang)}
+          <span aria-hidden>·</span>
+          <Dumbbell className="h-3 w-3" aria-hidden />
+          {day.exercises.length}
         </p>
       </div>
 
