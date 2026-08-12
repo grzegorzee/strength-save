@@ -5,11 +5,26 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-12 (PRO wydanie C: moment WOW po treningu — web + iOS 98 + AAB v14)
+**Ostatnia aktualizacja:** 2026-08-13 (PRO wydanie D: gamifikacja progresu — web + iOS 99 + AAB v15)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-13: PRO wydanie D — gamifikacja progresu, duma na wierzch (WYDANE)
+
+**Co (plan `docs/PLAN-PRO-D-2026-08-12.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-PRO.md`, commity `4dbbc37b`→ bump v15):**
+(T1) `src/components/kinetic/AchievementBadge.tsx`: jeden kształt odznaki (heksagon CSS clip-path, bez SVG assetów), tier przez materiał (gradienty brąz/srebro/złoto/platyna + tusz per tier), ghost = ten sam kształt 8% krycia bez kłódki, rozmiary sm/md, opcjonalny pasek postępu; (T2) Postępy: kamienie milowe i odznaki specjalne na AchievementBadge (`tierForIndex` w achievements-utils: [b,b,s,g,p] z pozycji progu; specjalne w jednolitym srebrze; Lock usunięty); (T3) Profil: pasek postępu poziomu pod chipami (pola progress/next z computeTier, dotąd ignorowane; elite bez paska); (T4) nieużywany `TrainingHeatmap` osadzony na Postępach (własny Card „Mapa treningowa" + wybór roku; Strava poza zakresem ekranu); (T5) `diffMilestones` (czysta funkcja) + emisja wpisu `badge` do inboxa przy finalizacji treningu (statystyki przed/po z załadowanej listy, zero odczytów; kategorie workouts+tonnage — records wymaga pipeline'u Postępów, a PR-y i tak lądują jako `pr`); (T6) sekcja dumy w Profilu: 3 najwyższe zdobyte odznaki z agregatu (workoutCount/totalTonnageKg, fallback okno recent), zero odznak = brak sekcji, link „Wszystkie" → /achievements.
+
+**Dlaczego:** zgodnie z wizją produktu (gamifikacja tylko wokół realnego progresu): score tieru bez zmian (treningi + 2×PR), zero punktów za czynności obsługowe, jeden kształt odznaki zamiast tęczy kafli z kłódkami; duma widoczna w Profilu bez wchodzenia w Postępy.
+
+**Root cause'y napotkane:** vi.mock hoisting (fixture w vi.hoisted) i transitive import `@/lib/firebase` wywracający jsdom (Auth INTERNAL ASSERTION) — obie pułapki znane z memory projektu, rozwiązane mockami; `Milestone.progress` jest 0-100, komponent przyjmuje 0-1 (konwersja przy renderze).
+
+**Weryfikacja (wszystko zielone):** unit 1639/1639 (213 plików; nowe: badge 2, diff 2, heatmapa 1, pride 1, tier-progress 1), typecheck, lint, build, `check:no-emoji` (170), e2e pełne **392/392** (świeży vite, 4.2 min).
+
+**Deploy (pre-autoryzowany, WYKONANY):** web live `index-DOy_Icwi.js` (Published, hash zweryfikowany); iOS build **99** upload OK, `StrengthWatch.app` w IPA, obie grupy TestFlight (204/204, whatsNew 200), betaReviewState **APPROVED**; Android AAB **versionCode 15** BUILD SUCCESSFUL, `jar verified`, SHA-256 `b5ba79b3448ddbaaa37e5c12940435f1846eef2c89896d53fee63a4b5dc90a0c`. Wersje marketingowe 1.0.0 bez zmian. NASTĘPNY bump iOS = 100, versionCode = 16.
+
+**Po stronie usera:** wizualnie na urządzeniu: Postępy (odznaki materiałowe + ghost + heatmapa, dark mode), Profil (pasek poziomu, sekcja dumy), dzwonek po treningu z kamieniem milowym (wpis „Nowa odznaka").
 
 ### 2026-08-12: PRO wydanie C — moment WOW po treningu (WYDANE)
 

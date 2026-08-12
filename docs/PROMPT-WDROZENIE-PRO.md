@@ -77,7 +77,9 @@
 - [x] D-T4: heatmapa konsekwencji w Postępach (57e54259; TrainingHeatmap osadzony bez dodatkowego Carda — ma własny z tytułem "Mapa treningowa" i wyborem roku, więc bez nowych kluczy i18n; strava=[] poza zakresem ekranu; TDD test strony z mockami, 1636 unit + e2e 2/2)
 - [x] D-T5: powiadomienie o kamieniu milowym (f6f8377b; diffMilestones TDD 2 testy, emisja 'badge' w WorkoutDay dla workouts+tonnage — records wymaga pipeline'u Postępów, PR-y i tak są w inboxie jako 'pr'; 1638 unit zielonych)
 - [x] D-T6: sekcja dumy w Profilu (1ab5ef5a; 3 najwyższe zdobyte odznaki z agregatu workouts+tonnage, zero odznak = brak sekcji, link Wszystkie → /achievements; TDD nowy test strony, 1639 unit zielonych)
-- [ ] WYDANIE D: jak wyżej
+- [x] WYDANIE D: jak wyżej (web live index-DOy_Icwi.js; iOS 99 APPROVED obie grupy,
+      Watch w IPA; AAB v15 jar verified SHA-256 b5ba79b3…a0c; e2e 392/392;
+      NASTĘPNY bump iOS = 100, versionCode = 16)
 
 ### Plan E — Dashboard hero-first (docs/PLAN-PRO-E-2026-08-12.md)
 - [ ] E-T1: komponent `DashboardStatusSlot`
