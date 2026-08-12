@@ -126,13 +126,13 @@ const DashboardStatCard = ({
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  // Confetti po ukończeniu onboardingu (?welcome=1) oraz po zapisaniu treningu
-  // (?celebrate=1, X17D Z140.3 — AppHeader jest ukryty na /workout/*, więc
-  // świętowanie odpala się dopiero po powrocie tutaj).
+  // Confetti tylko po ukończeniu onboardingu (?welcome=1). Po treningu
+  // (?celebrate=1) zostaje highlight karty + „+1" w headerze — confetti należy
+  // do sekwencji completion i tylko dla PR/kamieni milowych (PRO-C T3).
   // X17D Z139.4: drugie wejście do „Twoich liczb" (pierwsze to licznik w nagłówku).
   const [statsOpen, setStatsOpen] = useState(false);
   const [showConfetti, setShowConfetti] = useState(
-    () => searchParams.get('welcome') === '1' || searchParams.get('celebrate') === '1',
+    () => searchParams.get('welcome') === '1',
   );
   // Powrót z completion (spec A1 Runna p.1): podświetl kartę dnia z "co dalej".
   // Osobny stan, bo showConfetti gaśnie po onDone, a podświetlenie ma zostać.

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Check, Pencil, ThumbsDown, ThumbsUp, Trophy, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -28,8 +28,18 @@ interface WorkoutCompletionSequenceProps {
   /** Edycja serii z podsumowania (spec A3). Brak = edycja niedostępna (np. final sync pending). */
   onEditSets?: () => void;
   celebrationMs?: number;
+  /** Confetti tylko dla rzadkich momentów: PR albo kamień milowy (PRO-C T3). */
+  bigMoment?: boolean;
   children?: ReactNode;
 }
+
+const AutoAdvance = ({ ms, onDone }: { ms: number; onDone: () => void }) => {
+  useEffect(() => {
+    const id = setTimeout(onDone, ms);
+    return () => clearTimeout(id);
+  }, [ms, onDone]);
+  return null;
+};
 
 const REASON_KEYS = {
   too_heavy: 'workout.completion.reasonTooHeavy',
@@ -48,6 +58,7 @@ export const WorkoutCompletionSequence = ({
   onRate,
   onEditSets,
   celebrationMs = 2200,
+  bigMoment,
   children,
 }: WorkoutCompletionSequenceProps) => {
   const { t } = useTranslation();
@@ -80,10 +91,15 @@ export const WorkoutCompletionSequence = ({
     ? `${summary.volumeDeltaPct >= 0 ? '+' : ''}${summary.volumeDeltaPct}%`
     : null;
 
+  // PRO-C T3: confetti zarezerwowane dla rzadkich momentów (PR / kamień milowy).
+  const showConfetti = bigMoment ?? prs.length > 0;
+
   if (stage === 'celebration') {
     return (
       <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-background/95 backdrop-blur-sm">
-        <ConfettiBurst durationMs={celebrationMs} onDone={() => setStage('rating')} />
+        {showConfetti
+          ? <ConfettiBurst durationMs={celebrationMs} onDone={() => setStage('rating')} />
+          : <AutoAdvance ms={Math.min(celebrationMs, 1200)} onDone={() => setStage('rating')} />}
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-fitness-success/15">
           <Check className="h-11 w-11 text-fitness-success" />
         </div>
