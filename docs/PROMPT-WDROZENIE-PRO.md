@@ -62,7 +62,7 @@
       aktualizacjach speców 929a1a96; NASTĘPNY bump iOS = 98, versionCode = 14)
 
 ### Plan C — Moment WOW po treningu (docs/PLAN-PRO-C-2026-08-12.md) [wymaga A]
-- [ ] C-T1: delta w liście PR podsumowania
+- [x] C-T1: delta w liście PR podsumowania (2935075a; formatPRDelta w pr-utils, TDD 2 testy — w drugim volumeDeltaPct:null bo '+5%' tonażu psuł asercję planu; 1630 unit zielonych)
 - [ ] C-T2: hero-tonaż + likwidacja duplikatu metryk
 - [ ] C-T3: polityka confetti (rzadkie momenty)
 - [ ] C-T4: haptyka + delta przy live PR
