@@ -825,6 +825,8 @@ export const en: Record<keyof typeof pl, string> = {
   'inbox.badge.title': 'New badge',
   'workout.completion.exercisesCount': 'Exercises ({n})',
   'profile.tier.next': 'Next level: {next}',
+  'profile.pride.label': 'Achievements',
+  'profile.pride.all': 'All',
   'stats.workouts': 'Workouts',
   'stats.timeInGym': 'Time in the gym',
   'stats.tonnage': 'Weight lifted',

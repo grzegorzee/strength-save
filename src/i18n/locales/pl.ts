@@ -841,6 +841,8 @@ export const pl = {
   'inbox.badge.title': 'Nowa odznaka',
   'workout.completion.exercisesCount': 'Ćwiczenia ({n})',
   'profile.tier.next': 'Następny poziom: {next}',
+  'profile.pride.label': 'Osiągnięcia',
+  'profile.pride.all': 'Wszystkie',
   'stats.workouts': 'Treningi',
   'stats.timeInGym': 'Czas na siłowni',
   'stats.tonnage': 'Podniesiony ciężar',

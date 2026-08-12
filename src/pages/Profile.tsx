@@ -38,7 +38,11 @@ import {
   User, Lock, ShieldCheck, Timer, Scale, Bell, Globe, Volume2,
   HelpCircle, Mail, Info, LogOut, Pencil, SlidersHorizontal, Loader2,
   ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
+  Dumbbell, ChevronRight,
 } from 'lucide-react';
+import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
+import { computeMilestones, tierForIndex } from '@/lib/achievements-utils';
+import { calculateTonnage } from '@/lib/summary-utils';
 import { PR_BACKFILL_LIFTS, PR_BACKFILL_SOFT_WARN_KG, sanitizePRBackfill, type PRBackfillLift } from '@/lib/pr-backfill';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
@@ -64,6 +68,32 @@ const Profile = () => {
   const aggregate = useWorkoutAggregate(uid);
   const completedCount = aggregate?.totals.workoutCount ?? workouts.filter((w) => w.completed).length;
   const tier = computeTier(completedCount, 0, lang);
+
+  // PRO-D T6: sekcja dumy — 3 najwyższe zdobyte odznaki. Dane z agregatu (fallback:
+  // okno recent), więc tylko kategorie workouts+tonnage (records wymaga pełnej historii).
+  const totalTonnage = aggregate?.totals.totalTonnageKg
+    ?? calculateTonnage(workouts.filter((w) => w.completed));
+  const prideMilestones = computeMilestones({
+    completedWorkouts: completedCount,
+    totalTonnage,
+    exercisesWithRecord: 0,
+  }).filter((m) => m.category !== 'records');
+  const PRIDE_ICONS = { workouts: Trophy, tonnage: Dumbbell } as const;
+  const recentBadges = prideMilestones
+    .filter((m) => m.achieved)
+    .sort((a, b) => b.threshold - a.threshold)
+    .slice(0, 3)
+    .map((m) => {
+      const catItems = prideMilestones.filter((x) => x.category === m.category);
+      return {
+        ...m,
+        tier: tierForIndex(catItems.indexOf(m), catItems.length),
+        icon: PRIDE_ICONS[m.category as 'workouts' | 'tonnage'],
+      };
+    });
+  const prideLabel = (m: { category: string; threshold: number }) => m.category === 'tonnage'
+    ? t('achievements.ms.tonnage', { n: Number((toDisplay(m.threshold) / 1000).toFixed(1)), unit: unit === 'lbs' ? ' k lbs' : 't' })
+    : t('achievements.ms.workouts', { n: m.threshold });
 
   const subscriptionInfo = useSubscription();
   const subSummary = summarizeSubscription({
@@ -355,6 +385,33 @@ const Profile = () => {
           </div>
         )}
       </div>
+
+      {/* PRO-D T6: sekcja dumy — przy zeru zdobytych odznak nie renderuje się wcale. */}
+      {recentBadges.length > 0 && (
+        <SectionCard label={t('profile.pride.label')}>
+          <div className="flex items-center justify-between">
+            <div className="flex gap-3">
+              {recentBadges.map((b) => (
+                <AchievementBadge
+                  key={`${b.category}-${b.threshold}`}
+                  size="sm"
+                  label={prideLabel(b)}
+                  earned
+                  tier={b.tier}
+                  icon={b.icon}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/achievements')}
+              className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-primary"
+            >
+              {t('profile.pride.all')} <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </SectionCard>
+      )}
 
       {/* TRENING (spec 2026-08-11): wszystko, co user rusza często, w jednej sekcji wysoko */}
       <SectionCard label={t('profile.section.preferences')} labelAccent="secondary">
