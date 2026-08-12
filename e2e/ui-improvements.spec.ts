@@ -80,9 +80,10 @@ test.describe('Dashboard start workout card', () => {
     await page.waitForLoadState('domcontentloaded');
     await expectPageRendered(page);
 
-    // One of the three states must be visible
+    // One of the three states must be visible.
+    // Runna p.1 B2: dzień wolny = karta "Dzień regeneracji" (nie "Dzisiaj wolne").
     const trainingCard = page.locator('text=Rozpocznij trening');
-    const restCard = page.locator('text=Dzisiaj wolne');
+    const restCard = page.locator('text=/Dzisiaj wolne|Dzień regeneracji/');
     const completedCard = page.locator('text=Trening ukończony');
 
     const hasTraining = await trainingCard.count();

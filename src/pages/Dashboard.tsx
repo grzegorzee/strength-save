@@ -887,7 +887,7 @@ const Dashboard = () => {
       {showConfetti && <ConfettiBurst onDone={() => setShowConfetti(false)} />}
       <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} />
       {/* Greeting */}
-      <div>
+      <div data-testid="dash-greeting">
         <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
           <GreetingIcon className="h-6 w-6 text-fitness-warning" />
           {greetingText}, <span className="text-primary">{displayName}</span>!
@@ -895,12 +895,9 @@ const Dashboard = () => {
         <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
       </div>
 
-      <ProUpsellBanner />
-
-      {/* PRO-E T2: banery stanu w jednym slocie (statusEntries budowane nad returnem) */}
-      <DashboardStatusSlot entries={statusEntries} />
-
-      {/* Today's training card */}
+      {/* Today's training card (PRO-E T3: hero zaraz pod powitaniem; typ zawsze
+          jednym z training/completed/rest, więc wrapper nigdy nie jest pusty) */}
+      <div data-testid="dash-hero">
       {todayTraining.type === 'training' && (() => {
         // Z88: KAŻDY nieukończony dzisiejszy szkic = "Kontynuuj trening", także w pełni
         // zsynchronizowany (dirty=false). Auto-nawigacja (Z49) celowo zostaje ostrzejsza.
@@ -990,6 +987,11 @@ const Dashboard = () => {
         </Card>
       )}
 
+      </div>
+
+      {/* PRO-E T2/T3: slot stanu za kartą dnia */}
+      <DashboardStatusSlot entries={statusEntries} />
+
       {/* Karta tygodnia (Runna p.1, spec B1): checkmarki dni + pasek sesji + tonaż.
           Spec C4: przerwa urlopowa pełni rolę deloadu (nie dubluje się). */}
       <WeekCard
@@ -1008,7 +1010,7 @@ const Dashboard = () => {
       />
 
       {showNextStep && planNextStep && (
-      <Card className={planNextStepTone[planNextStep.tone]}>
+      <Card data-testid="dash-next-step" className={planNextStepTone[planNextStep.tone]}>
         <CardContent className="p-5 space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
@@ -1056,7 +1058,7 @@ const Dashboard = () => {
       )}
 
       {/* Stats - 4 columns */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div data-testid="dash-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <DashboardStatCard
           title={t('dash.stat.workouts')}
           value={completedCount}
@@ -1110,9 +1112,13 @@ const Dashboard = () => {
         </p>
       )}
 
+      {/* PRO-E T3: upsell zepchnięty pod statystyki (był nad kartą dnia) */}
+      <ProUpsellBanner />
+
       {/* Weekly km counter (Strava) */}
       {weeklyKm > 0 && (
         <Card
+          data-testid="dash-strava-km"
           className="bg-orange-500/5 border-orange-500/20 cursor-pointer hover:bg-orange-500/10 transition-colors"
           onClick={() => navigate('/analytics?tab=strava')}
         >
@@ -1132,7 +1138,7 @@ const Dashboard = () => {
 
       {/* Your Plan Card */}
       {!planEnded && trainingPlan.length > 0 && (
-        <Card className="hover:border-primary/30 transition-all duration-200">
+        <Card data-testid="dash-plan-card" className="hover:border-primary/30 transition-all duration-200">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -1205,6 +1211,7 @@ const Dashboard = () => {
       {/* Latest PR */}
       {latestPR && (
         <Card
+          data-testid="dash-last-pr"
           className="cursor-pointer hover:border-primary/40 transition-all duration-200 border-primary/20"
           onClick={() => navigate('/achievements')}
         >
@@ -1230,7 +1237,7 @@ const Dashboard = () => {
       )}
 
       {/* This week's training — merged timeline */}
-      <div className="space-y-3">
+      <div data-testid="dash-week-section" className="space-y-3">
         <h2 className="font-heading font-bold text-base uppercase tracking-tight">{t('dash.weekPlan')}</h2>
 
         {/* Z115: pasek łącznego obciążenia dnia (siła + cardio) + wskazówka interferencji */}
@@ -1371,7 +1378,7 @@ const Dashboard = () => {
       {/* Z104 szybki trening + Z112 ręczne cardio — zawsze dostępne. Runna p.1
           (spec B2): na dole scrolla — dostępny, ale niekonkurujący z planem
           (ochrona niezmiennika reguły #5: ad-hoc DOKŁADA, nie podmienia). */}
-      <div className="grid grid-cols-2 gap-3">
+      <div data-testid="dash-actions" className="grid grid-cols-2 gap-3">
         <Button
           variant="outline"
           className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
