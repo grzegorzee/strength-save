@@ -813,6 +813,12 @@ export const en: Record<keyof typeof pl, string> = {
   'stats.title': 'Your numbers',
   'stats.subtitle': 'Everything you have logged in Strength Save.',
   'stats.open': 'Show all-time workout stats',
+
+  // Notification center (PRO-B)
+  'inbox.title': 'Notifications',
+  'inbox.open': 'Open notifications',
+  'inbox.empty.title': 'All caught up',
+  'inbox.empty.desc': 'Records, weekly reports and plan changes will show up here.',
   'stats.workouts': 'Workouts',
   'stats.timeInGym': 'Time in the gym',
   'stats.tonnage': 'Weight lifted',

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Dumbbell, WifiOff } from 'lucide-react';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
+import { NotificationBell } from '@/components/NotificationBell';
 import { consumeCelebration } from '@/lib/workout-celebration';
 import { Button } from '@/components/ui/button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -56,6 +57,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {uid && <NotificationBell uid={uid} />}
           {!isOnline && (
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-fitness-warning/10 text-fitness-warning text-xs font-medium">
               <WifiOff className="h-3.5 w-3.5" />

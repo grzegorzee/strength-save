@@ -829,6 +829,12 @@ export const pl = {
   'stats.title': 'Twoje liczby',
   'stats.subtitle': 'Wszystko, co zapisałeś w Strength Save.',
   'stats.open': 'Pokaż statystyki wszystkich treningów',
+
+  // Centrum powiadomień (PRO-B)
+  'inbox.title': 'Powiadomienia',
+  'inbox.open': 'Otwórz powiadomienia',
+  'inbox.empty.title': 'Wszystko ogarnięte',
+  'inbox.empty.desc': 'Rekordy, raporty tygodnia i zmiany planu pojawią się tutaj.',
   'stats.workouts': 'Treningi',
   'stats.timeInGym': 'Czas na siłowni',
   'stats.tonnage': 'Podniesiony ciężar',
