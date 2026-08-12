@@ -65,7 +65,7 @@
 - [x] C-T1: delta w liście PR podsumowania (2935075a; formatPRDelta w pr-utils, TDD 2 testy — w drugim volumeDeltaPct:null bo '+5%' tonażu psuł asercję planu; 1630 unit zielonych)
 - [x] C-T2: hero-tonaż + likwidacja duplikatu metryk (aac26fdc; stara karta 2×2 usunięta, zostaje TYLKO baner sync-pending, licznik ćwiczeń w nagłówku listy, osierocony totalRepsCount usunięty)
 - [x] C-T3: polityka confetti (8401be76; bigMoment ?? prs>0, AutoAdvance z capem min(celebrationMs,1200), Dashboard confetti tylko ?welcome=1; 1632 unit zielonych)
-- [ ] C-T4: haptyka + delta przy live PR
+- [x] C-T4: haptyka + delta przy live PR (bb8851eb; hapticSuccess już był w toaście livePR — dodana delta przez bestBefore w stanie pending, i18n {delta} w obu locale; haptyka do sprawdzenia na urządzeniu przy testach usera)
 - [ ] WYDANIE C: jak wyżej
 
 ### Plan D — Gamifikacja progresu (docs/PLAN-PRO-D-2026-08-12.md) [wymaga B]
