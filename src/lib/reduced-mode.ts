@@ -1,3 +1,4 @@
+import { matchesExerciseEntry } from '@/lib/adhoc-workout';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
@@ -76,8 +77,10 @@ export const reducedModeAdviceFactor = (params: {
   todayISO: string;
   workouts: Array<Pick<WorkoutSession, 'date' | 'completed' | 'exercises'>>;
   exerciseId: string;
+  /** Snapshot nazwy — sesja ad-hoc z tym ćwiczeniem liczy się jako krok rampy (spec C5). */
+  exerciseName?: string;
 }): { factor: number; phase: 'active' | 'ramp' } | null => {
-  const { mode, todayISO, workouts, exerciseId } = params;
+  const { mode, todayISO, workouts, exerciseId, exerciseName } = params;
   if (!mode || todayISO < mode.startDate) return null;
   if (isReducedModeActive(mode, todayISO)) {
     return { factor: REDUCED_MODE_ACTIVE_FACTOR, phase: 'active' };
@@ -85,7 +88,7 @@ export const reducedModeAdviceFactor = (params: {
   const sessionsAfter = workouts.filter((w) =>
     w.completed
     && w.date > mode.endDate
-    && w.exercises.some((exercise) => exercise.exerciseId === exerciseId
+    && w.exercises.some((exercise) => matchesExerciseEntry(exercise, exerciseId, exerciseName)
       && exercise.sets.some((set) => set.completed && !set.isWarmup))).length;
   const factor = REDUCED_MODE_RAMP_FACTORS[sessionsAfter];
   return factor !== undefined ? { factor, phase: 'ramp' } : null;

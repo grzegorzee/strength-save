@@ -64,8 +64,8 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const isTracked = tracking === 'duration' || tracking === 'weight_distance_duration' || tracking === 'assisted_bodyweight';
   const bodyWeightKg = getLatestMeasurement()?.weight ?? null;
   const trackedHistory = useMemo(
-    () => (isTracked ? getTrackedExerciseHistory(workouts, exerciseId, tracking, bodyWeightKg) : []),
-    [isTracked, workouts, exerciseId, tracking, bodyWeightKg],
+    () => (isTracked ? getTrackedExerciseHistory(workouts, exerciseId, tracking, bodyWeightKg, exerciseName) : []),
+    [isTracked, workouts, exerciseId, tracking, bodyWeightKg, exerciseName],
   );
   const trackedLabel = tracking === 'duration'
     ? t('comp.progression.bestTime')
@@ -80,7 +80,8 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const labelTotalReps = t('comp.progression.totalReps');
   const labelMaxKg = t('comp.progression.maxKg', { unit });
 
-  const history = useMemo(() => getExerciseHistory(workouts, exerciseId, isBodyweight), [workouts, exerciseId, isBodyweight]);
+  // Spec C5: wykres historii widzi też sesje ad-hoc (match po snapshocie nazwy).
+  const history = useMemo(() => getExerciseHistory(workouts, exerciseId, isBodyweight, exerciseName), [workouts, exerciseId, isBodyweight, exerciseName]);
   const plateau = useMemo(() => detectPlateau(history, 4, isBodyweight), [history, isBodyweight]);
   const summary = useMemo(() => getProgressionSummary(history, isBodyweight), [history, isBodyweight]);
 

@@ -68,7 +68,14 @@ export const getNextSetAdvice = (
   exerciseId: string,
   setsStr: string,
   exerciseIndex: number,
-  options?: { isBodyweight?: boolean; isSuperset?: boolean; todayISO?: string; reducedMode?: ReducedMode | null },
+  options?: {
+    isBodyweight?: boolean;
+    isSuperset?: boolean;
+    todayISO?: string;
+    reducedMode?: ReducedMode | null;
+    /** Snapshot nazwy — z nim historia i propozycje widzą sesje ad-hoc (spec C5). */
+    exerciseName?: string;
+  },
   lang: LanguageCode = 'pl',
   unit: UnitSystem = 'kg',
 ): NextSetAdvice | null => {
@@ -77,7 +84,7 @@ export const getNextSetAdvice = (
   // Przy zakresie "do upadku" (max) nie ma sensownego celu liczbowego.
   if (repRange.isMax) return null;
 
-  const history = getExerciseHistory(workouts, exerciseId, isBodyweight);
+  const history = getExerciseHistory(workouts, exerciseId, isBodyweight, options?.exerciseName);
   if (history.length === 0) return null;
 
   const last = history[history.length - 1];
@@ -101,7 +108,7 @@ export const getNextSetAdvice = (
     increment,
     isPlateau: plateau.isPlateau,
     // Spec A2 (Runna p.1): "za ciężko" z oceny sesji gasi podbicie w propozycji.
-    lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exerciseId),
+    lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exerciseId, options?.exerciseName),
     longBreak: breakDays >= COMEBACK_BREAK_DAYS,
   });
 
@@ -113,6 +120,7 @@ export const getNextSetAdvice = (
     todayISO,
     workouts,
     exerciseId,
+    exerciseName: options?.exerciseName,
   });
   if (modeAdjustment && !isBodyweight) {
     const baseline = [...history].reverse().find((point) => point.date < (options!.reducedMode!.startDate))?.maxWeight

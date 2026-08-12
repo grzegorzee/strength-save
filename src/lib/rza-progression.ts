@@ -1,4 +1,5 @@
 import type { WorkoutSession } from '@/types';
+import { matchesExerciseEntry } from '@/lib/adhoc-workout';
 import { calculate1RM } from '@/lib/pr-utils';
 
 // Silnik rekomendacji w stylu RZA (autoregulacja przez RPE/ból/jakość).
@@ -65,14 +66,16 @@ export interface LastSessionMetrics {
 export const getLastSessionMetrics = (
   workouts: WorkoutSession[],
   exerciseId: string,
+  // Snapshot nazwy — z nim metryki widzą też sesje ad-hoc (spec C5).
+  exerciseName?: string,
 ): LastSessionMetrics | null => {
   const sessions = workouts
     .filter(w => w.completed)
-    .filter(w => w.exercises.some(e => e.exerciseId === exerciseId))
+    .filter(w => w.exercises.some(e => matchesExerciseEntry(e, exerciseId, exerciseName)))
     .sort((a, b) => b.date.localeCompare(a.date));
 
   for (const w of sessions) {
-    const ex = w.exercises.find(e => e.exerciseId === exerciseId);
+    const ex = w.exercises.find(e => matchesExerciseEntry(e, exerciseId, exerciseName));
     if (!ex) continue;
     const working = ex.sets.filter(s => s.completed && !s.isWarmup && s.weight > 0);
     if (working.length === 0) continue;
@@ -133,7 +136,7 @@ export const getRzaAdvice = (
   exerciseId: string,
   exerciseName: string,
 ): RzaAdvice | null => {
-  const last = getLastSessionMetrics(workouts, exerciseId);
+  const last = getLastSessionMetrics(workouts, exerciseId, exerciseName);
   if (!last) return null;
   return getRzaProgression({
     exerciseName,

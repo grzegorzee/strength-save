@@ -1,4 +1,5 @@
 import type { SetData, WorkoutSession } from '@/types';
+import { matchesExerciseEntry } from '@/lib/adhoc-workout';
 import type { TrackingType } from '@/lib/set-tracking';
 import { workoutExercises, exerciseSets } from '@/lib/summary-utils';
 
@@ -21,6 +22,8 @@ export interface ExerciseBest {
 export const getExerciseBest1RM = (
   workouts: WorkoutSession[],
   exerciseId: string,
+  // Snapshot nazwy — z nim rekordy widzą też sesje ad-hoc (spec C5).
+  exerciseName?: string,
 ): ExerciseBest => {
   let maxWeight = 0;
   let best1RM = 0;
@@ -31,7 +34,7 @@ export const getExerciseBest1RM = (
   workouts.forEach(w => {
     if (!w.completed) return;
     workoutExercises(w).forEach(ex => {
-      if (ex.exerciseId !== exerciseId) return;
+      if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
       exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup || set.weight <= 0) return;
         if (set.weight > maxWeight) maxWeight = set.weight;
@@ -52,12 +55,13 @@ export const getExerciseBest1RM = (
 export const getExerciseBestReps = (
   workouts: WorkoutSession[],
   exerciseId: string,
+  exerciseName?: string,
 ): number => {
   let maxReps = 0;
   workouts.forEach(w => {
     if (!w.completed) return;
     workoutExercises(w).forEach(ex => {
-      if (ex.exerciseId !== exerciseId) return;
+      if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
       exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         if (set.reps > maxReps) maxReps = set.reps;
@@ -73,12 +77,13 @@ export const getExerciseBestReps = (
 export const getExerciseBestDuration = (
   workouts: WorkoutSession[],
   exerciseId: string,
+  exerciseName?: string,
 ): number => {
   let best = 0;
   workouts.forEach(w => {
     if (!w.completed) return;
     workoutExercises(w).forEach(ex => {
-      if (ex.exerciseId !== exerciseId) return;
+      if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
       exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         if ((set.durationSec ?? 0) > best) best = set.durationSec!;
@@ -92,12 +97,13 @@ export const getExerciseBestDuration = (
 export const getExerciseBestWeightDistance = (
   workouts: WorkoutSession[],
   exerciseId: string,
+  exerciseName?: string,
 ): { score: number; weight: number; distanceM: number } => {
   let best = { score: 0, weight: 0, distanceM: 0 };
   workouts.forEach(w => {
     if (!w.completed) return;
     workoutExercises(w).forEach(ex => {
-      if (ex.exerciseId !== exerciseId) return;
+      if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
       exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup) return;
         const score = (set.weight || 0) * (set.distanceM ?? 0);
@@ -117,13 +123,14 @@ export const getExerciseBestEffectiveLoad = (
   workouts: WorkoutSession[],
   exerciseId: string,
   bodyWeightKg: number | null,
+  exerciseName?: string,
 ): { effectiveLoad: number; reps: number } | null => {
   if (bodyWeightKg === null) return null;
   let best: { effectiveLoad: number; reps: number } | null = null;
   workouts.forEach(w => {
     if (!w.completed) return;
     workoutExercises(w).forEach(ex => {
-      if (ex.exerciseId !== exerciseId) return;
+      if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
       exerciseSets(ex).forEach(set => {
         if (!set.completed || set.isWarmup || set.reps <= 0) return;
         const effectiveLoad = Math.max(0, bodyWeightKg - (set.assistWeight ?? 0));
@@ -164,7 +171,10 @@ export const detectNewPRs = (
   if (!currentWorkout.completed) return prs;
 
   workoutExercises(currentWorkout).forEach(ex => {
-    const name = exerciseNames.get(ex.exerciseId) || ex.name || ex.exerciseId;
+    // Realna nazwa (mapa planu albo snapshot sesji) — bez fallbacku do id,
+    // żeby match po nazwie (spec C5, sesje ad-hoc) nie dostał sztucznej wartości.
+    const snapshotName = exerciseNames.get(ex.exerciseId) || ex.name || undefined;
+    const name = snapshotName || ex.exerciseId;
     const tracking = options?.trackingByExerciseId?.get(ex.exerciseId);
 
     // Z106: PR czasu — dłuższa ukończona seria niż kiedykolwiek.
@@ -175,7 +185,7 @@ export const detectNewPRs = (
         if ((set.durationSec ?? 0) > currentBest) currentBest = set.durationSec!;
       });
       if (currentBest === 0) return;
-      const historicalBest = getExerciseBestDuration(previousWorkouts, ex.exerciseId);
+      const historicalBest = getExerciseBestDuration(previousWorkouts, ex.exerciseId, snapshotName);
       if (currentBest > historicalBest && historicalBest > 0) {
         prs.push({ exerciseId: ex.exerciseId, exerciseName: name, type: 'duration', newValue: currentBest, oldValue: historicalBest });
       }
@@ -191,7 +201,7 @@ export const detectNewPRs = (
         if (score > currentBest) currentBest = score;
       });
       if (currentBest === 0) return;
-      const historicalBest = getExerciseBestWeightDistance(previousWorkouts, ex.exerciseId);
+      const historicalBest = getExerciseBestWeightDistance(previousWorkouts, ex.exerciseId, snapshotName);
       if (currentBest > historicalBest.score && historicalBest.score > 0) {
         prs.push({ exerciseId: ex.exerciseId, exerciseName: name, type: 'weight_distance', newValue: currentBest, oldValue: historicalBest.score });
       }
@@ -202,7 +212,7 @@ export const detectNewPRs = (
     if (tracking === 'assisted_bodyweight') {
       const bodyWeightKg = options?.bodyWeightKg ?? null;
       if (bodyWeightKg !== null) {
-        const historicalBest = getExerciseBestEffectiveLoad(previousWorkouts, ex.exerciseId, bodyWeightKg);
+        const historicalBest = getExerciseBestEffectiveLoad(previousWorkouts, ex.exerciseId, bodyWeightKg, snapshotName);
         let bestPr: PRComparison | null = null;
         exerciseSets(ex).forEach(set => {
           if (!set.completed || set.isWarmup || set.reps <= 0) return;
@@ -224,7 +234,7 @@ export const detectNewPRs = (
         if (set.reps > currentMaxReps) currentMaxReps = set.reps;
       });
       if (currentMaxReps === 0) return;
-      const historicalMaxReps = getExerciseBestReps(previousWorkouts, ex.exerciseId);
+      const historicalMaxReps = getExerciseBestReps(previousWorkouts, ex.exerciseId, snapshotName);
       if (currentMaxReps > historicalMaxReps && historicalMaxReps > 0) {
         prs.push({ exerciseId: ex.exerciseId, exerciseName: name, type: 'reps', newValue: currentMaxReps, oldValue: historicalMaxReps });
       }
@@ -243,7 +253,7 @@ export const detectNewPRs = (
 
       if (currentMaxReps === 0) return;
 
-      const historicalMaxReps = getExerciseBestReps(previousWorkouts, ex.exerciseId);
+      const historicalMaxReps = getExerciseBestReps(previousWorkouts, ex.exerciseId, snapshotName);
       if (currentMaxReps > historicalMaxReps && historicalMaxReps > 0) {
         prs.push({
           exerciseId: ex.exerciseId,
@@ -269,7 +279,7 @@ export const detectNewPRs = (
     if (currentMaxWeight === 0) return;
 
     // Get historical bests (excluding current workout)
-    const historicalBest = getExerciseBest1RM(previousWorkouts, ex.exerciseId);
+    const historicalBest = getExerciseBest1RM(previousWorkouts, ex.exerciseId, snapshotName);
 
     const isWeightPR = currentMaxWeight > historicalBest.maxWeight && historicalBest.maxWeight > 0;
     const is1RMPR = currentBest1RM > historicalBest.best1RM && historicalBest.best1RM > 0;

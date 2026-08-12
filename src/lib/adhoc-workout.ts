@@ -64,10 +64,32 @@ export const createAdhocDay = (date: string, t: TranslateFn): TrainingDay => ({
   exercises: [],
 });
 
+const ADHOC_EXERCISE_PREFIX = 'adhoc-ex-';
+
+export const isAdhocExerciseId = (exerciseId: string): boolean =>
+  exerciseId.startsWith(ADHOC_EXERCISE_PREFIX);
+
+/**
+ * Czy wpis historyczny sesji liczy się do ćwiczenia (krok 16 Runna p.1, spec C5).
+ * Ad-hoc ma syntetyczne id + snapshot nazwy, więc match wyłącznie po exerciseId
+ * gubił szybkie treningi w historii i propozycjach silnika. Po nazwie łączymy
+ * WYŁĄCZNIE pary, w których uczestniczy strona ad-hoc (wpis albo szukane
+ * ćwiczenie) — planowe wpisy między cyklami zachowują dzisiejsze zachowanie.
+ */
+export const matchesExerciseEntry = (
+  entry: { exerciseId: string; name?: string },
+  exerciseId: string,
+  exerciseName?: string,
+): boolean => {
+  if (entry.exerciseId === exerciseId) return true;
+  if (!exerciseName || entry.name !== exerciseName) return false;
+  return isAdhocExerciseId(entry.exerciseId) || isAdhocExerciseId(exerciseId);
+};
+
 /** Id ćwiczenia dodanego w locie do treningu ad-hoc; unikalne wśród istniejących id sesji. */
 export const buildAdhocExerciseId = (name: string, existingIds: Iterable<string>): string => {
   const taken = new Set(existingIds);
-  const base = `adhoc-ex-${slugifyExercise(name).slice(0, 32) || 'exercise'}`;
+  const base = `${ADHOC_EXERCISE_PREFIX}${slugifyExercise(name).slice(0, 32) || 'exercise'}`;
   if (!taken.has(base)) return base;
   let index = 2;
   while (taken.has(`${base}-${index}`)) index += 1;

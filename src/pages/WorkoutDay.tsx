@@ -604,8 +604,10 @@ const WorkoutDay = () => {
             // Spec C3/C4 (Runna p.1): tryb "nie na 100%" albo urlop obniżają
             // propozycje (jeden naraz — kolizję blokują dialogi).
             reducedMode: reducedMode ?? vacationToAdviceWindow(vacation),
+            // Spec C5: snapshot nazwy — propozycje widzą też sesje ad-hoc.
+            exerciseName: exercise.name,
           }, lang, unit),
-        historicalBest: getExerciseBest1RM(workouts, exercise.id),
+        historicalBest: getExerciseBest1RM(workouts, exercise.id, exercise.name),
         rzaAdvice: getRzaAdvice(workouts, exercise.id, exercise.name),
         // Z74: ostatnia notatka z poprzedniej sesji tego ćwiczenia.
         lastNote: getExerciseNoteHistory(workouts, exercise.id, 1)[0]?.note,

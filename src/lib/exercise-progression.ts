@@ -1,4 +1,5 @@
 import type { WorkoutSession } from '@/types';
+import { matchesExerciseEntry } from '@/lib/adhoc-workout';
 import { calculate1RM } from '@/lib/pr-utils';
 import type { TrackingType } from '@/lib/set-tracking';
 
@@ -28,6 +29,8 @@ export const getExerciseHistory = (
   workouts: WorkoutSession[],
   exerciseId: string,
   isBodyweight?: boolean,
+  // Snapshot nazwy ćwiczenia — z nim historia widzi też sesje ad-hoc (spec C5).
+  exerciseName?: string,
 ): ExerciseHistoryPoint[] => {
   const dayMap = new Map<string, ExerciseHistoryPoint>();
 
@@ -35,7 +38,7 @@ export const getExerciseHistory = (
     .filter(w => w.completed)
     .forEach(w => {
       w.exercises.forEach(ex => {
-        if (ex.exerciseId !== exerciseId) return;
+        if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
 
         const workingSets = isBodyweight
           ? ex.sets.filter(s => s.completed && !s.isWarmup)
@@ -78,6 +81,7 @@ export const getTrackedExerciseHistory = (
   exerciseId: string,
   tracking: TrackingType,
   bodyWeightKg: number | null,
+  exerciseName?: string,
 ): TrackedHistoryPoint[] => {
   const dayMap = new Map<string, number>();
 
@@ -85,7 +89,7 @@ export const getTrackedExerciseHistory = (
     .filter(w => w.completed)
     .forEach(w => {
       w.exercises.forEach(ex => {
-        if (ex.exerciseId !== exerciseId) return;
+        if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) return;
         const workingSets = ex.sets.filter(s => s.completed && !s.isWarmup);
         if (workingSets.length === 0) return;
 

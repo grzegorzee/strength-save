@@ -101,8 +101,13 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **15. Tryb urlopu.** Deklaracja z datami, przetasowanie deloadu,
   wydłużenie cyklu o pełne tygodnie (id dni bez zmian, X19), rampa, push
   powrotny, anulowanie, wykluczenie z C3 (spec C4). Testy silnika + sekwencji.
-- [ ] **16. Ad-hoc zasila silnik.** Audyt przepływu (tonaż tygodnia, historia
+- [x] **16. Ad-hoc zasila silnik.** Audyt przepływu (tonaż tygodnia, historia
   ciężarów, propozycje); test odtwarzający lukę, potem domknięcie (spec C5).
+  Audyt: tonaż tygodnia OK (week-card liczy wszystkie sesje, test istniał);
+  luka w historii/propozycjach — match wyłącznie po exerciseId gubił ad-hoc
+  (syntetyczne `adhoc-ex-<slug>`). Domknięcie: `matchesExerciseEntry`
+  (id LUB para ad-hoc↔plan po snapshocie nazwy) wpięty w historię, propozycje,
+  metryki, rekordy i rampy; testy `adhoc-feeds-engine.test.ts` (15).
 - [ ] **17. Bramki wydania 2 + DECYZJE.md.** Jak krok 10, dodatkowo testy
   functions. Wpis do DECYZJE.md.
 - [ ] **18. DEPLOY wydania 2 (pre-autoryzowany).** Web + iOS (bump z repo,

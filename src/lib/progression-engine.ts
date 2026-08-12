@@ -4,6 +4,7 @@
 
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
+import { matchesExerciseEntry } from '@/lib/adhoc-workout';
 import {
   getExerciseHistory,
   getTrackedExerciseHistory,
@@ -175,12 +176,16 @@ const PAIN_THRESHOLD = 4;
 const roundTo = (value: number, step: number): number => Math.round(value / step) * step;
 
 /** Ocena "za ciężko" w NAJŚWIEŻSZEJ ukończonej sesji z tym ćwiczeniem (spec A2). */
-export const lastSessionRatedTooHeavy = (workouts: WorkoutSession[], exerciseId: string): boolean => {
+export const lastSessionRatedTooHeavy = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+  exerciseName?: string,
+): boolean => {
   let bestDate = '';
   let tooHeavy = false;
   for (const w of workouts) {
     if (!w.completed) continue;
-    if (!w.exercises.some((ex) => ex.exerciseId === exerciseId)) continue;
+    if (!w.exercises.some((ex) => matchesExerciseEntry(ex, exerciseId, exerciseName))) continue;
     if (w.date >= bestDate) {
       bestDate = w.date;
       tooHeavy = w.sessionRating === 'down' && (w.sessionRatingReasons ?? []).includes('too_heavy');
@@ -190,13 +195,17 @@ export const lastSessionRatedTooHeavy = (workouts: WorkoutSession[], exerciseId:
 };
 
 /** Ból >= progu w NAJŚWIEŻSZEJ ukończonej sesji tego ćwiczenia. */
-const lastSessionPain = (workouts: WorkoutSession[], exerciseId: string): number | null => {
+const lastSessionPain = (
+  workouts: WorkoutSession[],
+  exerciseId: string,
+  exerciseName?: string,
+): number | null => {
   let bestDate = '';
   let pain: number | null = null;
   for (const w of workouts) {
     if (!w.completed) continue;
     for (const ex of w.exercises) {
-      if (ex.exerciseId !== exerciseId) continue;
+      if (!matchesExerciseEntry(ex, exerciseId, exerciseName)) continue;
       if (w.date >= bestDate) {
         bestDate = w.date;
         pain = typeof ex.pain === 'number' ? ex.pain : null;
@@ -245,16 +254,16 @@ export const suggestEarlyDeload = (
     for (const exercise of day.exercises) {
       // Powtarzalny ból: >=4 w DWÓCH ostatnich sesjach tego ćwiczenia.
       const pains = workouts
-        .filter((w) => w.completed && w.exercises.some((ex) => ex.exerciseId === exercise.id))
+        .filter((w) => w.completed && w.exercises.some((ex) => matchesExerciseEntry(ex, exercise.id, exercise.name)))
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(-2)
-        .map((w) => w.exercises.find((ex) => ex.exerciseId === exercise.id)?.pain ?? 0);
+        .map((w) => w.exercises.find((ex) => matchesExerciseEntry(ex, exercise.id, exercise.name))?.pain ?? 0);
       if (pains.length === 2 && pains.every((p) => p >= PAIN_THRESHOLD)) {
         painExercises.push(exercise.name);
       }
 
       const isBodyweight = isBodyweightExercise(exercise.name);
-      const history = getExerciseHistory(workouts, exercise.id, isBodyweight);
+      const history = getExerciseHistory(workouts, exercise.id, isBodyweight, exercise.name);
       if (detectPlateau(history, PLATEAU_MIN_SESSIONS, isBodyweight).isPlateau) {
         plateauExercises.push(exercise.name);
       }
@@ -393,7 +402,7 @@ export const computeWeeklyTargets = (
         ?? getTrackingType({ isBodyweight: isBodyweightExercise(exercise.name) });
 
       if (tracking === 'duration') {
-        const history = getTrackedExerciseHistory(workouts, exercise.id, 'duration', null);
+        const history = getTrackedExerciseHistory(workouts, exercise.id, 'duration', null, exercise.name);
         if (history.length > 0) {
           const best = Math.max(...history.map(h => h.value));
           base.kind = 'progress';
@@ -405,7 +414,7 @@ export const computeWeeklyTargets = (
       }
 
       const isBodyweight = tracking === 'bodyweight_reps';
-      const history = getExerciseHistory(workouts, exercise.id, isBodyweight);
+      const history = getExerciseHistory(workouts, exercise.id, isBodyweight, exercise.name);
       if (history.length === 0) {
         dayTargets[exercise.id] = base;
         continue;
@@ -424,7 +433,7 @@ export const computeWeeklyTargets = (
         continue;
       }
 
-      const pain = lastSessionPain(workouts, exercise.id);
+      const pain = lastSessionPain(workouts, exercise.id, exercise.name);
       if (pain !== null && pain >= PAIN_THRESHOLD) {
         base.kind = 'pain';
         base.targetWeight = isBodyweight ? null : Math.max(0, roundTo(last.maxWeight * 0.9, 2.5));
@@ -453,7 +462,7 @@ export const computeWeeklyTargets = (
         increment,
         isPlateau: plateau.isPlateau,
         // Spec A2: cele tygodniowe pokazują tę samą propozycję co karta ćwiczenia.
-        lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exercise.id),
+        lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exercise.id, exercise.name),
       });
 
       base.kind = decision.kind;
