@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, WifiOff } from 'lucide-react';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -17,7 +18,10 @@ interface AppHeaderProps {
 
 export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
+  const navigate = useNavigate();
+  const displayName = profile?.displayName || '';
+  const initials = displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'SS';
   // Z216: nagłówek jest na każdym ekranie — nie może trzymać szerokiego
   // listenera (pomiary 'none', treningi okno recent). Licznik all-time daje
   // agregat Z217; fallback z okna dotyczy tylko kont bez dokumentu agregatu.
@@ -48,10 +52,26 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between h-16 px-5 md:px-6 max-w-4xl mx-auto">
         <div className="flex items-center gap-3">
-          {onBack && (
+          {onBack ? (
             <Button variant="ghost" size="icon" onClick={onBack} aria-label={t('comp.header.back')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate('/profile')}
+              aria-label={t('nav.profile')}
+              data-testid="header-avatar"
+              className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-border transition-transform active:scale-95"
+            >
+              {profile?.photoURL ? (
+                <img src={profile.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center bg-surface-highest text-xs font-bold text-primary">
+                  {initials}
+                </span>
+              )}
+            </button>
           )}
           <h1 className="text-lg font-heading font-bold uppercase text-foreground tracking-[0.08em]">{title}</h1>
         </div>

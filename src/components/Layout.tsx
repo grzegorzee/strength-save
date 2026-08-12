@@ -21,7 +21,9 @@ const pageTitleKeys: Record<string, TranslationKey> = {
 };
 
 // Trasy najwyższego poziomu (bottom nav) — bez strzałki wstecz.
-const rootPaths = new Set(['/', '/plan', '/history', '/exercises', '/profile']);
+// PRO-B: /profile wypada (wejście z avatara w headerze, dostaje strzałkę),
+// dochodzą /achievements i /analytics (są w bottom nav).
+const rootPaths = new Set(['/', '/plan', '/history', '/exercises', '/achievements', '/analytics']);
 
 export const Layout = () => {
   const location = useLocation();

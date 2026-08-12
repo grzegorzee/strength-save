@@ -30,6 +30,7 @@ export const pl = {
   'nav.profile': 'Profil',
   'nav.analytics': 'Analityka',
   'nav.achievements': 'Osiągnięcia',
+  'nav.progress': 'Postępy',
   'nav.cycles': 'Cykle',
   'nav.settings': 'Ustawienia',
   'nav.measurements': 'Pomiary ciała',

@@ -29,6 +29,7 @@ export const en: Record<keyof typeof pl, string> = {
   'nav.profile': 'Profile',
   'nav.analytics': 'Analytics',
   'nav.achievements': 'Achievements',
+  'nav.progress': 'Progress',
   'nav.cycles': 'Cycles',
   'nav.settings': 'Settings',
   'nav.measurements': 'Body measurements',

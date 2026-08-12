@@ -21,17 +21,17 @@ interface AppNavigationProps {
 }
 
 const navItems = [
-  // Pierwsze 5 = mobilny bottom nav: Dashboard / Plan / Analityka / Ćwiczenia / Profil
+  // Pierwsze 5 = mobilny bottom nav; Profil wypada z mobile (wejście przez avatar w headerze):
   { to: '/', icon: Home, labelKey: 'nav.dashboard' as const },
   { to: '/plan', icon: Calendar, labelKey: 'nav.plan' as const },
   { to: '/analytics', icon: BarChart3, labelKey: 'nav.analytics' as const },
   { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
-  { to: '/profile', icon: User, labelKey: 'nav.profile' as const },
-  // Pozostałe — sidebar (desktop) + menu mobilne
+  { to: '/achievements', icon: Trophy, labelKey: 'nav.progress' as const },
+  // Pozostałe — sidebar (desktop)
   { to: '/history', icon: ScrollText, labelKey: 'nav.history' as const },
   { to: '/measurements', icon: Ruler, labelKey: 'nav.measurements' as const },
-  { to: '/achievements', icon: Trophy, labelKey: 'nav.achievements' as const },
   { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
+  { to: '/profile', icon: User, labelKey: 'nav.profile' as const },
 ];
 
 // Boczne menu pogrupowane w sekcje (mniej przytłaczające niż płaska lista 9 pozycji).

@@ -17,7 +17,7 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await blockFirebase(page);
   });
 
-  test('bottom nav: Plan, Analityka, Ćwiczenia, Profil', async ({ page }) => {
+  test('bottom nav: Plan, Analityka, Ćwiczenia, Postępy; Profil przez avatar', async ({ page }) => {
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     const bottomNav = page.locator('nav[aria-label="Nawigacja mobilna"]');
@@ -29,7 +29,11 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/analytics');
     await bottomNav.getByRole('link', { name: 'Ćwiczenia' }).click();
     await expectHashRoute(page, '/exercises');
-    await bottomNav.getByRole('link', { name: 'Profil' }).click();
+    await bottomNav.getByRole('link', { name: 'Postępy' }).click();
+    await expectHashRoute(page, '/achievements');
+
+    // PRO-B: Profil wypadł z bottom nav — jedyna trasa mobile to avatar w headerze.
+    await page.getByTestId('header-avatar').click();
     await expectHashRoute(page, '/profile');
   });
 
