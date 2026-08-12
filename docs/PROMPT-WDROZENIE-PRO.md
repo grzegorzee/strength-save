@@ -55,7 +55,7 @@
 ### Plan B — Header, powiadomienia, Postępy (docs/PLAN-PRO-B-2026-08-12.md)
 - [x] B-T1: moduł inboxa `notification-inbox.ts` (7f30bfa0; TDD 4 testy, storage per uid limit 50, test w src/test/ jak w A-T2; 1621 unit zielonych)
 - [x] B-T2: dzwonek + sheet powiadomień w headerze (9f280084; sheet zawsze zamontowany wg lekcji b.92, i18n w obu locale, 1624 unit zielonych)
-- [ ] B-T3: avatar w headerze + Postępy w bottom nav
+- [x] B-T3: avatar w headerze + Postępy w bottom nav (c2b952f7; rootPaths z /achievements+/analytics bez /profile, e2e mobile-nav zaktualizowane 8/8, 1625 unit zielonych)
 - [ ] B-T4: emisja zdarzeń PR do inboxa
 - [ ] WYDANIE B: jak wyżej
 
@@ -147,3 +147,8 @@
   przez safety hook → cache odłożony mv do scratchpada (efekt ten sam). (4) Scenariusz
   ręczny na urządzeniu zostaje po stronie usera (wpis DECYZJE.md), źródłowo zero emoji
   pilnuje bramka.
+- 2026-08-12 B-T3: vi.stubGlobal('__APP_VERSION__') w teście nav (vitest.config nie ma
+  define z vite.config — wariant mniejszy niż zmiana configu). E2e mobile-nav-reachability
+  zaktualizowany do nowego niezmiennika (Postępy w 5. slocie, Profil przez avatar) i
+  przechodzi 8/8. Etykieta achievements w sidebarze zmienia się z 'Osiągnięcia' na
+  'Postępy' (labelKey wspólny, świadomie wg planu).
