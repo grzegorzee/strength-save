@@ -5,11 +5,27 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-12 (Runna pakiet 1, wydanie 1: kroki 1-10 w kodzie, deploy pre-autoryzowany w kroku 11)
+**Ostatnia aktualizacja:** 2026-08-12 (Runna pakiet 1, wydanie 2: etap C w kodzie, bramki kroku 17 zielone)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-12: Runna pakiet 1, WYDANIE 2 (etap C: odstępstwa od planu) — kroki 12-17 w kodzie
+
+**Co (spec `docs/superpowers/specs/2026-08-11-runna-pakiet-1-design.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-RUNNA-PAKIET-1.md`, commity `81fac5c1`→`2f43ba68` + krok 17):**
+
+*Etap C — życie rozjeżdża plan:* (12) **Pomiń trening** (C1): stan skipped per data (pole na dokumencie planu, rules hasOnly + testy, mapper sprawdzony), wejścia z menu karty dnia i z traya, odwracalne, wygaszony checkmark w karcie tygodnia, silnik neutralny wobec skipa; (13) **tray zaległości** (C2, wersja minimalna): `detectLapse` (nieukończona/nieodpuszczona sesja starsza niż 2 dni w oknie 14 dni ALBO pusty miniony tydzień planu; świeże 1-2 dni zostają w banerze przełożenia), `LapseTray` bottom sheet w tonie neutralnym [Odpuść]/[Przełóż]/[Kontynuuj od dziś] (masowe odpuszczenie zaległych dat JEDNYM zapisem pola + comeback silnika: przerwa 14+ dni od ćwiczenia = propozycja -10%, `deload.break`), pamięć odrzucenia per zaległość (localStorage), cisza przy żywym drafcie, sheet domykany PRZED mutacją (lekcja b.92); (14) **tryb "nie na 100%"** (C3): `ReducedMode` 3-14 dni (lżej -20% / tylko główne boje / pauza), propozycje liczone od BAZY sprzed trybu, rampa powrotna 85% → 92% → 100% per sesja ćwiczenia, badge na Dashboardzie (stan jawny, wyłączalny w każdej chwili), push przed końcem trybu (functions + testy), kolizja z deloadem: tryb WYGRYWA, nic się nie dubluje; (15) **tryb urlopu** (C4): deklaracja z datami 3-21 dni, deload cyklu przesuwa się na tydzień wyjazdu (przerwa PEŁNI ROLĘ deloadu), cykl wydłuża się o pełne tygodnie (id dni bez zmian — niezmiennik X19), rampa jak C3, push powrotny, anulowanie przed startem i w trakcie, jeden tryb naraz (UI blokuje drugi); (16) **ad-hoc zasila silnik** (C5): audyt — tonaż tygodnia już działał (week-card liczy wszystkie sesje); luka: cały silnik matchował po `exerciseId`, a ćwiczenia ad-hoc mają syntetyczne `adhoc-ex-<slug>` + snapshot nazwy; domknięcie: `matchesExerciseEntry` (id LUB identyczny snapshot nazwy, gdy w parze uczestniczy strona ad-hoc — planowe wpisy między cyklami bez zmian) wpięty w historię (`getExerciseHistory`/tracked), propozycje (`getNextSetAdvice`, `computeWeeklyTargets`, `suggestEarlyDeload`), metryki (ocena "za ciężko", ból, RZA), rekordy (`pr-utils` best*/`detectNewPRs`: bez fałszywego PR w sesji planowej po mocnym ad-hoc, PR w ad-hoc widzi rekord planowy) i rampę trybów.
+
+**Dlaczego:** research Runny cz. 1 (TOP 1/6/7): życie rozjeżdża plan — apka wychodzi do usera z czystym restartem w 1 tap zamiast ściany zaległości; wszystkie korekty żyją WYŁĄCZNIE w propozycjach (zasada "adaptacja za zgodą"), plan/cykl/historia nietknięte bez tapnięcia.
+
+**Niezmiennik globalny (testowany per krok):** user, który nic nie pomija, nie włącza trybów i nie robi ad-hoc, ma DOKŁADNIE dzisiejsze zachowanie; wywołania silnika bez snapshotu nazwy zachowują się jak dotąd.
+
+**Fix bramek (krok 17):** tray zaległości zasłaniał `main` (inert Radixa) w 31 testach e2e — mockowy plan ma zaplanowane dni w przeszłości bez sesji, więc tray otwierał się w każdym teście Dashboardu; fix: seed pamięci odrzuceń (`fittracker_lapse_dismissed_v1`, pełne okno detekcji) w `playwright.config.ts` przez `use.storageState` — testy traya czyszczą klucz u siebie, zachowanie produkcyjne bez zmian. Drugi fail (warmup-persistence, spinner po reload) = flake zwietrzałego dev servera, potwierdzona lekcja #9 (świeży vite → zielone).
+
+**Weryfikacja (krok 17, wszystko zielone):** unit 1614/1614, `typecheck` + `lint`, `build` + `build:mobile` + `check:dist-smoke` (bundle startuje w Chromium), `test:rules` 203/203 (JDK21 z homebrew: `JAVA_HOME=/opt/homebrew/opt/openjdk@21`), testy functions 222 passed / 7 skipped, `e2e:mock` 196/196 (2.9 min, świeży vite).
+
+**Deploy:** krok 18 (pre-autoryzowany) — wpis uzupełni się po wykonaniu.
 
 ### 2026-08-12: Runna pakiet 1, WYDANIE 1 (pętla sesji + tydzień) — kroki 1-10 wdrożone w kodzie
 

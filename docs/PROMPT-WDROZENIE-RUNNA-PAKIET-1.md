@@ -108,8 +108,11 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
   (syntetyczne `adhoc-ex-<slug>`). Domknięcie: `matchesExerciseEntry`
   (id LUB para ad-hoc↔plan po snapshocie nazwy) wpięty w historię, propozycje,
   metryki, rekordy i rampy; testy `adhoc-feeds-engine.test.ts` (15).
-- [ ] **17. Bramki wydania 2 + DECYZJE.md.** Jak krok 10, dodatkowo testy
-  functions. Wpis do DECYZJE.md.
+- [x] **17. Bramki wydania 2 + DECYZJE.md.** Jak krok 10, dodatkowo testy
+  functions. Wpis do DECYZJE.md. Zielone: unit 1614, typecheck, lint, build,
+  build:mobile, dist-smoke, rules 203 (JDK21), functions 222, e2e 196/196.
+  Fix: seed odrzuceń traya w playwright.config (tray zasłaniał main w 31
+  testach); flake warmup = zwietrzały dev server (lekcja #9).
 - [ ] **18. DEPLOY wydania 2 (pre-autoryzowany).** Web + iOS (bump z repo,
   obie grupy TestFlight) + Android AAB (bump versionCode) + functions
   (push z kroków 14/15). Dowody do DECYZJE.md.
