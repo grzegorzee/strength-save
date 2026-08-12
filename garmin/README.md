@@ -8,6 +8,11 @@ kolejka offline i wysyłka treningu do `garminIngest`.
 
 ## STATUS: v3 + kontrakt X25 zbudowany, czeka na bramę fizyczną (2026-08-10)
 
+> Audyt PRO A-E (2026-08-13): wydania PRO (de-emojizacja, header/inbox, completion,
+> gamifikacja, Dashboard hero-first) NIE dotykają kontraktu danych CIQ — zero zmian
+> w `functions/` (garmin-pair|day|ingest|endpoints), `garmin/`, `plan-schedule.ts`,
+> `workout-protocol.ts`, `garmin-api.ts` (git diff 88b88cdc..HEAD). Apka CIQ bez zmian.
+
 SDK 9.2.0 zainstalowany, apka skompilowana, sparowana i przetestowana na
 epix (Gen 2) usera + w symulatorze (zrzuty). UI v2: lista dnia jako natywne
 Menu2, ekran ćwiczenia w pionie, krok wagi 0.5-5 kg, szybki trening ad-hoc

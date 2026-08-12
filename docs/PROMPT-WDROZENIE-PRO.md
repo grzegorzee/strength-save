@@ -93,11 +93,10 @@
       NASTĘPNY bump iOS = 101, versionCode = 17)
 
 ### Zamknięcie
-- [ ] Garmin: zweryfikuj, czy któraś zmiana dotknęła kontraktu danych z aplikacją
-      CIQ (grep po modułach syncu używanych przez garmin/; status w garmin/README.md).
-      Zmiany A-E to warstwa UI webview, więc oczekiwany wynik: „bez zmian po stronie
-      Garmin". Jeśli JEDNAK coś dotknięte: napraw/zbuduj wg garmin/README.md
-      (sanity-guardy, nie kończyć treningu na symulatorze!).
+- [x] Garmin: zweryfikowane — BEZ ZMIAN po stronie Garmin. git diff 88b88cdc..HEAD:
+      zero plików w functions/, garmin/, plan-schedule.ts, workout-protocol.ts,
+      garmin-api.ts; zmiany A-E to UI webview + localStorage inbox. Adnotacja audytu
+      dopisana w garmin/README.md (sekcja STATUS). Symulator nietknięty.
 - [ ] Apple Watch: potwierdź, że target StrengthWatch zbudował się w release iOS
       (leci z tym samym archive) i że komunikacja telefon-zegarek działa
       (scenariusz z docs o watch, symulatory sparowane).
