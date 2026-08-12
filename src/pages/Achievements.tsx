@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Lock, Sunrise, RotateCcw, Swords, CalendarCheck, Medal } from 'lucide-react';
+import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal } from 'lucide-react';
+import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -19,6 +20,7 @@ import {
   detectPlateaus,
   computeMilestones,
   computeSpecialBadges,
+  tierForIndex,
   type Milestone,
   type SpecialBadgeId,
 } from '@/lib/achievements-utils';
@@ -353,38 +355,21 @@ const Achievements = () => {
           <CardDescription>{t('achievements.milestonesDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+          {/* PRO-D T2: jeden kształt odznaki (heksagon), tier przez materiał, ghost bez kłódki. */}
+          <div className="grid grid-cols-3 gap-x-2 gap-y-6 sm:grid-cols-4">
             {milestones.map(m => {
-              const Icon = milestoneIcon(m.category);
+              const catItems = milestones.filter(x => x.category === m.category);
+              const catIdx = catItems.indexOf(m);
               return (
-                <div
+                <AchievementBadge
                   key={m.id}
-                  className={cn(
-                    'flex flex-col items-center gap-1.5 rounded-xl p-3 text-center',
-                    m.achieved ? 'bg-primary/10' : 'bg-surface-low',
-                  )}
-                >
-                  <div className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-lg',
-                    m.achieved ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground',
-                  )}>
-                    {m.achieved ? <Icon className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                  </div>
-                  <p className={cn(
-                    'text-[11px] font-bold uppercase tracking-wide leading-tight',
-                    m.achieved ? 'text-foreground' : 'text-muted-foreground',
-                  )}>
-                    {milestoneLabel(m)}
-                  </p>
-                  {!m.achieved && m.progress > 0 && (
-                    <div className="w-full">
-                      <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-primary/60" style={{ width: `${m.progress}%` }} />
-                      </div>
-                      <p className="mt-0.5 text-[10px] tabular-nums text-muted-foreground">{m.progress}%</p>
-                    </div>
-                  )}
-                </div>
+                  label={milestoneLabel(m)}
+                  sublabel={m.achieved ? undefined : `${m.progress}%`}
+                  earned={m.achieved}
+                  tier={tierForIndex(catIdx, catItems.length)}
+                  icon={milestoneIcon(m.category)}
+                  progress={m.achieved ? undefined : m.progress / 100}
+                />
               );
             })}
           </div>
@@ -401,36 +386,19 @@ const Achievements = () => {
           <CardDescription>{t('achievements.special.desc')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {specialBadges.map(badge => {
-              const Icon = specialBadgeIcon[badge.id];
-              return (
-                <div
-                  key={badge.id}
-                  title={t(specialBadgeDescKey[badge.id])}
-                  className={cn(
-                    'flex flex-col items-center gap-1.5 rounded-xl p-3 text-center',
-                    badge.achieved ? 'bg-fitness-cyan/10' : 'bg-surface-low',
-                  )}
-                >
-                  <div className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-lg',
-                    badge.achieved ? 'bg-fitness-cyan/20 text-fitness-cyan' : 'bg-muted text-muted-foreground',
-                  )}>
-                    {badge.achieved ? <Icon className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                  </div>
-                  <p className={cn(
-                    'text-[11px] font-bold uppercase tracking-wide leading-tight',
-                    badge.achieved ? 'text-foreground' : 'text-muted-foreground',
-                  )}>
-                    {t(specialBadgeLabelKey[badge.id])}
-                  </p>
-                  <p className="text-[10px] leading-tight text-muted-foreground">
-                    {t(specialBadgeDescKey[badge.id])}
-                  </p>
-                </div>
-              );
-            })}
+          {/* PRO-D T2: specjalne w jednolitym srebrze, opis w sublabel + title. */}
+          <div className="grid grid-cols-2 gap-x-2 gap-y-6 sm:grid-cols-4">
+            {specialBadges.map(badge => (
+              <div key={badge.id} title={t(specialBadgeDescKey[badge.id])}>
+                <AchievementBadge
+                  label={t(specialBadgeLabelKey[badge.id])}
+                  sublabel={t(specialBadgeDescKey[badge.id])}
+                  earned={badge.achieved}
+                  tier="silver"
+                  icon={specialBadgeIcon[badge.id]}
+                />
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

@@ -1,4 +1,5 @@
 import type { WorkoutSession } from '@/types';
+import type { BadgeTier } from '@/components/kinetic/AchievementBadge';
 import { calculate1RM, getExerciseBest1RM } from './pr-utils';
 import { formatLocalDate, parseLocalDate } from './utils';
 import { getWeekBounds } from './summary-utils';
@@ -247,4 +248,13 @@ export const computeMilestones = (stats: {
       progress: Math.min(100, Math.round((valueFor[category] / threshold) * 100)),
     })),
   );
+};
+
+// PRO-D: tier odznaki = pozycja progu w kategorii. Pierwsze dwa progi brąz,
+// kolejne srebro, przedostatni złoto, ostatni platyna ([b, b, s, g, p]).
+export const tierForIndex = (idx: number, total: number): BadgeTier => {
+  if (idx >= total - 1) return 'platinum';
+  if (idx >= total - 2) return 'gold';
+  if (idx >= 2) return 'silver';
+  return 'bronze';
 };
