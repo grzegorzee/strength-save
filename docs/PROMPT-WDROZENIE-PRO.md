@@ -86,7 +86,11 @@
 - [x] E-T2: banery stanu do slotu (94157840; 4 bloki JSX 1:1 → statusEntries z priorytetami 100/80/70/60; przy okazji fix datozależnej asercji e2e "Dzień regeneracji" — pada od zmiany daty na czwartek, nie od refaktoru; 1642 unit + full-app 166/166)
 - [x] E-T3: nowa kolejność sekcji + data-testid (28bacef3; hero pod powitaniem, slot za hero, upsell pod statystyki, nowy e2e dashboard-order 2/2; dash-hero jako wrapper 3 wariantów — testidy today-completed-card/recovery-card zachowane dla istniejących kontraktów, week-card istniał; +fix datozależnej asercji ui-improvements)
 - [x] E-T4: karta „Twój plan" bez listy dni (ae2e114a; zostaje meta+progress+CTA, osierocone dayColors usunięte; dni żyją w week-card i dash-week-section — e2e dashboard-order pilnuje; 1642 unit zielonych, 1 flake wyścigu edycji cardio PASS przy retry)
-- [ ] WYDANIE E: jak wyżej + e2e pełne + scenariusz sekwencji
+- [x] WYDANIE E: jak wyżej + e2e pełne + scenariusz sekwencji (web live index-De466VIE.js;
+      iOS 100 APPROVED obie grupy, Watch w IPA; AAB v16 jar verified SHA-256 2d7150e6…4802;
+      e2e 392/392 + critical 18/18 po fixie 3. instancji datozależnego wzorca;
+      scenariusz sekwencji na urządzeniu po stronie usera — wpis DECYZJE.md;
+      NASTĘPNY bump iOS = 101, versionCode = 17)
 
 ### Zamknięcie
 - [ ] Garmin: zweryfikuj, czy któraś zmiana dotknęła kontraktu danych z aplikacją

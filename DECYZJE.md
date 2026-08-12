@@ -5,11 +5,28 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-13 (PRO wydanie D: gamifikacja progresu — web + iOS 99 + AAB v15)
+**Ostatnia aktualizacja:** 2026-08-13 (PRO wydanie E: Dashboard hero-first — web + iOS 100 + AAB v16)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-13: PRO wydanie E — Dashboard hero-first, hierarchia zamiast ściany kart (WYDANE)
+
+**Co (plan `docs/PLAN-PRO-E-2026-08-12.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-PRO.md`, commity `2a415f2a`→ bump v16):**
+(T1) `DashboardStatusSlot`: prezentacyjny slot komunikatów stanu — renderuje wyłącznie najwyższy priorytet, resztę za togglem „Pozostałe komunikaty (n)"; (T2) 4 banery (sync/offline 100, urlop 80, tryb „nie na 100%" 70, przedłużenie planu 60) przeniesione 1:1 do slotu — warunki logiczne nietknięte; (T3) hero-first: karta dnia (trening/ukończony/regeneracja, wrapper `dash-hero`) zaraz pod powitaniem, slot za nią, ProUpsellBanner zepchnięty pod kafle statystyk; sekcje z data-testid + nowy e2e `dashboard-order.spec.ts` pilnujący kolejności pionowej; (T4) karta „Twój plan" bez listy dni (zostaje meta + progress + CTA; dni żyją w WeekCard i sekcji „Plan tygodnia" — koniec potrójnego powtórzenia; osierocone dayColors usunięte).
+
+**Dlaczego:** user po otwarciu apki w 2 sekundy wie, co dziś robi (lekcja Runna v3: ekran dnia to plan, nie hub); ściana 4 banerów nad treningiem zamieniona na jeden świadomie rozwijany slot; upsell nie konkuruje z treningiem.
+
+**Root cause napotkany (3 wystąpienia tej samej pułapki):** asercje e2e karty dnia (`full-app`, `ui-improvements`, `critical`) znały tylko „Dzisiaj wolne", a od Runna p.1 B2 dzień wolny to karta „Dzień regeneracji" — pękły dopiero, gdy data przeskoczyła na czwartek (dzień wolny w mocku). Datozależność, nie regresja refaktoru; wszystkie trzy wzorce rozszerzone.
+
+**Niezmiennik (zasada 5, testowane):** wszystkie elementy Dashboardu osiągalne — zmieniona wyłącznie kolejność i zwijanie; testidy `today-completed-card`/`recovery-card`/`week-card` zachowane dla istniejących kontraktów.
+
+**Weryfikacja (wszystko zielone):** unit 1642/1642 (214 plików; nowe: slot 3), typecheck, lint, build, `check:no-emoji` (171), e2e pełne 392/392 + critical po fixie 18/18 (nowy dashboard-order 2/2; jedyny inny fail = flake wyścigu edycji cardio, PASS przy retry).
+
+**Deploy (pre-autoryzowany, WYKONANY):** web live `index-De466VIE.js` (Published, hash zweryfikowany); iOS build **100** upload OK, `StrengthWatch.app` w IPA, obie grupy TestFlight (204/204, whatsNew 200), betaReviewState **APPROVED**; Android AAB **versionCode 16** BUILD SUCCESSFUL, `jar verified`, SHA-256 `2d7150e6a250e0850b04c4c222adc21c19e2b12bd87337420b1a12b176814802`. Wersje marketingowe 1.0.0 bez zmian. NASTĘPNY bump iOS = 101, versionCode = 17.
+
+**Po stronie usera:** scenariusz sekwencji na urządzeniu: start treningu z hero-karty → wyjście → szybki trening → powrót → zakończenie → sync; Dashboard z banerami (offline + urlop naraz → slot pokazuje offline, toggle ujawnia urlop).
 
 ### 2026-08-13: PRO wydanie D — gamifikacja progresu, duma na wierzch (WYDANE)
 
