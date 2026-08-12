@@ -437,6 +437,14 @@ test.describe('ExercisePicker (Z69)', () => {
     await expect(page.locator('.exercise-card').first()).toBeVisible();
 
     // X17A Z129.2: „Zamień ćwiczenie" przeniesione z przycisków pod kartą do menu ⋯.
+    // Toast autostartu (TOAST_REMOVE_DELAY=1000000 wisi do zamknięcia) przechwytuje
+    // klik w menuitem na webkit — poczekaj aż się pojawi i zamknij go najpierw.
+    const autostartToastClose = page.locator('[toast-close]').first();
+    await autostartToastClose.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    if (await autostartToastClose.isVisible().catch(() => false)) {
+      await autostartToastClose.click();
+      await autostartToastClose.waitFor({ state: 'hidden' });
+    }
     await page.locator('.exercise-card').first().getByRole('button', { name: 'Więcej akcji' }).click();
     await page.getByRole('menuitem', { name: 'Zamień ćwiczenie' }).click();
     const dialog = page.getByRole('dialog');
