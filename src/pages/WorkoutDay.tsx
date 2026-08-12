@@ -40,11 +40,15 @@ import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useExerciseNotes } from '@/hooks/useExerciseNotes';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
-import type { SetData, ExerciseMetrics } from '@/types';
+import type { SetData, ExerciseMetrics, WorkoutSessionRating, WorkoutSessionRatingReason } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { detectNewPRs, getExerciseBest1RM } from '@/lib/pr-utils';
+import { detectNewPRs, getExerciseBest1RM, type PRComparison } from '@/lib/pr-utils';
+import { db } from '@/lib/firebase';
+import { saveWorkoutSessionRating } from '@/lib/workout-save';
+import { computeCompletionSummary } from '@/lib/workout-completion-summary';
+import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
 import { buildDayFromDraft, hasAnyCompletedSet, sessionStats } from '@/lib/workout-day-view';
@@ -193,6 +197,10 @@ const WorkoutDay = () => {
   const [queuedDraft, setQueuedDraft] = useState<ActiveWorkoutDraft | null>(null);
   const [isDraftLoaded, setIsDraftLoaded] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+  // Runna p.1 (spec A1): sekwencja completion tylko dla ŚWIEŻO zakończonej sesji.
+  // Wejście w ukończony trening z historii NIE dostaje celebracji ani oceny.
+  const [justCompleted, setJustCompleted] = useState(false);
+  const [sessionPRs, setSessionPRs] = useState<PRComparison[]>([]);
   // Z161: usuwanie ZAPISANEGO treningu z widoku podsumowania — ta sama ścieżka co
   // Historia (deleteWorkoutEverywhere: dokument + szkic IDB + kolejka syncu, nigdy
   // goły deleteDoc). Trening w toku nie renderuje tej akcji (widok podsumowania
@@ -210,7 +218,7 @@ const WorkoutDay = () => {
   const [showShare, setShowShare] = useState(false);
   // Podsumowanie ukończonego treningu: które ćwiczenia mają rozwinięte serie.
   const [expandedSummaryIds, setExpandedSummaryIds] = useState<Set<string>>(new Set());
-  const { unit, fmt, toDisplay } = useUnit();
+  const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
 
   // Exercise swap (search library, no AI)
   const [swapExerciseId, setSwapExerciseId] = useState<string | null>(null);
@@ -1939,6 +1947,7 @@ const WorkoutDay = () => {
         trackTelemetryEvent(uid, 'final_sync_pending');
         trackTelemetryEvent(uid, 'sync_queue_enqueued');
         setIsCompleted(true);
+        setJustCompleted(true);
         setShowCompleteConfirm(false);
         setAutoSaveStatus('final-sync-pending');
         completedSessionLockRef.current = sessionId;
@@ -1961,6 +1970,7 @@ const WorkoutDay = () => {
     }
 
     setIsCompleted(true);
+    setJustCompleted(true);
     completedSessionLockRef.current = sessionId;
     setIsExplicitSaving(false);
     setShowCompleteConfirm(false);
@@ -2010,6 +2020,7 @@ const WorkoutDay = () => {
           bodyWeightKg: getLatestMeasurement()?.weight ?? null,
         },
       );
+      setSessionPRs(newPRs);
       if (newPRs.length > 0) {
         const prNames = newPRs.map(pr => pr.exerciseName).join(', ');
         toast({
@@ -2227,6 +2238,21 @@ const WorkoutDay = () => {
 
   // COMPLETED VIEW (not editing)
   if (isCompleted && !isEditing) {
+    // Runna p.1 (spec A1): podsumowanie liczone deterministycznie z danych sesji.
+    const completionSummary = computeCompletionSummary({
+      exerciseSets,
+      dayExercises: day.exercises,
+      skippedExercises,
+      workouts,
+      sessionId,
+      dayId: day.id,
+    });
+    const handleSessionRate = (rating: WorkoutSessionRating, reasons: WorkoutSessionRatingReason[]) => {
+      if (!sessionId) return;
+      // Fire-and-forget: offline updateDoc rozstrzyga się dopiero po reconnect,
+      // a brak/utrata oceny = brak sygnału, nic nie wisi (reguła #6).
+      void saveWorkoutSessionRating(db, sessionId, rating, reasons).catch(() => {});
+    };
     return (
       <div className="space-y-6 pb-20">
         <div className="flex items-center gap-4">
@@ -2267,6 +2293,16 @@ const WorkoutDay = () => {
           </Card>
         )}
 
+        <WorkoutCompletionSequence
+          justCompleted={justCompleted}
+          summary={completionSummary}
+          durationSec={sessionDurationSec}
+          fmtTonnage={fmtTonnage}
+          fmtWeight={fmt}
+          fmtDuration={fmtDuration}
+          prs={sessionPRs}
+          onRate={handleSessionRate}
+        >
         <Card className={cn(
           "border-fitness-success bg-fitness-success/10",
           isFinalSyncPending && "border-fitness-warning bg-fitness-warning/10"
@@ -2439,6 +2475,7 @@ const WorkoutDay = () => {
             {t('history.delete')}
           </Button>
         )}
+        </WorkoutCompletionSequence>
 
         <AlertDialog open={showDeleteConfirm} onOpenChange={(open) => { if (!open) setShowDeleteConfirm(false); }}>
           <AlertDialogContent data-testid="workout-delete-dialog">

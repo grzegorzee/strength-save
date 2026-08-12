@@ -50,7 +50,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **1. Ocena sesji: model + rules.** Pole oceny (kciuk + chipsy) na
   dokumencie sesji, rules hasOnly + testy, mapper sprawdzony. Zapis z ekranu
   completion jeszcze bez UI (czysta warstwa danych + testy).
-- [ ] **2. Sekwencja completion.** Celebracja → kciuk/chipsy → podsumowanie
+- [x] **2. Sekwencja completion.** Celebracja → kciuk/chipsy → podsumowanie
   deterministyczne (tonaż, czas, serie, PR per ćwiczenie, plan vs wykonanie)
   → powrót z podświetlonym następnym dniem (spec A1). Brzegi: pusta sesja
   bez celebracji, ocena pomijalna, offline. Testy komponentów + sekwencji.

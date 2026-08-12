@@ -124,6 +124,9 @@ const Dashboard = () => {
   const [showConfetti, setShowConfetti] = useState(
     () => searchParams.get('welcome') === '1' || searchParams.get('celebrate') === '1',
   );
+  // Powrót z completion (spec A1 Runna p.1): podświetl kartę dnia z "co dalej".
+  // Osobny stan, bo showConfetti gaśnie po onDone, a podświetlenie ma zostać.
+  const [completionHighlight] = useState(() => searchParams.get('celebrate') === '1');
   useEffect(() => {
     if (searchParams.get('welcome') === '1' || searchParams.get('celebrate') === '1') {
       const next = new URLSearchParams(searchParams);
@@ -365,6 +368,7 @@ const Dashboard = () => {
         day: workoutToDay(completedToday),
         workout: completedToday,
         dateStr: todayKey,
+        nextDay: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides })?.day ?? null,
       };
     }
 
@@ -392,7 +396,13 @@ const Dashboard = () => {
       today: todayKey,
     });
     if (todayWorkout?.completed) {
-      return { type: 'completed' as const, day, workout: todayWorkout, dateStr: todayEntry.dateKey };
+      return {
+        type: 'completed' as const,
+        day,
+        workout: todayWorkout,
+        dateStr: todayEntry.dateKey,
+        nextDay: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides })?.day ?? null,
+      };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
   }, [trainingPlan, today, workouts, planStartDate, workoutToDay, scheduleOverrides]);
@@ -703,13 +713,24 @@ const Dashboard = () => {
       })()}
 
       {todayTraining.type === 'completed' && (
-        <Card className="border-fitness-success/40 bg-fitness-success/5">
+        <Card
+          data-testid="today-completed-card"
+          className={cn(
+            "border-fitness-success/40 bg-fitness-success/5",
+            completionHighlight && "ring-2 ring-fitness-success/50",
+          )}
+        >
           <CardContent className="py-4 px-5 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <CheckCircle className="h-5 w-5 text-fitness-success" />
               <div>
                 <p className="font-semibold text-sm text-fitness-success dark:text-fitness-success">{t('dash.workoutCompleted')}</p>
                 <p className="text-xs text-muted-foreground">{localizeDayName(todayTraining.day.dayName, lang)}</p>
+                {todayTraining.nextDay && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
+                  </p>
+                )}
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}>
