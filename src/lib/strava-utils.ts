@@ -25,7 +25,6 @@ export interface MonthlySummary {
 export interface CardioPR {
   category: 'fastest_pace' | 'longest_run' | 'most_elevation' | 'best_5k' | 'best_10k';
   label: string;
-  emoji: string;
   value: string;
   date: string;
   activityName: string;
@@ -440,7 +439,6 @@ export const detectCardioPRs = (
     prs.push({
       category: 'fastest_pace',
       label: translate(lang, 'stravautil.fastestPace'),
-      emoji: '🏃',
       value: `${formatPaceFromSeconds(paceSeconds)} /km`,
       date: fastest.date,
       activityName: fastest.name,
@@ -456,7 +454,6 @@ export const detectCardioPRs = (
     prs.push({
       category: 'longest_run',
       label: translate(lang, 'stravautil.longestRun'),
-      emoji: '📏',
       value: `${(longest.distance! / 1000).toFixed(1)} km`,
       date: longest.date,
       activityName: longest.name,
@@ -474,7 +471,6 @@ export const detectCardioPRs = (
     prs.push({
       category: 'most_elevation',
       label: translate(lang, 'stravautil.mostElevation'),
-      emoji: '⛰️',
       value: `${Math.round(mostElev.totalElevationGain!)} m`,
       date: mostElev.date,
       activityName: mostElev.name,
@@ -492,7 +488,6 @@ export const detectCardioPRs = (
     prs.push({
       category: 'best_5k',
       label: translate(lang, 'stravautil.best5k'),
-      emoji: '🏅',
       value: formatDurationShort(best5k.movingTime!),
       date: best5k.date,
       activityName: best5k.name,
@@ -510,7 +505,6 @@ export const detectCardioPRs = (
     prs.push({
       category: 'best_10k',
       label: translate(lang, 'stravautil.best10k'),
-      emoji: '🏅',
       value: formatDurationShort(best10k.movingTime!),
       date: best10k.date,
       activityName: best10k.name,

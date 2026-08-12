@@ -10,21 +10,11 @@ import {
 import type { StravaActivity } from '@/types/strava';
 import { HR_ZONES } from '@/types/strava';
 import { ExternalLink } from 'lucide-react';
+import { getActivityIcon } from '@/lib/activity-icons';
 import { getHRZone, getHRZoneConfig, getHRPercent } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { parseLocalDate } from '@/lib/utils';
-
-const activityIcons: Record<string, string> = {
-  Run: '🏃',
-  Ride: '🚴',
-  Swim: '🏊',
-  Walk: '🚶',
-  Hike: '🥾',
-  WeightTraining: '🏋️',
-  Yoga: '🧘',
-  Workout: '💪',
-};
 
 const formatDistance = (meters?: number): string => {
   if (!meters) return '—';
@@ -96,7 +86,7 @@ interface StravaActivityDetailProps {
 
 export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: StravaActivityDetailProps) => {
   const { t, lang } = useTranslation();
-  const icon = activityIcons[activity.type] || '🏅';
+  const Icon = getActivityIcon(activity.type);
   const sportLabel = activity.sportType || activity.type;
   const locale = dateLocale(lang);
   const fullDate = formatFullDate(activity, locale);
@@ -112,7 +102,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
     { label: t('strava.detail.cadence'), value: activity.averageCadence ? `${Math.round(activity.averageCadence)} spm` : '—' },
     { label: t('strava.detail.elevation'), value: activity.totalElevationGain ? `${Math.round(activity.totalElevationGain)} m` : '—' },
     { label: t('strava.detail.calories'), value: activity.calories ? `${activity.calories} kcal` : '—' },
-    { label: t('strava.detail.kudos'), value: activity.kudosCount != null ? `👍 ${activity.kudosCount}` : '—' },
+    { label: t('strava.detail.kudos'), value: activity.kudosCount != null ? `${activity.kudosCount}` : '—' },
   ];
 
   return (
@@ -120,8 +110,8 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
       <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
         <SheetHeader className="text-left pb-4">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-2xl">
-              {icon}
+            <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
+              <Icon className="h-6 w-6 text-orange-500" />
             </div>
             <div className="flex-1 min-w-0">
               <SheetTitle className="truncate">{activity.name}</SheetTitle>

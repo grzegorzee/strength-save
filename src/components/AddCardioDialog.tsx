@@ -9,6 +9,7 @@ import { ChevronDown, Loader2, Trash2 } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { parseDecimalInput } from '@/lib/decimal-input';
+import { getActivityIcon } from '@/lib/activity-icons';
 import {
   MANUAL_ACTIVITY_TYPES,
   type ManualActivity,
@@ -16,11 +17,6 @@ import {
   type ManualActivityType,
   type PerceivedIntensity,
 } from '@/lib/manual-activity';
-
-const TYPE_ICONS: Record<ManualActivityType, string> = {
-  Run: '🏃', Ride: '🚴', Walk: '🚶', Hike: '🥾', Swim: '🏊',
-  Treadmill: '🏃', IndoorRide: '🚴', JumpRope: '🪢', HIIT: '🔥', Other: '🏅',
-};
 
 interface AddCardioDialogProps {
   open: boolean;
@@ -127,21 +123,24 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
         {/* Typ: grid jedna warstwa. Z243: 4 kolumny + break-words — dłuższe etykiety
             (Wędrówka, Skakanka, Rower stac., Indoor ride) nie wychodzą poza kafel. */}
         <div className="grid grid-cols-4 gap-1.5" data-testid="cardio-type-grid">
-          {MANUAL_ACTIVITY_TYPES.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setType(option)}
-              aria-pressed={type === option}
-              className={cn(
-                'flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-center text-[10px] font-bold uppercase leading-tight tracking-wide transition-colors',
-                type === option ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
-              )}
-            >
-              <span className="text-base">{TYPE_ICONS[option]}</span>
-              <span className="min-w-0 max-w-full break-words">{t(`cardio.type.${option}` as Parameters<typeof t>[0])}</span>
-            </button>
-          ))}
+          {MANUAL_ACTIVITY_TYPES.map((option) => {
+            const Icon = getActivityIcon(option);
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setType(option)}
+                aria-pressed={type === option}
+                className={cn(
+                  'flex min-w-0 flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-center text-[10px] font-bold uppercase leading-tight tracking-wide transition-colors',
+                  type === option ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground',
+                )}
+              >
+                <Icon className="h-4 w-4" aria-hidden />
+                <span className="min-w-0 max-w-full break-words">{t(`cardio.type.${option}` as Parameters<typeof t>[0])}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Czas + data */}

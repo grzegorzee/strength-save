@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy } from 'lucide-react';
-import { detectCardioPRs } from '@/lib/strava-utils';
+import { Footprints, Medal, Mountain, Ruler, Trophy, type LucideIcon } from 'lucide-react';
+import { detectCardioPRs, type CardioPR } from '@/lib/strava-utils';
 import type { StravaActivity } from '@/types/strava';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -10,6 +10,15 @@ import { parseLocalDate } from '@/lib/utils';
 interface CardioPersonalBestsProps {
   activities: StravaActivity[];
 }
+
+// Dawne emoji per kategoria PR (🏃📏⛰️🏅) — teraz lucide, kolor PR (fitness-warning).
+const CATEGORY_ICONS: Record<CardioPR['category'], LucideIcon> = {
+  fastest_pace: Footprints,
+  longest_run: Ruler,
+  most_elevation: Mountain,
+  best_5k: Medal,
+  best_10k: Medal,
+};
 
 export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) => {
   const { t, lang } = useTranslation();
@@ -27,13 +36,15 @@ export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) =>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-2">
-          {prs.map((pr) => (
+          {prs.map((pr) => {
+            const Icon = CATEGORY_ICONS[pr.category];
+            return (
             <div
               key={pr.category}
               className="p-3 rounded-lg bg-fitness-warning/5 border border-fitness-warning/20"
             >
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">{pr.emoji}</span>
+                <Icon className="h-4 w-4 text-fitness-warning" aria-hidden />
                 <span className="text-xs text-muted-foreground">{pr.label}</span>
               </div>
               <p className="text-lg font-bold">{pr.value}</p>
@@ -43,7 +54,8 @@ export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) =>
                 {pr.activityName}
               </p>
             </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

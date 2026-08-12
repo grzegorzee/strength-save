@@ -1,30 +1,14 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, Pencil } from 'lucide-react';
+import { ChevronRight, Heart, MoveUpRight, Pencil } from 'lucide-react';
 import type { StravaActivity } from '@/types/strava';
 import { StravaActivityDetail } from '@/components/StravaActivityDetail';
+import { getActivityIcon } from '@/lib/activity-icons';
 import { getHRZone, getHRZoneConfig } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { parseLocalDate } from '@/lib/utils';
-
-const activityIcons: Record<string, string> = {
-  Run: '🏃',
-  Ride: '🚴',
-  Swim: '🏊',
-  Walk: '🚶',
-  Hike: '🥾',
-  WeightTraining: '🏋️',
-  Yoga: '🧘',
-  Workout: '💪',
-  // Typy wpisów manualnych (Z112)
-  Treadmill: '🏃',
-  IndoorRide: '🚴',
-  JumpRope: '🪢',
-  HIIT: '🔥',
-  Other: '🏅',
-};
 
 const formatDistance = (meters?: number): string => {
   if (!meters) return '';
@@ -73,7 +57,7 @@ export const StravaActivityCard = ({ activity, maxHR, onEdit }: StravaActivityCa
   const { t, lang } = useTranslation();
   const [detailOpen, setDetailOpen] = useState(false);
   const isManual = (activity as { source?: string }).source === 'manual';
-  const icon = activityIcons[activity.type] || '🏅';
+  const Icon = getActivityIcon(activity.type);
   const shortDate = formatShortDate(activity, dateLocale(lang));
 
   const hrZone = activity.averageHeartrate && maxHR
@@ -92,8 +76,8 @@ export const StravaActivityCard = ({ activity, maxHR, onEdit }: StravaActivityCa
       >
         <CardContent className="py-3 px-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className={`h-10 w-10 rounded-lg flex items-center justify-center text-lg ${isManual ? 'bg-fitness-cyan/10' : 'bg-orange-500/10'}`}>
-              {icon}
+            <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${isManual ? 'bg-fitness-cyan/10' : 'bg-orange-500/10'}`}>
+              <Icon className={`h-5 w-5 ${isManual ? 'text-fitness-cyan' : 'text-orange-500'}`} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -115,11 +99,11 @@ export const StravaActivityCard = ({ activity, maxHR, onEdit }: StravaActivityCa
                 {activity.movingTime && <span>{formatDuration(activity.movingTime)}</span>}
                 {activity.averageSpeed && <span>{formatPace(activity.averageSpeed, activity.type)}</span>}
                 {activity.totalElevationGain != null && activity.totalElevationGain > 0 && (
-                  <span>↗ {Math.round(activity.totalElevationGain)}m</span>
+                  <span className="flex items-center gap-0.5"><MoveUpRight className="h-3 w-3" aria-hidden />{Math.round(activity.totalElevationGain)}m</span>
                 )}
                 {activity.averageHeartrate && (
                   <span className="flex items-center gap-1">
-                    ❤️ {Math.round(activity.averageHeartrate)}
+                    <Heart className="h-3 w-3" aria-hidden /> {Math.round(activity.averageHeartrate)}
                     {hrZoneConfig && (
                       <span className={`inline-flex items-center px-1 rounded text-[10px] font-bold text-white ${hrZoneConfig.color}`}>
                         Z{hrZone}
