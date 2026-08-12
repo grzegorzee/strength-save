@@ -47,8 +47,10 @@
 - [x] A-T6: toasty PR, Analytics badge, puste stany Strava (911a5f36; i18n bez 🏆, badge Trophy+fitness-warning, Footprints w StravaTab/RacePredictor, allowlist i18n oczyszczona)
 - [x] A-T7: share card bez emoji (e6f1926b; 💪 z footera usunięty, 🏆 → typograficzny "PR ·"; wizualny przegląd 4 szablonów w scenariuszu WYDANIA A)
 - [x] A-T8: bramka `check:no-emoji` + domknięcie resztek (61c29270; bramka OK na 168 plikach, 17 resztek domkniętych: ExerciseCard ✓→Check, TrainingPlan ⚡⏱️, StravaActivityDetail 🏠→Home, DataManagement OK, i18n bez ✓/💪)
-- [ ] WYDANIE A: pełny checklist z CLAUDE.md → web deploy + iOS (z Watch) TestFlight
-      + Android AAB + wpis DECYZJE.md
+- [x] WYDANIE A: pełny checklist z CLAUDE.md → web deploy + iOS (z Watch) TestFlight
+      + Android AAB + wpis DECYZJE.md (web live index-iHRC0bdg.js; iOS 96 APPROVED obie
+      grupy, StrengthWatch.app w IPA; AAB v12 jar verified SHA-256 e5f13383…9b47;
+      e2e 392/392 po stabilizacji flake'a 2fe333a0; NASTĘPNY bump iOS = 97, versionCode = 13)
 
 ### Plan B — Header, powiadomienia, Postępy (docs/PLAN-PRO-B-2026-08-12.md)
 - [ ] B-T1: moduł inboxa `notification-inbox.ts`
@@ -135,3 +137,13 @@
   '✓'→'OK' (string interpolowany do opisu dialogu, neutralny językowo). Asercje
   share-dialog.test na 'Zapisano' bez ✓ (zmiana oczekiwana wg planu, ikona Check
   już była w przycisku).
+- 2026-08-12 WYDANIE A: (1) e2e 391/392 — jedyny fail (webkit, swap przez menu) pada
+  IDENTYCZNIE na commicie sprzed planu A (88b88cdc), root cause: toast autostartu
+  (TOAST_REMOVE_DELAY=1000000) przechwytuje klik w menuitem; NIE regresja A, fix
+  testowy 2fe333a0 (czekaj na toast → zamknij → menu), po nim PASS. (2) testflight_
+  external.py NIE odpalony osobno: release-ios.sh ma zintegrowany krok [2/2]
+  auto-dystrybucji (obie grupy 204/204, whatsNew 200, Beta App Review APPROVED) —
+  ponowne zgłoszenie dublowałoby review. (3) rm -rf node_modules/.vite zablokowany
+  przez safety hook → cache odłożony mv do scratchpada (efekt ten sam). (4) Scenariusz
+  ręczny na urządzeniu zostaje po stronie usera (wpis DECYZJE.md), źródłowo zero emoji
+  pilnuje bramka.

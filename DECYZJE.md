@@ -5,11 +5,26 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-12 (Runna pakiet 1, wydanie 2: etap C w kodzie, bramki kroku 17 zielone)
+**Ostatnia aktualizacja:** 2026-08-12 (PRO wydanie A: de-emojizacja na prod — web + iOS 96 + AAB v12)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-12: PRO wydanie A — de-emojizacja chrome UI + bramka check:no-emoji (WYDANE)
+
+**Co (plan `docs/PLAN-PRO-A-2026-08-12.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-PRO.md`, commity `9ed4b3b5`→`06a106a2`):**
+(T1) wspólna mapa `src/lib/activity-icons.ts` (typ aktywności → ikona lucide, fallback Medal) zastępuje 3 zduplikowane mapy emoji; (T2) TrainingDayCard: ✅❌🏋️ → CheckCircle2/XCircle/Dumbbell, tło missed `bg-destructive/10` (zasada 8); (T3) badge'e ExerciseCard: 🎯📅⬆⬇↺🏆 → Target/CalendarCheck/TrendingUp/TrendingDown/RotateCcw/Trophy; (T4) DayPlan (pusty stan, rozgrzewka, zasady, stretching) + karta regeneracji Dashboardu: 💪🧘🔥⚡⏱️🔄 → Dumbbell/Leaf/Flame/Zap/Timer/Repeat; (T5) StravaActivityCard/Detail/AddCardioDialog na wspólnej mapie, ❤️→Heart, ↗→MoveUpRight, 👍 kudos → sama liczba, interfejs CardioPR BEZ pola emoji (CardioPersonalBests mapuje kategorię na Footprints/Ruler/Mountain/Medal); (T6) toasty PR w obu locale bez 🏆, badge Analytics Trophy + `text-fitness-warning` (fix kontrastu po text-yellow-700), puste stany Strava i RacePredictor na Footprints; (T7) share card: 💪 usunięty, 🏆 → typograficzny "PR ·"; (T8) trwała bramka `npm run check:no-emoji` (skan components/pages/i18n/share-utils ze stripem komentarzy jak guard i18n Z168, whitelist tylko Analytics-copy-do-schowka) + domknięte 17 resztek (nagłówki ✓ gridu serii → Check, TrainingPlan ⚡⏱️ → Zap/Timer, 🏠 indoor → Home, import '✓'→'OK', i18n bez ✓/💪).
+
+**Dlaczego:** kontrakt PRO: chrome UI bez emoji (spójny język ikon lucide, kontrola koloru wg zasady 8: kolor tylko gdy niesie informację), emoji zostaje wyłącznie w treści kopiowanej do schowka i nierenderowanych polach danych. Bramka pilnuje regresji na zawsze.
+
+**Root cause'y napotkane:** (1) guard i18n Z168 skanuje `components/` — test komponentu z polskimi diakrytykami musi żyć w `src/test/` (konwencja repo); (2) pre-existing flake e2e webkit: toast autostartu (TOAST_REMOVE_DELAY=1000000, wisi do zamknięcia) przechwytywał klik w menuitem "Zamień ćwiczenie" — pada IDENTYCZNIE na commicie sprzed planu A (`88b88cdc`), więc nie regresja; fix testowy: czekaj na toast i zamknij przed otwarciem menu (`2fe333a0`).
+
+**Weryfikacja (wszystko zielone):** unit 1617/1617 (204 pliki), typecheck, lint, build, `check:no-emoji` OK (168 plików), e2e pełne 392/392 po stabilizacji (świeży vite, 4.4 min).
+
+**Deploy (pre-autoryzowany, WYKONANY):** web live `index-iHRC0bdg.js` (gh-pages Published, hash zweryfikowany na app.strengthsave.app); iOS build **96** upload OK, `StrengthWatch.app` w IPA, obie grupy TestFlight (HTTP 204/204, whatsNew 200), betaReviewState **APPROVED** (dystrybucję zrobił zintegrowany krok [2/2] release-ios.sh, odpowiednik testflight_external.py — nie dublowano zgłoszenia); Android AAB **versionCode 12** BUILD SUCCESSFUL, `jar verified`, SHA-256 `e5f133838dda0e247c2d20d100c0d5c3437efe48cd92c15861f6f04bc8269b47` (upload do Play poza zakresem — konto czeka na weryfikację Google). MARKETING_VERSION/versionName = 1.0.0 bez zmian. NASTĘPNY bump iOS = 97, versionCode = 13.
+
+**Po stronie usera:** scenariusz urządzeniowy wydania A: Dashboard → DayPlan → trening (badge'e) → zakończenie (toast rekordu) → karta udostępniania (4 szablony) — zero emoji na każdym kroku.
 
 ### 2026-08-12: Runna pakiet 1, WYDANIE 2 (etap C: odstępstwa od planu) — kroki 12-17 w kodzie
 
