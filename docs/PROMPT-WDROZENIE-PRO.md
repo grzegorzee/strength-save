@@ -64,7 +64,7 @@
 ### Plan C — Moment WOW po treningu (docs/PLAN-PRO-C-2026-08-12.md) [wymaga A]
 - [x] C-T1: delta w liście PR podsumowania (2935075a; formatPRDelta w pr-utils, TDD 2 testy — w drugim volumeDeltaPct:null bo '+5%' tonażu psuł asercję planu; 1630 unit zielonych)
 - [x] C-T2: hero-tonaż + likwidacja duplikatu metryk (aac26fdc; stara karta 2×2 usunięta, zostaje TYLKO baner sync-pending, licznik ćwiczeń w nagłówku listy, osierocony totalRepsCount usunięty)
-- [ ] C-T3: polityka confetti (rzadkie momenty)
+- [x] C-T3: polityka confetti (8401be76; bigMoment ?? prs>0, AutoAdvance z capem min(celebrationMs,1200), Dashboard confetti tylko ?welcome=1; 1632 unit zielonych)
 - [ ] C-T4: haptyka + delta przy live PR
 - [ ] WYDANIE C: jak wyżej
 
@@ -162,3 +162,8 @@
   nagłówek gratulacyjny; "czeka na synchronizację" to STATUS, nie gratulacja — jego
   usunięcie łamałoby zasadę 6 CLAUDE.md). Klucze workout.summary/statExercises/statReps
   zostają w locale (osierocone w kodzie, nieszkodliwe, mogą wrócić).
+- 2026-08-12 C-T3: dwa odchylenia od planu: (1) mock ConfettiBurst BEZ wołania onDone
+  (synchroniczny setStage w renderze wyrzucał confetti z DOM przed asercją — test
+  z planu sam siebie unieważniał); (2) AutoAdvance z ms=min(celebrationMs,1200)
+  zamiast sztywnych 1200 (stare testy przekazują celebrationMs=30 i czekają waitForem
+  z limitem 1000 ms; produkcyjnie nadal 1200).
