@@ -7,6 +7,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal } from 'lucide-react';
 import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
+import { TrainingHeatmap } from '@/components/TrainingHeatmap';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -344,6 +345,10 @@ const Achievements = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* PRO-D T4: heatmapa konsekwencji (komponent ma własny Card + tytuł + wybór roku).
+          Strava poza zakresem tego ekranu — heatmapa liczy treningi siłowe. */}
+      <TrainingHeatmap workouts={workouts} stravaActivities={[]} />
 
       {/* Milestones grid */}
       <Card>
