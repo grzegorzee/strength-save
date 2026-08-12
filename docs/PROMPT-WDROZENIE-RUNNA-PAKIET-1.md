@@ -68,7 +68,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
   sekcja TWOJE DANE); detekcja PR porównuje z max(historia w apce, backfill);
   walidacja nierealnych wartości (życzliwy komunikat); kg kanoniczne; rules
   hasOnly + testy + sprawdzony mapper (spec A5).
-- [ ] **7. Karta tygodnia.** Checkmarki dni (w tym dzień przełożony
+- [x] **7. Karta tygodnia.** Checkmarki dni (w tym dzień przełożony
   w NOWEJ dacie i pominięty jako wygaszony), pasek sesji, tonaż tygodnia
   (spec B1). Testy: agregacja + overrides + stany brzegowe.
 - [ ] **8. Dashboard: kolejność + dzień wolny.** Sekcje wg B2, karta

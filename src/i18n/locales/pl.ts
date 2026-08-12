@@ -156,6 +156,10 @@ export const pl = {
   'dash.view': 'Zobacz',
   'dash.restDay': 'Dzisiaj wolne',
   'dash.nextTraining': 'Następny trening',
+  // Karta tygodnia (Runna p.1, spec B1).
+  'dash.week.title': 'Tydzień {current} z {total}',
+  'dash.week.sessions': '{done} z {total} sesji',
+  'dash.week.deload': 'Deload',
   'dash.whatNext': 'Co dalej z planem?',
   'dash.dismissHint': 'Ukryj podpowiedź',
   'dash.stat.workouts': 'Treningi',

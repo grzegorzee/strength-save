@@ -16,6 +16,9 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
 import { HybridWeekStrip } from '@/components/HybridWeekStrip';
+import { WeekCard } from '@/components/WeekCard';
+import { buildWeekCardModel } from '@/lib/week-card';
+import { isDeloadWeek } from '@/lib/progression-engine';
 import { DeloadBanner } from '@/components/DeloadBanner';
 import { WeekReportCard } from '@/components/WeekReportCard';
 import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
@@ -356,6 +359,18 @@ const Dashboard = () => {
   );
 
   // Determine today's training context
+  // Karta tygodnia (Runna p.1, spec B1): dzień/tydzień jako domykane jednostki
+  // nad istniejącym odhaczaniem serii. Ad-hoc dokłada się do tonażu.
+  const weekCardModel = useMemo(() => buildWeekCardModel({
+    planDays: trainingPlan,
+    today,
+    scheduleOverrides,
+    workouts,
+    currentWeek,
+    planDurationWeeks,
+    planStarted,
+  }), [trainingPlan, today, scheduleOverrides, workouts, currentWeek, planDurationWeeks, planStarted]);
+
   const todayTraining = useMemo(() => {
     const todayKey = formatLocalDate(today);
     const completedToday = findWorkoutForRoute(workouts, {
@@ -752,6 +767,13 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Karta tygodnia (Runna p.1, spec B1): checkmarki dni + pasek sesji + tonaż */}
+      <WeekCard
+        model={weekCardModel}
+        isDeloadWeek={progression ? isDeloadWeek(currentWeek, progression) : false}
+      />
+
 
       {/* Z104 szybki trening + Z112 ręczne cardio — zawsze dostępne */}
       <div className="grid grid-cols-2 gap-3">

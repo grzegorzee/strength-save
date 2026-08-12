@@ -150,6 +150,10 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.view': 'View',
   'dash.restDay': 'Day off today',
   'dash.nextTraining': 'Next workout',
+  // Week card (Runna p.1, spec B1).
+  'dash.week.title': 'Week {current} of {total}',
+  'dash.week.sessions': '{done} of {total} sessions',
+  'dash.week.deload': 'Deload',
   'dash.whatNext': "What's next with the plan?",
   'dash.dismissHint': 'Hide hint',
   'dash.stat.workouts': 'Workouts',
