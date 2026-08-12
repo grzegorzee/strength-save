@@ -208,7 +208,7 @@ const WorkoutDay = () => {
   const [sessionPRs, setSessionPRs] = useState<PRComparison[]>([]);
   // Runna p.1 (spec A4): PR na żywo — badge per ćwiczenie + jednorazowy toast.
   const [livePRWeights, setLivePRWeights] = useState<Record<string, number>>({});
-  const [livePRPending, setLivePRPending] = useState<{ exerciseId: string; weight: number } | null>(null);
+  const [livePRPending, setLivePRPending] = useState<{ exerciseId: string; weight: number; bestBefore: number } | null>(null);
   const livePRToastedRef = useRef<Set<string>>(new Set());
   // Z161: usuwanie ZAPISANEGO treningu z widoku podsumowania — ta sama ścieżka co
   // Historia (deleteWorkoutEverywhere: dokument + szkic IDB + kolejka syncu, nigdy
@@ -1681,14 +1681,15 @@ const WorkoutDay = () => {
     })), Date.now(), newPhoneSetEventId());
     // Runna p.1 (spec A4): PR na żywo — porównanie ze stanem SPRZED tej zmiany
     // (exerciseSetsRef jeszcze nie zaktualizowany).
+    // Spec A5: baseline = max(historia w apce, backfill sprzed instalacji).
+    const bestBefore = Math.max(
+      bestPreviousWeight(livePRSourceRef.current, exerciseId),
+      backfillRef.current.get(exerciseId) ?? 0,
+    );
     const livePR = detectLiveWeightPR({
       previousSets: exerciseSetsRef.current[exerciseId],
       nextSets: sanitizedSets,
-      // Spec A5: baseline = max(historia w apce, backfill sprzed instalacji).
-      bestBefore: Math.max(
-        bestPreviousWeight(livePRSourceRef.current, exerciseId),
-        backfillRef.current.get(exerciseId) ?? 0,
-      ),
+      bestBefore,
     });
 
     const nextExerciseSets = { ...exerciseSetsRef.current, [exerciseId]: sanitizedSets };
@@ -1715,7 +1716,7 @@ const WorkoutDay = () => {
 
     if (livePR !== null) {
       setLivePRWeights(prev => (prev[exerciseId] ?? 0) >= livePR ? prev : { ...prev, [exerciseId]: livePR });
-      setLivePRPending({ exerciseId, weight: livePR });
+      setLivePRPending({ exerciseId, weight: livePR, bestBefore });
     }
   }, [saveDraftSnapshot]);
 
@@ -1724,12 +1725,19 @@ const WorkoutDay = () => {
   // ćwiczenie per sesja; badge zostaje do końca treningu.
   useEffect(() => {
     if (!livePRPending) return;
-    const { exerciseId, weight } = livePRPending;
+    const { exerciseId, weight, bestBefore } = livePRPending;
     setLivePRPending(null);
     if (livePRToastedRef.current.has(exerciseId)) return;
     livePRToastedRef.current.add(exerciseId);
     const name = day?.exercises.find(e => e.id === exerciseId)?.name ?? '';
-    toast({ title: t('workout.toast.livePR', { name: localizeExerciseName(name, lang), value: fmt(weight) }) });
+    // PRO-C T4: delta względem poprzedniego rekordu w treści toastu.
+    toast({
+      title: t('workout.toast.livePR', {
+        name: localizeExerciseName(name, lang),
+        value: fmt(weight),
+        delta: fmt(Math.round((weight - bestBefore) * 10) / 10),
+      }),
+    });
     void hapticSuccess();
   }, [livePRPending, day, t, lang, fmt, toast]);
 

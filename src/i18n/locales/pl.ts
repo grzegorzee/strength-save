@@ -1393,7 +1393,7 @@ export const pl = {
   'workout.toast.savedLocallyDesc': 'Nie ma połączenia z internetem. Synchronizacja ruszy automatycznie po odzyskaniu sieci.',
   'workout.toast.bothFailedDesc': 'Synchronizacja nie udała się i nie udało się też zachować treningu lokalnie.',
   'workout.toast.newPRTitle': 'Nowy rekord! ({n})',
-  'workout.toast.livePR': 'Nowy rekord: {name} {value}',
+  'workout.toast.livePR': 'Nowy rekord: {name} {value} (+{delta})',
   'workout.toast.savedTitle': 'Trening zapisany!',
   'workout.toast.savedSyncedDesc': 'Zapisano lokalnie i zsynchronizowano z chmurą.',
   'workout.toast.noSessionDesc': 'Brak sesji treningowej.',

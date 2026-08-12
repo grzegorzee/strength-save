@@ -1371,7 +1371,7 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.savedLocallyDesc': 'No internet connection. Sync will start automatically once the network is back.',
   'workout.toast.bothFailedDesc': 'Sync failed and the workout could not be saved locally either.',
   'workout.toast.newPRTitle': 'New record! ({n})',
-  'workout.toast.livePR': 'New record: {name} {value}',
+  'workout.toast.livePR': 'New record: {name} {value} (+{delta})',
   'workout.toast.savedTitle': 'Workout saved!',
   'workout.toast.savedSyncedDesc': 'Saved locally and synced to the cloud.',
   'workout.toast.noSessionDesc': 'No workout session.',
