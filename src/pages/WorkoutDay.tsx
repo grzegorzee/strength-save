@@ -2,7 +2,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, X, Plus, Trash2 } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
-import { calculateStreak } from '@/lib/summary-utils';
+import { calculateStreak, calculateTonnage } from '@/lib/summary-utils';
+import { computeMilestones, diffMilestones } from '@/lib/achievements-utils';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
@@ -2127,6 +2128,36 @@ const WorkoutDay = () => {
           description: t('workout.toast.savedSyncedDesc'),
         });
       }
+
+      // PRO-D T5: świeży kamień milowy → wpis 'badge' w inboxie. Statystyki liczone
+      // z już załadowanej listy (zero odczytów). Kategorie workouts+tonnage; records
+      // wymaga pipeline'u rekordów ekranu Postępów, a PR-y i tak lądują jako 'pr'.
+      const sessionForStats = {
+        ...currentWorkoutData,
+        completed: true,
+        exercises: Object.entries(exerciseSets).map(([id, sets]) => ({ exerciseId: id, sets })),
+      };
+      const statsBefore = {
+        completedWorkouts: previousWorkoutsForPR.length,
+        totalTonnage: calculateTonnage(previousWorkoutsForPR),
+        exercisesWithRecord: 0,
+      };
+      const statsAfter = {
+        completedWorkouts: statsBefore.completedWorkouts + 1,
+        totalTonnage: statsBefore.totalTonnage + calculateTonnage([sessionForStats]),
+        exercisesWithRecord: 0,
+      };
+      diffMilestones(computeMilestones(statsBefore), computeMilestones(statsAfter))
+        .filter((m) => m.category !== 'records')
+        .forEach((m) => {
+          addInboxItem(uid, {
+            type: 'badge',
+            title: t('inbox.badge.title'),
+            body: m.category === 'tonnage'
+              ? t('achievements.ms.tonnage', { n: Number((toDisplay(m.threshold) / 1000).toFixed(1)), unit: unit === 'lbs' ? ' k lbs' : 't' })
+              : t('achievements.ms.workouts', { n: m.threshold }),
+          });
+        });
     } else {
       toast({
         title: t('workout.toast.savedTitle'),

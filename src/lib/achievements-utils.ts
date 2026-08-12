@@ -258,3 +258,11 @@ export const tierForIndex = (idx: number, total: number): BadgeTier => {
   if (idx >= 2) return 'silver';
   return 'bronze';
 };
+
+/** Kamienie milowe osiągnięte w after, a nie w before (klucz: category+threshold). */
+export const diffMilestones = (before: Milestone[], after: Milestone[]): Milestone[] => {
+  const wasAchieved = new Set(
+    before.filter((m) => m.achieved).map((m) => `${m.category}:${m.threshold}`),
+  );
+  return after.filter((m) => m.achieved && !wasAchieved.has(`${m.category}:${m.threshold}`));
+};
