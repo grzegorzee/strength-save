@@ -735,7 +735,6 @@ const Dashboard = () => {
   }, [uid]);
 
   // Day focus descriptions
-  const dayColors = ['bg-fitness-success', 'bg-fitness-cyan', 'bg-primary'];
   const planNextStepTone = {
     primary: 'border-primary/40 bg-primary/5',
     warning: 'border-fitness-warning/40 bg-fitness-warning/5',
@@ -1181,8 +1180,9 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Progress bar */}
-            <div className="mb-4">
+            {/* Progress bar (PRO-E T4: karta = wizytówka planu; lista dni żyje
+                w WeekCard i sekcji "Plan tygodnia", nie potrzeci raz tutaj) */}
+            <div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
@@ -1190,19 +1190,6 @@ const Dashboard = () => {
                 />
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">{t('dash.planProgress', { percent: planProgress })}</p>
-            </div>
-
-            {/* Days overview */}
-            <div className="space-y-2">
-              {trainingPlan.map((day, i) => (
-                <div key={day.id} className="flex items-center gap-3">
-                  <div className={cn("h-2 w-2 rounded-full shrink-0", dayColors[i % dayColors.length])} />
-                  <span className="text-sm">
-                    <span className="font-medium">{localizeDayName(day.dayName, lang)}:</span>{' '}
-                    <span className="text-muted-foreground">{localizeFocus(day.focus, lang)}</span>
-                  </span>
-                </div>
-              ))}
             </div>
           </CardContent>
         </Card>
