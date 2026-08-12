@@ -74,7 +74,6 @@ function renderFooter(withTopBorder: boolean): string {
           <img src="${appIcon}" style="width:28px;height:28px;border-radius:6px;" />
           <span style="font-size:13px;color:#94a3b8;">Strength Save</span>
         </div>
-        <span style="font-size:20px;">💪</span>
       </div>`;
 }
 
@@ -113,7 +112,7 @@ export function buildShareHtml(
     : '';
 
   const prRows = data.prs.map(pr =>
-    `<div style="font-size:14px;margin-bottom:4px;">🏆 ${escapeHtml(pr)}</div>`
+    `<div style="font-size:14px;margin-bottom:4px;"><span style="font-weight:800;letter-spacing:0.08em;">PR</span> · ${escapeHtml(pr)}</div>`
   ).join('');
 
   const prSection = data.prs.length > 0
@@ -337,7 +336,7 @@ export function buildShareHtmlWithPhoto(
     : '';
 
   const prBadges = data.prs.slice(0, 3).map(pr =>
-    `<span style="background:rgba(245,158,11,0.3);border:1px solid rgba(245,158,11,0.5);border-radius:6px;padding:2px 8px;font-size:11px;white-space:nowrap;">🏆 ${escapeHtml(pr)}</span>`
+    `<span style="background:rgba(245,158,11,0.3);border:1px solid rgba(245,158,11,0.5);border-radius:6px;padding:2px 8px;font-size:11px;white-space:nowrap;"><span style="font-weight:800;">PR</span> · ${escapeHtml(pr)}</span>`
   ).join(' ');
 
   return `
