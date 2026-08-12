@@ -823,6 +823,8 @@ export const en: Record<keyof typeof pl, string> = {
   'inbox.pr.title': 'New record: {name}',
   'inbox.pr.body': '{value}',
   'inbox.badge.title': 'New badge',
+  'dash.status.more': 'Other notices ({n})',
+  'dash.status.less': 'Collapse notices',
   'workout.completion.exercisesCount': 'Exercises ({n})',
   'profile.tier.next': 'Next level: {next}',
   'profile.pride.label': 'Achievements',

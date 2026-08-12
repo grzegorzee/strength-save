@@ -839,6 +839,8 @@ export const pl = {
   'inbox.pr.title': 'Nowy rekord: {name}',
   'inbox.pr.body': '{value}',
   'inbox.badge.title': 'Nowa odznaka',
+  'dash.status.more': 'Pozostałe komunikaty ({n})',
+  'dash.status.less': 'Zwiń komunikaty',
   'workout.completion.exercisesCount': 'Ćwiczenia ({n})',
   'profile.tier.next': 'Następny poziom: {next}',
   'profile.pride.label': 'Osiągnięcia',
