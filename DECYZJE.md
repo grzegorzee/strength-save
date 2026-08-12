@@ -5,11 +5,33 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-11 (przełożenie treningu + krok marketingowy onboardingu: kroki 1-10 w kodzie, deploy pre-autoryzowany w toku)
+**Ostatnia aktualizacja:** 2026-08-12 (Runna pakiet 1, wydanie 1: kroki 1-10 w kodzie, deploy pre-autoryzowany w kroku 11)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-12: Runna pakiet 1, WYDANIE 1 (pętla sesji + tydzień) — kroki 1-10 wdrożone w kodzie
+
+**Co (spec `docs/superpowers/specs/2026-08-11-runna-pakiet-1-design.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-RUNNA-PAKIET-1.md`, commity `58815634`→`27b5bfb3`):**
+
+*Decyzje zakresu (dyskusja z userem 2026-08-12):* pełny zakres w DWÓCH wydaniach (A+B+backfill teraz, etap C po deployu wydania 1); A3 bez osobnego ekranu przeglądu (edycja z podsumowania przez istniejący tryb edycji); dodany backfill rekordów (A5); deploy OBU wydań pre-autoryzowany w czacie ("wdroz wszystkie poprawki").
+
+*Etap A — pętla po sesji:* (1) ocena sesji: pola `sessionRating`/`sessionRatingReasons` na dokumencie workouts (rules hasOnly + zamknięta lista wartości, 4 testy rules), czysty builder `workout-session-rating.ts`, przejście przez `sanitizeWorkoutDoc` (lekcja b.88), `saveWorkoutSessionRating` celowo BEZ writeId/revision (ocena po finalnym zapisie; offline = mutation queue Firestore; utrata = brak sygnału, nic nie wisi); (2) `WorkoutCompletionSequence`: celebracja (ConfettiBurst+haptyka) → kciuk/chipsy (pomijalne X) → rating-gate → podsumowanie deterministyczne (`computeCompletionSummary`: hero tonaż/czas/serie, plan vs wykonanie, delta wolumenu vs poprzednia sesja dnia) + blok PR per ćwiczenie; tylko ŚWIEŻO zakończona sesja (justCompleted), wejście z historii bez zmian; zombie-guard: edycja gasi justCompleted; (3) "Popraw serie" z podsumowania → istniejący tryb edycji (rewizja z serwera, clampSet, writeId); (4) ocena zasila silnik (spec A2, "za zgodą"): `lastSessionRatedTooHeavy` + flaga w `decideNextSet` gasi WYŁĄCZNIE podbicie (reasonKey `hold.rated`), deload przy plateau ma priorytet, spięte w `getNextSetAdvice` i `computeWeeklyTargets`; (5) share: szablon `story` 1080x1920 wg raportu 3.2 (hero wybierane: tonaż/PR/czas, glass, pasek "Tydzień N z M", brand; nowy domyślny), realne dane (duration, PR-y, completedSets, week) + PR NA ŻYWO w sesji (`live-pr.ts`: toast raz per ćwiczenie + badge na karcie; brak historii ≠ PR); (6) backfill rekordów (A5): `users.prBackfill` (zamknięta mapa squat/bench/deadlift 0-600 kg, rules + mapper), dialog w Profilu (TWOJE DANE, jednostka usera, miękkie "na pewno?" >400 kg, pusty formularz czyści), detekcja PR = max(historia, backfill), matcher nazw PL/EN z foldem znaków (warianty NIE dziedziczą).
+
+*Etap B — Dashboard i ekran treningu:* (7) karta tygodnia (`week-card.ts` + `WeekCard`): "Tydzień N z M" + badge Deload + checkmarki 7 dni (przełożony w NOWEJ dacie przez kanoniczny resolver; skipped strukturalnie pod krok 12) + pasek sesji (dni zaplanowane) + tonaż tygodnia (ad-hoc dokłada); (8) kolejność Dashboardu wg B2 (dziś → tydzień → reszta → Szybki trening na dole) + dzień wolny jako karta "Dzień regeneracji" (`recovery-tips.ts`: tip ogólny + tip pod partię z wczoraj, deterministyczne); (9) przerwa-hero w RestBar (wielki countdown + "Następne: X kg × N", po końcu wraca; deadline/notyfikacje NIETKNIĘTE — pilnują istniejące testy) + `HoldToFinishButton` (przytrzymanie 900 ms z ringiem, tap = hint, Enter = fallback do istniejącego potwierdzenia).
+
+**Dlaczego:** research Runny (`docs/RESEARCH-RUNNA-2026-08-11.md`): pętla nagrody po KAŻDEJ sesji (nie raz w tygodniu), telemetria RPE dla silnika z 1 tapa, tydzień jako domykana jednostka, share card jako jedyny kanał organicznego wzrostu, backfill żeby celebracja PR nie gratulowała starych ciężarów.
+
+**Niezmiennik globalny (testowany per krok):** user, który niczego nie ocenia i nie używa nowych funkcji, ma DOKŁADNIE dzisiejsze zachowanie apki; brak oceny = progresja identyczna jak dziś; wejście w ukończony trening z historii bez celebracji; wszystkie elementy Dashboardu obecne (przesunięte, nie usunięte).
+
+**Weryfikacja (krok 10, wszystko zielone):** unit 1557/1557 (79 nowych testów w 10 plikach), `typecheck` + `lint`, `build` + `build:mobile` + `check:dist-smoke` (bundle startuje w Chromium), `test:rules` 0 FAIL (JDK21), `e2e:mock` 196/196 (1.8 min, świeży vite).
+
+**Deploy:** krok 11 (pre-autoryzowany): web + iOS bump 94 + Android AAB versionCode 10. Etap C (skip, tray, tryby, ad-hoc audyt) startuje po wydaniu 1.
+
+**Po stronie usera:** testy urządzeniowe wydania 1 na iPhone: completion (celebracja → ocena → podsumowanie → edycja serii), press-and-hold, przerwa-hero, share story (render w WKWebView), backfill w Profilu, karta tygodnia z przełożonym dniem.
+
+---
 
 ### 2026-08-11: Przełożenie treningu (scheduleOverrides) + krok marketingowy onboardingu — kroki 1-10 wdrożone w kodzie
 

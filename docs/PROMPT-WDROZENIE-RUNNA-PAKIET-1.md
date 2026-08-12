@@ -78,7 +78,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
   stanów (B3), przytrzymanie na "Zakończ" z fallbackiem a11y, skip tanim
   tapem. Mechanika timera bez zmian (test: te same wywołania notyfikacji
   co przed zmianą).
-- [ ] **10. Bramki wydania 1 + DECYZJE.md.** `npm run test` + `typecheck` +
+- [x] **10. Bramki wydania 1 + DECYZJE.md.** `npm run test` + `typecheck` +
   `lint` + `build` + `build:mobile` + `check:dist-smoke` + `test:rules` +
   `e2e:mock`. Wpis do DECYZJE.md (co, dlaczego, spec, weryfikacja, commity).
 - [ ] **11. DEPLOY wydania 1 (pre-autoryzowany).** Web (`npm run deploy`) +
