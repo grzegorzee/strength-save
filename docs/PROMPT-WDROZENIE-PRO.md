@@ -54,7 +54,7 @@
 
 ### Plan B — Header, powiadomienia, Postępy (docs/PLAN-PRO-B-2026-08-12.md)
 - [x] B-T1: moduł inboxa `notification-inbox.ts` (7f30bfa0; TDD 4 testy, storage per uid limit 50, test w src/test/ jak w A-T2; 1621 unit zielonych)
-- [ ] B-T2: dzwonek + sheet powiadomień w headerze
+- [x] B-T2: dzwonek + sheet powiadomień w headerze (9f280084; sheet zawsze zamontowany wg lekcji b.92, i18n w obu locale, 1624 unit zielonych)
 - [ ] B-T3: avatar w headerze + Postępy w bottom nav
 - [ ] B-T4: emisja zdarzeń PR do inboxa
 - [ ] WYDANIE B: jak wyżej
