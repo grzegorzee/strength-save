@@ -166,6 +166,18 @@ export const formatPRValue = (pr: PRComparison, fmt: PRValueFormatters): string 
     : pr.type === 'duration' ? fmt.duration(pr.newValue)
       : fmt.weight(pr.newValue);
 
+/** Delta rekordu do wyświetlenia ("+5 kg" / "+2") albo null (brak sensownej bazy). */
+export const formatPRDelta = (
+  pr: PRComparison,
+  fmtWeight: (kg: number) => string,
+): string | null => {
+  if (pr.oldValue <= 0 || pr.newValue <= pr.oldValue) return null;
+  const diff = Math.round((pr.newValue - pr.oldValue) * 10) / 10;
+  if (pr.type === 'reps') return `+${diff}`;
+  if (pr.type === 'duration') return `+${Math.round(diff)}s`;
+  return `+${fmtWeight(diff)}`;
+};
+
 export interface DetectPROptions {
   /** Typ śledzenia per exerciseId (Z106) — brak wpisu = dotychczasowa logika weight/bodyweight. */
   trackingByExerciseId?: Map<string, TrackingType>;

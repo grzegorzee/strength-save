@@ -7,7 +7,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { SESSION_RATING_REASONS } from '@/lib/workout-session-rating';
 import type { CompletionSummary } from '@/lib/workout-completion-summary';
-import { formatPRValue, type PRComparison } from '@/lib/pr-utils';
+import { formatPRDelta, formatPRValue, type PRComparison } from '@/lib/pr-utils';
 import type { WorkoutSessionRating, WorkoutSessionRatingReason } from '@/types';
 
 // Sekwencja completion (Runna pakiet 1, spec A1): celebracja → ocena 1 tapem
@@ -214,17 +214,21 @@ export const WorkoutCompletionSequence = ({
               {t('workout.completion.prTitle')}
             </div>
             <div className="mt-3 space-y-2">
-              {prs.map((pr) => (
-                <div
-                  key={`${pr.exerciseId}-${pr.type}`}
-                  className="flex items-center justify-between gap-2 text-sm"
-                >
-                  <span className="min-w-0 truncate">{pr.exerciseName}</span>
-                  <span className="shrink-0 font-semibold tabular-nums text-fitness-success">
-                    {prValue(pr)}
-                  </span>
-                </div>
-              ))}
+              {prs.map((pr) => {
+                const delta = formatPRDelta(pr, fmtWeight);
+                return (
+                  <div
+                    key={`${pr.exerciseId}-${pr.type}`}
+                    className="flex items-center justify-between gap-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate">{pr.exerciseName}</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-fitness-success">
+                      {prValue(pr)}
+                      {delta && <span className="ml-1.5 text-xs font-bold opacity-80">({delta})</span>}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
