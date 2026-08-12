@@ -823,6 +823,7 @@ export const en: Record<keyof typeof pl, string> = {
   'inbox.pr.title': 'New record: {name}',
   'inbox.pr.body': '{value}',
   'workout.completion.exercisesCount': 'Exercises ({n})',
+  'profile.tier.next': 'Next level: {next}',
   'stats.workouts': 'Workouts',
   'stats.timeInGym': 'Time in the gym',
   'stats.tonnage': 'Weight lifted',

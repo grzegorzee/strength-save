@@ -233,4 +233,11 @@ describe('krok 6: WorkoutSettingsSheet ↔ Profil (te same klucze zapisu)', () =
     const profil = renderProfile();
     expect(profil.getByLabelText('Timer przerwy').getAttribute('aria-checked')).toBe('false');
   });
+
+  // PRO-D T3: pasek postępu poziomu pod chipami nagłówka.
+  it('nagłówek: pasek postępu do następnego poziomu (tier.next != null)', () => {
+    const { getByTestId, getByText } = renderProfile();
+    expect(getByTestId('tier-progress')).toBeTruthy();
+    expect(getByText(/Następny poziom:/)).toBeTruthy();
+  });
 });

@@ -340,6 +340,20 @@ const Profile = () => {
         <h1 className="font-heading text-3xl font-bold uppercase italic tracking-tight">{profile?.displayName || t('profile.title')}</h1>
         {profile?.email && <p className="text-sm text-muted-foreground">{profile.email}</p>}
         <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} tierLabel={tier.label} />
+        {/* PRO-D T3: postęp do następnego poziomu; elite (next=null) bez paska. */}
+        {tier.next && (
+          <div className="mx-auto mt-1 w-full max-w-[240px]" data-testid="tier-progress">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-highest">
+              <div
+                className="h-full rounded-full bg-primary transition-[width]"
+                style={{ width: `${Math.round(tier.progress * 100)}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+              {t('profile.tier.next', { next: tier.next })}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* TRENING (spec 2026-08-11): wszystko, co user rusza często, w jednej sekcji wysoko */}

@@ -839,6 +839,7 @@ export const pl = {
   'inbox.pr.title': 'Nowy rekord: {name}',
   'inbox.pr.body': '{value}',
   'workout.completion.exercisesCount': 'Ćwiczenia ({n})',
+  'profile.tier.next': 'Następny poziom: {next}',
   'stats.workouts': 'Treningi',
   'stats.timeInGym': 'Czas na siłowni',
   'stats.tonnage': 'Podniesiony ciężar',
