@@ -4,6 +4,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteField,
   onSnapshot,
   collection,
   query,
@@ -24,6 +25,7 @@ import { swapExerciseIdentity } from '@/lib/exercise-swap';
 import { resolvePlanDaysForSave, saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
 import { sanitizeProgressionConfig, type ProgressionConfig, type DeloadDecision } from '@/lib/progression-engine';
 import { pruneSkippedDates, sanitizeSkippedDates } from '@/lib/skipped-days';
+import { sanitizeReducedMode, type ReducedMode } from '@/lib/reduced-mode';
 import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
 import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
@@ -48,6 +50,8 @@ export const useTrainingPlan = (userId: string) => {
   const [scheduleOverrides, setScheduleOverrides] = useState<ScheduleOverrides>({});
   // Runna p.1 (spec C1): daty jawnie pominięte ("tego nie zrobię"), per data.
   const [skippedDates, setSkippedDates] = useState<string[]>([]);
+  // Runna p.1 (spec C3): tryb "nie na 100%" (okres + poziom); null = wyłączony.
+  const [reducedMode, setReducedModeState] = useState<ReducedMode | null>(null);
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
@@ -65,12 +69,13 @@ export const useTrainingPlan = (userId: string) => {
       try {
         const raw = window.localStorage.getItem('fittracker_e2e_plan');
         if (raw) {
-          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number; scheduleOverrides?: unknown; skippedDates?: unknown };
+          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number; scheduleOverrides?: unknown; skippedDates?: unknown; reducedMode?: unknown };
           if (data.startDate) setPlanStartDate(data.startDate);
           setProgression(sanitizeProgressionConfig(data.progression));
           if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
           setScheduleOverrides(sanitizeScheduleOverrides(data.scheduleOverrides));
           setSkippedDates(sanitizeSkippedDates(data.skippedDates));
+          setReducedModeState(sanitizeReducedMode(data.reducedMode));
           const days = data.days !== undefined ? sanitizeTrainingPlanDays(data.days) : null;
           if (days) {
             setPlan(days);
@@ -104,6 +109,7 @@ export const useTrainingPlan = (userId: string) => {
           setProgression(sanitizeProgressionConfig(data.progression));
           setScheduleOverrides(sanitizeScheduleOverrides(data.scheduleOverrides));
           setSkippedDates(sanitizeSkippedDates(data.skippedDates));
+          setReducedModeState(sanitizeReducedMode(data.reducedMode));
           setPlanRevision(typeof data.revision === 'number' ? Math.max(0, Math.floor(data.revision)) : 0);
         } else {
           // No custom plan, use default
@@ -112,6 +118,7 @@ export const useTrainingPlan = (userId: string) => {
           setPlanRevision(0);
           setScheduleOverrides({});
           setSkippedDates([]);
+          setReducedModeState(null);
         }
         setPlanError(false);
         setIsLoaded(true);
@@ -331,6 +338,34 @@ export const useTrainingPlan = (userId: string) => {
     return { success: true };
   }, [userId, isLoaded, skippedDates]);
 
+  /**
+   * Spec C3: tryb "nie na 100%" — włączenie (mapa) albo wyłączenie (null,
+   * reguła #6: stan jawny i wyłączalny w każdej chwili). Zapis offline-first.
+   */
+  const setReducedMode = useCallback(async (mode: ReducedMode | null): Promise<{ success: boolean }> => {
+    if (!userId || !isLoaded) return { success: false };
+    if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+      try {
+        const raw = window.localStorage.getItem('fittracker_e2e_plan');
+        const data = raw ? JSON.parse(raw) : {};
+        if (mode) data.reducedMode = mode;
+        else delete data.reducedMode;
+        window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify(data));
+      } catch { /* noop */ }
+      setReducedModeState(mode);
+      return { success: true };
+    }
+    setDoc(doc(db, PLAN_COLLECTION, userId), {
+      reducedMode: mode ?? deleteField(),
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((err) => {
+      console.error('Error saving reduced mode:', err);
+      void reportClientError(userId, { code: 'reduced-mode-save', phase: 'other', detail: String(err) });
+    });
+    setReducedModeState(mode);
+    return { success: true };
+  }, [userId, isLoaded]);
+
   /** Spec C2 ("Kontynuuj od dziś"): masowe odpuszczenie zaległych dat JEDNYM zapisem pola. */
   const skipPastDates = useCallback(async (dates: string[]): Promise<{ success: boolean }> => {
     if (!userId || !isLoaded) return { success: false };
@@ -493,6 +528,8 @@ export const useTrainingPlan = (userId: string) => {
     skippedDates,
     setDaySkipped,
     skipPastDates,
+    reducedMode,
+    setReducedMode,
     planDurationWeeks,
     planStartDate,
     progression,

@@ -5,6 +5,7 @@ import { decideNextSet, lastSessionRatedTooHeavy, type NextSetDecision } from '@
 import { translate, type LanguageCode } from '@/i18n';
 import { formatWeight, type UnitSystem } from '@/lib/units';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { reducedModeAdviceFactor, type ReducedMode } from '@/lib/reduced-mode';
 
 // Sugestia następnej serii: konkretny cel (ciężar × powtórzenia) z TRENDU całej historii,
 // nie tylko ostatniego treningu. Deterministyczna i darmowa — AI dokłada się tylko on-demand.
@@ -67,7 +68,7 @@ export const getNextSetAdvice = (
   exerciseId: string,
   setsStr: string,
   exerciseIndex: number,
-  options?: { isBodyweight?: boolean; isSuperset?: boolean; todayISO?: string },
+  options?: { isBodyweight?: boolean; isSuperset?: boolean; todayISO?: string; reducedMode?: ReducedMode | null },
   lang: LanguageCode = 'pl',
   unit: UnitSystem = 'kg',
 ): NextSetAdvice | null => {
@@ -103,6 +104,32 @@ export const getNextSetAdvice = (
     lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exerciseId),
     longBreak: breakDays >= COMEBACK_BREAK_DAYS,
   });
+
+  // Spec C3 (Runna p.1): tryb "nie na 100%" WYGRYWA z każdą inną korektą
+  // (nie dubluje się z deloadem). Mnożnik liczony od BAZY sprzed trybu —
+  // rampa wraca do wartości sprzed przerwy, nie od obniżonych sesji.
+  const modeAdjustment = reducedModeAdviceFactor({
+    mode: options?.reducedMode ?? null,
+    todayISO,
+    workouts,
+    exerciseId,
+  });
+  if (modeAdjustment && !isBodyweight) {
+    const baseline = [...history].reverse().find((point) => point.date < (options!.reducedMode!.startDate))?.maxWeight
+      ?? lastWeight;
+    const targetWeight = Math.max(0, Math.round(baseline * modeAdjustment.factor * 2) / 2);
+    return {
+      kind: 'deload',
+      targetWeight,
+      targetReps: repRange.max,
+      reason: translate(
+        lang,
+        modeAdjustment.phase === 'active' ? 'nsadvice.mode.active' : 'nsadvice.mode.ramp',
+        { weight: formatWeight(targetWeight, unit, { withUnit: false }), unit },
+      ),
+      isBodyweight,
+    };
+  }
 
   return {
     kind: decision.kind,

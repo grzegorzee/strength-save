@@ -182,8 +182,19 @@ service cloud.firestore {
     function validTrainingPlanShape() {
       return request.resource.data.keys().hasOnly([
         'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision', 'progression', 'scheduleOverrides',
-        'skippedDates'
+        'skippedDates', 'reducedMode'
       ])
+      // Tryb "nie na 100%" (Runna p.1, spec C3): zamknieta mapa okresu + poziomu.
+      && (
+        !('reducedMode' in request.resource.data)
+        || (
+          request.resource.data.reducedMode is map
+          && request.resource.data.reducedMode.keys().hasOnly(['startDate', 'endDate', 'level'])
+          && request.resource.data.reducedMode.startDate is string
+          && request.resource.data.reducedMode.endDate is string
+          && request.resource.data.reducedMode.level in ['lighter', 'mains_only', 'pause']
+        )
+      )
       // Jawne "Pomiń trening" (Runna p.1, spec C1): lista dat YYYY-MM-DD,
       // pruning 28 dni w kodzie; limit jak overrides.
       && (

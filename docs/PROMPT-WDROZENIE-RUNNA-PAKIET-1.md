@@ -95,7 +95,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **13. Tray zaległości (minimalny).** Trigger, sheet [Pomiń]/[Przenieś]/
   [Kontynuuj od dziś z propozycją silnika], pamięć odrzucenia, cisza przy
   aktywnym drafcie (spec C2). Test sekwencji: zaległość → każda opcja.
-- [ ] **14. Tryb "nie na 100%".** Model okresu + redukcja propozycji + rampa
+- [x] **14. Tryb "nie na 100%".** Model okresu + redukcja propozycji + rampa
   powrotu + badge + wyłączalność (spec C3). Push przed końcem (functions
   + testy). Test pełnego cyklu życia trybu i kolizji z deloadem.
 - [ ] **15. Tryb urlopu.** Deklaracja z datami, przetasowanie deloadu,

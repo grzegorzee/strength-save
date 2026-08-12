@@ -5,6 +5,7 @@ import {
   type ScheduleOverrides,
 } from '@/lib/plan-schedule';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { isDateInReducedMode, type ReducedMode } from '@/lib/reduced-mode';
 
 // Tray zaległości (Runna pakiet 1, spec C2): to apka wychodzi do usera, który
 // wypadł z rytmu — czysty restart w 1 tap zamiast ściany zaległości. Trigger:
@@ -35,6 +36,8 @@ export interface LapseParams {
   skippedDates?: string[];
   planStartDate?: string | null;
   dismissed?: string[];
+  /** Spec C3: daty w oknie trybu "nie na 100%" nie są zaległością. */
+  reducedMode?: ReducedMode | null;
 }
 
 const scheduledDayAt = (
@@ -44,7 +47,7 @@ const scheduledDayAt = (
 ): TrainingDay | null => getScheduledTrainingForDate(planDays, date, overrides)?.day ?? null;
 
 export const detectLapse = (params: LapseParams): Lapse | null => {
-  const { planDays, overrides, workouts, todayISO, skippedDates = [], planStartDate, dismissed = [] } = params;
+  const { planDays, overrides, workouts, todayISO, skippedDates = [], planStartDate, dismissed = [], reducedMode } = params;
   const completed = new Set(workouts.filter((w) => w.completed).map((w) => w.date));
   const today = parseLocalDate(todayISO);
 
@@ -53,6 +56,7 @@ export const detectLapse = (params: LapseParams): Lapse | null => {
     date.setDate(today.getDate() - back);
     const dateISO = formatLocalDate(date);
     if (planStartDate && dateISO < planStartDate) break;
+    if (isDateInReducedMode(reducedMode, dateISO)) continue;
     if (completed.has(dateISO) || skippedDates.includes(dateISO) || dismissed.includes(dateISO)) continue;
     const day = scheduledDayAt(planDays, overrides, date);
     if (day) {
@@ -81,6 +85,7 @@ export const detectLapse = (params: LapseParams): Lapse | null => {
       date.setDate(prevWeekStart.getDate() + offset);
       const dateISO = formatLocalDate(date);
       if (planStartDate && dateISO < planStartDate) continue;
+      if (isDateInReducedMode(reducedMode, dateISO)) continue;
       if (completed.has(dateISO)) hadCompleted = true;
       if (scheduledDayAt(planDays, overrides, date)) {
         hadScheduled = true;
@@ -97,7 +102,7 @@ export const detectLapse = (params: LapseParams): Lapse | null => {
 
 /** Daty pod "Kontynuuj od dziś": zaległe zaplanowane sesje z okna traya. */
 export const collectLapsedDates = (params: LapseParams): string[] => {
-  const { planDays, overrides, workouts, todayISO, skippedDates = [], planStartDate } = params;
+  const { planDays, overrides, workouts, todayISO, skippedDates = [], planStartDate, reducedMode } = params;
   const completed = new Set(workouts.filter((w) => w.completed).map((w) => w.date));
   const today = parseLocalDate(todayISO);
   const result: string[] = [];
@@ -106,6 +111,7 @@ export const collectLapsedDates = (params: LapseParams): string[] => {
     date.setDate(today.getDate() - back);
     const dateISO = formatLocalDate(date);
     if (planStartDate && dateISO < planStartDate) continue;
+    if (isDateInReducedMode(reducedMode, dateISO)) continue;
     if (completed.has(dateISO) || skippedDates.includes(dateISO)) continue;
     if (scheduledDayAt(planDays, overrides, date)) result.push(dateISO);
   }

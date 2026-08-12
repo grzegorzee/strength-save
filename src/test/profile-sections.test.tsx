@@ -24,6 +24,14 @@ vi.mock('firebase/storage', () => ({
   getDownloadURL: vi.fn(async () => ''),
 }));
 vi.mock('@/lib/firebase', () => ({ db: {}, storage: {} }));
+// Krok 14 Runna p.1: Profil używa useTrainingPlan (tryb "nie na 100%") —
+// mock zamiast realnego hooka (częściowy mock firestore nie ma onSnapshot).
+vi.mock('@/hooks/useTrainingPlan', () => ({
+  useTrainingPlan: () => ({
+    reducedMode: null,
+    setReducedMode: vi.fn(async () => ({ success: true })),
+  }),
+}));
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({
     uid: 'u1',

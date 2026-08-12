@@ -21,9 +21,11 @@ interface LapseTrayProps {
   onSkip: (dateISO: string) => void;
   onMove: (dateISO: string) => void;
   onContinueToday: () => void;
+  /** Spec C3: wejście do trybu "nie na 100%" z traya. */
+  onReducedMode?: () => void;
 }
 
-export const LapseTray = ({ open, onOpenChange, lapse, onSkip, onMove, onContinueToday }: LapseTrayProps) => {
+export const LapseTray = ({ open, onOpenChange, lapse, onSkip, onMove, onContinueToday, onReducedMode }: LapseTrayProps) => {
   const { t, lang } = useTranslation();
 
   // Zamrożony kontekst: po akcji lapse znika ze stanu rodzica, a sheet musi
@@ -83,6 +85,16 @@ export const LapseTray = ({ open, onOpenChange, lapse, onSkip, onMove, onContinu
               </Button>
               <p className="text-xs text-muted-foreground">{t('lapse.continueDesc')}</p>
             </div>
+          )}
+          {onReducedMode && (
+            <button
+              type="button"
+              data-testid="lapse-reduced-mode"
+              onClick={onReducedMode}
+              className="mt-1 text-left text-sm text-muted-foreground underline-offset-2 hover:underline"
+            >
+              {t('lapse.notFull')}
+            </button>
           )}
         </div>
       </SheetContent>

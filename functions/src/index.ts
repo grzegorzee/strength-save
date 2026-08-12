@@ -86,6 +86,7 @@ export {
 } from "./garmin-endpoints";
 // Codzienne poranne przypomnienie o treningu (tylko w dni treningowe).
 export { dailyTrainingReminder } from "./daily-reminder";
+export { reducedModeEndingPush } from "./reduced-mode-push";
 export { activityRollup } from "./activity-rollup";
 export { adminUserRepair } from "./repairs/admin-user-repair";
 // Webhook RevenueCat → users/{uid}.subscription (entitlement PRO).

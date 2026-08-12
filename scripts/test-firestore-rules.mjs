@@ -50,6 +50,10 @@ add('write training_plans (access=true)', true, await ok(() => setDoc(doc(db, 't
 // Jawne "Pomin trening" (Runna p.1, spec C1): lista dat.
 add('update training_plans ze skippedDates (lista)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { skippedDates: ['2026-08-12'], updatedAt: 'y' }, { merge: true })));
 add('update training_plans ze skippedDates zlego typu zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { skippedDates: 'dzis' }, { merge: true })));
+// Tryb "nie na 100%" (Runna p.1, spec C3): zamknieta mapa.
+add('update training_plans z reducedMode (zamknieta mapa)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { reducedMode: { startDate: '2026-08-12', endDate: '2026-08-18', level: 'lighter' } }, { merge: true })));
+add('update training_plans z reducedMode zlym poziomem zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { reducedMode: { startDate: '2026-08-12', endDate: '2026-08-18', level: 'hard' } }, { merge: true })));
+add('update training_plans z reducedMode nadmiarowym kluczem zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { reducedMode: { startDate: '2026-08-12', endDate: '2026-08-18', level: 'pause', extra: 1 } }, { merge: true })));
 
 // cross-user + admin na tych samych danych
 await seedUser(undefined, 'active', OTHER_UID);

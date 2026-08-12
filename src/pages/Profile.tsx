@@ -40,6 +40,11 @@ import {
   ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
 } from 'lucide-react';
 import { PR_BACKFILL_LIFTS, PR_BACKFILL_SOFT_WARN_KG, sanitizePRBackfill, type PRBackfillLift } from '@/lib/pr-backfill';
+import { ReducedModeDialog } from '@/components/ReducedModeDialog';
+import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
+import { useTrainingPlan } from '@/hooks/useTrainingPlan';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { BatteryLow } from 'lucide-react';
 
 import { REST_TIMER_KEY, SOUND_KEY, REST_OPTIONS } from '@/lib/workout-preferences';
 
@@ -188,6 +193,33 @@ const Profile = () => {
     toast({ title: t('profile.langSaved') });
   };
 
+  // Tryb "nie na 100%" (Runna p.1, spec C3): wejście z sekcji TRENING.
+  const { reducedMode, setReducedMode } = useTrainingPlan(uid);
+  const [rmodeOpen, setRmodeOpen] = useState(false);
+  const todayISO = formatLocalDate(new Date());
+  const rmodeActive = isReducedModeActive(reducedMode, todayISO);
+  const rmodeEndLabel = reducedMode
+    ? parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })
+    : '';
+  const handleRmodeEnable = (level: ReducedModeLevel, days: number) => {
+    setRmodeOpen(false);
+    const mode = buildReducedMode(level, days, todayISO);
+    void (async () => {
+      const result = await setReducedMode(mode);
+      if (result.success) {
+        const endLabel = parseLocalDate(mode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        toast({ title: t('rmode.toastOn', { date: endLabel }) });
+      }
+    })();
+  };
+  const handleRmodeDisable = () => {
+    setRmodeOpen(false);
+    void (async () => {
+      const result = await setReducedMode(null);
+      if (result.success) toast({ title: t('rmode.toastOff') });
+    })();
+  };
+
   // Backfill rekordów sprzed instalacji (Runna p.1, spec A5). Inputy w jednostce
   // usera, zapis w kg kanonicznych; pusty formularz = wyczyszczenie backfillu.
   const emptyBackfillInputs: Record<PRBackfillLift, string> = { squat: '', bench: '', deadlift: '' };
@@ -334,6 +366,13 @@ const Profile = () => {
               ))}
             </div>
           )}
+        />
+        {/* Tryb "nie na 100%" (Runna p.1, spec C3) */}
+        <SettingRow
+          icon={BatteryLow}
+          label={t('rmode.title')}
+          value={rmodeActive ? t('rmode.activeUntil', { date: rmodeEndLabel }) : undefined}
+          onClick={() => setRmodeOpen(true)}
         />
       </SectionCard>
 
@@ -540,6 +579,16 @@ const Profile = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Tryb "nie na 100%" (Runna p.1, spec C3) */}
+      <ReducedModeDialog
+        open={rmodeOpen}
+        onOpenChange={setRmodeOpen}
+        mode={reducedMode}
+        todayISO={todayISO}
+        onEnable={handleRmodeEnable}
+        onDisable={handleRmodeDisable}
+      />
 
       {/* Backfill rekordów sprzed instalacji (Runna p.1, spec A5) */}
       <Dialog open={backfillOpen} onOpenChange={setBackfillOpen}>

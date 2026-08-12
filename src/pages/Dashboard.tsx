@@ -19,6 +19,8 @@ import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { WeekCard } from '@/components/WeekCard';
 import { LapseTray } from '@/components/LapseTray';
 import { collectLapsedDates, detectLapse } from '@/lib/lapse-detection';
+import { ReducedModeDialog } from '@/components/ReducedModeDialog';
+import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
 import { buildWeekCardModel } from '@/lib/week-card';
 import { isDeloadWeek } from '@/lib/progression-engine';
 import { recoveryTipKeys } from '@/lib/recovery-tips';
@@ -158,7 +160,7 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
@@ -475,8 +477,9 @@ const Dashboard = () => {
       skippedDates,
       planStartDate,
       dismissed: lapseDismissed,
+      reducedMode,
     });
-  }, [planStarted, isLoaded, planIsLoaded, localDraft, trainingPlan, scheduleOverrides, workouts, todayISO, skippedDates, planStartDate, lapseDismissed]);
+  }, [planStarted, isLoaded, planIsLoaded, localDraft, trainingPlan, scheduleOverrides, workouts, todayISO, skippedDates, planStartDate, lapseDismissed, reducedMode]);
   const [lapseOpen, setLapseOpen] = useState(false);
   const lapseShownRef = useRef<string | null>(null);
   useEffect(() => {
@@ -513,10 +516,36 @@ const Dashboard = () => {
       todayISO,
       skippedDates,
       planStartDate,
+      reducedMode,
     });
     void (async () => {
       const result = await skipPastDates(dates);
       if (result.success) toast({ title: t('lapse.toastContinued') });
+    })();
+  };
+
+  // Tryb "nie na 100%" (spec C3): dialog + badge; wejścia z traya i badge'a.
+  const [reducedModeOpen, setReducedModeOpen] = useState(false);
+  const handleLapseReducedMode = () => {
+    handleLapseOpenChange(false);
+    setReducedModeOpen(true);
+  };
+  const handleReducedModeEnable = (level: ReducedModeLevel, days: number) => {
+    setReducedModeOpen(false);
+    const mode = buildReducedMode(level, days, todayISO);
+    void (async () => {
+      const result = await setReducedMode(mode);
+      if (result.success) {
+        const endLabel = parseLocalDate(mode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        toast({ title: t('rmode.toastOn', { date: endLabel }) });
+      }
+    })();
+  };
+  const handleReducedModeDisable = () => {
+    setReducedModeOpen(false);
+    void (async () => {
+      const result = await setReducedMode(null);
+      if (result.success) toast({ title: t('rmode.toastOff') });
     })();
   };
   const handleRescheduleSelect = async (toDateISO: string) => {
@@ -773,6 +802,23 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       ) : null}
+
+      {/* Tryb "nie na 100%" (spec C3): stan JAWNY, wyłączalny w każdej chwili */}
+      {isReducedModeActive(reducedMode, todayISO) && reducedMode && (
+        <button
+          type="button"
+          data-testid="rmode-badge"
+          onClick={() => setReducedModeOpen(true)}
+          className="flex w-full items-center justify-between rounded-xl border border-fitness-warning bg-fitness-warning/10 px-4 py-2.5 text-left text-sm font-semibold text-fitness-warning"
+        >
+          <span>
+            {t('rmode.badge', {
+              date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }),
+            })}
+          </span>
+          <span className="text-xs font-normal underline underline-offset-2">{t('rmode.disable')}</span>
+        </button>
+      )}
 
       {/* Today's training card */}
       {todayTraining.type === 'training' && (() => {
@@ -1315,6 +1361,17 @@ const Dashboard = () => {
         onSkip={handleLapseSkip}
         onMove={handleLapseMove}
         onContinueToday={handleLapseContinue}
+        onReducedMode={handleLapseReducedMode}
+      />
+
+      {/* Tryb "nie na 100%" (Runna p.1, spec C3) */}
+      <ReducedModeDialog
+        open={reducedModeOpen}
+        onOpenChange={setReducedModeOpen}
+        mode={reducedMode}
+        todayISO={todayISO}
+        onEnable={handleReducedModeEnable}
+        onDisable={handleReducedModeDisable}
       />
     </div>
   );
