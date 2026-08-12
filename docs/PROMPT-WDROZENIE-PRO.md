@@ -57,7 +57,9 @@
 - [x] B-T2: dzwonek + sheet powiadomień w headerze (9f280084; sheet zawsze zamontowany wg lekcji b.92, i18n w obu locale, 1624 unit zielonych)
 - [x] B-T3: avatar w headerze + Postępy w bottom nav (c2b952f7; rootPaths z /achievements+/analytics bez /profile, e2e mobile-nav zaktualizowane 8/8, 1625 unit zielonych)
 - [x] B-T4: emisja zdarzeń PR do inboxa (f8909b77; formatPRValue wyniesiony do pr-utils i użyty w completion+inboxie, TDD 3 nowe testy, 1628 unit zielonych)
-- [ ] WYDANIE B: jak wyżej
+- [x] WYDANIE B: jak wyżej (web live index-GODEYLhM.js; iOS 97 APPROVED obie grupy,
+      Watch w IPA; AAB v13 jar verified SHA-256 a50bf1f1…7011; e2e po 3 oczekiwanych
+      aktualizacjach speców 929a1a96; NASTĘPNY bump iOS = 98, versionCode = 14)
 
 ### Plan C — Moment WOW po treningu (docs/PLAN-PRO-C-2026-08-12.md) [wymaga A]
 - [ ] C-T1: delta w liście PR podsumowania

@@ -5,11 +5,24 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-12 (PRO wydanie A: de-emojizacja na prod — web + iOS 96 + AAB v12)
+**Ostatnia aktualizacja:** 2026-08-12 (PRO wydanie B: header z avatarem i inboxem + Postępy w nav — web + iOS 97 + AAB v13)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-12: PRO wydanie B — avatar w headerze, centrum powiadomień, Postępy w bottom nav (WYDANE)
+
+**Co (plan `docs/PLAN-PRO-B-2026-08-12.md`, wykonanie przez /loop wg `docs/PROMPT-WDROZENIE-PRO.md`, commity `7f30bfa0`→`55de59da`):**
+(T1) czysty moduł `src/lib/notification-inbox.ts`: lokalny inbox per uid na localStorage (limit 50, wersjonowany klucz `ss_inbox_v1_*`, odporny na uszkodzony JSON, event `ss-inbox-change`), zero sieci; (T2) `NotificationBell` w headerze: kropka nieprzeczytanych, sheet Radix ZAWSZE zamontowany i sterowany wyłącznie `open` (lekcja builda 92), otwarcie = markAllRead, empty state, ikony per typ; (T3) avatar w headerze (zdjęcie/inicjały) jako jedyna mobilna trasa do Profilu, 5. slot bottom nav = Postępy (`/achievements`, labelKey `nav.progress` — w sidebarze etykieta zmienia się z 'Osiągnięcia' na 'Postępy'), `rootPaths` = {/, /plan, /history, /exercises, /achievements, /analytics} (Profil dostaje strzałkę wstecz); (T4) po zakończeniu treningu każdy PR trafia do inboxa (obok toastu): `formatPRValue` wyniesiony do `pr-utils` i współdzielony z podsumowaniem treningu.
+
+**Dlaczego:** wzorzec rynkowy (avatar = Profil, dzwonek = centrum zdarzeń) uwalnia 5. slot nawigacji dla Postępów (fundament pod PRO-D gamifikację); inbox lokalny bo header renderuje się wszędzie i nie może trzymać szerokich listenerów Firestore (Z216).
+
+**Weryfikacja (wszystko zielone):** unit 1628/1628 (207 plików; nowe: inbox 4, bell 3, nav 1, formatPRValue 3), typecheck, lint, build, `check:no-emoji` (169 plików), e2e pełne: 389/392 + 3 oczekiwane aktualizacje speców po T3 (sidebar 'Postępy', achievements legalnie w bottom nav — `929a1a96`), po nich 8/8; mobile-nav-reachability przepisany na nowy niezmiennik (Profil przez avatar).
+
+**Deploy (pre-autoryzowany, WYKONANY):** web live `index-GODEYLhM.js` (Published, hash zweryfikowany na app.strengthsave.app); iOS build **97** upload OK, `StrengthWatch.app` w IPA, obie grupy TestFlight (HTTP 204/204, whatsNew 200), betaReviewState **APPROVED**; Android AAB **versionCode 13** BUILD SUCCESSFUL, `jar verified`, SHA-256 `a50bf1f19bcb2bbd907fe522a5307777f24deec078974e5e12521c4ad1dd7011` (upload do Play poza zakresem). Wersje marketingowe 1.0.0 bez zmian. NASTĘPNY bump iOS = 98, versionCode = 14.
+
+**Po stronie usera:** scenariusz sekwencji na urządzeniu: trening z PR → zakończ → Dashboard: kropka na dzwonku → wpis PR w inboxie → zamknij (kropka znika); avatar → Profil (strzałka wstecz); zakładka Postępy; start z planu → wyjście → powrót (nic nie zniknęło).
 
 ### 2026-08-12: PRO wydanie A — de-emojizacja chrome UI + bramka check:no-emoji (WYDANE)
 
