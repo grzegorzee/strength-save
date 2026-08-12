@@ -41,7 +41,7 @@
 ### Plan A — De-emojizacja (docs/PLAN-PRO-A-2026-08-12.md)
 - [x] A-T1: wspólna mapa ikon aktywności `activity-icons.ts` (9ed4b3b5; TDD, 1616 testów + typecheck zielone)
 - [x] A-T2: TrainingDayCard bez emoji (45630828; test w src/test/ zamiast components/__tests__, 1617 testów zielonych)
-- [ ] A-T3: badge'e ExerciseCard
+- [x] A-T3: badge'e ExerciseCard (9c41fc9e; 🎯📅⬆⬇↺🏆 → Target/CalendarCheck/Trending/RotateCcw/Trophy, żaden test nie asertował emoji)
 - [ ] A-T4: DayPlan + Dashboard (sekcje, pusty stan, regeneracja)
 - [ ] A-T5: karty cardio/Strava na wspólnej mapie
 - [ ] A-T6: toasty PR, Analytics badge, puste stany Strava
