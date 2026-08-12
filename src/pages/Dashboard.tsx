@@ -30,7 +30,7 @@ import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { MissedWorkoutBanner } from '@/components/MissedWorkoutBanner';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek } from '@/lib/plan-schedule';
+import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek, weekdayOfDate } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
@@ -409,9 +409,13 @@ const Dashboard = () => {
     setRescheduleFrom(fromDateISO);
   };
   const handleRescheduleSelect = async (toDateISO: string) => {
-    if (!rescheduleFrom) return;
-    const result = await moveScheduledDay(rescheduleFrom, toDateISO);
+    const fromDateISO = rescheduleFrom;
+    if (!fromDateISO) return;
+    // NAJPIERW kontrolowane zamknięcie sheeta, POTEM zapis — zapis podmienia
+    // overrides i dzień źródłowy znika z resolvera, a otwarty Radix Sheet nie
+    // może być odmontowany w stanie open (wiszący scroll-lock, regresja b.92).
     setRescheduleFrom(null);
+    const result = await moveScheduledDay(fromDateISO, toDateISO);
     toast(result.success
       ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
       : { title: t('reschedule.failed'), variant: 'destructive' });
@@ -1016,7 +1020,9 @@ const Dashboard = () => {
           activities={unifiedActivities.filter(a => a.source === 'manual' || stravaConnection.connected)}
           weekStart={getStartOfPlanWeek(today)}
           maxHR={stravaConnection.estimatedMaxHR}
-          plannedWeekdays={trainingPlan.map((d) => d.weekday)}
+          // Kropki liczone z HARMONOGRAMU (resolver z overrides), nie ze
+          // statycznego planu — przełożony dzień przesuwa kropkę (b.92).
+          plannedWeekdays={thisWeek.map((e) => weekdayOfDate(e.date))}
         />
         {/* Z121: decyzja deload + raport target vs actual (tylko plany z włączoną progresją) */}
         {planStarted && (

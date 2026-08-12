@@ -117,6 +117,14 @@ Alerts, które wymagają zgody Apple.
 
 ## Pułapki specyficzne dla projektu (skrót)
 
+- **Radix Sheet/Dialog: NIGDY nie unmountuj w stanie open.** Regresja builda 92
+  (2026-08-12): zapis przełożenia podmieniał dane, resolver przestawał widzieć
+  kontekst sheeta i komponent robił `return null` przy otwartym sheecie —
+  scroll-lock/pointer-events zostawały na `<body>` w WKWebView (apka "zawieszona",
+  tydzień nieprzerysowany). Wzorzec: zamrażaj kontekst widoku (ref) i zamykaj
+  wyłącznie przez `open=false`; rodzic zamyka sheet PRZED mutacją danych,
+  z których sheet liczy widok (`reschedule-sheet-unmount.test.tsx`).
+
 - **Dźwięk timera:** WebAudio wymaga gestu usera (unlock w handlerze odhaczenia serii); przy wyciszonym telefonie beep nie zagra, ale haptic i notyfikacja tak.
 - **Firestore:** kg kanoniczne, konwersja jednostek tylko w UI (`useUnit`). Sanityzacja przed zapisem.
 - **i18n:** każdy nowy klucz do OBU plików `src/i18n/locales/pl.ts` i `en.ts`, inaczej typecheck padnie.

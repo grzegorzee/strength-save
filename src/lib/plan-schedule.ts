@@ -45,6 +45,11 @@ export const getScheduledDateForDay = (weekStart: Date, weekday: Weekday): Date 
   return date;
 };
 
+const JS_DAY_TO_WEEKDAY: Weekday[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+/** Weekday daty lokalnej (do kropek tygodnia liczonych z harmonogramu, nie z planu). */
+export const weekdayOfDate = (date: Date): Weekday => JS_DAY_TO_WEEKDAY[startOfLocalDay(date).getDay()];
+
 export const getTrainingDayForDate = (planDays: TrainingDay[], date: Date): TrainingDay | null => {
   const jsDay = startOfLocalDay(date).getDay();
   return planDays.find((day) => WEEKDAY_TO_JS_DAY[day.weekday] === jsDay) ?? null;

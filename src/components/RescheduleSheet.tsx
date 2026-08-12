@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useRef } from 'react';
 import { ArrowRightLeft } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -41,30 +41,35 @@ export const RescheduleSheet = ({
   const { t, lang } = useTranslation();
   const today = todayISO ?? formatLocalDate(new Date());
 
-  const fromDay = useMemo(
-    () => (fromDateISO ? resolvePlannedDay(fromDateISO, planDays, overrides) : null),
-    [fromDateISO, planDays, overrides],
-  );
+  // Regresja builda 92 (zwiecha po wyborze daty): zapis przełożenia ustawia
+  // optymistycznie nowe overrides (data źródłowa -> null) ZANIM rodzic zamknie
+  // sheet — resolver przestaje widzieć dzień źródłowy. Twardy `return null`
+  // odmontowywał wtedy OTWARTY Radix Sheet bez przejścia open=false i body
+  // zostawało ze scroll-lockiem (apka nie reagowała na taps). Dlatego kontekst
+  // widoku ZAMRAŻAMY, dopóki jest kompletny; przy zamykaniu renderujemy ostatni
+  // dobry stan i Radix domyka się kontrolowanie.
+  const frozenRef = useRef<{ fromDateISO: string; fromDay: TrainingDay; overrides: ScheduleOverrides } | null>(null);
+  if (fromDateISO) {
+    const resolvedFromDay = resolvePlannedDay(fromDateISO, planDays, overrides);
+    if (resolvedFromDay) frozenRef.current = { fromDateISO, fromDay: resolvedFromDay, overrides };
+  }
+  const frozen = frozenRef.current;
+  if (!frozen) return null;
+  const { fromDateISO: fromISO, fromDay } = frozen;
 
-  const options = useMemo(() => {
-    if (!fromDateISO) return [];
-    const start = parseLocalDate(today);
-    const result: Array<{ dateISO: string; label: string; occupant: TrainingDay | null }> = [];
-    for (let offset = 0; offset < RESCHEDULE_HORIZON_DAYS; offset += 1) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + offset);
-      const dateISO = formatLocalDate(date);
-      if (dateISO === fromDateISO) continue;
-      result.push({
-        dateISO,
-        label: date.toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'short' }),
-        occupant: resolvePlannedDay(dateISO, planDays, overrides),
-      });
-    }
-    return result;
-  }, [fromDateISO, planDays, overrides, today, lang]);
-
-  if (!fromDateISO || !fromDay) return null;
+  const options: Array<{ dateISO: string; label: string; occupant: TrainingDay | null }> = [];
+  const start = parseLocalDate(today);
+  for (let offset = 0; offset < RESCHEDULE_HORIZON_DAYS; offset += 1) {
+    const date = new Date(start);
+    date.setDate(start.getDate() + offset);
+    const dateISO = formatLocalDate(date);
+    if (dateISO === fromISO) continue;
+    options.push({
+      dateISO,
+      label: date.toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'short' }),
+      occupant: resolvePlannedDay(dateISO, planDays, frozen.overrides),
+    });
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -74,7 +79,7 @@ export const RescheduleSheet = ({
           <SheetDescription>
             {t('reschedule.sheetDesc', {
               name: localizeDayName(fromDay.dayName, lang),
-              date: parseLocalDate(fromDateISO).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+              date: parseLocalDate(fromISO).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
             })}
           </SheetDescription>
         </SheetHeader>
