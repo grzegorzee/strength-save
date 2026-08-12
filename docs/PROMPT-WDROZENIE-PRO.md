@@ -46,7 +46,7 @@
 - [x] A-T5: karty cardio/Strava na wspólnej mapie (c67f78c8; 3 lokalne mapy emoji usunięte, CardioPR bez pola emoji, kudos bez 👍)
 - [x] A-T6: toasty PR, Analytics badge, puste stany Strava (911a5f36; i18n bez 🏆, badge Trophy+fitness-warning, Footprints w StravaTab/RacePredictor, allowlist i18n oczyszczona)
 - [x] A-T7: share card bez emoji (e6f1926b; 💪 z footera usunięty, 🏆 → typograficzny "PR ·"; wizualny przegląd 4 szablonów w scenariuszu WYDANIA A)
-- [ ] A-T8: bramka `check:no-emoji` + domknięcie resztek
+- [x] A-T8: bramka `check:no-emoji` + domknięcie resztek (61c29270; bramka OK na 168 plikach, 17 resztek domkniętych: ExerciseCard ✓→Check, TrainingPlan ⚡⏱️, StravaActivityDetail 🏠→Home, DataManagement OK, i18n bez ✓/💪)
 - [ ] WYDANIE A: pełny checklist z CLAUDE.md → web deploy + iOS (z Watch) TestFlight
       + Android AAB + wpis DECYZJE.md
 
@@ -130,3 +130,8 @@
 - 2026-08-12 A-T7: test ręczny 4 szablonów share przeniesiony do scenariusza ręcznego
   WYDANIA A (już jest na jego checkliście; zmiana to czyste stringi HTML, 3 testy
   jednostkowe share przechodzą). Unikam dublowania ciężkiego przebiegu e2e per task.
+- 2026-08-12 A-T8: bramka rozszerzona o strip komentarzy (wzorzec z guardu i18n Z168),
+  bo komentarze nie są chrome UI (✓ w opisach gridu ExerciseCard zostały). DataManagement
+  '✓'→'OK' (string interpolowany do opisu dialogu, neutralny językowo). Asercje
+  share-dialog.test na 'Zapisano' bez ✓ (zmiana oczekiwana wg planu, ikona Check
+  już była w przycisku).
