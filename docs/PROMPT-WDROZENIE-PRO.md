@@ -82,7 +82,7 @@
       NASTĘPNY bump iOS = 100, versionCode = 16)
 
 ### Plan E — Dashboard hero-first (docs/PLAN-PRO-E-2026-08-12.md)
-- [ ] E-T1: komponent `DashboardStatusSlot`
+- [x] E-T1: komponent `DashboardStatusSlot` (2a415f2a; TDD 3 testy, priorytet+toggle, i18n w obu locale; 1642 unit zielonych)
 - [ ] E-T2: banery stanu do slotu
 - [ ] E-T3: nowa kolejność sekcji + data-testid
 - [ ] E-T4: karta „Twój plan" bez listy dni
