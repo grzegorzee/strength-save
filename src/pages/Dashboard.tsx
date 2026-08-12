@@ -23,6 +23,7 @@ import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
 import { VacationDialog } from '@/components/VacationDialog';
 import { buildVacationMode, isVacationActive, resolveDeloadWeek, type VacationActivity } from '@/lib/vacation-mode';
+import { DashboardStatusSlot, type StatusEntry } from '@/components/DashboardStatusSlot';
 import { buildWeekCardModel } from '@/lib/week-card';
 import { isDeloadWeek } from '@/lib/progression-engine';
 import { recoveryTipKeys } from '@/lib/recovery-tips';
@@ -772,22 +773,12 @@ const Dashboard = () => {
     return d.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
   };
 
-  return (
-    <div className="space-y-6">
-      {showConfetti && <ConfettiBurst onDone={() => setShowConfetti(false)} />}
-      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} />
-      {/* Greeting */}
-      <div>
-        <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
-          <GreetingIcon className="h-6 w-6 text-fitness-warning" />
-          {greetingText}, <span className="text-primary">{displayName}</span>!
-        </h1>
-        <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
-      </div>
-
-      <ProUpsellBanner />
-
-      {(localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0 ? (
+  // PRO-E T2: banery stanu w jednym slocie priorytetowym. Warunki i JSX 1:1
+  // z dotychczasowych bloków — zmienia się wyłącznie miejsce renderu.
+  const statusEntries: StatusEntry[] = [];
+  if ((localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0) {
+    statusEntries.push({
+      id: 'offline-sync', priority: 100, node: (
         <Card className="border-fitness-cyan/30 bg-fitness-cyan/5">
           <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
@@ -825,27 +816,12 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
-      ) : null}
-
-      {/* Tryb "nie na 100%" (spec C3): stan JAWNY, wyłączalny w każdej chwili */}
-      {isReducedModeActive(reducedMode, todayISO) && reducedMode && (
-        <button
-          type="button"
-          data-testid="rmode-badge"
-          onClick={() => setReducedModeOpen(true)}
-          className="flex w-full items-center justify-between rounded-xl border border-fitness-warning bg-fitness-warning/10 px-4 py-2.5 text-left text-sm font-semibold text-fitness-warning"
-        >
-          <span>
-            {t('rmode.badge', {
-              date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }),
-            })}
-          </span>
-          <span className="text-xs font-normal underline underline-offset-2">{t('rmode.disable')}</span>
-        </button>
-      )}
-
-      {/* Urlop (spec C4): stan jawny, anulowanie w każdej chwili */}
-      {isVacationActive(vacation, todayISO) && vacation && (
+      ),
+    });
+  }
+  if (isVacationActive(vacation, todayISO) && vacation) {
+    statusEntries.push({
+      id: 'vacation', priority: 80, node: (
         <button
           type="button"
           data-testid="vacation-badge"
@@ -859,7 +835,70 @@ const Dashboard = () => {
           </span>
           <span className="text-xs font-normal underline underline-offset-2">{t('vac.cancel')}</span>
         </button>
-      )}
+      ),
+    });
+  }
+  if (isReducedModeActive(reducedMode, todayISO) && reducedMode) {
+    statusEntries.push({
+      id: 'reduced', priority: 70, node: (
+        <button
+          type="button"
+          data-testid="rmode-badge"
+          onClick={() => setReducedModeOpen(true)}
+          className="flex w-full items-center justify-between rounded-xl border border-fitness-warning bg-fitness-warning/10 px-4 py-2.5 text-left text-sm font-semibold text-fitness-warning"
+        >
+          <span>
+            {t('rmode.badge', {
+              date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }),
+            })}
+          </span>
+          <span className="text-xs font-normal underline underline-offset-2">{t('rmode.disable')}</span>
+        </button>
+      ),
+    });
+  }
+  if (extendOffer && !extendOfferDismissed) {
+    statusEntries.push({
+      id: 'plan-ended', priority: 60, node: (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-heading font-bold">{t('dash.extend.title')}</p>
+              <p className="text-sm text-muted-foreground">{t('dash.extend.desc', { n: extendOffer.daysSinceEnd })}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button onClick={handleExtendPlan} disabled={isRepeating}>
+                {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                {t('dash.extend.confirm')}
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/new-plan')}>{t('dash.extend.newPlan')}</Button>
+              <Button variant="ghost" size="icon" onClick={dismissExtendOffer} aria-label={t('common.cancel')}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ),
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      {showConfetti && <ConfettiBurst onDone={() => setShowConfetti(false)} />}
+      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} />
+      {/* Greeting */}
+      <div>
+        <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
+          <GreetingIcon className="h-6 w-6 text-fitness-warning" />
+          {greetingText}, <span className="text-primary">{displayName}</span>!
+        </h1>
+        <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
+      </div>
+
+      <ProUpsellBanner />
+
+      {/* PRO-E T2: banery stanu w jednym slocie (statusEntries budowane nad returnem) */}
+      <DashboardStatusSlot entries={statusEntries} />
 
       {/* Today's training card */}
       {todayTraining.type === 'training' && (() => {
@@ -1014,28 +1053,6 @@ const Dashboard = () => {
           </div>
         </CardContent>
       </Card>
-      )}
-
-      {/* Karta przedłużenia planu (zamiast cichego auto-startu cyklu) */}
-      {extendOffer && !extendOfferDismissed && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="font-heading font-bold">{t('dash.extend.title')}</p>
-              <p className="text-sm text-muted-foreground">{t('dash.extend.desc', { n: extendOffer.daysSinceEnd })}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button onClick={handleExtendPlan} disabled={isRepeating}>
-                {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                {t('dash.extend.confirm')}
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/new-plan')}>{t('dash.extend.newPlan')}</Button>
-              <Button variant="ghost" size="icon" onClick={dismissExtendOffer} aria-label={t('common.cancel')}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       )}
 
       {/* Stats - 4 columns */}

@@ -138,7 +138,8 @@ test.describe('Dashboard Features', () => {
   test('shows today training card (training/rest/completed)', async ({ page }) => {
     await navigateAndWait(page, '/');
     const dashboardBody = page.locator('body');
-    await expect(dashboardBody).toContainText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony/i);
+    // Runna p.1 B2: dzień wolny = karta "Dzień regeneracji" (nie "Dzisiaj wolne").
+    await expect(dashboardBody).toContainText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony|Dzień regeneracji/i);
   });
 
   test('shows stat cards', async ({ page }) => {
