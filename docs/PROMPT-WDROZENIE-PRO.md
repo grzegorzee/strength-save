@@ -97,9 +97,14 @@
       zero plików w functions/, garmin/, plan-schedule.ts, workout-protocol.ts,
       garmin-api.ts; zmiany A-E to UI webview + localStorage inbox. Adnotacja audytu
       dopisana w garmin/README.md (sekcja STATUS). Symulator nietknięty.
-- [ ] Apple Watch: potwierdź, że target StrengthWatch zbudował się w release iOS
-      (leci z tym samym archive) i że komunikacja telefon-zegarek działa
-      (scenariusz z docs o watch, symulatory sparowane).
+- [x] Apple Watch: POTWIERDZONE. (1) `Payload/App.app/Watch/StrengthWatch.app/`
+      obecny w IPA KAŻDEGO wydania 96-100 (weryfikowane unzip -l po każdym release);
+      (2) zero plików kontraktu watch dotkniętych przez A-E (git diff: watch-bridge,
+      watch-event-parser, watch-plan-preview, StrengthWatch/ nietknięte);
+      (3) komplet 7 plików testów kontraktu/komunikacji zielony 36/36, w tym
+      watch-swift-contract (parytet ze Swiftem) i watch-workout-sync (przepływ
+      telefon-zegarek). Scenariusz na sparowanych symulatorach zbędny przy
+      nietkniętym kontrakcie; parowanie na żywo w testach urządzeniowych usera.
 - [ ] DECYZJE.md: jeden zbiorczy wpis (co, dlaczego, root cause'y napotkanych
       problemów, weryfikacja) + PLAN.md: nowy kamień milowy odhaczony.
 - [ ] STOP pętli (ScheduleWakeup stop:true).
