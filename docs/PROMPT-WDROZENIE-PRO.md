@@ -75,7 +75,7 @@
 - [x] D-T2: Postępy na nowych odznakach (eb967f30; milestones+specjalne na AchievementBadge, tierForIndex w utils, Lock usunięty, e2e /achievements 2/2; progress w Milestone to 0-100 → /100 dla komponentu)
 - [x] D-T3: pasek postępu poziomu w Profilu (80ae5a24; TDD w profile-sections, elite bez paska przez warunek tier.next; 1635 unit zielonych)
 - [x] D-T4: heatmapa konsekwencji w Postępach (57e54259; TrainingHeatmap osadzony bez dodatkowego Carda — ma własny z tytułem "Mapa treningowa" i wyborem roku, więc bez nowych kluczy i18n; strava=[] poza zakresem ekranu; TDD test strony z mockami, 1636 unit + e2e 2/2)
-- [ ] D-T5: powiadomienie o kamieniu milowym
+- [x] D-T5: powiadomienie o kamieniu milowym (f6f8377b; diffMilestones TDD 2 testy, emisja 'badge' w WorkoutDay dla workouts+tonnage — records wymaga pipeline'u Postępów, PR-y i tak są w inboxie jako 'pr'; 1638 unit zielonych)
 - [ ] D-T6: sekcja dumy w Profilu
 - [ ] WYDANIE D: jak wyżej
 
