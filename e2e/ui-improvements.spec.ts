@@ -26,7 +26,8 @@ test.describe('Navigation', () => {
     expect(joinedLabels).toContain('Ćwiczenia');
     expect(joinedLabels).toContain('Analityka');
     expect(joinedLabels).toContain('Pomiary ciała');
-    expect(joinedLabels).toContain('Osiągnięcia');
+    // PRO-B T3: /achievements ma wspólny labelKey nav.progress ('Postępy').
+    expect(joinedLabels).toContain('Postępy');
     expect(joinedLabels).toContain('Cykle');
     expect(joinedLabels).toContain('Profil');
 
@@ -48,11 +49,11 @@ test.describe('Navigation', () => {
     for (let i = 0; i < 8; i += 1) {
       await page.keyboard.press('Tab');
       const focusedHref = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
-      // Linki tylko-sidebarowe (history/measurements/achievements/cycles) nie istnieją
-      // na mobile; analytics jest teraz w dolnym pasku.
+      // Linki tylko-sidebarowe (history/measurements/cycles/profile) nie istnieją
+      // na mobile; analytics i achievements są teraz w dolnym pasku (PRO-B T3).
       expect(focusedHref).not.toBe('#/history');
       expect(focusedHref).not.toBe('#/measurements');
-      expect(focusedHref).not.toBe('#/achievements');
+      expect(focusedHref).not.toBe('#/profile');
       expect(focusedHref).not.toBe('#/cycles');
     }
   });
