@@ -81,7 +81,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **10. Bramki wydania 1 + DECYZJE.md.** `npm run test` + `typecheck` +
   `lint` + `build` + `build:mobile` + `check:dist-smoke` + `test:rules` +
   `e2e:mock`. Wpis do DECYZJE.md (co, dlaczego, spec, weryfikacja, commity).
-- [ ] **11. DEPLOY wydania 1 (pre-autoryzowany).** Web (`npm run deploy`) +
+- [x] **11. DEPLOY wydania 1 (pre-autoryzowany).** Web (`npm run deploy`) +
   iOS (bump CURRENT_PROJECT_VERSION z repo, `release-ios.sh` +
   `testflight_external.py`, obie grupy) + Android AAB (bump versionCode).
   Dowody (hash bundla, status TestFlight, ścieżka AAB) do DECYZJE.md.

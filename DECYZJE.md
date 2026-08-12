@@ -27,7 +27,7 @@
 
 **Weryfikacja (krok 10, wszystko zielone):** unit 1557/1557 (79 nowych testów w 10 plikach), `typecheck` + `lint`, `build` + `build:mobile` + `check:dist-smoke` (bundle startuje w Chromium), `test:rules` 0 FAIL (JDK21), `e2e:mock` 196/196 (1.8 min, świeży vite).
 
-**Deploy:** krok 11 (pre-autoryzowany): web + iOS bump 94 + Android AAB versionCode 10. Etap C (skip, tray, tryby, ad-hoc audyt) startuje po wydaniu 1.
+**Deploy (krok 11, pre-autoryzowany, WYKONANY 2026-08-12):** web live `index-Dm9M5Rhz.js` (gh-pages Published, hash zweryfikowany na app.strengthsave.app); iOS build **94** UPLOAD SUCCEEDED (Delivery UUID 0b7c2832), obie grupy TestFlight podpięte (HTTP 204/204, whatsNew 200), betaReviewState **APPROVED**; Android AAB **versionCode 10** BUILD SUCCESSFUL, `jar verified`, SHA-256 `e004131b1c6f059b3dfc616a9885d04dc2f709b0a313e71af6265360fd6fc63b` (upload do Play poza zakresem — konto czeka na weryfikację Google). NASTĘPNY bump iOS = 95, versionCode = 11. Etap C (skip, tray, tryby, ad-hoc audyt) startuje po tym wydaniu.
 
 **Po stronie usera:** testy urządzeniowe wydania 1 na iPhone: completion (celebracja → ocena → podsumowanie → edycja serii), press-and-hold, przerwa-hero, share story (render w WKWebView), backfill w Profilu, karta tygodnia z przełożonym dniem.
 
