@@ -53,7 +53,7 @@
       e2e 392/392 po stabilizacji flake'a 2fe333a0; NASTĘPNY bump iOS = 97, versionCode = 13)
 
 ### Plan B — Header, powiadomienia, Postępy (docs/PLAN-PRO-B-2026-08-12.md)
-- [ ] B-T1: moduł inboxa `notification-inbox.ts`
+- [x] B-T1: moduł inboxa `notification-inbox.ts` (7f30bfa0; TDD 4 testy, storage per uid limit 50, test w src/test/ jak w A-T2; 1621 unit zielonych)
 - [ ] B-T2: dzwonek + sheet powiadomień w headerze
 - [ ] B-T3: avatar w headerze + Postępy w bottom nav
 - [ ] B-T4: emisja zdarzeń PR do inboxa
