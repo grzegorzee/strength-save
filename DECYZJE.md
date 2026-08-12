@@ -5,11 +5,23 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-13 (PRO wydanie E: Dashboard hero-first — web + iOS 100 + AAB v16)
+**Ostatnia aktualizacja:** 2026-08-13 (PRO A-E DOMKNIĘTE: 5 wydań na prod, iOS 96-100, AAB 12-16)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-13: PRO A-E — zbiorcze zamknięcie pakietu (5 wydań w jedną pętlę /loop)
+
+**Co:** pełny pakiet PRO wykonany autonomicznie od A do Z w jednej pętli /loop (2026-08-12 wieczór → 2026-08-13 noc): 5 planów, 21 tasków TDD, 5 pełnych wydań (web + iOS TestFlight z Watch + Android AAB), sekcja Zamknięcie (audyt Garmin/Watch). Szczegóły per wydanie w 5 wpisach niżej (A: de-emojizacja + bramka; B: header/inbox/nav; C: moment WOW; D: gamifikacja; E: Dashboard hero-first). Kamień **M55** w PLAN.md.
+
+**Dlaczego:** kontrakt PRO = jakość wykonania jako wyróżnik (wizja: zero socjalu, gamifikacja tylko wokół realnego progresu); wszystkie 5 planów to warstwa prezentacji — zero zmian modelu danych, rules, functions i kontraktów urządzeń.
+
+**Root cause'y przekrojowe (lekcje):** (1) guard i18n Z168 skanuje `components/` — testy komponentów z polskimi diakrytykami muszą żyć w `src/test/` (konwencja repo, 6 nowych testów tam trafiło); (2) TOAST_REMOVE_DELAY=1000000: toast wisi do zamknięcia i przechwytuje kliknięcia w menu (pre-existing flake webkit, fix testowy z jawnym dismissem); (3) trzy e2e znały tylko „Dzisiaj wolne" — od Runna B2 dzień wolny to „Dzień regeneracji"; pękły dopiero przy zmianie daty na czwartek (datozależność, wszystkie trzy wzorce rozszerzone); (4) mock ConfettiBurst wołający onDone w renderze unieważniał własne asercje; (5) vi.mock hoisting + transitive `@/lib/firebase` w testach stron (pułapki z memory, rozwiązane vi.hoisted + mock).
+
+**Weryfikacja końcowa:** unit 1616→**1642** (26 nowych testów), e2e 392→**394** (nowy dashboard-order), typecheck/lint/build/`check:no-emoji` zielone przy każdym wydaniu; Garmin: zero plików kontraktu CIQ dotkniętych (adnotacja w garmin/README.md); Watch: StrengthWatch.app w IPA wszystkich 5 buildów, 36/36 testów kontraktu. Artefakty: web `index-De466VIE.js` (live), iOS **96-100** (wszystkie APPROVED obie grupy), AAB **v12-v16** (wszystkie `jar verified`). NASTĘPNY bump iOS = 101, versionCode = 17.
+
+**Po stronie usera:** testy urządzeniowe 5 wydań (scenariusze w wpisach per wydanie); upload AAB do Play po weryfikacji konta Google.
 
 ### 2026-08-13: PRO wydanie E — Dashboard hero-first, hierarchia zamiast ściany kart (WYDANE)
 

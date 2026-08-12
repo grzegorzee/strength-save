@@ -105,9 +105,9 @@
       watch-swift-contract (parytet ze Swiftem) i watch-workout-sync (przepływ
       telefon-zegarek). Scenariusz na sparowanych symulatorach zbędny przy
       nietkniętym kontrakcie; parowanie na żywo w testach urządzeniowych usera.
-- [ ] DECYZJE.md: jeden zbiorczy wpis (co, dlaczego, root cause'y napotkanych
-      problemów, weryfikacja) + PLAN.md: nowy kamień milowy odhaczony.
-- [ ] STOP pętli (ScheduleWakeup stop:true).
+- [x] DECYZJE.md: zbiorczy wpis "PRO A-E — zbiorcze zamknięcie pakietu" (5 lekcji
+      przekrojowych + weryfikacja końcowa + artefakty) + PLAN.md: kamień M55 odhaczony.
+- [x] STOP pętli (ScheduleWakeup stop:true) — wykonany w tej samej iteracji.
 
 ## Procedura WYDANIE (per plan)
 
