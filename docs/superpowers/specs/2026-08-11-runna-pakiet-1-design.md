@@ -7,6 +7,11 @@ OSOBNY pakiet: nie miesza się z pętlą przełożenia treningu + kroku marketin
 DOPIERO gdy tamta pętla ma wszystkie kroki odhaczone. Zależność realna: tray
 zaległości (C2) używa `scheduleOverrides` z tamtego pakietu.
 
+Aktualizacja 2026-08-12 (dyskusja z userem): zakres PEŁNY, ale wydanie
+w DWÓCH buildach (najpierw etapy A+B, potem C); A3 zmienione na edycję
+z ekranu podsumowania; dodany backfill rekordów (A5). Bramka startowa
+spełniona: pętla przełożenia domknięta, hotfix b.92 wydany (iOS 93, AAB v9).
+
 ## Zasady nadrzędne pakietu
 
 1. **Adaptacja za zgodą** (lekcja nr 1 z recenzji Runny): ŻADNA logika z tego
@@ -48,12 +53,17 @@ w propozycji pokazywanej userowi; nic nie nadpisuje planu automatycznie.
 Test: sekwencja sesja→ocena "za ciężko"→następna sesja pokazuje propozycję
 bez podbicia; brak oceny = zachowanie identyczne jak dziś (niezmiennik).
 
-### A3. "Sprawdź serie" przed zapisem finalnym (raport cz. 2, sekcja 2.6)
+### A3. Edycja serii z ekranu podsumowania (zmiana 2026-08-12)
 
-Po "Zakończ trening", przed celebracją: opcjonalny przegląd wykonanych serii
-z edycją inline (ciężar/powtórzenia). Nic nie zmieniasz = jeden tap dalej.
-Brzegi: edycja przechodzi przez istniejącą sanityzację (kg kanoniczne);
-wejście wstecz z celebracji NIE wraca do edycji (zapis już poszedł).
+BEZ osobnego ekranu "Sprawdź serie" między "Zakończ trening" a celebracją:
+u Runny przegląd lapów ma sens, bo dane przychodzą z automatu (treadmill);
+u nas serie odhaczane są ręcznie na bieżąco, a dodatkowy krok to tarcie
+przy KAŻDYM treningu. Zamiast tego: edycja ciężaru/powtórzeń inline
+dostępna z ekranu podsumowania completion (krok 3 sekwencji A1), przez
+istniejącą ścieżkę edycji sesji. Brzegi: edycja przechodzi przez
+sanityzację (kg kanoniczne); poprawka widoczna w historii, agregatach
+i danych silnika; user, który nic nie zmienia, nie ma żadnego
+dodatkowego tapu.
 
 ### A4. Share card + celebracja PR (raport cz. 2, sekcja 3.2)
 
@@ -64,6 +74,17 @@ brand). Systemowy share sheet. PR w trakcie sesji: toast + badge, pełna
 celebracja w completion. Brzegi: brak PR = hero domyślnie tonaż; render
 w WKWebView (canvas) przetestowany na urządzeniu; udostępnianie opt-in
 (nic nie wychodzi samo).
+
+### A5. Backfill rekordów sprzed instalacji (dodane 2026-08-12; raport cz. 1, szybka wygrana 7)
+
+Ręczne wpisanie starych PR-ów w bojach głównych (Profil, sekcja TWOJE DANE),
+żeby celebracja PR (A1/A4) nie gratulowała ciężarów dźwiganych przed
+instalacją i żeby progresja startowała z prawdziwego baseline'u. Detekcja PR
+(toast w sesji, blok w completion, hero na share card) porównuje wynik
+z max(historia w apce, backfill). Brzegi: walidacja nierealnych wartości
+(życzliwy komunikat, nie błąd); kg kanoniczne; brak backfillu = zachowanie
+identyczne jak dziś; nowe pole dokumentu: rules hasOnly + testy + sprawdzony
+mapper (lekcja builda 88).
 
 ## ETAP B: Dashboard i ekran treningu
 
@@ -171,9 +192,14 @@ Zakres: bez zmian Stravy (cardio poza pakietem).
   builda 88).
 - Bramki standardowe + `check:dist-smoke` na build:mobile.
 
-## Wdrożenie
+## Wdrożenie (decyzje usera 2026-08-12)
 
-Po komplecie bramek: STOP i pytanie do usera o deploy (web + iOS bump
-z repo + Android AAB; functions jeśli C3/C4 dodały push). BEZ pre-autoryzacji:
-pakiet jest duży i user ma zdecydować o momencie wydania (może chcieć
-podzielić na dwa buildy: A+B osobno, C osobno).
+Pakiet wychodzi w DWÓCH buildach, deploy PRE-AUTORYZOWANY przez usera
+(czat 2026-08-12: "wdroz wszystkie poprawki"):
+
+1. **Wydanie 1 (etapy A+B + backfill):** po komplecie bramek deploy web +
+   iOS (bump z repo) + Android AAB. Functions niepotrzebne (brak nowych
+   puszy w A/B).
+2. **Wydanie 2 (etap C):** kroki C startują DOPIERO po wydaniu builda
+   wydania 1 (build nie może zabrać niedokończonych kroków C). Po komplecie
+   bramek deploy web + iOS + AAB + functions (push z C3/C4).
