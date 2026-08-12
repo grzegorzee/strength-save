@@ -48,6 +48,11 @@ export interface ExerciseProgress {
   quality?: number;
 }
 
+/** Ocena sesji po treningu (kciuk gora/dol) — Runna pakiet 1. */
+export type WorkoutSessionRating = 'up' | 'down';
+/** Chipsy powodow przy kciuku w dol (zero pol tekstowych). */
+export type WorkoutSessionRatingReason = 'too_heavy' | 'too_long' | 'weak_day';
+
 export interface WorkoutSession {
   id: string;
   userId: string;
@@ -73,6 +78,10 @@ export interface WorkoutSession {
   lastWriteId?: string;
   /** Tag wsadu importu CSV (Z110) — hash pliku; cofnięcie importu = delete wg tego pola. */
   importBatchId?: string;
+  /** Ocena sesji 1 tapem po zakonczeniu treningu (spec A1). Brak = user nie ocenil. */
+  sessionRating?: WorkoutSessionRating;
+  /** Powody przy kciuku w dol; sygnal dla silnika progresji (spec A2). */
+  sessionRatingReasons?: WorkoutSessionRatingReason[];
 }
 
 export interface BodyMeasurement {

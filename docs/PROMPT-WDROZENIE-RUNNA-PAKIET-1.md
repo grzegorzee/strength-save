@@ -47,7 +47,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 
 ### WYDANIE 1: etapy A+B + backfill
 
-- [ ] **1. Ocena sesji: model + rules.** Pole oceny (kciuk + chipsy) na
+- [x] **1. Ocena sesji: model + rules.** Pole oceny (kciuk + chipsy) na
   dokumencie sesji, rules hasOnly + testy, mapper sprawdzony. Zapis z ekranu
   completion jeszcze bez UI (czysta warstwa danych + testy).
 - [ ] **2. Sekwencja completion.** Celebracja → kciuk/chipsy → podsumowanie

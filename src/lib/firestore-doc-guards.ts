@@ -1,6 +1,7 @@
 import type { TrainingDay, Exercise } from '@/data/trainingPlan';
 import type { BodyMeasurement, WorkoutSession, SetData, ExerciseProgress } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
+import { sanitizeSessionRatingReasons } from '@/lib/workout-session-rating';
 
 // P0: walidacja dokumentów przy hydracji z Firestore. Uszkodzony DOKUMENT jest
 // odrzucany (caller raportuje do client_errors), uszkodzony FRAGMENT (seria,
@@ -94,6 +95,13 @@ export const sanitizeWorkoutDoc = (id: string, data: unknown): WorkoutSession | 
   if (Array.isArray(data.skippedExercises)) {
     workout.skippedExercises = data.skippedExercises.filter((item): item is string => typeof item === 'string');
   }
+  // Ocena sesji (Runna pakiet 1): bez wpisu tutaj pole znika przy hydracji
+  // (mapper pole-po-polu, lekcja builda 88) — silnik i UI by go nie widzialy.
+  if (data.sessionRating === 'up' || data.sessionRating === 'down') {
+    workout.sessionRating = data.sessionRating;
+  }
+  const ratingReasons = sanitizeSessionRatingReasons(data.sessionRatingReasons);
+  if (ratingReasons.length > 0) workout.sessionRatingReasons = ratingReasons;
   return workout;
 };
 

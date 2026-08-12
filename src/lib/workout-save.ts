@@ -1,6 +1,7 @@
-import { doc, runTransaction, type Firestore, type UpdateData } from 'firebase/firestore';
-import type { SetData, WorkoutSession } from '@/types';
+import { doc, runTransaction, updateDoc, type Firestore, type UpdateData } from 'firebase/firestore';
+import type { SetData, WorkoutSession, WorkoutSessionRating } from '@/types';
 import { clampSet } from '@/lib/workout-sanitizers';
+import { buildSessionRatingUpdate } from '@/lib/workout-session-rating';
 import { resolveWriteAttempt } from '@/lib/workout-write-attempt';
 
 // Transakcja zapisu treningu z preconditionem rewizji i kluczem idempotencji —
@@ -108,4 +109,24 @@ export const saveWorkoutBatchWithRevision = async (
     transaction.update(workoutRef, { ...updateData, revision, lastWriteId: options.writeId } as UpdateData<Record<string, unknown>>);
     return { updatedAt: updateTime, revision };
   });
+};
+
+// Ocena sesji po zakonczeniu treningu (Runna pakiet 1, spec A1). Celowo BEZ
+// maszynerii writeId/revision: ocena powstaje PO finalnym zapisie treningu,
+// jest sygnalem (nie trescia treningu), a offline pokrywa persistentLocalCache
+// (mutation queue Firestore). Nie ruszamy updatedAt/revision — bump moglby
+// zmylic detekcje konfliktu draftu przy finalSyncPending. Utracona ocena =
+// brak sygnalu, nic nie wisi (regula #6).
+export const saveWorkoutSessionRating = async (
+  db: Firestore,
+  sessionId: string,
+  rating: WorkoutSessionRating | null | undefined,
+  reasons?: unknown,
+): Promise<boolean> => {
+  const update = buildSessionRatingUpdate(rating, reasons);
+  if (!update) return false;
+  const payload: Record<string, unknown> = { sessionRating: update.sessionRating };
+  if (update.sessionRatingReasons) payload.sessionRatingReasons = update.sessionRatingReasons;
+  await updateDoc(doc(db, WORKOUTS_COLLECTION, sessionId), payload as UpdateData<Record<string, unknown>>);
+  return true;
 };

@@ -164,6 +164,11 @@ add('update workout z nadmiarowym polem zablokowane', false, await ok(() => upda
 add('create workout z nadmiarowym polem zablokowane', false, await ok(() => setDoc(doc(db, 'workouts', `${WORKOUT_ID}-x`), { ...newWorkout, id: `${WORKOUT_ID}-x`, blob: 'y' })));
 add('update workout z notes > 5000 znakow zablokowane', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { notes: 'x'.repeat(5001) })));
 add('update workout z notes <= 5000 znakow', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { notes: 'dobra sesja' })));
+// Ocena sesji (Runna pakiet 1): kciuk up/down + zamknieta lista powodow.
+add('update workout z ocena sesji (kciuk dol + powody)', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { sessionRating: 'down', sessionRatingReasons: ['too_heavy', 'too_long'] })));
+add('update workout z sama ocena kciuk gora', true, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { sessionRating: 'up' })));
+add('update workout z niepoprawna wartoscia oceny zablokowane', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { sessionRating: 'meh' })));
+add('update workout z nieznanym powodem oceny zablokowane', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { sessionRating: 'down', sessionRatingReasons: ['hacked'] })));
 
 // Konto bez pola status (Google sprzed hardeningu) nadal zapisuje trening (lekcja ef8b8d5).
 await env.clearFirestore();

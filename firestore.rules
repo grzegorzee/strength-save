@@ -90,14 +90,21 @@ service cloud.firestore {
         'id', 'userId', 'dayId', 'date', 'exercises', 'completed', 'completedAt',
         'notes', 'cycleId', 'skippedExercises', 'dayName', 'dayFocus',
         'durationSec', 'startedAt', 'updatedAt', 'revision', 'lastWriteId', 'createdAt',
-        'importBatchId'
+        'importBatchId', 'sessionRating', 'sessionRatingReasons'
       ])
       && (!('notes' in request.resource.data)
           || (request.resource.data.notes is string && request.resource.data.notes.size() <= 5000))
       // Tag wsadu importu CSV (Z110) — opcjonalny string (hash pliku).
       && (!('importBatchId' in request.resource.data)
           || (request.resource.data.importBatchId is string
-              && request.resource.data.importBatchId.size() <= 64));
+              && request.resource.data.importBatchId.size() <= 64))
+      // Ocena sesji po treningu (Runna pakiet 1): kciuk + zamknieta lista powodow.
+      && (!('sessionRating' in request.resource.data)
+          || request.resource.data.sessionRating in ['up', 'down'])
+      && (!('sessionRatingReasons' in request.resource.data)
+          || (request.resource.data.sessionRatingReasons is list
+              && request.resource.data.sessionRatingReasons.size() <= 3
+              && request.resource.data.sessionRatingReasons.hasOnly(['too_heavy', 'too_long', 'weak_day'])));
     }
 
     // Workouts collection
