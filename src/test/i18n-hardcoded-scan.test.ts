@@ -15,7 +15,6 @@ const ALLOWLIST = new Set([
   'src/lib/plan-i18n.ts',                     // mapy PL → EN (klucze = wartości kanoniczne)
   'src/lib/workout-import/mapper.ts',         // mapowanie hevy/strong na kanoniczne PL
   'src/lib/rza-progression.ts',               // klucze lookup progresji po nazwach PL
-  'src/components/strava/RacePredictor.tsx',  // klucze mapy emoji po nazwach dystansów
   'src/lib/race-predictor.ts',                // distanceLabel = klucz lookup ('Półmaraton')
   'src/lib/registration-api.ts',              // fixtury trybu E2E
   'src/lib/purchases.ts',                     // console.warn dev-only

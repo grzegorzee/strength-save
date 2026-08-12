@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Loader2, Footprints } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useManualActivities } from '@/hooks/useManualActivities';
@@ -87,7 +87,7 @@ export const StravaTab = () => {
       <Card>
         <CardContent className="py-12">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center text-2xl">🏃</div>
+            <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center"><Footprints className="h-6 w-6 text-orange-500" /></div>
             <p className="font-medium text-sm">{t('strava.connectTitle')}</p>
             <p className="text-sm text-muted-foreground">{t('strava.connectDesc')}</p>
             <Button onClick={connectStrava} className="mt-2 bg-orange-500 hover:bg-orange-600">{t('strava.connectButton')}</Button>

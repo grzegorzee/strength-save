@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Zap } from 'lucide-react';
+import { Footprints, Zap } from 'lucide-react';
 import { getRacePredictions } from '@/lib/race-predictor';
 import type { StravaActivity } from '@/types/strava';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -8,13 +8,6 @@ import { useTranslation } from '@/contexts/LanguageContext';
 interface Props {
   activities: StravaActivity[];
 }
-
-const DISTANCE_EMOJIS: Record<string, string> = {
-  '5K': '🏃',
-  '10K': '🏃',
-  'Półmaraton': '🏃',
-  'Maraton': '🏃',
-};
 
 export const RacePredictor = ({ activities }: Props) => {
   const { t, lang } = useTranslation();
@@ -35,8 +28,8 @@ export const RacePredictor = ({ activities }: Props) => {
         <div className="grid grid-cols-2 gap-3">
           {predictions.map(p => (
             <div key={p.distanceLabel} className="p-3 rounded-lg bg-muted/30 text-center">
-              <p className="text-xs text-muted-foreground mb-1">
-                {DISTANCE_EMOJIS[p.distanceLabel] || '🏃'} {p.displayLabel}
+              <p className="text-xs text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                <Footprints className="h-3 w-3" aria-hidden /> {p.displayLabel}
               </p>
               <p className="text-lg font-bold">{p.predictedTimeFormatted}</p>
             </div>

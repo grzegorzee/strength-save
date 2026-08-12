@@ -285,7 +285,7 @@ const SummaryTab = () => {
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {periodPRs.map((pr, i) => (
-                <Badge key={i} className="bg-fitness-warning/10 text-yellow-700 border-fitness-warning/30">🏆 {pr.exerciseName}</Badge>
+                <Badge key={i} className="gap-1 bg-fitness-warning/10 text-fitness-warning border-fitness-warning/30"><Trophy className="h-3 w-3" aria-hidden /> {pr.exerciseName}</Badge>
               ))}
             </div>
           </CardContent>
