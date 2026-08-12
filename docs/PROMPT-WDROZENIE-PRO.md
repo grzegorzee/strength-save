@@ -40,7 +40,7 @@
 
 ### Plan A — De-emojizacja (docs/PLAN-PRO-A-2026-08-12.md)
 - [x] A-T1: wspólna mapa ikon aktywności `activity-icons.ts` (9ed4b3b5; TDD, 1616 testów + typecheck zielone)
-- [ ] A-T2: TrainingDayCard bez emoji
+- [x] A-T2: TrainingDayCard bez emoji (45630828; test w src/test/ zamiast components/__tests__, 1617 testów zielonych)
 - [ ] A-T3: badge'e ExerciseCard
 - [ ] A-T4: DayPlan + Dashboard (sekcje, pusty stan, regeneracja)
 - [ ] A-T5: karty cardio/Strava na wspólnej mapie
@@ -116,3 +116,7 @@
 
 - 2026-08-12 A-T1: commit tylko plików taska (nie `git add -A` z planu), bo repo ma
   niezwiązane untracked (animacje-cwiczen/, .agents/). Wariant mniejszy i odwracalny.
+- 2026-08-12 A-T2: test przeniesiony z planowego `src/components/__tests__/` do
+  `src/test/` (konwencja repo; guard i18n Z168 skanuje components/ i wykrywał polskie
+  znaki w nazwach testów). Intencja planu bez zmian. Przy okazji tło missed ujednolicone
+  do `bg-destructive/10` (zasada 8 CLAUDE.md, wg wzorca z planu).
