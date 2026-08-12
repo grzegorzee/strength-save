@@ -73,7 +73,7 @@
 ### Plan D — Gamifikacja progresu (docs/PLAN-PRO-D-2026-08-12.md) [wymaga B]
 - [x] D-T1: komponent `AchievementBadge` (4dbbc37b; heksagon clip-path, 4 materiały, ghost, TDD 2 testy; 1634 unit zielonych)
 - [x] D-T2: Postępy na nowych odznakach (eb967f30; milestones+specjalne na AchievementBadge, tierForIndex w utils, Lock usunięty, e2e /achievements 2/2; progress w Milestone to 0-100 → /100 dla komponentu)
-- [ ] D-T3: pasek postępu poziomu w Profilu
+- [x] D-T3: pasek postępu poziomu w Profilu (80ae5a24; TDD w profile-sections, elite bez paska przez warunek tier.next; 1635 unit zielonych)
 - [ ] D-T4: heatmapa konsekwencji w Postępach
 - [ ] D-T5: powiadomienie o kamieniu milowym
 - [ ] D-T6: sekcja dumy w Profilu
