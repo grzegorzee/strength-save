@@ -71,7 +71,7 @@
       NASTĘPNY bump iOS = 99, versionCode = 15)
 
 ### Plan D — Gamifikacja progresu (docs/PLAN-PRO-D-2026-08-12.md) [wymaga B]
-- [ ] D-T1: komponent `AchievementBadge`
+- [x] D-T1: komponent `AchievementBadge` (4dbbc37b; heksagon clip-path, 4 materiały, ghost, TDD 2 testy; 1634 unit zielonych)
 - [ ] D-T2: Postępy na nowych odznakach
 - [ ] D-T3: pasek postępu poziomu w Profilu
 - [ ] D-T4: heatmapa konsekwencji w Postępach
