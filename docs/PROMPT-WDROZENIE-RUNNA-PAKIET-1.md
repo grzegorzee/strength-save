@@ -89,7 +89,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 
 ### WYDANIE 2: etap C (start po deployu wydania 1)
 
-- [ ] **12. Pomiń trening.** Stan skipped per data (model, rules, UI w menu
+- [x] **12. Pomiń trening.** Stan skipped per data (model, rules, UI w menu
   karty dnia i w trayu), odwracalny, wygaszony checkmark w tygodniu,
   silnik neutralny wobec skipa (spec C1). Testy modelu + rules + UI.
 - [ ] **13. Tray zaległości (minimalny).** Trigger, sheet [Pomiń]/[Przenieś]/

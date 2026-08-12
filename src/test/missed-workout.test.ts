@@ -54,6 +54,14 @@ describe('findMissedWorkout', () => {
     })).toBeNull();
   });
 
+  it('Runna p.1 (C1): data jawnie pominięta (skip) znika z zaległych', () => {
+    expect(findMissedWorkout({ ...base, skippedDates: ['2026-08-12'] })?.dateISO).toBe('2026-08-10');
+    expect(findMissedWorkout({
+      ...base,
+      skippedDates: ['2026-08-12', '2026-08-10', '2026-08-07'],
+    })).toBeNull();
+  });
+
   it('nie sięga przed start planu ani dalej niż 7 dni wstecz', () => {
     expect(findMissedWorkout({ ...base, planStartDate: '2026-08-13' })).toBeNull();
     // Pominięta środa 2026-08-05 jest 9 dni wstecz od 2026-08-14: poza oknem.

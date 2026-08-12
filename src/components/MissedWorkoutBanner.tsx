@@ -27,6 +27,8 @@ interface MissedWorkoutBannerProps {
   workouts: Array<{ date: string; completed: boolean }>;
   todayISO: string;
   planStartDate?: string | null;
+  /** Runna p.1 (spec C1): daty jawnie pominięte nie są zaległością. */
+  skippedDates?: string[];
   onDoToday: (fromDateISO: string) => void;
   onReschedule: (fromDateISO: string) => void;
 }
@@ -44,6 +46,7 @@ export const MissedWorkoutBanner = ({
   workouts,
   todayISO,
   planStartDate,
+  skippedDates,
   onDoToday,
   onReschedule,
 }: MissedWorkoutBannerProps) => {
@@ -51,8 +54,8 @@ export const MissedWorkoutBanner = ({
   const [dismissed, setDismissed] = useState<string[]>(readDismissed);
 
   const missed = useMemo(
-    () => findMissedWorkout({ planDays, overrides, workouts, todayISO, planStartDate, dismissed }),
-    [planDays, overrides, workouts, todayISO, planStartDate, dismissed],
+    () => findMissedWorkout({ planDays, overrides, workouts, todayISO, planStartDate, dismissed, skippedDates }),
+    [planDays, overrides, workouts, todayISO, planStartDate, dismissed, skippedDates],
   );
   const todayFree = useMemo(
     () => resolvePlannedDay(todayISO, planDays, overrides) === null,

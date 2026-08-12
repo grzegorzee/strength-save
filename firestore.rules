@@ -181,8 +181,18 @@ service cloud.firestore {
     // zostaje w kodzie — rules nie iterują po tablicach.
     function validTrainingPlanShape() {
       return request.resource.data.keys().hasOnly([
-        'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision', 'progression', 'scheduleOverrides'
+        'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision', 'progression', 'scheduleOverrides',
+        'skippedDates'
       ])
+      // Jawne "Pomiń trening" (Runna p.1, spec C1): lista dat YYYY-MM-DD,
+      // pruning 28 dni w kodzie; limit jak overrides.
+      && (
+        !('skippedDates' in request.resource.data)
+        || (
+          request.resource.data.skippedDates is list
+          && request.resource.data.skippedDates.size() <= 60
+        )
+      )
       // Przełożenia treningów (spec 2026-08-11): mapa data -> dayId|null, okno max
       // 42 dni (pruning 28 wstecz + horyzont 14 do przodu) => limit 60 z zapasem.
       // Klucze YYYY-MM-DD i wartości string|null waliduje kod zapisu — rules nie

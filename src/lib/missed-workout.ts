@@ -23,8 +23,10 @@ export const findMissedWorkout = (params: {
   todayISO: string;
   planStartDate?: string | null;
   dismissed?: string[];
+  /** Runna p.1 (spec C1): daty jawnie pominięte NIE są zaległością. */
+  skippedDates?: string[];
 }): MissedWorkout | null => {
-  const { planDays, overrides, workouts, todayISO, planStartDate, dismissed = [] } = params;
+  const { planDays, overrides, workouts, todayISO, planStartDate, dismissed = [], skippedDates = [] } = params;
   const completedDates = new Set(workouts.filter((w) => w.completed).map((w) => w.date));
   const today = parseLocalDate(todayISO);
 
@@ -33,7 +35,7 @@ export const findMissedWorkout = (params: {
     date.setDate(today.getDate() - back);
     const dateISO = formatLocalDate(date);
     if (planStartDate && dateISO < planStartDate) break;
-    if (dismissed.includes(dateISO) || completedDates.has(dateISO)) continue;
+    if (dismissed.includes(dateISO) || skippedDates.includes(dateISO) || completedDates.has(dateISO)) continue;
     const day = resolvePlannedDay(dateISO, planDays, overrides);
     if (day) return { day, dateISO };
   }

@@ -47,6 +47,9 @@ add('create workout (access=true)', true, await ok(() => setDoc(doc(db, 'workout
 add('read wlasny istniejacy workout (access=true)', true, await ok(() => getDoc(doc(db, 'workouts', WORKOUT_ID))));
 add('update workout ze zmiana userId zablokowane', false, await ok(() => updateDoc(doc(db, 'workouts', WORKOUT_ID), { userId: OTHER_UID })));
 add('write training_plans (access=true)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { days: [], durationWeeks: 12, startDate: '2026-06-08', updatedAt: 'x' })));
+// Jawne "Pomin trening" (Runna p.1, spec C1): lista dat.
+add('update training_plans ze skippedDates (lista)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { skippedDates: ['2026-08-12'], updatedAt: 'y' }, { merge: true })));
+add('update training_plans ze skippedDates zlego typu zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { skippedDates: 'dzis' }, { merge: true })));
 
 // cross-user + admin na tych samych danych
 await seedUser(undefined, 'active', OTHER_UID);

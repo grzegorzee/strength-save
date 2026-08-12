@@ -156,7 +156,7 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped } = useTrainingPlan(uid);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
@@ -379,7 +379,8 @@ const Dashboard = () => {
     currentWeek,
     planDurationWeeks,
     planStarted,
-  }), [trainingPlan, today, scheduleOverrides, workouts, currentWeek, planDurationWeeks, planStarted]);
+    skippedDates,
+  }), [trainingPlan, today, scheduleOverrides, workouts, currentWeek, planDurationWeeks, planStarted, skippedDates]);
 
   const todayTraining = useMemo(() => {
     const todayKey = formatLocalDate(today);
@@ -442,6 +443,14 @@ const Dashboard = () => {
       return;
     }
     setRescheduleFrom(fromDateISO);
+  };
+  // Runna p.1 (spec C1): jawne Pomiń/Przywróć — odwracalne, ton neutralny.
+  const handleToggleSkip = async (dateISO: string) => {
+    const skipped = skippedDates.includes(dateISO);
+    const result = await setDaySkipped(dateISO, !skipped);
+    if (result.success) {
+      toast({ title: skipped ? t('skipday.toastRestored') : t('skipday.toastSkipped') });
+    }
   };
   const handleRescheduleSelect = async (toDateISO: string) => {
     const fromDateISO = rescheduleFrom;
@@ -1086,6 +1095,7 @@ const Dashboard = () => {
             workouts={workouts}
             todayISO={todayISO}
             planStartDate={planStartDate}
+            skippedDates={skippedDates}
             onDoToday={handleMissedDoToday}
             onReschedule={(fromDateISO) => setRescheduleFrom(fromDateISO)}
           />
@@ -1138,6 +1148,12 @@ const Dashboard = () => {
                     // Blokady przełożenia (spec): dzień ukończony i przeszłość bez akcji.
                     onReschedule={!workoutForDate?.completed && item.dateStr >= todayISO
                       ? () => openReschedule(item.dateStr, item.dayId)
+                      : undefined}
+                    // Runna p.1 (spec C1): Pomiń/Przywróć na każdym nieukończonym dniu
+                    // (także zaległym — skip zdejmuje go z czerwonego długu).
+                    skipped={skippedDates.includes(item.dateStr)}
+                    onToggleSkip={!workoutForDate?.completed
+                      ? () => { void handleToggleSkip(item.dateStr); }
                       : undefined}
                     onClick={() => {
                       // Z174: żywy draft tego dnia → kontynuacja sesji (?session=),

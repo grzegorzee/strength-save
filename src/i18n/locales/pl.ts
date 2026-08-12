@@ -609,6 +609,13 @@ export const pl = {
   'dayplan.badgeCompleted': 'Ukończone',
   'dayplan.badgeMissed': 'Pominięte',
   'reschedule.action': 'Przełóż trening',
+  // Jawne "Pomiń trening" (Runna p.1, spec C1). "Odpuszczone" zamiast
+  // "Pominięte", żeby nie mylić ze starym badge zaległości.
+  'dayplan.badgeSkipped': 'Odpuszczone',
+  'skipday.action': 'Odpuść trening',
+  'skipday.restore': 'Przywróć trening',
+  'skipday.toastSkipped': 'Trening odpuszczony. Silnik progresji to uwzględni.',
+  'skipday.toastRestored': 'Trening przywrócony do planu.',
   'reschedule.sheetTitle': 'Przełóż trening',
   'reschedule.sheetDesc': '{name} z {date}. Wybierz nowy dzień (najbliższe 14 dni).',
   'reschedule.free': 'wolne',

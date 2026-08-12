@@ -1,4 +1,4 @@
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, CircleSlash, RotateCcw } from 'lucide-react';
 import { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate } from '@/lib/utils';
@@ -12,9 +12,13 @@ interface TrainingDayCardProps {
   onClick: () => void;
   /** Akcja "Przełóż trening" (spec 2026-08-11); brak = ikona ukryta (dzień ukończony/przeszły). */
   onReschedule?: () => void;
+  /** Runna p.1 (spec C1): dzień jawnie pominięty — wygaszony, bez pretensji. */
+  skipped?: boolean;
+  /** Pomiń/Przywróć (odwracalne, reguła #6); brak = ikona ukryta. */
+  onToggleSkip?: () => void;
 }
 
-export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onReschedule }: TrainingDayCardProps) => {
+export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onReschedule, skipped, onToggleSkip }: TrainingDayCardProps) => {
   const { t, lang } = useTranslation();
   const todayStr = formatLocalDate(new Date());
   const trainingDateStr = trainingDate ? formatLocalDate(trainingDate) : undefined;
@@ -22,7 +26,8 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
   const isCompleted = latestWorkout?.completed === true;
   const isCompletedToday = isCompleted && latestWorkout?.date === todayStr;
   const isPastDate = trainingDateStr && trainingDateStr < todayStr;
-  const isMissed = isPastDate && !isCompleted;
+  // Świadomy skip ≠ zaległość: karta wyciszona, zero czerwonego długu.
+  const isMissed = isPastDate && !isCompleted && !skipped;
 
   return (
     <div
@@ -31,7 +36,8 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
         "border-0 bg-surface-low",
         "hover:border-primary/20 hover:bg-primary/[0.03]",
         isCompleted && "border-fitness-success/20",
-        isMissed && "border-destructive/15 opacity-60"
+        isMissed && "border-destructive/15 opacity-60",
+        skipped && !isCompleted && "opacity-50"
       )}
       onClick={onClick}
     >
@@ -62,6 +68,11 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
               {t('dayplan.badgeMissed')}
             </span>
           )}
+          {skipped && !isCompleted && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-dashed border-muted-foreground/40 text-muted-foreground">
+              {t('dayplan.badgeSkipped')}
+            </span>
+          )}
         </div>
         <p className="text-[13px] text-muted-foreground mt-1">
           {localizeFocus(day.focus, lang)} · 🏋️ {day.exercises.length}
@@ -77,6 +88,19 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
           onClick={(e) => { e.stopPropagation(); onReschedule(); }}
         >
           <CalendarClock className="h-4 w-4" />
+        </button>
+      )}
+
+      {/* Runna p.1 (spec C1): Pomiń / Przywróć — odwracalne, ton neutralny */}
+      {onToggleSkip && (
+        <button
+          type="button"
+          aria-label={skipped ? t('skipday.restore') : t('skipday.action')}
+          data-testid="day-skip-toggle"
+          className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-primary/10 shrink-0"
+          onClick={(e) => { e.stopPropagation(); onToggleSkip(); }}
+        >
+          {skipped ? <RotateCcw className="h-4 w-4" /> : <CircleSlash className="h-4 w-4" />}
         </button>
       )}
 

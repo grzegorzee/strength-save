@@ -23,6 +23,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
 import { resolvePlanDaysForSave, saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
 import { sanitizeProgressionConfig, type ProgressionConfig, type DeloadDecision } from '@/lib/progression-engine';
+import { pruneSkippedDates, sanitizeSkippedDates } from '@/lib/skipped-days';
 import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
 import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
@@ -45,6 +46,8 @@ export const useTrainingPlan = (userId: string) => {
   const [planError, setPlanError] = useState(false);
   // Przełożenia treningów (spec 2026-08-11): mapa data -> dayId|null.
   const [scheduleOverrides, setScheduleOverrides] = useState<ScheduleOverrides>({});
+  // Runna p.1 (spec C1): daty jawnie pominięte ("tego nie zrobię"), per data.
+  const [skippedDates, setSkippedDates] = useState<string[]>([]);
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
@@ -62,11 +65,12 @@ export const useTrainingPlan = (userId: string) => {
       try {
         const raw = window.localStorage.getItem('fittracker_e2e_plan');
         if (raw) {
-          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number; scheduleOverrides?: unknown };
+          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number; scheduleOverrides?: unknown; skippedDates?: unknown };
           if (data.startDate) setPlanStartDate(data.startDate);
           setProgression(sanitizeProgressionConfig(data.progression));
           if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
           setScheduleOverrides(sanitizeScheduleOverrides(data.scheduleOverrides));
+          setSkippedDates(sanitizeSkippedDates(data.skippedDates));
           const days = data.days !== undefined ? sanitizeTrainingPlanDays(data.days) : null;
           if (days) {
             setPlan(days);
@@ -99,6 +103,7 @@ export const useTrainingPlan = (userId: string) => {
           if (data.startDate) setPlanStartDate(data.startDate);
           setProgression(sanitizeProgressionConfig(data.progression));
           setScheduleOverrides(sanitizeScheduleOverrides(data.scheduleOverrides));
+          setSkippedDates(sanitizeSkippedDates(data.skippedDates));
           setPlanRevision(typeof data.revision === 'number' ? Math.max(0, Math.floor(data.revision)) : 0);
         } else {
           // No custom plan, use default
@@ -106,6 +111,7 @@ export const useTrainingPlan = (userId: string) => {
           setIsCustom(false);
           setPlanRevision(0);
           setScheduleOverrides({});
+          setSkippedDates([]);
         }
         setPlanError(false);
         setIsLoaded(true);
@@ -290,6 +296,41 @@ export const useTrainingPlan = (userId: string) => {
     return { success: true, swapped: move.swapped };
   }, [userId, isLoaded, plan, scheduleOverrides]);
 
+  /**
+   * Runna p.1 (spec C1): jawne pominięcie/przywrócenie treningu danej daty.
+   * Wzorzec moveScheduledDay: pole nadpisywane w całości (LWW), zapis
+   * offline-first (setDoc merge), pruning 28 dni przy każdym zapisie.
+   */
+  const setDaySkipped = useCallback(async (
+    dateISO: string,
+    skipped: boolean,
+  ): Promise<{ success: boolean }> => {
+    if (!userId || !isLoaded) return { success: false };
+    const todayISO = formatLocalDate(new Date());
+    const pruned = pruneSkippedDates(skippedDates, todayISO);
+    const next = skipped
+      ? [...new Set([...pruned, dateISO])].sort()
+      : pruned.filter((date) => date !== dateISO);
+    if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+      try {
+        const raw = window.localStorage.getItem('fittracker_e2e_plan');
+        const data = raw ? JSON.parse(raw) : {};
+        window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify({ ...data, skippedDates: next }));
+      } catch { /* noop */ }
+      setSkippedDates(next);
+      return { success: true };
+    }
+    setDoc(doc(db, PLAN_COLLECTION, userId), {
+      skippedDates: next,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((err) => {
+      console.error('Error saving skipped dates:', err);
+      void reportClientError(userId, { code: 'skipped-dates-save', phase: 'other', detail: String(err) });
+    });
+    setSkippedDates(next);
+    return { success: true };
+  }, [userId, isLoaded, skippedDates]);
+
   const swapExercise = useCallback(async (
     dayId: string,
     exerciseId: string,
@@ -423,6 +464,8 @@ export const useTrainingPlan = (userId: string) => {
     isCustom,
     scheduleOverrides,
     moveScheduledDay,
+    skippedDates,
+    setDaySkipped,
     planDurationWeeks,
     planStartDate,
     progression,

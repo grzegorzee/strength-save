@@ -603,6 +603,12 @@ export const en: Record<keyof typeof pl, string> = {
   'dayplan.badgeCompleted': 'Completed',
   'dayplan.badgeMissed': 'Missed',
   'reschedule.action': 'Reschedule workout',
+  // Explicit "Skip workout" (Runna p.1, spec C1).
+  'dayplan.badgeSkipped': 'Skipped',
+  'skipday.action': 'Skip workout',
+  'skipday.restore': 'Restore workout',
+  'skipday.toastSkipped': 'Workout skipped. The progression engine will account for it.',
+  'skipday.toastRestored': 'Workout restored to the plan.',
   'reschedule.sheetTitle': 'Reschedule workout',
   'reschedule.sheetDesc': '{name} from {date}. Pick a new day (next 14 days).',
   'reschedule.free': 'free',
