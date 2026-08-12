@@ -44,7 +44,8 @@ import type { SetData, ExerciseMetrics, WorkoutSessionRating, WorkoutSessionRati
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { detectNewPRs, getExerciseBest1RM, type PRComparison } from '@/lib/pr-utils';
+import { detectNewPRs, formatPRValue, getExerciseBest1RM, type PRComparison } from '@/lib/pr-utils';
+import { addInboxItem } from '@/lib/notification-inbox';
 import { db } from '@/lib/firebase';
 import { saveWorkoutSessionRating } from '@/lib/workout-save';
 import { computeCompletionSummary } from '@/lib/workout-completion-summary';
@@ -2097,6 +2098,20 @@ const WorkoutDay = () => {
         toast({
           title: t('workout.toast.newPRTitle', { n: effectivePRs.length }),
           description: prNames,
+        });
+        // PRO-B T4: PR-y lądują też w centrum powiadomień (obok toastu, nie zamiast).
+        effectivePRs.forEach((pr) => {
+          addInboxItem(uid, {
+            type: 'pr',
+            title: t('inbox.pr.title', { name: localizeExerciseName(pr.exerciseName, lang) }),
+            body: t('inbox.pr.body', {
+              value: formatPRValue(pr, {
+                prReps: (n) => t('workout.completion.prReps', { n }),
+                weight: fmt,
+                duration: fmtDuration,
+              }),
+            }),
+          });
         });
       } else {
         toast({

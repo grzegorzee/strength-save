@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  formatPRValue,
   calculate1RM,
   detectNewPRs,
   getExerciseBest1RM,
@@ -397,5 +398,26 @@ describe('detectNewPRs — duration i weight_distance_duration (Z106)', () => {
     const prs = detectNewPRs(current, prev, new Map([['bench', 'Wyciskanie']]));
     expect(prs).toHaveLength(1);
     expect(['weight', '1rm', 'both']).toContain(prs[0].type);
+  });
+});
+
+describe('formatPRValue (PRO-B T4: wspólny formatter wartości PR)', () => {
+  const fmt = {
+    prReps: (n: number) => `x${n} reps`,
+    weight: (kg: number) => `${kg} kg`,
+    duration: (sec: number) => `${sec} s`,
+  };
+  const pr = (type: string, newValue: number) =>
+    ({ exerciseName: 'Test', type, newValue, oldValue: 0 }) as never;
+
+  it('reps przez formatter powtórek', () => {
+    expect(formatPRValue(pr('reps', 12), fmt)).toBe('x12 reps');
+  });
+  it('duration przez formatter czasu', () => {
+    expect(formatPRValue(pr('duration', 90), fmt)).toBe('90 s');
+  });
+  it('reszta typów przez formatter ciężaru', () => {
+    expect(formatPRValue(pr('weight', 100), fmt)).toBe('100 kg');
+    expect(formatPRValue(pr('1rm', 120), fmt)).toBe('120 kg');
   });
 });

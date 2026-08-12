@@ -7,7 +7,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { SESSION_RATING_REASONS } from '@/lib/workout-session-rating';
 import type { CompletionSummary } from '@/lib/workout-completion-summary';
-import type { PRComparison } from '@/lib/pr-utils';
+import { formatPRValue, type PRComparison } from '@/lib/pr-utils';
 import type { WorkoutSessionRating, WorkoutSessionRatingReason } from '@/types';
 
 // Sekwencja completion (Runna pakiet 1, spec A1): celebracja → ocena 1 tapem
@@ -70,11 +70,11 @@ export const WorkoutCompletionSequence = ({
     setStage('done');
   };
 
-  const prValue = (pr: PRComparison): string => {
-    if (pr.type === 'reps') return t('workout.completion.prReps', { n: pr.newValue });
-    if (pr.type === 'duration') return fmtDuration(pr.newValue);
-    return fmtWeight(pr.newValue);
-  };
+  const prValue = (pr: PRComparison): string => formatPRValue(pr, {
+    prReps: (n) => t('workout.completion.prReps', { n }),
+    weight: fmtWeight,
+    duration: fmtDuration,
+  });
 
   const deltaText = summary.volumeDeltaPct !== null
     ? `${summary.volumeDeltaPct >= 0 ? '+' : ''}${summary.volumeDeltaPct}%`

@@ -153,6 +153,19 @@ export interface PRComparison {
   oldValue: number;
 }
 
+// PRO-B T4: jeden formatter wartości PR dla podsumowania i inboxa powiadomień.
+// Formattery wstrzykiwane (i18n + jednostki żyją w komponentach/hookach).
+export interface PRValueFormatters {
+  prReps: (n: number) => string;
+  weight: (kg: number) => string;
+  duration: (sec: number) => string;
+}
+
+export const formatPRValue = (pr: PRComparison, fmt: PRValueFormatters): string =>
+  pr.type === 'reps' ? fmt.prReps(pr.newValue)
+    : pr.type === 'duration' ? fmt.duration(pr.newValue)
+      : fmt.weight(pr.newValue);
+
 export interface DetectPROptions {
   /** Typ śledzenia per exerciseId (Z106) — brak wpisu = dotychczasowa logika weight/bodyweight. */
   trackingByExerciseId?: Map<string, TrackingType>;

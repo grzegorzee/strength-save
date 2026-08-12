@@ -836,6 +836,8 @@ export const pl = {
   'inbox.open': 'Otwórz powiadomienia',
   'inbox.empty.title': 'Wszystko ogarnięte',
   'inbox.empty.desc': 'Rekordy, raporty tygodnia i zmiany planu pojawią się tutaj.',
+  'inbox.pr.title': 'Nowy rekord: {name}',
+  'inbox.pr.body': '{value}',
   'stats.workouts': 'Treningi',
   'stats.timeInGym': 'Czas na siłowni',
   'stats.tonnage': 'Podniesiony ciężar',

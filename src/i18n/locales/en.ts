@@ -820,6 +820,8 @@ export const en: Record<keyof typeof pl, string> = {
   'inbox.open': 'Open notifications',
   'inbox.empty.title': 'All caught up',
   'inbox.empty.desc': 'Records, weekly reports and plan changes will show up here.',
+  'inbox.pr.title': 'New record: {name}',
+  'inbox.pr.body': '{value}',
   'stats.workouts': 'Workouts',
   'stats.timeInGym': 'Time in the gym',
   'stats.tonnage': 'Weight lifted',
