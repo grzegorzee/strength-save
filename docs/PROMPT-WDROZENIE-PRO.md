@@ -45,7 +45,7 @@
 - [x] A-T4: DayPlan + Dashboard (sekcje, pusty stan, regeneracja) (b2ccefa9; 💪🧘🔥⚡⏱️🔄 → Dumbbell/Leaf/Flame/Zap/Timer/Repeat)
 - [x] A-T5: karty cardio/Strava na wspólnej mapie (c67f78c8; 3 lokalne mapy emoji usunięte, CardioPR bez pola emoji, kudos bez 👍)
 - [x] A-T6: toasty PR, Analytics badge, puste stany Strava (911a5f36; i18n bez 🏆, badge Trophy+fitness-warning, Footprints w StravaTab/RacePredictor, allowlist i18n oczyszczona)
-- [ ] A-T7: share card bez emoji
+- [x] A-T7: share card bez emoji (e6f1926b; 💪 z footera usunięty, 🏆 → typograficzny "PR ·"; wizualny przegląd 4 szablonów w scenariuszu WYDANIA A)
 - [ ] A-T8: bramka `check:no-emoji` + domknięcie resztek
 - [ ] WYDANIE A: pełny checklist z CLAUDE.md → web deploy + iOS (z Watch) TestFlight
       + Android AAB + wpis DECYZJE.md
@@ -127,3 +127,6 @@
 - 2026-08-12 A-T6: RacePredictor na jednej ikonie Footprints (wariant mniejszy z planu);
   usunięty martwy wpis RacePredictor z ALLOWLIST guardu i18n (mapa z kluczem
   'Półmaraton' zniknęła, wpis osłabiałby guard).
+- 2026-08-12 A-T7: test ręczny 4 szablonów share przeniesiony do scenariusza ręcznego
+  WYDANIA A (już jest na jego checkliście; zmiana to czyste stringi HTML, 3 testy
+  jednostkowe share przechodzą). Unikam dublowania ciężkiego przebiegu e2e per task.
