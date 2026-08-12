@@ -150,6 +150,13 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.view': 'View',
   'dash.restDay': 'Day off today',
   'dash.nextTraining': 'Next workout',
+  // Recovery day (Runna p.1, spec B2).
+  'dash.recovery.title': 'Recovery day',
+  'dash.recovery.tipSleep': 'Sleep 7-9 h and protein with every meal do the work today.',
+  'dash.recovery.tipStretchPush': 'Stretch your chest and shoulders after yesterday\'s pushing.',
+  'dash.recovery.tipStretchPull': 'Stretch your back and arms after yesterday\'s pulling.',
+  'dash.recovery.tipStretchLegs': 'Stretch your quads and glutes after yesterday\'s leg day.',
+  'dash.recovery.tipStretchGeneric': 'A short walk and light stretching speed up recovery.',
   // Week card (Runna p.1, spec B1).
   'dash.week.title': 'Week {current} of {total}',
   'dash.week.sessions': '{done} of {total} sessions',

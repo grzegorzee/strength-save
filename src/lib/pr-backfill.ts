@@ -40,7 +40,7 @@ const POLISH_FOLD: Record<string, string> = Object.fromEntries((
   [[261, 'a'], [263, 'c'], [281, 'e'], [322, 'l'], [324, 'n'], [243, 'o'], [347, 's'], [380, 'z'], [378, 'z']] as const
 ).map(([code, ascii]) => [String.fromCharCode(code), ascii]));
 
-const foldPolish = (text: string): string => text
+export const foldPolish = (text: string): string => text
   .toLowerCase()
   .split('')
   .map((ch) => POLISH_FOLD[ch] ?? ch)

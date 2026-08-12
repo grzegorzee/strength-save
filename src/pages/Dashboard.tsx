@@ -19,6 +19,7 @@ import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { WeekCard } from '@/components/WeekCard';
 import { buildWeekCardModel } from '@/lib/week-card';
 import { isDeloadWeek } from '@/lib/progression-engine';
+import { recoveryTipKeys } from '@/lib/recovery-tips';
 import { DeloadBanner } from '@/components/DeloadBanner';
 import { WeekReportCard } from '@/components/WeekReportCard';
 import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
@@ -359,6 +360,15 @@ const Dashboard = () => {
   );
 
   // Determine today's training context
+  // Runna p.1 (spec B2): partia z wczorajszej sesji dla tipów regeneracji.
+  const yesterdayFocus = useMemo(() => {
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const key = formatLocalDate(yesterday);
+    const workout = workouts.find(w => w.completed && w.date === key);
+    return workout?.dayFocus ?? workout?.dayName ?? null;
+  }, [workouts, today]);
+
   // Karta tygodnia (Runna p.1, spec B1): dzień/tydzień jako domykane jednostki
   // nad istniejącym odhaczaniem serii. Ad-hoc dokłada się do tonażu.
   const weekCardModel = useMemo(() => buildWeekCardModel({
@@ -755,12 +765,19 @@ const Dashboard = () => {
         </Card>
       )}
 
+      {/* Runna p.1 (spec B2): dzień wolny to karta regeneracji z treścią,
+          nie pusty ekran — tip pod partię z WCZORAJSZEJ sesji + tip ogólny. */}
       {todayTraining.type === 'rest' && (
-        <Card className="bg-muted/30">
+        <Card className="bg-muted/30" data-testid="recovery-card">
           <CardContent className="py-4 px-5">
-            <p className="text-sm font-medium">{t('dash.restDay')} 🧘</p>
+            <p className="text-sm font-medium">{t('dash.recovery.title')} 🧘</p>
+            <ul className="mt-1.5 space-y-1">
+              {recoveryTipKeys(yesterdayFocus).map((key) => (
+                <li key={key} className="text-xs text-muted-foreground">{t(key)}</li>
+              ))}
+            </ul>
             {todayTraining.nextDay && (
-              <p className="text-xs text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-2">
                 {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
               </p>
             )}
@@ -774,31 +791,6 @@ const Dashboard = () => {
         isDeloadWeek={progression ? isDeloadWeek(currentWeek, progression) : false}
       />
 
-
-      {/* Z104 szybki trening + Z112 ręczne cardio — zawsze dostępne */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          variant="outline"
-          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
-          onClick={() => {
-            const adhocDay = createAdhocDay(formatLocalDate(today), (key) => t(key as Parameters<typeof t>[0]));
-            navigate(`/workout/${adhocDay.id}?date=${formatLocalDate(today)}&autostart=true`);
-          }}
-          data-testid="quick-workout-start"
-        >
-          <Zap className="h-4 w-4 text-primary" />
-          {t('adhoc.start')}
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
-          onClick={() => setCardioDialog({ open: true, edit: null })}
-          data-testid="add-cardio-open"
-        >
-          <HeartPulse className="h-4 w-4 text-fitness-cyan" />
-          {t('cardio.addButton')}
-        </Button>
-      </div>
 
       <AddCardioDialog
         open={cardioDialog.open}
@@ -1182,6 +1174,33 @@ const Dashboard = () => {
         >
           {t('dash.fullHistory')}
           <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {/* Z104 szybki trening + Z112 ręczne cardio — zawsze dostępne. Runna p.1
+          (spec B2): na dole scrolla — dostępny, ale niekonkurujący z planem
+          (ochrona niezmiennika reguły #5: ad-hoc DOKŁADA, nie podmienia). */}
+      <div className="grid grid-cols-2 gap-3">
+        <Button
+          variant="outline"
+          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+          onClick={() => {
+            const adhocDay = createAdhocDay(formatLocalDate(today), (key) => t(key as Parameters<typeof t>[0]));
+            navigate(`/workout/${adhocDay.id}?date=${formatLocalDate(today)}&autostart=true`);
+          }}
+          data-testid="quick-workout-start"
+        >
+          <Zap className="h-4 w-4 text-primary" />
+          {t('adhoc.start')}
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+          onClick={() => setCardioDialog({ open: true, edit: null })}
+          data-testid="add-cardio-open"
+        >
+          <HeartPulse className="h-4 w-4 text-fitness-cyan" />
+          {t('cardio.addButton')}
         </Button>
       </div>
 

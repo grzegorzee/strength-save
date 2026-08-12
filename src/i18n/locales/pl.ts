@@ -156,6 +156,13 @@ export const pl = {
   'dash.view': 'Zobacz',
   'dash.restDay': 'Dzisiaj wolne',
   'dash.nextTraining': 'Następny trening',
+  // Dzień regeneracji (Runna p.1, spec B2).
+  'dash.recovery.title': 'Dzień regeneracji',
+  'dash.recovery.tipSleep': 'Sen 7-9 h i białko w każdym posiłku robią dziś robotę.',
+  'dash.recovery.tipStretchPush': 'Rozciągnij klatkę i barki po wczorajszym pchaniu.',
+  'dash.recovery.tipStretchPull': 'Rozciągnij plecy i ramiona po wczorajszym ciągnięciu.',
+  'dash.recovery.tipStretchLegs': 'Rozciągnij uda i pośladki po wczorajszych nogach.',
+  'dash.recovery.tipStretchGeneric': 'Krótki spacer i lekkie rozciąganie przyspieszą regenerację.',
   // Karta tygodnia (Runna p.1, spec B1).
   'dash.week.title': 'Tydzień {current} z {total}',
   'dash.week.sessions': '{done} z {total} sesji',

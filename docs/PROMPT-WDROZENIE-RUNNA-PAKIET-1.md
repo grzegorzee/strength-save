@@ -71,7 +71,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
 - [x] **7. Karta tygodnia.** Checkmarki dni (w tym dzień przełożony
   w NOWEJ dacie i pominięty jako wygaszony), pasek sesji, tonaż tygodnia
   (spec B1). Testy: agregacja + overrides + stany brzegowe.
-- [ ] **8. Dashboard: kolejność + dzień wolny.** Sekcje wg B2, karta
+- [x] **8. Dashboard: kolejność + dzień wolny.** Sekcje wg B2, karta
   regeneracji, "Szybki trening" na dole. Test niezmiennika: wszystkie
   dotychczasowe elementy Dashboardu obecne (wzorzec profile-sections).
 - [ ] **9. WorkoutDay: przerwa-hero + press-and-hold.** Prezentacja dwóch
