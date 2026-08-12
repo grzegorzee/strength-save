@@ -58,7 +58,7 @@ projektu (Karpathy, checklist, i18n w OBU plikach, sekwencje, dane usera
   (decyzja 2026-08-12): edycja inline ciężaru/powtórzeń dostępna z ekranu
   podsumowania completion (spec A3), przez istniejącą ścieżkę edycji sesji;
   sanityzacja kg; test: poprawka widoczna w historii i danych silnika.
-- [ ] **4. Ocena zasila silnik.** "Za ciężko" obniża NASTĘPNĄ propozycję,
+- [x] **4. Ocena zasila silnik.** "Za ciężko" obniża NASTĘPNĄ propozycję,
   kciuk góra = normalna progresja, brak oceny = zachowanie identyczne jak
   dziś (spec A2). Test sekwencji dwóch sesji.
 - [ ] **5. Share card + celebracja PR.** Render HTML/CSS 1080x1920 wg layoutu

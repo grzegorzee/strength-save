@@ -1478,6 +1478,7 @@ export const en: Record<keyof typeof pl, string> = {
   'nsadvice.progress': 'You hit {reps} reps — add {increment} {unit} (target {target} {unit} × {min}).',
   'nsadvice.hold.below': 'Keep {weight} {unit} and work up to {min} reps.',
   'nsadvice.hold.inrange': 'Same weight — add reps toward {max}.',
+  'nsadvice.hold.rated': 'You rated the last session: too heavy. Staying at the current load — nail confident reps.',
   // === L3 lib/data ===
   'progress.repeat': 'Repeat',
   'progress.maintainWeight': 'Hold weight',

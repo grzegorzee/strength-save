@@ -1,7 +1,7 @@
 import type { WorkoutSession } from '@/types';
 import { getExerciseHistory, detectPlateau } from '@/lib/exercise-progression';
 import { parseRepRange, isIsolationExercise, type RepRange } from '@/lib/exercise-utils';
-import { decideNextSet, type NextSetDecision } from '@/lib/progression-engine';
+import { decideNextSet, lastSessionRatedTooHeavy, type NextSetDecision } from '@/lib/progression-engine';
 import { translate, type LanguageCode } from '@/i18n';
 import { formatWeight, type UnitSystem } from '@/lib/units';
 
@@ -52,6 +52,8 @@ const reasonText = (
       return translate(lang, 'nsadvice.hold.below', { weight: disp(lastWeight), min: repRange.min, unit });
     case 'hold.inrange':
       return translate(lang, 'nsadvice.hold.inrange', { max: repRange.max });
+    case 'hold.rated':
+      return translate(lang, 'nsadvice.hold.rated');
   }
 };
 
@@ -86,6 +88,8 @@ export const getNextSetAdvice = (
     isBodyweight,
     increment,
     isPlateau: plateau.isPlateau,
+    // Spec A2 (Runna p.1): "za ciężko" z oceny sesji gasi podbicie w propozycji.
+    lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exerciseId),
   });
 
   return {

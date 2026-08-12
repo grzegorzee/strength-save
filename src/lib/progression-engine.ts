@@ -69,7 +69,8 @@ export const isDeloadWeek = (weekIndex: number, config: ProgressionConfig): bool
 export type NextSetReasonKey =
   | 'deload.bw' | 'deload.weight'
   | 'bw.progress' | 'bw.hold'
-  | 'progress' | 'hold.below' | 'hold.inrange';
+  | 'progress' | 'hold.below' | 'hold.inrange'
+  | 'hold.rated';
 
 export interface NextSetDecision {
   kind: 'progress' | 'hold' | 'deload';
@@ -89,8 +90,11 @@ export const decideNextSet = (input: {
   isBodyweight: boolean;
   increment: number;
   isPlateau: boolean;
+  /** Spec A2 (Runna p.1): ostatnia sesja oceniona "za ciężko" gasi podbicie.
+   *  Działa WYŁĄCZNIE na gałęzie progress; deload przy plateau ma priorytet. */
+  lastRatedTooHeavy?: boolean;
 }): NextSetDecision => {
-  const { lastWeight, lastReps, repRange, isBodyweight, increment, isPlateau } = input;
+  const { lastWeight, lastReps, repRange, isBodyweight, increment, isPlateau, lastRatedTooHeavy } = input;
 
   // Deload ma priorytet: jeśli wynik stoi od kilku sesji, odpuść i wróć z impetem.
   if (isPlateau) {
@@ -104,12 +108,19 @@ export const decideNextSet = (input: {
   // Bodyweight: progresja przez powtórzenia.
   if (isBodyweight) {
     if (lastReps >= repRange.max) {
+      if (lastRatedTooHeavy) {
+        return { kind: 'hold', targetWeight: 0, targetReps: lastReps, reasonKey: 'hold.rated' };
+      }
       return { kind: 'progress', targetWeight: 0, targetReps: lastReps + 1, reasonKey: 'bw.progress' };
     }
     return { kind: 'hold', targetWeight: 0, targetReps: Math.min(lastReps + 1, repRange.max), reasonKey: 'bw.hold' };
   }
 
   if (lastReps >= repRange.max) {
+    if (lastRatedTooHeavy) {
+      // Ocena "za ciężko" = bez podbicia; zostań przy ciężarze i utwierdź wynik.
+      return { kind: 'hold', targetWeight: lastWeight, targetReps: lastReps, reasonKey: 'hold.rated' };
+    }
     // Dowiozłeś górę zakresu → dołóż ciężar, zresetuj powtórzenia do dołu zakresu.
     return { kind: 'progress', targetWeight: lastWeight + increment, targetReps: repRange.min, reasonKey: 'progress' };
   }
@@ -153,6 +164,21 @@ const PLATEAU_MIN_SESSIONS = 4;
 const PAIN_THRESHOLD = 4;
 
 const roundTo = (value: number, step: number): number => Math.round(value / step) * step;
+
+/** Ocena "za ciężko" w NAJŚWIEŻSZEJ ukończonej sesji z tym ćwiczeniem (spec A2). */
+export const lastSessionRatedTooHeavy = (workouts: WorkoutSession[], exerciseId: string): boolean => {
+  let bestDate = '';
+  let tooHeavy = false;
+  for (const w of workouts) {
+    if (!w.completed) continue;
+    if (!w.exercises.some((ex) => ex.exerciseId === exerciseId)) continue;
+    if (w.date >= bestDate) {
+      bestDate = w.date;
+      tooHeavy = w.sessionRating === 'down' && (w.sessionRatingReasons ?? []).includes('too_heavy');
+    }
+  }
+  return tooHeavy;
+};
 
 /** Ból >= progu w NAJŚWIEŻSZEJ ukończonej sesji tego ćwiczenia. */
 const lastSessionPain = (workouts: WorkoutSession[], exerciseId: string): number | null => {
@@ -417,6 +443,8 @@ export const computeWeeklyTargets = (
         isBodyweight,
         increment,
         isPlateau: plateau.isPlateau,
+        // Spec A2: cele tygodniowe pokazują tę samą propozycję co karta ćwiczenia.
+        lastRatedTooHeavy: lastSessionRatedTooHeavy(workouts, exercise.id),
       });
 
       base.kind = decision.kind;

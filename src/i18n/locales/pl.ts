@@ -1499,6 +1499,7 @@ export const pl = {
   'nsadvice.progress': 'Dowiozłeś {reps} powt. — dołóż {increment} {unit} (cel {target} {unit} × {min}).',
   'nsadvice.hold.below': 'Utrzymaj {weight} {unit} i dobij do {min} powt.',
   'nsadvice.hold.inrange': 'Ten sam ciężar — dorzuć powtórzenia w stronę {max}.',
+  'nsadvice.hold.rated': 'Ostatnią sesję oceniłeś: za ciężko. Zostajemy przy obecnym obciążeniu, dowieź pewne powtórzenia.',
   // === L3 lib/data ===
   'progress.repeat': 'Powtórz',
   'progress.maintainWeight': 'Utrzymaj ciężar',
