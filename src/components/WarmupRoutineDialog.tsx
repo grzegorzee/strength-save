@@ -140,6 +140,15 @@ export const WarmupRoutineDialog = ({ focus, open, onOpenChange, checked, onTogg
             <Timer className="h-4 w-4 mr-2" /> {t('comp.warmup.timer30')}
           </Button>
         )}
+
+        {/* Jawne wyjście z rozgrzewki (zgłoszenie 2026-08-13: sam X nie wystarcza).
+            Sticky: widoczny też przy przescrollowanej liście. */}
+        <div className="sticky bottom-0 -mx-6 -mb-6 mt-2 border-t border-border/50 bg-background/95 p-4 backdrop-blur">
+          <Button className="w-full" data-testid="warmup-finish" onClick={() => onOpenChange(false)}>
+            <Check className="h-4 w-4 mr-2" />
+            {t('comp.warmup.finish')}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -952,6 +952,7 @@ export const en: Record<keyof typeof pl, string> = {
   'comp.warmup.dynamicWarmup': 'Dynamic warm-up',
   'comp.warmup.stretching': 'Stretching',
   'comp.warmup.timer30': '30s timer',
+  'comp.warmup.finish': 'Finish warm-up',
   'comp.share.title': 'Share workout',
   'comp.share.subtitle': 'Generated summary image',
   'comp.share.generateError': 'Failed to generate image',

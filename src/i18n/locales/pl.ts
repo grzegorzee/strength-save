@@ -974,6 +974,7 @@ export const pl = {
   'comp.warmup.dynamicWarmup': 'Rozgrzewka dynamiczna',
   'comp.warmup.stretching': 'Stretching',
   'comp.warmup.timer30': 'Timer 30s',
+  'comp.warmup.finish': 'Zakończ rozgrzewkę',
   'comp.share.title': 'Udostępnij trening',
   'comp.share.subtitle': 'Wygenerowany obraz podsumowania',
   'comp.share.generateError': 'Nie udało się wygenerować obrazu',
