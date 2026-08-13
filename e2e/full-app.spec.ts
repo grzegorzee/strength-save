@@ -670,8 +670,9 @@ test.describe('Linki krzyżowe (Z67)', () => {
     await page.getByRole('button', { name: 'Pełna historia' }).click();
     await expect(page).toHaveURL(/#\/history$/);
 
-    await navigateAndWait(page, '/');
-    await page.getByRole('button', { name: 'Cykle', exact: true }).click();
+    // FIX-B T5: Cykle przeniesione z karty planu Dashboardu na stronę Planu.
+    await navigateAndWait(page, '/plan');
+    await page.getByTestId('plan-cycles-link').click();
     await expect(page).toHaveURL(/#\/cycles$/);
   });
 

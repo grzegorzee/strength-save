@@ -21,6 +21,8 @@ import {
 } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { trainingPlan as defaultPlanData } from '@/data/trainingPlan';
+import { localizeExerciseName } from '@/data/exercise-i18n';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
@@ -140,6 +142,47 @@ const SummaryTab = () => {
 
     return allPRs;
   }, [boundsStartMs, currentWorkouts, resolver, workouts]);
+
+  // FIX-B T5: ostatni PR przeniesiony z Dashboardu 1:1 (memo + formatPRDate).
+  const latestPR = useMemo(() => {
+    const allNames = new Map<string, string>([
+      ...defaultPlanData.flatMap(d => d.exercises.map(e => [e.id, e.name] as [string, string])),
+      ...trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name] as [string, string])),
+    ]);
+    const completedSorted = workouts
+      .filter(w => w.completed)
+      .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
+
+    let checked = 0;
+    for (const workout of completedSorted) {
+      if (checked >= 10) break;
+      checked++;
+      const olderWorkouts = completedSorted.filter(
+        w => w.id !== workout.id && parseLocalDate(w.date) < parseLocalDate(workout.date),
+      );
+      if (olderWorkouts.length === 0) continue;
+      const prs = detectNewPRs(workout, olderWorkouts, allNames);
+      if (prs.length > 0) {
+        return {
+          exerciseName: prs[0].exerciseName,
+          value: prs[0].newValue,
+          type: prs[0].type,
+          date: workout.date,
+        };
+      }
+    }
+    return null;
+  }, [workouts, trainingPlan]);
+
+  const formatPRDate = (dateStr: string) => {
+    const d = parseLocalDate(dateStr);
+    const today = new Date();
+    const diffDays = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return t('dash.date.today');
+    if (diffDays === 1) return t('dash.date.yesterday');
+    if (diffDays < 7) return t('dash.date.daysAgo', { n: diffDays });
+    return d.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
+  };
 
   const periodMeasurements = measurements.filter(m => {
     const d = parseLocalDate(m.date);
@@ -269,6 +312,34 @@ const SummaryTab = () => {
           </div>
         </CardContent></Card>
       </div>
+
+      {/* FIX-B T5: ostatni PR (z Dashboardu) — dom rekordów to Achievements. */}
+      {latestPR && (
+        <Card
+          data-testid="analytics-last-pr"
+          className="cursor-pointer hover:border-primary/40 transition-all duration-200 border-primary/20"
+          onClick={() => navigate('/achievements')}
+        >
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Trophy className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{t('dash.lastPR')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {localizeExerciseName(latestPR.exerciseName, lang)} — <span className="font-heading font-semibold text-foreground">{fmt(latestPR.value)}</span>
+                    {' '}
+                    <span className="text-muted-foreground">({formatPRDate(latestPR.date)})</span>
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Świeżość PR zostaje tu, ale dom rekordów to Achievements (Z79) — klik prowadzi tam. */}
       {periodPRs.length > 0 && (

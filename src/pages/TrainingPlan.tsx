@@ -11,7 +11,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarDays, Dumbbell, Pencil, CheckCircle, HeartPulse, Zap, Timer } from 'lucide-react';
+import { CalendarDays, Dumbbell, History, Pencil, CheckCircle, HeartPulse, Zap, Timer } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -264,6 +264,16 @@ const TrainingPlan = () => {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {/* FIX-B T5: stałe wejście do Cykli (na mobile żyło tylko na
+                  usuniętej karcie planu Dashboardu). */}
+              <button
+                onClick={() => navigate('/cycles')}
+                data-testid="plan-cycles-link"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border-0 bg-surface-low text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors"
+              >
+                <History className="h-3.5 w-3.5" />
+                {t('dash.cycles')}
+              </button>
               <button
                 onClick={() => navigate('/plan/edit')}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border-0 bg-surface-low text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors"

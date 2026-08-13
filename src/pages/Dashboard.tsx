@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, Calendar, Pencil, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useToday } from '@/hooks/useToday';
 import { useToast } from '@/hooks/use-toast';
 import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
-import { trainingPlan as defaultPlanData, type TrainingDay } from '@/data/trainingPlan';
+import { type TrainingDay } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
@@ -35,7 +35,6 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { calculateStreakDetails, getWeekBounds } from '@/lib/summary-utils';
-import { detectNewPRs } from '@/lib/pr-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { MissedWorkoutBanner } from '@/components/MissedWorkoutBanner';
@@ -54,7 +53,6 @@ import { countCompletedWorkingSets } from '@/lib/workout-day-view';
 import { createAdhocDay } from '@/lib/adhoc-workout';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
-import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { weeklyStravaKm, currentWeekCardio } from '@/lib/activity-window';
@@ -652,37 +650,6 @@ const Dashboard = () => {
     };
   }, [workouts, streak]);
 
-  // Find most recent PR
-  const latestPR = useMemo(() => {
-    const allNames = new Map<string, string>([
-      ...defaultPlanData.flatMap(d => d.exercises.map(e => [e.id, e.name] as [string, string])),
-      ...trainingPlan.flatMap(d => d.exercises.map(e => [e.id, e.name] as [string, string])),
-    ]);
-    const completedSorted = workouts
-      .filter(w => w.completed)
-      .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
-
-    let checked = 0;
-    for (const workout of completedSorted) {
-      if (checked >= 10) break;
-      checked++;
-      const olderWorkouts = completedSorted.filter(
-        w => w.id !== workout.id && parseLocalDate(w.date) < parseLocalDate(workout.date),
-      );
-      if (olderWorkouts.length === 0) continue;
-      const prs = detectNewPRs(workout, olderWorkouts, allNames);
-      if (prs.length > 0) {
-        return {
-          exerciseName: prs[0].exerciseName,
-          value: prs[0].newValue,
-          type: prs[0].type,
-          date: workout.date,
-        };
-      }
-    }
-    return null;
-  }, [workouts, trainingPlan]);
-
   // Weekly Strava km counter (Mon-Sun) — logika w activity-window (Z214, test fixture >500).
   const weeklyKm = useMemo(() => {
     const monday = getStartOfPlanWeek(today);
@@ -701,9 +668,6 @@ const Dashboard = () => {
     day: 'numeric',
     month: 'long',
   });
-
-  // Time progress through the plan (0 until the plan actually starts).
-  const planProgress = planStarted ? Math.min(100, Math.round((currentWeek / planDurationWeeks) * 100)) : 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -761,16 +725,6 @@ const Dashboard = () => {
       </div>
     );
   }
-
-  const formatPRDate = (dateStr: string) => {
-    const d = parseLocalDate(dateStr);
-    const today = new Date();
-    const diffDays = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return t('dash.date.today');
-    if (diffDays === 1) return t('dash.date.yesterday');
-    if (diffDays < 7) return t('dash.date.daysAgo', { n: diffDays });
-    return d.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
-  };
 
   // PRO-E T2: banery stanu w jednym slocie priorytetowym. Warunki i JSX 1:1
   // z dotychczasowych bloków — zmienia się wyłącznie miejsce renderu.
@@ -1135,93 +1089,8 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Your Plan Card */}
-      {!planEnded && trainingPlan.length > 0 && (
-        <Card data-testid="dash-plan-card" className="hover:border-primary/30 transition-all duration-200">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
-                <h2 className="font-heading font-bold text-base uppercase tracking-tight">{t('dash.yourPlan')}</h2>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground h-7 gap-1"
-                  onClick={() => navigate('/cycles')}
-                >
-                  {t('dash.cycles')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-muted-foreground h-7 gap-1"
-                  onClick={() => navigate('/plan/edit')}
-                >
-                  <Pencil className="h-3 w-3" />
-                  {t('dash.edit')}
-                </Button>
-              </div>
-            </div>
-
-            {/* Plan meta */}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 flex-wrap">
-              <span>{t('dash.timesPerWeek', { n: trainingPlan.length })}</span>
-              <span>·</span>
-              {planStarted ? (
-                <span>{t('dash.weekOf', { current: Math.min(currentWeek, planDurationWeeks), total: planDurationWeeks })}</span>
-              ) : (
-                <span>
-                  {t('dash.startDate')}: {parseLocalDate(planStartDate!).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })}
-                  {' · '}
-                  {t('dash.startsInDays', { n: Math.max(1, Math.ceil((parseLocalDate(planStartDate!).getTime() - Date.now()) / 86_400_000)) })}
-                </span>
-              )}
-            </div>
-
-            {/* Progress bar (PRO-E T4: karta = wizytówka planu; lista dni żyje
-                w WeekCard i sekcji "Plan tygodnia", nie potrzeci raz tutaj) */}
-            <div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500"
-                  style={{ width: `${planProgress}%` }}
-                />
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-1">{t('dash.planProgress', { percent: planProgress })}</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Latest PR */}
-      {latestPR && (
-        <Card
-          data-testid="dash-last-pr"
-          className="cursor-pointer hover:border-primary/40 transition-all duration-200 border-primary/20"
-          onClick={() => navigate('/achievements')}
-        >
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Trophy className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{t('dash.lastPR')}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {localizeExerciseName(latestPR.exerciseName, lang)} — <span className="font-heading font-semibold text-foreground">{fmt(latestPR.value)}</span>
-                    {' '}
-                    <span className="text-muted-foreground">({formatPRDate(latestPR.date)})</span>
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* FIX-B T5: karta planu usunięta (dublowała zakładkę Plan; Cykle mają
+          stałe wejście na /plan), ostatni PR przeniesiony do Analityki. */}
 
       {/* This week's training — merged timeline */}
       <div data-testid="dash-week-section" className="space-y-3">

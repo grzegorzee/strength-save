@@ -144,7 +144,9 @@ beforeEach(() => {
 });
 
 describe('kolejność Dashboardu (spec B2)', () => {
-  it('niezmiennik elementów + Szybki trening na dole (po karcie tygodnia i planie)', async () => {
+  it('niezmiennik elementów + Szybki trening na dole (po karcie tygodnia)', async () => {
+    // FIX-B T5: karta planu i ostatni PR opuściły Dashboard (Cykle -> /plan,
+    // PR -> Analityka) — niezmiennik pilnuje reszty kolejności.
     planFixture.plan = [dayOn(0, 'day-1', 'Push')];
     renderDashboard();
     await waitFor(() => expect(screen.getByTestId('week-card')).toBeTruthy());
@@ -152,11 +154,11 @@ describe('kolejność Dashboardu (spec B2)', () => {
     const weekCard = screen.getByTestId('week-card');
     const quickStart = screen.getByTestId('quick-workout-start');
     const cardio = screen.getByTestId('add-cardio-open');
-    const planCard = screen.getByText('Twój Plan Treningowy');
     const analytics = screen.getByText('Zobacz analitykę');
 
+    expect(screen.queryByTestId('dash-plan-card')).toBeNull();
+    expect(screen.queryByTestId('dash-last-pr')).toBeNull();
     expect(weekCard.compareDocumentPosition(quickStart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(planCard.compareDocumentPosition(quickStart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(quickStart.compareDocumentPosition(analytics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(cardio).toBeTruthy();
   });

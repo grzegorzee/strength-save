@@ -62,10 +62,10 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/admin');
   });
 
-  test('z Dashboardu: Cykle (karta planu)', async ({ page }) => {
-    await navigateAndWait(page, '/');
-    await expectPageRendered(page);
-    await page.getByRole('button', { name: 'Cykle' }).click();
+  test('z Planu: Cykle', async ({ page }) => {
+    // FIX-B T5: karta planu zniknęła z Dashboardu — Cykle mają stałe wejście na /plan.
+    await navigateAndWait(page, '/plan');
+    await page.getByTestId('plan-cycles-link').click();
     await expectHashRoute(page, '/cycles');
   });
 
