@@ -24,6 +24,14 @@ const config: CapacitorConfig = {
   // rozjeżdżał layout i ucinał treść po bokach (incydent 2026-07-20).
   zoomEnabled: false,
   plugins: {
+    SplashScreen: {
+      // Zgłoszenie 2026-08-13: splash znikał po ~0.5 s i user oglądał czarną
+      // szczelinę do wstania weba. Splash z logo zostaje aż React wstanie —
+      // chowa go hideNativeSplashWhenReady() (src/lib/native-splash.ts).
+      launchAutoHide: false,
+      backgroundColor: '#0a0a1a',
+      showSpinner: false,
+    },
     FirebaseAuthentication: {
       // Native tworzy tylko credential; logowanie do Firebase robi JS SDK
       // (signInWithCredential), żeby stan auth był spójny z resztą apki (Firestore).
