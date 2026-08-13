@@ -22,6 +22,7 @@ import { ConsentGate } from '@/components/ConsentGate';
 import { needsConsentRefresh } from '@/lib/consent-selection';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { initGlobalErrorTelemetry, setGlobalErrorTelemetryUid } from '@/lib/global-error-telemetry';
+import { isFirestoreInternalAssertion } from '@/lib/firestore-crash-guard';
 
 const Dashboard = lazyWithRetry(() => import('@/pages/Dashboard'), 'lazy-retry:dashboard');
 const DayPlan = lazyWithRetry(() => import('@/pages/DayPlan'), 'lazy-retry:day-plan');
@@ -55,6 +56,9 @@ const AppLoader = () => (
 const RouteCrashFallback = ({ onReset, error, code }: { onReset: () => void; error: Error | null; code: string }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  // Po asercji Firestore SDK jest martwe do końca życia strony — nawigacja SPA
+  // niczego nie naprawia, potrzebny pełny reload (draft przeżywa w IDB/localStorage).
+  const isFirestoreCrash = isFirestoreInternalAssertion(error);
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-4">
       <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center">
@@ -70,8 +74,18 @@ const RouteCrashFallback = ({ onReset, error, code }: { onReset: () => void; err
             {error.message}
           </p>
         )}
-        <Button className="mt-6" onClick={() => { onReset(); navigate('/'); }}>
-          {t('errors.backToDashboard')}
+        <Button
+          className="mt-6"
+          onClick={() => {
+            if (isFirestoreCrash) {
+              window.location.reload();
+              return;
+            }
+            onReset();
+            navigate('/');
+          }}
+        >
+          {isFirestoreCrash ? t('errors.restartApp') : t('errors.backToDashboard')}
         </Button>
       </div>
     </div>

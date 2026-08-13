@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { reportClientError } from '@/lib/error-telemetry';
 import { auth } from '@/lib/firebase';
+import { isFirestoreInternalAssertion } from '@/lib/firestore-crash-guard';
 
 /**
  * Krótki kod błędu do zgłoszenia przez usera.
@@ -83,12 +84,17 @@ export class ErrorBoundary extends Component<Props, State> {
             title: 'Something went wrong',
             desc: 'The app hit an unexpected error. Try refreshing the page.',
             refresh: 'Refresh page',
+            restart: 'Restart app',
           }
         : {
             title: 'Coś poszło nie tak',
             desc: 'Aplikacja napotkała nieoczekiwany błąd. Spróbuj odświeżyć stronę.',
             refresh: 'Odśwież stronę',
+            restart: 'Uruchom ponownie',
           };
+      // Po asercji Firestore SDK jest martwe do końca życia strony — jedyne
+      // wyjście to pełny restart, więc etykieta ma to mówić wprost.
+      const isFirestoreCrash = isFirestoreInternalAssertion(this.state.error);
 
       return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-background">
@@ -113,7 +119,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="w-full"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
-                {txt.refresh}
+                {isFirestoreCrash ? txt.restart : txt.refresh}
               </Button>
             </CardContent>
           </Card>

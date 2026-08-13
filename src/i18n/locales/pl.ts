@@ -8,6 +8,7 @@ export const pl = {
   'errors.routeCrashTitle': 'Coś poszło nie tak',
   'errors.routeCrashDesc': 'Ta strona napotkała nieoczekiwany błąd. Twoje dane treningowe są bezpieczne.',
   'errors.backToDashboard': 'Wróć na Dashboard',
+  'errors.restartApp': 'Uruchom ponownie',
   'common.back': 'Wstecz',
   'common.loading': 'Ładowanie...',
   'common.loadMore': 'Załaduj więcej',

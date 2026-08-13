@@ -61,6 +61,19 @@ describe('ErrorBoundary (Z56)', () => {
     expect(reportClientError.mock.calls[0][0]).toBe('auth-user');
   });
 
+  it('asercja Firestore: przycisk mówi o restarcie apki, nie o odświeżeniu strony', () => {
+    const FirestoreBomb = (): never => {
+      throw new Error('FIRESTORE (12.8.0) INTERNAL ASSERTION FAILED: Unexpected state (ID: b815)');
+    };
+    render(
+      <ErrorBoundary uid="u1">
+        <FirestoreBomb />
+      </ErrorBoundary>,
+    );
+
+    expect(screen.getByRole('button', { name: /Uruchom ponownie|Restart app/ })).toBeTruthy();
+  });
+
   it('własny fallback dostaje reset i jest renderowany zamiast domyślnego', () => {
     render(
       <ErrorBoundary uid="u1" fallback={() => <p>route-fallback</p>}>

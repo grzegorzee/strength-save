@@ -8,6 +8,7 @@ export const en: Record<keyof typeof pl, string> = {
   'errors.routeCrashTitle': 'Something went wrong',
   'errors.routeCrashDesc': 'This page hit an unexpected error. Your workout data is safe.',
   'errors.backToDashboard': 'Back to Dashboard',
+  'errors.restartApp': 'Restart app',
   'common.back': 'Back',
   'common.loading': 'Loading...',
   'common.loadMore': 'Load more',
