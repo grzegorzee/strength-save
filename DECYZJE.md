@@ -5,11 +5,46 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-13 (FIX A-B DOMKNIĘTE: 2 wydania na prod, iOS 101-102, AAB 17-18)
+**Ostatnia aktualizacja:** 2026-08-13 (WYDANIE FIX-C: czas treningu + edytor serii + splash, iOS 103, AAB v19)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-13: WYDANIE FIX-C — zgłoszenia z testu po południu (4 naprawy)
+
+**Co:** czas treningu, edytor serii, czarne kafle po resume, splash na starcie.
+Pełny release train: web index-C19splrj.js + iOS 103 (APPROVED, Watch w IPA) + AAB v19
+(jar verified, SHA-256 9056c4a1...).
+
+1. **Czas treningu (b1c8ed83):** ground truth z Firestore: trening 2026-08-13 miał
+   startedAt 04:09:26Z, completedAt 05:28:49Z (1h19m23s), a durationSec=180. Root cause:
+   fallback localStorage nie niósł startedAt/lastActivityAt/finalizedAt; przy martwym IDB
+   (cała sesja na fallbacku) merge Z182 dziedziczył stęchły lastActivityAt z IDB
+   (= startedAt) i clamp Z142 uznawał sesję za porzuconą (duration = bufor 3 min).
+   Fix: znaczniki czasu w kształcie fallbacku (WorkoutDraft), withFallbackSave/Load
+   w obie strony, resolveFresherFallback preferuje znaczniki świeższego fallbacku
+   (startedAt celowo z IDB — stare fallbacki bez pola fałszowałyby go przez savedAt).
+   NAPRAWA DANYCH za jawną zgodą usera: durationSec 180 -> 4763 (PATCH updateMask
+   wyłącznie durationSec, wzorzec repair-duration-outliers).
+2. **Edytor serii (f5845a7a):** format "N × reps" rozbity na stepper liczby serii (1-12)
+   + pole powtórzeń; formaty niestandardowe (AMRAP) dostają surowe pole. Zgłoszenie:
+   nie dało się edytować liczby serii w ciasnym inpucie.
+3. **Czarne kafle po resume (ba988052):** kompozytor WKWebView potrafi nie przemalować
+   warstw po powrocie z tła (treść jest, dotyk działa, piksele czarne — inny defekt niż
+   scroll-lock b.92). forceRepaint: toggle transform na <html> przez dwie klatki,
+   instalowany w main.tsx (appStateChange/visibilitychange). Główne przyczyny czarnych
+   ekranów usera (martwe SDK + scroll-lock) naprawione już w b.101/102 — zrzut usera
+   z 07:30 pochodził z builda sprzed fixów.
+4. **Splash (6831e53b):** natywny splash z logo ZNIKAŁ po ~0.5 s i user oglądał czarną
+   szczelinę do wstania weba. @capacitor/splash-screen: launchAutoHide:false +
+   hide({fadeOutDuration:200}) po pierwszej klatce Reacta (hideNativeSplashWhenReady).
+
+**Weryfikacja:** 1662 testy jednostkowe (+11 nowych TDD), typecheck, lint, build,
+no-emoji, pełne e2e 394 PASS na świeżym vite (nowa zależność natywna = obowiązkowy
+reset cache). Backlog z rozmowy: obciążenie dodatkowe przy ćwiczeniach bodyweight
+(BW+20 kg; model: pole weight serii = dodatek, effective load = masa ciała + dodatek,
+progresja reps-first) — do osobnego planu.
 
 ### 2026-08-13: FIX A-B — zbiorcze zamknięcie (zgłoszenia z treningu 2026-08-13)
 
