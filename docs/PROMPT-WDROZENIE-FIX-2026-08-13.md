@@ -77,8 +77,11 @@
       że garmin-day/ingest nie dotykają measurements). Adnotacja w garmin/README.md.
       — POTWIERDZONE: diff 8c89be8d..HEAD bez plików kontraktu; grep measurement
       w functions (garmin-*/linked-devices) = 0; adnotacja dodana w README
-- [ ] Apple Watch: StrengthWatch.app w IPA obu wydań (unzip -l) + komplet testów
-      kontraktu watch zielony + zero plików watch w diffie.
+- [x] Apple Watch: StrengthWatch.app w IPA obu wydań (unzip -l) + komplet testów
+      kontraktu watch zielony + zero plików watch w diffie. — IPA 102
+      (CFBundleVersion=102) z Watch/StrengthWatch.app; 101 zweryfikowany przy
+      WYDANIU FIX-A; diff 8c89be8d..HEAD bez plików watch; 9 speców kontraktu
+      46/46 PASS
 - [ ] DECYZJE.md: zbiorczy wpis FIX A-B (co, dlaczego, root cause'y, weryfikacja)
       + PLAN.md: kamień M56 odhaczony (PLAN.md jest w .gitignore — edytuj lokalnie).
 - [ ] STOP pętli (ScheduleWakeup stop:true).
