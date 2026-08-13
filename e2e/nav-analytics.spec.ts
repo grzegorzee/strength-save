@@ -15,13 +15,14 @@ test.describe('Bottom nav: Analytics replaces History', () => {
     await expect(mobileNav.getByRole('link', { name: /Historia/i })).toHaveCount(0);
   });
 
-  test('analytics opens on Weekly tab by default', async ({ page }) => {
+  test('analytics opens on Summary tab by default', async ({ page }) => {
+    // FIX-B T6: bez ?tab= otwiera się BIEŻĄCE podsumowanie (weekly digest
+    // otwierał się na "randomowym" tygodniu z wejścia z Dashboardu).
     await blockFirebase(page);
     await setE2EAuthScenario(page, 'active-user');
     await navigateAndWait(page, '/analytics');
 
-    await expect(page.getByRole('tab', { name: 'Tygodnie' })).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByText('Podsumowania tygodniowe')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Podsum.' })).toHaveAttribute('aria-selected', 'true');
 
     // Jawny parametr nadal działa
     await navigateAndWait(page, '/analytics?tab=charts');
