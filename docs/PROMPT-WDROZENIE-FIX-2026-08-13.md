@@ -49,7 +49,7 @@
 - [x] A-T1: crash-guard Firestore (INTERNAL ASSERTION → kontrolowany reload; ErrorBoundary z restartem) — commit c357bbeb; guard + anti-loop 2 min w main.tsx, restart w ErrorBoundary ORAZ RouteCrashFallback (tam realnie była nawigacja SPA)
 - [x] A-T2: releaseBodyLocks w ErrorBoundary (czarny ekran po awarii sheeta) — commit 8d7d3dc8; lib + wywołanie w componentDidCatch + test integracyjny niezmiennika (1649 testów PASS)
 - [x] A-T3: Zakończ trening zwykłym przyciskiem + potwierdzenie (usunięcie HoldToFinishButton) — commit e28ac0fa; zero referencji hold-to-finish w e2e, celowane e2e full-app+resume-after-kill 168 PASS, testy 1645 PASS
-- [ ] A-T4: „Błąd zapisu" tylko po totalnym failu (DraftSaveTotalFailure, retry 3 s, telemetria stage)
+- [x] A-T4: „Błąd zapisu" tylko po totalnym failu (DraftSaveTotalFailure, retry 3 s, telemetria stage) — commit 994f1e81; stage przez client_errors (nie nowy event — whitelist w rules), testy 1647 PASS + lint OK
 - [ ] WYDANIE FIX-A: pełny checklist z CLAUDE.md → web deploy + iOS 101 (z Watch)
       TestFlight + Android AAB v17 + wpis DECYZJE.md
 
@@ -107,3 +107,10 @@
   (ErrorBoundary z mini-słownika, RouteCrashFallback z i18n errors.restartApp).
   Test unhandledrejection zbudowany ręcznie (jsdom nie ma PromiseRejectionEvent,
   wariant przewidziany w planie). Checkpoint: 1646 testów PASS, typecheck OK.
+
+- 2026-08-13 (A-T4): Plan proponował stage w trzecim argumencie trackTelemetryEvent
+  albo w nazwie eventu — sygnatura przyjmuje tylko count, a nazwy eventów mają
+  whitelist w rules Firestore (nowa nazwa = deploy rules, poza zakresem FIX-A).
+  Wybrany wariant mniejszy: licznik local_save_failed bez zmian + stage/streak
+  kanałem client_errors (code 'draft-save-total-failure', rules przyjmują dowolny
+  code do 64 znaków). Intencja planu (twarda telemetria który etap padł) zachowana.
