@@ -50,8 +50,11 @@
 - [x] A-T2: releaseBodyLocks w ErrorBoundary (czarny ekran po awarii sheeta) — commit 8d7d3dc8; lib + wywołanie w componentDidCatch + test integracyjny niezmiennika (1649 testów PASS)
 - [x] A-T3: Zakończ trening zwykłym przyciskiem + potwierdzenie (usunięcie HoldToFinishButton) — commit e28ac0fa; zero referencji hold-to-finish w e2e, celowane e2e full-app+resume-after-kill 168 PASS, testy 1645 PASS
 - [x] A-T4: „Błąd zapisu" tylko po totalnym failu (DraftSaveTotalFailure, retry 3 s, telemetria stage) — commit 994f1e81; stage przez client_errors (nie nowy event — whitelist w rules), testy 1647 PASS + lint OK
-- [ ] WYDANIE FIX-A: pełny checklist z CLAUDE.md → web deploy + iOS 101 (z Watch)
-      TestFlight + Android AAB v17 + wpis DECYZJE.md
+- [x] WYDANIE FIX-A: pełny checklist z CLAUDE.md → web deploy + iOS 101 (z Watch)
+      TestFlight + Android AAB v17 + wpis DECYZJE.md — bramki+e2e 394 PASS,
+      web live index-CpaMokif.js, iOS 101 APPROVED (204/204/200, Watch w IPA),
+      AAB v17 jar verified (SHA-256 7a38d0b5...), DECYZJE.md zaktualizowane;
+      NASTĘPNY bump iOS = 102, versionCode = 18
 
 ### Plan FIX-B — UX i porządki (docs/PLAN-FIX-B-2026-08-13.md)
 - [ ] B-T1: „Zakończ rozgrzewkę" w WarmupRoutineDialog (decyzja: bez animacji ćwiczeń w rozgrzewce)
@@ -114,3 +117,12 @@
   Wybrany wariant mniejszy: licznik local_save_failed bez zmian + stage/streak
   kanałem client_errors (code 'draft-save-total-failure', rules przyjmują dowolny
   code do 64 znaków). Intencja planu (twarda telemetria który etap padł) zachowana.
+
+- 2026-08-13 (WYDANIE FIX-A): pierwsze tło e2e ubite przez harness (task killed,
+  zero outputu) — powtórka na pierwszym planie przeszła 394 PASS w ~5 min.
+  release-ios.sh odpalony przez nohup+disown (odporny na kill), Android budowany
+  dopiero PO iOS (oba używają dist/ — wyścig build:mobile). Scenariusz sekwencji
+  z planu pokryty specami e2e (resume-after-kill/full-app/continue-workout),
+  bez ręcznego testu urządzeniowego (brak urządzenia w sesji agenta — user
+  dostaje build 101 na TestFlight). Pułapka cd: gradlew z `cd android` zostawił
+  shell w android/, kolejne ścieżki względne się wywracały.

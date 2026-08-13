@@ -5,11 +5,43 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-13 (PRO A-E DOMKNIĘTE: 5 wydań na prod, iOS 96-100, AAB 12-16)
+**Ostatnia aktualizacja:** 2026-08-13 (WYDANIE FIX-A: stabilność na prod, iOS 101, AAB v17)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-13: WYDANIE FIX-A — stabilność przed launchem (zgłoszenia z treningu 2026-08-13)
+
+**Co:** Cztery naprawy stabilności + pełny release train (web + iOS 101 z Watch + Android AAB v17).
+
+1. **A-T1 crash-guard Firestore (c357bbeb):** po `INTERNAL ASSERTION FAILED` (screen usera E-RM6GU,
+   b815 po resume WKWebView) SDK jest martwe do końca życia strony. Globalny guard
+   (unhandledrejection/error, instalacja w main.tsx przed renderem) robi kontrolowany reload
+   z anti-loopem raz na 2 min; draft przeżywa w IDB/localStorage. ErrorBoundary i
+   RouteCrashFallback przy asercji pokazują „Uruchom ponownie" i robią hard reload
+   (nawigacja SPA nie wskrzesza SDK — root cause „Wróć na Dashboard" nic nie naprawiał).
+2. **A-T2 releaseBodyLocks (8d7d3dc8):** awaryjny unmount otwartego Radix Sheet zostawiał
+   na body pointer-events:none + scroll-lock (mechanizm regresji b.92, „czarny ekran po
+   Twoich liczbach"). ErrorBoundary w componentDidCatch zdejmuje blokady i osierocone
+   overlaye — fallback zawsze klikalny. Test niezmiennika w error-boundary.test.tsx.
+3. **A-T3 przycisk zakończenia (e28ac0fa):** press-and-hold (ring 900 ms) zawodził na
+   siłowni — drgnięcie palca = onPointerLeave anulował hold (timer nabił 1:18:44).
+   Powrót do zwykłego przycisku + istniejące potwierdzenie [Anuluj]/[Potwierdź].
+   HoldToFinishButton usunięty.
+4. **A-T4 błąd zapisu tylko po totalnym failu (994f1e81):** czerwony „Błąd zapisu" leciał
+   z KAŻDEGO wyjątku saveActiveDraft, także gdy fallback localStorage uratował dane.
+   Teraz: DraftSaveTotalFailure('fallback') tylko gdy IDB + retry + localStorage padły;
+   1. fail = cichy retry po 3 s, czerwony od 2. z rzędu; stage/streak do client_errors
+   (code draft-save-total-failure — whitelist eventów telemetrii w rules nietknięta).
+
+**Weryfikacja:** 1647 testów jednostkowych PASS, typecheck, lint, build, check:no-emoji;
+pełne e2e 394 PASS na świeżym vite (sekwencja start→wyjście→powrót→zakończ→sync pokryta
+specami resume-after-kill/full-app/continue-workout). Web live: index-CpaMokif.js na
+app.strengthsave.app. iOS build 101 (MARKETING_VERSION 1.0.0): upload OK, obie grupy
+TestFlight (204/204), whatsNew 200, Beta App Review APPROVED, Watch/StrengthWatch.app
+w IPA (unzip -l). Android AAB versionCode 17: jar verified,
+SHA-256 7a38d0b54ee56f913da5c58915ab88d20f2d0da3da513713d6dde9cf66eeaf9b.
 
 ### 2026-08-13: PRO A-E — zbiorcze zamknięcie pakietu (5 wydań w jedną pętlę /loop)
 
