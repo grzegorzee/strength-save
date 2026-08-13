@@ -152,6 +152,12 @@ const Measurements = () => {
                 <div key={m.id} className="rounded-lg bg-muted/50 p-3 space-y-2">
                   <span className="text-sm font-medium">
                     {parseLocalDate(m.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {/* FIX-B T7: godzina wykonania (pomiary sprzed recordedAt jej nie mają) */}
+                    {m.recordedAt && (
+                      <span className="ml-1 text-xs text-muted-foreground tabular-nums">
+                        {new Date(m.recordedAt).toLocaleTimeString(dateLocale(lang), { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
                   </span>
                   {/* Wszystkie wypełnione pola wpisu + delta vs poprzedni pomiar pola (Z77) */}
                   <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">

@@ -193,7 +193,8 @@ export const useFirebaseWorkoutActions = (
     if (!validateMeasurement(measurement).valid) return { measurement: null, error: 'INVALID_MEASUREMENT' };
 
     // Sanitize: remove undefined values (Firebase doesn't accept them)
-    const sanitized: Record<string, string | number> = { id, userId, date: measurement.date };
+    // FIX-B T7: recordedAt = godzina wykonania pomiaru (rules dopuszczają number).
+    const sanitized: Record<string, string | number> = { id, userId, date: measurement.date, recordedAt: Date.now() };
     for (const [key, value] of Object.entries(measurement)) {
       if (value !== undefined && key !== 'id' && key !== 'userId') {
         sanitized[key] = value;

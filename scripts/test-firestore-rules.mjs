@@ -294,6 +294,9 @@ const validMeasurement = { id: 'm-1', userId: UID, date: '2026-06-08', weight: 8
 add('measurements: zgodny pomiar ALLOWED', true, await ok(() => setDoc(doc(db, 'measurements', 'm-1'), validMeasurement)));
 add('measurements: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-2'), { ...validMeasurement, id: 'm-2', notes: 'blob' })));
 add('measurements: weight nie-liczba DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-3'), { ...validMeasurement, id: 'm-3', weight: 'duzo' })));
+// FIX-B T7: godzina wykonania pomiaru (epoch ms, pole opcjonalne).
+add('measurements: recordedAt (number) ALLOWED', true, await ok(() => setDoc(doc(db, 'measurements', 'm-4'), { ...validMeasurement, id: 'm-4', recordedAt: 1765600000000 })));
+add('measurements: recordedAt zlego typu DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-5'), { ...validMeasurement, id: 'm-5', recordedAt: 'wczoraj' })));
 
 // plan_cycles: zamkniety schemat (dokument produkcyjny z technical/hiddenFromInsights przechodzi)
 await env.clearFirestore();

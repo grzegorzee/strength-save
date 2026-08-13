@@ -98,4 +98,6 @@ export interface BodyMeasurement {
   thighRight?: number;
   calfLeft?: number;
   calfRight?: number;
+  /** Epoch ms wykonania pomiaru (2026-08-13); brak = pomiar sprzed tej wersji. */
+  recordedAt?: number;
 }
