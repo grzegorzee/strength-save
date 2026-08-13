@@ -48,7 +48,7 @@
 ### Plan FIX-A — Stabilność (docs/PLAN-FIX-A-2026-08-13.md)
 - [x] A-T1: crash-guard Firestore (INTERNAL ASSERTION → kontrolowany reload; ErrorBoundary z restartem) — commit c357bbeb; guard + anti-loop 2 min w main.tsx, restart w ErrorBoundary ORAZ RouteCrashFallback (tam realnie była nawigacja SPA)
 - [x] A-T2: releaseBodyLocks w ErrorBoundary (czarny ekran po awarii sheeta) — commit 8d7d3dc8; lib + wywołanie w componentDidCatch + test integracyjny niezmiennika (1649 testów PASS)
-- [ ] A-T3: Zakończ trening zwykłym przyciskiem + potwierdzenie (usunięcie HoldToFinishButton)
+- [x] A-T3: Zakończ trening zwykłym przyciskiem + potwierdzenie (usunięcie HoldToFinishButton) — commit e28ac0fa; zero referencji hold-to-finish w e2e, celowane e2e full-app+resume-after-kill 168 PASS, testy 1645 PASS
 - [ ] A-T4: „Błąd zapisu" tylko po totalnym failu (DraftSaveTotalFailure, retry 3 s, telemetria stage)
 - [ ] WYDANIE FIX-A: pełny checklist z CLAUDE.md → web deploy + iOS 101 (z Watch)
       TestFlight + Android AAB v17 + wpis DECYZJE.md
