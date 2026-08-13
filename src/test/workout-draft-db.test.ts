@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LOCAL_STORAGE_WORKOUT_DRAFT_KEY, getScopedWorkoutDraftKey, workoutDraft } from '@/lib/workout-draft';
 import {
   __resetWorkoutDraftDbConnectionForTests,
+  DraftSaveTotalFailure,
   getPromotionTombstoneKey,
   hasDraftContent,
   workoutDraftDb,
@@ -619,6 +620,32 @@ describe('workoutDraftDb', () => {
 
     expect(loaded?.sessionId).toBe(baseDraft.sessionId);
     expect(localStorage.getItem(getScopedWorkoutDraftKey('user-1'))).not.toBeNull();
+  });
+
+  it('total failure: gdy IDB i localStorage padną, leci DraftSaveTotalFailure ze stage (FIX-A T4)', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    try {
+      await expect(workoutDraftDb.saveActiveDraft(baseDraft)).rejects.toMatchObject({ stage: 'fallback' });
+      await expect(workoutDraftDb.saveActiveDraft(baseDraft)).rejects.toBeInstanceOf(DraftSaveTotalFailure);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
+  it('fallback OK: zapis do localStorage NIE rzuca (user nie widzi błędu, FIX-A T4)', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    await expect(workoutDraftDb.saveActiveDraft(baseDraft)).resolves.toBeUndefined();
   });
 
   it('clearActiveDraft usuwa też kopię fallback z localStorage', async () => {

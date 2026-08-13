@@ -1407,7 +1407,7 @@ export const pl = {
   'workout.toast.saveChangesFailedDesc': 'Nie udało się zapisać zmian.',
   'workout.toast.changesSavedDesc': 'Zmiany zostały zapisane.',
   // === workout error messages ===
-  'workout.err.localSaveFailed': 'Nie udało się zapisać postępu na telefonie. Nie zamykaj apki — dokończ trening i kliknij „Zakończ trening", żeby zapisać go w chmurze.',
+  'workout.err.localSaveFailed': 'Nie mogę zapisać na tym urządzeniu (pamięć pełna?). Nie zamykaj apki — dane tej sesji są tylko na ekranie.',
   'workout.err.localSaveBeforeSync': 'Nie udało się zapisać szkicu lokalnie przed synchronizacją.',
   'workout.err.offline': 'Brak połączenia z internetem. Trening pozostaje zapisany lokalnie.',
   'workout.err.cloudSavedLocalCleanupFailed': 'Trening zapisano w chmurze, ale nie udało się wyczyścić lokalnego szkicu.',

@@ -1385,7 +1385,7 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.saveChangesFailedDesc': 'Failed to save changes.',
   'workout.toast.changesSavedDesc': 'Your changes have been saved.',
   // === workout error messages ===
-  'workout.err.localSaveFailed': 'Could not save your progress on this device. Keep the app open — finish the workout and tap "Finish workout" to save it to the cloud.',
+  'workout.err.localSaveFailed': 'Cannot save on this device (storage full?). Keep the app open — this session lives only on screen.',
   'workout.err.localSaveBeforeSync': 'Could not save draft locally before syncing.',
   'workout.err.offline': 'No internet connection. Workout stays saved locally.',
   'workout.err.cloudSavedLocalCleanupFailed': 'Workout saved to the cloud, but the local draft could not be cleared.',

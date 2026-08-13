@@ -9,6 +9,16 @@ const DB_VERSION = 2;
 const writeChains = new Map<string, Promise<void>>();
 const latestWriteVersions = new Map<string, number>();
 
+// FIX-A T4: typowany błąd totalnego faila zapisu (IDB + retry + localStorage padły).
+// Tylko ten błąd oznacza realne zagrożenie danych — UI pokazuje czerwony stan
+// wyłącznie na jego podstawie (fallback OK = stan neutralny).
+export class DraftSaveTotalFailure extends Error {
+  constructor(public stage: 'idb' | 'fallback') {
+    super(`draft save failed at ${stage}`);
+    this.name = 'DraftSaveTotalFailure';
+  }
+}
+
 export interface ActiveWorkoutDraft {
   sessionId: string;
   userId: string;
@@ -911,7 +921,13 @@ export const workoutDraftDb = {
         try {
           await runWrite(normalized, normalized.userId, undefined, { skipIfNewerExists: true });
         } catch {
-          withFallbackSave(normalized);
+          try {
+            withFallbackSave(normalized);
+          } catch {
+            // QuotaExceeded przy pełnym storage = realny totalny fail: dane
+            // sesji żyją już tylko w pamięci Reacta.
+            throw new DraftSaveTotalFailure('fallback');
+          }
         }
       }
     });

@@ -58,7 +58,7 @@ import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, is
 import { computeWeeklyTargets } from '@/lib/progression-engine';
 import { buildDayFromDraft, hasAnyCompletedSet, sessionStats } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
-import { hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
 import { buildWorkoutDraftSnapshot } from '@/lib/workout-draft-snapshot';
 import { addAppStateListener } from '@/lib/app-lifecycle';
@@ -219,6 +219,9 @@ const WorkoutDay = () => {
   // Cross-device LWW (Z228): konflikt wersji rozwiązujemy per seria, zachowując
   // najnowsze zmiany z obu urządzeń. Limit prób chroni przed aktywną pętlą zapisów.
   const conflictAutoResolveAttemptsRef = useRef(0);
+  // FIX-A T4: licznik totalnych failów zapisu draftu z rzędu — czerwony stan
+  // dopiero przy drugim (pierwszy dostaje cichy retry po 3 s).
+  const draftFailStreakRef = useRef(0);
   const keepLocalOnConflictRef = useRef<null | (() => Promise<void>)>(null);
   const [showWarmup, setShowWarmup] = useState(false);
   // Z162: odhaczenia rozgrzewki (klucze nameKey) żyją w drafcie sesji — zamknięcie
@@ -682,6 +685,7 @@ const WorkoutDay = () => {
 
     try {
       await workoutDraftDb.saveActiveDraft(draft);
+      draftFailStreakRef.current = 0;
       activeDraftRef.current = draft;
       setActiveDraft(draft);
       setSaveError(null);
@@ -694,11 +698,27 @@ const WorkoutDay = () => {
           queueAutoSaveStatus('local-saved', 'sync-pending');
         }
       }
-    } catch {
-      setSaveError(t('workout.err.localSaveFailed'));
-      setAutoSaveStatus('error');
+    } catch (error) {
+      // Fallback localStorage łapie wszystko poza totalnym failem — nie strasz
+      // czerwonym przy pierwszym potknięciu: jeden cichy retry po 3 s, czerwony
+      // stan dopiero przy DRUGIM totalnym failu z rzędu (dane wtedy realnie
+      // tylko w pamięci Reacta).
+      draftFailStreakRef.current += 1;
       if (uid) {
         trackTelemetryEvent(uid, 'local_save_failed');
+        // Stage idzie kanałem client_errors (dowolny code w rules), nie nową
+        // nazwą eventu telemetrii — whitelist eventów wymagałaby deployu rules.
+        void reportClientError(uid, {
+          code: 'draft-save-total-failure',
+          phase: 'other',
+          detail: `stage=${error instanceof DraftSaveTotalFailure ? error.stage : 'unknown'} streak=${draftFailStreakRef.current}`,
+        });
+      }
+      if (draftFailStreakRef.current === 1) {
+        window.setTimeout(() => { void persistDraftSnapshot(overrides, options); }, 3000);
+      } else {
+        setSaveError(t('workout.err.localSaveFailed'));
+        setAutoSaveStatus('error');
       }
       return null;
     }
