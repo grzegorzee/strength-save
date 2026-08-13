@@ -5,11 +5,38 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-13 (WYDANIE FIX-B: UX i porządki na prod, iOS 102, AAB v18)
+**Ostatnia aktualizacja:** 2026-08-13 (FIX A-B DOMKNIĘTE: 2 wydania na prod, iOS 101-102, AAB 17-18)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-13: FIX A-B — zbiorcze zamknięcie (zgłoszenia z treningu 2026-08-13)
+
+**Co:** Kompletne wdrożenie obu planów naprawczych po treningu usera 2026-08-13, w jednej
+pętli /loop (pełna autonomia wg `docs/PROMPT-WDROZENIE-FIX-2026-08-13.md`). Szczegóły obu
+wydań w osobnych wpisach niżej (WYDANIE FIX-A, WYDANIE FIX-B).
+
+**Dlaczego:** Trening 2026-08-13 ujawnił krytyczne problemy tuż przed launchem: martwa apka
+po awarii Firestore (E-RM6GU), czarny nie-do-zamknięcia ekran, niemożliwe zakończenie
+treningu press-and-holdem (timer nabił 1:18:44), fałszywe alarmy „Błąd zapisu" oraz pakiet
+tarć UX (rozgrzewka bez wyjścia, PR jako szary toast, przerwa na pół ekranu, anonimowy
+loader, zdublowana karta planu, analityka na losowym tygodniu, pomiary bez godziny).
+
+**Root cause'y (skrót):** (1) asercja b815 Firestore po resume WKWebView zabija SDK do końca
+życia strony — nawigacja SPA nic nie naprawia, jedyne wyjście to pełny reload; (2) awaryjny
+unmount otwartego Radix Sheet zostawia scroll-lock na body (mechanizm regresji b.92);
+(3) onPointerLeave anulował hold przy drgnięciu palca; (4) catch w persistDraftSnapshot
+świecił na czerwono także gdy fallback localStorage uratował dane; (5) domyślna zakładka
+analityki = weekly digest zamiast bieżącego summary; (6) hasOnly w rules odrzucało nowe
+pole recordedAt.
+
+**Weryfikacja:** wszystkie kroki KOLEJKI trackera odhaczone (TDD per task, checkpoint po
+każdym, celowane e2e); 2 pełne release trainy: iOS 101 i 102 APPROVED (obie grupy,
+Watch/StrengthWatch.app w IPA), AAB v17 i v18 jar verified, web index-CpaMokif →
+index-HByan1WC, rules przed webem przy FIX-B. Audyty Zamknięcia: kontrakt Garmin CIQ
+i Apple Watch nietknięte (adnotacja w garmin/README.md, kontrakt watch 46/46).
+Unit 1646→1651, e2e 394. M56 odhaczony w PLAN.md (lokalnie).
 
 ### 2026-08-13: WYDANIE FIX-B — UX treningu i porządki przed launchem
 

@@ -82,8 +82,9 @@
       (CFBundleVersion=102) z Watch/StrengthWatch.app; 101 zweryfikowany przy
       WYDANIU FIX-A; diff 8c89be8d..HEAD bez plików watch; 9 speców kontraktu
       46/46 PASS
-- [ ] DECYZJE.md: zbiorczy wpis FIX A-B (co, dlaczego, root cause'y, weryfikacja)
+- [x] DECYZJE.md: zbiorczy wpis FIX A-B (co, dlaczego, root cause'y, weryfikacja)
       + PLAN.md: kamień M56 odhaczony (PLAN.md jest w .gitignore — edytuj lokalnie).
+      — wpis zbiorczy nad wpisami wydań; M56 dopisany w PLAN.md lokalnie
 - [ ] STOP pętli (ScheduleWakeup stop:true).
 
 ## Procedura WYDANIE (per plan)
