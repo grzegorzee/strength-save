@@ -60,7 +60,7 @@
 - [x] B-T1: „Zakończ rozgrzewkę" w WarmupRoutineDialog (decyzja: bez animacji ćwiczeń w rozgrzewce) — commit e64d4259; sticky stopka + klucz comp.warmup.finish, 1648 testów PASS
 - [x] B-T2: celebracja live PR — overlay z ConfettiBurst zamiast toastu — commit 426c8d28; LivePRCelebration zawsze zamontowany, live-pr.test.ts (detekcja) nietknięty 6/6, 1651 testów PASS
 - [x] B-T3: chudszy pasek przerwy (hero text-5xl → text-3xl) — commit 916c5526; rest-fullscreen bez zmian, rest-bar.test 13/13, 1651 testów PASS
-- [ ] B-T4: loader z logo Strength Save zamiast kółka
+- [x] B-T4: loader z logo Strength Save zamiast kółka — commit 713fec86; App.tsx AppLoader z app-icon.png, build OK (asset), 1651 testów PASS. Uwaga: drugi AppLoader (spinner) w AuthenticatedApp.tsx zostawiony wg zakresu planu
 - [ ] B-T5: Dashboard bez karty planu i ostatniego PR (Cykle → /plan, PR → Analityka; e2e zaktualizowane)
 - [ ] B-T6: Analityka domyślnie na bieżącym podsumowaniu (summary, nie weekly)
 - [ ] B-T7: pomiary z recordedAt (types + zapis + rules hasOnly + test:rules + godzina w historii)
