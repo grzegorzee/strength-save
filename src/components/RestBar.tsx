@@ -197,10 +197,12 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
               deadline/notyfikacje/tick nietknięte; po końcu pasek wraca
               do zwykłego rozmiaru. */}
           {!done && (
-            <div className="py-1.5 text-center" data-testid="rest-bar-hero">
-              <span className="block text-5xl font-bold tabular-nums leading-none">{label}</span>
+            <div className="py-0.5 text-center" data-testid="rest-bar-hero">
+              {/* 2026-08-13: text-5xl zabierał pół ekranu nad kartą — zostaje duże,
+                  ale zwarte odliczanie + "Następne" w jednej, mniejszej linii. */}
+              <span className="block text-3xl font-bold tabular-nums leading-none">{label}</span>
               {nextSetLabel && (
-                <span className="mt-1.5 block text-sm text-muted-foreground">
+                <span className="mt-0.5 block text-xs text-muted-foreground">
                   {t('rest.bar.next', { value: nextSetLabel })}
                 </span>
               )}
