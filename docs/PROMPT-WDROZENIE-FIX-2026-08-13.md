@@ -46,7 +46,7 @@
 ## KOLEJKA
 
 ### Plan FIX-A — Stabilność (docs/PLAN-FIX-A-2026-08-13.md)
-- [ ] A-T1: crash-guard Firestore (INTERNAL ASSERTION → kontrolowany reload; ErrorBoundary z restartem)
+- [x] A-T1: crash-guard Firestore (INTERNAL ASSERTION → kontrolowany reload; ErrorBoundary z restartem) — commit c357bbeb; guard + anti-loop 2 min w main.tsx, restart w ErrorBoundary ORAZ RouteCrashFallback (tam realnie była nawigacja SPA)
 - [ ] A-T2: releaseBodyLocks w ErrorBoundary (czarny ekran po awarii sheeta)
 - [ ] A-T3: Zakończ trening zwykłym przyciskiem + potwierdzenie (usunięcie HoldToFinishButton)
 - [ ] A-T4: „Błąd zapisu" tylko po totalnym failu (DraftSaveTotalFailure, retry 3 s, telemetria stage)
@@ -99,3 +99,11 @@
 ## DZIENNIK
 
 (agent dopisuje: data, decyzje podjęte samodzielnie, problemy i ich root cause)
+
+- 2026-08-13 (A-T1): Plan wskazywał przycisk „Wróć na Dashboard" w ErrorBoundary.tsx,
+  realnie nawigacja SPA jest w RouteCrashFallback (AuthenticatedApp.tsx:55), a domyślny
+  fallback ErrorBoundary od zawsze robił reload. Dostosowany szczegół, nie intencja:
+  przy asercji Firestore OBA fallbacki robią hard reload z etykietą „Uruchom ponownie"
+  (ErrorBoundary z mini-słownika, RouteCrashFallback z i18n errors.restartApp).
+  Test unhandledrejection zbudowany ręcznie (jsdom nie ma PromiseRejectionEvent,
+  wariant przewidziany w planie). Checkpoint: 1646 testów PASS, typecheck OK.
