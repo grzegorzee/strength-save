@@ -23,6 +23,12 @@ export interface WorkoutDraft {
   cloudRevision?: number;
   cloudUpdatedAt?: number;
   version?: number;
+  // Znaczniki czasu sesji (incydent 2026-08-13): gdy IDB umiera w trakcie treningu,
+  // cała sesja żyje w fallbacku — bez tych pól merge dziedziczył stęchły
+  // lastActivityAt z IDB i clamp Z142 ścinał czas 1h19m do 180 s.
+  startedAt?: number;
+  lastActivityAt?: number;
+  finalizedAt?: number;
 }
 
 export const workoutDraft = {

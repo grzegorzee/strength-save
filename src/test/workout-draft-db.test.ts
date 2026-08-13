@@ -742,6 +742,57 @@ describe('workoutDraftDb', () => {
     expect(fromFallback?.sessionSwaps).toEqual(swaps);
   });
 
+  it('fallback niesie znaczniki czasu: startedAt/lastActivityAt/finalizedAt przeżywają roundtrip (incydent 180 s)', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      startedAt: 1_000_000,
+      lastActivityAt: 5_500_000,
+      finalizedAt: 6_000_000,
+    });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(loaded?.startedAt).toBe(1_000_000);
+    expect(loaded?.lastActivityAt).toBe(5_500_000);
+    expect(loaded?.finalizedAt).toBe(6_000_000);
+  });
+
+  it('merge Z182: świeższy fallback wygrywa też znacznikami aktywności (nie dziedziczy stęchłego lastActivityAt z IDB)', async () => {
+    // Incydent 2026-08-13: IDB umarło na starcie sesji (lastActivityAt = startedAt),
+    // cały trening zapisywał się fallbackiem; przy finalizacji scalony draft wziął
+    // lastActivityAt z IDB i clamp Z142 ściął czas 1h19m do 180 s.
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      version: 2,
+      startedAt: 1_000_000,
+      lastActivityAt: 1_000_000,
+    });
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: { 'ex-1': [{ reps: 6, weight: 85, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      savedAt: baseDraft.updatedAt + 100,
+      version: 9,
+      startedAt: 1_000_000,
+      lastActivityAt: 5_700_000,
+    }, 'user-1');
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(loaded?.version).toBe(9);
+    expect(loaded?.startedAt).toBe(1_000_000);
+    expect(loaded?.lastActivityAt).toBe(5_700_000);
+  });
+
   it('Z182: fallback localStorage z wyższą wersją wygrywa z IDB (najświeższy snapshot)', async () => {
     await workoutDraftDb.saveActiveDraft({ ...baseDraft, version: 5 });
     workoutDraft.save({

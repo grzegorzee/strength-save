@@ -299,7 +299,9 @@ const withFallbackLoad = (userId: string): ActiveWorkoutDraft | null => {
     cycleId: null,
     sessionOrigin: isProvisionalWorkoutSessionId(draft.sessionId) ? 'provisional' : 'remote',
     remoteSessionId: null,
-    startedAt: draft.savedAt,
+    startedAt: draft.startedAt ?? draft.savedAt,
+    ...(draft.lastActivityAt != null && { lastActivityAt: draft.lastActivityAt }),
+    ...(draft.finalizedAt != null && { finalizedAt: draft.finalizedAt }),
     updatedAt: draft.savedAt,
     lastFirebaseSyncAt: null,
     dirty: true,
@@ -326,6 +328,10 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     ...(draft.cloudRevision != null && { cloudRevision: draft.cloudRevision }),
     ...(draft.cloudUpdatedAt != null && { cloudUpdatedAt: draft.cloudUpdatedAt }),
     version: draft.version,
+    // Znaczniki czasu sesji — patrz komentarz w WorkoutDraft (incydent 180 s).
+    ...(draft.startedAt !== undefined && { startedAt: draft.startedAt }),
+    ...(draft.lastActivityAt !== undefined && { lastActivityAt: draft.lastActivityAt }),
+    ...(draft.finalizedAt !== undefined && { finalizedAt: draft.finalizedAt }),
   }, draft.userId);
   if (!saved) {
     throw new Error('LOCAL_STORAGE_SAVE_FAILED');
@@ -819,6 +825,12 @@ const resolveFresherFallback = (
     ...(fallback.sessionSwaps !== undefined && { sessionSwaps: fallback.sessionSwaps }),
     ...(fallback.cloudRevision !== undefined && { cloudRevision: fallback.cloudRevision }),
     ...(fallback.cloudUpdatedAt !== undefined && { cloudUpdatedAt: fallback.cloudUpdatedAt }),
+    // Znaczniki aktywności ze świeższego fallbacku (incydent 180 s): stary rekord
+    // IDB niesie lastActivityAt z momentu, gdy IDB jeszcze żyło — czyli z początku
+    // sesji. startedAt celowo z IDB (stabilny od startu; stare fallbacki bez pola
+    // fałszowałyby go przez savedAt).
+    ...(fallback.lastActivityAt !== undefined && { lastActivityAt: fallback.lastActivityAt }),
+    ...(fallback.finalizedAt !== undefined && { finalizedAt: fallback.finalizedAt }),
     updatedAt: fallback.updatedAt,
     dirty: true,
     version: fallback.version,
