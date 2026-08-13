@@ -934,6 +934,8 @@ export const pl = {
   'daysedit.duplicateDay': 'Duplikuj dzień',
   'daysedit.removeDay': 'Usuń dzień',
   'daysedit.moveUp': 'Przesuń w górę',
+  'daysedit.moreSets': 'Więcej serii',
+  'daysedit.fewerSets': 'Mniej serii',
   'daysedit.moveDown': 'Przesuń w dół',
   'daysedit.removeExercise': 'Usuń ćwiczenie',
   'planeditor.swappedTitle': 'Zamieniono!',

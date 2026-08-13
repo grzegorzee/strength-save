@@ -912,6 +912,8 @@ export const en: Record<keyof typeof pl, string> = {
   'daysedit.duplicateDay': 'Duplicate day',
   'daysedit.removeDay': 'Remove day',
   'daysedit.moveUp': 'Move up',
+  'daysedit.moreSets': 'More sets',
+  'daysedit.fewerSets': 'Fewer sets',
   'daysedit.moveDown': 'Move down',
   'daysedit.removeExercise': 'Remove exercise',
   'planeditor.swappedTitle': 'Swapped!',

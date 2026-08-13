@@ -15,7 +15,16 @@ import { localizeExerciseName } from '@/data/exercise-i18n';
 import { localizeWeekdayShort } from '@/lib/plan-i18n';
 import { WEEKDAYS } from '@/lib/plan-cycle-utils';
 import { addPlanDay, removePlanDay, duplicatePlanDay, setPlanDayWeekday, setPlanDayFocus, MAX_PLAN_DAYS } from '@/lib/plan-day-edit';
-import { ArrowUp, ArrowDown, Copy, Trash2, Replace, Plus, Pencil, Check, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, Copy, Trash2, Replace, Plus, Minus, Pencil, Check, X } from 'lucide-react';
+
+// FIX-C: edycja serii bez wpisywania "×" z klawiatury — format "N × reps"
+// rozbijany na stepper liczby serii + pole powtórzeń; inne formaty (np. "AMRAP")
+// dostają dotychczasowe surowe pole tekstowe.
+const parseSetsString = (sets: string): { count: number; reps: string } | null => {
+  const match = sets.match(/^(\d+)\s*[x×]\s*(.+)$/i);
+  if (!match) return null;
+  return { count: parseInt(match[1], 10), reps: match[2].trim() };
+};
 
 export interface PlanDaysEditorProps {
   days: TrainingDay[];
@@ -51,11 +60,23 @@ export const PlanDaysEditor = ({
   const { customExercises, addCustomExercise } = useCustomExercises(uid);
   const [pickerDayId, setPickerDayId] = useState<string | null>(null);
   const [swapDialog, setSwapDialog] = useState<{ dayId: string; exerciseId: string; exerciseName: string } | null>(null);
-  const [editingSets, setEditingSets] = useState<{ dayId: string; exerciseId: string; value: string } | null>(null);
+  const [editingSets, setEditingSets] = useState<
+    { dayId: string; exerciseId: string; count: number | null; reps: string; raw: string } | null
+  >(null);
+
+  const startEditingSets = (dayId: string, exerciseId: string, sets: string) => {
+    const parsed = parseSetsString(sets);
+    setEditingSets(parsed
+      ? { dayId, exerciseId, count: parsed.count, reps: parsed.reps, raw: sets }
+      : { dayId, exerciseId, count: null, reps: '', raw: sets });
+  };
 
   const saveSets = () => {
     if (!editingSets) return;
-    onUpdateSets(editingSets.dayId, editingSets.exerciseId, editingSets.value);
+    const value = editingSets.count !== null
+      ? `${editingSets.count} × ${editingSets.reps.trim()}`
+      : editingSets.raw;
+    onUpdateSets(editingSets.dayId, editingSets.exerciseId, value);
     setEditingSets(null);
   };
 
@@ -128,23 +149,62 @@ export const PlanDaysEditor = ({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{localizeExerciseName(exercise.name, lang)}</p>
                       {editingSets?.dayId === day.id && editingSets?.exerciseId === exercise.id ? (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Input
-                            value={editingSets.value}
-                            onChange={e => setEditingSets({ ...editingSets, value: e.target.value })}
-                            className="h-7 text-xs w-28"
-                          />
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={saveSets}>
-                            <Check className="h-3 w-3" />
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          {editingSets.count !== null ? (
+                            <>
+                              <div className="flex items-center rounded-lg border border-input bg-background">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  data-testid="sets-count-dec"
+                                  aria-label={t('daysedit.fewerSets')}
+                                  onClick={() => setEditingSets({ ...editingSets, count: Math.max(1, editingSets.count! - 1) })}
+                                >
+                                  <Minus className="h-3.5 w-3.5" />
+                                </Button>
+                                <span className="w-6 text-center text-sm font-semibold tabular-nums">
+                                  {editingSets.count}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  data-testid="sets-count-inc"
+                                  aria-label={t('daysedit.moreSets')}
+                                  onClick={() => setEditingSets({ ...editingSets, count: Math.min(12, editingSets.count! + 1) })}
+                                >
+                                  <Plus className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                              <span className="text-sm text-muted-foreground">×</span>
+                              <Input
+                                value={editingSets.reps}
+                                data-testid="sets-reps-input"
+                                onChange={e => setEditingSets({ ...editingSets, reps: e.target.value })}
+                                className="h-8 w-20 text-sm"
+                              />
+                            </>
+                          ) : (
+                            <Input
+                              value={editingSets.raw}
+                              data-testid="sets-raw-input"
+                              onChange={e => setEditingSets({ ...editingSets, raw: e.target.value })}
+                              className="h-8 w-32 text-sm"
+                            />
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-fitness-success" data-testid="sets-save" aria-label={t('common.save')} onClick={saveSets}>
+                            <Check className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingSets(null)}>
-                            <X className="h-3 w-3" />
+                          <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="sets-cancel" aria-label={t('common.cancel')} onClick={() => setEditingSets(null)}>
+                            <X className="h-4 w-4" />
                           </Button>
                         </div>
                       ) : (
                         <button
+                          data-testid={`edit-sets-${exercise.id}`}
                           className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5"
-                          onClick={() => setEditingSets({ dayId: day.id, exerciseId: exercise.id, value: exercise.sets })}
+                          onClick={() => startEditingSets(day.id, exercise.id, exercise.sets)}
                         >
                           {exercise.sets}
                           <Pencil className="h-3 w-3" />
