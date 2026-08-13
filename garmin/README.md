@@ -13,6 +13,15 @@ kolejka offline i wysyłka treningu do `garminIngest`.
 > w `functions/` (garmin-pair|day|ingest|endpoints), `garmin/`, `plan-schedule.ts`,
 > `workout-protocol.ts`, `garmin-api.ts` (git diff 88b88cdc..HEAD). Apka CIQ bez zmian.
 
+> Audyt FIX A-B (2026-08-13): wydania FIX (crash-guard Firestore, przycisk zakończenia,
+> błąd zapisu po totalnym failu, rozgrzewka/celebracja PR/pasek przerwy/loader,
+> Dashboard bez karty planu, domyślna zakładka analityki, recordedAt w pomiarach)
+> NIE dotykają kontraktu CIQ — git diff 8c89be8d..HEAD bez plików `functions/`,
+> `garmin/`, `plan-schedule`, `workout-protocol`, `garmin-api`. Jedyna zmiana rules
+> to `validMeasurementShape` (kolekcja measurements), której backend Garmin nie czyta
+> i nie pisze (grep `measurement` po plikach garmin-*/linked-devices w functions = 0
+> wystąpień). Apka CIQ bez zmian.
+
 SDK 9.2.0 zainstalowany, apka skompilowana, sparowana i przetestowana na
 epix (Gen 2) usera + w symulatorze (zrzuty). UI v2: lista dnia jako natywne
 Menu2, ekran ćwiczenia w pionie, krok wagi 0.5-5 kg, szybki trening ad-hoc

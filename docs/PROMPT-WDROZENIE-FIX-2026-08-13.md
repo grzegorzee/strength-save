@@ -71,10 +71,12 @@
       NASTĘPNY bump iOS = 103, versionCode = 19
 
 ### Zamknięcie
-- [ ] Garmin: git diff zakresu FIX pod kątem kontraktu CIQ (functions/, garmin/,
+- [x] Garmin: git diff zakresu FIX pod kątem kontraktu CIQ (functions/, garmin/,
       plan-schedule, workout-protocol, garmin-api). Oczekiwane: bez zmian
       (FIX to UI + rules pomiarów, których Garmin nie czyta — POTWIERDŹ greppem,
       że garmin-day/ingest nie dotykają measurements). Adnotacja w garmin/README.md.
+      — POTWIERDZONE: diff 8c89be8d..HEAD bez plików kontraktu; grep measurement
+      w functions (garmin-*/linked-devices) = 0; adnotacja dodana w README
 - [ ] Apple Watch: StrengthWatch.app w IPA obu wydań (unzip -l) + komplet testów
       kontraktu watch zielony + zero plików watch w diffie.
 - [ ] DECYZJE.md: zbiorczy wpis FIX A-B (co, dlaczego, root cause'y, weryfikacja)
