@@ -74,6 +74,22 @@ describe('ErrorBoundary (Z56)', () => {
     expect(screen.getByRole('button', { name: /Uruchom ponownie|Restart app/ })).toBeTruthy();
   });
 
+  it('złapany błąd zdejmuje blokady body po awaryjnym unmoncie sheeta (regresja b.92)', () => {
+    document.body.style.pointerEvents = 'none';
+    document.body.style.overflow = 'hidden';
+    document.body.setAttribute('data-scroll-locked', '1');
+
+    render(
+      <ErrorBoundary uid="u1">
+        <Bomb />
+      </ErrorBoundary>,
+    );
+
+    expect(document.body.style.pointerEvents).toBe('');
+    expect(document.body.style.overflow).toBe('');
+    expect(document.body.hasAttribute('data-scroll-locked')).toBe(false);
+  });
+
   it('własny fallback dostaje reset i jest renderowany zamiast domyślnego', () => {
     render(
       <ErrorBoundary uid="u1" fallback={() => <p>route-fallback</p>}>

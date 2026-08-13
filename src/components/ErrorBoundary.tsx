@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { reportClientError } from '@/lib/error-telemetry';
 import { auth } from '@/lib/firebase';
 import { isFirestoreInternalAssertion } from '@/lib/firestore-crash-guard';
+import { releaseBodyLocks } from '@/lib/release-body-locks';
 
 /**
  * Krótki kod błędu do zgłoszenia przez usera.
@@ -50,6 +51,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    // Awaryjny unmount otwartego Radix Sheet/Dialog zostawia scroll-lock na
+    // body (regresja b.92) — bez sprzątania fallback bywa nieklikalny.
+    releaseBodyLocks();
     // Top-level boundary nie re-renderuje się po zalogowaniu, więc uid czytamy
     // w momencie catcha (Z154). Bez uid raport pomijamy — rules wymagają auth.
     const uid = this.props.uid ?? auth.currentUser?.uid;
