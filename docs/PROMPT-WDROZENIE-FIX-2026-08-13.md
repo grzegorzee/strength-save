@@ -57,7 +57,7 @@
       NASTĘPNY bump iOS = 102, versionCode = 18
 
 ### Plan FIX-B — UX i porządki (docs/PLAN-FIX-B-2026-08-13.md)
-- [ ] B-T1: „Zakończ rozgrzewkę" w WarmupRoutineDialog (decyzja: bez animacji ćwiczeń w rozgrzewce)
+- [x] B-T1: „Zakończ rozgrzewkę" w WarmupRoutineDialog (decyzja: bez animacji ćwiczeń w rozgrzewce) — commit e64d4259; sticky stopka + klucz comp.warmup.finish, 1648 testów PASS
 - [ ] B-T2: celebracja live PR — overlay z ConfettiBurst zamiast toastu
 - [ ] B-T3: chudszy pasek przerwy (hero text-5xl → text-3xl)
 - [ ] B-T4: loader z logo Strength Save zamiast kółka
@@ -126,3 +126,8 @@
   bez ręcznego testu urządzeniowego (brak urządzenia w sesji agenta — user
   dostaje build 101 na TestFlight). Pułapka cd: gradlew z `cd android` zostawił
   shell w android/, kolejne ścieżki względne się wywracały.
+
+- 2026-08-13 (B-T1): decyzja autonomiczna zgodnie z planem — rozgrzewka BEZ
+  animacji ćwiczeń (nazwy + czasy wystarczą; animacje to szum i koszt CDN).
+  Sticky stopka z ujemnymi marginesami -mx-6/-mb-6 pasuje do p-6 DialogContent
+  (zweryfikowane w ui/dialog.tsx).
