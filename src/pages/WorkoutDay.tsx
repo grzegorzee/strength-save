@@ -54,7 +54,6 @@ import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
 import { backfillWeightForExercise, filterPRsAgainstBackfill } from '@/lib/pr-backfill';
 import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
-import { HoldToFinishButton } from '@/components/HoldToFinishButton';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
 import { buildDayFromDraft, hasAnyCompletedSet, sessionStats } from '@/lib/workout-day-view';
@@ -2919,15 +2918,18 @@ const WorkoutDay = () => {
               </Button>
             </div>
           ) : (
-            // Runna p.1 (spec B3): zakończenie przez przytrzymanie (ring postępu),
-            // tap = hint, klawiatura = istniejące potwierdzenie (fallback a11y).
-            <HoldToFinishButton
-              label={t('workout.finishWorkout')}
-              hint={t('workout.holdToFinishHint')}
-              onConfirm={() => { void handleCompleteWorkout(); }}
-              onFallback={() => setShowCompleteConfirm(true)}
+            // Zwykły przycisk + istniejące potwierdzenie (decyzja usera 2026-08-13:
+            // press-and-hold zawodził na siłowni — drgnięcie palca anulowało hold).
+            <Button
+              size="lg"
+              className="kinetic-primary-button w-full py-6 text-base hover:brightness-105"
+              onClick={() => setShowCompleteConfirm(true)}
               disabled={isExplicitSaving}
-            />
+              data-testid="finish-workout"
+            >
+              <Check className="h-5 w-5 mr-2" />
+              {t('workout.finishWorkout')}
+            </Button>
           )}
         </div>
       )}
