@@ -85,7 +85,8 @@
 - [x] DECYZJE.md: zbiorczy wpis FIX A-B (co, dlaczego, root cause'y, weryfikacja)
       + PLAN.md: kamień M56 odhaczony (PLAN.md jest w .gitignore — edytuj lokalnie).
       — wpis zbiorczy nad wpisami wydań; M56 dopisany w PLAN.md lokalnie
-- [ ] STOP pętli (ScheduleWakeup stop:true).
+- [x] STOP pętli (ScheduleWakeup stop:true). — 2026-08-13, wszystkie kroki KOLEJKI
+      odhaczone; FIX A-B w całości na produkcji
 
 ## Procedura WYDANIE (per plan)
 
