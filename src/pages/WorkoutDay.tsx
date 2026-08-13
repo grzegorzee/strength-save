@@ -54,6 +54,7 @@ import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
 import { backfillWeightForExercise, filterPRsAgainstBackfill } from '@/lib/pr-backfill';
 import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
+import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
 import { buildDayFromDraft, hasAnyCompletedSet, sessionStats } from '@/lib/workout-day-view';
@@ -209,6 +210,9 @@ const WorkoutDay = () => {
   // Runna p.1 (spec A4): PR na żywo — badge per ćwiczenie + jednorazowy toast.
   const [livePRWeights, setLivePRWeights] = useState<Record<string, number>>({});
   const [livePRPending, setLivePRPending] = useState<{ exerciseId: string; weight: number; bestBefore: number } | null>(null);
+  // FIX-B T2: pełnoekranowa celebracja live PR (zamiast toastu). Zawsze
+  // zamontowana, sterowana danymi (lekcja b.92 dla overlayów).
+  const [livePRCelebration, setLivePRCelebration] = useState<LivePRCelebrationData | null>(null);
   const livePRToastedRef = useRef<Set<string>>(new Set());
   // Z161: usuwanie ZAPISANEGO treningu z widoku podsumowania — ta sama ścieżka co
   // Historia (deleteWorkoutEverywhere: dokument + szkic IDB + kolejka syncu, nigdy
@@ -1740,8 +1744,8 @@ const WorkoutDay = () => {
     }
   }, [saveDraftSnapshot]);
 
-  // Toast PR na żywo poza handlerem serii: świeże t/fmt/day bez poszerzania
-  // zależności useCallback (wzorzec ref + pending state). Jeden toast per
+  // Celebracja PR na żywo poza handlerem serii: świeże t/fmt/day bez poszerzania
+  // zależności useCallback (wzorzec ref + pending state). Jedna celebracja per
   // ćwiczenie per sesja; badge zostaje do końca treningu.
   useEffect(() => {
     if (!livePRPending) return;
@@ -1750,16 +1754,14 @@ const WorkoutDay = () => {
     if (livePRToastedRef.current.has(exerciseId)) return;
     livePRToastedRef.current.add(exerciseId);
     const name = day?.exercises.find(e => e.id === exerciseId)?.name ?? '';
-    // PRO-C T4: delta względem poprzedniego rekordu w treści toastu.
-    toast({
-      title: t('workout.toast.livePR', {
-        name: localizeExerciseName(name, lang),
-        value: fmt(weight),
-        delta: fmt(Math.round((weight - bestBefore) * 10) / 10),
-      }),
+    // FIX-B T2: pełnoekranowy overlay z konfetti zamiast toastu; delta jak w PRO-C T4.
+    setLivePRCelebration({
+      name: localizeExerciseName(name, lang),
+      value: fmt(weight),
+      delta: `+${fmt(Math.round((weight - bestBefore) * 10) / 10)}`,
     });
     void hapticSuccess();
-  }, [livePRPending, day, t, lang, fmt, toast]);
+  }, [livePRPending, day, lang, fmt]);
 
   // Apple Watch: serie zalogowane na zegarku trafiają do draftu jak ręczne zmiany.
   const handleWatchSetLogged = useCallback(async (event: WatchSetLoggedEvent) => {
@@ -2983,6 +2985,9 @@ const WorkoutDay = () => {
           </Button>
         </div>
       )}
+
+      {/* FIX-B T2: zawsze zamontowany overlay celebracji live PR (dane sterują). */}
+      <LivePRCelebration data={livePRCelebration} onDone={() => setLivePRCelebration(null)} />
 
     </div>
   );
