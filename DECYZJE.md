@@ -5,11 +5,38 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-13 (WYDANIE FIX-A: stabilność na prod, iOS 101, AAB v17)
+**Ostatnia aktualizacja:** 2026-08-13 (WYDANIE FIX-B: UX i porządki na prod, iOS 102, AAB v18)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-13: WYDANIE FIX-B — UX treningu i porządki przed launchem
+
+**Co:** Siedem zmian UX + jedno pole danych, pełny release train (rules + web + iOS 102 z Watch + Android AAB v18).
+
+1. **B-T1 Zakończ rozgrzewkę (e64d4259):** WarmupRoutineDialog nie miał wyjścia poza X shadcn —
+   sticky stopka z przyciskiem. Decyzja: bez animacji ćwiczeń w rozgrzewce (szum + koszt CDN).
+2. **B-T2 celebracja live PR (426c8d28):** rekord w trakcie serii dostawał szary toast — teraz
+   pełnoekranowy overlay (ConfettiBurst, trofeum, delta), tap/2.2 s zamyka, zawsze zamontowany
+   (lekcja b.92), prefers-reduced-motion respektowane. Detekcja PR nietknięta.
+3. **B-T3 chudszy pasek przerwy (916c5526):** hero countdown text-5xl → text-3xl (zabierał pół
+   ekranu); widok pełnoekranowy i logika timera bez zmian.
+4. **B-T4 loader z logo (713fec86):** AppLoader startowy = app-icon.png z pulsem zamiast Loader2.
+5. **B-T5 Dashboard odchudzony (a7d0d632):** karta planu usunięta (dublowała /plan), ostatni PR
+   przeniesiony do Analityki; Cykle dostały stały przycisk na stronie Planu (jedyne wejście na
+   mobile żyło na usuwanej karcie). Niezmiennik "nic nie znika" w dashboard-order.test.
+6. **B-T6 domyślna zakładka analityki (d9e64988):** bez ?tab= otwiera się summary (bieżący
+   tydzień), nie weekly digest z "randomowym" tygodniem; link z Dashboardu jawnie ?tab=summary.
+7. **B-T7 recordedAt w pomiarach (a85cf218):** epoch ms wykonania pomiaru — typ, zapis
+   Date.now(), rules hasOnly + walidacja typu (test:rules RED→GREEN), godzina w historii.
+   Rules zdeployowane PRZED webem (stare klienty nie wysyłają pola — kolejność bezpieczna).
+
+**Weryfikacja:** bramki (1651 testów, typecheck, lint, build, no-emoji) + komplet test:rules;
+pełne e2e 394 PASS na świeżym vite. Rules na prod → web live index-HByan1WC.js na
+app.strengthsave.app. iOS build 102 (1.0.0): obie grupy TestFlight (204/204), whatsNew 200,
+Beta App Review APPROVED, Watch/StrengthWatch.app w IPA. Android AAB versionCode 18:
+jar verified, SHA-256 83451521a0b652f4aa3b062461366601433de1323ee240b43b79d6cfb902409d.
 
 ### 2026-08-13: WYDANIE FIX-A — stabilność przed launchem (zgłoszenia z treningu 2026-08-13)
 

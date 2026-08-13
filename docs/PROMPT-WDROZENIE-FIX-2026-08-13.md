@@ -64,8 +64,11 @@
 - [x] B-T5: Dashboard bez karty planu i ostatniego PR (Cykle → /plan, PR → Analityka; e2e zaktualizowane) — commit a7d0d632; dashboard-order z nowym niezmiennikiem, e2e mobile-nav+full-app+dashboard-order 176 PASS, 1651 testów PASS
 - [x] B-T6: Analityka domyślnie na bieżącym podsumowaniu (summary, nie weekly) — commit d9e64988; nav-analytics e2e 4 PASS, 1651 testów PASS
 - [x] B-T7: pomiary z recordedAt (types + zapis + rules hasOnly + test:rules + godzina w historii) — commit a85cf218; test:rules RED→GREEN (2 nowe przypadki), 1651 testów PASS; deploy rules czeka na WYDANIE (przed webem)
-- [ ] WYDANIE FIX-B: rules deploy PRZED webem → pełny checklist → web + iOS 102
-      + Android AAB v18 + wpis DECYZJE.md
+- [x] WYDANIE FIX-B: rules deploy PRZED webem → pełny checklist → web + iOS 102
+      + Android AAB v18 + wpis DECYZJE.md — rules na prod, e2e 394 PASS, web live
+      index-HByan1WC.js, iOS 102 APPROVED (204/200/204, Watch w IPA), AAB v18
+      jar verified (SHA-256 83451521...), DECYZJE.md zaktualizowane;
+      NASTĘPNY bump iOS = 103, versionCode = 19
 
 ### Zamknięcie
 - [ ] Garmin: git diff zakresu FIX pod kątem kontraktu CIQ (functions/, garmin/,
