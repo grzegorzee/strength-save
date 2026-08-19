@@ -391,10 +391,23 @@ niezmienniki Z162/incydent-2026-07-20 w pełnym vitest 1749/1749.
 
 ### C-T3 — decyzja o trybie „nie na 100%”
 
-- [ ] Zmapować nakładanie się z vacation, deload, readiness i adaptive coach.
-- [ ] Sprawdzić użycie i wszystkie wyjścia ze stanu; bez dowodu redundancji tryb zostaje.
-- [ ] Jeśli zostaje: przenieść pod Plan, uprościć copy i testować początek/koniec/kolizje.
-- [ ] Jeśli ma zniknąć: migracja aktywnego stanu, brak utraty planu i jawny wpis decyzji.
+- [x] Zmapować nakładanie się z vacation, deload, readiness i adaptive coach.
+- [x] Sprawdzić użycie i wszystkie wyjścia ze stanu; bez dowodu redundancji tryb zostaje.
+- [x] Jeśli zostaje: przenieść pod Plan, uprościć copy i testować początek/koniec/kolizje.
+- [x] Jeśli ma zniknąć: migracja aktywnego stanu, brak utraty planu i jawny wpis decyzji.
+
+**C-T3 DONE — DECYZJA: TRYB ZOSTAJE.** Mapa nakładania:
+| Mechanizm | Job | Okno | Wpływ | Wyjście |
+|---|---|---|---|---|
+| Reduced mode | user trenuje DALEJ, lżej (choroba/ból) | deklarowane 3-14 dni | propozycje ×0.8 + rampa 85/92 | koniec okna / ręczne off |
+| Vacation | przerwa deklarowana z góry | 3-21 dni | tydzień=deload, cykl +N tyg., po powrocie REUŻYWA rampy reduced | koniec / anuluj |
+| Deload programowy | zaplanowane odciążenie | tydzień silnika | cele deload po [Zastosuj] | koniec tygodnia |
+| sessionRating | feedback per sesja | 1 sesja | wejście progresji/lapse | jednorazowe |
+| Adaptive coach | propozycje za flagą | per sesja | targety | n/d |
+Redundancji brak (rampa współdzielona świadomie, nie zduplikowana). Wejście z Planu
+dodane obok urlopu z kolizją blockedByVacation; wyjścia kompletne (koniec okna,
+ręczne off z badge/dialogu, kolizja blokuje wejście, nie stan). Copy zostawione
+(zwięzłe). Testy 12/12 istniejące kryją granice/rampę/kolizje. Vitest 1749/1749.
 
 ### C-T4 — jedna maszyna końca planu i cykli
 
