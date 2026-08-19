@@ -622,6 +622,40 @@ describe('workoutDraftDb', () => {
     expect(localStorage.getItem(getScopedWorkoutDraftKey('user-1'))).not.toBeNull();
   });
 
+  it('corrupted IndexedDB open po kill/resume odtwarza istniejący fallback localStorage', async () => {
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: baseDraft.exerciseSets,
+      exerciseNotes: baseDraft.exerciseNotes,
+      dayNotes: baseDraft.dayNotes,
+      skippedExercises: baseDraft.skippedExercises,
+      savedAt: Date.now(),
+    }, 'user-1');
+    __resetWorkoutDraftDbConnectionForTests();
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: {
+        open: () => {
+          const request = new FakeRequest<IDBDatabase>();
+          enqueue(() => {
+            request.error = new Error('IndexedDB connection is corrupted');
+            request.onerror?.(new Event('error'));
+          });
+          return request as unknown as IDBOpenDBRequest;
+        },
+      },
+    });
+
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(loaded?.sessionId).toBe(baseDraft.sessionId);
+    expect(loaded?.exerciseSets).toEqual(baseDraft.exerciseSets);
+    expect(loaded?.dayNotes).toBe(baseDraft.dayNotes);
+  });
+
   it('total failure: gdy IDB i localStorage padną, leci DraftSaveTotalFailure ze stage (FIX-A T4)', async () => {
     Object.defineProperty(window, 'indexedDB', {
       configurable: true,

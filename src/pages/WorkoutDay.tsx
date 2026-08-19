@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, AlertCircle, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, X, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak, calculateTonnage } from '@/lib/summary-utils';
@@ -8,7 +8,7 @@ import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { ExerciseCard } from '@/components/ExerciseCard';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import type { TrainingDay, Exercise } from '@/data/trainingPlan';
@@ -54,6 +54,7 @@ import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
 import { backfillWeightForExercise, filterPRsAgainstBackfill } from '@/lib/pr-backfill';
 import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
+import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/WorkoutDraftStatusNotice';
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
@@ -70,6 +71,7 @@ import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
+import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { buildDraftFinalExpectation, buildWorkoutWriteExpectation, validateWorkoutCloudWrite } from '@/lib/workout-final-sync';
 import { classifyWorkoutSyncError, shouldAutoResolveConflict, workoutSyncErrorDetail, workoutSyncErrorMessageKey } from '@/lib/workout-sync-conflict';
@@ -197,6 +199,7 @@ const WorkoutDay = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isExplicitSaving, setIsExplicitSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [dismissedDraftNoticeSessionId, setDismissedDraftNoticeSessionId] = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
   const [skippedExercises, setSkippedExercises] = useState<string[]>([]);
   const [activeDraft, setActiveDraft] = useState<ActiveWorkoutDraft | null>(null);
@@ -1093,12 +1096,6 @@ const WorkoutDay = () => {
       if (draftRecoveryDone.current !== currentPageDraft.sessionId && (draftHasData || currentPageDraft.finalSyncPending)) {
         draftRecoveryDone.current = currentPageDraft.sessionId;
         trackTelemetryEvent(uid, 'draft_recovered');
-        toast({
-          title: currentPageDraft.finalSyncPending ? t('workout.toast.draftPendingTitle') : t('workout.toast.draftRecoveredTitle'),
-          description: currentPageDraft.finalSyncPending
-            ? t('workout.toast.draftPendingDesc')
-            : t('workout.toast.draftRecoveredDesc'),
-        });
       }
 
       if (currentPageDraft.finalSyncPending) {
@@ -1194,9 +1191,7 @@ const WorkoutDay = () => {
       dayNotes: '',
       skippedExercises: [],
     });
-    // t pominięte celowo: użyte tylko w toaście; dodanie zresetowałoby stan treningu przy zmianie języka
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startSourcesReady, dayId, workouts, workoutsFromCache, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, toast, uid, today]);
+  }, [startSourcesReady, dayId, workouts, workoutsFromCache, targetDate, routeSessionId, currentPageDraft, applyWorkoutState, uid, today]);
 
   // Naprawia wyłącznie jednoznaczne osierocenie: dokładnie jeden cykl obejmuje datę
   // istniejącej sesji. Transakcja w createWorkoutSession chroni przed zmianą tożsamości.
@@ -1970,6 +1965,42 @@ const WorkoutDay = () => {
     });
   };
 
+  const handleRetryLocalSave = async () => {
+    setIsExplicitSaving(true);
+    const saved = await persistDraftSnapshot({}, { showStatus: true });
+    setIsExplicitSaving(false);
+    if (saved) setSaveError(null);
+  };
+
+  const handleDiscardLocalDraft = async () => {
+    const targetSessionId = currentPageDraft?.sessionId ?? sessionId;
+    if (!targetSessionId) return;
+
+    try {
+      await workoutDraftDb.clearActiveDraft(uid, targetSessionId);
+      workoutSyncQueue.remove(uid, targetSessionId);
+      if (activeDraftRef.current?.sessionId === targetSessionId) {
+        activeDraftRef.current = null;
+        setActiveDraft(null);
+      }
+      setQueuedDraft(current => current?.sessionId === targetSessionId ? null : current);
+      setSaveError(null);
+      setAutoSaveStatus('idle');
+      window.dispatchEvent(new Event(WORKOUT_SYNC_STATE_CHANGED_EVENT));
+      toast({
+        title: t('strava.toastDraftDiscardedTitle'),
+        description: t('strava.toastDraftDiscardedDesc'),
+      });
+      navigate('/');
+    } catch {
+      toast({
+        title: t('strava.toastDiscardFailTitle'),
+        description: t('strava.tryAgainShortly'),
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleCompleteWorkout = async () => {
     if (!sessionId || !uid || !day) return;
     if (isCompleted || isExplicitSaving) return;
@@ -2052,7 +2083,7 @@ const WorkoutDay = () => {
         setAutoSaveStatus('final-sync-pending');
         completedSessionLockRef.current = sessionId;
         setQueuedDraft(pendingDraft);
-        setSaveError(result.error || t('workout.err.pendingSync'));
+        setSaveError(null);
         toast({
           title: t('workout.toast.savedLocallyTitle'),
           description: t('workout.toast.savedLocallyDesc'),
@@ -2322,32 +2353,48 @@ const WorkoutDay = () => {
   }) ?? null;
   const sessionDurationSec = currentWorkoutForDuration?.durationSec ?? durationFromTimestamps ?? draftDurationSec;
 
-  const ErrorBanner = () => saveError ? (
-    <Card className="border-destructive bg-destructive/10">
-      <CardContent className="py-3">
-        <div className="flex items-center gap-2 text-destructive">
-          <AlertCircle className="h-5 w-5 shrink-0" />
-          <span className="flex-1 text-sm">{saveError}</span>
-          <button
-            onClick={() => setSaveError(null)}
-            aria-label={t('workout.close')}
-            className="shrink-0 rounded-lg p-1.5 transition-colors hover:bg-destructive/15"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </CardContent>
-    </Card>
-  ) : null;
+  const DraftStatusNotice = () => {
+    if (isFinalSyncPending && dismissedDraftNoticeSessionId !== sessionId) {
+      return (
+        <WorkoutDraftStatusNotice
+          kind="final-sync-pending"
+          busy={isExplicitSaving}
+          onRetry={() => { void handleRetrySync(); }}
+          onDiscard={() => { void handleDiscardLocalDraft(); }}
+          onDismiss={() => setDismissedDraftNoticeSessionId(sessionId)}
+        />
+      );
+    }
+    if (!saveError) return null;
+    const isTotalLocalSaveError = saveError === t('workout.err.localSaveFailed')
+      || saveError === t('workout.err.saveAllFailed');
+    if (!isTotalLocalSaveError) {
+      return <WorkoutErrorNotice message={saveError} onDismiss={() => setSaveError(null)} />;
+    }
+    return (
+      <WorkoutDraftStatusNotice
+        kind="save-error"
+        message={saveError}
+        busy={isExplicitSaving}
+        onRetry={() => { void handleRetryLocalSave(); }}
+        onDiscard={() => { void handleDiscardLocalDraft(); }}
+        onDismiss={() => setSaveError(null)}
+      />
+    );
+  };
 
   // Auto-save indicator: dwa proste stany dla usera ("na telefonie" / "w chmurze HH:MM")
   // plus czerwony błąd. Wewnętrzne statusy (7 wartości) zostają tylko logiką.
   const AutoSaveIndicator = () => {
     if (autoSaveStatus === 'error') {
       return (
-        <div className="fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300 bg-destructive/20 text-destructive">
+        <button
+          type="button"
+          onClick={() => setSaveError(t('workout.err.localSaveFailed'))}
+          className="fixed right-4 top-4 z-50 flex min-h-11 touch-manipulation items-center gap-1.5 rounded-full bg-destructive/20 px-3 py-1.5 text-xs text-destructive transition-opacity duration-300"
+        >
           <CloudOff className="h-3 w-3" /> {t('workout.status.error')}
-        </div>
+        </button>
       );
     }
     if (!isActiveTrainingPhase(sessionPhase)) return null;
@@ -2425,27 +2472,7 @@ const WorkoutDay = () => {
           )}
         </div>
 
-        <ErrorBanner />
-
-        {isFinalSyncPending && (
-          <Card className="border-fitness-warning bg-fitness-warning/10">
-            <CardContent className="py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-medium text-fitness-warning">{t('workout.finishedLocally.title')}</p>
-                <p className="text-sm text-fitness-warning">{t('workout.finishedLocally.desc')}</p>
-              </div>
-              <Button
-                variant="outline"
-                className="border-fitness-warning text-fitness-warning hover:bg-fitness-warning/20"
-                onClick={handleRetrySync}
-                disabled={isExplicitSaving}
-              >
-                {isExplicitSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Cloud className="h-4 w-4 mr-2" />}
-                {t('strava.syncNow')}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <DraftStatusNotice />
 
         <WorkoutCompletionSequence
           justCompleted={justCompleted}
@@ -2458,21 +2485,6 @@ const WorkoutDay = () => {
           onRate={handleSessionRate}
           onEditSets={isFinalSyncPending ? undefined : handleEditFromSummary}
         >
-        {/* PRO-C T2: metryki żyją w hero-karcie sekwencji completion — tu zostaje
-            wyłącznie baner stanu "czeka na synchronizację" (status, nie gratulacja). */}
-        {isFinalSyncPending && (
-          <Card className="border-fitness-warning bg-fitness-warning/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-fitness-warning">
-                <Check className="h-6 w-6" />
-                {t('workout.completedLocallyTitle')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">{t('workout.waitingSyncDesc')}</p>
-            </CardContent>
-          </Card>
-        )}
 
         {dayNotes && (
           <Card className="bg-muted/30">
@@ -2676,7 +2688,7 @@ const WorkoutDay = () => {
           </div>
         </div>
 
-        <ErrorBanner />
+        <DraftStatusNotice />
 
         <div className="space-y-4">
           {day.exercises.map((exercise, index) => (
@@ -2768,7 +2780,7 @@ const WorkoutDay = () => {
         </div>
       )}
 
-      <ErrorBanner />
+      <DraftStatusNotice />
 
       {/* Warmup dialog */}
       <WarmupRoutineDialog

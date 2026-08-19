@@ -1390,6 +1390,9 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.changesSavedDesc': 'Your changes have been saved.',
   // === workout error messages ===
   'workout.err.localSaveFailed': 'Cannot save on this device (storage full?). Keep the app open — this session lives only on screen.',
+  'workout.retryLocalSave': 'Retry save',
+  'workout.discardDraftConfirmTitle': 'Delete the local draft?',
+  'workout.discardDraftConfirmDesc': 'This workout data was not saved to the cloud. Deletion cannot be undone.',
   'workout.err.localSaveBeforeSync': 'Could not save draft locally before syncing.',
   'workout.err.offline': 'No internet connection. Workout stays saved locally.',
   'workout.err.cloudSavedLocalCleanupFailed': 'Workout saved to the cloud, but the local draft could not be cleared.',

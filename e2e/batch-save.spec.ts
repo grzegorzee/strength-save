@@ -196,6 +196,9 @@ test.describe('Batch Save Workflow', () => {
 
     await expect(page.getByText('Trening zakończony lokalnie')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Synchronizuj teraz' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Usuń szkic' })).toBeVisible();
+    await page.getByRole('button', { name: 'Zamknij' }).click();
+    await expect(page.getByText('Trening zakończony lokalnie')).toHaveCount(0);
   });
 
   test('sync center shows active local draft and quick actions', async ({ page }) => {

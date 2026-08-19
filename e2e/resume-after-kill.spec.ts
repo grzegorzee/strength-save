@@ -60,6 +60,17 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
       };
     }, { timeout: 10000 }).toEqual({ warmup: 4, warmupDone: 4, workingDone: 2 });
 
+    // Symulacja zgaszenia ekranu: renderer JS jest zamrożony, a potem wznowiony.
+    // Nie oczekujemy pracy timerów w tle — po resume liczy się trwały snapshot.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Page.setWebLifecycleState', { state: 'frozen' });
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await cdp.send('Page.setWebLifecycleState', { state: 'active' });
+    await expect.poll(async () => {
+      const draft = (await readWorkoutDraftDb(page, E2E_UID)) as DraftShape;
+      return draft?.exerciseSets?.['ex-1-1']?.filter((set) => set.completed).length ?? 0;
+    }).toBe(6);
+
     // Wyjście z treningu, potem kill (reload = zimny start).
     await navigateAndWait(page, '/');
     await page.reload();
@@ -80,6 +91,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
     // Serie 1:1: dokładnie 4 wiersze W (wszystkie odhaczone), robocze bez zmian,
     // zero wskrzeszonych/zdublowanych wierszy.
     const cardAfter = page.locator('.exercise-card').first();
+    await expect(page.getByText('Odzyskano niezapisany trening')).toHaveCount(0);
     await expect(cardAfter.getByRole('textbox', { name: /Rozgrzewka W, kg/ })).toHaveCount(4);
     await expect(cardAfter.getByRole('button', { name: 'Odznacz serię' })).toHaveCount(6);
     await expect(cardAfter.getByRole('button', { name: 'Zaznacz serię jako zrobioną' })).toHaveCount(uncheckedBefore);
