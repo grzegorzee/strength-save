@@ -1496,7 +1496,7 @@ export const en: Record<keyof typeof pl, string> = {
   'profile.toast.saved': 'Saved',
   // Pre-app record backfill (Runna p.1, spec A5).
   'profile.backfill.title': 'Records before the app',
-  'profile.backfill.desc': 'Enter your heaviest lifts from before the app. Record celebrations will compare new results against them, not only your in-app history.',
+  'profile.backfill.desc': 'Enter your heaviest lifts from before the app. This is only a baseline for record celebrations (a new PR must beat it), not a historical workout import: nothing is added to your history, stats or charts.',
   'profile.backfill.squat': 'Squat',
   'profile.backfill.bench': 'Bench press',
   'profile.backfill.deadlift': 'Deadlift',

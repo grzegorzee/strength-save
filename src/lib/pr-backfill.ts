@@ -1,4 +1,5 @@
 import type { PRComparison } from '@/lib/pr-utils';
+import { slugifyExercise } from '@/lib/exercise-media';
 
 // Backfill rekordów sprzed instalacji (Runna pakiet 1, spec A5): user wpisuje
 // stare PR-y w bojach głównych, żeby celebracja PR nie gratulowała ciężarów
@@ -49,14 +50,38 @@ export const foldPolish = (text: string): string => text
 const includesAny = (name: string, needles: string[]): boolean =>
   needles.some((needle) => name.includes(needle));
 
+// B-T5: kanoniczne slugi big three z biblioteki ćwiczeń — znane pozycje matchują
+// deterministycznie po slugu (slugifyExercise nazwy z biblioteki), heurystyka
+// nazwowa zostaje tylko dla własnych ćwiczeń usera. Domyka bug audytu: kanoniczny
+// bench nie przechodził przez fragment tłumaczenia. Slugi zapisane w ASCII
+// (guard i18n skanuje polskie literały w kodzie).
+const CANONICAL_LIFT_BY_SLUG: Record<string, PRBackfillLift> = {
+  'wyciskanie-sztangi-na-lawce-plaskiej': 'bench',
+  'barbell-bench-press': 'bench',
+  'przysiad-ze-sztanga-high-bar': 'squat',
+  'przysiad-ze-sztanga-low-bar': 'squat',
+  'back-squat': 'squat',
+  'martwy-ciag-klasyczny': 'deadlift',
+  'deadlift': 'deadlift',
+};
+
 export const backfillLiftForExercise = (exerciseName: string): PRBackfillLift | null => {
+  const canonical = CANONICAL_LIFT_BY_SLUG[slugifyExercise(exerciseName)];
+  if (canonical) return canonical;
+
   const name = foldPolish(exerciseName);
   if (includesAny(name, ['przysiad', 'squat'])) {
-    if (includesAny(name, ['hack', 'bulgar', 'goblet', 'split', 'front', 'cossack'])) return null;
+    if (includesAny(name, [
+      'hack', 'bulgar', 'goblet', 'split', 'front', 'cossack',
+      'pistol', 'wykrocz', 'lunge', 'smith', 'belt',
+    ])) return null;
     return 'squat';
   }
-  if (name.includes('bench') || (name.includes('wyciskanie') && name.includes('lez'))) {
-    if (includesAny(name, ['skos', 'incline', 'decline', 'hantl', 'dumbbell', 'wask', 'close'])) return null;
+  if (
+    name.includes('bench')
+    || (name.includes('wyciskanie') && includesAny(name, ['lez', 'lawce plaskiej', 'lawka plaska']))
+  ) {
+    if (includesAny(name, ['skos', 'incline', 'decline', 'hantl', 'dumbbell', 'wask', 'close', 'smith'])) return null;
     return 'bench';
   }
   if (includesAny(name, ['martwy', 'deadlift'])) {

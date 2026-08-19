@@ -1518,7 +1518,7 @@ export const pl = {
   'profile.toast.saved': 'Zapisano',
   // Backfill rekordów sprzed instalacji (Runna p.1, spec A5).
   'profile.backfill.title': 'Rekordy sprzed aplikacji',
-  'profile.backfill.desc': 'Wpisz najcięższe boje sprzed apki. Celebracja rekordów porówna nowe wyniki także z nimi, nie tylko z historią w aplikacji.',
+  'profile.backfill.desc': 'Wpisz najcięższe boje sprzed apki. To tylko punkt odniesienia dla celebracji rekordów (nowy PR musi je przebić), nie import historycznego treningu: nic nie trafia do historii, statystyk ani wykresów.',
   'profile.backfill.squat': 'Przysiad',
   'profile.backfill.bench': 'Wyciskanie leżąc',
   'profile.backfill.deadlift': 'Martwy ciąg',

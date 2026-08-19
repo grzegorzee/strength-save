@@ -50,6 +50,27 @@ describe('backfillWeightForExercise', () => {
   it('brak backfillu = 0', () => {
     expect(backfillWeightForExercise('Przysiad ze sztangą', undefined)).toBe(0);
   });
+
+  // B-T5: inwentarz KANONICZNYCH nazw big three z biblioteki ćwiczeń —
+  // matcher działa po slugach, nie po fragmencie tłumaczenia ('leż').
+  it('kanoniczne nazwy biblioteki big three dziedziczą backfill', () => {
+    expect(backfillWeightForExercise('Wyciskanie sztangi na ławce płaskiej', backfill)).toBe(100);
+    expect(backfillWeightForExercise('Przysiad ze sztangą (High Bar)', backfill)).toBe(140);
+    expect(backfillWeightForExercise('Przysiad ze sztangą (Low Bar)', backfill)).toBe(140);
+    expect(backfillWeightForExercise('Martwy ciąg klasyczny', backfill)).toBe(180);
+  });
+
+  it('inwentarz wariantów biblioteki, które NIE dziedziczą', () => {
+    expect(backfillWeightForExercise('Wyciskanie hantli na ławce płaskiej', backfill)).toBe(0);
+    expect(backfillWeightForExercise('Wyciskanie na Smith maszynie (ławka płaska)', backfill)).toBe(0);
+    expect(backfillWeightForExercise('Wyciskanie sztangi na ławce ujemnej (deklina)', backfill)).toBe(0);
+    expect(backfillWeightForExercise('Wyciskanie sztangi nad głowę (OHP)', backfill)).toBe(0);
+    expect(backfillWeightForExercise('Przysiad goblet', backfill)).toBe(0);
+    expect(backfillWeightForExercise('Przysiad pistolet (jednonóż)', backfill)).toBe(0);
+    expect(backfillWeightForExercise('Przysiady wykroczne', backfill)).toBe(0);
+    expect(backfillWeightForExercise('Martwy Ciąg Rumuński (RDL)', backfill)).toBe(0);
+    expect(backfillWeightForExercise('Rumuński martwy ciąg z akcentem na pośladek', backfill)).toBe(0);
+  });
 });
 
 describe('filterPRsAgainstBackfill', () => {
