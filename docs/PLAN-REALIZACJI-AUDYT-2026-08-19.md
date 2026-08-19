@@ -345,7 +345,12 @@ GREEN. Rules+indexes do wdrożenia w release train.
 
 ### B-RELEASE — wspólne wydanie B
 
-- [ ] Wszystkie bramki z sekcji 8, wspólny release train i re-audyt danych/feedbacku.
+- [x] Wszystkie bramki z sekcji 8, wspólny release train i re-audyt danych/feedbacku.
+
+**B-RELEASE WYKONANE 2026-08-19:** ten sam train co A-RELEASE (szczegóły wyżej
+i w DECYZJE.md). Bramki: vitest 1729/1729, functions 227+build, rules 218/218,
+e2e 197/197 (świeży vite), wszystkie check:* GREEN. Bramka e2e wyłapała i naprawiła
+realny bug eksmisji rodzica przez zagnieżdżone potwierdzenie (`398a3442`).
 
 ## 6. Wydanie C — plan, urlop, rozgrzewka i cykle
 

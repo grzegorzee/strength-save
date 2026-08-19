@@ -5,11 +5,50 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-19 (audyt A-T0..A-T5 + Watch Simulator domknięty, fix retransmisji kolejki)
+**Ostatnia aktualizacja:** 2026-08-19 (RELEASE TRAIN A+B: web live, iOS 105 TestFlight, AAB v20, Garmin iq, backend user_events)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-19: RELEASE TRAIN A+B — wydanie na 5 powierzchni (mandat właściciela)
+
+**Co:** Pierwszy wspólny release train planu audytu (wydania A i B, zielony commit
+`398a3442`): web + backend + iOS/Watch + Android + Garmin. Wykonany na jawny mandat
+właściciela ("pracuj aż wydasz nowe wersje na wszystkich powierzchniach"); fizyczne
+przebiegi A-T5 na iPhone/Androidzie oraz submity sklepowe pozostają krokami właściciela.
+
+**Artefakty:**
+1. **Backend:** rules + indexes (user_events, composite userId+createdAt) + functions
+   (weeklyDigest z producentem inboxa) wdrożone na prod PRZED klientami.
+2. **Web:** LIVE na app.strengthsave.app, hash `index-BMqiRMRo.js` zweryfikowany.
+3. **iOS 1.0.0 (105):** TestFlight, obie grupy podpięte (204/204), whatsNew ustawione,
+   Beta App Review APPROVED; `StrengthWatch.app` 105 + widgets w IPA. Build 104 był
+   zajęty (upload Codexa ze starego kodu przed limitem) — bump na 105. Następny = 106.
+4. **Android AAB versionCode 20:** `jar verified`, SHA-256
+   `99f692ce99affb34b1d177e29abe87908c5876ea47ff6c34f465cb6f2b91f637`
+   (`android/app/build/outputs/bundle/release/app-release.aab`) — upload do Play
+   Console = krok właściciela.
+5. **Garmin:** podpisany `.iq` 27/27 urządzeń SHA `e488c208…`, PRG epix2 SHA
+   `d3165176…` = bajt w bajt binarka fizycznie wdrożona rano na EPIX2 właściciela;
+   submit do Connect IQ Store = krok właściciela.
+
+**Zakres merytoryczny (commity B-T1..B-T6 + fixy):** jedno źródło prawdy serii
+roboczych (`769890e8`), rekord vs szac. 1RM (`5854c02d`), celebracja PR 5,5 s ścienne
+(`8ae5d942`), notatka nad seriami, matcher backfillu po slugu (`a78c0993`~), serwerowy
+inbox user_events (`48083efc`), fix retransmisji kolejki Watch (`60ef6c8c`), fix
+eksmisji rodzica przez zagnieżdżone potwierdzenie (`398a3442` — wyłapany bramką e2e
+trainu, RED w overlay-contract).
+
+**Bramki trainu:** vitest 1729/1729, functions 227 + build, test:rules 218/218,
+typecheck, lint, build, bundle-budget, dist-smoke, dist-offline, no-emoji, pełne e2e
+197/197 na świeżym vite.
+
+**Incydent procesowy:** commit `9b32e915` wszedł jako wydmuszka (git add z listą
+ścieżek i wyciszonym stderr), a bisekcja `checkout -- .` nadpisała niezacommitowane
+zmiany; treść odtworzona 1:1 i dograna w `48083efc`. Lekcja w pamięci projektu +
+zasada: stage per plik, `git show --name-status` przed pushem.
+
 
 ### 2026-08-19: Watch Simulator QA domknięte po limicie Codexa + fix retransmisji kolejki (60ef6c8c)
 
