@@ -2,13 +2,16 @@
 
 ## Status
 
-**BLOCKED na bramce fizycznej.** Kod, bramki automatyczne i pełne przebiegi na Android
-Emulator oraz iOS Simulator są zielone w commitach `1874a53e` i `00d1a178`. Nie wolno
-oznaczyć A-T5 jako DONE ani zaczynać A-RELEASE, dopóki pełny scenariusz nie przejdzie na
-realnym iOS, Androidzie, Apple Watch i Garminie.
+**BLOCKED na pozostałej bramce fizycznej.** Kod, bramki automatyczne i pełne przebiegi na
+Android Emulator oraz iOS Simulator są zielone w commitach `1874a53e` i `00d1a178`.
+Fizyczny Garmin EPIX 2 przeszedł pełny kontrakt po poprawce `f127039e`. Nie wolno oznaczyć
+A-T5 jako DONE ani zaczynać A-RELEASE, dopóki pełny scenariusz nie przejdzie jeszcze na
+realnym iOS, Androidzie i Apple Watch.
 
-Testy używały wyłącznie syntetycznych użytkowników lokalnych emulatorów lub mocka E2E.
-Nie zapisano żadnej serii na realnym koncie.
+Testy używały wyłącznie syntetycznych użytkowników lokalnych emulatorów, mocka E2E albo
+wydzielonego syntetycznego konta produkcyjnego Garmin QA. Nie zapisano żadnej serii na
+realnym koncie. Fizyczny wariant Garmin QA miał wyłączony zapis FIT, więc techniczny
+trening nie trafił do prywatnego Garmin Connect właściciela.
 
 ## Wykonane dowody
 
@@ -55,6 +58,30 @@ Nie zapisano żadnej serii na realnym koncie.
   `StrengthWatch.app` oraz `StrengthWatchWidgets.appex`; wersja 1.0.0, build 103.
 - Android: `assembleDebug` GREEN, artefakt `android/app/build/outputs/apk/debug/app-debug.apk`.
 - Garmin: SDK 9.2.0, `epix2` build GREEN, PRG uruchomiony przez `monkeydo`.
+- Fizyczny Garmin EPIX 2 (firmware 26.09): osobny UUID aplikacji i nazwa `Strength Save
+  QA`; produkcyjne pliki aplikacji zostały zabezpieczone binarnie i niezmienione.
+  Początkowy cold launch w trybie samolotowym odtworzył RED `Brak łączności. Ponowić?
+  (-104)`, mimo poprawnego dzisiejszego cache. Root cause: konto bez historii nie miało
+  klucza `recents`, więc każdy cold launch wymuszał fetch, a błąd transportu zastępował
+  istniejący plan ekranem retry.
+- TDD Garmin (`f127039e`): test najpierw padł przez brak kontraktu fallbacku; minimalna
+  poprawka zapisuje brak historii jako pustą listę i po ujemnym kodzie transportu używa
+  tylko cache z dzisiejszą datą. 401/403/5xx i cache z poprzedniego dnia pozostają
+  fail-closed. Test kontraktowy 6/6, szerszy zakres functions 9/9, wearables 3/3 oraz
+  kompilacje produkcyjnego i QA `epix2` są GREEN. PRG QA miał SHA-256
+  `8efb2e2acd9fefec1b545c6cce2ae6a676bca148d7901042e1b5c2cc35d05f2b`.
+- Fizyczny przebieg po poprawce: airplane → cold launch dzisiejszego planu bez `-104` →
+  dwie serie offline (`QA asysta` 17,5 kg i `QA ciężar dystans czas` 25 m) → ekran
+  zgaszony pełne 2 min → resume → kill → cold launch z `2 do wysłania` → finish offline
+  z komunikatem braku łączności → drugi kill → cold offline nadal `2 do wysłania` →
+  reconnect → pojedyncze potwierdzenie finish → `Zapisano`.
+- Dowód Firestore przed reconnect: dokładnie jeden dokument
+  `garmin-dd8b6f6f5de6-w-2026-08-19-1787145195000`, trzy istniejące serie,
+  `lastSyncAt=1787145412178`, pending `0`. Po reconnect nadal ten sam jeden dokument,
+  pięć serii łącznie, nowe wartości dokładnie 17,5 kg i 25 m, `revision=2`,
+  `lastSyncAt=1787147204248`, pending `0`, `lastError=null`, `fitStatus=unavailable`.
+  Nie powstał duplikat dokumentu ani FIT. Próba uzupełnienia dowodu z Cloud Logging była
+  jawnie niedostępna (`PERMISSION_DENIED` dla log views); nie jest przedstawiana jako PASS.
 
 ## Dokładny blocker
 
@@ -67,18 +94,17 @@ Iphone (Greg) ... unavailable ... iPhone15,2
 adb devices -l
 List of devices attached
 
-system_profiler SPUSBDataType | rg Garmin
-<brak wyniku>
-
 Jedyna aktywna para iPhone+Watch to iPhone 17 Pro Max Simulator + Apple Watch Series 11
-Simulator. Brak dostępnego fizycznego Apple Watch i Garmina.
+Simulator. Fizyczny Garmin EPIX 2 jest już zweryfikowany. Brak dostępnego fizycznego
+Apple Watch i Androida; `Iphone (Greg)` pozostaje niedostępny.
 ```
 
 Android AVD i iOS Simulator pozwoliły wykonać pełne sekwencje, łącznie z systemowym
 uśpieniem/wyłączeniem ekranu, resume oraz killami procesu. Nadal nie są dowodem sprzętowym:
-rzeczywisty iOS może inaczej zawiesić WKWebView po zgaszeniu ekranu, a zegarki wymagają
-transportu, restartu i ACK na prawdziwym radiu/Storage. Dlatego ostatnie dwa checkboxy A-T5
-pozostają otwarte.
+rzeczywisty iOS może inaczej zawiesić WKWebView po zgaszeniu ekranu, a Apple Watch wymaga
+transportu, restartu i ACK na prawdziwym radiu/Storage. Garmin dowodzi już zachowania
+prawdziwego Storage i transportu, ale ostatnie dwa checkboxy A-T5 pozostają otwarte do
+kompletu rodzin urządzeń.
 
 ## Procedura domknięcia — bez realnego konta
 
@@ -90,7 +116,7 @@ Na osobnym koncie testowym/fixture, bez danych użytkownika:
 2. Powtórzyć identyczny scenariusz na fizycznym Androidzie.
 3. Apple Watch: z telefonem nieosiągalnym odhaczyć serię i zakończyć; potwierdzić pending,
    restart zegarka/apki, retry po reconnect, ACK oraz pojedynczy ingest na telefonie.
-4. Garmin: offline odhaczyć i zakończyć, wymusić błąd ingest, zrestartować aplikację,
-   ponowić po reconnect; potwierdzić wyczyszczenie kolejki dopiero po sukcesie i jedną sesję.
+4. Garmin: **PASS 2026-08-19** — offline odhaczenie, błąd ingest, dwa restarty aplikacji,
+   retry po reconnect, kolejka wyczyszczona dopiero po ACK i jedna sesja.
 5. Dopiero po czterech PASS odhaczyć dwa ostatnie punkty A-T5, uruchomić ponownie wszystkie
    bramki i wykonać A-RELEASE jako jeden train z tego samego zielonego commita.

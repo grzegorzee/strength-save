@@ -2578,3 +2578,28 @@ targetu widgetu i tworzy fałszywy błąd kompilacji jako iOS.
 **Pozostały blocker:** `Iphone (Greg)` nadal `unavailable`; po wyłączeniu AVD ADB jest
 puste, Garmin nie występuje w USB, a jedyna aktywna para Watch jest symulatorem. Dwa ostatnie
 punkty A-T5 oraz A-RELEASE pozostają otwarte do testów fizycznych czterech rodzin urządzeń.
+
+### Fizyczny Garmin A-T5: cache dnia po błędzie transportu
+
+**Nowy RED i root cause:** na prawdziwym EPIX 2 cold launch w trybie samolotowym pokazał
+`Brak łączności. Ponowić? (-104)`, mimo że dzisiejszy plan był w Storage. Konto techniczne
+nie miało historii, a endpoint celowo pomijał puste `r`; klient interpretował brak klucza
+`recents` jako niepełny cache i wymuszał fetch przy każdym starcie. Ujemny błąd transportu
+zastępował wtedy poprawny cache ekranem retry.
+
+**Decyzja:** po odpowiedzi dnia zawsze zapisywać `recents` (także pustą tablicę), a po
+ujemnym kodzie transportu użyć cache wyłącznie wtedy, gdy jego data jest dokładnie dzisiejsza.
+Nie rozszerzać uprawnień: 401/403/5xx, brak cache i dzień z inną datą pozostają fail-closed.
+Zmiana jest chirurgiczna i odwracalna (`f127039e`). Fizyczny QA używa osobnego UUID,
+syntetycznego UID `garmin-at5-20260819` i wariantu bez zapisu FIT, więc nie zapisuje serii
+na realnym koncie ani treningu w prywatnym Garmin Connect.
+
+**Weryfikacja:** kontrakt najpierw RED, potem 6/6 GREEN; functions zakres 9/9, wearable
+offline 3/3, pełne Vitest 233/233 pliki i 1700/1700 testów, functions 223/223, typecheck,
+lint, build, bundle/dist/offline/no-emoji oraz produkcyjny i QA `epix2` GREEN. Fizyczny
+przebieg: cold offline bez `-104`, 17,5 kg asysty + 25 m offline, ekran zgaszony 2 min,
+kill/cold z kolejką 2, finish offline zachował kolejkę, drugi kill również, a pojedynczy
+finish po reconnect dał ACK i kolejkę 0. Firestore nadal ma jeden kanoniczny dokument,
+z pięcioma seriami i `revision=2`; nie powstał duplikat ani FIT. Cloud Logging nie był
+dostępny dla aktywnego konta (`PERMISSION_DENIED`) i nie jest przedstawiany jako dowód.
+Garmin jest PASS; całe A-T5 pozostaje BLOCKED do fizycznych iOS, Android i Apple Watch.

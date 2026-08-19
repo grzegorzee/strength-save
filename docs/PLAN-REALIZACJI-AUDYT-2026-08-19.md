@@ -201,16 +201,26 @@ zielony; fizyczny lock 2 min pozostaje uczciwie w A-T5 i nie jest deklarowany ja
   `App.app/Watch` są `StrengthWatch.app` i `StrengthWatchWidgets.appex` (1.0.0, build 103).
   Android `assembleDebug` tworzy APK, Garmin SDK 9.2.0 buduje `epix2` PRG. Test 3/3
   potwierdza Watch durable-before-transmit/ACK-only oraz Garmin Storage/clear-on-success
-  i dedup ingest. **BLOCKER:** brak fizycznego Androida, Apple Watch i Garmina; system nie
-  wykrywa Garmina przez USB, a jedyna aktywna para iPhone+Watch jest symulatorem.
+  i dedup ingest. **Fizyczny Garmin PASS (`f127039e`):** EPIX 2, firmware 26.09,
+  wydzielona aplikacja `Strength Save QA` i syntetyczny UID `garmin-at5-20260819`.
+  Cold launch w trybie samolotowym ujawnił RED `-104`; poprawka TDD wpuszcza wyłącznie
+  dzisiejszy serwerowo pobrany cache po ujemnym błędzie transportu, a 401/403/5xx oraz
+  stary dzień nadal są fail-closed. Po nowym PRG: cold offline, dwie serie, screen-off
+  2 min, kill, cold offline, nieudany finish, drugi kill i reconnect zachowały `2 do
+  wysłania` aż do ACK. Firestore pozostał przy jednym kanonicznym dokumencie; doszły
+  dokładnie `17,5 kg` asysty i `25 m`, `revision=2`, kolejka `0`, `fitStatus=unavailable`.
+  Wariant QA celowo nie tworzył FIT, więc nic nie trafiło do realnego Garmin Connect.
+  **BLOCKER:** brak fizycznego Androida i Apple Watch; fizyczny iPhone pozostaje
+  `unavailable`, a jedyna aktywna para iPhone+Watch jest symulatorem.
 
-**A-T5 BLOCKED (`1874a53e`, `00d1a178`):** wszystkie prace niezależne od sprzętu są
+**A-T5 BLOCKED (`1874a53e`, `00d1a178`, `f127039e`):** wszystkie prace niezależne od sprzętu są
 wykonane. GREEN: Vitest 233/233 i 1700/1700, typecheck, lint, build,
 bundle/dist/offline/no-emoji, UserProvider emulator 3/3, workout kill/offline 6/6 oraz
 pełne sekwencje Android/iOS simulator. iOS 1.0.0 (103) z Watch/widgetem, Android APK i
-Garmin PRG budują się. Pełne dowody i procedura domknięcia:
+Garmin PRG budują się; fizyczny Garmin przeszedł offline/kill/screen-off/reconnect.
+Pełne dowody i procedura domknięcia:
 `docs/RAPORT-OFFLINE-A-T5-2026-08-19.md`. A-RELEASE nie może ruszyć przed pełnym
-przebiegiem fizycznym iOS+Android+Watch+Garmin.
+przebiegiem fizycznym iOS+Android+Watch; Garmin jest domknięty.
 
 ### A-RELEASE — wspólne wydanie A
 
