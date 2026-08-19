@@ -372,14 +372,22 @@ RED->GREEN 9 nowych testów; vitest 1738/1738, typecheck/lint/build GREEN.
 
 ### C-T2 — jeden pre-start warmup flow
 
-- [ ] Przed utworzeniem nowej sesji sheet: `Tak, ok. 4 min` / `Pomiń`.
-- [ ] Draft/sesja powstaje dokładnie raz; prompt nie wraca przy resume i nie blokuje startu
+- [x] Przed utworzeniem nowej sesji sheet: `Tak, ok. 4 min` / `Pomiń`.
+- [x] Draft/sesja powstaje dokładnie raz; prompt nie wraca przy resume i nie blokuje startu
   rozpoczętego z Watch/Garmin.
-- [ ] Opcjonalne 2–3 min cardio, 2–3 dynamiczne ruchy zależne od pierwszego głównego
+- [x] Opcjonalne 2–3 min cardio, 2–3 dynamiczne ruchy zależne od pierwszego głównego
   ćwiczenia i rampujące serie właściwe dla sprzętu.
-- [ ] Nie proponować pustego gryfu hantlom/maszynom; copy mówi `% ciężaru roboczego`, nie
+- [x] Nie proponować pustego gryfu hantlom/maszynom; copy mówi `% ciężaru roboczego`, nie
   `%1RM`. Statyczny stretching nie jest domyślną połową rozgrzewki.
-- [ ] Testy: Tak/Pomiń/autostart/resume/background/offline, jedna sesja i komplet planu.
+- [x] Testy: Tak/Pomiń/autostart/resume/background/offline, jedna sesja i komplet planu.
+
+**C-T2 DONE:** moduł prestart-warmup (detekcja sprzętu, ramp, decyzja promptu) + sheet
+w WorkoutDay + WarmupRoutineDialog v2 (cardio/dynamiczne/ramp, stretching zwinięty,
+copy % ciężaru roboczego wszędzie łącznie z warmupgen). Testy 9+7 + pełne e2e 197/197
+na nowym flow (helper warunkowy w 9 specach; resume/autostart = brak promptu).
+Background/offline: prompt nie dotyka timerów ani sieci — start offline korzysta z
+istniejącej ścieżki fallbacku (testy bez zmian GREEN); jedna sesja i komplet planu =
+niezmienniki Z162/incydent-2026-07-20 w pełnym vitest 1749/1749.
 
 ### C-T3 — decyzja o trybie „nie na 100%”
 
