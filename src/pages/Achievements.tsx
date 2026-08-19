@@ -1,5 +1,5 @@
 import { Suspense, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '@/components/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { StatsCard } from '@/components/StatsCard';
@@ -36,6 +36,7 @@ import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { useTranslation } from '@/contexts/LanguageContext';
 
 const TonnageTrendChart = lazyWithRetry(() => import('@/components/achievements/TonnageTrendChart'), 'lazy-retry:tonnage-trend');
+const AnalyticsEmbedded = lazyWithRetry(() => import('@/pages/Analytics'), 'lazy-retry:analytics-embedded');
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
 import { cn, parseLocalDate } from '@/lib/utils';
@@ -79,7 +80,51 @@ const medalLabelKey: Record<'gold' | 'silver' | 'bronze', TranslationKey> = {
   bronze: 'achievements.seasons.bronze',
 };
 
+// D-T4: jeden ekran Postępy — segment widoku (rekordy/odznaki | analityka).
+const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  return (
+    <div className="space-y-3">
+      <div>
+        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('progress.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('progress.subtitle')}</p>
+      </div>
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-surface-low p-1" role="tablist" aria-label={t('progress.title')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'records'}
+          data-testid="progress-view-records"
+          onClick={() => navigate('/achievements', { replace: true })}
+          className={view === 'records'
+            ? 'rounded-lg bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-background'
+            : 'rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground'}
+        >
+          {t('progress.viewRecords')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'analytics'}
+          data-testid="progress-view-analytics"
+          onClick={() => navigate('/achievements?view=analytics', { replace: true })}
+          className={view === 'analytics'
+            ? 'rounded-lg bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wide text-background'
+            : 'rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground'}
+        >
+          {t('progress.viewAnalytics')}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const Achievements = () => {
+  // D-T4: ?view=analytics renderuje osadzoną Analitykę pod wspólnym nagłówkiem.
+  const [achSearchParams] = useSearchParams();
+  const progressView = achSearchParams.get('view') === 'analytics' ? 'analytics' : 'records';
+
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
   const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
@@ -214,14 +259,28 @@ const Achievements = () => {
     );
   }
 
+  // D-T4: ?view=analytics — analityka osadzona pod wspólnym nagłówkiem Postępy.
+  if (progressView === 'analytics') {
+    return (
+      <div className="space-y-6">
+        <ProgressHeader view="analytics" />
+        <Suspense fallback={(
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
+          </div>
+        )}
+        >
+          <AnalyticsEmbedded embedded />
+        </Suspense>
+      </div>
+    );
+  }
+
   // Z82: bez treningów strona pokazywała same zera i pustkę — zaproszenie zamiast tego.
   if (completedWorkouts === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('achievements.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('achievements.subtitle')}</p>
-        </div>
+        <ProgressHeader view="records" />
         <EmptyState
           icon={Trophy}
           title={t('achievements.emptyTitle')}
@@ -234,10 +293,7 @@ const Achievements = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('achievements.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('achievements.subtitle')}</p>
-      </div>
+      <ProgressHeader view="records" />
 
       {/* Main Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">

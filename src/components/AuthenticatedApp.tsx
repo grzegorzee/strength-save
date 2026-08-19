@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from 'react';
-import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Layout } from '@/components/Layout';
@@ -31,7 +31,13 @@ const TrainingPlan = lazyWithRetry(() => import('@/pages/TrainingPlan'), 'lazy-r
 const WorkoutDay = lazyWithRetry(() => import('@/pages/WorkoutDay'), 'lazy-retry:workout-day');
 const Achievements = lazyWithRetry(() => import('@/pages/Achievements'), 'lazy-retry:achievements');
 const PlanEditor = lazyWithRetry(() => import('@/pages/PlanEditor'), 'lazy-retry:plan-editor');
-const Analytics = lazyWithRetry(() => import('@/pages/Analytics'), 'lazy-retry:analytics');
+// D-T4: Analityka scalona z Postępami — /analytics zostaje jako redirect
+// (kompatybilność deep-linków i zdarzeń inboxa) z zachowaniem ?tab=.
+const AnalyticsRedirect = () => {
+  const [params] = useSearchParams();
+  const tab = params.get('tab');
+  return <Navigate to={`/achievements?view=analytics${tab ? `&tab=${tab}` : ''}`} replace />;
+};
 const Onboarding = lazyWithRetry(() => import('@/pages/Onboarding'), 'lazy-retry:onboarding');
 const ExerciseLibrary = lazyWithRetry(() => import('@/pages/ExerciseLibrary'), 'lazy-retry:exercise-library');
 const Settings = lazyWithRetry(() => import('@/pages/Settings'), 'lazy-retry:settings');
@@ -213,7 +219,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
                   <Route path="/workout/:dayId" element={<WorkoutDay />} />
                   <Route path="/achievements" element={<Achievements />} />
                   <Route path="/plan/edit" element={<PlanEditor />} />
-                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/analytics" element={<AnalyticsRedirect />} />
                   <Route path="/exercises" element={<ExerciseLibrary />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/profile" element={<Profile />} />

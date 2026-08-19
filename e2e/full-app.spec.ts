@@ -328,7 +328,7 @@ test.describe('Achievements', () => {
   test('loads with sections visible', async ({ page }) => {
     await navigateAndWait(page, '/achievements');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Osiągnięcia' })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Postępy' })).toBeVisible();
   });
 });
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, Trophy, BarChart3, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User, Ruler } from 'lucide-react';
+import { Home, Calendar, Trophy, Library, History, ScrollText, ChevronLeft, ChevronRight, LogOut, Settings, Shield, User, Ruler } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
@@ -30,7 +30,6 @@ const navItems = [
   { to: '/achievements', icon: Trophy, labelKey: 'nav.progress' as const },
   { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
   // Pozostałe — sidebar (desktop)
-  { to: '/analytics', icon: BarChart3, labelKey: 'nav.analytics' as const },
   { to: '/measurements', icon: Ruler, labelKey: 'nav.measurements' as const },
   { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
   { to: '/profile', icon: User, labelKey: 'nav.profile' as const },
@@ -39,7 +38,7 @@ const navItems = [
 // Boczne menu pogrupowane w sekcje (mniej przytłaczające niż płaska lista 9 pozycji).
 const NAV_GROUPS = [
   { titleKey: 'nav.group.main' as const, paths: ['/', '/plan', '/history', '/exercises'] },
-  { titleKey: 'nav.group.progress' as const, paths: ['/analytics', '/measurements', '/achievements', '/cycles'] },
+  { titleKey: 'nav.group.progress' as const, paths: ['/measurements', '/achievements', '/cycles'] },
   { titleKey: 'nav.group.account' as const, paths: ['/profile'] },
 ];
 

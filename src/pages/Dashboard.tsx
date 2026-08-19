@@ -920,7 +920,7 @@ const Dashboard = () => {
       <Button
         variant="outline"
         className="w-full py-5 hover:border-primary/30 transition-all duration-200"
-        onClick={() => navigate('/analytics?tab=summary')}
+        onClick={() => navigate('/achievements?view=analytics&tab=summary')}
       >
         <BarChart3 className="h-4 w-4 mr-2" />
         {t('dash.seeAnalytics')}

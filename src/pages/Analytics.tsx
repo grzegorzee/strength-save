@@ -444,7 +444,7 @@ const TabBoundary = ({ uid, children }: { uid?: string; children: React.ReactNod
   );
 };
 
-const Analytics = () => {
+const Analytics = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { uid, canUseStrava } = useCurrentUser();
   const { t } = useTranslation();
@@ -458,14 +458,17 @@ const Analytics = () => {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('analytics.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('analytics.subtitle')}</p>
-      </div>
+      {/* D-T4: osadzony w Postępach — nagłówek ma strona-matka. */}
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight">{t('analytics.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('analytics.subtitle')}</p>
+        </div>
+      )}
 
       <Tabs value={currentTab} onValueChange={(value) => {
         if (value === 'strava') trackTelemetryEvent(uid, 'action_strava_opened');
-        setSearchParams({ tab: value });
+        setSearchParams(embedded ? { view: 'analytics', tab: value } : { tab: value });
       }}>
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="summary" className="flex-1 text-xs min-w-0">{t('analytics.tab.summary')}</TabsTrigger>

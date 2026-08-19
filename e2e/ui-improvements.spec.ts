@@ -15,7 +15,8 @@ test.describe('Navigation', () => {
 
     // Count nav links in the sidebar
     const navLinks = page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link');
-    await expect(navLinks).toHaveCount(9);
+    // D-T4: Analityka scalona z Postępami (bez osobnej pozycji).
+    await expect(navLinks).toHaveCount(8);
 
     // Verify specific items are present
     const labels = await navLinks.allTextContents();
@@ -24,7 +25,7 @@ test.describe('Navigation', () => {
     expect(joinedLabels).toContain('Plan');
     expect(joinedLabels).toContain('Historia');
     expect(joinedLabels).toContain('Ćwiczenia');
-    expect(joinedLabels).toContain('Analityka');
+    expect(joinedLabels).not.toContain('Analityka');
     expect(joinedLabels).toContain('Pomiary ciała');
     // PRO-B T3: /achievements ma wspólny labelKey nav.progress ('Postępy').
     expect(joinedLabels).toContain('Postępy');
