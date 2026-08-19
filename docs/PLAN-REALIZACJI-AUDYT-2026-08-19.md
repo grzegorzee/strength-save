@@ -68,15 +68,25 @@ symulacji; initial JS 1 298 679 B, limit bez zmian.
 
 ### A-T1 — cache-first bootstrap profilu
 
-- [ ] Testy `UserProvider`: cached active + wiszący sync, cached active + błąd sync,
+- [x] Testy `UserProvider`: cached active + wiszący sync, cached active + błąd sync,
   cached suspended, brak cache nowego usera, zmiana uid w trakcie, reconnect i serwerowa
-  revokacja.
-- [ ] Podpiąć lokalny snapshot przed callable; `syncUserProfile` uruchamiać w tle/równolegle.
-- [ ] Dodać twardy timeout/abort do natywnego callable i ochronę przed wynikiem starego uid.
-- [ ] Nie pokazywać `AccessRestricted` wyłącznie z powodu braku sieci.
+  revokacja. **Dowód:** `bf985779`, 7/7 scenariuszy UserProvider GREEN.
+- [x] Podpiąć lokalny snapshot przed callable; `syncUserProfile` uruchamiać w tle/równolegle.
+  **Dowód:** listener z `includeMetadataChanges` powstaje przed callable; cached active
+  przechodzi przy nierozstrzygniętej obietnicy sync.
+- [x] Dodać twardy timeout/abort do natywnego callable i ochronę przed wynikiem starego uid.
+  **Dowód:** deadline 10 s + `AbortController`, test RED `still-pending` → GREEN
+  `deadline-exceeded`; cleanup i zgodność `profile.uid === userId`.
+- [x] Nie pokazywać `AccessRestricted` wyłącznie z powodu braku sieci.
+  **Dowód:** cached active zachowuje `hasAppAccess=true` po błędzie offline; cached
+  suspended pozostaje fail-closed, no-cache nie dostaje profilu.
 
 **Akceptacja:** zalogowany, wcześniej aktywny user wchodzi do aplikacji po cold launch bez
 sieci; nowy user bez cache nie dostaje sfabrykowanego dostępu.
+
+**A-T1 DONE (`bf985779`):** RED 6/6 bootstrap + 1/8 native timeout; GREEN 20/20
+testów celowanych i pełny Vitest 220/220 plików, 1668/1668 testów. Typecheck, lint,
+build i bundle budget GREEN. Real-device cold/airplane pozostaje bramką A-T5.
 
 ### A-T2 — jeden BootScreen i metryki startu
 

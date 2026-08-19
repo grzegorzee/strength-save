@@ -2426,3 +2426,24 @@ jednoznacznie nazwać go emulacją webową, nie real-device.
 plików, 1662/1662 testów; typecheck, lint, build i bundle budget GREEN. Raport
 `docs/BASELINE-START-A-T0-2026-08-19.md`: pięć prób warm/cold/offline, mediany
 68/239/147 ms; initial JS 1 298 679 B przy niezmienionym limicie 1 536 000 B.
+
+---
+
+## SESJA 2026-08-19 — audyt realizacyjny A-T1: cache-first profil
+
+**Root cause:** `UserProvider` awaitował sieciowy `syncUserProfile` przed utworzeniem
+listenera dokumentu usera. Persistent cache Firestore istniał, lecz kod nie miał jak go
+odczytać przed zakończeniem callable. Dodatkowo natywny protokół nie miał deadline'u, a
+błąd sync zerował poprawny cached profil.
+
+**Decyzja:** listener `users/{uid}` z metadanymi cache powstaje pierwszy, callable działa
+równolegle i jest ponawiany po `online`. Istniejący cached profil — także `suspended` —
+jest pokazywany zgodnie ze swoim serwerowym statusem; pusty cache niczego nie tworzy.
+Błąd sieci zachowuje ostatni profil. Zmiana UID unieważnia callbacki i profil jest używany
+tylko, gdy `profile.uid === userId`. Natywne callable mają wspólny deadline 10 s obejmujący
+Auth, App Check i fetch, z abortem requestu.
+
+**Dowód (`bf985779`):** bootstrap RED 6/6 → GREEN 7/7 (w tym stary flow nowego usera),
+native timeout RED `still-pending` → 8/8 GREEN; pełny Vitest 1668/1668, typecheck, lint,
+build i bundle budget GREEN. Nie użyto realnego konta. Fizyczny airplane/force-quit jest
+nadal otwartą bramką A-T5, nie został przedstawiony jako PASS.
