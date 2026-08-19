@@ -76,6 +76,7 @@ const renderComponent = () =>
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   fixtures.drafts = [];
   fixtures.queue = [];
   fixtures.syncSpy.mockClear();
@@ -108,5 +109,39 @@ describe('Z175: AutoSyncOnReconnect promuje provisional bez wchodzenia w trening
 
     await waitFor(() => expect(fixtures.syncSpy).toHaveBeenCalled());
     expect((fixtures.syncSpy.mock.calls[0] as unknown[])[2]).toBe('final');
+  });
+
+  it('offline kill → launch offline → reconnect synchronizuje final dokładnie raz mimo kopii w kolejce', async () => {
+    const finalDraft = draft({
+      sessionOrigin: 'remote',
+      finalSyncPending: true,
+      completedLocally: true,
+    });
+    fixtures.drafts = [finalDraft];
+    fixtures.queue = [{
+      ...finalDraft,
+      queueId: finalDraft.sessionId,
+      enqueuedAt: Date.now(),
+      retryCount: 0,
+      lastError: null,
+      lastErrorAt: null,
+    }];
+    fixtures.syncSpy.mockImplementationOnce(async (_uid: string, sessionId: string) => {
+      // Realny silnik po potwierdzonym final usuwa draft i odpowiadający wpis kolejki.
+      fixtures.drafts = [];
+      fixtures.queue = [];
+      return { success: true, sessionId };
+    });
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: false });
+    renderComponent();
+
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(fixtures.syncSpy).not.toHaveBeenCalled();
+
+    Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(() => expect(fixtures.syncSpy).toHaveBeenCalledTimes(1));
+    expect((fixtures.syncSpy.mock.calls[0] as unknown[]).slice(0, 3)).toEqual(['u1', 's1', 'final']);
   });
 });

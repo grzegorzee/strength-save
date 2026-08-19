@@ -18,6 +18,7 @@ import {
   OAuthProvider,
 } from "firebase/auth";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
+import { shouldUseFirebaseEmulators } from "@/lib/firebase-emulator-runtime";
 
 export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -63,7 +64,14 @@ export const functions = getFunctions(app, "us-central1");
 
 // e2e:emulator — podłącz SDK do lokalnych emulatorów zamiast produkcji.
 // Porty zgodne z firebase.json (firestore na 8081, bo 8080 zajmuje vite dev server).
-if (import.meta.env.VITE_USE_EMULATORS === "true") {
+const runtimeHostname = typeof window === "undefined" ? "" : window.location.hostname;
+const runtimeSearch = typeof window === "undefined" ? "" : window.location.search;
+if (shouldUseFirebaseEmulators(
+  import.meta.env.VITE_USE_EMULATORS === "true",
+  runtimeHostname,
+  runtimeSearch,
+  Capacitor.isNativePlatform(),
+)) {
   connectFirestoreEmulator(db, "127.0.0.1", 8081);
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFunctionsEmulator(functions, "127.0.0.1", 5001);

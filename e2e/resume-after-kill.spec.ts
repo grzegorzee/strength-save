@@ -24,7 +24,7 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
     await blockFirebase(page);
   });
 
-  test('serie wracają 1:1 po force-quit: 4xW odhaczone + robocze bez zmian, dokończenie dostępne', async ({ page }) => {
+  test('serie wracają 1:1 po force-quit: 4xW odhaczone + robocze bez zmian, dokończenie dostępne', async ({ page, browserName }) => {
     const today = localToday();
     await navigateAndWait(page, '/');
     await clearWorkoutDraftDb(page, E2E_UID);
@@ -62,10 +62,15 @@ test.describe('Sekwencja kill → kontynuuj (Z186)', () => {
 
     // Symulacja zgaszenia ekranu: renderer JS jest zamrożony, a potem wznowiony.
     // Nie oczekujemy pracy timerów w tle — po resume liczy się trwały snapshot.
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Page.setWebLifecycleState', { state: 'frozen' });
-    await new Promise(resolve => setTimeout(resolve, 250));
-    await cdp.send('Page.setWebLifecycleState', { state: 'active' });
+    // Playwright udostępnia prawdziwy freeze renderera wyłącznie przez Chromium
+    // CDP. WebKit nadal przechodzi cały kill/cold restore poniżej; native resume
+    // ma osobny test Capacitor appStateChange i ręczną bramkę urządzenia.
+    if (browserName === 'chromium') {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send('Page.setWebLifecycleState', { state: 'frozen' });
+      await new Promise(resolve => setTimeout(resolve, 250));
+      await cdp.send('Page.setWebLifecycleState', { state: 'active' });
+    }
     await expect.poll(async () => {
       const draft = (await readWorkoutDraftDb(page, E2E_UID)) as DraftShape;
       return draft?.exerciseSets?.['ex-1-1']?.filter((set) => set.completed).length ?? 0;
