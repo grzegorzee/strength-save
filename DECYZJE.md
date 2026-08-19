@@ -2470,3 +2470,29 @@ Raport `docs/RAPORT-START-A-T2-2026-08-19.md` zapisuje pięć prób warm/cold/of
 mediany markerów 48/207/100/1984 ms i dokładne bottlenecks. Initial JS 1 300 254 B przy
 niezmienionym limicie 1 536 000 B; bez spekulacyjnego splitu Firebase. Fizyczny iPhone był
 offline, więc real-device cold/kill nie został przedstawiony jako PASS i pozostaje w A-T5.
+
+---
+
+## SESJA 2026-08-19 — audyt realizacyjny A-T3: ciche wznowienie draftu
+
+**Root cause:** hydracja każdego dirty draftu wywoływała toast niezależnie od tego, czy
+user musiał coś zrobić. Z kolei czerwony stan po drugim totalnym failu zapisu miał tylko
+mały przycisk zamknięcia (~28 px), bez retry i bez bezpiecznej ścieżki odrzucenia. Ten sam
+`saveError` obsługiwał też błędy chmury, więc wspólne retry lokalne zepsułoby stary flow.
+
+**Decyzja:** zwykłe odzyskanie jest całkowicie ciche, ale nadal emituje
+`draft_recovered`. Tylko `finalSyncPending` oraz rozpoznany totalny błąd lokalny dostają
+kompaktowy status z retry, odrzuceniem po destrukcyjnym potwierdzeniu i celem zamknięcia
+44×44. Ogólne błędy chmury zachowują komunikat bez fałszywej akcji lokalnej. Odrzucenie
+czyści draft i referencję kolejki, wysyła wspólny event stanu i dopiero potem nawiguje.
+
+**Dowód (`77b37a16`):** RED brak komponentu → GREEN 87/87 zakresu; corrupted IDB
+odtwarza scoped localStorage; pełny Vitest 226/226 i 1686/1686, typecheck/lint/build,
+bundle/dist/offline/no-emoji GREEN. E2E mock 11/11, osobna sekwencja renderer
+suspend→resume→kill 1/1, bez realnego konta; niezmiennik plan→szybki trening→powrót
+zachowuje wszystkie ćwiczenia.
+
+**Jawna bramka native:** dodatkowy simulator build nie doszedł do uruchomienia przez
+istniejący błąd targetu `StrengthWatchWidgets`: Swift kompiluje go jako iOS 15, gdzie
+`accessoryCorner` jest niedostępne, a `containerBackground` wymaga iOS 17. Nie maskujemy
+tego wyniku; poprawka i realny lock 2 min pozostają częścią A-T5/A-RELEASE.

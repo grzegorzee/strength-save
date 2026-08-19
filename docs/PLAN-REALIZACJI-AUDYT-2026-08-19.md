@@ -121,11 +121,27 @@ bramka pozostaje w A-T5 zgodnie z wyjątkiem celu wydajnościowego.
 
 ### A-T3 — ciche wznowienie draftu
 
-- [ ] Zwykła hydracja dirty draftu bez toasta i bez modalnego UI.
-- [ ] Telemetria może pozostać bez UI.
-- [ ] `finalSyncPending` i totalny błąd zapisu mają mały komunikat z widocznym
+- [x] Zwykła hydracja dirty draftu bez toasta i bez modalnego UI.
+  **Dowód:** `77b37a16`; kontrakt źródłowy oraz E2E kill potwierdzają brak toasta,
+  telemetria `draft_recovered` pozostaje.
+- [x] Telemetria może pozostać bez UI.
+  **Dowód:** `trackTelemetryEvent(uid, 'draft_recovered')` bez wywołania `toast`.
+- [x] `finalSyncPending` i totalny błąd zapisu mają mały komunikat z widocznym
   retry/odrzuceniem; przycisk zamknięcia działa dotykiem.
-- [ ] Testy: dirty resume, final pending, uszkodzone IDB, fallback localStorage.
+  **Dowód:** `WorkoutDraftStatusNotice`, retry + destrukcyjne odrzucenie z potwierdzeniem,
+  cel zamknięcia 44×44 i testy interakcji; zwykłe błędy chmury zachowują stary flow.
+- [x] Testy: dirty resume, final pending, uszkodzone IDB, fallback localStorage.
+  **Dowód:** 87/87 testów zakresu, Chromium E2E 11/11 oraz suspend→resume+kill 1/1;
+  pełny Vitest 226/226 plików, 1686/1686 testów.
+
+**A-T3 DONE (`77b37a16`):** RED brak komponentu statusu → GREEN; zwykły dirty resume
+jest cichy, `finalSyncPending` i totalny fail mają retry/odrzuć/zamknij, a uszkodzone
+IndexedDB odtwarza fallback localStorage. Typecheck, lint, build, bundle, dist/offline smoke
+i no-emoji GREEN. Sekwencje plan→inna sesja→powrót oraz renderer suspend→resume→kill
+zachowują komplet serii bez realnego konta. Dodatkowa próba iOS simulator ujawniła
+istniejącą bramkę native: `StrengthWatchWidgets` jest kompilowany jako iOS 15 i odrzuca
+watchowe API (`accessoryCorner`, `containerBackground`); naprawa i pełny lock 2 min należą
+do A-T5/A-RELEASE i nie są przedstawione jako PASS.
 
 ### A-T4 — blackouty i blokujące powierzchnie
 
