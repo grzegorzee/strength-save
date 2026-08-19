@@ -144,23 +144,33 @@ beforeEach(() => {
 });
 
 describe('kolejność Dashboardu (spec B2)', () => {
-  it('niezmiennik elementów + Szybki trening na dole (po karcie tygodnia)', async () => {
-    // FIX-B T5: karta planu i ostatni PR opuściły Dashboard (Cykle -> /plan,
-    // PR -> Analityka) — niezmiennik pilnuje reszty kolejności.
+  it('D-T2: hero -> tydzień -> szybkie akcje -> max jeden insight; duplikaty usunięte', async () => {
     planFixture.plan = [dayOn(0, 'day-1', 'Push')];
     renderDashboard();
     await waitFor(() => expect(screen.getByTestId('week-card')).toBeTruthy());
 
+    const hero = screen.getByTestId('dash-hero');
     const weekCard = screen.getByTestId('week-card');
     const quickStart = screen.getByTestId('quick-workout-start');
     const cardio = screen.getByTestId('add-cardio-open');
     const analytics = screen.getByText('Zobacz analitykę');
 
+    // Duplikaty analityki/planu/tygodnia zeszły z Dashboardu (domy: Postępy i Plan).
+    expect(screen.queryByTestId('dash-stats')).toBeNull();
+    expect(screen.queryByTestId('dash-week-section')).toBeNull();
+    expect(screen.queryByTestId('dash-strava-km')).toBeNull();
     expect(screen.queryByTestId('dash-plan-card')).toBeNull();
     expect(screen.queryByTestId('dash-last-pr')).toBeNull();
+
+    // Kolejność: hero -> kompaktowy tydzień -> szybki trening/cardio -> link dalej.
+    expect(hero.compareDocumentPosition(weekCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(weekCard.compareDocumentPosition(quickStart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(quickStart.compareDocumentPosition(analytics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(cardio).toBeTruthy();
+
+    // Zaległość nie jest automatycznym modalem: zero blokujących warstw po wejściu.
+    expect(document.querySelectorAll('[data-app-overlay]')).toHaveLength(0);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
   it('dzień wolny: karta regeneracji z tipem pod wczorajszą partię', async () => {

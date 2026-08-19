@@ -16,7 +16,6 @@ import { type TrainingDay } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
-import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { WeekCard } from '@/components/WeekCard';
 import { LapseTray } from '@/components/LapseTray';
 import { LapseStatusCard } from '@/components/LapseStatusCard';
@@ -29,7 +28,6 @@ import { DashboardStatusSlot, type StatusEntry } from '@/components/DashboardSta
 import { buildWeekCardModel } from '@/lib/week-card';
 import { isDeloadWeek } from '@/lib/progression-engine';
 import { recoveryTipKeys } from '@/lib/recovery-tips';
-import { DeloadBanner } from '@/components/DeloadBanner';
 import { WeekReportCard } from '@/components/WeekReportCard';
 import { unifiedToManual, type ManualActivity } from '@/lib/manual-activity';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
@@ -37,10 +35,8 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { calculateStreakDetails, calculateTonnage, getWeekBounds } from '@/lib/summary-utils';
-import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { MissedWorkoutBanner } from '@/components/MissedWorkoutBanner';
-import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek, weekdayOfDate } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
@@ -58,73 +54,10 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
-import { weeklyStravaKm, currentWeekCardio } from '@/lib/activity-window';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { buildWatchCapabilitySnapshot } from '@/lib/device-management';
 import { markStartup } from '@/lib/startup-performance';
-
-// Trend component
-const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
-  const { t } = useTranslation();
-  if (value === null || value === 0) {
-    return (
-      <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
-        <Minus className="h-3 w-3" /> {t('dash.trend.stable')}
-      </span>
-    );
-  }
-  if (value > 0) {
-    return (
-      <span className="flex items-center gap-0.5 text-[11px] text-fitness-success">
-        <TrendingUp className="h-3 w-3" /> +{value}{suffix}
-      </span>
-    );
-  }
-  return (
-    <span className="flex items-center gap-0.5 text-[11px] text-destructive">
-      <TrendingDown className="h-3 w-3" /> {value}{suffix}
-    </span>
-  );
-};
-
-// Stats Card (inline, premium)
-const DashboardStatCard = ({
-  title,
-  value,
-  icon: Icon,
-  trend,
-  trendSuffix = '',
-  iconColor,
-  onClick,
-}: {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  trend: number | null;
-  trendSuffix?: string;
-  iconColor: string;
-  onClick?: () => void;
-}) => (
-  <Card
-    className={cn(
-      "hover:border-primary/30 transition-all duration-200",
-      onClick && 'cursor-pointer'
-    )}
-    onClick={onClick}
-  >
-    <CardContent className="p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", iconColor)}>
-          <Icon className="h-4 w-4" />
-        </div>
-        <span className="text-xs text-muted-foreground">{title}</span>
-      </div>
-      <p className="text-2xl font-heading font-bold tracking-tight">{value}</p>
-      <TrendIndicator value={trend} suffix={trendSuffix} />
-    </CardContent>
-  </Card>
-);
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -169,11 +102,11 @@ const Dashboard = () => {
   useEffect(() => {
     if (isLoaded && planIsLoaded) markStartup('dashboard-interactive');
   }, [isLoaded, planIsLoaded]);
-  // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
+  // Z112: strumień zunifikowany (Strava + ręczne cardio); karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
   // przy mouncie — wszystkie pochodne (thisWeek, todayTraining, draftResume,
-  // weeklyKm, kafle tygodnia) przeliczają się same przez zależność od `today`.
+  // kafle) przeliczają się same przez zależność od `today`.
   const today = useToday();
   // Z214: karty Dashboardu liczą wyłącznie bieżący tydzień planu, więc listener
   // aktywności dostaje okno od poniedziałku zamiast pełnych 500 rekordów.
@@ -245,23 +178,6 @@ const Dashboard = () => {
   }, [aggregate, workouts, uid]);
   const streak = streakDetails.streak;
   // Tarcza uratowała poprzedni tydzień — pokaż to userowi, żeby wiedział, że seria wisi na włosku.
-  const previousWeekFrozen = useMemo(() => {
-    const { start } = getWeekBounds(new Date());
-    const prev = new Date(start);
-    prev.setDate(prev.getDate() - 7);
-    return streakDetails.frozenWeeks.includes(formatLocalDate(prev));
-  }, [streakDetails]);
-  // Ile treningów brakuje w TYM tygodniu, żeby podtrzymać serię (tydzień liczy się od 2 treningów).
-  const streakHint = useMemo(() => {
-    if (streak === 0) return 0;
-    const { start, end } = getWeekBounds(new Date());
-    const thisWeekCompleted = workouts.filter(w => {
-      if (!w.completed) return false;
-      const d = parseLocalDate(w.date);
-      return d >= start && d <= end;
-    }).length;
-    return thisWeekCompleted < 2 ? 2 - thisWeekCompleted : 0;
-  }, [streak, workouts]);
   const visibleCycles = useMemo(() => cycles
     .map(c => c.status === 'completed' ? withLiveCompletedStats(c, workouts) : c)
     .filter(isCycleVisibleWithData), [cycles, workouts]);
@@ -616,42 +532,8 @@ const Dashboard = () => {
   });
 
   // Calculate trends (last 4 weeks vs previous 4 weeks)
-  const trends = useMemo(() => {
-    const now = new Date();
-    const fourWeeksAgo = new Date(now);
-    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
-    const eightWeeksAgo = new Date(now);
-    eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
-
-    const recentWorkouts = workouts.filter(w => w.completed && parseLocalDate(w.date) >= fourWeeksAgo);
-    const olderWorkouts = workouts.filter(w => {
-      const workoutDate = parseLocalDate(w.date);
-      return w.completed && workoutDate >= eightWeeksAgo && workoutDate < fourWeeksAgo;
-    });
-
-    const recentCount = recentWorkouts.length;
-    const olderCount = olderWorkouts.length;
-
-    // B-T1: trend liczony tym samym kanonicznym tonażem co kafel (bez rozgrzewek
-    // i serii nieukończonych) — wcześniej dwie definicje w jednym kaflu.
-    const recentTonnage = calculateTonnage(recentWorkouts);
-    const olderTonnage = calculateTonnage(olderWorkouts);
-
-    return {
-      workouts: olderCount > 0 ? recentCount - olderCount : null,
-      tonnage: olderTonnage > 0 ? Math.round((recentTonnage - olderTonnage) / 1000 * 10) / 10 : null,
-      weight: null as number | null,
-      streak: streak > 0 ? streak : null,
-    };
-  }, [workouts, streak]);
 
   // Weekly Strava km counter (Mon-Sun) — logika w activity-window (Z214, test fixture >500).
-  const weeklyKm = useMemo(() => {
-    const monday = getStartOfPlanWeek(today);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    return weeklyStravaKm(stravaActivities, stravaConnection.connected, formatLocalDate(monday), formatLocalDate(sunday));
-  }, [stravaActivities, stravaConnection.connected, today]);
 
   // Greeting
   const hour = new Date().getHours();
@@ -945,6 +827,20 @@ const Dashboard = () => {
       {/* PRO-E T2/T3: slot stanu za kartą dnia */}
       <DashboardStatusSlot entries={statusEntries} />
 
+      {/* D-T2: kontekstowe banery AKCJI (samo-ukrywające) zaraz pod slotem statusu. */}
+      {planStarted && (
+        <MissedWorkoutBanner
+          planDays={trainingPlan}
+          overrides={scheduleOverrides}
+          workouts={workouts}
+          todayISO={todayISO}
+          planStartDate={planStartDate}
+          skippedDates={skippedDates}
+          onDoToday={handleMissedDoToday}
+          onReschedule={(fromDateISO) => setRescheduleFrom(fromDateISO)}
+        />
+      )}
+
       {/* Karta tygodnia (Runna p.1, spec B1): checkmarki dni + pasek sesji + tonaż.
           Spec C4: przerwa urlopowa pełni rolę deloadu (nie dubluje się). */}
       <WeekCard
@@ -975,226 +871,12 @@ const Dashboard = () => {
       />
       )}
 
-      {/* Stats - 4 columns */}
-      <div data-testid="dash-stats" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <DashboardStatCard
-          title={t('dash.stat.workouts')}
-          value={completedCount}
-          icon={Trophy}
-          trend={trends.workouts}
-          iconColor="bg-fitness-success/15 text-fitness-success"
-          onClick={() => setStatsOpen(true)}
-        />
-        <DashboardStatCard
-          title={t('dash.stat.tonnage')}
-          value={fmtTonnage(totalWeight)}
-          icon={Dumbbell}
-          trend={trends.tonnage != null ? Number((toDisplay(trends.tonnage * 1000) / 1000).toFixed(1)) : null}
-          trendSuffix={unit === 'lbs' ? ' k lbs' : 't'}
-          iconColor="bg-primary/15 text-primary"
-          onClick={() => navigate('/analytics?tab=charts')}
-        />
-        <DashboardStatCard
-          title={t('dash.stat.weight')}
-          value={latestMeasurement?.weight ? fmt(latestMeasurement.weight) : '--'}
-          icon={Weight}
-          trend={trends.weight}
-          trendSuffix={` ${unit}`}
-          iconColor="bg-muted text-muted-foreground"
-          onClick={() => navigate('/measurements')}
-        />
-        <DashboardStatCard
-          title={t('dash.stat.streak')}
-          value={t('dash.weeksShort', { n: streak })}
-          icon={Flame}
-          trend={trends.streak}
-          trendSuffix={` ${t('dash.weeksUnit')}`}
-          iconColor="bg-primary/15 text-primary"
-          onClick={() => navigate('/analytics?tab=charts')}
-        />
-      </div>
-
-      {/* Podpowiedź utrzymania serii (zamiast cichego zera na początku tygodnia) */}
-      {streakHint > 0 && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Flame className="h-3.5 w-3.5 text-primary" />
-          {t('dash.streakHint', { n: streakHint })}
-        </p>
-      )}
-
-      {/* Tarcza serii zużyta w zeszłym tygodniu — kolejna dostępna dopiero za ~miesiąc */}
-      {previousWeekFrozen && (
-        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5 text-fitness-cyan" />
-          {t('dash.streakFrozen')}
-        </p>
-      )}
-
       {/* PRO-E T3: upsell zepchnięty pod statystyki (był nad kartą dnia) */}
       <ProUpsellBanner />
-
-      {/* Weekly km counter (Strava) */}
-      {weeklyKm > 0 && (
-        <Card
-          data-testid="dash-strava-km"
-          className="bg-orange-500/5 border-orange-500/20 cursor-pointer hover:bg-orange-500/10 transition-colors"
-          onClick={() => navigate('/analytics?tab=strava')}
-        >
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                <Route className="h-5 w-5 text-orange-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-heading font-bold tracking-tight">{weeklyKm.toFixed(1)} km</p>
-                <p className="text-xs text-muted-foreground">{t('dash.thisWeekStrava')}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* FIX-B T5: karta planu usunięta (dublowała zakładkę Plan; Cykle mają
           stałe wejście na /plan), ostatni PR przeniesiony do Analityki. */}
 
-      {/* This week's training — merged timeline */}
-      <div data-testid="dash-week-section" className="space-y-3">
-        <h2 className="font-heading font-bold text-base uppercase tracking-tight">{t('dash.weekPlan')}</h2>
-
-        {/* Z115: pasek łącznego obciążenia dnia (siła + cardio) + wskazówka interferencji */}
-        <HybridWeekStrip
-          workouts={workouts}
-          activities={unifiedActivities.filter(a => a.source === 'manual' || stravaConnection.connected)}
-          weekStart={getStartOfPlanWeek(today)}
-          maxHR={stravaConnection.estimatedMaxHR}
-          // Kropki liczone z HARMONOGRAMU (resolver z overrides), nie ze
-          // statycznego planu — przełożony dzień przesuwa kropkę (b.92).
-          plannedWeekdays={thisWeek.map((e) => weekdayOfDate(e.date))}
-        />
-        {/* Z121: decyzja deload + raport target vs actual (tylko plany z włączoną progresją) */}
-        {planStarted && (
-          <DeloadBanner
-            planDays={trainingPlan}
-            workouts={workouts}
-            currentWeek={currentWeek}
-            progression={progression}
-            onDecision={saveDeloadDecision}
-          />
-        )}
-        {planStarted && (
-          <WeekReportCard
-            planDays={trainingPlan}
-            workouts={workouts}
-            currentWeek={currentWeek}
-            planStartDate={planStartDate}
-            progression={progression}
-          />
-        )}
-        {/* Przełożenie: baner niezrobionego treningu (spec 2026-08-11, wejście 2) */}
-        {planStarted && (
-          <MissedWorkoutBanner
-            planDays={trainingPlan}
-            overrides={scheduleOverrides}
-            workouts={workouts}
-            todayISO={todayISO}
-            planStartDate={planStartDate}
-            skippedDates={skippedDates}
-            onDoToday={handleMissedDoToday}
-            onReschedule={(fromDateISO) => setRescheduleFrom(fromDateISO)}
-          />
-        )}
-        <div className="grid gap-3">
-          {(() => {
-            // Build unified timeline: training days + cardio (Strava + manualne, Z112)
-            type TimelineItem =
-              | { type: 'training'; dayId: string; date: Date; dateStr: string }
-              | { type: 'activity'; activity: typeof unifiedActivities[number]; dateStr: string };
-
-            const items: TimelineItem[] = [];
-
-            // Add training days
-            thisWeek.forEach(({ day, date, dateKey }) => {
-              items.push({ type: 'training', dayId: day.id, date, dateStr: dateKey });
-            });
-
-            // Cardio bieżącego tygodnia: wpisy manualne ZAWSZE, Strava gdy połączona
-            // (logika w activity-window — Z214, test fixture >500).
-            if (thisWeek.length > 0) {
-              const mondayDate = getStartOfPlanWeek(today);
-              const sundayDate = new Date(mondayDate);
-              sundayDate.setDate(sundayDate.getDate() + 6);
-              currentWeekCardio(unifiedActivities, stravaConnection.connected, formatLocalDate(mondayDate), formatLocalDate(sundayDate))
-                .forEach(activity => {
-                  items.push({ type: 'activity', activity, dateStr: activity.date });
-                });
-            }
-
-            // Sort by date string
-            items.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
-
-            return items.map((item) => {
-              if (item.type === 'training') {
-                const workoutForDate = findWorkoutForRoute(workouts, {
-                  dayId: item.dayId,
-                  date: item.dateStr,
-                  allowDateFallback: true,
-                  // Z173: dzisiejszy/przyszły kafel nie wciąga ukończonego treningu
-                  // INNEGO dnia planu z tej samej daty (fałszywe ✅).
-                  today: formatLocalDate(today),
-                });
-                return (
-                  <TrainingDayCard
-                    key={`training-${item.dayId}-${item.dateStr}`}
-                    day={trainingPlan.find(d => d.id === item.dayId)!}
-                    latestWorkout={workoutForDate}
-                    trainingDate={item.date}
-                    // Blokady przełożenia (spec): dzień ukończony i przeszłość bez akcji.
-                    onReschedule={!workoutForDate?.completed && item.dateStr >= todayISO
-                      ? () => openReschedule(item.dateStr, item.dayId)
-                      : undefined}
-                    // Runna p.1 (spec C1): Pomiń/Przywróć na każdym nieukończonym dniu
-                    // (także zaległym — skip zdejmuje go z czerwonego długu).
-                    skipped={skippedDates.includes(item.dateStr)}
-                    onToggleSkip={!workoutForDate?.completed
-                      ? () => { void handleToggleSkip(item.dateStr); }
-                      : undefined}
-                    onClick={() => {
-                      // Z174: żywy draft tego dnia → kontynuacja sesji (?session=),
-                      // NIGDY autostart (autostart potrafił nadpisać draft wersją 1).
-                      if (isDraftContinuableToday(localDraft, item.dateStr) && localDraft.dayId === item.dayId) {
-                        navigate(continuableDraftTarget(localDraft));
-                        return;
-                      }
-                      navigate(workoutForDate?.completed
-                        ? buildWorkoutRoute(workoutForDate, item.dayId)
-                        : `/workout/${item.dayId}?date=${item.dateStr}&autostart=true`);
-                    }}
-                  />
-                );
-              }
-              return (
-                <StravaActivityCard
-                  key={`activity-${item.activity.id}`}
-                  activity={item.activity}
-                  maxHR={stravaConnection.estimatedMaxHR}
-                  onEdit={item.activity.source === 'manual'
-                    ? () => setCardioDialog({ open: true, edit: unifiedToManual(item.activity) })
-                    : undefined}
-                />
-              );
-            });
-          })()}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full text-xs text-muted-foreground gap-1"
-          onClick={() => navigate('/history')}
-        >
-          {t('dash.fullHistory')}
-          <ChevronRight className="h-3.5 w-3.5" />
-        </Button>
-      </div>
 
       {/* Z104 szybki trening + Z112 ręczne cardio — zawsze dostępne. Runna p.1
           (spec B2): na dole scrolla — dostępny, ale niekonkurujący z planem
@@ -1222,6 +904,17 @@ const Dashboard = () => {
           {t('cardio.addButton')}
         </Button>
       </div>
+
+      {/* D-T2: dokładnie JEDEN insight — raport tygodnia (target vs actual). */}
+      {planStarted && (
+        <WeekReportCard
+          planDays={trainingPlan}
+          workouts={workouts}
+          currentWeek={currentWeek}
+          planStartDate={planStartDate}
+          progression={progression}
+        />
+      )}
 
       {/* Analytics link — jawnie na bieżące podsumowanie (FIX-B T6) */}
       <Button

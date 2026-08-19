@@ -25,6 +25,10 @@ import { buildVacationMode, isVacationActive, type VacationActivity } from '@/li
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { PlanNextStepCard } from '@/components/PlanNextStepCard';
+import { HybridWeekStrip } from '@/components/HybridWeekStrip';
+import { DeloadBanner } from '@/components/DeloadBanner';
+import { RescheduleSheet } from '@/components/RescheduleSheet';
+import { weekdayOfDate } from '@/lib/plan-schedule';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
@@ -154,7 +158,7 @@ const TrainingPlan = () => {
   const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
-  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision } = useTrainingPlan(uid);
   const { toast } = useToast();
   // C-T1: wejście w tryb urlopu z ekranu Planu (dotąd dialog istniał tylko na
   // Dashboardzie i to wyłącznie jako badge JUŻ aktywnego urlopu).
@@ -230,6 +234,26 @@ const TrainingPlan = () => {
     toast(res.success
       ? { title: t('cycles.repeatStarted') }
       : { title: t('cycles.repeatFailed'), variant: 'destructive' });
+  };
+
+  // D-T3: Plan przejmuje przełożenia i pomijanie dni (dotąd tylko timeline
+  // Dashboardu, który zszedł w D-T2). Sheet domykamy PRZED mutacją (lekcja b.92).
+  const [rescheduleFrom, setRescheduleFrom] = useState<string | null>(null);
+  const handleRescheduleSelect = async (toDateISO: string) => {
+    const fromDateISO = rescheduleFrom;
+    if (!fromDateISO) return;
+    setRescheduleFrom(null);
+    const result = await moveScheduledDay(fromDateISO, toDateISO);
+    toast(result.success
+      ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
+      : { title: t('reschedule.failed'), variant: 'destructive' });
+  };
+  const handleToggleSkip = async (dateISO: string) => {
+    const skipped = skippedDates.includes(dateISO);
+    const result = await setDaySkipped(dateISO, !skipped);
+    if (result.success) {
+      toast({ title: skipped ? t('skipday.toastRestored') : t('skipday.toastSkipped') });
+    }
   };
   // Z112: zunifikowane cardio (Strava + wpisy manualne) w kalendarzu.
   const {
@@ -407,6 +431,32 @@ const TrainingPlan = () => {
               isRepeating={isRepeating}
               onRepeat={handleRepeatPlan}
               testId="plan-next-step"
+            />
+          </div>
+        )}
+
+        {/* D-T3: pasek obciążenia hybrydowego tygodnia (dom: Plan, nie Dashboard) */}
+        {!isHistoricalWeek && (
+          <div className="mx-6 mb-5">
+            <HybridWeekStrip
+              workouts={workouts}
+              activities={visibleActivities}
+              weekStart={getStartOfPlanWeek(new Date())}
+              maxHR={stravaConnection.estimatedMaxHR}
+              plannedWeekdays={selectedWeekTrainingDates.map((s) => weekdayOfDate(s.date))}
+            />
+          </div>
+        )}
+
+        {/* D-T3: decyzja deload mieszka na Planie (tydzień planu = dom Planu) */}
+        {planStarted && (
+          <div className="mx-6 mb-5">
+            <DeloadBanner
+              planDays={trainingPlan}
+              workouts={workouts}
+              currentWeek={hookCurrentWeek}
+              progression={progression}
+              onDecision={saveDeloadDecision}
             />
           </div>
         )}
@@ -598,6 +648,13 @@ const TrainingPlan = () => {
                           day={dayPlan}
                           latestWorkout={workoutForDate}
                           trainingDate={trainingItem.scheduleItem.date}
+                          onReschedule={!workoutForDate?.completed && trainingDateStr >= formatLocalDate(new Date())
+                            ? () => setRescheduleFrom(trainingDateStr)
+                            : undefined}
+                          skipped={skippedDates.includes(trainingDateStr)}
+                          onToggleSkip={!workoutForDate?.completed
+                            ? () => { void handleToggleSkip(trainingDateStr); }
+                            : undefined}
                           onClick={() => navigate(workoutForDate?.completed
                             ? buildWorkoutRoute(workoutForDate, dayPlan.id)
                             : `/workout/${dayPlan.id}?date=${trainingDateStr}`
@@ -760,6 +817,17 @@ const TrainingPlan = () => {
         todayISO={todayISOForVacation}
         onEnable={handleVacationEnable}
         onCancel={handleVacationCancel}
+      />
+
+      {/* D-T3: przełożenie dnia planu (sheet wspólny z Dashboardem/MissedBanner) */}
+      <RescheduleSheet
+        open={rescheduleFrom !== null}
+        onOpenChange={(open) => { if (!open) setRescheduleFrom(null); }}
+        fromDateISO={rescheduleFrom}
+        planDays={trainingPlan}
+        overrides={scheduleOverrides}
+        onSelect={handleRescheduleSelect}
+        todayISO={formatLocalDate(new Date())}
       />
 
       {/* C-T3: tryb "nie na 100%" dostępny z Planu (kolizja z urlopem jak na Dashboardzie) */}

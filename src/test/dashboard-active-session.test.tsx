@@ -192,13 +192,14 @@ describe('Z174: jedna prawda o aktywnej sesji', () => {
     expect(screen.getByText('Rozpocznij trening')).toBeTruthy();
   });
 
-  it('kafel tygodnia przy żywym drafcie nawiguje z ?session=, nie ?autostart', async () => {
+  it('D-T2: hero przy żywym drafcie nawiguje z ?session=, nie ?autostart', async () => {
+    // Kafel tygodnia (timeline) zszedł z Dashboardu w D-T2 — niezmiennik Z174
+    // pilnuje jedynej pozostałej powierzchni: CTA hero dnia.
     draftFixture.draft = provisionalDraft('day-1');
     renderDashboard();
     await waitFor(() => expect(screen.getAllByText('Kontynuuj trening').length).toBeGreaterThan(0));
 
-    // '›' to chevron TrainingDayCard — klik bąbelkuje do onClick kafla.
-    fireEvent.click(screen.getByText('›'));
+    fireEvent.click(screen.getAllByText('Kontynuuj trening')[0]);
     const { todayStr } = todayParts();
     expect(navigateSpy).toHaveBeenLastCalledWith(`/workout/day-1?date=${todayStr}&session=s1`);
   });
