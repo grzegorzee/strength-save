@@ -479,9 +479,20 @@ to stan ekranu. E2E przepięte na nowe domy (12 speców), pełny bieg 197/197.
 
 ### D-T4 — scalenie Analytics i Achievements
 
-- [ ] Jeden ekran `Postępy`: podsumowanie, trendy, PR, e1RM, odznaki, Strava/cardio.
-- [ ] Jedna definicja metryk z B-T1/B-T2; bez podwójnych kart i rozbieżnych liczb.
-- [ ] Zachować stare URL jako redirect/deep-link compatibility.
+- [x] Jeden ekran `Postępy`: podsumowanie, trendy, PR, e1RM, odznaki, Strava/cardio.
+- [x] Jedna definicja metryk z B-T1/B-T2; bez podwójnych kart i rozbieżnych liczb.
+- [x] Zachować stare URL jako redirect/deep-link compatibility.
+
+DOWÓD (2026-08-20, commity 9d5842d7 + b9724f49): `/achievements` z przełącznikiem
+Rekordy i odznaki / Analityka (ProgressHeader, `?view=analytics`); Analytics w trybie
+embedded pod wspólnym nagłówkiem (metryki dalej z summary-utils B-T1). `/analytics`
+= redirect `AnalyticsRedirect` zachowujący `?tab=` (repro Playwright:
+`#/analytics?tab=exercises` -> `#/achievements?view=analytics&tab=exercises`,
+aria-selected OK w obie strony). Sidebar bez pozycji Analityka (8 linków,
+ui-improvements.spec). Bramki: vitest 1758, typecheck, lint, build, bundle-budget
+zielone; pełne e2e po świeżym vite 392 passed + 2 faile jednego znanego flaky
+(warmup-persistence: toast startu przykrywał przycisk) naprawione wzorcem
+[toast-close] i zweryfikowane x3 w izolacji (12/12).
 
 ### D-T5 — końcowy audyt czytelności
 
