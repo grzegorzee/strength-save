@@ -142,12 +142,13 @@ test.describe('Dashboard Features', () => {
     await expect(dashboardBody).toContainText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony|Dzień regeneracji/i);
   });
 
-  test('shows stat cards', async ({ page }) => {
+  test('D-T2: kafle statystyk zeszły z Dashboardu (dom: Postępy/Twoje liczby)', async ({ page }) => {
     await navigateAndWait(page, '/');
-    await expect(page.locator('text=Treningi').first()).toBeVisible();
-    await expect(page.locator('text=Tonaż').first()).toBeVisible();
-    await expect(page.locator('text=Waga').first()).toBeVisible();
-    await expect(page.locator('text=Streak').first()).toBeVisible();
+    await expect(page.getByTestId('dash-stats')).toHaveCount(0);
+    await expect(page.getByTestId('dash-week-section')).toHaveCount(0);
+    // Kompaktowy tydzień i szybkie akcje zostają.
+    await expect(page.getByTestId('week-card')).toBeVisible();
+    await expect(page.getByTestId('quick-workout-start')).toBeVisible();
   });
 
   test('shows greeting with user name', async ({ page }) => {
@@ -155,7 +156,8 @@ test.describe('Dashboard Features', () => {
     // E2E mock user is "E2E Tester"
     const greeting = page.locator('h1').first();
     await expect(greeting).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Plan tygodnia' })).toBeVisible();
+    // D-T2: nagłówek pełnego tygodnia zszedł do Planu; hero + WeekCard zostają.
+    await expect(page.getByTestId('dash-hero')).toBeVisible();
   });
 
     test('narzedzia naprawcze widoczne tylko dla admina (Z90.4)', async ({ page }) => {
@@ -659,15 +661,18 @@ test.describe('Linki krzyżowe (Z67)', () => {
     await expect(page.locator('.exercise-card').first()).toBeVisible();
   });
 
-  test('Dashboard: waga prowadzi do pomiarów', async ({ page }) => {
+  test('D-T2: pomiary osiągalne z sidebara (kafel wagi zszedł z Dashboardu)', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
     await navigateAndWait(page, '/');
-    await page.getByText('Waga', { exact: true }).first().click();
+    await page.getByRole('navigation', { name: 'Nawigacja główna' })
+      .getByRole('link', { name: 'Pomiary ciała' }).click();
     await expect(page).toHaveURL(/#\/measurements$/);
   });
 
-  test('Dashboard: pełna historia i cykle', async ({ page }) => {
+  test('D-T1: Historia z bottom nav, cykle z Planu', async ({ page }) => {
     await navigateAndWait(page, '/');
-    await page.getByRole('button', { name: 'Pełna historia' }).click();
+    await page.locator('nav[aria-label="Nawigacja mobilna"]')
+      .getByRole('link', { name: 'Historia' }).click();
     await expect(page).toHaveURL(/#\/history$/);
 
     // FIX-B T5: Cykle przeniesione z karty planu Dashboardu na stronę Planu.
@@ -1120,7 +1125,7 @@ test.describe('Ręczne cardio (Z112)', () => {
     await blockFirebase(page);
   });
 
-  test('dodaj Bieżnia 30 min z Dashboardu, widoczny w kalendarzu, edytuj czas, usuń', async ({ page }) => {
+  test('dodaj Bieżnia 30 min z Dashboardu, widoczny w Planie, edytuj czas, usuń', async ({ page }) => {
     await navigateAndWait(page, '/');
 
     // Dodanie: typ Bieżnia + 30 minut (default typ = Treadmill).
@@ -1128,16 +1133,13 @@ test.describe('Ręczne cardio (Z112)', () => {
     await page.getByTestId('cardio-minutes').fill('30');
     await page.getByTestId('cardio-save').click();
 
-    // Widoczny na Dashboardzie (karta manualna z badge Ręczny).
+    // D-T2/D-T3: karty cardio mają dom na Planie (timeline zszedł z Dashboardu).
+    await navigateAndWait(page, '/plan');
     const card = page.getByTestId('manual-activity-card').first();
     await expect(card).toBeVisible();
     await expect(card).toContainText('Bieżnia');
     await expect(card).toContainText('Ręczny');
     await expect(card).toContainText('30m');
-
-    // Widoczny w kalendarzu (TrainingPlan).
-    await navigateAndWait(page, '/plan');
-    await expect(page.getByTestId('manual-activity-card').first()).toBeVisible();
 
     // Edycja czasu z karty (klik otwiera dialog edycji).
     await page.getByTestId('manual-activity-card').first().click();
@@ -1216,8 +1218,8 @@ test.describe('Obciążenie hybrydowe (Z115)', () => {
       }],
     });
 
-    // Dashboard: pasek tygodnia + banner interferencji (nogi + intensywny bieg tego samego dnia).
-    await navigateAndWait(page, '/');
+    // D-T3: pasek tygodnia hybrydowego mieszka na Planie (dom tygodnia).
+    await navigateAndWait(page, '/plan');
     await expect(page.getByTestId('hybrid-week-strip')).toBeVisible();
     await expect(page.getByTestId('interference-banner')).toBeVisible();
     await page.getByTestId('interference-dismiss').click();
@@ -1328,7 +1330,8 @@ test.describe('Cele tygodnia (Z120)', () => {
     });
     await setE2EWorkouts(page, [historyWorkout(localDaysAgo(7), 8)]);
 
-    await navigateAndWait(page, '/');
+    // D-T3: decyzja deload mieszka na Planie (dom tygodnia planu).
+    await navigateAndWait(page, '/plan');
     await expect(page.getByTestId('deload-banner')).toBeVisible();
     await page.getByTestId('deload-apply').click();
     await expect(page.getByTestId('deload-active-badge')).toBeVisible();

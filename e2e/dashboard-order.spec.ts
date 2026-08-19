@@ -12,7 +12,8 @@ test.describe('Dashboard hero-first (PRO-E)', () => {
 
   test('sekcje Dashboardu w kolejności hero-first', async ({ page }) => {
     await navigateAndWait(page, '/');
-    const ids = ['dash-greeting', 'dash-hero', 'week-card', 'dash-stats', 'dash-week-section', 'dash-actions'];
+    // D-T2: stats i pełny tydzień zeszły z Dashboardu (domy: Postępy i Plan).
+    const ids = ['dash-greeting', 'dash-hero', 'week-card', 'dash-actions'];
     const positions: number[] = [];
     for (const id of ids) {
       const box = await page.getByTestId(id).boundingBox();

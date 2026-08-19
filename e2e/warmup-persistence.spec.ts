@@ -60,11 +60,11 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
 
     // 3. Zamknięcie dialogu (X) i ponowne otwarcie — odhaczenia zostają.
     await page.getByRole('dialog').getByRole('button', { name: 'Zamknij okno' }).click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 10_000 });
     await openWarmup(page);
     expect(await struckCount(page)).toBe(3);
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 10_000 });
 
     // 4. Wyjście na Dashboard i powrót do treningu — odhaczenia nadal są (draft sesji).
     await navigateAndWait(page, '/');

@@ -17,7 +17,7 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await blockFirebase(page);
   });
 
-  test('bottom nav: Plan, Analityka, Ćwiczenia, Postępy; Profil przez avatar', async ({ page }) => {
+  test('D-T1 bottom nav: Dzisiaj, Plan, Historia, Postępy, Ćwiczenia; Profil przez avatar', async ({ page }) => {
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
     const bottomNav = page.locator('nav[aria-label="Nawigacja mobilna"]');
@@ -25,12 +25,14 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
 
     await bottomNav.getByRole('link', { name: 'Plan' }).click();
     await expectHashRoute(page, '/plan');
-    await bottomNav.getByRole('link', { name: 'Analityka' }).click();
-    await expectHashRoute(page, '/analytics');
+    await bottomNav.getByRole('link', { name: 'Historia' }).click();
+    await expectHashRoute(page, '/history');
     await bottomNav.getByRole('link', { name: 'Ćwiczenia' }).click();
     await expectHashRoute(page, '/exercises');
     await bottomNav.getByRole('link', { name: 'Postępy' }).click();
     await expectHashRoute(page, '/achievements');
+    await bottomNav.getByRole('link', { name: 'Dzisiaj' }).click();
+    await expectHashRoute(page, '/');
 
     // PRO-B: Profil wypadł z bottom nav — jedyna trasa mobile to avatar w headerze.
     await page.getByTestId('header-avatar').click();

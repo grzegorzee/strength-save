@@ -12,11 +12,12 @@ test.describe('Critical Routing and Shell', () => {
     await expectPageRendered(page);
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
     await expect(
-      page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link', { name: 'Dashboard' }),
+      page.getByRole('navigation', { name: 'Nawigacja główna' }).getByRole('link', { name: 'Dzisiaj' }),
     ).toBeVisible();
     // Runna p.1 B2: dzień wolny = karta "Dzień regeneracji" (nie "Dzisiaj wolne").
     await expect(page.getByText(/Rozpocznij trening|Dzisiaj wolne|Trening ukończony|Dzień regeneracji/i)).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Plan tygodnia' })).toBeVisible();
+    // D-T2: pełna sekcja tygodnia zeszła do Planu; Dashboard ma kompaktowy WeekCard.
+    await expect(page.getByTestId('week-card')).toBeVisible();
   });
 
   test('hash route renders 404 page inside app shell', async ({ page }) => {

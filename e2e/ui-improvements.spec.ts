@@ -20,7 +20,7 @@ test.describe('Navigation', () => {
     // Verify specific items are present
     const labels = await navLinks.allTextContents();
     const joinedLabels = labels.join(' ');
-    expect(joinedLabels).toContain('Dashboard');
+    expect(joinedLabels).toContain('Dzisiaj');
     expect(joinedLabels).toContain('Plan');
     expect(joinedLabels).toContain('Historia');
     expect(joinedLabels).toContain('Ćwiczenia');
@@ -49,9 +49,9 @@ test.describe('Navigation', () => {
     for (let i = 0; i < 8; i += 1) {
       await page.keyboard.press('Tab');
       const focusedHref = await page.evaluate(() => document.activeElement?.getAttribute('href') ?? '');
-      // Linki tylko-sidebarowe (history/measurements/cycles/profile) nie istnieją
-      // na mobile; analytics i achievements są teraz w dolnym pasku (PRO-B T3).
-      expect(focusedHref).not.toBe('#/history');
+      // D-T1: linki tylko-sidebarowe (analytics/measurements/cycles/profile) nie
+      // istnieją na mobile; Historia weszła do dolnego paska.
+      expect(focusedHref).not.toBe('#/analytics');
       expect(focusedHref).not.toBe('#/measurements');
       expect(focusedHref).not.toBe('#/profile');
       expect(focusedHref).not.toBe('#/cycles');

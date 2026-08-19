@@ -50,7 +50,8 @@ test.describe('Przełożenie treningu przez UI (repro builda 92)', () => {
       startDate: localMonday(),
     });
 
-    await navigateAndWait(page, '/');
+    // D-T3: karty dni tygodnia (i akcja przełożenia) mieszkają na Planie.
+    await navigateAndWait(page, '/plan');
     await expectPageRendered(page);
 
     // Karta jutrzejszego dnia z akcją przełożenia.
