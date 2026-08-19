@@ -5,11 +5,44 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-13 (WYDANIE FIX-C: czas treningu + edytor serii + splash, iOS 103, AAB v19)
+**Ostatnia aktualizacja:** 2026-08-19 (audyt A-T0..A-T5 + Watch Simulator domknięty, fix retransmisji kolejki)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-19: Watch Simulator QA domknięte po limicie Codexa + fix retransmisji kolejki (60ef6c8c)
+
+**Co:** Dokończenie interaktywnej sekwencji Apple Watch Simulator z procedury A-T5
+(pętla audytu `docs/PLAN-REALIZACJI-AUDYT-2026-08-19.md`), przerwanej limitem Codexa
+w trakcie testu "2 min wygaszonego ekranu przed resume". Pełny przebieg: quick workout
+z zegarka, seria 42,5 kg × 5 przy zabitym telefonie (ACK 0E992520 po trwałym przyjęciu),
+2 min screen-off + ponad 2 h uśpienia z żywym procesem, FINISH przy zabitym telefonie
+(pending EA1013B9), restart apki i pełny restart symulatora zegarka z zachowanym
+pending, reconnect, ACK, pojedynczy ingest.
+
+**Root cause wykrytego RED:** po restarcie zegarka z pending eventem nic nie
+retransmituje trwałej kolejki: systemowe transfery WCSession przepadają z restartem,
+`activate()` nie flushował `watch.pendingEvents.v1`, a finishedView (jedyny osiągalny
+widok w tym stanie) nie pokazywał pending ani Retry (pułapka wg zasady 6 CLAUDE.md).
+
+**Fix (TDD):** `retryPendingEvents()` po `activationDidComplete` i po powrocie
+reachability + licznik pending i Retry na finishedView. Retransmisja bezpieczna przez
+dedup enqueue po eventId na telefonie i dedup ingest w functions. 2 nowe testy w
+`wearable-offline-contract.test.ts` (RED przed fixem).
+
+**Weryfikacja:** vitest 1702/1702, typecheck, lint, xcodebuild Debug sim GREEN; po
+instalacji fixu auto-retry dostarczył event, ackedEventIds potwierdzone, obie kolejki
+puste, mutacja Firestore committed (mutations=0, deterministyczny id sesji = jeden
+dokument). Konto wyłącznie syntetyczne na lokalnych emulatorach.
+
+**Kontekst:** A-T5 pozostaje BLOCKED wyłącznie na fizyczny iPhone i fizyczny Android
+(kroki właściciela); Garmin i Watch domknięte. Build 104 przygotowany w pbxproj
+(167dcf24), NIE wysłany na TestFlight. Obserwacja poboczna: licznik serii na zegarku
+po restarcie pokazuje 0 (in-memory sessionStats, analog naprawionego UI Garmina
+5827b395) — kandydat na osobny task. Dograne też zaległe artefakty cap sync
+splash-screen z FIX-C (9424e270).
+
 
 ### 2026-08-13: WYDANIE FIX-C — zgłoszenia z testu po południu (4 naprawy)
 

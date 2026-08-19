@@ -133,7 +133,50 @@ Na osobnym koncie testowym/fixture, bez danych użytkownika:
 3. Apple Watch Simulator (jawnie zaakceptowany zamiast fizycznego): z telefonem
    nieosiągalnym odhaczyć serię i zakończyć; potwierdzić pending, restart zegarka/apki,
    retry po reconnect, ACK oraz pojedynczy ingest na telefonie.
+   **PASS 2026-08-19 wieczór (`60ef6c8c`)** — szczegóły w sekcji „Watch Simulator —
+   dokończenie" na dole.
 4. Garmin: **PASS 2026-08-19** — offline odhaczenie, błąd ingest, dwa restarty aplikacji,
    retry po reconnect, kolejka wyczyszczona dopiero po ACK i jedna sesja.
 5. Dopiero po czterech PASS odhaczyć dwa ostatnie punkty A-T5, uruchomić ponownie wszystkie
    bramki i wykonać A-RELEASE jako jeden train z tego samego zielonego commita.
+
+## Watch Simulator — dokończenie (2026-08-19 wieczór, po limicie Codexa)
+
+Sekwencja interaktywna na parze iPhone 17 Pro Max + Apple Watch Series 11 Simulator,
+konto syntetyczne `ios-offline-a-t5@e2e.test` (uid `Wmm2n1igMWi7N9E0hi3w3GfmVZpA`)
+na lokalnych emulatorach Auth/Firestore. Przebieg i dowody:
+
+1. Quick workout wystartowany z zegarka; telefon ACK-nął dopiero po utworzeniu
+   trwałego szkicu (relacja Codexa sprzed limitu + kontekst WC).
+2. Seria 42,5 kg × 5 zalogowana przy zabitym telefonie; zegarek usunął ją z kolejki
+   dopiero po trwałym przyjęciu (`ackedEventIds` zawiera `0E992520…`).
+3. 130 s wygaszonego ekranu + ponad 2 h uśpienia: proces apki zegarka przeżył
+   (ten sam pid), stan sesji trwały. Pipeline wyświetlacza symulatora umarł po cyklu
+   `screenConfig power` (czarne zrzuty simctl i okna) — wymagał restartu symulatora;
+   to defekt narzędzia, nie apki. Po restarcie apka wróciła do aktywnego treningu
+   (timer sesji kontynuowany, 142:09).
+4. FINISH przy zabitym telefonie → `EA1013B9…` w `watch.pendingEvents.v1`
+   (`watch.localFinish` ustawiony). Pending przetrwał restart apki zegarka.
+5. **RED wykryty przez QA:** po restarcie zegarka nic nie retransmituje trwałej
+   kolejki — systemowe transfery WCSession przepadają z restartem, `activate()` nie
+   flushował, a finishedView (jedyny osiągalny widok) nie pokazywał pending ani Retry.
+   Event wisiał >10 min mimo osiągalnego telefonu.
+6. **TDD fix `60ef6c8c`:** RED w `wearable-offline-contract.test.ts` (2 testy) →
+   `retryPendingEvents()` po `activationDidComplete` i po powrocie reachability,
+   finishedView z licznikiem pending i Retry. Retransmisja bezpieczna: telefon
+   deduplikuje enqueue po `eventId`, ingest funkcji ma test dedup.
+7. Po instalacji fixu: auto-retry przy aktywacji dostarczył event, telefon ACK-nął
+   (`ackedEventIds` z `EA1013B9…`), obie kolejki puste, mutacja Firestore committed
+   pod deterministycznym id `workout-<uid>-adhoc-2026-08-19-1787152125994-2026-08-19`
+   (store `mutations` = 0 w trwałym cache SDK => zapis potwierdzony przez serwer;
+   jeden id sesji = jeden dokument).
+
+Zastrzeżenie uczciwości: pierwotna instancja emulatora Firestore padła w trakcie
+(razem z terminalem tła Codexa), więc finalny dokument nie jest już odczytywalny
+przez REST — dowodem zapisu jest committed mutation w trwałym cache SDK plus łańcuch
+ACK. Obserwacja poboczna (nie blocker): licznik serii na zegarku po restarcie
+pokazuje 0 mimo wcześniej zalogowanej serii (in-memory `sessionStats`; odpowiednik
+naprawionego UI Garmina `5827b395`) — kandydat na osobny task.
+
+Stan po dokończeniu: z czterech PASS-ów procedury brakuje wyłącznie fizycznego
+iPhone'a i fizycznego Androida (kroki właściciela). Watch i Garmin domknięte.

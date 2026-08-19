@@ -223,6 +223,21 @@ zielony; fizyczny lock 2 min pozostaje uczciwie w A-T5 i nie jest deklarowany ja
   symulatorze; pełna interaktywna sekwencja kolejki/ACK nadal musi mieć dowód. **BLOCKER:**
   brak fizycznego Androida; fizyczny iPhone pozostaje `unavailable` dla Xcode, lecz
   właściciel może wykonać scenariusz ręcznie na aktualnym TestFlight.
+  **Watch Simulator PASS (`60ef6c8c`, 2026-08-19 wieczór):** dokończenie sekwencji
+  przerwanej limitem Codexa. Quick workout z zegarka, seria 42,5 kg × 5 przy zabitym
+  telefonie (ACK `0E992520` dopiero po trwałym przyjęciu), 2 min wygaszonego ekranu
+  plus ponad 2 h uśpienia z żywym procesem, finish przy zabitym telefonie → pending
+  `EA1013B9` w `watch.pendingEvents.v1`, pending przetrwał restart apki ORAZ pełny
+  restart symulatora zegarka. QA ujawniło RED: po restarcie nic nie retransmituje
+  trwałej kolejki (systemowe transfery WCSession przepadają, `activate()` nie flushował,
+  finishedView bez licznika pending i Retry — pułapka wg zasady 6). TDD fix `60ef6c8c`:
+  auto-retry po aktywacji i po powrocie reachability + wyjście na finishedView; po fixie
+  event dostarczony, telefon ACK-nął (`ackedEventIds`), obie kolejki puste, mutacja
+  Firestore committed pod deterministycznym id
+  `workout-<uid>-adhoc-…-2026-08-19` (mutations=0 w trwałym cache SDK), dedup ingest
+  kryty testem. Kontrakt wearables 5/5, pełny Vitest 1702/1702. Uwaga poboczna
+  (obserwacja, nie blocker): licznik „sets” na zegarku po restarcie pokazuje 0 mimo
+  zalogowanej wcześniej serii (odpowiednik naprawionego UI Garmina `5827b395`).
 
 **A-T5 BLOCKED (`1874a53e`, `00d1a178`, `f127039e`):** wszystkie prace niezależne od sprzętu są
 wykonane. GREEN: Vitest 233/233 i 1700/1700, typecheck, lint, build,
@@ -230,9 +245,9 @@ bundle/dist/offline/no-emoji, UserProvider emulator 3/3, workout kill/offline 6/
 pełne sekwencje Android/iOS simulator. iOS 1.0.0 (103) z Watch/widgetem, Android APK i
 Garmin PRG budują się; fizyczny Garmin przeszedł offline/kill/screen-off/reconnect.
 Pełne dowody i procedura domknięcia:
-`docs/RAPORT-OFFLINE-A-T5-2026-08-19.md`. A-RELEASE nie może ruszyć przed pełnym
-przebiegiem fizycznym iOS+Android oraz interaktywnym symulatorem Watch; Garmin jest
-domknięty.
+`docs/RAPORT-OFFLINE-A-T5-2026-08-19.md`. Interaktywny symulator Watch jest domknięty
+(`60ef6c8c`, sekwencja + fix retransmisji). A-RELEASE nie może ruszyć przed pełnym
+przebiegiem fizycznym iOS+Android (kroki właściciela); Garmin i Watch są domknięte.
 
 ### A-RELEASE — wspólne wydanie A
 

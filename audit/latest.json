@@ -1,26 +1,134 @@
 {
-  "score": 10.0,
-  "mode": "native-ios",
-  "build": "fresh (mobile:sync + cap run ios) — pętla #2 2026-06-10: onboarding/plany/cykle + nawigacja + Analytics + Achievements",
-  "device": "iPhone 17, iOS 26.5",
-  "iteration": "loop 7-zadań — finalna weryfikacja",
-  "summary": "7/7 zadań DONE. Nawigacja, Analytics (Weekly default + nowe wykresy), Achievements zweryfikowane natywnie; onboarding/cykle dowiedzione testami emulatorowymi (real Auth+Firestore+rules).",
-  "blockers_red": [],
-  "orange": [],
-  "yellow": [],
-  "done_and_verified": [
-    { "task": "A1+A2. Onboarding: własny plan + pojedyncze ćwiczenia", "commit": "test(plans)", "verified": "Funkcje ISTNIAŁY (PlanWizard 'Ułóż własny' → PlanBuilder z pickerem biblioteki). Dowód: emulator e2e — new user przechodzi onboarding ścieżką własnego planu, dodaje ćwiczenie z biblioteki (search), ląduje na Dashboard, plan w training_plans + aktywny cykl w plan_cycles." },
-    { "task": "A3. Nowy plan nie kasuje starego", "commit": "test(plans)", "verified": "ISTNIAŁO (startCycleWithPlan → archiveCurrentPlan po utworzeniu nowego cyklu). Dowód: unit happy-path — stary plan archiwizowany jako completed cykl + backfill historii." },
-    { "task": "A4. Zakończenie planu przed czasem", "commit": "test(plans)", "verified": "ISTNIAŁO (Cycles → 'Zakończ plan' + dialog). Dowód: emulator e2e — cykl completed w Firestore + przejście na /new-plan." },
-    { "task": "A5. Analytics zamiast History w tab barze + Weekly default", "commit": "2e117bc", "verified": "NATYWNIE: pasek DASHBOARD/PLAN/ANALYTICS/EXERCISES/PROFILE; wejście w Analytics otwiera Weekly. History w menu bocznym. Spec nav-analytics + poprawka focus-trap." },
-    { "task": "A6. Ładniejszy Charts tab", "commit": "feat(analytics) + fix(analytics)", "verified": "NATYWNIE wszystkie 5 chipów: nagłówki z neonową ikoną, bary z gradientem, area z gradientem pod linią, czyste osie, glassy tooltip. Dwa root cause niewidocznych gradientów naprawione (recharts children + var() w stop-color)." },
-    { "task": "A7. Achievements spójne ikony", "commit": "fix(achievements)", "verified": "NATYWNIE: 3 kafle w wariancie primary (neonowe kółko + ciemna ikona + neonowa wartość)." }
+  "score": 0,
+  "mode": "web-e2e + native-user-evidence + code-audit",
+  "seeded": true,
+  "scenarios_audited": ["active-admin", "active-user-equivalent", "native-ios-user-screenshots"],
+  "summary": "Rdzeń treningu działa w mock E2E, ale zalogowana aplikacja nie gwarantuje zimnego startu offline, ponieważ profil jest bootstrapowany network-first przed odczytem cache.",
+  "blockers_red": [
+    {
+      "route": "native cold start / authenticated shell",
+      "title": "Zimny start offline blokuje aplikację przed Dashboardem",
+      "evidence": "UserProvider zeruje profil i bezwarunkowo awaituje syncUserProfile; listener Firestore cache jest podpinany dopiero po sukcesie callable. Mock E2E i dist-offline smoke omijają ten kontrakt.",
+      "suggestion": "Cache-first dla ostatniego server-confirmed active profile, sync w tle; cached suspended nadal blokuje; dodać realny cold-offline test z treningiem i resume."
+    }
   ],
-  "caveats": [
-    "e2e:emulator wymaga JAVA_HOME=/opt/homebrew/opt/openjdk@21 (firebase-tools odrzuca JDK<21; domyślna java na PATH to 20).",
-    "Zadania A1-A4 nie wymagały zmian produkcyjnego kodu — funkcjonalność istniała, dostarczono testy-dowody (4 nowe e2e emulator + 1 unit).",
-    "Strava tab widoczna na screenshotach, bo konto symulatora = admin (zgodnie z feature flagiem)."
+  "orange": [
+    {
+      "route": "startup",
+      "title": "Trzy niespójne loadery i sieciowe bramki przed użytecznym UI",
+      "evidence": "Native splash -> logo React -> Loader2 profilu/routes -> możliwy spinner paywalla; do Dashboardu około 1.73 MB JS nieskompresowanego.",
+      "suggestion": "Jeden BootScreen z małym logo i paskiem; profile cache-first; performance marks i timeouty."
+    },
+    {
+      "route": "#/workout/:dayId",
+      "title": "Zwykłe kontynuowanie draftu pokazuje alarmistyczny toast odzyskania",
+      "evidence": "Każdy draftHasData uruchamia toast 'Odzyskano niezapisany trening'.",
+      "suggestion": "Cichy resume; komunikat tylko dla finalSyncPending/total failure z jasną akcją."
+    },
+    {
+      "route": "#/workout/:dayId",
+      "title": "PR znika po 2.2 s, a overlay zasłania cały ekran",
+      "evidence": "AUTO_DISMISS_MS=2200 i fixed inset-0; screeny użytkownika pokazują ten komponent.",
+      "suggestion": "5.5 s, tap-to-close, deadline odporny na rerender i background."
+    },
+    {
+      "route": "#/workout/:dayId",
+      "title": "Szacowane 1RM jest podpisane jako Rekord",
+      "evidence": "ExerciseCard pokazuje historicalBest.best1RM pod kluczem card.best='Rekord'.",
+      "suggestion": "Szac. 1RM + seria źródłowa; osobno rekord faktycznego ciężaru."
+    },
+    {
+      "route": "Dashboard / Historia / Postępy / completion",
+      "title": "Część ekranów wlicza warmupy lub nieukończone serie mimo wspólnego kontraktu",
+      "evidence": "Canonical helpers wykluczają warmup, ale kilka ekranów ma własne reduktory bez filtra.",
+      "suggestion": "Jeden helper working-set i jedna fixture kontraktowa na wszystkich konsumentach."
+    },
+    {
+      "route": "#/",
+      "title": "Automatyczny LapseTray może wyglądać jak blackout i zasłania Dashboard",
+      "evidence": "Audyt 390x844 automatycznie otworzył modal 'Wróćmy do planu' nad całą stroną.",
+      "suggestion": "Nieblokująca karta/status; modal tylko po jawnej akcji."
+    },
+    {
+      "route": "inbox",
+      "title": "Centrum powiadomień obiecuje raport tygodnia i zmiany planu bez producentów tych zdarzeń",
+      "evidence": "addInboxItem jest używane tylko dla PR i części odznak w WorkoutDay; brak producenta week/plan.",
+      "suggestion": "Uczciwe copy krótkoterminowo; docelowo trwały idempotentny user_events/outbox."
+    },
+    {
+      "route": "#/profile / vacation",
+      "title": "UI urlopu ogranicza zakres do 7/14/21 mimo że model obsługuje 3-21 dni",
+      "evidence": "VacationDialog ma stałe DAY_OPTIONS, silnik przyjmuje dowolny zakres.",
+      "suggestion": "Kalendarz Od-Do, presety jako skróty, podświetlenie i podsumowanie wydłużenia planu."
+    },
+    {
+      "route": "#/profile / pr backfill",
+      "title": "Historyczny bench baseline nie pasuje do kanonicznej nazwy głównego ćwiczenia",
+      "evidence": "Matcher szuka 'bench' lub 'wyciskanie'+fragment 'leż'; nazwa 'Wyciskanie sztangi na ławce płaskiej' nie przechodzi.",
+      "suggestion": "Match po kanonicznym slug/ID i test inwentarzowy wariantów big three."
+    },
+    {
+      "route": "#/",
+      "title": "Dashboard i nawigacja mają zduplikowane domy tygodnia, postępu i historii",
+      "evidence": "WeekCard + pełna sekcja tygodnia; Analytics + Achievements; Historia nie jest w mobile bottom nav.",
+      "suggestion": "Dzisiaj/Plan/Historia/Postępy/Ćwiczenia; jeden dom per informacja."
+    }
   ],
-  "scoring": "Model harmoniczny: zero 🔴, zero 🟠, zero 🟡 → score 10.0.",
-  "screenshots_dir": "audit/shots/ (f2-*, f3-*, f4-*.png)"
+  "yellow": [
+    {
+      "route": "tests",
+      "title": "Pięć testów progresji jest dato-zależnych",
+      "evidence": "19.08 fixture z 05.08 przekroczyła COMEBACK_BREAK_DAYS=14 i dostała deload zamiast oczekiwanego progress/hold.",
+      "suggestion": "Przekazywać jawne todayISO; zachować osobny test granicy 13/14 dni."
+    },
+    {
+      "route": "#/workout/:dayId",
+      "title": "Przypięta notatka jest poniżej wszystkich serii",
+      "evidence": "Pinned note renderuje się po tabeli, timerze i Add set.",
+      "suggestion": "Przenieść między nagłówek ćwiczenia a Set 1; dodać test pozycji."
+    }
+  ],
+  "native_not_covered": [
+    "pełny cold offline na zalogowanym realnym iPhone po force quit",
+    "kompozytor WKWebView po realnym zgaszeniu ekranu",
+    "push delivery foreground/background/denied",
+    "timeouty RevenueCat/App Check na słabym 5G"
+  ],
+  "top_fixes": [
+    "Cache-first profile bootstrap i prawdziwy cold-offline gate",
+    "Jeden BootScreen oraz usunięcie sieci z krytycznej ścieżki pierwszego ekranu",
+    "Jedno źródło prawdy dla working sets/tonnage/PR na wszystkich ekranach",
+    "Cichy draft resume, 5.5 s PR, poprawne Szac. 1RM i pinned note nad seriami",
+    "Vacation Od-Do, prawdziwy inbox, następnie konsolidacja IA"
+  ],
+  "release_gate": [
+    "Web: deploy oraz weryfikacja hasha/wersji",
+    "iOS: nowy build TestFlight, obie grupy i Beta App Review",
+    "Apple Watch: target osadzony w IPA oraz scenariusz workout/resume/sync",
+    "Android: AAB z nowym versionCode, weryfikacja i publikacja",
+    "Garmin: build Connect IQ, test kontraktu danych i publikacja",
+    "Cross-device: offline queue, retry, idempotencja i zero duplikatów; brak częściowego release"
+  ],
+  "verification": {
+    "e2e_mock": "197/197 PASS",
+    "unit": "1657 PASS, 5 FAIL (date-dependent comeback boundary)",
+    "typecheck_build": "PASS",
+    "lint": "PASS",
+    "dist_offline_shell": "PASS but insufficient contract"
+  },
+  "screenshots": [
+    "audit/shots/2026-08-19/dashboard.png",
+    "audit/shots/2026-08-19/plan.png",
+    "audit/shots/2026-08-19/workout.png",
+    "audit/shots/2026-08-19/analytics.png",
+    "audit/shots/2026-08-19/progress.png",
+    "audit/shots/2026-08-19/history.png",
+    "audit/shots/2026-08-19/cycles.png",
+    "audit/shots/2026-08-19/exercises.png",
+    "audit/shots/2026-08-19/profile.png",
+    "audit/shots/2026-08-19/settings.png",
+    "audit/shots/2026-08-19/measurements.png",
+    "audit/shots/2026-08-19/new-plan.png"
+  ],
+  "report": "docs/AUDYT-PRODUKTOWY-2026-08-19.md"
 }
