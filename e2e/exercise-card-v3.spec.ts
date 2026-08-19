@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, skipPreStartWarmupIfShown } from './helpers';
 
 test.describe('ExerciseCard — Kinetic Precision', () => {
   test.beforeEach(async ({ page }) => {
@@ -151,6 +151,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     const startBtn = page.getByRole('button', { name: /Rozpocznij trening/i });
     await expect(startBtn).toBeVisible();
     await startBtn.click();
+    await skipPreStartWarmupIfShown(page);
 
     // Wait for editable state
     const firstCard = page.locator('.exercise-card').first();
@@ -171,6 +172,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
@@ -209,6 +211,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
@@ -239,6 +242,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
@@ -285,6 +289,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
 
     const cards = page.locator('.exercise-card');
     await expect(cards.first().locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
@@ -312,6 +317,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     const startBtn = page.getByRole('button', { name: /Rozpocznij trening|Start workout/i });
     await expect(startBtn).toBeVisible();
     await startBtn.click();
+    await skipPreStartWarmupIfShown(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i }).first()).toBeEnabled({ timeout: 5000 });
@@ -415,6 +421,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
@@ -464,6 +471,7 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
@@ -486,6 +494,7 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });

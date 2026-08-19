@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, clearWorkoutDraftDb, navigateAndWait, readWorkoutDraftDb, writeWorkoutDraftDb, writeWorkoutSyncQueue , localToday } from './helpers';
+import { blockFirebase, clearWorkoutDraftDb, navigateAndWait, readWorkoutDraftDb, writeWorkoutDraftDb, writeWorkoutSyncQueue , localToday, skipPreStartWarmupIfShown } from './helpers';
 
 const E2E_USER_ID = 'e2e-test-user';
 
@@ -321,6 +321,7 @@ test.describe('Batch Save Workflow', () => {
     await navigateAndWait(page, '/workout/day-1');
 
     await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
+    await skipPreStartWarmupIfShown(page);
 
     await expect(page.getByText('Trening rozpoczęty offline', { exact: true }).first()).toBeVisible();
 
@@ -370,6 +371,7 @@ test.describe('Batch Save Workflow', () => {
 
     await navigateAndWait(page, `/workout/day-2?date=${today}`);
     await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
+    await skipPreStartWarmupIfShown(page);
     await expect(page.getByText('Trening rozpoczęty offline', { exact: true }).first()).toBeVisible();
 
     const preserved = await readWorkoutDraftDb(page, E2E_USER_ID, existingSessionId) as { dayNotes: string } | null;

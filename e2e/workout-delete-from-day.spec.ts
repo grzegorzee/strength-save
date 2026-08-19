@@ -9,6 +9,7 @@ import {
   localDaysAgo,
   navigateAndWait,
   setE2EWorkouts,
+  skipPreStartWarmupIfShown,
 } from './helpers';
 
 const WORKOUT_ID = 'w-del-1';
@@ -79,6 +80,7 @@ test.describe('Usuwanie treningu z widoku treningu (Z161)', () => {
     const startBtn = page.getByRole('button', { name: /Rozpocznij trening|Start workout/i });
     await expect(startBtn).toBeVisible();
     await startBtn.click();
+    await skipPreStartWarmupIfShown(page);
 
     const firstCard = page.locator('.exercise-card').first();
     await expect(firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i }).first()).toBeEnabled({ timeout: 5000 });

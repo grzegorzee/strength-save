@@ -1,6 +1,8 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { buildPreStartWarmup, shouldOfferPreStartWarmup } from '@/lib/prestart-warmup';
 import { ShareWorkoutDialog } from '@/components/ShareWorkoutDialog';
 import { calculateStreak, calculateTonnage } from '@/lib/summary-utils';
 import { computeMilestones, diffMilestones } from '@/lib/achievements-utils';
@@ -442,6 +444,21 @@ const WorkoutDay = () => {
       }),
     };
   }, [baseDay, draftForDaySnapshot, sessionSwaps, workoutForDate, isViewingPastWorkout, resolver, dayId]);
+
+  // C-T2: prompt pre-start + plan rozgrzewki pod pierwsze ćwiczenie dnia.
+  const [preStartOpen, setPreStartOpen] = useState(false);
+  const preStartPlan = useMemo(() => {
+    const first = day?.exercises[0];
+    if (!first) return buildPreStartWarmup({ exerciseName: '' });
+    const firstSets = exerciseSets[first.id] ?? [];
+    const workingWeightKg = firstSets.find((s) => !s.isWarmup && s.weight > 0)?.weight ?? 0;
+    return buildPreStartWarmup({
+      exerciseName: first.name,
+      category: exerciseLibrary.find((e) => e.name === first.name)?.category,
+      isBodyweight: resolveIsBodyweight(first.name),
+      workingWeightKg,
+    });
+  }, [day, exerciseSets, resolveIsBodyweight]);
 
   useEffect(() => {
     daySnapshotRef.current = day
@@ -2783,9 +2800,45 @@ const WorkoutDay = () => {
 
       <DraftStatusNotice />
 
+      {/* C-T2: prompt pre-start — sesja powstaje DOKŁADNIE raz, po decyzji. */}
+      <Dialog open={preStartOpen} onOpenChange={setPreStartOpen}>
+        <DialogContent className="max-w-sm" data-testid="prestart-sheet">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase">{t('warmup.prestart.title')}</DialogTitle>
+            <DialogDescription>{t('warmup.prestart.desc')}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Button
+              className="kinetic-primary-button w-full"
+              data-testid="prestart-yes"
+              disabled={isExplicitSaving}
+              onClick={() => {
+                setPreStartOpen(false);
+                void handleStartWorkout().then(() => setShowWarmup(true));
+              }}
+            >
+              {t('warmup.prestart.yes')}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              data-testid="prestart-skip"
+              disabled={isExplicitSaving}
+              onClick={() => {
+                setPreStartOpen(false);
+                void handleStartWorkout();
+              }}
+            >
+              {t('warmup.prestart.skip')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Warmup dialog */}
       <WarmupRoutineDialog
         focus={day.focus}
+        plan={preStartPlan}
         open={showWarmup}
         onOpenChange={setShowWarmup}
         checked={warmupCheckedSet}
@@ -2982,6 +3035,17 @@ const WorkoutDay = () => {
             onClick={() => {
               if (!startSourcesReady && startSourcesTimedOut) {
                 window.location.reload();
+                return;
+              }
+              // C-T2: sheet rozgrzewki PRZED utworzeniem sesji — tylko świeży,
+              // jawny start; resume/autostart (Watch/Garmin) idą prosto do startu.
+              if (shouldOfferPreStartWarmup({
+                alreadyStarted: isWorkoutStarted,
+                hasDraftContent: currentPageDraft ? draftHasLiveContent(currentPageDraft) : false,
+                autostart,
+                viewingPast: isViewingPastWorkout,
+              })) {
+                setPreStartOpen(true);
                 return;
               }
               void handleStartWorkout();

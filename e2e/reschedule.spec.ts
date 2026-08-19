@@ -8,6 +8,7 @@ import {
   localToday,
   navigateAndWait,
   setE2EPlanMeta,
+  skipPreStartWarmupIfShown,
 } from './helpers';
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
@@ -61,6 +62,7 @@ test.describe('Przełożenie treningu (scheduleOverrides w mock E2E)', () => {
     // Wejście przez hero DOWODZI, że dziś gra day-b: ekran treningu ma ćwiczenie
     // day-b, a ćwiczenia dnia źródłowego (day-a) nie ma wcale.
     await page.getByRole('button', { name: 'Rozpocznij trening' }).click();
+    await skipPreStartWarmupIfShown(page);
     await expect(page.locator('.exercise-card').first()).toBeVisible();
     await expect(page.getByText('Przysiad E2E').first()).toBeVisible();
     await expect(page.getByText('Wyciskanie E2E')).toHaveCount(0);

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown } from './helpers';
 
 // =====================================================
 // 1. ALL PAGES LOAD WITHOUT CRASHES
@@ -1293,6 +1293,7 @@ test.describe('Cele tygodnia (Z120)', () => {
 
     // Pre-fill startu treningu używa celu (waga 62.5, powtórzenia 6), nie kopii poprzedniego (60×8).
     await page.getByRole('button', { name: /Rozpocznij trening/ }).click();
+    await skipPreStartWarmupIfShown(page);
     const card = page.locator('.exercise-card').first();
     await expect(card.getByRole('textbox', { name: /Set 2, kg/ })).toHaveValue('62.5');
     await expect(card.getByRole('spinbutton', { name: /Set 2, Powt\./ })).toHaveValue('6');
@@ -1446,6 +1447,7 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     // 1. Start treningu z planu i zalogowanie jednej serii roboczej.
     await navigateAndWait(page, '/workout/day-1');
     await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
     const planCards = page.locator('.exercise-card');
     await expect(planCards.first().locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
     const planExerciseCount = await planCards.count();
@@ -1488,6 +1490,7 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     // „Dodaj serię" pod seriami, menu ⋯ w nagłówku, trzy metryki sesji.
     // Wznowienie sesji i dopiero potem asercje na układ w trybie edycji.
     await page.getByRole('button', { name: /Rozpocznij trening|Kontynuuj|Start workout/i }).first().click();
+    await skipPreStartWarmupIfShown(page);
     const backCard = planCards.first();
     await expect(backCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
 

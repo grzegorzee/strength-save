@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait , localToday } from './helpers';
+import { blockFirebase, navigateAndWait, localToday, skipPreStartWarmupIfShown } from './helpers';
 
 // =====================================================
 // EDGE CASES & BOUNDARY CONDITIONS
@@ -120,6 +120,8 @@ test.describe('Edge Cases: Multiple Rapid Actions', () => {
     const button = page.getByRole('button', { name: /Rozpocznij trening|Zobacz szczegóły treningu|Wróć do planu/i }).first();
     await expect(button).toBeVisible();
     await button.dblclick();
+    // C-T2: świeży start otwiera prompt rozgrzewki; dblclick nie może go zdublować.
+    await skipPreStartWarmupIfShown(page);
     await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
   });
 });

@@ -5,6 +5,7 @@ import {
   expectPageRendered,
   navigateAndWait,
   setE2EAuthScenario,
+  skipPreStartWarmupIfShown,
 } from './helpers';
 
 // Z162: scenariusz zgłoszony przez usera — odhaczenia rozgrzewki znikały po zamknięciu
@@ -15,11 +16,17 @@ const E2E_UID = 'e2e-test-user';
 const MONDAY = '2026-07-20';
 const MONDAY_MS = new Date(`${MONDAY}T10:00:00`).getTime();
 
-const WARMUP_ITEMS = ['Pajacyki', 'Krążenia bioder', 'Krążenia ramion'];
-
 const openWarmup = async (page: import('@playwright/test').Page) => {
   await page.getByRole('button', { name: /Rozgrzewka/i }).first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
+};
+
+// C-T2: pozycje zależą od pierwszego ćwiczenia dnia — klikamy pierwsze 3
+// odhaczalne (cardio + 2 dynamiczne) po testid, nie po nazwach.
+const toggleFirstItems = async (page: import('@playwright/test').Page, count: number) => {
+  for (let i = 0; i < count; i += 1) {
+    await page.getByRole('dialog').getByTestId('warmup-item').nth(i).click();
+  }
 };
 
 const struckCount = (page: import('@playwright/test').Page) =>
@@ -40,15 +47,15 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
     await expectPageRendered(page);
 
     await page.getByRole('button', { name: /Rozpocznij trening/ }).click();
+    // C-T2: świeży start pokazuje prompt; "Tak" startuje sesję i otwiera rozgrzewkę.
+    await page.getByTestId('prestart-yes').click();
+    await expect(page.getByRole('dialog')).toBeVisible();
 
     // 1. Świeża sesja: rozgrzewka czysta.
-    await openWarmup(page);
     expect(await struckCount(page)).toBe(0);
 
     // 2. Odhaczenie trzech pozycji.
-    for (const item of WARMUP_ITEMS) {
-      await page.getByRole('dialog').getByText(item, { exact: true }).click();
-    }
+    await toggleFirstItems(page, 3);
     expect(await struckCount(page)).toBe(3);
 
     // 3. Zamknięcie dialogu (X) i ponowne otwarcie — odhaczenia zostają.
@@ -67,8 +74,10 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
 
     await openWarmup(page);
     expect(await struckCount(page)).toBe(3);
-    for (const item of WARMUP_ITEMS) {
-      await expect(page.getByRole('dialog').getByText(item, { exact: true })).toHaveClass(/line-through/);
+    for (let i = 0; i < 3; i += 1) {
+      await expect(
+        page.getByRole('dialog').getByTestId('warmup-item').nth(i).locator('.line-through'),
+      ).toHaveCount(1);
     }
 
     await page.keyboard.press('Escape');
@@ -79,9 +88,10 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
     await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening/ }).click();
+    await page.getByTestId('prestart-yes').click();
+    await expect(page.getByRole('dialog')).toBeVisible();
 
-    await openWarmup(page);
-    await page.getByRole('dialog').getByText('Pajacyki', { exact: true }).click();
+    await toggleFirstItems(page, 1);
     expect(await struckCount(page)).toBe(1);
     await page.keyboard.press('Escape');
 
@@ -90,6 +100,7 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
     await page.reload();
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Rozpocznij trening|Kontynuuj trening/ }).first().click();
+    await skipPreStartWarmupIfShown(page);
 
     await openWarmup(page);
     expect(await struckCount(page)).toBe(0);

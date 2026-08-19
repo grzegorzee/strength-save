@@ -30,15 +30,16 @@ test.describe('przełączenie języka: zero mieszanych stringów (X21)', () => {
     await navigateAndWait(page, `/workout/day-1?date=${MONDAY}`);
     await expectPageRendered(page);
     await page.getByRole('button', { name: /Start workout/i }).click();
-    await page.getByRole('button', { name: /Warm-?up/i }).first().click();
+    // C-T2: prompt pre-start; "Yes" startuje sesję i otwiera rozgrzewkę.
+    await page.getByTestId('prestart-yes').click();
 
     const enDialog = page.getByRole('dialog');
     await expect(enDialog).toBeVisible();
-    await expect(enDialog.getByText('Jumping Jacks', { exact: true })).toBeVisible();
-    // Lista pozycji (nazwy + czasy) musi być w 100% EN. Opis dialogu niesie focus dnia,
+    await expect(enDialog.getByTestId('warmup-item').first()).toBeVisible();
+    // Lista pozycji musi być w 100% EN. Opis dialogu niesie focus dnia,
     // czyli DANE planu — tłumaczone tokenowo, patrz tech debt w PLAN-X21 (ODŁOŻONE).
-    const enItems = await enDialog.locator('button:has(.h-6.w-6)').allInnerTexts();
-    expect(enItems.length).toBeGreaterThan(5);
+    const enItems = await enDialog.getByTestId('warmup-item').allInnerTexts();
+    expect(enItems.length).toBeGreaterThan(2);
     expect(enItems.filter((textContent) => POLISH_CHARS.test(textContent))).toEqual([]);
     await page.keyboard.press('Escape');
 
@@ -49,8 +50,8 @@ test.describe('przełączenie języka: zero mieszanych stringów (X21)', () => {
 
     const plDialog = page.getByRole('dialog');
     await expect(plDialog).toBeVisible();
-    await expect(plDialog.getByText('Pajacyki', { exact: true })).toBeVisible();
-    const plText = (await plDialog.locator('button:has(.h-6.w-6)').allInnerTexts()).join('\n');
+    await expect(plDialog.getByTestId('warmup-item').first()).toBeVisible();
+    const plText = (await plDialog.getByTestId('warmup-item').allInnerTexts()).join('\n');
     // Angielskie nazwy zniknęły z polskiego słownika (Z163).
     expect(plText).not.toMatch(/Jumping Jacks|Child's Pose|Pigeon Pose|Hip Circles/i);
     await page.keyboard.press('Escape');

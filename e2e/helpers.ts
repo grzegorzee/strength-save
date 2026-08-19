@@ -216,3 +216,17 @@ export const setE2EPlanMeta = async (page: Page, meta: {
     window.localStorage.setItem(key, JSON.stringify(data));
   }, { key: 'fittracker_e2e_plan', data: meta });
 };
+
+/** C-T2: świeży jawny start pokazuje sheet rozgrzewki (Tak/Pomiń). Testy,
+ *  które nie badają rozgrzewki, pomijają go; resume/autostart promptu nie mają,
+ *  więc helper jest warunkowy i tani (krótki timeout). */
+export const skipPreStartWarmupIfShown = async (page: Page) => {
+  const skip = page.getByTestId('prestart-skip');
+  try {
+    await skip.waitFor({ state: 'visible', timeout: 1000 });
+    await skip.click();
+    await skip.waitFor({ state: 'hidden', timeout: 2000 });
+  } catch {
+    // brak promptu (resume/autostart/kontynuacja) — nic do zrobienia
+  }
+};
