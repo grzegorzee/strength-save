@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { useHardPaywall } from '@/hooks/useHardPaywall';
+import { BootScreen } from '@/components/BootScreen';
 
 // Domknięcie dziury z buildu 37: świeży user na iOS bez PRO mógł wyjść z paywalla
 // strzałką wstecz i przeglądać apkę (bramki łapały tylko akcje). Ten guard owija
@@ -16,11 +16,7 @@ export const PaywallRouteGuard = () => {
   }
 
   if (status === 'pending') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <BootScreen />;
   }
 
   return <Navigate to="/paywall" replace />;

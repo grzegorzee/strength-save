@@ -7,6 +7,7 @@ import { initKeyboardInset } from "./lib/keyboard-inset";
 import { installFirestoreCrashGuard } from "./lib/firestore-crash-guard";
 import { installResumeRepaint } from "./lib/resume-repaint";
 import { hideNativeSplashWhenReady } from "./lib/native-splash";
+import { markStartup } from "./lib/startup-performance";
 
 installFirestoreCrashGuard(() => window.location.reload());
 installResumeRepaint();
@@ -15,4 +16,5 @@ initKeyboardInset();
 void configurePurchases();
 
 createRoot(document.getElementById("root")!).render(<App />);
+requestAnimationFrame(() => markStartup('root-painted'));
 hideNativeSplashWhenReady();

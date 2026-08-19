@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Loader2, ShieldOff } from 'lucide-react';
+import { ShieldOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Layout } from '@/components/Layout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -23,6 +23,7 @@ import { needsConsentRefresh } from '@/lib/consent-selection';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { initGlobalErrorTelemetry, setGlobalErrorTelemetryUid } from '@/lib/global-error-telemetry';
 import { isFirestoreInternalAssertion } from '@/lib/firestore-crash-guard';
+import { BootScreen } from '@/components/BootScreen';
 
 const Dashboard = lazyWithRetry(() => import('@/pages/Dashboard'), 'lazy-retry:dashboard');
 const DayPlan = lazyWithRetry(() => import('@/pages/DayPlan'), 'lazy-retry:day-plan');
@@ -46,12 +47,6 @@ const Profile = lazyWithRetry(() => import('@/pages/Profile'), 'lazy-retry:profi
 const ExerciseDetail = lazyWithRetry(() => import('@/pages/ExerciseDetail'), 'lazy-retry:exercise-detail');
 const Measurements = lazyWithRetry(() => import('@/pages/Measurements'), 'lazy-retry:measurements');
 const Paywall = lazyWithRetry(() => import('@/pages/Paywall'), 'lazy-retry:paywall');
-
-const AppLoader = () => (
-  <div className="min-h-[50vh] flex items-center justify-center">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-  </div>
-);
 
 const RouteCrashFallback = ({ onReset, error, code }: { onReset: () => void; error: Error | null; code: string }) => {
   const navigate = useNavigate();
@@ -167,7 +162,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
     return () => setGlobalErrorTelemetryUid(undefined);
   }, [uid]);
 
-  if (!profileLoaded) return <AppLoader />;
+  if (!profileLoaded) return <BootScreen />;
   if (needsEmailVerification) {
     return <EmailVerificationGate email={profile?.email || ''} onLogout={onLogout} />;
   }
@@ -197,7 +192,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
       {!isNewUser && <WatchEventRouter />}
       {!isNewUser && <ActiveWorkoutResume />}
       <ErrorBoundary uid={uid} fallback={(reset, error, code) => <RouteCrashFallback onReset={reset} error={error} code={code} />}>
-        <Suspense fallback={<AppLoader />}>
+        <Suspense fallback={<BootScreen />}>
           <Routes>
             {isNewUser ? (
               <>

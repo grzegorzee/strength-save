@@ -12,6 +12,7 @@ import {
   resolveProfileLoadFailure,
   type UserProfile,
 } from '@/lib/user-profile';
+import { markStartup } from '@/lib/startup-performance';
 
 interface UserContextValue {
   uid: string;
@@ -82,6 +83,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       });
       setProfileLoaded(true);
       setProfileLoadError(null);
+      markStartup('profile-cache-ready', 'e2e');
       return;
     }
 
@@ -110,6 +112,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         setProfile(mapAppUserProfile(userId, data, authProfileSeed));
         setProfileLoadError(null);
         setProfileLoaded(true);
+        markStartup('profile-cache-ready', snapshot.metadata.fromCache ? 'cache' : 'server');
       } else if (snapshot.metadata.fromCache || !initialSyncSettled) {
         return;
       } else {
@@ -156,6 +159,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           setProfile(mapAppUserProfile(userId, syncedProfile, authProfileSeed));
           setProfileLoadError(null);
           setProfileLoaded(true);
+          markStartup('profile-cache-ready', 'sync');
         } catch (err) {
           console.error('Error syncing user profile:', err);
           if (!cancelled) {

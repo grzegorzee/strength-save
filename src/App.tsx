@@ -10,7 +10,7 @@ import { PWAUpdatePrompt } from '@/components/PWAUpdatePrompt';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useAuth } from '@/hooks/useAuth';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
-import appIcon from '@/assets/app-icon.png';
+import { BootScreen } from '@/components/BootScreen';
 
 const queryClient = new QueryClient();
 const Login = lazyWithRetry(() => import('@/pages/Login'), 'lazy-retry:login');
@@ -24,30 +24,15 @@ const AuthRedirect = () => {
   return <Navigate to={`/login${location.search || ''}`} replace />;
 };
 
-// FIX-B T4: logo z pulsem zamiast gołego kółka — user widzi, że ładuje się
-// WŁAŚNIE ta apka.
-const AppLoader = () => (
-  <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4">
-    <img
-      src={appIcon}
-      alt="Strength Save"
-      className="h-16 w-16 rounded-2xl animate-pulse"
-    />
-    <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-muted-foreground animate-pulse">
-      Strength Save
-    </span>
-  </div>
-);
-
 const AuthenticationGate = () => {
   const { isAuthenticated, loading, logout } = useAuth();
 
-  if (loading) return <AppLoader />;
+  if (loading) return <BootScreen />;
 
   if (!isAuthenticated) {
     return (
       <HashRouter>
-        <Suspense fallback={<AppLoader />}>
+        <Suspense fallback={<BootScreen />}>
           <Routes>
             <Route path="/login" element={<Login mode="login" />} />
             <Route path="/register" element={<Login mode="register" />} />
@@ -59,7 +44,7 @@ const AuthenticationGate = () => {
   }
 
   return (
-    <Suspense fallback={<AppLoader />}>
+    <Suspense fallback={<BootScreen />}>
       <AuthenticatedApp onLogout={logout} />
     </Suspense>
   );

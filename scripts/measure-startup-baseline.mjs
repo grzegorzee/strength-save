@@ -8,7 +8,16 @@ const measureNavigation = async (page, navigate) => {
   const startedAt = performance.now();
   await navigate();
   await dashboard(page).waitFor({ state: 'visible' });
-  return Math.round(performance.now() - startedAt);
+  const elapsedMs = Math.round(performance.now() - startedAt);
+  const report = await page.evaluate(() => {
+    try {
+      const raw = sessionStorage.getItem('strength-save:last-startup-report');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  return { elapsedMs, report };
 };
 
 const contextOptions = {
@@ -18,7 +27,13 @@ const contextOptions = {
 };
 
 const browser = await chromium.launch();
-const results = { environment: 'Playwright Chromium, mobile viewport 390x844', warm: [], cold: [], offline: [] };
+const results = {
+  environment: 'Playwright Chromium, mobile viewport 390x844; web/E2E simulation, not a physical phone',
+  warm: [],
+  cold: [],
+  offline: [],
+  weakNetwork: [],
+};
 
 const warmContext = await browser.newContext(contextOptions);
 const warmPage = await warmContext.newPage();
@@ -50,6 +65,23 @@ for (let index = 0; index < samples; index += 1) {
   await context.setOffline(true);
   const offlinePage = await context.newPage();
   results.offline.push(await measureNavigation(offlinePage, () => offlinePage.goto(baseURL)));
+  await context.close();
+}
+
+for (let index = 0; index < samples; index += 1) {
+  const context = await browser.newContext(contextOptions);
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'connection', {
+      configurable: true,
+      value: { effectiveType: '2g' },
+    });
+  });
+  const page = await context.newPage();
+  await page.route('**/*', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.continue();
+  });
+  results.weakNetwork.push(await measureNavigation(page, () => page.goto(baseURL)));
   await context.close();
 }
 

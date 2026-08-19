@@ -5,6 +5,9 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { PRO_ENTITLEMENT } from '@/lib/purchases';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { isSubscriptionActive, type SubscriptionState, type SubscriptionTier } from '@/lib/user-profile';
+import { withTimeout } from '@/lib/promise-timeout';
+
+const REVENUECAT_BOOT_TIMEOUT_MS = 1500;
 
 // Źródła prawdy o PRO (w kolejności):
 // 1. admin — pełny dostęp zawsze,
@@ -53,7 +56,11 @@ export const useSubscription = (): SubscriptionInfo => {
   const refresh = useCallback(async () => {
     if (!isNative) return;
     try {
-      const { customerInfo } = await Purchases.getCustomerInfo();
+      const { customerInfo } = await withTimeout(
+        Purchases.getCustomerInfo(),
+        REVENUECAT_BOOT_TIMEOUT_MS,
+        'RevenueCat customer info',
+      );
       setRc(readRcState(customerInfo));
     } catch {
       // RC nieskonfigurowany / offline — zostajemy przy Firestore.
@@ -104,7 +111,7 @@ export const useSubscription = (): SubscriptionInfo => {
     startedAt,
     expiresAt,
     subscription: fsSub,
-    loading: !profileLoaded || !rcLoaded,
+    loading: !profileLoaded || (!isAdmin && !fsActive && !rcLoaded),
     refresh,
   };
 };

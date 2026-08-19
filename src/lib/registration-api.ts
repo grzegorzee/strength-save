@@ -4,6 +4,9 @@ import { functions } from "@/lib/firebase";
 import type { ConsentMirror } from "@/lib/legal-versions";
 import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
+import { withTimeout } from '@/lib/promise-timeout';
+
+const REGISTRATION_WEB_TIMEOUT_MS = 10000;
 
 const isE2EMode = import.meta.env.VITE_E2E_MODE === 'true';
 
@@ -29,7 +32,11 @@ async function callRegistrationFunction<RequestData, ResponseData>(
     return callNativeAttestedFunction<RequestData, ResponseData>(functionName, data);
   }
   const fn = httpsCallable<RequestData, ResponseData>(functions, functionName);
-  return (await fn(data)).data;
+  return (await withTimeout(
+    fn(data),
+    REGISTRATION_WEB_TIMEOUT_MS,
+    `Registration function ${functionName}`,
+  )).data;
 }
 
 export type AccountStatus = "pending_verification" | "active" | "suspended" | "deleted";

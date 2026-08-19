@@ -59,6 +59,7 @@ import { weeklyStravaKm, currentWeekCardio } from '@/lib/activity-window';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { buildWatchCapabilitySnapshot } from '@/lib/device-management';
+import { markStartup } from '@/lib/startup-performance';
 
 // Trend component
 const TrendIndicator = ({ value, suffix = '' }: { value: number | null; suffix?: string }) => {
@@ -162,6 +163,9 @@ const Dashboard = () => {
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
   const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode, vacation, setVacation } = useTrainingPlan(uid);
+  useEffect(() => {
+    if (isLoaded && planIsLoaded) markStartup('dashboard-interactive');
+  }, [isLoaded, planIsLoaded]);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); weeklyKm i karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej

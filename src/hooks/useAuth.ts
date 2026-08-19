@@ -23,6 +23,7 @@ import { disableAppleWatchAccess } from '@/lib/watch-bridge';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { markStartup } from '@/lib/startup-performance';
 
 // Z222: flaga sesyjna łączy register_started z profile_created (backend nie
 // sygnalizuje "utworzono" — najbliższy udany sync profilu po rejestracji = created).
@@ -49,6 +50,7 @@ export const useAuth = () => {
         } as User);
       }
       setLoading(false);
+      markStartup('auth-restored');
       return;
     }
 
@@ -56,6 +58,7 @@ export const useAuth = () => {
       setUser(user);
       setError(null);
       setLoading(false);
+      markStartup('auth-restored');
       // RevenueCat: zwiąż/odwiąż zakupy z kontem (no-op poza natywnym iOS).
       if (user) {
         void logInPurchases(user.uid);

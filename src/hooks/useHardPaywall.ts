@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, getDocs, getDocsFromCache, limit, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useSubscription, isPaywallPlatform } from '@/hooks/useSubscription';
 import { readE2EAuthState } from '@/lib/e2e-auth';
 import { resolvePaywallGuard, type PaywallGuardStatus } from '@/lib/paywall-guard';
+import { withTimeout } from '@/lib/promise-timeout';
+
+const PAYWALL_WORKOUT_TIMEOUT_MS = 1500;
 
 // Status hard paywalla onboardingowego dla bieżącego usera.
 // 'enforced' = świeży user na iOS bez PRO i bez treningów → każda trasa na /paywall,
@@ -26,11 +29,24 @@ export const useHardPaywall = (): PaywallGuardStatus => {
     }
 
     let cancelled = false;
-    getDocs(query(collection(db, 'workouts'), where('userId', '==', uid), limit(1)))
-      .then((snap) => { if (!cancelled) setHasWorkouts(!snap.empty); })
-      // Fail-open: błąd odczytu nie może zamknąć apki przed userem z danymi;
-      // monetyzację i tak chronią bramki akcji (start treningu, kreator).
-      .catch(() => { if (!cancelled) setHasWorkouts(true); });
+    const workoutQuery = query(collection(db, 'workouts'), where('userId', '==', uid), limit(1));
+    const resolveWorkouts = async () => {
+      try {
+        const cached = await getDocsFromCache(workoutQuery);
+        if (!cached.empty) return true;
+        const remote = await withTimeout(
+          getDocs(workoutQuery),
+          PAYWALL_WORKOUT_TIMEOUT_MS,
+          'Paywall workout lookup',
+        );
+        return !remote.empty;
+      } catch {
+        // Fail-open: awaria nie może uwięzić usera z danymi. Nie nadaje to PRO —
+        // bramki płatnych akcji nadal opierają się na useSubscription.
+        return true;
+      }
+    };
+    void resolveWorkouts().then((value) => { if (!cancelled) setHasWorkouts(value); });
     return () => { cancelled = true; };
   }, [shouldCheckWorkouts, uid]);
 
