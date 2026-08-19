@@ -515,7 +515,21 @@ urządzeniu = krok właściciela przy fizycznym A-T5.
 
 ### D-RELEASE — wspólne wydanie D
 
-- [ ] Wszystkie bramki z sekcji 8, wspólny release train i audyt końcowy.
+- [x] Wszystkie bramki z sekcji 8, wspólny release train i audyt końcowy.
+
+DOWÓD (2026-08-20): bramki repo GREEN (vitest 1758/1758, typecheck, lint, build,
+bundle-budget, dist-smoke, dist-offline po naprawie gate'u 6d8a8b61, no-emoji);
+pełne e2e 394/394 po świeżym vite. Web LIVE `index-B7Kq8hoP.js` (marker
+`progress-view-analytics` git grepem na origin/gh-pages w `Achievements-D9p_g1gk.js`
++ curl live). iOS 1.0.0(107): upload VALID, obie grupy TestFlight (HTTP 204),
+whatsNew (200), Beta App Review APPROVED, Watch w IPA. Android AAB versionCode 22
+`jar verified`, SHA `03d04f35162269526be5e9066e23ca9393eb0e6a25d9a17d487c41c55a6d29f9`
+(`android/app/build/outputs/bundle/release/app-release.aab`). Garmin: zero zmian
+źródeł w D — obowiązują artefakty A+B (iq e488c208, prg epix2 d3165176). Backend
+nietknięty w D. Audyt końcowy: product-audit 9.5, zero RED/ORANGE
+(`audit/latest.json`). NASTĘPNY iOS = 108, versionCode = 23. Kroki właściciela:
+fizyczny scenariusz A-T5 na iPhone/Androidzie, upload AAB v22 do Play Console,
+submit Connect IQ.
 
 ## 8. Bramka wydania A/B/C/D
 

@@ -5,11 +5,40 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-19 (C-RELEASE: web live CociTREW, iOS 106 TF, AAB v21; wcześniej A+B)
+**Ostatnia aktualizacja:** 2026-08-20 (D-RELEASE: web live B7Kq8hoP, iOS 107 TF, AAB v22; plan audytu 2026-08-19 DOMKNIĘTY)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: D-RELEASE — wydanie D, domknięcie planu audytu 2026-08-19
+
+**Co:** Wydanie D (D-T1..D-T5): docelowa architektura informacji. Bottom nav
+Dzisiaj/Plan/Historia/Postępy/Ćwiczenia; Dashboard skupiony na "co teraz"; Plan
+przejmuje tydzień + przełożenie/pominięcie dnia; scalenie Analytics i Achievements
+w jeden ekran Postępy (`/achievements` z przełącznikiem Rekordy i odznaki/Analityka,
+`/analytics` = redirect zachowujący `?tab=`); audyt czytelności (product-audit 9.5,
+zero RED/ORANGE, raport `audit/latest.json`).
+
+**Artefakty:** web LIVE `index-B7Kq8hoP.js` (marker `progress-view-analytics`
+zweryfikowany git grepem w chunku `Achievements-D9p_g1gk.js` na origin/gh-pages
++ curl live); iOS 1.0.0(107) TestFlight: VALID, obie grupy podpięte (204), whatsNew
+200, Beta App Review APPROVED, Watch w IPA; AAB versionCode 22 `jar verified` SHA
+`03d04f35162269526be5e9066e23ca9393eb0e6a25d9a17d487c41c55a6d29f9` (upload Play =
+właściciel); Garmin bez zmian źródeł (artefakty A+B aktualne); backend nietknięty.
+Następny build iOS = 108, versionCode = 23.
+
+**Root cause / lekcje:** (1) gate dist-offline wisiał bez limitu — `dist` z
+build:mobile nie ma service workera, a `navigator.serviceWorker.ready` w evaluate
+nigdy się nie rozwiązuje; dist-offline wymaga builda WEB. (2) Gate po D-T4 uczony
+scalonego ekranu: nagłówek Postępy + zakładka z wnętrza Analytics jako dowód lazy
+chunka (commit 6d8a8b61). (3) Flaky warmup-persistence: toast startu (TOAST_REMOVE_DELAY)
+przykrywał przycisk Rozgrzewki — zamykanie toastu wzorcem [toast-close] (b9724f49).
+(4) Pipe `| tail` maskuje exit code bramki — nie łączyć bramek pipe'em przy decyzji go/no-go.
+
+**Bramki:** vitest 1758/1758, pełne e2e 394/394 (świeży vite), typecheck, lint,
+build, bundle-budget/dist-smoke/dist-offline/no-emoji GREEN, product-audit 9.5.
+
 
 ### 2026-08-19: C-RELEASE — wydanie C na powierzchniach (kontynuacja trainu)
 
