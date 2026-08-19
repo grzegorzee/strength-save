@@ -2408,3 +2408,21 @@ budują się na SDK 9.2.0, a podpisany export ma 27 PRG. Symulator potwierdza pr
 ekran aplikacji na FR255 (round/buttons) i Venu Sq 2 (rectangle/touch) bez konta i
 bez zakończenia treningu. Klucz i lokalny backup poza repo mają ten sam checksum;
 off-host backup, fizyczne G1-G9 i portalowy submit pozostają bramami.
+
+---
+
+## SESJA 2026-08-19 — audyt realizacyjny A-T0: stabilna baza i baseline startu
+
+**Root cause:** pięć testów `session-rating-progression` nie przekazywało `todayISO`, więc
+19 sierpnia automatycznie przekroczyły produkcyjny próg comeback 14 dni i zaczęły oczekiwać
+progresji, choć silnik poprawnie zwracał deload. To był błąd testu, nie algorytmu.
+
+**Decyzja:** wstrzyknąć stałe `todayISO` wyłącznie do pięciu przypadków oceny sesji i
+utrzymać osobne testy dokładnej granicy 13/14 dni. Nie zmieniać kodu produkcyjnego. Baseline
+startu wykonać bez realnego konta na produkcyjnym buildzie z syntetycznym E2E userem i
+jednoznacznie nazwać go emulacją webową, nie real-device.
+
+**Dowód (`351e026a`):** RED 5/10 → testy celowane 19/19 GREEN; pełny Vitest 220/220
+plików, 1662/1662 testów; typecheck, lint, build i bundle budget GREEN. Raport
+`docs/BASELINE-START-A-T0-2026-08-19.md`: pięć prób warm/cold/offline, mediany
+68/239/147 ms; initial JS 1 298 679 B przy niezmienionym limicie 1 536 000 B.
