@@ -258,11 +258,20 @@ przebiegiem fizycznym iOS+Android (kroki właściciela); Garmin i Watch są domk
 
 ### B-T1 — jedno źródło prawdy dla serii roboczych
 
-- [ ] Kanoniczne selektory working sets/tonnage/max/completion zamiast lokalnych obliczeń.
-- [ ] Przepiąć Dashboard, Historię, Postępy, rekordy, completion i backend aggregate.
-- [ ] Fixture kontraktowe wszędzie: warmup `40×10 done`, working `100×5 done`, working
+- [x] Kanoniczne selektory working sets/tonnage/max/completion zamiast lokalnych obliczeń.
+- [x] Przepiąć Dashboard, Historię, Postępy, rekordy, completion i backend aggregate.
+- [x] Fixture kontraktowe wszędzie: warmup `40×10 done`, working `100×5 done`, working
   `120×5 incomplete` → 500 kg, 1 seria, max 100 kg, brak PR z warmupu.
-- [ ] Warmup-only nie zwiększa streaku ani ukończenia planu; pozostaje w historii/drafcie.
+- [x] Warmup-only nie zwiększa streaku ani ukończenia planu; pozostaje w historii/drafcie.
+
+**B-T1 DONE (`769890e8`):** mapa odchyleń z pełnego audytu konsumentów (Dashboard trend
+bez żadnego filtra, Historia ×4, Postępy tonaż/rekordy z draftów i rozgrzewek, WorkoutDay
+podsumowanie, AnalyticsChartsTab duplikat); nowe helpery `countWorkoutCompletedWorkingSets`
+i `hasCompletedWorkingSet`, `buildExerciseRecords` w achievements-utils; streak i
+`buildWeekCardModel` wymagają >=1 serii roboczej. Fixture kontraktowa 9/9 w
+`working-set-contract.test.ts` (klient + backend aggregate). Świadomie poza zakresem:
+heurystyki sync-conflict/cycle-dedup/workout-lookup/watch-recent. Vitest 1711/1711,
+functions 224, typecheck/lint/build GREEN.
 
 ### B-T2 — rekord ciężaru kontra szacowane 1RM
 
