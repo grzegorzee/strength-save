@@ -263,6 +263,10 @@ try {
 
   await offlinePage.goto(`${emulatorUrl}#/workout/${dayId}?date=${today}`, { waitUntil: 'commit', timeout: 10_000 });
   await offlinePage.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+  // C-T2: świeży start pokazuje sheet rozgrzewki — bramka pomija (kontrakt startu).
+  const preStartSkip = offlinePage.getByTestId('prestart-skip');
+  await preStartSkip.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
+  if (await preStartSkip.isVisible().catch(() => false)) await preStartSkip.click();
   await offlinePage.getByText(/Trening rozpoczęty offline|Workout started offline/i, { exact: true }).first().waitFor({ timeout: 15_000 });
   const firstCard = offlinePage.locator('.exercise-card').first();
   await firstCard.getByRole('button', { name: /Zaznacz serię jako zrobioną|Mark set as done/i }).first().click();
