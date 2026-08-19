@@ -133,7 +133,7 @@ describe('krok 3: reorganizacja sekcji Profilu', () => {
   it('niezmiennik: wszystkie dotychczasowe wiersze i akcje obecne', () => {
     const { container, getByText } = renderProfile();
     // TWOJE DANE
-    ['Historia', 'Pomiary ciała', 'Osiągnięcia'].forEach((l) => expect(getByText(l)).toBeTruthy());
+    ['Historia', 'Pomiary ciała', 'Postępy'].forEach((l) => expect(getByText(l)).toBeTruthy());
     // SUBSKRYPCJA (admin → "Pełny dostęp")
     expect(within(sectionByLabel(container, 'Subskrypcja')).getByText('Pełny dostęp')).toBeTruthy();
     // KONTO

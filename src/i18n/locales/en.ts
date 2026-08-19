@@ -1518,7 +1518,7 @@ export const en: Record<keyof typeof pl, string> = {
   'layout.title.history': 'Workout history',
   'layout.title.day': 'Day plan',
   'layout.title.analytics': 'Analytics',
-  'layout.title.achievements': 'Achievements',
+  'layout.title.achievements': 'Progress',
   'layout.title.planEdit': 'Edit plan',
   'layout.title.settings': 'Settings',
   'layout.title.profile': 'Profile',

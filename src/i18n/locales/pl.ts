@@ -1540,7 +1540,7 @@ export const pl = {
   'layout.title.history': 'Historia treningów',
   'layout.title.day': 'Plan dnia',
   'layout.title.analytics': 'Analityka',
-  'layout.title.achievements': 'Osiągnięcia',
+  'layout.title.achievements': 'Postępy',
   'layout.title.planEdit': 'Edycja planu',
   'layout.title.settings': 'Ustawienia',
   'layout.title.profile': 'Profil',

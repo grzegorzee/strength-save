@@ -39,7 +39,7 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/profile');
   });
 
-  test('z Profilu: Ustawienia, Historia, Pomiary, Osiągnięcia, Admin', async ({ page }) => {
+  test('z Profilu: Ustawienia, Historia, Pomiary, Postępy, Admin', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
@@ -51,7 +51,7 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/measurements');
 
     await navigateAndWait(page, '/profile');
-    await page.getByRole('button', { name: 'Osiągnięcia', exact: true }).click();
+    await page.getByRole('button', { name: 'Postępy', exact: true }).click();
     await expectHashRoute(page, '/achievements');
 
     await navigateAndWait(page, '/profile');

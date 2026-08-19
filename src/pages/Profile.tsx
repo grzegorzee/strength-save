@@ -487,7 +487,7 @@ const Profile = () => {
       <SectionCard label={t('profile.section.data')}>
         <SettingRow icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
         <SettingRow icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
-        <SettingRow icon={Trophy} label={t('nav.achievements')} onClick={() => navigate('/achievements')} />
+        <SettingRow icon={Trophy} label={t('nav.progress')} onClick={() => navigate('/achievements')} />
         <SettingRow
           icon={Medal}
           label={t('profile.backfill.title')}
