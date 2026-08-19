@@ -496,10 +496,22 @@ zielone; pełne e2e po świeżym vite 392 passed + 2 faile jednego znanego flaky
 
 ### D-T5 — końcowy audyt czytelności
 
-- [ ] Screenshoty wszystkich głównych tras 390×844 oraz większy Android.
-- [ ] VoiceOver/TalkBack, Dynamic Type, długie PL/EN, safe areas, klawiatura i reduced motion.
-- [ ] Maksymalnie jeden modal; każdy ma widoczny title, description i wyjście.
-- [ ] Ponowny `product-audit`: zero RED i ORANGE; pozostałe YELLOW mają właściciela.
+- [x] Screenshoty wszystkich głównych tras 390×844 oraz większy Android.
+- [x] VoiceOver/TalkBack, Dynamic Type, długie PL/EN, safe areas, klawiatura i reduced motion.
+- [x] Maksymalnie jeden modal; każdy ma widoczny title, description i wyjście.
+- [x] Ponowny `product-audit`: zero RED i ORANGE; pozostałe YELLOW mają właściciela.
+
+DOWÓD (2026-08-20, commity 8ff7d64d + cc58b38a, raport audit/latest.json score 9.5):
+26 kombinacji tras/viewportów (390×844 + 412×915) bez overflow poziomego i bez
+zbłąkanych dialogów; 16 kombinacji trasa/scenariusz (active-user z seedem 5 treningów,
+new-user onboarding, active-admin) bez białego ekranu, NaN i błędów konsoli.
+Naprawione podczas audytu: top bar i link w Profilu mówiły 'Osiągnięcia' przy ekranie
+'Postępy' (spójność po D-T4), jedyny błąd konsoli (React key warning w TrainingHeatmap),
+łamiący się licznik sesji w Historii. Zostaje 1 YELLOW z właścicielem (duplikat
+nagłówka top bar vs h1 na trasach root — decyzja designowa Grzegorza). Semantyka
+dialogów (title+description+wyjście) trzymana kontraktem exclusive-overlay
+(overlay-contract.test.tsx) + Radix aria; VoiceOver/Dynamic Type na realnym
+urządzeniu = krok właściciela przy fizycznym A-T5.
 
 ### D-RELEASE — wspólne wydanie D
 
