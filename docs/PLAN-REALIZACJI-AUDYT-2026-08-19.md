@@ -427,7 +427,14 @@ Vitest 1758/1758, typecheck/lint/build GREEN.
 
 ### C-RELEASE — wspólne wydanie C
 
-- [ ] Wszystkie bramki z sekcji 8, wspólny release train i re-audyt plan/warmup/cycles.
+- [x] Wszystkie bramki z sekcji 8, wspólny release train i re-audyt plan/warmup/cycles.
+
+**C-RELEASE WYKONANE 2026-08-19 (mandat właściciela, szczegóły w DECYZJE.md):**
+web LIVE `index-CociTREW.js` (markery C-T2/C-T4 potwierdzone w opublikowanych
+chunkach), iOS 1.0.0(106) TF obie grupy + Beta App Review APPROVED + Watch 106 w IPA,
+AAB v21 `jar verified` SHA `2353432b…` (upload Play = właściciel), Garmin bez zmian
+źródeł od A+B, backend nietknięty. Bramki komplet: vitest 1758/1758, e2e 197/197,
+checki GREEN (dist-offline zaktualizowany o prompt pre-start).
 
 ## 7. Wydanie D — uproszczenie aplikacji
 
