@@ -852,6 +852,7 @@ export const pl = {
   'inbox.plan.title': 'Plan treningowy',
   'inbox.plan.started': 'Wystartował nowy plan: {days} dni/tydz., {weeks} tyg.',
   'inbox.plan.changed': 'Plan zmieniony: {days} dni/tydz., {weeks} tyg.',
+  'inbox.plan.ended': 'Plan dobiegł końca. Zdecyduj: kontynuuj, powtórz albo przygotuj nowy.',
   'inbox.badge.title': 'Nowa odznaka',
   'dash.status.more': 'Pozostałe komunikaty ({n})',
   'dash.status.less': 'Zwiń komunikaty',

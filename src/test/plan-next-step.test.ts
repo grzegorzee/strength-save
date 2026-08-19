@@ -59,4 +59,57 @@ describe('buildPlanNextStep', () => {
 
     expect(result).toBeNull();
   });
+
+  // C-T4: identyfikatory stanów maszyny — jedno źródło dla Dashboardu, Planu i Cyklów.
+  it('stany: ostatni tydzień = ending-decide, wygasły z cyklem = closeout (repeat/new)', () => {
+    const base = {
+      hasPlan: true,
+      weeksRemaining: 0,
+      currentWeek: 8,
+      planDurationWeeks: 8,
+      activeCycle,
+      previousCompletedCycle: null,
+      today: new Date('2026-04-03T10:00:00.000Z'),
+    };
+    expect(buildPlanNextStep({ ...base, isPlanExpired: false })?.state).toBe('ending-decide');
+    const closeout = buildPlanNextStep({ ...base, isPlanExpired: true });
+    expect(closeout?.state).toBe('closeout');
+    expect(closeout?.primaryPath).toBe('/new-plan?fromCycle=cycle-1');
+  });
+
+  it('stany: wygasły bez cyklu = ended, brak planu = no-plan', () => {
+    expect(buildPlanNextStep({
+      hasPlan: true, isPlanExpired: true, weeksRemaining: 0, currentWeek: 9,
+      planDurationWeeks: 8, activeCycle: null, previousCompletedCycle: null,
+    })?.state).toBe('ended');
+    expect(buildPlanNextStep({
+      hasPlan: false, isPlanExpired: false, weeksRemaining: 0, currentWeek: 0,
+      planDurationWeeks: 8, activeCycle: null, previousCompletedCycle: null,
+    })?.state).toBe('no-plan');
+  });
+
+  it('niska frekwencja w trakcie = warning bez akcji closeoutu', () => {
+    const lowAttendance: PlanCycle = {
+      ...activeCycle,
+      stats: { ...activeCycle.stats, completionRate: 35, missedWorkouts: 9 },
+    };
+    const result = buildPlanNextStep({
+      hasPlan: true, isPlanExpired: false, weeksRemaining: 4, currentWeek: 4,
+      planDurationWeeks: 8, activeCycle: lowAttendance, previousCompletedCycle: null,
+      today: new Date('2026-03-20T10:00:00.000Z'),
+    });
+    expect(result?.state).toBe('warning');
+    expect(result?.primaryPath).toBe('/plan');
+  });
+
+  it('finalSyncPending nie wywraca maszyny i zachowuje stan decyzyjny', () => {
+    const result = buildPlanNextStep({
+      hasPlan: true, isPlanExpired: true, weeksRemaining: 0, currentWeek: 8,
+      planDurationWeeks: 8, activeCycle, previousCompletedCycle: null,
+      today: new Date('2026-04-05T10:00:00.000Z'),
+      hasPendingFinalSync: true,
+    });
+    expect(result?.state).toBe('closeout');
+    expect(result?.title.length).toBeGreaterThan(0);
+  });
 });

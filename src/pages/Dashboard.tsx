@@ -50,6 +50,7 @@ import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
+import { PlanNextStepCard } from '@/components/PlanNextStepCard';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { countCompletedWorkingSets } from '@/lib/workout-day-view';
 import { createAdhocDay } from '@/lib/adhoc-workout';
@@ -693,12 +694,6 @@ const Dashboard = () => {
   }, [uid]);
 
   // Day focus descriptions
-  const planNextStepTone = {
-    primary: 'border-primary/40 bg-primary/5',
-    warning: 'border-fitness-warning/40 bg-fitness-warning/5',
-    success: 'border-fitness-success/40 bg-fitness-success/5',
-    info: 'border-fitness-cyan/40 bg-fitness-cyan/5',
-  } as const;
 
   // Z172: czekamy TAKŻE na plan usera — bez tego Dashboard renderował wbudowany
   // defaultPlan ("Klatka / Przysiad / Środek Pleców") zanim doszedł snapshot planu.
@@ -968,51 +963,16 @@ const Dashboard = () => {
       />
 
       {showNextStep && planNextStep && (
-      <Card data-testid="dash-next-step" className={planNextStepTone[planNextStep.tone]}>
-        <CardContent className="p-5 space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                {t('dash.whatNext')}
-              </p>
-              <h2 className="font-heading text-lg font-bold uppercase tracking-tight">{planNextStep.title}</h2>
-              <p className="text-sm text-muted-foreground">{planNextStep.description}</p>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="flex flex-wrap gap-2">
-                {planNextStep.badges.map((badge) => (
-                  <Badge key={badge} variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold">
-                    {badge}
-                  </Badge>
-                ))}
-              </div>
-              <button
-                onClick={dismissNextStep}
-                aria-label={t('dash.dismissHint')}
-                className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button onClick={() => navigate(planNextStep.primaryPath)}>
-              {planNextStep.primaryLabel}
-            </Button>
-            {planNextStep.secondaryPath && planNextStep.secondaryLabel ? (
-              <Button variant="outline" onClick={() => navigate(planNextStep.secondaryPath!)}>
-                {planNextStep.secondaryLabel}
-              </Button>
-            ) : null}
-            {planEnded && trainingPlan.length > 0 ? (
-              <Button variant="outline" onClick={handleRepeatPlan} disabled={isRepeating}>
-                {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                {t('cycles.repeatPlan')}
-              </Button>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+      <PlanNextStepCard
+        step={planNextStep}
+        uid={uid}
+        planStartDate={planStartDate}
+        canRepeat={trainingPlan.length > 0}
+        isRepeating={isRepeating}
+        onRepeat={handleRepeatPlan}
+        onDismiss={dismissNextStep}
+        testId="dash-next-step"
+      />
       )}
 
       {/* Stats - 4 columns */}

@@ -214,3 +214,16 @@ describe('alignPlanDaysWithCycleIds', () => {
     expect(second).toEqual(first);
   });
 });
+
+describe('C-T4: start nowego cyklu po końcu planu', () => {
+  it('ostatni dzień planu (niedziela) → nowy cykl od poniedziałku tej samej rachuby tygodnia', () => {
+    // Niedziela 2026-08-23 kotwiczy się do poniedziałku 2026-08-17 (start tygodnia planu),
+    // a wybór poniedziałku 2026-08-24 zostaje poniedziałkiem — dokładnie +7 dni.
+    expect(getCycleStartPreview('2026-08-23').cycleStartDate).toBe('2026-08-17');
+    expect(getCycleStartPreview('2026-08-24').cycleStartDate).toBe('2026-08-24');
+    const monday = getCycleStartPreview('2026-08-17').cycleStartDate;
+    const nextMonday = getCycleStartPreview('2026-08-24').cycleStartDate;
+    const diffDays = (new Date(nextMonday).getTime() - new Date(monday).getTime()) / 86_400_000;
+    expect(diffDays).toBe(7);
+  });
+});

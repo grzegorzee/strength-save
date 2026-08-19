@@ -2,7 +2,17 @@ import type { PlanCycle } from '@/types/cycles';
 import { buildCycleRecommendation } from '@/lib/cycle-insights';
 import { translate, type LanguageCode } from '@/i18n';
 
+export type PlanNextStepState =
+  | 'no-plan'
+  | 'ended'
+  | 'ending-soon'
+  | 'closeout'
+  | 'ending-decide'
+  | 'warning';
+
 export interface PlanNextStepAction {
+  /** C-T4: identyfikator stanu maszyny — jedno źródło dla Dashboardu, Planu i Cyklów. */
+  state: PlanNextStepState;
   title: string;
   description: string;
   badges: string[];
@@ -42,6 +52,7 @@ export const buildPlanNextStep = ({
 
   if (!hasPlan) {
     return {
+      state: 'no-plan',
       title: tr('plannext.noPlan.title'),
       description: tr('plannext.noPlan.desc'),
       badges: [tr('plannext.badge.startScratch')],
@@ -56,6 +67,7 @@ export const buildPlanNextStep = ({
   if (!activeCycle) {
     if (isPlanExpired) {
       return {
+        state: 'ended',
         title: tr('plannext.ended.title'),
         description: tr('plannext.ended.desc'),
         badges: [tr('plannext.badge.planDone')],
@@ -69,6 +81,7 @@ export const buildPlanNextStep = ({
 
     if (weeksRemaining <= 0) {
       return {
+        state: 'ending-soon',
         title: tr('plannext.endingSoon.title'),
         description: tr('plannext.endingSoon.desc'),
         badges: [weeksRemaining === 0 ? tr('plannext.badge.lastWeek') : tr('plannext.badge.weeksLeft', { n: weeksRemaining })],
@@ -109,6 +122,7 @@ export const buildPlanNextStep = ({
 
   if (isPlanExpired) {
     return {
+      state: 'closeout',
       title: tr('plannext.closeout.title'),
       description: recommendation.description,
       badges,
@@ -122,6 +136,7 @@ export const buildPlanNextStep = ({
 
   if (weeksRemaining <= 0) {
     return {
+      state: 'ending-decide',
       title: tr('plannext.endingDecide.title'),
       description: recommendation.description,
       badges,
@@ -136,6 +151,7 @@ export const buildPlanNextStep = ({
   // Niska frekwencja w trakcie — ostrzeżenie, ale bez akcji closeoutu.
   if (recommendation.tone === 'warning') {
     return {
+      state: 'warning',
       title: recommendation.title,
       description: recommendation.description,
       badges,

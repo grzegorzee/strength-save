@@ -22,6 +22,8 @@ import { CycleCard } from '@/components/CycleCard';
 import { CycleDetail } from '@/components/CycleDetail';
 import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation, withLiveCompletedStats } from '@/lib/cycle-insights';
+import { buildPlanNextStep } from '@/lib/plan-next-step';
+import { PlanNextStepCard } from '@/components/PlanNextStepCard';
 import { repeatPlanSource, runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useNavigate } from 'react-router-dom';
@@ -162,6 +164,20 @@ const Cycles = () => {
   const visibleStoredCycles = visibleCycles.filter(isCycleVisibleWithData);
   const previousCompletedCycle = visibleStoredCycles.find(cycle => cycle.status === 'completed') || null;
   const comparison = liveActiveCycle ? buildCycleComparison(liveActiveCycle, previousCompletedCycle) : null;
+  // C-T4: ta sama maszyna decyzji co Dashboard/Plan (karta tylko w stanach decyzyjnych).
+  const planNextStep = buildPlanNextStep({
+    hasPlan: trainingPlan.length > 0,
+    isPlanExpired,
+    weeksRemaining,
+    currentWeek,
+    planDurationWeeks,
+    activeCycle: liveActiveCycle,
+    previousCompletedCycle,
+    lang,
+    hasPendingFinalSync,
+  });
+  const showDecisionCard = !!planNextStep
+    && ['closeout', 'ended', 'ending-decide'].includes(planNextStep.state);
   const recommendation = liveActiveCycle
     ? buildCycleRecommendation(liveActiveCycle, previousCompletedCycle, new Date(), lang, { hasPendingFinalSync })
     : null;
@@ -199,6 +215,20 @@ const Cycles = () => {
         <History className="h-5 w-5 text-primary" />
         <h1 className="text-xl font-heading font-bold uppercase italic tracking-tight">{t('cycles.title')}</h1>
       </div>
+
+      {showDecisionCard && planNextStep && (
+        <div className="mb-5">
+          <PlanNextStepCard
+            step={planNextStep}
+            uid={uid}
+            planStartDate={planStartDate}
+            canRepeat={trainingPlan.length > 0}
+            isRepeating={isRepeating}
+            onRepeat={handleRepeatPlan}
+            testId="cycles-next-step"
+          />
+        </div>
+      )}
 
       {liveActiveCycle && recommendation && (
         <Card className="border-primary/30 bg-primary/5">

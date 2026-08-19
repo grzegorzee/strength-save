@@ -836,6 +836,7 @@ export const en: Record<keyof typeof pl, string> = {
   'inbox.plan.title': 'Training plan',
   'inbox.plan.started': 'New plan started: {days} days/week, {weeks} weeks.',
   'inbox.plan.changed': 'Plan changed: {days} days/week, {weeks} weeks.',
+  'inbox.plan.ended': 'Your plan has ended. Decide: continue, repeat or prepare a new one.',
   'inbox.badge.title': 'New badge',
   'dash.status.more': 'Other notices ({n})',
   'dash.status.less': 'Collapse notices',

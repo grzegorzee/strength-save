@@ -24,6 +24,11 @@ import { VacationDialog } from '@/components/VacationDialog';
 import { buildVacationMode, isVacationActive, type VacationActivity } from '@/lib/vacation-mode';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
+import { PlanNextStepCard } from '@/components/PlanNextStepCard';
+import { buildPlanNextStep } from '@/lib/plan-next-step';
+import { buildActiveCyclePreview } from '@/lib/cycle-insights';
+import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
+import { buildPlanEventEmitter } from '@/lib/user-events';
 import type { LanguageCode } from '@/i18n';
 
 // ── Custom grid calendar matching mockup ──
@@ -148,8 +153,8 @@ const TrainingPlan = () => {
   const { t, lang } = useTranslation();
   const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
-  const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
-  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, reducedMode, setReducedMode, vacation, setVacation } = useTrainingPlan(uid);
+  const { getLatestWorkout, workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
+  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation } = useTrainingPlan(uid);
   const { toast } = useToast();
   // C-T1: wejście w tryb urlopu z ekranu Planu (dotąd dialog istniał tylko na
   // Dashboardzie i to wyłącznie jako badge JUŻ aktywnego urlopu).
@@ -193,7 +198,39 @@ const TrainingPlan = () => {
       if (result.success) toast({ title: t('rmode.toastOff') });
     })();
   };
-  const { cycles } = usePlanCycles(uid);
+
+  const { cycles, createActiveCycle, archiveCurrentPlan } = usePlanCycles(uid);
+
+  // C-T4: jedna karta decyzyjna końca planu — to samo źródło co Dashboard/Cykle.
+  const activeCycleRaw = cycles.find((cycle) => cycle.status === 'active') || null;
+  const liveActiveCycle = buildActiveCyclePreview(activeCycleRaw, workouts);
+  const previousCompletedCycle = cycles.find((cycle) => cycle.status === 'completed') || null;
+  const planNextStep = useMemo(() => buildPlanNextStep({
+    hasPlan: trainingPlan.length > 0,
+    isPlanExpired,
+    weeksRemaining,
+    currentWeek: hookCurrentWeek,
+    planDurationWeeks,
+    activeCycle: liveActiveCycle,
+    previousCompletedCycle,
+    lang,
+  }), [trainingPlan.length, isPlanExpired, weeksRemaining, hookCurrentWeek, planDurationWeeks, liveActiveCycle, previousCompletedCycle, lang]);
+  const [isRepeating, setIsRepeating] = useState(false);
+  const handleRepeatPlan = async () => {
+    const source = repeatPlanSource(trainingPlan, planDurationWeeks, activeCycleRaw);
+    if (source.days.length === 0) return;
+    setIsRepeating(true);
+    const res = await startCycleWithPlan(source.days, source.durationWeeks, {
+      lang,
+      uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+      archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
+      emitPlanEvent: buildPlanEventEmitter(uid),
+    });
+    setIsRepeating(false);
+    toast(res.success
+      ? { title: t('cycles.repeatStarted') }
+      : { title: t('cycles.repeatFailed'), variant: 'destructive' });
+  };
   // Z112: zunifikowane cardio (Strava + wpisy manualne) w kalendarzu.
   const {
     activities: unifiedActivities,
@@ -358,6 +395,21 @@ const TrainingPlan = () => {
           <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0" aria-hidden /><strong className="text-muted-foreground">{trainingRules.weight}</strong></p>
           <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
         </div>
+
+        {/* C-T4: jedna karta decyzyjna końca planu (wspólna z Dashboardem/Cyklami) */}
+        {planNextStep && (
+          <div className="mx-6 mb-5">
+            <PlanNextStepCard
+              step={planNextStep}
+              uid={uid}
+              planStartDate={planStartDate}
+              canRepeat={trainingPlan.length > 0}
+              isRepeating={isRepeating}
+              onRepeat={handleRepeatPlan}
+              testId="plan-next-step"
+            />
+          </div>
+        )}
 
         {/* C-T1/C-T3: tryby (urlop + nie na 100%) z poziomu Planu */}
         <div className="mx-6 mb-5 grid gap-2 sm:grid-cols-2">

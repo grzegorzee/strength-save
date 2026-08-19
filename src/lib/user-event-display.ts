@@ -66,12 +66,15 @@ export const describeUserEvent = (event: UserEvent, ctx: UserEventDisplayCtx): U
         }),
       };
     case 'plan': {
+      const action = str(p.action);
       const params = { days: num(p.days), weeks: num(p.weeks) };
       return {
         title: ctx.t('inbox.plan.title'),
-        body: str(p.action) === 'started'
-          ? ctx.t('inbox.plan.started', params)
-          : ctx.t('inbox.plan.changed', params),
+        body: action === 'ended'
+          ? ctx.t('inbox.plan.ended')
+          : action === 'started'
+            ? ctx.t('inbox.plan.started', params)
+            : ctx.t('inbox.plan.changed', params),
       };
     }
     default:
