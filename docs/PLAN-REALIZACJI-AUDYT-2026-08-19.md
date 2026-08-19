@@ -450,17 +450,32 @@ w sidebarze i pod /analytics do D-T4), etykieta 'Dzisiaj' (nav.today PL+EN), ava
 
 ### D-T2 — Dashboard odpowiada tylko „co teraz?”
 
-- [ ] Kolejność: hero dnia, jeden status, kompaktowy tydzień, szybki trening/cardio,
+- [x] Kolejność: hero dnia, jeden status, kompaktowy tydzień, szybki trening/cardio,
   maksymalnie jeden insight.
-- [ ] Usunąć duplikat pełnego tygodnia, duplikaty planu, PR, cykli i analityki.
-- [ ] Zaległość nie jest automatycznym modalem.
-- [ ] Test kolejności i jeden viewport bez blokującego overlayu.
+- [x] Usunąć duplikat pełnego tygodnia, duplikaty planu, PR, cykli i analityki.
+- [x] Zaległość nie jest automatycznym modalem.
+- [x] Test kolejności i jeden viewport bez blokującego overlayu.
+
+**D-T2 DONE:** hero -> slot statusu (+ samo-ukrywający MissedWorkoutBanner) -> WeekCard
+-> karta decyzyjna -> szybkie akcje -> JEDEN insight (raport tygodnia). Usunięte:
+4 kafle statystyk, km Stravy, cała sekcja pełnego tygodnia (timeline) + osierocone
+komponenty/memo. LapseTray nie-automatyczny od FIX A-B (LapseStatusCard) — domknięte
+testem zero blokujących warstw. Testy: dashboard-order (jsdom+e2e) na nowej kolejności
+z asercjami braku duplikatów; Z174 przepięty na hero.
 
 ### D-T3 — Plan i Historia mają własne domy
 
-- [ ] Plan przejmuje kalendarz, program, urlop, deload, tryby, cykle i koniec planu.
-- [ ] Historia jest bezpośrednio w nav i zawiera pełną paginowaną listę oraz szczegół.
-- [ ] Offline otwiera ostatnio dostępne strony i nie gubi kursora/filtrów.
+- [x] Plan przejmuje kalendarz, program, urlop, deload, tryby, cykle i koniec planu.
+- [x] Historia jest bezpośrednio w nav i zawiera pełną paginowaną listę oraz szczegół.
+- [x] Offline otwiera ostatnio dostępne strony i nie gubi kursora/filtrów.
+
+**D-T3 DONE:** Plan ma teraz komplet: kalendarz+program (istniały), urlop (C-T1), tryb
+nie-na-100% (C-T3), kartę końca planu/cykli (C-T4), decyzję deload (przeniesiona
+z Dashboardu), pasek hybrydowy tygodnia, karty dni z przełożeniem/pomijaniem
+(RescheduleSheet, lekcja b.92) i karty cardio (istniały). Historia w bottom nav (D-T1),
+lista grupowana + rozwijany szczegół (istniejące, kanoniczne metryki po B-T1); offline:
+strony renderują się z cache (dist-offline gate + persistence SDK), filtry/rozwinięcia
+to stan ekranu. E2E przepięte na nowe domy (12 speców), pełny bieg 197/197.
 
 ### D-T4 — scalenie Analytics i Achievements
 
