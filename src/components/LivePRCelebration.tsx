@@ -1,7 +1,7 @@
 // Live PR (w trakcie serii) to rzadki moment — dostaje pełną celebrację
-// (zgłoszenie 2026-08-13: toast był za mały na taki moment). Krótki overlay:
-// confetti, wielka liczba, tap lub 2.2 s i wracasz do logowania serii.
-import { useEffect } from 'react';
+// (zgłoszenie 2026-08-13: toast był za mały na taki moment). Overlay:
+// confetti, wielka liczba, tap lub 5,5 s (deadline ścienny) i wracasz do serii.
+import { useEffect, useRef } from 'react';
 import { Trophy, X } from 'lucide-react';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -13,7 +13,8 @@ export interface LivePRCelebrationData {
   delta: string;
 }
 
-const AUTO_DISMISS_MS = 2200;
+const AUTO_DISMISS_MS = 5500;
+const CONFETTI_MS = 2200;
 
 export const LivePRCelebration = ({
   data,
@@ -25,11 +26,41 @@ export const LivePRCelebration = ({
   const { t } = useTranslation();
   useExclusiveOverlay(!!data, onDone);
 
+  // B-T3: rerender (nowa tożsamość onDone) nie może resetować deadline'u.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
   useEffect(() => {
     if (!data) return;
-    const id = window.setTimeout(onDone, AUTO_DISMISS_MS);
-    return () => window.clearTimeout(id);
-  }, [data, onDone]);
+    // Deadline ŚCIENNY: setTimeout nie chodzi przy wstrzymanym JS (tło),
+    // więc tykamy krótkimi krokami i po każdym sprawdzamy zegar; powrót
+    // z tła po deadline zamyka natychmiast przez visibilitychange.
+    const deadline = Date.now() + AUTO_DISMISS_MS;
+    let closed = false;
+    let id = 0;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      onDoneRef.current();
+    };
+    const tick = () => {
+      const left = deadline - Date.now();
+      if (left <= 0) {
+        close();
+        return;
+      }
+      id = window.setTimeout(tick, Math.min(left, 1000));
+    };
+    tick();
+    const onVisibility = () => {
+      if (Date.now() >= deadline) close();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [data]);
 
   if (!data) return null;
 
@@ -52,7 +83,7 @@ export const LivePRCelebration = ({
       >
         <X className="h-5 w-5" />
       </button>
-      <ConfettiBurst durationMs={AUTO_DISMISS_MS} />
+      <ConfettiBurst durationMs={CONFETTI_MS} />
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/15">
         <Trophy className="h-10 w-10 text-primary" />
       </div>
