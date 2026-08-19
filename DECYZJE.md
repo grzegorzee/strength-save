@@ -2552,3 +2552,29 @@ i trzy testy trwałości/dedupu są GREEN. Nie użyto realnego konta ani produkc
 Brak też fizycznych Apple Watch i Garmin. Symulator nie dowodzi 2-minutowego locka ani
 suspendu WKWebView, więc A-T5 i A-RELEASE pozostają otwarte. Dokładna procedura domknięcia
 i komplet dowodów są w `docs/RAPORT-OFFLINE-A-T5-2026-08-19.md`.
+
+### Ponowny audyt A-T5 po uruchomieniu natywnych symulatorów
+
+**Nowy RED i root cause:** po Androidowym `force-stop` cold start odzyskiwał Auth, lecz
+Firestore zgłaszał `Failed to obtain exclusive access to the persistence layer`. Konfiguracja
+`persistentSingleTabManager()` zakładała zwolnienie lease przez poprzednią instancję, czego
+natywny kill nie gwarantuje. Najmniejsza odwracalna poprawka to wieloinstancyjny manager
+persistence; test źródłowy zachowuje też stary niezmiennik lokalnego cache (`00d1a178`).
+
+**Decyzja o dowodzie:** symulator może domknąć wszystkie prace niezależne od sprzętu, ale
+nie zmienia kryterium fizycznego. Na AOSP API 35 przeszedł cały przebieg z ekranem uśpionym
+129 s. Na iOS Simulator ekran był fizycznie wyłączony przez 130 s, następnie wykonano resume,
+dwa kille i final offline. Po reconnect lokalny Firestore miał dokładnie jeden workout z
+jedną ukończoną serią 100 kg × 5, a Dashboard 1 trening / 0,5 t. Wszystko odbyło się na
+syntetycznych kontach emulatorów; produkcja i realne konto nie zostały dotknięte.
+
+**Bramki po poprawce:** Vitest 233/233 pliki i 1700/1700 testów, typecheck, lint, build,
+bundle budget, dist smoke/offline i no-emoji GREEN. Android `assembleDebug`, Garmin `epix2`
+oraz pełny scheme iOS z produkcyjnego mobile bundle są GREEN; iOS artefakt 1.0.0 (103)
+zawiera `StrengthWatch.app` i `StrengthWatchWidgets.appex`. Globalnego `-sdk
+iphonesimulator` nie wolno używać dla pełnego scheme, bo nadpisuje `SDKROOT=watchos`
+targetu widgetu i tworzy fałszywy błąd kompilacji jako iOS.
+
+**Pozostały blocker:** `Iphone (Greg)` nadal `unavailable`; po wyłączeniu AVD ADB jest
+puste, Garmin nie występuje w USB, a jedyna aktywna para Watch jest symulatorem. Dwa ostatnie
+punkty A-T5 oraz A-RELEASE pozostają otwarte do testów fizycznych czterech rodzin urządzeń.
