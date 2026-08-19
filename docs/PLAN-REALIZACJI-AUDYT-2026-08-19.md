@@ -145,12 +145,29 @@ do A-T5/A-RELEASE i nie są przedstawione jako PASS.
 
 ### A-T4 — blackouty i blokujące powierzchnie
 
-- [ ] `LapseTray` nie otwiera się automatycznie; zaległość jest kartą/statusowym CTA.
-- [ ] Ustanowić kontrakt: maksymalnie jeden pełnoekranowy overlay i zawsze jawne zamknięcie.
-- [ ] Przetestować body scroll-lock po unmount/crash oraz repaint po native
+- [x] `LapseTray` nie otwiera się automatycznie; zaległość jest kartą/statusowym CTA.
+  **Dowód:** `a5cae77b`; `lapse-status-card.test.tsx` potwierdza brak traya do jawnego
+  tapu, a Dashboard nie ma już efektu auto-open.
+- [x] Ustanowić kontrakt: maksymalnie jeden pełnoekranowy overlay i zawsze jawne zamknięcie.
+  **Dowód:** wspólny `useExclusiveOverlay` obejmuje Radix Dialog/Sheet/AlertDialog,
+  fullscreen timera, completion i live-PR; test otwiera Sheet z Dialogu i potwierdza
+  dokładnie jedną warstwę, wszystkie custom fullscreeny mają jawny cel zamknięcia 44×44.
+- [x] Przetestować body scroll-lock po unmount/crash oraz repaint po native
   background→foreground, nie tylko webowym `visibilitychange`.
-- [ ] Ograniczyć hard reload crash-guarda do faktycznej asercji Firestore z anti-loop i
+  **Dowód:** unit unmount + `ErrorBoundary` czyszczą `pointer-events`, `overflow` i
+  `data-scroll-locked`; mock natywnego `appStateChange` potwierdza repaint po resume;
+  Chromium E2E `reschedule-flow` potwierdza czysty body i zero osieroconych dialogów.
+- [x] Ograniczyć hard reload crash-guarda do faktycznej asercji Firestore z anti-loop i
   zachowaniem draftu.
+  **Dowód:** matcher wymaga jednocześnie Firestore i `INTERNAL ASSERTION FAILED`, guard
+  zwraca cleanup i zachowuje okno 2 min; przed reloadem bieżący snapshot `WorkoutDay`
+  trafia synchronicznie do scoped localStorage. Testy odrzucają identyczny błąd innego SDK.
+
+**A-T4 DONE (`a5cae77b`):** RED 5 nieprzechodzących kontraktów + osobny RED awaryjnego
+fallbacku → GREEN 84/84 testy zakresu; pełny Vitest 230/230 plików, 1693/1693 testy,
+typecheck, lint, build, bundle, dist/offline smoke i no-emoji GREEN. Playwright 2/2:
+scroll-lock po sheecie oraz kill→resume draftu 1:1. Test natywnego eventu resume jest
+zielony; fizyczny lock 2 min pozostaje uczciwie w A-T5 i nie jest deklarowany jako PASS.
 
 ### A-T5 — prawdziwy kontrakt offline
 

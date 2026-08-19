@@ -2496,3 +2496,28 @@ zachowuje wszystkie ćwiczenia.
 istniejący błąd targetu `StrengthWatchWidgets`: Swift kompiluje go jako iOS 15, gdzie
 `accessoryCorner` jest niedostępne, a `containerBackground` wymaga iOS 17. Nie maskujemy
 tego wyniku; poprawka i realny lock 2 min pozostają częścią A-T5/A-RELEASE.
+
+---
+
+## SESJA 2026-08-19 — audyt realizacyjny A-T4: blackouty i warstwy blokujące
+
+**Root cause:** Dashboard otwierał `LapseTray` automatycznie po samej detekcji zaległości,
+a pełnoekranowe powierzchnie powstawały w kilku niezależnych systemach (Radix, timer,
+completion, live-PR) bez wspólnej arbitraży. Cleanup blokad `body` działał tylko po crashu,
+nie po każdym awaryjnym unmountcie. Crash guard rozpoznawał sam tekst `INTERNAL ASSERTION
+FAILED`, więc mógł przeładować aplikację po asercji obcego SDK, zanim jawnie zabezpieczył
+najświeższy snapshot treningu.
+
+**Decyzja:** zaległość jest priorytetową, ale nieblokującą kartą statusu i dopiero CTA
+otwiera tray. Każda blokująca warstwa zgłasza się do jednego lekkiego kontraktu eventowego;
+nowa warstwa zamyka poprzednią, a custom fullscreeny mają jawny X 44×44. Cleanup body
+czeka do microtaska i działa tylko, gdy nie istnieje inny otwarty overlay. Hard reload
+jest dozwolony wyłącznie dla komunikatu zawierającego Firestore oraz jego internal
+assertion, nadal najwyżej raz na 2 minuty. Przed reloadem `WorkoutDay` buduje snapshot z
+żywych refów i synchronicznie zapisuje go do istniejącego scoped fallbacku localStorage.
+
+**Dowód (`a5cae77b`):** RED pięciu kontraktów + RED brak awaryjnego fallbacku; GREEN
+84/84 zakresu. Pełny Vitest 230/230 i 1693/1693, typecheck, lint, build,
+bundle/dist/offline/no-emoji GREEN. Playwright 2/2 potwierdza brak osieroconego scroll-locka
+oraz komplet serii po kill→resume bez realnego konta. Natywny `appStateChange` ma osobny
+test repaintu; fizyczne zgaszenie ekranu na 2 minuty pozostaje bramką A-T5.
