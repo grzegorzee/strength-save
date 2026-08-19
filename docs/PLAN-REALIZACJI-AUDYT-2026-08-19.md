@@ -288,10 +288,15 @@ PL+EN. Testy 6/6 zakresu; vitest 1717/1717, typecheck/lint/build GREEN.
 
 ### B-T3 — celebracja PR
 
-- [ ] Deadline 5,5 s oparty na czasie ściennym; tap zamyka natychmiast.
-- [ ] Stabilny callback — rerender nie resetuje czasu.
-- [ ] Testy 5499/5500 ms, tap, rerender, background ponad deadline i zachowanie draftu.
-- [ ] Screenshot/share nie może zostać przykryty kolejnym overlayem.
+- [x] Deadline 5,5 s oparty na czasie ściennym; tap zamyka natychmiast.
+- [x] Stabilny callback — rerender nie resetuje czasu.
+- [x] Testy 5499/5500 ms, tap, rerender, background ponad deadline i zachowanie draftu.
+- [x] Screenshot/share nie może zostać przykryty kolejnym overlayem.
+
+**B-T3 DONE:** RED 3/5 (granica, rerender, tło) → GREEN 5/5; deadline ścienny z tykaniem
+<=1 s + visibilitychange, onDoneRef bez resetu, close idempotentny; share chroniony
+istniejącym kontraktem useExclusiveOverlay (overlay-contract 2/2). Vitest 1719/1719,
+typecheck/lint/build GREEN.
 
 ### B-T4 — przypięta notatka przed pierwszą serią
 
