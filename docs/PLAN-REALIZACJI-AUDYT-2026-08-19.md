@@ -326,10 +326,21 @@ dotyka tylko filtra celebracji i baseline live PR; historia/completion/e1RM z tr
 
 ### B-T6 — prawdziwy inbox zdarzeń
 
-- [ ] Wersjonowany `user_events`/outbox z idempotency key, `deepLink`, `createdAt`, `readAt`.
-- [ ] Producenci: PR, odznaka, gotowy raport tygodnia, zmiana/koniec planu.
-- [ ] Klient ma lokalny cache offline, ale serwer jest źródłem prawdy między urządzeniami.
-- [ ] Watch, Garmin, drugi telefon, późny sync i edycja historii tworzą jedno zdarzenie.
+- [x] Wersjonowany `user_events`/outbox z idempotency key, `deepLink`, `createdAt`, `readAt`.
+- [x] Producenci: PR, odznaka, gotowy raport tygodnia, zmiana/koniec planu.
+- [x] Klient ma lokalny cache offline, ale serwer jest źródłem prawdy między urządzeniami.
+- [x] Watch, Garmin, drugi telefon, późny sync i edycja historii tworzą jedno zdarzenie.
+
+**B-T6 DONE (`9b32e915`):** kolekcja user_events v1 (id = uid+klucz semantyczny,
+update tylko readAt, delete zablokowane), producenci PR/odznaka (WorkoutDay,
+payload semantyczny), raport tygodnia (digest, create+ALREADY_EXISTS), start/zmiana
+planu (cycle-actions przez wstrzykiwany emitter); zdarzenie KOŃCA planu dojdzie razem
+z maszyną końca planu w C-T4 (dziś koniec = zmiana przez startCycleWithPlan).
+NotificationBell na onSnapshot z offline cache SDK i markAllRead batchem; legacy
+localStorage usunięty (pre-launch). Idempotencja multi-device przez konstrukcję
+klucza (dayId+date+exerciseId+typ itd.) - testy 7+5+3 oraz rules 13 przypadków
+(test:rules 218/218). Vitest 1728/1728, functions 227+build, typecheck/lint/build
+GREEN. Rules+indexes do wdrożenia w release train.
 - [ ] Brak implementacji producenta = uczciwe copy; żadnych pustych obietnic.
 
 ### B-RELEASE — wspólne wydanie B
