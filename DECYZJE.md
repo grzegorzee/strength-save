@@ -5,11 +5,31 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-19 (RELEASE TRAIN A+B: web live, iOS 105 TestFlight, AAB v20, Garmin iq, backend user_events)
+**Ostatnia aktualizacja:** 2026-08-19 (C-RELEASE: web live CociTREW, iOS 106 TF, AAB v21; wcześniej A+B)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-19: C-RELEASE — wydanie C na powierzchniach (kontynuacja trainu)
+
+**Co:** Wydanie C (C-T1..C-T4): urlop Od-Do z wejściem z Planu, pre-start warmup flow
+(prompt + treść v2 pod pierwsze ćwiczenie), tryb "nie na 100%" z Planu (decyzja:
+zostaje, mapa nakładania w trackerze), jedna maszyna/karta końca planu (Dashboard/
+Plan/Cykle) + zdarzenie plan-ended do inboxa.
+
+**Artefakty:** web LIVE `index-CociTREW.js` (markery C zweryfikowane w chunkach
+gh-pages); iOS 1.0.0(106) TestFlight obie grupy + Beta App Review APPROVED, Watch 106
+w IPA (release-task zabity w trakcie pollingu dystrybucji - upload zdążył, dystrybucję
+domknął testflight_external.py); AAB versionCode 21 `jar verified` SHA
+`2353432b29ae97c4f1da0fc3deefeb59eabd80314a55ccc9f9d79679369641db` (upload Play =
+właściciel); Garmin bez zmian źródeł (artefakty A+B aktualne); backend nietknięty.
+Bramka dist-offline nauczona promptu pre-start (klik Pomiń jak realny user).
+Następny build iOS = 107, versionCode = 22.
+
+**Bramki:** vitest 1758/1758, e2e 197/197 (świeży vite), typecheck, lint, build,
+bundle/dist-smoke/dist-offline/no-emoji GREEN.
+
 
 ### 2026-08-19: RELEASE TRAIN A+B — wydanie na 5 powierzchni (mandat właściciela)
 
