@@ -1,18 +1,19 @@
 import { test, expect } from '@playwright/test';
 import { blockFirebase, navigateAndWait, setE2EAuthScenario } from './helpers';
 
-// Dolny pasek (mobile): Analytics zamiast History; Analytics domyślnie otwiera Weekly.
-// Od build 46 (938aadb) nie ma już mobilnego hamburgera/drawera — na mobile nawigacja
-// to wyłącznie dolny pasek (5 pozycji), Historia jest dostępna w sidebarze tylko na desktopie.
-test.describe('Bottom nav: Analytics replaces History', () => {
-  test('mobile tab bar has Analytics, not History', async ({ page }) => {
+// D-T1 (audyt 2026-08-19): dolny pasek = Dzisiaj / Plan / Historia / Postępy /
+// Ćwiczenia. Analityka zostaje w sidebarze (desktop) i pod trasą /analytics do
+// czasu scalenia z Postępami (D-T4).
+test.describe('Bottom nav: docelowa nawigacja D-T1', () => {
+  test('mobile tab bar: Historia jest, Analityka poza bottom nav', async ({ page }) => {
     await blockFirebase(page);
     await setE2EAuthScenario(page, 'active-user');
     await navigateAndWait(page, '/');
 
     const mobileNav = page.getByRole('navigation', { name: 'Nawigacja mobilna' });
-    await expect(mobileNav.getByRole('link', { name: /Analityka/i })).toBeVisible();
-    await expect(mobileNav.getByRole('link', { name: /Historia/i })).toHaveCount(0);
+    await expect(mobileNav.getByRole('link', { name: /Historia/i })).toBeVisible();
+    await expect(mobileNav.getByRole('link', { name: /Dzisiaj/i })).toBeVisible();
+    await expect(mobileNav.getByRole('link', { name: /Analityka/i })).toHaveCount(0);
   });
 
   test('analytics opens on Summary tab by default', async ({ page }) => {

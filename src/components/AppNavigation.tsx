@@ -21,14 +21,16 @@ interface AppNavigationProps {
 }
 
 const navItems = [
-  // Pierwsze 5 = mobilny bottom nav; Profil wypada z mobile (wejście przez avatar w headerze):
-  { to: '/', icon: Home, labelKey: 'nav.dashboard' as const },
+  // D-T1: pierwsze 5 = mobilny bottom nav (Dzisiaj / Plan / Historia / Postępy /
+  // Ćwiczenia). Profil przez avatar w headerze; Analytics w sidebarze do czasu
+  // scalenia z Postępami (D-T4) — deep linki i trasy bez zmian.
+  { to: '/', icon: Home, labelKey: 'nav.today' as const },
   { to: '/plan', icon: Calendar, labelKey: 'nav.plan' as const },
-  { to: '/analytics', icon: BarChart3, labelKey: 'nav.analytics' as const },
-  { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
-  { to: '/achievements', icon: Trophy, labelKey: 'nav.progress' as const },
-  // Pozostałe — sidebar (desktop)
   { to: '/history', icon: ScrollText, labelKey: 'nav.history' as const },
+  { to: '/achievements', icon: Trophy, labelKey: 'nav.progress' as const },
+  { to: '/exercises', icon: Library, labelKey: 'nav.exercises' as const },
+  // Pozostałe — sidebar (desktop)
+  { to: '/analytics', icon: BarChart3, labelKey: 'nav.analytics' as const },
   { to: '/measurements', icon: Ruler, labelKey: 'nav.measurements' as const },
   { to: '/cycles', icon: History, labelKey: 'nav.cycles' as const },
   { to: '/profile', icon: User, labelKey: 'nav.profile' as const },

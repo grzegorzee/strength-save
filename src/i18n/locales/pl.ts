@@ -16,6 +16,7 @@ export const pl = {
 
   // nawigacja
   'nav.dashboard': 'Dashboard',
+  'nav.today': 'Dzisiaj',
   'nav.expand': 'Rozwiń nawigację',
   'nav.collapse': 'Zwiń nawigację',
   'a11y.close': 'Zamknij okno',

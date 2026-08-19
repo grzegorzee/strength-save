@@ -15,6 +15,7 @@ export const en: Record<keyof typeof pl, string> = {
   'common.results': 'results',
 
   'nav.dashboard': 'Dashboard',
+  'nav.today': 'Today',
   'nav.expand': 'Expand navigation',
   'nav.collapse': 'Collapse navigation',
   'a11y.close': 'Close dialog',

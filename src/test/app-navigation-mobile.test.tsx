@@ -15,11 +15,12 @@ vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ logout: vi.fn() }) }));
 vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
 
 describe('AppNavigation mobile', () => {
-  it('bottom nav: 5. slot to /achievements, /profile poza navem', () => {
+  it('D-T1: bottom nav = Dzisiaj/Plan/Historia/Postępy/Ćwiczenia, /profile poza navem', () => {
     const { container } = render(<MemoryRouter><AppNavigation /></MemoryRouter>);
     const mobileLinks = Array.from(
       container.querySelectorAll('nav[aria-label="nav.ariaMobile"] a'),
     ).map((a) => a.getAttribute('href'));
-    expect(mobileLinks).toEqual(['/', '/plan', '/analytics', '/exercises', '/achievements']);
+    expect(mobileLinks).toEqual(['/', '/plan', '/history', '/achievements', '/exercises']);
+    expect(mobileLinks).not.toContain('/profile');
   });
 });
