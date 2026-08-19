@@ -275,10 +275,16 @@ functions 224, typecheck/lint/build GREEN.
 
 ### B-T2 — rekord ciężaru kontra szacowane 1RM
 
-- [ ] Zmienić `Rekord 72 kg` na `Szac. 1RM: 72 kg` i pokazać źródło, np. `60 kg × 6`.
-- [ ] Osobno prezentować `Najcięższa seria`/rekord faktycznie podniesionego ciężaru.
-- [ ] Completion, inbox, Historia i Postępy rozróżniają oba typy.
-- [ ] Testy wysokich powtórzeń, bodyweight, jednostek lb/kg, warmup i brak źródła.
+- [x] Zmienić `Rekord 72 kg` na `Szac. 1RM: 72 kg` i pokazać źródło, np. `60 kg × 6`.
+- [x] Osobno prezentować `Najcięższa seria`/rekord faktycznie podniesionego ciężaru.
+- [x] Completion, inbox, Historia i Postępy rozróżniają oba typy.
+- [x] Testy wysokich powtórzeń, bodyweight, jednostek lb/kg, warmup i brak źródła.
+
+**B-T2 DONE (`5854c02d`):** RED formatPRValue bez typu '1rm' → GREEN; nowy moduł
+`record-labels` (badge estymacji ZAWSZE ze źródłem, badge Max jako fakt), ExerciseCard
+z dwoma badge'ami, celebracja i inbox podpisują '1rm' jako 'Szac. 1RM: X'. Postępy już
+rozróżniały (nagłówki), Historia ma neutralny licznik. card.best usunięty, 4 nowe klucze
+PL+EN. Testy 6/6 zakresu; vitest 1717/1717, typecheck/lint/build GREEN.
 
 ### B-T3 — celebracja PR
 
