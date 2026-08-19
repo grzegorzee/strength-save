@@ -22,7 +22,8 @@ import { dateLocale } from '@/i18n';
 import { useToast } from '@/hooks/use-toast';
 import { VacationDialog } from '@/components/VacationDialog';
 import { buildVacationMode, isVacationActive, type VacationActivity } from '@/lib/vacation-mode';
-import { isReducedModeActive } from '@/lib/reduced-mode';
+import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
+import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import type { LanguageCode } from '@/i18n';
 
 // ── Custom grid calendar matching mockup ──
@@ -148,7 +149,7 @@ const TrainingPlan = () => {
   const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
-  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, reducedMode, vacation, setVacation } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, reducedMode, setReducedMode, vacation, setVacation } = useTrainingPlan(uid);
   const { toast } = useToast();
   // C-T1: wejście w tryb urlopu z ekranu Planu (dotąd dialog istniał tylko na
   // Dashboardzie i to wyłącznie jako badge JUŻ aktywnego urlopu).
@@ -170,6 +171,26 @@ const TrainingPlan = () => {
     void (async () => {
       const result = await setVacation(null);
       if (result.success) toast({ title: t('vac.toastOff') });
+    })();
+  };
+  // C-T3: tryb "nie na 100%" dostępny z Planu (dotąd Dashboard/Profil).
+  const [reducedOpen, setReducedOpen] = useState(false);
+  const handleReducedEnable = (level: ReducedModeLevel, days: number) => {
+    setReducedOpen(false);
+    const mode = buildReducedMode(level, days, todayISOForVacation);
+    void (async () => {
+      const result = await setReducedMode(mode);
+      if (result.success) {
+        const endLabel = parseLocalDate(mode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        toast({ title: t('rmode.toastOn', { date: endLabel }) });
+      }
+    })();
+  };
+  const handleReducedDisable = () => {
+    setReducedOpen(false);
+    void (async () => {
+      const result = await setReducedMode(null);
+      if (result.success) toast({ title: t('rmode.toastOff') });
     })();
   };
   const { cycles } = usePlanCycles(uid);
@@ -338,8 +359,29 @@ const TrainingPlan = () => {
           <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
         </div>
 
-        {/* C-T1: urlop/wyjazd z poziomu Planu */}
-        <div className="mx-6 mb-5">
+        {/* C-T1/C-T3: tryby (urlop + nie na 100%) z poziomu Planu */}
+        <div className="mx-6 mb-5 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            data-testid="plan-reduced-open"
+            onClick={() => setReducedOpen(true)}
+            className={cn(
+              'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
+              reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
+                ? 'border-fitness-warning bg-fitness-warning/10 text-fitness-warning'
+                : 'border-border text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <span className="flex items-center gap-2">
+              <HeartPulse className="h-4 w-4" aria-hidden />
+              {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
+                ? t('rmode.badge', { date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
+                : t('rmode.title')}
+            </span>
+            <span className="text-xs font-normal underline underline-offset-2">
+              {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation) ? t('rmode.disable') : t('vac.planEntry')}
+            </span>
+          </button>
           <button
             type="button"
             data-testid="plan-vacation-open"
@@ -666,6 +708,17 @@ const TrainingPlan = () => {
         todayISO={todayISOForVacation}
         onEnable={handleVacationEnable}
         onCancel={handleVacationCancel}
+      />
+
+      {/* C-T3: tryb "nie na 100%" dostępny z Planu (kolizja z urlopem jak na Dashboardzie) */}
+      <ReducedModeDialog
+        open={reducedOpen}
+        onOpenChange={setReducedOpen}
+        mode={reducedMode}
+        todayISO={todayISOForVacation}
+        onEnable={handleReducedEnable}
+        onDisable={handleReducedDisable}
+        blockedLabel={vacation && isVacationActive(vacation, todayISOForVacation) ? t('rmode.blockedByVacation') : undefined}
       />
     </div>
   );
