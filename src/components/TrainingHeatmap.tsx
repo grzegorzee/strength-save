@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { Fragment, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChipButton } from '@/components/ui/chip-button';
 import { Calendar } from 'lucide-react';
@@ -145,9 +145,9 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
 
             {/* Day rows */}
             {DAY_LABELS.map((label, dayIdx) => (
-              <>
+              <Fragment key={`day-${dayIdx}`}>
                 {/* Day label */}
-                <div key={`label-${dayIdx}`} className="flex items-center">
+                <div className="flex items-center">
                   <span className="text-[8px] sm:text-[9px] text-muted-foreground">{label}</span>
                 </div>
 
@@ -165,7 +165,7 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
                     />
                   );
                 })}
-              </>
+              </Fragment>
             ))}
           </div>
         </div>

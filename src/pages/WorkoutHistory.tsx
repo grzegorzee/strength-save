@@ -265,12 +265,12 @@ const WorkoutHistory = () => {
         </Card>
       )}
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
           <CalendarRange className="h-4 w-4" />
           {filteredWorkouts.length} {sessionWord(filteredWorkouts.length)}
         </div>
-        <div>{t('history.compareHint')}</div>
+        <div className="text-right">{t('history.compareHint')}</div>
       </div>
 
       <div className="space-y-6">
