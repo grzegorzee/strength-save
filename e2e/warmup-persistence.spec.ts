@@ -17,6 +17,13 @@ const MONDAY = '2026-07-20';
 const MONDAY_MS = new Date(`${MONDAY}T10:00:00`).getTime();
 
 const openWarmup = async (page: import('@playwright/test').Page) => {
+  // Toast startu sesji (TOAST_REMOVE_DELAY wisi do zamknięcia) potrafi przykryć
+  // przycisk w nagłówku i przechwycić klik — zamknij go najpierw (wzorzec z full-app).
+  const toastClose = page.locator('[toast-close]').first();
+  if (await toastClose.isVisible().catch(() => false)) {
+    await toastClose.click();
+    await toastClose.waitFor({ state: 'hidden' });
+  }
   await page.getByRole('button', { name: /Rozgrzewka/i }).first().click();
   await expect(page.getByRole('dialog')).toBeVisible();
 };
@@ -63,7 +70,8 @@ test.describe('Rozgrzewka: odhaczenia przeżywają zamknięcie dialogu i wyjści
     await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 10_000 });
     await openWarmup(page);
     expect(await struckCount(page)).toBe(3);
-    await page.keyboard.press('Escape');
+    // Escape bywa gubiony pod obciążeniem pełnej suity — zamykamy tak jak user, przez X.
+    await page.getByRole('dialog').getByRole('button', { name: 'Zamknij okno' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 10_000 });
 
     // 4. Wyjście na Dashboard i powrót do treningu — odhaczenia nadal są (draft sesji).
