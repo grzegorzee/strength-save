@@ -226,19 +226,21 @@ class DayMenu extends WatchUi.Menu2 {
         if (day == null) { return ""; }
         var exercise = (day["e"] as Array)[index] as Dictionary;
         var sets = exercise["s"] as Array;
+        var logged = WorkoutState.latestDoneLabel(index, exercise);
         if (WorkoutState.isQuick()) {
             // Serie w szybkim treningu są otwarte (można logować ponad plan).
-            return (WatchUi.loadResource(Rez.Strings.SetsLabel) as String) + ": "
+            var quickLabel = (WatchUi.loadResource(Rez.Strings.SetsLabel) as String) + ": "
                 + WorkoutState.doneCountContiguous(index).toString();
+            return logged == null ? quickLabel : quickLabel + " · " + logged;
         }
         var doneCount = 0;
         for (var j = 0; j < sets.size(); j++) {
             if (WorkoutState.isDone(index, j)) { doneCount += 1; }
         }
         var label = doneCount.toString() + "/" + sets.size().toString();
-        var target = WorkoutState.targetLabel(exercise);
-        if (target != null) {
-            label += " · " + target;
+        var detail = logged != null ? logged : WorkoutState.targetLabel(exercise);
+        if (detail != null) {
+            label += " · " + detail;
         }
         return label;
     }

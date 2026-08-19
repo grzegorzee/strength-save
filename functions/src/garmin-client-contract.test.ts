@@ -51,6 +51,19 @@ describe("Connect IQ X25 client contract", () => {
     expect(day).not.toMatch(/code == (401|403)[\s\S]{0,160}showMenu\(\)/);
   });
 
+  it("shows the latest locally persisted set values before server refresh while retaining count and target fallback", () => {
+    const workoutState = source("WorkoutState.mc");
+    const day = source("DayView.mc");
+    expect(workoutState).toContain("function latestDoneLabel");
+    expect(workoutState).toMatch(/doneCountContiguous\(exIdx\)[\s\S]{0,280}progress\[key\]/);
+    expect(workoutState).toContain("compactValue(entry, 3)");
+    expect(workoutState).toContain("compactValue(entry, 4)");
+    expect(workoutState).toContain("compactValue(entry, 5)");
+    expect(day).toContain("WorkoutState.latestDoneLabel(index, exercise)");
+    expect(day).toMatch(/logged != null \? logged : WorkoutState\.targetLabel\(exercise\)/);
+    expect(day).toContain("WorkoutState.doneCountContiguous(index)");
+  });
+
   it("reports pending/FIT only on day lifecycle or final batch and stores server capability opaquely", () => {
     const api = source("Api.mc");
     const recorder = source("SessionRecorder.mc");

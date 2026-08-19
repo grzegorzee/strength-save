@@ -124,6 +124,35 @@ module WorkoutState {
         return AppSettings.formatWeight(kg) + " " + AppSettings.unitLabel() + " × " + reps.toString();
     }
 
+    // Ostatnia lokalnie zaliczona seria jest natychmiastowym potwierdzeniem zapisu.
+    // Układ `done` różni się od celu polem `at` pod indeksem 2:
+    // [reps, kg, at, duration, distance, assist, warmup].
+    function latestDoneLabel(exIdx as Number, exercise as Dictionary) as String or Null {
+        var latestSet = doneCountContiguous(exIdx) - 1;
+        if (latestSet < 0) { return null; }
+        var progress = done();
+        var key = exIdx.toString() + "#" + latestSet.toString();
+        if (!progress.hasKey(key)) { return null; }
+        var entry = progress[key] as Array;
+        var tracking = trackingFor(exercise);
+        var reps = compactValue(entry, 0) as Number;
+        var kg = asFloat(compactValue(entry, 1));
+        if ("duration".equals(tracking)) {
+            return AppSettings.formatSeconds(compactValue(entry, 3) as Number);
+        }
+        if ("weight_distance_duration".equals(tracking)) {
+            var distance = compactValue(entry, 4) as Number;
+            var carryDuration = compactValue(entry, 3) as Number;
+            return AppSettings.formatWeight(kg) + " " + AppSettings.unitLabel()
+                + " · " + distance.toString() + " m · " + AppSettings.formatSeconds(carryDuration);
+        }
+        if ("assisted_bodyweight".equals(tracking)) {
+            var assist = asFloat(compactValue(entry, 5));
+            return reps.toString() + " × -" + AppSettings.formatWeight(assist) + " " + AppSettings.unitLabel();
+        }
+        return AppSettings.formatWeight(kg) + " " + AppSettings.unitLabel() + " × " + reps.toString();
+    }
+
     // Serie logowane są po kolei, więc ciągły prefiks done == liczba zaliczonych.
     function doneCountContiguous(exIdx as Number) as Number {
         var i = 0;
