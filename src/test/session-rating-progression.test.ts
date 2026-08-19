@@ -18,29 +18,31 @@ const session = (overrides: Partial<WorkoutSession>): WorkoutSession => ({
   ...overrides,
 });
 
+const TODAY_ISO = '2026-08-18'; // 13 dni po bazowej sesji — jeszcze bez comeback deloadu.
+
 describe('sekwencja: sesja → ocena → następna propozycja (spec A2)', () => {
   it('ocena "za ciężko" gasi podbicie: hold przy tym samym ciężarze', () => {
     const workouts = [session({ sessionRating: 'down', sessionRatingReasons: ['too_heavy'] })];
-    const advice = getNextSetAdvice(workouts, 'ex-1', '3 x 6-8', 0);
+    const advice = getNextSetAdvice(workouts, 'ex-1', '3 x 6-8', 0, { todayISO: TODAY_ISO });
     expect(advice?.kind).toBe('hold');
     expect(advice?.targetWeight).toBe(100);
   });
 
   it('brak oceny = normalna progresja, identycznie jak dziś (niezmiennik)', () => {
-    const advice = getNextSetAdvice([session({})], 'ex-1', '3 x 6-8', 0);
+    const advice = getNextSetAdvice([session({})], 'ex-1', '3 x 6-8', 0, { todayISO: TODAY_ISO });
     expect(advice?.kind).toBe('progress');
     expect(advice?.targetWeight).toBe(102.5);
   });
 
   it('kciuk w górę = normalna progresja', () => {
-    const advice = getNextSetAdvice([session({ sessionRating: 'up' })], 'ex-1', '3 x 6-8', 0);
+    const advice = getNextSetAdvice([session({ sessionRating: 'up' })], 'ex-1', '3 x 6-8', 0, { todayISO: TODAY_ISO });
     expect(advice?.kind).toBe('progress');
     expect(advice?.targetWeight).toBe(102.5);
   });
 
   it('kciuk w dół BEZ powodu "za ciężko" nie zmienia progresji', () => {
     const workouts = [session({ sessionRating: 'down', sessionRatingReasons: ['weak_day'] })];
-    const advice = getNextSetAdvice(workouts, 'ex-1', '3 x 6-8', 0);
+    const advice = getNextSetAdvice(workouts, 'ex-1', '3 x 6-8', 0, { todayISO: TODAY_ISO });
     expect(advice?.kind).toBe('progress');
   });
 
@@ -49,7 +51,7 @@ describe('sekwencja: sesja → ocena → następna propozycja (spec A2)', () => 
       session({ id: 'w-old', date: '2026-07-29', sessionRating: 'down', sessionRatingReasons: ['too_heavy'] }),
       session({ id: 'w-new', date: '2026-08-05' }),
     ];
-    const advice = getNextSetAdvice(workouts, 'ex-1', '3 x 6-8', 0);
+    const advice = getNextSetAdvice(workouts, 'ex-1', '3 x 6-8', 0, { todayISO: TODAY_ISO });
     expect(advice?.kind).toBe('progress');
   });
 });

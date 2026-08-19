@@ -92,9 +92,9 @@ describe('propozycja po przerwie (comeback, zasada "za zgodą")', () => {
     expect(decision.reasonKey).toBe('deload.break');
   });
 
-  it('getNextSetAdvice: ostatnia sesja ćwiczenia 14+ dni temu = lżejsze wejście', () => {
+  it('getNextSetAdvice: ostatnia sesja ćwiczenia dokładnie 14 dni temu = lżejsze wejście', () => {
     const workouts: WorkoutSession[] = [{
-      id: 'w-old', userId: 'u1', dayId: 'day-1', date: '2026-07-25', completed: true,
+      id: 'w-old', userId: 'u1', dayId: 'day-1', date: '2026-07-31', completed: true,
       exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] }],
     }];
     const advice = getNextSetAdvice(workouts, 'ex-1', '3 x 6-8', 0, { todayISO: '2026-08-14' });
@@ -102,9 +102,9 @@ describe('propozycja po przerwie (comeback, zasada "za zgodą")', () => {
     expect(advice?.targetWeight).toBe(90);
   });
 
-  it('świeża historia = zero zmian (niezmiennik)', () => {
+  it('13 dni przerwy = zero zmian (niezmiennik granicy)', () => {
     const workouts: WorkoutSession[] = [{
-      id: 'w-new', userId: 'u1', dayId: 'day-1', date: '2026-08-12', completed: true,
+      id: 'w-new', userId: 'u1', dayId: 'day-1', date: '2026-08-01', completed: true,
       exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true }] }],
     }];
     const advice = getNextSetAdvice(workouts, 'ex-1', '3 x 6-8', 0, { todayISO: '2026-08-14' });
