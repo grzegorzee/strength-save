@@ -5,7 +5,6 @@ import {
   initializeFirestore,
   persistentLocalCache,
   persistentMultipleTabManager,
-  persistentSingleTabManager,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import {
@@ -36,12 +35,12 @@ const app = initializeApp(firebaseConfig);
 // fallback provisional/sync-queue w WorkoutDay. Gdy IndexedDB niedostępne,
 // SDK sam spada do cache w pamięci (tylko warning w konsoli).
 export const db = initializeFirestore(app, {
-  // WKWebView jest pojedynczym kontekstem aplikacji. Single-tab nie wymaga
-  // koordynacji BroadcastChannel między kartami i zapewnia trwalszy cache offline.
+  // Native force quit może zostawić stary renderer WebView żywy o kilka sekund
+  // dłużej niż Activity. Tryb single-tab traci wtedy wyłączny lock IndexedDB i
+  // spada do pustego cache w pamięci przy natychmiastowym cold launchu.
+  // Multi-tab przejmuje lease bez odrzucania trwałego cache profilu i planu.
   localCache: persistentLocalCache({
-    tabManager: Capacitor.isNativePlatform()
-      ? persistentSingleTabManager({})
-      : persistentMultipleTabManager(),
+    tabManager: persistentMultipleTabManager(),
   }),
 });
 export const storage = getStorage(app);
