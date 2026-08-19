@@ -63,6 +63,20 @@ export const calculateTonnage = (workouts: WorkoutSession[]): number => {
   }, 0);
 };
 
+// B-T1: seria robocza = completed && !isWarmup. Jedna definicja dla wszystkich
+// konsumentów metryk (Dashboard, Historia, Postępy, streak, ukończenie planu).
+export const countWorkoutCompletedWorkingSets = (w: WorkoutSession | null | undefined): number =>
+  workoutExercises(w).reduce(
+    (sum, ex) => sum + exerciseSets(ex).filter((set) => set?.completed && !set.isWarmup).length,
+    0,
+  );
+
+// Trening liczy się do streaku i ukończenia planu tylko z >=1 serią roboczą;
+// samo odhaczenie rozgrzewki (albo pusty rekord po przerwanym zapisie) nie wystarcza.
+// W historii i drafcie taki trening nadal jest widoczny.
+export const hasCompletedWorkingSet = (w: WorkoutSession | null | undefined): boolean =>
+  workoutExercises(w).some((ex) => exerciseSets(ex).some((set) => set?.completed && !set.isWarmup));
+
 export interface StreakDetails {
   /** Liczba kolejnych zaliczonych tygodni (>=2 treningi). */
   streak: number;
@@ -77,7 +91,7 @@ export interface StreakDetails {
 const FREEZE_SPACING_WEEKS = 4;
 
 export const calculateStreakDetails = (workouts: WorkoutSession[]): StreakDetails => {
-  const completedWorkouts = workouts.filter(w => w.completed);
+  const completedWorkouts = workouts.filter(w => w.completed && hasCompletedWorkingSet(w));
   if (completedWorkouts.length === 0) return { streak: 0, frozenWeeks: [] };
 
   // Liczba ukończonych treningów per początek tygodnia (poniedziałek, czas lokalny).
@@ -129,7 +143,7 @@ export const calculateStreak = (workouts: WorkoutSession[]): number =>
   calculateStreakDetails(workouts).streak;
 
 export const calculateLongestStreak = (workouts: WorkoutSession[]): number => {
-  const completedWorkouts = workouts.filter(w => w.completed);
+  const completedWorkouts = workouts.filter(w => w.completed && hasCompletedWorkingSet(w));
   if (completedWorkouts.length === 0) return 0;
 
   // Build a set of week-start dates that have ≥2 completed workouts

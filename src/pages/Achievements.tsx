@@ -16,12 +16,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getExerciseBest1RM } from '@/lib/pr-utils';
 import {
+  buildExerciseRecords,
   getExercise1RMProgress,
   getMonthlyTonnage,
   detectPlateaus,
   computeMilestones,
   computeSpecialBadges,
   tierForIndex,
+  type ExerciseRecord,
   type Milestone,
   type SpecialBadgeId,
 } from '@/lib/achievements-utils';
@@ -37,14 +39,6 @@ const TonnageTrendChart = lazyWithRetry(() => import('@/components/achievements/
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
 import { cn, parseLocalDate } from '@/lib/utils';
-
-interface ExerciseRecord {
-  exerciseId: string;
-  name: string;
-  maxWeight: number;
-  maxReps: number;
-  history: { date: string; weight: number; reps: number }[];
-}
 
 const milestoneIcon = (category: Milestone['category']) => {
   if (category === 'workouts') return Trophy;
@@ -106,37 +100,14 @@ const Achievements = () => {
 
   // Rekordy budujemy z SAMYCH treningów (nie z aktualnego planu), żeby ćwiczenia ze starych
   // planów nie znikały po zmianie planu. Nazwy resolwuje resolver (snapshot → cykl → plan).
-  const exerciseRecords = useMemo((): ExerciseRecord[] => {
-    const exerciseMap = new Map<string, ExerciseRecord>();
-
-    workouts.forEach(workout => {
-      workout.exercises.forEach(ex => {
-        let record = exerciseMap.get(ex.exerciseId);
-        if (!record) {
-          record = {
-            exerciseId: ex.exerciseId,
-            name: resolver.resolveExerciseName(workout, ex.exerciseId),
-            maxWeight: 0,
-            maxReps: 0,
-            history: [],
-          };
-          exerciseMap.set(ex.exerciseId, record);
-        }
-
-        ex.sets.forEach(set => {
-          if (set.completed && set.weight > 0) {
-            if (set.weight > record.maxWeight) record.maxWeight = set.weight;
-            if (set.reps > record.maxReps) record.maxReps = set.reps;
-            record.history.push({ date: workout.date, weight: set.weight, reps: set.reps });
-          }
-        });
-      });
-    });
-
-    return Array.from(exerciseMap.values())
-      .filter(r => r.maxWeight > 0)
-      .sort((a, b) => b.maxWeight - a.maxWeight);
-  }, [resolver, workouts]);
+  const exerciseRecords = useMemo(
+    // B-T1: kanoniczny kontrakt serii roboczej (bez rozgrzewek i draftów).
+    (): ExerciseRecord[] => buildExerciseRecords(
+      workouts,
+      (workout, exerciseId) => resolver.resolveExerciseName(workout, exerciseId),
+    ),
+    [resolver, workouts],
+  );
 
   // Rekordy 1RM (szacowane) — wspólne źródło dla "życiowych rekordów" i pełnej listy 1RM.
   const oneRMRecords = useMemo(() => {

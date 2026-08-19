@@ -28,6 +28,7 @@ import { localizeDayName } from '@/lib/plan-i18n';
 import {
   calculateStreak,
   calculateLongestStreak,
+  calculateTonnage,
   getWeekBounds,
 } from '@/lib/summary-utils';
 import { calculate1RM } from '@/lib/pr-utils';
@@ -81,10 +82,8 @@ const gradientDef = (id: string, strong?: boolean) => (
   </defs>
 );
 
-const workoutTonnage = (workout: WorkoutSession): number =>
-  workout.exercises.reduce((sum, ex) =>
-    sum + ex.sets.filter(s => s.completed && !s.isWarmup).reduce((s, set) => s + set.reps * set.weight, 0),
-  0);
+// B-T1: kanoniczny tonaż (setTonnage obsługuje też serie czasowe/dystansowe).
+const workoutTonnage = (workout: WorkoutSession): number => calculateTonnage([workout]);
 
 const getWeekLabel = (weekIndex: number, totalWeeks: number, t: (key: TranslationKey, params?: Record<string, string | number>) => string): string => {
   if (weekIndex === totalWeeks - 1) return t('analytics.weekLabel.this');

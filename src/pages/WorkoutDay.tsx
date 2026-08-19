@@ -2508,7 +2508,8 @@ const WorkoutDay = () => {
           {day.exercises.map((exercise, index) => {
             const isSkipped = skippedExercises.includes(exercise.id);
             const sets = exerciseSets[exercise.id] || [];
-            const completed = sets.filter(s => s.completed);
+            // B-T1: metryki podsumowania z serii roboczych, spójne z nagłówkiem strony.
+            const completed = sets.filter(s => s.completed && !s.isWarmup);
             const totalWeight = completed.reduce((sum, s) => sum + (s.reps * s.weight), 0);
             const canExpand = !isSkipped && sets.length > 0;
             const isExpanded = expandedSummaryIds.has(exercise.id);

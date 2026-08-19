@@ -4,11 +4,15 @@ import { formatLocalDate } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
 // Trening `dayOffset` dni od poniedziałku tygodnia `weeksBack` tygodni wstecz.
+// B-T1: streak wymaga >=1 serii roboczej, więc fixture ma realną serię.
 const workoutOn = (id: string, weeksBack: number, dayOffset: number): WorkoutSession => {
   const { start } = getWeekBounds(new Date());
   const d = new Date(start);
   d.setDate(d.getDate() - weeksBack * 7 + dayOffset);
-  return { id, userId: 'test-user', dayId: 'day-1', date: formatLocalDate(d), completed: true, exercises: [] };
+  return {
+    id, userId: 'test-user', dayId: 'day-1', date: formatLocalDate(d), completed: true,
+    exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 5, weight: 100, completed: true }] }],
+  };
 };
 
 // Zaliczony tydzień: 2 treningi (pon + wt).

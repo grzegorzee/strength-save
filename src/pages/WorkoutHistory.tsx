@@ -12,6 +12,7 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildHistoryRowMeta } from '@/lib/history-stats';
+import { calculateTonnage, countWorkoutCompletedWorkingSets } from '@/lib/summary-utils';
 import { EmptyState } from '@/components/EmptyState';
 import { parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
@@ -108,14 +109,9 @@ const WorkoutHistory = () => {
     if (selected.length !== 2) return null;
 
     const [first, second] = selected;
-    const tonnage = (workout: typeof first) => workout.exercises.reduce(
-      (sum, exercise) => sum + exercise.sets.reduce((setSum, set) => setSum + (set.completed ? set.reps * set.weight : 0), 0),
-      0,
-    );
-    const completedSets = (workout: typeof first) => workout.exercises.reduce(
-      (sum, exercise) => sum + exercise.sets.filter(set => set.completed).length,
-      0,
-    );
+    // B-T1: kanoniczne metryki serii roboczych (bez rozgrzewek).
+    const tonnage = (workout: typeof first) => calculateTonnage([workout]);
+    const completedSets = (workout: typeof first) => countWorkoutCompletedWorkingSets(workout);
 
     return {
       first,
@@ -174,10 +170,7 @@ const WorkoutHistory = () => {
         indexByKey.set(key, gi);
       }
       groups[gi].workouts.push(workout);
-      groups[gi].tonnage += workout.exercises.reduce(
-        (sum, exercise) => sum + exercise.sets.reduce((setSum, set) => setSum + (set.completed ? set.reps * set.weight : 0), 0),
-        0,
-      );
+      groups[gi].tonnage += calculateTonnage([workout]);
     });
     return groups;
   }, [filteredWorkouts, lang]);
@@ -292,11 +285,9 @@ const WorkoutHistory = () => {
 
             {group.workouts.map((workout) => {
               const dayLabel = resolver.resolveDayLabel(workout);
-              const tonnage = workout.exercises.reduce(
-                (sum, exercise) => sum + exercise.sets.reduce((setSum, set) => setSum + (set.completed ? set.reps * set.weight : 0), 0),
-                0,
-              );
-              const totalSets = workout.exercises.reduce((sum, exercise) => sum + exercise.sets.length, 0);
+              // B-T1: kafel SERIE pokazuje ukończone serie robocze, nie surowy licznik.
+              const tonnage = calculateTonnage([workout]);
+              const totalSets = countWorkoutCompletedWorkingSets(workout);
               const isSelected = compareIds.includes(workout.id);
               const isExpanded = expandedIds.includes(workout.id);
               const meta = rowMeta.get(workout.id);

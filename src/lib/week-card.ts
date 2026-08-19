@@ -6,7 +6,7 @@ import {
   startOfLocalDay,
   type ScheduleOverrides,
 } from '@/lib/plan-schedule';
-import { calculateTonnage } from '@/lib/summary-utils';
+import { calculateTonnage, hasCompletedWorkingSet } from '@/lib/summary-utils';
 import { formatLocalDate } from '@/lib/utils';
 
 // Karta tygodnia (Runna pakiet 1, spec B1): dzień i tydzień jako domykane
@@ -53,7 +53,8 @@ export const buildWeekCardModel = (args: {
 
   const completedByDate = new Map<string, WorkoutSession[]>();
   for (const w of workouts) {
-    if (!w.completed) continue;
+    // B-T1: warmup-only nie odhacza sesji ani dnia tygodnia.
+    if (!w.completed || !hasCompletedWorkingSet(w)) continue;
     const list = completedByDate.get(w.date) ?? [];
     list.push(w);
     completedByDate.set(w.date, list);

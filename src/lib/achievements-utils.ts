@@ -2,7 +2,7 @@ import type { WorkoutSession } from '@/types';
 import type { BadgeTier } from '@/components/kinetic/AchievementBadge';
 import { calculate1RM, getExerciseBest1RM } from './pr-utils';
 import { formatLocalDate, parseLocalDate } from './utils';
-import { getWeekBounds } from './summary-utils';
+import { calculateTonnage, getWeekBounds } from './summary-utils';
 
 // Daty treningów to 'YYYY-MM-DD', więc porównanie leksykograficzne stringów == porównanie chronologiczne.
 
@@ -70,16 +70,62 @@ export const getMonthlyTonnage = (
   }
 
   workouts.forEach(w => {
+    // B-T1: kanoniczny tonaż (bez rozgrzewek) i tylko ukończone treningi (bez draftów).
+    if (!w.completed) return;
     const key = w.date.slice(0, 7);
     if (!buckets.has(key)) return;
-    let tonnage = 0;
-    w.exercises.forEach(ex => ex.sets.forEach(set => {
-      if (set.completed) tonnage += set.reps * set.weight;
-    }));
-    buckets.set(key, (buckets.get(key) ?? 0) + tonnage);
+    buckets.set(key, (buckets.get(key) ?? 0) + calculateTonnage([w]));
   });
 
   return order.map(key => ({ month: key, tonnage: buckets.get(key) ?? 0 }));
+};
+
+export interface ExerciseRecord {
+  exerciseId: string;
+  name: string;
+  maxWeight: number;
+  maxReps: number;
+  history: Array<{ date: string; weight: number; reps: number }>;
+}
+
+/**
+ * Rekordy per ćwiczenie (Postępy). B-T1: kanoniczny kontrakt serii roboczej —
+ * tylko ukończone treningi i serie `completed && !isWarmup`; rozgrzewka nigdy
+ * nie jest rekordem ani punktem historii wykresu.
+ */
+export const buildExerciseRecords = (
+  workouts: WorkoutSession[],
+  resolveName: (workout: WorkoutSession, exerciseId: string) => string,
+): ExerciseRecord[] => {
+  const exerciseMap = new Map<string, ExerciseRecord>();
+
+  workouts.forEach(workout => {
+    if (!workout.completed) return;
+    workout.exercises.forEach(ex => {
+      let record = exerciseMap.get(ex.exerciseId);
+      if (!record) {
+        record = {
+          exerciseId: ex.exerciseId,
+          name: resolveName(workout, ex.exerciseId),
+          maxWeight: 0,
+          maxReps: 0,
+          history: [],
+        };
+        exerciseMap.set(ex.exerciseId, record);
+      }
+
+      ex.sets.forEach(set => {
+        if (!set.completed || set.isWarmup || set.weight <= 0) return;
+        if (set.weight > record.maxWeight) record.maxWeight = set.weight;
+        if (set.reps > record.maxReps) record.maxReps = set.reps;
+        record.history.push({ date: workout.date, weight: set.weight, reps: set.reps });
+      });
+    });
+  });
+
+  return Array.from(exerciseMap.values())
+    .filter(r => r.maxWeight > 0)
+    .sort((a, b) => b.maxWeight - a.maxWeight);
 };
 
 export interface Plateau {
@@ -109,6 +155,8 @@ export const detectPlateaus = (
   // (mapa exerciseNames bywa zdeduplikowana po nazwie i gubi część id).
   const snapshotNames = new Map<string, string>();
   workouts.forEach(w => {
+    // B-T1: plateau liczymy wyłącznie z ukończonych treningów (bez draftów).
+    if (!w.completed) return;
     w.exercises.forEach(ex => {
       if (ex.name && !snapshotNames.has(ex.exerciseId)) snapshotNames.set(ex.exerciseId, ex.name);
       ex.sets.forEach(set => {

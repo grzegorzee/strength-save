@@ -35,7 +35,7 @@ import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
-import { calculateStreakDetails, getWeekBounds } from '@/lib/summary-utils';
+import { calculateStreakDetails, calculateTonnage, getWeekBounds } from '@/lib/summary-utils';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { MissedWorkoutBanner } from '@/components/MissedWorkoutBanner';
@@ -629,16 +629,10 @@ const Dashboard = () => {
     const recentCount = recentWorkouts.length;
     const olderCount = olderWorkouts.length;
 
-    const recentTonnage = recentWorkouts.reduce((sum, w) => {
-      return sum + Object.values(w.exercises || {}).reduce((exSum, ex) => {
-        return exSum + (ex.sets || []).reduce((setSum, s) => setSum + ((s.weight || 0) * (s.reps || 0)), 0);
-      }, 0);
-    }, 0);
-    const olderTonnage = olderWorkouts.reduce((sum, w) => {
-      return sum + Object.values(w.exercises || {}).reduce((exSum, ex) => {
-        return exSum + (ex.sets || []).reduce((setSum, s) => setSum + ((s.weight || 0) * (s.reps || 0)), 0);
-      }, 0);
-    }, 0);
+    // B-T1: trend liczony tym samym kanonicznym tonażem co kafel (bez rozgrzewek
+    // i serii nieukończonych) — wcześniej dwie definicje w jednym kaflu.
+    const recentTonnage = calculateTonnage(recentWorkouts);
+    const olderTonnage = calculateTonnage(olderWorkouts);
 
     return {
       workouts: olderCount > 0 ? recentCount - olderCount : null,
