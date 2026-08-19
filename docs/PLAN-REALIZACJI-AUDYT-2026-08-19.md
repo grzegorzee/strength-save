@@ -331,7 +331,7 @@ dotyka tylko filtra celebracji i baseline live PR; historia/completion/e1RM z tr
 - [x] Klient ma lokalny cache offline, ale serwer jest źródłem prawdy między urządzeniami.
 - [x] Watch, Garmin, drugi telefon, późny sync i edycja historii tworzą jedno zdarzenie.
 
-**B-T6 DONE (`9b32e915`):** kolekcja user_events v1 (id = uid+klucz semantyczny,
+**B-T6 DONE (`48083efc`; `9b32e915` był wydmuszką — git add z wyciszonym stderr, treść dograna i ponownie zweryfikowana):** kolekcja user_events v1 (id = uid+klucz semantyczny,
 update tylko readAt, delete zablokowane), producenci PR/odznaka (WorkoutDay,
 payload semantyczny), raport tygodnia (digest, create+ALREADY_EXISTS), start/zmiana
 planu (cycle-actions przez wstrzykiwany emitter); zdarzenie KOŃCA planu dojdzie razem
