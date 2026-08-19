@@ -254,6 +254,12 @@ przebiegiem fizycznym iOS+Android (kroki właściciela); Garmin i Watch są domk
 - [ ] Wszystkie bramki z sekcji 8, wspólny release train i re-audyt P0.
 - [ ] Wynik: zero czerwonych problemów start/offline/resume.
 
+STATUS (2026-08-20): artefakty wydania A POSZŁY w trainie A+B (web BMqiRMRo, iOS 105,
+AAB v20, Garmin iq/prg — patrz B-RELEASE) i w kolejnych trainach C/D; wszystkie znane
+RED start/offline/resume naprawione i zweryfikowane w symulatorach (00d1a178, 60ef6c8c).
+Kratki zostają nieodhaczone WYŁĄCZNIE dlatego, że definicja A-T5 wymaga przebiegu na
+FIZYCZNYM iPhone i Androidzie — krok właściciela (TestFlight 107 / AAB v22).
+
 ## 5. Wydanie B — prawda danych i feedback treningowy
 
 ### B-T1 — jedno źródło prawdy dla serii roboczych
@@ -341,7 +347,11 @@ localStorage usunięty (pre-launch). Idempotencja multi-device przez konstrukcj�
 klucza (dayId+date+exerciseId+typ itd.) - testy 7+5+3 oraz rules 13 przypadków
 (test:rules 218/218). Vitest 1728/1728, functions 227+build, typecheck/lint/build
 GREEN. Rules+indexes do wdrożenia w release train.
-- [ ] Brak implementacji producenta = uczciwe copy; żadnych pustych obietnic.
+- [x] Brak implementacji producenta = uczciwe copy; żadnych pustych obietnic.
+  **Dowód (domknięte w C-T4):** każdy typ zdarzenia ma realnego producenta — PR,
+  odznaka, raport tygodnia, start/zmiana planu (B-T6) oraz koniec planu
+  (PlanNextStepCard, plan-ended, idempotentny klucz po startDate). Zero typów bez
+  producenta = warunek spełniony bez potrzeby copy zastępczego.
 
 ### B-RELEASE — wspólne wydanie B
 
