@@ -1520,7 +1520,10 @@ export const en: Record<keyof typeof pl, string> = {
   'exercises.type.bodyweight': 'Bodyweight',
   'exercises.type.compound': 'Compound',
   'exercises.type.isolation': 'Isolation',
-  'card.best': 'Best',
+  'card.est1rm': 'Est. 1RM',
+  'card.maxLift': 'Max',
+  'card.maxLiftTitle': 'Heaviest lifted working set',
+  'pr.est1rmValue': 'Est. 1RM: {value}',
   'card.details': 'Exercise details',
   // === plan-next-step / cycle-recommendation (lib) ===
   'plannext.noPlan.title': 'No active plan',

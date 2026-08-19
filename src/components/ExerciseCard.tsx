@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getExerciseInstructions, previousWorkingSet } from '@/lib/exercise-utils';
 import { getExerciseAnimationUrl, getExercisePosterUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
+import { buildRecordBadges, formatEst1RMBadge, formatMaxLiftBadge } from '@/lib/record-labels';
 import { RestBar } from '@/components/RestBar';
 import { loadRestSettings, resolveRestSeconds } from '@/lib/rest-timer';
 import { IntervalTimer } from './IntervalTimer';
@@ -1016,15 +1017,31 @@ const ExerciseCardInner = ({
               <span className="text-sm font-medium text-muted-foreground">
                 {t('card.setsCount', { n: workingSets.length })}
               </span>
-              {historicalBest && historicalBest.best1RM > 0 && (
-                <span
-                  title={`${Math.round(toDisplay(historicalBest.best1RMWeight))} ${unit} × ${historicalBest.best1RMReps}`}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-cyan/30 text-fitness-cyan bg-fitness-cyan/10"
-                >
-                  <Star className="h-3 w-3 fill-current" />
-                  {t('card.best')} {Math.round(toDisplay(historicalBest.best1RM))} {unit}
-                </span>
-              )}
+              {/* B-T2: estymacja z widocznym źródłem i osobno fakt (najcięższa seria). */}
+              {(() => {
+                const badges = buildRecordBadges(historicalBest);
+                const fmtWeight = (kg: number) => `${Math.round(toDisplay(kg))} ${unit}`;
+                return (
+                  <>
+                    {badges.est1RM && (
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-cyan/30 text-fitness-cyan bg-fitness-cyan/10"
+                      >
+                        <Star className="h-3 w-3 fill-current" />
+                        {formatEst1RMBadge(badges.est1RM, t('card.est1rm'), fmtWeight)}
+                      </span>
+                    )}
+                    {badges.maxLift && (
+                      <span
+                        title={t('card.maxLiftTitle')}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-border text-muted-foreground bg-muted/40"
+                      >
+                        {formatMaxLiftBadge(badges.maxLift, t('card.maxLift'), fmtWeight)}
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
               {livePRWeight != null && (
                 <span
                   data-testid="live-pr-badge"

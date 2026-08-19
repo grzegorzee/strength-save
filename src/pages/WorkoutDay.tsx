@@ -2173,6 +2173,8 @@ const WorkoutDay = () => {
                 prReps: (n) => t('workout.completion.prReps', { n }),
                 weight: fmt,
                 duration: fmtDuration,
+                // B-T2: PR z Epleya jest podpisany jako estymacja, nie fakt.
+                est1RM: (kg) => t('pr.est1rmValue', { value: fmt(kg) }),
               }),
             }),
           });

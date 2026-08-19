@@ -1542,7 +1542,10 @@ export const pl = {
   'exercises.type.bodyweight': 'Masa ciała',
   'exercises.type.compound': 'Wielostawowe',
   'exercises.type.isolation': 'Izolacja',
-  'card.best': 'Rekord',
+  'card.est1rm': 'Szac. 1RM',
+  'card.maxLift': 'Max',
+  'card.maxLiftTitle': 'Najcięższa podniesiona seria robocza',
+  'pr.est1rmValue': 'Szac. 1RM: {value}',
   'card.details': 'Szczegóły ćwiczenia',
   // === plan-next-step / cycle-recommendation (lib) ===
   'plannext.noPlan.title': 'Brakuje aktywnego planu',

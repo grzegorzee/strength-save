@@ -159,12 +159,15 @@ export interface PRValueFormatters {
   prReps: (n: number) => string;
   weight: (kg: number) => string;
   duration: (sec: number) => string;
+  /** B-T2: PR typu '1rm' to estymacja i musi być tak podpisany (fakt != Epley). */
+  est1RM?: (kg: number) => string;
 }
 
 export const formatPRValue = (pr: PRComparison, fmt: PRValueFormatters): string =>
   pr.type === 'reps' ? fmt.prReps(pr.newValue)
     : pr.type === 'duration' ? fmt.duration(pr.newValue)
-      : fmt.weight(pr.newValue);
+      : pr.type === '1rm' && fmt.est1RM ? fmt.est1RM(pr.newValue)
+        : fmt.weight(pr.newValue);
 
 /** Delta rekordu do wyświetlenia ("+5 kg" / "+2") albo null (brak sensownej bazy). */
 export const formatPRDelta = (

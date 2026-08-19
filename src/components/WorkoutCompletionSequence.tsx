@@ -87,6 +87,8 @@ export const WorkoutCompletionSequence = ({
     prReps: (n) => t('workout.completion.prReps', { n }),
     weight: fmtWeight,
     duration: fmtDuration,
+    // B-T2: PR z Epleya jest podpisany jako estymacja, nie fakt.
+    est1RM: (kg) => t('pr.est1rmValue', { value: fmtWeight(kg) }),
   });
 
   const deltaText = summary.volumeDeltaPct !== null
