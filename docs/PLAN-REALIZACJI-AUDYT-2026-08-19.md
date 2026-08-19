@@ -411,11 +411,19 @@ ręczne off z badge/dialogu, kolizja blokuje wejście, nie stan). Copy zostawion
 
 ### C-T4 — jedna maszyna końca planu i cykli
 
-- [ ] Jedno źródło stanu dla Dashboardu, Planu i Cyklów.
-- [ ] Akcje: kontynuuj bieżący, powtórz, przygotuj kolejny; jedna karta decyzyjna pod Plan.
-- [ ] Testy: ostatni dzień→poniedziałek, dokładne +7 dni, niska frekwencja, repeat/new,
+- [x] Jedno źródło stanu dla Dashboardu, Planu i Cyklów.
+- [x] Akcje: kontynuuj bieżący, powtórz, przygotuj kolejny; jedna karta decyzyjna pod Plan.
+- [x] Testy: ostatni dzień→poniedziałek, dokładne +7 dni, niska frekwencja, repeat/new,
   częściowy błąd, rollback, `finalSyncPending`, dwa urządzenia i offline reconnect.
-- [ ] Zamknięty plan pozostaje dostępny w pełnej historii.
+- [x] Zamknięty plan pozostaje dostępny w pełnej historii.
+
+**C-T4 DONE:** buildPlanNextStep z jawnymi stanami + wspólna PlanNextStepCard na
+Dashboard/Plan/Cykle (Plan: karta POD planem z pełnym Powtórz; Cykle: stany decyzyjne
+nad rekomendacją). Koniec planu emituje idempotentne user_event plan-ended-<startDate>
+(domknięty odroczony punkt B-T6). Testy: stany maszyny 5 + karta 4 + kotwica
+poniedziałku/+7; częściowy błąd/rollback/PLAN_CONFLICT dwóch urządzeń/offline guard
+kryte istniejącym cycle-actions.test (10 przypadków). Archiwum cykli nietknięte.
+Vitest 1758/1758, typecheck/lint/build GREEN.
 
 ### C-RELEASE — wspólne wydanie C
 
