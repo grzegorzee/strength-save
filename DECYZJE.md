@@ -2447,3 +2447,26 @@ Auth, App Check i fetch, z abortem requestu.
 native timeout RED `still-pending` → 8/8 GREEN; pełny Vitest 1668/1668, typecheck, lint,
 build i bundle budget GREEN. Nie użyto realnego konta. Fizyczny airplane/force-quit jest
 nadal otwartą bramką A-T5, nie został przedstawiony jako PASS.
+
+---
+
+## SESJA 2026-08-19 — audyt realizacyjny A-T2: jeden start i mierzalny bootstrap
+
+**Root cause:** start miał trzy niespójne loadery (dwa z wirującym kółkiem), Android używał
+innego artworku niż web/iOS, a oczekiwanie na RevenueCat i zdalny lookup treningów nie miało
+deadline'u. Marker Dashboardu początkowo mógłby kłamać przy samym mouncie, zanim doszły
+workouty i plan.
+
+**Decyzja:** jeden `BootScreen` ma małe logo 64×64 i cienki pasek indeterminate; natywne
+launch screeny mają dokładnie ten sam znak, rozmiar, środek i tło. Serwerowo potwierdzone
+Firestore PRO/admin ma pierwszeństwo przed RevenueCat. RC i lookup treningów kończą się po
+1500 ms, a sync profilu web po 10 s; timeout nie fabrykuje PRO. Lookup treningów czyta cache
+pierwszy i zachowuje istniejący fail-open/read-only, żeby dane usera nie stały się zakładnikiem.
+`dashboard-interactive` powstaje dopiero przy `isLoaded && planIsLoaded`.
+
+**Dowód (`c300aa4d`):** RED brak 3 modułów + 2 czerwone scenariusze RC; GREEN 1681/1681,
+typecheck/lint/build/bundle/dist/offline/no-emoji, Android resources i iOS simulator build.
+Raport `docs/RAPORT-START-A-T2-2026-08-19.md` zapisuje pięć prób warm/cold/offline/weak,
+mediany markerów 48/207/100/1984 ms i dokładne bottlenecks. Initial JS 1 300 254 B przy
+niezmienionym limicie 1 536 000 B; bez spekulacyjnego splitu Firebase. Fizyczny iPhone był
+offline, więc real-device cold/kill nie został przedstawiony jako PASS i pozostaje w A-T5.

@@ -90,18 +90,34 @@ build i bundle budget GREEN. Real-device cold/airplane pozostaje bramką A-T5.
 
 ### A-T2 — jeden BootScreen i metryki startu
 
-- [ ] Jeden komponent `BootScreen` dla auth/profile/routes/paywall/Suspense: małe logo,
-  cienki indeterminate progress bar, bez zamiany na kółko.
-- [ ] Dopasować rozmiar i pozycję natywnego launch artwork iOS/Android do pierwszego frame'u.
-- [ ] RevenueCat/paywall nie blokuje cached, serwerowo potwierdzonego dostępu; brak cache nie
-  dostaje premium. Każda sieć ma timeout i jawny fallback.
-- [ ] Dodać markery `root-painted`, `auth-restored`, `profile-cache-ready`,
-  `dashboard-interactive` oraz raport warm/cold/offline/weak-network.
-- [ ] Ograniczyć krytyczny bundle dopiero po profilowaniu; nie podnosić budżetu.
+- [x] Jeden komponent `BootScreen` dla auth/profile/routes/paywall/Suspense: małe logo,
+  cienki indeterminate progress bar, bez zamiany na kółko. **Dowód:** `c300aa4d`, test
+  architektury i renderu `boot-screen.test.tsx`; brak lokalnych `AppLoader`/spinnerów.
+- [x] Dopasować rozmiar i pozycję natywnego launch artwork iOS/Android do pierwszego frame'u.
+  **Dowód:** wspólny `app-icon` 64×64 pt/dp, center + `#0E0E0E`; Android resources i
+  iOS App/Debug kompilują się.
+- [x] RevenueCat/paywall nie blokuje cached, serwerowo potwierdzonego dostępu; brak cache nie
+  dostaje premium. Każda sieć ma timeout i jawny fallback. **Dowód:** RC i lookup treningów
+  mają deadline 1500 ms, web sync profilu 10 s; cached PRO/read-only oraz fresh-user
+  invariant w `use-subscription-bootstrap` i `hard-paywall-bootstrap`.
+- [x] Dodać markery `root-painted`, `auth-restored`, `profile-cache-ready`,
+  `dashboard-interactive` oraz raport warm/cold/offline/weak-network. **Dowód:** markery
+  Performance API + `docs/RAPORT-START-A-T2-2026-08-19.md`, po pięć prób każdego trybu.
+- [x] Ograniczyć krytyczny bundle dopiero po profilowaniu; nie podnosić budżetu. **Dowód:**
+  initial JS 1 300 254 B / 1 536 000 B, limit bez zmian; profil wskazuje lazy chunks,
+  bez ryzykownego splitu Firebase po wcześniejszym incydencie TDZ/white screen.
 
 **Cel wydajnościowy:** na referencyjnym telefonie mediana z pięciu uruchomień: warm ≤1 s,
 cold online ≤2,5 s, cold offline/weak-network do cached Dashboardu ≤2 s. Gdy sprzęt nie
 pozwala osiągnąć progu, raport wskazuje konkretny etap i kolejne wąskie gardło.
+
+**A-T2 DONE (`c300aa4d`):** RED brak 3 modułów + 2/2 scenariusze wiszącego RC;
+GREEN 29/29 zakresu, niezmiennik markera Dashboardu i pełny Vitest 225/225 plików,
+1681/1681 testów. Typecheck, lint, build, bundle, dist/offline smoke i no-emoji GREEN;
+Android resources oraz iOS simulator build GREEN. Mediany markerów web/E2E
+warm/cold/offline/weak: 48/207/100/1984 ms. Fizyczny iPhone był offline, więc wynik
+real-device nie jest deklarowany; dokładne etapy i bottleneck są w raporcie, a sprzętowa
+bramka pozostaje w A-T5 zgodnie z wyjątkiem celu wydajnościowego.
 
 ### A-T3 — ciche wznowienie draftu
 
