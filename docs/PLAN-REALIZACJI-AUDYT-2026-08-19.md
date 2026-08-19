@@ -440,9 +440,13 @@ checki GREEN (dist-offline zaktualizowany o prompt pre-start).
 
 ### D-T1 — docelowa nawigacja
 
-- [ ] Bottom nav: `Dzisiaj`, `Plan`, `Historia`, `Postępy`, `Ćwiczenia`.
-- [ ] Avatar prowadzi do Profilu/Ustawień; zachować deep linki i back navigation.
-- [ ] Migracja tras nie usuwa żadnej funkcji ani zapisanej lokalizacji.
+- [x] Bottom nav: `Dzisiaj`, `Plan`, `Historia`, `Postępy`, `Ćwiczenia`.
+- [x] Avatar prowadzi do Profilu/Ustawień; zachować deep linki i back navigation.
+- [x] Migracja tras nie usuwa żadnej funkcji ani zapisanej lokalizacji.
+
+**D-T1 DONE:** navItems przestawione (Historia za Analitykę w bottom nav, Analityka
+w sidebarze i pod /analytics do D-T4), etykieta 'Dzisiaj' (nav.today PL+EN), avatar->
+/profile już istniał (AppHeader). Trasy nietknięte. Testy jsdom kolejności + e2e nav.
 
 ### D-T2 — Dashboard odpowiada tylko „co teraz?”
 
