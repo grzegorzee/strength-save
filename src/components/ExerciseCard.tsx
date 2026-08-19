@@ -1141,6 +1141,20 @@ const ExerciseCardInner = ({
         </DropdownMenu>
       </div>
 
+      {/* ── Pinned note (Z103/B-T4): trwała notatka NAD seriami — user ma ją
+          przeczytać PRZED pierwszą serią (ustawienia maszyny, wskazówki), nie
+          odkrywać po treningu pod Add set. Edycja nadal wyłącznie z menu ⋯. */}
+      {(hasPinnedNote || pinnedNoteOpen) && (
+        <div className="px-5 pt-4" data-testid="pinned-note-slot">
+          <PinnedNoteSection
+            exerciseName={exercise.name}
+            pinnedNote={pinnedNote}
+            onSave={isEditable ? onPinnedNoteSave : undefined}
+            startInEdit={pinnedNoteOpen && !hasPinnedNote}
+          />
+        </div>
+      )}
+
       {/* ── Set table: nagłówki kolumn → rozgrzewka (badge W) → serie robocze ── */}
       <div className="px-4 sm:px-5 pt-4 pb-2">
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
@@ -1236,20 +1250,6 @@ const ExerciseCardInner = ({
           </>
         )}
       </div>
-
-      {/* ── Pinned note (Z103): trwała notatka nad notatką sesyjną ──
-          Z129.2: w karcie TYLKO gdy notatka istnieje. Pusty stan siedzi w menu ⋯
-          i dopiero stamtąd otwiera edycję (pinnedNoteOpen). */}
-      {(hasPinnedNote || pinnedNoteOpen) && (
-        <div className={cn('px-5', !isEditable && 'pb-5')}>
-          <PinnedNoteSection
-            exerciseName={exercise.name}
-            pinnedNote={pinnedNote}
-            onSave={isEditable ? onPinnedNoteSave : undefined}
-            startInEdit={pinnedNoteOpen && !hasPinnedNote}
-          />
-        </div>
-      )}
 
       {/* ── Footer ── */}
       {isEditable && (

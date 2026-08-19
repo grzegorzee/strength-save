@@ -476,6 +476,35 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(within(filled.card).getByTestId('pinned-note-section')).toBeTruthy();
       expect(within(filled.card).getByText('Uchwyt szeroki')).toBeTruthy();
     });
+
+    it('B-T4: przypięta notatka stoi NAD tabelą serii (przed Set 1 i Add set)', () => {
+      const { card } = renderCard({
+        savedSets: [workingSet({ weight: 60, reps: 5 })],
+        onPinnedNoteSave: vi.fn(),
+        pinnedNote: { note: 'Siodełko na 4, uchwyt wąski', updatedAt: 0 } as never,
+      });
+      const note = within(card).getByTestId('pinned-note-slot');
+      const colSet = within(card).getByText('Set');
+      const addSet = within(card).getByText('Dodaj serię');
+      expect(domIndex(card, note)).toBeLessThan(domIndex(card, colSet));
+      expect(domIndex(card, note)).toBeLessThan(domIndex(card, addSet));
+    });
+
+    it('B-T4: po resume treningu (odhaczone serie w drafcie) notatka nadal nad seriami', () => {
+      const { card } = renderCard({
+        savedSets: [
+          workingSet({ weight: 60, reps: 5, completed: true }),
+          workingSet({ weight: 60, reps: 5 }),
+        ],
+        onPinnedNoteSave: vi.fn(),
+        pinnedNote: { note: 'Uchwyt szeroki', updatedAt: 0 } as never,
+      });
+      const note = within(card).getByTestId('pinned-note-slot');
+      const colSet = within(card).getByText('Set');
+      expect(domIndex(card, note)).toBeLessThan(domIndex(card, colSet));
+      // Edycja notatki nie jest zdublowana w treści karty — żyje w menu ⋯.
+      expect(within(card).queryAllByText('Uchwyt szeroki')).toHaveLength(1);
+    });
   });
 
   describe('Z171: usuwanie po referencji + dialog tylko dla realnych danych', () => {
