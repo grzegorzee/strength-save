@@ -42,6 +42,15 @@ describe("Connect IQ X25 client contract", () => {
     expect(day).not.toContain("Api.fetchDay(WorkoutState.todayString())");
   });
 
+  it("falls back to a same-day cached plan on transport failure without bypassing auth or stale-day guards", () => {
+    const day = source("DayView.mc");
+    expect(day).toContain("function canUseCachedDayAfterTransportError");
+    expect(day).toMatch(/code >= 0[\s\S]{0,420}WorkoutState\.todayString\(\)/);
+    expect(day).toMatch(/if \(data == null\)[\s\S]{0,360}canUseCachedDayAfterTransportError\(code\)[\s\S]{0,120}showMenu\(\)/);
+    expect(day).toContain('Application.Storage.setValue("recents", data.hasKey("r") ? data["r"] : [])');
+    expect(day).not.toMatch(/code == (401|403)[\s\S]{0,160}showMenu\(\)/);
+  });
+
   it("reports pending/FIT only on day lifecycle or final batch and stores server capability opaquely", () => {
     const api = source("Api.mc");
     const recorder = source("SessionRecorder.mc");

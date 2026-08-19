@@ -46,9 +46,23 @@ class DayView extends WatchUi.View {
         Api.fetchDay(WorkoutState.todayString(), method(:onDay));
     }
 
+    function canUseCachedDayAfterTransportError(code as Number) as Boolean {
+        if (code >= 0) { return false; }
+        var cachedDay = WorkoutState.day();
+        return cachedDay != null
+            && (cachedDay["d"] as String).equals(WorkoutState.todayString());
+    }
+
     function onDay(data as Dictionary or Null, code as Number) as Void {
         loading = false;
         if (data == null) {
+            // Connect IQ zwraca ujemne kody (np. -104) dla błędów transportu.
+            // Bieżący plan z cache jest wtedy lepszy niż ślepy ekran retry;
+            // 401/403/5xx i wczorajszy dzień nadal pozostają fail-closed.
+            if (canUseCachedDayAfterTransportError(code)) {
+                showMenu();
+                return;
+            }
             errorCode = code;
             if (code == 401) {
                 var pairView = new PairView();
@@ -60,9 +74,9 @@ class DayView extends WatchUi.View {
         }
         Application.Storage.setValue("dayFetchedAt", WorkoutState.nowMs());
         // Lista ostatnich ćwiczeń do szybkiego treningu (też w dni wolne).
-        if (data.hasKey("r")) {
-            Application.Storage.setValue("recents", data["r"]);
-        }
+        // Brak pola oznacza pustą listę, nie "nigdy nie pobrano" — inaczej konto
+        // bez historii wymusza fetch przy każdym cold launchu.
+        Application.Storage.setValue("recents", data.hasKey("r") ? data["r"] : []);
         if (data.hasKey("rest") && data["rest"] == true) {
             // Dzień wolny nie jest ślepym zaułkiem: menu z szybkim treningiem.
             showMenu();
