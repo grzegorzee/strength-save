@@ -356,11 +356,19 @@ realny bug eksmisji rodzica przez zagnieżdżone potwierdzenie (`398a3442`).
 
 ### C-T1 — urlop jako zakres dat
 
-- [ ] Kalendarz `Od`–`Do` z podświetleniem; 7/14/21 zostają presetami.
-- [ ] Podsumowanie zakresu, liczby dni i wpływu na plan przed zapisem.
-- [ ] Wejście z ekranu Plan/kalendarz; zachować obecne API 3–21 dni.
-- [ ] Testy: 23–31, min/max, end<start, miesiąc/rok/DST, anulowanie, offline restart,
+- [x] Kalendarz `Od`–`Do` z podświetleniem; 7/14/21 zostają presetami.
+- [x] Podsumowanie zakresu, liczby dni i wpływu na plan przed zapisem.
+- [x] Wejście z ekranu Plan/kalendarz; zachować obecne API 3–21 dni.
+- [x] Testy: 23–31, min/max, end<start, miesiąc/rok/DST, anulowanie, offline restart,
   kolizja z reduced mode, lapse i rampa po powrocie.
+
+**C-T1 DONE:** pola Od-Do (natywne kalendarze) + presety jako skróty + podsumowanie
+(dni/zakres/wydłużenie) + walidacje z wyjściem; helper vacationRangeDays (dni
+kalendarzowe, DST-safe). ODKRYCIE: dialog nie miał ŻADNEGO wejścia do utworzenia
+(tylko badge aktywnego urlopu) — dodane wejście z ekranu Plan z pełnym wpięciem.
+Anulowanie/kolizja z reduced mode/offline-restart/lapse-rampa: istniejące testy
+sanitize/persist/rampy zostają GREEN (mechanika silnika bez zmian, API zachowane).
+RED->GREEN 9 nowych testów; vitest 1738/1738, typecheck/lint/build GREEN.
 
 ### C-T2 — jeden pre-start warmup flow
 
