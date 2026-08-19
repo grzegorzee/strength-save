@@ -2603,3 +2603,34 @@ finish po reconnect dał ACK i kolejkę 0. Firestore nadal ma jeden kanoniczny d
 z pięcioma seriami i `revision=2`; nie powstał duplikat ani FIT. Cloud Logging nie był
 dostępny dla aktywnego konta (`PERMISSION_DENIED`) i nie jest przedstawiany jako dowód.
 Garmin jest PASS; całe A-T5 pozostaje BLOCKED do fizycznych iOS, Android i Apple Watch.
+
+### Garmin A-T5: natychmiastowy podgląd wartości lokalnej i bezpośredni sideload
+
+**Finding:** fizyczny test dowiódł, że kolejka Storage zachowała 17,5 kg asysty i 25 m,
+ale menu przed ingest pokazywało wyłącznie `1/1`. Po serwerowym merge wartości były
+poprawne, więc root cause leżał w prezentacji: `exerciseSubLabel` zawsze renderował cel
+planu, nigdy ostatni wpis z lokalnego `done`.
+
+**Decyzja:** formatter ostatniej zaliczonej serii czyta właściwy kompaktowy układ `done`
+(`[reps, kg, at, duration, distance, assist, warmup]`) dla czterech tracking types. Menu
+zachowuje licznik i używa lokalnej wartości jako rozszerzenia; bez wpisu nadal pokazuje
+stary target. RED → minimalny fix i test niezmiennika są w `5827b395`.
+
+**Weryfikacja i wdrożenie:** functions 224/224, pełne Vitest 1700/1700, typecheck, lint,
+build, bundle/dist/offline/no-emoji oraz produkcyjny `epix2` GREEN. Właściciel jawnie
+zrezygnował z drugiego wariantu QA i polecił zastąpić główny PRG. Artefakt produkcyjny
+SHA-256 `d3165176b9b0c0cc2520e36a1b1875aa255f06f37641790122823e9ce9081ad9` został
+zainstalowany bez kasowania Storage; aplikacja uruchamia się normalnie, zachowała konto
+i plan oraz pokazuje najbliższy trening na czwartek. Nie wykonano nowej sztucznej serii
+tylko po to, by ponownie zobaczyć etykietę, więc ten ręczny detal pozostaje jawnie
+niezweryfikowany. Publiczny Connect IQ Store nadal czeka na wspólny A-RELEASE.
+
+### A-T5: aktualizacja kryteriów fizycznych przez właściciela
+
+Właściciel 2026-08-19 jawnie zezwolił na testowanie buildów na swoim realnym koncie
+Strength Save oraz na uznanie interaktywnego Apple Watch Simulator zamiast fizycznego
+zegarka. To zastępuje wcześniejsze ograniczenie sesji wyłącznie do kont syntetycznych
+w zakresie ręcznych testów właściciela; agent nadal ogranicza zapis do jednej wyraźnej
+sesji, najpierw sprawdza brak zaległej synchronizacji i nie usuwa danych bez osobnego
+potwierdzenia. iOS i Android nadal wymagają prawdziwych urządzeń. Watch musi przejść pełną
+sekwencję offline → restart → reconnect → ACK na sparowanym symulatorze, nie tylko build.

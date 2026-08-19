@@ -210,8 +210,19 @@ zielony; fizyczny lock 2 min pozostaje uczciwie w A-T5 i nie jest deklarowany ja
   wysłania` aż do ACK. Firestore pozostał przy jednym kanonicznym dokumencie; doszły
   dokładnie `17,5 kg` asysty i `25 m`, `revision=2`, kolejka `0`, `fitStatus=unavailable`.
   Wariant QA celowo nie tworzył FIT, więc nic nie trafiło do realnego Garmin Connect.
-  **BLOCKER:** brak fizycznego Androida i Apple Watch; fizyczny iPhone pozostaje
-  `unavailable`, a jedyna aktywna para iPhone+Watch jest symulatorem.
+  Audyt urządzenia ujawnił też brak natychmiastowego podglądu tych wartości w menu:
+  Storage i ingest były poprawne, lecz UI pokazywało wyłącznie `1/1`. RED kontraktowy,
+  lokalny formatter czterech typów oraz niezmiennik licznika/celu są GREEN w `5827b395`;
+  pełne bramki 1700/1700, functions 224/224, build i produkcyjny `epix2` są GREEN.
+  Na jawną decyzję właściciela pominięto drugi sideload QA i zastąpiono główny PRG
+  artefaktem SHA-256 `d3165176b9b0c0cc2520e36a1b1875aa255f06f37641790122823e9ce9081ad9`.
+  Produkcyjna aplikacja po zastąpieniu uruchomiła się normalnie, zachowała konto i plan
+  oraz pokazała najbliższy trening na czwartek. Nie przedstawiamy pominiętego ręcznego
+  re-testu etykiet jako PASS.
+  **Zmienione kryterium właściciela:** Apple Watch wolno domknąć na sparowanym
+  symulatorze; pełna interaktywna sekwencja kolejki/ACK nadal musi mieć dowód. **BLOCKER:**
+  brak fizycznego Androida; fizyczny iPhone pozostaje `unavailable` dla Xcode, lecz
+  właściciel może wykonać scenariusz ręcznie na aktualnym TestFlight.
 
 **A-T5 BLOCKED (`1874a53e`, `00d1a178`, `f127039e`):** wszystkie prace niezależne od sprzętu są
 wykonane. GREEN: Vitest 233/233 i 1700/1700, typecheck, lint, build,
@@ -220,7 +231,8 @@ pełne sekwencje Android/iOS simulator. iOS 1.0.0 (103) z Watch/widgetem, Androi
 Garmin PRG budują się; fizyczny Garmin przeszedł offline/kill/screen-off/reconnect.
 Pełne dowody i procedura domknięcia:
 `docs/RAPORT-OFFLINE-A-T5-2026-08-19.md`. A-RELEASE nie może ruszyć przed pełnym
-przebiegiem fizycznym iOS+Android+Watch; Garmin jest domknięty.
+przebiegiem fizycznym iOS+Android oraz interaktywnym symulatorem Watch; Garmin jest
+domknięty.
 
 ### A-RELEASE — wspólne wydanie A
 

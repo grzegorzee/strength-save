@@ -6,7 +6,8 @@
 Android Emulator oraz iOS Simulator są zielone w commitach `1874a53e` i `00d1a178`.
 Fizyczny Garmin EPIX 2 przeszedł pełny kontrakt po poprawce `f127039e`. Nie wolno oznaczyć
 A-T5 jako DONE ani zaczynać A-RELEASE, dopóki pełny scenariusz nie przejdzie jeszcze na
-realnym iOS, Androidzie i Apple Watch.
+realnym iOS i Androidzie oraz interaktywnym symulatorze Apple Watch. Właściciel jawnie
+dopuścił Watch Simulator jako dowód zamiast fizycznego zegarka.
 
 Testy używały wyłącznie syntetycznych użytkowników lokalnych emulatorów, mocka E2E albo
 wydzielonego syntetycznego konta produkcyjnego Garmin QA. Nie zapisano żadnej serii na
@@ -82,6 +83,20 @@ trening nie trafił do prywatnego Garmin Connect właściciela.
   `lastSyncAt=1787147204248`, pending `0`, `lastError=null`, `fitStatus=unavailable`.
   Nie powstał duplikat dokumentu ani FIT. Próba uzupełnienia dowodu z Cloud Logging była
   jawnie niedostępna (`PERMISSION_DENIED` dla log views); nie jest przedstawiana jako PASS.
+- Dodatkowy finding z fizycznego ekranu: po logu offline menu pokazywało `1/1`, ale nie
+  lokalne `17,5 kg` ani `25 m`; wartości pojawiły się dopiero po ingest/refetch. Storage
+  nie zgubił danych — dowodzi tego późniejszy dokument — brakował natychmiastowy feedback.
+  TDD `5827b395` dodaje formatter ostatniej lokalnej serii dla `weight_reps`, `duration`,
+  `weight_distance_duration` i `assisted_bodyweight`, zachowując licznik oraz target jako
+  fallback. RED → kontrakt 7/7, functions 224/224, pełne 1700/1700, typecheck/lint/build,
+  bundle/dist/offline/no-emoji i `epix2` GREEN.
+- Na decyzję właściciela pominięto powtórną instalację QA. Produkcyjny PRG został
+  zastąpiony bez kasowania Storage; SHA-256
+  `d3165176b9b0c0cc2520e36a1b1875aa255f06f37641790122823e9ce9081ad9`. To lokalny
+  sideload głównej aplikacji, nie częściowa publikacja Connect IQ Store. Brak ponownego
+  ręcznego odczytu etykiet jest jawnie otwartym dowodem, nie ukrytym PASS. Po instalacji
+  właściciel potwierdził normalny start głównej aplikacji, zachowane konto/plan i poprawne
+  wskazanie najbliższego treningu na czwartek.
 
 ## Dokładny blocker
 
@@ -96,7 +111,8 @@ List of devices attached
 
 Jedyna aktywna para iPhone+Watch to iPhone 17 Pro Max Simulator + Apple Watch Series 11
 Simulator. Fizyczny Garmin EPIX 2 jest już zweryfikowany. Brak dostępnego fizycznego
-Apple Watch i Androida; `Iphone (Greg)` pozostaje niedostępny.
+Androida; `Iphone (Greg)` pozostaje niedostępny dla Xcode. Apple Watch zgodnie z późniejszą
+decyzją właściciela ma zostać domknięty na aktywnej parze symulatorów.
 ```
 
 Android AVD i iOS Simulator pozwoliły wykonać pełne sekwencje, łącznie z systemowym
@@ -114,8 +130,9 @@ Na osobnym koncie testowym/fixture, bez danych użytkownika:
    2 min → resume → finish offline → kill → launch offline → reconnect. Potwierdzić jeden
    trening w chmurze, zero duplikatów i brak utraconych ćwiczeń.
 2. Powtórzyć identyczny scenariusz na fizycznym Androidzie.
-3. Apple Watch: z telefonem nieosiągalnym odhaczyć serię i zakończyć; potwierdzić pending,
-   restart zegarka/apki, retry po reconnect, ACK oraz pojedynczy ingest na telefonie.
+3. Apple Watch Simulator (jawnie zaakceptowany zamiast fizycznego): z telefonem
+   nieosiągalnym odhaczyć serię i zakończyć; potwierdzić pending, restart zegarka/apki,
+   retry po reconnect, ACK oraz pojedynczy ingest na telefonie.
 4. Garmin: **PASS 2026-08-19** — offline odhaczenie, błąd ingest, dwa restarty aplikacji,
    retry po reconnect, kolejka wyczyszczona dopiero po ACK i jedna sesja.
 5. Dopiero po czterech PASS odhaczyć dwa ostatnie punkty A-T5, uruchomić ponownie wszystkie
