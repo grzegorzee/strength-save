@@ -6,7 +6,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { useExclusiveOverlayState } from "@/hooks/useExclusiveOverlay";
 
 const AlertDialog = ({ open: controlledOpen, defaultOpen, onOpenChange, ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) => {
-  const [open, setOpen] = useExclusiveOverlayState(controlledOpen, defaultOpen, onOpenChange);
+  // announce:false — potwierdzenia to warstwa NAD bieżącym overlay'em, nie obok:
+  // nie eksmitują rodzica (Dialog/Sheet), w którym są zagnieżdżone.
+  const [open, setOpen] = useExclusiveOverlayState(controlledOpen, defaultOpen, onOpenChange, { announce: false });
   return <AlertDialogPrimitive.Root {...props} open={open} onOpenChange={setOpen} />;
 };
 
