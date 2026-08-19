@@ -312,11 +312,17 @@ seriami + brak duplikacji treści. Uwaga metodyczna: przeniesienie weszło przed
 
 ### B-T5 — rekordy sprzed aplikacji
 
-- [ ] Matcher po kanonicznym exercise ID/slug, nie fragmencie tłumaczenia.
-- [ ] Inwentarz testów wariantów squat/bench/deadlift, w tym
+- [x] Matcher po kanonicznym exercise ID/slug, nie fragmencie tłumaczenia.
+- [x] Inwentarz testów wariantów squat/bench/deadlift, w tym
   `Wyciskanie sztangi na ławce płaskiej`.
-- [ ] Copy wyjaśnia: baseline celebracji, nie import historycznego treningu.
-- [ ] Zweryfikować wpływ na live PR, completion, historię i e1RM.
+- [x] Copy wyjaśnia: baseline celebracji, nie import historycznego treningu.
+- [x] Zweryfikować wpływ na live PR, completion, historię i e1RM.
+
+**B-T5 DONE:** RED 2 (kanoniczny bench = 0; pistolet/wykroczne błędnie dziedziczyły) →
+GREEN 12/12; slug-first match (ASCII, guard i18n), twardsze wykluczenia heurystyki
+(smith/pistol/wykrocz/lunge/belt), copy PL+EN 'baseline, nie import'. Wpływ: backfill
+dotyka tylko filtra celebracji i baseline live PR; historia/completion/e1RM z treningów
+(niezmienniki w testach filterPRsAgainstBackfill). Vitest 1723/1723, bramki GREEN.
 
 ### B-T6 — prawdziwy inbox zdarzeń
 
