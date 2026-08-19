@@ -23,6 +23,7 @@ import { CycleDetail } from '@/components/CycleDetail';
 import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { repeatPlanSource, runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
+import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -62,6 +63,7 @@ const Cycles = () => {
       lang,
       uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
       archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
+      emitPlanEvent: buildPlanEventEmitter(uid),
     });
     setIsRepeating(false);
     if (res.success) {

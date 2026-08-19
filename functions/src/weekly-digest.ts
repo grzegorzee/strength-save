@@ -48,6 +48,14 @@ export interface WeeklyDigestDeps {
   queryWorkoutHistory: (beforeStr: string) => Promise<DigestWorkout[]>;
   queryStravaActivities: (startStr: string, endStr: string) => Promise<Array<StravaDoc & { userId: string }>>;
   sendEmail: (to: string, subject: string, html: string) => Promise<{ error?: { message: string } }>;
+  /** B-T6: producent zdarzenia inboxa "raport tygodnia gotowy" (user_events).
+   *  Idempotentny: create pod deterministycznym id, ALREADY_EXISTS połykane. */
+  writeUserEvent?: (uid: string, event: {
+    type: string;
+    key: string;
+    payload: Record<string, string | number | boolean | null>;
+    deepLink: string | null;
+  }) => Promise<void>;
   now?: () => Date;
 }
 
@@ -150,6 +158,21 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
       const comparison = prevWeek.length > 0 ? compareWeeks(stats, computeWeekStats(prevWeek)) : null;
       const prs = detectWeekPRs(workouts, history);
       const strava = buildStravaSummary(stravaByUser.get(user.uid) ?? []);
+
+      // B-T6: inbox w apce dostaje zdarzenie niezależnie od losów maila.
+      if (deps.writeUserEvent) {
+        await deps.writeUserEvent(user.uid, {
+          type: "week",
+          key: `week-${startStr}`,
+          payload: {
+            weekStart: startStr,
+            workouts: stats.sessions,
+            tonnageKg: Math.round(stats.tonnageKg),
+            prs: prs.length,
+          },
+          deepLink: "/analytics",
+        });
+      }
 
       const locale = lang === "en" ? "en-US" : "pl-PL";
       const rangeLabel = `${lastMonday.toLocaleDateString(locale, { day: "numeric", month: "long" })} - ${lastSunday.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}`;
@@ -271,6 +294,27 @@ export function buildWeeklyDigestDeps(db: FirebaseFirestore.Firestore, resend: R
         html,
       });
       return response.error ? { error: { message: response.error.message } } : {};
+    },
+    // B-T6: create (nie set) pod deterministycznym id — powtórny bieg digestu
+    // dla tego samego tygodnia dostaje ALREADY_EXISTS i zostawia oryginał
+    // (createdAt/readAt) w spokoju.
+    writeUserEvent: async (uid, event) => {
+      const id = `${uid}-${event.key}`;
+      try {
+        await db.collection("user_events").doc(id).create({
+          v: 1,
+          userId: uid,
+          type: event.type,
+          key: event.key,
+          payload: event.payload,
+          deepLink: event.deepLink,
+          createdAt: Date.now(),
+          readAt: null,
+        });
+      } catch (error) {
+        const code = (error as { code?: number | string }).code;
+        if (code !== 6 && code !== "already-exists") throw error;
+      }
     },
   };
 }

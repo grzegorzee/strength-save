@@ -496,6 +496,31 @@ add('consents: read admina ALLOWED (eksport CSV w panelu)', true, await ok(() =>
 add('consents: write admina DENIED (pisze tylko recordConsent)', false, await ok(() => setDoc(doc(adminDb, 'consents', 'c3'), consentDoc)));
 add('users: update pola consents z klienta DENIED (mirror pisze tylko backend)', false, await ok(() => updateDoc(doc(db, 'users', UID), { consents: { healthGranted: false } })));
 
+// === B-T6: user_events — idempotentny inbox, serwer źródłem prawdy ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser({ enabled: true }, 'active', ADMIN_UID, 'admin');
+const ueKey = 'pr-day-1-2026-08-19-bench-weight';
+const userEvent = {
+  v: 1, userId: UID, type: 'pr', key: ueKey,
+  payload: { name: 'Bench', prType: 'weight', newValue: 105 },
+  deepLink: '#/progress', createdAt: Date.now(), readAt: null,
+};
+const UE_ID = `${UID}-${ueKey}`;
+add('user_events: create wlasny pod id uid+key ALLOWED', true, await ok(() => setDoc(doc(db, 'user_events', UE_ID), userEvent)));
+add('user_events: id niezgodny z uid+key DENIED', false, await ok(() => setDoc(doc(db, 'user_events', 'dowolny-id'), { ...userEvent, key: 'inny-klucz' })));
+add('user_events: cudzy userId DENIED', false, await ok(() => setDoc(doc(otherDb, 'user_events', UE_ID), userEvent)));
+add('user_events: nadmiarowe pole DENIED', false, await ok(() => setDoc(doc(db, 'user_events', `${UID}-x1`), { ...userEvent, key: 'x1', evil: 1 })));
+add('user_events: readAt != null przy create DENIED', false, await ok(() => setDoc(doc(db, 'user_events', `${UID}-x2`), { ...userEvent, key: 'x2', readAt: Date.now() })));
+add('user_events: typ spoza listy DENIED', false, await ok(() => setDoc(doc(db, 'user_events', `${UID}-x3`), { ...userEvent, key: 'x3', type: 'spam' })));
+add('user_events: read wlasnych ALLOWED', true, await ok(() => getDoc(doc(db, 'user_events', UE_ID))));
+add('user_events: read cudzych DENIED', false, await ok(() => getDoc(doc(otherDb, 'user_events', UE_ID))));
+add('user_events: read admina ALLOWED', true, await ok(() => getDoc(doc(adminDb, 'user_events', UE_ID))));
+add('user_events: update readAt (oznacz przeczytane) ALLOWED', true, await ok(() => updateDoc(doc(db, 'user_events', UE_ID), { readAt: Date.now() })));
+add('user_events: update payload DENIED (duplikat nie nadpisze oryginalu)', false, await ok(() => updateDoc(doc(db, 'user_events', UE_ID), { payload: { hacked: true } })));
+add('user_events: ponowna emisja nadpisujaca createdAt DENIED (idempotencja)', false, await ok(() => setDoc(doc(db, 'user_events', UE_ID), { ...userEvent, createdAt: Date.now() + 5 })));
+add('user_events: delete DENIED', false, await ok(() => deleteDoc(doc(db, 'user_events', UE_ID))));
+
 await env.cleanup();
 
 let failed = 0;

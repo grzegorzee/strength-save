@@ -151,3 +151,43 @@ describe("runWeeklyDigest (R2-10)", () => {
     expect(html).toContain("vs poprzedni tydzień");
   });
 });
+
+describe("B-T6: producent zdarzenia inboxa (user_events)", () => {
+  it("emituje week event z deterministycznym kluczem tygodnia dla usera z treningami", async () => {
+    const writeUserEvent = vi.fn(async () => undefined);
+    const deps = makeDeps([{ uid: "u1", email: "a@b.c" }], { writeUserEvent });
+
+    await runWeeklyDigest(deps);
+
+    expect(writeUserEvent).toHaveBeenCalledTimes(1);
+    const [uid, event] = writeUserEvent.mock.calls[0];
+    expect(uid).toBe("u1");
+    // now = 2026-07-01 (środa) => poprzedni poniedziałek 2026-06-22.
+    expect(event.key).toBe("week-2026-06-22");
+    expect(event.type).toBe("week");
+    expect(event.payload.weekStart).toBe("2026-06-22");
+    expect(typeof event.payload.workouts).toBe("number");
+    expect(event.deepLink).toBe("/analytics");
+  });
+
+  it("dwa biegi tego samego tygodnia produkują ten sam klucz (idempotencja po stronie create)", async () => {
+    const writeUserEvent = vi.fn(async () => undefined);
+    const deps = makeDeps([{ uid: "u1", email: "a@b.c" }], { writeUserEvent });
+    await runWeeklyDigest(deps);
+    await runWeeklyDigest(deps);
+    expect(writeUserEvent.mock.calls[0][1].key).toBe(writeUserEvent.mock.calls[1][1].key);
+  });
+
+  it("user bez treningów nie dostaje zdarzenia; brak dep nie psuje digestu", async () => {
+    const writeUserEvent = vi.fn(async () => undefined);
+    const deps = makeDeps(
+      [{ uid: "u1", email: "a@b.c" }],
+      { writeUserEvent, queryCompletedWorkouts: vi.fn(async () => []) },
+    );
+    await runWeeklyDigest(deps);
+    expect(writeUserEvent).not.toHaveBeenCalled();
+
+    const legacy = makeDeps([{ uid: "u1", email: "a@b.c" }]);
+    await expect(runWeeklyDigest(legacy)).resolves.toMatchObject({ processed: 1 });
+  });
+});

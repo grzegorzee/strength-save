@@ -507,6 +507,34 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // B-T6: inbox zdarzeń (user_events). Serwer = źródło prawdy między
+    // urządzeniami. Id dokumentu = uid + '-' + klucz semantyczny (idempotencja:
+    // duplikat z drugiego urządzenia/późnego syncu to update spoza readAt,
+    // który jest odrzucany — oryginał zostaje). Update wyłącznie readAt.
+    match /user_events/{eventId} {
+      allow read: if request.auth != null
+                  && (isAdmin() || (resource != null && resource.data.userId == request.auth.uid));
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid
+        && eventId == request.auth.uid + '-' + request.resource.data.key
+        && request.resource.data.keys().hasOnly(['v', 'userId', 'type', 'key', 'payload', 'deepLink', 'createdAt', 'readAt'])
+        && request.resource.data.v == 1
+        && request.resource.data.type in ['pr', 'badge', 'week', 'plan']
+        && request.resource.data.key is string
+        && request.resource.data.key.size() >= 1
+        && request.resource.data.key.size() <= 200
+        && request.resource.data.payload is map
+        && (request.resource.data.deepLink == null
+            || (request.resource.data.deepLink is string && request.resource.data.deepLink.size() <= 200))
+        && request.resource.data.createdAt is int
+        && request.resource.data.readAt == null;
+      allow update: if request.auth != null
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt'])
+        && request.resource.data.readAt is int;
+      allow delete: if false;
+    }
+
     match /client_errors/{errorId} {
       allow create: if request.auth != null
         && request.resource.data.userId == request.auth.uid

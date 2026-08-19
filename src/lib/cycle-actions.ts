@@ -20,7 +20,14 @@ export interface StartCycleDeps {
   savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
+  /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
+  emitPlanEvent?: PlanEventEmitter;
 }
+
+export type PlanEventEmitter = (
+  action: 'started' | 'changed',
+  info: { days: number; weeks: number; startDate: string },
+) => void;
 
 export interface CompleteOnboardingChoice {
   days: TrainingDay[];
@@ -36,6 +43,8 @@ export interface CompleteOnboardingDeps {
   savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   markOnboardingComplete: (choice: CompleteOnboardingChoice, days: TrainingDay[], startDate: string) => Promise<void>;
+  /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
+  emitPlanEvent?: PlanEventEmitter;
 }
 
 // Z86: źródłem dni dla "Powtórz plan"/przedłużenia jest ZAWSZE bieżący plan
@@ -110,6 +119,13 @@ export async function startCycleWithPlan(
     }
   }
 
+  // B-T6: zdarzenie inboxa o zmianie/starcie planu; klucz po startDate cyklu
+  // jest idempotentny przy ponowieniu tej samej operacji.
+  deps.emitPlanEvent?.(
+    deps.planStartDate && deps.currentPlan.length > 0 ? 'changed' : 'started',
+    { days: uniqueDays.length, weeks: durationWeeks, startDate: newStart },
+  );
+
   return { success: true };
 }
 
@@ -136,6 +152,11 @@ export async function completeOnboardingPlan(
     if (!result.success) return result;
 
     await deps.markOnboardingComplete(choice, days, planStartDate);
+    deps.emitPlanEvent?.('started', {
+      days: days.length,
+      weeks: choice.durationWeeks,
+      startDate: planStartDate,
+    });
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : translate(deps.lang ?? 'pl', 'ob.errCompleteFailed') };

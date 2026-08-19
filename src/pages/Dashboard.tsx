@@ -11,6 +11,7 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useToday } from '@/hooks/useToday';
 import { useToast } from '@/hooks/use-toast';
 import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
+import { buildPlanEventEmitter } from '@/lib/user-events';
 import { type TrainingDay } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
@@ -199,6 +200,7 @@ const Dashboard = () => {
       lang,
       uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
       archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
+      emitPlanEvent: buildPlanEventEmitter(uid),
     });
     setIsRepeating(false);
     toast(res.success

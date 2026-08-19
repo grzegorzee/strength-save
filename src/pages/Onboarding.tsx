@@ -17,6 +17,7 @@ import {
 } from '@/lib/consent-selection';
 import { recordConsents } from '@/lib/consents-api';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
+import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
 import type { TrainingDay } from '@/data/trainingPlan';
 
@@ -87,6 +88,7 @@ const Onboarding = () => {
       lang,
       savePlan,
       createActiveCycle,
+      emitPlanEvent: buildPlanEventEmitter(uid),
       markOnboardingComplete: async () => updateDoc(doc(db, 'users', uid), {
         onboardingCompleted: true,
         // termsAcceptedAt: zgoda z kroku Welcome (checkbox blokuje Dalej, więc tu zawsze zaznaczona).

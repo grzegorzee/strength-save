@@ -46,7 +46,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { detectNewPRs, formatPRValue, getExerciseBest1RM, type PRComparison } from '@/lib/pr-utils';
-import { addInboxItem } from '@/lib/notification-inbox';
+import { badgeEventKey, emitUserEvent, prEventKey } from '@/lib/user-events';
 import { db } from '@/lib/firebase';
 import { saveWorkoutSessionRating } from '@/lib/workout-save';
 import { computeCompletionSummary } from '@/lib/workout-completion-summary';
@@ -2163,20 +2163,14 @@ const WorkoutDay = () => {
           title: t('workout.toast.newPRTitle', { n: effectivePRs.length }),
           description: prNames,
         });
-        // PRO-B T4: PR-y lądują też w centrum powiadomień (obok toastu, nie zamiast).
+        // B-T6: PR-y idą do serwerowego inboxa (user_events). Klucz z dayId+date
+        // +exerciseId+typ: Watch/Garmin/drugi telefon/późny sync dają JEDEN wpis.
         effectivePRs.forEach((pr) => {
-          addInboxItem(uid, {
+          void emitUserEvent(uid, {
             type: 'pr',
-            title: t('inbox.pr.title', { name: localizeExerciseName(pr.exerciseName, lang) }),
-            body: t('inbox.pr.body', {
-              value: formatPRValue(pr, {
-                prReps: (n) => t('workout.completion.prReps', { n }),
-                weight: fmt,
-                duration: fmtDuration,
-                // B-T2: PR z Epleya jest podpisany jako estymacja, nie fakt.
-                est1RM: (kg) => t('pr.est1rmValue', { value: fmt(kg) }),
-              }),
-            }),
+            key: prEventKey(dayId ?? 'adhoc', targetDate, pr.exerciseId, pr.type),
+            payload: { name: pr.exerciseName, prType: pr.type, newValue: pr.newValue },
+            deepLink: '/achievements',
           });
         });
       } else {
@@ -2204,15 +2198,16 @@ const WorkoutDay = () => {
         totalTonnage: statsBefore.totalTonnage + calculateTonnage([sessionForStats]),
         exercisesWithRecord: 0,
       };
+      // B-T6: kamienie milowe są życiowe, więc klucz badge-kategoria-próg jest
+      // idempotentny globalnie (drugie urządzenie nie zdubluje odznaki).
       diffMilestones(computeMilestones(statsBefore), computeMilestones(statsAfter))
         .filter((m) => m.category !== 'records')
         .forEach((m) => {
-          addInboxItem(uid, {
+          void emitUserEvent(uid, {
             type: 'badge',
-            title: t('inbox.badge.title'),
-            body: m.category === 'tonnage'
-              ? t('achievements.ms.tonnage', { n: Number((toDisplay(m.threshold) / 1000).toFixed(1)), unit: unit === 'lbs' ? ' k lbs' : 't' })
-              : t('achievements.ms.workouts', { n: m.threshold }),
+            key: badgeEventKey(m.category, m.threshold),
+            payload: { category: m.category, threshold: m.threshold },
+            deepLink: '/achievements',
           });
         });
     } else {
