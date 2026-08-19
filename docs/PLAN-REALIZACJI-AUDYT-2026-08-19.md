@@ -171,13 +171,37 @@ zielony; fizyczny lock 2 min pozostaje uczciwie w A-T5 i nie jest deklarowany ja
 
 ### A-T5 — prawdziwy kontrakt offline
 
-- [ ] Wzmocnić `check:dist-offline`: zalogowany cached profile/plan, cold reload offline,
+- [x] Wzmocnić `check:dist-offline`: zalogowany cached profile/plan, cold reload offline,
   konkretne CTA Dashboardu, wejście w nieogrzany lazy route, zapis draftu.
-- [ ] E2E bez bypassu `UserProvider` dla co najmniej cached active/suspended/no-cache.
+  **Dowód:** `1874a53e`; dokładny produkcyjny `dist`, syntetyczny user wyłącznie w
+  emulatorach Auth/Firestore, pełne odcięcie sieci po seedzie i GREEN wszystkich sześciu
+  markerów kontraktu. Runtime switch emulatora działa tylko w przeglądarce na loopback,
+  nigdy w natywnym Capacitorze ani na hostingu.
+- [x] E2E bez bypassu `UserProvider` dla co najmniej cached active/suspended/no-cache.
+  **Dowód:** `offline-user-provider.spec.ts` 3/3 GREEN na Auth+Firestore+Functions;
+  brak `fittracker_e2e_auth_state`, cached active wchodzi, suspended pozostaje fail-closed,
+  a no-cache nie dostaje sfabrykowanego profilu.
 - [ ] Scenariusz native: online seed → force quit → airplane → launch → start → seria →
   lock 2 min → resume → finish offline → kill → launch offline → reconnect → jeden sync.
+  **Częściowy dowód:** Chromium wykonuje realny freeze renderera, Chromium/WebKit 6/6
+  zachowują draft po cold kill, a test kolejki potwierdza dokładnie jeden final po
+  reconnect mimo duplikatu draft+kolejka. **BLOCKER:** fizyczny `Iphone (Greg)` ma stan
+  `unavailable`, ADB nie widzi urządzenia; symulator nie reprodukuje suspendu WKWebView
+  po zgaszeniu ekranu ani 2-minutowego locka. Wymagany pełny przebieg bez realnego konta.
 - [ ] Ten sam kontrakt uruchomić na iOS i Android; Watch/Garmin zweryfikować przy
   odpowiadających im kolejkach offline i ingest.
+  **Częściowy dowód:** bieżący mobile bundle kompiluje pełny iOS scheme i uruchamia
+  iPhone+Watch (w App osadzone `StrengthWatch.app` i `StrengthWatchWidgets.appex`), Android
+  `assembleDebug` tworzy APK, Garmin `epix2` buduje i uruchamia PRG. Test 3/3 potwierdza
+  Watch durable-before-transmit/ACK-only oraz Garmin Storage/clear-on-success i dedup ingest.
+  **BLOCKER:** brak fizycznego Androida, Apple Watch i Garmina; Android SDK nie ma też
+  emulatora/AVD. Build/symulator nie jest przedstawiony jako real-device PASS.
+
+**A-T5 BLOCKED (`1874a53e`):** niezależne bramki automatyczne są GREEN: Vitest 232/232
+i 1699/1699, typecheck, lint, build, bundle/dist/offline/no-emoji, UserProvider emulator
+3/3 oraz workout kill/offline 6/6. iOS 1.0.0 (103), Android APK i Garmin PRG budują się;
+pełne dowody i procedura domknięcia: `docs/RAPORT-OFFLINE-A-T5-2026-08-19.md`. A-RELEASE
+nie może ruszyć przed jednym pełnym przebiegiem fizycznym iOS+Android+Watch+Garmin.
 
 ### A-RELEASE — wspólne wydanie A
 

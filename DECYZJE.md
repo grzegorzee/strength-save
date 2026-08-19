@@ -2521,3 +2521,34 @@ assertion, nadal najwyżej raz na 2 minuty. Przed reloadem `WorkoutDay` buduje s
 bundle/dist/offline/no-emoji GREEN. Playwright 2/2 potwierdza brak osieroconego scroll-locka
 oraz komplet serii po kill→resume bez realnego konta. Natywny `appStateChange` ma osobny
 test repaintu; fizyczne zgaszenie ekranu na 2 minuty pozostaje bramką A-T5.
+
+---
+
+## SESJA 2026-08-19 — audyt realizacyjny A-T5: produkcyjny kontrakt offline
+
+**Root cause:** dotychczasowy `check:dist-offline` sprawdzał tylko, czy anonimowy root
+wyrenderował się z precache. Nie dowodził odtworzenia Firebase Auth, profilu, planu,
+konkretnego CTA, nieogrzanego lazy route ani lokalnego zapisu serii. Emulatorowe E2E
+mogły też ominąć prawdziwy `UserProvider`, a wspólny scenariusz kolejek zegarków nie miał
+jednego jawnego testu offline→retry→dedup.
+
+**Decyzja:** bramka buduje dokładny webowy `dist`, seeduje wyłącznie syntetycznego usera
+w lokalnych Auth/Firestore, loguje się prawdziwym Firebase Auth, a potem odcina cały
+kontekst sieciowy. Produkcyjny build może wybrać emulatory tylko jawnym parametrem na
+przeglądarkowym loopback; natywny Capacitor jest zawsze fail-closed. Osobne E2E uruchamiają
+prawdziwy `UserProvider` dla active/suspended/no-cache. Niezmiennik reconnect deduplikuje
+draft i wpis kolejki do jednego final, Watch zapisuje przed transportem i usuwa po ACK,
+a Garmin trzyma Storage do udanego, idempotentnego ingest.
+
+**Dowód (`1874a53e`):** początkowy RED brak modułu runtime oraz osobny RED ochrony native;
+GREEN 232/232 pliki i 1699/1699 testów, typecheck, lint, build, bundle/dist/offline/no-emoji.
+E2E Auth+Firestore+Functions 3/3 bez bypassu oraz Chromium/WebKit kill/offline 6/6.
+Mobile build z base `./` kompiluje pełny iOS scheme; iPhone i Watch uruchamiają App oraz
+osadzony `StrengthWatch`/widget (1.0.0 build 103). Android `assembleDebug`, Garmin `epix2`
+i trzy testy trwałości/dedupu są GREEN. Nie użyto realnego konta ani produkcyjnego zapisu.
+
+**Jawny blocker:** `xcrun devicectl list devices` pokazuje `Iphone (Greg)` jako
+`unavailable`; `adb devices -l` jest puste, a lokalny Android SDK nie ma emulatora/AVD.
+Brak też fizycznych Apple Watch i Garmin. Symulator nie dowodzi 2-minutowego locka ani
+suspendu WKWebView, więc A-T5 i A-RELEASE pozostają otwarte. Dokładna procedura domknięcia
+i komplet dowodów są w `docs/RAPORT-OFFLINE-A-T5-2026-08-19.md`.
