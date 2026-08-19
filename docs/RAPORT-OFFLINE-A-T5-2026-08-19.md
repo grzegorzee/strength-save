@@ -180,3 +180,34 @@ naprawionego UI Garmina `5827b395`) — kandydat na osobny task.
 
 Stan po dokończeniu: z czterech PASS-ów procedury brakuje wyłącznie fizycznego
 iPhone'a i fizycznego Androida (kroki właściciela). Watch i Garmin domknięte.
+
+## Przebieg kontrolny nr 2 (2026-08-19, 20:09-20:21) — dokument potwierdzony przez REST
+
+Powtórka na życzenie właściciela, na żywych emulatorach. Korekta wcześniejszego
+zastrzeżenia: dokument BYŁ w emulatorze cały czas — poprzednie odczyty REST biły w złą
+ścieżkę (`users/{uid}/workouts`), a kolekcja `workouts` jest top-level. Przebieg:
+
+1. Seed żywy (users/{uid} HTTP 200), świeży kontekst dnia planu na zegarku.
+2. QA LOG 42,5×5 przy zabitym telefonie: WCSession OBUDZIŁ apkę telefonu w tle
+   (nowy pid), natywna kolejka przyjęła event, webview zapisał trwale, ACK wrócił
+   natychmiast i zegarek wyczyścił kolejkę. Silniejszy wariant kontraktu niż pending:
+   system dostarcza nawet do zabitej apki. Ścieżka pending/restart/retry ma osobny
+   dowód z przebiegu nr 1 (fix 60ef6c8c).
+3. QA FINISH przy ponownie zabitym telefonie: znów background wake + ACK; finalizacja
+   i final sync po wyjściu apki na foreground (JS w tle dostaje tylko chwilę, zgodnie
+   z naturą iOS).
+4. Dowód REST (kolekcja top-level `workouts`): DOKŁADNIE JEDEN dokument
+   `workout-Wmm2n1igMWi7N9E0hi3w3GfmVZpA-ios-offline-day-2026-08-19`,
+   userId syntetyczny, date 2026-08-19, durationSec 69, revision 1, Przysiad 4 sety,
+   jedna ukończona 42,5 kg × 5 (isWarmup=true: przycisk QA celuje w setIndex 0,
+   czyli wiersz rozgrzewkowy — artefakt scaffoldingu, nie bug), zero duplikatów.
+5. Cross-device bonus: pełny uninstall telefonu + świeża instalacja + login odtworzyły
+   stan z chmury (Dashboard „Workout completed!", 1 of 1 sessions, Workouts 1).
+
+Higiena: świeża instalacja z bundlem produkcyjnym poprawnie ODMÓWIŁA logowania
+syntetycznym kontem (auth/invalid-credential o 20:18 — produkcyjny Auth go nie zna;
+nic nie trafiło do produkcji). Emulatory w natywnej apce włącza wyłącznie build-time
+`VITE_USE_EMULATORS=true` + cap copy; po QA przywrócono bundle produkcyjny w
+`ios/App/App/public`, a przyciski QA usunięto z repo (zostały tylko w buildzie
+zainstalowanym na symulatorach). Odrzucona przez reguły telemetria
+(`app_telemetry_daily`, L471) z 19:43 to osobna obserwacja do sprawdzenia przy B-T6.
