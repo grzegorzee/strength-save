@@ -20,6 +20,25 @@ describe('A-T5: trwały kontrakt offline urządzeń ubieralnych', () => {
     expect(acknowledgeBody).toContain('defaults.set(remaining, forKey: pendingEventsKey)');
   });
 
+  it('restart zegarka nie gubi kolejki: aktywacja sesji i powrót reachability retransmitują pending', () => {
+    const store = read('ios/App/WatchApp/WorkoutStore.swift');
+    const activationBody = store.split('activationDidCompleteWith')[1]?.split('nonisolated func')[0] ?? '';
+    const reachabilityBody =
+      store.split('func sessionReachabilityDidChange')[1]?.split('nonisolated func')[0] ?? '';
+
+    expect(activationBody).toContain('retryPendingEvents()');
+    expect(reachabilityBody).toContain('retryPendingEvents()');
+  });
+
+  it('ekran zakończonego treningu z pending pokazuje licznik i daje Retry (wyjście ze stanu)', () => {
+    const view = read('ios/App/WatchApp/ContentView.swift');
+    const finishedBody =
+      view.split('private func finishedView')[1]?.split('struct WorkoutListView')[0] ?? '';
+
+    expect(finishedBody).toContain('pendingEventCount');
+    expect(finishedBody).toContain('retryPendingEvents');
+  });
+
   it('Garmin zachowuje kolejkę w Storage po błędzie i czyści ją tylko po udanym ingest', () => {
     const queue = read('garmin/source/EventQueue.mc');
     const state = read('garmin/source/WorkoutState.mc');

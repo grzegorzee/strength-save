@@ -662,6 +662,9 @@ extension WorkoutStore: WCSessionDelegate {
         Task { @MainActor in
             self.isPhoneReachable = session.isReachable
             self.handleContext(context)
+            // Restart zegarka gubi systemowe transfery userInfo; trwała kolejka
+            // musi retransmitować się sama przy każdej aktywacji sesji.
+            self.retryPendingEvents()
         }
     }
 
@@ -676,6 +679,7 @@ extension WorkoutStore: WCSessionDelegate {
         Task { @MainActor in
             self.isPhoneReachable = reachable
             self.refreshPendingCount()
+            if reachable { self.retryPendingEvents() }
         }
     }
 

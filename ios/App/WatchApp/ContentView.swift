@@ -69,6 +69,12 @@ struct ContentView: View {
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
+            if store.pendingEventCount > 0 {
+                Text(L10n.pendingEvents(store.pendingEventCount))
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                Button(L10n.retry) { store.retryPendingEvents() }
+            }
         }
         .padding()
     }
