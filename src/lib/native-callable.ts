@@ -36,6 +36,8 @@ const normalizeCallableCode = (status: string | undefined): string =>
 export const supportsNativeAttestation = (platform: string): boolean =>
   platform === 'ios' || platform === 'android';
 
+export const NATIVE_CALLABLE_TIMEOUT_MS = 10_000;
+
 export async function invokeCallableProtocol<RequestData, ResponseData>(input: {
   functionName: string;
   data: RequestData;
@@ -44,6 +46,7 @@ export async function invokeCallableProtocol<RequestData, ResponseData>(input: {
   authToken: string;
   appCheckToken?: string;
   fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
 }): Promise<ResponseData> {
   const fetchImpl = input.fetchImpl ?? fetch;
   const url = `https://${input.region}-${input.projectId}.cloudfunctions.net/${input.functionName}`;
@@ -58,6 +61,7 @@ export async function invokeCallableProtocol<RequestData, ResponseData>(input: {
     method: 'POST',
     headers,
     body: JSON.stringify({ data: input.data }),
+    signal: input.signal,
   });
 
   let envelope: CallableEnvelope<ResponseData>;
@@ -115,19 +119,38 @@ export async function callNativeAttestedFunction<RequestData, ResponseData>(
     throw new CallableProtocolError('unauthenticated', 'Must be logged in');
   }
 
-  const [authToken, appCheckToken] = await Promise.all([
-    currentUser.getIdToken(),
-    fetchAppCheckTokenBestEffort(),
-  ]);
-
-  return invokeCallableProtocol<RequestData, ResponseData>({
-    functionName,
-    data,
-    projectId: firebaseConfig.projectId,
-    region: 'us-central1',
-    authToken,
-    appCheckToken,
+  const abortController = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      abortController.abort();
+      reject(new CallableProtocolError('deadline-exceeded', 'Native callable timed out'));
+    }, NATIVE_CALLABLE_TIMEOUT_MS);
   });
+  const request = (async () => {
+    const [authToken, appCheckToken] = await Promise.all([
+      currentUser.getIdToken(),
+      fetchAppCheckTokenBestEffort(),
+    ]);
+    if (abortController.signal.aborted) {
+      throw new CallableProtocolError('deadline-exceeded', 'Native callable timed out');
+    }
+    return invokeCallableProtocol<RequestData, ResponseData>({
+      functionName,
+      data,
+      projectId: firebaseConfig.projectId,
+      region: 'us-central1',
+      authToken,
+      appCheckToken,
+      signal: abortController.signal,
+    });
+  })();
+
+  try {
+    return await Promise.race([request, timeout]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
 }
 
 // Attestacja to zależność zewnętrzna (Secure Enclave, serwery Apple, wymiana

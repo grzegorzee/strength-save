@@ -2,34 +2,48 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppUserProfile } from '@/lib/registration-api';
 
+type Snapshot = {
+  exists: () => boolean;
+  data: () => AppUserProfile;
+  metadata: { fromCache: boolean };
+};
+
+type Listener = {
+  next: (snapshot: Snapshot) => void;
+  error: (error: Error) => void;
+  unsubscribe: ReturnType<typeof vi.fn>;
+};
+
 const mocks = vi.hoisted(() => ({
-  snapshotNext: null as null | ((snapshot: {
-    exists: () => boolean;
-    data: () => AppUserProfile;
-    metadata?: { fromCache: boolean };
-  }) => void),
+  user: {
+    uid: 'user-1',
+    email: 'user-1@example.com',
+    displayName: 'User 1',
+    photoURL: '',
+  } as { uid: string; email: string; displayName: string; photoURL: string } | null,
+  listeners: new Map<string, Listener>(),
   syncUserProfile: vi.fn(),
   redeemInvite: vi.fn(),
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: {
-      uid: 'user-1',
-      email: 'user@example.com',
-      displayName: 'User',
-      photoURL: '',
-    },
-  }),
+  useAuth: () => ({ user: mocks.user }),
+  FUNNEL_REGISTERED_KEY: 'strength-save:funnel-registered',
 }));
 
 vi.mock('@/lib/firebase', () => ({ db: {} }));
 
 vi.mock('firebase/firestore', () => ({
-  doc: vi.fn(() => ({ path: 'users/user-1' })),
-  onSnapshot: vi.fn((_ref, next) => {
-    mocks.snapshotNext = next;
-    return vi.fn();
+  doc: vi.fn((_db, collection: string, uid: string) => ({ path: `${collection}/${uid}` })),
+  onSnapshot: vi.fn((ref: { path: string }, ...args: unknown[]) => {
+    const nextIndex = typeof args[0] === 'function' ? 0 : 1;
+    const unsubscribe = vi.fn();
+    mocks.listeners.set(ref.path, {
+      next: args[nextIndex] as Listener['next'],
+      error: args[nextIndex + 1] as Listener['error'],
+      unsubscribe,
+    });
+    return unsubscribe;
   }),
 }));
 
@@ -46,80 +60,182 @@ vi.mock('@/lib/pending-invite', () => ({
 
 import { UserProvider, useCurrentUser } from '@/contexts/UserContext';
 
-const profile: AppUserProfile = {
-  uid: 'user-1',
-  email: 'user@example.com',
-  displayName: 'User',
+const profile = (
+  uid: string,
+  status: AppUserProfile['status'] = 'active',
+): AppUserProfile => ({
+  uid,
+  email: `${uid}@example.com`,
+  displayName: uid,
   photoURL: '',
   role: 'user',
-  access: { enabled: false },
-  status: 'pending_verification',
-  auth: { primaryProvider: 'password' },
-  onboardingCompleted: false,
+  access: { enabled: status === 'active' },
+  status,
+  auth: { primaryProvider: 'google' },
+  onboardingCompleted: true,
+});
+
+const snapshot = (data: AppUserProfile | null, fromCache: boolean): Snapshot => ({
+  exists: () => data !== null,
+  data: () => data as AppUserProfile,
+  metadata: { fromCache },
+});
+
+const deferred = <T,>() => {
+  let resolve: (value: T) => void = () => undefined;
+  let reject: (error: Error) => void = () => undefined;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+const emit = async (uid: string, data: AppUserProfile | null, fromCache: boolean) => {
+  await act(async () => {
+    mocks.listeners.get(`users/${uid}`)?.next(snapshot(data, fromCache));
+  });
 };
 
 const Probe = () => {
   const current = useCurrentUser();
   return (
     <div>
+      <span data-testid="uid">{current.uid}</span>
       <span data-testid="loaded">{String(current.profileLoaded)}</span>
       <span data-testid="status">{current.profile?.status ?? 'none'}</span>
+      <span data-testid="access">{String(current.hasAppAccess)}</span>
       <span data-testid="error">{current.profileLoadError ?? 'none'}</span>
     </div>
   );
 };
 
-describe('UserProvider profile bootstrap', () => {
+describe('UserProvider cache-first profile bootstrap', () => {
   beforeEach(() => {
-    mocks.snapshotNext = null;
+    mocks.user = {
+      uid: 'user-1', email: 'user-1@example.com', displayName: 'User 1', photoURL: '',
+    };
+    mocks.listeners.clear();
     mocks.syncUserProfile.mockReset();
     mocks.redeemInvite.mockReset();
   });
 
-  it('does not expose a fabricated pending profile before sync creates the user document', async () => {
-    let resolveSync: (value: AppUserProfile) => void = () => undefined;
-    mocks.syncUserProfile.mockReturnValue(new Promise<AppUserProfile>((resolve) => {
-      resolveSync = resolve;
-    }));
-
+  it('wpuszcza cached active bez czekania na wiszący sync', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
     render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', profile('user-1'), true);
+
+    expect(screen.getByTestId('loaded')).toHaveTextContent('true');
+    expect(screen.getByTestId('status')).toHaveTextContent('active');
+    expect(screen.getByTestId('access')).toHaveTextContent('true');
+  });
+
+  it('zachowuje cached active i dostęp po błędzie sync', async () => {
+    const sync = deferred<AppUserProfile>();
+    mocks.syncUserProfile.mockReturnValue(sync.promise);
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', profile('user-1'), true);
+    await act(async () => sync.reject(new Error('offline')));
+
+    await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('offline'));
+    expect(screen.getByTestId('status')).toHaveTextContent('active');
+    expect(screen.getByTestId('access')).toHaveTextContent('true');
+  });
+
+  it('cached suspended blokuje dostęp offline', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', profile('user-1', 'suspended'), true);
+
+    expect(screen.getByTestId('loaded')).toHaveTextContent('true');
+    expect(screen.getByTestId('status')).toHaveTextContent('suspended');
+    expect(screen.getByTestId('access')).toHaveTextContent('false');
+  });
+
+  it('brak cache nowego usera nie fabrykuje profilu ani dostępu', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', null, true);
 
     expect(screen.getByTestId('loaded')).toHaveTextContent('false');
     expect(screen.getByTestId('status')).toHaveTextContent('none');
+    expect(screen.getByTestId('access')).toHaveTextContent('false');
+  });
 
-    // The old implementation subscribed immediately. Firestore reported a missing
-    // document before syncUserProfile finished and mounted EmailVerificationGate.
-    expect(mocks.snapshotNext).toBeNull();
+  it('niezmiennik starego flow: brak cache + udany sync tworzy profil pending', async () => {
+    const sync = deferred<AppUserProfile>();
+    mocks.syncUserProfile.mockReturnValue(sync.promise);
+    render(<UserProvider><Probe /></UserProvider>);
 
-    await act(async () => resolveSync(profile));
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', null, true);
+    expect(screen.getByTestId('loaded')).toHaveTextContent('false');
 
+    await act(async () => sync.resolve(profile('user-1', 'pending_verification')));
     await waitFor(() => {
       expect(screen.getByTestId('loaded')).toHaveTextContent('true');
       expect(screen.getByTestId('status')).toHaveTextContent('pending_verification');
-      expect(mocks.snapshotNext).not.toBeNull();
+      expect(screen.getByTestId('access')).toHaveTextContent('false');
     });
-
-    await act(async () => {
-      mocks.snapshotNext?.({
-        exists: () => false,
-        data: () => profile,
-        metadata: { fromCache: true },
-      });
-    });
-
-    expect(screen.getByTestId('status')).toHaveTextContent('pending_verification');
-    expect(screen.getByTestId('error')).toHaveTextContent('none');
   });
 
-  it('returns a load error with no pending profile when profile creation fails', async () => {
-    mocks.syncUserProfile.mockRejectedValue(new Error('Registration requires attestation'));
+  it('zmiana uid czyści stary cache i ignoruje spóźniony wynik starego sync', async () => {
+    const firstSync = deferred<AppUserProfile>();
+    const secondSync = deferred<AppUserProfile>();
+    mocks.syncUserProfile
+      .mockReturnValueOnce(firstSync.promise)
+      .mockReturnValueOnce(secondSync.promise);
+    const view = render(<UserProvider><Probe /></UserProvider>);
 
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', profile('user-1'), true);
+    expect(screen.getByTestId('access')).toHaveTextContent('true');
+
+    mocks.user = {
+      uid: 'user-2', email: 'user-2@example.com', displayName: 'User 2', photoURL: '',
+    };
+    view.rerender(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-2')).toBe(true));
+    expect(screen.getByTestId('uid')).toHaveTextContent('user-2');
+    expect(screen.getByTestId('loaded')).toHaveTextContent('false');
+    expect(screen.getByTestId('status')).toHaveTextContent('none');
+    expect(mocks.listeners.get('users/user-1')?.unsubscribe).toHaveBeenCalledOnce();
+
+    await act(async () => firstSync.resolve(profile('user-1')));
+    expect(screen.getByTestId('status')).toHaveTextContent('none');
+
+    await emit('user-2', profile('user-2', 'suspended'), true);
+    expect(screen.getByTestId('status')).toHaveTextContent('suspended');
+    expect(screen.getByTestId('access')).toHaveTextContent('false');
+  });
+
+  it('po reconnect ponawia sync, a serwerowa revokacja zastępuje cached active', async () => {
+    const firstSync = deferred<AppUserProfile>();
+    mocks.syncUserProfile
+      .mockReturnValueOnce(firstSync.promise)
+      .mockReturnValueOnce(new Promise(() => undefined));
     render(<UserProvider><Probe /></UserProvider>);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('loaded')).toHaveTextContent('true');
-      expect(screen.getByTestId('status')).toHaveTextContent('none');
-      expect(screen.getByTestId('error')).toHaveTextContent('Registration requires attestation');
-    });
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', profile('user-1'), true);
+    await act(async () => firstSync.reject(new Error('offline')));
+    await waitFor(() => expect(screen.getByTestId('error')).toHaveTextContent('offline'));
+
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => expect(mocks.syncUserProfile).toHaveBeenCalledTimes(2));
+
+    await emit('user-1', profile('user-1', 'suspended'), false);
+    expect(screen.getByTestId('status')).toHaveTextContent('suspended');
+    expect(screen.getByTestId('access')).toHaveTextContent('false');
+    expect(screen.getByTestId('error')).toHaveTextContent('none');
   });
 });

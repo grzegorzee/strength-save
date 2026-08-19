@@ -166,4 +166,33 @@ describe('native attested callable protocol', () => {
     await expect(callNativeAttestedFunction('syncUserProfile', {}))
       .rejects.toMatchObject({ code: 'unauthenticated' });
   });
+
+  it('aborts a native callable at the hard deadline instead of hanging bootstrap', async () => {
+    vi.useFakeTimers();
+    nativeMocks.platform = 'ios';
+    nativeMocks.auth.currentUser = { getIdToken: vi.fn().mockResolvedValue('auth-token') };
+    nativeMocks.initialize.mockResolvedValue(undefined);
+    nativeMocks.getToken.mockResolvedValue({ token: 'app-check-token', expireTimeMillis: Date.now() + 60_000 });
+    const request = { signal: null as AbortSignal | null };
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      request.signal = init?.signal ?? null;
+      return new Promise<Response>(() => undefined);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const outcome = Promise.race([
+      callNativeAttestedFunction('syncUserProfile', {}).then(
+        () => 'resolved',
+        (error: { code?: string }) => error.code ?? 'rejected',
+      ),
+      new Promise<string>((resolve) => setTimeout(() => resolve('still-pending'), 10_001)),
+    ]);
+
+    await vi.advanceTimersByTimeAsync(10_001);
+    expect(await outcome).toBe('deadline-exceeded');
+    expect(request.signal?.aborted).toBe(true);
+
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 });

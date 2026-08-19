@@ -94,102 +94,119 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
 
     let cancelled = false;
-    let unsubscribe: () => void = () => undefined;
+    let initialSyncSettled = false;
+    let syncInFlight: Promise<void> | null = null;
 
     setProfile(null);
     setProfileLoaded(false);
     setProfileLoadError(null);
 
-    const bootstrapUserProfile = async () => {
-      try {
-        const inviteFromLocation = readInviteCodeFromLocation();
-        if (inviteFromLocation) {
-          setPendingInviteCode(inviteFromLocation);
-        }
-        let syncedProfile = await syncUserProfile();
-        const pendingInviteCode = consumePendingInviteCode();
-        if (pendingInviteCode) {
-          try {
-            await redeemInvite(pendingInviteCode);
-            syncedProfile = await syncUserProfile();
-          } catch (inviteError) {
-            console.error('Failed to redeem invite after login:', inviteError);
-          }
-        }
-
-        if (cancelled) return;
-        // Z222: para do register_started — pierwszy udany sync profilu po
-        // rejestracji w tej sesji przeglądarki = profil utworzony.
-        try {
-          if (sessionStorage.getItem(FUNNEL_REGISTERED_KEY) === userId) {
-            sessionStorage.removeItem(FUNNEL_REGISTERED_KEY);
-            trackTelemetryEvent(userId, 'profile_created');
-          }
-        } catch { /* brak storage — pomijamy parę */ }
-        setProfile(mapAppUserProfile(userId, syncedProfile, authProfileSeed));
+    // Persistent Firestore cache jest pierwszym źródłem cold/offline. Listener
+    // musi powstać PRZED callable; pusty cache nie tworzy profilu ani dostępu.
+    const unsubscribe = onSnapshot(docRef, { includeMetadataChanges: true }, (snapshot) => {
+      if (cancelled) return;
+      if (snapshot.exists()) {
+        const data = snapshot.data() as AppUserProfile;
+        setProfile(mapAppUserProfile(userId, data, authProfileSeed));
         setProfileLoadError(null);
         setProfileLoaded(true);
-
-        // Subskrypcja startuje dopiero po idempotentnym utworzeniu profilu.
-        // Inaczej pierwszy pusty snapshot montowal bramke kodu przed zakonczeniem
-        // syncUserProfile i requestEmailVerificationCode widzial brak users/{uid}.
-        unsubscribe = onSnapshot(docRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const data = snapshot.data() as AppUserProfile;
-            setProfile(mapAppUserProfile(userId, data, authProfileSeed));
-            setProfileLoadError(null);
-          } else if (snapshot.metadata.fromCache) {
-            // Callable wlasnie potwierdzil i zwrocil profil. Pusty pierwszy
-            // snapshot z lokalnego cache nie moze nadpisac tego stanu.
-            return;
-          } else {
-            setProfile(null);
-            setProfileLoadError('User profile missing after synchronization');
-          }
-          setProfileLoaded(true);
-        }, (err) => {
-          console.error('Error fetching user profile:', err);
-          setProfile((currentProfile) => resolveProfileLoadFailure(currentProfile));
-          setProfileLoadError(err.message || 'Profile load failed');
-          setProfileLoaded(true);
-        });
-      } catch (err) {
-        console.error('Error syncing user profile:', err);
-        if (!cancelled) {
-          const message = err instanceof Error ? err.message : 'Profile sync failed';
-          setProfile(null);
-          setProfileLoadError(message);
-          setProfileLoaded(true);
-        }
+      } else if (snapshot.metadata.fromCache || !initialSyncSettled) {
+        return;
+      } else {
+        setProfile(null);
+        setProfileLoadError('User profile missing after synchronization');
+        setProfileLoaded(true);
       }
+    }, (err) => {
+      if (cancelled) return;
+      console.error('Error fetching user profile:', err);
+      setProfile((currentProfile) => resolveProfileLoadFailure(currentProfile));
+      setProfileLoadError(err.message || 'Profile load failed');
+      setProfileLoaded(true);
+    });
+
+    const runProfileSync = () => {
+      if (syncInFlight) return syncInFlight;
+      const attempt = (async () => {
+        try {
+          const inviteFromLocation = readInviteCodeFromLocation();
+          if (inviteFromLocation) {
+            setPendingInviteCode(inviteFromLocation);
+          }
+          let syncedProfile = await syncUserProfile();
+          const pendingInviteCode = consumePendingInviteCode();
+          if (pendingInviteCode) {
+            try {
+              await redeemInvite(pendingInviteCode);
+              syncedProfile = await syncUserProfile();
+            } catch (inviteError) {
+              console.error('Failed to redeem invite after login:', inviteError);
+            }
+          }
+
+          if (cancelled) return;
+          // Z222: para do register_started — pierwszy udany sync profilu po
+          // rejestracji w tej sesji przeglądarki = profil utworzony.
+          try {
+            if (sessionStorage.getItem(FUNNEL_REGISTERED_KEY) === userId) {
+              sessionStorage.removeItem(FUNNEL_REGISTERED_KEY);
+              trackTelemetryEvent(userId, 'profile_created');
+            }
+          } catch { /* brak storage — pomijamy parę */ }
+          setProfile(mapAppUserProfile(userId, syncedProfile, authProfileSeed));
+          setProfileLoadError(null);
+          setProfileLoaded(true);
+        } catch (err) {
+          console.error('Error syncing user profile:', err);
+          if (!cancelled) {
+            const message = err instanceof Error ? err.message : 'Profile sync failed';
+            setProfile((currentProfile) => resolveProfileLoadFailure(currentProfile));
+            setProfileLoadError(message);
+            setProfileLoaded(true);
+          }
+        } finally {
+          initialSyncSettled = true;
+        }
+      })();
+      syncInFlight = attempt;
+      void attempt.finally(() => {
+        if (syncInFlight === attempt) syncInFlight = null;
+      });
+      return attempt;
     };
 
-    void bootstrapUserProfile();
+    void runProfileSync();
+    const handleOnline = () => void runProfileSync();
+    window.addEventListener('online', handleOnline);
 
     return () => {
       cancelled = true;
+      window.removeEventListener('online', handleOnline);
       unsubscribe();
     };
   }, [userDisplayName, userEmail, userId, userPhotoUrl]);
 
   if (!userId) return null;
 
-  const needsEmailVerification = profileLoaded && profile?.status === 'pending_verification';
-  const isSuspended = profileLoaded && profile?.status === 'suspended';
-  const isNewUser = profileLoaded && profile !== null && profile.status === 'active' && !profile.onboardingCompleted;
-  const hasAppAccess = profile?.role === 'admin' || (
-    profile?.status === 'active' && profile?.accessEnabled !== false
+  // Auth może zmienić uid o render wcześniej niż cleanup efektu. Nigdy nie
+  // wystawiamy profilu poprzedniego konta pod nowym uid nawet przez jedną klatkę.
+  const currentProfile = profile?.uid === userId ? profile : null;
+  const needsEmailVerification = profileLoaded && currentProfile?.status === 'pending_verification';
+  const isSuspended = profileLoaded && currentProfile?.status === 'suspended';
+  const isNewUser = profileLoaded && currentProfile !== null && currentProfile.status === 'active' && !currentProfile.onboardingCompleted;
+  const hasAppAccess = currentProfile?.role === 'admin' || (
+    currentProfile?.status === 'active' && currentProfile?.accessEnabled !== false
   );
 
   return (
     <UserContext.Provider value={{
       uid: userId,
-      profile,
-      isAdmin: profile?.role === 'admin',
+      profile: currentProfile,
+      isAdmin: currentProfile?.role === 'admin',
       hasAppAccess,
       needsEmailVerification,
       isSuspended,
-      canUseStrava: hasAppAccess && (profile?.features?.strava ?? profile?.role === 'admin'),
+      canUseStrava: hasAppAccess && (currentProfile?.features?.strava ?? currentProfile?.role === 'admin'),
       isNewUser,
       profileLoaded,
       profileLoadError,
