@@ -32,13 +32,51 @@ beforeEach(() => {
 });
 
 describe('VacationDialog', () => {
-  it('konfiguracja: start + długość + aktywność, Dodaj wyjazd przekazuje wszystko', () => {
+  it('konfiguracja: start + preset długości + aktywność, Dodaj wyjazd przekazuje wszystko', () => {
     const { onEnable } = renderDialog();
     fireEvent.change(screen.getByTestId('vac-start'), { target: { value: '2026-08-17' } });
     fireEvent.click(screen.getByTestId('vac-days-14'));
     fireEvent.click(screen.getByTestId('vac-activity-mains_only'));
     fireEvent.click(screen.getByTestId('vac-enable'));
     expect(onEnable).toHaveBeenCalledWith('2026-08-17', 14, 'mains_only');
+  });
+
+  it('C-T1: zakres Od-Do liczy dni włącznie i pokazuje podsumowanie przed zapisem', () => {
+    const { onEnable } = renderDialog();
+    fireEvent.change(screen.getByTestId('vac-start'), { target: { value: '2026-08-23' } });
+    fireEvent.change(screen.getByTestId('vac-end'), { target: { value: '2026-08-31' } });
+    // Podsumowanie: 9 dni + wydłużenie o 2 tyg. (ceil(9/7)).
+    expect(screen.getByTestId('vac-summary').textContent).toContain('9');
+    expect(screen.getByTestId('vac-summary').textContent).toContain('2');
+    fireEvent.click(screen.getByTestId('vac-enable'));
+    expect(onEnable).toHaveBeenCalledWith('2026-08-23', 9, 'none');
+  });
+
+  it('C-T1: preset ustawia Do względem Od (14 dni = start+13)', () => {
+    renderDialog();
+    fireEvent.change(screen.getByTestId('vac-start'), { target: { value: '2026-12-28' } });
+    fireEvent.click(screen.getByTestId('vac-days-14'));
+    expect((screen.getByTestId('vac-end') as HTMLInputElement).value).toBe('2027-01-10');
+  });
+
+  it('C-T1: koniec przed początkiem blokuje zapis z komunikatem', () => {
+    const { onEnable } = renderDialog();
+    fireEvent.change(screen.getByTestId('vac-start'), { target: { value: '2026-08-23' } });
+    fireEvent.change(screen.getByTestId('vac-end'), { target: { value: '2026-08-20' } });
+    expect(screen.getByText(/Koniec przed początkiem/)).toBeTruthy();
+    fireEvent.click(screen.getByTestId('vac-enable'));
+    expect(onEnable).not.toHaveBeenCalled();
+  });
+
+  it('C-T1: zakres poza 3-21 dni blokuje zapis (min i max)', () => {
+    const { onEnable } = renderDialog();
+    fireEvent.change(screen.getByTestId('vac-start'), { target: { value: '2026-08-23' } });
+    fireEvent.change(screen.getByTestId('vac-end'), { target: { value: '2026-09-30' } });
+    expect(screen.getByText(/Maksymalnie 21/)).toBeTruthy();
+    fireEvent.change(screen.getByTestId('vac-end'), { target: { value: '2026-08-24' } });
+    expect(screen.getByText(/Minimum 3/)).toBeTruthy();
+    fireEvent.click(screen.getByTestId('vac-enable'));
+    expect(onEnable).not.toHaveBeenCalled();
   });
 
   it('istniejący urlop: stan + [Anuluj urlop] (przed startem i w trakcie)', () => {

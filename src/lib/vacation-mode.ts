@@ -67,6 +67,23 @@ export const buildVacationMode = (
   };
 };
 
+/**
+ * C-T1: liczba dni zakresu Od-Do WŁĄCZNIE; null gdy end < start albo zła data.
+ * Math.round niweluje DST (dzień 23h/25h przy zmianie czasu) — liczymy dni
+ * kalendarzowe, nie okna 24-godzinne.
+ */
+export const vacationRangeDays = (startISO: string, endISO: string): number | null => {
+  try {
+    const start = parseLocalDate(startISO);
+    const end = parseLocalDate(endISO);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+    const days = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    return days >= 1 ? days : null;
+  } catch {
+    return null;
+  }
+};
+
 export const isVacationActive = (vacation: VacationMode | null | undefined, todayISO: string): boolean =>
   !!vacation && vacation.startDate <= todayISO && todayISO <= vacation.endDate;
 

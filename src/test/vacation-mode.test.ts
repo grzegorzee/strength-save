@@ -4,6 +4,7 @@ import {
   isVacationActive,
   resolveDeloadWeek,
   sanitizeVacationMode,
+  vacationRangeDays,
   vacationToAdviceWindow,
   vacationWeekIndexes,
 } from '@/lib/vacation-mode';
@@ -91,5 +92,31 @@ describe('urlop wycisza zaległości w swoim oknie', () => {
       dismissed: ['week:2026-08-17'],
     });
     expect(found).toBeNull();
+  });
+});
+
+describe('C-T1: vacationRangeDays — zakres Od-Do włącznie', () => {
+  it('zakres w środku miesiąca: 23-31 sierpnia = 9 dni', () => {
+    expect(vacationRangeDays('2026-08-23', '2026-08-31')).toBe(9);
+  });
+
+  it('granica miesiąca i roku', () => {
+    expect(vacationRangeDays('2026-08-28', '2026-09-03')).toBe(7);
+    expect(vacationRangeDays('2026-12-28', '2027-01-03')).toBe(7);
+  });
+
+  it('DST (koniec czasu letniego 2026-10-25): dni kalendarzowe, nie 24h-owe', () => {
+    expect(vacationRangeDays('2026-10-23', '2026-10-27')).toBe(5);
+  });
+
+  it('jeden dzień = 1; end < start = null; śmieci = null', () => {
+    expect(vacationRangeDays('2026-08-23', '2026-08-23')).toBe(1);
+    expect(vacationRangeDays('2026-08-23', '2026-08-22')).toBeNull();
+    expect(vacationRangeDays('zle-dane', '2026-08-23')).toBeNull();
+  });
+
+  it('min/max: buildVacationMode nadal clampuje 3-21 (API bez zmian)', () => {
+    expect(buildVacationMode('2026-08-17', 1, 'none').endDate).toBe('2026-08-19');
+    expect(buildVacationMode('2026-08-17', 40, 'none').extendedWeeks).toBe(3);
   });
 });

@@ -11,7 +11,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarDays, Dumbbell, History, Pencil, CheckCircle, HeartPulse, Zap, Timer } from 'lucide-react';
+import { CalendarDays, Dumbbell, History, Pencil, CheckCircle, HeartPulse, Zap, Timer, Plane } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -19,6 +19,10 @@ import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
+import { useToast } from '@/hooks/use-toast';
+import { VacationDialog } from '@/components/VacationDialog';
+import { buildVacationMode, isVacationActive, type VacationActivity } from '@/lib/vacation-mode';
+import { isReducedModeActive } from '@/lib/reduced-mode';
 import type { LanguageCode } from '@/i18n';
 
 // ── Custom grid calendar matching mockup ──
@@ -144,7 +148,30 @@ const TrainingPlan = () => {
   const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
-  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, reducedMode, vacation, setVacation } = useTrainingPlan(uid);
+  const { toast } = useToast();
+  // C-T1: wejście w tryb urlopu z ekranu Planu (dotąd dialog istniał tylko na
+  // Dashboardzie i to wyłącznie jako badge JUŻ aktywnego urlopu).
+  const todayISOForVacation = formatLocalDate(new Date());
+  const [vacationOpen, setVacationOpen] = useState(false);
+  const handleVacationEnable = (startISO: string, days: number, activity: VacationActivity) => {
+    setVacationOpen(false);
+    const mode = buildVacationMode(startISO, days, activity);
+    void (async () => {
+      const result = await setVacation(mode);
+      if (result.success) {
+        const fmtDate = (iso: string) => parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        toast({ title: t('vac.toastOn', { from: fmtDate(mode.startDate), to: fmtDate(mode.endDate), weeks: mode.extendedWeeks }) });
+      }
+    })();
+  };
+  const handleVacationCancel = () => {
+    setVacationOpen(false);
+    void (async () => {
+      const result = await setVacation(null);
+      if (result.success) toast({ title: t('vac.toastOff') });
+    })();
+  };
   const { cycles } = usePlanCycles(uid);
   // Z112: zunifikowane cardio (Strava + wpisy manualne) w kalendarzu.
   const {
@@ -309,6 +336,31 @@ const TrainingPlan = () => {
         <div className="mx-6 mt-5 mb-5 py-3 px-4 rounded-xl bg-primary/[0.04] border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed space-y-1">
           <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0" aria-hidden /><strong className="text-muted-foreground">{trainingRules.weight}</strong></p>
           <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
+        </div>
+
+        {/* C-T1: urlop/wyjazd z poziomu Planu */}
+        <div className="mx-6 mb-5">
+          <button
+            type="button"
+            data-testid="plan-vacation-open"
+            onClick={() => setVacationOpen(true)}
+            className={cn(
+              'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
+              vacation && isVacationActive(vacation, todayISOForVacation)
+                ? 'border-fitness-cyan/40 bg-fitness-cyan/10 text-fitness-cyan'
+                : 'border-border text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <span className="flex items-center gap-2">
+              <Plane className="h-4 w-4" aria-hidden />
+              {vacation && isVacationActive(vacation, todayISOForVacation)
+                ? t('vac.badge', { date: parseLocalDate(vacation.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
+                : t('vac.title')}
+            </span>
+            <span className="text-xs font-normal underline underline-offset-2">
+              {vacation && isVacationActive(vacation, todayISOForVacation) ? t('vac.cancel') : t('vac.planEntry')}
+            </span>
+          </button>
         </div>
 
         {/* Week navigation */}
@@ -603,6 +655,17 @@ const TrainingPlan = () => {
         onAdd={addActivity}
         onUpdate={updateActivity}
         onDelete={deleteActivity}
+      />
+
+      {/* C-T1: tryb urlopu dostępny z Planu (spec C4 + audyt 2026-08-19) */}
+      <VacationDialog
+        open={vacationOpen}
+        onOpenChange={setVacationOpen}
+        vacation={vacation}
+        reducedModeActive={isReducedModeActive(reducedMode, todayISOForVacation)}
+        todayISO={todayISOForVacation}
+        onEnable={handleVacationEnable}
+        onCancel={handleVacationCancel}
       />
     </div>
   );
