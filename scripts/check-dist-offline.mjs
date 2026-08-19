@@ -257,8 +257,12 @@ try {
   result.dashboardCtaOffline = true;
 
   // Analytics nie było odwiedzone online — jego lazy chunk musi przyjść z precache.
+  // D-T4: /analytics przekierowuje na scalony ekran Postępy (?view=analytics),
+  // gdzie AnalyticsEmbedded lazy-loaduje ten sam chunk.
   await offlinePage.goto(`${emulatorUrl}#/analytics`, { waitUntil: 'commit', timeout: 10_000 });
-  await offlinePage.getByRole('main').getByRole('heading', { name: /Analityka|Analytics/i }).waitFor({ timeout: 15_000 });
+  await offlinePage.getByRole('main').getByRole('heading', { name: /Postępy|Progress/i }).waitFor({ timeout: 15_000 });
+  // Zakładka z wnętrza Analytics = dowód, że lazy chunk realnie się załadował.
+  await offlinePage.getByRole('tab', { name: /Podsumowanie|Summary/i }).waitFor({ timeout: 15_000 });
   result.coldLazyRouteOffline = true;
 
   await offlinePage.goto(`${emulatorUrl}#/workout/${dayId}?date=${today}`, { waitUntil: 'commit', timeout: 10_000 });
