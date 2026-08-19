@@ -61,6 +61,8 @@ describe('WorkoutCompletionSequence', () => {
   it('świeże zakończenie: celebracja, potem ocena, podsumowanie ukryte do decyzji', async () => {
     renderSequence();
     expect(screen.getByText('Trening ukończony!')).toBeTruthy();
+    expect(document.querySelectorAll('[data-app-overlay]')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Zamknij okno' })).toBeTruthy();
     expect(screen.queryByText('PODSUMOWANIE-DZIECI')).toBeNull();
     await advanceToRating();
     expect(screen.queryByText('PODSUMOWANIE-DZIECI')).toBeNull();

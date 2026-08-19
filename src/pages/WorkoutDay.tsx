@@ -79,6 +79,7 @@ import { reportClientError } from '@/lib/error-telemetry';
 import { applySyncMarkers } from '@/lib/workout-sync-markers';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 import { useWatchWorkoutSync } from '@/hooks/useWatchWorkoutSync';
+import { useFirestoreCrashDraftBackup } from '@/hooks/useFirestoreCrashDraftBackup';
 import { ackWatchEvents, getOrCreateWatchPhoneDeviceId, sendWorkoutToWatch, type WatchSetLoggedEvent } from '@/lib/watch-bridge';
 import { isExerciseFullyCompleted } from '@/lib/workout-sanitizers';
 import { mergeWatchSetEvent, stampChangedWatchSets } from '@/lib/watch-set-conflict';
@@ -682,6 +683,8 @@ const WorkoutDay = () => {
       cloudMeta: cloudMetaRef.current,
     }, overrides)
   ), [uid, sessionId, dayId, targetDate]);
+
+  useFirestoreCrashDraftBackup(buildDraftSnapshot);
 
   const persistDraftSnapshot = useCallback(async (
     overrides: Partial<ActiveWorkoutDraft> = {},

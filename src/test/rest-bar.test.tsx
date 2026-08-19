@@ -202,6 +202,8 @@ describe('RestBar (Z136)', () => {
     expect(screen.queryByTestId('rest-fullscreen')).toBeNull();
     fireEvent.click(screen.getByTestId('rest-bar-expand'));
     expect(screen.getByTestId('rest-fullscreen')).toBeTruthy();
+    expect(screen.getByTestId('rest-fullscreen')).toHaveAttribute('data-app-overlay');
+    expect(screen.getByRole('button', { name: 'Zwiń' })).toBeTruthy();
   });
 
   it('krok 6: zębatka przy pasku otwiera arkusz ustawień treningu', () => {

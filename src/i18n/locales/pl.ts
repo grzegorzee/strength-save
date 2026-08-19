@@ -653,6 +653,7 @@ export const pl = {
   'lapse.continue': 'Kontynuuj od dziś',
   'lapse.continueDesc': 'Zaległe sesje odpuszczamy, a silnik zaproponuje lżejsze wejście po przerwie.',
   'lapse.toastContinued': 'Wracamy od dziś. Propozycje ciężarów będą ostrożniejsze.',
+  'lapse.viewOptions': 'Zobacz opcje',
   'reschedule.sheetTitle': 'Przełóż trening',
   'reschedule.sheetDesc': '{name} z {date}. Wybierz nowy dzień (najbliższe 14 dni).',
   'reschedule.free': 'wolne',

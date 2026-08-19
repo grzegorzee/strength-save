@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { reportClientError } from '@/lib/error-telemetry';
 import { auth } from '@/lib/firebase';
-import { isFirestoreInternalAssertion } from '@/lib/firestore-crash-guard';
+import { isFirestoreInternalAssertion, preserveFirestoreCrashDraft } from '@/lib/firestore-crash-guard';
 import { releaseBodyLocks } from '@/lib/release-body-locks';
 
 /**
@@ -51,6 +51,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo);
+    if (isFirestoreInternalAssertion(error)) preserveFirestoreCrashDraft();
     // Awaryjny unmount otwartego Radix Sheet/Dialog zostawia scroll-lock na
     // body (regresja b.92) — bez sprzątania fallback bywa nieklikalny.
     releaseBodyLocks();

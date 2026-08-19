@@ -9,6 +9,7 @@ import { SESSION_RATING_REASONS } from '@/lib/workout-session-rating';
 import type { CompletionSummary } from '@/lib/workout-completion-summary';
 import { formatPRDelta, formatPRValue, type PRComparison } from '@/lib/pr-utils';
 import type { WorkoutSessionRating, WorkoutSessionRatingReason } from '@/types';
+import { useExclusiveOverlay } from '@/hooks/useExclusiveOverlay';
 
 // Sekwencja completion (Runna pakiet 1, spec A1): celebracja → ocena 1 tapem
 // (pomijalna) → dopiero potem podsumowanie (rating-gate). Wejście w ukończony
@@ -68,6 +69,7 @@ export const WorkoutCompletionSequence = ({
   const [thanked, setThanked] = useState(false);
   const [showReasons, setShowReasons] = useState(false);
   const [selectedReasons, setSelectedReasons] = useState<WorkoutSessionRatingReason[]>([]);
+  useExclusiveOverlay(stage === 'celebration', () => setStage('rating'));
 
   const toggleReason = (reason: WorkoutSessionRatingReason) => {
     setSelectedReasons((prev) =>
@@ -96,7 +98,19 @@ export const WorkoutCompletionSequence = ({
 
   if (stage === 'celebration') {
     return (
-      <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-background/95 backdrop-blur-sm">
+      <div
+        className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-background/95 backdrop-blur-sm"
+        data-app-overlay
+        data-state="open"
+      >
+        <button
+          type="button"
+          aria-label={t('a11y.close')}
+          onClick={() => setStage('rating')}
+          className="absolute right-[max(0.5rem,env(safe-area-inset-right))] top-[max(0.5rem,env(safe-area-inset-top))] flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+        >
+          <X className="h-5 w-5" />
+        </button>
         {showConfetti
           ? <ConfettiBurst durationMs={celebrationMs} onDone={() => setStage('rating')} />
           : <AutoAdvance ms={Math.min(celebrationMs, 1200)} onDone={() => setStage('rating')} />}

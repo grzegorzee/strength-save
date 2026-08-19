@@ -23,6 +23,7 @@ describe('LivePRCelebration', () => {
     expect(screen.getByTestId('confetti')).toBeTruthy();
     expect(screen.getByText('Arnoldki')).toBeTruthy();
     expect(screen.getByText(/\+2 kg/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'a11y.close' })).toBeTruthy();
     fireEvent.click(screen.getByTestId('live-pr-celebration'));
     expect(onDone).toHaveBeenCalled();
   });

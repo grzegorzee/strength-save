@@ -237,6 +237,22 @@ describe('workoutDraftDb', () => {
     expect(loaded).toEqual(baseDraft);
   });
 
+  it('crash path zapisuje bieżący snapshot synchronicznie do fallbacku bez czekania na IDB', () => {
+    const saved = workoutDraftDb.saveEmergencyFallback({
+      ...baseDraft,
+      version: 9,
+      exerciseSets: { 'ex-1': [{ reps: 3, weight: 120, completed: true }] },
+    });
+
+    expect(saved).toBe(true);
+    expect(workoutDraft.load('user-1')?.version).toBe(9);
+    expect(workoutDraft.load('user-1')?.exerciseSets['ex-1'][0]).toMatchObject({
+      reps: 3,
+      weight: 120,
+      completed: true,
+    });
+  });
+
   it('Z175: zapis z niższą wersją NIE nadpisuje żywego draftu pod tym samym kluczem', async () => {
     await workoutDraftDb.saveActiveDraft({
       ...baseDraft,

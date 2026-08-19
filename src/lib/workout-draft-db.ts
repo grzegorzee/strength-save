@@ -842,6 +842,20 @@ export const workoutDraftDb = {
     return getIndexedDb() !== null;
   },
 
+  // Crash guard nie może czekać na IndexedDB ani retry: reload strony następuje
+  // synchronicznie po asercji SDK. Ten zapis używa wyłącznie istniejącego,
+  // scopingowanego per-user fallbacku i nie dotyka chmury.
+  saveEmergencyFallback(draft: ActiveWorkoutDraft): boolean {
+    const normalized = normalizeDraft(draft, draft.userId);
+    if (!normalized) return false;
+    try {
+      withFallbackSave(normalized);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   async loadActiveDraft(userId: string): Promise<ActiveWorkoutDraft | null> {
     if (!this.isSupported()) {
       return withFallbackLoad(userId);

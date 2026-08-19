@@ -13,6 +13,7 @@ import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/re
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { hapticRestEnd } from '@/lib/haptics';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
+import { useExclusiveOverlay } from '@/hooks/useExclusiveOverlay';
 
 interface RestBarProps {
   /** Z188: deadline przychodzi z kontrolera (WorkoutDay) — RestBar nic nie liczy sam. */
@@ -55,6 +56,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   // Krok 6 (spec 2026-08-11): skrót do ustawień treningowych przy pasku przerwy.
   const [settingsOpen, setSettingsOpen] = useState(false);
   const finishedRef = useRef(false);
+  useExclusiveOverlay(expanded, () => setExpanded(false));
 
   // Z188: t i exerciseLabel czytane z refów — ich zmiana (język, nazwa ćwiczenia)
   // nie może restartować przerwy ani przeplanowywać notyfikacji (dzisiejszy dep na
@@ -219,6 +221,8 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background/95 backdrop-blur-sm"
           data-testid="rest-fullscreen"
+          data-app-overlay
+          data-state="open"
         >
           <button
             type="button"

@@ -646,6 +646,7 @@ export const en: Record<keyof typeof pl, string> = {
   'lapse.continue': 'Continue from today',
   'lapse.continueDesc': 'Overdue sessions get skipped and the engine will suggest a lighter comeback.',
   'lapse.toastContinued': 'Back from today. Weight suggestions will be more conservative.',
+  'lapse.viewOptions': 'View options',
   'reschedule.sheetTitle': 'Reschedule workout',
   'reschedule.sheetDesc': '{name} from {date}. Pick a new day (next 14 days).',
   'reschedule.free': 'free',

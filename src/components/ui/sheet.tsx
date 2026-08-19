@@ -5,8 +5,12 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/contexts/LanguageContext";
+import { useExclusiveOverlayState } from "@/hooks/useExclusiveOverlay";
 
-const Sheet = SheetPrimitive.Root;
+const Sheet = ({ open: controlledOpen, defaultOpen, onOpenChange, ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) => {
+  const [open, setOpen] = useExclusiveOverlayState(controlledOpen, defaultOpen, onOpenChange);
+  return <SheetPrimitive.Root {...props} open={open} onOpenChange={setOpen} />;
+};
 
 const SheetTrigger = SheetPrimitive.Trigger;
 
@@ -19,6 +23,7 @@ const SheetOverlay = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
   <SheetPrimitive.Overlay
+    data-app-overlay
     className={cn(
       "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,

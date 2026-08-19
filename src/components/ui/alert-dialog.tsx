@@ -3,8 +3,12 @@ import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { useExclusiveOverlayState } from "@/hooks/useExclusiveOverlay";
 
-const AlertDialog = AlertDialogPrimitive.Root;
+const AlertDialog = ({ open: controlledOpen, defaultOpen, onOpenChange, ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) => {
+  const [open, setOpen] = useExclusiveOverlayState(controlledOpen, defaultOpen, onOpenChange);
+  return <AlertDialogPrimitive.Root {...props} open={open} onOpenChange={setOpen} />;
+};
 
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 
@@ -15,6 +19,7 @@ const AlertDialogOverlay = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Overlay>
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Overlay
+    data-app-overlay
     className={cn(
       "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,

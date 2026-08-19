@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
@@ -18,6 +18,7 @@ import { AddCardioDialog } from '@/components/AddCardioDialog';
 import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { WeekCard } from '@/components/WeekCard';
 import { LapseTray } from '@/components/LapseTray';
+import { LapseStatusCard } from '@/components/LapseStatusCard';
 import { collectLapsedDates, detectLapse } from '@/lib/lapse-detection';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
@@ -487,13 +488,6 @@ const Dashboard = () => {
     });
   }, [planStarted, isLoaded, planIsLoaded, localDraft, trainingPlan, scheduleOverrides, workouts, todayISO, skippedDates, planStartDate, lapseDismissed, reducedMode, vacation]);
   const [lapseOpen, setLapseOpen] = useState(false);
-  const lapseShownRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (lapse && lapseShownRef.current !== lapse.dismissKey) {
-      lapseShownRef.current = lapse.dismissKey;
-      setLapseOpen(true);
-    }
-  }, [lapse]);
   const rememberLapseDismiss = (key: string) => {
     const next = [...lapseDismissed, key].slice(-50);
     setLapseDismissed(next);
@@ -773,6 +767,17 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
+      ),
+    });
+  }
+  if (lapse) {
+    statusEntries.push({
+      id: 'lapse', priority: 90, node: (
+        <LapseStatusCard
+          lapse={lapse}
+          onOpen={() => setLapseOpen(true)}
+          onDismiss={() => rememberLapseDismiss(lapse.dismissKey)}
+        />
       ),
     });
   }

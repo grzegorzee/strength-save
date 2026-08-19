@@ -10,6 +10,7 @@ const authMock = vi.hoisted(() => ({ currentUser: null as null | { uid: string }
 vi.mock('@/lib/firebase', () => ({ auth: authMock }));
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { registerFirestoreCrashDraftPreserver } from '@/lib/firestore-crash-guard';
 
 const Bomb = (): never => {
   throw new Error('BOOM_RENDER');
@@ -61,7 +62,9 @@ describe('ErrorBoundary (Z56)', () => {
     expect(reportClientError.mock.calls[0][0]).toBe('auth-user');
   });
 
-  it('asercja Firestore: przycisk mówi o restarcie apki, nie o odświeżeniu strony', () => {
+  it('asercja Firestore: zabezpiecza draft i przycisk mówi o restarcie apki', () => {
+    const preserve = vi.fn();
+    const unregister = registerFirestoreCrashDraftPreserver(preserve);
     const FirestoreBomb = (): never => {
       throw new Error('FIRESTORE (12.8.0) INTERNAL ASSERTION FAILED: Unexpected state (ID: b815)');
     };
@@ -71,7 +74,9 @@ describe('ErrorBoundary (Z56)', () => {
       </ErrorBoundary>,
     );
 
+    expect(preserve).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /Uruchom ponownie|Restart app/ })).toBeTruthy();
+    unregister();
   });
 
   it('złapany błąd zdejmuje blokady body po awaryjnym unmoncie sheeta (regresja b.92)', () => {
