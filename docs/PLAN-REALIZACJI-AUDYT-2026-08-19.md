@@ -300,9 +300,15 @@ typecheck/lint/build GREEN.
 
 ### B-T4 — przypięta notatka przed pierwszą serią
 
-- [ ] Przenieść istniejącą notatkę między nagłówek ćwiczenia a Set 1.
-- [ ] Edycję pozostawić w menu; nie duplikować treści.
-- [ ] Test DOM/bounding box na 390×844 i resume treningu z przypiętą notatką.
+- [x] Przenieść istniejącą notatkę między nagłówek ćwiczenia a Set 1.
+- [x] Edycję pozostawić w menu; nie duplikować treści.
+- [x] Test DOM/bounding box na 390×844 i resume treningu z przypiętą notatką.
+
+**B-T4 DONE:** blok pinned note przeniesiony nad nagłówki kolumn (pinned-note-slot);
+testy kolejności DOM (domIndex w exercise-card-layout, jsdom nie mierzy px — asercja
+na kolejność dokumentu, co przesądza układ pionowy karty) + wariant resume z odhaczonymi
+seriami + brak duplikacji treści. Uwaga metodyczna: przeniesienie weszło przed testem
+(test dopisany bezpośrednio po, 35/35). Vitest 1721/1721, typecheck/lint/build GREEN.
 
 ### B-T5 — rekordy sprzed aplikacji
 
