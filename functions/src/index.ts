@@ -1326,3 +1326,95 @@ export const emailWorkoutHistory = onCall({ secrets: EMAIL_SECRETS }, async (req
   if (!result.ok) emailErrorToHttps(result.code);
   return { ok: true };
 });
+
+// --- G-T2: webhook zdarzeń SES (SNS -> email_events + aktualizacja email_log) ---
+import MessageValidator from "sns-validator";
+import { applyLogUpdate, mapSesEvent, parseSnsEnvelope, type EmailLogState } from "./ses-events";
+
+// Pełny ARN topicu trzymany jako sekret (repo publiczne — nie commitujemy
+// numeru konta AWS). Wszystko spoza tego topicu jest odrzucane.
+const sesSnsTopicArn = defineSecret("SES_SNS_TOPIC_ARN");
+const snsValidator = new MessageValidator();
+
+// sns-validator: sprawdza SigningCertURL (tylko sns.<region>.amazonaws.com)
+// i podpis SHA1withRSA całej koperty.
+const validateSnsSignature = (message: Record<string, unknown>): Promise<void> =>
+  new Promise((resolve, reject) => {
+    snsValidator.validate(message, (err) => (err ? reject(err) : resolve()));
+  });
+
+export const sesEventsWebhook = onRequest({ secrets: [sesSnsTopicArn] }, async (req, res) => {
+  if (req.method !== "POST") {
+    res.status(405).send("method-not-allowed");
+    return;
+  }
+  const bodyText = req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body ?? {});
+  const envelope = parseSnsEnvelope(bodyText);
+  if (!envelope) {
+    res.status(400).send("bad-envelope");
+    return;
+  }
+  const expectedArn = sesSnsTopicArn.value().trim();
+  if (!expectedArn || envelope.topicArn !== expectedArn) {
+    logger.warn("[SesEvents] Odrzucono obcy TopicArn", { topicArn: envelope.topicArn });
+    res.status(403).send("forbidden-topic");
+    return;
+  }
+  try {
+    await validateSnsSignature(envelope.raw);
+  } catch (error) {
+    logger.warn("[SesEvents] Nieprawidłowy podpis SNS", error);
+    res.status(403).send("bad-signature");
+    return;
+  }
+
+  if (envelope.type === "SubscriptionConfirmation") {
+    if (!envelope.subscribeUrl) {
+      res.status(400).send("missing-subscribe-url");
+      return;
+    }
+    const confirm = await fetch(envelope.subscribeUrl);
+    logger.info(`[SesEvents] SubscriptionConfirmation potwierdzone (HTTP ${confirm.status})`);
+    res.status(200).send("subscription-confirmed");
+    return;
+  }
+  if (envelope.type !== "Notification") {
+    res.status(200).send("ignored");
+    return;
+  }
+
+  let sesEvent: unknown;
+  try {
+    sesEvent = JSON.parse(envelope.message);
+  } catch {
+    res.status(400).send("bad-message");
+    return;
+  }
+  const mapped = mapSesEvent(sesEvent);
+  if (!mapped) {
+    // 200: nierozpoznany kształt nie zniknie po retry SNS.
+    logger.warn("[SesEvents] Nierozpoznane zdarzenie SES, pomijam");
+    res.status(200).send("ignored");
+    return;
+  }
+
+  // Idempotencja: deterministyczne id dokumentu, set z merge.
+  await db.collection("email_events").doc(mapped.id).set(mapped.record, { merge: true });
+
+  if (mapped.logUpdate) {
+    const logSnap = await db.collection("email_log")
+      .where("sesMessageId", "==", mapped.record.messageId)
+      .limit(5)
+      .get();
+    for (const logDoc of logSnap.docs) {
+      await db.runTransaction(async (tx) => {
+        const fresh = await tx.get(logDoc.ref);
+        if (!fresh.exists) return;
+        const fields = applyLogUpdate((fresh.data() ?? {}) as EmailLogState, mapped.logUpdate);
+        if (fields) tx.set(logDoc.ref, fields, { merge: true });
+      });
+    }
+  }
+  logger.info(`[SesEvents] ${mapped.record.eventType} zapisane`, { id: mapped.id });
+  res.status(200).send("ok");
+});
