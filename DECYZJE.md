@@ -5,11 +5,40 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (social-first logowanie + sekcja Subskrypcja w panelu admina)
+**Ostatnia aktualizacja:** 2026-08-20 (wydanie: kolor w onboardingu + paleta 11 + social-first login; web ChIQ6bbR, iOS 112, AAB v27)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: Wydanie — kolor w onboardingu, nowa paleta 11, social-first login (iOS 112 / AAB v27)
+
+**Co:** (1) Plan I (agent w worktree, merge do main): wybór koloru aplikacji
+w kroku Welcome onboardingu przy pytaniu o imię — rząd 11 kropek, live preview
+od kliknięcia, zapis w markOnboardingComplete; nowa paleta wg wzoru właściciela
+(limonka default + sky/indigo/violet/lavender/magenta/rose/amber/emerald/
+slate/gray) z automatycznym kontrastem per luminancja (próg 0.28; indigo/
+violet/magenta/rose/slate/gray = jasny tekst) i aliasami starych id
+(cyan→sky, blue→sky, purple→lavender, pink→magenta, red→rose, orange→amber,
+gold→amber). (2) Social-first login z równoległej sesji właściciela
+(Kontynuuj z Apple/Google/e-mailem; zajął numery 111/v26) wszedł do tego
+wydania mobilnego. (3) Bramka dist-offline nauczona nowego logowania
+(przycisk zamiast zakładek; dwa pola Email na stronie — .first()).
+
+**Artefakty:** web LIVE `index-ChIQ6bbR.js` (marker ob-accent na
+origin/gh-pages + curl); iOS 1.0.0(112) TestFlight: VALID, obie grupy 204,
+whatsNew 200, Beta App Review APPROVED; AAB versionCode 27 `jar verified` SHA
+`6093f73c59469d50300b231dfff70c10eca9c773abad868963c2c63fb0f87c5d` (upload
+Play = właściciel). Następny build iOS = 113, versionCode = 28.
+
+**Bramki po merge:** vitest 1863/1863, typecheck, lint, no-emoji (179),
+dist-smoke, bundle-budget (1 317 249 B), dist-offline (po fixie gate),
+pełne e2e 426/426 po świeżym vite.
+
+**Kontekst numeracji:** 111/v26 zbumpowała druga sesja (social login) bez
+wysyłki do TestFlight w chwili tego wydania — 112 zawiera całość, żaden krok
+właściciela dla 111 nie jest potrzebny.
+
 
 ### 2026-08-20: Social-first logowanie + sekcja Subskrypcja w panelu admina (grant/revoke PRO)
 
