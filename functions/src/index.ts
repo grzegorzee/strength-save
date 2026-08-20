@@ -1218,6 +1218,19 @@ const EMAIL_SECRETS = [sesRegion, sesAccessKeyId, sesSecretAccessKey, sesFrom, r
 
 const isSecretSet = (value: string): boolean => value.trim() !== "" && value.trim() !== "unset";
 
+const sendViaResend = async (to: string, subject: string, html: string): Promise<{ error?: { message: string } }> => {
+  const apiKey = resendApiKey.value();
+  if (!isSecretSet(apiKey)) return { error: { message: "no-transport-configured" } };
+  const resend = new Resend(apiKey);
+  const response = await resend.emails.send({
+    from: "Strength Save <noreply@strengthsave.app>",
+    to,
+    subject,
+    html,
+  });
+  return response.error ? { error: { message: response.error.message } } : {};
+};
+
 const sendWorkoutEmail = async (to: string, subject: string, html: string): Promise<{ error?: { message: string } }> => {
   const region = sesRegion.value();
   const key = sesAccessKeyId.value();
@@ -1234,20 +1247,13 @@ const sendWorkoutEmail = async (to: string, subject: string, html: string): Prom
       }));
       return {};
     } catch (error) {
-      logger.error("[EmailWorkout] SES send failed", error);
-      return { error: { message: error instanceof Error ? error.message : String(error) } };
+      // Np. DKIM jeszcze się propaguje albo chwilowy błąd SES — mail ma dojść,
+      // więc próbujemy Resendem zanim oddamy błąd userowi.
+      logger.error("[EmailWorkout] SES send failed, trying Resend fallback", error);
+      return sendViaResend(to, subject, html);
     }
   }
-  const apiKey = resendApiKey.value();
-  if (!isSecretSet(apiKey)) return { error: { message: "no-transport-configured" } };
-  const resend = new Resend(apiKey);
-  const response = await resend.emails.send({
-    from: "Strength Save <noreply@strengthsave.app>",
-    to,
-    subject,
-    html,
-  });
-  return response.error ? { error: { message: response.error.message } } : {};
+  return sendViaResend(to, subject, html);
 };
 
 const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
