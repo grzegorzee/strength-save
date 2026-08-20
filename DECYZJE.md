@@ -11,6 +11,25 @@
 
 ## DECYZJE
 
+### 2026-08-20: Amazon SES WDROŻONY jako główny transport maili (noreply@strengthsave.app)
+
+**Co:** Na polecenie właściciela wdrożone autonomicznie: (1) tożsamość domeny
+`strengthsave.app` w SES (Easy DKIM; 3 CNAME dodane przez API Cloudflare, status
+SUCCESS), (2) osobny "sektor" Strength Save wewnątrz konta AWS: configuration
+set `strengthsave` (osobne metryki wysyłek) + user IAM `strengthsave-ses-sender`
+(tag Project=strengthsave) z polityką zawężoną do ses:SendEmail WYŁĄCZNIE
+z tej tożsamości i tego config setu, (3) realne sekrety w Firebase Secret
+Manager (SES_REGION=eu-central-1, klucze usera IAM, SES_FROM="Strength Save
+<noreply@strengthsave.app>"), (4) redeploy obu callables, (5) fallback: błąd
+wysyłki SES przełącza na Resend (mail ma dojść; commit z tej sesji),
+(6) TEST realny: SendEmail z noreply@strengthsave.app dostarczony (MessageId
+010701a01e7a361c-...). Kopia klucza w `~/FIRMA/_secrets/projekty/strengthsave-ses.env`.
+
+**Kontrola/rozszerzanie:** inne domeny właściciela dochodzą na tym samym koncie
+jako osobne tożsamości + własne config sety + osobni userzy IAM z kluczami
+scoped per domena — klucz Strength Save nie wyśle z niczego innego.
+Istniejące gjasionowicz.pl / kontakt@ nietknięte.
+
 ### 2026-08-20: F-RELEASE — feature'y właściciela (kolor, imię, mail do trenera)
 
 **Co:** Wydanie F (plan `docs/PLAN-FEATURES-2026-08-20.md`):
