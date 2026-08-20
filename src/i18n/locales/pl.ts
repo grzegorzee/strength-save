@@ -188,6 +188,10 @@ export const pl = {
   'dash.view': 'Zobacz',
   'dash.restDay': 'Dzisiaj wolne',
   'dash.nextTraining': 'Następny trening',
+  // Karta pre-start (T3, feedback 2026-08-20): cykl startuje w przyszłości.
+  'dash.preStart.title': 'Start cyklu: {date}',
+  'dash.preStart.firstWorkout': 'Pierwszy trening: {day}',
+  'dash.preStart.viewPlan': 'Zobacz plan',
   // Dzień regeneracji (Runna p.1, spec B2).
   'dash.recovery.title': 'Dzień regeneracji',
   'dash.recovery.tipSleep': 'Sen 7-9 h i białko w każdym posiłku robią dziś robotę.',

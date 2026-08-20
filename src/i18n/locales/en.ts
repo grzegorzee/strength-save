@@ -182,6 +182,10 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.view': 'View',
   'dash.restDay': 'Day off today',
   'dash.nextTraining': 'Next workout',
+  // Pre-start card (T3, feedback 2026-08-20): cycle starts in the future.
+  'dash.preStart.title': 'Cycle starts: {date}',
+  'dash.preStart.firstWorkout': 'First workout: {day}',
+  'dash.preStart.viewPlan': 'View plan',
   // Recovery day (Runna p.1, spec B2).
   'dash.recovery.title': 'Recovery day',
   'dash.recovery.tipSleep': 'Sleep 7-9 h and protein with every meal do the work today.',

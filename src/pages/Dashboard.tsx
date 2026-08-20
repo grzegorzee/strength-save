@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf } from 'lucide-react';
+import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf, CalendarClock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -327,10 +327,15 @@ const Dashboard = () => {
       };
     }
 
-    // Plan hasn't started yet — don't push a training for today; point to the first session.
+    // T3 (feedback 2026-08-20): plan startuje w przyszłości — jawna karta pre-start
+    // z datą startu i pierwszym treningiem. Szukamy OD dnia startu (dzień przed
+    // startem + offset 1 w getNextScheduledTraining obejmuje sam dzień startu),
+    // co naprawia też stary bug: nextDay liczony od DZIŚ wskazywał dzień sprzed startu.
     if (planStartDate && today < parseLocalDate(planStartDate)) {
-      const nextEntry = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides });
-      return { type: 'rest' as const, nextDay: nextEntry?.day ?? null };
+      const dayBeforeStart = parseLocalDate(planStartDate);
+      dayBeforeStart.setDate(dayBeforeStart.getDate() - 1);
+      const firstEntry = getNextScheduledTraining(trainingPlan, dayBeforeStart, { overrides: scheduleOverrides });
+      return { type: 'preStart' as const, startDateISO: planStartDate, firstEntry };
     }
 
     const todayEntry = getScheduledTrainingForDate(trainingPlan, today, scheduleOverrides);
@@ -731,7 +736,7 @@ const Dashboard = () => {
       </div>
 
       {/* Today's training card (PRO-E T3: hero zaraz pod powitaniem; typ zawsze
-          jednym z training/completed/rest, więc wrapper nigdy nie jest pusty) */}
+          jednym z training/completed/rest/preStart, więc wrapper nigdy nie jest pusty) */}
       <div data-testid="dash-hero">
       {todayTraining.type === 'training' && (() => {
         // Z88: KAŻDY nieukończony dzisiejszy szkic = "Kontynuuj trening", także w pełni
@@ -794,6 +799,37 @@ const Dashboard = () => {
             </div>
             <Button variant="ghost" size="sm" onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}>
               {t('dash.view')}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* T3 (feedback 2026-08-20): cykl jeszcze nie wystartował — karta z datą
+          startu (z dniem tygodnia) i pierwszym treningiem zamiast pustej regeneracji. */}
+      {todayTraining.type === 'preStart' && (
+        <Card className="border-primary/40 bg-primary/5" data-testid="prestart-card">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <CalendarClock className="h-5 w-5 text-primary shrink-0" />
+              <div className="min-w-0">
+                <p className="font-semibold text-sm">
+                  {t('dash.preStart.title', {
+                    date: parseLocalDate(todayTraining.startDateISO).toLocaleDateString(dateLocale(lang), {
+                      weekday: 'long', day: 'numeric', month: 'long',
+                    }),
+                  })}
+                </p>
+                {todayTraining.firstEntry && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('dash.preStart.firstWorkout', {
+                      day: `${localizeDayName(todayTraining.firstEntry.day.dayName, lang)} (${localizeFocus(todayTraining.firstEntry.day.focus, lang)}) · ${parseLocalDate(todayTraining.firstEntry.dateKey).toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}`,
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/plan')}>
+              {t('dash.preStart.viewPlan')}
             </Button>
           </CardContent>
         </Card>

@@ -30,7 +30,7 @@ import { reportAppleWatchStatus } from '@/lib/garmin-api';
 interface UseWatchPlanPreviewOptions {
   uid: string | null;
   /** 'training' = jest trening do zrobienia; inne typy → noWorkout. */
-  type: 'training' | 'completed' | 'rest';
+  type: 'training' | 'completed' | 'rest' | 'preStart';
   day?: TrainingDay | null;
   dateStr?: string;
   workouts: WorkoutSession[];
