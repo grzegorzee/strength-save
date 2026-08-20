@@ -4,7 +4,7 @@ import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
-import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf, CalendarClock } from 'lucide-react';
+import { Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -760,14 +760,42 @@ const Dashboard = () => {
         onConfirm={() => navigate('/measurements')}
       />
       <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} uid={uid} />
-      {/* Greeting */}
+      {/* Greeting (fala 2): ikona pory dnia w akcencie (warning był ozdobny,
+          nie semantyczny — reguła "jeden akcent") + chip streaka przy dacie. */}
       <div data-testid="dash-greeting">
         <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
-          <GreetingIcon className="h-6 w-6 text-fitness-warning" />
+          <GreetingIcon className="h-6 w-6 text-primary" />
           {greetingText}, <span className="text-primary">{displayName}</span>!
         </h1>
-        <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
+          {streak > 0 && (
+            <span
+              data-testid="dash-streak-chip"
+              className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-primary"
+            >
+              <Flame className="h-3 w-3" aria-hidden />
+              {t('dash.streakChip', { n: streak })}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Fala 2: baner decyzji planu NAD hero (mockup "Plan ends / Decide");
+          wariant banner rozwija komplet akcji inline, emisja eventu bez zmian. */}
+      {showNextStep && planNextStep && (
+        <PlanNextStepCard
+          step={planNextStep}
+          uid={uid}
+          planStartDate={planStartDate}
+          canRepeat={trainingPlan.length > 0}
+          isRepeating={isRepeating}
+          onRepeat={handleRepeatPlan}
+          onDismiss={dismissNextStep}
+          testId="dash-next-step"
+          variant="banner"
+        />
+      )}
 
       {/* Today's training card (PRO-E T3: hero zaraz pod powitaniem; typ zawsze
           jednym z training/completed/rest/preStart, więc wrapper nigdy nie jest pusty) */}
@@ -779,117 +807,123 @@ const Dashboard = () => {
         // rozjazdu banera, karty dnia i ekranu treningu.
         const continueDraft = todayContinueDraft;
         return (
-        <Card className="border-primary/40 bg-primary/5">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <Dumbbell className="h-5 w-5 text-primary shrink-0" />
-              <div className="min-w-0">
-                <p className="font-semibold text-sm">{localizeDayName(todayTraining.day.dayName, lang)}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {continueDraft
-                    ? t('dash.today.continueSets', { n: continueDraft.completedSets })
-                    : `${localizeFocus(todayTraining.day.focus, lang)} · ${t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}`}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/day')}>{t('dash.details')}</Button>
-              <Button
-                size="sm"
-                className="gap-1.5 flex-1"
-                onClick={() => navigate(continueDraft
-                  ? continueDraft.target
-                  : `/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}
-              >
-                <Play className="h-3.5 w-3.5" />
-                {continueDraft ? t('dash.today.continue') : t('dash.startWorkout')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5">
+          <span className="eyebrow-mono text-primary">
+            {t('dash.hero.today')} · {today.toLocaleDateString(dateLocale(lang), { weekday: 'long' })}
+          </span>
+          <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
+            {localizeDayName(todayTraining.day.dayName, lang)}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {continueDraft
+              ? t('dash.today.continueSets', { n: continueDraft.completedSets })
+              : `${localizeFocus(todayTraining.day.focus, lang)} · ${t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}`}
+          </p>
+          <Button
+            size="lg"
+            className="mt-0.5 h-14 w-full gap-1.5 rounded-2xl text-base font-semibold"
+            onClick={() => navigate(continueDraft
+              ? continueDraft.target
+              : `/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}
+          >
+            <Play className="h-4 w-4" />
+            {continueDraft ? t('dash.today.continue') : t('dash.startWorkout')}
+          </Button>
+          <div className="flex items-center justify-center gap-6">
+            <button
+              type="button"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => navigate('/day')}
+            >
+              {t('dash.details')}
+            </button>
+            <button
+              type="button"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              onClick={() => openReschedule(todayTraining.dateStr, todayTraining.dayId)}
+            >
+              {t('reschedule.action')}
+            </button>
+          </div>
+        </div>
         );
       })()}
 
       {todayTraining.type === 'completed' && (
-        <Card
+        <div
           data-testid="today-completed-card"
           className={cn(
-            "border-fitness-success/40 bg-fitness-success/5",
-            completionHighlight && "ring-2 ring-fitness-success/50",
+            'flex flex-col gap-2 rounded-xl border border-fitness-success/40 bg-fitness-success/10 p-5',
+            completionHighlight && 'ring-2 ring-fitness-success/50',
           )}
         >
-          <CardContent className="py-4 px-5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-fitness-success" />
-              <div>
-                <p className="font-semibold text-sm text-fitness-success dark:text-fitness-success">{t('dash.workoutCompleted')}</p>
-                <p className="text-xs text-muted-foreground">{localizeDayName(todayTraining.day.dayName, lang)}</p>
-                {todayTraining.nextDay && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
-                  </p>
-                )}
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}>
-              {t('dash.view')}
-            </Button>
-          </CardContent>
-        </Card>
+          <div className="flex items-center gap-2 text-fitness-success">
+            <CheckCircle className="h-5 w-5 shrink-0" />
+            <p className="text-sm font-semibold">{t('dash.workoutCompleted')}</p>
+          </div>
+          <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
+            {localizeDayName(todayTraining.day.dayName, lang)}
+          </h2>
+          {todayTraining.nextDay && (
+            <p className="text-xs text-muted-foreground">
+              {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
+            </p>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="self-start"
+            onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}
+          >
+            {t('dash.view')}
+          </Button>
+        </div>
       )}
 
       {/* T3 (feedback 2026-08-20): cykl jeszcze nie wystartował — karta z datą
           startu (z dniem tygodnia) i pierwszym treningiem zamiast pustej regeneracji. */}
       {todayTraining.type === 'preStart' && (
-        <Card className="border-primary/40 bg-primary/5" data-testid="prestart-card">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <CalendarClock className="h-5 w-5 text-primary shrink-0" />
-              <div className="min-w-0">
-                <p className="font-semibold text-sm">
-                  {t('dash.preStart.title', {
-                    date: parseLocalDate(todayTraining.startDateISO).toLocaleDateString(dateLocale(lang), {
-                      weekday: 'long', day: 'numeric', month: 'long',
-                    }),
-                  })}
-                </p>
-                {todayTraining.firstEntry && (
-                  <p className="text-xs text-muted-foreground">
-                    {t('dash.preStart.firstWorkout', {
-                      day: `${localizeDayName(todayTraining.firstEntry.day.dayName, lang)} (${localizeFocus(todayTraining.firstEntry.day.focus, lang)}) · ${parseLocalDate(todayTraining.firstEntry.dateKey).toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}`,
-                    })}
-                  </p>
-                )}
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/plan')}>
-              {t('dash.preStart.viewPlan')}
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-2 rounded-xl bg-surface-container p-5" data-testid="prestart-card">
+          <span className="eyebrow-mono text-primary">{t('dash.hero.planStarts')}</span>
+          <p className="min-w-0 font-heading text-xl font-bold leading-tight tracking-tight">
+            {t('dash.preStart.title', {
+              date: parseLocalDate(todayTraining.startDateISO).toLocaleDateString(dateLocale(lang), {
+                weekday: 'long', day: 'numeric', month: 'long',
+              }),
+            })}
+          </p>
+          {todayTraining.firstEntry && (
+            <p className="text-sm text-muted-foreground">
+              {t('dash.preStart.firstWorkout', {
+                day: `${localizeDayName(todayTraining.firstEntry.day.dayName, lang)} (${localizeFocus(todayTraining.firstEntry.day.focus, lang)}) · ${parseLocalDate(todayTraining.firstEntry.dateKey).toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}`,
+              })}
+            </p>
+          )}
+          <Button variant="outline" size="sm" className="mt-1 self-start" onClick={() => navigate('/plan')}>
+            {t('dash.preStart.viewPlan')}
+          </Button>
+        </div>
       )}
 
       {/* Runna p.1 (spec B2): dzień wolny to karta regeneracji z treścią,
           nie pusty ekran — tip pod partię z WCZORAJSZEJ sesji + tip ogólny. */}
       {todayTraining.type === 'rest' && (
-        <Card className="bg-muted/30" data-testid="recovery-card">
-          <CardContent className="py-4 px-5">
-            <p className="text-sm font-medium flex items-center gap-1.5">
-              {t('dash.recovery.title')}
-              <Leaf className="h-4 w-4 text-muted-foreground" aria-hidden />
+        <div className="rounded-xl bg-surface-low p-5" data-testid="recovery-card">
+          <p className="flex items-center gap-1.5 font-heading text-base font-bold tracking-tight">
+            {t('dash.recovery.title')}
+            <Leaf className="h-4 w-4 text-muted-foreground" aria-hidden />
+          </p>
+          <ul className="mt-1.5 space-y-1">
+            {recoveryTipKeys(yesterdayFocus).map((key) => (
+              <li key={key} className="text-xs text-muted-foreground">{t(key)}</li>
+            ))}
+          </ul>
+          {todayTraining.nextDay && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
             </p>
-            <ul className="mt-1.5 space-y-1">
-              {recoveryTipKeys(yesterdayFocus).map((key) => (
-                <li key={key} className="text-xs text-muted-foreground">{t(key)}</li>
-              ))}
-            </ul>
-            {todayTraining.nextDay && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
 
       </div>
@@ -916,6 +950,9 @@ const Dashboard = () => {
       <WeekCard
         model={weekCardModel}
         isDeloadWeek={progression ? resolveDeloadWeek(currentWeek, progression, vacation, planStartDate) : false}
+        todayDoneDayName={todayTraining.type === 'completed'
+          ? localizeDayName(todayTraining.day.dayName, lang)
+          : undefined}
       />
 
       {/* T5: cardio bieżącego tygodnia (Strava + manual) POZA warunkiem
@@ -930,61 +967,54 @@ const Dashboard = () => {
       />
 
 
-      <AddCardioDialog
-        open={cardioDialog.open}
-        onOpenChange={(open) => setCardioDialog((prev) => ({ ...prev, open }))}
-        editActivity={cardioDialog.edit}
-        onAdd={addActivity}
-        onUpdate={updateActivity}
-        onDelete={deleteActivity}
-      />
-
-      {showNextStep && planNextStep && (
-      <PlanNextStepCard
-        step={planNextStep}
-        uid={uid}
-        planStartDate={planStartDate}
-        canRepeat={trainingPlan.length > 0}
-        isRepeating={isRepeating}
-        onRepeat={handleRepeatPlan}
-        onDismiss={dismissNextStep}
-        testId="dash-next-step"
-      />
-      )}
-
-      {/* PRO-E T3: upsell zepchnięty pod statystyki (był nad kartą dnia) */}
-      <ProUpsellBanner />
-
-      {/* FIX-B T5: karta planu usunięta (dublowała zakładkę Plan; Cykle mają
-          stałe wejście na /plan), ostatni PR przeniesiony do Analityki. */}
-
-
-      {/* Z104 szybki trening + Z112 ręczne cardio — zawsze dostępne. Runna p.1
-          (spec B2): na dole scrolla — dostępny, ale niekonkurujący z planem
-          (ochrona niezmiennika reguły #5: ad-hoc DOKŁADA, nie podmienia). */}
-      <div data-testid="dash-actions" className="grid grid-cols-2 gap-3">
-        <Button
-          variant="outline"
-          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+      {/* Z104 szybki trening + Z112 ręczne cardio + fala 2: grid 2x2 szybkich
+          akcji (mockup "tray"). Kafle 3-4 przywracają wejścia: "Twoje liczby"
+          (X17D Z139.4) i Analitykę (dawny pełnowymiarowy przycisk). Ochrona
+          niezmiennika reguły #5: ad-hoc DOKŁADA, nie podmienia. */}
+      <div data-testid="dash-actions" className="grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          className="flex min-h-11 items-center gap-2.5 rounded-2xl bg-surface-low px-3.5 py-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-surface-high"
           onClick={() => {
             const adhocDay = createAdhocDay(formatLocalDate(today), (key) => t(key as Parameters<typeof t>[0]));
             navigate(`/workout/${adhocDay.id}?date=${formatLocalDate(today)}&autostart=true`);
           }}
           data-testid="quick-workout-start"
         >
-          <Zap className="h-4 w-4 text-primary" />
+          <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
           {t('adhoc.start')}
-        </Button>
-        <Button
-          variant="outline"
-          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+        </button>
+        <button
+          type="button"
+          className="flex min-h-11 items-center gap-2.5 rounded-2xl bg-surface-low px-3.5 py-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-surface-high"
           onClick={() => setCardioDialog({ open: true, edit: null })}
           data-testid="add-cardio-open"
         >
-          <HeartPulse className="h-4 w-4 text-primary" />
+          <HeartPulse className="h-4 w-4 shrink-0 text-muted-foreground" />
           {t('cardio.addButton')}
-        </Button>
+        </button>
+        <button
+          type="button"
+          className="flex min-h-11 items-center gap-2.5 rounded-2xl bg-surface-low px-3.5 py-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-surface-high"
+          onClick={() => setStatsOpen(true)}
+          data-testid="dash-your-numbers"
+        >
+          <Weight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {t('stats.title')}
+        </button>
+        <button
+          type="button"
+          className="flex min-h-11 items-center gap-2.5 rounded-2xl bg-surface-low px-3.5 py-3 text-left text-[13px] font-medium text-foreground transition-colors hover:bg-surface-high"
+          onClick={() => navigate('/achievements?view=analytics&tab=summary')}
+          data-testid="dash-analytics"
+        >
+          <BarChart3 className="h-4 w-4 shrink-0 text-muted-foreground" />
+          {t('layout.title.analytics')}
+        </button>
       </div>
+
+      {/* PRO-E T3: upsell zepchnięty pod szybkie akcje */}
+      <ProUpsellBanner />
 
       {/* D-T2: dokładnie JEDEN insight — raport tygodnia (target vs actual). */}
       {planStarted && (
@@ -997,15 +1027,14 @@ const Dashboard = () => {
         />
       )}
 
-      {/* Analytics link — jawnie na bieżące podsumowanie (FIX-B T6) */}
-      <Button
-        variant="outline"
-        className="w-full py-5 hover:border-primary/30 transition-all duration-200"
-        onClick={() => navigate('/achievements?view=analytics&tab=summary')}
-      >
-        <BarChart3 className="h-4 w-4 mr-2" />
-        {t('dash.seeAnalytics')}
-      </Button>
+      <AddCardioDialog
+        open={cardioDialog.open}
+        onOpenChange={(open) => setCardioDialog((prev) => ({ ...prev, open }))}
+        editActivity={cardioDialog.edit}
+        onAdd={addActivity}
+        onUpdate={updateActivity}
+        onDelete={deleteActivity}
+      />
 
       <RescheduleSheet
         open={rescheduleFrom !== null}

@@ -5,10 +5,9 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { TrainingDay } from '@/data/trainingPlan';
 
-// Runna pakiet 1, krok 8 (spec B2): kolejność Dashboardu (dziś → tydzień →
-// reszta → Szybki trening na dole) + dzień wolny jako karta regeneracji.
-// Niezmiennik: wszystkie dotychczasowe elementy obecne (przesuwamy, nie
-// usuwamy) — wzorzec profile-sections.
+// Fala 2 (2026-08-20): chip streaka tygodniowego przy dacie w powitaniu
+// (mockupowe "14 WEEKS"). Streak liczony jak dotąd (calculateStreakDetails,
+// >=2 treningi/tydzień); chip renderuje się TYLKO gdy streak > 0.
 
 const navigateSpy = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -45,7 +44,7 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({
     workouts: workoutsFixture.workouts,
     getTotalWeight: () => 0,
-    getCompletedWorkoutsCount: () => 1,
+    getCompletedWorkoutsCount: () => workoutsFixture.workouts.length,
     getLatestMeasurement: () => null,
     isLoaded: true,
     error: null,
@@ -113,17 +112,22 @@ const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frida
 const dateKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const dayOn = (offsetDays: number, id: string, focus: string): TrainingDay => {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return {
-    id,
-    dayName: `Dzień ${id}`,
-    weekday: WEEKDAYS[d.getDay()] as TrainingDay['weekday'],
-    focus,
-    exercises: [{ id: `ex-${id}`, name: 'Wyciskanie', sets: '3 x 5', instructions: [] }],
-  };
-};
+const dayToday = (): TrainingDay => ({
+  id: 'day-1',
+  dayName: 'Dzień A',
+  weekday: WEEKDAYS[new Date().getDay()] as TrainingDay['weekday'],
+  focus: 'Push',
+  exercises: [{ id: 'ex-1', name: 'Wyciskanie', sets: '3 x 5', instructions: [] }],
+});
+
+const completedWorkout = (id: string) => ({
+  id,
+  userId: 'u1',
+  dayId: 'day-1',
+  date: dateKey(new Date()),
+  completed: true,
+  exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 5, weight: 100, completed: true }] }],
+});
 
 const renderDashboard = () =>
   render(
@@ -140,62 +144,22 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
   navigateSpy.mockClear();
+  planFixture.plan = [dayToday()];
   workoutsFixture.workouts = [];
 });
 
-describe('kolejność Dashboardu (spec B2)', () => {
-  it('D-T2: hero -> tydzień -> szybkie akcje -> max jeden insight; duplikaty usunięte', async () => {
-    planFixture.plan = [dayOn(0, 'day-1', 'Push')];
+describe('chip streaka w powitaniu (fala 2)', () => {
+  it('streak > 0: chip z liczbą tygodni przy dacie', async () => {
+    // 2 ukończone treningi w bieżącym tygodniu = streak 1 (próg >=2/tydzień).
+    workoutsFixture.workouts = [completedWorkout('w1'), completedWorkout('w2')];
     renderDashboard();
-    await waitFor(() => expect(screen.getByTestId('week-card')).toBeTruthy());
-
-    const greeting = screen.getByTestId('dash-greeting');
-    const hero = screen.getByTestId('dash-hero');
-    const weekCard = screen.getByTestId('week-card');
-    const quickStart = screen.getByTestId('quick-workout-start');
-    const cardio = screen.getByTestId('add-cardio-open');
-    // Fala 2: analityka to kafel w gridzie akcji (pełnowymiarowy przycisk zniknął).
-    const analytics = screen.getByTestId('dash-analytics');
-
-    // Duplikaty analityki/planu/tygodnia zeszły z Dashboardu (domy: Postępy i Plan).
-    expect(screen.queryByTestId('dash-stats')).toBeNull();
-    expect(screen.queryByTestId('dash-week-section')).toBeNull();
-    expect(screen.queryByTestId('dash-strava-km')).toBeNull();
-    expect(screen.queryByTestId('dash-plan-card')).toBeNull();
-    expect(screen.queryByTestId('dash-last-pr')).toBeNull();
-    expect(screen.queryByText('Zobacz analitykę')).toBeNull();
-
-    // Kolejność: powitanie -> hero -> kompaktowy tydzień -> grid akcji
-    // (baner decyzji planu siada MIĘDZY greeting a hero, gdy jest co decydować).
-    expect(greeting.compareDocumentPosition(hero) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(hero.compareDocumentPosition(weekCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(weekCard.compareDocumentPosition(quickStart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(quickStart.compareDocumentPosition(analytics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(cardio).toBeTruthy();
-    expect(screen.getByTestId('dash-your-numbers')).toBeTruthy();
-
-    // Zaległość nie jest automatycznym modalem: zero blokujących warstw po wejściu.
-    expect(document.querySelectorAll('[data-app-overlay]')).toHaveLength(0);
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await waitFor(() => expect(screen.getByTestId('dash-streak-chip')).toBeTruthy());
+    expect(screen.getByTestId('dash-streak-chip').textContent).toContain('1 tyg. serii');
   });
 
-  it('dzień wolny: karta regeneracji z tipem pod wczorajszą partię', async () => {
-    planFixture.plan = [dayOn(1, 'day-2', 'Pull')];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    workoutsFixture.workouts = [{
-      id: 'w-y',
-      userId: 'u1',
-      dayId: 'day-x',
-      date: dateKey(yesterday),
-      completed: true,
-      dayFocus: 'Klatka i barki',
-      exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 5, weight: 100, completed: true }] }],
-    }];
+  it('streak 0: brak chipu', async () => {
     renderDashboard();
-
-    await waitFor(() => expect(screen.getByText(/Dzień regeneracji/)).toBeTruthy());
-    expect(screen.getByText(/Rozciągnij klatkę i barki/)).toBeTruthy();
-    expect(screen.getByText(/Następny trening/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('dash-greeting')).toBeTruthy());
+    expect(screen.queryByTestId('dash-streak-chip')).toBeNull();
   });
 });

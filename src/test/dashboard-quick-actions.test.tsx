@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { TrainingDay } from '@/data/trainingPlan';
 
-// Runna pakiet 1, krok 8 (spec B2): kolejność Dashboardu (dziś → tydzień →
-// reszta → Szybki trening na dole) + dzień wolny jako karta regeneracji.
-// Niezmiennik: wszystkie dotychczasowe elementy obecne (przesuwamy, nie
-// usuwamy) — wzorzec profile-sections.
+// Fala 2 (2026-08-20): grid 2x2 szybkich akcji. Niezmiennik: DOKŁADNIE 4 kafle
+// i każdy działa — kafel "Twoje liczby" przywraca wejście z Dashboardu do
+// AllTimeStatsSheet (X17D Z139.4), kafel Analityki przejmuje funkcję zdjętego
+// pełnowymiarowego przycisku "Zobacz analitykę".
 
 const navigateSpy = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -43,9 +43,9 @@ vi.mock('@/contexts/UserContext', () => ({
 }));
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({
-    workouts: workoutsFixture.workouts,
+    workouts: [],
     getTotalWeight: () => 0,
-    getCompletedWorkoutsCount: () => 1,
+    getCompletedWorkoutsCount: () => 0,
     getLatestMeasurement: () => null,
     isLoaded: true,
     error: null,
@@ -105,25 +105,18 @@ vi.mock('@/lib/workout-sync-queue', () => ({
 }));
 
 const planFixture = vi.hoisted(() => ({ plan: [] as unknown[] }));
-const workoutsFixture = vi.hoisted(() => ({ workouts: [] as unknown[] }));
 
 import Dashboard from '@/pages/Dashboard';
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-const dateKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-const dayOn = (offsetDays: number, id: string, focus: string): TrainingDay => {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return {
-    id,
-    dayName: `Dzień ${id}`,
-    weekday: WEEKDAYS[d.getDay()] as TrainingDay['weekday'],
-    focus,
-    exercises: [{ id: `ex-${id}`, name: 'Wyciskanie', sets: '3 x 5', instructions: [] }],
-  };
-};
+const dayToday = (): TrainingDay => ({
+  id: 'day-1',
+  dayName: 'Dzień A',
+  weekday: WEEKDAYS[new Date().getDay()] as TrainingDay['weekday'],
+  focus: 'Push',
+  exercises: [{ id: 'ex-1', name: 'Wyciskanie', sets: '3 x 5', instructions: [] }],
+});
 
 const renderDashboard = () =>
   render(
@@ -140,62 +133,47 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
   navigateSpy.mockClear();
-  workoutsFixture.workouts = [];
+  planFixture.plan = [dayToday()];
 });
 
-describe('kolejność Dashboardu (spec B2)', () => {
-  it('D-T2: hero -> tydzień -> szybkie akcje -> max jeden insight; duplikaty usunięte', async () => {
-    planFixture.plan = [dayOn(0, 'day-1', 'Push')];
+describe('grid szybkich akcji (fala 2)', () => {
+  it('niezmiennik: grid ma DOKŁADNIE 4 kafle', async () => {
     renderDashboard();
-    await waitFor(() => expect(screen.getByTestId('week-card')).toBeTruthy());
-
-    const greeting = screen.getByTestId('dash-greeting');
-    const hero = screen.getByTestId('dash-hero');
-    const weekCard = screen.getByTestId('week-card');
-    const quickStart = screen.getByTestId('quick-workout-start');
-    const cardio = screen.getByTestId('add-cardio-open');
-    // Fala 2: analityka to kafel w gridzie akcji (pełnowymiarowy przycisk zniknął).
-    const analytics = screen.getByTestId('dash-analytics');
-
-    // Duplikaty analityki/planu/tygodnia zeszły z Dashboardu (domy: Postępy i Plan).
-    expect(screen.queryByTestId('dash-stats')).toBeNull();
-    expect(screen.queryByTestId('dash-week-section')).toBeNull();
-    expect(screen.queryByTestId('dash-strava-km')).toBeNull();
-    expect(screen.queryByTestId('dash-plan-card')).toBeNull();
-    expect(screen.queryByTestId('dash-last-pr')).toBeNull();
-    expect(screen.queryByText('Zobacz analitykę')).toBeNull();
-
-    // Kolejność: powitanie -> hero -> kompaktowy tydzień -> grid akcji
-    // (baner decyzji planu siada MIĘDZY greeting a hero, gdy jest co decydować).
-    expect(greeting.compareDocumentPosition(hero) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(hero.compareDocumentPosition(weekCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(weekCard.compareDocumentPosition(quickStart) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(quickStart.compareDocumentPosition(analytics) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(cardio).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('dash-actions')).toBeTruthy());
+    const grid = screen.getByTestId('dash-actions');
+    expect(grid.querySelectorAll('button')).toHaveLength(4);
+    expect(screen.getByTestId('quick-workout-start')).toBeTruthy();
+    expect(screen.getByTestId('add-cardio-open')).toBeTruthy();
     expect(screen.getByTestId('dash-your-numbers')).toBeTruthy();
-
-    // Zaległość nie jest automatycznym modalem: zero blokujących warstw po wejściu.
-    expect(document.querySelectorAll('[data-app-overlay]')).toHaveLength(0);
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(screen.getByTestId('dash-analytics')).toBeTruthy();
   });
 
-  it('dzień wolny: karta regeneracji z tipem pod wczorajszą partię', async () => {
-    planFixture.plan = [dayOn(1, 'day-2', 'Pull')];
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    workoutsFixture.workouts = [{
-      id: 'w-y',
-      userId: 'u1',
-      dayId: 'day-x',
-      date: dateKey(yesterday),
-      completed: true,
-      dayFocus: 'Klatka i barki',
-      exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 5, weight: 100, completed: true }] }],
-    }];
+  it('kafel "Twoje liczby" otwiera AllTimeStatsSheet', async () => {
     renderDashboard();
+    await waitFor(() => expect(screen.getByTestId('dash-your-numbers')).toBeTruthy());
+    expect(screen.queryByTestId('stats-empty')).toBeNull();
+    fireEvent.click(screen.getByTestId('dash-your-numbers'));
+    await waitFor(() => expect(screen.getByTestId('stats-empty')).toBeTruthy());
+  });
 
-    await waitFor(() => expect(screen.getByText(/Dzień regeneracji/)).toBeTruthy());
-    expect(screen.getByText(/Rozciągnij klatkę i barki/)).toBeTruthy();
-    expect(screen.getByText(/Następny trening/)).toBeTruthy();
+  it('kafel Analityki nawiguje do podsumowania analityki', async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByTestId('dash-analytics')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('dash-analytics'));
+    expect(navigateSpy).toHaveBeenLastCalledWith('/achievements?view=analytics&tab=summary');
+  });
+
+  it('kafel szybkiego treningu nawiguje do ad-hoc z autostartem', async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByTestId('quick-workout-start')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('quick-workout-start'));
+    expect(navigateSpy).toHaveBeenLastCalledWith(expect.stringMatching(/^\/workout\/.+autostart=true$/));
+  });
+
+  it('kafel cardio otwiera dialog dodawania', async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByTestId('add-cardio-open')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('add-cardio-open'));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
   });
 });

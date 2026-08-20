@@ -39,7 +39,7 @@ export const WeekCardioCard = ({
 
   return (
     <div data-testid="dash-week-cardio" className="space-y-2">
-      <h3 className="text-sm font-medium text-muted-foreground px-1">
+      <h3 className="eyebrow-mono px-1 text-muted-foreground">
         {t('dash.weekCardio.title')}
       </h3>
       {weekCardio.map((activity) => (
