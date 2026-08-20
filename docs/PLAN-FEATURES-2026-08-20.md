@@ -51,6 +51,12 @@ i cała aplikacja jest w tym kolorze."
 - [x] Testy: unit hooka theme (zapis/odczyt/fallback), snapshot tokenów per
   akcent, e2e: zmiana koloru w Profilu zmienia przycisk primary na Dashboard.
 
+ROZSZERZENIE F-T2b (życzenie właściciela 2026-08-20, commit 3d7907e1): dowolny
+kolor oprócz palety — 9. kółko z systemowym pickerem (input type=color, na iOS
+z wpisem po #) + pole tekstowe #RRGGBB z walidacją; hex -> tokeny HSL, ciemny
+kolor dostaje jasny tekst na akcencie (luminancja); persistencja i mirror jak
+paleta. Testy lib 11/11, profil 17/17, e2e 4/4, vitest 1804/1804.
+
 DOWÓD (2026-08-20, commit 3866e376): lib `accent-theme` (8 akcentów, apply na
 --primary/--primary-light/--ring + data-accent, limonka = czyste tokeny,
 fallback nieznanego id), boot w main.tsx przed renderem, sekcja Wygląd w Profilu
