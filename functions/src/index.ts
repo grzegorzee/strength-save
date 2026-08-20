@@ -1277,6 +1277,16 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
       .get();
     return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<EmailWorkout, "id">) }));
   },
+  // H-T3: język maila (i displayName do tytułu) z users doc — to samo pole
+  // language co weekly-digest; parametr klienta zostaje tylko fallbackiem.
+  getUserContext: async (uid) => {
+    const snap = await getUserRef(uid).get();
+    const data = snap.data() ?? {};
+    return {
+      ...(typeof data.language === "string" ? { language: data.language } : {}),
+      ...(typeof data.displayName === "string" ? { displayName: data.displayName } : {}),
+    };
+  },
   consumeQuota: async (uid, today) => {
     const ref = db.collection("email_quota").doc(uid);
     return db.runTransaction(async (tx) => {

@@ -41,11 +41,15 @@ const workout = (over: Partial<EmailWorkout> = {}): EmailWorkout => ({
 const deps = (over: Partial<EmailWorkoutDeps> = {}): EmailWorkoutDeps => ({
   getWorkout: vi.fn(async () => workout()),
   listWorkoutsInRange: vi.fn(async () => [workout()]),
+  getUserContext: vi.fn(async () => ({})),
   consumeQuota: vi.fn(async () => true),
   sendEmail: vi.fn(async () => ({})),
   logEmail: vi.fn(async () => undefined),
   ...over,
 });
+
+const sentHtml = (d: EmailWorkoutDeps): string =>
+  (d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][2] as string;
 
 const loggedEntry = (d: EmailWorkoutDeps) =>
   (d.logEmail as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>;
@@ -199,6 +203,54 @@ describe("email_log (G-T1)", () => {
     const d = deps();
     await runEmailWorkout(d, { ...params, to: "nie-adres" });
     expect(d.logEmail).not.toHaveBeenCalled();
+  });
+});
+
+// H-T3: język maila z ustawień USERA (users.language, to samo pole co digest);
+// parametr klienta tylko fallback, brak wszystkiego = pl.
+describe("język maila z profilu usera (H-T3)", () => {
+  const params = { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" } as const;
+
+  it("profil language=en wygrywa z klientowym pl", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({ language: "en" })) });
+    expect(await runEmailWorkout(d, { ...params, lang: "pl" })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("at the account owner's request");
+  });
+
+  it("profil language=pl wygrywa z klientowym en (i odwrotność poprzedniego)", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({ language: "pl" })) });
+    expect(await runEmailWorkout(d, { ...params, lang: "en" })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("na prośbę właściciela konta");
+  });
+
+  it("brak języka w profilu = fallback na parametr klienta", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({ displayName: "Greg" })) });
+    expect(await runEmailWorkout(d, { ...params, lang: "en" })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("at the account owner's request");
+  });
+
+  it("brak wszystkiego = pl", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({})) });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("na prośbę właściciela konta");
+  });
+
+  it("awaria odczytu profilu nie blokuje wysyłki (fallback na parametr)", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => { throw new Error("firestore-down"); }) });
+    expect(await runEmailWorkout(d, { ...params, lang: "en" })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("at the account owner's request");
+  });
+
+  it("historia też bierze język z profilu", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({ language: "en" })) });
+    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20", lang: "pl" })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("at the account owner's request");
+  });
+
+  it("email_log dostaje finalny język (z profilu), nie klientowy", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({ language: "en" })) });
+    await runEmailWorkout(d, { ...params, lang: "pl" });
+    expect(loggedEntry(d).lang).toBe("en");
   });
 });
 

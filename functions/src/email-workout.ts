@@ -61,10 +61,18 @@ export interface EmailLogEntry {
 /** H-T2: zakres maila historii — tydzień (default) albo 30 ostatnich. */
 export type HistoryEmailRange = "week" | "last30";
 
+/** H-T3: kontekst usera z users doc (language jak w weekly-digest + displayName). */
+export interface EmailUserContext {
+  language?: string;
+  displayName?: string;
+}
+
 export interface EmailWorkoutDeps {
   getWorkout: (workoutId: string) => Promise<EmailWorkout | null>;
   /** Ukończone treningi usera, date desc; sinceDate zawęża od dołu (YYYY-MM-DD). */
   listWorkoutsInRange: (uid: string, opts: { sinceDate?: string; limit: number }) => Promise<EmailWorkout[]>;
+  /** Jedno czytanie users doc: język maila (źródło prawdy) + displayName do tytułu. */
+  getUserContext: (uid: string) => Promise<EmailUserContext>;
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
   consumeQuota: (uid: string, today: string) => Promise<boolean>;
   sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
@@ -314,7 +322,7 @@ export async function runEmailWorkout(
   if (!workout) return { ok: false, code: "not-found" };
   if (workout.userId !== params.uid) return { ok: false, code: "forbidden" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const lang: Lang = params.lang === "en" ? "en" : "pl";
+  const { lang } = await resolveUserContext(deps, params.uid, params.lang);
   const subject = workoutEmailSubject(workout, lang);
   const response = await deps.sendEmail(params.to, subject, buildWorkoutEmailHtml(workout, lang));
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "workout", workoutId: workout.id, subject, lang }, response);
@@ -325,6 +333,25 @@ export async function runEmailWorkout(
 /** date - days dni w formacie YYYY-MM-DD (rachunek w UTC na stringu daty). */
 const dateMinusDays = (date: string, days: number): string =>
   new Date(Date.parse(`${date}T00:00:00.000Z`) - days * 86400000).toISOString().slice(0, 10);
+
+/** H-T3: język z profilu usera wygrywa; parametr klienta tylko fallback;
+ *  awaria odczytu profilu nie blokuje wysyłki. */
+const resolveUserContext = async (
+  deps: EmailWorkoutDeps,
+  uid: string,
+  clientLang: Lang | undefined,
+): Promise<{ lang: Lang; displayName?: string }> => {
+  let ctx: EmailUserContext = {};
+  try {
+    ctx = await deps.getUserContext(uid);
+  } catch {
+    // Profil chwilowo niedostępny: mail ma wyjść, decyduje parametr klienta.
+  }
+  const lang: Lang = ctx.language === "en" ? "en"
+    : ctx.language === "pl" ? "pl"
+      : clientLang === "en" ? "en" : "pl";
+  return { lang, ...(ctx.displayName ? { displayName: ctx.displayName } : {}) };
+};
 
 export async function runEmailHistory(
   deps: EmailWorkoutDeps,
@@ -338,7 +365,7 @@ export async function runEmailHistory(
     : { limit: HISTORY_EMAIL_MAX_WORKOUTS });
   if (workouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const lang: Lang = params.lang === "en" ? "en" : "pl";
+  const { lang } = await resolveUserContext(deps, params.uid, params.lang);
   const subject = historyEmailSubject(workouts.length, lang);
   const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(workouts, lang));
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response);
