@@ -2655,7 +2655,13 @@ const WorkoutDay = () => {
           {/* X17D Z140.3: powrót z ukończonego treningu odpala confetti na Dashboardzie.
               Ten sam wzorzec co ?welcome=1 po onboardingu — AppHeader ukryty na
               /workout/*, więc świętowanie musi wydarzyć się PO nawigacji. */}
-          <Button variant="outline" className="w-full" onClick={() => navigate('/?celebrate=1')}>
+          {/* Fala 2 (2026-08-20, tokens.md par. 2.8): CTA hero podsumowania tej samej
+              wielkości i klasy co "Zakończ trening" (wymóg właściciela: h-14 + kinetic). */}
+          <Button
+            size="lg"
+            className="kinetic-primary-button h-14 w-full text-base hover:brightness-105"
+            onClick={() => navigate('/?celebrate=1')}
+          >
             {t('workout.backToDashboard')}
           </Button>
         </div>
@@ -3049,14 +3055,14 @@ const WorkoutDay = () => {
               <Button
                 size="lg"
                 variant="outline"
-                className="flex-1 py-6"
+                className="h-14 flex-1"
                 onClick={() => setShowCompleteConfirm(false)}
               >
                 {t('common.cancel')}
               </Button>
               <Button
                 size="lg"
-                className="kinetic-primary-button flex-1 py-6 hover:brightness-105"
+                className="kinetic-primary-button h-14 flex-1 hover:brightness-105"
                 onClick={handleCompleteWorkout}
                 disabled={isExplicitSaving}
               >
@@ -3069,7 +3075,7 @@ const WorkoutDay = () => {
             // press-and-hold zawodził na siłowni — drgnięcie palca anulowało hold).
             <Button
               size="lg"
-              className="kinetic-primary-button w-full py-6 text-base hover:brightness-105"
+              className="kinetic-primary-button h-14 w-full text-base hover:brightness-105"
               onClick={() => setShowCompleteConfirm(true)}
               disabled={isExplicitSaving}
               data-testid="finish-workout"
@@ -3090,7 +3096,7 @@ const WorkoutDay = () => {
           )}
           <Button
             size="lg"
-            className="kinetic-primary-button w-full py-6 text-base hover:brightness-105"
+            className="kinetic-primary-button h-14 w-full text-base hover:brightness-105"
             onClick={() => {
               if (!startSourcesReady && startSourcesTimedOut) {
                 window.location.reload();
