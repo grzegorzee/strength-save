@@ -18,15 +18,23 @@ completed+date). Firestore rzuca failed-precondition (missing index),
 callable oddaje 'internal', klient pokazuje generyczne
 "Sending failed, check your connection".
 
-- [ ] Dodać indeks do firestore.indexes.json + `firebase deploy --only
+- [x] Dodać indeks do firestore.indexes.json + `firebase deploy --only
   firestore:indexes` + poczekać aż zbudowany (poll: `gcloud firestore indexes
   composite list --project fittracker-workouts` albo firebase CLI; stan READY).
-- [ ] W callable emailWorkoutHistory/emailWorkoutSummary: try/catch wokół
+  DOWÓD: commit e6b65886, deploy OK, poll gcloud (konto g.jasionowicz) —
+  workouts(userId ASC, completed ASC, date DESC) stan READY 2026-08-20.
+- [x] W callable emailWorkoutHistory/emailWorkoutSummary: try/catch wokół
   odczytów z `logger.error` z detalami (przyszłe diagnozy w minutę, nie przez
   zgadywanie) — bez zmiany kodów błędów dla klienta.
-- [ ] Weryfikacja realna: node script (admin SDK, READ-ONLY) odtwarza dokładnie
+  DOWÓD: commit e6b65886 (getWorkout + listWorkoutsInRange logują i rethrow);
+  bonus 154f2705: adapter honoruje beforeDate (baseline PR był bez górnej
+  granicy — kontrakt deps i testy czystej logiki już jej wymagały).
+- [x] Weryfikacja realna: node script (admin SDK, READ-ONLY) odtwarza dokładnie
   to zapytanie dla uid admina (konto właściciela) — przechodzi bez błędu po
   zbudowaniu indeksu. ŻADNYCH zapisów na realnym koncie.
+  DOWÓD: scripts/verify-email-range-index.mjs — RED przed zbudowaniem
+  (FAILED_PRECONDITION "query requires an index"), GREEN po READY:
+  week OK (4), last30 OK (30), baseline beforeDate OK (81). Zero zapisów.
 
 ## J-T2 — akcja "Wyślij ten trening" w wierszu Historii
 
