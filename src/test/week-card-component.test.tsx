@@ -41,13 +41,13 @@ describe('WeekCard', () => {
   it('nagłówek: licznik sesji, tonaż i skrót tygodnia mono (fala 2)', () => {
     renderCard(model);
     expect(screen.getByText('1 z 3 sesji')).toBeTruthy();
-    // Tonaż i "Tydz. 6/12" w jednym wierszu mono po prawej.
-    expect(screen.getByText(/4\.3 t · Tydz\. 6\/12/)).toBeTruthy();
+    // Tonaż i "TYDZ. 6/12" w jednym wierszu mono po prawej.
+    expect(screen.getByText(/4\.3 t · TYDZ\. 6\/12/)).toBeTruthy();
   });
 
   it('bez tonażu: sam skrót tygodnia, bez separatora', () => {
     renderCard({ ...model, tonnageKg: 0 });
-    expect(screen.getByText(/^Tydz\. 6\/12$/)).toBeTruthy();
+    expect(screen.getByText(/^TYDZ\. 6\/12$/)).toBeTruthy();
   });
 
   it('badge deload przy tygodniu deloadowym', () => {

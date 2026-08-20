@@ -212,7 +212,7 @@ export const pl = {
   'dash.week.sessions': '{done} z {total} sesji',
   'dash.week.deload': 'Deload',
   // Fala 2 (2026-08-20): pasek tygodnia z segmentami + redesign hero.
-  'dash.week.short': 'Tydz. {current}/{total}',
+  'dash.week.short': 'TYDZ. {current}/{total}',
   'dash.week.day.done': 'zrobione',
   'dash.week.day.planned': 'zaplanowane',
   'dash.week.day.skipped': 'odpuszczone',

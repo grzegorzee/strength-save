@@ -43,7 +43,9 @@ export const WeekCard = ({ model, isDeloadWeek, todayDoneDayName }: WeekCardProp
               </span>
             )}
           </div>
-          <p className="shrink-0 font-mono text-xs uppercase tracking-[0.08em] tabular-nums text-muted-foreground">
+          {/* Bez CSS uppercase: tonaż ma zostać "6.3 t" (małe t), skrót tygodnia
+              jest wersalikami w samym tłumaczeniu (TYDZ./WK). */}
+          <p className="shrink-0 font-mono text-xs tracking-[0.08em] tabular-nums text-muted-foreground">
             {model.tonnageKg > 0 && `${fmtTonnage(model.tonnageKg)} · `}
             {t('dash.week.short', { current: model.week.current, total: model.week.total })}
           </p>

@@ -206,7 +206,7 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.week.sessions': '{done} of {total} sessions',
   'dash.week.deload': 'Deload',
   // Fala 2 (2026-08-20): pasek tygodnia z segmentami + redesign hero.
-  'dash.week.short': 'Wk {current}/{total}',
+  'dash.week.short': 'WK {current}/{total}',
   'dash.week.day.done': 'done',
   'dash.week.day.planned': 'planned',
   'dash.week.day.skipped': 'skipped',
