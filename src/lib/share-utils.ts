@@ -1,6 +1,7 @@
 import { parseLocalDate } from '@/lib/utils';
 import { translate, dateLocale, type LanguageCode } from '@/i18n';
 import { formatTonnage, type UnitSystem } from '@/lib/units';
+import { getCurrentAccent } from '@/lib/accent-theme';
 import appIcon from '@/assets/app-icon.png';
 
 export interface ShareData {
@@ -175,7 +176,15 @@ export function buildShareHtmlStory(
   lang: LanguageCode,
   unit: UnitSystem,
   hero: ShareHero = 'tonnage',
+  // F-T2: kolor przewodni usera (domyślnie limonka marki).
+  accentHex: string = LIME,
 ): string {
+  const accentRgb = (() => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(accentHex);
+    if (!m) return '206,252,34';
+    const n = parseInt(m[1], 16);
+    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+  })();
   const safeDayName = escapeHtml(data.dayName);
   // E-T2: bez weekday — dayName z planu to często "Czwartek", a data z weekday
   // dawała "Czwartek, czwartek, 20 sierpnia" (screenshot z buildu 107).
@@ -194,16 +203,16 @@ export function buildShareHtmlStory(
   const heroBlock = (() => {
     if (effectiveHero === 'pr') {
       return `
-        <div style="display:inline-block;background:${LIME};color:#0b0b0f;border-radius:999px;padding:4px 14px;font-size:13px;font-weight:800;letter-spacing:1px;">PR</div>
-        <div style="font-size:34px;font-weight:800;color:${LIME};margin-top:12px;line-height:1.2;">${escapeHtml(data.prs[0])}</div>`;
+        <div style="display:inline-block;background:${accentHex};color:#0b0b0f;border-radius:999px;padding:4px 14px;font-size:13px;font-weight:800;letter-spacing:1px;">PR</div>
+        <div style="font-size:34px;font-weight:800;color:${accentHex};margin-top:12px;line-height:1.2;">${escapeHtml(data.prs[0])}</div>`;
     }
     if (effectiveHero === 'duration') {
       return `
-        <div style="font-size:68px;font-weight:800;color:${LIME};letter-spacing:-2px;line-height:1;">${escapeHtml(data.duration)}</div>
+        <div style="font-size:68px;font-weight:800;color:${accentHex};letter-spacing:-2px;line-height:1;">${escapeHtml(data.duration)}</div>
         <div style="font-size:13px;color:#8b93a1;margin-top:10px;text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.duration'))}</div>`;
     }
     return `
-      <div style="font-size:68px;font-weight:800;color:${LIME};letter-spacing:-2px;line-height:1;">${tonnageStr}</div>
+      <div style="font-size:68px;font-weight:800;color:${accentHex};letter-spacing:-2px;line-height:1;">${tonnageStr}</div>
       <div style="font-size:13px;color:#8b93a1;margin-top:10px;text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.tonnage'))}</div>`;
   })();
 
@@ -220,7 +229,7 @@ export function buildShareHtmlStory(
           <span>${escapeHtml(translate(lang, 'share.weekProgress', { current: data.week.current, total: data.week.total }))}</span>
         </div>
         <div style="height:6px;border-radius:999px;background:rgba(255,255,255,0.12);overflow:hidden;">
-          <div style="height:100%;width:${Math.max(0, Math.min(100, Math.round((data.week.current / data.week.total) * 100)))}%;background:${LIME};"></div>
+          <div style="height:100%;width:${Math.max(0, Math.min(100, Math.round((data.week.current / data.week.total) * 100)))}%;background:${accentHex};"></div>
         </div>
       </div>`
     : '';
@@ -230,7 +239,7 @@ export function buildShareHtmlStory(
       width:540px;height:960px;position:relative;overflow:hidden;
       background:#07080a;color:#fff;font-family:system-ui,-apple-system,sans-serif;
     ">
-      <div style="position:absolute;top:-160px;right:-160px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle, rgba(206,252,34,0.22) 0%, rgba(206,252,34,0) 70%);"></div>
+      <div style="position:absolute;top:-160px;right:-160px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle, rgba(${accentRgb},0.22) 0%, rgba(${accentRgb},0) 70%);"></div>
       <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;padding:88px 32px;">
         <div style="
           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
@@ -452,7 +461,7 @@ export async function generateWorkoutImage(
   container.innerHTML = usePhoto
     ? buildShareHtmlWithPhoto(data, photoDataUrl, lang, unit)
     : template === 'story'
-      ? buildShareHtmlStory(data, lang, unit, hero)
+      ? buildShareHtmlStory(data, lang, unit, hero, getCurrentAccent().hex)
       : buildShareHtml(data, lang, unit, template === 'minimal' ? 'minimal' : 'gradient');
 
   document.body.appendChild(container);

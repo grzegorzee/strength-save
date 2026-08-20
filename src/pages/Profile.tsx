@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
+import { ACCENTS, applyAccent, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -208,8 +209,24 @@ const Profile = () => {
   };
 
   // Timer i dźwięk lecą też do users/{uid}.preferences — spójne między web i iOS.
-  const persistPreference = (patch: Record<string, number | boolean>) => {
+  const persistPreference = (patch: Record<string, number | boolean | string>) => {
     updateDoc(doc(db, 'users', uid), patch).catch(() => { /* offline — localStorage wystarczy do następnej sesji */ });
+  };
+  // F-T2: kolor przewodni — lokalnie od splashu, mirror w profilu (cross-device).
+  const [accentId, setAccentId] = useState(readStoredAccentId());
+  const profileAccent = profile?.preferences?.accentColor;
+  useEffect(() => {
+    if (profileAccent && profileAccent !== readStoredAccentId()) {
+      applyAccent(profileAccent);
+      storeAccentId(profileAccent);
+      setAccentId(profileAccent);
+    }
+  }, [profileAccent]);
+  const handleAccent = (id: string) => {
+    applyAccent(id);
+    storeAccentId(id);
+    setAccentId(id);
+    persistPreference({ 'preferences.accentColor': id });
   };
   const handleRestChange = (v: string) => {
     setRestTimer(v);
@@ -526,6 +543,28 @@ const Profile = () => {
         <SettingRow icon={User} label={t('profile.account.edit')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
         <SettingRow icon={Lock} label={t('profile.account.password')} onClick={() => { if (profile?.email) setResetConfirmOpen(true); }} />
         <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings?section=data')} />
+      </SectionCard>
+
+      {/* WYGLĄD (F-T2): kolor przewodni całej aplikacji. */}
+      <SectionCard label={t('profile.section.appearance')}>
+        <div className="px-1 py-2">
+          <p className="mb-3 text-sm text-muted-foreground">{t('profile.appearance.accent')}</p>
+          <div className="grid grid-cols-8 gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
+            {ACCENTS.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                role="radio"
+                aria-checked={accentId === a.id}
+                aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
+                data-testid={`accent-${a.id}`}
+                onClick={() => handleAccent(a.id)}
+                className={`h-9 w-9 rounded-full transition-transform active:scale-95 ${accentId === a.id ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''}`}
+                style={{ backgroundColor: a.hex }}
+              />
+            ))}
+          </div>
+        </div>
       </SectionCard>
 
       {/* APLIKACJA */}

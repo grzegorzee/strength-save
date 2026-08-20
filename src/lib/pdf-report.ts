@@ -1,4 +1,5 @@
 import { aggregateMonthlyStats, formatDurationHM, type MonthlyStat } from '@/lib/monthly-stats';
+import { getCurrentAccent } from '@/lib/accent-theme';
 import { formatTonnage, type UnitSystem } from '@/lib/units';
 import { translate, dateLocale, type LanguageCode } from '@/i18n';
 import { parseLocalDate } from '@/lib/utils';
@@ -70,7 +71,7 @@ export const buildReportHtml = (
 
   return `
   <div style="width:794px;background:#ffffff;color:#111111;font-family:'Inter',-apple-system,sans-serif;padding:48px;box-sizing:border-box;">
-    <div style="border-left:6px solid #cefc22;padding-left:16px;margin-bottom:8px;">
+    <div style="border-left:6px solid ${getCurrentAccent().hex};padding-left:16px;margin-bottom:8px;">
       <div style="font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">${escapeHtml(tr('report.title'))}</div>
       <div style="font-size:12px;color:#555;">Strength Save · ${escapeHtml(displayName)} · ${escapeHtml(generatedAt.toLocaleDateString(dateLocale(lang)))}</div>
     </div>

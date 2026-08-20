@@ -8,7 +8,10 @@ import { installFirestoreCrashGuard } from "./lib/firestore-crash-guard";
 import { installResumeRepaint } from "./lib/resume-repaint";
 import { hideNativeSplashWhenReady } from "./lib/native-splash";
 import { markStartup } from "./lib/startup-performance";
+import { applyStoredAccent } from "./lib/accent-theme";
 
+// F-T2: kolor przewodni z localStorage PRZED pierwszym renderem (bez mrugnięcia).
+applyStoredAccent();
 installFirestoreCrashGuard(() => window.location.reload());
 installResumeRepaint();
 void setupNativeUI();

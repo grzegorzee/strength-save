@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { getCurrentAccent } from '@/lib/accent-theme';
 
-// Lekki confetti bez zależności (CSS animacja). Kolory marki Kinetic.
-const COLORS = ['#cefc22', '#00e3fd', '#ffffff', '#f4ffc9'];
+// Lekki confetti bez zależności (CSS animacja). F-T2: kolory z akcentu usera.
+const COLORS = () => {
+  const accent = getCurrentAccent();
+  return [accent.hex, '#00e3fd', '#ffffff', accent.lightHex];
+};
 
 interface ConfettiBurstProps {
   onDone?: () => void;
@@ -16,15 +20,18 @@ export const ConfettiBurst = ({ onDone, durationMs = 2600 }: ConfettiBurstProps)
   const [show, setShow] = useState(!reducedMotion);
 
   const pieces = useMemo(
-    () => Array.from({ length: 48 }).map((_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      delay: Math.random() * 0.5,
-      duration: 1.8 + Math.random() * 1.2,
-      color: COLORS[i % COLORS.length],
-      rotate: Math.random() * 360,
-      size: 6 + Math.random() * 6,
-    })),
+    () => {
+      const palette = COLORS();
+      return Array.from({ length: 48 }).map((_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        delay: Math.random() * 0.5,
+        duration: 1.8 + Math.random() * 1.2,
+        color: palette[i % palette.length],
+        rotate: Math.random() * 360,
+        size: 6 + Math.random() * 6,
+      }));
+    },
     [],
   );
 

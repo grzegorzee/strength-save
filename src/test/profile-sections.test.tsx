@@ -109,11 +109,11 @@ const renderSheet = () =>
   );
 
 describe('krok 3: reorganizacja sekcji Profilu', () => {
-  it('sekcje w kolejności: Trening → Twoje dane → Subskrypcja → Konto → Aplikacja → Pomoc → System', () => {
+  it('sekcje w kolejności: Trening → Twoje dane → Subskrypcja → Konto → Wygląd → Aplikacja → Pomoc → System', () => {
     const { container } = renderProfile();
     const labels = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent);
     expect(labels).toEqual([
-      'Trening', 'Twoje dane', 'Subskrypcja', 'Konto', 'Aplikacja', 'Pomoc', 'System',
+      'Trening', 'Twoje dane', 'Subskrypcja', 'Konto', 'Wygląd', 'Aplikacja', 'Pomoc', 'System',
     ]);
   });
 
@@ -128,6 +128,19 @@ describe('krok 3: reorganizacja sekcji Profilu', () => {
     // Dźwięk wyprowadzony z Aplikacji, nie zdublowany.
     const app = sectionByLabel(container, 'Aplikacja');
     expect(app.textContent).not.toContain('Dźwięk timera');
+  });
+
+  it('F-T2: sekcja Wygląd — wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
+    const { getByTestId } = renderProfile();
+    fireEvent.click(getByTestId('accent-cyan'));
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('187 86% 53%');
+    expect(document.documentElement.dataset.accent).toBe('cyan');
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), { 'preferences.accentColor': 'cyan' },
+    ));
+    // Powrót do limonki zdejmuje nadpisania.
+    fireEvent.click(getByTestId('accent-lime'));
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
   });
 
   it('F-T1: tap w imię pod zdjęciem otwiera dialog edycji imienia', async () => {

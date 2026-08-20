@@ -75,6 +75,8 @@ export interface UserProfile {
     language?: LanguageCode;
     restTimerSec?: number;
     timerSound?: boolean;
+    /** F-T2: id koloru przewodniego (accent-theme); brak = limonka. */
+    accentColor?: string;
   };
   /** Mirror zgód z users/{uid}.consents; bramka re-consent czyta go z profilu. */
   consents?: ConsentMirror;
