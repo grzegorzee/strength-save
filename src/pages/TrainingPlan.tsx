@@ -13,7 +13,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, Dumbbell, History, Pencil, CheckCircle, HeartPulse, Zap, Timer, Plane } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { buildTrainingSchedule, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
+import { buildTrainingSchedule, countRemainingWorkouts, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -690,7 +690,17 @@ const TrainingPlan = () => {
               </div>
               <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">
-                  {Math.max(0, planDurationWeeks - actualCurrentWeek)}
+                  {/* E-T4: pozostałe TRENINGI (nie tygodnie) — spójna jednostka z kaflem Ukończone. */}
+                  {planStartDate ? countRemainingWorkouts({
+                    planDays: trainingPlan,
+                    today: new Date(),
+                    planStartDate: parseLocalDate(planStartDate),
+                    durationWeeks: planDurationWeeks,
+                    completedDates: new Set(workouts.filter(w => w.completed).map(w => w.date)),
+                    skippedDates,
+                    isDateBlocked: vacation ? (key) => isVacationActive(vacation, key) : undefined,
+                    overrides: scheduleOverrides,
+                  }) : 0}
                 </p>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statRemaining')}</p>
               </div>

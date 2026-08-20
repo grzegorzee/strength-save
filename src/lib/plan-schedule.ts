@@ -175,6 +175,39 @@ export const countScheduledTrainingsInRange = (
   return total;
 };
 
+// E-T4: kafel "Pozostało" liczy TRENINGI, nie tygodnie — zaplanowane dni od
+// dziś (włącznie, jeśli nieukończony) do końca planu; skip i urlop odpadają.
+export const countRemainingWorkouts = (params: {
+  planDays: TrainingDay[];
+  today: Date;
+  planStartDate: Date;
+  durationWeeks: number;
+  completedDates: ReadonlySet<string>;
+  skippedDates?: readonly string[];
+  isDateBlocked?: (dateKey: string) => boolean;
+  overrides?: ScheduleOverrides;
+}): number => {
+  if (params.planDays.length === 0 || params.durationWeeks <= 0) return 0;
+  const planStart = startOfLocalDay(params.planStartDate);
+  const weekStart = getStartOfPlanWeek(params.planStartDate);
+  const end = startOfLocalDay(weekStart);
+  end.setDate(end.getDate() + params.durationWeeks * 7 - 1);
+  const from = startOfLocalDay(params.today);
+  if (from > end) return 0;
+  const cursor = from < planStart ? planStart : from;
+  const skipped = new Set(params.skippedDates ?? []);
+  let total = 0;
+  for (const day = new Date(cursor); day <= end; day.setDate(day.getDate() + 1)) {
+    const scheduled = getScheduledTrainingForDate(params.planDays, day, params.overrides);
+    if (!scheduled) continue;
+    if (params.completedDates.has(scheduled.dateKey)) continue;
+    if (skipped.has(scheduled.dateKey)) continue;
+    if (params.isDateBlocked?.(scheduled.dateKey)) continue;
+    total += 1;
+  }
+  return total;
+};
+
 export const buildTrainingSchedule = (
   planDays: TrainingDay[],
   startDate: Date,
