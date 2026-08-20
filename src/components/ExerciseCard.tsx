@@ -735,7 +735,7 @@ const ExerciseCardInner = ({
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed
                 ? 'bg-primary text-primary-foreground'
-                : 'border-2 border-muted-foreground/40 text-muted-foreground/50 hover:border-primary hover:text-primary',
+                : 'bg-surface-low text-muted-foreground/40 hover:text-primary',
             )}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -841,7 +841,7 @@ const ExerciseCardInner = ({
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed
                 ? 'bg-primary text-primary-foreground'
-                : 'border-2 border-muted-foreground/40 text-muted-foreground/50 hover:border-primary hover:text-primary',
+                : 'bg-surface-low text-muted-foreground/40 hover:text-primary',
             )}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">

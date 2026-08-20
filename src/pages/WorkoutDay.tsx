@@ -3150,7 +3150,8 @@ const WorkoutDay = () => {
       {FEATURE_FLAGS.workoutTimers && isWorkoutStarted && !isCompleted && restState && restState.runId > 0 && (() => {
         const restExercise = day.exercises.find((ex) => ex.id === restState.exerciseId);
         const nextSet = (exerciseSets[restState.exerciseId] ?? []).find((s) => !s.completed && !s.isWarmup);
-        const nextSetLabel = nextSet
+        // Pusta seria (prefill 0×0) nie dostaje etykiety — "Następne: × 0" to szum.
+        const nextSetLabel = nextSet && (nextSet.weight > 0 || nextSet.reps > 0)
           ? (nextSet.weight > 0
             ? `${Math.round(toDisplay(nextSet.weight) * 2) / 2} ${unit} × ${nextSet.reps}`
             : `× ${nextSet.reps}`)
