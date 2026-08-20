@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-08-20T20-19-09",
+  "routes": [
+    "/history"
+  ],
+  "accents": [
+    "lime",
+    "amber",
+    "sky",
+    "indigo"
+  ],
+  "baseUrl": "http://localhost:8080/"
+}
