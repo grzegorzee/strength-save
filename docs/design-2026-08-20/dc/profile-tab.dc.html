@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+:root{--acc:#FF8B3D}
+body{margin:0;background:#f0eee9;font-family:Inter,system-ui,sans-serif}
+a{color:#1a1a1a}a:hover{color:#000}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 Inter,system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.35 Inter,system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:390px}
+.dv-card{width:390px;height:844px;background:#0e0e0e;border-radius:34px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.22);position:relative;color:#f2f1ee}
+.dv-card>div{box-sizing:border-box}
+.dv-card *{scrollbar-width:none}
+.dv-card *::-webkit-scrollbar{display:none}
+.dv-opt:target .dv-oid{background:var(--acc);color:#141005}
+.dv-next{margin:22px 0 0;font:12px/1.5 Inter,system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.mono{font-family:ui-monospace,Menlo,monospace}
+.disp{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em}
+</style>
+</helmet>
+<!-- UWAGA (import): sekcja t2 "Deduplicated" jest w oryginale display:none (wariant odrzucony).
+     Widoczny, obowiazujacy wariant to sekcja t1 / opcja 1a ponizej. -->
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Profile — eleven sections, nothing hidden, two ways to arrange it</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Identity, then the four things people change mid-session as real controls, then everything else as compact rows under five mono labels. Every function from the live Profile is on this one screen.</div>
+<div class="dv-card">
+  <div style="height:100%;display:flex;flex-direction:column">
+    <div style="padding:50px 18px 10px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <div style="width:36px;height:36px;border-radius:11px;background:#1c1c1c;display:grid;place-items:center;flex-shrink:0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></div>
+      <span class="disp" style="flex:1;min-width:0;font-size:15.5px;font-weight:700;letter-spacing:.14em">PROFILE</span>
+      <span class="mono" style="padding:8px 11px;border-radius:999px;background:#1c1c1c;font-size:9.5px;letter-spacing:.08em;color:#dedcd6">EDIT</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:0 18px 22px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:14px;padding:4px 2px">
+        <div style="width:64px;height:64px;border-radius:50%;background:color-mix(in oklab,var(--acc) 20%,#1c1c1c);display:grid;place-items:center;flex-shrink:0;position:relative">
+          <span class="disp" style="font-size:24px;font-weight:700;color:var(--acc)">G</span>
+          <div style="position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--acc);display:grid;place-items:center"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#141005" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+          <span class="disp" style="font-size:22px;font-weight:700;line-height:1">Greg</span>
+          <span style="font-size:12.5px;color:#9a9892;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">greg@gjasionowicz.pl</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="mono" style="padding:4px 8px;border-radius:999px;background:color-mix(in oklab,var(--acc) 16%,transparent);color:var(--acc);font-size:8.5px;letter-spacing:.1em">PRO</span>
+            <span class="mono" style="font-size:9.5px;letter-spacing:.06em;color:#9a9892">82 WORKOUTS · 18 TO GOLD</span>
+          </div>
+        </div>
+      </div>
+      <div style="height:6px;border-radius:99px;background:#1c1c1c;overflow:hidden"><div style="width:82%;height:100%;border-radius:99px;background:var(--acc)"></div></div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span class="mono" style="font-size:9.5px;letter-spacing:.14em;color:#9a9892">YOUR PRIDE</span>
+          <span style="font-size:11.5px;color:var(--acc);font-weight:600">All achievements</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <sc-for list="{{ pride }}" as="p" hint-placeholder-count="4">
+            <div style="flex:1;border-radius:16px;background:{{ p.bg }};padding:12px 10px;display:flex;flex-direction:column;gap:4px;align-items:center">
+              <span class="disp" style="font-size:17px;font-weight:700;color:{{ p.c }}">{{ p.v }}</span>
+              <span class="mono" style="font-size:7.5px;letter-spacing:.08em;color:#9a9892;text-align:center">{{ p.l }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="background:#1c1c1c;border-radius:22px;padding:15px;display:flex;flex-direction:column;gap:13px">
+        <span class="mono" style="font-size:9.5px;letter-spacing:.14em;color:#9a9892">DURING A WORKOUT</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="flex:1;font-size:14px">Rest timer</span>
+          <span class="mono" style="padding:7px 10px;border-radius:10px;background:#262626;font-size:11px">90 s</span>
+          <div style="width:44px;height:26px;border-radius:99px;background:var(--acc);display:flex;align-items:center;justify-content:flex-end;padding:3px;box-sizing:border-box"><div style="width:20px;height:20px;border-radius:50%;background:#141005"></div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="flex:1;font-size:14px">Sound</span>
+          <div style="width:44px;height:26px;border-radius:99px;background:#3a3833;display:flex;align-items:center;padding:3px;box-sizing:border-box"><div style="width:20px;height:20px;border-radius:50%;background:#9a9892"></div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="flex:1;font-size:14px">Units</span>
+          <div style="display:flex;gap:4px;padding:3px;border-radius:11px;background:#262626">
+            <span class="mono" style="padding:6px 12px;border-radius:8px;background:var(--acc);color:#141005;font-size:10px;letter-spacing:.06em">KG</span>
+            <span class="mono" style="padding:6px 12px;border-radius:8px;color:#9a9892;font-size:10px;letter-spacing:.06em">LB</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:#1c1c1c;border-radius:22px;padding:15px;display:flex;flex-direction:column;gap:12px">
+        <span class="mono" style="font-size:9.5px;letter-spacing:.14em;color:#9a9892">ACCENT COLOUR</span>
+        <div style="display:flex;gap:9px">
+          <sc-for list="{{ swatches }}" as="s" hint-placeholder-count="6">
+            <div style="flex:1;aspect-ratio:1;border-radius:12px;background:{{ s.bg }};box-shadow:{{ s.ring }}"></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:9px">
+          <div style="flex:1;height:40px;border-radius:12px;background:#262626;display:flex;align-items:center;padding:0 13px"><span class="mono" style="font-size:12px;color:#9a9892">#FF8B3D</span></div>
+          <span style="padding:0 16px;height:40px;border-radius:12px;background:#262626;display:grid;place-items:center;font-size:13px;font-weight:500">Apply</span>
+        </div>
+      </div>
+      <sc-for list="{{ groups }}" as="g" hint-placeholder-count="5">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span class="mono" style="font-size:9.5px;letter-spacing:.14em;color:#9a9892">{{ g.l }}</span>
+          <div style="border-radius:18px;background:#131313;overflow:hidden">
+            <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px;min-height:46px;padding:11px 14px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{ r.ic }}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="{{ r.p }}"></path></svg>
+                <span style="flex:1;min-width:0;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ r.lc }}">{{ r.l }}</span>
+                <sc-if value="{{ r.v }}">
+                  <span class="mono" style="flex-shrink:0;font-size:10.5px;color:{{ r.vc }}">{{ r.v }}</span>
+                </sc-if>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5c5a55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m9 18 6-6-6-6"></path></svg>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+      <div style="display:flex;flex-direction:column;gap:9px;padding-top:2px">
+        <div style="height:48px;border-radius:14px;background:#1c1c1c;display:flex;align-items:center;justify-content:center;gap:9px;font-size:14px;font-weight:500">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5M21 12H9"></path></svg>
+          Log out
+        </div>
+        <div style="text-align:center;font-size:12.5px;color:#8a8880;padding:2px 0">Delete account</div>
+        <div style="text-align:center" class="mono"><span style="font-size:9.5px;letter-spacing:.1em;color:#5c5a55">STRENGTH SAVE 2.14.0</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "build <a class="dv-oid" href="#1a">1a</a> as the real Profile tab" · "put <a class="dv-oid" href="#1b">1b</a>'s tiles on top of <a class="dv-oid" href="#1a">1a</a>'s rows" · "show the free-tier state with the upgrade card"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accentColor&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#FF8B3D&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#FF8B3D&quot;, &quot;#FFD60A&quot;, &quot;#00E3FD&quot;, &quot;#CEFC22&quot;], &quot;section&quot;: &quot;Theme&quot; }
+}">
+class Component extends DCLogic {
+  renderVals() {
+    const acc = this.props.accentColor ?? '#FF8B3D';
+    try { document.documentElement.style.setProperty('--acc', acc); } catch (e) {}
+    const P = {
+      user: 'M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
+      lock: 'M7 11V8a5 5 0 0 1 10 0v3M5.5 11h13v10h-13z',
+      shield: 'M12 2.5 20 6v6c0 5-3.5 8-8 9.5C7.5 20 4 17 4 12V6Z',
+      trophy: 'M7 3h10v6a5 5 0 0 1-10 0ZM8 21h8M12 17v4',
+      card: 'M2.5 6.5h19v11h-19zM2.5 10h19',
+      bell: 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0',
+      globe: 'M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19ZM2.5 12h19M12 2.5c2.5 3 2.5 15 0 19',
+      link: 'M9.5 13.5 14 9M8 11 5.5 13.5a3.5 3.5 0 0 0 5 5L13 16M16 13l2.5-2.5a3.5 3.5 0 0 0-5-5L11 8',
+      db: 'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3ZM4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6',
+      sliders: 'M4 6h16M4 12h16M4 18h16M8 4v4M16 10v4M11 16v4',
+      help: 'M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19ZM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7M12 17h.01',
+      mail: 'M2.5 5h19v14h-19zM3 7l9 6 9-6',
+      info: 'M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19ZM12 16v-5M12 8h.01',
+      timer: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM12 9v4l3 2M9 2h6',
+      heart: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z',
+      watch: 'M8 3h8l-.7 4M8.7 17 8 21h8l-.7-4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z',
+      download: 'M12 3v12M7 11l5 5 5-5M4 20h16',
+    };
+    const row = (l, p, v, vAcc) => ({ l, p, v, ic: '#9a9892', lc: '#f2f1ee', vc: vAcc ? 'var(--acc)' : '#9a9892' });
+    return {
+      pride: [
+        { v: '82', l: 'WORKOUTS', bg: '#1c1c1c', c: '#f2f1ee' },
+        { v: '24', l: 'PRS', bg: 'color-mix(in oklab,var(--acc) 13%,#0e0e0e)', c: 'var(--acc)' },
+        { v: '14w', l: 'STREAK', bg: '#1c1c1c', c: '#f2f1ee' },
+        { v: '596 t', l: 'LIFETIME', bg: '#1c1c1c', c: '#f2f1ee' },
+      ],
+      swatches: ['#FF8B3D', '#FFD60A', '#CEFC22', '#00E3FD', '#B39CFF', '#FF6B8A'].map((c, i) => ({
+        bg: c, ring: i === 0 ? 'inset 0 0 0 2.5px #0e0e0e, 0 0 0 2px #f2f1ee' : 'none',
+      })),
+      groups: [
+        { l: 'SUBSCRIPTION', rows: [row('Manage subscription', P.card, 'PRO · TO 2027', true), row('Compare plans', P.trophy, '')] },
+        { l: 'CONNECTIONS', rows: [row('Strava', P.link, 'CONNECTED', true), row('Garmin', P.watch, 'NOT LINKED'), row('Apple Health', P.heart, 'ON')] },
+        { l: 'DATA', rows: [row('PR backfill', P.db, 'SET'), row('Backup & import', P.download, ''), row('Privacy & consents', P.shield, ''), row('Advanced settings', P.sliders, '')] },
+        { l: 'APP', rows: [row('Notifications', P.bell, 'ON'), row('Language', P.globe, 'EN')] },
+        { l: 'ACCOUNT & SUPPORT', rows: [row('Name & avatar', P.user, ''), row('Password', P.lock, ''), row('Help', P.help, ''), row('Contact', P.mail, ''), row('About', P.info, 'v2.14.0')] },
+      ],
+      tiles: [
+        { l: 'Subscription', v: 'PRO · TO 2027', p: P.card, ic: 'var(--acc)', bg: 'color-mix(in oklab,var(--acc) 12%,#0e0e0e)', vc: 'var(--acc)' },
+        { l: 'Achievements', v: '24 PRS · 14W STREAK', p: P.trophy, ic: '#dedcd6', bg: '#1c1c1c', vc: '#9a9892' },
+        { l: 'Workout prefs', v: 'REST 90 S · KG', p: P.timer, ic: '#dedcd6', bg: '#1c1c1c', vc: '#9a9892' },
+        { l: 'Connections', v: 'STRAVA · HEALTH', p: P.link, ic: '#dedcd6', bg: '#1c1c1c', vc: '#9a9892' },
+        { l: 'Data & backup', v: 'LAST EXPORT 12 AUG', p: P.db, ic: '#dedcd6', bg: '#1c1c1c', vc: '#9a9892' },
+        { l: 'App & support', v: 'EN · NOTIFS ON', p: P.sliders, ic: '#dedcd6', bg: '#1c1c1c', vc: '#9a9892' },
+      ],
+      dedupGroups: [
+        { l: 'YOUR DATA', rows: [
+          row('Body measurements', P.db, ''),
+          row('Records before the app', P.trophy, 'SET'),
+          row('Backup & import', P.download, 'LAST 12 AUG'),
+        ] },
+        { l: 'APP', rows: [
+          row('Notifications', P.bell, 'ENABLED'),
+          row('Language', P.globe, 'ENGLISH'),
+        ] },
+        { l: 'ACCOUNT & SYSTEM', rows: [
+          row('Change password', P.lock, ''),
+          row('Privacy', P.shield, ''),
+          row('Advanced settings', P.sliders, 'STRAVA · BACKUP · MAX HR'),
+          row('Admin', P.shield, ''),
+        ] },
+        { l: 'HELP', rows: [
+          row('Help center', P.help, ''),
+          row('Contact', P.mail, ''),
+          row('About', P.info, 'v2.14.0'),
+        ] },
+      ],
+      accountRows: [
+        row('Name & avatar', P.user, 'Greg'),
+        row('Email', P.mail, 'greg@…'),
+        row('Password', P.lock, ''),
+        row('Privacy & consents', P.shield, ''),
+        row('Advanced settings', P.sliders, ''),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

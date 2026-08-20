@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+:root{--acc:#FF8B3D}
+body{margin:0;background:#f0eee9;font-family:Inter,system-ui,sans-serif}
+a{color:#1a1a1a}a:hover{color:#000}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 Inter,system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.35 Inter,system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:390px}
+.dv-card{width:390px;height:844px;background:#0e0e0e;border-radius:34px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.22);position:relative;color:#f2f1ee}
+.dv-card>div{box-sizing:border-box}
+.dv-opt:target .dv-oid{background:var(--acc);color:#141005}
+.dv-next{margin:22px 0 0;font:12px/1.5 Inter,system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.mono{font-family:ui-monospace,Menlo,monospace}
+.disp{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em}
+.ph{background:repeating-linear-gradient(135deg,#232323 0 6px,#1b1b1b 6px 12px)}
+</style>
+</helmet>
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Full screen — two exercises expanded, every existing function kept</span></div>
+<div class="dv-opts">
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Everything from the live screen survives: back · title · Saved on phone, the time/tonnage/sets bar, per-exercise ⋯, warm-up row, per-row delete, Add set, Plates, Metrics, Finish workout. What changes is density — one accent, 1RM/max as a mono line, target absorbing the coach sentence, fields pre-filled. Scrolls like the real screen.</div>
+<div class="dv-card">
+  <div style="height:100%;display:flex;flex-direction:column">
+    <div style="padding:48px 16px 10px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <div style="width:40px;height:40px;border-radius:13px;background:#1c1c1c;display:grid;place-items:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></div>
+      <span class="disp" style="flex:1;text-align:center;font-size:14.5px;font-weight:700;letter-spacing:.16em;white-space:nowrap">QUICK WORKOUT</span>
+      <div style="display:flex;align-items:center;gap:6px;padding:8px 11px;border-radius:999px;background:#1c1c1c;flex-shrink:0">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"></rect><path d="M11 19h2"></path></svg>
+        <span style="font-size:11px;color:#9a9892;white-space:nowrap">Saved</span>
+      </div>
+    </div>
+    <div style="margin:0 16px 12px;padding:12px 16px;border-radius:18px;background:#1c1c1c;display:flex;flex-shrink:0">
+      <sc-for list="{{ stats }}" as="st" hint-placeholder-count="3">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <span class="mono" style="font-size:9px;letter-spacing:.12em;color:#9a9892">{{ st.l }}</span>
+          <span class="disp" style="font-size:19px;font-weight:700;color:{{ st.c }}">{{ st.v }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:0 16px 12px;display:flex;flex-direction:column;gap:12px">
+      <div style="background:#1c1c1c;border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:11px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="ph" style="width:46px;height:46px;border-radius:13px;flex-shrink:0;display:grid;place-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="#dedcd6"><path d="M8 5l11 7-11 7Z"></path></svg></div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+            <span class="disp" style="font-size:18px;font-weight:700;line-height:1.05">Conventional Deadlift</span>
+            <span class="mono" style="font-size:9.5px;letter-spacing:.09em;color:#9a9892">3 SETS · EST. 1RM 117 · MAX 100</span>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#9a9892" style="flex-shrink:0"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:color-mix(in oklab,var(--acc) 12%,transparent)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.5"></circle></svg>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+            <span class="disp" style="font-size:16px;font-weight:700;color:var(--acc)">Target 92.5 kg × 5</span>
+            <span style="font-size:11.5px;color:#b9b7b0">You hit 6 reps — add 2.5 kg</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:7px;padding:0 2px">
+            <span class="mono" style="width:22px;font-size:8.5px;letter-spacing:.1em;color:#9a9892">SET</span>
+            <span class="mono" style="width:38px;font-size:8.5px;letter-spacing:.1em;color:#9a9892">PREV</span>
+            <span class="mono" style="flex:1;font-size:8.5px;letter-spacing:.1em;color:#9a9892">KG</span>
+            <span class="mono" style="flex:1;font-size:8.5px;letter-spacing:.1em;color:#9a9892">REPS</span>
+            <span class="mono" style="width:64px;text-align:right;font-size:8.5px;letter-spacing:.1em;color:#9a9892">1/3</span>
+          </div>
+          <sc-for list="{{ setsD }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span class="mono" style="width:22px;font-size:12px;font-weight:700;color:{{ s.nc }}">{{ s.n }}</span>
+              <span class="mono" style="width:38px;font-size:9.5px;color:#767469">{{ s.prev }}</span>
+              <div style="flex:1;height:42px;border-radius:12px;background:{{ s.fieldBg }};box-shadow:{{ s.ring }};display:grid;place-items:center;font-size:15px;font-weight:600;color:{{ s.valC }}">{{ s.kg }}</div>
+              <div style="flex:1;height:42px;border-radius:12px;background:{{ s.fieldBg }};box-shadow:{{ s.ring }};display:grid;place-items:center;font-size:15px;font-weight:600;color:{{ s.valC }}">{{ s.reps }}</div>
+              <div onClick="{{ s.toggle }}" style="width:42px;height:42px;border-radius:12px;background:{{ s.checkBg }};display:grid;place-items:center;cursor:pointer;flex-shrink:0">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{ s.checkC }}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+              </div>
+              <div style="width:22px;height:42px;display:grid;place-items:center;cursor:pointer;flex-shrink:0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5c5a55" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></div>
+            </div>
+          </sc-for>
+          <div style="height:40px;border-radius:12px;background:#131313;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:2px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            <span class="mono" style="font-size:10.5px;letter-spacing:.12em">ADD SET</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;height:40px;border-radius:12px;background:#131313;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.9"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+            Plates
+          </div>
+          <div style="flex:1;height:40px;border-radius:12px;background:#131313;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"></path></svg>
+            Metrics
+          </div>
+        </div>
+      </div>
+      <div style="background:#1c1c1c;border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:11px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="ph" style="width:46px;height:46px;border-radius:13px;flex-shrink:0;display:grid;place-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="#dedcd6"><path d="M8 5l11 7-11 7Z"></path></svg></div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+            <span class="disp" style="font-size:18px;font-weight:700;line-height:1.05">Barbell Hip Thrust</span>
+            <span class="mono" style="font-size:9.5px;letter-spacing:.09em;color:#9a9892">3 SETS · EST. 1RM 146 · MAX 115</span>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#9a9892" style="flex-shrink:0"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:color-mix(in oklab,var(--acc) 12%,transparent)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.5"></circle></svg>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+            <span class="disp" style="font-size:16px;font-weight:700;color:var(--acc)">Target 100 kg × 8</span>
+            <span style="font-size:11.5px;color:#b9b7b0">Keep 100 kg and work up to 8 reps</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:7px;padding:0 2px">
+            <span class="mono" style="width:22px;font-size:8.5px;letter-spacing:.1em;color:#9a9892">SET</span>
+            <span class="mono" style="width:38px;font-size:8.5px;letter-spacing:.1em;color:#9a9892">PREV</span>
+            <span class="mono" style="flex:1;font-size:8.5px;letter-spacing:.1em;color:#9a9892">KG</span>
+            <span class="mono" style="flex:1;font-size:8.5px;letter-spacing:.1em;color:#9a9892">REPS</span>
+            <span class="mono" style="width:64px;text-align:right;font-size:8.5px;letter-spacing:.1em;color:#9a9892">0/3</span>
+          </div>
+          <sc-for list="{{ setsH }}" as="s" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:7px">
+              <span class="mono" style="width:22px;font-size:12px;font-weight:700;color:{{ s.nc }}">{{ s.n }}</span>
+              <span class="mono" style="width:38px;font-size:9.5px;color:#767469">{{ s.prev }}</span>
+              <div style="flex:1;height:42px;border-radius:12px;background:{{ s.fieldBg }};box-shadow:{{ s.ring }};display:grid;place-items:center;font-size:15px;font-weight:600;color:{{ s.valC }}">{{ s.kg }}</div>
+              <div style="flex:1;height:42px;border-radius:12px;background:{{ s.fieldBg }};box-shadow:{{ s.ring }};display:grid;place-items:center;font-size:15px;font-weight:600;color:{{ s.valC }}">{{ s.reps }}</div>
+              <div onClick="{{ s.toggle }}" style="width:42px;height:42px;border-radius:12px;background:{{ s.checkBg }};display:grid;place-items:center;cursor:pointer;flex-shrink:0">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="{{ s.checkC }}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+              </div>
+              <div style="width:22px;height:42px;display:grid;place-items:center;cursor:pointer;flex-shrink:0"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5c5a55" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></div>
+            </div>
+          </sc-for>
+          <div style="height:40px;border-radius:12px;background:#131313;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:2px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+            <span class="mono" style="font-size:10.5px;letter-spacing:.12em">ADD SET</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;height:40px;border-radius:12px;background:#131313;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.9"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+            Plates
+          </div>
+          <div style="flex:1;height:40px;border-radius:12px;background:#131313;display:flex;align-items:center;justify-content:center;gap:7px;font-size:12.5px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 4 12 2.5-6h5"></path></svg>
+            Metrics
+          </div>
+        </div>
+      </div>
+      <div style="height:48px;border-radius:16px;background:#131313;display:flex;align-items:center;justify-content:center;gap:8px;font-size:14.5px;font-weight:500">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+        Add exercise
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"></path><path d="M9 3h6v3H9z"></path></svg>
+          <span style="font-size:13px;color:#9a9892">Workout note</span>
+        </div>
+        <div style="min-height:74px;border-radius:16px;background:#131313;padding:13px 14px;font-size:13.5px;color:#767469;line-height:1.4">How do you feel? Anything to remember? (optional)</div>
+      </div>
+      <div style="height:54px;border-radius:16px;background:var(--acc);color:#141005;display:flex;align-items:center;justify-content:center;gap:9px;flex-shrink:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+        <span class="disp" style="font-size:15px;font-weight:700;letter-spacing:.1em">FINISH WORKOUT</span>
+      </div>
+      <div style="height:6px"></div>
+    </div>
+    <div style="flex-shrink:0;background:#131313;border-radius:22px 22px 0 0;padding:13px 16px 26px;display:flex;align-items:center;gap:11px">
+      <span class="mono" style="font-size:10px;letter-spacing:.1em;color:#9a9892">REST</span>
+      <span class="disp" style="font-size:16px;font-weight:700;color:var(--acc)">2:00</span>
+      <div style="flex:1;height:4px;border-radius:99px;background:#262626;overflow:hidden"><div style="width:38%;height:100%;background:var(--acc);border-radius:99px"></div></div>
+      <span class="mono" style="padding:7px 10px;border-radius:999px;background:#262626;font-size:9.5px;letter-spacing:.08em">SKIP</span>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+<p class="dv-next">Try next: "make <a class="dv-oid" href="#2a">2a</a> the build spec" · "swap <a class="dv-oid" href="#2a">2a</a>'s fields for <a class="dv-oid" href="#1b">1b</a>'s steppers" · "show a duration exercise (plank) in <a class="dv-oid" href="#2a">2a</a>"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accentColor&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#FF8B3D&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#FF8B3D&quot;, &quot;#FFD60A&quot;, &quot;#CEFC22&quot;, &quot;#00E3FD&quot;], &quot;section&quot;: &quot;Theme&quot; }
+}">
+class Component extends DCLogic {
+  state = { done: { 0: true } };
+  renderVals() {
+    const acc = this.props.accentColor ?? '#FF8B3D';
+    try { document.documentElement.style.setProperty('--acc', acc); } catch (e) {}
+    const done = this.state.done;
+    const toggle = (i) => () => this.setState(s => ({ done: { ...s.done, [i]: !s.done[i] } }));
+    const rows = [
+      ['W', '—', '60', '5', 'warm'],
+      ['1', '70×6', '92.5', '5', 'set'],
+      ['2', '90×6', '92.5', '5', 'set'],
+      ['3', '90×6', '92.5', '5', 'set'],
+    ];
+    const setsA = rows.map(([n, prev, kg, reps, kind], i) => {
+      const isDone = !!done[i];
+      const active = !isDone && rows.slice(0, i).every((_, j) => done[j]);
+      return {
+        n, prev, kg, reps, toggle: toggle(i),
+        nc: kind === 'warm' ? 'var(--acc)' : active ? '#f2f1ee' : '#9a9892',
+        fieldBg: isDone ? 'color-mix(in oklab, var(--acc) 10%, #131313)' : '#131313',
+        ring: active ? 'inset 0 0 0 1.5px color-mix(in oklab, var(--acc) 55%, transparent)' : 'none',
+        valC: isDone ? '#f2f1ee' : active ? '#f2f1ee' : '#767469',
+        checkBg: isDone ? 'var(--acc)' : '#131313',
+        checkC: isDone ? '#141005' : '#3f3d38',
+      };
+    });
+    const chips = [
+      ['W', '60×5', 1], ['1', '92.5×5', 1], ['2', 'now', 2], ['3', '92.5×5', 0],
+    ].map(([l, v, st]) => ({
+      l, v,
+      bg: st === 2 ? 'color-mix(in oklab, var(--acc) 12%, transparent)' : st ? '#1c1c1c' : '#131313',
+      ring: st === 2 ? 'inset 0 0 0 1.5px color-mix(in oklab, var(--acc) 55%, transparent)' : 'none',
+      lc: st === 2 ? 'var(--acc)' : '#9a9892',
+      vc: st === 2 ? 'var(--acc)' : st ? '#f2f1ee' : '#767469',
+    }));
+    const reps = [3, 4, 5, 6, 7, 8].map(n => ({
+      n, bg: n === 5 ? 'var(--acc)' : '#262626', c: n === 5 ? '#141005' : '#dedcd6',
+    }));
+    const ledgerSets = [
+      ['W', '60 kg × 5', 'Warm-up', '', 'done'],
+      ['1', '92.5 kg × 5', 'Logged 4 min ago', '+2.5', 'done'],
+      ['2', '92.5 kg × 5', 'Target · last time 90 × 6', '+2.5', 'next'],
+      ['3', '92.5 kg × 5', 'Target', '', 'todo'],
+    ].map(([n, v, sub, delta, st]) => ({
+      n, v, sub, delta,
+      bg: st === 'next' ? 'color-mix(in oklab, var(--acc) 11%, #0e0e0e)' : 'transparent',
+      fs: st === 'next' ? '19px' : '16px',
+      nc: st === 'next' ? 'var(--acc)' : '#9a9892',
+      vc: st === 'todo' ? '#767469' : '#f2f1ee',
+      dc: st === 'next' ? 'var(--acc)' : '#9a9892',
+      ic: st === 'done' ? 'var(--acc)' : st === 'next' ? 'var(--acc)' : '#3f3d38',
+      ip: st === 'done' ? 'm5 12.5 4.5 4.5L19 7.5' : st === 'next' ? 'M12 5v14M5 12h14' : 'M5 12h14',
+    }));
+    const mkSets = (list, key) => list.map(([n, prev, kg, reps, kind], i) => {
+      const id = key + i;
+      const isDone = !!done[id];
+      const active = !isDone && list.slice(0, i).every((_, j) => done[key + j]);
+      return {
+        n, prev, kg, reps, toggle: toggle(id),
+        nc: kind === 'warm' ? 'var(--acc)' : active ? '#f2f1ee' : '#9a9892',
+        fieldBg: isDone ? 'color-mix(in oklab, var(--acc) 10%, #131313)' : '#131313',
+        ring: active ? 'inset 0 0 0 1.5px color-mix(in oklab, var(--acc) 55%, transparent)' : 'none',
+        valC: isDone || active ? '#f2f1ee' : '#767469',
+        checkBg: isDone ? 'var(--acc)' : '#131313',
+        checkC: isDone ? '#141005' : '#3f3d38',
+      };
+    });
+    return {
+      setsA, chips, reps, ledgerSets,
+      upNext: [
+        { n: 'Barbell Hip Thrust', s: '3 sets · target 100 kg × 8', t: '100 × 8' },
+        { n: 'Plank', s: '3 sets · target 0:45', t: '0:45' },
+        { n: 'Hanging Leg Raise', s: '3 sets · target 12 reps', t: '12 reps' },
+      ],
+      remaining: [
+        { k: 'SET 3', n: 'Conventional Deadlift', v: '92.5 × 5', c: '#9a9892' },
+        { k: 'NEXT', n: 'Barbell Hip Thrust', v: '100 × 8', c: '#dedcd6' },
+        { k: 'THEN', n: 'Plank', v: '0:45', c: '#9a9892' },
+      ],
+      stats: [
+        { l: 'TIME', v: '24:18', c: 'var(--acc)' },
+        { l: 'TONNAGE', v: '2.9 t', c: '#f2f1ee' },
+        { l: 'SETS', v: '4', c: '#f2f1ee' },
+      ],
+      setsD: mkSets([
+        ['W', '—', '60', '5', 'warm'],
+        ['1', '70×6', '92.5', '5', 'set'],
+        ['2', '90×6', '92.5', '5', 'set'],
+        ['3', '90×6', '92.5', '5', 'set'],
+      ], 'd'),
+      setsH: mkSets([
+        ['1', '100×7', '100', '8', 'set'],
+        ['2', '100×8', '100', '8', 'set'],
+        ['3', '100×8', '100', '8', 'set'],
+      ], 'h'),
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+:root{--acc:#FF8B3D}
+body{margin:0;background:#f0eee9;font-family:Inter,system-ui,sans-serif}
+a{color:#1a1a1a}a:hover{color:#000}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 Inter,system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.35 Inter,system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:390px}
+.dv-card{width:390px;background:#0e0e0e;border-radius:34px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.22);position:relative;color:#f2f1ee}
+.dv-card>div{box-sizing:border-box}
+.dv-opt:target .dv-oid{background:var(--acc);color:#141005}
+.dv-next{margin:22px 0 0;font:12px/1.5 Inter,system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.mono{font-family:ui-monospace,Menlo,monospace}
+.disp{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em}
+</style>
+</helmet>
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Workout summary — the session as a shape, not a stat dump</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Full screen. The −24% becomes a this-vs-last bar you can read at a glance, tonnage splits by muscle group, and the eight exercises become a ranked bar chart so the session has a silhouette. Every action kept: Edit, Fix sets, Share, Send to coach, Back, Delete.</div>
+<div class="dv-card" style="height:960px">
+  <div style="height:100%;display:flex;flex-direction:column">
+    <div style="padding:48px 18px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="width:40px;height:40px;border-radius:13px;background:#1c1c1c;display:grid;place-items:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg></div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+        <span class="disp" style="font-size:20px;font-weight:700;line-height:1">Thursday</span>
+        <span style="font-size:12.5px;color:#9a9892">Upper B · 20 Aug</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;padding:9px 13px;border-radius:999px;background:#1c1c1c;flex-shrink:0">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+        <span style="font-size:13px">Edit</span>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:0 18px 24px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;flex-direction:column;gap:14px;background:#1c1c1c;border-radius:24px;padding:20px 18px">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span class="disp" style="font-size:56px;font-weight:700;line-height:.85;color:var(--acc)">5.6</span>
+            <span class="disp" style="font-size:22px;font-weight:600;color:var(--acc)">t</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding-bottom:4px">
+            <span class="mono" style="font-size:15px;font-weight:700;color:#dedcd6">−24%</span>
+            <span class="mono" style="font-size:9px;letter-spacing:.1em;color:#9a9892">VS LAST THU</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;align-items:center;gap:9px">
+            <span class="mono" style="width:44px;font-size:9px;letter-spacing:.08em;color:#dedcd6">TODAY</span>
+            <div style="flex:1;height:12px;border-radius:6px;background:#262626;overflow:hidden"><div style="width:76%;height:100%;border-radius:6px;background:var(--acc)"></div></div>
+            <span class="mono" style="width:42px;text-align:right;font-size:10.5px;color:#dedcd6">5.6 t</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:9px">
+            <span class="mono" style="width:44px;font-size:9px;letter-spacing:.08em;color:#9a9892">13 AUG</span>
+            <div style="flex:1;height:12px;border-radius:6px;background:#262626;overflow:hidden"><div style="width:100%;height:100%;border-radius:6px;background:#3a3833"></div></div>
+            <span class="mono" style="width:42px;text-align:right;font-size:10.5px;color:#9a9892">7.4 t</span>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;padding-top:2px">
+          <sc-for list="{{ heroStats }}" as="h" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span class="disp" style="font-size:17px;font-weight:700">{{ h.v }}</span>
+              <span class="mono" style="font-size:9px;letter-spacing:.1em;color:#9a9892">{{ h.l }}</span>
+            </div>
+          </sc-for>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;gap:7px;padding:9px 12px;border-radius:999px;background:#262626">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+            <span style="font-size:12px">Fix sets</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v6a5 5 0 0 1-10 0Z"></path><path d="M17 4h3v2a4 4 0 0 1-4 4M7 4H4v2a4 4 0 0 0 4 4"></path><path d="M8 21h8M12 17v4"></path></svg>
+          <span class="mono" style="font-size:10.5px;letter-spacing:.14em;color:var(--acc)">2 NEW RECORDS</span>
+        </div>
+        <div style="display:flex;gap:10px">
+          <sc-for list="{{ prs }}" as="p" hint-placeholder-count="2">
+            <div style="flex:1;border-radius:20px;padding:15px 14px;background:color-mix(in oklab,var(--acc) 13%,#0e0e0e);display:flex;flex-direction:column;gap:5px">
+              <span style="font-size:12px;color:#dedcd6">{{ p.n }}</span>
+              <div style="display:flex;align-items:baseline;gap:6px">
+                <span class="disp" style="font-size:26px;font-weight:700;color:var(--acc);line-height:1">{{ p.v }}</span>
+                <span class="mono" style="font-size:11px;font-weight:700;color:var(--acc)">{{ p.d }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:11px">
+        <span class="mono" style="font-size:10px;letter-spacing:.14em;color:#9a9892">WHERE THE VOLUME WENT</span>
+        <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px">
+          <sc-for list="{{ split }}" as="s" hint-placeholder-count="5">
+            <div style="width:{{ s.w }};background:{{ s.bg }}"></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px 16px">
+          <sc-for list="{{ split }}" as="s" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:7px">
+              <div style="width:8px;height:8px;border-radius:2px;background:{{ s.bg }}"></div>
+              <span style="font-size:12px;color:#dedcd6">{{ s.l }}</span>
+              <span class="mono" style="font-size:11px;color:#9a9892">{{ s.pct }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span class="mono" style="font-size:10px;letter-spacing:.14em;color:#9a9892">EXERCISES (8)</span>
+          <span class="mono" style="font-size:10px;letter-spacing:.1em;color:#9a9892">TONNAGE</span>
+        </div>
+        <sc-for list="{{ exercises }}" as="e" hint-placeholder-count="8">
+          <div style="display:flex;align-items:center;gap:11px;padding:9px 0">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">
+              <div style="display:flex;align-items:baseline;gap:8px">
+                <span style="flex:1;min-width:0;font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.n }}</span>
+                <span class="mono" style="font-size:10px;color:{{ e.sc }}">{{ e.sets }}</span>
+              </div>
+              <div style="height:6px;border-radius:99px;background:#1c1c1c;overflow:hidden"><div style="width:{{ e.w }};height:100%;border-radius:99px;background:{{ e.bg }}"></div></div>
+            </div>
+            <span class="mono" style="width:52px;text-align:right;font-size:12px;font-weight:600;color:{{ e.vc }}">{{ e.v }}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5c5a55" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="m6 9 6 6 6-6"></path></svg>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span class="mono" style="font-size:10px;letter-spacing:.14em;color:#9a9892">SESSION SHAPE</span>
+          <span class="mono" style="font-size:10px;color:#9a9892">48 MIN WORK · 12 MIN REST</span>
+        </div>
+        <div style="display:flex;gap:2px;align-items:flex-end;height:44px">
+          <sc-for list="{{ shape }}" as="b" hint-placeholder-count="24">
+            <div style="flex:1;height:{{ b.h }};min-height:3px;border-radius:2px;background:{{ b.bg }}"></div>
+          </sc-for>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div style="flex:1;height:48px;border-radius:14px;background:#1c1c1c;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13.5px;font-weight:500">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"></path></svg>
+          Share
+        </div>
+        <div style="flex:1;height:48px;border-radius:14px;background:#1c1c1c;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13.5px;font-weight:500">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="14" rx="2.5"></rect><path d="m3 7 9 6 9-6"></path></svg>
+          Send to coach
+        </div>
+      </div>
+      <div style="height:62px;border-radius:18px;background:var(--acc);color:#141005;display:flex;align-items:center;justify-content:center;gap:11px;box-shadow:0 10px 30px color-mix(in oklab,var(--acc) 22%,transparent)">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 8.5V19a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8.5"></path></svg>
+        <span class="disp" style="font-size:17.5px;font-weight:700;letter-spacing:.06em">BACK TO DASHBOARD</span>
+      </div>
+      <div style="text-align:center;font-size:13px;color:#8a8880;padding:2px 0 4px">Delete workout</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+
+
+</div>
+
+</div>
+<p class="dv-next">Try next: "build <a class="dv-oid" href="#1a">1a</a> with an expanded exercise row" · "make <a class="dv-oid" href="#1b">1b</a> square for Instagram" · "add the week context (3 of 4 sessions) to <a class="dv-oid" href="#1a">1a</a>"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accentColor&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#FF8B3D&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#FF8B3D&quot;, &quot;#00E3FD&quot;, &quot;#FFD60A&quot;, &quot;#CEFC22&quot;], &quot;section&quot;: &quot;Theme&quot; }
+}">
+class Component extends DCLogic {
+  renderVals() {
+    const acc = this.props.accentColor ?? '#FF8B3D';
+    try { document.documentElement.style.setProperty('--acc', acc); } catch (e) {}
+    const EX = [
+      ['Incline Barbell Press', 798, '3/3', 'Chest'],
+      ['Pull-up', 1480, '3/3', 'Back'],
+      ['Arnold Press', 576, '3/3', 'Shoulders'],
+      ['Seated Cable Row', 513, '3/4', 'Back'],
+      ['Lateral Raise', 252, '3/3', 'Shoulders'],
+      ['Cable Hammer Curl', 490, '3/3', 'Arms'],
+      ['Triceps Pushdown', 525, '3/3', 'Arms'],
+      ['Cable Crunch', 945, '3/3', 'Core'],
+    ];
+    const total = EX.reduce((a, [, v]) => a + v, 0);
+    const max = Math.max(...EX.map(([, v]) => v));
+    const fmt = (v) => v.toLocaleString('en-US');
+    const exercises = EX.map(([n, v, sets]) => ({
+      n, v: fmt(v), sets: sets + ' sets', w: Math.round((v / max) * 100) + '%',
+      bg: v === max ? 'var(--acc)' : 'color-mix(in oklab, var(--acc) 42%, #262626)',
+      vc: v === max ? 'var(--acc)' : '#dedcd6',
+      sc: sets === '3/4' ? 'var(--acc)' : '#767469',
+    }));
+    const groups = {};
+    EX.forEach(([, v, , g]) => { groups[g] = (groups[g] || 0) + v; });
+    const ordered = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+    const split = ordered.map(([l, v], i) => ({
+      l, w: (v / total * 100).toFixed(1) + '%', pct: Math.round(v / total * 100) + '%',
+      bg: `color-mix(in oklab, var(--acc) ${100 - i * 17}%, #2b2b2b)`,
+    }));
+    const top3 = exercises.slice(0, 8).sort((a, b) => parseFloat(b.w) - parseFloat(a.w)).slice(0, 3);
+    const shape = [80, 92, 74, 0, 66, 88, 70, 0, 62, 78, 58, 0, 54, 70, 60, 0, 44, 56, 48, 0, 64, 82, 90, 0]
+      .map(h => ({ h: (h || 6) + '%', bg: h ? 'color-mix(in oklab, var(--acc) 65%, #262626)' : '#1c1c1c' }));
+    return {
+      exercises, split, top3, shape,
+      heroStats: [{ v: '1:00:17', l: 'TIME' }, { v: '24', l: 'SETS' }, { v: '100%', l: 'PLANNED' }],
+      prs: [{ n: 'Arnold Press', v: '24 kg', d: '+4' }, { n: 'Lateral Raise', v: '14 kg', d: '+2' }],
+    };
+  }
+}
+</script>
+</body>
+</html>

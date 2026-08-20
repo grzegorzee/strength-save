@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+:root{--acc:#FF8B3D}
+body{margin:0;background:#f0eee9;font-family:Inter,system-ui,sans-serif}
+a{color:#1a1a1a}a:hover{color:#000}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 Inter,system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 Inter,system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:390px}
+.dv-card{width:390px;height:844px;background:#0e0e0e;border-radius:34px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.22);position:relative;color:#f2f1ee}
+.dv-card>div{box-sizing:border-box}
+.dv-opt:target .dv-oid{background:var(--acc);color:#171204}
+.dv-next{margin:22px 0 0;font:12px/1.5 Inter,system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.mono{font-family:ui-monospace,Menlo,monospace}
+.disp{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em}
+</style>
+</helmet>
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname"><a class="dv-oid" href="#1b">1b</a> with the full greeting header kept</span></div>
+<div class="dv-opts">
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a>Identity row (avatar · DASHBOARD · bell · 82 TOTAL) and the greeting block sit above the status line; everything below is <a class="dv-oid" href="#1b">1b</a>, tightened to keep the tray and nav on one screen.</div>
+<div class="dv-card">
+  <div style="height:100%;display:flex;flex-direction:column;padding:52px 20px 0;gap:14px">
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:40px;height:40px;flex:0 0 40px;border-radius:50%;background:color-mix(in oklab,var(--acc) 20%,#131313);display:grid;place-items:center;font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:var(--acc)">G</div>
+      <span class="disp" style="flex:1;min-width:0;font-size:17px;font-weight:700;letter-spacing:.14em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">DASHBOARD</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8d8b85" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+      <div style="display:flex;flex-shrink:0;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:color-mix(in oklab,var(--acc) 14%,transparent);color:var(--acc)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="8.5" width="3" height="7" rx="1"></rect><rect x="20" y="8.5" width="3" height="7" rx="1"></rect><rect x="5" y="6.5" width="3" height="11" rx="1"></rect><rect x="16" y="6.5" width="3" height="11" rx="1"></rect><rect x="8" y="11" width="8" height="2" rx="1"></rect></svg>
+        <span style="font-size:14px;font-weight:700">82</span>
+        <span class="mono" style="font-size:9.5px;letter-spacing:.1em;opacity:.75">TOTAL</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="display:flex;align-items:center;gap:9px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--acc)" style="flex-shrink:0"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+        <span class="disp" style="font-size:21px;font-weight:700;font-style:italic;white-space:nowrap">GOOD EVENING, <span style="color:var(--acc)">GREG</span> !</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:9px">
+        <span style="font-size:14.5px;color:#8d8b85">Thursday, August 20</span>
+        <span style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;background:color-mix(in oklab,var(--acc) 13%,transparent);color:var(--acc)">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c3 4.5 7 6.4 7 11a7 7 0 1 1-14 0c0-3 1.6-4.6 3-6.5.4 1.6 1.4 2.5 2.4 2.5 1.2 0 2-1.1 1.6-7Z"></path></svg>
+          <span class="mono" style="font-size:9.5px;letter-spacing:.1em">14 WEEKS</span>
+        </span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;background:#131313;border-radius:18px;padding:10px 10px 10px 16px;box-shadow:inset 0 0 0 1.5px color-mix(in oklab,var(--acc) 45%,transparent)">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+        <span style="font-size:16px;color:#dedcd6;font-weight:500;white-space:nowrap">Plan ends Sunday</span>
+        <span style="font-size:12.5px;color:#9a9892">1 more update</span>
+      </div>
+      <div style="flex-shrink:0;height:44px;padding:0 18px;border-radius:999px;background:color-mix(in oklab,var(--acc) 16%,transparent);color:var(--acc);display:grid;place-items:center;font-size:14px;font-weight:600">Decide</div>
+    </div>
+    <div style="background:#1c1c1c;border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:11px">
+      <span class="mono" style="font-size:10.5px;letter-spacing:.16em;color:var(--acc)">NEXT SESSION · FRIDAY</span>
+      <span class="disp" style="font-size:27px;font-weight:700;line-height:1.02">Lower Body Power B</span>
+      <span style="font-size:13.5px;color:#8d8b85">Quad &amp; glute · 5 exercises · 45 min</span>
+      <div style="height:52px;border-radius:18px;background:var(--acc);color:#141005;display:grid;place-items:center;font-weight:600;font-size:16.5px;margin-top:2px">Open session</div>
+      <div style="text-align:center;font-size:13px;color:#8d8b85">Reschedule</div>
+    </div>
+    <div style="background:#131313;border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:13px;color:#c9c7c1">3 of 4 sessions</span>
+        <span class="mono" style="font-size:12px;color:#9a9892">19.5 t · WK 12/12</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <sc-for list="{{ week }}" as="d" hint-placeholder-count="7">
+          <div style="flex:1;height:6px;border-radius:99px;background:{{ d.bg }}"></div>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;color:#9a9892;font-size:12px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+        <span>Today done · Upper Body A</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+      <sc-for list="{{ tray }}" as="tr" hint-placeholder-count="4">
+        <div style="background:#131313;border-radius:16px;padding:12px 13px;display:flex;align-items:center;gap:9px;min-height:44px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8d8b85" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="{{ tr.p }}"></path></svg>
+          <span style="font-size:13px;font-weight:500">{{ tr.l }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;padding:12px 0 28px;background:#131313;margin:0 -20px;border-radius:22px 22px 0 0">
+      <sc-for list="{{ nav5 }}" as="n" hint-placeholder-count="5">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;color:{{ n.c }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{{ n.p1 }}"></path><path d="{{ n.p2 }}"></path></svg>
+          <span class="mono" style="font-size:10px;letter-spacing:.08em">{{ n.l }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+<p class="dv-next">Try next: "build <a class="dv-oid" href="#2a">2a</a> as the real Today tab with all three states" · "drop the bell from <a class="dv-oid" href="#2a">2a</a>" · "make the tray one row of icons"</p>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accentColor&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#FF8B3D&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#FF8B3D&quot;, &quot;#CEFC22&quot;, &quot;#FFD60A&quot;, &quot;#00E3FD&quot;], &quot;section&quot;: &quot;Theme&quot; }
+}">
+class Component extends DCLogic {
+  renderVals() {
+    const acc = this.props.accentColor ?? '#FF8B3D';
+    try { document.documentElement.style.setProperty('--acc', acc); } catch (e) {}
+    const ICON = {
+      today: ['M3 10.5 12 3l9 7.5', 'M5.5 8.5V19a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8.5'],
+      plan: ['M8 2v4M16 2v4', 'M3.5 6.5h17v13a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z'],
+      history: ['M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5', 'M12 7v5l4 2'],
+      progress: ['M6 20v-4M12 20V9M18 20V4', 'M3 22h18'],
+      lib: ['M4.5 4v16M8.5 6v14', 'M12.5 6v14M16.5 6.5 20 20'],
+    };
+    const mk = (defs) => defs.map(([k, l, on]) => ({ l, p1: ICON[k][0], p2: ICON[k][1], c: on ? 'var(--acc)' : '#9a9892' }));
+    const ledger = [
+      ['MON', 'Upper A', 'Completed · 5.2 t', 'done'],
+      ['TUE', 'Lower A', 'Completed · 6.1 t', 'done'],
+      ['WED', 'Rest', 'Recovery', 'rest'],
+      ['THU', 'Upper B', 'Completed · 5.4 t · 2 PRs', 'done'],
+      ['FRI', 'Lower Body Power B', 'Quad & glute · 5 exercises · 45 min', 'next'],
+    ].map(([d, n, s, k]) => ({
+      d, n, s,
+      bg: k === 'next' ? 'color-mix(in oklab, var(--acc) 12%, #0e0e0e)' : 'transparent',
+      fs: k === 'next' ? '18px' : '15.5px',
+      nc: k === 'rest' ? '#9a9892' : '#f2f1ee',
+      dc: k === 'next' ? 'var(--acc)' : '#9a9892',
+      sc: k === 'next' ? '#b3b1aa' : '#9a9892',
+      ic: k === 'next' ? 'var(--acc)' : k === 'done' ? '#4a4844' : 'transparent',
+      ip: k === 'next' ? 'm9 18 6-6-6-6' : 'm5 12.5 4.5 4.5L19 7.5',
+    }));
+    return {
+      ledger,
+      nav4: mk([['today', 'TODAY', true], ['plan', 'PLAN', false], ['progress', 'PROGRESS', false], ['lib', 'EXERCISES', false]]),
+      nav5: mk([['today', 'TODAY', true], ['plan', 'PLAN', false], ['history', 'HISTORY', false], ['progress', 'PROGRESS', false], ['lib', 'EXERCISES', false]]),
+      week: [1, 1, 0, 1, 2, 0, 0].map(v => ({ bg: v === 2 ? 'var(--acc)' : v ? '#3a3833' : '#1c1c1c' })),
+      tray: [
+        { l: 'Quick workout', p: 'M13 2 3 14h8l-1 8 11-13h-9l1-7Z' },
+        { l: 'Add cardio', p: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z' },
+        { l: 'Your numbers', p: 'M4 20V10M10 20V4M16 20v-7M22 20H2' },
+        { l: 'Analytics', p: 'M21 21H3V3M7 15l4-5 3 3 5-7' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

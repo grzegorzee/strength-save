@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+:root{--acc:#FF8B3D}
+body{margin:0;background:#f0eee9;font-family:Inter,system-ui,sans-serif}
+a{color:#1a1a1a}a:hover{color:#000}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 Inter,system-ui,sans-serif;color:#1a1a1a}
+.dv-opts{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:9px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.35 Inter,system-ui,sans-serif;color:rgba(0,0,0,.55);max-width:390px}
+.dv-card{width:390px;height:844px;background:#0e0e0e;border-radius:34px;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.22);position:relative;color:#f2f1ee}
+.dv-card>div{box-sizing:border-box}
+.dv-opt:target .dv-oid{background:var(--acc);color:#141005}
+.dv-next{margin:22px 0 0;font:12px/1.5 Inter,system-ui,sans-serif;color:rgba(0,0,0,.5)}
+.mono{font-family:ui-monospace,Menlo,monospace}
+.disp{font-family:'Space Grotesk',sans-serif;letter-spacing:-.02em}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">Plan tab — nine sections folded into four</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Day-led. No load chart at all — each day row carries its own load bar, so the week reads as one list. Plan meta shrinks to a single line with Edit; adjustments sit at the foot.</div>
+<div class="dv-card">
+  <div style="height:100%;display:flex;flex-direction:column;padding:52px 20px 0;gap:14px">
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:38px;height:38px;flex:0 0 38px;border-radius:50%;background:color-mix(in oklab,var(--acc) 20%,#131313);display:grid;place-items:center;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:700;color:var(--acc)">G</div>
+      <span class="disp" style="flex:1;min-width:0;font-size:16px;font-weight:700;letter-spacing:.14em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TRAINING PLAN</span>
+      <span style="flex-shrink:0;padding:8px 14px;border-radius:999px;background:#1c1c1c;font-size:13px;font-weight:500;display:flex;align-items:center;gap:7px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+        Edit
+      </span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="display:flex;align-items:baseline;gap:9px">
+        <span class="disp" style="font-size:26px;font-weight:700;line-height:1">Hypertrophy II</span>
+        <span class="mono" style="font-size:11px;letter-spacing:.1em;color:var(--acc)">WK 12/12</span>
+      </div>
+      <div style="height:5px;border-radius:99px;background:#1c1c1c;overflow:hidden"><div style="width:96%;height:100%;border-radius:99px;background:var(--acc)"></div></div>
+      <span style="font-size:12.5px;color:#9a9892">Mon · Tue · Thu · Fri — 45 sessions done, 1 left</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;background:#131313;border-radius:18px;padding:10px 10px 10px 16px;box-shadow:inset 0 0 0 1.5px color-mix(in oklab,var(--acc) 45%,transparent)">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+        <span style="font-size:15.5px;color:#dedcd6;font-weight:500;white-space:nowrap">Plan ends Sunday</span>
+        <span style="font-size:12.5px;color:#9a9892">96% attendance · 24 PRs</span>
+      </div>
+      <div style="flex-shrink:0;height:44px;padding:0 18px;border-radius:999px;background:color-mix(in oklab,var(--acc) 16%,transparent);color:var(--acc);display:grid;place-items:center;font-size:14px;font-weight:600">Decide</div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span class="mono" style="font-size:11.5px;letter-spacing:.1em;color:#dedcd6">08/17 – 08/23</span>
+      <div style="display:flex;gap:8px">
+        <div style="width:32px;height:32px;border-radius:50%;background:#1c1c1c;display:grid;place-items:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></div>
+        <div style="width:32px;height:32px;border-radius:50%;background:#1c1c1c;display:grid;place-items:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dedcd6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <sc-for list="{{ planDays }}" as="d" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:9px;padding:13px 14px;border-radius:18px;background:{{ d.bg }}">
+          <div style="display:flex;align-items:center;gap:11px">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+              <span class="disp" style="font-size:16.5px;font-weight:600">{{ d.n }}</span>
+              <span style="font-size:12px;color:#9a9892">{{ d.k }} · {{ d.s }}</span>
+            </div>
+            <span style="flex-shrink:0;padding:6px 10px;border-radius:999px;background:{{ d.badgeBg }};color:{{ d.badgeC }};font-size:9.5px;font-weight:700;letter-spacing:.07em">{{ d.b }}</span>
+            <span style="color:{{ d.ic }};display:flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="{{ d.fill }}" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ d.ip }}"></path></svg></span>
+          </div>
+          <div style="height:4px;border-radius:99px;background:#262626;overflow:hidden"><div style="width:{{ d.load }};height:100%;border-radius:99px;background:{{ d.barBg }}"></div></div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="flex:1"></div>
+    <div style="display:flex;gap:9px;padding-bottom:2px">
+      <div style="flex:1;height:46px;border-radius:14px;background:#131313;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:500">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>
+        Not at 100%?
+      </div>
+      <div style="flex:1;height:46px;border-radius:14px;background:#131313;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:500">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9a9892" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a.5.5 0 0 0-.5.8l3.9 4.9-2 2H4l-.7 2.1 3.4.9.9 3.4 2.1-.7v-2.2l2-2 4.9 3.9a.5.5 0 0 0 .8-.5Z"></path></svg>
+        Vacation / trip
+      </div>
+    </div>
+    <div style="display:flex;padding:12px 0 28px;background:#131313;margin:0 -20px;border-radius:22px 22px 0 0">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;color:{{ n.c }}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="{{ n.p1 }}"></path><path d="{{ n.p2 }}"></path></svg>
+          <span class="mono" style="font-size:10px;letter-spacing:.08em">{{ n.l }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: "build <a class="dv-oid" href="#1a">1a</a> as the real Plan tab with the Decide and Adjust sheets" · "put <a class="dv-oid" href="#1c">1c</a>'s timeline inside <a class="dv-oid" href="#1a">1a</a>" · "show the mid-plan state (week 5 of 12, no ending banner)"</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;accentColor&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#FF8B3D&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;options&quot;: [&quot;#FF8B3D&quot;, &quot;#CEFC22&quot;, &quot;#FFD60A&quot;, &quot;#00E3FD&quot;], &quot;section&quot;: &quot;Theme&quot; }
+}">
+class Component extends DCLogic {
+  renderVals() {
+    const acc = this.props.accentColor ?? '#FF8B3D';
+    try { document.documentElement.style.setProperty('--acc', acc); } catch (e) {}
+    const ICON = {
+      today: ['M3 10.5 12 3l9 7.5', 'M5.5 8.5V19a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8.5'],
+      plan: ['M8 2v4M16 2v4', 'M3.5 6.5h17v13a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z'],
+      history: ['M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5', 'M12 7v5l4 2'],
+      progress: ['M6 20v-4M12 20V9M18 20V4', 'M3 22h18'],
+      lib: ['M4.5 4v16M8.5 6v14', 'M12.5 6v14M16.5 6.5 20 20'],
+    };
+    const DAYS = [
+      ['MON 17', 'Monday', 'Upper A · 6 exercises', 'DONE', 'done', 62],
+      ['TUE 18', 'Tuesday', 'Lower A · 5 exercises', 'DONE', 'done', 74],
+      ['THU 20', 'Thursday', 'Upper B · 8 exercises', 'TODAY', 'done', 68],
+      ['FRI 21', 'Friday', 'Lower B · 5 exercises', 'NEXT', 'next', 55],
+    ];
+    const planDays = DAYS.map(([k, n, s, b, st, ld]) => ({
+      k, n, s, b, load: ld + '%',
+      bg: st === 'next' ? 'color-mix(in oklab, var(--acc) 11%, #0e0e0e)' : '#1c1c1c',
+      badgeBg: st === 'next' ? 'var(--acc)' : 'color-mix(in oklab, var(--acc) 15%, transparent)',
+      badgeC: st === 'next' ? '#141005' : 'var(--acc)',
+      barBg: st === 'next' ? 'var(--acc)' : 'color-mix(in oklab, var(--acc) 40%, #262626)',
+      ic: st === 'next' ? 'var(--acc)' : '#9a9892',
+      ip: st === 'next' ? 'M7 4l13 8-13 8Z' : 'm5 12.5 4.5 4.5L19 7.5',
+      fill: st === 'next' ? 'currentColor' : 'none',
+    }));
+    const rail = [
+      ['Monday', 'Upper A · 6 exercises · 5.2 t', 'DONE', 'done'],
+      ['Tuesday', 'Lower A · 5 exercises · 6.1 t', 'DONE', 'done'],
+      ['Wednesday', 'Rest', '', 'rest'],
+      ['Thursday', 'Upper B · 8 exercises · 5.4 t', 'TODAY', 'done'],
+      ['Friday', 'Lower B · 5 exercises · est. 45 min', 'NEXT', 'next'],
+    ].map(([n, s, b, st]) => ({
+      n, s, b, cta: st === 'next',
+      dot: st === 'next' ? 'var(--acc)' : st === 'rest' ? '#262626' : 'color-mix(in oklab, var(--acc) 45%, #1c1c1c)',
+      bg: st === 'next' ? 'color-mix(in oklab, var(--acc) 11%, #0e0e0e)' : 'transparent',
+      pad: st === 'next' ? '13px' : '9px 13px',
+      fs: st === 'next' ? '17px' : '15px',
+      nc: st === 'rest' ? '#9a9892' : '#f2f1ee',
+      bc: st === 'next' ? 'var(--acc)' : '#9a9892',
+    }));
+    const week2 = [
+      ['MON 17', 'Monday', 'Upper A · 6 exercises', 'DONE', 'done', 62, '5.2 t'],
+      ['TUE 18', 'Tuesday', 'Lower A · 5 exercises', 'DONE', 'done', 74, '6.1 t'],
+      ['WED 19', '', '', '', 'rest', 0, ''],
+      ['THU 20', 'Thursday', 'Upper B · 8 exercises', 'TODAY', 'done', 68, '5.4 t · 2 PR'],
+      ['FRI 21', 'Friday', 'Lower B · 5 exercises', 'NEXT', 'next', 55, 'EST. 45 MIN'],
+      ['SAT 22', '', '', '', 'rest', 0, ''],
+      ['SUN 23', '', '', '', 'rest', 0, ''],
+    ].map(([k, n, s, b, st, ld, m]) => ({
+      k, n, s, b, m, load: ld + '%',
+      rest: st === 'rest', session: st !== 'rest', next: st === 'next',
+      bg: st === 'next' ? 'color-mix(in oklab, var(--acc) 11%, #0e0e0e)' : '#1c1c1c',
+      badgeBg: st === 'next' ? 'var(--acc)' : 'color-mix(in oklab, var(--acc) 15%, transparent)',
+      badgeC: st === 'next' ? '#141005' : 'var(--acc)',
+      barBg: st === 'next' ? 'var(--acc)' : 'color-mix(in oklab, var(--acc) 40%, #262626)',
+      mc: st === 'next' ? 'var(--acc)' : '#9a9892',
+    }));
+    return {
+      planDays, rail, week2,
+      adjust: [
+        { l: 'Not at 100%?', p: 'M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z' },
+        { l: 'Vacation / trip', p: 'M17.8 19.2 16 11l3.5-3.5a2.1 2.1 0 0 0-3-3L13 8 4.8 6.2a.5.5 0 0 0-.5.8l3.9 4.9-2 2H4l-.7 2.1 3.4.9.9 3.4 2.1-.7v-2.2l2-2 4.9 3.9a.5.5 0 0 0 .8-.5Z' },
+      ],
+      planActions: [
+        { l: 'Edit', p: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z' },
+        { l: 'Cycles', p: 'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5' },
+        { l: 'Notes', p: 'M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2M9 3h6v3H9zM8 12h8M8 16h5' },
+      ],
+      load: [['MON', 62], ['TUE', 74], ['WED', 0], ['THU', 68], ['FRI', 55], ['SAT', 0], ['SUN', 0]].map(([d, h], i) => ({
+        d, h: h + '%',
+        bg: i === 4 ? 'var(--acc)' : h ? 'color-mix(in oklab, var(--acc) 38%, #262626)' : '#262626',
+        dc: i === 4 ? 'var(--acc)' : '#9a9892',
+      })),
+      nav: [['today', 'TODAY'], ['plan', 'PLAN'], ['history', 'HISTORY'], ['progress', 'PROGRESS'], ['lib', 'EXERCISES']]
+        .map(([k, l]) => ({ l, p1: ICON[k][0], p2: ICON[k][1], c: k === 'plan' ? 'var(--acc)' : '#9a9892' })),
+    };
+  }
+}
+</script>
+</body>
+</html>
