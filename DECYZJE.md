@@ -11,6 +11,65 @@
 
 ## DECYZJE
 
+### 2026-08-20: Redesign zakładki Historia (fala 2, artboard history-tab 1a)
+
+**Co:** Nowa prezentacja Historii wg mockupu 1a ("cykle jako poziom nadrzędny"),
+wyłącznie na tokenach akcentu/surface (zero nowych hexów, zero color-mix,
+strażniki limonki i design-token-guard zielone bez zmian allowlist):
+- wiersz tytułowy: h1 (styl jak dotąd) + zwijane pole szukania i zakres dat pod
+  ikonami (lupa / suwaki, aria: history.search / history.filters); karta
+  "Filtry" zastąpiona samymi rzędami chipów (status + dni planu, komponent Chip),
+- rząd akcji: chip PORÓWNAJ włącza tryb porównania (tap w wiersz = zaznacz,
+  FIFO max 2 bez zmian) + pille "Wyślij do trenera" i "Eksport CSV" (testidy
+  history-email / history-export-csv bez zmian),
+- linia licznika: "{n} cykli · {m} sesji" + tonaż (agregat all-time bez
+  filtrów, suma z przefiltrowanej załadowanej listy przy filtrach — zero danych
+  zmyślonych; tonaż małymi literami, lekcja Dashboardu),
+- karta AKTYWNEGO cyklu (surface-container): tytuł "Cykl {n}" (cykle nie mają
+  pola nazwy — numeracja od najstarszego, nie zmyślamy nazw), badge Aktywny
+  (primary/15), staty LIVE z buildActiveCyclePreview (Sesje/Tonaż/PR w akcencie/
+  Frekwencja), sparkline tonażu per tydzień TYLKO gdy okno danych pokrywa start
+  cyklu (windowCoversCycleStart — żadnych częściowych wykresów), tygodnie
+  malejąco (bieżący w akcencie), pierwsza sesja bieżącego tygodnia z tintem
+  bg-primary/10, stopka "Wszystkie sesje (N)" (domyślnie 2 tygodnie; przy
+  niepełnym oknie dociąga starsze strony = dawne "Załaduj więcej"),
+- karty PRZESZŁYCH cykli (surface-low, zwinięte): staty live
+  (withLiveCompletedStats) gdy dane w oknie, inaczej cache cycle.stats;
+  rozwinięcie lazy dociąga sesje spoza okna (useCycleSessions,
+  fetchWorkoutRange per cykl, cache; błąd => komunikat + Spróbuj ponownie),
+- wiersz sesji (HistorySessionRow): jednoliniowy (data mono · tytuł+draft ·
+  serie·czas · pigułka "N PR" w akcencie zamiast fitness-warning · tonaż);
+  tap = otwórz trening, chevron = Szczegóły (aria-label utrzymuje kontrakt
+  e2e), menu ⋯ = komplet akcji (Otwórz/Porównaj/Wyślij do trenera/Usuń,
+  testidy history-row-email / history-delete na pozycjach menu); wiersz ma
+  własny aria-label ("Otwórz trening: {tytuł}") — bez niego accessible name
+  sklejał się z aria-labelami przycisków w środku i getByRole('Szczegóły')
+  trafiał w cały wiersz (nawigacja zamiast rozwinięcia),
+- sesje bez cyklu: sekcja "Poza cyklami" (grupowanie miesięczne jak dotąd);
+  user bez żadnego cyklu = cała lista miesiącami (ścieżka e2e bez seedu cykli),
+- niezmienione: cała logika filtrów/porównania/usuwania/paginacji, oba
+  EmailWorkoutDialog (stały mount, pułapka Radix), ExportWorkoutsDialog,
+  AlertDialog usuwania, DateRangeField, empty states, rozwinięcie Szczegóły
+  (serie/metryki/notatki 1:1).
+
+**Dlaczego:** brief redesignu 2026-08-20 (fala 2); inwentarz 32 funkcji z planu
+odhaczony — żadna nie znika, część przeniesiona do menu ⋯. Sesja z cycleId na
+ukryty/techniczny cykl trafia do "Poza cyklami" (nie ginie, nie wpada po
+zakresie dat do złego cyklu). deletedIds filtruje też sesje dociągnięte lazy.
+
+**Weryfikacja:** 2051 testów (277 plików) + typecheck + lint + build zielone;
+nowe testy: history-cycles (16, w tym niezmiennik kompletności perCycle+outside
+== wejście), workout-history-redesign (10, DOM: komplet akcji menu, tryb
+porównania FIFO, filtry, usuwanie, oba dialogi zamontowane, staty live);
+e2e: aktualizacja 2 speców zgodnie z planem (email-coach-button: menu przed
+history-row-email; critical: chip Wszystkie + ikona Filtry zamiast karty) +
+komentarz w workout-delete-from-day; celowane biegi zielone: critical,
+email-coach-button, export-csv-dialog, accent-color, workout-delete-from-day
+(21) + CAŁY full-app (83). Pętla wizualna 4 iteracje (viewport 390, akcenty
+lime/amber/sky/indigo) — zrzuty w docs/design-2026-08-20/screens/history-iter1..4;
+harness doposażony: sesje z cycleId, dni cyklu, daty wyrównane do pon/śr
+(frekwencja realna), zakończony mini-cykl.
+
 ### 2026-08-20: Redesign zakładki Plan (fala 2, artboard plan-tab 1b)
 
 **Co:** Nowa prezentacja zakładki Plan wg mockupu 1b ("day-led"), wyłącznie na
