@@ -56,6 +56,7 @@ import { sortUsersByActivity } from '@/lib/admin-activity';
 import { logAdminAction } from '@/lib/admin-audit';
 import { AdminAuditLog } from './AdminAuditLog';
 import { AdminConsentsLog } from './AdminConsentsLog';
+import { AdminEmailsCard } from './AdminEmailsCard';
 import { useCurrentUser } from '@/contexts/UserContext';
 
 const ADMIN_USERS_LISTENER_LIMIT = 200;
@@ -861,6 +862,9 @@ const AdminDashboard = () => {
 
       {/* Pakiet prawny v2: log zgód + eksport CSV (data, godzina UTC, IP) */}
       <AdminConsentsLog userEmailByUid={Object.fromEntries(users.map((u) => [u.uid, u.email]))} />
+
+      {/* G-T4: rejestr wysyłek maili + dostarczalność (email_log + zdarzenia SES) */}
+      <AdminEmailsCard />
 
       <Card className="overflow-hidden">
         <CardHeader className="pb-3">
