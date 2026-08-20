@@ -291,9 +291,8 @@ export const WorkoutCompletionSequence = ({
               </span>
             </div>
           )}
-          <div className="min-w-0 flex-1" />
           {onEditSets && (
-            <button type="button" className="chip-mono shrink-0" onClick={onEditSets}>
+            <button type="button" className="chip-mono ml-auto shrink-0" onClick={onEditSets}>
               <Pencil className="h-3 w-3" />
               {t('workout.completion.editSets')}
             </button>
