@@ -6,78 +6,79 @@ import { cn, parseLocalDate } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import type { WeekCardModel } from '@/lib/week-card';
 
-// Karta tygodnia (Runna pakiet 1, spec B1): checkmarki dni + pasek sesji +
-// tonaż tygodnia. Kolor akcentu (primary) dla ukończonych (checkmark/fill);
-// statusy semantyczne (deload/warning) bez zmian, tła z przezroczystością
-// (reguła #8).
+// Karta tygodnia (Runna pakiet 1, spec B1; redesign fala 2 2026-08-20):
+// nagłówek "N z M sesji" + tonaż i "TYDZ. x/y" mono, 7 POZIOMYCH segmentów
+// (wypełniony = akcent primary), stopka "Dzisiaj zrobione · {dzień}".
+// Statusy semantyczne (deload/warning) bez zmian, tła z przezroczystością
+// (reguła #8). Pasek % zniknął — duplikat segmentów.
 
 interface WeekCardProps {
   model: WeekCardModel;
   isDeloadWeek?: boolean;
+  /** Nazwa dzisiejszego ukończonego dnia (stopka "Dzisiaj zrobione · {day}"). */
+  todayDoneDayName?: string;
 }
 
-export const WeekCard = ({ model, isDeloadWeek }: WeekCardProps) => {
+export const WeekCard = ({ model, isDeloadWeek, todayDoneDayName }: WeekCardProps) => {
   const { t, lang } = useTranslation();
   const { fmtTonnage } = useUnit();
 
   if (!model.week) return null;
 
-  const pct = model.sessionsPlanned > 0
-    ? Math.min(100, Math.round((model.sessionsDone / model.sessionsPlanned) * 100))
-    : 0;
+  const todayDone = model.days.some((d) => d.isToday && d.status === 'done');
 
   return (
     <Card data-testid="week-card">
       <CardContent className="px-5 py-4">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <p className="font-heading text-sm font-bold uppercase tracking-wide">
-              {t('dash.week.title', { current: model.week.current, total: model.week.total })}
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-[13px] font-medium text-foreground/90">
+              {model.sessionsPlanned > 0
+                ? t('dash.week.sessions', { done: model.sessionsDone, total: model.sessionsPlanned })
+                : t('dash.week.title', { current: model.week.current, total: model.week.total })}
             </p>
             {isDeloadWeek && (
-              <span className="rounded-full border border-fitness-warning bg-fitness-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fitness-warning">
+              <span className="shrink-0 rounded-full border border-fitness-warning bg-fitness-warning/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fitness-warning">
                 {t('dash.week.deload')}
               </span>
             )}
           </div>
-          {model.tonnageKg > 0 && (
-            <p className="text-sm font-bold tabular-nums text-muted-foreground">{fmtTonnage(model.tonnageKg)}</p>
-          )}
+          <p className="shrink-0 font-mono text-xs uppercase tracking-[0.08em] tabular-nums text-muted-foreground">
+            {model.tonnageKg > 0 && `${fmtTonnage(model.tonnageKg)} · `}
+            {t('dash.week.short', { current: model.week.current, total: model.week.total })}
+          </p>
         </div>
 
         <div className="mt-3 flex gap-1.5">
           {model.days.map((day) => {
-            const label = parseLocalDate(day.date).toLocaleDateString(dateLocale(lang), { weekday: 'short' });
+            const label = parseLocalDate(day.date).toLocaleDateString(dateLocale(lang), {
+              weekday: 'long', day: 'numeric', month: 'long',
+            });
             return (
-              <div key={day.date} className="flex flex-1 flex-col items-center gap-1" data-testid={`week-day-${day.date}`}>
-                <div
-                  className={cn(
-                    'flex h-7 w-7 items-center justify-center rounded-full border text-[10px]',
-                    day.status === 'done' && 'border-primary bg-primary/15 text-primary',
-                    day.status === 'planned' && 'border-primary/50 bg-primary/10',
-                    day.status === 'skipped' && 'border-dashed border-muted-foreground/40 bg-transparent opacity-60',
-                    day.status === 'rest' && 'border-transparent bg-surface-low',
-                    day.isToday && 'ring-1 ring-primary/60',
-                  )}
-                >
-                  {day.status === 'done' && <Check className="h-3.5 w-3.5" />}
-                  {day.status === 'planned' && <span className="h-1.5 w-1.5 rounded-full bg-primary" />}
-                </div>
-                <span className="text-[9px] font-bold uppercase text-muted-foreground/60">{label}</span>
-              </div>
+              <div
+                key={day.date}
+                data-testid={`week-day-${day.date}`}
+                role="img"
+                aria-label={`${label}: ${t(`dash.week.day.${day.status}` as Parameters<typeof t>[0])}`}
+                title={label}
+                className={cn(
+                  'h-1.5 flex-1 rounded-full',
+                  day.status === 'done' && 'bg-primary',
+                  day.status === 'planned' && 'bg-primary/25',
+                  day.status === 'skipped' && 'bg-muted-foreground/20 opacity-60',
+                  day.status === 'rest' && 'bg-surface-highest',
+                  day.isToday && 'ring-1 ring-primary/60',
+                )}
+              />
             );
           })}
         </div>
 
-        {model.sessionsPlanned > 0 && (
-          <div className="mt-3">
-            <div className="h-1.5 overflow-hidden rounded-full bg-surface-highest">
-              <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {t('dash.week.sessions', { done: model.sessionsDone, total: model.sessionsPlanned })}
-            </p>
-          </div>
+        {todayDone && todayDoneDayName && (
+          <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+            <Check className="h-3 w-3 shrink-0" aria-hidden />
+            {t('dash.week.doneToday', { day: todayDoneDayName })}
+          </p>
         )}
       </CardContent>
     </Card>

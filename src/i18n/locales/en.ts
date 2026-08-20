@@ -207,6 +207,10 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.week.deload': 'Deload',
   // Fala 2 (2026-08-20): pasek tygodnia z segmentami + redesign hero.
   'dash.week.short': 'Wk {current}/{total}',
+  'dash.week.day.done': 'done',
+  'dash.week.day.planned': 'planned',
+  'dash.week.day.skipped': 'skipped',
+  'dash.week.day.rest': 'rest',
   'dash.week.doneToday': 'Today done · {day}',
   'dash.streakChip': '{n}-week streak',
   'dash.hero.today': "Today's session",

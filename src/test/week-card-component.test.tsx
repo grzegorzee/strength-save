@@ -23,11 +23,11 @@ const model: WeekCardModel = {
   tonnageKg: 4300,
 };
 
-const renderCard = (m: WeekCardModel, isDeloadWeek = false) =>
+const renderCard = (m: WeekCardModel, isDeloadWeek = false, todayDoneDayName?: string) =>
   render(
     <LanguageProvider>
       <UnitProvider>
-        <WeekCard model={m} isDeloadWeek={isDeloadWeek} />
+        <WeekCard model={m} isDeloadWeek={isDeloadWeek} todayDoneDayName={todayDoneDayName} />
       </UnitProvider>
     </LanguageProvider>,
   );
@@ -38,11 +38,16 @@ beforeEach(() => {
 });
 
 describe('WeekCard', () => {
-  it('nagłówek tygodnia, pasek sesji i tonaż', () => {
+  it('nagłówek: licznik sesji, tonaż i skrót tygodnia mono (fala 2)', () => {
     renderCard(model);
-    expect(screen.getByText('Tydzień 6 z 12')).toBeTruthy();
     expect(screen.getByText('1 z 3 sesji')).toBeTruthy();
-    expect(screen.getByText('4.3 t')).toBeTruthy();
+    // Tonaż i "Tydz. 6/12" w jednym wierszu mono po prawej.
+    expect(screen.getByText(/4\.3 t · Tydz\. 6\/12/)).toBeTruthy();
+  });
+
+  it('bez tonażu: sam skrót tygodnia, bez separatora', () => {
+    renderCard({ ...model, tonnageKg: 0 });
+    expect(screen.getByText(/^Tydz\. 6\/12$/)).toBeTruthy();
   });
 
   it('badge deload przy tygodniu deloadowym', () => {
@@ -56,14 +61,32 @@ describe('WeekCard', () => {
   });
 
   // T24a (feedback 2026-08-20): "ukończone" podąża za kolorem akcentu (primary),
-  // nie za semantycznym fitness-success.
-  it('dzień done i pasek postępu w kolorze akcentu (primary), nie fitness-success', () => {
+  // nie za semantycznym fitness-success. Fala 2: segment poziomy zamiast kółka.
+  it('segment done w kolorze akcentu (primary), nie fitness-success', () => {
     renderCard(model);
-    const doneCircle = screen.getByTestId('week-day-2026-08-10').firstElementChild as HTMLElement;
-    expect(doneCircle.className).toContain('text-primary');
-    expect(doneCircle.className).not.toContain('text-fitness-success');
-    const progressFill = document.querySelector('.h-full') as HTMLElement;
-    expect(progressFill.className).toContain('bg-primary');
-    expect(progressFill.className).not.toContain('bg-fitness-success');
+    const doneSegment = screen.getByTestId('week-day-2026-08-10');
+    expect(doneSegment.className).toContain('bg-primary');
+    expect(doneSegment.className).not.toContain('fitness-success');
+    const plannedSegment = screen.getByTestId('week-day-2026-08-13');
+    expect(plannedSegment.className).toContain('bg-primary/25');
+    const restSegment = screen.getByTestId('week-day-2026-08-14');
+    expect(restSegment.className).toContain('bg-surface-highest');
+    const todaySegment = screen.getByTestId('week-day-2026-08-12');
+    expect(todaySegment.className).toContain('ring-primary/60');
+  });
+
+  // Fala 2: stopka "Dzisiaj zrobione · {dzień}" tylko gdy dziś done i znamy nazwę.
+  it('stopka dzisiejszego ukończenia widoczna tylko przy statusie done', () => {
+    const doneToday: WeekCardModel = {
+      ...model,
+      days: model.days.map((d) => (d.isToday ? { ...d, status: 'done' } : d)),
+    };
+    renderCard(doneToday, false, 'Upper Body A');
+    expect(screen.getByText('Dzisiaj zrobione · Upper Body A')).toBeTruthy();
+  });
+
+  it('bez ukończenia dziś: brak stopki mimo podanej nazwy dnia', () => {
+    renderCard(model, false, 'Upper Body A');
+    expect(screen.queryByText(/Dzisiaj zrobione/)).toBeNull();
   });
 });
