@@ -28,6 +28,13 @@ describe('ProfileHeaderChips', () => {
     expect(getByTestId('chip-tier').textContent).toBe('Veteran');
   });
 
+  it('fala 2: chip PRO na tincie akcentu (tło z przezroczystością, tekst w akcencie)', () => {
+    const { getByTestId } = render(<ProfileHeaderChips showPro tierLabel="Veteran" />);
+    const cls = getByTestId('chip-pro').className;
+    expect(cls).toContain('bg-primary/15');
+    expect(cls).toContain('text-primary');
+  });
+
   it('darmowy user: bez chipa PRO (i bez FREE), poziom nadal widoczny', () => {
     const { queryByTestId, getByTestId, container } = render(
       <ProfileHeaderChips showPro={false} tierLabel="Rookie" />,
