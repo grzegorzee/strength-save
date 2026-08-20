@@ -60,15 +60,19 @@
 
 ## H-T3 — język maila z ustawień USERA (server-side)
 
-- [ ] Źródło prawdy: `users/{uid}.preferences.language` (albo pole language
+- [x] Źródło prawdy: `users/{uid}.preferences.language` (albo pole language
   usera — sprawdzić mapper/model users w functions: registration/weekly-digest
   już czytają language per user — użyć tego samego pola co digest!).
   Klientowy parametr `lang` zostaje TYLKO jako fallback, gdy profil nie ma
   języka. Deps: `getUserContext(uid)` → `{ language, displayName }` (jedno
   czytanie users doc — displayName potrzebny do H-T4).
-- [ ] Testy: user z language 'en' dostaje mail EN nawet gdy klient przysłał
+- [x] Testy: user z language 'en' dostaje mail EN nawet gdy klient przysłał
   'pl' (i odwrotnie); brak w profilu → fallback na parametr; brak wszystkiego
   → 'pl'.
+  DOWÓD (oba): commit e696f707 — pole TOP-LEVEL users.language (to samo co
+  weekly-digest .select i registration userData.language); resolveUserContext
+  z odpornością na awarię odczytu profilu; email_log.lang = finalny język;
+  +7 testów, plik 34/34, functions 281 passed, typecheck OK.
 
 ## H-T4 — treść i tytuł maila (pojedynczy ORAZ historia)
 
