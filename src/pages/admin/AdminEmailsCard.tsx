@@ -24,7 +24,7 @@ const EMAIL_LOG_LIMIT = 100;
 const STATUS_CLASSES: Record<EmailDisplayStatus, string> = {
   sent: 'border-muted-foreground/40 bg-muted/40 text-muted-foreground',
   delivered: 'border-fitness-success bg-fitness-success/10 text-fitness-success',
-  opened: 'border-lime-500 bg-lime-500/10 text-lime-600',
+  opened: 'border-sky-500 bg-sky-500/10 text-sky-600',
   bounced: 'border-destructive bg-destructive/10 text-destructive',
   complaint: 'border-destructive bg-destructive/10 text-destructive',
   failed: 'border-destructive bg-destructive/10 text-destructive',

@@ -53,7 +53,10 @@ All colors MUST be HSL.
        przeszła na tokeny --primary/--accent, które barwi kolor przewodni usera. */
     --fitness-cyan: 187 86% 53%;
     --fitness-navy: 220 60% 25%;
-    --fitness-success: 73 97% 56%;
+    /* T24b (2026-08-20): semantyczny success, celowo NIE limonka i NIE akcent
+       (limonka == stary akcent sprawiala, ze statusy wygladaly jak niepodmieniony
+       kolor przewodni). */
+    --fitness-success: 142 70% 45%;
     --fitness-warning: 38 92% 50%;
 
     --sidebar-background: 0 0% 100%;
@@ -115,7 +118,8 @@ All colors MUST be HSL.
     /* Audyt akcentu (2026-08-20): realny cyjan, znaczenie "cardio" (jak w :root). */
     --fitness-cyan: 187 86% 53%;
     --fitness-navy: 220 60% 45%;
-    --fitness-success: 73 97% 56%;
+    /* T24b (2026-08-20): semantyczny success, celowo NIE limonka i NIE akcent (jak w :root). */
+    --fitness-success: 142 70% 45%;
     --fitness-warning: 38 92% 50%;
 
     --sidebar-background: 0 0% 7%;

@@ -342,7 +342,7 @@ const Settings = () => {
             <>
               <div className="flex items-center justify-between">
                 <div>
-                  <Badge className="bg-fitness-success/10 text-green-600 border-fitness-success/30">
+                  <Badge className="bg-fitness-success/10 text-fitness-success border-fitness-success/30">
                     {t('settings.strava.connected')}
                   </Badge>
                   {connection.athleteName && (
