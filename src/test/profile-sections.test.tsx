@@ -108,23 +108,27 @@ const renderSheet = () =>
     </MemoryRouter>,
   );
 
-describe('krok 3: reorganizacja sekcji Profilu', () => {
-  it('sekcje w kolejności: Trening → Twoje dane → Subskrypcja → Konto → Wygląd → Aplikacja → Pomoc → System', () => {
+describe('krok 3 + fala 2: sekcje Profilu wg artboardu 1a', () => {
+  it('sekcje w kolejności: Osiągnięcia → Trening → Kolor → Subskrypcja → Twoje dane → Aplikacja → Konto i pomoc', () => {
+    // Bez grupy Połączenia: web (nie natywnie) i brak canUseStrava w mocku.
     const { container } = renderProfile();
     const labels = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent);
     expect(labels).toEqual([
-      'Trening', 'Twoje dane', 'Subskrypcja', 'Konto', 'Wygląd', 'Aplikacja', 'Pomoc', 'System',
+      'Osiągnięcia', 'Trening', 'Kolor przewodni aplikacji', 'Subskrypcja',
+      'Twoje dane', 'Aplikacja', 'Konto i pomoc',
     ]);
   });
 
-  it('TRENING: timer przerwy, domyślna przerwa, dźwięk (z Aplikacji), jednostki — w tej kolejności', () => {
-    const { container } = renderProfile();
+  it('TRENING: timer przerwy (z selectem przerwy), dźwięk, jednostki, tryby — w tej kolejności', () => {
+    const { container, getByLabelText } = renderProfile();
     const trening = sectionByLabel(container, 'Trening');
     const text = trening.textContent ?? '';
-    const order = ['Timer przerwy', 'Domyślny czas odpoczynku', 'Dźwięk timera', 'Jednostki']
+    const order = ['Timer przerwy', 'Dźwięk timera', 'Jednostki', 'Nie na 100%?', 'Urlop / wyjazd']
       .map((l) => text.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
+    // Select domyślnej przerwy żyje w wierszu timera (aria-label bez zmian).
+    expect(getByLabelText('Domyślny czas odpoczynku')).toBeTruthy();
     // Dźwięk wyprowadzony z Aplikacji, nie zdublowany.
     const app = sectionByLabel(container, 'Aplikacja');
     expect(app.textContent).not.toContain('Dźwięk timera');
@@ -166,26 +170,38 @@ describe('krok 3: reorganizacja sekcji Profilu', () => {
     await waitFor(() => expect(getByLabelText('Imię')).toBeTruthy());
   });
 
-  it('niezmiennik: wszystkie dotychczasowe wiersze i akcje obecne', () => {
-    const { container, getByText } = renderProfile();
-    // TWOJE DANE
-    ['Historia', 'Pomiary ciała', 'Postępy'].forEach((l) => expect(getByText(l)).toBeTruthy());
+  it('niezmiennik (zasada #5): wszystkie dotychczasowe wiersze i akcje obecne po redesignie', () => {
+    const { container, getByText, getByTestId, getByLabelText } = renderProfile();
+    // IDENTITY: imię (dialog), avatar (upload), email, chip poziomu.
+    expect(getByTestId('profile-name-edit')).toBeTruthy();
+    expect(getByLabelText('Zmień zdjęcie profilowe')).toBeTruthy();
+    expect(getByText('tester@example.com')).toBeTruthy();
+    expect(getByTestId('chip-tier')).toBeTruthy();
+    // KAFLE DUMY (fala 2): 4 realne statystyki, renderowane zawsze.
+    ['Treningi', 'Seria', 'Tonaż', 'Serie'].forEach((l) => expect(getByText(l)).toBeTruthy());
+    // TRENING (karta)
+    ['Timer przerwy', 'Dźwięk timera', 'Jednostki', 'Nie na 100%?', 'Urlop / wyjazd']
+      .forEach((l) => expect(getByText(l)).toBeTruthy());
+    // KOLOR AKCENTU: swatche + custom + hex (testidy e2e).
+    ['accent-swatches', 'accent-custom', 'accent-hex-input', 'accent-hex-apply']
+      .forEach((id) => expect(getByTestId(id)).toBeTruthy());
     // SUBSKRYPCJA (admin → "Pełny dostęp")
     expect(within(sectionByLabel(container, 'Subskrypcja')).getByText('Pełny dostęp')).toBeTruthy();
-    // KONTO
-    ['Edytuj profil', 'Zmień hasło', 'Prywatność'].forEach((l) => expect(getByText(l)).toBeTruthy());
+    // TWOJE DANE
+    const dane = sectionByLabel(container, 'Twoje dane');
+    ['Historia', 'Pomiary ciała', 'Postępy', 'Rekordy sprzed aplikacji', 'Kopia i import',
+      'Prywatność', 'Ustawienia zaawansowane', 'Admin']
+      .forEach((l) => expect(within(dane).getByText(l)).toBeTruthy());
     // APLIKACJA
     ['Powiadomienia', 'Język'].forEach((l) => expect(getByText(l)).toBeTruthy());
-    // POMOC
-    const pomoc = sectionByLabel(container, 'Pomoc');
-    ['Centrum pomocy', 'Kontakt', 'O aplikacji'].forEach((l) => expect(within(pomoc).getByText(l)).toBeTruthy());
-    // SYSTEM: zaawansowane + Admin (tylko admin)
-    const system = sectionByLabel(container, 'System');
-    expect(within(system).getByText('Ustawienia zaawansowane')).toBeTruthy();
-    expect(within(system).getByText('Admin')).toBeTruthy();
-    // Stopka akcji
+    // KONTO I POMOC
+    const konto = sectionByLabel(container, 'Konto i pomoc');
+    ['Imię i avatar', 'Zmień hasło', 'Centrum pomocy', 'Kontakt', 'O aplikacji']
+      .forEach((l) => expect(within(konto).getByText(l)).toBeTruthy());
+    // Stopka akcji + wersja
     expect(getByText('Wyloguj')).toBeTruthy();
     expect(getByText('Usuń konto i wszystkie dane')).toBeTruthy();
+    expect(getByText('Strength Save 0.0.0-test')).toBeTruthy();
   });
 });
 
@@ -270,10 +286,11 @@ describe('krok 6: WorkoutSettingsSheet ↔ Profil (te same klucze zapisu)', () =
     expect(profil.getByLabelText('Timer przerwy').getAttribute('aria-checked')).toBe('false');
   });
 
-  // PRO-D T3: pasek postępu poziomu pod chipami nagłówka.
+  // PRO-D T3 + fala 2: pasek postępu poziomu pełnej szerokości pod identity,
+  // tekst "N do: {poziom}" w rzędzie chipów (0 treningów → 5 do Rookie).
   it('nagłówek: pasek postępu do następnego poziomu (tier.next != null)', () => {
     const { getByTestId, getByText } = renderProfile();
     expect(getByTestId('tier-progress')).toBeTruthy();
-    expect(getByText(/Następny poziom:/)).toBeTruthy();
+    expect(getByText(/5 do: Rookie/)).toBeTruthy();
   });
 });

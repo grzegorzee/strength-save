@@ -50,19 +50,34 @@ vi.mock('@/lib/push-notifications', () => ({ getPushPermission: vi.fn(async () =
 
 import Profile from '@/pages/Profile';
 
-describe('Profil: sekcja dumy (PRO-D T6)', () => {
+const renderProfile = () => {
+  localStorage.setItem('app-language', 'pl');
+  return render(
+    <MemoryRouter>
+      <LanguageProvider>
+        <UnitProvider>
+          <Profile />
+        </UnitProvider>
+      </LanguageProvider>
+    </MemoryRouter>,
+  );
+};
+
+describe('Profil: sekcja dumy (PRO-D T6 + kafle fali 2)', () => {
   it('przy zdobytych odznakach renderuje rząd odznak i link Wszystkie', () => {
-    localStorage.setItem('app-language', 'pl');
-    const { getByText, getAllByTestId } = render(
-      <MemoryRouter>
-        <LanguageProvider>
-          <UnitProvider>
-            <Profile />
-          </UnitProvider>
-        </LanguageProvider>
-      </MemoryRouter>,
-    );
+    const { getByText, getAllByTestId } = renderProfile();
     expect(getByText('Wszystkie')).toBeTruthy();
     expect(getAllByTestId('badge-hex').length).toBeGreaterThan(0);
+  });
+
+  // Fala 2: kafle liczą z okna recent gdy aggregate=null (dzisiejsza semantyka
+  // fallbacku completedCount) — zera i wartości są prawdziwe, nie zmyślone.
+  it('kafle: treningi/seria/tonaż/serie z okna recent (fallback bez agregatu)', () => {
+    const { getByText, getAllByText } = renderProfile();
+    ['Treningi', 'Seria', 'Tonaż', 'Serie'].forEach((l) => expect(getByText(l)).toBeTruthy());
+    // 10 treningów, każdy 1 seria robocza 10x50 kg.
+    expect(getAllByText('10').length).toBeGreaterThanOrEqual(2); // kafle Treningi + Serie
+    expect(getByText('5.0 t')).toBeTruthy(); // 10 x 500 kg
+    expect(getByText('0 tyg.')).toBeTruthy(); // stare daty = streak 0 (prawda)
   });
 });
