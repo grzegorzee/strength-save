@@ -1261,21 +1261,35 @@ const sendWorkoutEmail = async (to: string, subject: string, html: string): Prom
 
 const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
   getWorkout: async (workoutId) => {
-    const snap = await db.collection(WORKOUTS_COLLECTION).doc(workoutId).get();
-    if (!snap.exists) return null;
-    return { id: snap.id, ...(snap.data() as Omit<EmailWorkout, "id">) };
+    try {
+      const snap = await db.collection(WORKOUTS_COLLECTION).doc(workoutId).get();
+      if (!snap.exists) return null;
+      return { id: snap.id, ...(snap.data() as Omit<EmailWorkout, "id">) };
+    } catch (error) {
+      // J-T1: bez logu błąd odczytu ginął jako generyczny 'internal' u klienta
+      // ("Sending failed"). Log z detalami = diagnoza w minutę. Rethrow bez zmian.
+      logger.error("[EmailWorkout] getWorkout failed", { workoutId, error });
+      throw error;
+    }
   },
   listWorkoutsInRange: async (uid, opts) => {
-    let query = db.collection(WORKOUTS_COLLECTION)
-      .where("userId", "==", uid)
-      .where("completed", "==", true);
-    // H-T2: filtr od dołu po dacie (range 'week'); range na polu orderBy = ten sam indeks.
-    if (opts.sinceDate) query = query.where("date", ">=", opts.sinceDate);
-    const snap = await query
-      .orderBy("date", "desc")
-      .limit(opts.limit)
-      .get();
-    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<EmailWorkout, "id">) }));
+    try {
+      let query = db.collection(WORKOUTS_COLLECTION)
+        .where("userId", "==", uid)
+        .where("completed", "==", true);
+      // H-T2: filtr od dołu po dacie (range 'week'); range na polu orderBy = ten sam indeks.
+      if (opts.sinceDate) query = query.where("date", ">=", opts.sinceDate);
+      const snap = await query
+        .orderBy("date", "desc")
+        .limit(opts.limit)
+        .get();
+      return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<EmailWorkout, "id">) }));
+    } catch (error) {
+      // J-T1: brak composite indeksu workouts(userId, completed, date DESC) rzucał
+      // failed-precondition, a klient widział tylko "Sending failed". Rethrow bez zmian.
+      logger.error("[EmailWorkout] listWorkoutsInRange failed", { uid, opts, error });
+      throw error;
+    }
   },
   // H-T3: język maila (i displayName do tytułu) z users doc — to samo pole
   // language co weekly-digest; parametr klienta zostaje tylko fallbackiem.
