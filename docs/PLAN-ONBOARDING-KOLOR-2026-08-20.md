@@ -68,14 +68,24 @@
 
 ## I-RELEASE (lokalne domknięcie w worktree — bez deployu)
 
-- [ ] Bramki: pełny vitest, typecheck, lint, build, check:bundle-budget,
-  check:no-emoji; e2e minimum: accent-color.spec, onboarding spec(y),
-  ui-improvements, full-app.
-- [ ] Przebieg wizualny: zrzuty 390x844 onboardingu (limonka default, po
-  kliku indigo, po kliku amber) + Profil z nową paletą + Dashboard w emerald
-  (kontrast tekstu na CTA!). Zrzuty do scratchpada sesji.
-- [ ] Odhaczenie tasków tutaj z dowodami (hash commita, wyniki), commit
-  trackera na branchu. Raport z listą commitów i nazwą brancha.
+- [x] Bramki (2026-08-20): pełny vitest 1839/1839 (245 plików), typecheck OK,
+  eslint całości czysty, build OK, check:bundle-budget OK (initial JS
+  1315489/1536000 B, żaden chunk > 819200 B), check:no-emoji OK (177 plików);
+  e2e chromium: accent-color + onboarding-accent + ui-improvements + full-app
+  = 95 passed / 0 failed (1.6 min). Poprawka po pierwszym biegu: 59caa933
+  (onboarding-accent bez expectPageRendered — PlanWizard nie renderuje
+  <main>, wzorzec jak test onboardingu w full-app).
+- [x] Przebieg wizualny 390x844 (scratchpad sesji, wartości computed
+  potwierdzone): onboarding-default-lime.png ('73 97% 56%', fg ciemny),
+  onboarding-indigo.png ('235 86% 65%', fg '0 0% 98%' — cały ekran
+  przebarwiony od kliku), onboarding-amber.png ('37 91% 55%', fg ciemny),
+  profile-new-palette.png (11 kropek + custom w siatce flex-wrap, mieści
+  się w 2 rzędach), dashboard-emerald.png ('160 84% 39%', fg ciemny —
+  CTA "Zrób dziś" czytelne, kontrast 7.3:1). Kalibracja progu 0.28
+  potwierdzona wizualnie.
+- [x] Taski odhaczone z dowodami (I-T1 25c48110, I-T2 42bf6923, e2e fix
+  59caa933), commity trackera na branchu worktree-agent-a22441b12ee328f0c.
+  Raport w odpowiedzi agenta. BEZ push, BEZ deployu, BEZ zmian wersji.
 
 ## Twarde zasady
 
