@@ -1,5 +1,7 @@
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '@/lib/firebase';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useToast } from '@/hooks/use-toast';
@@ -8,6 +10,8 @@ import { useHealthConsent } from '@/hooks/useHealthConsent';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { compressImage } from '@/lib/image-compress';
 import { TrendingUp, TrendingDown, Minus, ChevronRight, Database, Ruler } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { cn, parseLocalDate } from '@/lib/utils';
@@ -30,7 +34,7 @@ const deltaClass = (field: MeasurementField, delta: number): string => {
 
 // Osobny ekran „Pomiary ciała" (przeniesiony z zakładki w Analityce do menu).
 const Measurements = () => {
-  const { uid } = useCurrentUser();
+  const { uid, canUseBodyPhotos } = useCurrentUser();
   const navigate = useNavigate();
   const { measurements, addMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
@@ -39,9 +43,27 @@ const Measurements = () => {
   const healthConsent = useHealthConsent();
 
   const latestMeasurement = getLatestMeasurement();
+  // T13a: pełny podgląd zdjęcia z historii (Dialog kontrolowany — zamykanie
+  // wyłącznie przez open=false, lekcja builda 92).
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  const handleSave = async (measurement: Parameters<typeof addMeasurement>[0]) => {
-    const result = await addMeasurement(measurement);
+  const handleSave = async (measurement: Parameters<typeof addMeasurement>[0], photoFile?: File | null) => {
+    // T13a: NIEZMIENNIK — pomiar nigdy nie przepada przez zdjęcie. Upload jest
+    // opcjonalnym krokiem PRZED zapisem; jego błąd degraduje do zapisu bez fotki.
+    let photoFields: { photoUrl: string; photoPath: string } | null = null;
+    if (photoFile && canUseBodyPhotos) {
+      try {
+        const blob = await compressImage(photoFile);
+        const photoPath = `body-photos/${uid}/${measurement.date}-${Date.now()}.jpg`;
+        const fileRef = storageRef(storage, photoPath);
+        await uploadBytes(fileRef, blob);
+        const photoUrl = await getDownloadURL(fileRef);
+        photoFields = { photoUrl, photoPath };
+      } catch {
+        toast({ title: t('measurements.saveErrorTitle'), description: t('measurements.photo.uploadFailed'), variant: 'destructive' });
+      }
+    }
+    const result = await addMeasurement(photoFields ? { ...measurement, ...photoFields } : measurement);
     if (result.error || !result.measurement) {
       toast({ title: t('measurements.saveErrorTitle'), description: result.error || t('measurements.saveErrorDesc'), variant: 'destructive' });
       return;
@@ -97,7 +119,7 @@ const Measurements = () => {
             }}
           />
 
-          <MeasurementsForm latestMeasurement={latestMeasurement} onSave={handleSave} />
+          <MeasurementsForm latestMeasurement={latestMeasurement} onSave={handleSave} photosEnabled={canUseBodyPhotos} />
         </>
       )}
 
@@ -159,6 +181,17 @@ const Measurements = () => {
                       </span>
                     )}
                   </span>
+                  {/* T13a: miniatura zdjęcia sylwetki (klik = pełny podgląd) */}
+                  {m.photoUrl && (
+                    <button type="button" className="block" onClick={() => setPhotoPreview(m.photoUrl ?? null)}>
+                      <img
+                        src={m.photoUrl}
+                        alt={t('measurements.photo.preview')}
+                        loading="lazy"
+                        className="h-16 w-16 rounded-lg object-cover"
+                      />
+                    </button>
+                  )}
                   {/* Wszystkie wypełnione pola wpisu + delta vs poprzedni pomiar pola (Z77) */}
                   <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
                     {MEASUREMENT_FIELDS.filter((field) => typeof m[field] === 'number').map((field) => {
@@ -183,6 +216,22 @@ const Measurements = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* T13a: pełny podgląd zdjęcia — Dialog zawsze zamontowany, zamykanie przez open=false */}
+      <Dialog open={photoPreview !== null} onOpenChange={(open) => { if (!open) setPhotoPreview(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t('measurements.photo.preview')}</DialogTitle>
+          </DialogHeader>
+          {photoPreview && (
+            <img
+              src={photoPreview}
+              alt={t('measurements.photo.preview')}
+              className="max-h-[70vh] w-full rounded-lg object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

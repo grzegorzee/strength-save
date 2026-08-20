@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { BodyMeasurement } from '@/types';
-import { Save, User } from 'lucide-react';
+import { Camera, Save, User, X } from 'lucide-react';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -14,10 +14,12 @@ import { parseDecimalInput } from '@/lib/decimal-input';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
-  onSave: (measurement: Omit<BodyMeasurement, 'id' | 'userId'>) => void;
+  onSave: (measurement: Omit<BodyMeasurement, 'id' | 'userId'>, photoFile?: File | null) => void;
+  /** T13a: sekcja zdjęcia sylwetki — tylko przy włączonym feature bodyPhotos (default: wyłączona). */
+  photosEnabled?: boolean;
 }
 
-export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsFormProps) => {
+export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = false }: MeasurementsFormProps) => {
   const { t, lang } = useTranslation();
   const { unit, lengthUnit, toDisplay, fromInput, toDisplayLength, fromInputLength } = useUnit();
   const [formData, setFormData] = useState({
@@ -35,6 +37,21 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
     calfRight: latestMeasurement?.calfRight != null ? String(Number(toDisplayLength(latestMeasurement.calfRight).toFixed(1))) : '',
   });
   const [validationError, setValidationError] = useState(false);
+  // T13a: opcjonalne zdjęcie sylwetki — zwykły input file (w WKWebView natywny
+  // sheet Aparat/Biblioteka, bez pluginu Capacitor). Upload robi rodzic.
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!photoFile) {
+      setPhotoPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(photoFile);
+    setPhotoPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoFile]);
 
   const handleChange = (field: string, value: string) => {
     setValidationError(false);
@@ -67,7 +84,8 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
       setValidationError(true);
       return;
     }
-    onSave(measurement);
+    onSave(measurement, photoFile ?? undefined);
+    setPhotoFile(null);
   };
 
   const measurementFields = [
@@ -126,6 +144,44 @@ export const MeasurementsForm = ({ latestMeasurement, onSave }: MeasurementsForm
               </div>
             ))}
           </div>
+          {photosEnabled && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t('measurements.photo.addLabel')}</Label>
+              <p className="text-xs text-muted-foreground">{t('measurements.photo.hint')}</p>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                data-testid="measurement-photo-input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  e.target.value = '';
+                  if (file) setPhotoFile(file);
+                }}
+              />
+              {photoFile ? (
+                <div className="flex items-center gap-3">
+                  {photoPreviewUrl && (
+                    <img
+                      src={photoPreviewUrl}
+                      alt={t('measurements.photo.preview')}
+                      className="h-24 w-24 rounded-lg object-cover"
+                    />
+                  )}
+                  <Button type="button" variant="outline" size="sm" onClick={() => setPhotoFile(null)}>
+                    <X className="h-4 w-4 mr-2" />
+                    {t('measurements.photo.remove')}
+                  </Button>
+                </div>
+              ) : (
+                <Button type="button" variant="outline" onClick={() => photoInputRef.current?.click()}>
+                  <Camera className="h-4 w-4 mr-2" />
+                  {t('measurements.photo.addButton')}
+                </Button>
+              )}
+            </div>
+          )}
           {validationError && <p role="alert" className="text-sm text-destructive">{t('measurements.saveErrorDesc')}</p>}
           <Button type="submit" className="w-full" size="lg">
             <Save className="h-4 w-4 mr-2" />

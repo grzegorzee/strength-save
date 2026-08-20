@@ -148,10 +148,14 @@ service cloud.firestore {
     function validMeasurementShape() {
       return request.resource.data.keys().hasOnly([
         'id', 'userId', 'date', 'weight', 'armLeft', 'armRight', 'chest', 'waist',
-        'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'recordedAt'
+        'hips', 'thighLeft', 'thighRight', 'calfLeft', 'calfRight', 'recordedAt',
+        'photoUrl', 'photoPath'
       ])
       && (request.resource.data.date is string && request.resource.data.date.size() <= 10)
       && (!('recordedAt' in request.resource.data) || request.resource.data.recordedAt is number)
+      // T13a: zdjęcie sylwetki — URL z tokenem + ścieżka Storage (do GDPR cleanup).
+      && (!('photoUrl' in request.resource.data) || (request.resource.data.photoUrl is string && request.resource.data.photoUrl.size() <= 1000))
+      && (!('photoPath' in request.resource.data) || (request.resource.data.photoPath is string && request.resource.data.photoPath.size() <= 300))
       && (!('weight' in request.resource.data) || request.resource.data.weight is number)
       && (!('armLeft' in request.resource.data) || request.resource.data.armLeft is number)
       && (!('armRight' in request.resource.data) || request.resource.data.armRight is number)

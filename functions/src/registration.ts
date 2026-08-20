@@ -1184,6 +1184,8 @@ interface DeletionOperationDeps {
 
 async function deleteAvatarFilesForUser(uid: string): Promise<void> {
   await admin.storage().bucket().deleteFiles({ prefix: `avatars/${uid}/` });
+  // T13a: zdjecia sylwetki (body-photos/{uid}/...) — GDPR cleanup razem z avatarami.
+  await admin.storage().bucket().deleteFiles({ prefix: `body-photos/${uid}/` });
 }
 
 async function purgeUserData(uid: string, deps: DeletionOperationDeps = {}): Promise<Record<string, number>> {

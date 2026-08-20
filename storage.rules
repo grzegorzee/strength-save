@@ -15,6 +15,18 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Zdjęcia sylwetki (T13a): body-photos/{uid}/{plik}
+    // Prywatne: odczyt/zapis/kasowanie WYŁĄCZNIE właściciel (inaczej niż avatary,
+    // które czyta każdy zalogowany). Wyłącznie obrazy do 5 MB.
+    match /body-photos/{userId}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Domyślnie: brak dostępu.
     match /{allPaths=**} {
       allow read, write: if false;

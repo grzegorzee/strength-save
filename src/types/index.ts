@@ -100,4 +100,8 @@ export interface BodyMeasurement {
   calfRight?: number;
   /** Epoch ms wykonania pomiaru (2026-08-13); brak = pomiar sprzed tej wersji. */
   recordedAt?: number;
+  /** T13a: zdjęcie sylwetki — download URL z tokenem (czyta tylko owner+admin dokumentu). */
+  photoUrl?: string;
+  /** T13a: ścieżka pliku w Storage (body-photos/{uid}/...) — do GDPR cleanup. */
+  photoPath?: string;
 }

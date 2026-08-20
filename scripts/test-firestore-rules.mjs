@@ -297,6 +297,10 @@ add('measurements: weight nie-liczba DENIED', false, await ok(() => setDoc(doc(d
 // FIX-B T7: godzina wykonania pomiaru (epoch ms, pole opcjonalne).
 add('measurements: recordedAt (number) ALLOWED', true, await ok(() => setDoc(doc(db, 'measurements', 'm-4'), { ...validMeasurement, id: 'm-4', recordedAt: 1765600000000 })));
 add('measurements: recordedAt zlego typu DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-5'), { ...validMeasurement, id: 'm-5', recordedAt: 'wczoraj' })));
+// T13a: zdjecie sylwetki (photoUrl + photoPath, oba opcjonalne stringi).
+add('measurements: photoUrl/photoPath (string) ALLOWED', true, await ok(() => setDoc(doc(db, 'measurements', 'm-6'), { ...validMeasurement, id: 'm-6', photoUrl: 'https://firebasestorage.googleapis.com/x?token=abc', photoPath: `body-photos/${UID}/2026-08-20.jpg` })));
+add('measurements: photoUrl zlego typu DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-7'), { ...validMeasurement, id: 'm-7', photoUrl: 123 })));
+add('measurements: photoPath zlego typu DENIED', false, await ok(() => setDoc(doc(db, 'measurements', 'm-8'), { ...validMeasurement, id: 'm-8', photoPath: ['a'] })));
 
 // plan_cycles: zamkniety schemat (dokument produkcyjny z technical/hiddenFromInsights przechodzi)
 await env.clearFirestore();
