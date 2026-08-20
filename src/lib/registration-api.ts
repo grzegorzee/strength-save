@@ -348,9 +348,11 @@ export async function adminBroadcastEmail(input: { target: string; subject: stri
   return (await fn(input)).data;
 }
 
-export async function adminSendPush(input: { target: string; title: string; body: string }) {
-  if (isE2EMode) return { success: true, sent: 1, failed: 0, total: 1, invalidTokens: 0 };
-  const fn = httpsCallable<typeof input, { success: boolean; sent: number; failed: number; total: number; invalidTokens: number }>(functions, "adminSendPush");
+export async function adminSendPush(input: { target: string; title: string; body: string; inbox?: boolean }) {
+  if (isE2EMode) return { success: true, sent: 1, failed: 0, total: 1, invalidTokens: 0, inboxWritten: 1 };
+  // T15: inbox (default true po stronie funkcji) = mirror ogłoszenia do dzwonka;
+  // inboxWritten opcjonalne (stara funkcja bez mirrora go nie zwraca).
+  const fn = httpsCallable<typeof input, { success: boolean; sent: number; failed: number; total: number; invalidTokens: number; inboxWritten?: number }>(functions, "adminSendPush");
   return (await fn(input)).data;
 }
 

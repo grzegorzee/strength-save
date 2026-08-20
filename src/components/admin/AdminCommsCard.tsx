@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog,
@@ -26,6 +27,8 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
   const [target, setTarget] = useState('all');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  // T15: mirror pusha do dzwonka (inbox user_events); dotyczy tylko kanału push.
+  const [inbox, setInbox] = useState(true);
   const [sending, setSending] = useState(false);
   const [lastResult, setLastResult] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -53,10 +56,14 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
         const res = await adminBroadcastEmail({ target, subject, body });
         resultText = t('admin.commsDeliveredShort', { sent: res.sent, total: res.total });
       } else {
-        const res = await adminSendPush({ target, title: subject, body });
+        const res = await adminSendPush({ target, title: subject, body, inbox });
         resultText = t('admin.commsDelivered', {
           sent: res.sent, total: res.total, failed: res.failed, invalid: res.invalidTokens,
         });
+        // T15: stara funkcja bez mirrora nie zwraca inboxWritten — wtedy bez dopisku.
+        if (typeof res.inboxWritten === 'number') {
+          resultText += ` ${t('admin.commsInboxWritten', { n: res.inboxWritten })}`;
+        }
       }
       setLastResult(resultText);
       toast({ title: t('admin.commsSentTitle'), description: resultText });
@@ -113,6 +120,13 @@ export const AdminCommsCard = ({ cohorts }: { cohorts: string[] }) => {
             placeholder={channel === 'email' ? t('admin.commsBodyEmail') : t('admin.commsBodyPush')}
             rows={4}
           />
+
+          {channel === 'push' && (
+            <label className="flex items-center justify-between gap-3 rounded-xl bg-surface-low px-3 py-2">
+              <span className="text-sm text-muted-foreground">{t('admin.commsInboxToggle')}</span>
+              <Switch checked={inbox} onCheckedChange={setInbox} />
+            </label>
+          )}
 
           <Button className="w-full" onClick={validateBeforeSend} disabled={sending}>
             {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}

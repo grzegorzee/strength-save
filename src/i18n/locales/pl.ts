@@ -2003,6 +2003,9 @@ export const pl = {
   'admin.commsConfirmPush': 'Wysłać push do: {target}?',
   'admin.commsTargetAll': 'WSZYSTKICH',
   'admin.commsSend': 'Wyślij',
+  // T15: mirror ogłoszenia push do dzwonka (inbox user_events).
+  'admin.commsInboxToggle': 'Zapisz też w dzwonku aplikacji',
+  'admin.commsInboxWritten': 'Wpisy w dzwonku: {n}.',
   'admin.flagAiLabel': 'AI globalnie',
   'admin.flagAiDesc': 'Wyłącznik awaryjny AI dla wszystkich',
   'admin.flagRegistrationLabel': 'Rejestracja otwarta',

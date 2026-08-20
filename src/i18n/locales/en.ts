@@ -1981,6 +1981,9 @@ export const en: Record<keyof typeof pl, string> = {
   'admin.commsConfirmPush': 'Send a push to: {target}?',
   'admin.commsTargetAll': 'EVERYONE',
   'admin.commsSend': 'Send',
+  // T15: mirror ogłoszenia push do dzwonka (inbox user_events).
+  'admin.commsInboxToggle': 'Also save to in-app inbox',
+  'admin.commsInboxWritten': 'Inbox entries: {n}.',
   'admin.flagAiLabel': 'AI globally',
   'admin.flagAiDesc': 'Kill switch for AI across all users',
   'admin.flagRegistrationLabel': 'Registration open',
