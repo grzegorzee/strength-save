@@ -5,11 +5,56 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (F-RELEASE: web live JWie54Xt, iOS 109 TF, AAB v24; feature'y: kolor, imię, mail SES)
+**Ostatnia aktualizacja:** 2026-08-20 (G-RELEASE: panel maili + pipeline SES + szablony; web live 080nD_E1)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: G-RELEASE — panel maili w adminie + pipeline zdarzeń SES + szablony marki
+
+**Co:** Plan `docs/PLAN-EMAIL-PANEL-2026-08-20.md` wykonany w całości (TDD):
+- G-T1 (42018e25): rejestr `email_log` — każda wysyłka (obie callables) zostawia
+  wpis sent/failed; `sendEmail` w deps zwraca metadane transportu
+  (`transport: ses|resend`, `sesMessageId` z SES = klucz korelacji). Awaria logu
+  nie psuje wysłanego maila. Rules: `email_log` + `email_events` read tylko
+  admin, write false (225/225 test:rules).
+- G-T2 (0cfee330): pipeline zdarzeń SES: SNS topic `strengthsave-ses-events`
+  (polityka: publikuje tylko ses.amazonaws.com z naszego config setu) + event
+  destination (9 typów, OPEN/CLICK włączają tracking otwarć) + webhook
+  `sesEventsWebhook` (walidacja podpisu SNS przez sns-validator, TopicArn
+  z sekretu SES_SNS_TOPIC_ARN — pełny ARN poza publicznym repo, auto-confirm
+  subskrypcji, idempotentne `email_events/{messageId}-{EventType}-{tsMs}`,
+  transakcyjny merge email_log). Niezmiennik mapowania: zdarzenia nie cofają
+  mocniejszych statusów (complaint zostaje mimo Delivery, failed nie nadpisuje
+  delivered), openedAt tylko przy pierwszym otwarciu + licznik.
+- G-T3 (541fa38b): szablony maili w stylu marki: jasne tło #f6f7f9, biała
+  karta, logo tekstowe STRENGTH SAVE z limonkowym akcentem #cefc22, tabele +
+  inline CSS, max 640px, zero obrazków/zewnętrznych zasobów, zero emoji
+  i wykrzykników (testy pilnują); kafle hero (tonaż/czas/serie/ćwiczenia),
+  historia z nagłówkiem zbiorczym (zakres, suma tonażu, łączny czas).
+- G-T4 (a748b7ba + a86b7904/dd7dc418): sekcja Maile w panelu admina — lista
+  100 ostatnich wysyłek ze statusami (opened limonka, complaint=SPAM czerwony),
+  kafle 7/30 dni (dostarczalność/otwieralność/bounce/skargi, adnotacja
+  o limicie 100), stany pusty/błąd-z-retry; RTL 5 + logika 8 + e2e.
+
+**Root cause potrzeby:** właściciel nie widział, kto do kogo wysyła maile ani
+czy dochodzą (spam?); SES miał metryki tylko w konsoli AWS.
+
+**Weryfikacja:** e2e realne: MessageId
+010701a01e955262-6eb8fd62-29ff-4b32-8586-d939f22ed9ea-000000 → email_events
+Send+Delivery+Open, email_log delivered z openedAt/openCount=1 (pixel działa);
+2 maile podglądowe szablonów też z kompletem zdarzeń. Bramki: vitest web
+1819/1819 + functions 270, typecheck, lint, build, bundle-budget, dist-smoke,
+dist-offline, no-emoji, rules 225/225, pełne e2e 404/404 po świeżym vite.
+Deploy: rules → functions (emailWorkoutSummary/History, sesEventsWebhook) →
+web live index-080nD_E1.js (marker sekcji Maile na origin/gh-pages).
+
+**Ograniczenia:** user IAM ad-system-admin bez SNS:TagResource → topic bez
+tagu Project. Zakładka Maile wejdzie do mobilnych bundli przy następnym
+wydaniu mobilnym (panel używany przez web; BEZ bumpów iOS/Android w tym
+planie, wersje 1.0.0). Testowy wpis email_log (uid e2e-ses-test) widoczny
+w panelu jako dowód działania.
 
 ### 2026-08-20: Amazon SES WDROŻONY jako główny transport maili (noreply@strengthsave.app)
 

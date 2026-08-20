@@ -156,21 +156,35 @@
 
 ## G-RELEASE — wydanie
 
-- [ ] Bramki repo: vitest (web + functions), typecheck, lint, build,
+- [x] Bramki repo: vitest (web + functions), typecheck, lint, build,
   bundle-budget, dist-smoke (build:mobile), dist-offline (build WEB!),
   no-emoji, test:rules; pełne e2e po świeżym vite
   (pkill -f vite + python3 shutil.rmtree node_modules/.vite).
-- [ ] Deploy KOLEJNOŚĆ: firestore rules → functions (tylko dotknięte:
+  DOWÓD: vitest web 1819/1819 (244 pliki; po fixie a86b7904+dd7dc418 —
+  test logiki przeniesiony do src/test, guard i18n skanuje src/lib),
+  functions 270 passed / 7 skipped; typecheck OK, lint 0 błędów,
+  build OK, bundle-budget PASS (initial 1314315 B), dist-offline PASS,
+  build:mobile + dist-smoke PASS, no-emoji OK (177), rules 225/225,
+  pełne e2e 404/404 (5.4 min) po pkill vite + rmtree .vite.
+- [x] Deploy KOLEJNOŚĆ: firestore rules → functions (tylko dotknięte:
   emailWorkoutSummary, emailWorkoutHistory, sesEventsWebhook) → web
   (npm run deploy) + weryfikacja: git fetch origin gh-pages + git grep
   markera sekcji maili na origin/gh-pages -- assets + curl live hash.
-- [ ] BEZ bumpu iOS/Android w tym planie: szablony są server-side (mobilki
+  DOWÓD: rules Deploy complete → functions:list pokazuje wszystkie 3
+  zaktualizowane → web: marker "Lista i statystyki z ostatnich" w
+  origin/gh-pages:assets/index-080nD_E1.js, curl live zwraca
+  index-080nD_E1.js. Przed deployem git pull --rebase (Already up to date).
+- [x] BEZ bumpu iOS/Android w tym planie: szablony są server-side (mobilki
   dostają nowe maile bez update'u), panel admina używany przez web;
   zaznaczyć w raporcie, że zakładka Maile wejdzie do mobilnych bundli przy
   następnym wydaniu mobilnym.
-- [ ] DECYZJE.md wpis (co, root cause'y, weryfikacja), odhaczenie wszystkich
+  DOWÓD: żaden plik wersji iOS/Android nie tknięty (git log --name-status
+  commitów G bez project.pbxproj/build.gradle/package.json version).
+- [x] DECYZJE.md wpis (co, root cause'y, weryfikacja), odhaczenie wszystkich
   tasków tutaj Z DOWODAMI (commity, wyniki bramek, messageId testu e2e),
   aktualizacja pamięci projektu.
+  DOWÓD: wpis "G-RELEASE" na górze DECYZJE.md, pamięć projektu
+  zaktualizowana (project_audyt_2026_08_19_watch.md + MEMORY.md).
 
 ## Twarde zasady (bez wyjątków)
 
