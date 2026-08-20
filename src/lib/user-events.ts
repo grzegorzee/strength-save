@@ -20,7 +20,10 @@ import { db } from '@/lib/firebase';
 export const USER_EVENTS_SCHEMA_VERSION = 1;
 export const USER_EVENTS_QUERY_LIMIT = 50;
 
-export type UserEventType = 'pr' | 'badge' | 'week' | 'plan';
+// T15: 'announcement' (ogłoszenie od twórcy) tworzy WYŁĄCZNIE backend (Admin SDK,
+// mirror adminSendPush); klient je tylko czyta. Rules ograniczają create klienta
+// do pozostałych typów, dlatego nie ma tu helpera klucza announcement.
+export type UserEventType = 'pr' | 'badge' | 'week' | 'plan' | 'announcement';
 
 export type UserEventPayload = Record<string, string | number | boolean | null>;
 

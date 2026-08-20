@@ -92,4 +92,33 @@ describe('NotificationBell (B-T6: serwerowe user_events)', () => {
     expect(screen.getByText('inbox.week.body:3,4200 kg')).toBeTruthy();
     expect(screen.getByText('inbox.plan.started:3,12')).toBeTruthy();
   });
+
+  // T15: ogłoszenie od twórcy — payload niesie gotowy tekst (bez t()).
+  it('renderuje announcement z payload.title/body', () => {
+    renderBell();
+    emitEvents([
+      event({
+        type: 'announcement',
+        key: 'announcement-1755640000000',
+        payload: { title: 'Nowość: eksport CSV', body: 'Eksportuj historię treningów z Analityki.' },
+      }),
+    ]);
+    fireEvent.click(screen.getByLabelText('inbox.open'));
+    expect(screen.getByText('Nowość: eksport CSV')).toBeTruthy();
+    expect(screen.getByText('Eksportuj historię treningów z Analityki.')).toBeTruthy();
+  });
+
+  it('announcement bez deepLink nie jest klikalny (brak role=button)', () => {
+    renderBell();
+    emitEvents([
+      event({
+        type: 'announcement',
+        key: 'announcement-1755640000000',
+        payload: { title: 'Nowość: eksport CSV', body: 'Opis.' },
+        deepLink: null,
+      }),
+    ]);
+    fireEvent.click(screen.getByLabelText('inbox.open'));
+    expect(screen.getByText('Nowość: eksport CSV').closest('[role="button"]')).toBeNull();
+  });
 });

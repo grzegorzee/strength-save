@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CalendarCheck, ClipboardList, Info, Trophy } from 'lucide-react';
+import { Bell, CalendarCheck, ClipboardList, Info, Megaphone, Trophy } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   countUnreadUserEvents,
@@ -19,6 +19,7 @@ const TYPE_ICONS = {
   badge: Trophy,
   week: CalendarCheck,
   plan: ClipboardList,
+  announcement: Megaphone,
 } as const;
 
 // B-T6: dzwonek czyta serwerowe user_events (offline cache daje persistence
