@@ -105,7 +105,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
                   <span
                     aria-hidden="true"
                     data-testid="header-plus-one"
-                    className="pointer-events-none absolute -top-1 right-1 text-sm font-bold text-fitness-success"
+                    className="pointer-events-none absolute -top-1 right-1 text-sm font-bold text-primary"
                     style={reducedMotion
                       ? undefined
                       : { animation: 'ss-plus-one 1.6s ease-out forwards' }}

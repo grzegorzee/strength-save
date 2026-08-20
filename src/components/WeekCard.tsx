@@ -7,8 +7,9 @@ import { dateLocale } from '@/i18n';
 import type { WeekCardModel } from '@/lib/week-card';
 
 // Karta tygodnia (Runna pakiet 1, spec B1): checkmarki dni + pasek sesji +
-// tonaż tygodnia. Limonka wyłącznie dla sukcesu (ukończone/checkmark/fill),
-// statusowe tła z przezroczystością (reguła #8).
+// tonaż tygodnia. Kolor akcentu (primary) dla ukończonych (checkmark/fill);
+// statusy semantyczne (deload/warning) bez zmian, tła z przezroczystością
+// (reguła #8).
 
 interface WeekCardProps {
   model: WeekCardModel;
@@ -52,7 +53,7 @@ export const WeekCard = ({ model, isDeloadWeek }: WeekCardProps) => {
                 <div
                   className={cn(
                     'flex h-7 w-7 items-center justify-center rounded-full border text-[10px]',
-                    day.status === 'done' && 'border-fitness-success bg-fitness-success/15 text-fitness-success',
+                    day.status === 'done' && 'border-primary bg-primary/15 text-primary',
                     day.status === 'planned' && 'border-primary/50 bg-primary/10',
                     day.status === 'skipped' && 'border-dashed border-muted-foreground/40 bg-transparent opacity-60',
                     day.status === 'rest' && 'border-transparent bg-surface-low',
@@ -71,7 +72,7 @@ export const WeekCard = ({ model, isDeloadWeek }: WeekCardProps) => {
         {model.sessionsPlanned > 0 && (
           <div className="mt-3">
             <div className="h-1.5 overflow-hidden rounded-full bg-surface-highest">
-              <div className="h-full bg-fitness-success" style={{ width: `${pct}%` }} />
+              <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
               {t('dash.week.sessions', { done: model.sessionsDone, total: model.sessionsPlanned })}

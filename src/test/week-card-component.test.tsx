@@ -54,4 +54,16 @@ describe('WeekCard', () => {
     renderCard({ ...model, week: null });
     expect(screen.queryByTestId('week-card')).toBeNull();
   });
+
+  // T24a (feedback 2026-08-20): "ukończone" podąża za kolorem akcentu (primary),
+  // nie za semantycznym fitness-success.
+  it('dzień done i pasek postępu w kolorze akcentu (primary), nie fitness-success', () => {
+    renderCard(model);
+    const doneCircle = screen.getByTestId('week-day-2026-08-10').firstElementChild as HTMLElement;
+    expect(doneCircle.className).toContain('text-primary');
+    expect(doneCircle.className).not.toContain('text-fitness-success');
+    const progressFill = document.querySelector('.h-full') as HTMLElement;
+    expect(progressFill.className).toContain('bg-primary');
+    expect(progressFill.className).not.toContain('bg-fitness-success');
+  });
 });
