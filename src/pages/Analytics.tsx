@@ -251,7 +251,9 @@ const SummaryTab = () => {
       {/* Z115: obciążenie hybrydowe (siła + cardio na jednej osi tygodniowej). */}
       <HybridLoadCard />
 
-      <div className="flex items-center justify-between">
+      {/* T11 (feedback 2026-08-20): flex-wrap, bo na 390px rząd przekraczał
+          viewport i "Kopiuj" wystawał poza ekran. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
           <Button variant={period === 'week' ? 'default' : 'outline'} size="sm" onClick={() => setPeriod('week')}>
             <Calendar className="h-4 w-4 mr-2" />{t('analytics.period.week')}
@@ -265,7 +267,7 @@ const SummaryTab = () => {
             {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
             {t('report.download')}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleCopy}>
+          <Button variant="outline" size="sm" onClick={handleCopy} data-testid="analytics-copy">
             {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
             {copied ? t('analytics.copied') : t('analytics.copy')}
           </Button>
