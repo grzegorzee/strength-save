@@ -34,6 +34,8 @@ import {
   canCreateUserProfile,
 } from "./security";
 import { writeEmailLog } from "./email-log";
+import { buildAnnouncementEvents } from "./announcement-events";
+import { forEachWithConcurrency } from "./bounded-concurrency";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 const authPepper = defineSecret("API_KEY_PEPPER");
@@ -1121,6 +1123,8 @@ export const adminSendPush = onCall(async (request) => {
   const target = normalizeOptionalString(request.data?.target, 60) || "all";
   const title = normalizeOptionalString(request.data?.title, 120);
   const body = normalizeOptionalString(request.data?.body, 500);
+  // T15: mirror ogłoszenia do dzwonka (user_events); default true dla kanału push.
+  const inbox = request.data?.inbox !== false;
   if (!title || !body) throw new HttpsError("invalid-argument", "title, body required");
 
   let query: FirebaseFirestore.Query = getDb().collection(USERS_COLLECTION);
@@ -1128,6 +1132,41 @@ export const adminSendPush = onCall(async (request) => {
   const snap = await query.get();
 
   const eligibleUserIds = new Set(snap.docs.map((doc) => doc.id));
+
+  // T15: mirror do inboxa dla WSZYSTKICH userów z targetu (nie tylko posiadaczy
+  // tokenów FCM — to jest wartość mirrora: user bez pusha zobaczy ogłoszenie
+  // w dzwonku). Best-effort: błąd zapisu nie może rzucić HttpsError ani zmienić
+  // wyniku wysyłki push (sent/failed/total/invalidTokens bez zmian).
+  const mirrorToInbox = async (): Promise<number> => {
+    if (!inbox) return 0;
+    let written = 0;
+    try {
+      const now = Date.now();
+      const events = buildAnnouncementEvents(Array.from(eligibleUserIds), { title, body, now });
+      await forEachWithConcurrency(events, 10, async ({ uid, event }) => {
+        try {
+          // create (nie set) pod deterministycznym id — retry tego samego
+          // broadcastu dostaje ALREADY_EXISTS i nie dubluje wpisu (wzór weekly-digest).
+          await getDb().collection("user_events").doc(`${uid}-${event.key}`).create({
+            v: 1,
+            userId: uid,
+            type: event.type,
+            key: event.key,
+            payload: event.payload,
+            deepLink: event.deepLink,
+            createdAt: now,
+            readAt: null,
+          });
+          written += 1;
+        } catch {
+          // Duplikat (already-exists) albo pojedynczy błąd zapisu — best-effort.
+        }
+      });
+    } catch {
+      // Mirror nie może wywrócić wysyłki push.
+    }
+    return written;
+  };
   const registrations = await getDb().collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).get();
   const tokenOwners = new Map<string, FirebaseFirestore.DocumentReference[]>();
   registrations.docs.forEach((doc) => {
@@ -1138,6 +1177,8 @@ export const adminSendPush = onCall(async (request) => {
   });
   const unique = Array.from(tokenOwners.keys());
   if (unique.length === 0) {
+    // T15: brak tokenów nie blokuje mirrora — ogłoszenie i tak ląduje w dzwonku.
+    const inboxWritten = await mirrorToInbox();
     await writeNotificationLog({
       type: "admin_push",
       actorUid: request.auth.uid,
@@ -1147,7 +1188,7 @@ export const adminSendPush = onCall(async (request) => {
       total: 0,
       invalidTokens: 0,
     });
-    return { success: true, sent: 0, failed: 0, total: 0, invalidTokens: 0 };
+    return { success: true, sent: 0, failed: 0, total: 0, invalidTokens: 0, inboxWritten };
   }
 
   // sendEachForMulticast obsługuje max 500 tokenów na wywołanie.
@@ -1183,6 +1224,9 @@ export const adminSendPush = onCall(async (request) => {
   });
   await Promise.allSettled(cleanupWrites);
 
+  // T15: mirror PO wysyłce FCM i cleanupie tokenów (niezmiennik: przebieg pusha bez zmian).
+  const inboxWritten = await mirrorToInbox();
+
   await writeNotificationLog({
     type: "admin_push",
     actorUid: request.auth.uid,
@@ -1194,7 +1238,7 @@ export const adminSendPush = onCall(async (request) => {
     cleanedTokenRefs: cleanupWrites.length,
   });
 
-  return { success: true, sent, failed, total: unique.length, invalidTokens: invalidTokens.size };
+  return { success: true, sent, failed, total: unique.length, invalidTokens: invalidTokens.size, inboxWritten };
 });
 
 // Usuń użytkownika: konto Auth + dane Firestore (GDPR). Operacja nieodwracalna.
