@@ -1425,7 +1425,7 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.livePR': 'New record: {name} {value} (+{delta})',
   'workout.livePR.title': 'New record',
   'workout.toast.savedTitle': 'Workout saved!',
-  'workout.toast.savedSyncedDesc': 'Saved locally and synced to the cloud.',
+  'workout.toast.savedSyncedDesc': 'Workout saved successfully.',
   'workout.toast.noSessionDesc': 'No workout session.',
   'workout.toast.saveChangesFailedDesc': 'Failed to save changes.',
   'workout.toast.changesSavedDesc': 'Your changes have been saved.',

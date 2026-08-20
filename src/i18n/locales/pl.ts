@@ -1447,7 +1447,7 @@ export const pl = {
   'workout.toast.livePR': 'Nowy rekord: {name} {value} (+{delta})',
   'workout.livePR.title': 'Nowy rekord',
   'workout.toast.savedTitle': 'Trening zapisany!',
-  'workout.toast.savedSyncedDesc': 'Zapisano lokalnie i zsynchronizowano z chmurą.',
+  'workout.toast.savedSyncedDesc': 'Trening został zapisany pomyślnie.',
   'workout.toast.noSessionDesc': 'Brak sesji treningowej.',
   'workout.toast.saveChangesFailedDesc': 'Nie udało się zapisać zmian.',
   'workout.toast.changesSavedDesc': 'Zmiany zostały zapisane.',
