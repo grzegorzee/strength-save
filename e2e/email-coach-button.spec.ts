@@ -63,4 +63,21 @@ test.describe('Wyślij do trenera (H-T1)', () => {
     await expect(page.getByText('Ostatni tydzień')).toBeVisible();
     await expect(page.getByText('Ostatnie 30 treningów')).toBeVisible();
   });
+
+  // J-T2: akcja w wierszu Historii wysyła TEN trening (mode='workout',
+  // bez selektora zakresu — zakresy dotyczą tylko maila historii).
+  test('wiersz historii: akcja Wyślij do trenera otwiera dialog tego treningu bez zakresu', async ({ page }) => {
+    await setE2EWorkouts(page, [workout('w-current', SESSION_DATE)]);
+    await navigateAndWait(page, '/history');
+    await expectPageRendered(page);
+
+    const action = page.getByTestId('history-row-email').first();
+    await expect(action).toBeVisible();
+    await expect(action).toContainText('Wyślij do trenera');
+
+    await action.click();
+    await expect(page.getByTestId('email-workout-dialog')).toBeVisible();
+    await expect(page.getByTestId('email-range-week')).toHaveCount(0);
+    await expect(page.getByTestId('email-range-last30')).toHaveCount(0);
+  });
 });

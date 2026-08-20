@@ -49,6 +49,8 @@ const WorkoutHistory = () => {
   const { uid, profile } = useCurrentUser();
   // F-T3: wysyłka całej historii mailem (np. do trenera).
   const [showEmailDialog, setShowEmailDialog] = useState(false);
+  // J-T2: wysyłka POJEDYNCZEGO treningu z wiersza Historii (mode='workout').
+  const [emailWorkoutId, setEmailWorkoutId] = useState<string | null>(null);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const [searchQuery, setSearchQuery] = useState('');
@@ -293,6 +295,16 @@ const WorkoutHistory = () => {
         uid={uid}
         initialEmail={profile?.preferences?.trainerEmail}
       />
+      {/* J-T2: dialog pojedynczego treningu — zawsze zamontowany, zamykanie
+          wyłącznie przez open=false (pułapka Radix: nie unmountować w open). */}
+      <EmailWorkoutDialog
+        open={emailWorkoutId !== null}
+        onOpenChange={(open) => { if (!open) setEmailWorkoutId(null); }}
+        mode="workout"
+        uid={uid}
+        workoutId={emailWorkoutId ?? undefined}
+        initialEmail={profile?.preferences?.trainerEmail}
+      />
 
       <div className="space-y-6">
         {groupedByMonth.map((group) => (
@@ -367,6 +379,17 @@ const WorkoutHistory = () => {
                     <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => toggleExpanded(workout.id)}>
                       {t('history.details')}
                       {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    </Button>
+                    {/* J-T2: wysyłka TEGO treningu do trenera prosto z wiersza. */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-muted-foreground"
+                      data-testid="history-row-email"
+                      onClick={() => setEmailWorkoutId(workout.id)}
+                    >
+                      <Mail className="h-3.5 w-3.5" />
+                      {t('email.sendToCoach')}
                     </Button>
                     <Button
                       variant="ghost"
