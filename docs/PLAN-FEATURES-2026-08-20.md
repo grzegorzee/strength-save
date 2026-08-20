@@ -66,26 +66,36 @@ reloadzie), bundle-budget GREEN.
 notatkami, RPE, bólem itp.) np. do swojego trenera, mailem przez Amazon SES
 (wdrożony u mnie). Pojedynczy trening albo wszystkie naraz."
 
-- [ ] Functions: callable `emailWorkoutSummary({ workoutId, to })` i
+- [x] Functions: callable `emailWorkoutSummary({ workoutId, to })` i
   `emailWorkoutHistory({ to })`. HTML przez istniejący wzorzec email-templates:
   data/dzień/focus, serie (kg × powt., ukończone/pominięte), notatka dnia,
   notatki ćwiczeń, RPE/ocena sesji, ból/kontuzje jeśli zapisane, tonaż/czas/PRy.
-- [ ] Transport: abstrakcja `sendEmail` (już wstrzykiwana w weekly-digest).
+- [x] Transport: abstrakcja `sendEmail` (już wstrzykiwana w weekly-digest).
   Implementacja SES (SDK v3, region+klucze z Firebase Secrets:
   `SES_REGION`/`SES_ACCESS_KEY_ID`/`SES_SECRET_ACCESS_KEY`/`SES_FROM`);
   fallback Resend gdy sekrety SES nieobecne (dev/emulator). KROK WŁAŚCICIELA:
   dostarczyć sekrety SES do functions (zweryfikowany sender w SES).
-- [ ] Bezpieczeństwo: tylko uwierzytelniony user, tylko własne treningi
+- [x] Bezpieczeństwo: tylko uwierzytelniony user, tylko własne treningi
   (userId check), rate limit (np. 10 maili/dobę per user, licznik w Firestore),
   walidacja adresu, treść bez sekretów. Historia zbiorcza: limit rozmiaru
   (np. ostatnie 200 treningów albo załącznik CSV zamiast wielkiego HTML —
   decyzja przy implementacji, test na 45+ treningach demo).
-- [ ] Client: w ukończonym treningu akcja "Wyślij e-mailem" (input adresu
+- [x] Client: w ukończonym treningu akcja "Wyślij e-mailem" (input adresu
   trenera zapamiętany w profilu `settings.trainerEmail`), w Historii akcja
   "Wyślij całą historię". Potwierdzenie przed wysyłką, toast wyniku, stany
   błędów z wyjściem (reguła #6).
-- [ ] Testy: functions unit (składanie HTML, rate limit, ownership), emulator
+- [x] Testy: functions unit (składanie HTML, rate limit, ownership), emulator
   functions e2e ścieżki callable, client unit.
+
+DOWÓD (2026-08-20, commit 8b2171eb): email-workout.ts (czysta logika + deps,
+limit 10/dobę transakcją email_quota/{uid}, historia max 200 ukończonych),
+callables w index.ts z transportem SES (@aws-sdk/client-sesv2) i fallbackiem
+Resend (sekrety SES_* utworzone z placeholderem 'unset' — WŁAŚCICIEL podmienia
+na realne, wtedy transport przełącza się sam); WDROŻONE na prod (Successful
+create operation x2, backend przed klientami). Klient: EmailWorkoutDialog
+(trainerEmail zapamiętywany, błędy z wyjściem), przyciski w ukończonym treningu
+i Historii. Testy: functions 238/238 (11 nowych), dialog 5/5, vitest web
+1798/1798, typecheck/lint/build/bundle-budget GREEN.
 
 ## F-RELEASE — wspólne wydanie F
 
