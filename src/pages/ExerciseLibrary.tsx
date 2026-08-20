@@ -182,7 +182,9 @@ const ExerciseLibrary = () => {
           />
         ))}
         {filtered.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">{t('exercises.noResults')} „{searchQuery}”</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            {searchQuery.trim() ? t('exercises.noResultsFor', { query: searchQuery }) : t('exercises.noResults')}
+          </p>
         )}
       </div>
     </div>

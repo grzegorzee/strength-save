@@ -138,6 +138,7 @@ export const pl = {
   'exercises.all': 'Wszystkie',
   'exercises.title': 'Ćwiczenia',
   'exercises.noResults': 'Brak wyników',
+  'exercises.noResultsFor': 'Brak wyników dla „{query}”',
 
   // szczegóły ćwiczenia
   'detail.instructions': 'Instrukcje',

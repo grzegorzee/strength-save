@@ -134,6 +134,7 @@ export const en: Record<keyof typeof pl, string> = {
   'exercises.all': 'All',
   'exercises.title': 'Exercises',
   'exercises.noResults': 'No results',
+  'exercises.noResultsFor': 'No results for "{query}"',
 
   'detail.instructions': 'Instructions',
   'detail.proTip': 'Pro Tip',
