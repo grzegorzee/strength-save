@@ -515,14 +515,12 @@ describe("J-T3: mail w 100% jednym języku", () => {
   });
 });
 
-describe("J-T4: last30 czytelnie — przegląd + załącznik CSV", () => {
+describe("J-T4: last30 czytelnie — tabela-przegląd (bez załączników, decyzja właściciela 2026-08-20)", () => {
   const manyWorkouts = (count: number): EmailWorkout[] =>
     Array.from({ length: count }, (_, i) => workout({
       id: `w${i + 1}`,
       date: `2026-08-${String(i + 1).padStart(2, "0")}`,
     }));
-  const sentAttachments = (d: EmailWorkoutDeps) =>
-    (d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][3] as Array<{ filename: string; contentType: string; content: string }>;
 
   it("> 7 treningów: tabela-przegląd zamiast pełnych sekcji", () => {
     const html = buildHistoryEmailHtml(manyWorkouts(8), "pl");
@@ -542,35 +540,12 @@ describe("J-T4: last30 czytelnie — przegląd + załącznik CSV", () => {
     expect(html).toContain("Wyciskanie sztangi");
   });
 
-  it("week: mail wychodzi z załącznikiem CSV (pełny detal serii)", async () => {
-    const d = deps({
-      listWorkoutsInRange: vi.fn(async (_uid: string, opts: { beforeDate?: string }) => (opts.beforeDate ? [] : [workout()])),
-    });
-    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
-    const attachments = sentAttachments(d);
-    expect(attachments).toHaveLength(1);
-    expect(attachments[0].filename).toMatch(/^strength-save-workouts.*\.csv$/);
-    expect(attachments[0].contentType).toContain("text/csv");
-    expect(attachments[0].content).toContain("date,day,focus,exercise");
-    expect(attachments[0].content).toContain("100,5,true");
-  });
-
-  it("last30 z 8 treningami: przegląd w HTML + CSV z detalem serii", async () => {
+  it("last30 z 8 treningami: mail wychodzi z przeglądem, bez pełnych sekcji", async () => {
     const d = deps({
       listWorkoutsInRange: vi.fn(async (_uid: string, opts: { beforeDate?: string }) => (opts.beforeDate ? [] : manyWorkouts(8))),
     });
     expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20", range: "last30" })).toEqual({ ok: true });
     expect(sentHtml(d)).not.toContain("100 kg × 5");
-    const attachments = sentAttachments(d);
-    expect(attachments).toHaveLength(1);
-    expect(attachments[0].content).toContain("100,5,true");
-    expect(attachments[0].content).toContain("2026-08-08");
-  });
-
-  it("pojedynczy trening (mode workout): bez załącznika", async () => {
-    const d = deps();
-    expect(await runEmailWorkout(d, { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
-    const call = (d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(call[3] ?? []).toHaveLength(0);
+    expect(sentHtml(d)).toContain("Tonaż");
   });
 });

@@ -5,8 +5,6 @@ import { esc, type Lang } from "./email-templates";
 import { detectEmailPRs, type EmailPR } from "./email-prs";
 import { localizeExerciseNameEn } from "./exercise-name-en";
 import { localizeFocusEn } from "./focus-en";
-import { buildWorkoutsCsv } from "./workout-csv";
-import type { EmailAttachment } from "./email-mime";
 
 export interface EmailSet {
   reps?: number;
@@ -81,8 +79,7 @@ export interface EmailWorkoutDeps {
   getUserContext: (uid: string) => Promise<EmailUserContext>;
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
   consumeQuota: (uid: string, today: string) => Promise<boolean>;
-  /** J-T4: opcjonalne załączniki (CSV z pełnym detalem serii dla historii). */
-  sendEmail: (to: string, subject: string, html: string, attachments?: EmailAttachment[]) => Promise<SendEmailResult>;
+  sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
   logEmail: (entry: EmailLogEntry) => Promise<void>;
 }
 
@@ -90,7 +87,7 @@ export const EMAIL_DAILY_LIMIT = 10;
 /** H-T2: koniec z wysyłką 200 naraz — twardy limit 30. */
 export const HISTORY_EMAIL_MAX_WORKOUTS = 30;
 /** J-T4: powyżej tylu treningów mail historii to tabela-przegląd (nie ściana
- *  pełnych sekcji); pełny detal serii zawsze w załączniku CSV. */
+ *  pełnych sekcji). Decyzja właściciela 2026-08-20: bez załączników w mailach. */
 export const HISTORY_FULL_SECTIONS_MAX = 7;
 /** Tydzień = 7 dni włącznie z dziś; limit bezpieczeństwa na liczbę sesji. */
 export const WEEK_RANGE_MAX_WORKOUTS = 14;
@@ -455,16 +452,12 @@ export function buildHistoryEmailHtml(workouts: EmailWorkout[], lang: Lang, opti
 
   const header = `
     <div style="${FONT}font-size:20px;font-weight:700;color:${C.text};">${t(lang, "Historia treningów", "Workout history")} (${workouts.length})</div>
-    ${facts.length ? `<div style="${FONT}font-size:13px;color:${C.body};margin:4px 0 8px;">${facts.map(esc).join(" · ")}</div>` : ""}`;
-  // J-T4: historia zawsze wychodzi z załącznikiem CSV — powiedz to w mailu.
-  const csvNote = `<div style="${FONT}font-size:12px;color:${C.muted};margin:0 0 16px;">${t(lang,
-    "Pełny detal serii znajdziesz w załączniku CSV.",
-    "Full set detail is in the attached CSV file.")}</div>`;
+    ${facts.length ? `<div style="${FONT}font-size:13px;color:${C.body};margin:4px 0 20px;">${facts.map(esc).join(" · ")}</div>` : ""}`;
   // J-T4: powyżej progu pełne sekcje robią ścianę — wchodzi tabela-przegląd.
   const body = workouts.length > HISTORY_FULL_SECTIONS_MAX
     ? historyOverviewTableHtml(workouts, lang, options)
     : workouts.map((w) => workoutSectionHtml(w, lang, options.prsBySession?.[w.id] ?? [])).join("");
-  return wrap(header + csvNote + body, lang);
+  return wrap(header + body, lang);
 }
 
 export type EmailWorkoutResult =
@@ -579,16 +572,7 @@ export async function runEmailHistory(
     accumulated = [...accumulated, session];
   }
   const subject = historyEmailSubject(localizedWorkouts, lang, displayName);
-  // J-T4: pełny detal serii w załączniku CSV (chronologicznie, do arkusza).
-  const prCounts = Object.fromEntries(Object.entries(prsBySession).map(([id, list]) => [id, list.length]));
-  const csvWorkouts = [...localizedWorkouts].sort((a, b) => (a.date < b.date ? -1 : 1));
-  const dates = csvWorkouts.map((w) => w.date);
-  const attachments: EmailAttachment[] = [{
-    filename: `strength-save-workouts_${dates[0]}_${dates[dates.length - 1]}.csv`,
-    contentType: "text/csv; charset=UTF-8",
-    content: buildWorkoutsCsv(csvWorkouts, prCounts),
-  }];
-  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession }), attachments);
+  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession }));
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };

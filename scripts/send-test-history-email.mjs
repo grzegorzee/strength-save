@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-// J-T4: realny test wysyłki maili historii (week + last30) z załącznikiem CSV
-// przez SES (Content.Raw). Fixtures SYNTETYCZNE — zero czytania realnych kont.
-// Odbiorca NA SZTYWNO g.jasionowicz@gmail.com (zasada testów wysyłek).
+// J-T4: realny test wysyłki maili historii (week + last30) przez SES.
+// Decyzja właściciela 2026-08-20: BEZ załączników — last30 (>7 treningów)
+// pokazuje tabelę-przegląd w HTML, week pełne sekcje. Fixtures SYNTETYCZNE,
+// zero czytania realnych kont. Odbiorca NA SZTYWNO g.jasionowicz@gmail.com.
 //
-// Wymaga: npm run build w functions/ + zmienne STRENGTHSAVE_SES_* w env
-// (source ~/FIRMA/_secrets/projekty/strengthsave-ses.env). Wartości sekretów
-// nigdy nie trafiają do outputu.
+// Wymaga: npm run build w functions/ + zmienne STRENGTHSAVE_SES_* w env.
+// Wartości sekretów nigdy nie trafiają do outputu.
 //
 // Użycie: node scripts/send-test-history-email.mjs
 
@@ -14,7 +14,6 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(new URL('../functions/package.json', import.meta.url));
 const { runEmailHistory } = require('../functions/lib/email-workout.js');
-const { buildRawEmail } = require('../functions/lib/email-mime.js');
 const { SESv2Client, SendEmailCommand } = require('@aws-sdk/client-sesv2');
 
 const TO = 'g.jasionowicz@gmail.com';
@@ -71,16 +70,13 @@ const last30Fixtures = Array.from({ length: 8 }, (_, i) =>
   fixture(`l-${i + 1}`, daysAgo(2 * i + 1), ['Poniedziałek', 'Środa', 'Piątek'][i % 3], 90 + 2.5 * i));
 const baselineFixtures = [fixture('w-old', daysAgo(40), 'Czwartek', 90)];
 
-const sendViaSes = async (to, subject, html, attachments = []) => {
-  const content = attachments.length > 0
-    ? { Raw: { Data: buildRawEmail({ from, to, subject, html, attachments }) } }
-    : { Simple: { Subject: { Data: subject }, Body: { Html: { Data: html } } } };
+// Ta sama ścieżka co produkcyjny transport bez załączników: SES Simple.
+const sendViaSes = async (to, subject, html) => {
   const response = await client.send(new SendEmailCommand({
     FromEmailAddress: from,
     Destination: { ToAddresses: [to] },
-    Content: content,
+    Content: { Simple: { Subject: { Data: subject }, Body: { Html: { Data: html } } } },
   }));
-  console.log(`  attachments: ${attachments.map((a) => a.filename).join(', ') || 'brak'}`);
   return { transport: 'ses', ...(response.MessageId ? { sesMessageId: response.MessageId } : {}) };
 };
 
@@ -95,11 +91,11 @@ const makeDeps = (rangeFixtures, language) => ({
   },
 });
 
-console.log('== week (lang=en, pełne sekcje + CSV) ==');
+console.log('== week (lang=en, pełne sekcje, bez załącznika) ==');
 const week = await runEmailHistory(makeDeps(weekFixtures, 'en'), { uid: 'test-user', to: TO, today, range: 'week' });
 console.log('  result:', JSON.stringify(week));
 
-console.log('== last30 (lang=pl, przegląd + CSV, 8 sesji) ==');
+console.log('== last30 (lang=pl, tabela-przegląd, 8 sesji, bez załącznika) ==');
 const last30 = await runEmailHistory(makeDeps(last30Fixtures, 'pl'), { uid: 'test-user', to: TO, today, range: 'last30' });
 console.log('  result:', JSON.stringify(last30));
 
