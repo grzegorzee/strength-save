@@ -2,6 +2,7 @@ import {
   collection,
   documentId,
   getDocs,
+  getDocsFromCache,
   limit,
   onSnapshot,
   orderBy,
@@ -116,6 +117,8 @@ export interface WorkoutHistoryCursor {
 export interface WorkoutHistoryPage {
   workouts: WorkoutSession[];
   nextCursor: WorkoutHistoryCursor | null;
+  /** E-T5: source 'cache' bez danych w cache — hook czeka na serwer, bez pustego błysku. */
+  cacheMiss?: boolean;
 }
 
 const EMPTY_SNAPSHOT: WorkoutReadSnapshot = {
@@ -345,6 +348,9 @@ export const fetchWorkoutHistoryPage = async (
     completed?: boolean;
     cursor?: WorkoutHistoryCursor | null;
     pageSize?: number;
+    /** E-T5: 'cache' czyta wyłącznie z lokalnego cache Firestore (pierwsze malowanie
+     * bez czekania na serwer przy słabym zasięgu); default = jak dotąd (server-first). */
+    source?: 'cache' | 'default';
   } = {},
 ): Promise<WorkoutHistoryPage> => {
   if (!userId) return { workouts: [], nextCursor: null };
@@ -359,10 +365,25 @@ export const fetchWorkoutHistoryPage = async (
   }
 
   const pageSize = Math.max(1, Math.min(options.pageSize ?? WORKOUT_HISTORY_PAGE_SIZE, 250));
-  const snapshot = await getDocs(query(
+  const historyQuery = query(
     collection(db, WORKOUTS_COLLECTION),
     ...buildWorkoutHistoryConstraints(userId, { ...options, pageSize }),
-  ));
+  );
+  let snapshot;
+  if (options.source === 'cache') {
+    try {
+      snapshot = await getDocsFromCache(historyQuery);
+    } catch {
+      // Brak danych w cache (pierwsze uruchomienie) — hook czeka na serwer.
+      return { workouts: [], nextCursor: null, cacheMiss: true };
+    }
+  } else {
+    snapshot = await getDocs(historyQuery);
+  }
+  // Pusty cache nie rozstrzyga "brak treningów" — dopiero serwer to potwierdzi.
+  if (options.source === 'cache' && snapshot.docs.length === 0) {
+    return { workouts: [], nextCursor: null, cacheMiss: true };
+  }
   const workouts = snapshot.docs
     .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
     .filter((workout): workout is WorkoutSession => workout !== null);

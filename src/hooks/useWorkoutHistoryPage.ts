@@ -38,21 +38,40 @@ export const useWorkoutHistoryPage = (
 
   useEffect(() => {
     let cancelled = false;
+    let serverApplied = false;
+    let cacheApplied = false;
     setIsLoaded(false);
     setError(null);
     setWorkouts([]);
     setNextCursor(null);
 
+    // E-T5: pierwsza strona z lokalnego cache Firestore maluje się natychmiast
+    // (słaby zasięg na siłowni nie blokuje Historii); serwer nadpisuje po dojściu.
+    void fetchWorkoutHistoryPage(userId, { fromDate, toDate, completed, pageSize, source: 'cache' })
+      .then((page) => {
+        if (cancelled || serverApplied || page.cacheMiss) return;
+        cacheApplied = true;
+        setWorkouts(page.workouts);
+        setNextCursor(page.nextCursor);
+        setIsLoaded(true);
+      })
+      .catch(() => { /* cache-first jest best-effort; serwer rozstrzyga */ });
+
     void fetchWorkoutHistoryPage(userId, { fromDate, toDate, completed, pageSize })
       .then((page) => {
         if (cancelled) return;
+        serverApplied = true;
         setWorkouts(page.workouts);
         setNextCursor(page.nextCursor);
         setIsLoaded(true);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'WORKOUT_HISTORY_LOAD_FAILED');
+        serverApplied = true;
+        // Cache już pokazał dane -> błąd serwera (np. offline) nie zamazuje widoku.
+        if (!cacheApplied) {
+          setError(err instanceof Error ? err.message : 'WORKOUT_HISTORY_LOAD_FAILED');
+        }
         setIsLoaded(true);
       });
 
