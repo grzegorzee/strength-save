@@ -96,6 +96,10 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
             >
               <Dumbbell className="h-4 w-4" />
               <span className="tabular-nums">{completedCount}</span>
+              {/* Fala 2 (2026-08-20): sufiks mono jak "82 TOTAL" z mockupu. */}
+              <span className="font-mono text-[9px] uppercase tracking-[0.1em] opacity-75">
+                {t('comp.header.totalSuffix')}
+              </span>
 
               {/* Z140.1: „+1" unosi się i gaśnie. Keyframes inline jak w ConfettiBurst
                   — w projekcie nie ma (i nie ma być) framer-motion. */}
