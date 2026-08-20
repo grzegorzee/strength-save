@@ -282,7 +282,9 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
             <img
               src={imageUrl}
               alt={t('comp.share.imageAlt')}
-              className="w-full rounded-lg border"
+              // E-T2: podgląd ograniczony wysokością — nagłówek, chipsy, podgląd
+              // i przyciski Pobierz/Udostępnij mieszczą się razem na ekranie telefonu.
+              className="mx-auto max-h-[42vh] w-auto rounded-lg border"
             />
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={handleDownload}>

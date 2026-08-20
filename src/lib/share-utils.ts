@@ -142,8 +142,8 @@ export function buildShareHtml(
           <div style="font-size:12px;color:#94a3b8;">${escapeHtml(translate(lang, 'share.exercises'))}</div>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;">
-          <div style="font-size:28px;font-weight:700;">${data.streak}</div>
-          <div style="font-size:12px;color:#94a3b8;">${escapeHtml(translate(lang, 'share.streakWeeks'))}</div>
+          <div style="font-size:28px;font-weight:700;">${escapeHtml(data.duration || '—')}</div>
+          <div style="font-size:12px;color:#94a3b8;">${escapeHtml(translate(lang, 'share.duration'))}</div>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:16px;text-align:center;">
           <div style="font-size:28px;font-weight:700;">${data.prs.length}</div>
@@ -177,9 +177,11 @@ export function buildShareHtmlStory(
   hero: ShareHero = 'tonnage',
 ): string {
   const safeDayName = escapeHtml(data.dayName);
+  // E-T2: bez weekday — dayName z planu to często "Czwartek", a data z weekday
+  // dawała "Czwartek, czwartek, 20 sierpnia" (screenshot z buildu 107).
   const safeDate = escapeHtml(
     parseLocalDate(data.date).toLocaleDateString(dateLocale(lang), {
-      weekday: 'long', day: 'numeric', month: 'long',
+      day: 'numeric', month: 'long',
     })
   );
   const tonnageStr = escapeHtml(formatTonnage(data.tonnage, unit));
@@ -229,7 +231,7 @@ export function buildShareHtmlStory(
       background:#07080a;color:#fff;font-family:system-ui,-apple-system,sans-serif;
     ">
       <div style="position:absolute;top:-160px;right:-160px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle, rgba(206,252,34,0.22) 0%, rgba(206,252,34,0) 70%);"></div>
-      <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;padding:125px 32px;">
+      <div style="position:relative;z-index:1;height:100%;display:flex;flex-direction:column;padding:88px 32px;">
         <div style="
           background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
           border-radius:24px;padding:30px 28px;display:flex;flex-direction:column;margin:auto 0;
@@ -247,10 +249,43 @@ export function buildShareHtmlStory(
           </div>
 
           <div style="display:flex;">
-            ${statCell(escapeHtml(data.duration || '—'), escapeHtml(translate(lang, 'share.duration')), false)}
-            ${statCell(String(data.completedSets ?? 0), escapeHtml(translate(lang, 'share.sets')), true)}
-            ${statCell(String(data.exercises.length), escapeHtml(translate(lang, 'share.exercises')), true)}
+            ${(() => {
+              // E-T2: rząd statystyk UZUPEŁNIA hero — tonaż i czas są zawsze
+              // widoczne razem (hero pokazuje jedno, rząd resztę).
+              const cells = effectiveHero === 'duration'
+                ? [
+                  [tonnageStr, translate(lang, 'share.tonnage')],
+                  [String(data.completedSets ?? 0), translate(lang, 'share.sets')],
+                  [String(data.exercises.length), translate(lang, 'share.exercises')],
+                ]
+                : effectiveHero === 'pr'
+                  ? [
+                    [tonnageStr, translate(lang, 'share.tonnage')],
+                    [escapeHtml(data.duration || '—'), translate(lang, 'share.duration')],
+                    [String(data.exercises.length), translate(lang, 'share.exercises')],
+                  ]
+                  : [
+                    [escapeHtml(data.duration || '—'), translate(lang, 'share.duration')],
+                    [String(data.completedSets ?? 0), translate(lang, 'share.sets')],
+                    [String(data.exercises.length), translate(lang, 'share.exercises')],
+                  ];
+              return cells.map(([value, label], i) => statCell(value, escapeHtml(label), i > 0)).join('');
+            })()}
           </div>
+
+          ${(() => {
+            // E-T2: lista ćwiczeń wypełnia ramę treścią (max 3, jak photo).
+            if (data.exercises.length === 0) return '';
+            const rows = data.exercises.slice(0, 3).map(ex => `
+            <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.08);">
+              <span style="font-size:13px;color:#e2e8f0;">${escapeHtml(ex.name)}</span>
+              <span style="font-size:13px;color:#8b93a1;">${escapeHtml(ex.sets)}</span>
+            </div>`).join('');
+            const more = data.exercises.length > 3
+              ? `<div style="font-size:12px;color:#8b93a1;padding-top:7px;">${escapeHtml(translate(lang, 'share.more', { n: data.exercises.length - 3 }))}</div>`
+              : '';
+            return `<div style="margin-top:26px;">${rows}${more}</div>`;
+          })()}
 
           ${weekBar}
         </div>
@@ -287,10 +322,10 @@ function buildShareHtmlMinimal(data: ShareData, lang: LanguageCode, unit: UnitSy
       <div style="margin:auto 0;text-align:center;">
         <div style="font-size:76px;font-weight:800;letter-spacing:-2px;line-height:1;">${tonnageStr}</div>
         <div style="font-size:14px;color:#94a3b8;margin-top:10px;text-transform:uppercase;letter-spacing:2px;">${escapeHtml(translate(lang, 'share.tonnage'))}</div>
-        <div style="display:flex;justify-content:center;gap:28px;margin-top:36px;font-size:15px;color:#cbd5e1;">
+        <div style="display:flex;justify-content:center;gap:24px;margin-top:36px;font-size:15px;color:#cbd5e1;">
+          <span>${escapeHtml(data.duration || '—')} · ${escapeHtml(translate(lang, 'share.duration'))}</span>
           <span>${data.exercises.length} · ${escapeHtml(translate(lang, 'share.exercises'))}</span>
           <span>${data.prs.length} · ${escapeHtml(translate(lang, 'share.newPRs'))}</span>
-          <span>${data.streak} · ${escapeHtml(translate(lang, 'share.streakWeeks'))}</span>
         </div>
       </div>
 
@@ -365,20 +400,25 @@ export function buildShareHtmlWithPhoto(
         </div>
         <div style="flex:1"></div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:24px 0;">
-          <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
-            <div style="font-size:26px;font-weight:700;">${tonnageStr}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.6);">${escapeHtml(translate(lang, 'share.tonnage'))}</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
-            <div style="font-size:26px;font-weight:700;">${data.exercises.length}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.6);">${escapeHtml(translate(lang, 'share.exercises'))}</div>
-          </div>
-          <div style="background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.1);">
-            <div style="font-size:26px;font-weight:700;">${data.prs.length}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.6);">${escapeHtml(translate(lang, 'share.prs'))}</div>
-          </div>
-        </div>
+        ${(() => {
+          // E-T2: tonaż I czas zawsze razem; zero PR-ów nie jest chwałą — wtedy serie.
+          const glass = 'background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);border-radius:12px;padding:12px 8px;text-align:center;border:1px solid rgba(255,255,255,0.1);';
+          const cell = (value: string, label: string): string => `
+          <div style="${glass}">
+            <div style="font-size:21px;font-weight:700;white-space:nowrap;">${value}</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.6);">${label}</div>
+          </div>`;
+          const lastCell = data.prs.length > 0
+            ? cell(String(data.prs.length), escapeHtml(translate(lang, 'share.prs')))
+            : cell(String(data.completedSets ?? 0), escapeHtml(translate(lang, 'share.sets')));
+          return `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin:24px 0;">
+          ${cell(tonnageStr, escapeHtml(translate(lang, 'share.tonnage')))}
+          ${cell(escapeHtml(data.duration || '—'), escapeHtml(translate(lang, 'share.duration')))}
+          ${cell(String(data.exercises.length), escapeHtml(translate(lang, 'share.exercises')))}
+          ${lastCell}
+        </div>`;
+        })()}
 
         <div style="background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.1);">
           ${exerciseRows}

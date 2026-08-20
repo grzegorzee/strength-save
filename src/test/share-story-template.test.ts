@@ -55,4 +55,30 @@ describe('buildShareHtmlStory', () => {
     const html = buildShareHtmlStory(data({ dayName: '<img src=x>' }), 'pl', 'kg', 'tonnage');
     expect(html).not.toContain('<img src=x>');
   });
+
+  // E-T2 (zgłoszenie z buildu 107): tonaż i czas widoczne RAZEM przy każdym hero.
+  it('hero czas: tonaż nadal widoczny w rzędzie statystyk', () => {
+    const html = buildShareHtmlStory(data(), 'pl', 'kg', 'duration');
+    expect(html).toContain('58:30');
+    expect(html).toContain('4.3 t');
+  });
+
+  it('hero PR: tonaż i czas oba widoczne w rzędzie statystyk', () => {
+    const html = buildShareHtmlStory(data(), 'pl', 'kg', 'pr');
+    expect(html).toContain('4.3 t');
+    expect(html).toContain('58:30');
+  });
+
+  it('nagłówek bez zdublowanego dnia tygodnia (Czwartek, czwartek...)', () => {
+    // 2026-08-20 to czwartek; dayName z planu też 'Czwartek'.
+    const html = buildShareHtmlStory(data({ dayName: 'Czwartek', date: '2026-08-20' }), 'pl', 'kg', 'tonnage');
+    expect(html).not.toMatch(/Czwartek, czwartek/i);
+    expect(html).toContain('Czwartek, 20 sierpnia');
+  });
+
+  it('karta story zawiera listę ćwiczeń (wypełnia ramę treścią)', () => {
+    const html = buildShareHtmlStory(data(), 'pl', 'kg', 'tonnage');
+    expect(html).toContain('Wyciskanie');
+    expect(html).toContain('3x 100');
+  });
 });

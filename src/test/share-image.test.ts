@@ -129,3 +129,35 @@ describe('szablon photo: treść w dolnej 1/3, twarz czysta (Z197)', () => {
     expect(html).toMatch(/\+\s*2/);
   });
 });
+
+// E-T2 (zgłoszenie z buildu 107): tonaż I czas razem na każdym szablonie.
+describe('tonaż i czas razem na każdym szablonie (E-T2)', () => {
+  it('photo: pasek statystyk zawiera czas trwania', async () => {
+    const { buildShareHtmlWithPhoto } = await import('@/lib/share-utils');
+    const html = buildShareHtmlWithPhoto(shareData, 'data:image/jpeg;base64,AAA', 'pl', 'kg');
+    expect(html).toContain('1:02');
+    expect(html).toContain('4.2 t');
+  });
+
+  it('photo bez PR-ów: zamiast zera PRy pokazuje serie', async () => {
+    const { buildShareHtmlWithPhoto } = await import('@/lib/share-utils');
+    const html = buildShareHtmlWithPhoto(
+      { ...shareData, prs: [], completedSets: 21 },
+      'data:image/jpeg;base64,AAA', 'pl', 'kg',
+    );
+    expect(html).toContain('21');
+    expect(html).not.toContain('>0<');
+  });
+
+  it('gradient: siatka statystyk zawiera czas', async () => {
+    const { buildShareHtml } = await import('@/lib/share-utils');
+    const html = buildShareHtml(shareData, 'pl', 'kg', 'gradient');
+    expect(html).toContain('1:02');
+  });
+
+  it('minimal: rząd pod tonażem zawiera czas', async () => {
+    const { buildShareHtml } = await import('@/lib/share-utils');
+    const html = buildShareHtml(shareData, 'pl', 'kg', 'minimal');
+    expect(html).toContain('1:02');
+  });
+});
