@@ -31,7 +31,8 @@ test.describe('Page Load Smoke Tests', () => {
   test('Workout History (/history) loads', async ({ page }) => {
     await navigateAndWait(page, '/history');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Historia treningów' })).toBeVisible();
+    // Naprawa r1 (2026-08-21): tytuł Historii niesie wyłącznie AppHeader (poza main).
+    await expect(page.getByRole('heading', { name: 'Historia treningów' })).toBeVisible();
   });
 
   test('Analytics (/analytics) loads', async ({ page }) => {

@@ -51,7 +51,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between h-16 px-5 md:px-6 max-w-4xl mx-auto">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           {onBack ? (
             <Button variant="ghost" size="icon" onClick={onBack} aria-label={t('comp.header.back')}>
               <ArrowLeft className="h-5 w-5" />
@@ -73,10 +73,13 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
               )}
             </button>
           )}
-          <h1 className="text-lg font-heading font-bold uppercase text-foreground tracking-[0.08em]">{title}</h1>
+          {/* Naprawa r1 (2026-08-21, sędzia struktury): tytuł zawijał się do dwóch
+              linii przy 390px (PLAN / TRENINGOWY) — jedna linia jak artboardy
+              (15.5px, ls .14em) + truncate jako bezpiecznik. */}
+          <h1 className="min-w-0 truncate whitespace-nowrap text-[15.5px] font-heading font-bold uppercase text-foreground tracking-[0.14em]">{title}</h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {uid && <NotificationBell uid={uid} />}
           {!isOnline && (
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-fitness-warning/10 text-fitness-warning text-xs font-medium">

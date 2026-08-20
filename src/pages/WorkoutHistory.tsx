@@ -319,11 +319,10 @@ const WorkoutHistory = () => {
 
   return (
     <div className="space-y-6">
-      {/* Wiersz tytułowy: h1 + zwijane szukanie i filtry (fala 2, artboard 1a). */}
-      <div className="flex items-center gap-2">
-        <h1 className="min-w-0 flex-1 text-2xl font-heading font-bold uppercase italic tracking-tight">
-          {t('history.title')}
-        </h1>
+      {/* Naprawa r1 (2026-08-21, sędzia struktury): tytuł raz — niesie go
+          AppHeader (artboard 1a: jeden wiersz, bez italica; Space Grotesk nie ma
+          italica, tokens.md ryzyko 4). Tu zostaje rząd lupy i filtrów. */}
+      <div className="flex items-center justify-end gap-2">
         <button
           type="button"
           aria-label={t('history.search')}
@@ -550,7 +549,7 @@ const WorkoutHistory = () => {
         {outsideByMonth.map((group) => (
           <div key={group.key} className="space-y-2">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-heading font-bold uppercase italic tracking-tight">{group.label}</h2>
+              <h2 className="font-heading font-bold uppercase tracking-tight">{group.label}</h2>
               <span className="eyebrow-mono text-muted-foreground">
                 {group.workouts.length} {sessionWord(group.workouts.length)} ·{' '}
                 <span className="normal-case">{formatTonnage(group.tonnage, unit)}</span>
