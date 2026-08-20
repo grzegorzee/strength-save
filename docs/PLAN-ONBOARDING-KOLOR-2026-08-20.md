@@ -41,23 +41,30 @@
 
 ## I-T2 — wybór koloru w kroku Welcome onboardingu
 
-- [ ] `src/components/PlanWizard.tsx`, krok Welcome, sekcja askName: POD polem
-  imienia rząd kropek palety (bez custom): label krótki (np. "Kolor aplikacji"
-  PL / "App color" EN), limonka zaznaczona domyślnie, aria-checked, testidy
-  `ob-accent-<id>`.
-- [ ] LIVE PREVIEW: onClick = applyAccent(id) + storeAccentId(id) natychmiast
-  (ekran onboardingu przebarwia się od razu; localStorage od tego momentu).
-- [ ] Zapis do profilu: w `src/pages/Onboarding.tsx` w markOnboardingComplete
-  dopisać `'preferences.accentColor'` z aktualnie wybranym id (czytać
-  readStoredAccentId() w momencie zapisu; zapisywać tylko gdy różne od
-  'lime' ALBO zawsze — wybrać prościej: zawsze, jedno pole więcej nie boli).
-- [ ] NIEZMIENNIK (zasada #5): onboarding bez dotknięcia kolorów wygląda
-  i działa jak dotąd (limonka, zero nowych wymaganych pól, Dalej działa);
-  test na to.
-- [ ] i18n do OBU locales. Testy PlanWizard (render kropek w Welcome, klik
-  zmienia tokeny), e2e onboardingu: scenariusz new-user → wybór np. indigo →
-  ekran przebarwiony (computed --primary) → dokończenie onboardingu →
-  Dashboard w indigo; drugi bieg bez wyboru = limonka.
+- [x] `src/components/PlanWizard.tsx`, krok Welcome, sekcja askName: POD polem
+  imienia rząd kropek palety (bez custom), label "Kolor aplikacji" / "App
+  color", limonka domyślnie, aria-checked, testidy `ob-accent-<id>` +
+  radiogroup `ob-accent-swatches`. DOWÓD: commit 42bf6923, testy
+  "askName: rząd kropek..." i "bez askName kropek NIE ma".
+- [x] LIVE PREVIEW: pickAccent = applyAccent(id) + storeAccentId(id)
+  natychmiast w onClick. DOWÓD: commit 42bf6923, test "LIVE PREVIEW: klik
+  kropki natychmiast przebarwia ekran i zapisuje localStorage".
+- [x] Zapis do profilu: Onboarding.markOnboardingComplete dopisuje
+  `'preferences.accentColor': readStoredAccentId()` — wariant ZAWSZE
+  (też limonka). DOWÓD: commit 42bf6923, onboarding-accent.test.tsx
+  (payload indigo + payload lime); klucz 'preferences' już w allowlist
+  firestore.rules (Profil pisze to samo pole).
+- [x] NIEZMIENNIK (zasada #5): test "onboarding bez dotknięcia kolorów
+  wygląda i działa jak dotąd" (zero nadpisań tokenów, brak localStorage,
+  Dalej przechodzi na krok 2). DOWÓD: commit 42bf6923.
+- [x] i18n ob.welcome.colorQ w OBU locales; testy PlanWizard (4 nowe) +
+  e2e onboarding-accent.spec (new-user → indigo → computed --primary
+  '235 86% 65%' od kliku i przez kroki wizarda; Dashboard w indigo w
+  scenariuszu active-user ze stanem po onboardingu, bo w trybie e2e profil
+  scenariusza new-user nie przełącza onboardingCompleted po zapisie;
+  drugi bieg bez wyboru = limonka '73 97% 56%'). DOWÓD: commit 42bf6923,
+  vitest 26/26 (plan-wizard-welcome + onboarding-accent + marketing-step +
+  a11y-i18n), tsc OK, eslint OK; bieg e2e w I-RELEASE.
 
 ## I-RELEASE (lokalne domknięcie w worktree — bez deployu)
 
