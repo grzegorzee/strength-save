@@ -1328,8 +1328,22 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
   },
   sendEmail: sendWorkoutEmail,
   // G-T1: rejestr wysyłek dla panelu admina (rules: read tylko admin, write false).
-  logEmail: async (entry) => {
-    await db.collection("email_log").add(entry);
+  // T21a: treść HTML w podkolekcji content/body — lista 100 wpisów w panelu
+  // zostaje lekka (web SDK nie ma projekcji pól). Awaria zapisu treści nie
+  // unieważnia wpisu rejestru (osobny try/catch).
+  logEmail: async (entry, html) => {
+    const ref = await db.collection("email_log").add(entry);
+    if (html) {
+      try {
+        // Limit dokumentu Firestore 1 MB — treść przycinana z marginesem.
+        await ref.collection("content").doc("body").set({
+          html: html.slice(0, 900000),
+          truncated: html.length > 900000,
+        });
+      } catch (error) {
+        logger.error("[EmailWorkout] email_log content write failed", { logId: ref.id, error });
+      }
+    }
   },
 });
 

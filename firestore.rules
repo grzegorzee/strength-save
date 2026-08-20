@@ -425,6 +425,12 @@ service cloud.firestore {
     match /email_log/{logId} {
       allow read: if request.auth != null && isAdmin();
       allow write: if false;
+
+      // T21a: pełna treść maila (podgląd w panelu) — pisze tylko backend.
+      match /content/{docId} {
+        allow read: if request.auth != null && isAdmin();
+        allow write: if false;
+      }
     }
 
     match /email_events/{eventId} {

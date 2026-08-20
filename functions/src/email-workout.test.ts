@@ -196,6 +196,22 @@ describe("email_log (G-T1)", () => {
     expect(entry.workoutId).toBeUndefined();
   });
 
+  // T21a: treść maila idzie drugim argumentem do logEmail (podgląd w panelu).
+  it("logEmail dostaje pełny HTML maila jako drugi argument (workout)", async () => {
+    const d = deps();
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    const html = (d.logEmail as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    expect(html).toContain("Wyciskanie sztangi");
+    expect(html).toBe(sentHtml(d));
+  });
+
+  it("logEmail dostaje pełny HTML maila jako drugi argument (history)", async () => {
+    const d = deps();
+    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
+    const html = (d.logEmail as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    expect(html).toBe(sentHtml(d));
+  });
+
   it("awaria zapisu logu NIE psuje wysyłki (mail wyszedł = ok)", async () => {
     const d = deps({ logEmail: vi.fn(async () => { throw new Error("firestore-down"); }) });
     expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });

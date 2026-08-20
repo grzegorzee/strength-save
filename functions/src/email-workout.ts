@@ -80,7 +80,8 @@ export interface EmailWorkoutDeps {
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
   consumeQuota: (uid: string, today: string) => Promise<boolean>;
   sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
-  logEmail: (entry: EmailLogEntry) => Promise<void>;
+  /** T21a: html trafia do podkolekcji content (podgląd w panelu admina). */
+  logEmail: (entry: EmailLogEntry, html?: string) => Promise<void>;
 }
 
 export const EMAIL_DAILY_LIMIT = 10;
@@ -470,6 +471,7 @@ const logEmailSafe = async (
   deps: EmailWorkoutDeps,
   base: { uid: string; to: string; type: "workout" | "history"; workoutId?: string; subject: string; lang: Lang },
   response: SendEmailResult,
+  html?: string,
 ): Promise<void> => {
   const entry: EmailLogEntry = {
     uid: base.uid,
@@ -485,7 +487,7 @@ const logEmailSafe = async (
     lang: base.lang,
   };
   try {
-    await deps.logEmail(entry);
+    await deps.logEmail(entry, html);
   } catch {
     // Rejestr jest pomocniczy: brak wpisu nie unieważnia wysłanego maila.
   }
@@ -512,8 +514,9 @@ export async function runEmailWorkout(
   }
   const { prs } = detectEmailPRs(localized, earlier.filter((w) => w.id !== workout.id));
   const subject = workoutEmailSubject(localized, lang, displayName);
-  const response = await deps.sendEmail(params.to, subject, buildWorkoutEmailHtml(localized, lang, { prs }));
-  await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "workout", workoutId: workout.id, subject, lang }, response);
+  const html = buildWorkoutEmailHtml(localized, lang, { prs });
+  const response = await deps.sendEmail(params.to, subject, html);
+  await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "workout", workoutId: workout.id, subject, lang }, response, html);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
 }
@@ -572,8 +575,9 @@ export async function runEmailHistory(
     accumulated = [...accumulated, session];
   }
   const subject = historyEmailSubject(localizedWorkouts, lang, displayName);
-  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession }));
-  await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response);
+  const html = buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession });
+  const response = await deps.sendEmail(params.to, subject, html);
+  await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response, html);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
 }
