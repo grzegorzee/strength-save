@@ -25,21 +25,26 @@
 
 ## G-T1 — rejestr wysyłek `email_log`
 
-- [ ] Przy KAŻDEJ wysyłce (obie callables) zapis dokumentu
+- [x] Przy KAŻDEJ wysyłce (obie callables) zapis dokumentu
   `email_log/{autoId}`: `{ uid, to, type: 'workout'|'history', workoutId?,
   subject, transport: 'ses'|'resend', sesMessageId? (z SendEmailCommand
   response.MessageId), status: 'sent', sentAt (ISO), lang }`.
   SES MessageId jest klucz korelacji ze zdarzeniami — sendWorkoutEmail musi
   ZWRACAĆ metadane transportu (refaktor sygnatury; fallback Resend też loguje,
   bez sesMessageId).
-- [ ] Rules: `email_log` i `email_events` — read tylko admin
+  DOWÓD: commit 42018e25 (SendEmailResult + logEmailSafe w email-workout.ts,
+  logEmail → db.collection('email_log').add w index.ts).
+- [x] Rules: `email_log` i `email_events` — read tylko admin
   (`isAdmin`), create/update/delete: false (pisze wyłącznie Admin SDK).
   Wzorzec: inne kolekcje adminowe w firestore.rules. `npm run test:rules`
   (JDK21: JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home)
   z nowymi przypadkami.
-- [ ] Testy unit (deps-injection jak dotąd): wysyłka SES loguje z messageId,
+  DOWÓD: commit 42018e25, "Wszystkie 225 testów reguł przeszło" (7 nowych G-T1).
+- [x] Testy unit (deps-injection jak dotąd): wysyłka SES loguje z messageId,
   fallback Resend loguje transport=resend, błąd totalny NIE loguje 'sent'
   (loguje status 'failed' z error message — panel ma widzieć nieudane).
+  DOWÓD: commit 42018e25, vitest email-workout.test.ts "Tests 17 passed (17)"
+  (RED przed implementacją: 4 failed).
 
 ## G-T2 — pipeline zdarzeń SES → Firestore
 
