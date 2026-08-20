@@ -776,6 +776,8 @@ export const pl = {
   'trainingplan.metaProgress': '{done} zrobione · {left} zostało · {percent}%',
   'trainingplan.decideStats': '{attendance}% obecności · {prs} PR',
   'trainingplan.dayLoadAria': 'Obciążenie dnia',
+  'trainingplan.prevWeek': 'Poprzedni tydzień',
+  'trainingplan.nextWeek': 'Następny tydzień',
   'planbuilder.title': 'Twój własny plan',
   'planbuilder.subtitle': 'Dodaj dni, ćwiczenia z biblioteki i ustaw serie.',
   'planbuilder.day': 'Dzień {n}',

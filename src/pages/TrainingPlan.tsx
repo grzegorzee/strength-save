@@ -11,7 +11,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarDays, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Zap, Timer, Plane } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Zap, Timer, Plane } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -30,6 +30,7 @@ import { DeloadBanner } from '@/components/DeloadBanner';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { weekdayOfDate } from '@/lib/plan-schedule';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
+import { buildDayLoadMap, findNextPlannedDate } from '@/lib/plan-day-load';
 import { buildActiveCyclePreview } from '@/lib/cycle-insights';
 import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
 import { buildPlanEventEmitter } from '@/lib/user-events';
@@ -385,134 +386,151 @@ const TrainingPlan = () => {
     planStarted,
   });
 
+  // Fala 2: pasek obciążenia dnia (tonaż względem max tygodnia, tylko ukończone
+  // treningi) + wyznaczenie dnia NASTĘPNY (najwyżej jeden w widocznym tygodniu).
+  const selectedWeekStartISO = formatLocalDate(selectedWeekStart);
+  const selectedWeekEndISO = formatLocalDate(selectedWeekEnd);
+  const dayLoadMap = useMemo(
+    () => buildDayLoadMap(workouts, selectedWeekStartISO, selectedWeekEndISO),
+    [workouts, selectedWeekStartISO, selectedWeekEndISO],
+  );
+  const nextPlannedDate = useMemo(() => {
+    const scheduleDates = selectedWeekTrainingDates.map((s) => formatLocalDate(s.date));
+    const completed = new Set(workouts.filter((w) => w.completed).map((w) => w.date));
+    return findNextPlannedDate(scheduleDates, completed, skippedDates, todayISOForVacation);
+  }, [selectedWeekTrainingDates, workouts, skippedDates, todayISOForVacation]);
+
+  // Fala 2: linia statystyk banera decyzji — WYŁĄCZNIE realne dane aktywnego
+  // cyklu (mockup "96% attendance · 24 PRs"); brak cyklu = brak linii.
+  const decideStats = liveActiveCycle?.stats
+    ? t('trainingplan.decideStats', { attendance: liveActiveCycle.stats.completionRate, prs: liveActiveCycle.stats.prs.length })
+    : undefined;
+
   return (
-    <div className="space-y-6">
-      {/* ══ Main glass card ══ */}
-      <div className="exercise-card">
-        {/* Header */}
-        <div className="p-6 pb-4">
-          {/* T16: na wąskich ekranach kontrolki schodzą w osobny rząd pod tytuł
-              (flex-wrap łamał badge pod przyciski); jedna rodzina stylów h-9. */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h1 className="text-xl font-heading font-bold uppercase italic tracking-tight">{t('trainingplan.title')}</h1>
-              <p className="text-[13px] text-muted-foreground mt-1 font-medium">
-                {t('trainingplan.programSummary', { weeks: planDurationWeeks, days: trainingPlan.map(d => localizeDayName(d.dayName, lang)).join(', ') })}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {/* FIX-B T5: stałe wejście do Cykli (na mobile żyło tylko na
-                  usuniętej karcie planu Dashboardu). T16: ikona RefreshCw jak w
-                  Cyklach (History myliła się z Historią). */}
-              <button
-                onClick={() => navigate('/cycles')}
-                data-testid="plan-cycles-link"
-                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg bg-surface-low text-xs font-semibold text-muted-foreground hover:bg-surface-high hover:text-foreground transition-colors"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                {t('dash.cycles')}
-              </button>
-              <button
-                onClick={() => navigate('/plan/edit')}
-                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg bg-surface-low text-xs font-semibold text-muted-foreground hover:bg-surface-high hover:text-foreground transition-colors"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-                {t('trainingplan.edit')}
-              </button>
-              <div className="inline-flex h-9 items-center gap-1.5 px-4 rounded-xl bg-gradient-to-br from-primary-light to-primary text-[13px] font-heading font-bold uppercase tracking-tight text-background whitespace-nowrap">
-                {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
-              </div>
-            </div>
+    <div className="space-y-5">
+      {/* ── S1: blok tytułu (fala 2, mockup 1b: display + mono chip + pasek + meta) ── */}
+      <div className="space-y-3">
+        {/* T16: na wąskich ekranach kontrolki schodzą w osobny rząd pod tytuł
+            (flex-wrap łamał badge pod przyciski); jedna rodzina stylów h-9. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-baseline gap-2.5 min-w-0">
+            <h1 className="text-2xl font-heading font-bold tracking-tight leading-tight">{t('trainingplan.title')}</h1>
+            <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-primary whitespace-nowrap shrink-0">
+              {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* FIX-B T5: stałe wejście do Cykli (na mobile żyło tylko na
+                usuniętej karcie planu Dashboardu). T16: ikona RefreshCw jak w
+                Cyklach (History myliła się z Historią). */}
+            <button
+              onClick={() => navigate('/cycles')}
+              data-testid="plan-cycles-link"
+              className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-full bg-surface-high text-[13px] font-medium text-foreground/80 hover:bg-surface-highest transition-colors"
+            >
+              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+              {t('dash.cycles')}
+            </button>
+            <button
+              onClick={() => navigate('/plan/edit')}
+              className="inline-flex h-9 items-center gap-1.5 px-3.5 rounded-full bg-surface-high text-[13px] font-medium text-foreground/80 hover:bg-surface-highest transition-colors"
+            >
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+              {t('trainingplan.edit')}
+            </button>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="px-6 pb-5">
-          <div className="w-full h-1.5 bg-surface-high rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary-light to-primary transition-all duration-500"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          <div className="flex justify-between mt-2 text-[11px] font-semibold uppercase tracking-wide">
-            <span className="text-muted-foreground">{t('trainingplan.start')}</span>
-            <span className="text-primary">{t('trainingplan.percentDone', { percent: progressPercent })}</span>
-            <span className="text-muted-foreground">{t('trainingplan.end')}</span>
-          </div>
+        {/* Pasek postępu planu (pełna szerokość, T17: procent z treningów) */}
+        <div className="w-full h-1.5 bg-surface-high rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-primary-light to-primary transition-all duration-500"
+            style={{ width: `${progressPercent}%` }}
+          />
         </div>
 
-        {/* T9: treningi na samej górze zakładki — rules tip i przyciski trybów
-            zeszły POD timeline (przestawienie, żaden blok nie znika). */}
-        <div className="exercise-card-divider mx-6 mb-5" />
+        {/* Meta: program + postęp (dawne kafle statystyk zwinięte do jednej linii) */}
+        <div className="space-y-0.5">
+          <p className="text-[12.5px] text-muted-foreground">
+            {t('trainingplan.programSummary', { weeks: planDurationWeeks, days: trainingPlan.map(d => localizeDayName(d.dayName, lang)).join(', ') })}
+          </p>
+          <p className="text-[12.5px] text-muted-foreground">
+            {t('trainingplan.metaProgress', { done: completedInPlan, left: remainingWorkouts, percent: progressPercent })}
+          </p>
+        </div>
+      </div>
 
-        {/* C-T4: jedna karta decyzyjna końca planu (wspólna z Dashboardem/Cyklami) */}
-        {planNextStep && (
-          <div className="mx-6 mb-5">
-            <PlanNextStepCard
-              step={planNextStep}
-              uid={uid}
-              planStartDate={planStartDate}
-              canRepeat={trainingPlan.length > 0}
-              isRepeating={isRepeating}
-              onRepeat={handleRepeatPlan}
-              testId="plan-next-step"
-            />
-          </div>
-        )}
+      {/* C-T4: jedna karta decyzyjna końca planu (wspólna z Dashboardem/Cyklami);
+          fala 2: wariant banner (mockup "Plan ends Sunday / Decide") + realne
+          statystyki cyklu. Testid, emisja zdarzenia i komplet akcji bez zmian. */}
+      {planNextStep && (
+        <PlanNextStepCard
+          step={planNextStep}
+          uid={uid}
+          planStartDate={planStartDate}
+          canRepeat={trainingPlan.length > 0}
+          isRepeating={isRepeating}
+          onRepeat={handleRepeatPlan}
+          testId="plan-next-step"
+          variant="banner"
+          statsLine={decideStats}
+        />
+      )}
 
-        {/* D-T3: decyzja deload mieszka na Planie (tydzień planu = dom Planu) */}
-        {planStarted && (
-          <div className="mx-6 mb-5">
-            <DeloadBanner
-              planDays={trainingPlan}
-              workouts={workouts}
-              currentWeek={hookCurrentWeek}
-              progression={progression}
-              onDecision={saveDeloadDecision}
-            />
-          </div>
-        )}
+      {/* D-T3: decyzja deload mieszka na Planie (tydzień planu = dom Planu) */}
+      {planStarted && (
+        <DeloadBanner
+          planDays={trainingPlan}
+          workouts={workouts}
+          currentWeek={hookCurrentWeek}
+          progression={progression}
+          onDecision={saveDeloadDecision}
+        />
+      )}
 
-        {/* Week navigation */}
-        <div className="flex items-center justify-between px-6 pb-4 flex-wrap gap-2">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                const prev = new Date(selectedWeekStart);
-                prev.setDate(prev.getDate() - 7);
-                setSelectedDate(prev);
-              }}
-              className="w-8 h-8 rounded-lg bg-surface-low text-muted-foreground flex items-center justify-center hover:bg-surface-high hover:text-primary transition-colors text-sm"
-            >
-              ‹
-            </button>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-surface-low text-[13px] font-semibold text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {selectedWeekStart.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' })} – {selectedWeekEnd.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' })}
-            </div>
-            <button
-              onClick={() => {
-                const next = new Date(selectedWeekStart);
-                next.setDate(next.getDate() + 7);
-                setSelectedDate(next);
-              }}
-              className="w-8 h-8 rounded-lg bg-surface-low text-muted-foreground flex items-center justify-center hover:bg-surface-high hover:text-primary transition-colors text-sm"
-            >
-              ›
-            </button>
-          </div>
+      {/* ── S4: nawigacja tygodnia (mono zakres + okrągłe strzałki, mockup) ── */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="font-mono text-[11.5px] tracking-[0.1em] text-foreground/80 whitespace-nowrap">
+            {selectedWeekStart.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' })} – {selectedWeekEnd.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' })}
+          </span>
           {displayWeek !== actualCurrentWeek && (
             <button
               onClick={() => setSelectedDate(new Date())}
-              className="text-[11px] text-primary hover:underline font-medium"
+              className="text-[11px] text-primary hover:underline font-medium whitespace-nowrap"
             >
               {t('trainingplan.currentWeek')}
             </button>
           )}
         </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              const prev = new Date(selectedWeekStart);
+              prev.setDate(prev.getDate() - 7);
+              setSelectedDate(prev);
+            }}
+            aria-label={t('trainingplan.prevWeek')}
+            className="w-8 h-8 rounded-full bg-surface-high text-foreground/80 flex items-center justify-center hover:bg-surface-highest hover:text-primary transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => {
+              const next = new Date(selectedWeekStart);
+              next.setDate(next.getDate() + 7);
+              setSelectedDate(next);
+            }}
+            aria-label={t('trainingplan.nextWeek')}
+            className="w-8 h-8 rounded-full bg-surface-high text-foreground/80 flex items-center justify-center hover:bg-surface-highest hover:text-primary transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
 
-        {/* Content grid */}
-        <div className="grid lg:grid-cols-[1fr_300px] gap-6 px-6 pb-5">
+      {/* Content grid */}
+      <div className="grid lg:grid-cols-[1fr_300px] gap-6">
           {/* ── Left: Timeline ── */}
           <div className="space-y-1 min-w-0">
             {(() => {
@@ -572,14 +590,19 @@ const TrainingPlan = () => {
                 const workoutItem = dayItems.find(i => i.type === 'workout') as Extract<TimelineItem, { type: 'workout' }> | undefined;
                 const stravaItems = dayItems.filter(i => i.type === 'strava') as Extract<TimelineItem, { type: 'strava' }>[];
 
+                const hasDayCard = Boolean(trainingItem || workoutItem);
                 return (
-                  <div key={dateStr} className="mb-4">
-                    {/* Day label */}
-                    <div className="flex items-center justify-between mb-2 px-1">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                        <span className="capitalize sm:hidden">{dayName.short}</span>
-                        <span className="capitalize hidden sm:inline">{dayName.long}</span>, {dateLabel}
-                      </span>
+                  <div key={dateStr} className="mb-3">
+                    {/* Fala 2: gdy dzień ma kartę treningu, nazwę dnia i datę niesie
+                        karta — nagłówek redukuje się do rzędu akcji. Pełna etykieta
+                        zostaje tylko dla dni bez karty (samo cardio). */}
+                    <div className="flex items-center justify-between mb-1.5 px-1">
+                      {hasDayCard ? <span aria-hidden /> : (
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                          <span className="capitalize sm:hidden">{dayName.short}</span>
+                          <span className="capitalize hidden sm:inline">{dayName.long}</span>, {dateLabel}
+                        </span>
+                      )}
                       <div className="flex items-center gap-3">
                         {/* Z112: wpis cardio na wybranym dniu (także wstecz) */}
                         <button
@@ -635,6 +658,8 @@ const TrainingPlan = () => {
                             ? buildWorkoutRoute(workoutForDate, dayPlan.id)
                             : `/workout/${dayPlan.id}?date=${trainingDateStr}`
                           )}
+                          isNext={trainingDateStr === nextPlannedDate}
+                          loadPercent={dayLoadMap.get(trainingDateStr)}
                         />
                       );
                     })()}
@@ -645,6 +670,7 @@ const TrainingPlan = () => {
                         latestWorkout={workoutItem.workout}
                         trainingDate={parseLocalDate(workoutItem.workout.date)}
                         onClick={() => navigate(buildWorkoutRoute(workoutItem.workout))}
+                        loadPercent={dayLoadMap.get(workoutItem.workout.date)}
                       />
                     )}
                   </div>
@@ -652,26 +678,8 @@ const TrainingPlan = () => {
               });
             })()}
 
-            {/* Stats strip */}
-            <div className="grid grid-cols-3 gap-3 mt-4">
-              <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
-                <p className="text-3xl font-black text-primary tracking-tight">{actualCurrentWeek}</p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statWeek')}</p>
-              </div>
-              <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
-                <p className="text-3xl font-black text-primary tracking-tight">
-                  {completedInPlan}
-                </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statCompleted')}</p>
-              </div>
-              <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
-                <p className="text-3xl font-black text-primary tracking-tight">
-                  {/* E-T4: pozostałe TRENINGI (nie tygodnie) — spójna jednostka z kaflem Ukończone. */}
-                  {remainingWorkouts}
-                </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statRemaining')}</p>
-              </div>
-            </div>
+            {/* Fala 2: dawne kafle Tydzień/Ukończone/Pozostało zwinięte do chipu
+                tygodnia i linii metaProgress w bloku tytułu (informacja zostaje). */}
           </div>
 
           {/* ── Right: Calendar ── */}
@@ -773,70 +781,62 @@ const TrainingPlan = () => {
           </div>
         </div>
 
-        {/* D-T3: pasek obciążenia hybrydowego tygodnia (dom: Plan, nie Dashboard) */}
-        {!isHistoricalWeek && (
-          <div className="mx-6 mb-5">
-            <HybridWeekStrip
-              workouts={workouts}
-              activities={visibleActivities}
-              weekStart={getStartOfPlanWeek(new Date())}
-              maxHR={stravaConnection.estimatedMaxHR}
-              plannedWeekdays={selectedWeekTrainingDates.map((s) => weekdayOfDate(s.date))}
-            />
-          </div>
-        )}
+      {/* D-T3: pasek obciążenia hybrydowego tygodnia (dom: Plan, nie Dashboard) */}
+      {!isHistoricalWeek && (
+        <HybridWeekStrip
+          workouts={workouts}
+          activities={visibleActivities}
+          weekStart={getStartOfPlanWeek(new Date())}
+          maxHR={stravaConnection.estimatedMaxHR}
+          plannedWeekdays={selectedWeekTrainingDates.map((s) => weekdayOfDate(s.date))}
+        />
+      )}
 
-        {/* C-T1/C-T3: tryby (urlop + nie na 100%) z poziomu Planu */}
-        <div className="mx-6 mb-5 grid gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            data-testid="plan-reduced-open"
-            onClick={() => setReducedOpen(true)}
-            className={cn(
-              'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
-              reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
-                ? 'border-fitness-warning bg-fitness-warning/10 text-fitness-warning'
-                : 'border-border text-muted-foreground hover:bg-muted',
-            )}
-          >
-            <span className="flex items-center gap-2">
-              <HeartPulse className="h-4 w-4" aria-hidden />
-              {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
-                ? t('rmode.badge', { date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
-                : t('rmode.title')}
-            </span>
-            <span className="text-xs font-normal underline underline-offset-2">
-              {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation) ? t('rmode.disable') : t('vac.planEntry')}
-            </span>
-          </button>
-          <button
-            type="button"
-            data-testid="plan-vacation-open"
-            onClick={() => setVacationOpen(true)}
-            className={cn(
-              'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
-              vacation && isVacationActive(vacation, todayISOForVacation)
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:bg-muted',
-            )}
-          >
-            <span className="flex items-center gap-2">
-              <Plane className="h-4 w-4" aria-hidden />
-              {vacation && isVacationActive(vacation, todayISOForVacation)
-                ? t('vac.badge', { date: parseLocalDate(vacation.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
-                : t('vac.title')}
-            </span>
-            <span className="text-xs font-normal underline underline-offset-2">
-              {vacation && isVacationActive(vacation, todayISOForVacation) ? t('vac.cancel') : t('vac.planEntry')}
-            </span>
-          </button>
-        </div>
+      {/* ── S7: stopka trybów (mockup "Not at 100%? / Vacation"); stany aktywne
+          zostają na kolorach semantycznych (reguła 8 CLAUDE.md). ── */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          data-testid="plan-reduced-open"
+          onClick={() => setReducedOpen(true)}
+          className={cn(
+            'flex h-12 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors',
+            reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
+              ? 'border border-fitness-warning bg-fitness-warning/10 text-fitness-warning'
+              : 'bg-surface-low text-foreground/80 hover:bg-surface-high',
+          )}
+        >
+          <HeartPulse className={cn('h-4 w-4 shrink-0', !(reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)) && 'text-muted-foreground')} aria-hidden />
+          <span className="truncate">
+            {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
+              ? t('rmode.badge', { date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
+              : t('rmode.title')}
+          </span>
+        </button>
+        <button
+          type="button"
+          data-testid="plan-vacation-open"
+          onClick={() => setVacationOpen(true)}
+          className={cn(
+            'flex h-12 w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium transition-colors',
+            vacation && isVacationActive(vacation, todayISOForVacation)
+              ? 'border border-primary/40 bg-primary/10 text-primary'
+              : 'bg-surface-low text-foreground/80 hover:bg-surface-high',
+          )}
+        >
+          <Plane className={cn('h-4 w-4 shrink-0', !(vacation && isVacationActive(vacation, todayISOForVacation)) && 'text-muted-foreground')} aria-hidden />
+          <span className="truncate">
+            {vacation && isVacationActive(vacation, todayISOForVacation)
+              ? t('vac.badge', { date: parseLocalDate(vacation.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
+              : t('vac.title')}
+          </span>
+        </button>
+      </div>
 
-        {/* Rules tip */}
-        <div className="mx-6 mb-6 py-3 px-4 rounded-xl bg-primary/[0.04] border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed space-y-1">
-          <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0" aria-hidden /><strong className="text-muted-foreground">{trainingRules.weight}</strong></p>
-          <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
-        </div>
+      {/* Rules tip */}
+      <div className="py-3 px-4 rounded-xl bg-surface-low border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed space-y-1">
+        <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0" aria-hidden /><strong className="text-muted-foreground">{trainingRules.weight}</strong></p>
+        <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
       </div>
 
       {/* Z112: dialog wpisu cardio (nowy z defaultDate albo edycja) */}

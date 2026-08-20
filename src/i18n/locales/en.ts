@@ -769,6 +769,8 @@ export const en: Record<keyof typeof pl, string> = {
   'trainingplan.metaProgress': '{done} done · {left} left · {percent}%',
   'trainingplan.decideStats': '{attendance}% attendance · {prs} PRs',
   'trainingplan.dayLoadAria': 'Day load',
+  'trainingplan.prevWeek': 'Previous week',
+  'trainingplan.nextWeek': 'Next week',
   'planbuilder.title': 'Your own plan',
   'planbuilder.subtitle': 'Add days, exercises from the library and set up your sets.',
   'planbuilder.day': 'Day {n}',
