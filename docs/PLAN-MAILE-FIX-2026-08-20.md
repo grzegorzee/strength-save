@@ -68,41 +68,32 @@ callable oddaje 'internal', klient pokazuje generyczne
   DOWÓD: 4 nowe testy w email-workout.test.ts (RED 3 -> GREEN), suite
   50/50 passed, tsc functions 0.
 
-## J-T4 — last30 czytelnie: mail-przegląd + załącznik CSV (moja decyzja
-na "zdecyduj co lepsze i wdróż")
+## J-T4 — last30 czytelnie: mail-przegląd (decyzja właściciela 2026-08-20:
+BEZ załączników w mailach)
 
-**Problem:** 30 pełnych sekcji treningów w HTML to ściana; właściciel sugeruje
-CSV. DECYZJA: hybryda.
+**Problem:** 30 pełnych sekcji treningów w HTML to ściana.
+**Decyzja właściciela 2026-08-20:** żadnych załączników CSV w mailach —
+last30 dostaje tabelę-przegląd w HTML, week zostaje z pełnymi sekcjami,
+a CSV żyje wyłącznie jako klientski eksport w aplikacji (J-T5).
+(Pierwotna hybryda przegląd+załącznik była wdrożona i wycofana: RAW MIME,
+attachments w SES/Resend i functions/src/workout-csv.ts usunięte bez śladu
+martwego kodu.)
 
 - [x] Mail `last30` (i każdy > 7 treningów): zamiast pełnych sekcji per trening
   — nagłówek zbiorczy (jak dotąd) + TABELA-przegląd: wiersz na trening (data,
-  dzień, tonaż, czas, serie robocze, liczba PR) + ZAŁĄCZNIK CSV z pełnym
-  detalem serii. Mail `week` (typowo 2-5 treningów) zostaje z pełnymi sekcjami
-  + też dostaje załącznik CSV (spójnie).
-  DOWÓD: commit a197c2e6 (HISTORY_FULL_SECTIONS_MAX=7, historyOverviewTableHtml,
-  nota o CSV w mailu); testy RED->GREEN w email-workout.test.ts.
-- [x] CSV (jeden format, moduł `functions/src/workout-csv.ts` z testami):
-  nagłówki EN techniczne (date, day, focus, exercise, set_no, set_type
-  [warmup/working], weight_kg, reps, completed, rpe, pain, exercise_note,
-  day_note, session_rating, tonnage_kg, duration_sec, prs). Escapowanie CSV
-  (przecinki/cudzysłowy/nowe linie), UTF-8 z BOM (Excel), separator przecinek.
-  DOWÓD: commit 3cc82349 (workout-csv.ts + 5 testów: nagłówki, escapowanie,
-  BOM, CRLF, puste pola).
-- [x] Załączniki wymagają RAW MIME: SES `SendEmailCommand` z `Content.Raw`
-  (zbudować multipart/mixed: HTML + text/csv attachment; bez nowych zależności
-  — składanie MIME ręcznie w module z testami granicznymi) ; fallback Resend
-  wspiera `attachments` w API — dodać. Transport zachowuje metadane
-  (sesMessageId) i email_log/eventy jak dotąd.
-  DOWÓD: commity email-mime (6 testów granicznych) + a197c2e6 (SES Raw przy
-  załącznikach, Simple bez; Resend attachments z Buffer). Vitest functions
-  322 passed, tsc 0.
-- [x] Test realny: wysyłka week i last30 na g.jasionowicz@gmail.com z
-  załącznikami (fixtures syntetyczne, nie realne konta) — MessageId do raportu.
-  DOWÓD: scripts/send-test-history-email.mjs; week lang=en MessageId
-  010701a01f306979-0f75c476-8667-4831-8c75-ee42501beb1a-000000, last30
-  lang=pl (8 sesji, przegląd) MessageId
-  010701a01f306a41-53c2c930-573c-468f-917f-4324a9914368-000000. Oba z
-  załącznikiem strength-save-workouts_*.csv przez SES Content.Raw.
+  dzień, tonaż, czas, serie robocze, liczba PR). Mail `week` (typowo 2-5
+  treningów) zostaje z pełnymi sekcjami. BEZ załączników.
+  DOWÓD: commit a197c2e6 (HISTORY_FULL_SECTIONS_MAX=7, historyOverviewTableHtml)
+  + commit reverta załączników (usunięte: email-mime.ts, workout-csv.ts
+  w functions, attachments w transporcie SES/Resend, nota CSV w mailu).
+  Testy: email-workout.test.ts 53/53, tsc functions 0.
+- [x] Test realny: wysyłka week i last30 na g.jasionowicz@gmail.com BEZ
+  załączników (fixtures syntetyczne, nie realne konta) — MessageId do raportu.
+  DOWÓD: scripts/send-test-history-email.mjs (SES Simple, jak produkcyjny
+  transport); week lang=en (pełne sekcje) MessageId
+  010701a01f338efc-228b2eff-fc5f-459c-b53b-46cc33a57141-000000, last30
+  lang=pl (8 sesji, tabela-przegląd) MessageId
+  010701a01f338fdc-618ff24d-711e-4930-92e3-e100feb1f2dd-000000.
 
 ## J-T5 — eksport treningów CSV w aplikacji (Ustawienia → Dane)
 
