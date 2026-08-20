@@ -125,7 +125,9 @@ export const CycleCard = ({
                 <div
                   key={index}
                   className={cn(
-                    'flex-1 rounded-sm',
+                    // Naprawa r1 (2026-08-21): radius 2px jak artboard 1a —
+                    // rounded-sm (8px przez override skali) robił ze słupków pastylki.
+                    'flex-1 rounded-[2px]',
                     // Tydzień bez tonażu = neutralny ślad toru, nie akcent.
                     value <= 0
                       ? 'bg-surface-highest'
