@@ -90,7 +90,16 @@ const ExerciseDetail = () => {
         )}
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            // T23-2: deep link / odświeżenie PWA = idx 0, navigate(-1) nie ma dokąd
+            // cofnąć, a ekran nie ma AppHeadera — wracamy do biblioteki (wzorzec Layout.tsx).
+            const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+            if (idx > 0) {
+              navigate(-1);
+            } else {
+              navigate('/exercises');
+            }
+          }}
           className="absolute left-4 top-[calc(0.75rem+env(safe-area-inset-top))] flex h-10 w-10 items-center justify-center rounded-full bg-surface/70 backdrop-blur-md"
           aria-label={t('common.back')}
         >
