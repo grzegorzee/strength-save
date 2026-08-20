@@ -1864,6 +1864,7 @@ export const pl = {
   'admin.accessBackendNote': 'Backend egzekwuje ten stan dla danych treningowych i funkcji. Status konta: {status}.',
   'admin.features': 'Funkcje',
   'admin.featStravaDesc': 'Integracja ze Stravą',
+  'admin.featBodyPhotosDesc': 'Zdjęcia sylwetki przy pomiarach',
   'admin.userPreview': 'Podgląd użytkownika',
   'admin.loadingDetails': 'Ładowanie szczegółów...',
   'admin.plan': 'Plan',

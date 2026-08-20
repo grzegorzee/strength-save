@@ -22,6 +22,7 @@ interface UserContextValue {
   needsEmailVerification: boolean;
   isSuspended: boolean;
   canUseStrava: boolean;
+  canUseBodyPhotos: boolean;
   isNewUser: boolean;
   profileLoaded: boolean;
   profileLoadError: string | null;
@@ -211,6 +212,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       needsEmailVerification,
       isSuspended,
       canUseStrava: hasAppAccess && (currentProfile?.features?.strava ?? currentProfile?.role === 'admin'),
+      canUseBodyPhotos: hasAppAccess && (currentProfile?.features?.bodyPhotos ?? currentProfile?.role === 'admin'),
       isNewUser,
       profileLoaded,
       profileLoadError,

@@ -5,12 +5,14 @@ import type { TranslationKey } from '@/i18n';
 
 // Z165: opis funkcji jako KLUCZ i18n — moduł bez Reacta, tłumaczenie w miejscu renderu.
 export const AVAILABLE_FEATURES: ReadonlyArray<{
-  key: 'strava';
+  key: 'strava' | 'bodyPhotos';
   label: string;
   descriptionKey: TranslationKey;
   defaultOn: boolean;
 }> = [
   { key: 'strava', label: 'Strava', descriptionKey: 'admin.featStravaDesc', defaultOn: false },
+  // T14: zdjęcia sylwetki before/after — feature włączany per user decyzją admina.
+  { key: 'bodyPhotos', label: 'Before/After', descriptionKey: 'admin.featBodyPhotosDesc', defaultOn: false },
 ];
 
 export type FeatureKey = typeof AVAILABLE_FEATURES[number]['key'];

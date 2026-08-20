@@ -1842,6 +1842,7 @@ export const en: Record<keyof typeof pl, string> = {
   'admin.accessBackendNote': 'The backend enforces this state for training data and features. Account status: {status}.',
   'admin.features': 'Features',
   'admin.featStravaDesc': 'Strava integration',
+  'admin.featBodyPhotosDesc': 'Body photos with measurements',
   'admin.userPreview': 'User preview',
   'admin.loadingDetails': 'Loading details...',
   'admin.plan': 'Plan',
