@@ -38,11 +38,16 @@ callable oddaje 'internal', klient pokazuje generyczne
 
 ## J-T2 — akcja "Wyślij ten trening" w wierszu Historii
 
-- [ ] W rozwiniętym wierszu treningu w Historii (obok Otwórz/Porównaj/Usuń)
+- [x] W rozwiniętym wierszu treningu w Historii (obok Otwórz/Porównaj/Usuń)
   akcja `Wyślij do trenera` (ikona Mail + tekst) → EmailWorkoutDialog
   mode='workout' z workoutId TEGO wiersza (initialEmail z preferences).
-- [ ] i18n OBA locales (reużyj email.sendWorkout jeśli pasuje). E2e: wiersz
+  DOWÓD: commit 53b392f8 (WorkoutHistory.tsx: history-row-email + drugi
+  zawsze zamontowany dialog mode='workout').
+- [x] i18n OBA locales (reużyj email.sendWorkout jeśli pasuje). E2e: wiersz
   historii ma akcję, klik otwiera dialog bez selektora zakresu.
+  DOWÓD: reużyty istniejący klucz email.sendToCoach (PL "Wyślij do trenera" /
+  EN "Send to coach", oba locales od H-T1 — zero nowych kluczy); e2e
+  email-coach-button.spec.ts 6/6 passed (chromium+webkit), tsc 0, eslint 0.
 
 ## J-T3 — mail w 100% jednym języku
 
