@@ -1,26 +1,33 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatHistorySetLabel } from '@/lib/set-tracking';
-import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, Download, History, Loader2, Mail, Search, StickyNote, Trash2, Trophy } from 'lucide-react';
+import { ArrowRightLeft, Download, History, Loader2, Mail, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
 import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { DateRangeField } from '@/components/DateRangeField';
 import { Chip } from '@/components/kinetic/Chip';
+import { HistorySessionRow } from '@/components/history/HistorySessionRow';
+import { CycleCard } from '@/components/history/CycleCard';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
+import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
+import { useCycleSessions } from '@/hooks/useCycleSessions';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildHistoryRowMeta } from '@/lib/history-stats';
 import { calculateTonnage, countWorkoutCompletedWorkingSets } from '@/lib/summary-utils';
+import {
+  assignWorkoutsToCycles, buildCycleSparkline, groupCycleWorkoutsByWeek, weekNoFor, windowCoversCycleStart,
+} from '@/lib/history-cycles';
+import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
+import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
+import { formatTonnage } from '@/lib/units';
 import { EmptyState } from '@/components/EmptyState';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
-import { cn } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { deleteWorkoutEverywhere } from '@/lib/workout-delete';
@@ -30,6 +37,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useUnit } from '@/contexts/UnitContext';
+import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
 
 const WorkoutHistory = () => {
@@ -45,6 +53,7 @@ const WorkoutHistory = () => {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
+  const aggregate = useWorkoutAggregate(uid);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDay, setSelectedDay] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'completed' | 'draft'>('all');
@@ -56,6 +65,10 @@ const WorkoutHistory = () => {
   const [pendingDelete, setPendingDelete] = useState<WorkoutSession | null>(null);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Fala 2: zwijane pola szukania/zakresu dat + tryb porównania (tap w wiersz = zaznacz).
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [compareMode, setCompareMode] = useState(false);
   const { toast } = useToast();
   const toggleExpanded = (id: string) =>
     setExpandedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -64,18 +77,39 @@ const WorkoutHistory = () => {
     toDate: toDate || undefined,
     completed: selectedStatus === 'all' ? undefined : selectedStatus === 'completed',
   });
+  // Fala 2: sesje przeszłego cyklu spoza paginowanego okna (lazy, cache per cykl).
+  const { entries: cycleSessionEntries, load: loadCycleSessions } = useCycleSessions(uid);
 
   // Resolver radzi sobie z treningami ze starych planów (snapshot → cykl → plan → id).
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
+  // Okno historii + sesje dociągnięte lazy dla przeszłych cykli (dedupe po id).
+  const allSessions = useMemo(() => {
+    const seen = new Set(workouts.map((workout) => workout.id));
+    const extras: WorkoutSession[] = [];
+    Object.values(cycleSessionEntries).forEach((entry) => {
+      entry.sessions.forEach((session) => {
+        if (seen.has(session.id)) return;
+        seen.add(session.id);
+        extras.push(session);
+      });
+    });
+    return extras.length > 0 ? [...workouts, ...extras] : workouts;
+  }, [workouts, cycleSessionEntries]);
+
   // Czas trwania + PR per sesja liczone RAZ dla listy (Z80), nie per wiersz w renderze.
-  const rowMeta = useMemo(() => buildHistoryRowMeta(workouts), [workouts]);
+  const rowMeta = useMemo(() => buildHistoryRowMeta(allSessions), [allSessions]);
+
+  // Jedno źródło filtra deletedIds — obejmuje też sesje dociągnięte lazy.
+  const liveSessions = useMemo(
+    () => allSessions.filter((workout) => !deletedIds.includes(workout.id)),
+    [allSessions, deletedIds],
+  );
 
   const filteredWorkouts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return workouts
+    return liveSessions
       .filter((workout) => {
-        if (deletedIds.includes(workout.id)) return false;
         if (selectedDay !== 'all' && workout.dayId !== selectedDay) return false;
         if (selectedStatus === 'completed' && !workout.completed) return false;
         if (selectedStatus === 'draft' && workout.completed) return false;
@@ -96,12 +130,12 @@ const WorkoutHistory = () => {
         return haystack.includes(query);
       })
       .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
-  }, [deletedIds, resolver, fromDate, onlyPRs, rowMeta, searchQuery, selectedDay, selectedStatus, toDate, workouts]);
+  }, [liveSessions, resolver, fromDate, onlyPRs, rowMeta, searchQuery, selectedDay, selectedStatus, toDate]);
 
   const comparison = useMemo(() => {
     if (compareIds.length !== 2) return null;
     const selected = compareIds
-      .map(id => workouts.find(workout => workout.id === id))
+      .map(id => allSessions.find(workout => workout.id === id))
       .filter((workout): workout is WorkoutSession => !!workout);
     if (selected.length !== 2) return null;
 
@@ -117,7 +151,7 @@ const WorkoutHistory = () => {
       setDelta: completedSets(second) - completedSets(first),
       exerciseDelta: second.exercises.length - first.exercises.length,
     };
-  }, [compareIds, workouts]);
+  }, [compareIds, allSessions]);
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return;
@@ -153,11 +187,69 @@ const WorkoutHistory = () => {
         ? 'history.sessionFew'
         : 'history.sessionMany');
 
-  // Grupowanie chronologiczne po miesiącach (filteredWorkouts już posortowane malejąco).
-  const groupedByMonth = useMemo(() => {
+  const cycleWord = (n: number) =>
+    t(n === 1
+      ? 'history.cycleOne'
+      : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20))
+        ? 'history.cycleFew'
+        : 'history.cycleMany');
+
+  // ── Fala 2: cykle jako poziom nadrzędny listy ────────────────────────────────
+  const visibleCycles = useMemo(() => cycles.filter(isCycleVisibleWithData), [cycles]);
+  const activeCycle = useMemo(
+    () => visibleCycles.find((cycle) => cycle.status === 'active') ?? null,
+    [visibleCycles],
+  );
+  const pastCycles = useMemo(
+    () => visibleCycles
+      .filter((cycle) => cycle.status === 'completed')
+      .sort((a, b) => b.endDate.localeCompare(a.endDate)),
+    [visibleCycles],
+  );
+  // Numeracja "Cykl {n}" od najstarszego (cykle nie mają pola nazwy — nie zmyślamy).
+  const cycleNumberById = useMemo(() => {
+    const sorted = [...visibleCycles].sort((a, b) => a.startDate.localeCompare(b.startDate));
+    return new Map(sorted.map((cycle, index) => [cycle.id, index + 1]));
+  }, [visibleCycles]);
+
+  // Przypisanie sesji do cykli: wiersze z listy PRZEFILTROWANEJ, staty/sparkline z pełnej.
+  const filteredAssignment = useMemo(
+    () => assignWorkoutsToCycles(filteredWorkouts, visibleCycles),
+    [filteredWorkouts, visibleCycles],
+  );
+  const liveAssignment = useMemo(
+    () => assignWorkoutsToCycles(liveSessions, visibleCycles),
+    [liveSessions, visibleCycles],
+  );
+
+  const oldestLoadedDate = useMemo(
+    () => workouts.reduce<string | null>(
+      (oldest, workout) => (oldest === null || workout.date < oldest ? workout.date : oldest),
+      null,
+    ),
+    [workouts],
+  );
+
+  const todayStr = formatLocalDate(new Date());
+  // Staty aktywnego cyklu LIVE — ten sam mechanizm co Dashboard/Cykle (realne dane).
+  const liveActiveCycle = useMemo(
+    () => buildActiveCyclePreview(activeCycle, liveSessions),
+    [activeCycle, liveSessions],
+  );
+
+  const filtersActive = searchQuery.trim() !== '' || selectedDay !== 'all'
+    || selectedStatus !== 'all' || onlyPRs || fromDate !== '' || toDate !== '';
+
+  const cycleFilteredSessions = (cycleId: string) => filteredAssignment.perCycle.get(cycleId) ?? [];
+  const cycleLiveSessions = (cycleId: string) => liveAssignment.perCycle.get(cycleId) ?? [];
+  // Cykl z 0 sesji po filtrach: karta widoczna tylko bez aktywnych filtrów (mniej szumu).
+  const isCycleCardVisible = (cycleId: string) =>
+    !filtersActive || cycleFilteredSessions(cycleId).length > 0;
+
+  const outsideByMonth = useMemo(() => {
     const groups: { key: string; label: string; workouts: WorkoutSession[]; tonnage: number }[] = [];
     const indexByKey = new Map<string, number>();
-    filteredWorkouts.forEach(workout => {
+    filteredAssignment.outside.forEach(workout => {
       const key = workout.date.slice(0, 7);
       let gi = indexByKey.get(key);
       if (gi === undefined) {
@@ -170,7 +262,45 @@ const WorkoutHistory = () => {
       groups[gi].tonnage += calculateTonnage([workout]);
     });
     return groups;
-  }, [filteredWorkouts, lang]);
+  }, [filteredAssignment.outside, lang]);
+
+  const formatShortDate = (date: string) =>
+    parseLocalDate(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }).replace('.', '');
+
+  const cycleRangeLabel = (cycle: PlanCycle) =>
+    `${formatShortDate(cycle.startDate)} – ${formatShortDate(cycle.endDate)} · ${t('history.weeksShort', { n: cycle.durationWeeks })}`;
+
+  // Tonaż w linii licznika: bez filtrów agregat all-time (backend), inaczej suma
+  // z załadowanej przefiltrowanej listy. Nigdy dane zmyślone.
+  const summaryTonnageKg = useMemo(() => {
+    if (!filtersActive && aggregate) return aggregate.totals.totalTonnageKg;
+    return calculateTonnage(filteredWorkouts);
+  }, [aggregate, filteredWorkouts, filtersActive]);
+
+  const renderSessionRow = (workout: WorkoutSession, surface: 'low' | 'container') => {
+    const dayLabel = resolver.resolveDayLabel(workout);
+    const title = `${localizeDayName(dayLabel.dayName, lang)} · ${localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}`;
+    return (
+      <HistorySessionRow
+        key={workout.id}
+        workout={workout}
+        title={title}
+        meta={rowMeta.get(workout.id)}
+        tonnage={calculateTonnage([workout])}
+        totalSets={countWorkoutCompletedWorkingSets(workout)}
+        isSelected={compareIds.includes(workout.id)}
+        isExpanded={expandedIds.includes(workout.id)}
+        compareMode={compareMode}
+        surface={surface}
+        resolveExerciseName={(w, exerciseId) => resolver.resolveExerciseName(w, exerciseId)}
+        onOpen={() => navigate(`/workout/${workout.dayId}?date=${workout.date}&session=${workout.id}`)}
+        onToggleCompare={() => toggleCompare(workout.id)}
+        onToggleExpanded={() => toggleExpanded(workout.id)}
+        onEmail={() => setEmailWorkoutId(workout.id)}
+        onDelete={() => setPendingDelete(workout)}
+      />
+    );
+  };
 
   if (!isLoaded) {
     return (
@@ -180,22 +310,39 @@ const WorkoutHistory = () => {
     );
   }
 
+  const activeCoversStart = activeCycle
+    ? windowCoversCycleStart(oldestLoadedDate, activeCycle, hasMore)
+    : false;
+  const hasCycleCards = (activeCycle !== null && isCycleCardVisible(activeCycle.id))
+    || pastCycles.some((cycle) => isCycleCardVisible(cycle.id));
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-heading font-bold uppercase italic tracking-tight flex items-center gap-2">
-          <History className="h-5 w-5 text-primary" />
+      {/* Wiersz tytułowy: h1 + zwijane szukanie i filtry (fala 2, artboard 1a). */}
+      <div className="flex items-center gap-2">
+        <h1 className="min-w-0 flex-1 text-2xl font-heading font-bold uppercase italic tracking-tight">
           {t('history.title')}
         </h1>
-        <p className="text-sm text-muted-foreground">{t('history.subtitle')}</p>
+        <button
+          type="button"
+          aria-label={t('history.search')}
+          onClick={() => setSearchOpen((prev) => !prev)}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-highest text-muted-foreground"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          aria-label={t('history.filters')}
+          onClick={() => setFiltersOpen((prev) => !prev)}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-highest text-muted-foreground"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('history.filters')}</CardTitle>
-          <CardDescription>{t('history.filtersDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="space-y-2">
+        {(searchOpen || searchQuery !== '') && (
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -205,28 +352,30 @@ const WorkoutHistory = () => {
               className="pl-9"
             />
           </div>
+        )}
 
-          {/* Status — chipy */}
-          <div className="flex flex-wrap gap-2">
-            <Chip active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
-            <Chip active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
-            <Chip active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
-            <Chip active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
+        {/* Status — chipy */}
+        <div className="flex flex-wrap gap-2">
+          <Chip active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
+          <Chip active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
+          <Chip active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
+          <Chip active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
+        </div>
+
+        {/* Dzień planu — chipy (scroll wewnątrz kontenera, strona bez h-scrolla) */}
+        {trainingPlan.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            <Chip className="shrink-0" active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
+            {trainingPlan.map(day => (
+              <Chip key={day.id} className="shrink-0" active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
+                {localizeDayName(day.dayName, lang)}
+              </Chip>
+            ))}
           </div>
+        )}
 
-          {/* Dzień planu — chipy */}
-          {trainingPlan.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              <Chip active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
-              {trainingPlan.map(day => (
-                <Chip key={day.id} active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
-                  {localizeDayName(day.dayName, lang)}
-                </Chip>
-              ))}
-            </div>
-          )}
-
-          {/* Zakres dat — T20.5: kalendarz booking-style w popoverze, Wyczyść = pełna lista */}
+        {/* Zakres dat — T20.5: kalendarz booking-style; zwijany pod ikoną filtrów */}
+        {(filtersOpen || fromDate !== '' || toDate !== '') && (
           <DateRangeField
             value={{ from: fromDate || null, to: toDate || null }}
             onChange={(next) => {
@@ -235,8 +384,39 @@ const WorkoutHistory = () => {
             }}
             testId="history-date-range"
           />
-        </CardContent>
-      </Card>
+        )}
+
+        {/* Rząd akcji: tryb porównania + wysyłka historii + eksport CSV */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Chip active={compareMode} onClick={() => setCompareMode((prev) => !prev)}>
+            {t('history.compare')}
+          </Chip>
+          <div className="min-w-2 flex-1" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={() => setShowEmailDialog(true)}
+            data-testid="history-email"
+          >
+            <Mail className="mr-1.5 h-3.5 w-3.5" />
+            {t('email.sendToCoach')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={() => setShowExportDialog(true)}
+            data-testid="history-export-csv"
+          >
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            {t('exportCsv.historyButton')}
+          </Button>
+        </div>
+        {(compareMode || compareIds.length > 0) && (
+          <p className="text-xs text-muted-foreground">{t('history.compareHint')}</p>
+        )}
+      </div>
 
       {comparison && (
         <Card className="border-primary/30 bg-primary/5">
@@ -266,35 +446,6 @@ const WorkoutHistory = () => {
         </Card>
       )}
 
-      <div className="flex items-start justify-between gap-3 text-sm text-muted-foreground">
-        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-          <CalendarRange className="h-4 w-4" />
-          {filteredWorkouts.length} {sessionWord(filteredWorkouts.length)}
-        </div>
-        <div className="text-right">{t('history.compareHint')}</div>
-      </div>
-
-      {/* H-T1: historia mailem do trenera + J-T5: eksport CSV z wyborem zakresu. */}
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          className="flex-1"
-          onClick={() => setShowEmailDialog(true)}
-          data-testid="history-email"
-        >
-          <Mail className="mr-2 h-4 w-4" />
-          {t('email.sendToCoach')}
-        </Button>
-        <Button
-          variant="outline"
-          className="flex-1"
-          onClick={() => setShowExportDialog(true)}
-          data-testid="history-export-csv"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          {t('exportCsv.historyButton')}
-        </Button>
-      </div>
       <EmailWorkoutDialog
         open={showEmailDialog}
         onOpenChange={setShowEmailDialog}
@@ -320,167 +471,92 @@ const WorkoutHistory = () => {
         cycles={cycles}
       />
 
-      <div className="space-y-6">
-        {groupedByMonth.map((group) => (
-          <div key={group.key} className="space-y-3">
-            <div className="flex items-baseline justify-between border-b border-surface-high pb-2">
+      {/* Linia licznika: cykle · sesje + tonaż */}
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="eyebrow-mono text-muted-foreground">
+          {visibleCycles.length > 0 && `${visibleCycles.length} ${cycleWord(visibleCycles.length)} · `}
+          {filteredWorkouts.length} {sessionWord(filteredWorkouts.length)}
+        </span>
+        <span className="eyebrow-mono text-muted-foreground">
+          {t('history.tonnage')} {formatTonnage(summaryTonnageKg, unit)}
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        {/* Karta AKTYWNEGO cyklu */}
+        {activeCycle && liveActiveCycle && isCycleCardVisible(activeCycle.id) && (
+          <CycleCard
+            title={t('history.cycleN', { n: cycleNumberById.get(activeCycle.id) ?? 1 })}
+            rangeLabel={cycleRangeLabel(activeCycle)}
+            variant="active"
+            stats={{
+              sessions: liveActiveCycle.stats.totalWorkouts,
+              tonnageKg: liveActiveCycle.stats.totalTonnage,
+              prs: liveActiveCycle.stats.prs.length,
+              attendance: liveActiveCycle.stats.completionRate,
+            }}
+            sparkline={activeCoversStart
+              ? buildCycleSparkline(activeCycle, cycleLiveSessions(activeCycle.id))
+              : null}
+            currentWeekNo={todayStr >= activeCycle.startDate ? weekNoFor(todayStr, activeCycle) : null}
+            weeks={groupCycleWorkoutsByWeek(activeCycle, cycleFilteredSessions(activeCycle.id), todayStr)}
+            totalSessions={cycleLiveSessions(activeCycle.id).length}
+            renderRow={(workout) => renderSessionRow(workout, 'low')}
+            canLoadOlder={hasMore && !activeCoversStart}
+            onLoadOlder={loadMore}
+          />
+        )}
+
+        {/* Karty PRZESZŁYCH cykli (zwinięte; rozwinięcie dociąga sesje spoza okna) */}
+        {pastCycles.filter((cycle) => isCycleCardVisible(cycle.id)).map((cycle) => {
+          const covered = windowCoversCycleStart(oldestLoadedDate, cycle, hasMore)
+            || cycleSessionEntries[cycle.id]?.status === 'loaded';
+          const stats = covered ? withLiveCompletedStats(cycle, liveSessions).stats : cycle.stats;
+          return (
+            <CycleCard
+              key={cycle.id}
+              title={t('history.cycleN', { n: cycleNumberById.get(cycle.id) ?? 1 })}
+              rangeLabel={cycleRangeLabel(cycle)}
+              variant="past"
+              stats={{
+                sessions: stats.totalWorkouts,
+                tonnageKg: stats.totalTonnage,
+                prs: stats.prs.length,
+                attendance: stats.completionRate,
+              }}
+              sparkline={null}
+              currentWeekNo={null}
+              weeks={groupCycleWorkoutsByWeek(cycle, cycleFilteredSessions(cycle.id), todayStr)}
+              totalSessions={cycleLiveSessions(cycle.id).length}
+              renderRow={(workout) => renderSessionRow(workout, 'container')}
+              lazyStatus={cycleSessionEntries[cycle.id]?.status ?? 'idle'}
+              onExpand={() => {
+                if (!windowCoversCycleStart(oldestLoadedDate, cycle, hasMore)) loadCycleSessions(cycle);
+              }}
+              onRetryLazy={() => loadCycleSessions(cycle, { force: true })}
+            />
+          );
+        })}
+
+        {/* Sesje poza cyklami: grupowanie miesięczne (fallback = cała lista bez cykli) */}
+        {outsideByMonth.length > 0 && hasCycleCards && (
+          <p className="eyebrow-mono pt-2 text-muted-foreground">{t('history.outsideCycles')}</p>
+        )}
+        {outsideByMonth.map((group) => (
+          <div key={group.key} className="space-y-2">
+            <div className="flex items-baseline justify-between gap-2">
               <h2 className="font-heading font-bold uppercase italic tracking-tight">{group.label}</h2>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {group.workouts.length} {sessionWord(group.workouts.length)} · {Math.round(toDisplay(group.tonnage)).toLocaleString(dateLocale(lang))} {unit}
+              <span className="eyebrow-mono text-muted-foreground">
+                {group.workouts.length} {sessionWord(group.workouts.length)} · {formatTonnage(group.tonnage, unit)}
               </span>
             </div>
-
-            {group.workouts.map((workout) => {
-              const dayLabel = resolver.resolveDayLabel(workout);
-              // B-T1: kafel SERIE pokazuje ukończone serie robocze, nie surowy licznik.
-              const tonnage = calculateTonnage([workout]);
-              const totalSets = countWorkoutCompletedWorkingSets(workout);
-              const isSelected = compareIds.includes(workout.id);
-              const isExpanded = expandedIds.includes(workout.id);
-              const meta = rowMeta.get(workout.id);
-              return (
-                <div
-                  key={workout.id}
-                  className={cn(
-                    "rounded-xl bg-surface-low p-4 space-y-3",
-                    isSelected && "ring-2 ring-inset ring-primary/50",
-                  )}
-                >
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-heading font-bold tabular-nums">{workout.date}</p>
-                      <Badge variant={workout.completed ? 'default' : 'secondary'}>
-                        {workout.completed ? t('history.badgeCompleted') : t('history.badgeDraft')}
-                      </Badge>
-                      {meta?.durationLabel && (
-                        <Badge variant="outline" className="gap-1 font-normal tabular-nums">
-                          <Clock className="h-3 w-3" />
-                          {meta.durationLabel}
-                        </Badge>
-                      )}
-                      {(meta?.prCount ?? 0) > 0 && (
-                        <Badge className="gap-1 bg-fitness-warning/10 text-fitness-warning border-fitness-warning/30">
-                          <Trophy className="h-3 w-3" />
-                          {meta?.prCount} PR
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                      {localizeDayName(dayLabel.dayName, lang)} · {localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-3 rounded-xl bg-surface-lowest">
-                    {[
-                      { v: workout.exercises.length.toString(), l: t('history.exercisesShort') },
-                      { v: Math.round(toDisplay(tonnage)).toLocaleString(dateLocale(lang)), l: unit },
-                      { v: totalSets.toString(), l: t('history.setsShort') },
-                    ].map((s, i) => (
-                      <div key={i} className="text-center py-2.5">
-                        <p className="font-heading font-bold text-xl tabular-nums leading-none">{s.v}</p>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{s.l}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/workout/${workout.dayId}?date=${workout.date}&session=${workout.id}`)}>
-                      {t('history.openWorkout')}
-                    </Button>
-                    <Button variant={isSelected ? 'default' : 'outline'} size="sm" onClick={() => toggleCompare(workout.id)}>
-                      {isSelected ? t('history.removeFromCompare') : t('history.compare')}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={() => toggleExpanded(workout.id)}>
-                      {t('history.details')}
-                      {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                    </Button>
-                    {/* J-T2: wysyłka TEGO treningu do trenera prosto z wiersza. */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1 text-muted-foreground"
-                      data-testid="history-row-email"
-                      onClick={() => setEmailWorkoutId(workout.id)}
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                      {t('email.sendToCoach')}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1 text-destructive hover:text-destructive"
-                      data-testid="history-delete"
-                      onClick={() => setPendingDelete(workout)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      {t('history.delete')}
-                    </Button>
-                  </div>
-
-                  {/* Rozwinięcie (Z74+Z80): serie per ćwiczenie, metryki RPE/ból/technika, notatki */}
-                  {isExpanded && (
-                    <div className="space-y-3 rounded-xl bg-surface-lowest p-3">
-                      {workout.exercises.map((e) => {
-                        const workingSets = e.sets.filter((s) => !s.isWarmup);
-                        const hasMetrics = e.rpe !== undefined || e.pain !== undefined || e.quality !== undefined;
-                        return (
-                          <div key={e.exerciseId} className="space-y-1">
-                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                              {resolver.resolveExerciseName(workout, e.exerciseId)}
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {workingSets.map((s, i) => (
-                                <span
-                                  key={i}
-                                  className={cn(
-                                    'rounded-md px-2 py-0.5 text-xs tabular-nums',
-                                    s.completed ? 'bg-muted/60 text-foreground' : 'bg-muted/30 text-muted-foreground line-through',
-                                  )}
-                                >
-                                  {formatHistorySetLabel(
-                                    s,
-                                    (kg) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`,
-                                    t('history.bodyweightSet'),
-                                  )}
-                                </span>
-                              ))}
-                            </div>
-                            {hasMetrics && (
-                              <p className="text-xs text-muted-foreground tabular-nums">
-                                {e.rpe !== undefined && <>{t('card.rpe')}: <strong>{e.rpe}</strong>{'  '}</>}
-                                {e.pain !== undefined && <>{t('card.pain')}: <strong>{e.pain}</strong>{'  '}</>}
-                                {e.quality !== undefined && <>{t('card.quality')}: <strong>{e.quality}</strong></>}
-                              </p>
-                            )}
-                            {e.notes?.trim() && (
-                              <p className="text-sm flex items-start gap-1">
-                                <StickyNote className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-                                {e.notes}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {workout.notes?.trim() && (
-                        <div>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                            <StickyNote className="h-3 w-3" />
-                            {t('notes.dayNote')}
-                          </p>
-                          <p className="text-sm mt-0.5">{workout.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {group.workouts.map((workout) => renderSessionRow(workout, 'low'))}
           </div>
         ))}
 
         {hasMore && (
           <div className="flex justify-center">
-            <Button variant="outline" onClick={loadMore} disabled={isLoadingMore}>
+            <Button variant="outline" className="rounded-full" onClick={loadMore} disabled={isLoadingMore}>
               {isLoadingMore ? t('common.loading') : t('common.loadMore')}
             </Button>
           </div>
