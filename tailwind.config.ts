@@ -87,6 +87,16 @@ export default {
           warning: "hsl(var(--fitness-warning))",
         },
       },
+      textColor: {
+        // Naprawa r1 (2026-08-21, sędzia "jeden akcent"): akcent jako TEKST idzie
+        // przez --primary-text (fallback var(--primary) w index.css) — przy
+        // ciemnych akcentach applyAccent podbija jasność do >= 4.5:1 na ciemnych
+        // powierzchniach i tintach /15. Wypełnienia bg-primary bez zmian.
+        primary: {
+          DEFAULT: "hsl(var(--primary-text))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+      },
       borderRadius: {
         xl: "1.5rem",
         lg: "var(--radius)",

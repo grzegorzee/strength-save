@@ -174,6 +174,51 @@ describe('accent-theme (F-T2 + plan I)', () => {
     expect(isCustomAccentHex('#abc')).toBe(false);
   });
 
+  // Naprawa r1 (2026-08-21): kontrast przy ciemnych akcentach — gradient CTA
+  // i akcent-jako-tekst (sędzia "jeden akcent": indigo 1.5-4.4:1 przed fixem).
+  const lightnessOf = (hslTriplet: string): number =>
+    Number(hslTriplet.trim().split(/\s+/)[2].replace('%', ''));
+
+  it('ciemny akcent: --primary-light PRZYCIEMNIONY względem primary (biały tekst CTA czytelny na całym gradiencie)', () => {
+    const indigo = applyAccent('indigo');
+    const light = document.documentElement.style.getPropertyValue('--primary-light');
+    expect(light).not.toBe('');
+    expect(lightnessOf(light)).toBeLessThan(lightnessOf(indigo.hsl));
+  });
+
+  it('ciemny akcent: --primary-text ROZJAŚNIONY względem primary (tekst akcentowy >= 4.5:1 na ciemnych tłach)', () => {
+    for (const id of ['indigo', 'slate']) {
+      const applied = applyAccent(id);
+      const text = document.documentElement.style.getPropertyValue('--primary-text');
+      expect(text).not.toBe('');
+      expect(lightnessOf(text)).toBeGreaterThan(lightnessOf(applied.hsl));
+    }
+  });
+
+  it('jasne akcenty: lightHsl bez zmian i brak --primary-text (fallback var(--primary))', () => {
+    const amber = applyAccent('amber');
+    const root = document.documentElement;
+    expect(root.style.getPropertyValue('--primary-light')).toBe(amber.lightHsl);
+    expect(root.style.getPropertyValue('--primary-text')).toBe('');
+  });
+
+  it('przejście ciemny → jasny/limonka zdejmuje --primary-text', () => {
+    applyAccent('indigo');
+    applyAccent('sky');
+    expect(document.documentElement.style.getPropertyValue('--primary-text')).toBe('');
+    applyAccent('indigo');
+    applyAccent('lime');
+    expect(document.documentElement.style.getPropertyValue('--primary-text')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--primary-light')).toBe('');
+  });
+
+  it('ciemny custom hex dostaje oba warianty (przyciemniony gradient + rozjaśniony tekst)', () => {
+    const applied = applyAccent('#1a2a6c');
+    const root = document.documentElement;
+    expect(lightnessOf(root.style.getPropertyValue('--primary-light'))).toBeLessThanOrEqual(lightnessOf(applied.hsl));
+    expect(lightnessOf(root.style.getPropertyValue('--primary-text'))).toBeGreaterThan(lightnessOf(applied.hsl));
+  });
+
   it('statusowe kolory nietknięte: apply nie rusza fitness-success/warning', () => {
     applyAccent('rose');
     const root = document.documentElement;

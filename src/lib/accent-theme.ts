@@ -74,13 +74,50 @@ const hexToHslParts = (hex: string): { h: number; s: number; l: number } => {
 
 const FOREGROUND_LUMINANCE_THRESHOLD = 0.28;
 
-const relativeLuminance = (hex: string): number => {
+const channelsLuminance = ([r, g, b]: [number, number, number]): number => {
   const lin = (c: number): number => {
     const v = c / 255;
     return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
   };
-  const [r, g, b] = hexChannels(hex);
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+
+const relativeLuminance = (hex: string): number => channelsLuminance(hexChannels(hex));
+
+// Naprawa r1 (2026-08-21, sędzia "jeden akcent"): przy ciemnych akcentach
+// (indigo, slate, ciemny custom) dwa problemy kontrastu:
+// 1. gradient "forged" CTA startował od bardzo jasnego lightHsl — biały tekst
+//    na lewym krańcu miał 1.5-2.2:1; ciemny akcent dostaje wariant PRZYCIEMNIONY,
+// 2. akcent jako TEKST (text-primary) na ciemnych powierzchniach i tintach /15
+//    spadał do 3.5-4.4:1; --primary-text podbija jasność HSL aż do >= 4.5:1
+//    na najjaśniejszym takim tle (pigułka bg-primary/15 nad --surface-low).
+const hslPartsToChannels = (h: number, s: number, l: number): [number, number, number] => {
+  const sat = s / 100;
+  const light = l / 100;
+  const c = (1 - Math.abs(2 * light - 1)) * sat;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = light - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
+    : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+};
+
+// --surface-low w dark (0 0% 7.5%) = kanał 19; kompozycja alfy /15 w sRGB,
+// dokładnie jak przeglądarka składa bg-primary/15 nad powierzchnią.
+const SURFACE_LOW_CHANNEL = 19;
+
+const readableTextHsl = (hex: string): string => {
+  const { h, s, l } = hexToHslParts(hex);
+  const accent = hexChannels(hex);
+  const tintBg = accent.map((c) => Math.round(0.15 * c + 0.85 * SURFACE_LOW_CHANNEL)) as [number, number, number];
+  const bgLum = channelsLuminance(tintBg);
+  let lightness = l;
+  while (lightness < 92) {
+    const lum = channelsLuminance(hslPartsToChannels(h, s, lightness));
+    if ((lum + 0.05) / (bgLum + 0.05) >= 4.6) break;
+    lightness += 1;
+  }
+  return `${h} ${s}% ${lightness}%`;
 };
 
 const lightenHex = (hex: string, amount = 0.65): string => {
@@ -127,6 +164,7 @@ export const applyAccent = (id: string): AccentTheme => {
   if (accent.id === DEFAULT_ACCENT_ID) {
     root.style.removeProperty('--primary');
     root.style.removeProperty('--primary-light');
+    root.style.removeProperty('--primary-text');
     root.style.removeProperty('--ring');
     root.style.removeProperty('--primary-foreground');
     root.style.removeProperty('--accent');
@@ -134,7 +172,6 @@ export const applyAccent = (id: string): AccentTheme => {
     delete root.dataset.accent;
   } else {
     root.style.setProperty('--primary', accent.hsl);
-    root.style.setProperty('--primary-light', accent.lightHsl);
     root.style.setProperty('--ring', accent.hsl);
     // Audyt akcentu (2026-08-20): --accent to w tej apce drugi zapis TEGO SAMEGO
     // akcentu (chipy filtrów Kinetic, badge secondary, nagłówki text-accent,
@@ -147,9 +184,16 @@ export const applyAccent = (id: string): AccentTheme => {
     if (relativeLuminance(accent.hex) < FOREGROUND_LUMINANCE_THRESHOLD) {
       root.style.setProperty('--primary-foreground', '0 0% 98%');
       root.style.setProperty('--accent-foreground', '0 0% 98%');
+      // Naprawa r1: gradient CTA bez jasnego krańca pod białym tekstem —
+      // ciemny akcent schodzi w dół (primary → primary ciemniejszy o 8 p.p.).
+      const { h, s, l } = hexToHslParts(accent.hex);
+      root.style.setProperty('--primary-light', `${h} ${s}% ${Math.max(10, l - 8)}%`);
+      root.style.setProperty('--primary-text', readableTextHsl(accent.hex));
     } else {
       root.style.removeProperty('--primary-foreground');
       root.style.removeProperty('--accent-foreground');
+      root.style.setProperty('--primary-light', accent.lightHsl);
+      root.style.removeProperty('--primary-text');
     }
     root.dataset.accent = accent.id;
   }

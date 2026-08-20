@@ -83,6 +83,10 @@ All colors MUST be HSL.
     --surface-high: 210 20% 94%;
     --surface-highest: 210 20% 90%;
     --primary-light: 73 100% 89%;
+    /* Naprawa r1 (2026-08-21): akcent jako TEKST (utilities text-primary) czyta
+       się z tego tokenu; domyślnie = --primary, przy ciemnych akcentach
+       applyAccent podbija jasność do >= 4.5:1 na ciemnych powierzchniach. */
+    --primary-text: var(--primary);
     --outline-variant: 214 20% 80%;
   }
 
