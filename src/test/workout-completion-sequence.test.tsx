@@ -16,6 +16,7 @@ const summary: CompletionSummary = {
   planPct: 83,
   prevVolumeKg: 700,
   volumeDeltaPct: 14,
+  prevDate: '2026-08-13',
 };
 
 const renderSequence = (props: Partial<Parameters<typeof WorkoutCompletionSequence>[0]> = {}) => {
@@ -109,15 +110,35 @@ describe('WorkoutCompletionSequence', () => {
     expect(screen.queryByRole('button', { name: 'Popraw serie' })).toBeNull();
   });
 
-  it('podsumowanie: plan vs wykonanie, delta wolumenu i blok PR per ćwiczenie', async () => {
+  it('podsumowanie: plan vs wykonanie (staty 10/12 + % planu), delta wolumenu i kafle PR', async () => {
     renderSequence({
       justCompleted: false,
       prs: [{ exerciseId: 'ex-1', exerciseName: 'Wyciskanie', type: 'weight', newValue: 105, oldValue: 100 }],
     });
-    expect(screen.getByText(/10 z 12 zaplanowanych serii/)).toBeTruthy();
+    // Fala 2: zdanie "10 z 12 zaplanowanych serii" znika — te same dane niosą staty.
+    expect(screen.getByText('10/12')).toBeTruthy();
+    expect(screen.getByText('83%')).toBeTruthy();
     expect(screen.getByText(/\+14%/)).toBeTruthy();
-    expect(screen.getByText('Nowe rekordy')).toBeTruthy();
+    expect(screen.getByText(/Nowe rekordy/)).toBeTruthy();
     expect(screen.getByText('Wyciskanie')).toBeTruthy();
     expect(screen.getByText(/105 kg/)).toBeTruthy();
+  });
+
+  it('paski porównania: widoczne przy prevVolumeKg, z labelem vs data poprzedniej sesji', () => {
+    renderSequence({ justCompleted: false });
+    expect(screen.getByText('Dziś')).toBeTruthy();
+    expect(screen.getByText('700 kg')).toBeTruthy();
+    // prevDate 2026-08-13 → "vs 13 sie" (locale pl, miesiąc krótki).
+    expect(screen.getByText(/vs 13/)).toBeTruthy();
+  });
+
+  it('pierwszy trening dnia (prevVolumeKg null): bez pasków porównania i bez delty', () => {
+    renderSequence({
+      justCompleted: false,
+      summary: { ...summary, prevVolumeKg: null, volumeDeltaPct: null, prevDate: null },
+    });
+    expect(screen.queryByText('Dziś')).toBeNull();
+    expect(screen.queryByText(/vs /)).toBeNull();
+    expect(screen.queryByText(/\+14%/)).toBeNull();
   });
 });

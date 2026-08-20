@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { cn } from '@/lib/utils';
+import { dateLocale } from '@/i18n';
+import { cn, parseLocalDate } from '@/lib/utils';
 import { SESSION_RATING_REASONS } from '@/lib/workout-session-rating';
 import type { CompletionSummary } from '@/lib/workout-completion-summary';
 import { formatPRDelta, formatPRValue, type PRComparison } from '@/lib/pr-utils';
@@ -62,7 +63,7 @@ export const WorkoutCompletionSequence = ({
   bigMoment,
   children,
 }: WorkoutCompletionSequenceProps) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [stage, setStage] = useState<'celebration' | 'rating' | 'done'>(
     justCompleted ? 'celebration' : 'done',
   );
@@ -187,88 +188,154 @@ export const WorkoutCompletionSequence = ({
     );
   }
 
+  // Fala 2 (2026-08-20, plan/summary.md par. 2.2): hero dzieli wynik fmtTonnage
+  // po PIERWSZEJ spacji (lbs daje "12.3 k lbs" — split po ostatniej by zawiódł).
+  const tonnageText = fmtTonnage(summary.volumeKg);
+  const tonnageSpace = tonnageText.indexOf(' ');
+  const tonnageValue = tonnageSpace > 0 ? tonnageText.slice(0, tonnageSpace) : tonnageText;
+  const tonnageUnit = tonnageSpace > 0 ? tonnageText.slice(tonnageSpace + 1) : '';
+  const prevDateLabel = summary.prevDate
+    ? parseLocalDate(summary.prevDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })
+    : null;
+  const compareMaxKg = summary.prevVolumeKg !== null
+    ? Math.max(summary.volumeKg, summary.prevVolumeKg)
+    : summary.volumeKg;
+  const barPct = (kg: number) => (compareMaxKg > 0 ? (kg / compareMaxKg) * 100 : 0);
+
   return (
     <>
       {thanked && (
         <p className="text-sm text-muted-foreground">{t('workout.completion.rateThanks')}</p>
       )}
-      <Card>
-        <CardContent className="py-6">
-          {/* Hero: jedna dominująca liczba (wzorzec WHOOP: czytelna z wyciągniętej ręki) */}
-          <div className="text-center">
-            <p className="font-heading text-5xl font-extrabold tabular-nums text-fitness-success leading-none">
-              {fmtTonnage(summary.volumeKg)}
-            </p>
-            <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
-              {t('workout.completion.statTonnage')}
-            </p>
+      {/* Hero karta (mockup 1a): OGROMNY tonaż w akcencie + delta vs poprzednia
+          sesja tego dnia + paski porównania + rząd statów z pigułką Popraw serie. */}
+      <div className="flex flex-col gap-4 rounded-xl bg-surface-container p-5">
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex items-baseline gap-2">
+            <span className="font-heading text-display-lg font-bold tabular-nums leading-[0.85] text-primary">
+              {tonnageValue}
+            </span>
+            {tonnageUnit && (
+              <span className="font-heading text-2xl font-semibold text-primary">{tonnageUnit}</span>
+            )}
           </div>
-          {/* Metryki drugorzędne w jednym rzędzie */}
-          <div className="mt-5 flex items-center justify-center gap-6 text-center">
-            <div>
-              <p className="font-heading text-xl font-bold tabular-nums">
-                {durationSec != null ? fmtDuration(durationSec) : '—'}
-              </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">{t('workout.statTime')}</p>
-            </div>
-            <div className="h-8 w-px bg-border" aria-hidden />
-            <div>
-              <p className="font-heading text-xl font-bold tabular-nums">{summary.completedSets}</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">{t('workout.statSets')}</p>
-            </div>
-          </div>
-          {(summary.planPct !== null || deltaText) && (
-            <div className="mt-4 space-y-1 text-center text-sm text-muted-foreground">
-              {summary.planPct !== null && summary.plannedSets !== null && (
-                <p>
-                  {t('workout.completion.planSets', {
-                    done: summary.completedSets,
-                    planned: summary.plannedSets,
-                  })} ({summary.planPct}%)
-                </p>
+          {deltaText && (
+            <div className="flex flex-col items-end gap-1 pb-1 text-right">
+              <span className="font-mono text-[15px] font-bold tabular-nums text-foreground/80">
+                {deltaText}
+              </span>
+              {prevDateLabel && (
+                <span className="eyebrow-mono text-muted-foreground">
+                  {t('workout.summary.vsPrev', { date: prevDateLabel })}
+                </span>
               )}
-              {deltaText && <p>{t('workout.completion.volumeVsPrev', { delta: deltaText })}</p>}
             </div>
           )}
+        </div>
+        {summary.prevVolumeKg !== null && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="eyebrow-mono w-12 shrink-0 text-foreground/80">
+                {t('workout.summary.today')}
+              </span>
+              <div className="h-3 flex-1 overflow-hidden rounded-full bg-surface-highest">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${barPct(summary.volumeKg)}%` }}
+                />
+              </div>
+              <span className="w-14 shrink-0 text-right font-mono text-[10.5px] tabular-nums text-foreground/80">
+                {tonnageText}
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <span className="eyebrow-mono w-12 shrink-0 truncate text-muted-foreground">
+                {prevDateLabel ?? ''}
+              </span>
+              <div className="h-3 flex-1 overflow-hidden rounded-full bg-surface-highest">
+                <div
+                  className="h-full rounded-full bg-outline-variant"
+                  style={{ width: `${barPct(summary.prevVolumeKg)}%` }}
+                />
+              </div>
+              <span className="w-14 shrink-0 text-right font-mono text-[10.5px] tabular-nums text-muted-foreground">
+                {fmtTonnage(summary.prevVolumeKg)}
+              </span>
+            </div>
+          </div>
+        )}
+        <div className="flex items-end gap-5">
+          <div className="flex flex-col gap-1">
+            <span className="font-heading text-[17px] font-bold tabular-nums leading-none">
+              {durationSec != null ? fmtDuration(durationSec) : '—'}
+            </span>
+            <span className="eyebrow-mono text-muted-foreground">{t('workout.statTime')}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="font-heading text-[17px] font-bold tabular-nums leading-none">
+              {summary.plannedSets !== null
+                ? `${summary.completedSets}/${summary.plannedSets}`
+                : summary.completedSets}
+            </span>
+            <span className="eyebrow-mono text-muted-foreground">{t('workout.statSets')}</span>
+          </div>
+          {summary.planPct !== null && (
+            <div className="flex flex-col gap-1">
+              <span className="font-heading text-[17px] font-bold tabular-nums leading-none">
+                {summary.planPct}%
+              </span>
+              <span className="eyebrow-mono text-muted-foreground">
+                {t('workout.summary.statPlanned')}
+              </span>
+            </div>
+          )}
+          <div className="min-w-0 flex-1" />
           {onEditSets && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-3 w-full gap-1.5 text-muted-foreground"
-              onClick={onEditSets}
-            >
-              <Pencil className="h-3.5 w-3.5" />
+            <button type="button" className="chip-mono shrink-0" onClick={onEditSets}>
+              <Pencil className="h-3 w-3" />
               {t('workout.completion.editSets')}
-            </Button>
+            </button>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+      {/* Sekcja rekordów: kafle na accent-wash, wartości w akcencie (par. 2.3). */}
       {prs.length > 0 && (
-        <Card className="border-fitness-success bg-fitness-success/10">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-2 font-semibold text-fitness-success">
-              <Trophy className="h-5 w-5" />
-              {t('workout.completion.prTitle')}
-            </div>
-            <div className="mt-3 space-y-2">
-              {prs.map((pr) => {
-                const delta = formatPRDelta(pr, fmtWeight);
-                return (
-                  <div
-                    key={`${pr.exerciseId}-${pr.type}`}
-                    className="flex items-center justify-between gap-2 text-sm"
-                  >
-                    <span className="min-w-0 truncate">{pr.exerciseName}</span>
-                    <span className="shrink-0 font-semibold tabular-nums text-fitness-success">
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-primary" />
+            <span className="eyebrow-mono text-primary">
+              {t('workout.summary.recordsTitle', { n: prs.length })}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {prs.map((pr) => {
+              const delta = formatPRDelta(pr, fmtWeight);
+              return (
+                <div
+                  key={`${pr.exerciseId}-${pr.type}`}
+                  className="accent-wash flex flex-col gap-1.5 rounded-xl p-4"
+                >
+                  <span className="min-w-0 truncate text-xs text-foreground/80">
+                    {pr.exerciseName}
+                  </span>
+                  <div className="flex flex-wrap items-baseline gap-1.5">
+                    <span
+                      className={cn(
+                        'font-heading font-bold leading-none tabular-nums text-primary',
+                        pr.type === '1rm' ? 'text-lg' : 'text-2xl',
+                      )}
+                    >
                       {prValue(pr)}
-                      {delta && <span className="ml-1.5 text-xs font-bold opacity-80">({delta})</span>}
                     </span>
+                    {delta && (
+                      <span className="font-mono text-[11px] font-bold text-primary">{delta}</span>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
       {children}
     </>

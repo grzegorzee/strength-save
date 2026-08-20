@@ -8,7 +8,7 @@ vi.mock('@/contexts/LanguageContext', () => ({
 
 const base = {
   justCompleted: false,
-  summary: { volumeKg: 4200, completedSets: 18, plannedSets: 20, planPct: 90, prevVolumeKg: 4000, volumeDeltaPct: 5 },
+  summary: { volumeKg: 4200, completedSets: 18, plannedSets: 20, planPct: 90, prevVolumeKg: 4000, volumeDeltaPct: 5, prevDate: null },
   durationSec: 3600,
   fmtTonnage: (kg: number) => `${kg} kg`,
   fmtWeight: (kg: number) => `${kg} kg`,

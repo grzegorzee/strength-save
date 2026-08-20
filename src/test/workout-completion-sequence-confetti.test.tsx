@@ -12,7 +12,7 @@ vi.mock('@/components/ConfettiBurst', () => ({
 
 const base = {
   justCompleted: true,
-  summary: { volumeKg: 1000, completedSets: 10, plannedSets: 10, planPct: 100, prevVolumeKg: null, volumeDeltaPct: null },
+  summary: { volumeKg: 1000, completedSets: 10, plannedSets: 10, planPct: 100, prevVolumeKg: null, volumeDeltaPct: null, prevDate: null },
   durationSec: 1800,
   fmtTonnage: (kg: number) => `${kg}`,
   fmtWeight: (kg: number) => `${kg}`,
