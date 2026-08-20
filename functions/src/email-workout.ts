@@ -2,6 +2,7 @@
 // Czysta logika + wstrzykiwane deps (ten sam wzorzec co weekly-digest):
 // callable w index.ts skleja Firestore + transport (SES z fallbackiem Resend).
 import { esc, type Lang } from "./email-templates";
+import { detectEmailPRs, type EmailPR } from "./email-prs";
 
 export interface EmailSet {
   reps?: number;
@@ -69,8 +70,9 @@ export interface EmailUserContext {
 
 export interface EmailWorkoutDeps {
   getWorkout: (workoutId: string) => Promise<EmailWorkout | null>;
-  /** Ukończone treningi usera, date desc; sinceDate zawęża od dołu (YYYY-MM-DD). */
-  listWorkoutsInRange: (uid: string, opts: { sinceDate?: string; limit: number }) => Promise<EmailWorkout[]>;
+  /** Ukończone treningi usera, date desc; sinceDate zawęża od dołu,
+   *  beforeDate od góry (baseline PR; obie granice YYYY-MM-DD). */
+  listWorkoutsInRange: (uid: string, opts: { sinceDate?: string; beforeDate?: string; limit: number }) => Promise<EmailWorkout[]>;
   /** Jedno czytanie users doc: język maila (źródło prawdy) + displayName do tytułu. */
   getUserContext: (uid: string) => Promise<EmailUserContext>;
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
@@ -84,6 +86,8 @@ export const EMAIL_DAILY_LIMIT = 10;
 export const HISTORY_EMAIL_MAX_WORKOUTS = 30;
 /** Tydzień = 7 dni włącznie z dziś; limit bezpieczeństwa na liczbę sesji. */
 export const WEEK_RANGE_MAX_WORKOUTS = 14;
+/** H-T4: ile wcześniejszych sesji służy za bazę do detekcji PR. */
+export const PR_BASELINE_LIMIT = 100;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -128,13 +132,52 @@ const durationLabel = (sec: number | undefined, lang: Lang): string | null => {
   return h > 0 ? `${h} h ${m} min` : `${m} min`;
 };
 
-export function workoutEmailSubject(workout: EmailWorkout, lang: Lang): string {
-  const day = workout.dayName ? `, ${workout.dayName}` : "";
-  return t(lang, `Trening ${workout.date}${day} (Strength Save)`, `Workout ${workout.date}${day} (Strength Save)`);
+// H-T4: daty i dni tygodnia per język (pl: DD.MM.RRRR, en: Mon D, YYYY);
+// rachunek w UTC na stringu daty, żeby strefa serwera nie przesuwała dnia.
+const WEEKDAYS_PL = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
+const WEEKDAYS_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const parseDateUTC = (date: string): Date | null => {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const weekdayName = (date: string, lang: Lang): string => {
+  const parsed = parseDateUTC(date);
+  if (!parsed) return "";
+  return (lang === "pl" ? WEEKDAYS_PL : WEEKDAYS_EN)[parsed.getUTCDay()];
+};
+
+const fmtDateLang = (date: string, lang: Lang): string => {
+  const parsed = parseDateUTC(date);
+  if (!parsed) return date;
+  return lang === "pl"
+    ? `${String(parsed.getUTCDate()).padStart(2, "0")}.${String(parsed.getUTCMonth() + 1).padStart(2, "0")}.${parsed.getUTCFullYear()}`
+    : `${MONTHS_EN[parsed.getUTCMonth()]} ${parsed.getUTCDate()}, ${parsed.getUTCFullYear()}`;
+};
+
+const historyDateRangeLabel = (workouts: EmailWorkout[], lang: Lang): string => {
+  const dates = workouts.map((w) => w.date).sort();
+  const first = dates[0] ?? "";
+  const last = dates[dates.length - 1] ?? "";
+  if (!first || first === last) return fmtDateLang(last || first, lang);
+  return t(lang, `${fmtDateLang(first, "pl")} do ${fmtDateLang(last, "pl")}`, `${fmtDateLang(first, "en")} to ${fmtDateLang(last, "en")}`);
+};
+
+/** H-T4: tytuł bez pauz, z imieniem usera (fallback: bez imienia, nigdy "undefined"). */
+export function workoutEmailSubject(workout: EmailWorkout, lang: Lang, displayName?: string): string {
+  const when = `${weekdayName(workout.date, lang)}${lang === "pl" ? " " : ", "}${fmtDateLang(workout.date, lang)}`;
+  return lang === "pl"
+    ? `Strength Save: trening${displayName ? ` ${displayName}` : ""}, ${when}`
+    : `Strength Save: ${displayName ? `${displayName}'s ` : ""}workout, ${when}`;
 }
 
-export function historyEmailSubject(count: number, lang: Lang): string {
-  return t(lang, `Historia treningów (${count}), Strength Save`, `Workout history (${count}), Strength Save`);
+export function historyEmailSubject(workouts: EmailWorkout[], lang: Lang, displayName?: string): string {
+  const range = historyDateRangeLabel(workouts, lang);
+  return lang === "pl"
+    ? `Strength Save: treningi${displayName ? ` ${displayName}` : ""}, ${range}`
+    : `Strength Save: ${displayName ? `${displayName}'s ` : ""}workouts, ${range}`;
 }
 
 // --- G-T3: szablon w stylu marki (klienci pocztowi: tabele + inline CSS,
@@ -152,24 +195,51 @@ const C = {
   pain: "#b45309",
 } as const;
 
-const doneSetsCount = (workout: EmailWorkout): number =>
-  (workout.exercises ?? []).reduce((sum, ex) => sum + (ex.sets ?? [])
-    .filter((s) => s.completed && !s.isWarmup).length, 0);
+/** H-T4: serie robocze zrobione/planowane (rozgrzewkowe nie liczą się). */
+const workingSetCounts = (workout: EmailWorkout): { done: number; planned: number } =>
+  (workout.exercises ?? []).reduce((acc, ex) => {
+    (ex.sets ?? []).forEach((s) => {
+      if (s.isWarmup) return;
+      acc.planned += 1;
+      if (s.completed) acc.done += 1;
+    });
+    return acc;
+  }, { done: 0, planned: 0 });
 
 const tonnageLabel = (kg: number): string => `${(kg / 1000).toFixed(1)} t`;
 
-/** Nagłówek sekcji treningu: data · dzień (focus). */
-const workoutTitleHtml = (workout: EmailWorkout, size: number): string =>
-  `<div style="${FONT}font-size:${size}px;font-weight:700;color:${C.text};">${esc(workout.date)}${workout.dayName ? ` · ${esc(workout.dayName)}` : ""}${workout.dayFocus ? ` <span style="color:${C.muted};font-weight:400;">(${esc(workout.dayFocus)})</span>` : ""}</div>`;
+/** Nagłówek sekcji treningu: dzień tygodnia, data · dzień planu (focus). */
+const workoutTitleHtml = (workout: EmailWorkout, lang: Lang, size: number): string =>
+  `<div style="${FONT}font-size:${size}px;font-weight:700;color:${C.text};">${esc(`${weekdayName(workout.date, lang)}, ${fmtDateLang(workout.date, lang)}`)}${workout.dayName ? ` · ${esc(workout.dayName)}` : ""}${workout.dayFocus ? ` <span style="color:${C.muted};font-weight:400;">(${esc(workout.dayFocus)})</span>` : ""}</div>`;
 
-/** Kafle hero: tonaż, czas, serie, ćwiczenia. */
-const heroTilesHtml = (workout: EmailWorkout, lang: Lang): string => {
+/** H-T4: wartość PR w mailu (ciężar / powtórzenia / e1RM). */
+const prValueLabel = (pr: EmailPR, lang: Lang, value: number): string =>
+  pr.type === "reps" ? t(lang, `${value} powt.`, `${value} reps`)
+    : pr.type === "e1rm" ? `${value} kg e1RM`
+      : `${value} kg`;
+
+/** Sekcja nowych rekordów (tylko gdy są). */
+const prSectionHtml = (prs: EmailPR[], lang: Lang): string => {
+  if (prs.length === 0) return "";
+  const rows = prs.map((pr) =>
+    `<li style="margin:2px 0;"><strong>${esc(pr.exerciseName)}</strong>: ${esc(prValueLabel(pr, lang, pr.newValue))} <span style="color:${C.muted};">(${t(lang, "poprzednio", "previously")} ${esc(prValueLabel(pr, lang, pr.oldValue))})</span></li>`).join("");
+  return `
+  <div style="margin-top:16px;padding:12px;background-color:${C.bg};border-left:3px solid ${C.lime};">
+    <div style="${FONT}font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:${C.text};">${t(lang, "Nowe rekordy", "New records")}</div>
+    <ul style="${FONT}margin:6px 0 0 18px;padding:0;font-size:13px;color:${C.body};">${rows}</ul>
+  </div>`;
+};
+
+/** Kafle hero: tonaż, czas, serie zrobione/planowane, ćwiczenia, rekordy. */
+const heroTilesHtml = (workout: EmailWorkout, lang: Lang, prCount: number): string => {
   const tiles: Array<[string, string]> = [];
   tiles.push([t(lang, "Tonaż", "Tonnage"), tonnageLabel(tonnageKg(workout))]);
   const dur = durationLabel(workout.durationSec, lang);
   if (dur) tiles.push([t(lang, "Czas", "Time"), dur]);
-  tiles.push([t(lang, "Serie", "Sets"), String(doneSetsCount(workout))]);
+  const sets = workingSetCounts(workout);
+  tiles.push([t(lang, "Serie", "Sets"), `${sets.done}/${sets.planned}`]);
   tiles.push([t(lang, "Ćwiczenia", "Exercises"), String((workout.exercises ?? []).length)]);
+  if (prCount > 0) tiles.push([t(lang, "Rekordy", "Records"), String(prCount)]);
   const gap = `<td width="8" style="font-size:0;line-height:0;">&nbsp;</td>`;
   const cells = tiles.map(([label, value]) =>
     `<td valign="top" style="padding:10px 12px;background-color:${C.bg};border-top:3px solid ${C.lime};">
@@ -191,13 +261,58 @@ const ratingHtml = (workout: EmailWorkout, lang: Lang): string => {
     : "";
 };
 
-/** Tabela ćwiczeń z seriami, notatkami, RPE i bólem. */
+/** H-T4: najlepsza seria robocza ćwiczenia (max e1RM; przy bodyweight max powt.). */
+const pickBestSetIndex = (ex: EmailExercise): number => {
+  const sets = ex.sets ?? [];
+  let bestIndex = -1;
+  let bestScore = 0;
+  sets.forEach((s, i) => {
+    if (!s.completed || s.isWarmup) return;
+    const weight = s.weight ?? 0;
+    const reps = s.reps ?? 0;
+    // e1RM (Epley) dla serii z ciężarem; bodyweight porównujemy po powtórzeniach.
+    const score = weight > 0 ? weight * (1 + reps / 30) * 1000 : reps;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  });
+  return bestIndex;
+};
+
+/** H-T4: podsumowanie setów w nagłówku wiersza, np. "1/2 serie robocze + 1 rozgrzewkowa". */
+const exerciseSetsSummary = (ex: EmailExercise, lang: Lang): string => {
+  let done = 0;
+  let planned = 0;
+  let warmups = 0;
+  (ex.sets ?? []).forEach((s) => {
+    if (s.isWarmup) {
+      warmups += 1;
+      return;
+    }
+    planned += 1;
+    if (s.completed) done += 1;
+  });
+  const base = t(lang, `${done}/${planned} serie robocze`, `${done}/${planned} working sets`);
+  if (warmups === 0) return base;
+  const warmupLabel = t(lang, warmups === 1 ? "rozgrzewkowa" : "rozgrzewkowe", warmups === 1 ? "warm-up" : "warm-ups");
+  return `${base} + ${warmups} ${warmupLabel}`;
+};
+
+/** Tabela ćwiczeń: serie (rozgrzewkowe wyraźnie oznaczone, najlepsza wyróżniona),
+ *  podsumowanie setów, notatki, RPE i ból. */
 const exercisesTableHtml = (workout: EmailWorkout, lang: Lang): string => {
   const rows = (workout.exercises ?? []).map((ex) => {
-    const sets = (ex.sets ?? []).map((s) => {
-      const status = s.isWarmup ? t(lang, "rozgrzewkowa", "warm-up")
-        : s.completed ? t(lang, "zrobiona", "done") : t(lang, "pominięta", "skipped");
-      return `<li style="margin:2px 0;">${esc(fmtKg(s))} <span style="color:${C.muted};">(${status})</span></li>`;
+    const bestIndex = pickBestSetIndex(ex);
+    const sets = (ex.sets ?? []).map((s, i) => {
+      const warmupBadge = s.isWarmup
+        ? ` <span style="background-color:#fef3c7;color:${C.pain};font-size:11px;font-weight:700;padding:0 6px;border-radius:8px;">${t(lang, "rozgrzewkowa", "warm-up")}</span>`
+        : "";
+      const bestBadge = i === bestIndex
+        ? ` <span style="background-color:${C.lime};color:${C.text};font-size:11px;font-weight:700;padding:0 6px;border-radius:8px;">${t(lang, "najlepsza", "best")}</span>`
+        : "";
+      const status = s.isWarmup ? "" : ` <span style="color:${C.muted};">(${s.completed ? t(lang, "zrobiona", "done") : t(lang, "pominięta", "skipped")})</span>`;
+      return `<li style="margin:2px 0;">${esc(fmtKg(s))}${status}${warmupBadge}${bestBadge}</li>`;
     }).join("");
     const extras: string[] = [];
     if (typeof ex.rpe === "number") extras.push(`RPE ${ex.rpe}`);
@@ -205,7 +320,7 @@ const exercisesTableHtml = (workout: EmailWorkout, lang: Lang): string => {
     const meta = extras.length ? `<div style="${FONT}font-size:12px;color:${C.pain};margin-top:2px;">${esc(extras.join(" · "))}</div>` : "";
     const note = ex.notes ? `<div style="${FONT}font-size:12px;color:${C.muted};margin-top:2px;">${t(lang, "Notatka", "Note")}: ${esc(ex.notes)}</div>` : "";
     return `<tr><td style="padding:10px 0;border-bottom:1px solid ${C.border};">
-      <div style="${FONT}font-size:14px;font-weight:700;color:${C.text};">${esc(ex.name || ex.exerciseId)}</div>
+      <div style="${FONT}font-size:14px;font-weight:700;color:${C.text};">${esc(ex.name || ex.exerciseId)} <span style="color:${C.muted};font-weight:400;font-size:12px;">${esc(exerciseSetsSummary(ex, lang))}</span></div>
       <ul style="${FONT}margin:4px 0 0 18px;padding:0;font-size:13px;color:${C.body};">${sets}</ul>
       ${meta}${note}
     </td></tr>`;
@@ -214,7 +329,7 @@ const exercisesTableHtml = (workout: EmailWorkout, lang: Lang): string => {
 };
 
 /** Sekcja jednego treningu — kompaktowa, wspólny moduł dla historii. */
-export function workoutSectionHtml(workout: EmailWorkout, lang: Lang): string {
+export function workoutSectionHtml(workout: EmailWorkout, lang: Lang, prs: EmailPR[] = []): string {
   const facts: string[] = [];
   const tn = tonnageKg(workout);
   if (tn > 0) facts.push(`${t(lang, "Tonaż", "Tonnage")}: ${tonnageLabel(tn)}`);
@@ -225,9 +340,10 @@ export function workoutSectionHtml(workout: EmailWorkout, lang: Lang): string {
 
   return `
   <div style="margin-bottom:24px;">
-    ${workoutTitleHtml(workout, 16)}
+    ${workoutTitleHtml(workout, lang, 16)}
     ${facts.length ? `<div style="${FONT}font-size:13px;color:${C.body};margin-top:2px;">${facts.map(esc).join(" · ")}</div>` : ""}
     ${dayNoteHtml(workout, lang)}
+    ${prSectionHtml(prs, lang)}
     ${exercisesTableHtml(workout, lang)}
   </div>`;
 }
@@ -253,32 +369,43 @@ const wrap = (bodyHtml: string, lang: Lang): string => `
     </td></tr>
   </table>`;
 
-export function buildWorkoutEmailHtml(workout: EmailWorkout, lang: Lang): string {
+export interface WorkoutEmailOptions {
+  /** H-T4: nowe rekordy sesji (liczone server-side względem wcześniejszych treningów). */
+  prs?: EmailPR[];
+}
+
+export function buildWorkoutEmailHtml(workout: EmailWorkout, lang: Lang, options: WorkoutEmailOptions = {}): string {
+  const prs = options.prs ?? [];
   const body = `
-    ${workoutTitleHtml(workout, 20)}
-    ${heroTilesHtml(workout, lang)}
+    ${workoutTitleHtml(workout, lang, 20)}
+    ${heroTilesHtml(workout, lang, prs.length)}
     ${ratingHtml(workout, lang)}
     ${dayNoteHtml(workout, lang)}
+    ${prSectionHtml(prs, lang)}
     ${exercisesTableHtml(workout, lang)}`;
   return wrap(body, lang);
 }
 
-export function buildHistoryEmailHtml(workouts: EmailWorkout[], lang: Lang): string {
-  const dates = workouts.map((w) => w.date).sort();
-  const first = dates[0];
-  const last = dates[dates.length - 1];
+export interface HistoryEmailOptions {
+  /** H-T4: nowe rekordy per sesja (klucz = id treningu). */
+  prsBySession?: Record<string, EmailPR[]>;
+}
+
+export function buildHistoryEmailHtml(workouts: EmailWorkout[], lang: Lang, options: HistoryEmailOptions = {}): string {
   const totalTonnage = workouts.reduce((sum, w) => sum + tonnageKg(w), 0);
   const totalSec = workouts.reduce((sum, w) => sum + (typeof w.durationSec === "number" && w.durationSec > 0 ? w.durationSec : 0), 0);
+  const totalWorkingSets = workouts.reduce((sum, w) => sum + workingSetCounts(w).done, 0);
   const facts: string[] = [];
-  if (first && last) facts.push(t(lang, `Zakres: ${first} do ${last}`, `Range: ${first} to ${last}`));
+  facts.push(t(lang, `Zakres: ${historyDateRangeLabel(workouts, "pl")}`, `Range: ${historyDateRangeLabel(workouts, "en")}`));
   if (totalTonnage > 0) facts.push(`${t(lang, "Suma tonażu", "Total tonnage")}: ${tonnageLabel(totalTonnage)}`);
   const totalDur = durationLabel(totalSec, lang);
   if (totalDur) facts.push(`${t(lang, "Łączny czas", "Total time")}: ${totalDur}`);
+  facts.push(`${t(lang, "Serie robocze", "Working sets")}: ${totalWorkingSets}`);
 
   const header = `
     <div style="${FONT}font-size:20px;font-weight:700;color:${C.text};">${t(lang, "Historia treningów", "Workout history")} (${workouts.length})</div>
     ${facts.length ? `<div style="${FONT}font-size:13px;color:${C.body};margin:4px 0 20px;">${facts.map(esc).join(" · ")}</div>` : ""}`;
-  const sections = workouts.map((w) => workoutSectionHtml(w, lang)).join("");
+  const sections = workouts.map((w) => workoutSectionHtml(w, lang, options.prsBySession?.[w.id] ?? [])).join("");
   return wrap(header + sections, lang);
 }
 
@@ -322,9 +449,17 @@ export async function runEmailWorkout(
   if (!workout) return { ok: false, code: "not-found" };
   if (workout.userId !== params.uid) return { ok: false, code: "forbidden" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const { lang } = await resolveUserContext(deps, params.uid, params.lang);
-  const subject = workoutEmailSubject(workout, lang);
-  const response = await deps.sendEmail(params.to, subject, buildWorkoutEmailHtml(workout, lang));
+  const { lang, displayName } = await resolveUserContext(deps, params.uid, params.lang);
+  // H-T4: baseline PR z wcześniejszych treningów; awaria odczytu = mail bez sekcji rekordów.
+  let earlier: EmailWorkout[] = [];
+  try {
+    earlier = await deps.listWorkoutsInRange(params.uid, { beforeDate: workout.date, limit: PR_BASELINE_LIMIT });
+  } catch {
+    // Sekcja PR jest dodatkiem: mail ma wyjść mimo braku bazy.
+  }
+  const { prs } = detectEmailPRs(workout, earlier.filter((w) => w.id !== workout.id));
+  const subject = workoutEmailSubject(workout, lang, displayName);
+  const response = await deps.sendEmail(params.to, subject, buildWorkoutEmailHtml(workout, lang, { prs }));
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "workout", workoutId: workout.id, subject, lang }, response);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
@@ -365,9 +500,24 @@ export async function runEmailHistory(
     : { limit: HISTORY_EMAIL_MAX_WORKOUTS });
   if (workouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
-  const { lang } = await resolveUserContext(deps, params.uid, params.lang);
-  const subject = historyEmailSubject(workouts.length, lang);
-  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(workouts, lang));
+  const { lang, displayName } = await resolveUserContext(deps, params.uid, params.lang);
+  // H-T4: PR-y per sesja — baseline sprzed zakresu, potem narastająco sesje zakresu.
+  const rangeIds = new Set(workouts.map((w) => w.id));
+  const oldestDate = workouts.map((w) => w.date).sort()[0];
+  let baseline: EmailWorkout[] = [];
+  try {
+    baseline = await deps.listWorkoutsInRange(params.uid, { beforeDate: oldestDate, limit: PR_BASELINE_LIMIT });
+  } catch {
+    // Sekcje PR to dodatek: historia ma wyjść mimo braku bazy.
+  }
+  let accumulated = baseline.filter((w) => !rangeIds.has(w.id));
+  const prsBySession: Record<string, EmailPR[]> = {};
+  for (const session of [...workouts].sort((a, b) => (a.date < b.date ? -1 : 1))) {
+    prsBySession[session.id] = detectEmailPRs(session, accumulated).prs;
+    accumulated = [...accumulated, session];
+  }
+  const subject = historyEmailSubject(workouts, lang, displayName);
+  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(workouts, lang, { prsBySession }));
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };

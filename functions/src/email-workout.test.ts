@@ -5,8 +5,10 @@ import {
   buildHistoryEmailHtml,
   buildWorkoutEmailHtml,
   isValidRecipient,
+  historyEmailSubject,
   runEmailHistory,
   runEmailWorkout,
+  workoutEmailSubject,
   HISTORY_EMAIL_MAX_WORKOUTS,
   type EmailWorkout,
   type EmailWorkoutDeps,
@@ -114,11 +116,11 @@ describe("runEmailHistory", () => {
   const params = { uid: "u1", to: "trener@example.com", today: "2026-08-20" } as const;
 
   it("wysyła treningi z zakresu w jednym mailu", async () => {
-    const d = deps({ listWorkoutsInRange: vi.fn(async () => [workout(), workout({ id: "w2", date: "2026-08-18" })]) });
+    const d = deps({ listWorkoutsInRange: vi.fn(async (_uid, opts) => (opts.beforeDate ? [] : [workout(), workout({ id: "w2", date: "2026-08-18" })])) });
     expect(await runEmailHistory(d, { ...params })).toEqual({ ok: true });
-    const html = (d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][2] as string;
-    expect(html).toContain("2026-08-20");
-    expect(html).toContain("2026-08-18");
+    const html = sentHtml(d);
+    expect(html).toContain("20.08.2026");
+    expect(html).toContain("18.08.2026");
   });
 
   it("pusta historia = empty-history (bez wysyłki i bez zaliczania limitu)", async () => {
@@ -165,7 +167,7 @@ describe("email_log (G-T1)", () => {
       uid: "u1", to: "trener@example.com", type: "workout", workoutId: "w1",
       transport: "ses", sesMessageId: "ses-123", status: "sent", lang: "pl",
     });
-    expect(String(entry.subject)).toContain("2026-08-20");
+    expect(String(entry.subject)).toContain("20.08.2026");
     expect(typeof entry.sentAt).toBe("string");
   });
 
@@ -271,6 +273,128 @@ describe("buildHistoryEmailHtml", () => {
   });
 });
 
+// H-T4: tytuł bez pauz i z imieniem usera, kafle podsumowania z seriami
+// zrobione/planowane i PR-ami, sekcja nowych rekordów, wyróżniona najlepsza
+// seria, podsumowanie setów per ćwiczenie, historia z sumą serii roboczych.
+describe("tytuł i treść maila (H-T4)", () => {
+  const prs = [{ exerciseId: "ex-1", exerciseName: "Wyciskanie sztangi", type: "weight" as const, newValue: 105, oldValue: 100 }];
+
+  it("tytuł pojedynczego: bez pauz, z imieniem, dzień tygodnia + data per język", () => {
+    expect(workoutEmailSubject(workout(), "pl", "Greg"))
+      .toBe("Strength Save: trening Greg, czwartek 20.08.2026");
+    expect(workoutEmailSubject(workout(), "en", "Greg"))
+      .toBe("Strength Save: Greg's workout, Thursday, Aug 20, 2026");
+  });
+
+  it("tytuł bez imienia: bez 'undefined'", () => {
+    const subject = workoutEmailSubject(workout(), "pl");
+    expect(subject).toBe("Strength Save: trening, czwartek 20.08.2026");
+    expect(subject).not.toContain("undefined");
+  });
+
+  it("tytuł historii: zakres dat zamiast liczby, per język", () => {
+    const workouts = [workout(), workout({ id: "w2", date: "2026-08-18" })];
+    expect(historyEmailSubject(workouts, "pl", "Greg"))
+      .toBe("Strength Save: treningi Greg, 18.08.2026 do 20.08.2026");
+    expect(historyEmailSubject(workouts, "en", "Greg"))
+      .toBe("Strength Save: Greg's workouts, Aug 18, 2026 to Aug 20, 2026");
+    expect(historyEmailSubject([workout()], "pl")).toBe("Strength Save: treningi, 20.08.2026");
+  });
+
+  it("zero em-dash i en-dash w tytułach i całym HTML", () => {
+    const html = buildWorkoutEmailHtml(workout(), "pl", { prs })
+      + buildWorkoutEmailHtml(workout(), "en", { prs })
+      + buildHistoryEmailHtml([workout()], "pl")
+      + workoutEmailSubject(workout(), "pl", "Greg")
+      + historyEmailSubject([workout()], "en", "Greg");
+    expect(html).not.toMatch(/[–—]/);
+  });
+
+  it("nagłówek treści: dzień tygodnia + data + nazwa dnia (focus)", () => {
+    const html = buildWorkoutEmailHtml(workout(), "pl");
+    expect(html).toContain("czwartek");
+    expect(html).toContain("20.08.2026");
+    expect(html).toContain("Góra B");
+  });
+
+  it("kafle: serie zrobione/planowane i kafel rekordów tylko gdy są", () => {
+    const withPrs = buildWorkoutEmailHtml(workout(), "pl", { prs });
+    expect(withPrs).toContain("1/2");
+    expect(withPrs).toContain("Nowe rekordy");
+    const withoutPrs = buildWorkoutEmailHtml(workout(), "pl");
+    expect(withoutPrs).not.toContain("Nowe rekordy");
+  });
+
+  it("sekcja nowych rekordów: ćwiczenie + wartość + poprzednia", () => {
+    const html = buildWorkoutEmailHtml(workout(), "pl", { prs: [
+      ...prs,
+      { exerciseId: "ex-2", exerciseName: "Podciąganie", type: "reps", newValue: 12, oldValue: 10 },
+      { exerciseId: "ex-3", exerciseName: "Przysiad", type: "e1rm", newValue: 150.5, oldValue: 145 },
+    ] });
+    expect(html).toContain("105 kg");
+    expect(html).toContain("100 kg");
+    expect(html).toContain("12 powt.");
+    expect(html).toContain("e1RM");
+    expect(html).toContain("150.5 kg");
+  });
+
+  it("najlepsza seria wyróżniona etykietą", () => {
+    const html = buildWorkoutEmailHtml(workout(), "pl");
+    expect(html).toContain("najlepsza");
+    expect(buildWorkoutEmailHtml(workout(), "en")).toContain("best");
+  });
+
+  it("podsumowanie setów per ćwiczenie w nagłówku wiersza", () => {
+    const html = buildWorkoutEmailHtml(workout(), "pl");
+    expect(html).toContain("1/2 serie robocze + 1 rozgrzewkowa");
+  });
+
+  it("historia: suma serii roboczych w nagłówku zbiorczym i PR-y per sesja", () => {
+    const workouts = [workout(), workout({ id: "w2", date: "2026-08-18" })];
+    const html = buildHistoryEmailHtml(workouts, "pl", { prsBySession: { w2: prs } });
+    expect(html).toContain("Serie robocze: 2");
+    expect(html).toContain("Nowe rekordy");
+    expect(html).toContain("105 kg");
+  });
+});
+
+describe("przepływ PR w wysyłce (H-T4)", () => {
+  const params = { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" } as const;
+
+  it("runEmailWorkout: pobiera wcześniejsze treningi i wkłada PR-y do maila", async () => {
+    const prev = workout({ id: "w-prev", date: "2026-08-10", exercises: [{
+      exerciseId: "ex-1", name: "Wyciskanie sztangi", sets: [{ reps: 5, weight: 90, completed: true }],
+    }] });
+    const d = deps({
+      listWorkoutsInRange: vi.fn(async () => [prev]),
+      getUserContext: vi.fn(async () => ({ displayName: "Greg" })),
+    });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    expect(d.listWorkoutsInRange).toHaveBeenCalledWith("u1", { beforeDate: "2026-08-20", limit: 100 });
+    const subject = (d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
+    expect(subject).toContain("Greg");
+    expect(sentHtml(d)).toContain("Nowe rekordy");
+    expect(sentHtml(d)).toContain("100 kg");
+  });
+
+  it("runEmailHistory: baseline przed zakresem, PR-y per sesja narastająco", async () => {
+    const inRange = [
+      workout({ id: "w-new", date: "2026-08-20", exercises: [{ exerciseId: "ex-1", name: "Wyciskanie sztangi", sets: [{ reps: 5, weight: 110, completed: true }] }] }),
+      workout({ id: "w-mid", date: "2026-08-18", exercises: [{ exerciseId: "ex-1", name: "Wyciskanie sztangi", sets: [{ reps: 5, weight: 105, completed: true }] }] }),
+    ];
+    const baseline = [workout({ id: "w-old", date: "2026-08-01", exercises: [{ exerciseId: "ex-1", name: "Wyciskanie sztangi", sets: [{ reps: 5, weight: 100, completed: true }] }] })];
+    const list = vi.fn(async (_uid: string, opts: { sinceDate?: string; beforeDate?: string; limit: number }) =>
+      (opts.beforeDate ? baseline : inRange));
+    const d = deps({ listWorkoutsInRange: list });
+    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
+    expect(list).toHaveBeenCalledWith("u1", { sinceDate: "2026-08-14", limit: 14 });
+    expect(list).toHaveBeenCalledWith("u1", { beforeDate: "2026-08-18", limit: 100 });
+    // w-mid: PR 105 vs 100; w-new: PR 110 vs 105 (baseline narastający).
+    expect(sentHtml(d)).toContain("105 kg");
+    expect(sentHtml(d)).toContain("110 kg");
+  });
+});
+
 // G-T3: szablon w stylu marki — jasne tło, biała karta, limonka tylko jako
 // akcent przy ciemnym tekście, layout tabelaryczny, zero obrazków, zero
 // wykrzykników i AI-slopu w copy.
@@ -320,8 +444,8 @@ describe("szablon marki (G-T3)", () => {
 
   it("historia: zakres dat, liczba treningów, suma tonażu, łączny czas", () => {
     const html = buildHistoryEmailHtml([workout(), workout({ id: "w2", date: "2026-08-18" })], "pl");
-    expect(html).toContain("2026-08-18");
-    expect(html).toContain("2026-08-20");
+    expect(html).toContain("18.08.2026");
+    expect(html).toContain("20.08.2026");
     expect(html).toContain("(2)");
     expect(html).toContain("1.0 t");
     expect(html).toContain("2 h 1 min");
