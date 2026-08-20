@@ -5,11 +5,55 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (E-RELEASE: web live B2BKTGWX, iOS 108 TF, AAB v23; bugi z realnego treningu na 107)
+**Ostatnia aktualizacja:** 2026-08-20 (F-RELEASE: web live JWie54Xt, iOS 109 TF, AAB v24; feature'y: kolor, imię, mail SES)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: F-RELEASE — feature'y właściciela (kolor, imię, mail do trenera)
+
+**Co:** Wydanie F (plan `docs/PLAN-FEATURES-2026-08-20.md`):
+- F-T1 (154cf6be): imię edytowalne wprost pod zdjęciem w Profilu (tap w imię →
+  istniejący dialog; onboarding już pytał o imię — PlanWizard askName).
+- F-T2 (3866e376) + F-T2b (3d7907e1, dopisek usera mid-turn): kolor przewodni
+  aplikacji — paleta 8 jasnych akcentów + DOWOLNY kolor (systemowy picker
+  input type=color z wpisem po # na iOS + pole tekstowe #RRGGBB). Tokeny CSS
+  (--primary/--primary-light/--ring) + hex dla wykresów/share/PDF/confetti
+  (stop-color nie łyka var()); ciemny własny kolor dostaje jasny tekst na
+  akcencie (luminancja < 0.3); kolory statusów nietknięte; persistencja
+  localStorage (od splashu) + mirror preferences.accentColor.
+- F-T3 (8b2171eb): mail z pełnym podsumowaniem treningu (serie, notatki, RPE,
+  ból, ocena sesji, tonaż, czas) na dowolny adres (np. trener) — pojedynczy
+  trening albo cała historia (max 200). Callables emailWorkoutSummary/
+  emailWorkoutHistory WDROŻONE na prod; transport SES (sekrety SES_* jako
+  placeholder 'unset') z fallbackiem Resend; limit 10 maili/dobę (transakcja
+  email_quota), ownership check, walidacja adresu; adres zapamiętywany
+  w preferences.trainerEmail.
+
+**Artefakty:** web LIVE `index-JWie54Xt.js` (marker accent-swatches w chunku
+Profile na origin/gh-pages + curl live); iOS 1.0.0(109) TestFlight: VALID,
+obie grupy 204, whatsNew 200, Beta App Review APPROVED; AAB versionCode 24
+`jar verified` SHA `e983902ba73fe47501bc4ac0cae17a5172bc8f7899f990c6b599ec1aa0b60eee`
+(upload Play = właściciel); functions: 2 nowe callables na prodzie; Garmin bez
+zmian źródeł. Następny build iOS = 110, versionCode = 25.
+
+**Weryfikacja natywna (symulator, konto demo na emulatorach):** cyjan z palety
+barwi całą apkę (nagłówki, nav, CTA), custom #1e90ff przez pole hex barwi
+Dashboard z BIAŁYM tekstem na CTA (automatyczny kontrast), persistencja
+przeżywa reinstall (localStorage). Zrzuty w scratchpadzie sesji.
+
+**Kroki właściciela:** podmienić sekrety SES na realne
+(`printf '<wartość>' | firebase functions:secrets:set SES_REGION --project
+fittracker-workouts --data-file -` itd. dla SES_ACCESS_KEY_ID,
+SES_SECRET_ACCESS_KEY, SES_FROM) + `firebase deploy --only
+functions:emailWorkoutSummary,functions:emailWorkoutHistory`; do tego czasu
+maile idą Resendem z noreply@strengthsave.app. Poza tym: testy TestFlight
+108/109, upload AAB v23/v24 do Play, submit CIQ.
+
+**Bramki:** vitest 1804/1804, functions 238/238, pełne e2e 400/400 (świeży
+vite) + accent-color 4/4, typecheck, lint, build, wszystkie check:* GREEN.
+
 
 ### 2026-08-20: E-RELEASE — bugi zgłoszone z realnego treningu na buildzie 107
 

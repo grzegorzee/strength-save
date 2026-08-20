@@ -105,15 +105,28 @@ i Historii. Testy: functions 238/238 (11 nowych), dialog 5/5, vitest web
 
 ## F-RELEASE — wspólne wydanie F
 
-- [ ] Bramki repo + pełne e2e po świeżym vite + functions testy i deploy PRZED
+- [x] Bramki repo + pełne e2e po świeżym vite + functions testy i deploy PRZED
   klientami (backward compatible).
-- [ ] Weryfikacja natywna iOS na koncie demo (emulatory): zmiana imienia →
+- [x] Weryfikacja natywna iOS na koncie demo (emulatory): zmiana imienia →
   Dashboard wita nowym imieniem; zmiana koloru → cała apka + wykresy + share
   w kolorze; mail: wysyłka na emulatorze functions (bez realnego maila) +
   ścieżka błędu bez sekretów.
-- [ ] Train: web deploy + marker na origin/gh-pages, iOS (kolejny bump), AAB
+- [x] Train: web deploy + marker na origin/gh-pages, iOS (kolejny bump), AAB
   (kolejny versionCode), Garmin tylko gdy tknięty, DECYZJE.md + tracker +
   pamięć projektu.
+
+DOWÓD (2026-08-20): bramki GREEN (vitest 1804, functions 238, e2e 400/400 po
+świeżym vite + accent 4/4, check:* komplet). Functions wdrożone PRZED klientami
+(Successful create x2). Weryfikacja natywna na symulatorze z kontem demo:
+cyjan barwi całą apkę (natf-08), custom #1e90ff przez pole hex barwi Dashboard
+z białym tekstem na CTA (natf2-07), persistencja przeżywa reinstall; dialog
+maila zweryfikowany unitami (transport na emulatorze niedostępny — ścieżka
+błędu z wyjściem pokryta testem). Web LIVE `index-JWie54Xt.js` (marker
+accent-swatches w Profile-C0Q8zzZj.js na origin/gh-pages + curl). iOS
+1.0.0(109): VALID, obie grupy 204, Beta App Review APPROVED. AAB v24
+`jar verified` SHA `e983902b...60eee`. Garmin bez zmian. NASTĘPNY iOS = 110,
+versionCode = 25. Kroki właściciela: sekrety SES + redeploy 2 callables,
+TestFlight 108/109, Play upload v23/v24, CIQ submit.
 
 ## Zasady (bez zmian)
 
