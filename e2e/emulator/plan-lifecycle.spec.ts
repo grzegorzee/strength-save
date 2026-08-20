@@ -102,11 +102,11 @@ async function listDocs(collection: string): Promise<Array<{ name: string; field
 async function loginThroughUi(page: Page, email: string): Promise<void> {
   await page.goto(`${APP_URL}#/login`);
   await page.waitForLoadState('domcontentloaded');
-  await page.getByRole('tab', { name: 'Email + hasło' }).click();
-  const panel = page.getByRole('tabpanel', { name: 'Email + hasło' });
-  await panel.getByPlaceholder('Email').fill(email);
-  await panel.getByPlaceholder('Hasło', { exact: true }).fill(PASSWORD);
-  await panel.getByRole('button', { name: 'Zaloguj przez email' }).click();
+  // Redesign 2026-08-20: email za przyciskiem "Kontynuuj z emailem" (bez zakładek).
+  await page.getByRole('button', { name: 'Kontynuuj z emailem' }).click();
+  await page.getByPlaceholder('Email').first().fill(email);
+  await page.getByPlaceholder('Hasło', { exact: true }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Zaloguj przez email' }).click();
 }
 
 const mondayOfThisWeek = (): string => {

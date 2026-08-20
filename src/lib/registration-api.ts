@@ -360,11 +360,20 @@ export async function adminDeleteUser(uid: string) {
   return (await fn({ uid })).data;
 }
 
-export async function adminGrantSubscription(uid: string, tier: 'comp' | 'trial', days: number | null) {
+/** Nadaje PRO (zawsze comp): days null = bezterminowo, N = doliczane do końca obecnego dostępu. */
+export async function adminGrantSubscription(uid: string, days: number | null) {
   if (isE2EMode) return { success: true };
-  const fn = httpsCallable<{ uid: string; tier: string; days: number | null }, { success: boolean }>(
+  const fn = httpsCallable<{ uid: string; days: number | null }, { success: boolean }>(
     functions, "adminGrantSubscription");
-  return (await fn({ uid, tier, days })).data;
+  return (await fn({ uid, days })).data;
+}
+
+/** Odbiera ręczny grant PRO (tylko tier comp; subskrypcją ze sklepu rządzi Apple/Google). */
+export async function adminRevokeSubscription(uid: string) {
+  if (isE2EMode) return { success: true };
+  const fn = httpsCallable<{ uid: string }, { success: boolean }>(
+    functions, "adminRevokeSubscription");
+  return (await fn({ uid })).data;
 }
 
 export async function deleteOwnAccount() {

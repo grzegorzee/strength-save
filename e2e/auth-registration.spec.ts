@@ -2,33 +2,35 @@ import { test, expect } from '@playwright/test';
 import { navigateAndWait, expectPageRendered, setE2EAuthScenario } from './helpers';
 
 test.describe('Auth and registration flows', () => {
-  test('unauthenticated user sees login, invite hint and waitlist form', async ({ page }) => {
+  // Redesign 2026-08-20: pierwszy ekran = Kontynuuj z Apple/Google + email niżej.
+  test('unauthenticated user sees social-first login, invite hint and waitlist form', async ({ page }) => {
     await setE2EAuthScenario(page, 'unauthenticated');
     await page.goto('./#/?invite=INVITE42');
     await page.waitForLoadState('domcontentloaded');
 
     await expect(page.getByRole('heading', { name: 'Strength Save' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Google' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Email + hasło' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kontynuuj z Google' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kontynuuj z Apple' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kontynuuj z emailem' })).toBeVisible();
     await expect(page.getByText('Wykryto kod zaproszenia:')).toBeVisible();
     await expect(page.getByText('Chcesz trafić na waitlistę lub dostać invite?')).toBeVisible();
   });
 
-  test('register route shows dedicated registration page', async ({ page }) => {
+  test('register route starts social-first and opens email registration form', async ({ page }) => {
     await setE2EAuthScenario(page, 'unauthenticated');
     await navigateAndWait(page, '/register');
 
-    await expect(page.getByText('Załóż konto przez Google albo email i hasło')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kontynuuj z Google' })).toBeVisible();
+    await page.getByRole('button', { name: 'Kontynuuj z emailem' }).click();
     await expect(page.getByRole('button', { name: 'Załóż konto i wyślij kod' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Przejdź do logowania' })).toBeVisible();
+    await expect(page.getByPlaceholder('Powtórz hasło')).toBeVisible();
   });
 
-  test('email registration screen supports waitlist submit flow in E2E mode', async ({ page }) => {
+  test('login screen supports waitlist submit flow in E2E mode', async ({ page }) => {
     await setE2EAuthScenario(page, 'unauthenticated');
     await navigateAndWait(page, '/register');
 
-    await page.getByRole('tab', { name: 'Email + hasło' }).click();
-    await page.getByPlaceholder('Email').nth(1).fill('waitlist@test.com');
+    await page.getByPlaceholder('Email').fill('waitlist@test.com');
     await page.getByPlaceholder('Imię / nazwa').fill('Waitlist User');
     await page.getByPlaceholder('Notatka lub kontekst').fill('Proszę o invite do testów');
     await page.getByRole('button', { name: 'Zapisz na waitlistę' }).click();
@@ -36,13 +38,16 @@ test.describe('Auth and registration flows', () => {
     await expect(page.getByText('Twoje zgłoszenie zostało zapisane.').first()).toBeVisible();
   });
 
-  test('login route links to register route', async ({ page }) => {
+  test('email path toggles between sign in and registration', async ({ page }) => {
     await setE2EAuthScenario(page, 'unauthenticated');
     await navigateAndWait(page, '/login');
 
-    await page.getByRole('link', { name: 'Przejdź do rejestracji' }).click();
-    await expect(page).toHaveURL(/#\/register$/);
-    await expect(page.getByText('Załóż konto przez Google albo email i hasło')).toBeVisible();
+    await page.getByRole('button', { name: 'Kontynuuj z emailem' }).click();
+    await expect(page.getByRole('button', { name: 'Zaloguj przez email' })).toBeVisible();
+    await page.getByRole('button', { name: 'Nie masz konta? Zarejestruj się' }).click();
+    await expect(page.getByRole('button', { name: 'Załóż konto i wyślij kod' })).toBeVisible();
+    await page.getByRole('button', { name: 'Masz już konto? Zaloguj się' }).click();
+    await expect(page.getByRole('button', { name: 'Zaloguj przez email' })).toBeVisible();
   });
 
   test('authenticated user visiting login is redirected to dashboard', async ({ page }) => {

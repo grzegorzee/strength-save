@@ -61,6 +61,7 @@ export {
   adminSendPush,
   adminDeleteUser,
   adminGrantSubscription,
+  adminRevokeSubscription,
   deleteOwnAccount,
   registerPushToken,
   unregisterPushToken,

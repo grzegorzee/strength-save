@@ -5,11 +5,55 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (plan J: fix indeksu wysyłek, spójny język maili, wyślij-z-Historii, eksport CSV z zakresami; web D79Mk9PG)
+**Ostatnia aktualizacja:** 2026-08-20 (social-first logowanie + sekcja Subskrypcja w panelu admina)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: Social-first logowanie + sekcja Subskrypcja w panelu admina (grant/revoke PRO)
+
+**Co (decyzje właściciela po rozmowie 2026-08-20):**
+(1) **Ekran logowania social-first.** Pierwszy ekran = "Kontynuuj z Apple" +
+"Kontynuuj z Google" (iOS: Apple na górze wg HIG; Android/web: Google) +
+wyraźny, klikalny przycisk "Kontynuuj z emailem" niżej (jawne życzenie:
+widoczny, nie mikro-link). Zniknęły zakładki Google/Email i box "Przejdź do
+rejestracji": "Kontynuuj z..." obsługuje i nowego (auto-tworzenie konta,
+status active dla Apple/Google), i wracającego usera. Apple pokazywane na
+WSZYSTKICH platformach (konto z iPhone'a musi się zalogować na Androidzie /
+webie; Firebase robi flow przeglądarkowy). Ścieżka email (login + rejestracja
++ reset + wybór języka) bez zmian merytorycznych, dostępna za przyciskiem.
+Stopka prawna z linkami Regulamin/Prywatność. Zgody RODO nietknięte: zbiera
+je jak dotąd onboarding/ConsentGate, nie formularz. Przy okazji naprawiony
+ukryty problem App Review 4.8: wcześniej /register otwierał domyślnie
+zakładkę email i nowy user na iOS w ogóle nie widział Apple Sign-In.
+(2) **Panel admina: sekcja Subskrypcja.** Karta w szczególe usera + boks w
+rozwinięciu wiersza tabeli + badge PRO w wierszu. Nadawanie z presetami
++30/+90/+365 dni / bezterminowo / własna liczba dni; dni DOLICZAJĄ SIĘ do
+końca obecnego dostępu (także opłaconego okresu ze sklepu). "Odbierz PRO"
+usuwa ręczny grant (tylko tier comp; płatną subskrypcją rządzi Apple/Google,
+panel nie ma jak jej przerwać ani zmienić planu rozliczeniowego — "zmiana na
+roczny" = grant +365 dni).
+**Root cause przebudowy grantu:** stary grant na N dni zapisywał tier
+'trial', a webhook RC chronił przed nadpisaniem tylko 'comp' — event
+EXPIRATION ze sklepu mógł skasować ręcznie nadany miesiąc. Teraz grant jest
+ZAWSZE 'comp' (opcjonalnie z expiresAt), `shouldApplySubscriptionEvent`
+pomija eventy tylko przy AKTYWNYM grancie (bezterminowym albo z datą w
+przyszłości), a po wygaśnięciu grantu webhook odtwarza stan sklepowy.
+Klient: `isSubscriptionActive` respektuje expiresAt dla comp,
+`summarizeSubscription` pokazuje "wygasa {data}" w Profilu. Nowe callable
+`adminRevokeSubscription` (failed-precondition dla tier != comp), grant w
+transakcji Firestore. Audyt: admin_subscription_granted/revoked +
+logAdminAction.
+**Weryfikacja:** unit 1845/1845 (nowe: login-screen 8, granty/webhook/stan),
+functions 311/311, typecheck (app + functions), lint 0 błędów, build +
+dist-smoke + bundle-budget + no-emoji, e2e auth-registration przepisane pod
+nowy układ (13/13 z admin-switch), helpery loginThroughUi w spec-ach
+emulatorowych zaktualizowane.
+**Pliki:** Login.tsx (rewrite), AdminSubscriptionCard.tsx (nowy),
+AdminDashboard/AdminUserDetail/UsersActivityTable/admin-user-types,
+functions: security.ts, registration.ts, revenuecat.ts, index.ts; lib:
+user-profile, subscription-summary, registration-api; i18n pl+en.
 
 ### 2026-08-20: Plan J — fix "Sending failed" (brakujący indeks), spójny język maili, wyślij-z-Historii, eksport CSV z zakresami
 

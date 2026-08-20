@@ -20,7 +20,8 @@ import { dateLocale, type TranslationKey } from '@/i18n';
 import { buildDailyActivitySeries, activityBadge } from '@/lib/admin-activity';
 import { useAdminUserActions } from './useAdminUserActions';
 import { AVAILABLE_FEATURES } from './admin-user-types';
-import type { ActivitySummary } from '@/lib/user-profile';
+import { AdminSubscriptionCard } from './AdminSubscriptionCard';
+import { mapSubscription, type ActivitySummary, type SubscriptionState } from '@/lib/user-profile';
 
 // Z99: szczegół usera w panelu admina. Dane on-demand po wejściu:
 // users/{uid} (1 odczyt) + app_telemetry_daily 30 dni (query userId+date, <=31)
@@ -36,6 +37,7 @@ interface DetailUser {
   status: string;
   features: Record<string, boolean>;
   activitySummary?: ActivitySummary;
+  subscription?: SubscriptionState | null;
 }
 
 interface TelemetryDailyDoc {
@@ -151,6 +153,7 @@ const AdminUserDetail = () => {
           status: String(u.status ?? 'active'),
           features: (u.features ?? {}) as Record<string, boolean>,
           activitySummary: u.activitySummary as ActivitySummary | undefined,
+          subscription: mapSubscription(u.subscription),
         } : null);
         setTelemetryDocs(telemetrySnap.docs.map((d) => d.data() as TelemetryDailyDoc));
         setPlan(planSnap.exists()
@@ -424,6 +427,23 @@ const AdminUserDetail = () => {
               disabled={user.role === 'admin'}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* SUBSKRYPCJA (2026-08-20): stan PRO + grant/revoke z panelu. */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-heading font-bold uppercase italic tracking-tight">
+            {t('subscription.section')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdminSubscriptionCard
+            uid={user.uid}
+            name={user.displayName || user.email}
+            subscription={user.subscription}
+            onChanged={(next) => setUser((prev) => prev && ({ ...prev, subscription: next }))}
+          />
         </CardContent>
       </Card>
 

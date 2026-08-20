@@ -130,18 +130,20 @@ export function resendErrorMessage(response: ResendLikeResponse): string | null 
   return response.error?.message || null;
 }
 
-// Z169: nadanie dostępu PRO przez admina (konto demo dla App Review, influencerzy,
-// rekompensaty). Czysta walidacja wejścia — zapis robi callable adminGrantSubscription.
-export type GrantTier = 'comp' | 'trial';
-
+// Z169 (przeprojektowane 2026-08-20): nadanie dostępu PRO przez admina (konto demo
+// dla App Review, influencerzy, rekompensaty). Grant jest ZAWSZE tier 'comp' — webhook
+// RevenueCat nie nadpisuje aktywnego comp, więc grant nie znika po evencie ze sklepu
+// (stary wariant 'trial' był kasowany przez EXPIRATION). Czysta walidacja wejścia —
+// zapis robi callable adminGrantSubscription.
 export interface GrantSubscriptionInput {
-  tier: GrantTier;
-  /** Liczba dni dostępu; null/undefined = bezterminowo (dozwolone tylko dla 'comp'). */
+  /** Liczba dni dostępu; null/undefined = bezterminowo. */
   days?: number | null;
+  /** ISO końca obecnego dostępu (grant albo okres ze sklepu) — dni doliczają się od tej daty. */
+  currentExpiresAt?: string | null;
 }
 
 export interface GrantSubscriptionResult {
-  tier: GrantTier;
+  tier: 'comp';
   status: 'active';
   expiresAt: string | null;
 }
@@ -153,21 +155,22 @@ export const buildGrantedSubscription = (
   input: GrantSubscriptionInput,
   now: number,
 ): GrantSubscriptionResult => {
-  if (input.tier !== 'comp' && input.tier !== 'trial') {
-    throw new Error('INVALID_TIER');
-  }
   const days = input.days ?? null;
   if (days === null) {
-    // Bezterminowy dostęp ma sens tylko jako comp — trial bez daty końca nigdy by nie wygasł.
-    if (input.tier === 'trial') throw new Error('TRIAL_REQUIRES_DAYS');
     return { tier: 'comp', status: 'active', expiresAt: null };
   }
   if (!Number.isFinite(days) || days <= 0 || days > MAX_GRANT_DAYS) {
     throw new Error('INVALID_DAYS');
   }
+  const current = input.currentExpiresAt ? Date.parse(input.currentExpiresAt) : NaN;
+  const base = Number.isFinite(current) && current > now ? current : now;
   return {
-    tier: input.tier,
+    tier: 'comp',
     status: 'active',
-    expiresAt: new Date(now + Math.round(days) * 24 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(base + Math.round(days) * 24 * 60 * 60 * 1000).toISOString(),
   };
 };
+
+/** Odebranie ręcznego grantu — wraca stan "brak subskrypcji" (płatne okresy odtworzy webhook RC). */
+export const buildRevokedSubscription = (): { tier: 'none'; status: 'none'; expiresAt: null } =>
+  ({ tier: 'none', status: 'none', expiresAt: null });

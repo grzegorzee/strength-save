@@ -32,10 +32,14 @@ export const mapSubscription = (raw: AppUserProfile['subscription']): Subscripti
   };
 };
 
-/** Czy stan z Firestore daje aktywny dostęp PRO (comp bezterminowo; reszta wg expiresAt). */
+/** Czy stan z Firestore daje aktywny dostęp PRO (comp bez expiresAt bezterminowo; reszta wg expiresAt). */
 export const isSubscriptionActive = (sub: SubscriptionState | null, now = Date.now()): boolean => {
   if (!sub) return false;
-  if (sub.tier === 'comp') return sub.status === 'active';
+  if (sub.tier === 'comp') {
+    // 2026-08-20: grant admina może mieć datę końca (+30/+90/+365 dni z panelu).
+    if (sub.status !== 'active') return false;
+    return !sub.expiresAt || new Date(sub.expiresAt).getTime() > now;
+  }
   if (sub.status !== 'active' && sub.status !== 'billing_issue') return false;
   // billing_issue = grace period — dostęp zostaje do expiresAt.
   return !!sub.expiresAt && new Date(sub.expiresAt).getTime() > now;

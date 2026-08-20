@@ -29,6 +29,7 @@ import {
   readFeatureFlags,
   resendErrorMessage,
   buildGrantedSubscription,
+  buildRevokedSubscription,
   canCreateUserProfile,
 } from "./security";
 
@@ -1334,8 +1335,9 @@ export const adminDeleteUser = onCall(async (request) => {
   return { success: true };
 });
 
-// Z169: admin nadaje dostęp PRO (comp bezterminowo albo trial na N dni). Zapis idzie
-// Admin SDK, więc nie wymaga service accountu po stronie operatora — wystarczy panel.
+// Z169 (2026-08-20): admin nadaje dostęp PRO — zawsze tier 'comp' (bezterminowo albo
+// na N dni; dni doliczają się do końca obecnego dostępu, także opłaconego okresu ze
+// sklepu). Zapis w transakcji, żeby równoległy webhook RC nie przegrał wyścigu.
 export const adminGrantSubscription = onCall(async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
   await assertAdmin(request.auth.uid);
@@ -1343,22 +1345,26 @@ export const adminGrantSubscription = onCall(async (request) => {
   if (!uid) throw new HttpsError("invalid-argument", "uid required");
 
   const rawDays = request.data?.days;
+  const days = rawDays === null || rawDays === undefined ? null : Number(rawDays);
+
+  const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
   let granted;
   try {
-    granted = buildGrantedSubscription({
-      tier: request.data?.tier === "trial" ? "trial" : "comp",
-      days: rawDays === null || rawDays === undefined ? null : Number(rawDays),
-    }, Date.now());
+    granted = await getDb().runTransaction(async (transaction) => {
+      const snap = await transaction.get(userRef);
+      if (!snap.exists) throw new HttpsError("not-found", "User not found");
+      const rawExpiresAt = snap.data()?.subscription?.expiresAt;
+      const next = buildGrantedSubscription({
+        days,
+        currentExpiresAt: typeof rawExpiresAt === "string" ? rawExpiresAt : null,
+      }, Date.now());
+      transaction.set(userRef, { subscription: { ...next, updatedAt: nowIso() } }, { merge: true });
+      return next;
+    });
   } catch (error) {
+    if (error instanceof HttpsError) throw error;
     throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "invalid input");
   }
-
-  const target = await getDb().collection(USERS_COLLECTION).doc(uid).get();
-  if (!target.exists) throw new HttpsError("not-found", "User not found");
-
-  await getDb().collection(USERS_COLLECTION).doc(uid).set({
-    subscription: { ...granted, updatedAt: nowIso() },
-  }, { merge: true });
 
   await writeAuthAuditLog({
     eventType: "admin_subscription_granted",
@@ -1376,6 +1382,41 @@ export const adminGrantSubscription = onCall(async (request) => {
   });
 
   return { success: true, subscription: granted };
+});
+
+// 2026-08-20: odebranie ręcznego grantu PRO. Działa wyłącznie na tier 'comp' —
+// płatną subskrypcją rządzi sklep (Apple/Google), panel nie ma jak jej przerwać.
+// Po revoke stan sklepowy odtworzy najbliższy webhook RC (tier 'none' nie blokuje eventów).
+export const adminRevokeSubscription = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Must be logged in");
+  await assertAdmin(request.auth.uid);
+  const uid = normalizeOptionalString(request.data?.uid, 120);
+  if (!uid) throw new HttpsError("invalid-argument", "uid required");
+
+  const userRef = getDb().collection(USERS_COLLECTION).doc(uid);
+  await getDb().runTransaction(async (transaction) => {
+    const snap = await transaction.get(userRef);
+    if (!snap.exists) throw new HttpsError("not-found", "User not found");
+    if (snap.data()?.subscription?.tier !== "comp") {
+      throw new HttpsError("failed-precondition", "ONLY_GRANTED_CAN_BE_REVOKED");
+    }
+    transaction.set(userRef, {
+      subscription: { ...buildRevokedSubscription(), updatedAt: nowIso() },
+    }, { merge: true });
+  });
+
+  await writeAuthAuditLog({
+    eventType: "admin_subscription_revoked",
+    uid: null,
+    email: null,
+    actorUid: request.auth.uid,
+    createdAt: nowIso(),
+    metadata: { targetUidHash: sanitizedIdentifierHash(uid) },
+  }).catch((error) => {
+    console.error("Failed to write revoke audit log", error);
+  });
+
+  return { success: true };
 });
 
 // Self-service usunięcie własnego konta (wymóg Apple 5.1.1(v) + Play account deletion).

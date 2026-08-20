@@ -1,6 +1,6 @@
 // Wspólne typy panelu admina (lista userów + szczegół). Wydzielone z AdminDashboard
 // w X13B, żeby UsersActivityTable/AdminUserDetail nie importowały strony (cykl).
-import type { ActivitySummary } from '@/lib/user-profile';
+import type { ActivitySummary, SubscriptionState } from '@/lib/user-profile';
 import type { TranslationKey } from '@/i18n';
 
 // Z165: opis funkcji jako KLUCZ i18n — moduł bez Reacta, tłumaczenie w miejscu renderu.
@@ -31,6 +31,8 @@ export interface AdminUser {
   cohorts: string[];
   lastLogin?: string;
   activitySummary?: ActivitySummary;
+  /** 2026-08-20: stan PRO widoczny w panelu (grant comp albo mirror ze sklepu). */
+  subscription?: SubscriptionState | null;
 }
 
 export interface AdminUserDetails {

@@ -45,7 +45,6 @@ import {
   adminSendUserEmail,
   adminResendVerification,
   adminDeleteUser,
-  adminGrantSubscription,
   type AuthAuditLogRecord,
   type InviteRecord,
   type WaitlistEntryRecord,
@@ -53,6 +52,7 @@ import {
 import { UsersActivityTable } from './UsersActivityTable';
 import { AVAILABLE_FEATURES, type AdminUser, type AdminUserDetails, type FeatureKey } from './admin-user-types';
 import { sortUsersByActivity } from '@/lib/admin-activity';
+import { mapSubscription } from '@/lib/user-profile';
 import { logAdminAction } from '@/lib/admin-audit';
 import { AdminAuditLog } from './AdminAuditLog';
 import { AdminConsentsLog } from './AdminConsentsLog';
@@ -136,8 +136,6 @@ const AdminDashboard = () => {
   const [suspendReason, setSuspendReason] = useState('');
   const [emailDialog, setEmailDialog] = useState<{ uid: string; subject: string; body: string } | null>(null);
   const [cohortsDialog, setCohortsDialog] = useState<{ uid: string; cohorts: string } | null>(null);
-  // Z169: nadanie dostępu PRO (konto recenzenta App Review, influencerzy, rekompensaty).
-  const [grantDialog, setGrantDialog] = useState<{ uid: string; name: string; days: string } | null>(null);
 
   useEffect(() => {
     const sevenDaysAgo = new Date();
@@ -215,6 +213,7 @@ const AdminDashboard = () => {
             cohorts: u.cohorts || [],
             lastLogin: u.registration?.lastLoginAt || u.lastLogin,
             activitySummary: u.activitySummary,
+            subscription: mapSubscription(u.subscription),
           });
         });
         data.sort((a, b) =>
@@ -515,36 +514,6 @@ const AdminDashboard = () => {
 
   const handleSendEmail = async (uid: string) => {
     setEmailDialog({ uid, subject: '', body: '' });
-  };
-
-  const handleGrantPro = (uid: string, name: string) => {
-    setGrantDialog({ uid, name, days: '' });
-  };
-
-  const submitGrantDialog = async () => {
-    if (!grantDialog) return;
-    const payload = grantDialog;
-    const raw = payload.days.trim();
-    const days = raw ? Number(raw) : null;
-    setGrantDialog(null);
-    try {
-      await adminGrantSubscription(payload.uid, days === null ? 'comp' : 'trial', days);
-      void logAdminAction(adminUid, {
-        action: 'grantSubscription',
-        targetUid: payload.uid,
-        detail: days === null ? 'comp' : `trial ${days}d`,
-      });
-      toast({
-        title: t('admin.grantDoneTitle'),
-        description: days === null ? t('admin.grantDoneComp') : t('admin.grantDoneTrial', { days }),
-      });
-    } catch (e) {
-      toast({
-        title: t('admin.error'),
-        description: e instanceof Error ? e.message : t('admin.grantFailed'),
-        variant: 'destructive',
-      });
-    }
   };
 
   const handleEditCohorts = async (uid: string, current: string[]) => {
@@ -903,7 +872,6 @@ const AdminDashboard = () => {
             onResetOnboarding={(uid) => void handleResetOnboarding(uid)}
             onEditCohorts={(uid, current) => void handleEditCohorts(uid, current)}
             onDeleteUser={(uid, name) => void handleDeleteUser(uid, name)}
-            onGrantPro={(uid, name) => handleGrantPro(uid, name)}
           />
         </CardContent>
       </Card>
@@ -980,30 +948,6 @@ const AdminDashboard = () => {
         <DialogFooter>
           <Button variant="outline" onClick={() => setEmailDialog(null)}>{t('common.cancel')}</Button>
           <Button onClick={() => void submitEmailDialog()} disabled={!emailDialog?.subject.trim() || !emailDialog?.body.trim()}>{t('admin.mailDialogTitle')}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <Dialog open={!!grantDialog} onOpenChange={(open) => { if (!open) setGrantDialog(null); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('admin.grantDialogTitle')}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">{grantDialog?.name}</p>
-          <p className="text-xs text-muted-foreground">{t('admin.grantDialogDesc')}</p>
-          <label htmlFor="admin-grant-days" className="text-sm font-medium">{t('admin.grantDaysLabel')}</label>
-          <Input
-            id="admin-grant-days"
-            type="number"
-            min={1}
-            value={grantDialog?.days ?? ''}
-            onChange={(event) => setGrantDialog(prev => prev ? { ...prev, days: event.target.value } : prev)}
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setGrantDialog(null)}>{t('common.cancel')}</Button>
-          <Button onClick={() => void submitGrantDialog()}>{t('admin.grantSubmit')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

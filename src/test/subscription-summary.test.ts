@@ -31,6 +31,17 @@ describe('summarizeSubscription', () => {
     })).toMatchObject({ planKey: 'subscription.comp', detailKey: 'subscription.compDesc', hasStoreSubscription: false });
   });
 
+  // 2026-08-20: grant z panelu admina może mieć datę końca — user widzi do kiedy.
+  it('comp z datą końca => PRO przyznane z untilKind expires, bez zarządzania', () => {
+    expect(summarizeSubscription({
+      isAdmin: false, isPro: true, tier: 'comp', startedAt: null, expiresAt: UNTIL,
+      subscription: sub({ tier: 'comp', expiresAt: UNTIL }),
+    })).toEqual({
+      planKey: 'subscription.comp', detailKey: null,
+      fromIso: null, untilIso: UNTIL, untilKind: 'expires', hasStoreSubscription: false,
+    });
+  });
+
   it('roczny odnawialny => zakres od-do z untilKind renews', () => {
     expect(summarizeSubscription({
       isAdmin: false, isPro: true, tier: 'yearly', startedAt: FROM, expiresAt: UNTIL,

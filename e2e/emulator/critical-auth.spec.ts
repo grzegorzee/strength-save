@@ -100,12 +100,12 @@ async function readDoc(path: string): Promise<Record<string, unknown> | null> {
 async function loginThroughUi(page: Page, email: string): Promise<void> {
   await page.goto('./#/login');
   await page.waitForLoadState('domcontentloaded');
-  await page.getByRole('tab', { name: 'Email + hasło' }).click();
-  // Na stronie jest też pole email waitlisty — zawęź do panelu logowania.
-  const panel = page.getByRole('tabpanel', { name: 'Email + hasło' });
-  await panel.getByPlaceholder('Email').fill(email);
-  await panel.getByPlaceholder('Hasło', { exact: true }).fill(PASSWORD);
-  await panel.getByRole('button', { name: 'Zaloguj przez email' }).click();
+  // Redesign 2026-08-20: email za przyciskiem "Kontynuuj z emailem" (bez zakładek).
+  await page.getByRole('button', { name: 'Kontynuuj z emailem' }).click();
+  // Na stronie jest też pole email waitlisty — formularz logowania jest pierwszy w DOM.
+  await page.getByPlaceholder('Email').first().fill(email);
+  await page.getByPlaceholder('Hasło', { exact: true }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Zaloguj przez email' }).click();
 }
 
 test.describe('Emulator critical: auth + rules', () => {

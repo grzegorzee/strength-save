@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
   Ban, BarChart3, ChevronDown, ChevronUp, Dumbbell, Loader2, Mail,
-  RotateCcw, Send, ShieldCheck, ShieldOff, Sparkles, Ticket, Trash2,
+  RotateCcw, Send, ShieldCheck, ShieldOff, Ticket, Trash2,
 } from 'lucide-react';
 import { AdminUserLogs } from '@/components/admin/AdminUserLogs';
+import { AdminSubscriptionCard } from './AdminSubscriptionCard';
+import { isSubscriptionActive } from '@/lib/user-profile';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -47,7 +49,6 @@ export interface UsersActivityTableProps {
   onResetOnboarding: (uid: string) => void;
   onEditCohorts: (uid: string, current: string[]) => void;
   onDeleteUser: (uid: string, name: string) => void;
-  onGrantPro: (uid: string, name: string) => void;
 }
 
 export const UsersActivityTable = ({
@@ -64,7 +65,6 @@ export const UsersActivityTable = ({
   onResetOnboarding,
   onEditCohorts,
   onDeleteUser,
-  onGrantPro,
 }: UsersActivityTableProps) => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
@@ -109,6 +109,11 @@ export const UsersActivityTable = ({
                   >
                     {user.status}
                   </Badge>
+                  {isSubscriptionActive(user.subscription ?? null) && (
+                    <Badge variant="outline" className="text-[10px] h-5 shrink-0 border-primary/40 bg-primary/10 text-primary">
+                      PRO
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 {/* Z98: kolumny aktywności z rollupu (brak danych = kreski). */}
@@ -153,6 +158,15 @@ export const UsersActivityTable = ({
                       disabled={user.role === 'admin'}
                     />
                   </div>
+                </div>
+
+                <div className="rounded-lg bg-muted/20 p-3 space-y-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('subscription.section')}</p>
+                  <AdminSubscriptionCard
+                    uid={user.uid}
+                    name={user.displayName || user.email}
+                    subscription={user.subscription}
+                  />
                 </div>
 
                 <div className="rounded-lg bg-muted/20 p-3 space-y-3">
@@ -261,9 +275,6 @@ export const UsersActivityTable = ({
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onResetOnboarding(user.uid)}>
                     <RotateCcw className="h-4 w-4 mr-1.5" /> {t('admin.rowResetOnboarding')}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={() => onGrantPro(user.uid, user.displayName || user.email)}>
-                    <Sparkles className="h-4 w-4 mr-1.5" /> {t('admin.rowGrantPro')}
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => onEditCohorts(user.uid, user.cohorts)}>
                     <Ticket className="h-4 w-4 mr-1.5" /> {t('admin.rowCohorts')}

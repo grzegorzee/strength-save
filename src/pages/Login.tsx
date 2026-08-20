@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { LogIn, AlertCircle, Loader2, Mail, UserPlus, Send } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Loader2, LogIn, Mail, UserPlus, Send } from 'lucide-react';
 import { createWaitlistEntry } from '@/lib/registration-api';
 import { setPendingInviteCode } from '@/lib/pending-invite';
+import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { LANGUAGES } from '@/i18n';
@@ -26,19 +25,20 @@ const AppleLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Redesign 2026-08-20 (decyzja właściciela): pierwszy ekran = Apple + Google
+// („Kontynuuj z…" tworzy konto przy pierwszym wejściu i loguje przy kolejnych),
+// email jako wyraźny przycisk niżej. Bez zakładek i osobnej strony rejestracji.
+// Zgody RODO zbiera onboarding/ConsentGate, więc social login niczego nie omija.
 const Login = ({ mode = 'login' }: LoginProps) => {
-  // Google działa na obu platformach: web przez popup, native przez plugin.
-  const supportsGoogle = true;
   const { signInWithGoogle, signInWithApple, registerWithEmail, loginWithEmail, resetPassword, error, loading } = useAuth();
-  // Apple wymaga „Sign in with Apple" gdy oferujemy inne logowanie social (Google) na iOS.
+  // Apple na KAŻDEJ platformie: konto założone przez Apple na iPhonie musi dać się
+  // zalogować na Androidzie i webie (Firebase robi flow przeglądarkowy).
   const isIOS = Capacitor.getPlatform() === 'ios';
   // Mobile: rejestracja otwarta (bramka = paywall/trial) — bez invite i bez waitlisty.
   const isNative = Capacitor.isNativePlatform();
   const { toast } = useToast();
   const { t, lang, setLang } = useTranslation();
-  const [authTab, setAuthTab] = useState<'google' | 'email'>(
-    mode === 'register' || !supportsGoogle ? 'email' : 'google'
-  );
+  const [view, setView] = useState<'social' | 'email'>('social');
   const [emailMode, setEmailMode] = useState<'login' | 'register'>(mode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,9 +52,8 @@ const Login = ({ mode = 'login' }: LoginProps) => {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   useEffect(() => {
-    setAuthTab(mode === 'register' || !supportsGoogle ? 'email' : 'google');
     setEmailMode(mode);
-  }, [mode, supportsGoogle]);
+  }, [mode]);
 
   useEffect(() => {
     const directSearch = new URLSearchParams(window.location.search);
@@ -172,6 +171,25 @@ const Login = ({ mode = 'login' }: LoginProps) => {
     );
   }
 
+  const googleButton = (
+    <Button onClick={handleGoogleLogin} className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>
+      {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <LogIn className="h-5 w-5 mr-2" />}
+      {t('login.continueGoogle')}
+    </Button>
+  );
+
+  const appleButton = (
+    <Button
+      onClick={handleAppleLogin}
+      className="w-full py-6 text-lg bg-black text-white hover:bg-black/90 border border-black"
+      size="lg"
+      disabled={isSubmitting}
+    >
+      <AppleLogo className="h-5 w-5 mr-2" />
+      {t('login.continueApple')}
+    </Button>
+  );
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-xl">
@@ -180,8 +198,8 @@ const Login = ({ mode = 'login' }: LoginProps) => {
             <img src={appIcon} alt="Strength Save" className="h-16 w-16 rounded-2xl" />
           </div>
           <CardTitle className="font-heading text-2xl">Strength Save</CardTitle>
-          {/* Wybór języka przy rejestracji: ustawia język UI i maili (kod, welcome) PRZED wysłaniem. */}
-          {isRegisterMode && (
+          {/* Wybór języka przy rejestracji email: ustawia język UI i maili (kod, welcome) PRZED wysłaniem. */}
+          {view === 'email' && isRegisterMode && (
             <div className="mt-2 flex justify-center gap-1">
               {LANGUAGES.map((l) => (
                 <Button
@@ -198,10 +216,8 @@ const Login = ({ mode = 'login' }: LoginProps) => {
             </div>
           )}
           <CardDescription>
-            {supportsGoogle
-              ? isRegisterMode
-                ? t('login.subtitle.registerGoogle')
-                : t('login.subtitle')
+            {view === 'social'
+              ? t('login.socialSubtitle')
               : isRegisterMode
                 ? t('login.subtitle.registerEmail')
                 : t('login.subtitle.loginEmail')}
@@ -220,36 +236,58 @@ const Login = ({ mode = 'login' }: LoginProps) => {
             </Alert>
           )}
 
-          <Tabs value={authTab} onValueChange={(value) => setAuthTab(value as 'google' | 'email')}>
-            <TabsList className={`grid w-full ${supportsGoogle ? 'grid-cols-2' : 'grid-cols-1'}`}>
-              {supportsGoogle && <TabsTrigger value="google">{t('login.tab.google')}</TabsTrigger>}
-              <TabsTrigger value="email">{t('login.tab.email')}</TabsTrigger>
-            </TabsList>
-
-            {supportsGoogle && (
-              <TabsContent value="google" className="pt-4">
-                <Button onClick={handleGoogleLogin} className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : isRegisterMode ? <UserPlus className="h-5 w-5 mr-2" /> : <LogIn className="h-5 w-5 mr-2" />}
-                  {isRegisterMode ? t('login.googleRegister') : t('login.google')}
+          {view === 'social' && (
+            <div className="space-y-3">
+              {/* iOS: Apple na górze (HIG nie lubi zdegradowanego przycisku Apple); reszta: Google. */}
+              {isIOS ? (
+                <>
+                  {appleButton}
+                  {googleButton}
+                </>
+              ) : (
+                <>
+                  {googleButton}
+                  {appleButton}
+                </>
+              )}
+              {/* Wyraźny, klikalny przycisk (nie mikro-link) — decyzja właściciela 2026-08-20. */}
+              <div className="pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full py-5"
+                  onClick={() => { setLocalError(null); setView('email'); }}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {t('login.continueEmail')}
                 </Button>
-                {isIOS && (
-                  <Button
-                    onClick={handleAppleLogin}
-                    className="w-full py-6 text-lg mt-3 bg-black text-white hover:bg-black/90 border border-black"
-                    size="lg"
-                    disabled={isSubmitting}
-                  >
-                    <AppleLogo className="h-5 w-5 mr-2" />
-                    {t('login.apple')}
-                  </Button>
-                )}
-                <p className="mt-3 text-xs text-center text-muted-foreground">
-                  {t('login.googleHint')}
-                </p>
-              </TabsContent>
-            )}
+              </div>
+              <p className="pt-2 text-xs text-center text-muted-foreground">
+                {t('login.legalPrefix')}{' '}
+                <a href={TERMS_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                  {t('paywall.terms')}
+                </a>{' '}
+                {t('login.legalAnd')}{' '}
+                <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                  {t('paywall.privacy')}
+                </a>
+              </p>
+            </div>
+          )}
 
-            <TabsContent value="email" className="pt-4 space-y-4">
+          {view === 'email' && (
+            <div className="space-y-4">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-2 text-muted-foreground"
+                onClick={() => { setLocalError(null); setView('social'); }}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                {t('common.back')}
+              </Button>
+
               <div className="space-y-3">
                 <Input
                   type="email"
@@ -286,24 +324,16 @@ const Login = ({ mode = 'login' }: LoginProps) => {
                   {t('login.resetPassword')}
                 </Button>
               )}
-            </TabsContent>
-          </Tabs>
 
-          <div className="rounded-lg border bg-muted/20 p-4 text-sm">
-            <p className="font-medium">
-              {isRegisterMode ? t('login.haveAccount') : t('login.noAccount')}
-            </p>
-            <p className="mt-1 text-muted-foreground">
-              {isRegisterMode
-                ? t('login.toLoginHint')
-                : t('login.toRegisterHint')}
-            </p>
-            <Button asChild variant="outline" className="mt-3 w-full">
-              <Link to={isRegisterMode ? '/login' : '/register'}>
+              <button
+                type="button"
+                className="w-full text-center text-sm text-muted-foreground underline underline-offset-2"
+                onClick={() => { setLocalError(null); setEmailMode((prev) => (prev === 'login' ? 'register' : 'login')); }}
+              >
                 {isRegisterMode ? t('login.toLogin') : t('login.toRegister')}
-              </Link>
-            </Button>
-          </div>
+              </button>
+            </div>
+          )}
 
           {!isNative && (
           <div className="rounded-lg border border-dashed p-4 space-y-3">

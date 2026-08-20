@@ -14,6 +14,7 @@ import {
   STRAVA_OAUTH_STATE_BYTES,
   STRAVA_OAUTH_STATE_TTL_MS,
   buildGrantedSubscription,
+  buildRevokedSubscription,
 } from '../../functions/src/security';
 import { isSubscriptionActive } from '@/lib/user-profile';
 
@@ -90,37 +91,46 @@ describe('functions security helpers', () => {
   });
 });
 
-// Z169: nadawanie dostępu PRO przez panel admina (odblokowuje konto demo App Review
-// bez service accountu; docelowo influencerzy i rekompensaty).
-describe('buildGrantedSubscription (Z169)', () => {
+// Z169 (przeprojektowane 2026-08-20): grant PRO z panelu — zawsze comp, dni doliczane
+// do końca obecnego dostępu (webhook RC nie kasuje aktywnego comp, patrz revenuecat.ts).
+describe('buildGrantedSubscription (Z169 / panel 2026-08-20)', () => {
   const NOW = Date.parse('2026-07-29T10:00:00.000Z');
 
-  it('comp bez dni = dostęp bezterminowy', () => {
-    expect(buildGrantedSubscription({ tier: 'comp' }, NOW)).toEqual({
+  it('bez dni = comp bezterminowo', () => {
+    expect(buildGrantedSubscription({}, NOW)).toEqual({
       tier: 'comp', status: 'active', expiresAt: null,
     });
   });
 
-  it('trial z dniami liczy expiresAt', () => {
-    expect(buildGrantedSubscription({ tier: 'trial', days: 30 }, NOW).expiresAt)
+  it('dni liczone od teraz, gdy nie ma aktywnego dostępu', () => {
+    expect(buildGrantedSubscription({ days: 30 }, NOW).expiresAt)
+      .toBe('2026-08-28T10:00:00.000Z');
+    // Wygasła data w przeszłości nie przesuwa bazy.
+    expect(buildGrantedSubscription({ days: 30, currentExpiresAt: '2026-07-01T00:00:00.000Z' }, NOW).expiresAt)
       .toBe('2026-08-28T10:00:00.000Z');
   });
 
-  it('trial bez dni odrzucony (nigdy by nie wygasł)', () => {
-    expect(() => buildGrantedSubscription({ tier: 'trial' }, NOW)).toThrow('TRIAL_REQUIRES_DAYS');
+  it('dni DOLICZANE do końca aktywnego dostępu (grant albo opłacony okres)', () => {
+    expect(buildGrantedSubscription({ days: 30, currentExpiresAt: '2026-09-10T10:00:00.000Z' }, NOW).expiresAt)
+      .toBe('2026-10-10T10:00:00.000Z');
   });
 
-  it('odrzuca zły tier i bezsensowne dni', () => {
-    expect(() => buildGrantedSubscription({ tier: 'pro' as 'comp' }, NOW)).toThrow('INVALID_TIER');
-    expect(() => buildGrantedSubscription({ tier: 'comp', days: 0 }, NOW)).toThrow('INVALID_DAYS');
-    expect(() => buildGrantedSubscription({ tier: 'comp', days: -5 }, NOW)).toThrow('INVALID_DAYS');
-    expect(() => buildGrantedSubscription({ tier: 'comp', days: 99999 }, NOW)).toThrow('INVALID_DAYS');
+  it('odrzuca bezsensowne dni', () => {
+    expect(() => buildGrantedSubscription({ days: 0 }, NOW)).toThrow('INVALID_DAYS');
+    expect(() => buildGrantedSubscription({ days: -5 }, NOW)).toThrow('INVALID_DAYS');
+    expect(() => buildGrantedSubscription({ days: 99999 }, NOW)).toThrow('INVALID_DAYS');
   });
 
   it('wynik przechodzi isSubscriptionActive (kontrakt z klientem)', () => {
-    expect(isSubscriptionActive(buildGrantedSubscription({ tier: 'comp' }, NOW), NOW)).toBe(true);
-    expect(isSubscriptionActive(buildGrantedSubscription({ tier: 'trial', days: 14 }, NOW), NOW)).toBe(true);
-    // Po wygaśnięciu trial nie daje dostępu.
-    expect(isSubscriptionActive(buildGrantedSubscription({ tier: 'trial', days: 14 }, NOW), NOW + 15 * 864e5)).toBe(false);
+    expect(isSubscriptionActive(buildGrantedSubscription({}, NOW), NOW)).toBe(true);
+    expect(isSubscriptionActive(buildGrantedSubscription({ days: 14 }, NOW), NOW)).toBe(true);
+    // Po wygaśnięciu grant nie daje dostępu.
+    expect(isSubscriptionActive(buildGrantedSubscription({ days: 14 }, NOW), NOW + 15 * 864e5)).toBe(false);
+  });
+
+  it('revoke wraca do stanu bez subskrypcji i gasi dostęp', () => {
+    const revoked = buildRevokedSubscription();
+    expect(revoked).toEqual({ tier: 'none', status: 'none', expiresAt: null });
+    expect(isSubscriptionActive(revoked, NOW)).toBe(false);
   });
 });

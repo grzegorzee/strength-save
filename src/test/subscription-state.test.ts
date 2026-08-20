@@ -40,6 +40,15 @@ describe('isSubscriptionActive', () => {
     expect(isSubscriptionActive(mapSubscription({ tier: 'comp', status: 'expired' }), NOW)).toBe(false);
   });
 
+  // 2026-08-20: grant z panelu (+30/+90/+365 dni) = comp z datą końca.
+  it('comp z przyszłym expiresAt => dostęp do daty', () => {
+    expect(isSubscriptionActive(mapSubscription({ tier: 'comp', status: 'active', expiresAt: FUTURE }), NOW)).toBe(true);
+  });
+
+  it('comp z przeszłym expiresAt => grant wygasł, brak dostępu', () => {
+    expect(isSubscriptionActive(mapSubscription({ tier: 'comp', status: 'active', expiresAt: PAST }), NOW)).toBe(false);
+  });
+
   it('active z przyszłym expiresAt => dostęp', () => {
     expect(isSubscriptionActive(mapSubscription({ tier: 'monthly', status: 'active', expiresAt: FUTURE }), NOW)).toBe(true);
   });

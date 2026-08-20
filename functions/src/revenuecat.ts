@@ -106,12 +106,26 @@ export const mapEventToSubscription = (event: RcEvent, nowIso: string): Subscrip
   }
 };
 
+/** Aktywny grant admina (comp bezterminowy albo z datą w przyszłości) jest nietykalny. */
+export const isActiveCompGrant = (
+  current: { tier?: unknown; expiresAt?: unknown } | undefined,
+  now: number,
+): boolean => {
+  if (current?.tier !== "comp") return false;
+  if (typeof current.expiresAt !== "string") return true; // bezterminowo
+  const expires = Date.parse(current.expiresAt);
+  return !Number.isFinite(expires) || expires > now;
+};
+
 /** Duplicate event IDs and events older than the committed state are harmless no-ops. */
 export const shouldApplySubscriptionEvent = (
-  current: { tier?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
+  current: { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
   next: SubscriptionWrite,
+  now: number = Date.now(),
 ): boolean => {
-  if (current?.tier === "comp") return false;
+  // 2026-08-20: comp blokuje eventy tylko póki grant trwa — po jego wygaśnięciu
+  // webhook ma odtworzyć stan sklepowy (stary warunek zamrażał comp na zawsze).
+  if (isActiveCompGrant(current, now)) return false;
   if (next.eventId && current?.eventId === next.eventId) return false;
   const currentTimestamp = typeof current?.eventTimestamp === "number" ? current.eventTimestamp : 0;
   return next.eventTimestamp >= currentTimestamp;
@@ -151,8 +165,11 @@ export const revenuecatWebhook = onRequest(
       const result = await db.runTransaction(async (transaction) => {
         const snap = await transaction.get(userRef);
         if (!snap.exists) return "no-user";
-        const current = snap.data()?.subscription as { tier?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined;
-        if (!shouldApplySubscriptionEvent(current, subscription)) return current?.tier === "comp" ? "comp" : "stale-or-duplicate";
+        const current = snap.data()?.subscription as { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined;
+        const now = Date.now();
+        if (!shouldApplySubscriptionEvent(current, subscription, now)) {
+          return isActiveCompGrant(current, now) ? "comp" : "stale-or-duplicate";
+        }
         transaction.set(userRef, { subscription }, { merge: true });
         return "applied";
       });

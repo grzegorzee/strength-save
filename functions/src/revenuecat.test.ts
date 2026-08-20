@@ -100,4 +100,19 @@ describe("mapEventToSubscription", () => {
     const event = mapEventToSubscription({ type: "RENEWAL", id: "event-1", event_timestamp_ms: 2_000 }, NOW)!;
     expect(shouldApplySubscriptionEvent(event, event)).toBe(false);
   });
+
+  // 2026-08-20: grant admina (comp) blokuje eventy TYLKO póki trwa — po wygaśnięciu
+  // webhook ma odtworzyć stan sklepowy (stary warunek zamrażał comp na zawsze).
+  it("aktywny comp (bezterminowy albo z przyszłą datą) blokuje eventy RC", () => {
+    const nowMs = Date.parse("2026-08-20T12:00:00.000Z");
+    const renewal = mapEventToSubscription({ type: "RENEWAL", id: "r-1", event_timestamp_ms: 9_000 }, NOW)!;
+    expect(shouldApplySubscriptionEvent({ tier: "comp" }, renewal, nowMs)).toBe(false);
+    expect(shouldApplySubscriptionEvent({ tier: "comp", expiresAt: "2026-09-01T00:00:00.000Z" }, renewal, nowMs)).toBe(false);
+  });
+
+  it("wygasły comp przepuszcza eventy RC (powrót do stanu sklepowego)", () => {
+    const nowMs = Date.parse("2026-08-20T12:00:00.000Z");
+    const renewal = mapEventToSubscription({ type: "RENEWAL", id: "r-2", event_timestamp_ms: 9_000 }, NOW)!;
+    expect(shouldApplySubscriptionEvent({ tier: "comp", expiresAt: "2026-08-01T00:00:00.000Z" }, renewal, nowMs)).toBe(true);
+  });
 });
