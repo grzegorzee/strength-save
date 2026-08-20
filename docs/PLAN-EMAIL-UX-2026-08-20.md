@@ -55,8 +55,10 @@
   DOWÓD (oba): commit a80c0666 — listWorkoutsInRange w deps i index.ts
   (where date >= sinceDate na polu orderBy = istniejący indeks), invalid-range
   → HttpsError invalid-argument; vitest pliku 27/27 (+4 nowe RED→GREEN).
-- [ ] Tytuł maila historii: bez liczby wysłanych „(N)" jako głównego członu —
+- [x] Tytuł maila historii: bez liczby wysłanych „(N)" jako głównego członu —
   patrz H-T4 (robione w H-T4).
+  DOWÓD: commit cb919ca6 — historyEmailSubject(workouts, lang, displayName)
+  z zakresem dat zamiast liczby.
 
 ## H-T3 — język maila z ustawień USERA (server-side)
 
@@ -76,7 +78,7 @@
 
 ## H-T4 — treść i tytuł maila (pojedynczy ORAZ historia)
 
-- [ ] TYTUŁ bez em-dash i z imieniem/nickiem usera (displayName z users doc;
+- [x] TYTUŁ bez em-dash i z imieniem/nickiem usera (displayName z users doc;
   fallback: bez imienia, nigdy "undefined"):
   - pojedynczy PL: `Trening Grega: Czwartek, 20.08.2026 (Strength Save)` —
     format: `Trening {imię w dopełniaczu? NIE — bez odmiany: }` UWAGA na
@@ -87,7 +89,7 @@
     EN analogicznie. Datę formatować per język (pl: DD.MM.RRRR, en: Mon D).
   - Test: zero znaków em-dash (—) i en-dash (–) w tytule i całym HTML
     (poza treścią notatek usera).
-- [ ] TREŚĆ pojedynczego treningu — sekcje OBOWIĄZKOWE (test na każdą):
+- [x] TREŚĆ pojedynczego treningu — sekcje OBOWIĄZKOWE (test na każdą):
   1. Nagłówek: dzień tygodnia + data + nazwa dnia (focus).
   2. Kafle podsumowania: TONAŻ, CZAS, SERIE zrobione/planowane (np. „21/24"),
      ĆWICZENIA (n), NOWE REKORDY (n; kafel tylko gdy > 0).
@@ -104,11 +106,19 @@
   5. Podsumowanie setów per ćwiczenie w nagłówku wiersza (np. „3/3 serie
      robocze + 1 rozgrzewkowa").
   6. Notatka dnia, ocena sesji.
-- [ ] TREŚĆ historii: nagłówek zbiorczy (zakres dat, liczba treningów, suma
+- [x] TREŚĆ historii: nagłówek zbiorczy (zakres dat, liczba treningów, suma
   tonażu, łączny czas, suma serii roboczych) + sekcje per trening (te same
   komponenty co pojedynczy, kompaktowo, Z rozgrzewkowymi i PR-ami per sesja).
-- [ ] Utrzymać szablon marki z G-T3 (jasny, tabelki, inline CSS, zero emoji,
+- [x] Utrzymać szablon marki z G-T3 (jasny, tabelki, inline CSS, zero emoji,
   zero AI-slopu) — to ROZSZERZENIE treści, nie nowy wygląd.
+  DOWÓD H-T4 (tytuł + treść + historia + szablon): commit cb919ca6 —
+  email-prs.ts (port detectNewPRs: weight/reps przy tym samym ciężarze/e1rm,
+  pierwszy zapis nie-PR, 9 testów), kafle z seriami zrobione/planowane
+  i kaflem Rekordy, sekcja NOWE REKORDY z poprzednią wartością, badge
+  rozgrzewkowej + wyróżnienie najlepszej serii + podsumowanie setów per
+  ćwiczenie, historia z sumą serii roboczych i PR per sesja (baseline
+  narastający); test zero em/en-dash w tytułach i HTML; 55/55 GREEN
+  (functions total 302), stare kontrakty G-T3 utrzymane.
 - [ ] Po wdrożeniu: REALNY test na g.jasionowicz@gmail.com — jeden mail
   pojedynczego treningu (fixture z PR-em i rozgrzewką przez bezpośrednie
   wywołanie buildera + wysyłkę SES kluczem z _secrets; NIE przez konta
