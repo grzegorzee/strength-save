@@ -18,7 +18,6 @@ import { parseSetCount, sanitizeSets, parseRepRange, getProgressionAdvice, getEx
 import { getExerciseAnimationUrl, getExercisePosterUrl, slugifyExercise } from '@/lib/exercise-media';
 import { resolveExerciseInterval } from '@/lib/interval-timer';
 import { buildRecordBadges, formatEst1RMBadge, formatMaxLiftBadge } from '@/lib/record-labels';
-import { RestBar } from '@/components/RestBar';
 import { loadRestSettings, resolveRestSeconds } from '@/lib/rest-timer';
 import { IntervalTimer } from './IntervalTimer';
 import { Haptics, NotificationType } from '@capacitor/haptics';
@@ -107,11 +106,10 @@ interface ExerciseCardProps {
   // Z143 (X18B): stan przerwy podniesiony do WorkoutDay — jeden timer na sesję.
   // restRun przychodzi TYLKO gdy przerwa należy do tej karty; callbacki stabilne
   // (useCallback w rodzicu), inaczej memo() padnie.
-  // Z188: kontroler niesie deadline (źródło prawdy) — karta tylko renderuje pasek.
+  // Fala 2 (2026-08-20): pasek renderuje WorkoutDay (sticky); restRun steruje
+  // już tylko przygaszeniem ukończonej karty (Z145).
   restRun?: { deadlineAt: number; totalSeconds: number; runId: number } | null;
   onRestStart?: (exerciseId: string, seconds: number) => void;
-  onRestAdjust?: (deltaSeconds: number) => void;
-  onRestStop?: () => void;
 }
 
 // Input czasu mm:ss (Z105): lokalny draft, parse dopiero na blur/Enter —
@@ -220,8 +218,6 @@ const ExerciseCardInner = ({
   onSkip,
   restRun,
   onRestStart,
-  onRestAdjust,
-  onRestStop,
 }: ExerciseCardProps) => {
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
@@ -1130,28 +1126,9 @@ const ExerciseCardInner = ({
           return renderSetRow(set, globalIndex, wi + 1, false, wi);
         })}
 
-        {/* X17C Z136.1: pasek przerwy w kontekście serii, nie jako modal kradnący
-            ekran (wzorzec Strong). Tyka sam — karta się przez niego nie re-renderuje. */}
-        {FEATURE_FLAGS.workoutTimers && isEditable && restRun && restRun.runId > 0 && (
-          <RestBar
-            deadlineAt={restRun.deadlineAt}
-            totalSeconds={restRun.totalSeconds}
-            runId={restRun.runId}
-            exerciseLabel={localizedName}
-            // Runna p.1 (spec B3): "Następne: X kg × N" w hero przerwy —
-            // pierwsza nieodhaczona seria robocza tej karty.
-            nextSetLabel={(() => {
-              const next = sets.find((set) => !set.completed && !set.isWarmup);
-              if (!next) return undefined;
-              return next.weight > 0
-                ? `${Math.round(toDisplay(next.weight) * 2) / 2} ${unit} × ${next.reps}`
-                : `× ${next.reps}`;
-            })()}
-            onSkip={() => onRestStop?.()}
-            onAdjust={(delta) => onRestAdjust?.(delta)}
-            onFinished={onRestStop}
-          />
-        )}
+        {/* Fala 2 (2026-08-20): pasek przerwy przeniesiony z karty do STICKY slotu
+            na dole ekranu (renderuje WorkoutDay). Prop restRun zostaje — steruje
+            przygaszeniem ukończonej karty (Z145). */}
 
         {/* Z129.1: „Dodaj serię" pełną szerokością bezpośrednio pod ostatnią serią —
             tam, gdzie user go szuka (wzorzec Hevy/Strong), nie w pasku akcji na dole. */}

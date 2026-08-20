@@ -479,15 +479,35 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
     // Kolejność checkmarków w karcie: [0] = rozgrzewka W, [1] = seria robocza 1.
     await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
 
-    const bar = firstCard.getByTestId('rest-bar');
+    // Fala 2 (2026-08-20): pasek jest STICKY na dole ekranu (render w WorkoutDay,
+    // poza kartą), a korekty -15/+15 mieszkają w widoku pełnoekranowym.
+    const bar = page.getByTestId('rest-bar');
     await expect(bar).toBeVisible();
-    const before = await bar.textContent();
 
-    await bar.getByRole('button', { name: '+15' }).click();
-    await expect(bar).not.toHaveText(before!);
+    await page.getByTestId('rest-bar-expand').click();
+    const fullscreen = page.getByTestId('rest-fullscreen');
+    await expect(fullscreen).toBeVisible();
+    const before = await fullscreen.textContent();
+    await fullscreen.getByRole('button', { name: '+15' }).click();
+    await expect(fullscreen).not.toHaveText(before!);
 
-    await bar.getByRole('button', { name: 'Pomiń' }).click();
-    await expect(firstCard.getByTestId('rest-bar')).toHaveCount(0);
+    await fullscreen.getByRole('button', { name: 'Pomiń' }).click();
+    await expect(page.getByTestId('rest-bar')).toHaveCount(0);
+  });
+
+  test('tap w korpus paska otwiera ustawienia timera, SKIP nie (fala 2, wymóg właściciela)', async ({ page }) => {
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).click();
+    await skipPreStartWarmupIfShown(page);
+
+    const firstCard = page.locator('.exercise-card').first();
+    await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
+
+    await expect(page.getByTestId('rest-bar')).toBeVisible();
+    await page.getByTestId('rest-bar-settings').click();
+    await expect(page.getByText('Ustawienia treningu')).toBeVisible();
   });
 
   test('tap na pasek otwiera widok pełnoekranowy', async ({ page }) => {
@@ -500,7 +520,8 @@ test.describe('Pasek przerwy w karcie (X17C Z136)', () => {
     await expect(firstCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
     await firstCard.getByRole('button', { name: 'Zaznacz serię jako zrobioną' }).nth(1).click();
 
-    await firstCard.getByTestId('rest-bar-expand').click();
+    // Fala 2: pasek sticky poza kartą — expand z page, nie z firstCard.
+    await page.getByTestId('rest-bar-expand').click();
     const fullscreen = page.getByTestId('rest-fullscreen');
     await expect(fullscreen).toBeVisible();
     // Zawężone do overlayu: „Zwiń" występuje też w nawigacji aplikacji.

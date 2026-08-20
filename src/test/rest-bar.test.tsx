@@ -1,13 +1,16 @@
-// X17C Z136: pasek przerwy inline w karcie ćwiczenia (wzorzec Strong — odliczanie
-// w kontekście, nie modal kradnący ekran). Pasek tyka SAM, żeby karta nie
-// re-renderowała się cztery razy na sekundę (kontrakt memo() z X17A).
+// X17C Z136 → Fala 2 (2026-08-20): STICKY pasek przerwy na dole ekranu sesji
+// (render w WorkoutDay zamiast inline w karcie). Pasek tyka SAM, żeby rodzic nie
+// re-renderował się cztery razy na sekundę (kontrakt memo() z X17A).
 // Z188: RestBar jest czysto prezentacyjny — deadline przychodzi propsem od
 // właściciela stanu (kontroler w WorkoutDay), ±15 idzie w górę przez onAdjust.
+// -15/+15 mieszkają w widoku pełnoekranowym (rest-bar-expand), tap w korpus
+// paska (rest-bar-settings) otwiera ustawienia timera u właściciela.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { RestBar } from '@/components/RestBar';
+import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
 import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
 
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false } }));
@@ -34,6 +37,8 @@ vi.mock('@/contexts/UserContext', () => ({
 
 // Harness = właściciel stanu (jak kontroler w WorkoutDay po Z188): trzyma deadline,
 // obsługuje onAdjust dokładnie tak jak useRestTimerController.adjustRest.
+// Fala 2: harness renderuje też WorkoutSettingsSheet (jak WorkoutDay — sheet żyje
+// u właściciela, NIEZALEŻNIE od paska; lekcja Radix b.92).
 const OwnerHarness = ({
   seconds = 90,
   runId = 1,
@@ -45,20 +50,25 @@ const OwnerHarness = ({
     deadlineAt: Date.now() + seconds * 1000,
     totalSeconds: seconds,
   }));
+  const [settingsOpen, setSettingsOpen] = useState(false);
   return (
-    <RestBar
-      deadlineAt={state.deadlineAt}
-      totalSeconds={state.totalSeconds}
-      runId={runId}
-      exerciseLabel="Przysiad"
-      nextSetLabel={nextSetLabel}
-      onSkip={onSkip}
-      onAdjust={(delta) => setState((current) => ({
-        deadlineAt: Math.max(Date.now(), current.deadlineAt + delta * 1000),
-        totalSeconds: Math.max(1, current.totalSeconds + delta),
-      }))}
-      onFinished={onFinished}
-    />
+    <>
+      <RestBar
+        deadlineAt={state.deadlineAt}
+        totalSeconds={state.totalSeconds}
+        runId={runId}
+        exerciseLabel="Przysiad"
+        nextSetLabel={nextSetLabel}
+        onSkip={onSkip}
+        onAdjust={(delta) => setState((current) => ({
+          deadlineAt: Math.max(Date.now(), current.deadlineAt + delta * 1000),
+          totalSeconds: Math.max(1, current.totalSeconds + delta),
+        }))}
+        onFinished={onFinished}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+      <WorkoutSettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </>
   );
 };
 
@@ -89,8 +99,10 @@ describe('RestBar (Z136)', () => {
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:20');
   });
 
-  it('+15 wydłuża przerwę, −15 skraca (przez onAdjust u właściciela)', () => {
+  it('+15 wydłuża przerwę, −15 skraca (przez onAdjust u właściciela; korekty w fullscreen)', () => {
     renderBar({ seconds: 60 });
+    // Fala 2: -15/+15 mieszkają w widoku pełnoekranowym (kompaktowy sticky pasek).
+    fireEvent.click(screen.getByTestId('rest-bar-expand'));
     fireEvent.click(screen.getByRole('button', { name: '+15' }));
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:15');
     fireEvent.click(screen.getByRole('button', { name: '-15' }));
@@ -126,6 +138,7 @@ describe('RestBar (Z136)', () => {
   it('zmiana czasu PRZEPLANOWUJE powiadomienie na nowy deadline', () => {
     renderBar({ seconds: 60 });
     vi.mocked(scheduleRestEndNotification).mockClear();
+    fireEvent.click(screen.getByTestId('rest-bar-expand'));
     fireEvent.click(screen.getByRole('button', { name: '+15' }));
     expect(scheduleRestEndNotification).toHaveBeenCalled();
     const [seconds] = vi.mocked(scheduleRestEndNotification).mock.calls.at(-1)!;
@@ -149,6 +162,7 @@ describe('RestBar (Z136)', () => {
           exerciseLabel="Przysiad"
           onSkip={vi.fn()}
           onAdjust={vi.fn()}
+          onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
     );
@@ -164,6 +178,7 @@ describe('RestBar (Z136)', () => {
           exerciseLabel="Przysiad"
           onSkip={vi.fn()}
           onAdjust={vi.fn()}
+          onOpenSettings={vi.fn()}
         />
       </LanguageProvider>,
     );
@@ -177,6 +192,7 @@ describe('RestBar (Z136)', () => {
       runId: 1,
       onSkip: vi.fn(),
       onAdjust: vi.fn(),
+      onOpenSettings: vi.fn(),
     };
     const { rerender } = render(
       <LanguageProvider>
@@ -206,11 +222,18 @@ describe('RestBar (Z136)', () => {
     expect(screen.getByRole('button', { name: 'Zwiń' })).toBeTruthy();
   });
 
-  it('krok 6: zębatka przy pasku otwiera arkusz ustawień treningu', () => {
+  it('fala 2 (wymóg właściciela): tap w KORPUS paska otwiera arkusz ustawień timera (długość, dźwięk, auto-start)', () => {
     renderBar({ seconds: 90 });
     fireEvent.click(screen.getByTestId('rest-bar-settings'));
     expect(screen.getByText('Ustawienia treningu')).toBeTruthy();
     expect(screen.getByText('Dźwięk timera')).toBeTruthy();
+  });
+
+  it('fala 2: tap w SKIP kończy przerwę i NIE otwiera arkusza ustawień', () => {
+    const { onSkip } = renderBar({ seconds: 90 });
+    fireEvent.click(screen.getByRole('button', { name: /Pomiń/i }));
+    expect(onSkip).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Ustawienia treningu')).toBeNull();
   });
 
   it('Z189: wyjątek sygnału końca NIE blokuje onFinished (stan zawsze posprzątany)', async () => {

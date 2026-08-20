@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Timer, Settings } from 'lucide-react';
-import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
+import { Maximize2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import {
@@ -23,13 +22,18 @@ interface RestBarProps {
   /** Zmiana wartości = START NOWEJ przerwy (wzorzec runId z IntervalTimer). */
   runId: number;
   exerciseLabel: string;
-  /** Runna p.1 (spec B3): "Następne: 80 kg × 8" w stanie hero aktywnej przerwy. */
+  /** Runna p.1 (spec B3): "Następne: 80 kg × 8" przy odliczaniu. */
   nextSetLabel?: string;
   onSkip: () => void;
   /** Z188: korekta ±15 s idzie do właściciela stanu (kontroler persystuje deadline). */
   onAdjust: (deltaSeconds: number) => void;
   /** Z143: koniec przerwy w foregroundzie — rodzic (właściciel stanu) zeruje przerwę. */
   onFinished?: () => void;
+  /** Fala 2 (2026-08-20, wymóg właściciela): tap w korpus paska otwiera ustawienia
+      timera (długość, dźwięk, auto-start). Sheet renderuje WŁAŚCICIEL (WorkoutDay),
+      NIEZALEŻNIE od restState — koniec przerwy przy otwartym sheecie nie może go
+      unmountować (lekcja Radix b.92). */
+  onOpenSettings: () => void;
 }
 
 const mmss = (total: number): string => {
@@ -39,22 +43,23 @@ const mmss = (total: number): string => {
 };
 
 /**
- * X17C Z136: pasek przerwy INLINE w karcie ćwiczenia.
+ * X17C Z136 → Fala 2 (2026-08-20): STICKY pasek przerwy na dole ekranu sesji
+ * (mockup exercise-card 2a: REST · czas · pasek postępu · SKIP), renderowany
+ * przez WorkoutDay zamiast inline w karcie ćwiczenia. -15/+15 mieszkają
+ * w widoku pełnoekranowym (ikona expand).
  *
- * Komponent tyka SAM (własny setInterval), żeby karta ćwiczenia nie re-renderowała
- * się cztery razy na sekundę — to byłby powrót re-render bomby R2-07.
+ * Komponent tyka SAM (własny setInterval), żeby rodzic nie re-renderował się
+ * cztery razy na sekundę — to byłby powrót re-render bomby R2-07.
  *
  * Źródłem prawdy jest DEADLINE z kontrolera (Z188), nie odliczane ticki: po powrocie
  * z tła (iOS wstrzymuje JS w WKWebView) pasek natychmiast pokazuje realny stan.
  * `setInterval` służy WYŁĄCZNIE do odświeżania widoku, gdy apka jest na wierzchu.
  * Sygnał końca przy zgaszonym ekranie dostarcza system (local notification).
  */
-export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSetLabel, onSkip, onAdjust, onFinished }: RestBarProps) => {
+export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSetLabel, onSkip, onAdjust, onFinished, onOpenSettings }: RestBarProps) => {
   const { t } = useTranslation();
   const [, forceTick] = useState(0);
   const [expanded, setExpanded] = useState(false);
-  // Krok 6 (spec 2026-08-11): skrót do ustawień treningowych przy pasku przerwy.
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const finishedRef = useRef(false);
   useExclusiveOverlay(expanded, () => setExpanded(false));
 
@@ -123,29 +128,28 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
 
   const label = done ? t('rest.bar.done') : mmss(left);
 
-  // Przyciski w OSOBNYM rzędzie, każdy flex-1. Wcześniej wszystko było w jednej
-  // linii z etykietą i czasem — na iPhone „Pomiń" wychodził poza kartę (zgłoszone
-  // ze zrzutu z treningu). Teraz szerokość tekstu nie ma jak rozwalić układu.
+  // Przyciski korekt w OSOBNYM rzędzie (fullscreen), każdy flex-1 — szerokość
+  // tekstu nie ma jak rozwalić układu (zgłoszenie z treningu na iPhone).
   const controls = (
     <div className="mt-2 flex items-stretch gap-1.5">
       <button
         type="button"
         onClick={() => onAdjust(-15)}
-        className="flex-1 rounded-lg bg-background/60 px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-background"
+        className="flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-surface-high"
       >
         -15
       </button>
       <button
         type="button"
         onClick={() => onAdjust(15)}
-        className="flex-1 rounded-lg bg-background/60 px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-background"
+        className="flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold tabular-nums transition-colors hover:bg-surface-high"
       >
         +15
       </button>
       <button
         type="button"
         onClick={handleSkip}
-        className="flex-1 rounded-lg bg-background/60 px-2 py-2 text-xs font-bold transition-colors hover:bg-background"
+        className="flex-1 rounded-lg bg-surface-highest px-2 py-2 text-xs font-bold transition-colors hover:bg-surface-high"
       >
         {t('rest.bar.skip')}
       </button>
@@ -155,68 +159,60 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   return (
     <>
       <div
-        className={cn(
-          'relative mt-2 overflow-hidden rounded-xl px-3 py-2.5 transition-colors',
-          done ? 'bg-fitness-success/15' : 'bg-primary/10',
-        )}
+        className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-surface-low px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         data-testid="rest-bar"
       >
-        {/* Wypełnienie postępu — granica przez tło, zero ramek (No-Line Rule). */}
-        <div
-          className="absolute inset-y-0 left-0 bg-primary/15 transition-[width] duration-200"
-          style={{ width: `${progress * 100}%` }}
-          aria-hidden="true"
-        />
-        <div className="relative">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              aria-label={t('rest.bar.expand')}
-              data-testid="rest-bar-expand"
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            >
-              <Timer className={cn('h-4 w-4 shrink-0', done ? 'text-fitness-success' : 'text-primary')} />
-              <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                {t('rest.bar.title')}
+        <div className="flex items-center gap-3">
+          {/* Korpus paska = tap-obszar ustawień timera (wymóg właściciela). */}
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            aria-label={t('rest.bar.openSettings')}
+            data-testid="rest-bar-settings"
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          >
+            <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+              {t('rest.bar.title')}
+            </span>
+            <span className="shrink-0" data-testid="rest-bar-hero">
+              <span className={cn('block font-heading text-base font-bold leading-none tabular-nums', done ? 'text-fitness-success' : 'text-primary')}>
+                {label}
               </span>
-              {/* Runna p.1 (B3): countdown w kompaktowym wierszu tylko po końcu —
-                  aktywna przerwa pokazuje go w bloku hero niżej. */}
-              {done && <span className="truncate text-xl font-bold tabular-nums text-fitness-success">{label}</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(true)}
-              aria-label={t('workout.settingsSheet.title')}
-              data-testid="rest-bar-settings"
-              className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-background/60"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-          </div>
-          {/* Runna p.1 (spec B3): aktywna przerwa rośnie do hero — wielki
-              countdown + jedna linia "Następne". Czysto prezentacyjne:
-              deadline/notyfikacje/tick nietknięte; po końcu pasek wraca
-              do zwykłego rozmiaru. */}
-          {!done && (
-            <div className="py-0.5 text-center" data-testid="rest-bar-hero">
-              {/* 2026-08-13: text-5xl zabierał pół ekranu nad kartą — zostaje duże,
-                  ale zwarte odliczanie + "Następne" w jednej, mniejszej linii. */}
-              <span className="block text-3xl font-bold tabular-nums leading-none">{label}</span>
-              {nextSetLabel && (
-                <span className="mt-0.5 block text-xs text-muted-foreground">
+              {/* Runna p.1 (B3): "Następne: X kg × N" — pierwsza nieodhaczona
+                  seria robocza ćwiczenia przerwy (liczy WorkoutDay). */}
+              {!done && nextSetLabel && (
+                <span className="mt-1 block max-w-[140px] truncate text-[10px] leading-none text-muted-foreground">
                   {t('rest.bar.next', { value: nextSetLabel })}
                 </span>
               )}
-            </div>
-          )}
-          {controls}
+            </span>
+            <span className="h-1 min-w-3 flex-1 overflow-hidden rounded-full bg-surface-highest" aria-hidden="true">
+              <span
+                className={cn('block h-full rounded-full transition-[width] duration-200', done ? 'bg-fitness-success' : 'bg-primary')}
+                style={{ width: `${progress * 100}%` }}
+              />
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            aria-label={t('rest.bar.expand')}
+            data-testid="rest-bar-expand"
+            className="shrink-0 rounded-full bg-surface-highest p-2 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="chip-mono shrink-0 font-bold text-foreground"
+          >
+            {t('rest.bar.skip')}
+          </button>
         </div>
       </div>
 
-      <WorkoutSettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
-
-      {/* Widok pełnoekranowy — duże odliczanie, gdy telefon leży obok. */}
+      {/* Widok pełnoekranowy — duże odliczanie + korekty -15/+15, gdy telefon leży obok. */}
       {expanded && (
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background/95 backdrop-blur-sm"

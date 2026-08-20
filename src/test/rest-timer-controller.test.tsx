@@ -9,6 +9,7 @@ import { useRestTimerController } from '@/hooks/useRestTimerController';
 import { hasRemainingWork, shouldStartRest } from '@/lib/workout-session-state';
 import { cancelRestEndNotification } from '@/lib/rest-notification';
 import { ExerciseCard } from '@/components/ExerciseCard';
+import { RestBar } from '@/components/RestBar';
 import type { Exercise } from '@/data/trainingPlan';
 import type { SetData } from '@/types';
 
@@ -66,6 +67,29 @@ const flushNotificationChain = async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 };
+
+// Fala 2 (2026-08-20): pasek renderuje WLASCICIEL stanu (jak WorkoutDay) — sticky,
+// jeden na sesje; karta dostaje restRun juz tylko do przygaszenia (Z145).
+// Probe rest-exercise = ktora karta wlada przerwa (pasek nie pokazuje nazwy).
+const OwnerRestBar = ({ restState, onSkip, onAdjust }: {
+  restState: { exerciseId: string; deadlineAt: number; totalSeconds: number; runId: number } | null;
+  onSkip: () => void;
+  onAdjust: (delta: number) => void;
+}) => (restState && restState.runId > 0 ? (
+  <>
+    <span data-testid="rest-exercise">{restState.exerciseId}</span>
+    <RestBar
+      deadlineAt={restState.deadlineAt}
+      totalSeconds={restState.totalSeconds}
+      runId={restState.runId}
+      exerciseLabel={[exerciseA, exerciseB].find((e) => e.id === restState.exerciseId)?.name ?? ''}
+      onSkip={onSkip}
+      onAdjust={onAdjust}
+      onFinished={onSkip}
+      onOpenSettings={() => {}}
+    />
+  </>
+) : null);
 
 describe('useRestTimerController (Z143)', () => {
   it('start przerwy dla A → stan wskazuje A', () => {
@@ -211,7 +235,7 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
   const oneSet: SetData[] = [{ reps: 5, weight: 60, completed: false }];
 
   const SequenceHarness = () => {
-    const { restState, startRest, stopRest } = useRestTimerController();
+    const { restState, startRest, adjustRest, stopRest } = useRestTimerController();
     const setsRef = useRef<Record<string, SetData[]>>({});
     const handleSetsChange = (exerciseId: string, sets: SetData[]) => {
       setsRef.current = { ...setsRef.current, [exerciseId]: sets };
@@ -233,7 +257,6 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
       onSetsChange: handleSetsChange,
       restRun: restState && restState.exerciseId === exercise.id ? restState : null,
       onRestStart: handleRestStart,
-      onRestStop: stopRest,
     });
     return (
       <MemoryRouter>
@@ -242,6 +265,7 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
             <span data-testid="run-id">{restState?.runId ?? 0}</span>
             <div data-testid="card-a"><ExerciseCard {...cardProps(exerciseA, warmupPlusTwo)} /></div>
             <div data-testid="card-b"><ExerciseCard {...cardProps(exerciseB, oneSet)} /></div>
+            <OwnerRestBar restState={restState} onSkip={stopRest} onAdjust={adjustRest} />
           </UnitProvider>
         </LanguageProvider>
       </MemoryRouter>
@@ -259,17 +283,19 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
     const cardB = view.getByTestId('card-b');
     const runId = () => Number(view.getByTestId('run-id').textContent);
 
-    // 1. Odhacz W w A → pasek 45 s w A (martwa gałąź warmupSeconds ożyła, Z187).
+    // 1. Odhacz W w A → sticky pasek 45 s, wlasnosc A (martwa gałąź warmupSeconds ożyła, Z187).
     fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
     await flushNotificationChain();
-    expect(within(cardA).getByTestId('rest-bar')).toHaveTextContent('0:45');
+    expect(view.getByTestId('rest-bar')).toHaveTextContent('0:45');
+    expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-a');
     expect(runId()).toBe(1);
 
     // 2. Odhacz pierwszą roboczą w A → pasek restartuje na 90 s (runId rośnie;
     //    w A zostaje jeszcze jedna otwarta robocza, więc to NIE koniec ćwiczenia).
     fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
     await flushNotificationChain();
-    expect(within(cardA).getByTestId('rest-bar')).toHaveTextContent('1:30');
+    expect(view.getByTestId('rest-bar')).toHaveTextContent('1:30');
+    expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-a');
     expect(runId()).toBe(2);
 
     // 3. Odhacz jedyną serię w B → przerwa przechodzi do B (koniec ćwiczenia B =
@@ -277,7 +303,8 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
     fireEvent.click(within(cardB).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
     await flushNotificationChain();
     expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
-    expect(within(cardB).getByTestId('rest-bar')).toHaveTextContent('2:30');
+    expect(view.getByTestId('rest-bar')).toHaveTextContent('2:30');
+    expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-b');
     expect(runId()).toBe(3);
     expect(pendingNotifications.size).toBe(1);
     expect(Array.from(pendingNotifications.values())[0].body).toContain('Wyciskanie sztangi');
@@ -385,8 +412,6 @@ const TwoCardsHarness = () => {
     isEditable: true,
     restRun: restState && restState.exerciseId === exercise.id ? restState : null,
     onRestStart: startRest,
-    onRestAdjust: adjustRest,
-    onRestStop: stopRest,
   });
   return (
     <MemoryRouter>
@@ -394,6 +419,7 @@ const TwoCardsHarness = () => {
         <UnitProvider>
           <div data-testid="card-a"><ExerciseCard {...cardProps(exerciseA)} /></div>
           <div data-testid="card-b"><ExerciseCard {...cardProps(exerciseB)} /></div>
+          <OwnerRestBar restState={restState} onSkip={stopRest} onAdjust={adjustRest} />
         </UnitProvider>
       </LanguageProvider>
     </MemoryRouter>
@@ -415,16 +441,15 @@ describe('jeden RestBar na sesję (Z143)', () => {
     checkFirstOpenSet(cardA);
     await flushNotificationChain();
     expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
-    expect(within(cardA).getAllByTestId('rest-bar')).toHaveLength(1);
+    expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-a');
     expect(pendingNotifications.size).toBe(1);
 
     checkFirstOpenSet(cardB);
     await flushNotificationChain();
 
-    // Dokładnie JEDEN pasek w drzewie — w karcie B; pasek A zniknął.
+    // Dokładnie JEDEN sticky pasek w drzewie — własność przechodzi na B.
     expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
-    expect(within(cardB).getAllByTestId('rest-bar')).toHaveLength(1);
-    expect(within(cardA).queryByTestId('rest-bar')).toBeNull();
+    expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-b');
 
     // Dokładnie JEDNA zaplanowana notyfikacja — dla ćwiczenia B.
     expect(pendingNotifications.size).toBe(1);
@@ -457,7 +482,6 @@ describe('jeden RestBar na sesję (Z143)', () => {
         onSetsChange: handleSetsChange,
         restRun: restState && restState.exerciseId === exercise.id ? restState : null,
         onRestStart: handleRestStart,
-        onRestStop: stopRest,
       });
       return (
         <MemoryRouter>
@@ -465,6 +489,7 @@ describe('jeden RestBar na sesję (Z143)', () => {
             <UnitProvider>
               <div data-testid="card-a"><ExerciseCard {...cardProps(exerciseA)} /></div>
               <div data-testid="card-b"><ExerciseCard {...cardProps(exerciseB)} /></div>
+              <OwnerRestBar restState={restState} onSkip={stopRest} onAdjust={() => {}} />
             </UnitProvider>
           </LanguageProvider>
         </MemoryRouter>
@@ -480,12 +505,14 @@ describe('jeden RestBar na sesję (Z143)', () => {
     await flushNotificationChain();
     checkFirstOpenSet(cardA);
     await flushNotificationChain();
-    expect(within(cardA).getAllByTestId('rest-bar')).toHaveLength(1);
+    expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
+    expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-a');
 
     // B: przedostatnia seria treningu → timer startuje (przejęty przez B).
     checkFirstOpenSet(cardB);
     await flushNotificationChain();
-    expect(within(cardB).getAllByTestId('rest-bar')).toHaveLength(1);
+    expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
+    expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-b');
     expect(pendingNotifications.size).toBe(1);
 
     // B: OSTATNIA seria ostatniego ćwiczenia → zero pasków, biegnąca przerwa
@@ -511,7 +538,6 @@ describe('jeden RestBar na sesję (Z143)', () => {
               savedSets={doneSets}
               isEditable={true}
               restRun={restRun}
-              onRestStop={() => {}}
             />
           </UnitProvider>
         </LanguageProvider>
@@ -519,11 +545,10 @@ describe('jeden RestBar na sesję (Z143)', () => {
     );
 
     // Aktywna przerwa (odliczanie przejścia do następnego ćwiczenia) → karta
-    // pełną jasnością, pasek widoczny.
+    // pełną jasnością (pasek renderuje właściciel — WorkoutDay, nie karta).
     const withRest = renderDone({ deadlineAt: Date.now() + 150_000, totalSeconds: 150, runId: 1 });
     const cardWithRest = withRest.container.querySelector('.exercise-card') as HTMLElement;
     expect(cardWithRest.className).not.toContain('opacity-50');
-    expect(within(cardWithRest).getByTestId('rest-bar')).toBeTruthy();
     withRest.unmount();
 
     // Bez przerwy → przygaszenie jak dotąd.
@@ -536,23 +561,23 @@ describe('jeden RestBar na sesję (Z143)', () => {
     const view = render(<TwoCardsHarness />);
     const cardA = view.getByTestId('card-a');
 
-    // Odhaczenie serii → timer startuje jak dotąd.
+    // Odhaczenie serii → timer startuje jak dotąd (sticky pasek u właściciela).
     checkFirstOpenSet(cardA);
     await flushNotificationChain();
-    const bar = within(cardA).getByTestId('rest-bar');
-    expect(bar).toBeTruthy();
+    expect(view.getByTestId('rest-bar')).toBeTruthy();
     expect(pendingNotifications.size).toBe(1);
     const before = Array.from(pendingNotifications.values())[0].at.getTime();
 
-    // +15 przeplanowuje notyfikację na późniejszy moment.
-    fireEvent.click(within(cardA).getByRole('button', { name: '+15' }));
+    // +15 przeplanowuje notyfikację na późniejszy moment (korekty w fullscreen).
+    fireEvent.click(view.getByTestId('rest-bar-expand'));
+    fireEvent.click(within(view.getByTestId('rest-fullscreen')).getByRole('button', { name: '+15' }));
     await flushNotificationChain();
     expect(pendingNotifications.size).toBe(1);
     const after = Array.from(pendingNotifications.values())[0].at.getTime();
     expect(after).toBeGreaterThan(before);
 
-    // Pomiń → pasek znika, zero zaplanowanych notyfikacji.
-    fireEvent.click(within(cardA).getByRole('button', { name: 'Pomiń' }));
+    // Pomiń (w fullscreen) → pasek znika, zero zaplanowanych notyfikacji.
+    fireEvent.click(within(view.getByTestId('rest-fullscreen')).getByRole('button', { name: 'Pomiń' }));
     await flushNotificationChain();
     expect(view.queryByTestId('rest-bar')).toBeNull();
     expect(pendingNotifications.size).toBe(0);

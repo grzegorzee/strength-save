@@ -77,6 +77,9 @@ import { resolveWorkoutHydration } from '@/lib/workout-hydration';
 import { draftHasLiveContent, shouldAutostartWorkout, stripAutostartParam } from '@/lib/workout-autostart';
 import { computeEffectiveDurationSec } from '@/lib/workout-duration';
 import { useRestTimerController } from '@/hooks/useRestTimerController';
+import { RestBar } from '@/components/RestBar';
+import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
+import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
@@ -269,6 +272,10 @@ const WorkoutDay = () => {
     stopRest: stopRestTimer,
     resumeFromStorage: resumeRestFromStorage,
   } = useRestTimerController();
+  // Fala 2 (2026-08-20): ustawienia timera z tapnięcia w sticky pasek REST.
+  // Stan i sheet żyją TUTAJ, niezależnie od restState — koniec przerwy przy
+  // otwartym sheecie nie może go unmountować (lekcja Radix b.92).
+  const [restSettingsOpen, setRestSettingsOpen] = useState(false);
   // Zawsze aktualna lista ćwiczeń dnia dla decyzji o przerwie (Z144) — bez
   // wiązania tożsamości handlera z obiektem day (memo kart, R2-07).
   const dayExercisesRef = useRef<ReadonlyArray<{ id: string }>>([]);
@@ -2959,8 +2966,6 @@ const WorkoutDay = () => {
               trackingType={resolveTracking(exercise.name)}
               restRun={restState && restState.exerciseId === exercise.id ? restState : null}
               onRestStart={handleRestStart}
-              onRestAdjust={adjustRestTimer}
-              onRestStop={stopRestTimer}
               {...(isWorkoutStarted && !isCompleted && !isExerciseFullyCompleted(exerciseSets[exercise.id])
                 ? { onRequestSwap: handleRequestSwap, onSkip: handleSkipExercise }
                 : {})}
@@ -3137,6 +3142,38 @@ const WorkoutDay = () => {
           </Button>
         </div>
       )}
+
+      {/* Fala 2 (2026-08-20): STICKY pasek REST na dole ekranu (mockup 2a) —
+          logika przerwy (deadline, notyfikacje, dźwięk) w RestBar bez zmian,
+          zmienił się wyłącznie rodzic renderujący. Tap w korpus paska otwiera
+          ustawienia timera (wymóg właściciela). */}
+      {FEATURE_FLAGS.workoutTimers && isWorkoutStarted && !isCompleted && restState && restState.runId > 0 && (() => {
+        const restExercise = day.exercises.find((ex) => ex.id === restState.exerciseId);
+        const nextSet = (exerciseSets[restState.exerciseId] ?? []).find((s) => !s.completed && !s.isWarmup);
+        const nextSetLabel = nextSet
+          ? (nextSet.weight > 0
+            ? `${Math.round(toDisplay(nextSet.weight) * 2) / 2} ${unit} × ${nextSet.reps}`
+            : `× ${nextSet.reps}`)
+          : undefined;
+        return (
+          <RestBar
+            deadlineAt={restState.deadlineAt}
+            totalSeconds={restState.totalSeconds}
+            runId={restState.runId}
+            exerciseLabel={restExercise ? localizeExerciseName(restExercise.name, lang) : ''}
+            nextSetLabel={nextSetLabel}
+            onSkip={stopRestTimer}
+            onAdjust={adjustRestTimer}
+            onFinished={stopRestTimer}
+            onOpenSettings={() => setRestSettingsOpen(true)}
+          />
+        );
+      })()}
+
+      {/* Sheet ustawień timera NIEZALEŻNY od restState (lekcja b.92: nigdy nie
+          unmountuj Radix Sheet w stanie open — koniec przerwy zdejmuje pasek,
+          sheet zostaje w drzewie i zamyka się wyłącznie przez open=false). */}
+      <WorkoutSettingsSheet open={restSettingsOpen} onOpenChange={setRestSettingsOpen} />
 
       {/* FIX-B T2: zawsze zamontowany overlay celebracji live PR (dane sterują). */}
       <LivePRCelebration data={livePRCelebration} onDone={() => setLivePRCelebration(null)} />
