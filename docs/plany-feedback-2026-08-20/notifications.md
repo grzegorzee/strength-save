@@ -1,0 +1,48 @@
+# Plan obszaru: notifications
+
+## Obszar
+T15: dzwonek powiadomień w headerze (koncepcja + minimalny zakres wdrożenia)
+
+## Stan istniejący
+Dzwonek już ISTNIEJE i jest dojrzały (B-T6, serwerowy inbox). Stan faktyczny: (1) UI: src/components/NotificationBell.tsx, wpięty w src/components/AppHeader.tsx:80 (każdy ekran z headerem; header ukryty na /workout/*). Kropka unread, Sheet z listą (zawsze zamontowany, lekcja builda 92), mark-all-read przy otwarciu, deepLinki, empty state. (2) Model: src/lib/user-events.ts, kolekcja Firestore user_events, deterministyczne id `${uid}-${key}` (idempotencja między urządzeniami), typy 'pr' | 'badge' | 'week' | 'plan', subskrypcja limit 50 z offline cache, markAllUserEventsRead batchem. (3) Render semantyczny per język/jednostki: src/lib/user-event-display.ts (payload, nie gotowe stringi). (4) Producenci: PR i kamienie milowe w src/pages/WorkoutDay.tsx:2186 i :2223 (deepLink /achievements); plan started/changed przez buildPlanEventEmitter w Dashboard, Cycles, NewPlan, Onboarding, TrainingPlan; KONIEC CYKLU już jest: plan ended w src/components/PlanNextStepCard.tsx:49; raport tygodnia serwerowo w functions/src/weekly-digest.ts:304 (create idempotentny, deepLink /analytics). (5) Rules: firestore.rules:527 (create klienta ograniczone do 4 typów, update tylko readAt, delete false) + composite index w firestore.indexes.json:148. (6) Testy: src/test/notification-bell.test.tsx, src/test/user-events.test.ts, functions/src/weekly-digest.test.ts. (7) i18n: klucze inbox.* w pl.ts (~896) i en.ts (~880). CZEGO BRAKUJE względem koncepcji z feedbacku: kategoria "nowe funkcje / ogłoszenia od twórcy". Admin ma broadcast push (AdminCommsCard → adminSendPush w functions/src/registration.ts:1096), ale push jest ulotny i trafia TYLKO do userów z tokenem FCM; nic nie ląduje w dzwonku. Przypomnienia o treningu istnieją jako push (functions/src/daily-reminder.ts) i celowo NIE powinny trafiać do inboxa (patrz notes).
+
+## Zadania
+
+### T1: Frontend: typ 'announcement' w inboxie (render + ikona) (effort: S)
+**Pliki:** src/lib/user-events.ts, src/lib/user-event-display.ts, src/components/NotificationBell.tsx, src/test/notification-bell.test.tsx
+
+**Podejście:**
+1) src/lib/user-events.ts: rozszerz UserEventType o 'announcement' (klient go tylko CZYTA, nigdy nie tworzy; nie dodawaj helpera klucza po stronie klienta). 2) src/lib/user-event-display.ts: w describeUserEvent dodaj case 'announcement' zwracający { title: str(p.title), body: str(p.body) }. Świadomie bez t(): treść pisze admin w jednym języku, payload niesie gotowy tekst (wyjątek od zasady semantycznego payloadu, skomentuj to w kodzie). 3) src/components/NotificationBell.tsx: do TYPE_ICONS dodaj announcement: Megaphone (import z lucide-react); fallback Info i tak by zadziałał, ale jawne mapowanie jest czytelniejsze. 4) Zero zmian w montowaniu Sheet, subskrypcji i mark-all-read.
+
+**Testy:**
+Rozszerz src/test/notification-bell.test.tsx (istniejący wzór mockowania user-events i emitEvents): nowy it 'renderuje announcement z payload.title/body' emitujący event({ type: 'announcement', key: 'announcement-1755640000000', payload: { title: 'Nowość: eksport CSV', body: '...' } }) i asertujący oba teksty. Drugi it: announcement bez deepLink nie jest klikalny (brak role=button). npm run typecheck.
+
+**Ryzyka:**
+Union UserEventType jest używany w rules-testach i funkcjach tylko nominalnie, ale sprawdź grep po 'UserEventType' czy żaden switch bez default nie przestanie się kompilować. NIE zmieniaj firestore.rules: lista typów create dla klienta zostaje ['pr','badge','week','plan'], to niezmiennik bezpieczeństwa (użytkownik nie może sfabrykować ogłoszenia; admin SDK omija rules). Nie ruszaj wzorca 'Sheet zawsze zamontowany' (lekcja builda 92).
+
+### T2: Backend: mirror ogłoszenia push do inboxa user_events (adminSendPush) (effort: M)
+**Pliki:** functions/src/announcement-events.ts, functions/src/announcement-events.test.ts, functions/src/registration.ts
+
+**Podejście:**
+1) Nowy mały moduł functions/src/announcement-events.ts z czystą funkcją buildAnnouncementEvents(uids: string[], input: { title: string; body: string; now: number }) zwracającą listę { uid, event } gdzie event = { type: 'announcement', key: `announcement-${now}`, payload: { title, body }, deepLink: null }. JEDEN wspólny klucz per broadcast (now liczony RAZ w onCall, nie per uid): retry tego samego wywołania nie dubluje (create + already-exists), a dwa różne ogłoszenia mają różne klucze. 2) W functions/src/registration.ts w adminSendPush: przyjmij opcjonalne pole request.data.inbox (boolean, default true dla kanału push). PO wysyłce FCM i cleanupie tokenów zapisz eventy przez forEachWithConcurrency (functions/src/bounded-concurrency.ts, wzór daily-reminder) do WSZYSTKICH eligibleUserIds z targetu (nie tylko posiadaczy tokenów; to jest wartość mirrora: user bez pusha zobaczy ogłoszenie w dzwonku). Zapis wzorem weekly-digest.ts:304: db.collection('user_events').doc(`${uid}-${key}`).create({ v: 1, userId, type, key, payload, deepLink: null, createdAt: now, readAt: null }) z tolerancją kodu 6 / 'already-exists'. Całość w try/catch per uid, best-effort. 3) Do zwracanego obiektu dodaj pole inboxWritten (licznik) BEZ zmiany istniejących pól sent/failed/total/invalidTokens.
+
+**Testy:**
+Nowy functions/src/announcement-events.test.ts wg wzoru functions/src/weekly-digest.test.ts (describe 'producent zdarzenia inboxa'): (a) wszystkie uid dostają TEN SAM klucz w jednym broadcast, (b) dwa wywołania z różnym now dają różne klucze, (c) payload przenosi title/body, deepLink null, (d) pusta lista uid = zero eventów. cd functions && npm test. Ręcznie po deployu: broadcast do cohorty testowej, sprawdź dokumenty user_events w konsoli Firestore i dzwonek na koncie testowym.
+
+**Ryzyka:**
+NIEZMIENNIK (zasada 5): wynik i przebieg wysyłki push nie mogą się zmienić; mirror wykonuj PO pushu, błąd zapisu inboxa nie może rzucić HttpsError ani zmienić sent/failed. Koszt zapisów: broadcast 'all' = N dokumentów; bounded concurrency 10 jak w daily-reminder, akceptowalne przy obecnej skali, przy tysiącach userów rozważyć batched writes (nie teraz, simplicity first). Kolekcja user_events nie ma delete (rules delete: false) i rośnie; query limit 50 chroni klienta, ale zanotuj w DECYZJE.md ewentualny TTL na przyszłość. Deploy functions binem bezpośrednio (rtk psuje npx, lekcja z pamięci projektu).
+
+### T3: Panel admina: przełącznik 'zapisz też w dzwonku' + klient API + i18n (effort: S)
+**Pliki:** src/components/admin/AdminCommsCard.tsx, src/lib/registration-api.ts, src/i18n/locales/pl.ts, src/i18n/locales/en.ts
+
+**Podejście:**
+1) src/lib/registration-api.ts:351: rozszerz input adminSendPush o inbox?: boolean i typ odpowiedzi o inboxWritten?: number. 2) src/components/admin/AdminCommsCard.tsx: stan inbox (default true), checkbox/toggle widoczny TYLKO gdy channel==='push', umieszczony między polami treści a przyciskiem wysyłki; przekaż inbox w wywołaniu adminSendPush; w resultText dopisz liczbę wpisów inboxa gdy inboxWritten w odpowiedzi. 3) Nowe klucze i18n (OBA pliki, inaczej typecheck padnie): 'admin.commsInboxToggle' ('Zapisz też w dzwonku aplikacji' / 'Also save to in-app inbox') i rozszerzenie 'admin.commsDelivered' o wariant z inboxem albo osobny klucz 'admin.commsInboxWritten' ('Wpisy w dzwonku: {n}' / 'Inbox entries: {n}'). Klucze wpisz obok istniejącej sekcji admin.comms* (pl.ts ~1940).
+
+**Testy:**
+Komponentowy test wzorem src/test/admin-emails-card.test.tsx: (a) checkbox widoczny przy kanale push, niewidoczny przy email, (b) wysyłka przekazuje inbox: true/false do zamockowanego adminSendPush. Sprawdź czy src/test/admin-i18n-scan.test.ts przechodzi (skan hardcoded stringów w adminie: nowy tekst MUSI iść przez t()). npm run test, npm run typecheck, npm run lint.
+
+**Ryzyka:**
+NIEZMIENNIK: istniejący przepływ wysyłki email i push bez checkboxa działa identycznie (default inbox=true tylko dla push; email w ogóle nie wysyła pola). AlertDialog potwierdzenia nie ruszaj (wzorzec zamykania już poprawny). Kolory statusów wg zasady 8 CLAUDE.md gdyby toggle dostawał tło statusowe (tło z /10, tekst pełny). Stary klient functions z nowym webem: pole inbox ignorowane przez starą funkcję, brak crasha; nowy functions ze starym webem: inbox undefined = default true, świadomie OK.
+
+## Notatki
+KONCEPCJA (zgodna z wizją: zero social, gamifikacja wokół realnego progresu). Dzwonek = "inbox postępu i planu": (a) PR-y [JEST], (b) kamienie milowe [JEST], (c) raport tygodnia [JEST], (d) zdarzenia planu: start / zmiana / koniec cyklu [JEST], (e) ogłoszenia od twórcy: nowe funkcje, ważne zmiany [BRAKUJE, to jedyny sensowny nowy zakres]. Decyzja koncepcyjna do zapisania w DECYZJE.md: przypomnienia o treningu ZOSTAJĄ wyłącznie pushem (daily-reminder); w inboxie po treningu byłyby szumem i podważały wartość kropki unread (inbox to zapis osiągnięć i zmian, nie TODO). Żadnych leaderboardów, feedów, aktywności innych osób. Kolejność wdrożenia: T1 (frontend render) → T2 (backend mirror) → T3 (admin UI); deploy web PRZED pierwszym użyciem ogłoszeń przez admina (fallback describeUserEvent i tak wyrenderuje payload.title, więc stary klient nie pęknie, ale porządek deploy web → functions eliminuje okno z surowym renderem). Po wdrożeniu: checklista z CLAUDE.md (test/typecheck/lint/build, deploy web przez npm run deploy, functions deploy binem bezpośrednio bo rtk psuje npx, wpis do DECYZJE.md). Scenariusz ręczny: wyślij ogłoszenie z panelu admina do cohorty testowej, sprawdź kropkę i treść na drugim koncie, otwórz dzwonek, kropka znika, powtórna wysyłka tej samej treści nie dubluje wpisu.
