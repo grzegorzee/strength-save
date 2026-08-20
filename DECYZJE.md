@@ -11,6 +11,34 @@
 
 ## DECYZJE
 
+### 2026-08-20: Kalendarz zakresów booking-style (T20, feedback użytkownika)
+
+**Co:** Własny lekki `RangeCalendar` (`src/components/ui/range-calendar.tsx`
++ czysta logika `src/lib/date-range-select.ts`) zamiast react-day-picker /
+shadcn Calendar — zero nowych zależności (pułapka zasady 9: vite re-optimize
+po `npm i`, plus bundle-budget). Semantyka Booking: klik = początek, drugi
+klik = koniec, klik przed początkiem RESTARTUJE początek (bez błędu
+„koniec przed początkiem"; walidacja w `vacation-mode.ts` zostaje jako
+bezpiecznik). Dni pomiędzy podświetlone `bg-primary/15` (token akcentu,
+zasada 8), krańce `bg-primary`. Tydzień ZAWSZE od poniedziałku, także przy
+en (spójnie z logiką tygodni w apce). Nazwy miesięcy/dni przez
+`Intl.DateTimeFormat(dateLocale(lang))` — język APKI, nie systemu (T18).
+
+**Wdrożone w:** VacationDialog (inline, zamiast dwóch inputów date; presety
+7/14/21 i walidacja MIN 3/MAX 21 bez zmian), ExportWorkoutsDialog (inline
+dla kind='custom'; `exportRangeBounds` nietknięte), filtr Historii
+(`DateRangeField` = trigger + Popover + Wyczyść, zasada 6: filtr ma wyjście).
+Podczas wyboru drugiego końca (to=null) zapis urlopu zablokowany z hintem
+`range.pickEnd` — zero stale summary.
+
+**Root cause zmiany:** feedback pierwszego użytkownika 2026-08-20 (T20):
+dwa natywne inputy date to słaby UX wyboru zakresu na telefonie.
+
+**Weryfikacja:** vitest (date-range-select, range-calendar, date-range-field,
+vacation-dialog po przejściu na kliki, workout-export-range jako regresja),
+typecheck, lint, build, e2e export-csv-dialog.spec.ts (chromium) po świeżym
+vite. Testy ręczne na urządzeniu = krok właściciela przy wydaniu.
+
 ### 2026-08-20: Wydanie — kolor w onboardingu, nowa paleta 11, social-first login (iOS 112 / AAB v27)
 
 **Co:** (1) Plan I (agent w worktree, merge do main): wybór koloru aplikacji
