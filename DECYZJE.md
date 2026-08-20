@@ -5,11 +5,47 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (D-RELEASE: web live B7Kq8hoP, iOS 107 TF, AAB v22; plan audytu 2026-08-19 DOMKNIĘTY)
+**Ostatnia aktualizacja:** 2026-08-20 (E-RELEASE: web live B2BKTGWX, iOS 108 TF, AAB v23; bugi z realnego treningu na 107)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: E-RELEASE — bugi zgłoszone z realnego treningu na buildzie 107
+
+**Co:** Wydanie E (E-T1..E-T5, plan `docs/PLAN-BUGI-2026-08-20.md`): PR-y sesji
+liczone z danych zamiast ulotnego stanu (share/ekran ukończony po remont pokazują
+rekordy; e395cc52), share card z tonażem I czasem razem na każdym szablonie +
+lista ćwiczeń w karcie + podgląd mieszczący się na ekranie + fix zdublowanego
+dnia tygodnia (b3f54e47), komunikat "Trening został zapisany pomyślnie" (1394f274),
+kafel Pozostało liczy TRENINGI z honorowaniem skip/urlop/przełożeń (6b31e0af),
+Historia cache-first — pierwsza strona z lokalnego cache natychmiast (fe7fee18).
+
+**Artefakty:** web LIVE `index-B2BKTGWX.js` (markery E zweryfikowane git grepem
+na origin/gh-pages i curlem live); iOS 1.0.0(108) TestFlight: VALID, obie grupy
+(pierwsze podpięcie HTTP 500 po stronie Apple, fallback testflight_external
+dopiął 204+204), whatsNew 200, Beta App Review APPROVED; AAB versionCode 23
+`jar verified` SHA `c7cb043b6337b2372cd17172dd29891c5a9d063743f525ca2850b604f5c0e4f6`
+(upload Play = właściciel); Garmin bez zmian źródeł; backend nietknięty.
+Następny build iOS = 109, versionCode = 24.
+
+**Weryfikacja natywna:** świeży build emulatorowy w iPhone 17 Pro Max Simulator,
+konto demo na LOKALNYCH emulatorach Auth/Firestore, przeklikane przez idb:
+login → trening 100 kg × 5 → finish → share (story TONNAGE i TIME, obie metryki,
+lista ćwiczeń, dialog w całości na ekranie) → Plan (1 COMPLETED / 11 REMAINING)
+→ Historia (natychmiastowe malowanie). Zrzuty w scratchpadzie sesji.
+
+**INCYDENT (posprzątany):** seed QA uruchomiony bez env emulatorów poszedł przez
+ADC na PRODUKCJĘ (syntetyczne konto admin z hasłem 123456 + 2 dokumenty).
+Zweryfikowano brak szkody dla realnych userów (uid utworzony w tej sesji,
+lastSignIn null), wszystko usunięte (deleteUser + delete docs, potwierdzone
+user-not-found). Bezpiecznik: seed twardo wymaga FIREBASE_AUTH_EMULATOR_HOST
+i FIRESTORE_EMULATOR_HOST (04b99342). Lekcja: skrypty admin SDK NIGDY bez
+jawnego celu; `| tail` maskuje exit code bramek (nie łączyć przy go/no-go).
+
+**Bramki:** vitest 1787/1787, pełne e2e 398/398 (świeży vite), typecheck, lint,
+build, bundle-budget/dist-smoke/dist-offline/no-emoji GREEN.
+
 
 ### 2026-08-20: D-RELEASE — wydanie D, domknięcie planu audytu 2026-08-19
 
