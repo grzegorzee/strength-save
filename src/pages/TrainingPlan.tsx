@@ -590,35 +590,33 @@ const TrainingPlan = () => {
                 const workoutItem = dayItems.find(i => i.type === 'workout') as Extract<TimelineItem, { type: 'workout' }> | undefined;
                 const stravaItems = dayItems.filter(i => i.type === 'strava') as Extract<TimelineItem, { type: 'strava' }>[];
 
-                const hasDayCard = Boolean(trainingItem || workoutItem);
                 return (
                   <div key={dateStr} className="mb-3">
-                    {/* Fala 2: gdy dzień ma kartę treningu, nazwę dnia i datę niesie
-                        karta — nagłówek redukuje się do rzędu akcji. Pełna etykieta
-                        zostaje tylko dla dni bez karty (samo cardio). */}
-                    <div className="flex items-center justify-between mb-1.5 px-1">
-                      {hasDayCard ? <span aria-hidden /> : (
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
-                          <span className="capitalize sm:hidden">{dayName.short}</span>
-                          <span className="capitalize hidden sm:inline">{dayName.long}</span>, {dateLabel}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-3">
+                    {/* Naprawa r1 (2026-08-21, sędzia funkcji): rząd akcji dnia
+                        ZAWSZE z etykietą dnia (bez niej trzy identyczne rzędy
+                        pływały bez informacji, którego dnia dotyczą), kolor /70
+                        zamiast /40 (wyglądały jak wyłączone) i tap-target 44px. */}
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                        <span className="capitalize sm:hidden">{dayName.short}</span>
+                        <span className="capitalize hidden sm:inline">{dayName.long}</span>, {dateLabel}
+                      </span>
+                      <div className="flex items-center gap-2">
                         {/* Z112: wpis cardio na wybranym dniu (także wstecz) */}
                         <button
                           onClick={(e) => { e.stopPropagation(); setCardioDialog({ open: true, edit: null, defaultDate: dateStr }); }}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground/40 hover:text-primary transition-colors"
+                          className="flex min-h-11 items-center gap-1 px-1.5 text-[11px] text-muted-foreground/70 hover:text-primary transition-colors"
                           data-testid={`add-cardio-day-${dateStr}`}
                         >
-                          <HeartPulse className="h-3 w-3" />
+                          <HeartPulse className="h-3.5 w-3.5" />
                           {t('cardio.addShort')}
                         </button>
                         {trainingItem && (
                           <button
                             onClick={(e) => { e.stopPropagation(); navigate('/plan/edit'); }}
-                            className="flex items-center gap-1 text-[11px] text-muted-foreground/40 hover:text-primary transition-colors"
+                            className="flex min-h-11 items-center gap-1 px-1.5 text-[11px] text-muted-foreground/70 hover:text-primary transition-colors"
                           >
-                            <Pencil className="h-3 w-3" />
+                            <Pencil className="h-3.5 w-3.5" />
                             {t('trainingplan.edit')}
                           </button>
                         )}

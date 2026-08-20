@@ -85,16 +85,19 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
             {t('dayplan.badgeSkipped')}
           </span>
         )}
+        {/* Naprawa r1 (2026-08-21, sędzia funkcji): play WEWNĄTRZ badge NASTĘPNY
+            (brief: "wypełniony akcent + play" w JEDNYM badge) — samodzielny glif
+            między realnymi przyciskami ikon afordował nieistniejącą akcję. */}
         {showNext && (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-primary text-primary-foreground shrink-0">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-primary text-primary-foreground shrink-0">
+            <Play className="h-3 w-3 fill-current" aria-hidden />
             {t('dayplan.badgeNext')}
           </span>
         )}
 
-        {/* Ikona statusu (mockup: check neutralny / play akcentowy) */}
+        {/* Ikona statusu (mockup: check neutralny) */}
         {isCompleted && <Check className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />}
         {isMissed && <XCircle className="h-4 w-4 text-destructive shrink-0" aria-hidden />}
-        {showNext && <Play className="h-4 w-4 text-primary fill-current shrink-0" aria-hidden />}
 
         {/* Przełożenie treningu */}
         {onReschedule && (
@@ -122,15 +125,17 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
         )}
       </div>
 
-      {/* Fala 2: pasek obciążenia dnia (tylko realne dane; brak tonażu = brak paska) */}
-      {typeof loadPercent === 'number' && (
+      {/* Fala 2: pasek obciążenia dnia (tylko realne dane; brak tonażu = brak paska).
+          Naprawa r1 (2026-08-21): karta NASTĘPNY zawsze dostaje TOR paska
+          (mockup: każda karta dnia kończy się paskiem — wspólna anatomia kart). */}
+      {(typeof loadPercent === 'number' || showNext) && (
         <div
           aria-label={t('trainingplan.dayLoadAria')}
           className="h-1 rounded-full bg-surface-highest overflow-hidden"
         >
           <div
             className={cn("h-full rounded-full", (showNext || isCompletedToday) ? "bg-primary" : "bg-primary/40")}
-            style={{ width: `${Math.max(0, Math.min(100, loadPercent))}%` }}
+            style={{ width: `${Math.max(0, Math.min(100, loadPercent ?? 0))}%` }}
           />
         </div>
       )}
