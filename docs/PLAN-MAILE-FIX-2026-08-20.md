@@ -53,16 +53,20 @@ callable oddaje 'internal', klient pokazuje generyczne
 
 **Zgłoszenie:** mail EN miał polskie nazwy ćwiczeń, "Czwartek", "Góra B".
 
-- [ ] Functions mają gotowe słowniki digestu: `localizeExerciseNameEn`
+- [x] Functions mają gotowe słowniki digestu: `localizeExerciseNameEn`
   (exercise-name-en.ts) i `localizeFocusEn` (focus-en.ts). Przy lang=en
   email-workout przepuszcza przez nie: nazwy ćwiczeń, dayFocus; dayName typu
   "Czwartek/Poniedziałek..." tłumaczyć słownikiem dni tygodnia (7 wpisów PL→EN
   w email-workout), a custom dayName (np. "Góra B" jako nazwa dnia) przez
   localizeFocusEn — jeśli słownik nie zna, zostaje oryginał (nazwa własna
   usera; NIE wymyślać tłumaczeń). Przy lang=pl nic nie ruszać (kanonicznie PL).
-- [ ] Test: workout z polskimi nazwami przy lang=en → HTML bez "Czwartek",
+  DOWÓD: commit 885c9383 (localizeEmailWorkout + DAY_NAME_EN; tłumaczenie
+  przed detekcją PR, więc sekcje rekordów też EN).
+- [x] Test: workout z polskimi nazwami przy lang=en → HTML bez "Czwartek",
   z "Incline Barbell Press"/odpowiednikami ze słownika; nieznana nazwa
   zostaje; lang=pl bez zmian. Data już jest formatowana per język (jest OK).
+  DOWÓD: 4 nowe testy w email-workout.test.ts (RED 3 -> GREEN), suite
+  50/50 passed, tsc functions 0.
 
 ## J-T4 — last30 czytelnie: mail-przegląd + załącznik CSV (moja decyzja
 na "zdecyduj co lepsze i wdróż")
