@@ -74,23 +74,35 @@ na "zdecyduj co lepsze i wdróż")
 **Problem:** 30 pełnych sekcji treningów w HTML to ściana; właściciel sugeruje
 CSV. DECYZJA: hybryda.
 
-- [ ] Mail `last30` (i każdy > 7 treningów): zamiast pełnych sekcji per trening
+- [x] Mail `last30` (i każdy > 7 treningów): zamiast pełnych sekcji per trening
   — nagłówek zbiorczy (jak dotąd) + TABELA-przegląd: wiersz na trening (data,
   dzień, tonaż, czas, serie robocze, liczba PR) + ZAŁĄCZNIK CSV z pełnym
   detalem serii. Mail `week` (typowo 2-5 treningów) zostaje z pełnymi sekcjami
   + też dostaje załącznik CSV (spójnie).
-- [ ] CSV (jeden format, moduł `functions/src/workout-csv.ts` z testami):
+  DOWÓD: commit a197c2e6 (HISTORY_FULL_SECTIONS_MAX=7, historyOverviewTableHtml,
+  nota o CSV w mailu); testy RED->GREEN w email-workout.test.ts.
+- [x] CSV (jeden format, moduł `functions/src/workout-csv.ts` z testami):
   nagłówki EN techniczne (date, day, focus, exercise, set_no, set_type
   [warmup/working], weight_kg, reps, completed, rpe, pain, exercise_note,
   day_note, session_rating, tonnage_kg, duration_sec, prs). Escapowanie CSV
   (przecinki/cudzysłowy/nowe linie), UTF-8 z BOM (Excel), separator przecinek.
-- [ ] Załączniki wymagają RAW MIME: SES `SendEmailCommand` z `Content.Raw`
+  DOWÓD: commit 04ce129d (workout-csv.ts + 5 testów: nagłówki, escapowanie,
+  BOM, CRLF, puste pola).
+- [x] Załączniki wymagają RAW MIME: SES `SendEmailCommand` z `Content.Raw`
   (zbudować multipart/mixed: HTML + text/csv attachment; bez nowych zależności
   — składanie MIME ręcznie w module z testami granicznymi) ; fallback Resend
   wspiera `attachments` w API — dodać. Transport zachowuje metadane
   (sesMessageId) i email_log/eventy jak dotąd.
-- [ ] Test realny: wysyłka week i last30 na g.jasionowicz@gmail.com z
+  DOWÓD: commity email-mime (6 testów granicznych) + a197c2e6 (SES Raw przy
+  załącznikach, Simple bez; Resend attachments z Buffer). Vitest functions
+  322 passed, tsc 0.
+- [x] Test realny: wysyłka week i last30 na g.jasionowicz@gmail.com z
   załącznikami (fixtures syntetyczne, nie realne konta) — MessageId do raportu.
+  DOWÓD: scripts/send-test-history-email.mjs; week lang=en MessageId
+  010701a01f306979-0f75c476-8667-4831-8c75-ee42501beb1a-000000, last30
+  lang=pl (8 sesji, przegląd) MessageId
+  010701a01f306a41-53c2c930-573c-468f-917f-4324a9914368-000000. Oba z
+  załącznikiem strength-save-workouts_*.csv przez SES Content.Raw.
 
 ## J-T5 — eksport treningów CSV w aplikacji (Ustawienia → Dane)
 
