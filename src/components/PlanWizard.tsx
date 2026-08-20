@@ -401,6 +401,8 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                   })}
                 </div>
                 {/* Z233: kalendarz jako pełnowymiarowa kontrolka, nie podpis — natywny date picker po tapnięciu. */}
+                {/* TODO(T2): goły input type="date" pokazuje datę w formacie SYSTEMU (allowlista guardu
+                    date-locale-scan). Krok przerabia T2 — wtedy przejść na LocalizedDateInput i zdjąć wpis. */}
                 <label className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-surface-highest px-4 py-3 cursor-pointer">
                   <Calendar className="h-4 w-4 text-primary shrink-0" />
                   <span className="flex-1 text-[13px] font-medium">{t('ob.protocol.specificDate')}</span>

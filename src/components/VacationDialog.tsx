@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
@@ -95,10 +95,9 @@ export const VacationDialog = ({
                   <label htmlFor="vac-start" className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
                     {t('vac.start')}
                   </label>
-                  <Input
+                  <LocalizedDateInput
                     id="vac-start"
                     data-testid="vac-start"
-                    type="date"
                     min={todayISO}
                     value={startISO}
                     onChange={(e) => {
@@ -113,10 +112,9 @@ export const VacationDialog = ({
                   <label htmlFor="vac-end" className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
                     {t('vac.end')}
                   </label>
-                  <Input
+                  <LocalizedDateInput
                     id="vac-end"
                     data-testid="vac-end"
-                    type="date"
                     min={startISO}
                     value={endISO}
                     onChange={(e) => setEndISO(e.target.value || endISO)}

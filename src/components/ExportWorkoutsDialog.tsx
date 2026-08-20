@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import { buildWorkoutsCsv } from '@/lib/workout-csv';
 import {
   exportFileName,
@@ -197,15 +197,13 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
         )}
         {kind === 'custom' && (
           <div className="grid grid-cols-2 gap-2">
-            <Input
-              type="date"
+            <LocalizedDateInput
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
               aria-label={t('exportCsv.rangeCustom')}
               data-testid="export-custom-from"
             />
-            <Input
-              type="date"
+            <LocalizedDateInput
               value={customTo}
               onChange={(e) => setCustomTo(e.target.value)}
               aria-label={t('exportCsv.rangeCustom')}

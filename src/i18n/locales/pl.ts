@@ -13,6 +13,7 @@ export const pl = {
   'common.loading': 'Ładowanie...',
   'common.loadMore': 'Załaduj więcej',
   'common.results': 'wyników',
+  'dateInput.pick': 'Wybierz datę',
 
   // nawigacja
   'nav.dashboard': 'Dashboard',

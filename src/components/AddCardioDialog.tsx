@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -158,7 +159,7 @@ export const AddCardioDialog = ({ open, onOpenChange, defaultDate, editActivity,
           </div>
           <div>
             <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('cardio.date')}</p>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} data-testid="cardio-date" />
+            <LocalizedDateInput value={date} onChange={(e) => setDate(e.target.value)} data-testid="cardio-date" />
           </div>
         </div>
 

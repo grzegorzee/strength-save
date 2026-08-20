@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -237,10 +238,10 @@ const WorkoutHistory = () => {
             </div>
           )}
 
-          {/* Zakres dat */}
+          {/* Zakres dat — T18-1: etykieta w języku apki, wartość ISO bez zmian */}
           <div className="grid grid-cols-2 gap-2">
-            <Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} aria-label={t('history.dateRange')} />
-            <Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} aria-label={t('history.dateRange')} />
+            <LocalizedDateInput value={fromDate} onChange={(event) => setFromDate(event.target.value)} aria-label={t('history.dateRange')} />
+            <LocalizedDateInput value={toDate} onChange={(event) => setToDate(event.target.value)} aria-label={t('history.dateRange')} />
           </div>
         </CardContent>
       </Card>

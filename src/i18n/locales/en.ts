@@ -13,6 +13,7 @@ export const en: Record<keyof typeof pl, string> = {
   'common.loading': 'Loading...',
   'common.loadMore': 'Load more',
   'common.results': 'results',
+  'dateInput.pick': 'Pick a date',
 
   'nav.dashboard': 'Dashboard',
   'nav.today': 'Today',
