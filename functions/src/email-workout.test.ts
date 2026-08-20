@@ -451,3 +451,66 @@ describe("szablon marki (G-T3)", () => {
     expect(html).toContain("2 h 1 min");
   });
 });
+
+describe("J-T3: mail w 100% jednym języku", () => {
+  // Kanoniczne dane są PL — przy lang=en tłumaczymy słownikami digestu:
+  // nazwy ćwiczeń, dayFocus, dayName (dni tygodnia + custom przez focus).
+  const plWorkout = (over: Partial<EmailWorkout> = {}) => workout({
+    exercises: [
+      { exerciseId: "ex-1", name: "Wyciskanie sztangi na skosie", sets: [{ reps: 5, weight: 100, completed: true }] },
+      { exerciseId: "ex-2", name: "Moje własne cudo", sets: [{ reps: 8, weight: 40, completed: true }] },
+    ],
+    ...over,
+  });
+  const base = { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" } as const;
+
+  it("lang=en: dayName Czwartek -> Thursday, dayFocus Góra B -> Upper B, nazwy ze słownika, nieznana zostaje", async () => {
+    const d = deps({
+      getWorkout: vi.fn(async () => plWorkout()),
+      getUserContext: vi.fn(async () => ({ language: "en" })),
+    });
+    expect(await runEmailWorkout(d, base)).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).not.toContain("Czwartek");
+    expect(html).toContain("Thursday");
+    expect(html).not.toContain("Góra B");
+    expect(html).toContain("Upper B");
+    expect(html).toContain("Incline Barbell Press");
+    expect(html).not.toContain("Wyciskanie sztangi na skosie");
+    expect(html).toContain("Moje własne cudo");
+  });
+
+  it("lang=en: custom dayName (Góra B jako nazwa dnia) przez słownik focusu", async () => {
+    const d = deps({
+      getWorkout: vi.fn(async () => plWorkout({ dayName: "Góra B", dayFocus: undefined })),
+      getUserContext: vi.fn(async () => ({ language: "en" })),
+    });
+    expect(await runEmailWorkout(d, base)).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("Upper B");
+  });
+
+  it("lang=pl: kanoniczne dane bez zmian", async () => {
+    const d = deps({
+      getWorkout: vi.fn(async () => plWorkout()),
+      getUserContext: vi.fn(async () => ({ language: "pl" })),
+    });
+    expect(await runEmailWorkout(d, base)).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).toContain("Czwartek");
+    expect(html).toContain("Góra B");
+    expect(html).toContain("Wyciskanie sztangi na skosie");
+  });
+
+  it("historia lang=en: sekcje treningów bez polskich nazw", async () => {
+    const d = deps({
+      listWorkoutsInRange: vi.fn(async (_uid: string, opts: { beforeDate?: string }) => (opts.beforeDate ? [] : [plWorkout()])),
+      getUserContext: vi.fn(async () => ({ language: "en" })),
+    });
+    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).not.toContain("Czwartek");
+    expect(html).toContain("Upper B");
+    expect(html).toContain("Incline Barbell Press");
+    expect(html).toContain("Moje własne cudo");
+  });
+});

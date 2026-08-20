@@ -3,6 +3,8 @@
 // callable w index.ts skleja Firestore + transport (SES z fallbackiem Resend).
 import { esc, type Lang } from "./email-templates";
 import { detectEmailPRs, type EmailPR } from "./email-prs";
+import { localizeExerciseNameEn } from "./exercise-name-en";
+import { localizeFocusEn } from "./focus-en";
 
 export interface EmailSet {
   reps?: number;
@@ -163,6 +165,31 @@ const historyDateRangeLabel = (workouts: EmailWorkout[], lang: Lang): string => 
   const last = dates[dates.length - 1] ?? "";
   if (!first || first === last) return fmtDateLang(last || first, lang);
   return t(lang, `${fmtDateLang(first, "pl")} do ${fmtDateLang(last, "pl")}`, `${fmtDateLang(first, "en")} to ${fmtDateLang(last, "en")}`);
+};
+
+// J-T3: mail w 100% jednym języku. Kanoniczne dane są PL — przy lang=en
+// tłumaczymy słownikami digestu (nazwy ćwiczeń, focus) i dniami tygodnia.
+// Nieznana nazwa zostaje (nazwa własna usera; NIE wymyślamy tłumaczeń).
+const DAY_NAME_EN: Record<string, string> = {
+  "Poniedziałek": "Monday",
+  "Wtorek": "Tuesday",
+  "Środa": "Wednesday",
+  "Czwartek": "Thursday",
+  "Piątek": "Friday",
+  "Sobota": "Saturday",
+  "Niedziela": "Sunday",
+};
+
+export const localizeEmailWorkout = (workout: EmailWorkout, lang: Lang): EmailWorkout => {
+  if (lang !== "en") return workout;
+  return {
+    ...workout,
+    ...(workout.dayName ? { dayName: DAY_NAME_EN[workout.dayName] ?? localizeFocusEn(workout.dayName) } : {}),
+    ...(workout.dayFocus ? { dayFocus: localizeFocusEn(workout.dayFocus) } : {}),
+    ...(workout.exercises
+      ? { exercises: workout.exercises.map((ex) => (ex.name ? { ...ex, name: localizeExerciseNameEn(ex.name) } : ex)) }
+      : {}),
+  };
 };
 
 /** H-T4: tytuł bez pauz, z imieniem usera (fallback: bez imienia, nigdy "undefined"). */
@@ -450,6 +477,8 @@ export async function runEmailWorkout(
   if (workout.userId !== params.uid) return { ok: false, code: "forbidden" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
   const { lang, displayName } = await resolveUserContext(deps, params.uid, params.lang);
+  // J-T3: tłumaczenie PRZED detekcją PR — nazwy w sekcji rekordów idą z sesji.
+  const localized = localizeEmailWorkout(workout, lang);
   // H-T4: baseline PR z wcześniejszych treningów; awaria odczytu = mail bez sekcji rekordów.
   let earlier: EmailWorkout[] = [];
   try {
@@ -457,9 +486,9 @@ export async function runEmailWorkout(
   } catch {
     // Sekcja PR jest dodatkiem: mail ma wyjść mimo braku bazy.
   }
-  const { prs } = detectEmailPRs(workout, earlier.filter((w) => w.id !== workout.id));
-  const subject = workoutEmailSubject(workout, lang, displayName);
-  const response = await deps.sendEmail(params.to, subject, buildWorkoutEmailHtml(workout, lang, { prs }));
+  const { prs } = detectEmailPRs(localized, earlier.filter((w) => w.id !== workout.id));
+  const subject = workoutEmailSubject(localized, lang, displayName);
+  const response = await deps.sendEmail(params.to, subject, buildWorkoutEmailHtml(localized, lang, { prs }));
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "workout", workoutId: workout.id, subject, lang }, response);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
@@ -501,6 +530,8 @@ export async function runEmailHistory(
   if (workouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
   const { lang, displayName } = await resolveUserContext(deps, params.uid, params.lang);
+  // J-T3: tłumaczenie PRZED detekcją PR — nazwy w sekcjach rekordów idą z sesji.
+  const localizedWorkouts = workouts.map((w) => localizeEmailWorkout(w, lang));
   // H-T4: PR-y per sesja — baseline sprzed zakresu, potem narastająco sesje zakresu.
   const rangeIds = new Set(workouts.map((w) => w.id));
   const oldestDate = workouts.map((w) => w.date).sort()[0];
@@ -512,12 +543,12 @@ export async function runEmailHistory(
   }
   let accumulated = baseline.filter((w) => !rangeIds.has(w.id));
   const prsBySession: Record<string, EmailPR[]> = {};
-  for (const session of [...workouts].sort((a, b) => (a.date < b.date ? -1 : 1))) {
+  for (const session of [...localizedWorkouts].sort((a, b) => (a.date < b.date ? -1 : 1))) {
     prsBySession[session.id] = detectEmailPRs(session, accumulated).prs;
     accumulated = [...accumulated, session];
   }
-  const subject = historyEmailSubject(workouts, lang, displayName);
-  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(workouts, lang, { prsBySession }));
+  const subject = historyEmailSubject(localizedWorkouts, lang, displayName);
+  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession }));
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
