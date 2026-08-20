@@ -22,20 +22,26 @@
 
 ## H-T1 — klient: widoczny button + wybór zakresu
 
-- [ ] Ukończony trening (WorkoutDay, completed view): zamiast samej ikony
+- [x] Ukończony trening (WorkoutDay, completed view): zamiast samej ikony
   koperty PEŁNY przycisk z tekstem `Wyślij do trenera` (PL) / `Send to coach`
   (EN), ikona Mail + label; układ rzędu akcji ma się mieścić na 390px
   (Udostępnij + Wyślij do trenera + Wróć — jeśli ciasno, przenieś „Wróć do
   dashboardu" pod spód albo ułóż 2+1; sprawdzić zrzutem 390x844).
-- [ ] Historia: przycisk `Wyślij do trenera` otwiera dialog z WYBOREM ZAKRESU
+- [x] Historia: przycisk `Wyślij do trenera` otwiera dialog z WYBOREM ZAKRESU
   (radio/chipy): `Ostatni tydzień` (7 ostatnich dni włącznie z dziś) /
   `Ostatnie 30 treningów`. Żadnej opcji „wszystko/200".
-- [ ] EmailWorkoutDialog: tryb 'workout' bez zmian logiki (tylko copy),
+- [x] EmailWorkoutDialog: tryb 'workout' bez zmian logiki (tylko copy),
   tryb 'history' dostaje selektor zakresu (domyślnie: ostatni tydzień);
   wysyłka przekazuje `range: 'week' | 'last30'` do callable.
-- [ ] i18n PL+EN dla wszystkich nowych stringów. E2e: przycisk widoczny
+- [x] i18n PL+EN dla wszystkich nowych stringów. E2e: przycisk widoczny
   z tekstem na ukończonym treningu (rozszerzyć session-prs-remount.spec albo
   dedykowany spec), dialog historii ma dwie opcje zakresu.
+  DOWÓD H-T1 (cała sekcja): commit 27824943 — układ 2+1 zweryfikowany
+  zrzutem 390x844 (rząd Udostępnij+Wyślij do trenera mieści się, Wróć pod
+  spodem); chipy radio week/last30 (aria-checked, default week);
+  sendHistoryEmail(to, lang, range); vitest dialogu 7/7 (RED: default week
+  + wybór last30), e2e email-coach-button.spec 2/2 (completed view bez
+  selektora, historia z dwiema opcjami), typecheck/lint/no-emoji OK.
 
 ## H-T2 — functions: zakresy historii i twarde limity
 
