@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, RefreshCw, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,10 @@ import type { PlanNextStepAction } from '@/lib/plan-next-step';
 // renderuje akcje: kontynuuj (primary/secondary path), powtórz (onRepeat),
 // przygotuj kolejny (path new-plan). Koniec planu emituje idempotentne
 // zdarzenie inboxa (klucz po startDate — dwa urządzenia = jeden wpis).
+//
+// Fala 2 (2026-08-20): wariant `banner` (Dashboard) = kompaktowy wiersz z
+// obrysem akcentu i pigułką "Zdecyduj", która ROZWIJA pełny zestaw akcji
+// (te same przyciski co wariant card). Plan/Cykle zostają na `card`.
 
 const TONE_CLASSES: Record<PlanNextStepAction['tone'], string> = {
   primary: 'border-primary/40 bg-primary/5',
@@ -32,14 +36,18 @@ interface PlanNextStepCardProps {
   /** Dashboard: karta znika per plan; Plan/Cykle renderują ją zawsze. */
   onDismiss?: () => void;
   testId?: string;
+  /** `card` (default) = pełna karta; `banner` = kompaktowy wiersz z "Zdecyduj". */
+  variant?: 'card' | 'banner';
 }
 
 export const PlanNextStepCard = ({
   step, uid, planStartDate, canRepeat, isRepeating = false, onRepeat, onDismiss, testId,
+  variant = 'card',
 }: PlanNextStepCardProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const planEnded = step.state === 'closeout' || step.state === 'ended';
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     // B-T6/C-T4: zdarzenie "plan dobiegł końca" — emisja idempotentna
@@ -55,6 +63,76 @@ export const PlanNextStepCard = ({
     }
   }, [planEnded, planStartDate, uid]);
 
+  const actions = (
+    <div className="flex flex-col gap-2 sm:flex-row">
+      <Button onClick={() => navigate(step.primaryPath)}>
+        {step.primaryLabel}
+      </Button>
+      {step.secondaryPath && step.secondaryLabel ? (
+        <Button variant="outline" onClick={() => navigate(step.secondaryPath!)}>
+          {step.secondaryLabel}
+        </Button>
+      ) : null}
+      {planEnded && canRepeat && onRepeat ? (
+        <Button variant="outline" data-testid="plan-next-repeat" onClick={onRepeat} disabled={isRepeating}>
+          {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+          {t('cycles.repeatPlan')}
+        </Button>
+      ) : null}
+    </div>
+  );
+
+  const badges = step.badges.length > 0 ? (
+    <div className="flex flex-wrap gap-2">
+      {step.badges.map((badge) => (
+        <Badge key={badge} variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold">
+          {badge}
+        </Badge>
+      ))}
+    </div>
+  ) : null;
+
+  if (variant === 'banner') {
+    return (
+      <div
+        data-testid={testId ?? 'plan-next-step'}
+        className="rounded-2xl border border-primary/40 bg-surface-low p-3 pl-4"
+      >
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">{step.title}</p>
+            <p className="line-clamp-2 text-xs text-muted-foreground">{step.description}</p>
+          </div>
+          {!expanded && (
+            <button
+              type="button"
+              data-testid="plan-next-decide"
+              onClick={() => setExpanded(true)}
+              className="h-11 shrink-0 rounded-full bg-primary/15 px-4 text-sm font-semibold text-primary"
+            >
+              {t('dash.nextStep.decide')}
+            </button>
+          )}
+          {onDismiss && (
+            <button
+              onClick={onDismiss}
+              aria-label={t('dash.dismissHint')}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {expanded && (
+          <div className="mt-3 space-y-3">
+            {badges}
+            {actions}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <Card data-testid={testId ?? 'plan-next-step'} className={TONE_CLASSES[step.tone]}>
       <CardContent className="p-5 space-y-4">
@@ -67,13 +145,7 @@ export const PlanNextStepCard = ({
             <p className="text-sm text-muted-foreground">{step.description}</p>
           </div>
           <div className="flex items-start gap-2">
-            <div className="flex flex-wrap gap-2">
-              {step.badges.map((badge) => (
-                <Badge key={badge} variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[10px] font-semibold">
-                  {badge}
-                </Badge>
-              ))}
-            </div>
+            {badges}
             {onDismiss && (
               <button
                 onClick={onDismiss}
@@ -85,22 +157,7 @@ export const PlanNextStepCard = ({
             )}
           </div>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button onClick={() => navigate(step.primaryPath)}>
-            {step.primaryLabel}
-          </Button>
-          {step.secondaryPath && step.secondaryLabel ? (
-            <Button variant="outline" onClick={() => navigate(step.secondaryPath!)}>
-              {step.secondaryLabel}
-            </Button>
-          ) : null}
-          {planEnded && canRepeat && onRepeat ? (
-            <Button variant="outline" data-testid="plan-next-repeat" onClick={onRepeat} disabled={isRepeating}>
-              {isRepeating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              {t('cycles.repeatPlan')}
-            </Button>
-          ) : null}
-        </div>
+        {actions}
       </CardContent>
     </Card>
   );
