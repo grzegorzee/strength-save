@@ -642,6 +642,35 @@ service cloud.firestore {
                     && hasSelfAccess(resource.data.userId);
     }
 
+    // Notatka przypięta do DNIA treningu (T10, feedback 2026-08-20): zamknięty
+    // schemat, doc id deterministyczny `${userId}_${dateISO}`, pełny CRUD tylko
+    // właściciel, odczyt dodatkowo admin.
+    function validWorkoutDayNoteShape() {
+      return request.resource.data.keys().hasOnly([
+        'userId', 'date', 'note', 'updatedAt'
+      ])
+      && request.resource.data.userId is string
+      && request.resource.data.date is string
+      && request.resource.data.date.size() == 10
+      && request.resource.data.note is string
+      && request.resource.data.note.size() <= 500
+      && request.resource.data.updatedAt is int;
+    }
+
+    match /workout_day_notes/{noteId} {
+      allow read: if request.auth != null
+                  && (isAdmin() || resource == null || hasSelfAccess(resource.data.userId));
+      allow create: if userIdMatchesAuth()
+                    && hasSelfAccess(request.resource.data.userId)
+                    && validWorkoutDayNoteShape();
+      allow update: if request.auth != null
+                    && hasSelfAccess(resource.data.userId)
+                    && keepsOwner()
+                    && validWorkoutDayNoteShape();
+      allow delete: if request.auth != null
+                    && hasSelfAccess(resource.data.userId);
+    }
+
     // Ręczne wpisy cardio (Z111): zamknięty schemat, CRUD tylko właściciel.
     // Jednostki kanoniczne: metry, sekundy. Osobna kolekcja od strava_activities (sync nadpisuje swoją).
     function validManualActivityShape() {

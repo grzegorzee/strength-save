@@ -975,6 +975,11 @@ export const en: Record<keyof typeof pl, string> = {
   'notes.pinnedPlaceholder': 'Technique, grip, cues...',
   'notes.machineLabel': 'Machine settings',
   'notes.machinePlaceholder': 'e.g. seat 4, pin 8',
+  // workout day note (T10, feedback 2026-08-20)
+  'daynote.title': 'Note for this workout',
+  'daynote.add': 'Add a note',
+  'daynote.placeholder': 'What to bring, what to try, what to remember...',
+  'daynote.futureHint': "(you'll see it when you start the workout)",
   'common.edit': 'Edit',
   'history.details': 'Details',
   'history.emptyNoWorkouts': 'You have no saved workouts yet.',

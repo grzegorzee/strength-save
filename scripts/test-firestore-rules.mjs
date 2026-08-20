@@ -463,6 +463,24 @@ add('exercise_notes: read admin ALLOWED', true, await ok(() => getDoc(doc(adminD
 add('exercise_notes: delete wlasnej ALLOWED', true, await ok(() => deleteDoc(doc(db, 'exercise_notes', `${UID}_przysiad-ze-sztanga`))));
 add('exercise_notes: delete cudzej DENIED', false, await ok(() => deleteDoc(doc(otherDb, 'exercise_notes', `${UID}_x4`))));
 
+// === Workout day notes (T10, feedback 2026-08-20): notatka do DNIA treningu ===
+const validDayNote = {
+  userId: UID, date: '2026-08-21', note: 'wziac pas, sprobowac 80 kg', updatedAt: Date.now(),
+};
+add('workout_day_notes: create wlasnej ALLOWED', true, await ok(() => setDoc(doc(db, 'workout_day_notes', `${UID}_2026-08-21`), validDayNote)));
+add('workout_day_notes: create z cudzym userId DENIED', false, await ok(() => setDoc(doc(db, 'workout_day_notes', `${OTHER_UID}_2026-08-21`), { ...validDayNote, userId: OTHER_UID })));
+add('workout_day_notes: pole spoza schematu DENIED', false, await ok(() => setDoc(doc(db, 'workout_day_notes', `${UID}_x1`), { ...validDayNote, evil: 1 })));
+add('workout_day_notes: note 501 znakow DENIED', false, await ok(() => setDoc(doc(db, 'workout_day_notes', `${UID}_x2`), { ...validDayNote, note: 'x'.repeat(501) })));
+add('workout_day_notes: date nie-ISO (9 znakow) DENIED', false, await ok(() => setDoc(doc(db, 'workout_day_notes', `${UID}_x3`), { ...validDayNote, date: '2026-8-21' })));
+add('workout_day_notes: druga wlasna ALLOWED', true, await ok(() => setDoc(doc(db, 'workout_day_notes', `${UID}_2026-08-24`), { ...validDayNote, date: '2026-08-24' })));
+add('workout_day_notes: overwrite wlasnej (setDoc) ALLOWED', true, await ok(() => setDoc(doc(db, 'workout_day_notes', `${UID}_2026-08-21`), { ...validDayNote, note: 'nowa notatka' })));
+add('workout_day_notes: update ze zmiana userId DENIED', false, await ok(() => setDoc(doc(db, 'workout_day_notes', `${UID}_2026-08-21`), { ...validDayNote, userId: OTHER_UID })));
+add('workout_day_notes: read wlasnej ALLOWED', true, await ok(() => getDoc(doc(db, 'workout_day_notes', `${UID}_2026-08-21`))));
+add('workout_day_notes: read cudzej DENIED', false, await ok(() => getDoc(doc(otherDb, 'workout_day_notes', `${UID}_2026-08-21`))));
+add('workout_day_notes: read admin ALLOWED', true, await ok(() => getDoc(doc(adminDb, 'workout_day_notes', `${UID}_2026-08-21`))));
+add('workout_day_notes: delete wlasnej ALLOWED', true, await ok(() => deleteDoc(doc(db, 'workout_day_notes', `${UID}_2026-08-21`))));
+add('workout_day_notes: delete cudzej DENIED', false, await ok(() => deleteDoc(doc(otherDb, 'workout_day_notes', `${UID}_2026-08-24`))));
+
 // === Garmin (Z125): kody parowania i tokeny urzadzen tylko dla Admin SDK ===
 add('device_pair_codes: read klienta DENIED (Z125)', false, await ok(() => getDoc(doc(db, 'device_pair_codes', 'jakis-hash'))));
 add('device_pair_codes: write klienta DENIED (Z125)', false, await ok(() => setDoc(doc(db, 'device_pair_codes', 'jakis-hash'), { uid: UID, expiresAt: Date.now() })));

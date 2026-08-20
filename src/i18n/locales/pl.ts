@@ -995,6 +995,11 @@ export const pl = {
   'notes.pinnedPlaceholder': 'Technika, uchwyt, wskazówki...',
   'notes.machineLabel': 'Ustawienia maszyny',
   'notes.machinePlaceholder': 'np. siedzisko 4, pin 8',
+  // notatka do dnia treningu (T10, feedback 2026-08-20)
+  'daynote.title': 'Notatka do tego treningu',
+  'daynote.add': 'Dodaj notatkę',
+  'daynote.placeholder': 'Co wziąć, co spróbować, o czym pamiętać...',
+  'daynote.futureHint': '(zobaczysz ją przy starcie treningu)',
   'common.edit': 'Edytuj',
   'history.details': 'Szczegóły',
   'history.emptyNoWorkouts': 'Nie masz jeszcze zapisanych treningów.',

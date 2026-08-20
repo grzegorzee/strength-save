@@ -42,6 +42,9 @@ import { exerciseLibrary, type LibraryExercise } from '@/data/exerciseLibrary';
 import { formatDurationSec, getTrackingType, type TrackingType } from '@/lib/set-tracking';
 import { useCustomExercises } from '@/hooks/useCustomExercises';
 import { useExerciseNotes } from '@/hooks/useExerciseNotes';
+import { useWorkoutDayNotes } from '@/hooks/useWorkoutDayNotes';
+import { WorkoutDayNoteSection } from '@/components/WorkoutDayNoteSection';
+import { shouldShowNoWorkoutCard } from '@/lib/workout-day-notes';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { dateLocale } from '@/i18n';
 import type { SetData, ExerciseMetrics, WorkoutSessionRating, WorkoutSessionRatingReason } from '@/types';
@@ -184,6 +187,9 @@ const WorkoutDay = () => {
   const { cycles, isLoaded: cyclesLoaded } = usePlanCycles(uid);
   // Przypięte notatki per ćwiczenie (Z103): trwałe, klucz = kanoniczna nazwa.
   const { getPinnedNote, savePinnedNote } = useExerciseNotes(uid);
+  // T10: notatka przypięta do DNIA treningu (planowanie przyszłej sesji) —
+  // OSOBNA kolekcja, nie dayNotes draftu (nie mieszać z notatką PO treningu).
+  const { getDayNote, saveDayNote } = useWorkoutDayNotes(uid);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const today = formatLocalDate(new Date());
@@ -194,6 +200,8 @@ const WorkoutDay = () => {
   // Z122: true gdy zegarek zgłosił aktywną sesję HKWorkout w tym treningu.
   const watchHkSessionRef = useRef(false);
   const isViewingPastWorkout = targetDate !== today;
+  // T10: przyszły trening z planu (porównanie stringów ISO = chronologia).
+  const isFutureDate = targetDate > today;
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [exerciseSets, setExerciseSets] = useState<Record<string, SetData[]>>({});
@@ -2882,8 +2890,9 @@ const WorkoutDay = () => {
         onToggle={toggleWarmupItem}
       />
 
-      {/* Past date without workout */}
-      {!isWorkoutStarted && isViewingPastWorkout && (
+      {/* Past date without workout — T10: tylko daty PRZESZŁE (dla przyszłego
+          treningu z planu karta "brak zapisanego treningu" była myląca). */}
+      {shouldShowNoWorkoutCard({ isWorkoutStarted, targetDateISO: targetDate, todayISO: today }) && (
         <Card className="bg-muted/30">
           <CardContent className="py-8 text-center">
             <p className="text-muted-foreground">{t('workout.noWorkoutForDate')}</p>
@@ -2892,6 +2901,19 @@ const WorkoutDay = () => {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* T10: notatka do dnia treningu — pełna edycja dla przyszłej daty
+          (planowanie), widoczna i edytowalna też dziś przed startem i w trakcie
+          (ten widok renderuje się tylko dla !isCompleted). Daty przeszłe bez
+          sekcji (tam obowiązuje karta noWorkoutForDate). */}
+      {(isFutureDate || !isViewingPastWorkout) && (
+        <WorkoutDayNoteSection
+          dateISO={targetDate}
+          dayNote={getDayNote(targetDate)}
+          onSave={saveDayNote}
+          showFutureHint={isFutureDate}
+        />
       )}
 
       {/* Today without workout - show start button (nigdy na ukończonym treningu) */}
