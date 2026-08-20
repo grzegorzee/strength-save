@@ -12,29 +12,32 @@
 
 ## I-T1 — nowa paleta ACCENTS (jedno źródło: Profil + onboarding)
 
-- [ ] `src/lib/accent-theme.ts`: ACCENTS = limonka (default, pierwsza, brand)
+- [x] `src/lib/accent-theme.ts`: ACCENTS = limonka (default, pierwsza, brand)
   + 10 kolorów wg wzoru właściciela (hexy docelowe, HSL policzyć):
   sky `#29b6f6`, indigo `#5865f2`, violet `#8b5cf6`, lavender `#b478f1`,
   magenta `#d946ef`, rose `#f43f5e`, amber `#f5a623`, emerald `#10b981`,
   slate `#64748b`, gray `#8e8e93`. lightHsl/lightHex per kolor (jak dotąd:
   jaśniejszy wariant do gradientu CTA).
-- [ ] KONTRAST: automatyczny foreground per luminancja dla WSZYSTKICH akcentów
-  (dziś tylko custom): ciemniejsze (indigo, emerald, slate, gray, violet...)
-  dostają `--primary-foreground`/`--accent-foreground` = 0 0% 98%; jasne
-  zostają z ciemnym tekstem. Wspólna ścieżka w applyAccent (nie hardcodować
-  listy — liczyć z hexa; próg jak dziś 0.3, sprawdzić wizualnie indigo/emerald
-  i ewentualnie skorygować próg globalnie, nie per kolor).
-- [ ] WSTECZNA KOMPATYBILNOŚĆ: userzy mają zapisane stare id (cyan, orange,
-  pink, purple, blue, red, gold) w localStorage i preferences.accentColor —
-  mapa aliasów w getAccentById: cyan→sky, blue→sky, purple→lavender,
-  pink→magenta, red→rose, orange→amber, gold→amber. Nieznane id = limonka
-  (jak dotąd). Testy na każdy alias.
-- [ ] Profil pokazuje nową paletę automatycznie (ACCENTS to jedno źródło;
-  siatka flex-wrap pomieści 11 kropek + custom — sprawdzić zrzutem 390x844).
-- [ ] Testy accent-theme: paleta 11, unikalne id, limonka default, aliasy,
-  foreground per luminancja (indigo → jasny, amber → ciemny), custom hex
-  bez regresji; istniejące testy (np. cyan '187 86% 53%') zaktualizować do
-  nowych wartości ŚWIADOMIE (to zmiana kontraktu palety, nie przypadek).
+  DOWÓD: commit 25c48110, test "paleta: dokładnie hexy wg wzoru właściciela".
+- [x] KONTRAST: wspólna ścieżka w applyAccent liczy foreground z luminancji
+  hexa dla WSZYSTKICH akcentów. Próg skorygowany GLOBALNIE 0.3 → 0.28 na
+  podstawie policzonych kontrastów: lavender (lum 0.2949) z białym tekstem
+  miał 2.9:1, z ciemnym 6.1:1; emerald (0.3639) zostaje przy ciemnym
+  (7.3:1 vs 2.4:1 białego). Jasny foreground (0 0% 98%) dostają: indigo,
+  violet, magenta, rose, slate, gray. DOWÓD: commit 25c48110, testy
+  "ciemne akcenty palety..." i "jasne akcenty palety...". Wizualnie
+  potwierdzone zrzutami w I-RELEASE.
+- [x] WSTECZNA KOMPATYBILNOŚĆ: mapa LEGACY_ACCENT_ALIASES w getAccentById
+  (cyan→sky, blue→sky, purple→lavender, pink→magenta, red→rose,
+  orange→amber, gold→amber), nieznane id = limonka. Testy it.each na
+  każdy alias + boot z zapisanym 'cyan'. DOWÓD: commit 25c48110.
+- [x] Profil pokazuje nową paletę automatycznie (ACCENTS to jedno źródło;
+  bez zmian w Profile.tsx). Zrzut siatki 390x844 w I-RELEASE.
+- [x] Testy accent-theme: 23 passed (paleta 11, unikalne id, limonka default,
+  aliasy, foreground per luminancja, custom hex bez regresji); stare wartości
+  (cyan '187 86% 53%') zastąpione ŚWIADOMIE przez sky '199 92% 56%' w
+  accent-theme.test.ts i profile-sections.test.tsx. DOWÓD: commit 25c48110,
+  vitest 44/44 (accent-theme + profile-sections + a11y-i18n), tsc OK, eslint OK.
 
 ## I-T2 — wybór koloru w kroku Welcome onboardingu
 
