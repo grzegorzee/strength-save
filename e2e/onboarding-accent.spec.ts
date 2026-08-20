@@ -5,6 +5,10 @@
 import { test, expect } from '@playwright/test';
 import { blockFirebase, expectPageRendered, navigateAndWait, setE2EAuthScenario } from './helpers';
 
+// UWAGA: ekran onboardingu (PlanWizard) nie renderuje <main> — helper
+// expectPageRendered tu nie działa (wzorzec jak test onboardingu w full-app:
+// asercje na realne elementy ekranu). expectPageRendered tylko na Dashboardzie.
+
 const primaryVar = (page: import('@playwright/test').Page) => page.evaluate(() =>
   getComputedStyle(document.documentElement).getPropertyValue('--primary').trim());
 
@@ -17,7 +21,6 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
 
   test('kropki przy pytaniu o imię: klik indigo przebarwia ekran NATYCHMIAST i kolor trzyma się przez kroki wizarda', async ({ page }) => {
     await navigateAndWait(page, '/');
-    await expectPageRendered(page);
 
     // Rząd kropek pod polem imienia (bez osobnego kroku, bez custom hex).
     await expect(page.getByTestId('ob-name-input')).toBeVisible();
@@ -45,7 +48,7 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
 
   test('NIEZMIENNIK: bieg bez dotknięcia kolorów = limonka, Welcome działa jak dotąd', async ({ page }) => {
     await navigateAndWait(page, '/');
-    await expectPageRendered(page);
+    await expect(page.getByTestId('ob-name-input')).toBeVisible();
     expect(await primaryVar(page)).toBe('73 97% 56%');
     expect(await page.evaluate(() => localStorage.getItem('ss-accent-color'))).toBeNull();
 
