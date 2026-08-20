@@ -80,6 +80,10 @@ export const HistorySessionRow = ({
         role="button"
         tabIndex={0}
         data-testid="history-session-row"
+        // Własny aria-label: bez niego accessible name wiersza sklejałby się
+        // z aria-labeli przycisków w środku ("Szczegóły", "Akcje treningu") i
+        // getByRole('button', { name: 'Szczegóły' }) trafiałby w CAŁY wiersz.
+        aria-label={`${t('history.openWorkout')}: ${title}`}
         onClick={handleRowActivate}
         onKeyDown={handleRowKeyDown}
         className={cn(
