@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatHistorySetLabel } from '@/lib/set-tracking';
 import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, Download, History, Loader2, Mail, Search, StickyNote, Trash2, Trophy } from 'lucide-react';
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { DateRangeField } from '@/components/DateRangeField';
+import { Chip } from '@/components/kinetic/Chip';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -30,19 +31,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useUnit } from '@/contexts/UnitContext';
 import type { WorkoutSession } from '@/types';
-
-const FilterChip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      'rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-      active ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground hover:text-foreground',
-    )}
-  >
-    {children}
-  </button>
-);
 
 const WorkoutHistory = () => {
   const navigate = useNavigate();
@@ -220,20 +208,20 @@ const WorkoutHistory = () => {
 
           {/* Status — chipy */}
           <div className="flex flex-wrap gap-2">
-            <FilterChip active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</FilterChip>
-            <FilterChip active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</FilterChip>
-            <FilterChip active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</FilterChip>
-            <FilterChip active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</FilterChip>
+            <Chip active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
+            <Chip active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
+            <Chip active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
+            <Chip active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
           </div>
 
           {/* Dzień planu — chipy */}
           {trainingPlan.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              <FilterChip active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</FilterChip>
+              <Chip active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
               {trainingPlan.map(day => (
-                <FilterChip key={day.id} active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
+                <Chip key={day.id} active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
                   {localizeDayName(day.dayName, lang)}
-                </FilterChip>
+                </Chip>
               ))}
             </div>
           )}
