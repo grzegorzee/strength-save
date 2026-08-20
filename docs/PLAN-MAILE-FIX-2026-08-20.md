@@ -95,18 +95,34 @@ martwego kodu.)
   lang=pl (8 sesji, tabela-przegląd) MessageId
   010701a01f338fdc-618ff24d-711e-4930-92e3-e100feb1f2dd-000000.
 
-## J-T5 — eksport treningów CSV w aplikacji (Ustawienia → Dane)
+## J-T5 — eksport treningów CSV w aplikacji (doprecyzowanie właściciela
+2026-08-20: dialog z wyborem zakresu + 2 punkty wejścia)
 
-- [ ] Sprawdzić `DataManagement` (settings?section=data): jest eksport danych
-  (data.export.*) — jeśli to JSON/inny format, DODAĆ przycisk "Eksport
-  treningów (CSV)" generujący klientsko ten sam format co J-T4 (współdzielić
-  definicję kolumn: lekki moduł w src/lib/workout-csv.ts, funkcje czyste;
-  duplikacja z functions dopuszczalna, ale format MUSI być identyczny — test
-  na zgodność nagłówków). Pobranie pliku lokalnie (Blob; na natywnym iOS
-  Share sheet przez istniejące wzorce share/eksportu, sprawdzić jak robi to
-  obecny eksport).
-- [ ] i18n, testy generatora, e2e przycisku (plik się generuje — w e2e wystarczy
-  że akcja nie rzuca i tworzy blob URL / trigger download).
+**Doprecyzowanie właściciela 2026-08-20:** zamiast jednego przycisku
+"eksportuj wszystko" — dialog `ExportWorkoutsDialog` z wyborem zakresu
+(chipy: Ostatni tydzień [domyślnie] / Ostatni miesiąc / Ostatnie 10 /
+Ostatnie 30 treningów; select cyklu z plan_cycles; własny zakres od-do),
+podgląd liczby treningów przed eksportem (Eksportuj disabled przy 0),
+dwa punkty wejścia (Historia obok "Wyślij do trenera" + Ustawienia → Dane),
+w całości klientsko, plik `strengthsave-treningi-<od>-<do>.csv`.
+
+- [x] Generator CSV klientski (src/lib/workout-csv.ts, funkcje czyste):
+  nagłówki EN techniczne wg specyfikacji planu (date..prs), escapowanie,
+  UTF-8 z BOM, CRLF; logika zakresów w src/lib/workout-export-range.ts
+  (niekompletny wybór = null = disabled).
+  DOWÓD: commit 6f7188dd; unit 12/12 (workout-csv 5, workout-export-range 7).
+- [x] Dialog z wyborem zakresu + punkty wejścia Historia i Ustawienia → Dane
+  (oba otwierają ten sam dialog); dane przez fetchWorkoutHistoryPage
+  (completed; działa też w mock e2e), pobranie pliku Blob flow — ten sam
+  wzorzec co istniejący eksport JSON w DataManagement (działa w natywnym
+  WKWebView).
+  DOWÓD: commit ccdb1d97 (ExportWorkoutsDialog, history-export-csv,
+  data-export-csv otwiera dialog).
+- [x] i18n OBA locales (exportCsv.* + data.exportCsvLabel), testy generatora
+  i zakresów, e2e: dialog z Historii, wybór "Ostatnie 10", eksport nie rzuca
+  i tworzy blob URL text/csv; wejście z Ustawień otwiera dialog.
+  DOWÓD: e2e export-csv-dialog.spec.ts 4/4 (chromium+webkit), regresja
+  email-coach-button 6/6, tsc 0, eslint 0, vitest okoliczne 30/30.
 
 ## J-RELEASE
 
