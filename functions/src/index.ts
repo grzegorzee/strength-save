@@ -1279,6 +1279,9 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
         .where("completed", "==", true);
       // H-T2: filtr od dołu po dacie (range 'week'); range na polu orderBy = ten sam indeks.
       if (opts.sinceDate) query = query.where("date", ">=", opts.sinceDate);
+      // J-T1: beforeDate (baseline PR) był w kontrakcie deps i testach czystej logiki,
+      // ale adapter go ignorował — baseline zawierał sesje z zakresu i późniejsze.
+      if (opts.beforeDate) query = query.where("date", "<", opts.beforeDate);
       const snap = await query
         .orderBy("date", "desc")
         .limit(opts.limit)
