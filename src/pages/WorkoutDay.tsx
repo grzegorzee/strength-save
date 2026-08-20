@@ -47,13 +47,14 @@ import type { SetData, ExerciseMetrics, WorkoutSessionRating, WorkoutSessionRati
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cn, formatLocalDate } from '@/lib/utils';
-import { detectNewPRs, formatPRValue, getExerciseBest1RM, type PRComparison } from '@/lib/pr-utils';
+import { formatPRValue, getExerciseBest1RM } from '@/lib/pr-utils';
 import { badgeEventKey, emitUserEvent, prEventKey } from '@/lib/user-events';
 import { db } from '@/lib/firebase';
 import { saveWorkoutSessionRating } from '@/lib/workout-save';
 import { computeCompletionSummary } from '@/lib/workout-completion-summary';
 import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
-import { backfillWeightForExercise, filterPRsAgainstBackfill } from '@/lib/pr-backfill';
+import { backfillWeightForExercise } from '@/lib/pr-backfill';
+import { computeSessionPRs } from '@/lib/session-prs';
 import { vacationToAdviceWindow } from '@/lib/vacation-mode';
 import { WorkoutCompletionSequence } from '@/components/WorkoutCompletionSequence';
 import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/WorkoutDraftStatusNotice';
@@ -212,7 +213,6 @@ const WorkoutDay = () => {
   // Runna p.1 (spec A1): sekwencja completion tylko dla ŚWIEŻO zakończonej sesji.
   // Wejście w ukończony trening z historii NIE dostaje celebracji ani oceny.
   const [justCompleted, setJustCompleted] = useState(false);
-  const [sessionPRs, setSessionPRs] = useState<PRComparison[]>([]);
   // Runna p.1 (spec A4): PR na żywo — badge per ćwiczenie + jednorazowy toast.
   const [livePRWeights, setLivePRWeights] = useState<Record<string, number>>({});
   const [livePRPending, setLivePRPending] = useState<{ exerciseId: string; weight: number; bestBefore: number } | null>(null);
@@ -2156,24 +2156,21 @@ const WorkoutDay = () => {
 
     // Detect new PRs
     const currentWorkoutData = workouts.find(w => w.id === sessionId);
-    if (currentWorkoutData && day) {
+    if (currentWorkoutData && day && sessionId) {
+      // Kamienie milowe (niżej) liczą się względem wszystkich pozostałych
+      // ukończonych treningów — bez filtra chronologicznego PR-ów.
       const previousWorkoutsForPR = workouts.filter(w => w.id !== sessionId && w.completed);
-      const exerciseNames = new Map(day.exercises.map(e => [e.id, e.name]));
-      const bodyweightIds = new Set(day.exercises.filter(e => resolveIsBodyweight(e.name)).map(e => e.id));
-      const newPRs = detectNewPRs(
-        { ...currentWorkoutData, exercises: Object.entries(exerciseSets).map(([id, sets]) => ({ exerciseId: id, sets })) },
-        previousWorkoutsForPR,
-        exerciseNames,
-        bodyweightIds,
-        // Z106: PR per typ śledzenia (asysta = obciążenie efektywne z masą ciała).
-        {
-          trackingByExerciseId: new Map(day.exercises.map(e => [e.id, resolveTracking(e.name)])),
-          bodyWeightKg: getLatestMeasurement()?.weight ?? null,
-        },
-      );
-      // Spec A5: rekord sprzed instalacji wyższy niż wynik = brak gratulacji.
-      const effectivePRs = filterPRsAgainstBackfill(newPRs, id => backfillByExerciseId.get(id) ?? 0);
-      setSessionPRs(effectivePRs);
+      // E-T1: ta sama deterministyczna ścieżka co widok ukończony (session-prs).
+      const effectivePRs = computeSessionPRs({
+        sessionId,
+        exerciseSets,
+        workouts,
+        dayExercises: day.exercises,
+        resolveIsBodyweight,
+        resolveTracking,
+        bodyWeightKg: getLatestMeasurement()?.weight ?? null,
+        backfillWeightOf: id => backfillByExerciseId.get(id) ?? 0,
+      });
       if (effectivePRs.length > 0) {
         const prNames = effectivePRs.map(pr => pr.exerciseName).join(', ');
         toast({
@@ -2465,8 +2462,21 @@ const WorkoutDay = () => {
       setJustCompleted(false);
       setIsEditing(true);
     };
+    // E-T1: PR-y liczone z DANYCH przy każdym renderze — remount (wejście z
+    // Historii, restart appki, powrót po share) pokazuje te same PR-y co moment
+    // zakończenia. Wcześniej: useState ustawiany tylko w przepływie finish = 0.
+    const derivedSessionPRs = sessionId ? computeSessionPRs({
+      sessionId,
+      exerciseSets,
+      workouts,
+      dayExercises: day.exercises,
+      resolveIsBodyweight,
+      resolveTracking,
+      bodyWeightKg: getLatestMeasurement()?.weight ?? null,
+      backfillWeightOf: id => backfillByExerciseId.get(id) ?? 0,
+    }) : [];
     // Spec A4: PR-y sesji jako teksty na share card (hero 'Rekord').
-    const sharePRLabels = sessionPRs.map(pr => pr.type === 'reps'
+    const sharePRLabels = derivedSessionPRs.map(pr => pr.type === 'reps'
       ? `${pr.exerciseName} ×${pr.newValue}`
       : pr.type === 'duration'
         ? `${pr.exerciseName} ${fmtDuration(pr.newValue)}`
@@ -2498,7 +2508,7 @@ const WorkoutDay = () => {
           fmtTonnage={fmtTonnage}
           fmtWeight={fmt}
           fmtDuration={fmtDuration}
-          prs={sessionPRs}
+          prs={derivedSessionPRs}
           onRate={handleSessionRate}
           onEditSets={isFinalSyncPending ? undefined : handleEditFromSummary}
         >
