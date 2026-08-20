@@ -12,28 +12,52 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     await page.addInitScript(() => localStorage.setItem('app-language', 'pl'));
   });
 
-  test('wybór cyjanu barwi tokeny, działa na Dashboard i przeżywa reload; limonka wraca do domyślnych', async ({ page }) => {
+  // Plan I (2026-08-20): paleta wg wzoru właściciela — cyan zastąpiony przez
+  // sky #29b6f6 ('199 92% 56%'), stare id działają dalej przez aliasy.
+  test('wybór sky barwi tokeny, działa na Dashboard i przeżywa reload; limonka wraca do domyślnych', async ({ page }) => {
     await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
     await expect(page.getByTestId('accent-swatches')).toBeVisible();
-    await page.getByTestId('accent-cyan').click();
-    expect(await primaryVar(page)).toBe('187 86% 53%');
+    await page.getByTestId('accent-sky').click();
+    expect(await primaryVar(page)).toBe('199 92% 56%');
 
     // Cała aplikacja: Dashboard czyta te same tokeny.
     await navigateAndWait(page, '/');
     await expectPageRendered(page);
-    expect(await primaryVar(page)).toBe('187 86% 53%');
+    expect(await primaryVar(page)).toBe('199 92% 56%');
 
     // Reload: kolor nakładany od splashu (localStorage).
     await page.reload();
     await expectPageRendered(page);
-    expect(await primaryVar(page)).toBe('187 86% 53%');
+    expect(await primaryVar(page)).toBe('199 92% 56%');
 
     // Powrót do limonki = czyste tokeny z index.css.
     await navigateAndWait(page, '/profile');
     await page.getByTestId('accent-lime').click();
     expect(await primaryVar(page)).toBe('73 97% 56%');
+  });
+
+  test('stare id z localStorage (cyan) aplikuje następcę (sky) od splashu', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ss-accent-color', 'cyan'));
+    await navigateAndWait(page, '/');
+    await expectPageRendered(page);
+    expect(await primaryVar(page)).toBe('199 92% 56%');
+  });
+
+  test('ciemny akcent palety (indigo) dostaje jasny foreground na CTA', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ss-accent-color', 'indigo'));
+    await navigateAndWait(page, '/');
+    await expectPageRendered(page);
+    const tokens = await page.evaluate(() => {
+      const style = getComputedStyle(document.documentElement);
+      return {
+        primary: style.getPropertyValue('--primary').trim(),
+        foreground: style.getPropertyValue('--primary-foreground').trim(),
+      };
+    });
+    expect(tokens.primary).toBe('235 86% 65%');
+    expect(tokens.foreground).toBe('0 0% 98%');
   });
 
   // Audyt akcentu (2026-08-20): aktywne chipy filtrów (Historia: bg-primary,

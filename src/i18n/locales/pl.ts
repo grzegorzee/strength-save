@@ -2127,6 +2127,7 @@ export const pl = {
   'ob.welcome.trialNotice': 'Najpierw ułożymy Twój plan. Potem 30 dni testujesz za darmo.',
   'ob.welcome.nameQ': 'Jak masz na imię?',
   'ob.welcome.namePlaceholder': 'Twoje imię (opcjonalnie)',
+  'ob.welcome.colorQ': 'Kolor aplikacji',
   'ob.welcome.legalIntro': 'Zacznijmy od formalności.',
   // Dedykowany krok marketingowy onboardingu (spec 2026-08-11).
   'obMarketing.title1': 'Bądź pierwszy',

@@ -9,6 +9,7 @@ import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjectiv
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
+import { ACCENTS, applyAccent, getAccentById, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
 import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
 import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, planDaysMismatch, WEEKDAYS } from '@/lib/plan-cycle-utils';
 
@@ -178,6 +179,14 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     resume?.templateId ? planTemplates.find((p) => p.id === resume.templateId) ?? null : null);
   const [reachedViaSteps, setReachedViaSteps] = useState(!startAtPrecision);
   const [userName, setUserName] = useState(resume?.name ?? initialName ?? '');
+  // Plan I: wybór koloru aplikacji na Welcome (tylko askName = onboarding).
+  // getAccentById normalizuje stare aliasy; live preview = applyAccent od razu.
+  const [accentId, setAccentId] = useState(() => getAccentById(readStoredAccentId()).id);
+  const pickAccent = (id: string) => {
+    applyAccent(id);
+    storeAccentId(id);
+    setAccentId(id);
+  };
   // Powrót z podglądu (resume) = zgody były już zaznaczone (i zapisane) przy pierwszym przejściu kroku 1.
   const [consents, setConsents] = useState<ConsentSelection>(
     resume ? { terms: true, privacy: true, health: true, marketing: false } : EMPTY_CONSENT_SELECTION,
@@ -262,6 +271,24 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     placeholder={t('ob.welcome.namePlaceholder')}
                     className="w-full rounded-2xl bg-surface-low px-4 py-3.5 text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary"
                   />
+                  {/* Plan I: kolor aplikacji przy pytaniu o imię — tylko paleta
+                      (custom hex zostaje w Profilu), klik = live preview. */}
+                  <p className="mt-5 mb-2 block text-xs font-medium uppercase tracking-widest text-muted-foreground">{t('ob.welcome.colorQ')}</p>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('ob.welcome.colorQ')} data-testid="ob-accent-swatches">
+                    {ACCENTS.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={accentId === a.id}
+                        aria-label={t(`accent.${a.id}` as Parameters<typeof t>[0])}
+                        data-testid={`ob-accent-${a.id}`}
+                        onClick={() => pickAccent(a.id)}
+                        className={`h-8 w-8 rounded-full transition-transform active:scale-95 ${accentId === a.id ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''}`}
+                        style={{ backgroundColor: a.hex }}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
               {legalConsent && (

@@ -7,6 +7,7 @@ import { UnitProvider } from '@/contexts/UnitContext';
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
 
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
+import { ACCENTS } from '@/lib/accent-theme';
 import type { ConsentSelection } from '@/lib/consent-selection';
 
 // Z231: krok Welcome onboardingu — zgody blokują Dalej, imię trafia do choice.
@@ -106,6 +107,67 @@ describe('PlanWizard Welcome (Z231 + pakiet prawny v2)', () => {
       <PlanWizard showWelcome confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
     expect(screen.getByRole('heading', { name: /Witaj w Strength Save/ })).toBeInTheDocument();
+  });
+});
+
+// Plan I (2026-08-20): wybór koloru aplikacji na Welcome przy pytaniu o imię.
+// Warunki właściciela: bez osobnego kroku, tylko paleta (bez custom hex),
+// live preview od kliknięcia (applyAccent + storeAccentId natychmiast).
+describe('PlanWizard Welcome: wybór koloru (plan I)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('app-language', 'pl');
+    document.documentElement.style.cssText = '';
+    delete document.documentElement.dataset.accent;
+  });
+
+  it('askName: rząd kropek palety pod polem imienia — 11 kolorów, bez custom, limonka zaznaczona', () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    expect(screen.getAllByRole('radio')).toHaveLength(ACCENTS.length);
+    for (const a of ACCENTS) expect(screen.getByTestId(`ob-accent-${a.id}`)).toBeInTheDocument();
+    expect(screen.queryByTestId('ob-accent-custom')).toBeNull();
+    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('LIVE PREVIEW: klik kropki natychmiast przebarwia ekran i zapisuje localStorage', () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    fireEvent.click(screen.getByTestId('ob-accent-indigo'));
+    expect(document.documentElement.dataset.accent).toBe('indigo');
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('235 86% 65%');
+    // Ciemny akcent od razu z jasnym tekstem na CTA (kontrast per luminancja).
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 98%');
+    expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
+    expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'false');
+    // Powrót do limonki zdejmuje nadpisania (czyste tokeny).
+    fireEvent.click(screen.getByTestId('ob-accent-lime'));
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
+    expect(localStorage.getItem('ss-accent-color')).toBe('lime');
+  });
+
+  it('NIEZMIENNIK (zasada #5): onboarding bez dotknięcia kolorów wygląda i działa jak dotąd', async () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    // Zero nadpisań tokenów, limonka z index.css, brak zapisu do localStorage.
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
+    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+    // Dalej działa jak dotąd (zgody odblokowują przejście na krok 2).
+    tickRequired();
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+    await screen.findByRole('button', { name: /Następny krok/ });
+  });
+
+  it('bez askName (replan/new-plan) kropek NIE ma', () => {
+    render(withProviders(
+      <PlanWizard showWelcome confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    expect(screen.queryByTestId('ob-accent-lime')).toBeNull();
+    expect(screen.queryAllByRole('radio')).toEqual([]);
   });
 });
 

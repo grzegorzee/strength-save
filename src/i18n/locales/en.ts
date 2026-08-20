@@ -2102,6 +2102,7 @@ export const en: Record<keyof typeof pl, string> = {
   'ob.welcome.trialNotice': 'First we build your plan. Then you test it free for 30 days.',
   'ob.welcome.nameQ': "What's your name?",
   'ob.welcome.namePlaceholder': 'Your name (optional)',
+  'ob.welcome.colorQ': 'App color',
   'ob.welcome.legalIntro': 'First, the formalities.',
   // Dedykowany krok marketingowy onboardingu (spec 2026-08-11).
   'obMarketing.title1': 'Be the first',
