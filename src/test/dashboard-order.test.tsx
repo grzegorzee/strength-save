@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -196,6 +196,11 @@ describe('kolejność Dashboardu (spec B2)', () => {
 
     await waitFor(() => expect(screen.getByText(/Dzień regeneracji/)).toBeTruthy());
     expect(screen.getByText(/Rozciągnij klatkę i barki/)).toBeTruthy();
-    expect(screen.getByText(/Następny trening/)).toBeTruthy();
+    // Naprawa r1 (2026-08-21): dzień wolny renderuje hero najbliższej sesji
+    // (eyebrow + CTA podglądu + przełożenie) nad kartą regeneracji.
+    const hero = screen.getByTestId('next-session-hero');
+    expect(within(hero).getByText(/Następna sesja/i)).toBeTruthy();
+    expect(within(hero).getByText('Otwórz sesję')).toBeTruthy();
+    expect(within(hero).getByText('Przełóż trening')).toBeTruthy();
   });
 });

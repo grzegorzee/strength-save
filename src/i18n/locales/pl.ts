@@ -221,6 +221,9 @@ export const pl = {
   'dash.streakChip': '{n} tyg. serii',
   'dash.hero.today': 'Dzisiejsza sesja',
   'dash.hero.planStarts': 'Plan startuje',
+  // Naprawa r1 (2026-08-21): hero najbliższej sesji w stanach rest/completed.
+  'dash.hero.next': 'Następna sesja',
+  'dash.hero.openSession': 'Otwórz sesję',
   'dash.nextStep.decide': 'Zdecyduj',
   'dash.whatNext': 'Co dalej z planem?',
   'dash.dismissHint': 'Ukryj podpowiedź',

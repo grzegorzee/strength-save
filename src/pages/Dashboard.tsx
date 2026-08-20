@@ -40,7 +40,7 @@ import { calculateStreakDetails, calculateTonnage, getWeekBounds } from '@/lib/s
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { MissedWorkoutBanner } from '@/components/MissedWorkoutBanner';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek, weekdayOfDate } from '@/lib/plan-schedule';
+import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek, weekdayOfDate, type ScheduledTrainingDay } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
 import { useWatchPlanPreview } from '@/hooks/useWatchPlanPreview';
@@ -346,7 +346,9 @@ const Dashboard = () => {
         day: workoutToDay(completedToday),
         workout: completedToday,
         dateStr: todayKey,
-        nextDay: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides })?.day ?? null,
+        // Naprawa r1 (2026-08-21): pełny wpis (day + dateKey) — hero najbliższej
+        // sesji potrzebuje daty do otwarcia podglądu i przełożenia.
+        next: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides }),
       };
     }
 
@@ -365,7 +367,7 @@ const Dashboard = () => {
 
     if (!todayEntry) {
       const nextEntry = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides });
-      return { type: 'rest' as const, nextDay: nextEntry?.day ?? null };
+      return { type: 'rest' as const, next: nextEntry };
     }
 
     const day = todayEntry.day;
@@ -384,7 +386,7 @@ const Dashboard = () => {
         day,
         workout: todayWorkout,
         dateStr: todayEntry.dateKey,
-        nextDay: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides })?.day ?? null,
+        next: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides }),
       };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
@@ -401,6 +403,40 @@ const Dashboard = () => {
     }
     setRescheduleFrom(fromDateISO);
   };
+  // Naprawa r1 (2026-08-21, sędzia struktury): hero najbliższej sesji dla stanów
+  // rest/completed — mockup dashboard-simplified pokazuje kartę NEXT SESSION
+  // z CTA i przełożeniem także, gdy dziś nie ma treningu do zrobienia.
+  const renderNextSessionHero = (entry: ScheduledTrainingDay) => (
+    <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5" data-testid="next-session-hero">
+      <span className="eyebrow-mono text-primary">
+        {t('dash.hero.next')} · {parseLocalDate(entry.dateKey).toLocaleDateString(dateLocale(lang), { weekday: 'long' })}
+      </span>
+      <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
+        {localizeDayName(entry.day.dayName, lang)}
+      </h2>
+      <p className="text-sm text-muted-foreground">
+        {localizeFocus(entry.day.focus, lang)} · {t('dash.exercisesCount', { n: entry.day.exercises.length })}
+      </p>
+      <Button
+        size="lg"
+        className="mt-0.5 h-14 w-full gap-1.5 rounded-2xl text-base font-semibold"
+        onClick={() => navigate(`/workout/${entry.day.id}?date=${entry.dateKey}`)}
+      >
+        <Play className="h-4 w-4" />
+        {t('dash.hero.openSession')}
+      </Button>
+      <div className="flex items-center justify-center">
+        <button
+          type="button"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          onClick={() => openReschedule(entry.dateKey, entry.day.id)}
+        >
+          {t('reschedule.action')}
+        </button>
+      </div>
+    </div>
+  );
+
   // Runna p.1 (spec C1): jawne Pomiń/Przywróć — odwracalne, ton neutralny.
   const handleToggleSkip = async (dateISO: string) => {
     const skipped = skippedDates.includes(dateISO);
@@ -850,6 +886,7 @@ const Dashboard = () => {
       })()}
 
       {todayTraining.type === 'completed' && (
+        <>
         <div
           data-testid="today-completed-card"
           className={cn(
@@ -864,11 +901,6 @@ const Dashboard = () => {
           <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
             {localizeDayName(todayTraining.day.dayName, lang)}
           </h2>
-          {todayTraining.nextDay && (
-            <p className="text-xs text-muted-foreground">
-              {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
-            </p>
-          )}
           <Button
             variant="ghost"
             size="sm"
@@ -878,6 +910,11 @@ const Dashboard = () => {
             {t('dash.view')}
           </Button>
         </div>
+        {/* Naprawa r1 (2026-08-21, sędzia struktury): mockup dashboard-simplified
+            pokazuje hero NEXT SESSION także po zrobionym treningu — karta
+            najbliższej sesji z CTA podglądu i przełożeniem. */}
+        {todayTraining.next && renderNextSessionHero(todayTraining.next)}
+        </>
       )}
 
       {/* T3 (feedback 2026-08-20): cykl jeszcze nie wystartował — karta z datą
@@ -906,8 +943,12 @@ const Dashboard = () => {
       )}
 
       {/* Runna p.1 (spec B2): dzień wolny to karta regeneracji z treścią,
-          nie pusty ekran — tip pod partię z WCZORAJSZEJ sesji + tip ogólny. */}
+          nie pusty ekran — tip pod partię z WCZORAJSZEJ sesji + tip ogólny.
+          Naprawa r1 (2026-08-21): nad regeneracją hero najbliższej sesji
+          (mockup: NEXT SESSION z CTA nawet w dzień wolny). */}
       {todayTraining.type === 'rest' && (
+        <>
+        {todayTraining.next && renderNextSessionHero(todayTraining.next)}
         <div className="rounded-xl bg-surface-low p-5" data-testid="recovery-card">
           <p className="flex items-center gap-1.5 font-heading text-base font-bold tracking-tight">
             {t('dash.recovery.title')}
@@ -918,12 +959,8 @@ const Dashboard = () => {
               <li key={key} className="text-xs text-muted-foreground">{t(key)}</li>
             ))}
           </ul>
-          {todayTraining.nextDay && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              {t('dash.nextTraining')}: {localizeDayName(todayTraining.nextDay.dayName, lang)} ({localizeFocus(todayTraining.nextDay.focus, lang)})
-            </p>
-          )}
         </div>
+        </>
       )}
 
       </div>

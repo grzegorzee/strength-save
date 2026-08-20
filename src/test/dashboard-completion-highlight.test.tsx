@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -168,7 +168,11 @@ describe('powrót z completion na Dashboard', () => {
     await waitFor(() => expect(screen.getAllByText('Trening ukończony!').length).toBeGreaterThan(0));
     const card = screen.getByTestId('today-completed-card');
     expect(card.className).toContain('ring-2');
-    expect(screen.getByText(/Następny trening: Dzień B/)).toBeTruthy();
+    // Naprawa r1 (2026-08-21): następny trening prezentuje hero najbliższej
+    // sesji pod kartą ukończenia (mockup: NEXT SESSION mimo "Today done").
+    const hero = screen.getByTestId('next-session-hero');
+    expect(within(hero).getByText(/Dzień B/)).toBeTruthy();
+    expect(within(hero).getByText('Otwórz sesję')).toBeTruthy();
   });
 
   it('zwykłe wejście: karta bez podświetlenia (niezmiennik)', async () => {
