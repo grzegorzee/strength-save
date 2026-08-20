@@ -2821,8 +2821,10 @@ const WorkoutDay = () => {
   }
 
   // ACTIVE WORKOUT VIEW
+  // Padding dolny: miejsce na sticky REST (aktywna przerwa) i fixed CTA startu
+  // (pre-start) + safe-area — FINISH w przepływie nie może chować się pod paskiem.
   return (
-    <div className="space-y-6 pb-28">
+    <div className="space-y-6 pb-[calc(7rem+env(safe-area-inset-bottom))]">
       {/* Fala 2 (2026-08-20, mockup exercise-card 2a): header wstecz · tytuł ·
           rozgrzewka + badge Saved (AutoSaveIndicator przeniesiony z fixed). */}
       <div className="grid grid-cols-[40px_1fr_auto] items-center gap-3 pt-[env(safe-area-inset-top)]">
@@ -2978,7 +2980,7 @@ const WorkoutDay = () => {
       {isAdhocDay && isWorkoutStarted && !isCompleted && (
         <Button
           variant="outline"
-          className="w-full gap-2 border-0 bg-surface-high text-foreground hover:bg-surface-highest"
+          className="h-12 w-full gap-2 rounded-2xl border-0 bg-surface-low text-foreground hover:bg-surface-high"
           onClick={() => setShowAddExercise(true)}
           data-testid="adhoc-add-exercise"
         >
@@ -3037,8 +3039,7 @@ const WorkoutDay = () => {
       {!isAdhocDay && (
         <Button
           variant="outline"
-          size="sm"
-          className="w-full text-muted-foreground"
+          className="h-12 w-full rounded-2xl border-0 bg-surface-low text-muted-foreground hover:bg-surface-high"
           onClick={() => navigate('/plan/edit')}
         >
           <Pencil className="h-4 w-4 mr-2" />
@@ -3057,49 +3058,48 @@ const WorkoutDay = () => {
             value={dayNotes}
             onChange={e => handleDayNotesChange(e.target.value)}
             placeholder={t('workout.dayNotePlaceholder')}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="min-h-[74px] w-full resize-none rounded-2xl bg-surface-low px-4 py-3 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </div>
       )}
 
-
+      {/* Fala 2 (2026-08-20, mockup 2a): FINISH WORKOUT w PRZEPŁYWIE po notatce
+          (koniec fixed baru — rytm sesji prowadzi sticky REST). Potwierdzenie
+          inline podmienia przycisk w miejscu (decyzja usera 2026-08-13:
+          press-and-hold zawodził na siłowni — drgnięcie palca anulowało hold). */}
       {isWorkoutStarted && !isCompleted && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/85 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
-          {showCompleteConfirm ? (
-            <div className="flex gap-2">
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 flex-1"
-                onClick={() => setShowCompleteConfirm(false)}
-              >
-                {t('common.cancel')}
-              </Button>
-              <Button
-                size="lg"
-                className="kinetic-primary-button h-14 flex-1 hover:brightness-105"
-                onClick={handleCompleteWorkout}
-                disabled={isExplicitSaving}
-              >
-                {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
-                {t('workout.confirmFinish')}
-              </Button>
-            </div>
-          ) : (
-            // Zwykły przycisk + istniejące potwierdzenie (decyzja usera 2026-08-13:
-            // press-and-hold zawodził na siłowni — drgnięcie palca anulowało hold).
+        showCompleteConfirm ? (
+          <div className="flex gap-2">
             <Button
               size="lg"
-              className="kinetic-primary-button h-14 w-full text-base hover:brightness-105"
-              onClick={() => setShowCompleteConfirm(true)}
-              disabled={isExplicitSaving}
-              data-testid="finish-workout"
+              variant="outline"
+              className="h-14 flex-1"
+              onClick={() => setShowCompleteConfirm(false)}
             >
-              <Check className="h-5 w-5 mr-2" />
-              {t('workout.finishWorkout')}
+              {t('common.cancel')}
             </Button>
-          )}
-        </div>
+            <Button
+              size="lg"
+              className="kinetic-primary-button h-14 flex-1 hover:brightness-105"
+              onClick={handleCompleteWorkout}
+              disabled={isExplicitSaving}
+            >
+              {isExplicitSaving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
+              {t('workout.confirmFinish')}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="lg"
+            className="kinetic-primary-button h-14 w-full text-base hover:brightness-105"
+            onClick={() => setShowCompleteConfirm(true)}
+            disabled={isExplicitSaving}
+            data-testid="finish-workout"
+          >
+            <Check className="h-5 w-5 mr-2" />
+            {t('workout.finishWorkout')}
+          </Button>
+        )
       )}
 
       {!isWorkoutStarted && !isViewingPastWorkout && !isCompleted && (
