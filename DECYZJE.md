@@ -11,6 +11,52 @@
 
 ## DECYZJE
 
+### 2026-08-20: Redesign ekranu sesji treningowej (fala 2, artboard exercise-card 2a)
+
+**Co:** Nowa prezentacja aktywnego treningu (WorkoutDay + ExerciseCard + RestBar)
+wg mockupu 2a (quick-workout-compact / exercise-card-full), wyłącznie na tokenach
+akcentu/surface (zero nowych hexów, zero color-mix, strażniki zielone):
+- header: wstecz 40px + tytuł font-heading + pigułka Saved (AutoSaveIndicator
+  przeniesiony z fixed top-4 right-4 do headera; pełny stan z godziną w title),
+- pasek statystyk CZAS/TONAŻ/SERIE: karta surface-container, etykiety mono,
+  wartości font-heading, czas w akcencie (testid session-stats bez zmian),
+- karta ćwiczenia: miniatura 46px z play, nazwa font-heading, JEDNA mono meta
+  linia (serie · szac. 1RM ze źródłem (B-T2) · max), TARGET BOX bg-primary/10
+  z kaskadą celu (RZA > cel tygodnia > cel z trendu > progresja; etykieta deload/
+  pain w kolorze semantycznym) zamiast rzędu badge, licznik done x/y w ostatniej
+  kolumnie nagłówka tabeli, checkmarki jako ciemne kafle (done = bg-primary
+  text-primary-foreground), ADD SET/chipy na surface-low,
+- STICKY pasek REST na dole ekranu (render w WorkoutDay, nie w karcie): REST ·
+  czas · progress · expand · SKIP; -15/+15 w widoku pełnoekranowym; **tap w korpus
+  paska otwiera WorkoutSettingsSheet** (długość przerwy, dźwięk, auto-start —
+  wymóg właściciela; testid rest-bar-settings na tap-obszarze),
+- FINISH WORKOUT w PRZEPŁYWIE po notatce treningu (h-14 kinetic, jak BACK TO
+  DASHBOARD w podsumowaniu), potwierdzenie inline w miejscu; koniec fixed baru.
+
+**Dlaczego:** Fala 2 redesignu (BRIEF-REDESIGN.md #3) + wymóg właściciela:
+ustawienia timera dostępne z paska przerwy w trakcie sesji.
+
+**Niezmienniki (nietknięte):** draft autosave/checkpointy, workout-sync-engine,
+useRestTimerController (deadline+persist localStorage), notyfikacja lokalna końca
+przerwy (schedule/cancel przenosi się w całości z RestBar), watch sync, PR
+celebration, autostart, scroll restore, gridCols tabeli serii (Z196), złoto
+rozgrzewki, guard pustego treningu. Sheet ustawień renderowany NIEZALEŻNIE od
+restState (lekcja Radix b.92 — koniec przerwy nie unmountuje otwartego sheeta).
+Inwentarz 62 funkcji z plan/session.md odhaczony (wszystkie dostępne).
+
+**Weryfikacja:** vitest 278 plików / 2069 zielone (nowe: workout-day-redesign
++ zaktualizowane rest-bar / rest-timer-controller pod sticky właściciela);
+typecheck, lint (0 błędów), build + e2e celowane: exercise-card-v3 (z nowym
+testem tapu w korpus), full-app, critical, edge-cases, ui-improvements,
+resume-after-kill, continue-workout, warmup-persistence, workout-delete-from-day,
+batch-save, plan-edit-during-workout, session-prs-remount — wszystkie zielone.
+Pętla wizualna: 3 iteracje, 4 akcenty (lime/amber/sky/indigo), zrzuty w
+docs/design-2026-08-20/screens/session-iter1..3 (finalne iter3); poprawki z
+pętli: ciemne kafle checkmarków, bez "Następne: × 0" przy pustej serii.
+Czeka na usera: scenariusz urządzeniowy background/resume (przerwa → zgaszony
+ekran → notyfikacja) + tap w pasek przy biegnącej przerwie (nowa długość od
+NASTĘPNEJ przerwy).
+
 ### 2026-08-20: Redesign zakładki Profil (fala 2, artboard profile-tab 1a)
 
 **Co:** Nowa prezentacja Profilu wg mockupu 1a ("identity, potem kontrolki
