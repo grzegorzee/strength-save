@@ -14,22 +14,39 @@ export interface AccentTheme {
   lightHex: string;
 }
 
-// Wszystkie akcenty jasne (L ~60-70%) — ciemny tekst na akcencie trzyma AA,
-// --primary-foreground zostaje wspólny. Kolory statusów (success/warning/
-// destructive) NIE zmieniają się z akcentem.
+// Paleta wg wzoru właściciela (plan I, 2026-08-20): limonka brandowa + 10
+// popularnych kolorów. HSL policzone z hexów (algorytm jak hexToHslParts
+// niżej). Foreground per akcent liczy applyAccent z luminancji — paleta
+// zawiera też ciemne kolory (indigo, slate). Kolory statusów (success/
+// warning/destructive) NIE zmieniają się z akcentem.
 export const ACCENTS: AccentTheme[] = [
   { id: 'lime', hex: '#cefc22', hsl: '73 97% 56%', lightHsl: '73 100% 89%', lightHex: '#f4ffc9' },
-  { id: 'cyan', hex: '#22d3ee', hsl: '187 86% 53%', lightHsl: '187 92% 88%', lightHex: '#c5f5fc' },
-  { id: 'orange', hex: '#fb923c', hsl: '27 96% 61%', lightHsl: '27 100% 90%', lightHex: '#ffe4cc' },
-  { id: 'pink', hex: '#f472b6', hsl: '330 86% 70%', lightHsl: '330 90% 92%', lightHex: '#fcd9ec' },
-  { id: 'purple', hex: '#c4b5fd', hsl: '252 95% 85%', lightHsl: '252 100% 95%', lightHex: '#ede9fe' },
-  { id: 'blue', hex: '#60a5fa', hsl: '213 94% 68%', lightHsl: '213 97% 90%', lightHex: '#cfe3fd' },
-  { id: 'red', hex: '#f87171', hsl: '0 91% 71%', lightHsl: '0 93% 92%', lightHex: '#fdd8d8' },
-  { id: 'gold', hex: '#facc15', hsl: '48 96% 53%', lightHsl: '48 100% 88%', lightHex: '#fdf3c2' },
+  { id: 'sky', hex: '#29b6f6', hsl: '199 92% 56%', lightHsl: '199 92% 84%', lightHex: '#b4e5fc' },
+  { id: 'indigo', hex: '#5865f2', hsl: '235 86% 65%', lightHsl: '235 86% 93%', lightHex: '#c5c9fa' },
+  { id: 'violet', hex: '#8b5cf6', hsl: '258 90% 66%', lightHsl: '258 90% 93%', lightHex: '#d6c6fc' },
+  { id: 'lavender', hex: '#b478f1', hsl: '270 81% 71%', lightHsl: '270 81% 93%', lightHex: '#e5d0fa' },
+  { id: 'magenta', hex: '#d946ef', hsl: '292 84% 61%', lightHsl: '292 84% 89%', lightHex: '#f2bef9' },
+  { id: 'rose', hex: '#f43f5e', hsl: '350 89% 60%', lightHsl: '350 89% 88%', lightHex: '#fbbcc7' },
+  { id: 'amber', hex: '#f5a623', hsl: '37 91% 55%', lightHsl: '37 91% 83%', lightHex: '#fce0b2' },
+  { id: 'emerald', hex: '#10b981', hsl: '160 84% 39%', lightHsl: '160 84% 67%', lightHex: '#abe7d3' },
+  { id: 'slate', hex: '#64748b', hsl: '215 16% 47%', lightHsl: '215 40% 75%', lightHex: '#c9ced6' },
+  { id: 'gray', hex: '#8e8e93', hsl: '240 2% 57%', lightHsl: '240 40% 85%', lightHex: '#d7d7d9' },
 ];
 
 export const DEFAULT_ACCENT_ID = 'lime';
 const STORAGE_KEY = 'ss-accent-color';
+
+// Wsteczna kompatybilność (plan I): stare id zapisane u userów (localStorage
+// + users/{uid}.preferences.accentColor) mapują na najbliższy nowy kolor.
+const LEGACY_ACCENT_ALIASES: Record<string, string> = {
+  cyan: 'sky',
+  blue: 'sky',
+  purple: 'lavender',
+  pink: 'magenta',
+  red: 'rose',
+  orange: 'amber',
+  gold: 'amber',
+};
 
 // Rozszerzenie (2026-08-20): dowolny kolor po #RRGGBB oprócz palety.
 export const isCustomAccentHex = (value: string | null | undefined): boolean =>
@@ -54,6 +71,8 @@ const hexToHslParts = (hex: string): { h: number; s: number; l: number } => {
   else h = (r - g) / d + 4;
   return { h: Math.round(h * 60), s: Math.round(s * 100), l: Math.round(l * 100) };
 };
+
+const FOREGROUND_LUMINANCE_THRESHOLD = 0.28;
 
 const relativeLuminance = (hex: string): number => {
   const lin = (c: number): number => {
@@ -83,7 +102,8 @@ const customAccent = (hex: string): AccentTheme => {
 
 export const getAccentById = (id: string | null | undefined): AccentTheme => {
   if (typeof id === 'string' && isCustomAccentHex(id)) return customAccent(id);
-  return ACCENTS.find((a) => a.id === id) ?? ACCENTS[0];
+  const resolved = typeof id === 'string' ? (LEGACY_ACCENT_ALIASES[id] ?? id) : id;
+  return ACCENTS.find((a) => a.id === resolved) ?? ACCENTS[0];
 };
 
 export const readStoredAccentId = (): string => {
@@ -120,9 +140,11 @@ export const applyAccent = (id: string): AccentTheme => {
     // akcentu (chipy filtrów Kinetic, badge secondary, nagłówki text-accent,
     // hover ghost/outline). Bez nadpisania zostawał limonkowy.
     root.style.setProperty('--accent', accent.hsl);
-    // Ciemny własny kolor potrzebuje jasnego tekstu na akcencie (AA);
-    // paleta jest jasna, więc dziedziczy domyślny ciemny foreground.
-    if (accent.id === 'custom' && relativeLuminance(accent.hex) < 0.3) {
+    // Plan I: foreground per luminancja dla WSZYSTKICH akcentów (paleta ma
+    // teraz też ciemne kolory). Próg skorygowany globalnie 0.3 → 0.28:
+    // lavender (lum 0.29) z białym tekstem miał 2.9:1, z ciemnym ma 6.1:1;
+    // emerald (0.36) analogicznie zostaje przy ciemnym (7.3:1 vs 2.4:1).
+    if (relativeLuminance(accent.hex) < FOREGROUND_LUMINANCE_THRESHOLD) {
       root.style.setProperty('--primary-foreground', '0 0% 98%');
       root.style.setProperty('--accent-foreground', '0 0% 98%');
     } else {

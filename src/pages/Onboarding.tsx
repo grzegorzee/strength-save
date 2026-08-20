@@ -16,6 +16,7 @@ import {
   type ConsentSelection,
 } from '@/lib/consent-selection';
 import { recordConsents } from '@/lib/consents-api';
+import { readStoredAccentId } from '@/lib/accent-theme';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
@@ -94,6 +95,9 @@ const Onboarding = () => {
         // termsAcceptedAt: zgoda z kroku Welcome (checkbox blokuje Dalej, więc tu zawsze zaznaczona).
         onboarding: { state: 'completed', version: 2, termsAcceptedAt: new Date().toISOString() },
         trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
+        // Plan I: kolor wybrany na Welcome (albo domyślna limonka) do mirroru
+        // cross-device — zawsze jedno pole, czytane w momencie zapisu.
+        'preferences.accentColor': readStoredAccentId(),
         ...(confirmed.name && confirmed.name !== profile?.displayName ? { displayName: confirmed.name } : {}),
       }),
     });

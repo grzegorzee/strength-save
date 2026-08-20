@@ -131,12 +131,13 @@ describe('krok 3: reorganizacja sekcji Profilu', () => {
   });
 
   it('F-T2: sekcja Wygląd — wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
+    // Plan I: paleta wg wzoru właściciela — cyan zastąpiony przez sky (#29b6f6).
     const { getByTestId } = renderProfile();
-    fireEvent.click(getByTestId('accent-cyan'));
-    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('187 86% 53%');
-    expect(document.documentElement.dataset.accent).toBe('cyan');
+    fireEvent.click(getByTestId('accent-sky'));
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('199 92% 56%');
+    expect(document.documentElement.dataset.accent).toBe('sky');
     await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
-      expect.anything(), { 'preferences.accentColor': 'cyan' },
+      expect.anything(), { 'preferences.accentColor': 'sky' },
     ));
     // Powrót do limonki zdejmuje nadpisania.
     fireEvent.click(getByTestId('accent-lime'));
