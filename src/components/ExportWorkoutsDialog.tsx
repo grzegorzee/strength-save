@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { LocalizedDateInput } from '@/components/LocalizedDateInput';
+import { RangeCalendar } from '@/components/ui/range-calendar';
 import { buildWorkoutsCsv } from '@/lib/workout-csv';
 import {
   exportFileName,
@@ -147,7 +147,8 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl border-0 bg-surface-low" data-testid="export-workouts-dialog">
+      {/* T20.4: kalendarz wydłuża treść — lokalny scroll zamiast wyjścia poza ekran. */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto rounded-xl border-0 bg-surface-low" data-testid="export-workouts-dialog">
         <DialogHeader>
           <DialogTitle className="font-heading uppercase">{t('exportCsv.dialogTitle')}</DialogTitle>
           <DialogDescription>{t('exportCsv.dialogDesc')}</DialogDescription>
@@ -196,20 +197,17 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
           )
         )}
         {kind === 'custom' && (
-          <div className="grid grid-cols-2 gap-2">
-            <LocalizedDateInput
-              value={customFrom}
-              onChange={(e) => setCustomFrom(e.target.value)}
-              aria-label={t('exportCsv.rangeCustom')}
-              data-testid="export-custom-from"
-            />
-            <LocalizedDateInput
-              value={customTo}
-              onChange={(e) => setCustomTo(e.target.value)}
-              aria-label={t('exportCsv.rangeCustom')}
-              data-testid="export-custom-to"
-            />
-          </div>
+          // T20.4: kalendarz zakresu inline (booking-style); stan i logika
+          // exportRangeBounds bez zmian (from bez to = od from do dziś).
+          <RangeCalendar
+            value={{ from: customFrom || null, to: customTo || null }}
+            onChange={(next) => {
+              setCustomFrom(next.from ?? '');
+              setCustomTo(next.to ?? '');
+            }}
+            maxDate={today}
+            testId="export-custom-range"
+          />
         )}
         <p className="text-sm text-muted-foreground" data-testid="export-preview">
           {isLoading ? t('exportCsv.loading') : t('exportCsv.preview', { count: workouts.length })}
