@@ -74,6 +74,9 @@ const session = (id, daysAgo, dayId, dayName, exercises, durationSec) => ({
   completed: true,
   durationSec,
   exercises,
+  // Realny zapis apki podpina sesję pod aktywny cykl — bez tego staty cyklu
+  // w Historii (computeCycleStats) liczyłyby 0 mimo widocznych sesji.
+  cycleId: 'cycle-shot-1',
 });
 const ex = (exerciseId, name, weights) => ({
   exerciseId,
@@ -82,39 +85,74 @@ const ex = (exerciseId, name, weights) => ({
 });
 
 // Historia: bieżący tydzień + poprzednie (progresja ciężarów => realny wygląd, PR-y).
+// Daty WYRÓWNANE do dni tygodnia planu (pon/śr) — inaczej frekwencja cyklu
+// (computeCycleStats liczy sloty {data}:{dayId}) zawsze wychodziłaby 0%.
+const dowNow = new Date().getDay();
+const monAgo = (dowNow + 6) % 7; // ostatni poniedziałek (0 = dziś)
+const wedAgo = (dowNow + 4) % 7; // ostatnia środa
 const workoutsSeed = JSON.stringify([
-  session('shot-w1', 1, 'day-1', 'Poniedziałek — Góra', [
+  session('shot-w1', monAgo, 'day-1', 'Poniedziałek — Góra', [
     ex('ex-1-1', 'Wyciskanie sztangi na ławce płaskiej', [62.5, 62.5, 62.5]),
     ex('ex-1-2', 'Wiosłowanie hantlami na ławce (przodem)', [30, 30, 30]),
   ], 3540),
-  session('shot-w2', 3, 'day-2', 'Środa — Dół', [
+  session('shot-w2', wedAgo, 'day-2', 'Środa — Dół', [
     ex('ex-2-1', 'Przysiad ze sztangą', [90, 90, 90]),
     ex('ex-2-2', 'Martwy ciąg rumuński', [80, 80, 80]),
   ], 3660),
-  session('shot-w3', 7, 'day-1', 'Poniedziałek — Góra', [
+  session('shot-w3', monAgo + 7, 'day-1', 'Poniedziałek — Góra', [
     ex('ex-1-1', 'Wyciskanie sztangi na ławce płaskiej', [60, 60, 60]),
     ex('ex-1-2', 'Wiosłowanie hantlami na ławce (przodem)', [28, 28, 28]),
   ], 3480),
-  session('shot-w4', 10, 'day-2', 'Środa — Dół', [
+  session('shot-w4', wedAgo + 7, 'day-2', 'Środa — Dół', [
     ex('ex-2-1', 'Przysiad ze sztangą', [85, 85, 85]),
     ex('ex-2-2', 'Martwy ciąg rumuński', [77.5, 77.5, 77.5]),
   ], 3720),
-  session('shot-w5', 14, 'day-1', 'Poniedziałek — Góra', [
+  session('shot-w5', monAgo + 14, 'day-1', 'Poniedziałek — Góra', [
     ex('ex-1-1', 'Wyciskanie sztangi na ławce płaskiej', [57.5, 57.5, 57.5]),
   ], 3300),
+  // Zakończony mini-cykl sprzed aktywnego (karta przeszłego cyklu w Historii).
+  { ...session('shot-p1', monAgo + 56, 'day-1', 'Poniedziałek — Góra', [
+    ex('ex-1-1', 'Wyciskanie sztangi na ławce płaskiej', [55, 55, 55]),
+  ], 3240), cycleId: 'cycle-shot-0' },
+  { ...session('shot-p2', monAgo + 54, 'day-2', 'Środa — Dół', [
+    ex('ex-2-1', 'Przysiad ze sztangą', [80, 80, 80]),
+  ], 3300), cycleId: 'cycle-shot-0' },
+  { ...session('shot-p3', monAgo + 49, 'day-1', 'Poniedziałek — Góra', [
+    ex('ex-1-1', 'Wyciskanie sztangi na ławce płaskiej', [52.5, 52.5, 52.5]),
+  ], 3180), cycleId: 'cycle-shot-0' },
+  { ...session('shot-p4', monAgo + 47, 'day-2', 'Środa — Dół', [
+    ex('ex-2-1', 'Przysiad ze sztangą', [77.5, 77.5, 77.5]),
+  ], 3360), cycleId: 'cycle-shot-0' },
 ]);
 
 // Aktywny cykl spójny z planem (usePlanCycles czyta fittracker_e2e_cycles).
 const cyclesSeed = JSON.stringify([{
   id: 'cycle-shot-1',
   userId: 'e2e-test-user',
-  days: [],
+  // Dni cyklu = oczekiwane sloty frekwencji (bez nich completionRate zawsze 0%).
+  days: [
+    { id: 'day-1', dayName: 'Poniedziałek — Góra', weekday: 'monday', focus: '', exercises: [] },
+    { id: 'day-2', dayName: 'Środa — Dół', weekday: 'wednesday', focus: '', exercises: [] },
+  ],
   durationWeeks: 12,
   startDate: localDate(30),
   endDate: localDate(30 - 12 * 7),
   status: 'active',
   createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
   stats: { totalWorkouts: 5, totalTonnage: 0, prs: [], completionRate: 0 },
+}, {
+  id: 'cycle-shot-0',
+  userId: 'e2e-test-user',
+  days: [
+    { id: 'day-1', dayName: 'Poniedziałek — Góra', weekday: 'monday', focus: '', exercises: [] },
+    { id: 'day-2', dayName: 'Środa — Dół', weekday: 'wednesday', focus: '', exercises: [] },
+  ],
+  durationWeeks: 3,
+  startDate: localDate(monAgo + 56),
+  endDate: localDate(monAgo + 56 - 20),
+  status: 'completed',
+  createdAt: new Date(Date.now() - (monAgo + 56) * 86400000).toISOString(),
+  stats: { totalWorkouts: 4, totalTonnage: 0, prs: [], completionRate: 67 },
 }]);
 
 // ---------- dev server ----------

@@ -277,7 +277,7 @@ const WorkoutHistory = () => {
     return calculateTonnage(filteredWorkouts);
   }, [aggregate, filteredWorkouts, filtersActive]);
 
-  const renderSessionRow = (workout: WorkoutSession, surface: 'low' | 'container') => {
+  const renderSessionRow = (workout: WorkoutSession, surface: 'low' | 'container', options?: { highlight?: boolean }) => {
     const dayLabel = resolver.resolveDayLabel(workout);
     const title = `${localizeDayName(dayLabel.dayName, lang)} · ${localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}`;
     return (
@@ -292,6 +292,7 @@ const WorkoutHistory = () => {
         isExpanded={expandedIds.includes(workout.id)}
         compareMode={compareMode}
         surface={surface}
+        highlight={options?.highlight}
         resolveExerciseName={(w, exerciseId) => resolver.resolveExerciseName(w, exerciseId)}
         onOpen={() => navigate(`/workout/${workout.dayId}?date=${workout.date}&session=${workout.id}`)}
         onToggleCompare={() => toggleCompare(workout.id)}
@@ -386,12 +387,13 @@ const WorkoutHistory = () => {
           />
         )}
 
-        {/* Rząd akcji: tryb porównania + wysyłka historii + eksport CSV */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
+        {/* Rząd akcji: tryb porównania + wysyłka historii; eksport CSV w drugiej linii
+            (oba pille naraz nie mieszczą się przy 390px obok chipa). */}
+        <div className="flex items-center gap-2 pt-1">
           <Chip active={compareMode} onClick={() => setCompareMode((prev) => !prev)}>
             {t('history.compare')}
           </Chip>
-          <div className="min-w-2 flex-1" />
+          <div className="flex-1" />
           <Button
             variant="outline"
             size="sm"
@@ -402,6 +404,8 @@ const WorkoutHistory = () => {
             <Mail className="mr-1.5 h-3.5 w-3.5" />
             {t('email.sendToCoach')}
           </Button>
+        </div>
+        <div className="flex justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -478,7 +482,8 @@ const WorkoutHistory = () => {
           {filteredWorkouts.length} {sessionWord(filteredWorkouts.length)}
         </span>
         <span className="eyebrow-mono text-muted-foreground">
-          {t('history.tonnage')} {formatTonnage(summaryTonnageKg, unit)}
+          {/* Tonaż małymi literami ("13.7 t"), wersaliki tylko w etykiecie — lekcja Dashboardu. */}
+          {t('history.tonnage')} <span className="normal-case">{formatTonnage(summaryTonnageKg, unit)}</span>
         </span>
       </div>
 
@@ -501,7 +506,7 @@ const WorkoutHistory = () => {
             currentWeekNo={todayStr >= activeCycle.startDate ? weekNoFor(todayStr, activeCycle) : null}
             weeks={groupCycleWorkoutsByWeek(activeCycle, cycleFilteredSessions(activeCycle.id), todayStr)}
             totalSessions={cycleLiveSessions(activeCycle.id).length}
-            renderRow={(workout) => renderSessionRow(workout, 'low')}
+            renderRow={(workout, options) => renderSessionRow(workout, 'low', options)}
             canLoadOlder={hasMore && !activeCoversStart}
             onLoadOlder={loadMore}
           />
@@ -528,7 +533,7 @@ const WorkoutHistory = () => {
               currentWeekNo={null}
               weeks={groupCycleWorkoutsByWeek(cycle, cycleFilteredSessions(cycle.id), todayStr)}
               totalSessions={cycleLiveSessions(cycle.id).length}
-              renderRow={(workout) => renderSessionRow(workout, 'container')}
+              renderRow={(workout, options) => renderSessionRow(workout, 'container', options)}
               lazyStatus={cycleSessionEntries[cycle.id]?.status ?? 'idle'}
               onExpand={() => {
                 if (!windowCoversCycleStart(oldestLoadedDate, cycle, hasMore)) loadCycleSessions(cycle);
@@ -547,7 +552,8 @@ const WorkoutHistory = () => {
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="font-heading font-bold uppercase italic tracking-tight">{group.label}</h2>
               <span className="eyebrow-mono text-muted-foreground">
-                {group.workouts.length} {sessionWord(group.workouts.length)} · {formatTonnage(group.tonnage, unit)}
+                {group.workouts.length} {sessionWord(group.workouts.length)} ·{' '}
+                <span className="normal-case">{formatTonnage(group.tonnage, unit)}</span>
               </span>
             </div>
             {group.workouts.map((workout) => renderSessionRow(workout, 'low'))}

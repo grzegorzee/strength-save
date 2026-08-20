@@ -30,7 +30,7 @@ interface CycleCardProps {
   weeks: CycleWeekGroup[];
   /** Liczba załadowanych sesji cyklu (stopka "Wszystkie sesje (N)"). */
   totalSessions: number;
-  renderRow: (workout: WorkoutSession) => ReactNode;
+  renderRow: (workout: WorkoutSession, options?: { highlight?: boolean }) => ReactNode;
   /** Aktywny cykl: okno nie sięga startu — stopka dodatkowo dociąga starsze strony. */
   canLoadOlder?: boolean;
   onLoadOlder?: () => void;
@@ -111,7 +111,8 @@ export const CycleCard = ({
             >
               {item.value}
             </p>
-            <p className="eyebrow-mono truncate text-muted-foreground">{item.label}</p>
+            {/* Węższy tracking + 9px: "FREKWENCJA" musi zmieścić się w ćwiartce przy 390px. */}
+            <p className="eyebrow-mono truncate text-[9px] tracking-[0.06em] text-muted-foreground">{item.label}</p>
           </div>
         ))}
       </div>
@@ -125,9 +126,12 @@ export const CycleCard = ({
                   key={index}
                   className={cn(
                     'flex-1 rounded-sm',
-                    index + 1 === currentWeekNo ? 'bg-primary' : 'bg-primary/40',
+                    // Tydzień bez tonażu = neutralny ślad toru, nie akcent.
+                    value <= 0
+                      ? 'bg-surface-highest'
+                      : index + 1 === currentWeekNo ? 'bg-primary' : 'bg-primary/40',
                   )}
-                  style={{ height: `${Math.max(6, Math.round((value / sparkMax) * 100))}%` }}
+                  style={{ height: value <= 0 ? '3px' : `${Math.max(12, Math.round((value / sparkMax) * 100))}%` }}
                 />
               ))}
             </div>
@@ -165,11 +169,14 @@ export const CycleCard = ({
                     {t(week.isCurrent ? 'history.weekCurrent' : 'history.weekN', { n: week.weekNo })}
                   </span>
                   <span className="eyebrow-mono text-muted-foreground">
-                    {week.workouts.length} {t(sessionWordKey(week.workouts.length))} · {formatTonnage(weekTonnage, unit)}
+                    {week.workouts.length} {t(sessionWordKey(week.workouts.length))} ·{' '}
+                    {/* Tonaż małymi literami ("6.3 t"), wersaliki tylko w etykietach — lekcja Dashboardu. */}
+                    <span className="normal-case">{formatTonnage(weekTonnage, unit)}</span>
                   </span>
                 </div>
                 <div className="space-y-2">
-                  {week.workouts.map((workout) => renderRow(workout))}
+                  {/* Najnowsza sesja bieżącego tygodnia z tintem akcentu (mockup 1a). */}
+                  {week.workouts.map((workout, index) => renderRow(workout, { highlight: week.isCurrent && index === 0 }))}
                 </div>
               </div>
             );

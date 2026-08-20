@@ -29,6 +29,8 @@ interface HistorySessionRowProps {
   compareMode: boolean;
   /** Poziom powierzchni wiersza: zawsze o jeden wyżej niż jego karta. */
   surface: 'low' | 'container';
+  /** Wyróżnienie tintem akcentu (pierwsza sesja bieżącego tygodnia w karcie cyklu). */
+  highlight?: boolean;
   resolveExerciseName: (workout: WorkoutSession, exerciseId: string) => string;
   onOpen: () => void;
   onToggleCompare: () => void;
@@ -46,7 +48,7 @@ const setWordKey = (n: number) =>
 
 export const HistorySessionRow = ({
   workout, title, meta, tonnage, totalSets, isSelected, isExpanded, compareMode,
-  surface, resolveExerciseName, onOpen, onToggleCompare, onToggleExpanded, onEmail, onDelete,
+  surface, highlight, resolveExerciseName, onOpen, onToggleCompare, onToggleExpanded, onEmail, onDelete,
 }: HistorySessionRowProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
@@ -87,12 +89,14 @@ export const HistorySessionRow = ({
         onClick={handleRowActivate}
         onKeyDown={handleRowKeyDown}
         className={cn(
-          'flex items-center gap-2.5 rounded-lg px-3 py-2 text-left',
-          surface === 'container' ? 'bg-surface-container' : 'bg-surface-low',
+          'flex items-center gap-2 rounded-lg px-2.5 py-2 text-left',
+          highlight
+            ? 'bg-primary/10'
+            : surface === 'container' ? 'bg-surface-container' : 'bg-surface-low',
           isSelected && 'ring-2 ring-inset ring-primary/50',
         )}
       >
-        <span className="w-11 shrink-0 font-mono text-[10px] uppercase tracking-[0.04em] text-muted-foreground tabular-nums">
+        <span className="w-10 shrink-0 font-mono text-[10px] uppercase tracking-[0.04em] text-muted-foreground tabular-nums">
           {dateShort}
         </span>
         <div className="min-w-0 flex-1">
@@ -102,23 +106,23 @@ export const HistorySessionRow = ({
               <span className="chip-mono shrink-0 px-2 py-0.5">{t('history.badgeDraft')}</span>
             )}
           </div>
-          <p className="font-mono text-[10px] text-muted-foreground tabular-nums">
+          <p className="truncate font-mono text-[10px] text-muted-foreground tabular-nums">
             {metaSegments.join(' · ')}
           </p>
         </div>
         {(meta?.prCount ?? 0) > 0 && (
-          <span className="chip-mono shrink-0 bg-primary/15 px-2 py-1 text-primary">
+          <span className="chip-mono shrink-0 bg-primary/15 px-1.5 py-1 text-primary">
             {meta?.prCount} PR
           </span>
         )}
-        <span className="w-14 shrink-0 text-right font-mono text-xs font-semibold tabular-nums">
+        <span className="shrink-0 text-right font-mono text-xs font-semibold tabular-nums">
           {Math.round(toDisplay(tonnage)).toLocaleString(dateLocale(lang))}
         </span>
         <button
           type="button"
           aria-label={t('history.details')}
           onClick={(event) => { stop(event); onToggleExpanded(); }}
-          className="grid h-11 w-8 shrink-0 place-items-center text-muted-foreground/50"
+          className="grid h-11 w-7 shrink-0 place-items-center text-muted-foreground/50"
         >
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
@@ -129,7 +133,7 @@ export const HistorySessionRow = ({
               aria-label={t('history.rowActions')}
               data-testid="history-row-menu"
               onClick={stop}
-              className="grid h-11 w-8 shrink-0 place-items-center text-muted-foreground/50"
+              className="grid h-11 w-7 shrink-0 place-items-center text-muted-foreground/50"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
