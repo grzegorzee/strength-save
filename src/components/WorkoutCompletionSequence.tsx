@@ -264,12 +264,14 @@ export const WorkoutCompletionSequence = ({
             </div>
           </div>
         )}
-        <div className="flex items-end gap-5">
+        {/* flex-wrap: przy ciasnych labelach PL pigułka Popraw serie schodzi do
+            nowej linii zamiast wypychać rząd poza kartę (390px). */}
+        <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
           <div className="flex flex-col gap-1">
             <span className="font-heading text-[17px] font-bold tabular-nums leading-none">
               {durationSec != null ? fmtDuration(durationSec) : '—'}
             </span>
-            <span className="eyebrow-mono text-muted-foreground">{t('workout.statTime')}</span>
+            <span className="eyebrow-mono whitespace-nowrap text-muted-foreground">{t('workout.statTime')}</span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="font-heading text-[17px] font-bold tabular-nums leading-none">
@@ -277,14 +279,14 @@ export const WorkoutCompletionSequence = ({
                 ? `${summary.completedSets}/${summary.plannedSets}`
                 : summary.completedSets}
             </span>
-            <span className="eyebrow-mono text-muted-foreground">{t('workout.statSets')}</span>
+            <span className="eyebrow-mono whitespace-nowrap text-muted-foreground">{t('workout.statSets')}</span>
           </div>
           {summary.planPct !== null && (
             <div className="flex flex-col gap-1">
               <span className="font-heading text-[17px] font-bold tabular-nums leading-none">
                 {summary.planPct}%
               </span>
-              <span className="eyebrow-mono text-muted-foreground">
+              <span className="eyebrow-mono whitespace-nowrap text-muted-foreground">
                 {t('workout.summary.statPlanned')}
               </span>
             </div>
