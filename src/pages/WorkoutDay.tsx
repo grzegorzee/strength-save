@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, Plus, Trash2, Mail } from 'lucide-react';
+import { ArrowLeft, Check, Play, Pencil, Loader2, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, Plus, Trash2, Mail, Home } from 'lucide-react';
 import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -50,12 +50,15 @@ import { dateLocale } from '@/i18n';
 import type { SetData, ExerciseMetrics, WorkoutSessionRating, WorkoutSessionRatingReason } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { cn, formatLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { formatPRValue, getExerciseBest1RM } from '@/lib/pr-utils';
 import { badgeEventKey, emitUserEvent, prEventKey } from '@/lib/user-events';
 import { db } from '@/lib/firebase';
 import { saveWorkoutSessionRating } from '@/lib/workout-save';
 import { computeCompletionSummary } from '@/lib/workout-completion-summary';
+import { computeVolumeSplit, primaryMuscleToCategory } from '@/lib/volume-split';
+import { WorkoutVolumeSplit } from '@/components/WorkoutVolumeSplit';
+import { getExerciseDetails } from '@/data/exercise-details';
 import { bestPreviousWeight, detectLiveWeightPR } from '@/lib/live-pr';
 import { backfillWeightForExercise } from '@/lib/pr-backfill';
 import { computeSessionPRs } from '@/lib/session-prs';
@@ -2506,21 +2509,63 @@ const WorkoutDay = () => {
       : pr.type === 'duration'
         ? `${pr.exerciseName} ${fmtDuration(pr.newValue)}`
         : `${pr.exerciseName} ${fmt(pr.newValue)}`);
+    // Fala 2 (plan/summary.md par. 2.4-2.5): tonaż per ćwiczenie liczony RAZ —
+    // zasila pasek rankingowy listy i split "Gdzie poszedł tonaż".
+    const tonnageByExerciseId = new Map(day.exercises.map((exercise) => {
+      const sets = exerciseSets[exercise.id] || [];
+      const tonnageKg = sets
+        .filter((s) => s.completed && !s.isWarmup)
+        .reduce((sum, s) => sum + s.reps * s.weight, 0);
+      return [exercise.id, tonnageKg] as const;
+    }));
+    const maxExerciseTonnageKg = Math.max(0, ...tonnageByExerciseId.values());
+    // Kategoria: biblioteka → własne ćwiczenia → fallback primaryMuscle → null
+    // ("Inne"; zero zmyślonych grup dla nierozpoznanych nazw).
+    const resolveVolumeCategory = (name: string): string | null => {
+      const lib = exerciseLibrary.find((e) => e.name === name);
+      if (lib) return lib.category;
+      const custom = customExercises.find((e) => e.name === name);
+      if (custom?.category) return custom.category;
+      const details = getExerciseDetails(name, 'pl');
+      if (details) return primaryMuscleToCategory[details.primaryMuscle] ?? null;
+      return null;
+    };
+    const volumeSplitBuckets = completionSummary.volumeKg > 0
+      ? computeVolumeSplit(
+        day.exercises.map((exercise) => ({
+          name: exercise.name,
+          tonnageKg: tonnageByExerciseId.get(exercise.id) ?? 0,
+        })),
+        resolveVolumeCategory,
+      )
+      : [];
+    const summaryDateLabel = parseLocalDate(targetDate)
+      .toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
+    const summarySubtitle = [localizeFocus(day.focus, lang), summaryDateLabel]
+      .filter(Boolean).join(' · ');
     return (
       <div className="space-y-6 pb-20">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+        {/* Fala 2 (mockup 1a): kwadratowy wstecz + tytuł z datą + Edit w pigułce. */}
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="h-10 w-10 shrink-0 rounded-2xl bg-surface-container"
+          >
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold">{localizeDayName(day.dayName, lang)}</h1>
-            <p className="text-muted-foreground">{localizeFocus(day.focus, lang)}</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-heading text-xl font-bold leading-tight">
+              {localizeDayName(day.dayName, lang)}
+            </h1>
+            <p className="truncate text-sm text-muted-foreground">{summarySubtitle}</p>
           </div>
           {!isFinalSyncPending && (
-            <Button variant="outline" size="sm" onClick={handleEditFromSummary}>
-              <Pencil className="h-4 w-4 mr-2" />
+            <button type="button" className="chip-mono shrink-0" onClick={handleEditFromSummary}>
+              <Pencil className="h-3 w-3" />
               {t('dash.edit')}
-            </Button>
+            </button>
           )}
         </div>
 
@@ -2539,27 +2584,37 @@ const WorkoutDay = () => {
         >
 
         {dayNotes && (
-          <Card className="bg-muted/30">
-            <CardContent className="py-3">
-              <div className="flex items-start gap-2">
-                <StickyNote className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{dayNotes}</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl bg-surface-low p-3.5">
+            <div className="flex items-start gap-2">
+              <StickyNote className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{dayNotes}</p>
+            </div>
+          </div>
         )}
 
-        <div className="space-y-2">
-          <h3 className="font-semibold flex items-center gap-2">
-            <Eye className="h-4 w-4" />
-            {t('workout.completion.exercisesCount', { n: exerciseCount })}
-          </h3>
-          {day.exercises.map((exercise, index) => {
+        {/* Fala 2 (par. 2.4): split tonażu po grupach — tylko gdy >=2 kubełki
+            (WorkoutVolumeSplit sam się nie renderuje przy mniejszej liczbie). */}
+        <WorkoutVolumeSplit buckets={volumeSplitBuckets} />
+
+        {/* Fala 2 (par. 2.5): lista ćwiczeń jako ranking tonażu — te same dane
+            i stany (skipped, licznik serii, expand), nowa prezentacja. */}
+        <div className="space-y-1">
+          <div className="flex items-baseline justify-between pb-1">
+            <span className="eyebrow-mono text-muted-foreground">
+              {t('workout.completion.exercisesCount', { n: exerciseCount })}
+            </span>
+            <span className="eyebrow-mono text-muted-foreground">
+              {t('workout.completion.statTonnage')}
+            </span>
+          </div>
+          {day.exercises.map((exercise) => {
             const isSkipped = skippedExercises.includes(exercise.id);
             const sets = exerciseSets[exercise.id] || [];
             // B-T1: metryki podsumowania z serii roboczych, spójne z nagłówkiem strony.
             const completed = sets.filter(s => s.completed && !s.isWarmup);
-            const totalWeight = completed.reduce((sum, s) => sum + (s.reps * s.weight), 0);
+            const totalWeight = tonnageByExerciseId.get(exercise.id) ?? 0;
+            const isMaxTonnage = totalWeight > 0 && totalWeight === maxExerciseTonnageKg;
+            const incompleteSets = !isSkipped && completed.length < sets.length;
             const canExpand = !isSkipped && sets.length > 0;
             const isExpanded = expandedSummaryIds.has(exercise.id);
             const toggleExpand = () => setExpandedSummaryIds((prev) => {
@@ -2570,52 +2625,54 @@ const WorkoutDay = () => {
             });
 
             return (
-              <div
-                key={exercise.id}
-                className={cn(
-                  "rounded-xl bg-surface-low",
-                  isSkipped && "opacity-50",
-                )}
-              >
+              <div key={exercise.id} className={cn(isSkipped && "opacity-50")}>
                 <button
                   type="button"
                   onClick={toggleExpand}
                   disabled={!canExpand}
-                  className="flex w-full items-center gap-3 p-3 text-left disabled:cursor-default"
+                  className="flex w-full items-center gap-3 py-2.5 text-left disabled:cursor-default"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 font-heading text-sm font-bold tabular-nums text-primary">
-                    {index + 1}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-heading text-sm font-bold uppercase leading-tight tracking-tight">
-                      {localizeExerciseName(exercise.name, lang)}
-                    </h3>
-                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                      {isSkipped
-                        ? t('dayplan.badgeMissed')
-                        : t('workout.setsProgress', { done: completed.length, total: sets.length })}
-                    </p>
-                  </div>
-                  {!isSkipped && totalWeight > 0 && (
-                    <div className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-center leading-none">
-                      <span className="block font-heading text-base font-bold tabular-nums text-background">
-                        {Math.round(toDisplay(totalWeight)).toLocaleString(dateLocale(lang))}
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex items-baseline gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+                        {localizeExerciseName(exercise.name, lang)}
                       </span>
-                      <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.12em] text-background/70">
-                        {unit}
+                      <span className={cn(
+                        "shrink-0 font-mono text-[10px]",
+                        incompleteSets ? "text-fitness-warning" : "text-muted-foreground/70",
+                      )}>
+                        {isSkipped
+                          ? t('dayplan.badgeMissed')
+                          : t('workout.setsProgress', { done: completed.length, total: sets.length })}
                       </span>
                     </div>
-                  )}
-                  {canExpand && (
+                    {maxExerciseTonnageKg > 0 && (
+                      <div className="h-1.5 overflow-hidden rounded-full bg-surface-container">
+                        <div
+                          className={cn("h-full rounded-full", isMaxTonnage ? "bg-primary" : "bg-primary/40")}
+                          style={{ width: `${(totalWeight / maxExerciseTonnageKg) * 100}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <span className={cn(
+                    "w-[52px] shrink-0 text-right font-mono text-xs font-semibold tabular-nums",
+                    isMaxTonnage ? "text-primary" : "text-foreground/80",
+                  )}>
+                    {Math.round(toDisplay(totalWeight)).toLocaleString(dateLocale(lang))}
+                  </span>
+                  {canExpand ? (
                     <ChevronDown className={cn(
-                      "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                      "h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform",
                       isExpanded && "rotate-180",
                     )} />
+                  ) : (
+                    <span className="w-4 shrink-0" aria-hidden />
                   )}
                 </button>
 
                 {canExpand && isExpanded && (
-                  <div className="border-t border-surface-high px-3 py-2 space-y-1.5">
+                  <div className="border-t border-surface-high px-1 py-2 space-y-1.5">
                     {sets.map((set, si) => (
                       <div
                         key={si}
@@ -2648,21 +2705,25 @@ const WorkoutDay = () => {
           })}
         </div>
 
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => setShowShare(true)}>
-              <Share2 className="h-4 w-4 mr-2" />
+        <div className="space-y-2.5">
+          <div className="flex gap-2.5">
+            <Button
+              variant="secondary"
+              className="h-12 flex-1 rounded-2xl bg-surface-container"
+              onClick={() => setShowShare(true)}
+            >
+              <Share2 className="h-4 w-4" />
               {t('comp.share.share')}
             </Button>
             {/* H-T1: pełny button zamiast samej ikony (sama koperta była za mało
                 widoczna). Układ 2+1: Wróć schodzi pod spód, rząd mieści się na 390px. */}
             <Button
-              variant="outline"
-              className="flex-1"
+              variant="secondary"
+              className="h-12 flex-1 rounded-2xl bg-surface-container"
               onClick={() => setShowEmailDialog(true)}
               data-testid="workout-email"
             >
-              <Mail className="h-4 w-4 mr-2" />
+              <Mail className="h-4 w-4" />
               {t('email.sendToCoach')}
             </Button>
           </div>
@@ -2676,6 +2737,7 @@ const WorkoutDay = () => {
             className="kinetic-primary-button h-14 w-full text-base hover:brightness-105"
             onClick={() => navigate('/?celebrate=1')}
           >
+            <Home className="h-4 w-4" />
             {t('workout.backToDashboard')}
           </Button>
         </div>
