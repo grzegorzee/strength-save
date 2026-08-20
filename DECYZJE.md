@@ -11,6 +11,58 @@
 
 ## DECYZJE
 
+### 2026-08-20: Redesign podsumowania treningu (fala 2, artboard workout-summary 1a)
+
+**Co:** Nowa prezentacja COMPLETED VIEW (WorkoutDay + WorkoutCompletionSequence
+stage done) wg mockupu 1a, wyłącznie na tokenach akcentu/surface (zero nowych
+hexów, zero color-mix, strażniki zielone bez zmian allowlist):
+- header: wstecz 40px surface-container + tytuł font-heading z datą w subtitle
+  (focus · d MMM) + Edytuj w pigułce chip-mono (warunek isFinalSyncPending bez zmian),
+- hero karta surface-container: OGROMNY tonaż w akcencie (split fmtTonnage po
+  pierwszej spacji: wartość + jednostka; lbs = "k lbs"), badge delty + label
+  "vs {data}" (NOWE pole prevDate w CompletionSummary), DWA paski porównania
+  Dziś/poprzednia (tor surface-highest, wypełnienia bg-primary / bg-outline-variant),
+  rząd statów CZAS · SERIE done/planned · % planu + pigułka Popraw serie
+  (handler i warunek bez zmian; flex-wrap dla długich labeli PL na 390px),
+- sekcja Nowe rekordy ({n}): eyebrow w akcencie + kafle accent-wash grid 2 kolumny
+  (wartość text-primary, est1RM z podpisem estymacji, delta z formatPRDelta),
+- NOWA sekcja "Gdzie poszedł tonaż": NOWY lib volume-split.ts (kategoria:
+  biblioteka → własne ćwiczenia → fallback primaryMuscle→kategoria; nierozpoznane
+  i <5% i ponad limit 5 → "Inne"; zero zmyślonych grup) + komponent
+  WorkoutVolumeSplit (odcienie JEDNEGO akcentu /75 /55 /35 /20, "Inne" neutralne,
+  STATYCZNA lista klas pod purge; render tylko przy >=2 kubełkach),
+- lista ćwiczeń jako ranking tonażu: płaskie wiersze, licznik done/total
+  (niepełne = text-fitness-warning), pasek rankingowy względem maksa (max =
+  bg-primary + wartość w akcencie), kolumna tonażu mono, expand/serie bez zmian,
+- rząd Udostępnij + Wyślij do trenera h-12 na surface-container; CTA WRÓC DO
+  DASHBOARDU = kinetic-primary-button h-14 z ikoną Home (TA SAMA wielkość co
+  FINISH WORKOUT — wymóg właściciela); Usuń pod CTA bez zmian (testidy nietknięte).
+
+**Pominięte świadomie:** SESSION SHAPE z mockupu — SetData nie ma recordedAt
+(updatedAt to LWW), rysowanie kształtu sesji = zmyślone dane; backlog: zapisywać
+recordedAt przy odhaczeniu serii. Weekday jako tytuł odrzucony (dayName apki to
+realna tożsamość dnia).
+
+**Niezmienniki (nietknięte):** stage machine celebration/rating (wejście z
+Historii bez celebracji), WorkoutDraftStatusNotice, Share/Email dialogi i payloady,
+delete przez deleteWorkoutEverywhere, EDIT MODE, jednostki kg/lbs, testidy
+workout-email / workout-delete / workout-delete-dialog / workout-delete-confirm.
+Znana cecha (przedistniejąca): "poprzednia sesja" = najnowsza INNA sesja dayId,
+więc stare sesje oglądane z Historii porównują się z nowszymi (delta liczona tak
+samo przed redesignem; teraz widać datę).
+Inwentarz 33 funkcji z plan/summary.md odhaczony (wszystkie dostępne).
+
+**Weryfikacja:** vitest 279 plików / 2080 zielone (nowe: volume-split, prevDate,
+paski porównania; zaktualizowany workout-completion-sequence pod staty 10/12 + %),
+typecheck, lint, build; e2e celowane: NOWY workout-summary-actions (niezmiennik:
+komplet akcji naraz + hero z paskami), session-prs-remount, email-coach-button,
+workout-delete-from-day, batch-save — zielone (chromium). Pętla wizualna:
+2 iteracje x 4 akcenty (lime/amber/sky/indigo) + zrzut degradacji (pierwsza
+sesja dnia bez pasków/PR/splitu), zrzuty w docs/design-2026-08-20/screens/
+summary-iter1..2 (finalne iter2); poprawki z pętli: flex-wrap rzędu statów,
+pigułka Popraw serie ml-auto. Indigo: jasny tekst na CTA (applyAccent per
+luminancja) potwierdzony na zrzucie.
+
 ### 2026-08-20: Redesign ekranu sesji treningowej (fala 2, artboard exercise-card 2a)
 
 **Co:** Nowa prezentacja aktywnego treningu (WorkoutDay + ExerciseCard + RestBar)

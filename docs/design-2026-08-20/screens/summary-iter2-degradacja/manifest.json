@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-08-20T21-45-38",
+  "routes": [
+    "/workout/day-1?date=2026-06-22&session=shot-p1"
+  ],
+  "accents": [
+    "lime"
+  ],
+  "baseUrl": "http://localhost:8080/"
+}
