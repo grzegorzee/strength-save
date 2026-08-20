@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-08-20T18-51-24",
+  "routes": [
+    "/workout/day-1"
+  ],
+  "accents": [
+    "lime",
+    "indigo"
+  ],
+  "baseUrl": "http://localhost:8080/"
+}
