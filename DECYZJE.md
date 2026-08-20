@@ -5,11 +5,51 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (G-RELEASE: panel maili + pipeline SES + szablony; web live 080nD_E1)
+**Ostatnia aktualizacja:** 2026-08-20 (H-RELEASE: UX i treść maili do trenera; web live CTJWO6e6)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: H-RELEASE — poprawki UX i treści maili do trenera (feedback po teście 109)
+
+**Co:** Plan `docs/PLAN-EMAIL-UX-2026-08-20.md` wykonany w całości (TDD),
+6 zgłoszeń właściciela zaadresowanych:
+- H-T1 (27824943): pełny button "Wyślij do trenera" zamiast samej ikony
+  (układ 2+1 na 390px, zweryfikowany zrzutem); Historia z wyborem zakresu
+  (chipy: Ostatni tydzień default / Ostatnie 30 treningów; opcji "wszystko"
+  nie ma); e2e email-coach-button.spec.
+- H-T2 (a80c0666): functions — listWorkoutsInRange (sinceDate/beforeDate),
+  range week (dziś-6 dni, limit 14) / last30; HISTORY_EMAIL_MAX_WORKOUTS
+  200 → 30; nieznany range = invalid-argument.
+- H-T3 (e696f707): język maila z users.language (to samo pole co
+  weekly-digest) — profil wygrywa z parametrem klienta, fallback parametr,
+  brak wszystkiego = pl; awaria odczytu profilu nie blokuje wysyłki;
+  email_log.lang = finalny język.
+- H-T4 (cb919ca6): tytuły bez pauz z displayName ("Strength Save: trening
+  Greg, czwartek 20.08.2026"; historia z zakresem dat zamiast "(N)"); treść:
+  kafle tonaż/czas/serie zrobione-planowane/ćwiczenia/rekordy, sekcja NOWE
+  REKORDY liczona server-side (email-prs.ts, minimalny port detectNewPRs:
+  nowy max kg / powt. przy tym samym ciężarze / e1RM; pierwszy zapis to nie
+  PR), badge serii rozgrzewkowej, wyróżniona najlepsza seria, podsumowanie
+  setów per ćwiczenie; historia z sumą serii roboczych i PR per sesja
+  (baseline narastający, limit 100 wcześniejszych sesji).
+
+**Root cause:** feedback z realnego testu na buildzie 109: mail "biedny"
+(gołe listy serii), tytuł z em-dash bez imienia, ikona wysyłki niewidoczna,
+historia = 200 treningów naraz, język maila nie respektował ustawień usera.
+
+**Weryfikacja:** vitest web 1821/1821 + functions 302, e2e 406/406 po
+świeżym vite, wszystkie check:* zielone; deploy functions (obie callables)
++ web live index-CTJWO6e6.js (marker 'Wyślij do trenera' na gh-pages);
+REALNE maile na g.jasionowicz@gmail.com nowym szablonem: pojedynczy
+(z PR-em 105 vs 100 i rozgrzewką) MessageId 010701a01ed781dc-...,
+historia week MessageId 010701a01ed7828c-...; oba z kompletem zdarzeń
+Send+Delivery+Open w email_events.
+
+**Ograniczenia:** BEZ bumpów mobilnych — button i zakresy wejdą do bundli
+iOS/Android przy następnym wydaniu mobilnym; treść maili działa od razu
+wszędzie (server-side). Rules nietknięte.
 
 ### 2026-08-20: G-RELEASE — panel maili w adminie + pipeline zdarzeń SES + szablony marki
 

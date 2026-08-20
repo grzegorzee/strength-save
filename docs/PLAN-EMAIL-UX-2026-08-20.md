@@ -119,19 +119,35 @@
   ćwiczenie, historia z sumą serii roboczych i PR per sesja (baseline
   narastający); test zero em/en-dash w tytułach i HTML; 55/55 GREEN
   (functions total 302), stare kontrakty G-T3 utrzymane.
-- [ ] Po wdrożeniu: REALNY test na g.jasionowicz@gmail.com — jeden mail
+- [x] Po wdrożeniu: REALNY test na g.jasionowicz@gmail.com — jeden mail
   pojedynczego treningu (fixture z PR-em i rozgrzewką przez bezpośrednie
   wywołanie buildera + wysyłkę SES kluczem z _secrets; NIE przez konta
   realnych userów) i jeden historii 'week'; w raporcie MessageId obu.
+  DOWÓD: pojedynczy MessageId
+  010701a01ed781dc-e24dfccf-ce15-4cf2-8a89-e9373158958b-000000 (detekcja
+  na fixture zwróciła PR weight 105 vs 100, rozgrzewka 60x10 w treści),
+  historia week MessageId
+  010701a01ed7828c-205f9cb3-1bc0-40d4-8596-9f952bac553d-000000;
+  oba z kompletem zdarzeń Send+Delivery+Open w email_events (pipeline G-T2
+  działa po redeployu callables).
 
 ## H-RELEASE
 
-- [ ] Bramki repo (vitest web+functions, typecheck, lint, build, check:*,
+- [x] Bramki repo (vitest web+functions, typecheck, lint, build, check:*,
   test:rules jeśli rules tknięte) + pełne e2e po świeżym vite.
-- [ ] Deploy: functions (emailWorkoutSummary, emailWorkoutHistory) → web
+  DOWÓD: vitest web 1821/1821 (244 pliki), functions 302 passed / 7 skipped,
+  typecheck OK (web+functions), lint 0 błędów, build + bundle-budget
+  (initial 1314598 B) + dist-offline PASS, build:mobile + dist-smoke PASS,
+  no-emoji OK; rules NIEtknięte w planie H (test:rules pominięty zgodnie
+  z warunkiem); pełne e2e 406/406 (5.9 min) po pkill vite + rmtree .vite.
+- [x] Deploy: functions (emailWorkoutSummary, emailWorkoutHistory) → web
   (npm run deploy) + weryfikacja markera (np. 'Wyślij do trenera') na
   origin/gh-pages + curl live.
-- [ ] BEZ bumpów mobilnych (przycisk wejdzie do bundli przy następnym wydaniu
+  DOWÓD: obie callables Successful update; marker 'Wyślij do trenera'
+  w origin/gh-pages:assets/index-CTJWO6e6.js; curl live zwraca
+  index-CTJWO6e6.js; przed deployem git pull --rebase (up to date).
+- [x] BEZ bumpów mobilnych (przycisk wejdzie do bundli przy następnym wydaniu
   mobilnym — odnotować w raporcie; treść maili działa od razu wszędzie,
   bo server-side).
-- [ ] DECYZJE.md + odhaczenie tego planu z dowodami + pamięć projektu.
+- [x] DECYZJE.md + odhaczenie tego planu z dowodami + pamięć projektu.
+  DOWÓD: wpis H-RELEASE w DECYZJE.md, pamięć projektu zaktualizowana.
