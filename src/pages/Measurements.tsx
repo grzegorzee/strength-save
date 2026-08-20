@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { compressImage } from '@/lib/image-compress';
+import { BodyPhotoCompare } from '@/components/BodyPhotoCompare';
 import { TrendingUp, TrendingDown, Minus, ChevronRight, Database, Ruler } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { cn, parseLocalDate } from '@/lib/utils';
@@ -151,6 +152,11 @@ const Measurements = () => {
         <Suspense fallback={<div className="h-[220px]" />}>
           <MeasurementTrendChart measurements={measurements} />
         </Suspense>
+      )}
+
+      {/* T13b: porównanie sylwetki przed/po — tylko przy włączonym feature bodyPhotos */}
+      {canUseBodyPhotos && measurements.length > 0 && (
+        <BodyPhotoCompare measurements={measurements} />
       )}
 
       {measurements.length > 0 && (

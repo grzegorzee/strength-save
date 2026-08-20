@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { History, Dumbbell, Sparkles, TriangleAlert, RefreshCw, Loader2, CalendarX2 } from 'lucide-react';
+import { History, Dumbbell, Sparkles, TriangleAlert, RefreshCw, Loader2, CalendarX2, Camera } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +41,7 @@ const Cycles = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
-  const { uid } = useCurrentUser();
+  const { uid, canUseBodyPhotos } = useCurrentUser();
   const { cycles, isLoaded, createActiveCycle, deleteCycle, archiveCurrentPlan } = usePlanCycles(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { toast } = useToast();
@@ -252,6 +252,14 @@ const Cycles = () => {
                   <Button variant="outline" onClick={() => navigate(`/new-plan?fromCycle=${liveActiveCycle.id}`)}>
                     {t('cycles.changePlan')}
                   </Button>
+                  {/* T13b: wejście do zdjęcia "po" — tylko DOKŁADA link, przepływ
+                      decyzyjny (Powtórz/Zmień plan) zostaje nietknięty. */}
+                  {canUseBodyPhotos && (
+                    <Button variant="ghost" onClick={() => navigate('/measurements')}>
+                      <Camera className="h-4 w-4 mr-2" />
+                      {t('cycles.photoAfterCta')}
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
