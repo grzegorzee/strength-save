@@ -415,6 +415,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // G-T1: rejestr wysyłek maili (pisze wyłącznie Admin SDK w callables)
+    // + zdarzenia SES (pisze wyłącznie webhook sesEventsWebhook).
+    // Odczyt tylko panel admina (sekcja Maile).
+    match /email_log/{logId} {
+      allow read: if request.auth != null && isAdmin();
+      allow write: if false;
+    }
+
+    match /email_events/{eventId} {
+      allow read: if request.auth != null && isAdmin();
+      allow write: if false;
+    }
+
     // Zamknięty schemat telemetrii (Z41). Dokumenty legacy mają PŁASKIE klucze
     // "counters.xxx" (historyczny zapis dot-notation) — hasOnly musi je dopuszczać,
     // inaczej merge na takim dokumencie pada (lekcja createdAt z workouts).

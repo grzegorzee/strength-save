@@ -521,6 +521,22 @@ add('user_events: update payload DENIED (duplikat nie nadpisze oryginalu)', fals
 add('user_events: ponowna emisja nadpisujaca createdAt DENIED (idempotencja)', false, await ok(() => setDoc(doc(db, 'user_events', UE_ID), { ...userEvent, createdAt: Date.now() + 5 })));
 add('user_events: delete DENIED', false, await ok(() => deleteDoc(doc(db, 'user_events', UE_ID))));
 
+// === G-T1: email_log / email_events — czyta tylko admin, pisze tylko backend ===
+await env.clearFirestore();
+await seedUser({ enabled: true });
+await seedUser({ enabled: true }, 'active', ADMIN_UID, 'admin');
+const emailLogDoc = { uid: UID, to: 'trener@example.com', type: 'workout', workoutId: 'w1', subject: 'Trening 2026-08-20', transport: 'ses', sesMessageId: 'msg-1', status: 'sent', sentAt: '2026-08-20T10:00:00.000Z', lang: 'pl' };
+const emailEventDoc = { messageId: 'msg-1', eventType: 'Delivery', timestamp: '2026-08-20T10:00:05.000Z', to: 'trener@example.com' };
+await seedDoc('email_log', 'el1', emailLogDoc);
+await seedDoc('email_events', 'msg-1-Delivery-1755684005000', emailEventDoc);
+add('email_log: read admina ALLOWED (G-T1)', true, await ok(() => getDoc(doc(adminDb, 'email_log', 'el1'))));
+add('email_log: read usera DENIED (G-T1)', false, await ok(() => getDoc(doc(db, 'email_log', 'el1'))));
+add('email_log: write admina DENIED (pisze tylko backend) (G-T1)', false, await ok(() => setDoc(doc(adminDb, 'email_log', 'el2'), emailLogDoc)));
+add('email_log: write usera DENIED (G-T1)', false, await ok(() => setDoc(doc(db, 'email_log', 'el3'), emailLogDoc)));
+add('email_events: read admina ALLOWED (G-T1)', true, await ok(() => getDoc(doc(adminDb, 'email_events', 'msg-1-Delivery-1755684005000'))));
+add('email_events: read usera DENIED (G-T1)', false, await ok(() => getDoc(doc(db, 'email_events', 'msg-1-Delivery-1755684005000'))));
+add('email_events: write klienta DENIED (pisze tylko webhook) (G-T1)', false, await ok(() => setDoc(doc(db, 'email_events', 'msg-2-Send-1'), emailEventDoc)));
+
 await env.cleanup();
 
 let failed = 0;

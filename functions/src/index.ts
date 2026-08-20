@@ -1212,13 +1212,14 @@ import {
   EMAIL_DAILY_LIMIT,
   type EmailWorkout,
   type EmailWorkoutDeps,
+  type SendEmailResult,
 } from "./email-workout";
 
 const EMAIL_SECRETS = [sesRegion, sesAccessKeyId, sesSecretAccessKey, sesFrom, resendApiKey];
 
 const isSecretSet = (value: string): boolean => value.trim() !== "" && value.trim() !== "unset";
 
-const sendViaResend = async (to: string, subject: string, html: string): Promise<{ error?: { message: string } }> => {
+const sendViaResend = async (to: string, subject: string, html: string): Promise<SendEmailResult> => {
   const apiKey = resendApiKey.value();
   if (!isSecretSet(apiKey)) return { error: { message: "no-transport-configured" } };
   const resend = new Resend(apiKey);
@@ -1228,10 +1229,10 @@ const sendViaResend = async (to: string, subject: string, html: string): Promise
     subject,
     html,
   });
-  return response.error ? { error: { message: response.error.message } } : {};
+  return response.error ? { error: { message: response.error.message } } : { transport: "resend" };
 };
 
-const sendWorkoutEmail = async (to: string, subject: string, html: string): Promise<{ error?: { message: string } }> => {
+const sendWorkoutEmail = async (to: string, subject: string, html: string): Promise<SendEmailResult> => {
   const region = sesRegion.value();
   const key = sesAccessKeyId.value();
   const secret = sesSecretAccessKey.value();
@@ -1240,12 +1241,13 @@ const sendWorkoutEmail = async (to: string, subject: string, html: string): Prom
     try {
       const { SESv2Client, SendEmailCommand } = await import("@aws-sdk/client-sesv2");
       const client = new SESv2Client({ region: region.trim(), credentials: { accessKeyId: key.trim(), secretAccessKey: secret.trim() } });
-      await client.send(new SendEmailCommand({
+      const response = await client.send(new SendEmailCommand({
         FromEmailAddress: from.trim(),
         Destination: { ToAddresses: [to] },
         Content: { Simple: { Subject: { Data: subject }, Body: { Html: { Data: html } } } },
       }));
-      return {};
+      // MessageId to klucz korelacji ze zdarzeniami SES (email_events).
+      return { transport: "ses", ...(response.MessageId ? { sesMessageId: response.MessageId } : {}) };
     } catch (error) {
       // Np. DKIM jeszcze się propaguje albo chwilowy błąd SES — mail ma dojść,
       // więc próbujemy Resendem zanim oddamy błąd userowi.
@@ -1283,6 +1285,10 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
     });
   },
   sendEmail: sendWorkoutEmail,
+  // G-T1: rejestr wysyłek dla panelu admina (rules: read tylko admin, write false).
+  logEmail: async (entry) => {
+    await db.collection("email_log").add(entry);
+  },
 });
 
 const emailErrorToHttps = (code: string): never => {

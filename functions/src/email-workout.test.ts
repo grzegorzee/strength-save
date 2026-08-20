@@ -42,8 +42,12 @@ const deps = (over: Partial<EmailWorkoutDeps> = {}): EmailWorkoutDeps => ({
   listWorkouts: vi.fn(async () => [workout()]),
   consumeQuota: vi.fn(async () => true),
   sendEmail: vi.fn(async () => ({})),
+  logEmail: vi.fn(async () => undefined),
   ...over,
 });
+
+const loggedEntry = (d: EmailWorkoutDeps) =>
+  (d.logEmail as ReturnType<typeof vi.fn>).mock.calls[0][0] as Record<string, unknown>;
 
 describe("buildWorkoutEmailHtml", () => {
   it("zawiera serie, notatki, RPE, ból, ocenę sesji, tonaż i czas", () => {
@@ -116,6 +120,60 @@ describe("runEmailHistory", () => {
     const d = deps({ listWorkouts: vi.fn(async () => []) });
     expect(await runEmailHistory(d, { ...params })).toEqual({ ok: false, code: "empty-history" });
     expect(d.consumeQuota).not.toHaveBeenCalled();
+  });
+});
+
+// G-T1: rejestr wysyłek email_log — każda wysyłka (udana i nieudana) zostawia wpis.
+describe("email_log (G-T1)", () => {
+  const params = { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" } as const;
+
+  it("wysyłka SES loguje wpis sent z sesMessageId", async () => {
+    const d = deps({ sendEmail: vi.fn(async () => ({ transport: "ses" as const, sesMessageId: "ses-123" })) });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    expect(d.logEmail).toHaveBeenCalledOnce();
+    const entry = loggedEntry(d);
+    expect(entry).toMatchObject({
+      uid: "u1", to: "trener@example.com", type: "workout", workoutId: "w1",
+      transport: "ses", sesMessageId: "ses-123", status: "sent", lang: "pl",
+    });
+    expect(String(entry.subject)).toContain("2026-08-20");
+    expect(typeof entry.sentAt).toBe("string");
+  });
+
+  it("fallback Resend loguje transport=resend bez sesMessageId", async () => {
+    const d = deps({ sendEmail: vi.fn(async () => ({ transport: "resend" as const })) });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    const entry = loggedEntry(d);
+    expect(entry.transport).toBe("resend");
+    expect(entry.sesMessageId).toBeUndefined();
+    expect(entry.status).toBe("sent");
+  });
+
+  it("błąd totalny loguje status failed z komunikatem, NIE sent", async () => {
+    const d = deps({ sendEmail: vi.fn(async () => ({ error: { message: "no-transport-configured" } })) });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: false, code: "send-failed" });
+    const entry = loggedEntry(d);
+    expect(entry.status).toBe("failed");
+    expect(entry.error).toBe("no-transport-configured");
+  });
+
+  it("historia loguje type=history bez workoutId", async () => {
+    const d = deps({ sendEmail: vi.fn(async () => ({ transport: "ses" as const, sesMessageId: "ses-9" })) });
+    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
+    const entry = loggedEntry(d);
+    expect(entry.type).toBe("history");
+    expect(entry.workoutId).toBeUndefined();
+  });
+
+  it("awaria zapisu logu NIE psuje wysyłki (mail wyszedł = ok)", async () => {
+    const d = deps({ logEmail: vi.fn(async () => { throw new Error("firestore-down"); }) });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+  });
+
+  it("odrzucenie przed wysyłką (invalid-recipient) nie tworzy wpisu", async () => {
+    const d = deps();
+    await runEmailWorkout(d, { ...params, to: "nie-adres" });
+    expect(d.logEmail).not.toHaveBeenCalled();
   });
 });
 

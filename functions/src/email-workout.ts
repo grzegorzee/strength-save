@@ -35,12 +35,36 @@ export interface EmailWorkout {
   exercises?: EmailExercise[];
 }
 
+/** Metadane transportu z wysyłki: SES daje MessageId (klucz korelacji ze
+ *  zdarzeniami SES), fallback Resend już nie. Błąd totalny = error. */
+export interface SendEmailResult {
+  transport?: "ses" | "resend";
+  sesMessageId?: string;
+  error?: { message: string };
+}
+
+/** Wpis rejestru wysyłek email_log — czyta go wyłącznie panel admina. */
+export interface EmailLogEntry {
+  uid: string;
+  to: string;
+  type: "workout" | "history";
+  workoutId?: string;
+  subject: string;
+  transport?: "ses" | "resend";
+  sesMessageId?: string;
+  status: "sent" | "failed";
+  error?: string;
+  sentAt: string;
+  lang: Lang;
+}
+
 export interface EmailWorkoutDeps {
   getWorkout: (workoutId: string) => Promise<EmailWorkout | null>;
   listWorkouts: (uid: string, limit: number) => Promise<EmailWorkout[]>;
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
   consumeQuota: (uid: string, today: string) => Promise<boolean>;
-  sendEmail: (to: string, subject: string, html: string) => Promise<{ error?: { message: string } }>;
+  sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
+  logEmail: (entry: EmailLogEntry) => Promise<void>;
 }
 
 export const EMAIL_DAILY_LIMIT = 10;
@@ -157,6 +181,33 @@ export type EmailWorkoutResult =
   | { ok: true }
   | { ok: false; code: "invalid-recipient" | "not-found" | "forbidden" | "quota-exceeded" | "send-failed" | "empty-history" };
 
+/** G-T1: wpis do email_log po KAŻDEJ próbie wysyłki (udanej i nieudanej).
+ *  Awaria logu nie może zabrać userowi maila, który już wyszedł. */
+const logEmailSafe = async (
+  deps: EmailWorkoutDeps,
+  base: { uid: string; to: string; type: "workout" | "history"; workoutId?: string; subject: string; lang: Lang },
+  response: SendEmailResult,
+): Promise<void> => {
+  const entry: EmailLogEntry = {
+    uid: base.uid,
+    to: base.to,
+    type: base.type,
+    ...(base.workoutId ? { workoutId: base.workoutId } : {}),
+    subject: base.subject,
+    ...(response.transport ? { transport: response.transport } : {}),
+    ...(response.sesMessageId ? { sesMessageId: response.sesMessageId } : {}),
+    status: response.error ? "failed" : "sent",
+    ...(response.error ? { error: response.error.message } : {}),
+    sentAt: new Date().toISOString(),
+    lang: base.lang,
+  };
+  try {
+    await deps.logEmail(entry);
+  } catch {
+    // Rejestr jest pomocniczy: brak wpisu nie unieważnia wysłanego maila.
+  }
+};
+
 export async function runEmailWorkout(
   deps: EmailWorkoutDeps,
   params: { uid: string; workoutId: string; to: unknown; lang?: Lang; today: string },
@@ -167,7 +218,9 @@ export async function runEmailWorkout(
   if (workout.userId !== params.uid) return { ok: false, code: "forbidden" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
   const lang: Lang = params.lang === "en" ? "en" : "pl";
-  const response = await deps.sendEmail(params.to, workoutEmailSubject(workout, lang), buildWorkoutEmailHtml(workout, lang));
+  const subject = workoutEmailSubject(workout, lang);
+  const response = await deps.sendEmail(params.to, subject, buildWorkoutEmailHtml(workout, lang));
+  await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "workout", workoutId: workout.id, subject, lang }, response);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
 }
@@ -181,7 +234,9 @@ export async function runEmailHistory(
   if (workouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
   const lang: Lang = params.lang === "en" ? "en" : "pl";
-  const response = await deps.sendEmail(params.to, historyEmailSubject(workouts.length, lang), buildHistoryEmailHtml(workouts, lang));
+  const subject = historyEmailSubject(workouts.length, lang);
+  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(workouts, lang));
+  await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
 }
