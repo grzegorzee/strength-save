@@ -66,6 +66,14 @@ describe('PlanNextStepCard (C-T4: jedna karta decyzyjna)', () => {
     expect(screen.queryByTestId('plan-next-repeat')).toBeNull();
   });
 
+  it('statsLine (fala 2): renderowana gdy podana, brak linii gdy undefined', () => {
+    const { unmount } = renderCard({ statsLine: '96% obecności · 24 PR' });
+    expect(screen.getByText('96% obecności · 24 PR')).toBeTruthy();
+    unmount();
+    renderCard();
+    expect(screen.queryByText('96% obecności · 24 PR')).toBeNull();
+  });
+
   it('dismiss renderuje się tylko z handlerem (Dashboard), Plan/Cykle bez X', () => {
     renderCard();
     expect(screen.queryByLabelText('dash.dismissHint')).toBeNull();

@@ -38,11 +38,14 @@ interface PlanNextStepCardProps {
   testId?: string;
   /** `card` (default) = pełna karta; `banner` = kompaktowy wiersz z "Zdecyduj". */
   variant?: 'card' | 'banner';
+  /** Fala 2 (Plan): linia statystyk z realnych danych cyklu ("96% obecności · 24 PR").
+      Brak danych = brak linii (zero placeholderów). */
+  statsLine?: string;
 }
 
 export const PlanNextStepCard = ({
   step, uid, planStartDate, canRepeat, isRepeating = false, onRepeat, onDismiss, testId,
-  variant = 'card',
+  variant = 'card', statsLine,
 }: PlanNextStepCardProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -102,6 +105,7 @@ export const PlanNextStepCard = ({
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground">{step.title}</p>
             <p className="line-clamp-2 text-xs text-muted-foreground">{step.description}</p>
+            {statsLine && <p className="text-xs text-muted-foreground">{statsLine}</p>}
           </div>
           {!expanded && (
             <button
@@ -143,6 +147,7 @@ export const PlanNextStepCard = ({
             </p>
             <h2 className="font-heading text-lg font-bold uppercase tracking-tight">{step.title}</h2>
             <p className="text-sm text-muted-foreground">{step.description}</p>
+            {statsLine && <p className="text-xs text-muted-foreground">{statsLine}</p>}
           </div>
           <div className="flex items-start gap-2">
             {badges}
