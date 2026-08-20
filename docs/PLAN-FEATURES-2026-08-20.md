@@ -8,18 +8,26 @@
 **Zgłoszenie:** "Powinien móc zmienić imię; podczas onboardingu powinniśmy o to
 zapytać, żeby wiedzieć jak się zwracać. Imię edytowalne od razu pod zdjęciem."
 
-- [ ] Profil: imię pod avatarem edytowalne inline (tap w imię albo ikona ołówka
+- [x] Profil: imię pod avatarem edytowalne inline (tap w imię albo ikona ołówka
   przy imieniu → input → zapis). Zapis do `users/{uid}.displayName`; UWAGA na
   mapper `mapAppUserProfile` (lekcja buildu 88: nowe/zmieniane pole = sprawdź
   przeniesienie pole-po-polu) i rules (czy `displayName` w dozwolonych kluczach
   update).
-- [ ] Onboarding: krok "Jak masz na imię?" (input, walidacja 1-40 znaków, bez
+- [x] Onboarding: krok "Jak masz na imię?" (input, walidacja 1-40 znaków, bez
   wymuszania — można pominąć; wtedy fallback jak dziś). Zapis razem z profilem
   startowym.
-- [ ] Powitanie na Dashboard i inne miejsca używają displayName (już używają —
+- [x] Powitanie na Dashboard i inne miejsca używają displayName (już używają —
   test niezmiennika, że po zmianie imienia UI się aktualizuje).
-- [ ] Testy: unit edycji (zapis + mirror + sanityzacja), e2e: onboarding z
+- [x] Testy: unit edycji (zapis + mirror + sanityzacja), e2e: onboarding z
   imieniem, zmiana imienia w Profilu widoczna na Dashboard.
+
+DOWÓD (2026-08-20, commit 154cf6be): rozpoznanie pokazało, że onboarding JUŻ
+pyta o imię (PlanWizard askName, ob-name-input, zapis displayName w
+markOnboardingComplete), a dialog edycji istniał pod "Edytuj profil" (updateDoc,
+mapper przenosi displayName linia 111, rules bez zmian — działający prod flow).
+Dodane brakujące wejście: tap w imię/ołówek pod avatarem (profile-name-edit)
+otwiera ten dialog; etykieta 'Nazwa' -> 'Imię'. Test 15/15, typecheck, lint,
+e2e mobile-nav 8/8 GREEN.
 
 ## F-T2 — kolor przewodni aplikacji (theming)
 
