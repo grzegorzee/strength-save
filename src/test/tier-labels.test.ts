@@ -25,3 +25,22 @@ describe('etykiety poziomów gamifikacyjnych', () => {
     expect(computeTier(20, 0, 'en').label).toBe('Advanced');
   });
 });
+
+// Fala 2 (redesign Profilu): licznik "N do: {poziom}" w identity liczy z remaining.
+describe('computeTier.remaining', () => {
+  it('score na progu: pełny dystans do następnego poziomu', () => {
+    expect(computeTier(5, 0, 'en').remaining).toBe(15); // rookie(5) -> advanced(20)
+  });
+
+  it('score tuż przed progiem: remaining = 1', () => {
+    expect(computeTier(19, 0, 'en').remaining).toBe(1);
+  });
+
+  it('PR-y wchodzą do score (x2)', () => {
+    expect(computeTier(10, 2, 'en').remaining).toBe(6); // score 14 -> advanced(20)
+  });
+
+  it('elite (brak następnego poziomu): remaining = null', () => {
+    expect(computeTier(80, 0, 'en').remaining).toBeNull();
+  });
+});

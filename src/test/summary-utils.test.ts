@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getWeekBounds, calculateTonnage, calculateStreak, calculateStreakDetails } from '@/lib/summary-utils';
+import { getWeekBounds, calculateTonnage, calculateStreak, calculateStreakDetails, streakDetailsFromDates } from '@/lib/summary-utils';
 import { formatLocalDate } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 
@@ -180,5 +180,21 @@ describe('calculateStreakDetails (tarcza serii)', () => {
     const { streak, frozenWeeks } = calculateStreakDetails(workouts);
     expect(streak).toBe(2);
     expect(frozenWeeks).toHaveLength(1);
+  });
+});
+
+// Fala 2 (Profil): kafel SERIA liczy z dat agregatu all-time. Syntetyczna seria
+// robocza musi przejść filtr hasCompletedWorkingSet (same daty, bez pełnych sesji).
+describe('streakDetailsFromDates (agregat all-time)', () => {
+  it('te same daty dają ten sam streak co pełne sesje', () => {
+    const sessions = [...fullWeek(0), ...fullWeek(1), ...fullWeek(2)];
+    const fromDates = streakDetailsFromDates(sessions.map((w) => w.date));
+    expect(fromDates.streak).toBe(calculateStreakDetails(sessions).streak);
+    expect(fromDates.streak).toBe(3);
+  });
+
+  it('pusta lista dat = zero (konto bez treningów)', () => {
+    expect(streakDetailsFromDates([]).streak).toBe(0);
+    expect(streakDetailsFromDates([]).frozenWeeks).toHaveLength(0);
   });
 });

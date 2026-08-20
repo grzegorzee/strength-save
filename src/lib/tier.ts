@@ -6,6 +6,8 @@ export interface TierInfo {
   /** Postęp 0-1 do następnego progu (do paska/UI). */
   progress: number;
   next: string | null;
+  /** Fala 2 (Profil): ile score brakuje do następnego progu; elite = null. */
+  remaining: number | null;
 }
 
 interface TierThreshold {
@@ -42,5 +44,6 @@ export const computeTier = (
     level: idx,
     progress,
     next: next ? translate(lang, next.labelKey) : null,
+    remaining: next ? next.min - score : null,
   };
 };

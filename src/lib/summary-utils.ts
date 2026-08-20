@@ -139,6 +139,19 @@ export const calculateStreakDetails = (workouts: WorkoutSession[]): StreakDetail
   return { streak, frozenWeeks };
 };
 
+// Fala 2 (Profil): streak z samych dat agregatu all-time. Agregat zlicza
+// wyłącznie treningi po finalnej walidacji (>=1 seria robocza), więc syntetyczna
+// seria robocza odtwarza kontrakt hasCompletedWorkingSet bez pełnych sesji.
+export const streakDetailsFromDates = (dates: readonly string[]): StreakDetails =>
+  calculateStreakDetails(dates.map((date, i) => ({
+    id: `agg-${i}`,
+    userId: '',
+    dayId: '',
+    date,
+    completed: true,
+    exercises: [{ exerciseId: 'aggregate', sets: [{ reps: 1, weight: 0, completed: true }] }],
+  })));
+
 export const calculateStreak = (workouts: WorkoutSession[]): number =>
   calculateStreakDetails(workouts).streak;
 
