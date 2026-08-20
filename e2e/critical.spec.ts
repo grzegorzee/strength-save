@@ -102,6 +102,8 @@ test.describe('Critical Interactions', () => {
     await navigateAndWait(page, '/history');
     await expectPageRendered(page);
     await expect(page.getByRole('main').getByRole('heading', { name: 'Historia treningów' })).toBeVisible();
-    await expect(page.getByText('Filtry')).toBeVisible();
+    // Fala 2: karta "Filtry" zastąpiona chipami statusu + ikoną filtrów (aria-label).
+    await expect(page.getByRole('button', { name: /^wszystkie$/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Filtry' })).toBeVisible();
   });
 });

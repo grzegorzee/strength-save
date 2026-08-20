@@ -71,6 +71,8 @@ test.describe('Wyślij do trenera (H-T1)', () => {
     await navigateAndWait(page, '/history');
     await expectPageRendered(page);
 
+    // Fala 2: akcja przeniesiona do menu ⋯ wiersza — najpierw otwarcie menu.
+    await page.getByTestId('history-row-menu').first().click();
     const action = page.getByTestId('history-row-email').first();
     await expect(action).toBeVisible();
     await expect(action).toContainText('Wyślij do trenera');

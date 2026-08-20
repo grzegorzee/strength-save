@@ -79,6 +79,7 @@ export const HistorySessionRow = ({
       <div
         role="button"
         tabIndex={0}
+        data-testid="history-session-row"
         onClick={handleRowActivate}
         onKeyDown={handleRowKeyDown}
         className={cn(

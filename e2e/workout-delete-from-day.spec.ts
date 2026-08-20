@@ -69,6 +69,9 @@ test.describe('Usuwanie treningu z widoku treningu (Z161)', () => {
     await expectPageRendered(page);
 
     expect(await seededWorkoutIds(page)).not.toContain(WORKOUT_ID);
+    // Fala 2: history-delete żyje w menu ⋯ wiersza (zamknięte menu nie renderuje
+    // pozycji), więc count 0 potwierdza tu głównie pustą listę — asercja słabsza
+    // niż przed redesignem, kluczowy jest brak WORKOUT_ID w seedzie powyżej.
     await expect(page.getByTestId('history-delete')).toHaveCount(0);
   });
 
