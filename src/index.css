@@ -186,7 +186,8 @@ All colors MUST be HSL.
   }
 
   .dark .exercise-card {
-    background: #171717;
+    /* Fala 2 (2026-08-20): token zamiast hexu — --card w dark to dokładnie 0 0% 9% (#171717). */
+    background: hsl(var(--card));
     box-shadow: 0 20px 40px rgba(0,0,0,0.28);
   }
 
@@ -207,7 +208,8 @@ All colors MUST be HSL.
   }
 
   .dark .exercise-card-input {
-    background: #0e0e0e !important;
+    /* Fala 2 (2026-08-20): token zamiast hexu — --surface w dark to dokładnie 0 0% 5.5% (#0e0e0e). */
+    background: hsl(var(--surface)) !important;
   }
 
   .exercise-card-input:focus {
@@ -242,6 +244,56 @@ All colors MUST be HSL.
     backdrop-filter: blur(24px) saturate(160%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-top-color: rgba(255, 255, 255, 0.16);
+  }
+
+  /* Fala 2 (2026-08-20): wspólne wzorce mockupów redesignu. Wartości TYLKO z tokenów.
+     Zakaz color-mix() w całym src (WKWebView < 16.2 odrzuca deklarację w całości) —
+     pilnuje src/test/design-token-guard.test.ts. */
+
+  /* Eyebrow / etykieta sekcji: NEXT SESSION, WHERE THE VOLUME WENT, DURING A WORKOUT.
+     Kolor nadaje ekran: text-primary (akcentowa) albo text-muted-foreground (neutralna). */
+  .eyebrow-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.65rem;            /* ~10.5px */
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Pigułka mono: 82 TOTAL, WK 12/12, SKIP, EDIT, COMPARE, badge statusu dnia.
+     Wariant neutralny; akcentowy przez dołożenie bg-primary/15 text-primary,
+     wypełniony przez bg-primary text-primary-foreground. */
+  .chip-mono {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 9999px;
+    background: hsl(var(--surface-highest));
+    color: hsl(var(--muted-foreground));
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.625rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  /* Obrys akcentowy (banner decyzji, aktywna seria, hot-cell heatmapy).
+     Inset box-shadow, nie border (No-Line Rule) i nie ring-* (kolizja z focus). */
+  .accent-ring {
+    box-shadow: inset 0 0 0 1.5px hsl(var(--primary) / 0.45);
+  }
+
+  /* Tint akcentu jako TŁO PRZEPUSZCZALNE (target box, karta PR, karta NEXT). */
+  .accent-wash {
+    background: hsl(var(--primary) / 0.12);
+  }
+
+  /* Tint akcentu KRYJĄCY (sticky/floating nad przewijaną treścią):
+     gradient-stack = alfa skomponowana nad surface-low, bez color-mix. */
+  .accent-wash-solid {
+    background:
+      linear-gradient(hsl(var(--primary) / 0.12), hsl(var(--primary) / 0.12)),
+      hsl(var(--surface-low));
   }
 }
 
