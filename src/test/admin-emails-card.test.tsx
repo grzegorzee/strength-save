@@ -4,13 +4,16 @@ import { fireEvent, render } from '@testing-library/react';
 // G-T4: sekcja Maile w panelu admina — pusty stan, błąd z wyjściem (retry),
 // wiersze ze statusami i kafle zbiorcze. Mock firestore odcina realne SDK.
 const getDocsMock = vi.fn();
+const getDocMock = vi.fn();
 vi.mock('@/lib/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
+  doc: vi.fn(),
   query: vi.fn(),
   orderBy: vi.fn(),
   limit: vi.fn(),
   getDocs: (...args: unknown[]) => getDocsMock(...args),
+  getDoc: (...args: unknown[]) => getDocMock(...args),
 }));
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AdminEmailsCard } from '@/pages/admin/AdminEmailsCard';
@@ -39,6 +42,7 @@ beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
   getDocsMock.mockReset();
+  getDocMock.mockReset();
 });
 
 describe('AdminEmailsCard (G-T4)', () => {
@@ -97,5 +101,37 @@ describe('AdminEmailsCard (G-T4)', () => {
     expect(view.getAllByText('Dostarczalność').length).toBe(2);
     expect(view.getAllByText('Otwieralność').length).toBe(2);
     expect(view.getByText(/ostatnich 100 wysyłek/)).toBeTruthy();
+  });
+
+  // T21c: etykiety wszystkich typów maili — znane po polsku, nieznane surowo.
+  it('typ weekly_digest ma etykietę, nieznany typ renderuje surowy string', async () => {
+    getDocsMock.mockResolvedValue(snapshot([
+      docSnap('el1', { ...baseRow, type: 'weekly_digest' }),
+      docSnap('el2', { ...baseRow, type: 'nowy_nieznany_typ' }),
+    ]));
+    const view = renderCard();
+    expect(await view.findByText('raport tygodnia')).toBeTruthy();
+    expect(view.getByText('nowy_nieznany_typ')).toBeTruthy();
+  });
+
+  // T21c: podgląd treści maila z podkolekcji content/body.
+  it('klik Pokaż treść otwiera dialog z iframe (sandbox, srcDoc)', async () => {
+    getDocsMock.mockResolvedValue(snapshot([docSnap('el1', baseRow)]));
+    getDocMock.mockResolvedValue({ exists: () => true, data: () => ({ html: '<p>Trening HTML</p>', truncated: false }) });
+    const view = renderCard();
+    fireEvent.click(await view.findByRole('button', { name: 'Pokaż treść' }));
+    expect(await view.findByTitle(baseRow.subject)).toBeTruthy();
+    const iframe = view.getByTitle(baseRow.subject) as HTMLIFrameElement;
+    expect(iframe.getAttribute('srcdoc')).toBe('<p>Trening HTML</p>');
+    expect(iframe.getAttribute('sandbox')).toBe('');
+    expect(getDocMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('brak dokumentu treści = komunikat o niedostępności (wpisy sprzed T21a)', async () => {
+    getDocsMock.mockResolvedValue(snapshot([docSnap('el1', baseRow)]));
+    getDocMock.mockResolvedValue({ exists: () => false, data: () => undefined });
+    const view = renderCard();
+    fireEvent.click(await view.findByRole('button', { name: 'Pokaż treść' }));
+    expect(await view.findByText(/Treść niedostępna/)).toBeTruthy();
   });
 });
