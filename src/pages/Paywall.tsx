@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Crown, Loader2, RefreshCw, Sparkles } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { dateLocale } from '@/i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useHardPaywall } from '@/hooks/useHardPaywall';
@@ -158,7 +159,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
   const yearlyValue = yearlyValueSummary(
     options.yearly?.pkg.product ?? null,
     options.monthly?.pkg.product ?? null,
-    lang === 'pl' ? 'pl-PL' : 'en-US',
+    dateLocale(lang),
   );
 
   const PlanCard = ({ plan }: { plan: PlanKey }) => {
