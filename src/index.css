@@ -48,8 +48,10 @@ All colors MUST be HSL.
     --radius: 0.75rem;
 
     /* Fitness app custom colors */
-    /* Ujednolicone do primary (zieleń) — cyjan był niespójnym drugim akcentem (audyt produktu) */
-    --fitness-cyan: 73 97% 56%;
+    /* Audyt akcentu (2026-08-20): fitness-cyan wraca do REALNEGO cyjanu i znaczy
+       wyłącznie "cardio" (legenda wykresów, karty aktywności). Rola akcentu
+       przeszła na tokeny --primary/--accent, które barwi kolor przewodni usera. */
+    --fitness-cyan: 187 86% 53%;
     --fitness-navy: 220 60% 25%;
     --fitness-success: 73 97% 56%;
     --fitness-warning: 38 92% 50%;
@@ -110,8 +112,8 @@ All colors MUST be HSL.
     --input: 0 0% 7%;
     --ring: 73 97% 56%;
 
-    /* Ujednolicone do primary (zieleń) — cyjan był niespójnym drugim akcentem (audyt produktu) */
-    --fitness-cyan: 73 97% 56%;
+    /* Audyt akcentu (2026-08-20): realny cyjan, znaczenie "cardio" (jak w :root). */
+    --fitness-cyan: 187 86% 53%;
     --fitness-navy: 220 60% 45%;
     --fitness-success: 73 97% 56%;
     --fitness-warning: 38 92% 50%;
@@ -214,12 +216,14 @@ All colors MUST be HSL.
   }
 
   .kinetic-primary-button {
-    /* F-T2: gradient z tokenów — kolor przewodni usera zmienia też CTA. */
+    /* F-T2: gradient z tokenów — kolor przewodni usera zmienia też CTA.
+       Audyt akcentu (2026-08-20): cień i kolor tekstu też z tokenów
+       (limonkowy cień na sztywno świecił przy każdym akcencie). */
     background: linear-gradient(135deg, hsl(var(--primary-light)) 0%, hsl(var(--primary)) 100%);
-    color: #0e0e0e;
+    color: hsl(var(--primary-foreground));
     border: 0;
     border-radius: 24px;
-    box-shadow: 0 14px 40px rgba(206, 252, 34, 0.12);
+    box-shadow: 0 14px 40px hsl(var(--primary) / 0.12);
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
