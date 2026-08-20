@@ -1215,12 +1215,13 @@ import {
   type HistoryEmailRange,
   type SendEmailResult,
 } from "./email-workout";
+import { buildRawEmail, type EmailAttachment } from "./email-mime";
 
 const EMAIL_SECRETS = [sesRegion, sesAccessKeyId, sesSecretAccessKey, sesFrom, resendApiKey];
 
 const isSecretSet = (value: string): boolean => value.trim() !== "" && value.trim() !== "unset";
 
-const sendViaResend = async (to: string, subject: string, html: string): Promise<SendEmailResult> => {
+const sendViaResend = async (to: string, subject: string, html: string, attachments: EmailAttachment[] = []): Promise<SendEmailResult> => {
   const apiKey = resendApiKey.value();
   if (!isSecretSet(apiKey)) return { error: { message: "no-transport-configured" } };
   const resend = new Resend(apiKey);
@@ -1229,11 +1230,15 @@ const sendViaResend = async (to: string, subject: string, html: string): Promise
     to,
     subject,
     html,
+    // J-T4: załącznik CSV — API Resend wspiera attachments natywnie.
+    ...(attachments.length > 0
+      ? { attachments: attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.content, "utf8"), contentType: a.contentType })) }
+      : {}),
   });
   return response.error ? { error: { message: response.error.message } } : { transport: "resend" };
 };
 
-const sendWorkoutEmail = async (to: string, subject: string, html: string): Promise<SendEmailResult> => {
+const sendWorkoutEmail = async (to: string, subject: string, html: string, attachments: EmailAttachment[] = []): Promise<SendEmailResult> => {
   const region = sesRegion.value();
   const key = sesAccessKeyId.value();
   const secret = sesSecretAccessKey.value();
@@ -1242,10 +1247,15 @@ const sendWorkoutEmail = async (to: string, subject: string, html: string): Prom
     try {
       const { SESv2Client, SendEmailCommand } = await import("@aws-sdk/client-sesv2");
       const client = new SESv2Client({ region: region.trim(), credentials: { accessKeyId: key.trim(), secretAccessKey: secret.trim() } });
+      // J-T4: SES Simple nie wspiera załączników — z CSV idzie RAW MIME
+      // (multipart/mixed z email-mime); bez załączników zostaje Simple.
+      const content = attachments.length > 0
+        ? { Raw: { Data: buildRawEmail({ from: from.trim(), to, subject, html, attachments }) } }
+        : { Simple: { Subject: { Data: subject }, Body: { Html: { Data: html } } } };
       const response = await client.send(new SendEmailCommand({
         FromEmailAddress: from.trim(),
         Destination: { ToAddresses: [to] },
-        Content: { Simple: { Subject: { Data: subject }, Body: { Html: { Data: html } } } },
+        Content: content,
       }));
       // MessageId to klucz korelacji ze zdarzeniami SES (email_events).
       return { transport: "ses", ...(response.MessageId ? { sesMessageId: response.MessageId } : {}) };
@@ -1253,10 +1263,10 @@ const sendWorkoutEmail = async (to: string, subject: string, html: string): Prom
       // Np. DKIM jeszcze się propaguje albo chwilowy błąd SES — mail ma dojść,
       // więc próbujemy Resendem zanim oddamy błąd userowi.
       logger.error("[EmailWorkout] SES send failed, trying Resend fallback", error);
-      return sendViaResend(to, subject, html);
+      return sendViaResend(to, subject, html, attachments);
     }
   }
-  return sendViaResend(to, subject, html);
+  return sendViaResend(to, subject, html, attachments);
 };
 
 const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({

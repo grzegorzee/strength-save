@@ -5,6 +5,8 @@ import { esc, type Lang } from "./email-templates";
 import { detectEmailPRs, type EmailPR } from "./email-prs";
 import { localizeExerciseNameEn } from "./exercise-name-en";
 import { localizeFocusEn } from "./focus-en";
+import { buildWorkoutsCsv } from "./workout-csv";
+import type { EmailAttachment } from "./email-mime";
 
 export interface EmailSet {
   reps?: number;
@@ -79,13 +81,17 @@ export interface EmailWorkoutDeps {
   getUserContext: (uid: string) => Promise<EmailUserContext>;
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
   consumeQuota: (uid: string, today: string) => Promise<boolean>;
-  sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
+  /** J-T4: opcjonalne załączniki (CSV z pełnym detalem serii dla historii). */
+  sendEmail: (to: string, subject: string, html: string, attachments?: EmailAttachment[]) => Promise<SendEmailResult>;
   logEmail: (entry: EmailLogEntry) => Promise<void>;
 }
 
 export const EMAIL_DAILY_LIMIT = 10;
 /** H-T2: koniec z wysyłką 200 naraz — twardy limit 30. */
 export const HISTORY_EMAIL_MAX_WORKOUTS = 30;
+/** J-T4: powyżej tylu treningów mail historii to tabela-przegląd (nie ściana
+ *  pełnych sekcji); pełny detal serii zawsze w załączniku CSV. */
+export const HISTORY_FULL_SECTIONS_MAX = 7;
 /** Tydzień = 7 dni włącznie z dziś; limit bezpieczeństwa na liczbę sesji. */
 export const WEEK_RANGE_MAX_WORKOUTS = 14;
 /** H-T4: ile wcześniejszych sesji służy za bazę do detekcji PR. */
@@ -418,6 +424,24 @@ export interface HistoryEmailOptions {
   prsBySession?: Record<string, EmailPR[]>;
 }
 
+/** J-T4: przegląd — wiersz na trening (data, dzień, tonaż, czas, serie, PR). */
+const historyOverviewTableHtml = (workouts: EmailWorkout[], lang: Lang, options: HistoryEmailOptions): string => {
+  const th = (label: string, align: "left" | "right" = "left"): string =>
+    `<th align="${align}" style="${FONT}font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${C.muted};padding:6px 8px;border-bottom:2px solid ${C.border};">${esc(label)}</th>`;
+  const td = (value: string, align: "left" | "right" = "left"): string =>
+    `<td align="${align}" style="${FONT}font-size:13px;color:${C.body};padding:6px 8px;border-bottom:1px solid ${C.border};">${esc(value)}</td>`;
+  const rows = workouts.map((w) => {
+    const sets = workingSetCounts(w);
+    const prCount = (options.prsBySession?.[w.id] ?? []).length;
+    const dayLabel = [w.dayName, w.dayFocus].filter(Boolean).join(" · ");
+    return `<tr>${td(fmtDateLang(w.date, lang))}${td(dayLabel || "-")}${td(tonnageLabel(tonnageKg(w)), "right")}${td(durationLabel(w.durationSec, lang) ?? "-", "right")}${td(`${sets.done}/${sets.planned}`, "right")}${td(prCount > 0 ? String(prCount) : "-", "right")}</tr>`;
+  }).join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-top:4px;">
+    <tr>${th(t(lang, "Data", "Date"))}${th(t(lang, "Dzień", "Day"))}${th(t(lang, "Tonaż", "Tonnage"), "right")}${th(t(lang, "Czas", "Time"), "right")}${th(t(lang, "Serie", "Sets"), "right")}${th("PR", "right")}</tr>
+    ${rows}
+  </table>`;
+};
+
 export function buildHistoryEmailHtml(workouts: EmailWorkout[], lang: Lang, options: HistoryEmailOptions = {}): string {
   const totalTonnage = workouts.reduce((sum, w) => sum + tonnageKg(w), 0);
   const totalSec = workouts.reduce((sum, w) => sum + (typeof w.durationSec === "number" && w.durationSec > 0 ? w.durationSec : 0), 0);
@@ -431,9 +455,16 @@ export function buildHistoryEmailHtml(workouts: EmailWorkout[], lang: Lang, opti
 
   const header = `
     <div style="${FONT}font-size:20px;font-weight:700;color:${C.text};">${t(lang, "Historia treningów", "Workout history")} (${workouts.length})</div>
-    ${facts.length ? `<div style="${FONT}font-size:13px;color:${C.body};margin:4px 0 20px;">${facts.map(esc).join(" · ")}</div>` : ""}`;
-  const sections = workouts.map((w) => workoutSectionHtml(w, lang, options.prsBySession?.[w.id] ?? [])).join("");
-  return wrap(header + sections, lang);
+    ${facts.length ? `<div style="${FONT}font-size:13px;color:${C.body};margin:4px 0 8px;">${facts.map(esc).join(" · ")}</div>` : ""}`;
+  // J-T4: historia zawsze wychodzi z załącznikiem CSV — powiedz to w mailu.
+  const csvNote = `<div style="${FONT}font-size:12px;color:${C.muted};margin:0 0 16px;">${t(lang,
+    "Pełny detal serii znajdziesz w załączniku CSV.",
+    "Full set detail is in the attached CSV file.")}</div>`;
+  // J-T4: powyżej progu pełne sekcje robią ścianę — wchodzi tabela-przegląd.
+  const body = workouts.length > HISTORY_FULL_SECTIONS_MAX
+    ? historyOverviewTableHtml(workouts, lang, options)
+    : workouts.map((w) => workoutSectionHtml(w, lang, options.prsBySession?.[w.id] ?? [])).join("");
+  return wrap(header + csvNote + body, lang);
 }
 
 export type EmailWorkoutResult =
@@ -548,7 +579,16 @@ export async function runEmailHistory(
     accumulated = [...accumulated, session];
   }
   const subject = historyEmailSubject(localizedWorkouts, lang, displayName);
-  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession }));
+  // J-T4: pełny detal serii w załączniku CSV (chronologicznie, do arkusza).
+  const prCounts = Object.fromEntries(Object.entries(prsBySession).map(([id, list]) => [id, list.length]));
+  const csvWorkouts = [...localizedWorkouts].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const dates = csvWorkouts.map((w) => w.date);
+  const attachments: EmailAttachment[] = [{
+    filename: `strength-save-workouts_${dates[0]}_${dates[dates.length - 1]}.csv`,
+    contentType: "text/csv; charset=UTF-8",
+    content: buildWorkoutsCsv(csvWorkouts, prCounts),
+  }];
+  const response = await deps.sendEmail(params.to, subject, buildHistoryEmailHtml(localizedWorkouts, lang, { prsBySession }), attachments);
   await logEmailSafe(deps, { uid: params.uid, to: params.to, type: "history", subject, lang }, response);
   if (response.error) return { ok: false, code: "send-failed" };
   return { ok: true };
