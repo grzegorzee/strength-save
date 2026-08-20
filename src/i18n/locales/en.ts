@@ -689,6 +689,7 @@ export const en: Record<keyof typeof pl, string> = {
   'reschedule.action': 'Reschedule workout',
   // Explicit "Skip workout" (Runna p.1, spec C1).
   'dayplan.badgeSkipped': 'Skipped',
+  'dayplan.badgeNext': 'Next',
   'skipday.action': 'Skip workout',
   'skipday.restore': 'Restore workout',
   'skipday.toastSkipped': 'Workout skipped. The progression engine will account for it.',
@@ -765,6 +766,9 @@ export const en: Record<keyof typeof pl, string> = {
   'trainingplan.statusCompleted': 'Completed',
   'trainingplan.statusPlanned': 'Planned',
   'trainingplan.goToWorkout': 'Go to workout →',
+  'trainingplan.metaProgress': '{done} done · {left} left · {percent}%',
+  'trainingplan.decideStats': '{attendance}% attendance · {prs} PRs',
+  'trainingplan.dayLoadAria': 'Day load',
   'planbuilder.title': 'Your own plan',
   'planbuilder.subtitle': 'Add days, exercises from the library and set up your sets.',
   'planbuilder.day': 'Day {n}',

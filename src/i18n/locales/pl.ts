@@ -696,6 +696,7 @@ export const pl = {
   // Jawne "Pomiń trening" (Runna p.1, spec C1). "Odpuszczone" zamiast
   // "Pominięte", żeby nie mylić ze starym badge zaległości.
   'dayplan.badgeSkipped': 'Odpuszczone',
+  'dayplan.badgeNext': 'Następny',
   'skipday.action': 'Odpuść trening',
   'skipday.restore': 'Przywróć trening',
   'skipday.toastSkipped': 'Trening odpuszczony. Silnik progresji to uwzględni.',
@@ -772,6 +773,9 @@ export const pl = {
   'trainingplan.statusCompleted': 'Ukończony',
   'trainingplan.statusPlanned': 'Zaplanowany',
   'trainingplan.goToWorkout': 'Przejdź do treningu →',
+  'trainingplan.metaProgress': '{done} zrobione · {left} zostało · {percent}%',
+  'trainingplan.decideStats': '{attendance}% obecności · {prs} PR',
+  'trainingplan.dayLoadAria': 'Obciążenie dnia',
   'planbuilder.title': 'Twój własny plan',
   'planbuilder.subtitle': 'Dodaj dni, ćwiczenia z biblioteki i ustaw serie.',
   'planbuilder.day': 'Dzień {n}',
