@@ -173,10 +173,12 @@ const Settings = () => {
         <NotificationSettings />
       </div>
 
-      {/* Zdrowie (Z118): Apple Health / Health Connect — widoczne tylko natywnie */}
-      <HealthSettings />
-
-      <GarminSettings />
+      {/* Zdrowie (Z118): Apple Health / Health Connect — widoczne tylko natywnie.
+          Fala 2: kotwica ?section=connections dla wierszy grupy Połączenia w Profilu. */}
+      <div id="settings-connections" className="scroll-mt-20 space-y-6">
+        <HealthSettings />
+        <GarminSettings />
+      </div>
 
       {/* Długości przerw (zgłoszenie usera 2026-07-20): seria / ćwiczenie / rozgrzewka */}
       <RestSettingsCard />
@@ -324,8 +326,8 @@ const Settings = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Strava integration — feature flag */}
-      {canUseStrava && <Card>
+      {/* Strava integration — feature flag. Fala 2: kotwica ?section=strava z Profilu. */}
+      {canUseStrava && <div id="settings-strava" className="scroll-mt-20"><Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="#FC4C02">
@@ -407,7 +409,7 @@ const Settings = () => {
             <p className="text-sm text-destructive">{error}</p>
           )}
         </CardContent>
-      </Card>}
+      </Card></div>}
 
       {/* Sync Center — tylko przy zaległościach (Z52); zdrowy user nie widzi pustej karty. */}
       {syncEntries.listedEntries.length > 0 && <SyncCenterCard uid={uid} />}

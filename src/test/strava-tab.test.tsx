@@ -111,4 +111,13 @@ describe('ręczny sync Stravy (T7)', () => {
 
     expect(screen.getByRole('button', { name: /Synchronizuj/ })).toBeTruthy();
   });
+
+  // Fala 2 (redesign Profilu): deep-linki ?section=connections / ?section=strava
+  // z grupy Połączenia w Profilu potrzebują kotwic w Ustawieniach.
+  it('kotwice sekcji połączeń: settings-connections i settings-strava istnieją', () => {
+    const { container } = renderWithProviders(<Settings />);
+
+    expect(container.querySelector('#settings-connections')).toBeTruthy();
+    expect(container.querySelector('#settings-strava')).toBeTruthy();
+  });
 });
