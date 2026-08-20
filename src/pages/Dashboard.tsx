@@ -759,7 +759,7 @@ const Dashboard = () => {
         cancelLabel={t('dash.measurePrompt.decline')}
         onConfirm={() => navigate('/measurements')}
       />
-      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} />
+      <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} uid={uid} />
       {/* Greeting */}
       <div data-testid="dash-greeting">
         <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">

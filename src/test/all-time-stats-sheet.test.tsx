@@ -5,6 +5,7 @@ import { render } from '@testing-library/react';
 vi.mock('@/lib/workout-read-store', () => ({
   fetchWorkoutRange: vi.fn(async () => []),
 }));
+import { fetchWorkoutRange } from '@/lib/workout-read-store';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
@@ -26,17 +27,38 @@ const workout = (id: string, date: string): WorkoutSession => ({
   }],
 } as unknown as WorkoutSession);
 
-const renderSheet = () => render(
+const renderSheet = (uid?: string) => render(
   <LanguageProvider>
     <UnitProvider>
       <AllTimeStatsSheet
         open
         onOpenChange={() => {}}
         workouts={[workout('w1', '2026-06-01'), workout('w2', '2026-06-08')]}
+        uid={uid}
       />
     </UnitProvider>
   </LanguageProvider>,
 );
+
+// T23-1: bez uid sheet nie dociąga pełnej historii i liczy tylko okno 'recent'
+// listenera (zaniżone "Twoje liczby") — Dashboard musi przekazywać uid jak AppHeader.
+describe('AllTimeStatsSheet pełna historia (Z216/T23-1)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('app-language', 'pl');
+    vi.mocked(fetchWorkoutRange).mockClear();
+  });
+
+  it('z uid dociąga pełną historię przez fetchWorkoutRange', () => {
+    renderSheet('u1');
+    expect(fetchWorkoutRange).toHaveBeenCalledWith('u1', expect.anything());
+  });
+
+  it('bez uid nie woła fetchWorkoutRange (fallback na okno listenera)', () => {
+    renderSheet();
+    expect(fetchWorkoutRange).not.toHaveBeenCalled();
+  });
+});
 
 describe('AllTimeStatsSheet tiles (Z158)', () => {
   beforeEach(() => {
