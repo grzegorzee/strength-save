@@ -497,6 +497,10 @@ const ExerciseCardInner = ({
   // Indeks pierwszej nieukończonej serii roboczej (podświetlana jako aktywna — mockup [17]).
   const activeSetIndex = sets.findIndex((s) => !s.isWarmup && !s.completed);
 
+  // Naprawa r1 (2026-08-21): ćwiczenie bez żadnej historii — komunikat
+  // "pierwszy raz" raz nad tabelą, komórki POPRZ. pokazują "—".
+  const isFirstTime = !previousSets || previousSets.filter((s) => !s.isWarmup).length === 0;
+
   // Docelowe powtórzenia z planu (np. "3 x 8-12" → placeholder "8-12").
   const repsPlaceholder = useMemo(() => {
     const range = parseRepRange(exercise.sets);
@@ -654,13 +658,13 @@ const ExerciseCardInner = ({
           {label}
         </span>
 
-        {/* PREV — nie renderowana dla weight_distance_duration (brak miejsca na 3 inputy) */}
+        {/* PREV — nie renderowana dla weight_distance_duration (brak miejsca na 3 inputy).
+            Naprawa r1 (2026-08-21): brak historii = "—" w komórce (ucinane
+            "pierws..." w każdym wierszu wyglądało jak błąd renderowania);
+            informacja "pierwszy raz" idzie raz, nad tabelą. */}
         {tracking !== 'weight_distance_duration' && (
-          <span className={cn(
-            'truncate text-center text-xs tabular-nums text-muted-foreground',
-            !isWarmupRow && !prevHint && 'text-[10px] tabular-nums-none text-muted-foreground/60',
-          )}>
-            {isWarmupRow ? '—' : (prevHint || t('card.firstTime'))}
+          <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
+            {isWarmupRow ? '—' : (prevHint || '—')}
           </span>
         )}
 
@@ -712,7 +716,7 @@ const ExerciseCardInner = ({
             placeholder={isWarmupRow ? '—' : repsPlaceholder}
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
-            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
           />
         )}
 
@@ -791,12 +795,11 @@ const ExerciseCardInner = ({
           {label}
         </span>
 
-        {/* PREVIOUS — Z130: brak historii mówi „pierwszy raz", nie „—" */}
-        <span className={cn(
-          'truncate text-center text-xs tabular-nums text-muted-foreground',
-          !isWarmupRow && !prevHint && 'text-[10px] tabular-nums-none text-muted-foreground/60',
-        )}>
-          {isWarmupRow ? '—' : (prevHint || t('card.firstTime'))}
+        {/* PREVIOUS — naprawa r1 (2026-08-21): brak historii = "—" w komórce
+            (ucinane "pierws..." per wiersz wyglądało jak błąd renderowania);
+            komunikat "pierwszy raz" z Z130 przenosi się raz, nad tabelę. */}
+        <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
+          {isWarmupRow ? '—' : (prevHint || '—')}
         </span>
 
         {/* KG (non-bodyweight) */}
@@ -826,7 +829,9 @@ const ExerciseCardInner = ({
           disabled={!isEditable}
           aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
           className={cn(
-            'exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
+            // Naprawa r1 (2026-08-21): placeholder zakresu ("6-8") mniejszym
+            // stopniem — 16px bold klipowało górny kres na 390px.
+            'exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0',
             isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
           )}
         />
@@ -1069,6 +1074,14 @@ const ExerciseCardInner = ({
 
       {/* ── Set table: nagłówki kolumn → rozgrzewka (badge W) → serie robocze ── */}
       <div className="px-4 sm:px-5 pt-4 pb-2">
+        {/* Naprawa r1 (2026-08-21): "pierwszy raz" RAZ nad tabelą zamiast
+            klipowanego powtórzenia w każdej komórce POPRZ. (Z130 zachowane:
+            informacja o braku historii nie znika). */}
+        {isFirstTime && (
+          <p className="px-2 pb-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground/60">
+            {t('card.firstTime')}
+          </p>
+        )}
         {/* Grid header: SET | PREVIOUS | [unit] | REPS | ✓ | × */}
         {isNewTrackingUi ? (
           <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>

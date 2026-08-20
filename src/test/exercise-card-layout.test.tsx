@@ -416,9 +416,20 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       });
       // Seria 1 ma historię: format „60×6" (ciężar × powtórzenia).
       expect(within(card).getByText('60×6')).toBeTruthy();
-      // Seria 2 historii nie ma — czytelny komunikat zamiast myślnika.
-      expect(within(card).getAllByText('pierwszy raz').length).toBeGreaterThanOrEqual(1);
+      // Naprawa r1 (2026-08-21): brakująca historia serii = "—" w komórce
+      // (klipowane "pierws..." per wiersz wyglądało jak błąd renderowania);
+      // przy CZĘŚCIOWEJ historii nie ma komunikatu "pierwszy raz" nad tabelą.
+      expect(within(card).getAllByText('—').length).toBeGreaterThanOrEqual(1);
+      expect(within(card).queryByText('pierwszy raz')).toBeNull();
       expect(within(card).queryByText('6×60kg')).toBeNull();
+    });
+
+    it('ćwiczenie bez ŻADNEJ historii: komunikat „pierwszy raz" raz nad tabelą, komórki POPRZ. z „—" (naprawa r1)', () => {
+      const { card } = renderCard({
+        savedSets: [workingSet(), workingSet()],
+      });
+      expect(within(card).getAllByText('pierwszy raz')).toHaveLength(1);
+      expect(within(card).getAllByText('—').length).toBeGreaterThanOrEqual(2);
     });
 
     it('usunięcie ODHACZONEJ serii pyta o potwierdzenie, pustej nie (Z171)', () => {
