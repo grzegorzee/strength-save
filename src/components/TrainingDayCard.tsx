@@ -58,7 +58,10 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
         {/* Info */}
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
           <p className="font-heading font-semibold text-base leading-tight truncate">{localizeDayName(day.dayName, lang)}</p>
-          <p className="text-xs text-muted-foreground truncate">{metaParts.join(' · ')}</p>
+          {/* Bez truncate/clamp: przy długich polskich nazwach focusu ucinanie
+              gubiło liczbę ćwiczeń (utrata informacji vs stan sprzed redesignu);
+              meta zawija się naturalnie, karta rośnie o linię. */}
+          <p className="text-xs text-muted-foreground">{metaParts.join(' · ')}</p>
         </div>
 
         {/* Badge statusu (mockup: DONE przygaszony akcent, NEXT wypełniony akcent) */}
