@@ -919,6 +919,8 @@ export const en: Record<keyof typeof pl, string> = {
   'rest.bar.done': 'Rest over',
   'rest.bar.expand': 'Expand rest timer',
   'rest.bar.collapse': 'Collapse',
+  // Fala 2 (2026-08-20): tap w korpus paska REST otwiera ustawienia timera.
+  'rest.bar.openSettings': 'Rest settings: length, sound, auto-start',
   'rest.sound.title': 'Rest end sound',
   'rest.sound.bell': 'Gong (boxing bell)',
   'rest.sound.horn': 'Horn',
@@ -1530,6 +1532,9 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.status.error': 'Save error',
   'workout.status.localSaved': 'Saved on phone',
   'workout.status.cloudSaved': 'In cloud {time}',
+  // Fala 2 (2026-08-20): kompaktowy badge Saved w headerze sesji.
+  'workout.status.savedShort': 'Saved',
+  'workout.status.savedCloudShort': 'Synced',
   'sync.autoSyncedTitle': 'Synced',
   'sync.autoSyncedDesc': 'Pending workouts saved to the cloud: {n}',
   'workout.toast.errorTitle': 'Error!',

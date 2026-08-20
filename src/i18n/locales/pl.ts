@@ -935,6 +935,8 @@ export const pl = {
   'rest.bar.done': 'Koniec przerwy',
   'rest.bar.expand': 'Rozwiń timer przerwy',
   'rest.bar.collapse': 'Zwiń',
+  // Fala 2 (2026-08-20): tap w korpus paska REST otwiera ustawienia timera.
+  'rest.bar.openSettings': 'Ustawienia przerwy: długość, dźwięk, auto-start',
   'rest.sound.title': 'Dźwięk końca przerwy',
   'rest.sound.bell': 'Gong (dzwon bokserski)',
   'rest.sound.horn': 'Klakson',
@@ -1552,6 +1554,9 @@ export const pl = {
   'workout.status.error': 'Błąd zapisu',
   'workout.status.localSaved': 'Zapisane na telefonie',
   'workout.status.cloudSaved': 'W chmurze {time}',
+  // Fala 2 (2026-08-20): kompaktowy badge Saved w headerze sesji.
+  'workout.status.savedShort': 'Zapisano',
+  'workout.status.savedCloudShort': 'W chmurze',
   'sync.autoSyncedTitle': 'Zsynchronizowano',
   'sync.autoSyncedDesc': 'Zaległe treningi zapisane w chmurze: {n}',
   'workout.toast.errorTitle': 'Błąd!',
