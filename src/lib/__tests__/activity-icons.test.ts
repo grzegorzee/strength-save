@@ -7,10 +7,10 @@ describe('getActivityIcon', () => {
     expect(getActivityIcon('Ride')).toBe(Bike);
     expect(getActivityIcon('WeightTraining')).toBe(Dumbbell);
   });
-  it('T6: spacer ma własną ikonę, nie biegową', () => {
+  it('T6: spacer ma wlasna ikone, nie biegowa', () => {
     expect(getActivityIcon('Walk')).toBe(PersonStanding);
   });
-  it('T6: wariant sport_type (TrailRun) dostaje ikonę bazowego typu (Run)', () => {
+  it('T6: wariant sport_type (TrailRun) dostaje ikone bazowego typu (Run)', () => {
     expect(getActivityIcon('TrailRun')).toBe(Footprints);
     expect(getActivityIcon('VirtualRide')).toBe(Bike);
   });
@@ -28,7 +28,7 @@ describe('displayActivityType / baseActivityType (T6)', () => {
     expect(displayActivityType({ type: 'Run' })).toBe('Run');
     expect(displayActivityType({})).toBe('Other');
   });
-  it('normalizuje warianty do bazowego klucza, resztę zostawia', () => {
+  it('normalizuje warianty do bazowego klucza, reszte zostawia', () => {
     expect(baseActivityType('TrailRun')).toBe('Run');
     expect(baseActivityType('GravelRide')).toBe('Ride');
     expect(baseActivityType('Walk')).toBe('Walk');
