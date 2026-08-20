@@ -11,7 +11,7 @@ import { useCurrentUser } from '@/contexts/UserContext';
 import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
-import { CalendarDays, Dumbbell, History, Pencil, CheckCircle, HeartPulse, Zap, Timer, Plane } from 'lucide-react';
+import { CalendarDays, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Zap, Timer, Plane } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
@@ -391,32 +391,35 @@ const TrainingPlan = () => {
       <div className="exercise-card">
         {/* Header */}
         <div className="p-6 pb-4">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
+          {/* T16: na wąskich ekranach kontrolki schodzą w osobny rząd pod tytuł
+              (flex-wrap łamał badge pod przyciski); jedna rodzina stylów h-9. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-xl font-heading font-bold uppercase italic tracking-tight">{t('trainingplan.title')}</h1>
               <p className="text-[13px] text-muted-foreground mt-1 font-medium">
                 {t('trainingplan.programSummary', { weeks: planDurationWeeks, days: trainingPlan.map(d => localizeDayName(d.dayName, lang)).join(', ') })}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {/* FIX-B T5: stałe wejście do Cykli (na mobile żyło tylko na
-                  usuniętej karcie planu Dashboardu). */}
+                  usuniętej karcie planu Dashboardu). T16: ikona RefreshCw jak w
+                  Cyklach (History myliła się z Historią). */}
               <button
                 onClick={() => navigate('/cycles')}
                 data-testid="plan-cycles-link"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border-0 bg-surface-low text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors"
+                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg bg-surface-low text-xs font-semibold text-muted-foreground hover:bg-surface-high hover:text-foreground transition-colors"
               >
-                <History className="h-3.5 w-3.5" />
+                <RefreshCw className="h-3.5 w-3.5" />
                 {t('dash.cycles')}
               </button>
               <button
                 onClick={() => navigate('/plan/edit')}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border-0 bg-surface-low text-xs font-semibold text-muted-foreground hover:border-primary/30 hover:text-foreground transition-colors"
+                className="inline-flex h-9 items-center gap-1.5 px-3 rounded-lg bg-surface-low text-xs font-semibold text-muted-foreground hover:bg-surface-high hover:text-foreground transition-colors"
               >
                 <Pencil className="h-3.5 w-3.5" />
                 {t('trainingplan.edit')}
               </button>
-              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-primary-light to-primary text-[13px] font-heading font-bold uppercase tracking-tight text-background whitespace-nowrap">
+              <div className="inline-flex h-9 items-center gap-1.5 px-4 rounded-xl bg-gradient-to-br from-primary-light to-primary text-[13px] font-heading font-bold uppercase tracking-tight text-background whitespace-nowrap">
                 {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
               </div>
             </div>
@@ -479,7 +482,7 @@ const TrainingPlan = () => {
                 prev.setDate(prev.getDate() - 7);
                 setSelectedDate(prev);
               }}
-              className="w-8 h-8 rounded-lg border-0 bg-surface-low text-muted-foreground flex items-center justify-center hover:border-primary/30 hover:text-primary transition-colors text-sm"
+              className="w-8 h-8 rounded-lg bg-surface-low text-muted-foreground flex items-center justify-center hover:bg-surface-high hover:text-primary transition-colors text-sm"
             >
               ‹
             </button>
@@ -493,7 +496,7 @@ const TrainingPlan = () => {
                 next.setDate(next.getDate() + 7);
                 setSelectedDate(next);
               }}
-              className="w-8 h-8 rounded-lg border-0 bg-surface-low text-muted-foreground flex items-center justify-center hover:border-primary/30 hover:text-primary transition-colors text-sm"
+              className="w-8 h-8 rounded-lg bg-surface-low text-muted-foreground flex items-center justify-center hover:bg-surface-high hover:text-primary transition-colors text-sm"
             >
               ›
             </button>
