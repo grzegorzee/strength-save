@@ -5,11 +5,60 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (wydanie zbiorcze: kolory wszędzie + maile; web CSEYo3a1, iOS 110, AAB v25)
+**Ostatnia aktualizacja:** 2026-08-20 (plan J: fix indeksu wysyłek, spójny język maili, wyślij-z-Historii, eksport CSV z zakresami; web D79Mk9PG)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: Plan J — fix "Sending failed" (brakujący indeks), spójny język maili, wyślij-z-Historii, eksport CSV z zakresami
+
+**Co:** Plan `docs/PLAN-MAILE-FIX-2026-08-20.md` wykonany w całości (TDD)
+i WDROŻONY (indexes + functions + web). (1) J-T1 root cause "Sending failed"
+przy week/last30: `listWorkoutsInRange` wymaga composite indeksu
+`workouts(userId ASC, completed ASC, date DESC)`, którego nie było —
+Firestore rzucał failed-precondition, callable oddawał 'internal'. Indeks
+dodany i zbudowany (READY), do tego try/catch z logger.error wokół odczytów
+(kody dla klienta bez zmian) i skrypt READ-ONLY
+`scripts/verify-email-range-index.mjs` (RED failed-precondition przed
+zbudowaniem, GREEN po: week 4, last30 30, baseline 81 treningów na koncie
+właściciela, zero zapisów). Bonus: adapter honorował wreszcie `beforeDate`
+(baseline PR miał w kontrakcie górną granicę, adapter ją ignorował).
+(2) J-T2: akcja "Wyślij do trenera" w wierszu Historii (mode='workout',
+dialog zawsze zamontowany — pułapka Radix). (3) J-T3: mail w 100% jednym
+języku — przy lang=en słowniki digestu (localizeExerciseNameEn,
+localizeFocusEn) + 7 dni tygodnia PL→EN; nieznana nazwa własna usera
+zostaje; tłumaczenie przed detekcją PR. (4) J-T4 po decyzji właściciela
+(2026-08-20, BEZ załączników w mailach): last30 i każdy mail historii > 7
+treningów = tabela-przegląd (data, dzień, tonaż, czas, serie robocze, PR)
+zamiast ściany sekcji; week zostaje z pełnymi sekcjami. Pierwotna hybryda
+z załącznikiem CSV (RAW MIME, attachments SES/Resend, workout-csv w
+functions) była wdrożona i WYCOFANA bez martwego kodu (commit 7bfba9f8).
+(5) J-T5 po doprecyzowaniu właściciela: eksport CSV w całości klientski —
+dialog ExportWorkoutsDialog z zakresami (tydzień domyślnie / miesiąc /
+ostatnie 10/30 / cykl z plan_cycles / własny od-do), podgląd liczby
+treningów, Eksportuj disabled przy 0, dwa punkty wejścia (Historia obok
+"Wyślij do trenera" + Ustawienia → Dane), plik
+`strengthsave-treningi-<od>-<do>.csv` (UTF-8 BOM, nagłówki EN techniczne,
+wiersz per seria; src/lib/workout-csv.ts + workout-export-range.ts).
+
+**Weryfikacja realna:** wysyłki SES na g.jasionowicz@gmail.com (fixtures
+syntetyczne): week lang=en (pełne sekcje, 100% EN) MessageId
+`010701a01f338efc-228b2eff-fc5f-459c-b53b-46cc33a57141-000000`; last30
+lang=pl (8 sesji, tabela-przegląd) MessageId
+`010701a01f338fdc-618ff24d-711e-4930-92e3-e100feb1f2dd-000000`. Bez
+załączników (potwierdzone).
+
+**Bramki + deploy:** vitest web 1833/1833, functions 309+7 skip, tsc 0,
+eslint 0 błędów, buildy web+mobile, check:no-emoji/bundle-budget/
+dist-offline/dist-smoke, pełne e2e 416/416 po świeżym vite (5.0 min).
+Deploy: indexes (READY) → functions emailWorkoutSummary+emailWorkoutHistory
+(us-central1 updated) → web LIVE `index-D79Mk9PG.js` (origin/gh-pages +
+curl). BEZ bumpów mobilnych (wydanie zbiorcze robi sesja główna).
+Pułapka warsztatowa: rtk obcina output gcloud nawet przy redirect do pliku
+— czysty JSON tylko przez `rtk proxy gcloud ...`; plik env z wartością
+`Nazwa <adres>` nie przechodzi przez shellowe `source` (parse error na
+`<`), ładować env pythonem.
 
 ### 2026-08-20: Wydanie zbiorcze — kolory wszędzie + maile do trenera na mobilki
 

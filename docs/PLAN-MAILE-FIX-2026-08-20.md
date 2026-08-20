@@ -126,16 +126,27 @@ w całości klientsko, plik `strengthsave-treningi-<od>-<do>.csv`.
 
 ## J-RELEASE
 
-- [ ] Bramki: vitest web+functions, typecheck, lint, build, check:*, pełne e2e
+- [x] Bramki: vitest web+functions, typecheck, lint, build, check:*, pełne e2e
   po świeżym vite. UWAGA: NIE odpalać `pkill -f vite`, gdy w tle trwa
   jakikolwiek `vite build`.
-- [ ] Deploy kolejność: firestore indexes (już w J-T1) → functions
+  DOWÓD: vitest web 1833/1833 (246 plików), vitest functions 309 passed
+  + 7 skipped, tsc 0, eslint 0 błędów (8 warningów wyłącznie z worktree
+  agenta planu I, pre-existing react-refresh w shadcn), build web + mobile 0,
+  check:no-emoji/bundle-budget/dist-offline/dist-smoke 0, pełne e2e po
+  pkill + rmtree node_modules/.vite: 416/416 w 5.0 min.
+- [x] Deploy kolejność: firestore indexes (już w J-T1) → functions
   (emailWorkoutSummary, emailWorkoutHistory) → web (npm run deploy) +
   weryfikacja markera na origin/gh-pages + curl live.
-- [ ] BEZ bumpów mobilnych (wydanie zbiorcze z planem I robi sesja główna).
-- [ ] DECYZJE.md + odhaczenie planu z dowodami + pamięć projektu + raport
+  DOWÓD: indeks READY (J-T1); functions: Successful update operation dla
+  obu callable (us-central1); web: origin/gh-pages i live
+  app.strengthsave.app serwują index-D79Mk9PG.js.
+- [x] BEZ bumpów mobilnych (wydanie zbiorcze z planem I robi sesja główna).
+  DOWÓD: zero zmian w pbxproj/build.gradle/package.json version.
+- [x] DECYZJE.md + odhaczenie planu z dowodami + pamięć projektu + raport
   (osobno: bug fix z potwierdzeniem, że week/last30 działa; językowa
   spójność; CSV; MessageId testów).
+  DOWÓD: wpis w DECYZJE.md (2026-08-20, plan J), pamięć projektu
+  zaktualizowana, raport w odpowiedzi finalnej agenta.
 
 ## Koordynacja
 
