@@ -34,22 +34,31 @@ e2e mobile-nav 8/8 GREEN.
 **Zgłoszenie:** "zmiana koloru aplikacji: człowiek wybiera swój ulubiony kolor
 i cała aplikacja jest w tym kolorze."
 
-- [ ] Paleta predefiniowana (nie dowolny color-picker w v1): ~8 akcentów
+- [x] Paleta predefiniowana (nie dowolny color-picker w v1): ~8 akcentów
   dobranych pod ciemne tło z kontrastem AA dla tekstu na akcencie (limonka =
   default, np. cyjan, pomarańcz, róż, fiolet, niebieski, czerwień, złoto).
   Każdy akcent = komplet tokenów: `--primary`, pochodne fitness-*, wykresy.
-- [ ] Wybór w Profilu (sekcja "Wygląd"): siatka próbek, natychmiastowy podgląd.
-- [ ] Persistencja: `users/{uid}.settings.accentColor` (mirror jak timerSound —
+- [x] Wybór w Profilu (sekcja "Wygląd"): siatka próbek, natychmiastowy podgląd.
+- [x] Persistencja: `users/{uid}.settings.accentColor` (mirror jak timerSound —
   sprawdzić mapper!) + localStorage, żeby kolor działał od splashu i offline.
-- [ ] Aplikacja: CSS variables na `:root` (klasa/atrybut data-accent), zero
+- [x] Aplikacja: CSS variables na `:root` (klasa/atrybut data-accent), zero
   hardcodów w komponentach. PUŁAPKI z pamięci: Recharts `stop-color` nie
   przyjmuje `var()` (defs inline z wartością hex — komponenty wykresów muszą
   czytać kolor z JS-owego theme hooka); share-utils ma hardcoded LIME (przekazać
   kolor parametrem, obraz share w kolorze usera).
-- [ ] Statusowe kolory (success/warning/destructive) NIE zmieniają się z akcentem
+- [x] Statusowe kolory (success/warning/destructive) NIE zmieniają się z akcentem
   (czytelność stanów > estetyka).
-- [ ] Testy: unit hooka theme (zapis/odczyt/fallback), snapshot tokenów per
+- [x] Testy: unit hooka theme (zapis/odczyt/fallback), snapshot tokenów per
   akcent, e2e: zmiana koloru w Profilu zmienia przycisk primary na Dashboard.
+
+DOWÓD (2026-08-20, commit 3866e376): lib `accent-theme` (8 akcentów, apply na
+--primary/--primary-light/--ring + data-accent, limonka = czyste tokeny,
+fallback nieznanego id), boot w main.tsx przed renderem, sekcja Wygląd w Profilu
+(radiogroup, mirror `preferences.accentColor` — rules to wolna mapa, mapper
+przenosi całość), wykresy przez hsl(var(--primary)) bez zmian, share/PDF/confetti
+przez getCurrentAccent().hex, statusowe kolory nietknięte (test). Testy: lib 6/6,
+profil 16/16, vitest całość 1793/1793, e2e accent-color 2/2 (persistencja po
+reloadzie), bundle-budget GREEN.
 
 ## F-T3 — wysyłka podsumowania treningu mailem (Amazon SES)
 
