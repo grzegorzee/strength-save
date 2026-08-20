@@ -11,6 +11,64 @@
 
 ## DECYZJE
 
+### 2026-08-20: Redesign zakładki Profil (fala 2, artboard profile-tab 1a)
+
+**Co:** Nowa prezentacja Profilu wg mockupu 1a ("identity, potem kontrolki
+mid-session, potem zwarte grupy"), wyłącznie na tokenach akcentu/surface
+(zero nowych hexów, zero color-mix, strażniki zielone bez zmian allowlist):
+- identity poziomo: avatar 64px (fallback bg-primary/20) z plakietką "+"
+  (upload jak dotąd), imię klikalne (testid profile-name-edit, ten sam dialog),
+  email, chipy PRO (restyle: bg-primary/15 text-primary, reguła #8) + poziom,
+  mono licznik "{n} treningów · {m} do: {poziom}" (nowe pole tier.remaining,
+  zmiana addytywna w computeTier), pasek poziomu pełnej szerokości,
+- kafle TWOJA DUMA (4, zawsze — zera są prawdziwe): Treningi/Seria/Tonaż/Serie
+  z agregatu all-time + fallback okna recent (dzisiejsza semantyka
+  completedCount); streak z dat agregatu przez NOWY helper streakDetailsFromDates
+  (syntetyczna seria robocza spełnia kontrakt hasCompletedWorkingSet); kafel
+  "PRs" z mockupu POMINIĘTY (brak all-time PR w agregacie — okno kłamałoby);
+  rząd 3 odznak bez zmian (przy zdobytych),
+- karta TRENING (surface-container): Timer przerwy + select przerwy w jednym
+  wierszu, Dźwięk (Z177: zawsze widoczny), segment KG/LB (aktywny bg-primary
+  text-primary-foreground), Nie na 100%? i Urlop / wyjazd (dialogi bez zmian),
+- karta KOLOR: grid 12 swatchy (paleta 11 + custom, 6/rząd, rounded-lg) + hex
+  input/Zastosuj; wszystkie testidy e2e zachowane (accent-swatches, accent-{id},
+  accent-custom(-input), accent-hex-input/apply),
+- grupy zwartych wierszy (surface-low, SettingRow z addytywnym prop compact +
+  valueAccent; domyślny wygląd dla WorkoutSettingsSheet BEZ zmian): Subskrypcja,
+  POŁĄCZENIA (nowa grupa: Strava ze statusem z profile.stravaConnected — zero
+  nowych odczytów; Garmin/Apple Health TYLKO natywnie, żeby web nie prowadził
+  w pustkę; deep-linki do nowych kotwic ?section=strava / ?section=connections
+  w Ustawieniach), Twoje dane (Historia/Pomiary/Postępy/PR backfill/NOWY skrót
+  Kopia i import→?section=data/Prywatność/Zaawansowane/Admin), Aplikacja
+  (Powiadomienia ze stanem, Język), Konto i pomoc (Imię i avatar/Zmień hasło/
+  Centrum pomocy/Kontakt/O aplikacji z wersją),
+- stopka: neutralny Wyloguj wg mockupu (dialog Z237 + testid logout-confirm bez
+  zmian), Usuń konto tekstowo, wersja "STRENGTH SAVE {version}".
+
+**Dlaczego:** artboard 1a zatwierdzony przez właściciela; żelazna zasada fali 2:
+żadna funkcja nie znika (inwentarz 40 pozycji w planie = kontrakt, pilnowany
+testem niezmiennika w profile-sections.test.tsx). Chip EDIT z mockupu pominięty
+(header globalny; edycja przez tap w imię + wiersz Imię i avatar + plakietkę).
+
+**Niezmienniki (testy):** wszystkie 40 pozycji inwentarza obecne po redesignie;
+etykiety e2e exact (Historia, Pomiary ciała, Postępy, Ustawienia zaawansowane,
+Admin) i testidy bez zmian — e2e accent-color + mobile-nav-reachability
+przechodzą BEZ aktualizacji speców; zmiana akcentu nadal ustawia tokeny +
+mirror Firestore; kafle wyłącznie z realnych danych.
+
+**Weryfikacja:** npm run test (2060/2060), typecheck, lint (0 błędów), build;
+e2e celowane accent-color + mobile-nav-reachability (18/18, świeży serwer);
+pętla wizualna design-screenshots (viewport 390, akcenty lime/amber/sky/indigo,
+2 iteracje) — zrzuty w docs/design-2026-08-20/screens/profile-iter2 (final);
+na indigo jasny foreground na akcencie (KG, plakietka), zero limonki na
+amber/sky/indigo, brak horizontal scrolla.
+
+**Znane obserwacje poza zakresem:** Dashboard liczy streak z dat agregatu
+mapując je na sesje z exercises: [] — hasCompletedWorkingSet je odfiltrowuje,
+więc ścieżka agregatu daje tam streak 0 (chip się chowa); Profil używa
+poprawnego streakDetailsFromDates. Kandydat na osobny fix w Dashboardzie
+(jednolinijkowa podmiana na ten sam helper).
+
 ### 2026-08-20: Redesign zakładki Historia (fala 2, artboard history-tab 1a)
 
 **Co:** Nowa prezentacja Historii wg mockupu 1a ("cykle jako poziom nadrzędny"),
