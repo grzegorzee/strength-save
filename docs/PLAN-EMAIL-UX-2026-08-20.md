@@ -45,15 +45,18 @@
 
 ## H-T2 — functions: zakresy historii i twarde limity
 
-- [ ] Deps: `listWorkouts` zastąpić/rozszerzyć o zakres:
+- [x] Deps: `listWorkouts` zastąpić/rozszerzyć o zakres:
   `listWorkoutsInRange(uid, { sinceDate? , limit })` — tryb 'week' = completed
   z date >= (dziś - 6 dni), limit bezpieczeństwa 14; tryb 'last30' = 30
   najnowszych completed. HISTORY_EMAIL_MAX_WORKOUTS obniżyć do 30 (200 out).
-- [ ] Callable `emailWorkoutHistory` przyjmuje `range` ('week' | 'last30',
+- [x] Callable `emailWorkoutHistory` przyjmuje `range` ('week' | 'last30',
   default 'week'), walidacja wartości; testy: tydzień filtruje po dacie,
   last30 tnie do 30, nieznany range = invalid-argument.
+  DOWÓD (oba): commit a80c0666 — listWorkoutsInRange w deps i index.ts
+  (where date >= sinceDate na polu orderBy = istniejący indeks), invalid-range
+  → HttpsError invalid-argument; vitest pliku 27/27 (+4 nowe RED→GREEN).
 - [ ] Tytuł maila historii: bez liczby wysłanych „(N)" jako głównego członu —
-  patrz H-T4.
+  patrz H-T4 (robione w H-T4).
 
 ## H-T3 — język maila z ustawień USERA (server-side)
 
