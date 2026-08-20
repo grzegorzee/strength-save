@@ -2408,15 +2408,17 @@ const WorkoutDay = () => {
     );
   };
 
-  // Auto-save indicator: dwa proste stany dla usera ("na telefonie" / "w chmurze HH:MM")
+  // Auto-save indicator: dwa proste stany dla usera ("Zapisano" / "W chmurze")
   // plus czerwony błąd. Wewnętrzne statusy (7 wartości) zostają tylko logiką.
+  // Fala 2 (2026-08-20): pigułka w prawym slocie headera zamiast fixed top-4 right-4
+  // (mockup exercise-card 2a); pełny stan z godziną w title/aria-label.
   const AutoSaveIndicator = () => {
     if (autoSaveStatus === 'error') {
       return (
         <button
           type="button"
           onClick={() => setSaveError(t('workout.err.localSaveFailed'))}
-          className="fixed right-4 top-4 z-50 flex min-h-11 touch-manipulation items-center gap-1.5 rounded-full bg-destructive/20 px-3 py-1.5 text-xs text-destructive transition-opacity duration-300"
+          className="flex min-h-10 touch-manipulation items-center gap-1.5 rounded-full bg-destructive/20 px-3 py-2 text-[11px] text-destructive"
         >
           <CloudOff className="h-3 w-3" /> {t('workout.status.error')}
         </button>
@@ -2425,12 +2427,17 @@ const WorkoutDay = () => {
     if (!isActiveTrainingPhase(sessionPhase)) return null;
     const lastCloudSync = activeDraft?.lastFirebaseSyncAt ?? null;
     const cloudCurrent = !!lastCloudSync && !activeDraft?.dirty;
+    const fullLabel = cloudCurrent
+      ? t('workout.status.cloudSaved', { time: new Date(lastCloudSync).toLocaleTimeString(dateLocale(lang), { hour: '2-digit', minute: '2-digit' }) })
+      : t('workout.status.localSaved');
     return (
-      <div className="fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs z-50 transition-opacity duration-300 bg-surface-high/90 text-muted-foreground backdrop-blur">
+      <div
+        title={fullLabel}
+        aria-label={fullLabel}
+        className="flex items-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-[11px] text-muted-foreground"
+      >
         {cloudCurrent ? <Cloud className="h-3 w-3 text-fitness-success" /> : <Smartphone className="h-3 w-3" />}
-        {cloudCurrent
-          ? t('workout.status.cloudSaved', { time: new Date(lastCloudSync).toLocaleTimeString(dateLocale(lang), { hour: '2-digit', minute: '2-digit' }) })
-          : t('workout.status.localSaved')}
+        {cloudCurrent ? t('workout.status.savedCloudShort') : t('workout.status.savedShort')}
       </div>
     );
   };
@@ -2809,42 +2816,45 @@ const WorkoutDay = () => {
   // ACTIVE WORKOUT VIEW
   return (
     <div className="space-y-6 pb-28">
-      <AutoSaveIndicator />
-
-      <div className="grid grid-cols-[44px_1fr_44px] items-center gap-3 pt-[env(safe-area-inset-top)]">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-2xl bg-muted/60">
-          <ArrowLeft className="h-5 w-5" />
+      {/* Fala 2 (2026-08-20, mockup exercise-card 2a): header wstecz · tytuł ·
+          rozgrzewka + badge Saved (AutoSaveIndicator przeniesiony z fixed). */}
+      <div className="grid grid-cols-[40px_1fr_auto] items-center gap-3 pt-[env(safe-area-inset-top)]">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="h-10 w-10 rounded-2xl bg-surface-container">
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 text-center">
-          <h1 className="truncate text-base font-heading font-bold uppercase tracking-[0.1em]">{localizeDayName(day.dayName, lang)}</h1>
-          <p className="mt-1 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{localizeFocus(day.focus, lang)}</p>
+          <h1 className="truncate font-heading text-sm font-bold uppercase tracking-[0.16em]">{localizeDayName(day.dayName, lang)}</h1>
+          <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{localizeFocus(day.focus, lang)}</p>
         </div>
-        {isWorkoutStarted && !isCompleted && (
-          <Button variant="ghost" size="icon" onClick={() => setShowWarmup(true)} className="rounded-2xl bg-muted/60" aria-label={t('comp.warmup.title')}>
-            <Flame className="h-4 w-4 text-orange-500" />
-          </Button>
-        )}
-        {(!isWorkoutStarted || isCompleted) && <span />}
+        <div className="flex min-w-10 items-center justify-end gap-2">
+          {isWorkoutStarted && !isCompleted && (
+            <Button variant="ghost" size="icon" onClick={() => setShowWarmup(true)} className="h-10 w-10 rounded-full bg-surface-container" aria-label={t('comp.warmup.title')}>
+              <Flame className="h-4 w-4 text-[hsl(var(--ec-warmup-gold))]" />
+            </Button>
+          )}
+          <AutoSaveIndicator />
+        </div>
       </div>
 
       {/* Z131: Czas / Objętość / Serie w JEDNYM zwartym rzędzie (wzorzec Hevy).
           Dwa duże kafelki StatCard zjadały pionową przestrzeń nad pierwszą kartą,
-          a liczby serii sesji nie pokazywały w ogóle. */}
+          a liczby serii sesji nie pokazywały w ogóle.
+          Fala 2: karta surface-container, etykiety mono, wartości font-heading. */}
       {isWorkoutStarted && !isCompleted && (
-        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-muted/40 px-3 py-2.5" data-testid="session-stats">
+        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-surface-container px-4 py-3" data-testid="session-stats">
           <div className="min-w-0 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/60">{t('workout.statTime')}</p>
-            <p className="truncate text-base font-bold tabular-nums text-primary">
+            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{t('workout.statTime')}</p>
+            <p className="mt-0.5 truncate font-heading text-[19px] font-bold tabular-nums text-primary">
               {sessionClockStartedAt !== null ? <SessionClock startedAt={sessionClockStartedAt} /> : fmtDuration(0)}
             </p>
           </div>
           <div className="min-w-0 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/60">{t('dash.stat.tonnage')}</p>
-            <p className="truncate text-base font-bold tabular-nums">{fmt(sessionVolumeKg)}</p>
+            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{t('dash.stat.tonnage')}</p>
+            <p className="mt-0.5 truncate font-heading text-[19px] font-bold tabular-nums">{fmt(sessionVolumeKg)}</p>
           </div>
           <div className="min-w-0 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/60">{t('workout.statSets')}</p>
-            <p className="truncate text-base font-bold tabular-nums">{sessionCompletedSets}</p>
+            <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{t('workout.statSets')}</p>
+            <p className="mt-0.5 truncate font-heading text-[19px] font-bold tabular-nums">{sessionCompletedSets}</p>
           </div>
         </div>
       )}
