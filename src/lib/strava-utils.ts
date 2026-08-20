@@ -164,14 +164,15 @@ export const computeSummaryStats = (
   const totalCalories = activities.reduce((sum, a) => sum + (a.calories || 0), 0);
   const totalElevation = activities.reduce((sum, a) => sum + (a.totalElevationGain || 0), 0);
 
+  // T8: średnie tempo WAŻONE dystansem (suma czasu / suma km), nie średnia
+  // arytmetyczna pace'ów per aktywność — krótki wolny spacer nie może ważyć
+  // tyle samo co długi bieg.
   const paceActivities = activities.filter(
-    (a) => a.averageSpeed && isPaceActivity(a),
+    (a) => isPaceActivity(a) && a.movingTime && a.distance,
   );
-  const avgPace =
-    paceActivities.length > 0
-      ? paceActivities.reduce((sum, a) => sum + 1000 / a.averageSpeed!, 0) /
-        paceActivities.length
-      : null;
+  const paceKm = paceActivities.reduce((sum, a) => sum + a.distance! / 1000, 0);
+  const paceTime = paceActivities.reduce((sum, a) => sum + (a.movingTime || 0), 0);
+  const avgPace = paceKm > 0 ? paceTime / paceKm : null;
 
   const hrActivities = activities.filter((a) => a.averageHeartrate);
   const avgHR =
@@ -251,17 +252,16 @@ export const computePaceTrendData = (
         a.date >= startStr &&
         a.date <= endStr &&
         isPaceActivity(a) &&
-        a.averageSpeed &&
-        a.averageSpeed > 0,
+        a.movingTime &&
+        a.distance,
     );
 
+    // T8: tempo tygodnia ważone dystansem (suma czasu / suma km).
     let paceSeconds: number | null = null;
-    if (paceActivities.length > 0) {
-      const totalPace = paceActivities.reduce(
-        (sum, a) => sum + 1000 / a.averageSpeed!,
-        0,
-      );
-      paceSeconds = Math.round(totalPace / paceActivities.length);
+    const weekKm = paceActivities.reduce((sum, a) => sum + a.distance! / 1000, 0);
+    if (weekKm > 0) {
+      const weekTime = paceActivities.reduce((sum, a) => sum + (a.movingTime || 0), 0);
+      paceSeconds = Math.round(weekTime / weekKm);
     }
 
     weeks.push({
@@ -308,16 +308,14 @@ export const computeMonthlySummaries = (
     );
     const totalCalories = acts.reduce((s, a) => s + (a.calories || 0), 0);
 
+    // T8: tempo miesiąca ważone dystansem (spójne z computeSummaryStats).
     const paceActs = acts.filter(
-      (a) => isPaceActivity(a) && a.averageSpeed && a.averageSpeed > 0,
+      (a) => isPaceActivity(a) && a.movingTime && a.distance,
     );
-    const avgPace =
-      paceActs.length > 0
-        ? Math.round(
-            paceActs.reduce((s, a) => s + 1000 / a.averageSpeed!, 0) /
-              paceActs.length,
-          )
-        : null;
+    const paceKm = paceActs.reduce((s, a) => s + a.distance! / 1000, 0);
+    const avgPace = paceKm > 0
+      ? Math.round(paceActs.reduce((s, a) => s + (a.movingTime || 0), 0) / paceKm)
+      : null;
 
     summaries.push({
       key,

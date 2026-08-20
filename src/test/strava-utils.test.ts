@@ -188,6 +188,18 @@ describe('computeSummaryStats', () => {
     expect(stats.totalCalories).toBe(0);
     expect(stats.totalElevation).toBe(0);
   });
+
+  // T8: avgPace ważone dystansem. 5 km w 25 min + 10 km w 40 min →
+  // 65 min / 15 km = 260 s/km (4:20). Stara średnia arytmetyczna dałaby
+  // (300+240)/2 = 270 s/km (4:30) — asercja odróżnia implementacje.
+  it('avgPace is distance-weighted, not arithmetic mean of paces', () => {
+    const acts = [
+      makeActivity({ id: '1', type: 'Run', distance: 5000, movingTime: 1500 }),
+      makeActivity({ id: '2', type: 'Run', distance: 10000, movingTime: 2400 }),
+    ];
+    const stats = computeSummaryStats(acts)!;
+    expect(Math.round(stats.avgPace!)).toBe(260);
+  });
 });
 
 // ========================
@@ -205,18 +217,18 @@ describe('computePaceTrendData', () => {
     expect(result.every((p) => p.paceSeconds === null)).toBe(true);
   });
 
-  it('computes average pace from multiple activities in a week', () => {
+  // T8: oczekiwanie zmienione ze średniej arytmetycznej pace'ów na ważoną
+  // dystansem — jedna długa i jedna krótka aktywność w tygodniu.
+  it('computes distance-weighted pace from multiple activities in a week', () => {
     const now = new Date();
     const today = formatLocalDate(now);
     const acts = [
-      makeActivity({ date: today, averageSpeed: 3.33, type: 'Run' }), // ~300s/km
-      makeActivity({ date: today, averageSpeed: 4.0, type: 'Run' }),  // 250s/km
+      makeActivity({ date: today, distance: 5000, movingTime: 1500, type: 'Run' }),  // 300 s/km
+      makeActivity({ date: today, distance: 10000, movingTime: 2400, type: 'Run' }), // 240 s/km
     ];
     const result = computePaceTrendData(acts, 1);
-    expect(result[0].paceSeconds).not.toBeNull();
-    // avg of 300.3 and 250 ≈ 275
-    expect(result[0].paceSeconds!).toBeGreaterThan(250);
-    expect(result[0].paceSeconds!).toBeLessThan(310);
+    // 3900 s / 15 km = 260 s/km (arytmetyczna dałaby 270)
+    expect(result[0].paceSeconds).toBe(260);
   });
 
   it('ignores non-pace activities', () => {
@@ -259,14 +271,24 @@ describe('computeMonthlySummaries', () => {
 
   it('computes avg pace only from pace activities', () => {
     const acts = [
-      makeActivity({ id: '1', date: '2026-03-01', type: 'Run', averageSpeed: 3.33 }),
-      makeActivity({ id: '2', date: '2026-03-01', type: 'Ride', averageSpeed: 8.0 }),
+      makeActivity({ id: '1', date: '2026-03-01', type: 'Run', distance: 5000, movingTime: 1500 }),
+      makeActivity({ id: '2', date: '2026-03-01', type: 'Ride', distance: 20000, movingTime: 2500 }),
     ];
     const summaries = computeMonthlySummaries(acts);
-    // Only one pace activity, so avgPace should be ~300
-    expect(summaries[0].avgPace).not.toBeNull();
-    expect(summaries[0].avgPace!).toBeGreaterThan(290);
-    expect(summaries[0].avgPace!).toBeLessThan(310);
+    // Only one pace activity (Run 5 km / 25 min), so avgPace = 300
+    expect(summaries[0].avgPace).toBe(300);
+  });
+
+  // T8: avgPace miesiąca spójne z computeSummaryStats na tym samym fixture.
+  it('monthly avgPace matches summary stats on the same fixture (weighted)', () => {
+    const acts = [
+      makeActivity({ id: '1', date: '2026-03-01', type: 'Run', distance: 5000, movingTime: 1500 }),
+      makeActivity({ id: '2', date: '2026-03-15', type: 'Run', distance: 10000, movingTime: 2400 }),
+    ];
+    const summaries = computeMonthlySummaries(acts);
+    const stats = computeSummaryStats(acts)!;
+    expect(summaries[0].avgPace).toBe(Math.round(stats.avgPace!));
+    expect(summaries[0].avgPace).toBe(260);
   });
 
   it('returns empty for no activities', () => {

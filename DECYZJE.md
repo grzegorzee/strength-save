@@ -11,6 +11,46 @@
 
 ## DECYZJE
 
+### 2026-08-20: Audyt danych Strava + poprawka typów i średniego tempa (T5-T8, feedback użytkownika)
+
+**Audyt (T8, ground truth READ-ONLY z Firestore, 300 dokumentów):** dystans
+(metry), czas (movingTime, sekundy), elewacja (m) i data (start_date_local)
+mapowane POPRAWNIE. `type`/`sportType` w dokumentach też poprawne (Walk=Walk,
+TrailRun jako type=Run + sportType=TrailRun) — problem "spacer jako bieg"
+siedział w PREZENTACJI (karta bez etykiety typu) i w REKORDACH (isPaceActivity
+= Run|Walk|Hike karmiło best 5K/10K i RacePredictor).
+
+**Naprawione:**
+- **avgPace (realny bug):** była średnia ARYTMETYCZNA pace'ów per aktywność;
+  teraz ważona dystansem (suma czasu / suma km) w computeSummaryStats,
+  computeMonthlySummaries i computePaceTrendData. Wartości na ekranach userów
+  SIĘ ZMIENIĄ — to korekta błędu. Spacery zostają w avgPace (tempo marszu to
+  legalne tempo); jeśli właściciel chce avgPace tylko biegowe → jedno słowo,
+  przełączenie na isRunActivity.
+- **Rekordy i predykcje (T6):** fastest pace / best 5K / best 10K /
+  RacePredictor liczą TYLKO biegi (isRunActivity: type Run lub sportType
+  zawierający Run). Spacery/wędrówki wypadają z "rekordów biegowych" — u osób
+  ze spacerami wyświetlane rekordy się zmienią (zamierzona poprawka).
+- **Etykieta typu na karcie:** spacer podpisany "Spacer", trail "Bieg
+  trailowy" itd. (cardio.type.*, fallback surowy sportType).
+
+**Ograniczenie API (bez zmian w kodzie, decyzja właściciela otwarta):**
+`calories` i `description` są null we WSZYSTKICH dokumentach — endpoint listy
+Stravy (SummaryActivity) tych pól NIE zwraca (tylko DetailedActivity per
+aktywność). UI degraduje się uczciwie ('—', CaloriesChart się chowa), nic nie
+jest kłamane. Opcje: (a) zostawić jak jest — REKOMENDOWANE, (b) mapować
+kilojoules→kcal dla jazd (przybliżenie, ryzyko zarzutu "fałszywe dane"),
+(c) dociągać DetailedActivity per aktywność (ODRADZANE: 1 request/aktywność,
+pali limit API 100 req/15 min — sprzeczne z rate-limitem T7).
+
+**Poprawne celowo (NIE ruszać):** totalDistance/weeklyStravaKm sumują wszystkie
+typy cardio (zamierzone "km cardio"), filtry WeightTraining/Crossfit,
+weekly-digest (już filtrował Run), HR zones/Training Load (typ nieistotny).
+
+**Weryfikacja:** vitest (strava-utils: asercja 260 vs 270 s/km odróżnia ważoną
+od arytmetycznej; race-predictor: same spacery → zero predykcji; activity-icons;
+functions strava-activity: fallback sport_type), typecheck, lint.
+
 ### 2026-08-20: Kalendarz zakresów booking-style (T20, feedback użytkownika)
 
 **Co:** Własny lekki `RangeCalendar` (`src/components/ui/range-calendar.tsx`
