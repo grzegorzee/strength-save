@@ -367,6 +367,8 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     <button key={n} onClick={() => setDays(n)} className={cn('h-11 w-11 rounded-full font-heading font-bold transition-colors', daysPerWeek === n ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-foreground')}>{n}</button>
                   ))}
                 </div>
+                {/* T1 (feedback 2026-08-20): user bał się, że wybór dni jest wiążący. */}
+                <p className="text-[11px] text-muted-foreground mt-3">{t('ob.protocol.flexNote')}</p>
               </div>
               <div className="rounded-2xl bg-surface-low p-4">
                 <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-3">{t('ob.protocol.daysSelect')}</p>
