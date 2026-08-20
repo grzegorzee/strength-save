@@ -42,7 +42,7 @@ export const SettingRow = ({
           {value}
         </span>
       ))}
-      {onClick && !right && <ChevronRight className={cn('h-4 w-4 shrink-0 text-muted-foreground/60')} />}
+      {onClick && !right && <ChevronRight className={cn('shrink-0 text-muted-foreground/60', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />}
     </>
   );
 
