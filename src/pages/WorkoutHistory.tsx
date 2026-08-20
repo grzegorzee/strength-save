@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { LocalizedDateInput } from '@/components/LocalizedDateInput';
+import { DateRangeField } from '@/components/DateRangeField';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -238,11 +238,15 @@ const WorkoutHistory = () => {
             </div>
           )}
 
-          {/* Zakres dat — T18-1: etykieta w języku apki, wartość ISO bez zmian */}
-          <div className="grid grid-cols-2 gap-2">
-            <LocalizedDateInput value={fromDate} onChange={(event) => setFromDate(event.target.value)} aria-label={t('history.dateRange')} />
-            <LocalizedDateInput value={toDate} onChange={(event) => setToDate(event.target.value)} aria-label={t('history.dateRange')} />
-          </div>
+          {/* Zakres dat — T20.5: kalendarz booking-style w popoverze, Wyczyść = pełna lista */}
+          <DateRangeField
+            value={{ from: fromDate || null, to: toDate || null }}
+            onChange={(next) => {
+              setFromDate(next.from ?? '');
+              setToDate(next.to ?? '');
+            }}
+            testId="history-date-range"
+          />
         </CardContent>
       </Card>
 
