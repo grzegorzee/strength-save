@@ -86,7 +86,7 @@ CSV. DECYZJA: hybryda.
   [warmup/working], weight_kg, reps, completed, rpe, pain, exercise_note,
   day_note, session_rating, tonnage_kg, duration_sec, prs). Escapowanie CSV
   (przecinki/cudzysłowy/nowe linie), UTF-8 z BOM (Excel), separator przecinek.
-  DOWÓD: commit 04ce129d (workout-csv.ts + 5 testów: nagłówki, escapowanie,
+  DOWÓD: commit 3cc82349 (workout-csv.ts + 5 testów: nagłówki, escapowanie,
   BOM, CRLF, puste pola).
 - [x] Załączniki wymagają RAW MIME: SES `SendEmailCommand` z `Content.Raw`
   (zbudować multipart/mixed: HTML + text/csv attachment; bez nowych zależności
