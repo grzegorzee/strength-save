@@ -233,8 +233,9 @@ try {
   // Redesign logowania (2026-08-20): social-first, email za przyciskiem
   // "Kontynuuj z emailem" zamiast zakładek.
   await page.getByRole('button', { name: /Kontynuuj z emailem|Continue with email/i }).click();
-  await page.getByPlaceholder('Email').fill(email);
-  await page.getByPlaceholder(/^(Hasło|Password)$/i).fill(password);
+  // Na stronie są dwa pola "Email" (logowanie + waitlista) — bierzemy pierwsze.
+  await page.getByPlaceholder('Email').first().fill(email);
+  await page.getByPlaceholder(/^(Hasło|Password)$/i).first().fill(password);
   await page.getByRole('button', { name: /Zaloguj przez email|Sign in with email/i }).click();
   await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 20_000 });
   await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).waitFor({ timeout: 15_000 });
