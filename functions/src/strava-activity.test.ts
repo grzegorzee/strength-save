@@ -60,6 +60,18 @@ describe("mapStravaActivityToDoc", () => {
     expect(doc.calories).toBeNull();
     expect(doc.distance).toBeNull();
   });
+
+  // T6: Strava deprecuje `type` — brak pola nie może zgubić typu aktywności.
+  it("falls back to sport_type when type is missing", () => {
+    const doc = mapStravaActivityToDoc("u", { ...baseActivity, type: undefined, sport_type: "Walk" }, "t");
+    expect(doc.type).toBe("Walk");
+    expect(doc.sportType).toBe("Walk");
+  });
+
+  it("stores null type when both type and sport_type are missing", () => {
+    const doc = mapStravaActivityToDoc("u", { ...baseActivity, type: undefined, sport_type: undefined }, "t");
+    expect(doc.type).toBeNull();
+  });
 });
 
 describe("diffRefreshableFields", () => {

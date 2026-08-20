@@ -125,6 +125,15 @@ export const getAvailableYears = (activities: StravaActivity[]): number[] => {
 export const isPaceActivity = (activity: StravaActivity): boolean =>
   activity.type === 'Run' || activity.type === 'Walk' || activity.type === 'Hike';
 
+/**
+ * T6: bieg sensu stricto (Run/TrailRun/VirtualRun). Rekordy biegowe i predykcje
+ * wyścigów liczą TYLKO z biegów — spacer/wędrówka nie generuje "best 5K".
+ * Wzorzec filtra jak w functions/weekly-digest.ts. isPaceActivity zostaje do
+ * FORMATOWANIA tempa (min/km także dla marszu).
+ */
+export const isRunActivity = (activity: StravaActivity): boolean =>
+  activity.type === 'Run' || (activity.sportType?.includes('Run') ?? false);
+
 export const formatPaceFromSeconds = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.round(seconds % 60);
@@ -426,9 +435,9 @@ export const detectCardioPRs = (
 ): CardioPR[] => {
   const prs: CardioPR[] = [];
 
-  // Fastest pace
+  // Fastest pace — T6: tylko biegi (spacer nie jest rekordem biegowym)
   const paceActivities = activities.filter(
-    (a) => isPaceActivity(a) && a.averageSpeed && a.averageSpeed > 0,
+    (a) => isRunActivity(a) && a.averageSpeed && a.averageSpeed > 0,
   );
 
   if (paceActivities.length > 0) {

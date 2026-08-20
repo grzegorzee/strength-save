@@ -1,5 +1,5 @@
 import type { StravaActivity } from '@/types/strava';
-import { isPaceActivity, formatDurationShort } from '@/lib/strava-utils';
+import { isRunActivity, formatDurationShort } from '@/lib/strava-utils';
 import { translate, type LanguageCode } from '@/i18n';
 
 export interface RacePrediction {
@@ -38,8 +38,9 @@ export const findBestEffort = (
   minDist: number,
   maxDist: number,
 ): StravaActivity | null => {
+  // T6: predykcje wyścigów tylko z biegów — spacer/wędrówka nie jest "best effort".
   const candidates = activities.filter(
-    a => isPaceActivity(a) &&
+    a => isRunActivity(a) &&
          a.distance && a.distance >= minDist && a.distance <= maxDist &&
          a.movingTime && a.movingTime > 0 &&
          a.averageSpeed && a.averageSpeed > 0,

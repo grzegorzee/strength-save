@@ -59,4 +59,17 @@ describe('getRacePredictions', () => {
   it('returns empty for no runs', () => {
     expect(getRacePredictions([])).toEqual([]);
   });
+
+  // T6: same spacery/wędrówki → zero predykcji wyścigu (marsz to nie best effort).
+  it('walks and hikes alone produce no predictions', () => {
+    const walk: StravaActivity = {
+      ...makeRun('Afternoon Walk', 5000, 3600),
+      type: 'Walk', sportType: 'Walk',
+    };
+    const hike: StravaActivity = {
+      ...makeRun('Mountain Hike', 14000, 12000),
+      type: 'Hike', sportType: 'Hike',
+    };
+    expect(getRacePredictions([walk, hike])).toEqual([]);
+  });
 });

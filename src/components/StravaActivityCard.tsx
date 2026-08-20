@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronRight, Heart, MoveUpRight, Pencil } from 'lucide-react';
 import type { StravaActivity } from '@/types/strava';
 import { StravaActivityDetail } from '@/components/StravaActivityDetail';
-import { getActivityIcon } from '@/lib/activity-icons';
+import { baseActivityType, displayActivityType, getActivityIcon } from '@/lib/activity-icons';
 import { getHRZone, getHRZoneConfig } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -57,7 +57,13 @@ export const StravaActivityCard = ({ activity, maxHR, onEdit }: StravaActivityCa
   const { t, lang } = useTranslation();
   const [detailOpen, setDetailOpen] = useState(false);
   const isManual = (activity as { source?: string }).source === 'manual';
-  const Icon = getActivityIcon(activity.type);
+  // T6: sportType (np. TrailRun) jest dokładniejszy niż type; spacer ma być
+  // PODPISANY jako spacer, nie udawać biegu.
+  const displayType = displayActivityType(activity);
+  const Icon = getActivityIcon(displayType);
+  const typeKey = `cardio.type.${displayType}`;
+  const typeTranslated = t(typeKey as Parameters<typeof t>[0]);
+  const typeLabel = typeTranslated === typeKey ? displayType : typeTranslated;
   const shortDate = formatShortDate(activity, dateLocale(lang));
 
   const hrZone = activity.averageHeartrate && maxHR
@@ -89,15 +95,20 @@ export const StravaActivityCard = ({ activity, maxHR, onEdit }: StravaActivityCa
                     {t('cardio.manualBadge')}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[10px] shrink-0 border-orange-500/30 text-orange-600">
-                    Strava
-                  </Badge>
+                  <>
+                    <Badge variant="outline" className="text-[10px] shrink-0 border-orange-500/30 text-orange-600">
+                      Strava
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] shrink-0 text-muted-foreground">
+                      {typeLabel}
+                    </Badge>
+                  </>
                 )}
               </div>
               <div className="flex items-center gap-x-3 gap-y-0.5 flex-wrap text-xs text-muted-foreground mt-0.5">
                 {activity.distance && <span>{formatDistance(activity.distance)}</span>}
                 {activity.movingTime && <span>{formatDuration(activity.movingTime)}</span>}
-                {activity.averageSpeed && <span>{formatPace(activity.averageSpeed, activity.type)}</span>}
+                {activity.averageSpeed && <span>{formatPace(activity.averageSpeed, baseActivityType(displayType))}</span>}
                 {activity.totalElevationGain != null && activity.totalElevationGain > 0 && (
                   <span className="flex items-center gap-0.5"><MoveUpRight className="h-3 w-3" aria-hidden />{Math.round(activity.totalElevationGain)}m</span>
                 )}

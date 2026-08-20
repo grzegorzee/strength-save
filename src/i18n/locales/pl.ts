@@ -848,6 +848,15 @@ export const pl = {
   'cardio.type.JumpRope': 'Skakanka',
   'cardio.type.HIIT': 'HIIT',
   'cardio.type.Other': 'Inne',
+  // T6: typy Strava spoza listy manualnej (etykieta na karcie aktywności)
+  'cardio.type.TrailRun': 'Bieg trailowy',
+  'cardio.type.VirtualRun': 'Bieg wirtualny',
+  'cardio.type.VirtualRide': 'Rower wirtualny',
+  'cardio.type.Rowing': 'Wioślarstwo',
+  'cardio.type.Elliptical': 'Orbitrek',
+  'cardio.type.NordicSki': 'Narty biegowe',
+  'cardio.type.Yoga': 'Joga',
+  'cardio.type.Workout': 'Trening',
   // import CSV Strong/Hevy (Z110)
   'common.next': 'Dalej',
   'common.close': 'Zamknij',

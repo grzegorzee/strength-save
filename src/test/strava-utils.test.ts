@@ -5,6 +5,7 @@ import {
   filterByYear,
   getAvailableYears,
   isPaceActivity,
+  isRunActivity,
   formatPaceFromSeconds,
   formatDurationShort,
   computeSummaryStats,
@@ -135,6 +136,24 @@ describe('isPaceActivity', () => {
   it('returns false for Ride, Swim', () => {
     expect(isPaceActivity(makeActivity({ type: 'Ride' }))).toBe(false);
     expect(isPaceActivity(makeActivity({ type: 'Swim' }))).toBe(false);
+  });
+});
+
+// ========================
+// isRunActivity (T6)
+// ========================
+
+describe('isRunActivity', () => {
+  it('łapie bieg po type oraz warianty sportType (TrailRun/VirtualRun)', () => {
+    expect(isRunActivity(makeActivity({ type: 'Run' }))).toBe(true);
+    expect(isRunActivity(makeActivity({ type: 'Run', sportType: 'TrailRun' }))).toBe(true);
+    expect(isRunActivity(makeActivity({ type: 'Workout', sportType: 'VirtualRun' }))).toBe(true);
+  });
+
+  it('spacer i wędrówka NIE są biegiem', () => {
+    expect(isRunActivity(makeActivity({ type: 'Walk', sportType: 'Walk' }))).toBe(false);
+    expect(isRunActivity(makeActivity({ type: 'Hike', sportType: 'Hike' }))).toBe(false);
+    expect(isRunActivity(makeActivity({ type: 'Ride' }))).toBe(false);
   });
 });
 
@@ -413,5 +432,32 @@ describe('detectCardioPRs', () => {
     ];
     const prs = detectCardioPRs(acts);
     expect(prs.find((p) => p.category === 'fastest_pace')).toBeUndefined();
+  });
+
+  // T6: spacer 5 km NIE generuje rekordów biegowych; bieg tak.
+  it('walk does not produce fastest_pace/best_5k, run does', () => {
+    const walkOnly = [
+      makeActivity({ id: 'w1', type: 'Walk', sportType: 'Walk', distance: 5000, movingTime: 3600, averageSpeed: 1.39 }),
+    ];
+    const walkPrs = detectCardioPRs(walkOnly);
+    expect(walkPrs.find((p) => p.category === 'fastest_pace')).toBeUndefined();
+    expect(walkPrs.find((p) => p.category === 'best_5k')).toBeUndefined();
+    expect(walkPrs.find((p) => p.category === 'best_10k')).toBeUndefined();
+
+    const withRun = [
+      ...walkOnly,
+      makeActivity({ id: 'r1', type: 'Run', sportType: 'Run', distance: 5000, movingTime: 1500, averageSpeed: 3.33 }),
+    ];
+    const runPrs = detectCardioPRs(withRun);
+    expect(runPrs.find((p) => p.category === 'fastest_pace')).toBeDefined();
+    expect(runPrs.find((p) => p.category === 'best_5k')?.value).toBe('25:00');
+  });
+
+  it('T6: sportType TrailRun liczy się do rekordów biegowych', () => {
+    const acts = [
+      makeActivity({ id: 't1', type: 'Run', sportType: 'TrailRun', distance: 5000, movingTime: 1600, averageSpeed: 3.13 }),
+    ];
+    const prs = detectCardioPRs(acts);
+    expect(prs.find((p) => p.category === 'fastest_pace')).toBeDefined();
   });
 });

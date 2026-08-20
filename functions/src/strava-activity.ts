@@ -6,7 +6,8 @@
 export interface StravaApiActivityInput {
   id: number;
   name: string;
-  type: string;
+  /** Strava deprecuje `type` na rzecz `sport_type` — mapper ma fallback (T6). */
+  type?: string | null;
   start_date: string;
   start_date_local?: string;
   distance?: number | null;
@@ -90,7 +91,7 @@ export function mapStravaActivityToDoc(
     userId,
     stravaId: activity.id,
     name: activity.name,
-    type: activity.type,
+    type: activity.type || activity.sport_type || null,
     date: activityDateStr(activity),
     distance: activity.distance || null,
     movingTime: activity.moving_time || null,

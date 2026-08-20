@@ -10,7 +10,7 @@ import {
 import type { StravaActivity } from '@/types/strava';
 import { HR_ZONES } from '@/types/strava';
 import { ExternalLink, Home } from 'lucide-react';
-import { getActivityIcon } from '@/lib/activity-icons';
+import { baseActivityType, displayActivityType, getActivityIcon } from '@/lib/activity-icons';
 import { getHRZone, getHRZoneConfig, getHRPercent } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
@@ -86,8 +86,12 @@ interface StravaActivityDetailProps {
 
 export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: StravaActivityDetailProps) => {
   const { t, lang } = useTranslation();
-  const Icon = getActivityIcon(activity.type);
-  const sportLabel = activity.sportType || activity.type;
+  // T6: ikona i format tempa po typie z sportType (TrailRun→Run), etykieta po dokładnym typie.
+  const displayType = displayActivityType(activity);
+  const Icon = getActivityIcon(displayType);
+  const typeKey = `cardio.type.${displayType}`;
+  const typeTranslated = t(typeKey as Parameters<typeof t>[0]);
+  const sportLabel = typeTranslated === typeKey ? displayType : typeTranslated;
   const locale = dateLocale(lang);
   const fullDate = formatFullDate(activity, locale);
   const time = formatTime(activity, locale);
@@ -95,7 +99,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
   const metrics: MetricItemProps[] = [
     { label: t('strava.detail.distance'), value: formatDistance(activity.distance) },
     { label: t('strava.detail.movingTime'), value: formatDuration(activity.movingTime) },
-    { label: t('strava.detail.paceSpeed'), value: formatPace(activity.averageSpeed, activity.type) },
+    { label: t('strava.detail.paceSpeed'), value: formatPace(activity.averageSpeed, baseActivityType(displayType)) },
     { label: t('strava.detail.elapsedTime'), value: formatDuration(activity.elapsedTime) },
     { label: t('strava.detail.avgHR'), value: activity.averageHeartrate ? `${Math.round(activity.averageHeartrate)} bpm` : '—' },
     { label: t('strava.detail.maxHR'), value: activity.maxHeartrate ? `${Math.round(activity.maxHeartrate)} bpm` : '—' },
