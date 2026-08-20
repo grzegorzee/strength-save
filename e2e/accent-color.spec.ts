@@ -35,4 +35,22 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     await page.getByTestId('accent-lime').click();
     expect(await primaryVar(page)).toBe('73 97% 56%');
   });
+
+  test('własny kolor po hex barwi tokeny i przeżywa reload', async ({ page }) => {
+    await navigateAndWait(page, '/profile');
+    await expectPageRendered(page);
+    await page.getByTestId('accent-hex-input').fill('#1e90ff');
+    await page.getByTestId('accent-hex-apply').click();
+    const applied = await primaryVar(page);
+    expect(applied).toMatch(/^\d+ \d+% \d+%$/);
+    expect(applied).not.toBe('73 97% 56%');
+
+    await page.reload();
+    await expectPageRendered(page);
+    expect(await primaryVar(page)).toBe(applied);
+
+    await navigateAndWait(page, '/profile');
+    await page.getByTestId('accent-lime').click();
+    expect(await primaryVar(page)).toBe('73 97% 56%');
+  });
 });

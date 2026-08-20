@@ -143,6 +143,22 @@ describe('krok 3: reorganizacja sekcji Profilu', () => {
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
   });
 
+  it('F-T2b: własny kolor po hex — walidacja i zastosowanie + mirror', async () => {
+    const { getByTestId } = renderProfile();
+    const input = getByTestId('accent-hex-input') as HTMLInputElement;
+    const apply = getByTestId('accent-hex-apply') as HTMLButtonElement;
+    fireEvent.change(input, { target: { value: '#12' } });
+    expect(apply.disabled).toBe(true);
+    fireEvent.change(input, { target: { value: '#1E90FF' } });
+    expect(apply.disabled).toBe(false);
+    fireEvent.click(apply);
+    expect(document.documentElement.dataset.accent).toBe('custom');
+    expect(document.documentElement.style.getPropertyValue('--primary')).toMatch(/^\d+ \d+% \d+%$/);
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), { 'preferences.accentColor': '#1e90ff' },
+    ));
+  });
+
   it('F-T1: tap w imię pod zdjęciem otwiera dialog edycji imienia', async () => {
     const { getByTestId, getByLabelText } = renderProfile();
     fireEvent.click(getByTestId('profile-name-edit'));

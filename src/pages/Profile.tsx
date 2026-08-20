@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
-import { ACCENTS, applyAccent, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
+import { ACCENTS, applyAccent, isCustomAccentHex, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { useAuth } from '@/hooks/useAuth';
@@ -214,6 +214,7 @@ const Profile = () => {
   };
   // F-T2: kolor przewodni — lokalnie od splashu, mirror w profilu (cross-device).
   const [accentId, setAccentId] = useState(readStoredAccentId());
+  const [hexInput, setHexInput] = useState('');
   const profileAccent = profile?.preferences?.accentColor;
   useEffect(() => {
     if (profileAccent && profileAccent !== readStoredAccentId()) {
@@ -545,11 +546,11 @@ const Profile = () => {
         <SettingRow icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings?section=data')} />
       </SectionCard>
 
-      {/* WYGLĄD (F-T2): kolor przewodni całej aplikacji. */}
+      {/* WYGLĄD (F-T2): kolor przewodni całej aplikacji (paleta + dowolny hex). */}
       <SectionCard label={t('profile.section.appearance')}>
         <div className="px-1 py-2">
           <p className="mb-3 text-sm text-muted-foreground">{t('profile.appearance.accent')}</p>
-          <div className="grid grid-cols-8 gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
             {ACCENTS.map((a) => (
               <button
                 key={a.id}
@@ -563,6 +564,47 @@ const Profile = () => {
                 style={{ backgroundColor: a.hex }}
               />
             ))}
+            {/* Dowolny kolor: systemowy picker (na iOS ma też wpis po #). */}
+            <label
+              aria-label={t('accent.custom')}
+              data-testid="accent-custom"
+              className={`relative h-9 w-9 cursor-pointer rounded-full transition-transform active:scale-95 ${isCustomAccentHex(accentId) ? 'ring-2 ring-white ring-offset-2 ring-offset-background' : ''}`}
+              style={{
+                background: isCustomAccentHex(accentId)
+                  ? accentId
+                  : 'conic-gradient(#f87171, #facc15, #4ade80, #22d3ee, #a78bfa, #f472b6, #f87171)',
+              }}
+            >
+              <input
+                type="color"
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                value={isCustomAccentHex(accentId) ? accentId : '#cefc22'}
+                onChange={(e) => handleAccent(e.target.value.toLowerCase())}
+                data-testid="accent-custom-input"
+              />
+            </label>
+          </div>
+          {/* Wpis po # dla tych, którzy znają swój kolor. */}
+          <div className="mt-3 flex items-center gap-2">
+            <Input
+              value={hexInput}
+              onChange={(e) => setHexInput(e.target.value.trim())}
+              placeholder="#1e90ff"
+              inputMode="text"
+              autoCapitalize="none"
+              className="h-9 max-w-[140px] font-mono text-sm"
+              aria-label={t('profile.appearance.hexLabel')}
+              data-testid="accent-hex-input"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!isCustomAccentHex(hexInput)}
+              onClick={() => handleAccent(hexInput.toLowerCase())}
+              data-testid="accent-hex-apply"
+            >
+              {t('profile.appearance.hexApply')}
+            </Button>
           </div>
         </div>
       </SectionCard>

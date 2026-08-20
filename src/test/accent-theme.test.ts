@@ -55,6 +55,46 @@ describe('accent-theme (F-T2)', () => {
     expect(getCurrentAccent().id).toBe('orange');
   });
 
+  // Rozszerzenie na życzenie właściciela (2026-08-20): dowolny kolor po #.
+  it('własny hex: ustawia policzone tokeny HSL i data-accent=custom', () => {
+    const applied = applyAccent('#2288ff');
+    const root = document.documentElement;
+    expect(applied.id).toBe('custom');
+    expect(applied.hex).toBe('#2288ff');
+    expect(root.dataset.accent).toBe('custom');
+    expect(root.style.getPropertyValue('--primary')).toMatch(/^\d+ \d+% \d+%$/);
+    expect(root.style.getPropertyValue('--primary-light')).toMatch(/^\d+ \d+% \d+%$/);
+  });
+
+  it('ciemny własny kolor dostaje jasny tekst na akcencie; jasny zostaje przy ciemnym', () => {
+    applyAccent('#1a2a6c');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 98%');
+    applyAccent('#cefc22');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('');
+    applyAccent('#ffe066');
+    expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('');
+  });
+
+  it('własny hex przeżywa persistencję (getCurrentAccent zwraca custom)', () => {
+    storeAccentId('#ff0066');
+    expect(getCurrentAccent().id).toBe('custom');
+    expect(getCurrentAccent().hex).toBe('#ff0066');
+    applyStoredAccent();
+    expect(document.documentElement.dataset.accent).toBe('custom');
+  });
+
+  it('niepoprawny hex = fallback do limonki', () => {
+    expect(applyAccent('#12').id).toBe(DEFAULT_ACCENT_ID);
+    expect(applyAccent('#gggggg').id).toBe(DEFAULT_ACCENT_ID);
+  });
+
+  it('isCustomAccentHex: walidacja #RRGGBB', async () => {
+    const { isCustomAccentHex } = await import('@/lib/accent-theme');
+    expect(isCustomAccentHex('#a1B2c3')).toBe(true);
+    expect(isCustomAccentHex('a1b2c3')).toBe(false);
+    expect(isCustomAccentHex('#abc')).toBe(false);
+  });
+
   it('statusowe kolory nietknięte: apply nie rusza fitness-success/warning', () => {
     applyAccent('red');
     const root = document.documentElement;
