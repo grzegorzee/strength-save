@@ -1212,6 +1212,7 @@ import {
   EMAIL_DAILY_LIMIT,
   type EmailWorkout,
   type EmailWorkoutDeps,
+  type HistoryEmailRange,
   type SendEmailResult,
 } from "./email-workout";
 
@@ -1264,12 +1265,15 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
     if (!snap.exists) return null;
     return { id: snap.id, ...(snap.data() as Omit<EmailWorkout, "id">) };
   },
-  listWorkouts: async (uid, limit) => {
-    const snap = await db.collection(WORKOUTS_COLLECTION)
+  listWorkoutsInRange: async (uid, opts) => {
+    let query = db.collection(WORKOUTS_COLLECTION)
       .where("userId", "==", uid)
-      .where("completed", "==", true)
+      .where("completed", "==", true);
+    // H-T2: filtr od dołu po dacie (range 'week'); range na polu orderBy = ten sam indeks.
+    if (opts.sinceDate) query = query.where("date", ">=", opts.sinceDate);
+    const snap = await query
       .orderBy("date", "desc")
-      .limit(limit)
+      .limit(opts.limit)
       .get();
     return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<EmailWorkout, "id">) }));
   },
@@ -1294,6 +1298,7 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
 const emailErrorToHttps = (code: string): never => {
   switch (code) {
     case "invalid-recipient": throw new HttpsError("invalid-argument", "invalid-recipient");
+    case "invalid-range": throw new HttpsError("invalid-argument", "invalid-range");
     case "not-found": throw new HttpsError("not-found", "workout-not-found");
     case "forbidden": throw new HttpsError("permission-denied", "not-your-workout");
     case "quota-exceeded": throw new HttpsError("resource-exhausted", "daily-email-limit");
@@ -1318,10 +1323,12 @@ export const emailWorkoutSummary = onCall({ secrets: EMAIL_SECRETS }, async (req
 export const emailWorkoutHistory = onCall({ secrets: EMAIL_SECRETS }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "login-required");
-  const { to, lang } = (request.data ?? {}) as { to?: string; lang?: string };
+  const { to, lang, range } = (request.data ?? {}) as { to?: string; lang?: string; range?: string };
   const today = new Date().toISOString().slice(0, 10);
   const result = await runEmailHistory(buildEmailWorkoutDeps(), {
     uid, to, lang: lang === "en" ? "en" : "pl", today,
+    // H-T2: brak parametru = 'week'; nieznana wartość odpada w czystej logice.
+    range: (range ?? "week") as HistoryEmailRange,
   });
   if (!result.ok) emailErrorToHttps(result.code);
   return { ok: true };

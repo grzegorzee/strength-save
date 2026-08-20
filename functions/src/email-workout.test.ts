@@ -7,6 +7,7 @@ import {
   isValidRecipient,
   runEmailHistory,
   runEmailWorkout,
+  HISTORY_EMAIL_MAX_WORKOUTS,
   type EmailWorkout,
   type EmailWorkoutDeps,
 } from "./email-workout";
@@ -39,7 +40,7 @@ const workout = (over: Partial<EmailWorkout> = {}): EmailWorkout => ({
 
 const deps = (over: Partial<EmailWorkoutDeps> = {}): EmailWorkoutDeps => ({
   getWorkout: vi.fn(async () => workout()),
-  listWorkouts: vi.fn(async () => [workout()]),
+  listWorkoutsInRange: vi.fn(async () => [workout()]),
   consumeQuota: vi.fn(async () => true),
   sendEmail: vi.fn(async () => ({})),
   logEmail: vi.fn(async () => undefined),
@@ -108,8 +109,8 @@ describe("runEmailWorkout", () => {
 describe("runEmailHistory", () => {
   const params = { uid: "u1", to: "trener@example.com", today: "2026-08-20" } as const;
 
-  it("wysyła wszystkie treningi w jednym mailu", async () => {
-    const d = deps({ listWorkouts: vi.fn(async () => [workout(), workout({ id: "w2", date: "2026-08-18" })]) });
+  it("wysyła treningi z zakresu w jednym mailu", async () => {
+    const d = deps({ listWorkoutsInRange: vi.fn(async () => [workout(), workout({ id: "w2", date: "2026-08-18" })]) });
     expect(await runEmailHistory(d, { ...params })).toEqual({ ok: true });
     const html = (d.sendEmail as ReturnType<typeof vi.fn>).mock.calls[0][2] as string;
     expect(html).toContain("2026-08-20");
@@ -117,9 +118,33 @@ describe("runEmailHistory", () => {
   });
 
   it("pusta historia = empty-history (bez wysyłki i bez zaliczania limitu)", async () => {
-    const d = deps({ listWorkouts: vi.fn(async () => []) });
+    const d = deps({ listWorkoutsInRange: vi.fn(async () => []) });
     expect(await runEmailHistory(d, { ...params })).toEqual({ ok: false, code: "empty-history" });
     expect(d.consumeQuota).not.toHaveBeenCalled();
+  });
+
+  // H-T2: zakresy historii — koniec z wysyłką 200 treningów naraz.
+  it("range week (default): filtr date >= dziś-6 dni z limitem bezpieczeństwa 14", async () => {
+    const d = deps();
+    expect(await runEmailHistory(d, { ...params })).toEqual({ ok: true });
+    expect(d.listWorkoutsInRange).toHaveBeenCalledWith("u1", { sinceDate: "2026-08-14", limit: 14 });
+  });
+
+  it("range last30: 30 najnowszych bez filtra daty", async () => {
+    const d = deps();
+    expect(await runEmailHistory(d, { ...params, range: "last30" })).toEqual({ ok: true });
+    expect(d.listWorkoutsInRange).toHaveBeenCalledWith("u1", { limit: 30 });
+  });
+
+  it("nieznany range = invalid-range (bez odczytów i bez limitu)", async () => {
+    const d = deps();
+    expect(await runEmailHistory(d, { ...params, range: "all" as never })).toEqual({ ok: false, code: "invalid-range" });
+    expect(d.listWorkoutsInRange).not.toHaveBeenCalled();
+    expect(d.consumeQuota).not.toHaveBeenCalled();
+  });
+
+  it("HISTORY_EMAIL_MAX_WORKOUTS obniżony do 30", () => {
+    expect(HISTORY_EMAIL_MAX_WORKOUTS).toBe(30);
   });
 });
 

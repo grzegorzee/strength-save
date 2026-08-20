@@ -58,9 +58,13 @@ export interface EmailLogEntry {
   lang: Lang;
 }
 
+/** H-T2: zakres maila historii — tydzień (default) albo 30 ostatnich. */
+export type HistoryEmailRange = "week" | "last30";
+
 export interface EmailWorkoutDeps {
   getWorkout: (workoutId: string) => Promise<EmailWorkout | null>;
-  listWorkouts: (uid: string, limit: number) => Promise<EmailWorkout[]>;
+  /** Ukończone treningi usera, date desc; sinceDate zawęża od dołu (YYYY-MM-DD). */
+  listWorkoutsInRange: (uid: string, opts: { sinceDate?: string; limit: number }) => Promise<EmailWorkout[]>;
   /** Zwraca true, gdy wysyłka mieści się w dziennym limicie (i zalicza ją). */
   consumeQuota: (uid: string, today: string) => Promise<boolean>;
   sendEmail: (to: string, subject: string, html: string) => Promise<SendEmailResult>;
@@ -68,7 +72,10 @@ export interface EmailWorkoutDeps {
 }
 
 export const EMAIL_DAILY_LIMIT = 10;
-export const HISTORY_EMAIL_MAX_WORKOUTS = 200;
+/** H-T2: koniec z wysyłką 200 naraz — twardy limit 30. */
+export const HISTORY_EMAIL_MAX_WORKOUTS = 30;
+/** Tydzień = 7 dni włącznie z dziś; limit bezpieczeństwa na liczbę sesji. */
+export const WEEK_RANGE_MAX_WORKOUTS = 14;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -269,7 +276,7 @@ export function buildHistoryEmailHtml(workouts: EmailWorkout[], lang: Lang): str
 
 export type EmailWorkoutResult =
   | { ok: true }
-  | { ok: false; code: "invalid-recipient" | "not-found" | "forbidden" | "quota-exceeded" | "send-failed" | "empty-history" };
+  | { ok: false; code: "invalid-recipient" | "not-found" | "forbidden" | "quota-exceeded" | "send-failed" | "empty-history" | "invalid-range" };
 
 /** G-T1: wpis do email_log po KAŻDEJ próbie wysyłki (udanej i nieudanej).
  *  Awaria logu nie może zabrać userowi maila, który już wyszedł. */
@@ -315,12 +322,20 @@ export async function runEmailWorkout(
   return { ok: true };
 }
 
+/** date - days dni w formacie YYYY-MM-DD (rachunek w UTC na stringu daty). */
+const dateMinusDays = (date: string, days: number): string =>
+  new Date(Date.parse(`${date}T00:00:00.000Z`) - days * 86400000).toISOString().slice(0, 10);
+
 export async function runEmailHistory(
   deps: EmailWorkoutDeps,
-  params: { uid: string; to: unknown; lang?: Lang; today: string },
+  params: { uid: string; to: unknown; lang?: Lang; today: string; range?: HistoryEmailRange },
 ): Promise<EmailWorkoutResult> {
   if (!isValidRecipient(params.to)) return { ok: false, code: "invalid-recipient" };
-  const workouts = await deps.listWorkouts(params.uid, HISTORY_EMAIL_MAX_WORKOUTS);
+  const range = params.range ?? "week";
+  if (range !== "week" && range !== "last30") return { ok: false, code: "invalid-range" };
+  const workouts = await deps.listWorkoutsInRange(params.uid, range === "week"
+    ? { sinceDate: dateMinusDays(params.today, 6), limit: WEEK_RANGE_MAX_WORKOUTS }
+    : { limit: HISTORY_EMAIL_MAX_WORKOUTS });
   if (workouts.length === 0) return { ok: false, code: "empty-history" };
   if (!(await deps.consumeQuota(params.uid, params.today))) return { ok: false, code: "quota-exceeded" };
   const lang: Lang = params.lang === "en" ? "en" : "pl";
