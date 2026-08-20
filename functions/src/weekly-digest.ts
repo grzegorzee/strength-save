@@ -12,6 +12,7 @@ import {
 } from "./weekly-digest-stats";
 import { buildWeeklyDigest, type DigestStrava, type UnitSystem } from "./weekly-digest-html";
 import type { Lang } from "./email-templates";
+import { writeEmailLog, type EmailLogWrite } from "./email-log";
 
 export const resendApiKey = defineSecret("RESEND_API_KEY");
 const DIGEST_CONCURRENCY = 10;
@@ -56,6 +57,8 @@ export interface WeeklyDigestDeps {
     payload: Record<string, string | number | boolean | null>;
     deepLink: string | null;
   }) => Promise<void>;
+  /** T21b: rejestr wysyłek email_log (best-effort, wpis per odbiorca). */
+  logEmail?: (entry: EmailLogWrite, html?: string) => Promise<void>;
   now?: () => Date;
 }
 
@@ -190,6 +193,25 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
 
       // Resend SDK nie rzuca przy odrzuceniu — błąd wraca w response.error.
       const response = await deps.sendEmail(user.email, subject, html);
+      // T21b: wpis do email_log po każdej próbie (udanej i nieudanej);
+      // awaria rejestru nie może zabrać digestu pozostałym odbiorcom.
+      if (deps.logEmail) {
+        try {
+          await deps.logEmail({
+            uid: user.uid,
+            to: user.email,
+            type: "weekly_digest",
+            subject,
+            transport: "resend",
+            status: response.error ? "failed" : "sent",
+            ...(response.error ? { error: response.error.message } : {}),
+            sentAt: new Date().toISOString(),
+            lang,
+          }, html);
+        } catch (error) {
+          logger.error(`[WeeklyDigest] email_log write failed for ${user.email}`, error);
+        }
+      }
       if (response.error) {
         failed += 1;
         logger.error(`[WeeklyDigest] Provider rejected for ${user.email}: ${response.error.message}`);
@@ -295,6 +317,8 @@ export function buildWeeklyDigestDeps(db: FirebaseFirestore.Firestore, resend: R
       });
       return response.error ? { error: { message: response.error.message } } : {};
     },
+    // T21b: rejestr wysyłek widoczny w panelu admina (sekcja Maile).
+    logEmail: (entry, html) => writeEmailLog(db, entry, html),
     // B-T6: create (nie set) pod deterministycznym id — powtórny bieg digestu
     // dla tego samego tygodnia dostaje ALREADY_EXISTS i zostawia oryginał
     // (createdAt/readAt) w spokoju.

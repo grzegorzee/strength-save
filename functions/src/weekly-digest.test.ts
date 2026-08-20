@@ -152,6 +152,62 @@ describe("runWeeklyDigest (R2-10)", () => {
   });
 });
 
+// T21b: digest zostawia wpis w email_log (type weekly_digest) po każdej próbie.
+describe("T21b: rejestr wysyłek email_log w digeście", () => {
+  it("udana wysyłka loguje wpis sent z treścią HTML", async () => {
+    const logEmail = vi.fn(async () => undefined);
+    const deps = makeDeps([{ uid: "u1", email: "a@b.c", status: "active" }], { logEmail });
+
+    await runWeeklyDigest(deps);
+
+    expect(logEmail).toHaveBeenCalledTimes(1);
+    const [entry, html] = logEmail.mock.calls[0] as unknown as [Record<string, unknown>, string];
+    expect(entry).toMatchObject({
+      uid: "u1", to: "a@b.c", type: "weekly_digest", transport: "resend", status: "sent", lang: "pl",
+    });
+    expect(typeof entry.sentAt).toBe("string");
+    expect(html).toContain("Serie robocze");
+  });
+
+  it("odrzucenie providera loguje status failed z komunikatem", async () => {
+    const logEmail = vi.fn(async () => undefined);
+    const deps = makeDeps(
+      [{ uid: "u1", email: "a@b.c", status: "active" }],
+      { logEmail, sendEmail: vi.fn(async () => ({ error: { message: "bounced" } })) },
+    );
+
+    const result = await runWeeklyDigest(deps);
+
+    expect(result.failed).toBe(1);
+    const [entry] = logEmail.mock.calls[0] as unknown as [Record<string, unknown>];
+    expect(entry.status).toBe("failed");
+    expect(entry.error).toBe("bounced");
+  });
+
+  it("awaria rejestru nie psuje wysyłki (sent zaliczony)", async () => {
+    const logEmail = vi.fn(async () => { throw new Error("firestore-down"); });
+    const deps = makeDeps([{ uid: "u1", email: "a@b.c", status: "active" }], { logEmail });
+
+    const result = await runWeeklyDigest(deps);
+
+    expect(result.sent).toBe(1);
+    expect(result.failed).toBe(0);
+  });
+
+  it("user bez treningów nie zostawia wpisu; brak dep nie psuje digestu", async () => {
+    const logEmail = vi.fn(async () => undefined);
+    const deps = makeDeps(
+      [{ uid: "u1", email: "a@b.c" }],
+      { logEmail, queryCompletedWorkouts: vi.fn(async () => []) },
+    );
+    await runWeeklyDigest(deps);
+    expect(logEmail).not.toHaveBeenCalled();
+
+    const legacy = makeDeps([{ uid: "u1", email: "a@b.c" }]);
+    await expect(runWeeklyDigest(legacy)).resolves.toMatchObject({ sent: 1 });
+  });
+});
+
 describe("B-T6: producent zdarzenia inboxa (user_events)", () => {
   it("emituje week event z deterministycznym kluczem tygodnia dla usera z treningami", async () => {
     const writeUserEvent = vi.fn(async () => undefined);

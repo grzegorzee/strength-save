@@ -33,6 +33,7 @@ import {
   resolveGrantStartedAt,
   canCreateUserProfile,
 } from "./security";
+import { writeEmailLog } from "./email-log";
 
 const resendApiKey = defineSecret("RESEND_API_KEY");
 const authPepper = defineSecret("API_KEY_PEPPER");
@@ -300,6 +301,27 @@ async function sendEmail(params: {
   });
 
   const errorMessage = resendErrorMessage(response);
+
+  // T21b: rejestr wysyłek dla panelu admina (email_log) — best-effort, nie może
+  // zmienić semantyki sendEmail (HttpsError przy odrzuceniu zostaje bez zmian).
+  // verification_code: bez treści i z zamaskowanym tematem (temat zawiera kod
+  // logowania — admin nie ma go widzieć w rejestrze).
+  try {
+    const isVerification = params.type === "verification_code";
+    await writeEmailLog(getDb(), {
+      uid: params.userId ?? "system",
+      to: params.to,
+      type: params.type,
+      subject: isVerification ? "[verification code]" : params.subject,
+      transport: "resend",
+      status: errorMessage ? "failed" : "sent",
+      ...(errorMessage ? { error: errorMessage } : {}),
+      sentAt: nowIso(),
+    }, isVerification ? undefined : params.html);
+  } catch {
+    // Rejestr jest pomocniczy: brak wpisu nie zmienia losów wysyłki.
+  }
+
   if (errorMessage) {
     throw new HttpsError("unavailable", `Email provider rejected message: ${errorMessage}`);
   }

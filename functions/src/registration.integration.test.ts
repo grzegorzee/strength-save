@@ -56,6 +56,7 @@ const collectionsToClean = [
   "api_keys",
   "api_rate_limits",
   "auth_audit_logs",
+  "email_log",
 ];
 
 const callableRequest = <T>(input: {
@@ -203,6 +204,18 @@ describeWithEmulators("registration integration on Firebase emulators", () => {
     });
     expect(profile?.verification?.emailVerifiedAt).toEqual(expect.any(String));
     expect(resendMock.send).toHaveBeenCalledTimes(2);
+
+    // T21b: obie wysyłki zostawiają wpis w email_log; kod weryfikacyjny BEZ
+    // treści i z zamaskowanym tematem (temat zawiera kod logowania).
+    const emailLog = await admin.firestore().collection("email_log").where("uid", "==", uid).get();
+    expect(emailLog.docs.map((entry) => entry.data().type).sort()).toEqual(["verification_code", "welcome_email"]);
+    const verificationEntry = emailLog.docs.find((entry) => entry.data().type === "verification_code");
+    expect(verificationEntry?.data()).toMatchObject({ subject: "[verification code]", transport: "resend", status: "sent" });
+    expect((await verificationEntry?.ref.collection("content").doc("body").get())?.exists).toBe(false);
+    const welcomeEntry = emailLog.docs.find((entry) => entry.data().type === "welcome_email");
+    const welcomeContent = await welcomeEntry?.ref.collection("content").doc("body").get();
+    expect(welcomeContent?.exists).toBe(true);
+    expect(String(welcomeContent?.data()?.html ?? "")).not.toBe("");
   });
 
   it("keeps an unattested web registration without invite out of users", async () => {
