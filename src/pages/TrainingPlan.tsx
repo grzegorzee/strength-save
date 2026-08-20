@@ -390,7 +390,7 @@ const TrainingPlan = () => {
                 <Pencil className="h-3.5 w-3.5" />
                 {t('trainingplan.edit')}
               </button>
-              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-[#f4ffc9] to-primary text-[13px] font-heading font-bold uppercase tracking-tight text-background whitespace-nowrap">
+              <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-primary-light to-primary text-[13px] font-heading font-bold uppercase tracking-tight text-background whitespace-nowrap">
                 {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
               </div>
             </div>
@@ -401,7 +401,7 @@ const TrainingPlan = () => {
         <div className="px-6 pb-5">
           <div className="w-full h-1.5 bg-surface-high rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#f4ffc9] to-primary transition-all duration-500"
+              className="h-full rounded-full bg-gradient-to-r from-primary-light to-primary transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -491,7 +491,7 @@ const TrainingPlan = () => {
             className={cn(
               'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
               vacation && isVacationActive(vacation, todayISOForVacation)
-                ? 'border-fitness-cyan/40 bg-fitness-cyan/10 text-fitness-cyan'
+                ? 'border-primary/40 bg-primary/10 text-primary'
                 : 'border-border text-muted-foreground hover:bg-muted',
             )}
           >
@@ -608,7 +608,7 @@ const TrainingPlan = () => {
                         {/* Z112: wpis cardio na wybranym dniu (także wstecz) */}
                         <button
                           onClick={(e) => { e.stopPropagation(); setCardioDialog({ open: true, edit: null, defaultDate: dateStr }); }}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground/40 hover:text-fitness-cyan transition-colors"
+                          className="flex items-center gap-1 text-[11px] text-muted-foreground/40 hover:text-primary transition-colors"
                           data-testid={`add-cardio-day-${dateStr}`}
                         >
                           <HeartPulse className="h-3 w-3" />

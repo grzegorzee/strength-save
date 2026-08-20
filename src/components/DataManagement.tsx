@@ -122,7 +122,7 @@ export const DataRepairTools = ({
         <Button
           onClick={() => setRepairConfirmOpen(true)}
           variant="outline"
-          className="w-full text-fitness-cyan border-fitness-cyan/40 hover:bg-fitness-cyan/10"
+          className="w-full text-primary border-primary/40 hover:bg-primary/10"
           disabled={isRepairing || disabled}
         >
           {isRepairing ? (

@@ -113,7 +113,7 @@ export const ExercisePicker = ({
       )}
       onClick={() => handleItemTap(ex)}
     >
-      <span className="h-9 w-9 shrink-0 rounded-lg bg-surface-highest flex items-center justify-center text-fitness-cyan">
+      <span className="h-9 w-9 shrink-0 rounded-lg bg-surface-highest flex items-center justify-center text-primary">
         <Dumbbell className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1">
@@ -156,7 +156,7 @@ export const ExercisePicker = ({
             <button
               onClick={() => setCategory('all')}
               className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                category === 'all' ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
+                category === 'all' ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
             >
               {t('exercises.all')}
             </button>
@@ -165,7 +165,7 @@ export const ExercisePicker = ({
                 key={key}
                 onClick={() => setCategory(key)}
                 className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                  category === key ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
+                  category === key ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
               >
                 {localizeCategory(key, lang)}
               </button>
@@ -206,7 +206,7 @@ export const ExercisePicker = ({
                     key={key}
                     onClick={() => setCustomForm({ ...customForm, category: key })}
                     className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                      customForm.category === key ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
+                      customForm.category === key ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
                   >
                     {localizeCategory(key, lang)}
                   </button>
@@ -231,7 +231,7 @@ export const ExercisePicker = ({
                   onClick={() => setCustomForm({ ...customForm, isBodyweight: !customForm.isBodyweight })}
                   aria-pressed={customForm.isBodyweight}
                   className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                    customForm.isBodyweight ? 'bg-fitness-success text-background' : 'bg-surface-highest text-muted-foreground')}
+                    customForm.isBodyweight ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
                 >
                   {t('picker.bodyweight')}
                 </button>
@@ -250,7 +250,7 @@ export const ExercisePicker = ({
                       key={label}
                       onClick={() => setCustomForm({ ...customForm, tracking: value })}
                       className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                        customForm.tracking === value ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
+                        customForm.tracking === value ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
                     >
                       {label}
                     </button>

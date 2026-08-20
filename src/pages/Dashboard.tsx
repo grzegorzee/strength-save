@@ -603,10 +603,10 @@ const Dashboard = () => {
   if ((localDraft && (localDraft.dirty || localDraft.finalSyncPending || localDraft.sessionOrigin === 'provisional')) || pendingSyncCount > 0) {
     statusEntries.push({
       id: 'offline-sync', priority: 100, node: (
-        <Card className="border-fitness-cyan/30 bg-fitness-cyan/5">
+        <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
-              <CloudOff className="h-5 w-5 text-fitness-cyan mt-0.5 shrink-0" />
+              <CloudOff className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold text-foreground">
                   {localDraft?.finalSyncPending
@@ -661,7 +661,7 @@ const Dashboard = () => {
           type="button"
           data-testid="vacation-badge"
           onClick={() => setVacationOpen(true)}
-          className="flex w-full items-center justify-between rounded-xl border border-fitness-cyan/40 bg-fitness-cyan/10 px-4 py-2.5 text-left text-sm font-semibold text-fitness-cyan"
+          className="flex w-full items-center justify-between rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-left text-sm font-semibold text-primary"
         >
           <span>
             {t('vac.badge', {
@@ -900,7 +900,7 @@ const Dashboard = () => {
           onClick={() => setCardioDialog({ open: true, edit: null })}
           data-testid="add-cardio-open"
         >
-          <HeartPulse className="h-4 w-4 text-fitness-cyan" />
+          <HeartPulse className="h-4 w-4 text-primary" />
           {t('cardio.addButton')}
         </Button>
       </div>

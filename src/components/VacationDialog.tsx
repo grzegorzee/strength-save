@@ -75,11 +75,11 @@ export const VacationDialog = ({
           </p>
         ) : vacation ? (
           <>
-            <div className="rounded-xl border border-fitness-cyan/40 bg-fitness-cyan/10 px-4 py-3">
-              <p className="text-sm font-semibold text-fitness-cyan">
+            <div className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-3">
+              <p className="text-sm font-semibold text-primary">
                 {t('vac.range', { from: fmt(vacation.startDate), to: fmt(vacation.endDate) })}
               </p>
-              <p className="mt-0.5 text-xs text-fitness-cyan">{t(ACTIVITY_KEYS[vacation.activity])}</p>
+              <p className="mt-0.5 text-xs text-primary">{t(ACTIVITY_KEYS[vacation.activity])}</p>
             </div>
             <DialogFooter>
               <Button variant="outline" className="w-full" data-testid="vac-cancel" onClick={onCancel}>
@@ -136,7 +136,7 @@ export const VacationDialog = ({
                       className={cn(
                         'flex-1 rounded-full border px-3 py-1.5 text-sm transition-colors',
                         active
-                          ? 'border-fitness-success bg-fitness-success/10 text-fitness-success'
+                          ? 'border-primary bg-primary/10 text-primary'
                           : 'border-border text-muted-foreground hover:bg-muted',
                       )}
                     >
@@ -148,7 +148,7 @@ export const VacationDialog = ({
               {rangeValid && rangeDays !== null ? (
                 <div
                   data-testid="vac-summary"
-                  className="rounded-xl border border-fitness-success bg-fitness-success/10 px-4 py-3 text-sm text-fitness-success"
+                  className="rounded-xl border border-primary bg-primary/10 px-4 py-3 text-sm text-primary"
                 >
                   <p className="font-semibold">
                     {t('vac.summaryDays', { n: rangeDays, from: fmt(startISO), to: fmt(endISO) })}
@@ -176,7 +176,7 @@ export const VacationDialog = ({
                     className={cn(
                       'rounded-xl border px-4 py-2.5 text-left text-sm transition-colors',
                       activity === option
-                        ? 'border-fitness-success bg-fitness-success/10 text-fitness-success'
+                        ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border text-muted-foreground hover:bg-muted',
                     )}
                   >

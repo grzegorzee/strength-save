@@ -78,7 +78,7 @@ export const PinnedNoteSection = ({ exerciseName, pinnedNote, onSave, className,
             <p className="text-sm leading-snug whitespace-pre-wrap" data-testid="pinned-note-text">{pinnedNote.note}</p>
           )}
           {pinnedNote?.machineSettings && (
-            <p className="text-xs text-fitness-cyan/90" data-testid="pinned-note-machine">
+            <p className="text-xs text-primary/90" data-testid="pinned-note-machine">
               {t('notes.machineLabel')}: {pinnedNote.machineSettings}
             </p>
           )}

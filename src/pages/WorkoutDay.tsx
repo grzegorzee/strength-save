@@ -2561,7 +2561,7 @@ const WorkoutDay = () => {
                   disabled={!canExpand}
                   className="flex w-full items-center gap-3 p-3 text-left disabled:cursor-default"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fitness-cyan/15 font-heading text-sm font-bold tabular-nums text-fitness-cyan">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 font-heading text-sm font-bold tabular-nums text-primary">
                     {index + 1}
                   </div>
                   <div className="min-w-0 flex-1">

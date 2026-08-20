@@ -44,9 +44,9 @@ export const HealthWeightSuggestion = ({ measurements, onAccept }: HealthWeightS
   };
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-fitness-cyan/10 px-4 py-3" data-testid="health-weight-suggestion">
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-primary/10 px-4 py-3" data-testid="health-weight-suggestion">
       <span className="flex items-center gap-2 text-sm">
-        <HeartPulse className="h-4 w-4 shrink-0 text-fitness-cyan" />
+        <HeartPulse className="h-4 w-4 shrink-0 text-primary" />
         {t('health.weightSuggestion', {
           kg: Math.round(sample.kg * 10) / 10,
           date: parseLocalDate(sample.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),

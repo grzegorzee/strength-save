@@ -228,7 +228,7 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
                 aria-pressed={hero === id}
                 className={cn(
                   'flex-1 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                  hero === id ? 'bg-fitness-success text-background' : 'bg-surface-highest text-muted-foreground',
+                  hero === id ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground',
                 )}
               >
                 {label}

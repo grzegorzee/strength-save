@@ -297,10 +297,10 @@ const DayPlan = () => {
           {/* Stretching section (collapsible) */}
           <button
             onClick={() => setShowStretching(prev => !prev)}
-            className="w-full flex items-center justify-between p-3 rounded-xl bg-fitness-cyan/5 border border-fitness-cyan/20 text-left"
+            className="w-full flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20 text-left"
           >
             <div className="flex items-center gap-2">
-              <Leaf className="h-4 w-4 text-fitness-cyan" aria-hidden />
+              <Leaf className="h-4 w-4 text-primary" aria-hidden />
               <span className="font-medium text-sm">{t('dayplan.stretching')}</span>
             </div>
             {showStretching ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}

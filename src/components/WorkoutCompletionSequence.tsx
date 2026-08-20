@@ -169,7 +169,7 @@ export const WorkoutCompletionSequence = ({
                     className={cn(
                       'rounded-full border px-3.5 py-1.5 text-sm transition-colors',
                       selectedReasons.includes(reason)
-                        ? 'border-fitness-success bg-fitness-success/10 text-fitness-success'
+                        ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border text-muted-foreground hover:bg-muted',
                     )}
                   >
