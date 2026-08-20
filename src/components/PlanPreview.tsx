@@ -71,7 +71,7 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, confirmLabe
                     <p className="text-sm font-medium truncate">{localizeExerciseName(ex.name, lang)}</p>
                     <p className="text-xs text-muted-foreground tabular-nums">{ex.sets}</p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-xs shrink-0 text-fitness-cyan" onClick={() => openSwap(day.id, ex.id, ex.name, ex.sets)}>
+                  <Button variant="ghost" size="sm" className="text-xs shrink-0 text-primary" onClick={() => openSwap(day.id, ex.id, ex.name, ex.sets)}>
                     <RefreshCw className="h-3 w-3 mr-1" />{t('onboarding.swap')}
                   </Button>
                 </div>
@@ -80,7 +80,7 @@ export const PlanPreview = ({ days, onDaysChange, onBack, onConfirm, confirmLabe
           ))}
         </div>
         <div className="pt-5">
-          <button onClick={onConfirm} disabled={isSaving} className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-[#f4ffc9] to-primary disabled:opacity-50 flex items-center justify-center gap-2">
+          <button onClick={onConfirm} disabled={isSaving} className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary disabled:opacity-50 flex items-center justify-center gap-2">
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             {confirmLabel}
           </button>

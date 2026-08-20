@@ -238,7 +238,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
             <div className="rounded-2xl bg-surface-low p-4">
               <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
               <p className="mt-1 font-heading text-2xl font-bold">
-                <span className="text-fitness-cyan">{planDurationWeeks}</span>{' '}
+                <span className="text-primary">{planDurationWeeks}</span>{' '}
                 <span className="font-sans text-sm font-medium text-muted-foreground">{t('ob.precision.weeks')}</span>
               </p>
             </div>
@@ -256,7 +256,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
               {plan.map((d, i) => (
                 <div key={d.id}>
                   <div className="flex gap-2 text-[13px]">
-                    <span className="font-bold tabular-nums text-fitness-cyan">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="font-bold tabular-nums text-primary">{String(i + 1).padStart(2, '0')}</span>
                     <span className="font-medium">{localizeFocus(d.focus, lang)}</span>
                     <span className="text-muted-foreground">· {d.exercises.length} {t('ob.precision.exercises')}</span>
                   </div>

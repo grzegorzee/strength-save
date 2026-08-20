@@ -159,7 +159,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
               onClick={() => setStarterMode('editor')}
               className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-high transition-colors p-4 flex items-center gap-3"
             >
-              <span className="h-10 w-10 shrink-0 rounded-xl bg-surface-highest flex items-center justify-center text-fitness-cyan">
+              <span className="h-10 w-10 shrink-0 rounded-xl bg-surface-highest flex items-center justify-center text-primary">
                 <Pencil className="h-4.5 w-4.5" />
               </span>
               <span>
@@ -171,7 +171,7 @@ export const PlanBuilder = ({ initialDays, initialDurationWeeks = 12, draftStora
               onClick={() => setStarterMode('templates')}
               className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-high transition-colors p-4 flex items-center gap-3"
             >
-              <span className="h-10 w-10 shrink-0 rounded-xl bg-surface-highest flex items-center justify-center text-fitness-cyan">
+              <span className="h-10 w-10 shrink-0 rounded-xl bg-surface-highest flex items-center justify-center text-primary">
                 <Copy className="h-4.5 w-4.5" />
               </span>
               <span>

@@ -53,7 +53,7 @@ const MeasurementTrendChart = ({ measurements }: { measurements: BodyMeasurement
               key={f}
               onClick={() => setField(f)}
               className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
-                activeField === f ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}
+                activeField === f ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
             >
               {t(MEASUREMENT_FIELD_LABEL_KEYS[f])}
             </button>

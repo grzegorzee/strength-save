@@ -109,17 +109,25 @@ export const applyAccent = (id: string): AccentTheme => {
     root.style.removeProperty('--primary-light');
     root.style.removeProperty('--ring');
     root.style.removeProperty('--primary-foreground');
+    root.style.removeProperty('--accent');
+    root.style.removeProperty('--accent-foreground');
     delete root.dataset.accent;
   } else {
     root.style.setProperty('--primary', accent.hsl);
     root.style.setProperty('--primary-light', accent.lightHsl);
     root.style.setProperty('--ring', accent.hsl);
+    // Audyt akcentu (2026-08-20): --accent to w tej apce drugi zapis TEGO SAMEGO
+    // akcentu (chipy filtrów Kinetic, badge secondary, nagłówki text-accent,
+    // hover ghost/outline). Bez nadpisania zostawał limonkowy.
+    root.style.setProperty('--accent', accent.hsl);
     // Ciemny własny kolor potrzebuje jasnego tekstu na akcencie (AA);
     // paleta jest jasna, więc dziedziczy domyślny ciemny foreground.
     if (accent.id === 'custom' && relativeLuminance(accent.hex) < 0.3) {
       root.style.setProperty('--primary-foreground', '0 0% 98%');
+      root.style.setProperty('--accent-foreground', '0 0% 98%');
     } else {
       root.style.removeProperty('--primary-foreground');
+      root.style.removeProperty('--accent-foreground');
     }
     root.dataset.accent = accent.id;
   }

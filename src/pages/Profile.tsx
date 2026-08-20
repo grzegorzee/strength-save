@@ -745,14 +745,14 @@ const Profile = () => {
             <a
               href={TERMS_URL}
               target="_blank" rel="noopener noreferrer"
-              className="underline underline-offset-2 text-fitness-cyan"
+              className="underline underline-offset-2 text-primary"
             >
               {t('paywall.terms')}
             </a>
             <a
               href={PRIVACY_URL}
               target="_blank" rel="noopener noreferrer"
-              className="underline underline-offset-2 text-fitness-cyan"
+              className="underline underline-offset-2 text-primary"
             >
               {t('paywall.privacy')}
             </a>

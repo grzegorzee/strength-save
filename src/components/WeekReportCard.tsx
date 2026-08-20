@@ -88,7 +88,7 @@ export const WeekReportCard = ({ planDays, workouts, currentWeek, planStartDate,
     <Card data-testid="week-report-card">
       <CardContent className="p-4 space-y-2">
         <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-fitness-cyan" />
+          <Target className="h-4 w-4 text-primary" />
           <p className="font-semibold text-sm">{t('progression.report.title', { n: report.reportWeek })}</p>
         </div>
         <p className="text-sm text-muted-foreground" data-testid="week-report-summary">

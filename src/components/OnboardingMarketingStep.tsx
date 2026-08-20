@@ -64,7 +64,7 @@ export const OnboardingMarketingStep = ({ onAccept, onDecline, onBack, isSaving,
             onClick={onAccept}
             disabled={isSaving}
             data-testid="marketing-accept"
-            className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-[#f4ffc9] to-primary disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
+            className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
           >
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t('obMarketing.accept')}
           </button>

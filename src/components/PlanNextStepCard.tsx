@@ -18,7 +18,7 @@ const TONE_CLASSES: Record<PlanNextStepAction['tone'], string> = {
   primary: 'border-primary/40 bg-primary/5',
   warning: 'border-fitness-warning/40 bg-fitness-warning/5',
   success: 'border-fitness-success/40 bg-fitness-success/5',
-  info: 'border-fitness-cyan/40 bg-fitness-cyan/5',
+  info: 'border-primary/40 bg-primary/5',
 };
 
 interface PlanNextStepCardProps {

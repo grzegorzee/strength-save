@@ -71,7 +71,7 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     targetDraft.finalSyncPending
       ? { label: t('strava.statusCompletedLocally'), tone: 'bg-fitness-warning/10 text-fitness-warning border-fitness-warning' }
       : targetDraft.sessionOrigin === 'provisional'
-        ? { label: t('strava.statusLocalOnly'), tone: 'bg-fitness-cyan/15 text-fitness-cyan border-fitness-cyan/30' }
+        ? { label: t('strava.statusLocalOnly'), tone: 'bg-primary/15 text-primary border-primary/30' }
         : targetDraft.dirty
           ? { label: t('strava.statusWaitingSync'), tone: 'bg-fitness-warning/15 text-fitness-warning border-fitness-warning/30' }
           : { label: t('strava.statusSynced'), tone: 'bg-fitness-success/15 text-fitness-success border-fitness-success/30' }

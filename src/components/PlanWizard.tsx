@@ -105,7 +105,7 @@ const OptionCard = ({ icon: Icon, title, desc, selected, onClick }: { icon: type
       selected ? 'bg-surface-high ring-2 ring-primary' : 'bg-surface-low hover:bg-surface-container',
     )}
   >
-    <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', selected ? 'bg-primary/15 text-primary' : 'bg-surface-highest text-fitness-cyan')}>
+    <span className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0', selected ? 'bg-primary/15 text-primary' : 'bg-surface-highest text-primary')}>
       <Icon className="h-5 w-5" />
     </span>
     <span className="min-w-0 flex-1">
@@ -122,7 +122,7 @@ const PrimaryButton = ({ onClick, disabled, children }: { onClick: () => void; d
   <button
     onClick={onClick}
     disabled={disabled}
-    className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-[#f4ffc9] to-primary disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
+    className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
   >
     {children}
   </button>
@@ -247,7 +247,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               </h1>
               <p className="text-muted-foreground mt-5 leading-relaxed">{t('ob.welcome.desc')}</p>
               {trialNotice && (
-                <p className="mt-4 text-[13px] text-fitness-cyan">{t('ob.welcome.trialNotice')}</p>
+                <p className="mt-4 text-[13px] text-primary">{t('ob.welcome.trialNotice')}</p>
               )}
               {askName && (
                 <div className="mt-7">
@@ -347,7 +347,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                   {WEEKDAYS.map(w => {
                     const on = trainingDays.includes(w.value);
                     return (
-                      <button key={w.value} onClick={() => toggleDay(w.value)} className={cn('h-10 w-10 rounded-full font-bold text-sm transition-colors', on ? 'bg-fitness-cyan text-background' : 'bg-surface-highest text-muted-foreground')}>
+                      <button key={w.value} onClick={() => toggleDay(w.value)} className={cn('h-10 w-10 rounded-full font-bold text-sm transition-colors', on ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}>
                         {localizeWeekdayShort(w.short, lang).slice(0, 1)}
                       </button>
                     );
@@ -358,7 +358,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               <div className="rounded-2xl bg-surface-low p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{t('ob.protocol.startDate')}</p>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-fitness-cyan">{t('ob.protocol.phase')}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-primary">{t('ob.protocol.phase')}</span>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {Array.from({ length: 7 }).map((_, i) => {
@@ -375,7 +375,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 </div>
                 {/* Z233: kalendarz jako pełnowymiarowa kontrolka, nie podpis — natywny date picker po tapnięciu. */}
                 <label className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-surface-highest px-4 py-3 cursor-pointer">
-                  <Calendar className="h-4 w-4 text-fitness-cyan shrink-0" />
+                  <Calendar className="h-4 w-4 text-primary shrink-0" />
                   <span className="flex-1 text-[13px] font-medium">{t('ob.protocol.specificDate')}</span>
                   <input type="date" value={startDate} min={formatLocalDate(new Date())} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-foreground outline-none text-right font-medium" />
                 </label>
@@ -400,7 +400,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               <h1 className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.precision.title')}</h1>
               <p className="text-muted-foreground text-[14px] mt-1.5">{picked ? t('ob.precision.chosen') : t('ob.precision.recommended', { name: localizePlanName(chosen.id, chosen.name, lang) })}</p>
               {startAtPrecision && (
-                <button onClick={() => setStep(2)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-fitness-cyan font-medium">
+                <button onClick={() => setStep(2)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-primary font-medium">
                   <SlidersHorizontal className="h-3.5 w-3.5" />{t('ob.precision.change')}
                 </button>
               )}
@@ -420,7 +420,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-2xl bg-surface-low p-3">
                   <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
-                  <p className="font-heading font-bold text-lg mt-0.5"><span className="text-fitness-cyan">{chosen.durationWeeks}</span> <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.weeks')}</span></p>
+                  <p className="font-heading font-bold text-lg mt-0.5"><span className="text-primary">{chosen.durationWeeks}</span> <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.weeks')}</span></p>
                 </div>
                 <div className="rounded-2xl bg-surface-low p-3">
                   <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.frequency')}</p>
@@ -434,7 +434,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               <div className="rounded-2xl bg-surface-low p-3 space-y-1">
                 {chosen.days.map((d, i) => (
                   <div key={d.id} className="text-[12px] flex gap-2">
-                    <span className="text-fitness-cyan font-bold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="text-primary font-bold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
                     <span className="text-muted-foreground">{localizeFocus(d.focus, lang)} · {d.exercises.length} {t('ob.precision.exercises')}</span>
                   </div>
                 ))}
@@ -449,8 +449,8 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 ) : null;
               })()}
               <div className="flex gap-2">
-                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-fitness-cyan" />{t('ob.precision.browse')}</button>
-                <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-fitness-cyan" />{t('ob.precision.own')}</button>
+                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-primary" />{t('ob.precision.browse')}</button>
+                <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
               </div>
             </div>
             <div className="pt-4">

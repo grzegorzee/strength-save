@@ -357,7 +357,7 @@ const Achievements = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-fitness-cyan" />
+            <TrendingUp className="h-5 w-5 text-primary" />
             {t('achievements.trend6mo')}
           </CardTitle>
           <CardDescription>{t('achievements.trend6moDesc')}</CardDescription>
@@ -412,7 +412,7 @@ const Achievements = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-fitness-cyan" />
+            <Zap className="h-5 w-5 text-primary" />
             {t('achievements.special.title')}
           </CardTitle>
           <CardDescription>{t('achievements.special.desc')}</CardDescription>

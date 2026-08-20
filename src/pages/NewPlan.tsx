@@ -214,7 +214,7 @@ const NewPlan = () => {
             <span />
           </div>
           <div className="mt-8 mb-6">
-            <p className="text-xs font-medium uppercase tracking-widest text-fitness-cyan mb-2">{t('newplan.closeout.kicker')}</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-primary mb-2">{t('newplan.closeout.kicker')}</p>
             <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">{t('newplan.closeout.title')}</h1>
             <p className="text-muted-foreground mt-2">{t('newplan.closeout.desc')}</p>
             {closeoutMedal && (
@@ -227,14 +227,14 @@ const NewPlan = () => {
           <div className="flex-1 grid grid-cols-2 gap-3 content-start">
             {stats.map((s, i) => (
               <div key={i} className="rounded-2xl bg-surface-low p-4">
-                <s.icon className="h-5 w-5 text-fitness-cyan mb-2" />
+                <s.icon className="h-5 w-5 text-primary mb-2" />
                 <p className="font-heading font-bold text-2xl tabular-nums leading-none">{s.value}</p>
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1.5">{s.label}</p>
               </div>
             ))}
           </div>
           <div className="pt-5">
-            <button onClick={() => setPhase('wizard')} className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-[#f4ffc9] to-primary flex items-center justify-center gap-2">
+            <button onClick={() => setPhase('wizard')} className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary flex items-center justify-center gap-2">
               {t('newplan.closeout.choose')} <RefreshCw className="h-4 w-4" />
             </button>
           </div>

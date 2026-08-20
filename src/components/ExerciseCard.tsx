@@ -139,7 +139,7 @@ const WeeklyTargetBadge = ({ target }: { target: WeeklyTarget }) => {
     hold: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
     deload: 'border-fitness-warning/40 text-fitness-warning bg-fitness-warning/10',
     pain: 'border-destructive/40 text-destructive bg-destructive/10',
-    'deload-week': 'border-fitness-cyan/40 text-fitness-cyan bg-fitness-cyan/10',
+    'deload-week': 'border-primary/40 text-primary bg-primary/10',
   };
   const labels: Record<WeeklyTarget['kind'], string> = {
     start: t('card.weekTarget'),
@@ -1025,7 +1025,7 @@ const ExerciseCardInner = ({
                   <>
                     {badges.est1RM && (
                       <span
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-cyan/30 text-fitness-cyan bg-fitness-cyan/10"
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10"
                       >
                         <Star className="h-3 w-3 fill-current" />
                         {formatEst1RMBadge(badges.est1RM, t('card.est1rm'), fmtWeight)}
@@ -1081,7 +1081,7 @@ const ExerciseCardInner = ({
                 <p className="text-[11px] text-muted-foreground/80 leading-snug">{nextAdvice.reason}</p>
               )}
               {lastNote && (
-                <p className="text-[11px] text-fitness-cyan/90 leading-snug flex items-start gap-1">
+                <p className="text-[11px] text-primary/90 leading-snug flex items-start gap-1">
                   <StickyNote className="h-3 w-3 shrink-0 mt-0.5" />
                   {t('notes.lastNote', { note: lastNote })}
                 </p>

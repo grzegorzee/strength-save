@@ -79,7 +79,7 @@ export const ReducedModeDialog = ({ open, onOpenChange, mode, todayISO, onEnable
                     className={cn(
                       'rounded-xl border px-4 py-2.5 text-left text-sm transition-colors',
                       level === option
-                        ? 'border-fitness-success bg-fitness-success/10 text-fitness-success'
+                        ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border text-muted-foreground hover:bg-muted',
                     )}
                   >
@@ -98,7 +98,7 @@ export const ReducedModeDialog = ({ open, onOpenChange, mode, todayISO, onEnable
                     className={cn(
                       'flex-1 rounded-full border px-3 py-1.5 text-sm transition-colors',
                       days === option
-                        ? 'border-fitness-success bg-fitness-success/10 text-fitness-success'
+                        ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border text-muted-foreground hover:bg-muted',
                     )}
                   >

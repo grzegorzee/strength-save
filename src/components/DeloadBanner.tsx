@@ -36,7 +36,7 @@ export const DeloadBanner = ({ planDays, workouts, currentWeek, progression, onD
     return (
       <div
         data-testid="deload-active-badge"
-        className="flex items-center gap-2 rounded-lg border border-fitness-cyan/30 bg-fitness-cyan/10 px-3 py-2 text-sm text-fitness-cyan"
+        className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-sm text-primary"
       >
         <BatteryLow className="h-4 w-4 shrink-0" />
         {t('progression.deload.activeBadge')}
@@ -63,10 +63,10 @@ export const DeloadBanner = ({ planDays, workouts, currentWeek, progression, onD
   };
 
   return (
-    <Card data-testid="deload-banner" className="border-fitness-cyan/30 bg-fitness-cyan/5">
+    <Card data-testid="deload-banner" className="border-primary/30 bg-primary/5">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start gap-3">
-          <BatteryLow className="h-5 w-5 shrink-0 text-fitness-cyan mt-0.5" />
+          <BatteryLow className="h-5 w-5 shrink-0 text-primary mt-0.5" />
           <div>
             <p className="font-semibold text-sm">
               {scheduled ? t('progression.deload.title') : t('progression.deload.earlyTitle')}
@@ -80,7 +80,7 @@ export const DeloadBanner = ({ planDays, workouts, currentWeek, progression, onD
             data-testid="deload-apply"
             disabled={saving}
             onClick={() => decide('applied')}
-            className="bg-fitness-cyan/90 hover:bg-fitness-cyan text-background"
+            className="bg-primary/90 hover:bg-primary text-background"
           >
             <Check className="h-4 w-4 mr-1" />
             {t('progression.deload.apply')}

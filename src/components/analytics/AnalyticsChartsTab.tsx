@@ -36,6 +36,7 @@ import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { tooltipStyle, axisProps } from '@/lib/chart-config';
+import { getCurrentAccent } from '@/lib/accent-theme';
 import { getTrainingDayForDate, startOfLocalDay } from '@/lib/plan-schedule';
 import { ChevronRight, Dumbbell, Flame, Scale, Timer, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -70,17 +71,20 @@ const ChartHeader = ({ icon: Icon, title }: { icon: LucideIcon; title: string })
 );
 
 // Gradient pod liniami/słupkami — <defs> musi być bezpośrednim dzieckiem wykresu
-// (recharts ignoruje nieznane komponenty-wrappery w children). Kolor literalny
-// = --primary (73 97% 56%): var() w stop-color nie parsuje się w atrybucie SVG.
-const PRIMARY_HSL = 'hsl(73, 97%, 56%)';
-const gradientDef = (id: string, strong?: boolean) => (
-  <defs>
-    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stopColor={PRIMARY_HSL} stopOpacity={strong ? 1 : 0.45} />
-      <stop offset="100%" stopColor={PRIMARY_HSL} stopOpacity={strong ? 0.35 : 0.02} />
-    </linearGradient>
-  </defs>
-);
+// (recharts ignoruje nieznane komponenty-wrappery w children). Kolor literalny,
+// bo var() w stop-color nie parsuje się w atrybucie SVG; hex czytany w renderze
+// z getCurrentAccent(), żeby wykresy podążały za kolorem przewodnim usera (F-T2).
+const gradientDef = (id: string, strong?: boolean) => {
+  const accentHex = getCurrentAccent().hex;
+  return (
+    <defs>
+      <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={accentHex} stopOpacity={strong ? 1 : 0.45} />
+        <stop offset="100%" stopColor={accentHex} stopOpacity={strong ? 0.35 : 0.02} />
+      </linearGradient>
+    </defs>
+  );
+};
 
 // B-T1: kanoniczny tonaż (setTonnage obsługuje też serie czasowe/dystansowe).
 const workoutTonnage = (workout: WorkoutSession): number => calculateTonnage([workout]);
