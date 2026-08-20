@@ -323,6 +323,8 @@ export const en: Record<keyof typeof pl, string> = {
   'exportCsv.loading': 'Counting workouts...',
   'exportCsv.button': 'Export',
   'exportCsv.historyButton': 'Export CSV',
+  // T12: krótka etykieta w rzędzie akcji Podsumowania (spójnie z 'PDF').
+  'exportCsv.analyticsButton': 'CSV',
   'data.cleanupLabel': 'Clear duplicate and empty workouts',
   'data.repairLabel': 'Repair historical data',
   'data.error': 'Error!',

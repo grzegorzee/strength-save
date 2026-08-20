@@ -26,8 +26,9 @@ import { localizeExerciseName } from '@/data/exercise-i18n';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
 import {
   Dumbbell, Trophy, Flame, Copy, Check, Calendar, BarChart3,
-  ChevronRight, FileDown, Loader2,
+  ChevronRight, FileDown, FileSpreadsheet, Loader2,
 } from 'lucide-react';
+import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
 import { MonthlyOverviewCard } from '@/components/analytics/MonthlyOverviewCard';
 import { HybridLoadCard } from '@/components/analytics/HybridLoadCard';
 import { buildTrainingReportModel, generateTrainingReportPdf } from '@/lib/pdf-report';
@@ -62,6 +63,7 @@ const SummaryTab = () => {
   const [period, setPeriod] = useState<Period>('week');
   const [copied, setCopied] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   const bounds = useMemo(() => {
     const now = new Date();
@@ -267,6 +269,12 @@ const SummaryTab = () => {
             {isGeneratingPdf ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
             {t('report.download')}
           </Button>
+          {/* T12 (feedback 2026-08-20): trzeci punkt wejścia do eksportu CSV
+              (reuse ExportWorkoutsDialog z Historii/Ustawień, zero nowej logiki). */}
+          <Button variant="outline" size="sm" onClick={() => setShowExportDialog(true)} data-testid="analytics-export-csv">
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            {t('exportCsv.analyticsButton')}
+          </Button>
           <Button variant="outline" size="sm" onClick={handleCopy} data-testid="analytics-copy">
             {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
             {copied ? t('analytics.copied') : t('analytics.copy')}
@@ -405,6 +413,15 @@ const SummaryTab = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* T12: eksport CSV z wyborem zakresu — zawsze zamontowany, zamykanie
+          wyłącznie przez open=false (pułapka Radix: nie unmountować w open). */}
+      <ExportWorkoutsDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        uid={uid}
+        cycles={cycles}
+      />
 
     </div>
   );

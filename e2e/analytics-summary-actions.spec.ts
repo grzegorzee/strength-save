@@ -1,5 +1,6 @@
-// T11 (feedback 2026-08-20): rząd Tydzień/Miesiąc/PDF/Kopiuj w Podsumowaniu
+// T11 (feedback 2026-08-20): rząd Tydzień/Miesiąc/PDF/CSV/Kopiuj w Podsumowaniu
 // łamie się (flex-wrap) zamiast wystawać poza viewport 390px.
+// T12: przycisk CSV otwiera ExportWorkoutsDialog (ten sam co Historia/Ustawienia).
 import { test, expect } from '@playwright/test';
 import {
   blockFirebase,
@@ -53,5 +54,45 @@ test.describe('Podsumowanie: rząd akcji (T11)', () => {
       () => document.documentElement.scrollWidth <= window.innerWidth,
     );
     expect(noHorizontalScroll).toBe(true);
+  });
+
+  test('przycisk CSV otwiera dialog eksportu, eksport tworzy blob text/csv (T12)', async ({ page }) => {
+    // Spy na createObjectURL — dowód, że plik faktycznie powstał
+    // (wzorzec e2e/export-csv-dialog.spec.ts).
+    await page.addInitScript(() => {
+      const original = URL.createObjectURL.bind(URL);
+      (window as unknown as { __csvBlobs: Blob[] }).__csvBlobs = [];
+      URL.createObjectURL = (blob: Blob) => {
+        (window as unknown as { __csvBlobs: Blob[] }).__csvBlobs.push(blob);
+        return original(blob);
+      };
+    });
+    await navigateAndWait(page, '/analytics?tab=summary');
+    await expectPageRendered(page);
+
+    const csvButton = page.getByTestId('analytics-export-csv');
+    await expect(csvButton).toBeVisible();
+    await expect(csvButton).toContainText('CSV');
+    await csvButton.click();
+
+    const dialog = page.getByTestId('export-workouts-dialog');
+    await expect(dialog).toBeVisible();
+    // Domyślnie ostatni tydzień: oba treningi (1 i 3 dni temu) w zakresie.
+    await expect(page.getByTestId('export-range-week')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('export-preview')).toContainText('2');
+
+    await page.getByTestId('export-submit').click();
+    await expect
+      .poll(async () => page.evaluate(() =>
+        (window as unknown as { __csvBlobs: Blob[] }).__csvBlobs
+          .filter((b) => b.type.includes('text/csv')).length))
+      .toBeGreaterThan(0);
+    const csvText = await page.evaluate(async () => {
+      const blobs = (window as unknown as { __csvBlobs: Blob[] }).__csvBlobs;
+      return blobs[blobs.length - 1].text();
+    });
+    expect(csvText).toContain('date,day,focus,exercise');
+    expect(csvText).toContain('Wyciskanie hantli (Lekki skos)');
+    await expect(dialog).not.toBeVisible();
   });
 });

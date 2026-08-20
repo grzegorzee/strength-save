@@ -329,6 +329,8 @@ export const pl = {
   'exportCsv.loading': 'Liczenie treningów...',
   'exportCsv.button': 'Eksportuj',
   'exportCsv.historyButton': 'Eksport CSV',
+  // T12: krótka etykieta w rzędzie akcji Podsumowania (spójnie z 'PDF').
+  'exportCsv.analyticsButton': 'CSV',
   'data.cleanupLabel': 'Wyczyść duplikaty i puste treningi',
   'data.repairLabel': 'Napraw dane historyczne',
   'data.error': 'Błąd!',
