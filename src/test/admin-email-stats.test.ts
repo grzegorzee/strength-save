@@ -1,7 +1,7 @@
 // G-T4: czysta logika panelu Maile — status wyświetlany (priorytety) i kafle
 // zbiorcze 7/30 dni liczone z ostatnich N wpisów email_log (limit zapytania).
 import { describe, expect, it } from 'vitest';
-import { emailDisplayStatus, emailStats, type EmailLogRow } from './admin-email-stats';
+import { emailDisplayStatus, emailStats, type EmailLogRow } from '@/lib/admin-email-stats';
 
 const row = (over: Partial<EmailLogRow> = {}): EmailLogRow => ({
   id: 'el1',
