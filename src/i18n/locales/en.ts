@@ -1513,6 +1513,13 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.completion.volumeVsPrev': 'Volume {delta} vs last session of this day',
   'workout.completion.prTitle': 'New records',
   'workout.completion.prReps': '{n} reps',
+  // Fala 2 (2026-08-20): hero podsumowania + split tonażu.
+  'workout.summary.today': 'Today',
+  'workout.summary.vsPrev': 'vs {date}',
+  'workout.summary.statPlanned': '% planned',
+  'workout.summary.recordsTitle': 'New records ({n})',
+  'workout.summary.volumeSplitTitle': 'Where the volume went',
+  'workout.summary.volumeSplitOther': 'Other',
   'workout.waitingSyncDesc': 'Just waiting for cloud sync.',
   'workout.finishedLocally.title': 'Workout finished locally',
   'workout.finishedLocally.desc': 'Your data is safe on the device and waiting to be saved to Firebase.',

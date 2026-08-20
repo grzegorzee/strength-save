@@ -1535,6 +1535,13 @@ export const pl = {
   'workout.completion.volumeVsPrev': 'Wolumen {delta} vs poprzednia sesja tego dnia',
   'workout.completion.prTitle': 'Nowe rekordy',
   'workout.completion.prReps': '{n} powt.',
+  // Fala 2 (2026-08-20): hero podsumowania + split tonażu.
+  'workout.summary.today': 'Dziś',
+  'workout.summary.vsPrev': 'vs {date}',
+  'workout.summary.statPlanned': '% planu',
+  'workout.summary.recordsTitle': 'Nowe rekordy ({n})',
+  'workout.summary.volumeSplitTitle': 'Gdzie poszedł tonaż',
+  'workout.summary.volumeSplitOther': 'Inne',
   'workout.waitingSyncDesc': 'Czekamy tylko na synchronizację z chmurą.',
   'workout.finishedLocally.title': 'Trening zakończony lokalnie',
   'workout.finishedLocally.desc': 'Dane są bezpieczne na urządzeniu i czekają na zapis w Firebase.',
