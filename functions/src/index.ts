@@ -112,6 +112,11 @@ const stravaClientId = defineSecret("strava-client-id");
 const stravaClientSecret = defineSecret("strava-client-secret");
 const stravaRedirectUri = defineSecret("strava-redirect-uri");
 const apiKeyPepper = defineSecret("API_KEY_PEPPER");
+// F-T3: transport SES (u właściciela); wartość "unset" = fallback na Resend.
+const sesRegion = defineSecret("SES_REGION");
+const sesAccessKeyId = defineSecret("SES_ACCESS_KEY_ID");
+const sesSecretAccessKey = defineSecret("SES_SECRET_ACCESS_KEY");
+const sesFrom = defineSecret("SES_FROM");
 
 interface StravaTokenPayload {
   access_token: string;
@@ -1197,3 +1202,115 @@ export const stravaDisconnect = onCall(async (request) => {
 
 // saveMaxHR usunięte (Z59): zapis idzie bezpośrednio przez Firestore rules
 // (whitelist users: estimatedMaxHR 100-230 int, maxHRManualOverride bool).
+
+// --- F-T3: mail podsumowania treningu (SES z fallbackiem Resend) ---
+import { Resend } from "resend";
+import { resendApiKey } from "./weekly-digest";
+import {
+  runEmailHistory,
+  runEmailWorkout,
+  EMAIL_DAILY_LIMIT,
+  type EmailWorkout,
+  type EmailWorkoutDeps,
+} from "./email-workout";
+
+const EMAIL_SECRETS = [sesRegion, sesAccessKeyId, sesSecretAccessKey, sesFrom, resendApiKey];
+
+const isSecretSet = (value: string): boolean => value.trim() !== "" && value.trim() !== "unset";
+
+const sendWorkoutEmail = async (to: string, subject: string, html: string): Promise<{ error?: { message: string } }> => {
+  const region = sesRegion.value();
+  const key = sesAccessKeyId.value();
+  const secret = sesSecretAccessKey.value();
+  const from = sesFrom.value();
+  if (isSecretSet(region) && isSecretSet(key) && isSecretSet(secret) && isSecretSet(from)) {
+    try {
+      const { SESv2Client, SendEmailCommand } = await import("@aws-sdk/client-sesv2");
+      const client = new SESv2Client({ region: region.trim(), credentials: { accessKeyId: key.trim(), secretAccessKey: secret.trim() } });
+      await client.send(new SendEmailCommand({
+        FromEmailAddress: from.trim(),
+        Destination: { ToAddresses: [to] },
+        Content: { Simple: { Subject: { Data: subject }, Body: { Html: { Data: html } } } },
+      }));
+      return {};
+    } catch (error) {
+      logger.error("[EmailWorkout] SES send failed", error);
+      return { error: { message: error instanceof Error ? error.message : String(error) } };
+    }
+  }
+  const apiKey = resendApiKey.value();
+  if (!isSecretSet(apiKey)) return { error: { message: "no-transport-configured" } };
+  const resend = new Resend(apiKey);
+  const response = await resend.emails.send({
+    from: "Strength Save <noreply@strengthsave.app>",
+    to,
+    subject,
+    html,
+  });
+  return response.error ? { error: { message: response.error.message } } : {};
+};
+
+const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
+  getWorkout: async (workoutId) => {
+    const snap = await db.collection(WORKOUTS_COLLECTION).doc(workoutId).get();
+    if (!snap.exists) return null;
+    return { id: snap.id, ...(snap.data() as Omit<EmailWorkout, "id">) };
+  },
+  listWorkouts: async (uid, limit) => {
+    const snap = await db.collection(WORKOUTS_COLLECTION)
+      .where("userId", "==", uid)
+      .where("completed", "==", true)
+      .orderBy("date", "desc")
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<EmailWorkout, "id">) }));
+  },
+  consumeQuota: async (uid, today) => {
+    const ref = db.collection("email_quota").doc(uid);
+    return db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const data = snap.data();
+      const count = data?.date === today ? Number(data.count ?? 0) : 0;
+      if (count >= EMAIL_DAILY_LIMIT) return false;
+      tx.set(ref, { date: today, count: count + 1 });
+      return true;
+    });
+  },
+  sendEmail: sendWorkoutEmail,
+});
+
+const emailErrorToHttps = (code: string): never => {
+  switch (code) {
+    case "invalid-recipient": throw new HttpsError("invalid-argument", "invalid-recipient");
+    case "not-found": throw new HttpsError("not-found", "workout-not-found");
+    case "forbidden": throw new HttpsError("permission-denied", "not-your-workout");
+    case "quota-exceeded": throw new HttpsError("resource-exhausted", "daily-email-limit");
+    case "empty-history": throw new HttpsError("failed-precondition", "empty-history");
+    default: throw new HttpsError("internal", "send-failed");
+  }
+};
+
+export const emailWorkoutSummary = onCall({ secrets: EMAIL_SECRETS }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "login-required");
+  const { workoutId, to, lang } = (request.data ?? {}) as { workoutId?: string; to?: string; lang?: string };
+  if (typeof workoutId !== "string" || !workoutId) throw new HttpsError("invalid-argument", "workoutId-required");
+  const today = new Date().toISOString().slice(0, 10);
+  const result = await runEmailWorkout(buildEmailWorkoutDeps(), {
+    uid, workoutId, to, lang: lang === "en" ? "en" : "pl", today,
+  });
+  if (!result.ok) emailErrorToHttps(result.code);
+  return { ok: true };
+});
+
+export const emailWorkoutHistory = onCall({ secrets: EMAIL_SECRETS }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "login-required");
+  const { to, lang } = (request.data ?? {}) as { to?: string; lang?: string };
+  const today = new Date().toISOString().slice(0, 10);
+  const result = await runEmailHistory(buildEmailWorkoutDeps(), {
+    uid, to, lang: lang === "en" ? "en" : "pl", today,
+  });
+  if (!result.ok) emailErrorToHttps(result.code);
+  return { ok: true };
+});

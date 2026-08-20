@@ -77,6 +77,8 @@ export interface UserProfile {
     timerSound?: boolean;
     /** F-T2: id koloru przewodniego (accent-theme); brak = limonka. */
     accentColor?: string;
+    /** F-T3: zapamiętany adres odbiorcy maili z podsumowaniem (np. trener). */
+    trainerEmail?: string;
   };
   /** Mirror zgód z users/{uid}.consents; bramka re-consent czyta go z profilu. */
   consents?: ConsentMirror;

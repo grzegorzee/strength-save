@@ -13,7 +13,7 @@ import {
 import { buildWeeklyDigest, type DigestStrava, type UnitSystem } from "./weekly-digest-html";
 import type { Lang } from "./email-templates";
 
-const resendApiKey = defineSecret("RESEND_API_KEY");
+export const resendApiKey = defineSecret("RESEND_API_KEY");
 const DIGEST_CONCURRENCY = 10;
 
 interface StravaDoc {

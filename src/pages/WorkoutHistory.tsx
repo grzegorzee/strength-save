@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatHistorySetLabel } from '@/lib/set-tracking';
-import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, History, Loader2, Search, StickyNote, Trash2, Trophy } from 'lucide-react';
+import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, History, Loader2, Mail, Search, StickyNote, Trash2, Trophy } from 'lucide-react';
+import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +46,9 @@ const WorkoutHistory = () => {
   const navigate = useNavigate();
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
-  const { uid } = useCurrentUser();
+  const { uid, profile } = useCurrentUser();
+  // F-T3: wysyłka całej historii mailem (np. do trenera).
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const [searchQuery, setSearchQuery] = useState('');
@@ -272,6 +275,24 @@ const WorkoutHistory = () => {
         </div>
         <div className="text-right">{t('history.compareHint')}</div>
       </div>
+
+      {/* F-T3: cała historia jednym mailem (np. do trenera). */}
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={() => setShowEmailDialog(true)}
+        data-testid="history-email"
+      >
+        <Mail className="mr-2 h-4 w-4" />
+        {t('email.sendHistory')}
+      </Button>
+      <EmailWorkoutDialog
+        open={showEmailDialog}
+        onOpenChange={setShowEmailDialog}
+        mode="history"
+        uid={uid}
+        initialEmail={profile?.preferences?.trainerEmail}
+      />
 
       <div className="space-y-6">
         {groupedByMonth.map((group) => (

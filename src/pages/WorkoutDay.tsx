@@ -1,5 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Play, Eye, Pencil, Loader2, Cloud, CloudOff, Smartphone, StickyNote, Flame, Share2, ChevronDown, Plus, Trash2, Mail } from 'lucide-react';
+import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
 import { WarmupRoutineDialog } from '@/components/WarmupRoutineDialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { buildPreStartWarmup, shouldOfferPreStartWarmup } from '@/lib/prestart-warmup';
@@ -238,6 +239,8 @@ const WorkoutDay = () => {
   // dialogu i wyjście z apki ich nie kasuje, nowa sesja startuje z czystą listą.
   const [warmupChecked, setWarmupChecked] = useState<string[]>([]);
   const [showShare, setShowShare] = useState(false);
+  // F-T3: dialog wysyłki podsumowania mailem.
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
   // Podsumowanie ukończonego treningu: które ćwiczenia mają rozwinięte serie.
   const [expandedSummaryIds, setExpandedSummaryIds] = useState<Set<string>>(new Set());
   const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
@@ -2628,6 +2631,16 @@ const WorkoutDay = () => {
             <Share2 className="h-4 w-4 mr-2" />
             {t('comp.share.share')}
           </Button>
+          {/* F-T3: podsumowanie mailem (np. do trenera). */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowEmailDialog(true)}
+            aria-label={t('email.sendWorkout')}
+            data-testid="workout-email"
+          >
+            <Mail className="h-4 w-4" />
+          </Button>
           {/* X17D Z140.3: powrót z ukończonego treningu odpala confetti na Dashboardzie.
               Ten sam wzorzec co ?welcome=1 po onboardingu — AppHeader ukryty na
               /workout/*, więc świętowanie musi wydarzyć się PO nawigacji. */}
@@ -2698,6 +2711,17 @@ const WorkoutDay = () => {
           open={showShare}
           onOpenChange={setShowShare}
         />
+
+        {sessionId && (
+          <EmailWorkoutDialog
+            open={showEmailDialog}
+            onOpenChange={setShowEmailDialog}
+            mode="workout"
+            uid={uid}
+            workoutId={sessionId}
+            initialEmail={profile?.preferences?.trainerEmail}
+          />
+        )}
       </div>
     );
   }
