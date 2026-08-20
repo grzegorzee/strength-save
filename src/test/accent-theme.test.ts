@@ -24,12 +24,15 @@ describe('accent-theme (F-T2)', () => {
     expect(new Set(ACCENTS.map((a) => a.id)).size).toBe(8);
   });
 
-  it('applyAccent ustawia --primary/--primary-light/--ring i data-accent', () => {
+  it('applyAccent ustawia --primary/--primary-light/--ring/--accent i data-accent', () => {
     const cyan = applyAccent('cyan');
     const root = document.documentElement;
     expect(root.style.getPropertyValue('--primary')).toBe(cyan.hsl);
     expect(root.style.getPropertyValue('--primary-light')).toBe(cyan.lightHsl);
     expect(root.style.getPropertyValue('--ring')).toBe(cyan.hsl);
+    // Audyt akcentu (2026-08-20): --accent (chipy filtrów, badge secondary,
+    // nagłówki sekcji text-accent) też podąża za kolorem przewodnim.
+    expect(root.style.getPropertyValue('--accent')).toBe(cyan.hsl);
     expect(root.dataset.accent).toBe('cyan');
   });
 
@@ -38,6 +41,8 @@ describe('accent-theme (F-T2)', () => {
     applyAccent('lime');
     const root = document.documentElement;
     expect(root.style.getPropertyValue('--primary')).toBe('');
+    expect(root.style.getPropertyValue('--accent')).toBe('');
+    expect(root.style.getPropertyValue('--accent-foreground')).toBe('');
     expect(root.dataset.accent).toBeUndefined();
   });
 
@@ -69,8 +74,10 @@ describe('accent-theme (F-T2)', () => {
   it('ciemny własny kolor dostaje jasny tekst na akcencie; jasny zostaje przy ciemnym', () => {
     applyAccent('#1a2a6c');
     expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('0 0% 98%');
+    expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('0 0% 98%');
     applyAccent('#cefc22');
     expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--accent-foreground')).toBe('');
     applyAccent('#ffe066');
     expect(document.documentElement.style.getPropertyValue('--primary-foreground')).toBe('');
   });
