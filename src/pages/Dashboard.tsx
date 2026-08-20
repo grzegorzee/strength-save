@@ -18,6 +18,7 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { AddCardioDialog } from '@/components/AddCardioDialog';
 import { WeekCard } from '@/components/WeekCard';
+import { WeekCardioCard } from '@/components/WeekCardioCard';
 import { LapseTray } from '@/components/LapseTray';
 import { LapseStatusCard } from '@/components/LapseStatusCard';
 import { collectLapsedDates, detectLapse } from '@/lib/lapse-detection';
@@ -127,6 +128,12 @@ const Dashboard = () => {
   // Z214: karty Dashboardu liczą wyłącznie bieżący tydzień planu, więc listener
   // aktywności dostaje okno od poniedziałku zamiast pełnych 500 rekordów.
   const activityWindowStart = formatLocalDate(getStartOfPlanWeek(today));
+  // T5: koniec bieżącego tygodnia (Mon-Sun) dla karty cardio tygodnia.
+  const activityWindowEnd = useMemo(() => {
+    const end = parseLocalDate(activityWindowStart);
+    end.setDate(end.getDate() + 6);
+    return formatLocalDate(end);
+  }, [activityWindowStart]);
   const {
     activities: unifiedActivities,
     stravaActivities,
@@ -909,6 +916,17 @@ const Dashboard = () => {
       <WeekCard
         model={weekCardModel}
         isDeloadWeek={progression ? resolveDeloadWeek(currentWeek, progression, vacation, planStartDate) : false}
+      />
+
+      {/* T5: cardio bieżącego tygodnia (Strava + manual) POZA warunkiem
+          planStarted — biegi widać także zanim cykl wystartuje. */}
+      <WeekCardioCard
+        activities={unifiedActivities}
+        stravaConnected={stravaConnection.connected}
+        weekStartStr={activityWindowStart}
+        weekEndStr={activityWindowEnd}
+        maxHR={stravaConnection.estimatedMaxHR}
+        onEditManual={(activity) => setCardioDialog({ open: true, edit: activity })}
       />
 
 

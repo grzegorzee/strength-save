@@ -194,6 +194,7 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.preStart.viewPlan': 'View plan',
   // Recovery day (Runna p.1, spec B2).
   'dash.recovery.title': 'Recovery day',
+  'dash.weekCardio.title': 'Cardio this week',
   'dash.recovery.tipSleep': 'Sleep 7-9 h and protein with every meal do the work today.',
   'dash.recovery.tipStretchPush': 'Stretch your chest and shoulders after yesterday\'s pushing.',
   'dash.recovery.tipStretchPull': 'Stretch your back and arms after yesterday\'s pulling.',

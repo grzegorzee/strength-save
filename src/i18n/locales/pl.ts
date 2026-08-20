@@ -200,6 +200,7 @@ export const pl = {
   'dash.preStart.viewPlan': 'Zobacz plan',
   // Dzień regeneracji (Runna p.1, spec B2).
   'dash.recovery.title': 'Dzień regeneracji',
+  'dash.weekCardio.title': 'Cardio w tym tygodniu',
   'dash.recovery.tipSleep': 'Sen 7-9 h i białko w każdym posiłku robią dziś robotę.',
   'dash.recovery.tipStretchPush': 'Rozciągnij klatkę i barki po wczorajszym pchaniu.',
   'dash.recovery.tipStretchPull': 'Rozciągnij plecy i ramiona po wczorajszym ciągnięciu.',
