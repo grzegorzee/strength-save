@@ -30,6 +30,7 @@ import {
   resendErrorMessage,
   buildGrantedSubscription,
   buildRevokedSubscription,
+  resolveGrantStartedAt,
   canCreateUserProfile,
 } from "./security";
 
@@ -1353,12 +1354,16 @@ export const adminGrantSubscription = onCall(async (request) => {
     granted = await getDb().runTransaction(async (transaction) => {
       const snap = await transaction.get(userRef);
       if (!snap.exists) throw new HttpsError("not-found", "User not found");
-      const rawExpiresAt = snap.data()?.subscription?.expiresAt;
+      const currentSub = snap.data()?.subscription as
+        { status?: unknown; startedAt?: unknown; expiresAt?: unknown } | undefined;
+      const nowMs = Date.now();
       const next = buildGrantedSubscription({
         days,
-        currentExpiresAt: typeof rawExpiresAt === "string" ? rawExpiresAt : null,
-      }, Date.now());
-      transaction.set(userRef, { subscription: { ...next, updatedAt: nowIso() } }, { merge: true });
+        currentExpiresAt: typeof currentSub?.expiresAt === "string" ? currentSub.expiresAt : null,
+      }, nowMs);
+      transaction.set(userRef, {
+        subscription: { ...next, startedAt: resolveGrantStartedAt(currentSub, nowMs), updatedAt: nowIso() },
+      }, { merge: true });
       return next;
     });
   } catch (error) {

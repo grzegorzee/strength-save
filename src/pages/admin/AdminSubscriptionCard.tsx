@@ -34,13 +34,17 @@ export const buildNextGrantState = (
   days: number | null,
   now = Date.now(),
 ): SubscriptionState => {
-  if (days === null) return { tier: 'comp', status: 'active', startedAt: null, expiresAt: null };
+  // "Od kiedy": przedłużenie aktywnego dostępu zachowuje startedAt, świeży grant startuje teraz.
+  const startedAt = isSubscriptionActive(current ?? null, now) && current?.startedAt
+    ? current.startedAt
+    : new Date(now).toISOString();
+  if (days === null) return { tier: 'comp', status: 'active', startedAt, expiresAt: null };
   const cur = current?.expiresAt ? Date.parse(current.expiresAt) : NaN;
   const base = Number.isFinite(cur) && cur > now ? cur : now;
   return {
     tier: 'comp',
     status: 'active',
-    startedAt: null,
+    startedAt,
     expiresAt: new Date(base + days * 24 * 60 * 60 * 1000).toISOString(),
   };
 };
@@ -149,6 +153,11 @@ export const AdminSubscriptionCard = ({ uid, name, subscription, onChanged }: Ad
           <p className="text-sm font-medium">
             {active && subscription ? t(PLAN_KEY[subscription.tier] ?? 'subscription.none') : t('subscription.none')}
           </p>
+          {active && subscription?.startedAt && (
+            <p className="text-xs text-muted-foreground">
+              {t('subscription.activeFrom', { date: formatDate(subscription.startedAt) })}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">{statusLine}</p>
           {isStore && (
             <p className="text-xs text-muted-foreground">{t('admin.sub.storeNote')}</p>

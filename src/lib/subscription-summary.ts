@@ -52,18 +52,16 @@ export const summarizeSubscription = (input: {
     return { planKey: 'subscription.none', detailKey: null, ...EMPTY };
   }
   if (input.tier === 'comp') {
-    // 2026-08-20: grant z panelu może mieć datę końca — pokaż ją zamiast "Bezterminowo".
-    if (input.expiresAt) {
-      return {
-        planKey: 'subscription.comp',
-        detailKey: null,
-        fromIso: null,
-        untilIso: input.expiresAt,
-        untilKind: 'expires',
-        hasStoreSubscription: false,
-      };
-    }
-    return { planKey: 'subscription.comp', detailKey: 'subscription.compDesc', ...EMPTY };
+    // 2026-08-20: grant z panelu ma "aktywna od" (startedAt) i opcjonalną datę końca;
+    // bez daty końca detailKey "Bezterminowo" dokleja się do dat w miejscu renderu.
+    return {
+      planKey: 'subscription.comp',
+      detailKey: input.expiresAt ? null : 'subscription.compDesc',
+      fromIso: input.startedAt,
+      untilIso: input.expiresAt,
+      untilKind: input.expiresAt ? 'expires' : null,
+      hasStoreSubscription: false,
+    };
   }
 
   const untilKind: UntilKind = input.tier === 'trial'

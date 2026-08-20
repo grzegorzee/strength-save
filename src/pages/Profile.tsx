@@ -107,13 +107,13 @@ const Profile = () => {
   });
   const formatSubDate = (iso: string) =>
     new Date(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' });
-  const subDescription = subSummary.detailKey
-    ? t(subSummary.detailKey)
-    : [
-        subSummary.fromIso && t('subscription.activeFrom', { date: formatSubDate(subSummary.fromIso) }),
-        subSummary.untilIso && subSummary.untilKind
-          && t(({ renews: 'subscription.renews', expires: 'subscription.expires', grace: 'subscription.grace', trialEnds: 'subscription.trialEnds' } as const)[subSummary.untilKind], { date: formatSubDate(subSummary.untilIso) }),
-      ].filter(Boolean).join(' · ');
+  // 2026-08-20: daty i detailKey mogą współistnieć (grant comp: "aktywna od X · Bezterminowo").
+  const subDescription = [
+    subSummary.fromIso && t('subscription.activeFrom', { date: formatSubDate(subSummary.fromIso) }),
+    subSummary.untilIso && subSummary.untilKind
+      && t(({ renews: 'subscription.renews', expires: 'subscription.expires', grace: 'subscription.grace', trialEnds: 'subscription.trialEnds' } as const)[subSummary.untilKind], { date: formatSubDate(subSummary.untilIso) }),
+    subSummary.detailKey && t(subSummary.detailKey),
+  ].filter(Boolean).join(' · ');
 
   const [restTimer, setRestTimer] = useState(() => {
     try { return localStorage.getItem(REST_TIMER_KEY) || '90'; } catch { return '90'; }

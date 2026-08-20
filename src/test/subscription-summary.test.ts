@@ -42,6 +42,17 @@ describe('summarizeSubscription', () => {
     });
   });
 
+  // 2026-08-20: "od kiedy" grantu (startedAt) widoczne też przy bezterminowym comp.
+  it('comp bezterminowy ze startedAt => aktywna od + Bezterminowo (detailKey)', () => {
+    expect(summarizeSubscription({
+      isAdmin: false, isPro: true, tier: 'comp', startedAt: FROM, expiresAt: null,
+      subscription: sub({ tier: 'comp', startedAt: FROM, expiresAt: null }),
+    })).toEqual({
+      planKey: 'subscription.comp', detailKey: 'subscription.compDesc',
+      fromIso: FROM, untilIso: null, untilKind: null, hasStoreSubscription: false,
+    });
+  });
+
   it('roczny odnawialny => zakres od-do z untilKind renews', () => {
     expect(summarizeSubscription({
       isAdmin: false, isPro: true, tier: 'yearly', startedAt: FROM, expiresAt: UNTIL,

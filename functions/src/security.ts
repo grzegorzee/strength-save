@@ -174,3 +174,20 @@ export const buildGrantedSubscription = (
 /** Odebranie ręcznego grantu — wraca stan "brak subskrypcji" (płatne okresy odtworzy webhook RC). */
 export const buildRevokedSubscription = (): { tier: 'none'; status: 'none'; expiresAt: null } =>
   ({ tier: 'none', status: 'none', expiresAt: null });
+
+/**
+ * "Od kiedy" dla grantu (2026-08-20, prośba właściciela): przedłużenie AKTYWNEGO
+ * dostępu zachowuje pierwotny startedAt (też sklepowy), świeży grant startuje teraz.
+ */
+export const resolveGrantStartedAt = (
+  current: { status?: unknown; startedAt?: unknown; expiresAt?: unknown } | undefined,
+  now: number,
+): string => {
+  const nowIso = new Date(now).toISOString();
+  const startedAt = typeof current?.startedAt === 'string' ? current.startedAt : null;
+  if (!startedAt) return nowIso;
+  if (current?.status !== 'active' && current?.status !== 'billing_issue') return nowIso;
+  if (current?.expiresAt == null) return startedAt; // aktywny bezterminowy comp
+  const exp = typeof current.expiresAt === 'string' ? Date.parse(current.expiresAt) : NaN;
+  return Number.isFinite(exp) && exp > now ? startedAt : nowIso;
+};

@@ -15,6 +15,7 @@ import {
   STRAVA_OAUTH_STATE_TTL_MS,
   buildGrantedSubscription,
   buildRevokedSubscription,
+  resolveGrantStartedAt,
 } from '../../functions/src/security';
 import { isSubscriptionActive } from '@/lib/user-profile';
 
@@ -132,5 +133,20 @@ describe('buildGrantedSubscription (Z169 / panel 2026-08-20)', () => {
     const revoked = buildRevokedSubscription();
     expect(revoked).toEqual({ tier: 'none', status: 'none', expiresAt: null });
     expect(isSubscriptionActive(revoked, NOW)).toBe(false);
+  });
+
+  // "Od kiedy" grantu (2026-08-20): przedłużenie aktywnego dostępu zachowuje startedAt.
+  it('resolveGrantStartedAt: aktywny dostęp zachowuje datę startu, reszta startuje teraz', () => {
+    const NOW_ISO = new Date(NOW).toISOString();
+    const FROM = '2026-06-01T08:00:00.000Z';
+    // aktywny bezterminowy comp i aktywny okres sklepowy → zostaje pierwotny start
+    expect(resolveGrantStartedAt({ status: 'active', startedAt: FROM, expiresAt: null }, NOW)).toBe(FROM);
+    expect(resolveGrantStartedAt({ status: 'active', startedAt: FROM, expiresAt: '2026-09-01T00:00:00.000Z' }, NOW)).toBe(FROM);
+    expect(resolveGrantStartedAt({ status: 'billing_issue', startedAt: FROM, expiresAt: '2026-09-01T00:00:00.000Z' }, NOW)).toBe(FROM);
+    // wygasły / nieaktywny / brak startedAt → start = teraz
+    expect(resolveGrantStartedAt({ status: 'active', startedAt: FROM, expiresAt: '2026-07-01T00:00:00.000Z' }, NOW)).toBe(NOW_ISO);
+    expect(resolveGrantStartedAt({ status: 'expired', startedAt: FROM, expiresAt: null }, NOW)).toBe(NOW_ISO);
+    expect(resolveGrantStartedAt({ status: 'active', expiresAt: null }, NOW)).toBe(NOW_ISO);
+    expect(resolveGrantStartedAt(undefined, NOW)).toBe(NOW_ISO);
   });
 });
