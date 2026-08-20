@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { LocalizedDateInput } from '@/components/LocalizedDateInput';
+import { RangeCalendar } from '@/components/ui/range-calendar';
+import type { DateRangeValue } from '@/lib/date-range-select';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, addCalendarDays, parseLocalDate } from '@/lib/utils';
 import {
   VACATION_MAX_DAYS,
   VACATION_MIN_DAYS,
@@ -33,29 +34,30 @@ const ACTIVITY_KEYS = {
   mains_only: 'vac.activityMains',
 } as const;
 
-const addDaysISO = (iso: string, days: number): string => {
-  const d = parseLocalDate(iso);
-  d.setDate(d.getDate() + days);
-  return formatLocalDate(d);
-};
-
 export const VacationDialog = ({
   open, onOpenChange, vacation, reducedModeActive, todayISO, onEnable, onCancel,
 }: VacationDialogProps) => {
   const { t, lang } = useTranslation();
-  const [startISO, setStartISO] = useState(todayISO);
-  // C-T1: urlop jako zakres Od-Do; presety 7/14/21 zostają skrótami ustawiającymi Do.
-  const [endISO, setEndISO] = useState(() => addDaysISO(todayISO, 6));
+  // T20.3: zakres Od-Do wybierany klikami w kalendarzu (booking-style);
+  // presety 7/14/21 zostają skrótami ustawiającymi Do względem Od.
+  // to=null = wybór w toku (drugi klik jeszcze nie padł) — wtedy bez
+  // podsumowania i bez błędu, tylko podpowiedź (żadnego stale summary).
+  const [range, setRange] = useState<DateRangeValue>(() => ({
+    from: todayISO,
+    to: addCalendarDays(todayISO, 6),
+  }));
   const [activity, setActivity] = useState<VacationActivity>('none');
 
-  const rangeDays = vacationRangeDays(startISO, endISO);
-  const rangeError = rangeDays === null
-    ? t('vac.errRange')
-    : rangeDays < VACATION_MIN_DAYS
-      ? t('vac.errTooShort', { n: VACATION_MIN_DAYS })
-      : rangeDays > VACATION_MAX_DAYS
-        ? t('vac.errTooLong', { n: VACATION_MAX_DAYS })
-        : null;
+  const rangeDays = range.from && range.to ? vacationRangeDays(range.from, range.to) : null;
+  const rangeError = range.from && range.to
+    ? rangeDays === null
+      ? t('vac.errRange')
+      : rangeDays < VACATION_MIN_DAYS
+        ? t('vac.errTooShort', { n: VACATION_MIN_DAYS })
+        : rangeDays > VACATION_MAX_DAYS
+          ? t('vac.errTooLong', { n: VACATION_MAX_DAYS })
+          : null
+    : null;
   const rangeValid = rangeDays !== null && rangeError === null;
 
   const fmt = (iso: string) =>
@@ -63,7 +65,8 @@ export const VacationDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl border-0 bg-surface-low" data-testid="vac-dialog">
+      {/* T20.3: kalendarz wydłuża treść — lokalny scroll zamiast wyjścia poza ekran (iPhone SE). */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto rounded-xl border-0 bg-surface-low" data-testid="vac-dialog">
         <DialogHeader>
           <DialogTitle className="font-heading uppercase">{t('vac.title')}</DialogTitle>
           <DialogDescription>{t('vac.desc')}</DialogDescription>
@@ -90,37 +93,13 @@ export const VacationDialog = ({
         ) : (
           <>
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label htmlFor="vac-start" className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                    {t('vac.start')}
-                  </label>
-                  <LocalizedDateInput
-                    id="vac-start"
-                    data-testid="vac-start"
-                    min={todayISO}
-                    value={startISO}
-                    onChange={(e) => {
-                      const next = e.target.value || todayISO;
-                      setStartISO(next);
-                      // Koniec nie może zostać przed nowym początkiem.
-                      if (vacationRangeDays(next, endISO) === null) setEndISO(addDaysISO(next, 6));
-                    }}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor="vac-end" className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
-                    {t('vac.end')}
-                  </label>
-                  <LocalizedDateInput
-                    id="vac-end"
-                    data-testid="vac-end"
-                    min={startISO}
-                    value={endISO}
-                    onChange={(e) => setEndISO(e.target.value || endISO)}
-                  />
-                </div>
-              </div>
+              {/* T20.3: kalendarz inline zamiast dwóch inputów date (booking-style). */}
+              <RangeCalendar
+                value={range}
+                onChange={setRange}
+                minDate={todayISO}
+                testId="vac-calendar"
+              />
               <div className="flex gap-2">
                 {DAY_OPTIONS.map((option) => {
                   const active = rangeDays === option;
@@ -129,7 +108,10 @@ export const VacationDialog = ({
                       key={option}
                       type="button"
                       data-testid={`vac-days-${option}`}
-                      onClick={() => setEndISO(addDaysISO(startISO, option - 1))}
+                      onClick={() => setRange((prev) => {
+                        const from = prev.from ?? todayISO;
+                        return { from, to: addCalendarDays(from, option - 1) };
+                      })}
                       aria-pressed={active}
                       className={cn(
                         'flex-1 rounded-full border px-3 py-1.5 text-sm transition-colors',
@@ -143,24 +125,31 @@ export const VacationDialog = ({
                   );
                 })}
               </div>
-              {rangeValid && rangeDays !== null ? (
+              {rangeValid && rangeDays !== null && range.from && range.to ? (
                 <div
                   data-testid="vac-summary"
                   className="rounded-xl border border-primary bg-primary/10 px-4 py-3 text-sm text-primary"
                 >
                   <p className="font-semibold">
-                    {t('vac.summaryDays', { n: rangeDays, from: fmt(startISO), to: fmt(endISO) })}
+                    {t('vac.summaryDays', { n: rangeDays, from: fmt(range.from), to: fmt(range.to) })}
                   </p>
                   <p className="mt-0.5 text-xs">
                     {t('vac.summaryExtend', { weeks: Math.ceil(rangeDays / 7) })}
                   </p>
                 </div>
-              ) : (
+              ) : rangeError ? (
                 <p
                   data-testid="vac-range-error"
                   className="rounded-xl border border-fitness-warning bg-fitness-warning/10 px-4 py-3 text-sm text-fitness-warning"
                 >
                   {rangeError}
+                </p>
+              ) : (
+                <p
+                  data-testid="vac-range-hint"
+                  className="rounded-xl border border-border px-4 py-3 text-sm text-muted-foreground"
+                >
+                  {t('range.pickEnd')}
                 </p>
               )}
               <div className="flex flex-col gap-2">
@@ -189,8 +178,8 @@ export const VacationDialog = ({
                 data-testid="vac-enable"
                 disabled={!rangeValid}
                 onClick={() => {
-                  if (!rangeValid || rangeDays === null) return;
-                  onEnable(startISO, rangeDays, activity);
+                  if (!rangeValid || rangeDays === null || !range.from) return;
+                  onEnable(range.from, rangeDays, activity);
                 }}
               >
                 {t('vac.enable')}
