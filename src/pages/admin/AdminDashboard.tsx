@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, getDocs, getCountFromServer, limit, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -651,7 +651,7 @@ const AdminDashboard = () => {
         return (
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">{t('admin.healthTelemetry')}</CardTitle>
+              <CardTitle className="text-base font-heading font-bold uppercase tracking-tight">{t('admin.healthTelemetry')}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-4">
               <div className="rounded-lg border bg-muted/20 p-3">
@@ -678,7 +678,7 @@ const AdminDashboard = () => {
       {clientErrors.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t('admin.clientErrors')}</CardTitle>
+            <CardTitle className="text-base font-heading font-bold uppercase tracking-tight">{t('admin.clientErrors')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="max-h-96 space-y-2 overflow-y-auto">
@@ -693,7 +693,12 @@ const AdminDashboard = () => {
                     </span>
                   </div>
                   <p className="mt-1 break-all font-mono text-muted-foreground">
-                    {entry.userId.slice(0, 8)}… {entry.sessionHash ? `sesja ${entry.sessionHash}` : ''}
+                    {/* T22c: błąd → szczegół usera jednym klikiem (akcje + naprawy);
+                        AdminUserDetail obsługuje user=null (konto usunięte). */}
+                    <Link to={`/admin/users/${entry.userId}`} className="underline-offset-2 hover:underline text-foreground">
+                      {entry.userId.slice(0, 8)}…
+                    </Link>
+                    {entry.sessionHash ? ` sesja ${entry.sessionHash}` : ''}
                   </p>
                   {entry.detail && <p className="mt-1 break-all">{entry.detail}</p>}
                 </div>
@@ -708,7 +713,7 @@ const AdminDashboard = () => {
       <div className="grid gap-6 xl:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
               <MailPlus className="h-5 w-5" />
               {t('admin.invite')}
             </CardTitle>
@@ -763,7 +768,7 @@ const AdminDashboard = () => {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
               <ClipboardList className="h-5 w-5" />
               {t('admin.waitlist')}
             </CardTitle>
@@ -799,7 +804,7 @@ const AdminDashboard = () => {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
+            <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase tracking-tight">
               <History className="h-5 w-5" />
               {t('admin.auditAuth')}
             </CardTitle>
