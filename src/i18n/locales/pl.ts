@@ -2117,6 +2117,8 @@ export const pl = {
   'admin.emails.typeInvite': 'zaproszenie',
   'admin.emails.typeAccessChanged': 'zmiana dostępu',
   'admin.emails.typeSelfDeletion': 'usunięcie konta',
+  'admin.emails.forUser': 'Maile użytkownika',
+  'admin.emails.emptyForUser': 'Brak maili do tego użytkownika',
   'admin.emails.viewContent': 'Pokaż treść',
   'admin.emails.contentTitle': 'Treść maila',
   'admin.emails.contentUnavailable': 'Treść niedostępna (wpis sprzed włączenia zapisu treści)',

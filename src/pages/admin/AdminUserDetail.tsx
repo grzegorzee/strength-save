@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, BarChart3, Bug, Dumbbell, Loader2, MousePointerClick, Wrench } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bug, Dumbbell, Loader2, Mail, MousePointerClick, Wrench } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { EmptyState } from '@/components/EmptyState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -22,6 +22,8 @@ import { useAdminUserActions } from './useAdminUserActions';
 import { AVAILABLE_FEATURES } from './admin-user-types';
 import { AdminSubscriptionCard } from './AdminSubscriptionCard';
 import { mapSubscription, type ActivitySummary, type SubscriptionState } from '@/lib/user-profile';
+import type { EmailLogRow } from '@/lib/admin-email-stats';
+import { EmailLogRowItem, EmailPreviewDialog, useEmailPreview } from './EmailLogRow';
 
 // Z99: szczegół usera w panelu admina. Dane on-demand po wejściu:
 // users/{uid} (1 odczyt) + app_telemetry_daily 30 dni (query userId+date, <=31)
@@ -99,6 +101,9 @@ const AdminUserDetail = () => {
   const [telemetryDocs, setTelemetryDocs] = useState<TelemetryDailyDoc[] | null>(null);
   const [plan, setPlan] = useState<{ dayCount: number; durationWeeks: number; startDate: string | null } | null | 'missing'>(null);
   const [errors, setErrors] = useState<ClientErrorRow[] | null>(null);
+  // T22a: maile tego usera (email_log po uid) + podgląd treści.
+  const [emails, setEmails] = useState<EmailLogRow[] | null>(null);
+  const { preview, openPreview, closePreview } = useEmailPreview();
   const [loading, setLoading] = useState(true);
   // Z102: naprawy z dry-run; Wykonaj aktywne dopiero po świeżym dry-run tej akcji.
   const [repairBusy, setRepairBusy] = useState<string | null>(null);
@@ -126,7 +131,7 @@ const AdminUserDetail = () => {
         const floor = new Date();
         floor.setDate(floor.getDate() - 31);
         const floorKey = `${floor.getFullYear()}-${String(floor.getMonth() + 1).padStart(2, '0')}-${String(floor.getDate()).padStart(2, '0')}`;
-        const [userSnap, telemetrySnap, planSnap, errorsSnap] = await Promise.all([
+        const [userSnap, telemetrySnap, planSnap, errorsSnap, emailsSnap] = await Promise.all([
           getDoc(doc(db, 'users', userId)),
           getDocs(query(
             collection(db, 'app_telemetry_daily'),
@@ -140,6 +145,14 @@ const AdminUserDetail = () => {
             orderBy('createdAt', 'desc'),
             limit(10),
           )),
+          // T22a: osobny catch — błąd maili (np. budujący się indeks) nie może
+          // zabrać widoku telemetrii/planu/błędów (zasada 5).
+          getDocs(query(
+            collection(db, 'email_log'),
+            where('uid', '==', userId),
+            orderBy('sentAt', 'desc'),
+            limit(20),
+          )).catch(() => null),
         ]);
         if (cancelled) return;
 
@@ -172,11 +185,15 @@ const AdminUserDetail = () => {
           platform: d.get('platform') as string | undefined,
           appVersion: d.get('appVersion') as string | undefined,
         })));
+        setEmails(emailsSnap
+          ? emailsSnap.docs.map((d) => ({ ...(d.data() as Omit<EmailLogRow, 'id'>), id: d.id }))
+          : []);
       } catch (error) {
         console.error('[AdminUserDetail] load failed', error);
         if (!cancelled) {
           setTelemetryDocs([]);
           setErrors([]);
+          setEmails([]);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -533,6 +550,25 @@ const AdminUserDetail = () => {
           {(errors ?? []).length === 0 && (
             <p className="text-sm text-muted-foreground">{t('admin.detail.noErrors')}</p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* MAILE UŻYTKOWNIKA (T22a): email_log po uid + podgląd treści */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+            <Mail className="h-4 w-4 text-primary" />
+            {t('admin.emails.forUser')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(emails ?? []).map((row) => (
+            <EmailLogRowItem key={row.id} row={row} onPreview={(r) => void openPreview(r)} />
+          ))}
+          {(emails ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">{t('admin.emails.emptyForUser')}</p>
+          )}
+          <EmailPreviewDialog preview={preview} onClose={closePreview} />
         </CardContent>
       </Card>
     </div>

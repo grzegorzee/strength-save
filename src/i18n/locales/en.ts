@@ -2095,6 +2095,8 @@ export const en: Record<keyof typeof pl, string> = {
   'admin.emails.typeInvite': 'invite',
   'admin.emails.typeAccessChanged': 'access changed',
   'admin.emails.typeSelfDeletion': 'account deletion',
+  'admin.emails.forUser': 'User emails',
+  'admin.emails.emptyForUser': 'No emails for this user',
   'admin.emails.viewContent': 'View content',
   'admin.emails.contentTitle': 'Email content',
   'admin.emails.contentUnavailable': 'Content unavailable (entry predates content logging)',
