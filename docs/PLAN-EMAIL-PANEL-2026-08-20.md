@@ -99,27 +99,35 @@
 
 ## G-T3 — szablony maili w stylu marki
 
-- [ ] Nowy szablon HTML (mail = jasne tło #f6f7f9, karta biała, akcent limonka
+- [x] Nowy szablon HTML (mail = jasne tło #f6f7f9, karta biała, akcent limonka
   #cefc22 TYLKO jako akcenty przy ciemnym tekście — kontrast; logo tekstowe
   "STRENGTH SAVE"): pojedynczy trening = nagłówek (data, dzień, focus),
   kafle hero (tonaż, czas, serie, ćwiczenia), tabela ćwiczeń z seriami
   (kg × powt., status zrobiona/pominięta/rozgrzewkowa), notatka dnia, notatki
   i RPE/ból per ćwiczenie, ocena sesji, stopka "Wysłane ze Strength Save na
   prośbę właściciela konta".
-- [ ] Historia: nagłówek zbiorczy (zakres dat, liczba treningów, suma tonażu,
+- [x] Historia: nagłówek zbiorczy (zakres dat, liczba treningów, suma tonażu,
   łączny czas) + kompaktowe sekcje per trening (ten sam moduł sekcji).
-- [ ] Wszystko w `email-workout.ts` jako czyste funkcje; ISTNIEJĄCE kontrakty
+- [x] Wszystko w `email-workout.ts` jako czyste funkcje; ISTNIEJĄCE kontrakty
   testów zostają prawdziwe (serie, notatki, RPE, ból, ocena, tonaż, czas,
   escapowanie) + nowe asercje na strukturę szablonu (inline CSS, max szerokość
   640, brak zewnętrznych zasobów poza ew. logo — najlepiej zero obrazków,
   żeby nie psuć dostarczalności). PL/EN przez `Lang` jak dotąd.
-- [ ] Table-based layout + inline style (klienci pocztowi nie znają flexboxa).
-- [ ] STYL TREŚCI (wymóg właściciela, twardy): ZERO emoji (repo ma
+- [x] Table-based layout + inline style (klienci pocztowi nie znają flexboxa).
+- [x] STYL TREŚCI (wymóg właściciela, twardy): ZERO emoji (repo ma
   check:no-emoji — dotyczy też stringów szablonu), zero AI-slopu: żadnych
   wykrzykników, "Świetna robota!", "Twoja podróż", pustych fraz motywacyjnych
   i przegadanych wstępów. Mail to rzeczowy raport z danych treningu: liczby,
   serie, notatki. Test: HTML nie zawiera emoji ani wykrzykników w copy
   (poza treścią wpisaną przez usera w notatkach).
+  DOWÓD G-T3 (cała sekcja): commit 541fa38b — nowa rama (tabele + inline CSS,
+  #f6f7f9/karta biała/#cefc22 tylko akcent, max-width:640px, zero obrazków
+  i zewnętrznych zasobów), kafle hero, nagłówek zbiorczy historii; +6 testów
+  struktury (23/23 GREEN, stare kontrakty treści nietknięte), check:no-emoji
+  OK (176 plików), test "zero wykrzykników" pilnuje copy PL i EN.
+  Wizualny podgląd wysłany na g.jasionowicz@gmail.com nowym szablonem:
+  pojedynczy MessageId 010701a01e9a08cb-19351195-d20d-471f-925e-14a11d2974e9-000000,
+  historia MessageId 010701a01e9a0981-1ae413a7-46d0-444e-96e4-3ca170a3aea0-000000.
 
 ## G-T4 — panel "Maile" w adminie
 
