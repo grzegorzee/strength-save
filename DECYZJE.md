@@ -11,6 +11,46 @@
 
 ## DECYZJE
 
+### 2026-08-20: Redesign zakładki Plan (fala 2, artboard plan-tab 1b)
+
+**Co:** Nowa prezentacja zakładki Plan wg mockupu 1b ("day-led"), wyłącznie na
+tokenach akcentu/surface (zero nowych hexów, strażniki limonki i
+design-token-guard zielone bez zmian allowlist):
+- blok tytułu: h1 display (bez uppercase/italic) + mono chip "Tydzień x/y" w
+  akcencie, pasek postępu pełnej szerokości, pille Cykle/Edytuj (rounded-full,
+  surface-high); dawne kafle Tydzień/Ukończone/Pozostało zwinięte do chipa +
+  nowej linii meta `trainingplan.metaProgress` (informacja zostaje w 100%),
+- baner decyzji: PlanNextStepCard `variant="banner"` (mockupowy "Zdecyduj") +
+  nowy prop `statsLine` z realnych statystyk aktywnego cyklu
+  (`trainingplan.decideStats`); brak cyklu = brak linii, zero placeholderów,
+- nawigacja tygodnia: mono zakres dat po lewej, okrągłe strzałki
+  ChevronLeft/Right po prawej (aria: prevWeek/nextWeek),
+- karty dni (TrainingDayCard): nazwa dnia font-heading + meta "PON 17 · focus ·
+  n ćwiczeń" (bez ucinania — liczba ćwiczeń zawsze widoczna), badge
+  ZROBIONE/DZIŚ w przygaszonym akcencie (primary/15) zamiast fitness-success,
+  NOWY badge NASTĘPNY (bg-primary + play, najwyżej jeden, nie wypiera statusów),
+  pasek obciążenia dnia (tonaż vs max tygodnia, helper `plan-day-load.ts`,
+  tylko ukończone treningi — brak tonażu = brak paska),
+- nagłówek dnia nad kartą zredukowany do rzędu akcji (Cardio/Edytuj); pełna
+  etykieta tylko dla dni bez karty treningu,
+- stopka trybów "Nie na 100%? / Urlop" jako 2 przyciski h-12 surface-low
+  (stany aktywne zostają na kolorach semantycznych), rules tip na surface-low,
+- wrapper `.exercise-card` zdjęty — sekcje leżą na tle strony (mockup).
+
+**Dlaczego:** brief redesignu 2026-08-20 (fala 2); żadna funkcja nie znika —
+inwentarz 34 pozycji z planu odhaczony; kalendarz desktop, HybridWeekStrip,
+DeloadBanner, dialogi (cardio/urlop/reduced/reschedule) bez zmian. Kolor DONE
+na kartach idzie za mockupem (akcent), kalendarz desktop zostaje na
+fitness-success (świadoma decyzja z planu, ewentualne wyrównanie osobno).
+
+**Weryfikacja:** 2025 unit testów (275 plików) + typecheck + lint + build
+zielone bez edycji istniejących speców (plan-tab-order, critical, icons);
+nowe testy: plan-day-load (11), training-day-card-next (5), statsLine;
+e2e celowane 18 testów zielone (critical, reschedule-flow,
+mobile-nav-reachability, full-app: cardio w Planie, hybrid strip, deload);
+pętla wizualna 3 iteracje (viewport 390, akcenty lime/amber/sky/indigo) —
+zrzuty w docs/design-2026-08-20/screens/plan-iter1..3.
+
 ### 2026-08-20: Redesign Dashboardu (fala 2, artboard dashboard-simplified 2a)
 
 **Co:** Nowa prezentacja Dashboardu wg mockupu z Claude Design, wyłącznie na
