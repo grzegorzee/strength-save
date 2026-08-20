@@ -135,7 +135,11 @@ export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: s
       console.log(`[Strava] Sync OK: ${data.synced} new, ${data.alreadyExisted} existed, ${data.totalFetched} total (lookback: ${data.lookbackDays}d)`);
       return { ok: true, ...data };
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('strava.err.sync');
+      // T7: serwerowy rate-limit (resource-exhausted) dostaje czytelny komunikat.
+      const code = (err as { code?: string }).code ?? '';
+      const message = code.includes('resource-exhausted')
+        ? t('strava.err.rateLimited')
+        : err instanceof Error ? err.message : t('strava.err.sync');
       console.error('[Strava] Sync failed:', message);
       setError(message);
       return { ok: false, message };

@@ -53,8 +53,8 @@ const StravaCallback = () => {
         setSyncedCount(data.synced || 0);
         setStatus('success');
 
-        // Auto-redirect after 3s
-        setTimeout(() => navigate('/settings'), 3000);
+        // T7: po "Połączono" od razu na dashboard — tam (T5) czeka cardio tygodnia.
+        setTimeout(() => navigate('/'), 1500);
       } catch (err) {
         const message = err instanceof Error ? err.message : t('strava.callback.exchangeError');
         console.error('[Strava] Callback failed:', message);

@@ -11,7 +11,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RefreshCw, Loader2, Footprints } from 'lucide-react';
+import { Footprints } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useStrava } from '@/hooks/useStrava';
 import { useManualActivities } from '@/hooks/useManualActivities';
@@ -34,7 +34,8 @@ import { MonthlyActivities } from './MonthlyActivities';
 export const StravaTab = () => {
   const { t } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
-  const { activities, connection, isSyncing, error, connectStrava, syncActivities, disconnectStrava } = useStrava(uid, canUseStrava);
+  // T7: ręczny sync tylko w Ustawieniach (tu dało się go spamować i palić limit API).
+  const { activities, connection, error, connectStrava, disconnectStrava } = useStrava(uid, canUseStrava);
   // Z113: Training Load liczy też ręczne cardio (intensywność zastępuje HR).
   const { activities: manualActivities } = useManualActivities(uid);
   // Z115: sesje siłowe karmią CTL/ATL/TSB (sTRIMP).
@@ -109,10 +110,6 @@ export const StravaTab = () => {
               {connection.athleteName && <p className="text-xs text-muted-foreground">{connection.athleteName}</p>}
             </div>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => syncActivities()} disabled={isSyncing}>
-                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-                {t('strava.sync')}
-              </Button>
               <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDisconnectConfirmOpen(true)}>{t('strava.disconnect')}</Button>
             </div>
           </div>

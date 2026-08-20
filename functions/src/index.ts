@@ -36,6 +36,7 @@ import { deleteQueryInBatches } from "./firestore-batch";
 import {
   diffRefreshableFields,
   loadExistingActivities,
+  manualSyncRetryAfterSeconds,
   mapStravaActivityToDoc,
   REFRESHABLE_ACTIVITY_FIELDS,
   type ExistingActivitiesSource,
@@ -523,6 +524,15 @@ export const stravaSync = onCall(
     if (!userData?.stravaConnected || !connection) {
       logger.error(`[Strava] Not connected: stravaConnected=${userData?.stravaConnected}, hasConnection=${!!connection}`);
       throw new HttpsError("failed-precondition", "Strava not connected");
+    }
+
+    // T7: serwerowy rate-limit ręcznego syncu (spam przycisku palił limit API
+    // Stravy). Dotyczy też fullSync. Scheduled sync i callback wołają
+    // syncUserActivities bezpośrednio, więc guard ich nie dotyka.
+    const retryAfterSec = manualSyncRetryAfterSeconds(userData?.stravaLastSync, Date.now());
+    if (retryAfterSec !== null) {
+      logger.info(`[Strava] Manual sync rate-limited for ${userId}, retry in ${retryAfterSec}s`);
+      throw new HttpsError("resource-exhausted", `Retry in ${retryAfterSec}s`);
     }
 
     let accessToken = connection.accessToken;

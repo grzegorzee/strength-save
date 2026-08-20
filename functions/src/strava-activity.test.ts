@@ -3,6 +3,7 @@ import {
   activityDateStr,
   diffRefreshableFields,
   loadExistingActivities,
+  manualSyncRetryAfterSeconds,
   mapStravaActivityToDoc,
   type ExistingActivitiesSource,
   type StravaApiActivityInput,
@@ -115,6 +116,29 @@ describe("diffRefreshableFields", () => {
     delete existing.calories;
     existing.syncedAt = "older";
     expect(diffRefreshableFields(existing, incomingNullCalories)).toBeNull();
+  });
+});
+
+describe("manualSyncRetryAfterSeconds (T7)", () => {
+  const NOW = Date.parse("2026-08-20T12:00:00.000Z");
+
+  it("pierwszy sync przechodzi (lastSync null/undefined)", () => {
+    expect(manualSyncRetryAfterSeconds(null, NOW)).toBeNull();
+    expect(manualSyncRetryAfterSeconds(undefined, NOW)).toBeNull();
+  });
+
+  it("sync 60 s po poprzednim odbija sie z ~240 s odmowy", () => {
+    const lastSync = new Date(NOW - 60_000).toISOString();
+    expect(manualSyncRetryAfterSeconds(lastSync, NOW)).toBe(240);
+  });
+
+  it("sync 6 min po poprzednim przechodzi", () => {
+    const lastSync = new Date(NOW - 6 * 60_000).toISOString();
+    expect(manualSyncRetryAfterSeconds(lastSync, NOW)).toBeNull();
+  });
+
+  it("nieparsowalny lastSync nie blokuje (zasada 6: brak pulapki bez wyjscia)", () => {
+    expect(manualSyncRetryAfterSeconds("not-a-date", NOW)).toBeNull();
   });
 });
 

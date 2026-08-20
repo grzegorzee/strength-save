@@ -76,6 +76,28 @@ export const REFRESHABLE_ACTIVITY_FIELDS = [
 
 export type RefreshableField = (typeof REFRESHABLE_ACTIVITY_FIELDS)[number];
 
+/** T7: minimalny odstęp między RĘCZNYMI syncami (scheduled/callback bez limitu). */
+export const MANUAL_SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * T7: serwerowy rate-limit ręcznego syncu po users/{uid}.stravaLastSync.
+ * Zwraca liczbę sekund do odczekania albo null, gdy sync może iść.
+ * Pierwszy sync (brak/nieparsowalny lastSync) ZAWSZE przechodzi (zasada 6:
+ * stan odmowy mija z czasem, komunikat mówi ile czekać).
+ */
+export function manualSyncRetryAfterSeconds(
+  lastSyncIso: string | null | undefined,
+  nowMs: number,
+  minIntervalMs: number = MANUAL_SYNC_MIN_INTERVAL_MS,
+): number | null {
+  if (!lastSyncIso) return null;
+  const lastMs = new Date(lastSyncIso).getTime();
+  if (!Number.isFinite(lastMs)) return null;
+  const elapsedMs = nowMs - lastMs;
+  if (elapsedMs >= minIntervalMs) return null;
+  return Math.ceil((minIntervalMs - elapsedMs) / 1000);
+}
+
 export function activityDateStr(activity: Pick<StravaApiActivityInput, "start_date_local" | "start_date">): string {
   return activity.start_date_local
     ? activity.start_date_local.split("T")[0]
