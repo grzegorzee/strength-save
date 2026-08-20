@@ -19,6 +19,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface DataManagementProps {
   onExport: () => string;
+  /** J-T5: klik "Eksport treningów (CSV)" — otwiera ExportWorkoutsDialog rodzica. */
+  onExportCsv?: () => void;
   onImport: (jsonString: string) => Promise<{ success: boolean; message: string }>;
   onCleanup?: () => Promise<{ deleted: number; error?: string }>;
   onRepair?: () => Promise<{ updated: number; scanned: number; error?: string }>;
@@ -180,6 +182,7 @@ export const DataRepairTools = ({
 
 export const DataManagement = ({
   onExport,
+  onExportCsv,
   onImport,
   onCleanup,
   onRepair,
@@ -300,6 +303,20 @@ export const DataManagement = ({
               className="hidden"
             />
           </div>
+
+          {/* J-T5: eksport treningów do CSV — dialog z wyborem zakresu u rodzica. */}
+          {onExportCsv && (
+            <Button
+              onClick={onExportCsv}
+              variant="outline"
+              className="w-full text-xs sm:text-sm"
+              disabled={disabled}
+              data-testid="data-export-csv"
+            >
+              <Download className="h-4 w-4 mr-1.5 shrink-0" />
+              {t('data.exportCsvLabel')}
+            </Button>
+          )}
 
           <DataRepairTools
             onCleanup={onCleanup}

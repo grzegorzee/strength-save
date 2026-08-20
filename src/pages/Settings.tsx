@@ -39,6 +39,7 @@ import { useSearchParams } from 'react-router-dom';
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
+import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
 
 const Settings = () => {
   const { uid, canUseStrava, isAdmin } = useCurrentUser();
@@ -56,6 +57,8 @@ const Settings = () => {
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [mergingCycles, setMergingCycles] = useState(false);
   const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false);
+  // J-T5: eksport CSV z wyborem zakresu (ten sam dialog co w Historii).
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [searchParams] = useSearchParams();
 
   // Linki z Profilu (?section=notifications|account|data) przewijają do właściwej sekcji.
@@ -197,6 +200,10 @@ const Settings = () => {
           planCycles: cycles,
           });
         }}
+        onExportCsv={() => {
+          trackTelemetryEvent(uid, 'action_export_data');
+          setShowExportDialog(true);
+        }}
         onImport={importData}
         existingWorkoutIds={workouts.map((w) => w.id)}
         disabled={!workoutsLoaded}
@@ -209,6 +216,14 @@ const Settings = () => {
       <div className="mt-3">
         <WorkoutImportWizard />
       </div>
+      {/* J-T5: dialog eksportu CSV z wyborem zakresu (zawsze zamontowany,
+          zamykanie wyłącznie przez open=false — pułapka Radix). */}
+      <ExportWorkoutsDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        uid={uid}
+        cycles={cycles}
+      />
       </div>
 
       {/* Narzędzia naprawcze (Z52): domyślnie zwinięte. Z90.4: widzi je tylko admin —

@@ -1,8 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatHistorySetLabel } from '@/lib/set-tracking';
-import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, History, Loader2, Mail, Search, StickyNote, Trash2, Trophy } from 'lucide-react';
+import { ArrowRightLeft, CalendarRange, ChevronDown, ChevronUp, Clock, Download, History, Loader2, Mail, Search, StickyNote, Trash2, Trophy } from 'lucide-react';
 import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
+import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,8 @@ const WorkoutHistory = () => {
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   // J-T2: wysyłka POJEDYNCZEGO treningu z wiersza Historii (mode='workout').
   const [emailWorkoutId, setEmailWorkoutId] = useState<string | null>(null);
+  // J-T5: eksport CSV z wyborem zakresu (ten sam dialog co w Ustawieniach).
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const [searchQuery, setSearchQuery] = useState('');
@@ -278,16 +281,27 @@ const WorkoutHistory = () => {
         <div className="text-right">{t('history.compareHint')}</div>
       </div>
 
-      {/* H-T1: historia mailem do trenera z wyborem zakresu (tydzień / 30). */}
-      <Button
-        variant="outline"
-        className="w-full"
-        onClick={() => setShowEmailDialog(true)}
-        data-testid="history-email"
-      >
-        <Mail className="mr-2 h-4 w-4" />
-        {t('email.sendToCoach')}
-      </Button>
+      {/* H-T1: historia mailem do trenera + J-T5: eksport CSV z wyborem zakresu. */}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={() => setShowEmailDialog(true)}
+          data-testid="history-email"
+        >
+          <Mail className="mr-2 h-4 w-4" />
+          {t('email.sendToCoach')}
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1"
+          onClick={() => setShowExportDialog(true)}
+          data-testid="history-export-csv"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {t('exportCsv.historyButton')}
+        </Button>
+      </div>
       <EmailWorkoutDialog
         open={showEmailDialog}
         onOpenChange={setShowEmailDialog}
@@ -304,6 +318,13 @@ const WorkoutHistory = () => {
         uid={uid}
         workoutId={emailWorkoutId ?? undefined}
         initialEmail={profile?.preferences?.trainerEmail}
+      />
+      {/* J-T5: eksport CSV z wyborem zakresu. */}
+      <ExportWorkoutsDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        uid={uid}
+        cycles={cycles}
       />
 
       <div className="space-y-6">
