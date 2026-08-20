@@ -5,11 +5,36 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (H-RELEASE: UX i treść maili do trenera; web live CTJWO6e6)
+**Ostatnia aktualizacja:** 2026-08-20 (wydanie zbiorcze: kolory wszędzie + maile; web CSEYo3a1, iOS 110, AAB v25)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-20: Wydanie zbiorcze — kolory wszędzie + maile do trenera na mobilki
+
+**Co:** Scalono i wydano na wszystkie powierzchnie efekty trzech równoległych
+prac: (1) audyt kolorów akcentu (agent w worktree; merge 5f9c4f0c, 34 pliki,
+zero konfliktów): --accent/--accent-foreground nadpisywane kolorem przewodnim,
+--fitness-cyan przestrojony na realny cyjan (znaczenie: cardio), ~70 zaszytych
+limonek zmigrowanych na tokeny primary, gradienty CTA/wykresów z tokenów,
+statusy nietknięte; (2) plany G+H agenta maili (opisane niżej, wydane wcześniej
+tego dnia); (3) wydanie mobilne: bump iOS 110 + AAB v25, żeby przycisk "Wyślij
+do trenera", zakresy i kolory weszły do bundli natywnych.
+
+**Artefakty:** web LIVE `index-CSEYo3a1.js` (marker 'Wyślij do trenera' na
+origin/gh-pages + curl live); iOS 1.0.0(110) TestFlight: VALID, obie grupy 204,
+whatsNew 200, Beta App Review APPROVED; AAB versionCode 25 `jar verified` SHA
+`2952dc8894bb2e2c60228f4aa9299e2a5c9415fc29a192e9f892ef3c709d66e0` (upload
+Play = właściciel); Garmin/Watch bez zmian źródeł. Następny build iOS = 111,
+versionCode = 26.
+
+**Bramki po merge:** vitest 1821/1821, typecheck, lint, no-emoji (177),
+dist-smoke, bundle-budget (1 314 821 B), dist-offline, pełne e2e 410/410
+po świeżym vite. Lekcja: `pkill -f vite` ubija też trwający `vite build`
+w tle — nie czyścić vite, gdy w tle idzie build (pierwszy bieg bramek padł
+z SIGTERM przez to).
+
 
 ### 2026-08-20: H-RELEASE — poprawki UX i treści maili do trenera (feedback po teście 109)
 
