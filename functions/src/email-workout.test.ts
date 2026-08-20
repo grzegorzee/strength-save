@@ -193,3 +193,60 @@ describe("buildHistoryEmailHtml", () => {
     expect(html).toContain("(1)");
   });
 });
+
+// G-T3: szablon w stylu marki — jasne tło, biała karta, limonka tylko jako
+// akcent przy ciemnym tekście, layout tabelaryczny, zero obrazków, zero
+// wykrzykników i AI-slopu w copy.
+describe("szablon marki (G-T3)", () => {
+  it("pojedynczy: jasne tło, biała karta, logo tekstowe, akcent limonkowy, max 640", () => {
+    const html = buildWorkoutEmailHtml(workout(), "pl");
+    expect(html).toContain("#f6f7f9");
+    expect(html).toContain("#ffffff");
+    expect(html).toContain("STRENGTH SAVE");
+    expect(html).toContain("#cefc22");
+    expect(html).toContain("max-width:640px");
+  });
+
+  it("kafle hero: tonaż, czas, serie, ćwiczenia (PL i EN)", () => {
+    const pl = buildWorkoutEmailHtml(workout(), "pl");
+    expect(pl).toContain("Tonaż");
+    expect(pl).toContain("Czas");
+    expect(pl).toContain("Serie");
+    expect(pl).toContain("Ćwiczenia");
+    const en = buildWorkoutEmailHtml(workout(), "en");
+    expect(en).toContain("Tonnage");
+    expect(en).toContain("Time");
+    expect(en).toContain("Sets");
+    expect(en).toContain("Exercises");
+  });
+
+  it("layout tabelaryczny, inline CSS, zero obrazków i zewnętrznych zasobów", () => {
+    const html = buildWorkoutEmailHtml(workout(), "pl");
+    expect(html).toContain("<table");
+    expect(html).not.toMatch(/<img/i);
+    expect(html).not.toMatch(/https?:\/\//);
+    expect(html).not.toContain("<link");
+    expect(html).not.toContain("display:flex");
+  });
+
+  it("zero wykrzykników w copy (poza treścią wpisaną przez usera)", () => {
+    const clean = workout({ notes: undefined, exercises: [{ exerciseId: "ex-1", name: "Wyciskanie", sets: [{ reps: 5, weight: 100, completed: true }] }] });
+    expect(buildWorkoutEmailHtml(clean, "pl")).not.toContain("!");
+    expect(buildWorkoutEmailHtml(clean, "en")).not.toContain("!");
+    expect(buildHistoryEmailHtml([clean], "pl")).not.toContain("!");
+  });
+
+  it("stopka: wysłane na prośbę właściciela konta", () => {
+    expect(buildWorkoutEmailHtml(workout(), "pl")).toContain("na prośbę właściciela konta");
+    expect(buildWorkoutEmailHtml(workout(), "en")).toContain("at the account owner's request");
+  });
+
+  it("historia: zakres dat, liczba treningów, suma tonażu, łączny czas", () => {
+    const html = buildHistoryEmailHtml([workout(), workout({ id: "w2", date: "2026-08-18" })], "pl");
+    expect(html).toContain("2026-08-18");
+    expect(html).toContain("2026-08-20");
+    expect(html).toContain("(2)");
+    expect(html).toContain("1.0 t");
+    expect(html).toContain("2 h 1 min");
+  });
+});
