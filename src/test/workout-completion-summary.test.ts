@@ -79,6 +79,30 @@ describe('computeCompletionSummary', () => {
     });
     expect(summary.prevVolumeKg).toBe(1000);
     expect(summary.volumeDeltaPct).toBe(-20);
+    expect(summary.prevDate).toBe('2026-08-05');
+  });
+
+  it('prevDate = data ostatniej ukończonej sesji tego dayId, null bez historii', () => {
+    const withHistory = computeCompletionSummary({
+      exerciseSets: { 'ex-1': [set(8, 100)] },
+      dayExercises: null,
+      workouts: [
+        workout({ id: 'w-old', date: '2026-07-29' }),
+        workout({ id: 'w-prev', date: '2026-08-05' }),
+      ],
+      sessionId: 's1',
+      dayId: 'day-1',
+    });
+    expect(withHistory.prevDate).toBe('2026-08-05');
+
+    const noHistory = computeCompletionSummary({
+      exerciseSets: { 'ex-1': [set(8, 100)] },
+      dayExercises: null,
+      workouts: [],
+      sessionId: 's1',
+      dayId: 'day-1',
+    });
+    expect(noHistory.prevDate).toBeNull();
   });
 
   it('bieżąca sesja nie porównuje się sama ze sobą, brak historii = null', () => {
@@ -91,5 +115,6 @@ describe('computeCompletionSummary', () => {
     });
     expect(summary.prevVolumeKg).toBeNull();
     expect(summary.volumeDeltaPct).toBeNull();
+    expect(summary.prevDate).toBeNull();
   });
 });

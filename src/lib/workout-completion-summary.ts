@@ -14,6 +14,8 @@ export interface CompletionSummary {
   planPct: number | null;
   prevVolumeKg: number | null;
   volumeDeltaPct: number | null;
+  /** Data (ISO) ostatniej ukończonej sesji tego dnia planu — label "vs {date}" w hero (fala 2). */
+  prevDate: string | null;
 }
 
 const workingSetVolume = (sets: SetData[]): number =>
@@ -61,5 +63,13 @@ export const computeCompletionSummary = (args: {
     ? Math.round(((volumeKg - prevVolumeKg) / prevVolumeKg) * 100)
     : null;
 
-  return { volumeKg, completedSets, plannedSets, planPct, prevVolumeKg, volumeDeltaPct };
+  return {
+    volumeKg,
+    completedSets,
+    plannedSets,
+    planPct,
+    prevVolumeKg,
+    volumeDeltaPct,
+    prevDate: previous?.date ?? null,
+  };
 };
