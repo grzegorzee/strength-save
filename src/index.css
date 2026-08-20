@@ -209,6 +209,17 @@ All colors MUST be HSL.
     border-radius: 12px !important;
     font-variant-numeric: tabular-nums;
     text-align: center;
+    /* Naprawa r1 (2026-08-21): spinner Chromium w input[type=number] rezerwował
+       prawą krawędź pola — placeholder zakresu ("6-8") był klipowany mimo
+       wycentrowania. iOS WebView spinnerów nie rysuje, więc bez zmian na telefonie. */
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  .exercise-card-input::-webkit-outer-spin-button,
+  .exercise-card-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 
   .dark .exercise-card-input {
