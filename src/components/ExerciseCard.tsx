@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Star, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell, Target, CalendarCheck, TrendingUp, TrendingDown, RotateCcw, Trophy, Check } from 'lucide-react';
+import { Flame, Info, StickyNote, Play, Plus, Sparkles, Loader2, Activity, Timer, Disc, MoreHorizontal, ArrowRightLeft, SkipForward, Pin, Dumbbell, Target, Trophy, Check } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,146 +61,11 @@ async function exerciseCompleteHaptic() {
 
 // Z129.2: jeden rozmiar chipa dla całego paska. flex-1 wyrównuje szerokości,
 // zero ramek 1px — granicę robi tło (No-Line Rule, docs/DESIGN.md).
-const chipClass = 'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-[11px] font-semibold transition-colors';
+// Fala 2 (2026-08-20, mockup 2a): h-10, radius 12, tło surface-low.
+const chipClass = 'inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-colors';
 
-// ── Progression Badge sub-component ──
-const ProgressionBadge = ({ advice }: { advice: { type: 'increase' | 'repeat' | 'maintain'; label: string } }) => {
-  const styles = {
-    increase: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10 dark:text-fitness-success dark:border-fitness-success/30',
-    repeat: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10 dark:text-fitness-warning dark:border-fitness-warning/30',
-    maintain: 'border-destructive/30 text-destructive bg-destructive/10',
-  };
-  const arrows = {
-    increase: (
-      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" className="shrink-0">
-        <path d="M8 12V4m0 0L4 8m4-4l4 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-    repeat: (
-      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" className="shrink-0">
-        <path d="M4 8h8M12 8l-3-3m3 3l-3 3" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-    maintain: (
-      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" className="shrink-0">
-        <path d="M3 8h10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-      </svg>
-    ),
-  };
-
-  return (
-    <span className={cn(
-      "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border",
-      styles[advice.type]
-    )}>
-      {arrows[advice.type]}
-      {advice.label}
-    </span>
-  );
-};
-
-// ── Next-set target badge (konkretny cel z trendu historii) ──
-const NextTargetBadge = ({ advice }: { advice: NextSetAdvice }) => {
-  const { t } = useTranslation();
-  const { unit, toDisplay } = useUnit();
-  const styles: Record<NextSetAdvice['kind'], string> = {
-    progress: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
-    hold: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
-    deload: 'border-fitness-warning/40 text-fitness-warning bg-fitness-warning/10',
-  };
-  const labels: Record<NextSetAdvice['kind'], string> = {
-    progress: t('card.target'),
-    hold: t('card.target'),
-    deload: t('card.deload'),
-  };
-  const target = advice.isBodyweight
-    ? t('card.repsValue', { n: advice.targetReps })
-    : `${Math.round(toDisplay(advice.targetWeight) * 10) / 10} ${unit} × ${advice.targetReps}`;
-  return (
-    <span
-      title={advice.reason}
-      className={cn(
-        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
-        styles[advice.kind],
-      )}
-    >
-      <Target className="h-3 w-3" aria-hidden /> {labels[advice.kind]}: {target}
-    </span>
-  );
-};
-
-// ── Weekly target badge (Z120: silnik progresji programowej) ──
-const WeeklyTargetBadge = ({ target }: { target: WeeklyTarget }) => {
-  const { t } = useTranslation();
-  const { unit, toDisplay } = useUnit();
-  const styles: Record<WeeklyTarget['kind'], string> = {
-    start: 'border-muted-foreground/30 text-muted-foreground bg-muted/30',
-    progress: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
-    hold: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
-    deload: 'border-fitness-warning/40 text-fitness-warning bg-fitness-warning/10',
-    pain: 'border-destructive/40 text-destructive bg-destructive/10',
-    'deload-week': 'border-primary/40 text-primary bg-primary/10',
-  };
-  const labels: Record<WeeklyTarget['kind'], string> = {
-    start: t('card.weekTarget'),
-    progress: t('card.weekTarget'),
-    hold: t('card.weekTarget'),
-    deload: t('card.deload'),
-    pain: t('card.weekPain'),
-    'deload-week': t('card.weekDeload'),
-  };
-  const disp = (kg: number) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`;
-  const head = target.targetSets != null && target.targetReps != null
-    ? `${target.targetSets}×${target.targetReps}`
-    : target.targetReps != null ? `×${target.targetReps}` : '';
-  const value = [
-    head,
-    target.targetWeight != null && target.targetWeight > 0 ? disp(target.targetWeight) : null,
-    target.targetDurationSec != null ? formatDurationSec(target.targetDurationSec) : null,
-  ].filter(Boolean).join(' · ');
-  if (!value) return null;
-  return (
-    <span
-      title={t(target.reasonKey as TranslationKey)}
-      className={cn(
-        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
-        styles[target.kind],
-      )}
-    >
-      <CalendarCheck className="h-3 w-3" aria-hidden /> {labels[target.kind]}: {value}
-    </span>
-  );
-};
-
-// ── RZA autoregulation badge (next weight from RPE/ból/jakość) ──
-const RzaAdviceBadge = ({ advice }: { advice: RzaAdvice }) => {
-  const { t } = useTranslation();
-  const { unit, toDisplay } = useUnit();
-  const styles: Record<RzaAdvice['decision'], string> = {
-    progress: 'border-fitness-success/30 text-fitness-success bg-fitness-success/10',
-    deload: 'border-fitness-warning/40 text-fitness-warning bg-fitness-warning/10',
-    repeat: 'border-fitness-warning/30 text-fitness-warning bg-fitness-warning/10',
-  };
-  const labels: Record<RzaAdvice['decision'], string> = {
-    progress: t('card.rzaProgress'),
-    deload: t('card.rzaDeload'),
-    repeat: t('card.rzaRepeat'),
-  };
-  const Icon = advice.decision === 'progress' ? TrendingUp
-    : advice.decision === 'deload' ? TrendingDown : RotateCcw;
-  const next = `${Math.round(toDisplay(advice.nextKg) * 10) / 10} ${unit}`;
-  return (
-    <span
-      title={t('card.rzaReason', { last: `${Math.round(toDisplay(advice.lastKg) * 10) / 10} ${unit}` })}
-      className={cn(
-        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border',
-        styles[advice.decision],
-      )}
-    >
-      <Icon className="h-3 w-3" aria-hidden /> {labels[advice.decision]}: {next}
-    </span>
-  );
-};
+// Fala 2 (2026-08-20): dawne badge celu (Progression/NextTarget/WeeklyTarget/Rza)
+// zastapil jeden TARGET BOX w karcie — kaskada i dane bez zmian (targetBox nizej).
 
 // ── Props ──
 interface ExerciseCardProps {
@@ -651,6 +516,71 @@ const ExerciseCardInner = ({
     return getProgressionAdvice(repRange, prevWorking, index - 1, exercise.isSuperset, isBodyweight, lang, unit);
   }, [previousSets, exercise.sets, index, exercise.isSuperset, isBodyweight, lang, unit]);
 
+  // Fala 2 (2026-08-20, mockup 2a): kaskada celu w JEDNYM target boxie zamiast
+  // rzędu badge. Priorytety i dane identyczne jak dawny łańcuch badge'ów:
+  // RZA > cel tygodnia (Z120, kind !== 'start') > cel z trendu > progresja.
+  // Etykieta rodzaju w kolorze semantycznym przy deload/pain (CLAUDE.md #8),
+  // box zawsze na tincie akcentu bg-primary/10.
+  const targetBox = ((): { label: string; labelClass?: string; value: string; reason?: string } | null => {
+    const disp = (kg: number) => `${Math.round(toDisplay(kg) * 10) / 10} ${unit}`;
+    if (rzaAdvice) {
+      const labels: Record<RzaAdvice['decision'], string> = {
+        progress: t('card.rzaProgress'), deload: t('card.rzaDeload'), repeat: t('card.rzaRepeat'),
+      };
+      const cls: Partial<Record<RzaAdvice['decision'], string>> = {
+        deload: 'text-fitness-warning', repeat: 'text-fitness-warning',
+      };
+      return {
+        label: labels[rzaAdvice.decision],
+        labelClass: cls[rzaAdvice.decision],
+        value: disp(rzaAdvice.nextKg),
+        reason: t('card.rzaReason', { last: disp(rzaAdvice.lastKg) }),
+      };
+    }
+    if (weeklyTarget && weeklyTarget.kind !== 'start') {
+      const labels: Record<WeeklyTarget['kind'], string> = {
+        start: t('card.weekTarget'), progress: t('card.weekTarget'), hold: t('card.weekTarget'),
+        deload: t('card.deload'), pain: t('card.weekPain'), 'deload-week': t('card.weekDeload'),
+      };
+      const cls: Partial<Record<WeeklyTarget['kind'], string>> = {
+        deload: 'text-fitness-warning', pain: 'text-destructive',
+      };
+      const head = weeklyTarget.targetSets != null && weeklyTarget.targetReps != null
+        ? `${weeklyTarget.targetSets}×${weeklyTarget.targetReps}`
+        : weeklyTarget.targetReps != null ? `×${weeklyTarget.targetReps}` : '';
+      const value = [
+        head,
+        weeklyTarget.targetWeight != null && weeklyTarget.targetWeight > 0 ? disp(weeklyTarget.targetWeight) : null,
+        weeklyTarget.targetDurationSec != null ? formatDurationSec(weeklyTarget.targetDurationSec) : null,
+      ].filter(Boolean).join(' · ');
+      // Jak dawny WeeklyTargetBadge: pusta wartość = brak elementu (bez fallbacku niżej).
+      if (!value) return null;
+      return {
+        label: labels[weeklyTarget.kind],
+        labelClass: cls[weeklyTarget.kind],
+        value,
+        reason: t(weeklyTarget.reasonKey as TranslationKey),
+      };
+    }
+    if (nextAdvice) {
+      return {
+        label: nextAdvice.kind === 'deload' ? t('card.deload') : t('card.target'),
+        labelClass: nextAdvice.kind === 'progress' ? undefined : 'text-fitness-warning',
+        value: nextAdvice.isBodyweight
+          ? t('card.repsValue', { n: nextAdvice.targetReps })
+          : `${disp(nextAdvice.targetWeight)} × ${nextAdvice.targetReps}`,
+        reason: nextAdvice.reason,
+      };
+    }
+    if (progressionAdvice) {
+      const cls: Partial<Record<typeof progressionAdvice.type, string>> = {
+        repeat: 'text-fitness-warning', maintain: 'text-destructive',
+      };
+      return { label: t('card.target'), labelClass: cls[progressionAdvice.type], value: progressionAdvice.label };
+    }
+    return null;
+  })();
+
   // Hint kolumny POPRZ. dla N-tej serii ROBOCZEJ (workingIndex), nie globalnej —
   // inaczej różna liczba rozgrzewek między sesjami rozjeżdża wartości.
   const getPreviousHint = (workingIndex: number): string | null => {
@@ -808,8 +738,8 @@ const ExerciseCardInner = ({
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed
-                ? 'bg-accent text-accent-foreground'
-                : 'border-2 border-muted-foreground/40 text-muted-foreground/50 hover:border-accent hover:text-accent',
+                ? 'bg-primary text-primary-foreground'
+                : 'border-2 border-muted-foreground/40 text-muted-foreground/50 hover:border-primary hover:text-primary',
             )}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -914,8 +844,8 @@ const ExerciseCardInner = ({
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg transition-colors disabled:opacity-40',
               set.completed
-                ? 'bg-accent text-accent-foreground'
-                : 'border-2 border-muted-foreground/40 text-muted-foreground/50 hover:border-accent hover:text-accent',
+                ? 'bg-primary text-primary-foreground'
+                : 'border-2 border-muted-foreground/40 text-muted-foreground/50 hover:border-primary hover:text-primary',
             )}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -972,7 +902,8 @@ const ExerciseCardInner = ({
                   setShowVideo(true);
                 }
               }}
-              className="relative h-[72px] w-[92px] rounded-2xl overflow-hidden shrink-0 bg-background/70"
+              // Fala 2 (2026-08-20, mockup 2a): zwarta miniatura 46px z centralnym play.
+              className="relative h-[46px] w-[46px] rounded-xl overflow-hidden shrink-0 bg-background/70"
               aria-label={t('card.showAnimation', { name: localizedName })}
             >
               {/* Z195: miniatura = poster JPEG z CDN, NIE <video> — WebKit przy
@@ -980,7 +911,7 @@ const ExerciseCardInner = ({
                   zero dekoderów wideo na liście. Wideo gra dopiero w dialogu. */}
               {thumbFailed || !posterUrl ? (
                 <span className="flex h-full w-full items-center justify-center">
-                  <Dumbbell className="h-6 w-6 text-muted-foreground/50" />
+                  <Dumbbell className="h-5 w-5 text-muted-foreground/50" />
                 </span>
               ) : (
                 <img
@@ -1002,91 +933,49 @@ const ExerciseCardInner = ({
               {/* Poster jest jaśniejszy niż wideo — lżejsze przyciemnienie, play i tak
                   siedzi na plakietce bg-black/55. */}
               <span className="absolute inset-0 flex items-center justify-center bg-black/15">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white">
-                  <Play className="h-3.5 w-3.5 fill-current" />
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white">
+                  <Play className="h-3 w-3 fill-current" />
                 </span>
               </span>
             </button>
           )}
 
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <h3 className="font-bold text-[16px] leading-tight">{localizedName}</h3>
-            </div>
-            <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
-              <span className="text-sm font-medium text-muted-foreground">
-                {t('card.setsCount', { n: workingSets.length })}
-              </span>
-              {/* B-T2: estymacja z widocznym źródłem i osobno fakt (najcięższa seria). */}
+            <h3 className="font-heading text-lg font-bold leading-tight line-clamp-2">{localizedName}</h3>
+            {/* Fala 2 (2026-08-20, mockup 2a): jedna mono linia metadanych.
+                B-T2 bez zmian: estymacja zawsze z widocznym źródłem (formatEst1RMBadge). */}
+            <p className="mt-1 font-mono text-[10px] uppercase leading-snug tracking-[0.08em] text-muted-foreground" title={t('card.maxLiftTitle')}>
               {(() => {
                 const badges = buildRecordBadges(historicalBest);
                 const fmtWeight = (kg: number) => `${Math.round(toDisplay(kg))} ${unit}`;
-                return (
-                  <>
-                    {badges.est1RM && (
-                      <span
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10"
-                      >
-                        <Star className="h-3 w-3 fill-current" />
-                        {formatEst1RMBadge(badges.est1RM, t('card.est1rm'), fmtWeight)}
-                      </span>
-                    )}
-                    {badges.maxLift && (
-                      <span
-                        title={t('card.maxLiftTitle')}
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-border text-muted-foreground bg-muted/40"
-                      >
-                        {formatMaxLiftBadge(badges.maxLift, t('card.maxLift'), fmtWeight)}
-                      </span>
-                    )}
-                  </>
-                );
+                return [
+                  t('card.setsCount', { n: workingSets.length }),
+                  badges.est1RM ? formatEst1RMBadge(badges.est1RM, t('card.est1rm'), fmtWeight) : null,
+                  badges.maxLift ? formatMaxLiftBadge(badges.maxLift, t('card.maxLift'), fmtWeight) : null,
+                ].filter(Boolean).join(' · ');
               })()}
-              {livePRWeight != null && (
-                <span
-                  data-testid="live-pr-badge"
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-success bg-fitness-success/10 text-fitness-success"
-                >
-                  <Trophy className="h-3 w-3" aria-hidden /> PR {Math.round(toDisplay(livePRWeight))} {unit}
-                </span>
-              )}
-              {rzaAdvice ? <RzaAdviceBadge advice={rzaAdvice} />
-                : weeklyTarget && weeklyTarget.kind !== 'start' ? <WeeklyTargetBadge target={weeklyTarget} />
-                : nextAdvice ? <NextTargetBadge advice={nextAdvice} />
-                : progressionAdvice && <ProgressionBadge advice={progressionAdvice} />}
-              {FEATURE_FLAGS.intervalTimers && intervalSpec && (
-                <button
-                  onClick={() => setIntervalRun(r => ({ open: true, runId: r.runId + 1 }))}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
-                >
-                  <Timer className="h-3 w-3" />
-                  {intervalSpec.label}
-                </button>
-              )}
-              {completedSets > 0 && (
-                <span className="text-[11px] font-bold text-fitness-success flex items-center gap-1">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 8.5l3.5 3.5 6.5-7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                  {completedSets}/{workingSets.length}
-                </span>
-              )}
-            </div>
-            {/* Z128.2: jeden zwarty blok metadanych (uzasadnienie celu + ostatnia
-                notatka). Instrukcje wypadły z karty — idą do menu ⋯ (Z129). */}
-            <div className="mt-1.5 space-y-1 empty:mt-0">
-              {weeklyTarget && weeklyTarget.kind !== 'start' && completedSets === 0 ? (
-                <p className="text-[11px] text-muted-foreground/80 leading-snug">{t(weeklyTarget.reasonKey as TranslationKey)}</p>
-              ) : nextAdvice && completedSets === 0 && (
-                <p className="text-[11px] text-muted-foreground/80 leading-snug">{nextAdvice.reason}</p>
-              )}
-              {lastNote && (
-                <p className="text-[11px] text-primary/90 leading-snug flex items-start gap-1">
-                  <StickyNote className="h-3 w-3 shrink-0 mt-0.5" />
-                  {t('notes.lastNote', { note: lastNote })}
-                </p>
-              )}
-            </div>
+            </p>
+            {(livePRWeight != null || (FEATURE_FLAGS.intervalTimers && intervalSpec)) && (
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {livePRWeight != null && (
+                  <span
+                    data-testid="live-pr-badge"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-fitness-success bg-fitness-success/10 text-fitness-success"
+                  >
+                    <Trophy className="h-3 w-3" aria-hidden /> PR {Math.round(toDisplay(livePRWeight))} {unit}
+                  </span>
+                )}
+                {FEATURE_FLAGS.intervalTimers && intervalSpec && (
+                  <button
+                    onClick={() => setIntervalRun(r => ({ open: true, runId: r.runId + 1 }))}
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                  >
+                    <Timer className="h-3 w-3" />
+                    {intervalSpec.label}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1141,6 +1030,33 @@ const ExerciseCardInner = ({
         </DropdownMenu>
       </div>
 
+      {/* ── Fala 2 (2026-08-20): TARGET BOX (kaskada celu) + ostatnia notatka
+          z poprzedniej sesji. Uzasadnienie celu tylko przed pierwszą odhaczoną
+          serią (jak dawny blok metadanych w nagłówku). ── */}
+      {(targetBox || lastNote) && (
+        <div className="space-y-2 px-4 pt-3.5 sm:px-5">
+          {targetBox && (
+            <div className="flex items-start gap-2.5 rounded-xl bg-primary/10 px-3 py-2.5">
+              <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <div className="min-w-0">
+                <p className="font-heading text-[15px] font-bold leading-tight text-primary">
+                  <span className={targetBox.labelClass}>{targetBox.label}</span>: {targetBox.value}
+                </p>
+                {targetBox.reason && completedSets === 0 && (
+                  <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">{targetBox.reason}</p>
+                )}
+              </div>
+            </div>
+          )}
+          {lastNote && (
+            <p className="flex items-start gap-1 text-[11px] leading-snug text-primary/90">
+              <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
+              {t('notes.lastNote', { note: lastNote })}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* ── Pinned note (Z103/B-T4): trwała notatka NAD seriami — user ma ją
           przeczytać PRZED pierwszą serią (ustawienia maszyny, wskazówki), nie
           odkrywać po treningu pod Add set. Edycja nadal wyłącznie z menu ⋯. */}
@@ -1180,7 +1096,10 @@ const ExerciseCardInner = ({
               <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colDuration')}</span>
             )}
             <span className="flex items-center justify-center"><Check className="h-3 w-3 text-muted-foreground/50" aria-hidden /></span>
-            <span />
+            {/* Fala 2 (mockup 2a): licznik odhaczonych serii w ostatniej kolumnie nagłówka. */}
+            <span className="self-center text-center font-mono text-[9px] font-bold tabular-nums text-muted-foreground">
+              {completedSets}/{workingSets.length}
+            </span>
           </div>
         ) : (
         <div className={cn("grid gap-2 px-2 pb-2 mb-1", gridCols)}>
@@ -1191,7 +1110,10 @@ const ExerciseCardInner = ({
           )}
           <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t('card.colReps')}</span>
           <span className="flex items-center justify-center"><Check className="h-3 w-3 text-muted-foreground/50" aria-hidden /></span>
-          <span />
+          {/* Fala 2 (mockup 2a): licznik odhaczonych serii w ostatniej kolumnie nagłówka. */}
+          <span className="self-center text-center font-mono text-[9px] font-bold tabular-nums text-muted-foreground">
+            {completedSets}/{workingSets.length}
+          </span>
         </div>
         )}
 
@@ -1238,7 +1160,7 @@ const ExerciseCardInner = ({
             <button
               onClick={handleAddSet}
               disabled={atSetLimit}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-muted/40 py-3 text-xs font-bold uppercase tracking-[0.14em] text-foreground transition-colors hover:bg-muted/70 hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-surface-low py-3 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-foreground transition-colors hover:bg-surface-high hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
             >
               <Plus className="h-4 w-4" />
               {t('card.addSet')}
@@ -1268,7 +1190,7 @@ const ExerciseCardInner = ({
                   onClick={handleGenerateWarmup}
                   aria-label={t('warmupgen.button')}
                   data-testid="warmup-generate"
-                  className={cn(chipClass, 'bg-muted/40 text-foreground/80 hover:text-foreground')}
+                  className={cn(chipClass, 'bg-surface-low text-foreground/80 hover:text-foreground')}
                 >
                   <Flame className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--ec-warmup-gold))]" />
                   {t('comp.warmup.title')}
@@ -1283,7 +1205,7 @@ const ExerciseCardInner = ({
                 onClick={() => setShowPlates(true)}
                 aria-label={t('plates.openCalculator')}
                 data-testid="plate-calculator-open"
-                className={cn(chipClass, 'bg-muted/40 text-foreground/80 hover:text-foreground')}
+                className={cn(chipClass, 'bg-surface-low text-foreground/80 hover:text-foreground')}
               >
                 <Disc className="h-3.5 w-3.5 shrink-0" />
                 {t('plates.chip')}
@@ -1297,7 +1219,7 @@ const ExerciseCardInner = ({
                   chipClass,
                   showMetrics
                     ? 'bg-primary/10 text-primary'
-                    : 'bg-muted/40 text-foreground/80 hover:text-foreground',
+                    : 'bg-surface-low text-foreground/80 hover:text-foreground',
                 )}
               >
                 <Activity className="h-3.5 w-3.5 shrink-0" />
