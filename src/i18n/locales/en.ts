@@ -205,6 +205,13 @@ export const en: Record<keyof typeof pl, string> = {
   'dash.week.title': 'Week {current} of {total}',
   'dash.week.sessions': '{done} of {total} sessions',
   'dash.week.deload': 'Deload',
+  // Fala 2 (2026-08-20): pasek tygodnia z segmentami + redesign hero.
+  'dash.week.short': 'Wk {current}/{total}',
+  'dash.week.doneToday': 'Today done · {day}',
+  'dash.streakChip': '{n}-week streak',
+  'dash.hero.today': "Today's session",
+  'dash.hero.planStarts': 'Plan starts',
+  'dash.nextStep.decide': 'Decide',
   'dash.whatNext': "What's next with the plan?",
   'dash.dismissHint': 'Hide hint',
   'dash.stat.workouts': 'Workouts',
@@ -1096,6 +1103,8 @@ export const en: Record<keyof typeof pl, string> = {
   'comp.header.offline': 'Offline',
   'comp.header.workoutsCount': 'Completed workouts: {count}',
   'comp.header.back': 'Back',
+  // Fala 2 (2026-08-20): sufiks mono w badge licznika treningów ("82 TOTAL").
+  'comp.header.totalSuffix': 'Total',
   'comp.emailGate.codeSentTitle': 'Code sent',
   'comp.emailGate.codeSentDesc': 'Check your inbox and enter the code to activate your account.',
   'comp.emailGate.sendError': 'Failed to send the code.',

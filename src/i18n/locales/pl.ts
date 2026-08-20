@@ -211,6 +211,13 @@ export const pl = {
   'dash.week.title': 'Tydzień {current} z {total}',
   'dash.week.sessions': '{done} z {total} sesji',
   'dash.week.deload': 'Deload',
+  // Fala 2 (2026-08-20): pasek tygodnia z segmentami + redesign hero.
+  'dash.week.short': 'Tydz. {current}/{total}',
+  'dash.week.doneToday': 'Dzisiaj zrobione · {day}',
+  'dash.streakChip': '{n} tyg. serii',
+  'dash.hero.today': 'Dzisiejsza sesja',
+  'dash.hero.planStarts': 'Plan startuje',
+  'dash.nextStep.decide': 'Zdecyduj',
   'dash.whatNext': 'Co dalej z planem?',
   'dash.dismissHint': 'Ukryj podpowiedź',
   'dash.stat.workouts': 'Treningi',
@@ -1118,6 +1125,8 @@ export const pl = {
   'comp.header.offline': 'Offline',
   'comp.header.workoutsCount': 'Ukończone treningi: {count}',
   'comp.header.back': 'Wstecz',
+  // Fala 2 (2026-08-20): sufiks mono w badge licznika treningów ("82 ŁĄCZNIE").
+  'comp.header.totalSuffix': 'Łącznie',
   'comp.emailGate.codeSentTitle': 'Kod wysłany',
   'comp.emailGate.codeSentDesc': 'Sprawdź skrzynkę mailową i wpisz kod, aby aktywować konto.',
   'comp.emailGate.sendError': 'Nie udało się wysłać kodu.',
