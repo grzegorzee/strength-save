@@ -208,6 +208,20 @@ export const countRemainingWorkouts = (params: {
   return total;
 };
 
+// T17 (feedback 2026-08-20): procent postępu planu z TRENINGÓW, nie z numeru
+// tygodnia — "tydzień 12/12" pokazywał 100% mimo czekającego piątku. Konstrukcja
+// completed/(completed+remaining) z natury nigdy nie przekracza 100.
+export const computePlanProgressPercent = (params: {
+  completedCount: number;
+  remainingCount: number;
+  planStarted: boolean;
+}): number => {
+  if (!params.planStarted) return 0;
+  const total = params.completedCount + params.remainingCount;
+  if (total <= 0) return 0;
+  return Math.round((params.completedCount / total) * 100);
+};
+
 export const buildTrainingSchedule = (
   planDays: TrainingDay[],
   startDate: Date,

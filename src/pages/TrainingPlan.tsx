@@ -13,7 +13,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, Dumbbell, History, Pencil, CheckCircle, HeartPulse, Zap, Timer, Plane } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { buildTrainingSchedule, countRemainingWorkouts, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
+import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -293,6 +293,26 @@ const TrainingPlan = () => {
 
   // Plan not started yet (start date in the future) → week 0, no progress.
   const planStarted = getStartOfPlanWeek(today).getTime() >= startDate.getTime();
+
+  // T17: te same liczby co kafle Ukończone/Pozostało (hoisting bez zmiany
+  // parametrów) napędzają też procent postępu.
+  const completedInPlan = useMemo(
+    () => workouts.filter(w => w.completed && (!planStartDate || w.date >= planStartDate)).length,
+    [workouts, planStartDate],
+  );
+  const remainingWorkouts = useMemo(
+    () => (planStartDate ? countRemainingWorkouts({
+      planDays: trainingPlan,
+      today: new Date(),
+      planStartDate: parseLocalDate(planStartDate),
+      durationWeeks: planDurationWeeks,
+      completedDates: new Set(workouts.filter(w => w.completed).map(w => w.date)),
+      skippedDates,
+      isDateBlocked: vacation ? (key) => isVacationActive(vacation, key) : undefined,
+      overrides: scheduleOverrides,
+    }) : 0),
+    [trainingPlan, planStartDate, planDurationWeeks, workouts, skippedDates, vacation, scheduleOverrides],
+  );
   const actualCurrentWeek = planStarted ? Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek)) : 0;
   const selectedOrToday = selectedDate || today;
   const selectedWeekNumber = Math.floor((startOfLocalDay(selectedOrToday).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
@@ -357,7 +377,13 @@ const TrainingPlan = () => {
     return { long, short };
   };
 
-  const progressPercent = Math.min(100, Math.round((actualCurrentWeek / planDurationWeeks) * 100));
+  // T17: procent z treningów (ukończone / (ukończone + pozostałe)), nie z numeru
+  // tygodnia — w trakcie tygodnia 12/12 z czekającym piątkiem pokazywał 100%.
+  const progressPercent = computePlanProgressPercent({
+    completedCount: completedInPlan,
+    remainingCount: remainingWorkouts,
+    planStarted,
+  });
 
   return (
     <div className="space-y-6">
@@ -684,23 +710,14 @@ const TrainingPlan = () => {
               </div>
               <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">
-                  {workouts.filter(w => w.completed && (!planStartDate || w.date >= planStartDate)).length}
+                  {completedInPlan}
                 </p>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statCompleted')}</p>
               </div>
               <div className="rounded-2xl p-4 border-0 bg-surface-low text-center">
                 <p className="text-3xl font-black text-primary tracking-tight">
                   {/* E-T4: pozostałe TRENINGI (nie tygodnie) — spójna jednostka z kaflem Ukończone. */}
-                  {planStartDate ? countRemainingWorkouts({
-                    planDays: trainingPlan,
-                    today: new Date(),
-                    planStartDate: parseLocalDate(planStartDate),
-                    durationWeeks: planDurationWeeks,
-                    completedDates: new Set(workouts.filter(w => w.completed).map(w => w.date)),
-                    skippedDates,
-                    isDateBlocked: vacation ? (key) => isVacationActive(vacation, key) : undefined,
-                    overrides: scheduleOverrides,
-                  }) : 0}
+                  {remainingWorkouts}
                 </p>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/70 mt-1">{t('trainingplan.statRemaining')}</p>
               </div>
