@@ -14,6 +14,11 @@ export const pl = {
   'common.loadMore': 'Załaduj więcej',
   'common.results': 'wyników',
   'dateInput.pick': 'Wybierz datę',
+  'range.pick': 'Wybierz zakres dat',
+  'range.pickEnd': 'Wybierz dzień końcowy',
+  'range.clear': 'Wyczyść',
+  'range.prevMonth': 'Poprzedni miesiąc',
+  'range.nextMonth': 'Następny miesiąc',
 
   // nawigacja
   'nav.dashboard': 'Dashboard',

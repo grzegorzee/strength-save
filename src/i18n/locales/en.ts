@@ -14,6 +14,11 @@ export const en: Record<keyof typeof pl, string> = {
   'common.loadMore': 'Load more',
   'common.results': 'results',
   'dateInput.pick': 'Pick a date',
+  'range.pick': 'Pick a date range',
+  'range.pickEnd': 'Pick an end date',
+  'range.clear': 'Clear',
+  'range.prevMonth': 'Previous month',
+  'range.nextMonth': 'Next month',
 
   'nav.dashboard': 'Dashboard',
   'nav.today': 'Today',
