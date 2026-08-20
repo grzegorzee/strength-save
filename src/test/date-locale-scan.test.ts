@@ -22,7 +22,6 @@ const LOCALE_ALLOWLIST = new Set([
 // Reguła B: jedyne pliki, którym wolno renderować natywny <input type="date">.
 const DATE_INPUT_ALLOWLIST = new Set([
   'src/components/LocalizedDateInput.tsx', // wrapper — jedyny właściciel natywnego inputa (T18-1)
-  'src/components/PlanWizard.tsx', // do zdjęcia przy T2 (przebudowa kroku daty startu onboardingu)
 ]);
 
 const walk = (dir: string): string[] =>

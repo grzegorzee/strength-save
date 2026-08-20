@@ -9,6 +9,7 @@ import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjectiv
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
+import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import { ACCENTS, applyAccent, getAccentById, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
 import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
 import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, planDaysMismatch, WEEKDAYS } from '@/lib/plan-cycle-utils';
@@ -396,24 +397,25 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     const on = ds === startDate;
                     return (
                       <button key={ds} onClick={() => setStartDate(ds)} className={cn('shrink-0 w-16 rounded-full py-2 flex flex-col items-center transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}>
-                        <span className="text-[10px] font-medium uppercase">{i === 0 ? t('ob.today') : d.toLocaleDateString(dateLocale(lang), { month: 'short' })}</span>
+                        {/* T2 (feedback 2026-08-20): góra = dzień tygodnia (śr., czw.), dół = miesiąc. */}
+                        <span className="text-[10px] font-medium uppercase">{i === 0 ? t('ob.today') : d.toLocaleDateString(dateLocale(lang), { weekday: 'short' })}</span>
                         <span className="font-heading font-bold text-lg leading-none mt-0.5">{d.getDate()}</span>
+                        <span className="text-[9px] uppercase opacity-70 mt-0.5">{d.toLocaleDateString(dateLocale(lang), { month: 'short' })}</span>
                       </button>
                     );
                   })}
                 </div>
-                {/* Z233: kalendarz jako pełnowymiarowa kontrolka, nie podpis — natywny date picker po tapnięciu. */}
-                {/* TODO(T2): goły input type="date" pokazuje datę w formacie SYSTEMU (allowlista guardu
-                    date-locale-scan). Krok przerabia T2 — wtedy przejść na LocalizedDateInput i zdjąć wpis. */}
+                {/* Z233: kalendarz jako pełnowymiarowa kontrolka, nie podpis — natywny date picker po tapnięciu.
+                    T2: LocalizedDateInput zamiast gołego inputa — etykieta w języku apki, nie systemu. */}
                 <label className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-surface-highest px-4 py-3 cursor-pointer">
                   <Calendar className="h-4 w-4 text-primary shrink-0" />
                   <span className="flex-1 text-[13px] font-medium">{t('ob.protocol.specificDate')}</span>
-                  <input type="date" value={startDate} min={formatLocalDate(new Date())} onChange={e => setStartDate(e.target.value)} className="bg-transparent text-foreground outline-none text-right font-medium" />
+                  <LocalizedDateInput value={startDate} min={formatLocalDate(new Date())} onChange={e => setStartDate(e.target.value)} className="w-36 shrink-0" />
                 </label>
                 <p className="text-[11px] text-muted-foreground mt-2">
                   {t('ob.protocol.startPreview', {
-                    selected: new Date(`${startPreview.selectedDate}T00:00:00`).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
-                    start: new Date(`${startPreview.cycleStartDate}T00:00:00`).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+                    selected: new Date(`${startPreview.selectedDate}T00:00:00`).toLocaleDateString(dateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' }),
+                    start: new Date(`${startPreview.cycleStartDate}T00:00:00`).toLocaleDateString(dateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' }),
                   })}
                 </p>
               </div>
