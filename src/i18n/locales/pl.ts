@@ -2117,6 +2117,10 @@ export const pl = {
   'admin.emails.typeInvite': 'zaproszenie',
   'admin.emails.typeAccessChanged': 'zmiana dostępu',
   'admin.emails.typeSelfDeletion': 'usunięcie konta',
+  // T22b: filtry listy maili
+  'admin.emails.filterAll': 'wszystkie',
+  'admin.emails.searchPlaceholder': 'Szukaj: adres, temat, uid, typ',
+  'admin.emails.noMatches': 'Brak wyników dla filtra',
   'admin.emails.forUser': 'Maile użytkownika',
   'admin.emails.emptyForUser': 'Brak maili do tego użytkownika',
   'admin.emails.viewContent': 'Pokaż treść',

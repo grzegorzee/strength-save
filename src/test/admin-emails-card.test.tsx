@@ -75,7 +75,8 @@ describe('AdminEmailsCard (G-T4)', () => {
     const view = renderCard();
     expect(await view.findByText('trener@example.com')).toBeTruthy();
     expect(view.getByText('Trening 2026-08-20, Czwartek (Strength Save)')).toBeTruthy();
-    expect(view.getByText('otwarty')).toBeTruthy();
+    // T22b: etykieta statusu występuje też jako chip filtra (button) — badge wiersza to span.
+    expect(view.getAllByText('otwarty').some((el) => el.tagName === 'SPAN')).toBe(true);
     expect(view.getByText('3 otwarć')).toBeTruthy();
     expect(view.getByText('ses')).toBeTruthy();
   });
@@ -86,9 +87,10 @@ describe('AdminEmailsCard (G-T4)', () => {
       docSnap('el2', { ...baseRow, status: 'failed', error: 'no-transport-configured' }),
     ]));
     const view = renderCard();
-    expect(await view.findByText('SPAM')).toBeTruthy();
-    expect(view.getByText('błąd')).toBeTruthy();
-    expect(view.getByText(/no-transport-configured/)).toBeTruthy();
+    await view.findByText(/no-transport-configured/);
+    // T22b: etykiety statusów są też chipami filtra (button) — badge wiersza to span.
+    expect(view.getAllByText('SPAM').some((el) => el.tagName === 'SPAN')).toBe(true);
+    expect(view.getAllByText('błąd').some((el) => el.tagName === 'SPAN')).toBe(true);
   });
 
   it('kafle zbiorcze 7 i 30 dni z adnotacją o limicie', async () => {
@@ -133,5 +135,38 @@ describe('AdminEmailsCard (G-T4)', () => {
     const view = renderCard();
     fireEvent.click(await view.findByRole('button', { name: 'Pokaż treść' }));
     expect(await view.findByText(/Treść niedostępna/)).toBeTruthy();
+  });
+
+  // T22b: filtry client-side — chip statusu zawęża listę, kafle bez zmian.
+  it('chip odbity zostawia tylko odbite, kafle liczone z pełnej listy', async () => {
+    getDocsMock.mockResolvedValue(snapshot([
+      docSnap('el1', { ...baseRow, subject: 'Mail A' }),
+      docSnap('el2', { ...baseRow, subject: 'Mail B', status: 'bounced' }),
+    ]));
+    const view = renderCard();
+    expect(await view.findByText('Mail A')).toBeTruthy();
+    fireEvent.click(view.getByRole('button', { name: 'odbity' }));
+    expect(view.queryByText('Mail A')).toBeNull();
+    expect(view.getByText('Mail B')).toBeTruthy();
+    // Kafel "Wysłane" (7 i 30 dni) dalej liczy z pełnych rows: 2 wysyłki.
+    expect(view.getAllByText('2').length).toBeGreaterThanOrEqual(2);
+    // Wyjście z filtra zawsze widoczne: chip "wszystkie" przywraca listę.
+    fireEvent.click(view.getByRole('button', { name: 'wszystkie' }));
+    expect(view.getByText('Mail A')).toBeTruthy();
+  });
+
+  it('szukajka zawęża po adresie/temacie, pusty wynik ma komunikat', async () => {
+    getDocsMock.mockResolvedValue(snapshot([
+      docSnap('el1', { ...baseRow, subject: 'Mail A' }),
+      docSnap('el2', { ...baseRow, subject: 'Mail B' }),
+    ]));
+    const view = renderCard();
+    await view.findByText('Mail A');
+    const input = view.getByPlaceholderText('Szukaj: adres, temat, uid, typ');
+    fireEvent.change(input, { target: { value: 'mail b' } });
+    expect(view.queryByText('Mail A')).toBeNull();
+    expect(view.getByText('Mail B')).toBeTruthy();
+    fireEvent.change(input, { target: { value: 'nie-ma-takiego' } });
+    expect(view.getByText('Brak wyników dla filtra')).toBeTruthy();
   });
 });

@@ -1,7 +1,7 @@
 // G-T4: czysta logika panelu Maile — status wyświetlany (priorytety) i kafle
 // zbiorcze 7/30 dni liczone z ostatnich N wpisów email_log (limit zapytania).
 import { describe, expect, it } from 'vitest';
-import { emailDisplayStatus, emailStats, type EmailLogRow } from '@/lib/admin-email-stats';
+import { emailDisplayStatus, emailStats, emailTypeLabelKey, filterEmailRows, type EmailLogRow } from '@/lib/admin-email-stats';
 
 const row = (over: Partial<EmailLogRow> = {}): EmailLogRow => ({
   id: 'el1',
@@ -80,5 +80,48 @@ describe('emailStats (G-T4)', () => {
     expect(stats.openedPct).toBeNull();
     expect(stats.bouncePct).toBeNull();
     expect(stats.complaints).toBe(0);
+  });
+});
+
+// T21c: etykiety typów maili — znane mapowane na klucze, nieznane → null.
+describe('emailTypeLabelKey (T21c)', () => {
+  it('znane typy mapują się na klucze i18n', () => {
+    expect(emailTypeLabelKey('workout')).toBe('admin.emails.typeWorkout');
+    expect(emailTypeLabelKey('weekly_digest')).toBe('admin.emails.typeWeeklyDigest');
+    expect(emailTypeLabelKey('verification_code')).toBe('admin.emails.typeVerification');
+  });
+
+  it('nieznany typ = null (UI pokazuje surowy string)', () => {
+    expect(emailTypeLabelKey('nowy_typ')).toBeNull();
+  });
+});
+
+// T22b: filtr client-side listy — status display + szukajka, bez zapytań.
+describe('filterEmailRows (T22b)', () => {
+  const rows = [
+    row({ id: 'a', to: 'trener@example.com', subject: 'Mail A' }),
+    row({ id: 'b', to: 'kolega@inna.pl', subject: 'Mail B', status: 'delivered', deliveredAt: 'T', openedAt: 'T' }),
+    row({ id: 'c', to: 'ktos@example.com', subject: 'Mail C', status: 'bounced' }),
+  ];
+
+  it('filtr po statusie display (opened wygrywa z delivered jak w emailDisplayStatus)', () => {
+    expect(filterEmailRows(rows, { status: 'opened', search: '' }).map((r) => r.id)).toEqual(['b']);
+    expect(filterEmailRows(rows, { status: 'delivered', search: '' })).toEqual([]);
+    expect(filterEmailRows(rows, { status: 'bounced', search: '' }).map((r) => r.id)).toEqual(['c']);
+  });
+
+  it('search po fragmencie adresu, case-insensitive', () => {
+    expect(filterEmailRows(rows, { search: 'INNA.PL' }).map((r) => r.id)).toEqual(['b']);
+    expect(filterEmailRows(rows, { search: 'example' }).map((r) => r.id)).toEqual(['a', 'c']);
+  });
+
+  it('search dopasowuje też temat, uid i typ', () => {
+    expect(filterEmailRows(rows, { search: 'mail c' }).map((r) => r.id)).toEqual(['c']);
+    expect(filterEmailRows(rows, { search: 'u1' }).length).toBe(3);
+    expect(filterEmailRows(rows, { search: 'workout' }).length).toBe(3);
+  });
+
+  it('pusty search + status all = wszystko (kolejność zachowana)', () => {
+    expect(filterEmailRows(rows, { status: 'all', search: '  ' }).map((r) => r.id)).toEqual(['a', 'b', 'c']);
   });
 });

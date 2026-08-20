@@ -54,6 +54,23 @@ export function emailDisplayStatus(row: EmailLogRow): EmailDisplayStatus {
   return 'sent';
 }
 
+// T22b: filtr client-side listy (na pobranych wierszach, bez nowych zapytań).
+// NIEZMIENNIK: kafle 7/30 dni liczone ZAWSZE z pełnego zestawu, nie z filtra.
+export interface EmailRowFilter {
+  status?: EmailDisplayStatus | 'all';
+  search: string;
+}
+
+export function filterEmailRows(rows: EmailLogRow[], filter: EmailRowFilter): EmailLogRow[] {
+  const needle = filter.search.trim().toLowerCase();
+  return rows.filter((row) => {
+    if (filter.status && filter.status !== 'all' && emailDisplayStatus(row) !== filter.status) return false;
+    if (!needle) return true;
+    return [row.to, row.subject, row.uid, row.type]
+      .some((value) => value.toLowerCase().includes(needle));
+  });
+}
+
 export interface EmailStats {
   sent: number;
   deliveredPct: number | null;

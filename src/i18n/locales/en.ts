@@ -2095,6 +2095,10 @@ export const en: Record<keyof typeof pl, string> = {
   'admin.emails.typeInvite': 'invite',
   'admin.emails.typeAccessChanged': 'access changed',
   'admin.emails.typeSelfDeletion': 'account deletion',
+  // T22b: email list filters
+  'admin.emails.filterAll': 'all',
+  'admin.emails.searchPlaceholder': 'Search: address, subject, uid, type',
+  'admin.emails.noMatches': 'No results for this filter',
   'admin.emails.forUser': 'User emails',
   'admin.emails.emptyForUser': 'No emails for this user',
   'admin.emails.viewContent': 'View content',

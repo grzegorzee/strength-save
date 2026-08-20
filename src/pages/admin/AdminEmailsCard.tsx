@@ -3,10 +3,14 @@ import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Mail } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import {
   emailStats,
+  filterEmailRows,
+  type EmailDisplayStatus,
   type EmailLogRow,
   type EmailStats,
 } from '@/lib/admin-email-stats';
@@ -20,6 +24,9 @@ import { EmailLogRowItem, EmailPreviewDialog, useEmailPreview } from './EmailLog
 
 const EMAIL_LOG_LIMIT = 100;
 
+// T22b: chipy filtra statusu (klucze etykiet = istniejące admin.emails.status*).
+const STATUS_FILTERS = ['all', 'sent', 'delivered', 'opened', 'bounced', 'complaint', 'failed'] as const;
+
 const pctLabel = (value: number | null): string => (value === null ? '—' : `${value}%`);
 
 export const AdminEmailsCard = () => {
@@ -27,6 +34,9 @@ export const AdminEmailsCard = () => {
   const [rows, setRows] = useState<EmailLogRow[] | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // T22b: filtr działa TYLKO na listę; kafle 7/30 dni zawsze z pełnych rows.
+  const [statusFilter, setStatusFilter] = useState<EmailDisplayStatus | 'all'>('all');
+  const [search, setSearch] = useState('');
   const { preview, openPreview, closePreview } = useEmailPreview();
 
   useEffect(() => {
@@ -97,23 +107,62 @@ export const AdminEmailsCard = () => {
             </Button>
           </div>
         )}
-        {rows !== null && (
-          <>
-            {statsBlock(t('admin.emails.days7'), emailStats(rows, 7))}
-            {statsBlock(t('admin.emails.days30'), emailStats(rows, 30))}
-            <p className="text-xs text-muted-foreground">
-              {t('admin.emails.limitNote', { n: EMAIL_LOG_LIMIT })}
-            </p>
-            <div className="space-y-2">
-              {rows.map((row) => (
-                <EmailLogRowItem key={row.id} row={row} onPreview={(r) => void openPreview(r)} />
-              ))}
-            </div>
-            {rows.length === 0 && (
-              <p className="text-sm text-muted-foreground">{t('admin.emails.empty')}</p>
-            )}
-          </>
-        )}
+        {rows !== null && (() => {
+          const filteredRows = filterEmailRows(rows, { status: statusFilter, search });
+          const filterLabel = (key: typeof STATUS_FILTERS[number]): string => ({
+            all: t('admin.emails.filterAll'),
+            sent: t('admin.emails.statusSent'),
+            delivered: t('admin.emails.statusDelivered'),
+            opened: t('admin.emails.statusOpened'),
+            bounced: t('admin.emails.statusBounced'),
+            complaint: t('admin.emails.statusComplaint'),
+            failed: t('admin.emails.statusFailed'),
+          }[key]);
+          return (
+            <>
+              {statsBlock(t('admin.emails.days7'), emailStats(rows, 7))}
+              {statsBlock(t('admin.emails.days30'), emailStats(rows, 30))}
+              <p className="text-xs text-muted-foreground">
+                {t('admin.emails.limitNote', { n: EMAIL_LOG_LIMIT })}
+              </p>
+              {/* T22b: szukajka + chipy statusu (wzorzec sekcji userów) */}
+              <div className="space-y-2">
+                <Input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder={t('admin.emails.searchPlaceholder')}
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {STATUS_FILTERS.map((key) => (
+                    <button
+                      key={key}
+                      onClick={() => setStatusFilter(key)}
+                      className={cn(
+                        'rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide',
+                        statusFilter === key
+                          ? 'bg-fitness-cyan text-background'
+                          : 'bg-surface-highest text-muted-foreground',
+                      )}
+                    >
+                      {filterLabel(key)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                {filteredRows.map((row) => (
+                  <EmailLogRowItem key={row.id} row={row} onPreview={(r) => void openPreview(r)} />
+                ))}
+              </div>
+              {rows.length === 0 && (
+                <p className="text-sm text-muted-foreground">{t('admin.emails.empty')}</p>
+              )}
+              {rows.length > 0 && filteredRows.length === 0 && (
+                <p className="text-sm text-muted-foreground">{t('admin.emails.noMatches')}</p>
+              )}
+            </>
+          );
+        })()}
         <EmailPreviewDialog preview={preview} onClose={closePreview} />
       </CardContent>
     </Card>
