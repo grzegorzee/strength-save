@@ -523,7 +523,7 @@ const WorkoutHistory = () => {
             <AlertDialogTitle>{t('history.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t('history.deleteDesc', {
-                day: pendingDelete ? resolver.resolveDayLabel(pendingDelete).dayName : '',
+                day: pendingDelete ? localizeDayName(resolver.resolveDayLabel(pendingDelete).dayName, lang) : '',
                 date: pendingDelete?.date ?? '',
               })}
             </AlertDialogDescription>
