@@ -230,11 +230,12 @@ try {
   activePage = page;
   page.on('pageerror', (error) => pageErrors.push(error.stack || error.message));
   await page.goto(`${emulatorUrl}#/login`, { waitUntil: 'load', timeout: 30_000 });
-  await page.getByRole('tab', { name: /Email \+ (hasło|password)/i }).click();
-  const loginPanel = page.getByRole('tabpanel', { name: /Email \+ (hasło|password)/i });
-  await loginPanel.getByPlaceholder('Email').fill(email);
-  await loginPanel.getByPlaceholder(/Hasło|Password/i, { exact: true }).fill(password);
-  await loginPanel.getByRole('button', { name: /Zaloguj przez email|Sign in with email/i }).click();
+  // Redesign logowania (2026-08-20): social-first, email za przyciskiem
+  // "Kontynuuj z emailem" zamiast zakładek.
+  await page.getByRole('button', { name: /Kontynuuj z emailem|Continue with email/i }).click();
+  await page.getByPlaceholder('Email').fill(email);
+  await page.getByPlaceholder(/^(Hasło|Password)$/i).fill(password);
+  await page.getByRole('button', { name: /Zaloguj przez email|Sign in with email/i }).click();
   await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 20_000 });
   await page.getByRole('button', { name: /Rozpocznij trening|Start workout/i }).waitFor({ timeout: 15_000 });
   result.onlineDashboard = true;
