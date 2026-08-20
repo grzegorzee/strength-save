@@ -367,7 +367,17 @@ const Profile = () => {
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
         </div>
-        <h1 className="font-heading text-3xl font-bold uppercase italic tracking-tight">{profile?.displayName || t('profile.title')}</h1>
+        {/* F-T1: imię edytowalne wprost pod zdjęciem — tap otwiera istniejący dialog. */}
+        <button
+          type="button"
+          data-testid="profile-name-edit"
+          onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }}
+          className="group inline-flex items-center gap-2"
+          aria-label={t('profile.account.edit')}
+        >
+          <h1 className="font-heading text-3xl font-bold uppercase italic tracking-tight">{profile?.displayName || t('profile.title')}</h1>
+          <Pencil className="h-4 w-4 text-muted-foreground transition-colors group-active:text-primary" />
+        </button>
         {profile?.email && <p className="text-sm text-muted-foreground">{profile.email}</p>}
         <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} tierLabel={tier.label} />
         {/* PRO-D T3: postęp do następnego poziomu; elite (next=null) bez paska. */}

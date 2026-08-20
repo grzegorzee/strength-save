@@ -130,6 +130,12 @@ describe('krok 3: reorganizacja sekcji Profilu', () => {
     expect(app.textContent).not.toContain('Dźwięk timera');
   });
 
+  it('F-T1: tap w imię pod zdjęciem otwiera dialog edycji imienia', async () => {
+    const { getByTestId, getByLabelText } = renderProfile();
+    fireEvent.click(getByTestId('profile-name-edit'));
+    await waitFor(() => expect(getByLabelText('Imię')).toBeTruthy());
+  });
+
   it('niezmiennik: wszystkie dotychczasowe wiersze i akcje obecne', () => {
     const { container, getByText } = renderProfile();
     // TWOJE DANE

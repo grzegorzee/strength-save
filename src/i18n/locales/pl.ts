@@ -73,7 +73,7 @@ export const pl = {
   'profile.support.about': 'O aplikacji',
   'profile.logout': 'Wyloguj',
   'profile.editTitle': 'Edytuj profil',
-  'profile.nameLabel': 'Nazwa',
+  'profile.nameLabel': 'Imię',
   'profile.namePlaceholder': 'Twoja nazwa',
   'profile.langSaved': 'Język zapisany',
 
