@@ -48,14 +48,19 @@
 
 ## G-T2 — pipeline zdarzeń SES → Firestore
 
-- [ ] AWS (aws CLI, profil default, region eu-central-1, tag Project=strengthsave):
+- [x] AWS (aws CLI, profil default, region eu-central-1, tag Project=strengthsave):
   1. SNS topic `strengthsave-ses-events`.
   2. `aws sesv2 put-configuration-set-event-destination` na config secie
      `strengthsave`: destination SNS z topikiem, matching event types:
      SEND, DELIVERY, BOUNCE, COMPLAINT, OPEN, CLICK, REJECT, DELIVERY_DELAY,
      RENDERING_FAILURE. (OPEN/CLICK włączają pixel/link tracking — to daje
      otwieralność.)
-- [ ] Functions: `sesEventsWebhook` (onRequest, region us-central1 jak reszta):
+  DOWÓD: topic utworzony + polityka pozwalająca ses.amazonaws.com publikować
+  (warunki SourceAccount/SourceArn config setu); event destination
+  `strengthsave-sns-events` Enabled z 9 typami (get-...-event-destinations OK).
+  OGRANICZENIE: user IAM ad-system-admin nie ma SNS:TagResource — topic bez
+  tagu Project (reszta zasobów otagowana).
+- [x] Functions: `sesEventsWebhook` (onRequest, region us-central1 jak reszta):
   - obsługa SNS `SubscriptionConfirmation` (fetch SubscribeURL — auto-confirm),
   - WALIDACJA podpisu SNS (pakiet `sns-validator` albo równoważna weryfikacja
     SigningCertURL z domeny sns.<region>.amazonaws.com + podpis SHA1withRSA;
@@ -71,14 +76,26 @@
   - Czysta logika parsowania/mapowania w osobnym module
     `functions/src/ses-events.ts` + testy na wszystkie typy eventów
     (fixtures z realnego formatu SES event publishing).
-- [ ] Deploy funkcji, potem `aws sns subscribe --protocol https --notification-endpoint <URL webhooka>`
+  DOWÓD: commit 0cfee330 — ses-events.ts (parseSnsEnvelope, mapSesEvent,
+  applyLogUpdate z niezmiennikiem "zdarzenia nie cofają mocniejszych
+  statusów"), 20 testów GREEN (vitest functions 264 passed), webhook z
+  sns-validator + sekret SES_SNS_TOPIC_ARN (pełny ARN poza publicznym repo).
+- [x] Deploy funkcji, potem `aws sns subscribe --protocol https --notification-endpoint <URL webhooka>`
   i sprawdzenie w logach potwierdzenia subskrypcji (status Confirmed:
   `aws sns list-subscriptions-by-topic`).
-- [ ] TEST END-TO-END realny: wyślij przez SES (klucz z
+  DOWÓD: sesEventsWebhook(us-central1) wdrożony
+  (https://us-central1-fittracker-workouts.cloudfunctions.net/sesEventsWebhook);
+  list-subscriptions-by-topic zwraca pełny SubscriptionArn (nie pending);
+  log funkcji: "[SesEvents] SubscriptionConfirmation potwierdzone (HTTP 200)".
+- [x] TEST END-TO-END realny: wyślij przez SES (klucz z
   `~/FIRMA/_secrets/projekty/strengthsave-ses.env`, NIE wypisywać sekretów)
   jednego maila testowego na g.jasionowicz@gmail.com i potwierdź, że w
   `email_events` pojawiły się SEND + DELIVERY, a `email_log` (wpis utworzony
   ręcznie w teście albo przez wysyłkę funkcją) dostał status 'delivered'.
+  DOWÓD: MessageId 010701a01e955262-6eb8fd62-29ff-4b32-8586-d939f22ed9ea-000000;
+  email_events: Send 09:51:37.570Z + Delivery 09:51:38.299Z + Open 09:51:39.430Z;
+  email_log O3CC78xy7KG60QeLnvxb: status=delivered, deliveredAt, openedAt,
+  openCount=1 (pixel trackingu działa od razu).
 
 ## G-T3 — szablony maili w stylu marki
 
