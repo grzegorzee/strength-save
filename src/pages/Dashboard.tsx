@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { ProUpsellBanner } from '@/components/ProUpsellBanner';
 import { Dumbbell, Weight, Trophy, Flame, ChevronRight, BarChart3, Sun, Moon, TrendingUp, TrendingDown, Minus, Route, CheckCircle, Play, CloudOff, X, RefreshCw, Loader2, ShieldCheck, Zap, HeartPulse, Leaf, CalendarClock } from 'lucide-react';
@@ -73,6 +74,13 @@ const Dashboard = () => {
   // Powrót z completion (spec A1 Runna p.1): podświetl kartę dnia z "co dalej".
   // Osobny stan, bo showConfetti gaśnie po onDone, a podświetlenie ma zostać.
   const [completionHighlight] = useState(() => searchParams.get('celebrate') === '1');
+  // T4 (feedback 2026-08-20): po onboardingu (?welcome=1, oba wejścia: web
+  // i iOS-po-paywallu) zaproponuj pomiary startowe. Ref czyta param ZANIM
+  // effect wyczyści URL (ten sam trick co showConfetti); decyzja "brak
+  // pomiarów" zapada JEDNORAZOWO przy isLoaded, żeby napływ snapshotu nie
+  // zamykał otwartego dialogu (pułapka Radix z CLAUDE.md).
+  const wantsMeasurePrompt = useRef(searchParams.get('welcome') === '1');
+  const [measurePromptOpen, setMeasurePromptOpen] = useState(false);
   useEffect(() => {
     if (searchParams.get('welcome') === '1' || searchParams.get('celebrate') === '1') {
       const next = new URLSearchParams(searchParams);
@@ -102,6 +110,14 @@ const Dashboard = () => {
   useEffect(() => {
     if (isLoaded && planIsLoaded) markStartup('dashboard-interactive');
   }, [isLoaded, planIsLoaded]);
+  // T4: popup pomiarów tylko dla usera BEZ żadnego pomiaru (stały user wracający
+  // przez redirect /onboarding -> /?welcome=1 go nie zobaczy).
+  useEffect(() => {
+    if (!wantsMeasurePrompt.current || !isLoaded) return;
+    wantsMeasurePrompt.current = false;
+    if (!getLatestMeasurement()) setMeasurePromptOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded]);
   // Z112: strumień zunifikowany (Strava + ręczne cardio); karty
   // czysto-Stravowe dalej liczą ze stravaActivities.
   // Z173: świeże "dzisiaj" (rollover doby, powrót z tła) zamiast daty zamrożonej
@@ -725,6 +741,17 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {showConfetti && <ConfettiBurst onDone={() => setShowConfetti(false)} />}
+      {/* T4: zawsze zamontowany — widoczność wyłącznie przez open (pułapka Radix:
+          unmount otwartego dialogu zostawia scroll-lock na body). */}
+      <ConfirmDialog
+        open={measurePromptOpen}
+        onOpenChange={setMeasurePromptOpen}
+        title={t('dash.measurePrompt.title')}
+        description={t('dash.measurePrompt.desc')}
+        confirmLabel={t('dash.measurePrompt.confirm')}
+        cancelLabel={t('dash.measurePrompt.decline')}
+        onConfirm={() => navigate('/measurements')}
+      />
       <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} />
       {/* Greeting */}
       <div data-testid="dash-greeting">

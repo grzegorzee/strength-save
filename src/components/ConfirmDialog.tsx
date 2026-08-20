@@ -17,13 +17,15 @@ interface ConfirmDialogProps {
   title: string;
   description: string;
   confirmLabel: string;
+  /** Etykieta odrzucenia; domyślnie common.cancel (T4: "Nie teraz" w popupie pomiarów). */
+  cancelLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
 }
 
 // Wspólny dialog potwierdzenia dla akcji destrukcyjnych (kasowanie, reset, merge).
 // Jeden wzorzec zamiast trzech różnych (AlertDialog inline / brak potwierdzenia).
-export const ConfirmDialog = ({ open, onOpenChange, title, description, confirmLabel, destructive, onConfirm }: ConfirmDialogProps) => {
+export const ConfirmDialog = ({ open, onOpenChange, title, description, confirmLabel, cancelLabel, destructive, onConfirm }: ConfirmDialogProps) => {
   const { t } = useTranslation();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -33,7 +35,7 @@ export const ConfirmDialog = ({ open, onOpenChange, title, description, confirmL
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+          <AlertDialogCancel>{cancelLabel ?? t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction
             className={cn(destructive && 'bg-destructive text-destructive-foreground hover:bg-destructive/90')}
             onClick={() => { onOpenChange(false); onConfirm(); }}
