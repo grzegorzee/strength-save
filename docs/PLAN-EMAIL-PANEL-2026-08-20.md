@@ -131,20 +131,28 @@
 
 ## G-T4 — panel "Maile" w adminie
 
-- [ ] Nowa sekcja/zakładka w panelu admina (`/admin`): lista ostatnich wysyłek
+- [x] Nowa sekcja/zakładka w panelu admina (`/admin`): lista ostatnich wysyłek
   (limit 100, sortowanie sentAt desc): kto (uid + email usera jeśli w logu),
   do kogo, typ (trening/historia), temat, transport, status z kolorem
   (sent szary / delivered zielony / opened limonka / bounced czerwony /
   complaint=SPAM czerwony / failed czerwony), czasy (wysłany, dostarczony,
   otwarty), licznik otwarć.
-- [ ] Kafle zbiorcze u góry (7 i 30 dni): wysłane, dostarczalność %,
+- [x] Kafle zbiorcze u góry (7 i 30 dni): wysłane, dostarczalność %,
   otwieralność %, bounce %, skargi spamowe (liczba). Liczone z email_log
   po stronie klienta (limit zapytania) albo prostym agregatem — wybrać
   prostsze, zaznaczyć ograniczenie w UI ("ostatnie N wysyłek").
-- [ ] Stany: pusto ("brak wysyłek"), błąd odczytu z wyjściem. Bez łamania
+- [x] Stany: pusto ("brak wysyłek"), błąd odczytu z wyjściem. Bez łamania
   istniejących sekcji panelu (niezmiennik: stare zakładki działają — test).
-- [ ] i18n do OBU locales (pl.ts/en.ts). E2e panelu (mock danych jak inne
+- [x] i18n do OBU locales (pl.ts/en.ts). E2e panelu (mock danych jak inne
   admin e2e — podpatrzeć istniejące specy adminowe).
+  DOWÓD G-T4 (cała sekcja): commit a748b7ba — AdminEmailsCard (lista 100,
+  sentAt desc, statusy z kolorami wg zasady tło/10) + czysta logika
+  admin-email-stats (8 testów) + RTL 5 testów (pusty stan, błąd z retry,
+  wiersze, SPAM/failed, kafle) + e2e admin-emails.spec (pusty stan przy
+  zablokowanym Firestore; SDK zwraca pusty snapshot z cache zamiast rzucać,
+  stan błędu pokrywa RTL) + admin-switch 3/3 zielone (niezmiennik);
+  vitest 13/13, typecheck, lint, check:no-emoji OK; 27 kluczy
+  admin.emails.* w obu locales.
 
 ## G-RELEASE — wydanie
 
