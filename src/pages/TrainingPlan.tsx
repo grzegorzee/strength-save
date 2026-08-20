@@ -13,7 +13,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, Dumbbell, History, Pencil, CheckCircle, HeartPulse, Zap, Timer, Plane } from 'lucide-react';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, startOfLocalDay } from '@/lib/plan-schedule';
+import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -438,13 +438,9 @@ const TrainingPlan = () => {
           </div>
         </div>
 
-        <div className="exercise-card-divider mx-6" />
-
-        {/* Rules tip */}
-        <div className="mx-6 mt-5 mb-5 py-3 px-4 rounded-xl bg-primary/[0.04] border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed space-y-1">
-          <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0" aria-hidden /><strong className="text-muted-foreground">{trainingRules.weight}</strong></p>
-          <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
-        </div>
+        {/* T9: treningi na samej górze zakładki — rules tip i przyciski trybów
+            zeszły POD timeline (przestawienie, żaden blok nie znika). */}
+        <div className="exercise-card-divider mx-6 mb-5" />
 
         {/* C-T4: jedna karta decyzyjna końca planu (wspólna z Dashboardem/Cyklami) */}
         {planNextStep && (
@@ -461,19 +457,6 @@ const TrainingPlan = () => {
           </div>
         )}
 
-        {/* D-T3: pasek obciążenia hybrydowego tygodnia (dom: Plan, nie Dashboard) */}
-        {!isHistoricalWeek && (
-          <div className="mx-6 mb-5">
-            <HybridWeekStrip
-              workouts={workouts}
-              activities={visibleActivities}
-              weekStart={getStartOfPlanWeek(new Date())}
-              maxHR={stravaConnection.estimatedMaxHR}
-              plannedWeekdays={selectedWeekTrainingDates.map((s) => weekdayOfDate(s.date))}
-            />
-          </div>
-        )}
-
         {/* D-T3: decyzja deload mieszka na Planie (tydzień planu = dom Planu) */}
         {planStarted && (
           <div className="mx-6 mb-5">
@@ -486,52 +469,6 @@ const TrainingPlan = () => {
             />
           </div>
         )}
-
-        {/* C-T1/C-T3: tryby (urlop + nie na 100%) z poziomu Planu */}
-        <div className="mx-6 mb-5 grid gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            data-testid="plan-reduced-open"
-            onClick={() => setReducedOpen(true)}
-            className={cn(
-              'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
-              reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
-                ? 'border-fitness-warning bg-fitness-warning/10 text-fitness-warning'
-                : 'border-border text-muted-foreground hover:bg-muted',
-            )}
-          >
-            <span className="flex items-center gap-2">
-              <HeartPulse className="h-4 w-4" aria-hidden />
-              {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
-                ? t('rmode.badge', { date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
-                : t('rmode.title')}
-            </span>
-            <span className="text-xs font-normal underline underline-offset-2">
-              {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation) ? t('rmode.disable') : t('vac.planEntry')}
-            </span>
-          </button>
-          <button
-            type="button"
-            data-testid="plan-vacation-open"
-            onClick={() => setVacationOpen(true)}
-            className={cn(
-              'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
-              vacation && isVacationActive(vacation, todayISOForVacation)
-                ? 'border-primary/40 bg-primary/10 text-primary'
-                : 'border-border text-muted-foreground hover:bg-muted',
-            )}
-          >
-            <span className="flex items-center gap-2">
-              <Plane className="h-4 w-4" aria-hidden />
-              {vacation && isVacationActive(vacation, todayISOForVacation)
-                ? t('vac.badge', { date: parseLocalDate(vacation.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
-                : t('vac.title')}
-            </span>
-            <span className="text-xs font-normal underline underline-offset-2">
-              {vacation && isVacationActive(vacation, todayISOForVacation) ? t('vac.cancel') : t('vac.planEntry')}
-            </span>
-          </button>
-        </div>
 
         {/* Week navigation */}
         <div className="flex items-center justify-between px-6 pb-4 flex-wrap gap-2">
@@ -572,7 +509,7 @@ const TrainingPlan = () => {
         </div>
 
         {/* Content grid */}
-        <div className="grid lg:grid-cols-[1fr_300px] gap-6 px-6 pb-6">
+        <div className="grid lg:grid-cols-[1fr_300px] gap-6 px-6 pb-5">
           {/* ── Left: Timeline ── */}
           <div className="space-y-1 min-w-0">
             {(() => {
@@ -614,7 +551,17 @@ const TrainingPlan = () => {
                 groupedByDate.set(item.dateStr, existing);
               });
 
-              return Array.from(groupedByDate.entries()).map(([dateStr, dayItems]) => {
+              // T9: tydzień zawierający dziś pokazuje dni od najbliższego (dziś
+              // pierwszy, minione na dole); tygodnie przyszłe i historyczne
+              // zostają chronologicznie (tam rosnąco = od najbliższego).
+              const todayDayMs = startOfLocalDay(new Date()).getTime();
+              const weekContainsToday = selectedWeekStartMs <= todayDayMs && todayDayMs <= selectedWeekEndMs;
+              const orderedDayKeys = weekContainsToday
+                ? orderTimelineDayKeys(Array.from(groupedByDate.keys()), todayISOForVacation)
+                : Array.from(groupedByDate.keys());
+
+              return orderedDayKeys.map((dateStr) => {
+                const dayItems = groupedByDate.get(dateStr)!;
                 const dateObj = parseLocalDate(dateStr);
                 const dateLabel = dateObj.toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
                 const dayName = getDayOfWeekName(dateStr);
@@ -821,6 +768,71 @@ const TrainingPlan = () => {
               );
             })()}
           </div>
+        </div>
+
+        {/* D-T3: pasek obciążenia hybrydowego tygodnia (dom: Plan, nie Dashboard) */}
+        {!isHistoricalWeek && (
+          <div className="mx-6 mb-5">
+            <HybridWeekStrip
+              workouts={workouts}
+              activities={visibleActivities}
+              weekStart={getStartOfPlanWeek(new Date())}
+              maxHR={stravaConnection.estimatedMaxHR}
+              plannedWeekdays={selectedWeekTrainingDates.map((s) => weekdayOfDate(s.date))}
+            />
+          </div>
+        )}
+
+        {/* C-T1/C-T3: tryby (urlop + nie na 100%) z poziomu Planu */}
+        <div className="mx-6 mb-5 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            data-testid="plan-reduced-open"
+            onClick={() => setReducedOpen(true)}
+            className={cn(
+              'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
+              reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
+                ? 'border-fitness-warning bg-fitness-warning/10 text-fitness-warning'
+                : 'border-border text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <span className="flex items-center gap-2">
+              <HeartPulse className="h-4 w-4" aria-hidden />
+              {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
+                ? t('rmode.badge', { date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
+                : t('rmode.title')}
+            </span>
+            <span className="text-xs font-normal underline underline-offset-2">
+              {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation) ? t('rmode.disable') : t('vac.planEntry')}
+            </span>
+          </button>
+          <button
+            type="button"
+            data-testid="plan-vacation-open"
+            onClick={() => setVacationOpen(true)}
+            className={cn(
+              'flex w-full items-center justify-between rounded-xl border px-4 py-2.5 text-left text-sm font-semibold transition-colors',
+              vacation && isVacationActive(vacation, todayISOForVacation)
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:bg-muted',
+            )}
+          >
+            <span className="flex items-center gap-2">
+              <Plane className="h-4 w-4" aria-hidden />
+              {vacation && isVacationActive(vacation, todayISOForVacation)
+                ? t('vac.badge', { date: parseLocalDate(vacation.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
+                : t('vac.title')}
+            </span>
+            <span className="text-xs font-normal underline underline-offset-2">
+              {vacation && isVacationActive(vacation, todayISOForVacation) ? t('vac.cancel') : t('vac.planEntry')}
+            </span>
+          </button>
+        </div>
+
+        {/* Rules tip */}
+        <div className="mx-6 mb-6 py-3 px-4 rounded-xl bg-primary/[0.04] border-l-[3px] border-primary/30 text-xs text-muted-foreground leading-relaxed space-y-1">
+          <p className="flex items-center gap-2"><Zap className="h-3.5 w-3.5 shrink-0" aria-hidden /><strong className="text-muted-foreground">{trainingRules.weight}</strong></p>
+          <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 shrink-0" aria-hidden />{trainingRules.restMain} • {trainingRules.restIsolation}</p>
         </div>
       </div>
 

@@ -208,6 +208,15 @@ export const countRemainingWorkouts = (params: {
   return total;
 };
 
+// T9 (feedback 2026-08-20): kolejność timeline "od najbliższego" w tygodniu
+// zawierającym dziś — dziś pierwszy, potem przyszłe rosnąco, minione dni na
+// dole (też rosnąco). Klucze = daty ISO (porównanie stringów = chronologia).
+export const orderTimelineDayKeys = (dayKeys: string[], todayISO: string): string[] => {
+  const upcoming = dayKeys.filter((key) => key >= todayISO).sort();
+  const past = dayKeys.filter((key) => key < todayISO).sort();
+  return [...upcoming, ...past];
+};
+
 // T17 (feedback 2026-08-20): procent postępu planu z TRENINGÓW, nie z numeru
 // tygodnia — "tydzień 12/12" pokazywał 100% mimo czekającego piątku. Konstrukcja
 // completed/(completed+remaining) z natury nigdy nie przekracza 100.
