@@ -11,6 +11,38 @@
 
 ## DECYZJE
 
+### 2026-08-20: Redesign Dashboardu (fala 2, artboard dashboard-simplified 2a)
+
+**Co:** Nowa prezentacja Dashboardu wg mockupu z Claude Design, wyłącznie na
+tokenach akcentu/surface (zero nowych hexów, strażniki limonki i design-token-guard
+zielone bez zmian allowlist):
+- hero = karta NEXT SESSION (eyebrow mono w akcencie, duży tytuł, CTA h-14,
+  stopka Szczegóły + Przełóż trening — link przełożenia wreszcie PODPIĘTY pod
+  istniejący `openReschedule` z guardem żywego draftu),
+- baner decyzji planu (PlanNextStepCard `variant="banner"`) między powitaniem
+  a hero; "Zdecyduj" rozwija KOMPLET akcji wariantu card (niezmiennik testowany),
+- pasek tygodnia: 7 poziomych segmentów zamiast kółek, nagłówek "N z M sesji" +
+  "tonaż · TYDZ. x/y" mono, stopka "Dzisiaj zrobione · {dzień}", pasek % usunięty
+  (duplikat segmentów),
+- grid 2x2 szybkich akcji: Szybki trening, Dodaj cardio, Twoje liczby (przywrócone
+  drugie wejście do AllTimeStatsSheet, X17D Z139.4), Analityka (przejmuje zdjęty
+  pełnowymiarowy przycisk "Zobacz analitykę"),
+- chip streaka tygodniowego przy dacie (dotąd liczony, niewyświetlany),
+- badge licznika w headerze z sufiksem mono ŁĄCZNIE/TOTAL.
+
+**Dlaczego:** brief redesignu 2026-08-20 (fala 2); żadna funkcja nie znika —
+inwentarz 44 pozycji z planu odhaczony, kontrakty e2e (dashboard-order, critical,
+full-app, all-time-stats, reschedule-flow, continue-workout) przeszły bez edycji
+speców.
+
+**Weryfikacja:** 2008 unit testów + typecheck + lint + build zielone; e2e subset
+64 testy zielone; pętla wizualna 2 iteracje (viewport 390, akcenty
+lime/amber/sky/indigo, stan rest + training) — zrzuty w
+`docs/design-2026-08-20/screens/dashboard-iter1..2/`. Świadome odstępstwa od
+planu ekranu: teksty "Następny trening:" w kartach completed/rest zostają
+(kontrakt testów), klucz `comp.header.totalSuffix` zamiast `header.totalSuffix`
+(konwencja repo), bez klucza `dash.hero.next` (byłby nieużywany).
+
 ### 2026-08-20: Audyt danych Strava + poprawka typów i średniego tempa (T5-T8, feedback użytkownika)
 
 **Audyt (T8, ground truth READ-ONLY z Firestore, 300 dokumentów):** dystans
