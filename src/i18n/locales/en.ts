@@ -54,6 +54,11 @@ export const en: Record<keyof typeof pl, string> = {
   'profile.section.app': 'App settings',
   'email.sendWorkout': 'Send by email',
   'email.sendHistory': 'Email full history',
+  // H-T1: visible button + history range picker.
+  'email.sendToCoach': 'Send to coach',
+  'email.rangeLabel': 'Range',
+  'email.rangeWeek': 'Last week',
+  'email.rangeLast30': 'Last 30 workouts',
   'email.dialogTitleWorkout': 'Email workout summary',
   'email.dialogTitleHistory': 'Email full history',
   'email.dialogDesc': 'The full summary (sets, notes, RPE, pain) goes to the given address, e.g. your coach.',

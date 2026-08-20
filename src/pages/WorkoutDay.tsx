@@ -2626,25 +2626,28 @@ const WorkoutDay = () => {
           })}
         </div>
 
-        <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={() => setShowShare(true)}>
-            <Share2 className="h-4 w-4 mr-2" />
-            {t('comp.share.share')}
-          </Button>
-          {/* F-T3: podsumowanie mailem (np. do trenera). */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowEmailDialog(true)}
-            aria-label={t('email.sendWorkout')}
-            data-testid="workout-email"
-          >
-            <Mail className="h-4 w-4" />
-          </Button>
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => setShowShare(true)}>
+              <Share2 className="h-4 w-4 mr-2" />
+              {t('comp.share.share')}
+            </Button>
+            {/* H-T1: pełny button zamiast samej ikony (sama koperta była za mało
+                widoczna). Układ 2+1: Wróć schodzi pod spód, rząd mieści się na 390px. */}
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowEmailDialog(true)}
+              data-testid="workout-email"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              {t('email.sendToCoach')}
+            </Button>
+          </div>
           {/* X17D Z140.3: powrót z ukończonego treningu odpala confetti na Dashboardzie.
               Ten sam wzorzec co ?welcome=1 po onboardingu — AppHeader ukryty na
               /workout/*, więc świętowanie musi wydarzyć się PO nawigacji. */}
-          <Button variant="outline" className="flex-1" onClick={() => navigate('/?celebrate=1')}>
+          <Button variant="outline" className="w-full" onClick={() => navigate('/?celebrate=1')}>
             {t('workout.backToDashboard')}
           </Button>
         </div>

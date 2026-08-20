@@ -276,7 +276,7 @@ const WorkoutHistory = () => {
         <div className="text-right">{t('history.compareHint')}</div>
       </div>
 
-      {/* F-T3: cała historia jednym mailem (np. do trenera). */}
+      {/* H-T1: historia mailem do trenera z wyborem zakresu (tydzień / 30). */}
       <Button
         variant="outline"
         className="w-full"
@@ -284,7 +284,7 @@ const WorkoutHistory = () => {
         data-testid="history-email"
       >
         <Mail className="mr-2 h-4 w-4" />
-        {t('email.sendHistory')}
+        {t('email.sendToCoach')}
       </Button>
       <EmailWorkoutDialog
         open={showEmailDialog}

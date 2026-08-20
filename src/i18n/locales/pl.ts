@@ -56,6 +56,11 @@ export const pl = {
   'profile.section.app': 'Aplikacja',
   'email.sendWorkout': 'Wyślij e-mailem',
   'email.sendHistory': 'Wyślij historię e-mailem',
+  // H-T1: widoczny button + wybór zakresu historii.
+  'email.sendToCoach': 'Wyślij do trenera',
+  'email.rangeLabel': 'Zakres',
+  'email.rangeWeek': 'Ostatni tydzień',
+  'email.rangeLast30': 'Ostatnie 30 treningów',
   'email.dialogTitleWorkout': 'Wyślij podsumowanie treningu',
   'email.dialogTitleHistory': 'Wyślij całą historię',
   'email.dialogDesc': 'Pełne podsumowanie (serie, notatki, RPE, ból) trafi na podany adres, np. do Twojego trenera.',

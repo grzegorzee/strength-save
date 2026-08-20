@@ -14,9 +14,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { db } from '@/lib/firebase';
-import { emailErrorKey, sendHistoryEmail, sendWorkoutEmail } from '@/lib/email-workout';
+import { emailErrorKey, sendHistoryEmail, sendWorkoutEmail, type HistoryEmailRange } from '@/lib/email-workout';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface EmailWorkoutDialogProps {
   open: boolean;
@@ -32,6 +33,8 @@ export const EmailWorkoutDialog = ({ open, onOpenChange, mode, uid, workoutId, i
   const [email, setEmail] = useState(initialEmail ?? '');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // H-T1: zakres historii (domyślnie ostatni tydzień).
+  const [range, setRange] = useState<HistoryEmailRange>('week');
 
   useEffect(() => {
     if (open) {
@@ -50,7 +53,7 @@ export const EmailWorkoutDialog = ({ open, onOpenChange, mode, uid, workoutId, i
         if (!workoutId) throw new Error('missing-workout');
         await sendWorkoutEmail(workoutId, to, lang);
       } else {
-        await sendHistoryEmail(to, lang);
+        await sendHistoryEmail(to, lang, range);
       }
       // Zapamiętaj adres na następny raz (offline: localnie i tak wysłaliśmy).
       updateDoc(doc(db, 'users', uid), { 'preferences.trainerEmail': to }).catch(() => {});
@@ -72,6 +75,36 @@ export const EmailWorkoutDialog = ({ open, onOpenChange, mode, uid, workoutId, i
           </DialogTitle>
           <DialogDescription>{t('email.dialogDesc')}</DialogDescription>
         </DialogHeader>
+        {mode === 'history' && (
+          <div className="space-y-2">
+            <p className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
+              {t('email.rangeLabel')}
+            </p>
+            <div className="flex gap-2" role="radiogroup" aria-label={t('email.rangeLabel')}>
+              {([
+                { value: 'week', label: t('email.rangeWeek'), testId: 'email-range-week' },
+                { value: 'last30', label: t('email.rangeLast30'), testId: 'email-range-last30' },
+              ] as const).map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={range === option.value}
+                  data-testid={option.testId}
+                  onClick={() => setRange(option.value)}
+                  className={cn(
+                    'flex-1 rounded-lg border px-3 py-2 text-sm transition-colors',
+                    range === option.value
+                      ? 'border-primary bg-primary/10 font-semibold text-foreground'
+                      : 'border-border text-muted-foreground',
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="space-y-2">
           <label htmlFor="email-workout-to" className="text-label-md font-bold uppercase tracking-[0.12em] text-muted-foreground">
             {t('email.addressLabel')}

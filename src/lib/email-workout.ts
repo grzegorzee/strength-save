@@ -7,8 +7,12 @@ export const sendWorkoutEmail = async (workoutId: string, to: string, lang: stri
   await httpsCallable(functions, 'emailWorkoutSummary')({ workoutId, to, lang });
 };
 
-export const sendHistoryEmail = async (to: string, lang: string): Promise<void> => {
-  await httpsCallable(functions, 'emailWorkoutHistory')({ to, lang });
+// H-T1: zakres historii — ostatni tydzień (domyślnie) albo 30 ostatnich
+// treningów. Żadnej opcji "wszystko" (200 naraz nie miało sensu).
+export type HistoryEmailRange = 'week' | 'last30';
+
+export const sendHistoryEmail = async (to: string, lang: string, range: HistoryEmailRange = 'week'): Promise<void> => {
+  await httpsCallable(functions, 'emailWorkoutHistory')({ to, lang, range });
 };
 
 /** Mapa błędów callable -> komunikat z wyjściem (reguła #6: user wie co kliknąć). */

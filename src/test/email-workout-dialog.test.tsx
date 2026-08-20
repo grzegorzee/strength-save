@@ -50,10 +50,26 @@ describe('EmailWorkoutDialog (F-T3)', () => {
     expect(toastMock).toHaveBeenCalled();
   });
 
-  it('tryb history woła sendHistoryEmail', async () => {
+  it('tryb history woła sendHistoryEmail z domyślnym zakresem week', async () => {
     renderDialog({ mode: 'history', workoutId: undefined });
     fireEvent.click(screen.getByTestId('email-workout-send'));
-    await waitFor(() => expect(sendHistoryMock).toHaveBeenCalledWith('trener@example.com', 'pl'));
+    await waitFor(() => expect(sendHistoryMock).toHaveBeenCalledWith('trener@example.com', 'pl', 'week'));
+  });
+
+  // H-T1: wybór zakresu w trybie history (żadnej opcji "wszystko/200").
+  it('tryb history: dwie opcje zakresu, wybór last30 przekazuje range', async () => {
+    renderDialog({ mode: 'history', workoutId: undefined });
+    expect(screen.getByTestId('email-range-week')).toBeTruthy();
+    expect(screen.getByTestId('email-range-last30')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('email-range-last30'));
+    fireEvent.click(screen.getByTestId('email-workout-send'));
+    await waitFor(() => expect(sendHistoryMock).toHaveBeenCalledWith('trener@example.com', 'pl', 'last30'));
+  });
+
+  it('tryb workout: bez selektora zakresu', () => {
+    renderDialog();
+    expect(screen.queryByTestId('email-range-week')).toBeNull();
+    expect(screen.queryByTestId('email-range-last30')).toBeNull();
   });
 
   it('błąd: komunikat widoczny, dialog zostaje otwarty (wyjście = popraw/zamknij)', async () => {
