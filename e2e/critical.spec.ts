@@ -101,8 +101,9 @@ test.describe('Critical Interactions', () => {
   test('history page shows filters and comparison shell', async ({ page }) => {
     await navigateAndWait(page, '/history');
     await expectPageRendered(page);
-    // Naprawa r1 (2026-08-21): tytuł Historii niesie wyłącznie AppHeader (poza main).
-    await expect(page.getByRole('heading', { name: 'Historia treningów' })).toBeVisible();
+    // Naprawa r1 (2026-08-21): tytuł Historii niesie wyłącznie AppHeader (poza
+    // main); etykieta zakładki jest krótka, żeby mieściła się w jednej linii.
+    await expect(page.getByRole('heading', { name: 'Historia', exact: true })).toBeVisible();
     // Fala 2: karta "Filtry" zastąpiona chipami statusu + ikoną filtrów (aria-label).
     await expect(page.getByRole('button', { name: /^wszystkie$/i })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Filtry' })).toBeVisible();

@@ -1674,8 +1674,10 @@ export const en: Record<keyof typeof pl, string> = {
   'heatmap.less': 'Less',
   'heatmap.more': 'More',
   'layout.title.dashboard': 'Dashboard',
-  'layout.title.plan': 'Training plan',
-  'layout.title.history': 'Workout history',
+  // Naprawa r1 (2026-08-21): header pod-tabów = krótka etykieta zakładki
+  // (jednoliniowa przy 390px); pełny tytuł niesie treść ekranu (h1 Planu).
+  'layout.title.plan': 'Plan',
+  'layout.title.history': 'History',
   'layout.title.day': 'Day plan',
   'layout.title.analytics': 'Analytics',
   'layout.title.achievements': 'Progress',

@@ -1696,8 +1696,10 @@ export const pl = {
   'heatmap.less': 'Mniej',
   'heatmap.more': 'Więcej',
   'layout.title.dashboard': 'Dashboard',
-  'layout.title.plan': 'Plan treningowy',
-  'layout.title.history': 'Historia treningów',
+  // Naprawa r1 (2026-08-21): header pod-tabów = krótka etykieta zakładki
+  // (jednoliniowa przy 390px); pełny tytuł niesie treść ekranu (h1 Planu).
+  'layout.title.plan': 'Plan',
+  'layout.title.history': 'Historia',
   'layout.title.day': 'Plan dnia',
   'layout.title.analytics': 'Analityka',
   'layout.title.achievements': 'Postępy',

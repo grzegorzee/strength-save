@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, WifiOff } from 'lucide-react';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -20,6 +20,10 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
   const { uid, profile } = useCurrentUser();
   const navigate = useNavigate();
+  // Naprawa r1 (2026-08-21): sufiks mono "ŁĄCZNIE" tylko na Dashboardzie
+  // (mockupy pod-tabów nie mają licznika w headerze; kompaktowa pigułka
+  // liczba+ikona zostaje wszędzie, żeby wejście w statystyki nie znikało).
+  const isDashboard = useLocation().pathname === '/';
   const displayName = profile?.displayName || '';
   const initials = displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'SS';
   // Z216: nagłówek jest na każdym ekranie — nie może trzymać szerokiego
@@ -100,9 +104,11 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
               <Dumbbell className="h-4 w-4" />
               <span className="tabular-nums">{completedCount}</span>
               {/* Fala 2 (2026-08-20): sufiks mono jak "82 TOTAL" z mockupu. */}
-              <span className="font-mono text-[9px] uppercase tracking-[0.1em] opacity-75">
-                {t('comp.header.totalSuffix')}
-              </span>
+              {isDashboard && (
+                <span className="font-mono text-[9px] uppercase tracking-[0.1em] opacity-75">
+                  {t('comp.header.totalSuffix')}
+                </span>
+              )}
 
               {/* Z140.1: „+1" unosi się i gaśnie. Keyframes inline jak w ConfettiBurst
                   — w projekcie nie ma (i nie ma być) framer-motion. */}
