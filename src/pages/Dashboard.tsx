@@ -61,6 +61,10 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { buildWatchCapabilitySnapshot } from '@/lib/device-management';
 import { markStartup } from '@/lib/startup-performance';
 
+// WP-B (X28): before-start z silnika przełożeń to NIE blokada ukończonym
+// treningiem — toast generyczny zamiast mylącego completedBlocked.
+const isCompletedMoveReason = (reason?: string) => reason === 'completed-source' || reason === 'completed-target';
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -187,9 +191,9 @@ const Dashboard = () => {
     const start = parseLocalDate(planStartDate);
     // Plan jeszcze nie wystartował → pokaż PIERWSZY tydzień planu (daty od startu) jako zapowiedź,
     // zamiast dat bieżącego tygodnia (które myliły jako "plan tygodnia").
-    if (!planStarted) return getScheduledTrainingWeek(trainingPlan, start, scheduleOverrides);
-    const week = getScheduledTrainingWeek(trainingPlan, today, scheduleOverrides);
-    return week.filter(e => e.date >= start);
+    // WP-B (X28): startDateISO w resolverze tygodnia — dni sprzed startu nie istnieją.
+    if (!planStarted) return getScheduledTrainingWeek(trainingPlan, start, scheduleOverrides, planStartDate);
+    return getScheduledTrainingWeek(trainingPlan, today, scheduleOverrides, planStartDate);
   }, [trainingPlan, today, planStartDate, planStarted, scheduleOverrides]);
 
   // Z216: streak z dat agregatu (pełna historia) TĄ SAMĄ funkcją co dotąd —
@@ -312,6 +316,20 @@ const Dashboard = () => {
     try { localStorage.setItem(NEXT_STEP_DISMISS_KEY, planSignature); } catch { /* ignore */ }
   };
 
+  // WP-B (X28): zamykany baner "Trening ukończony" — X chowa go do końca dnia
+  // (wartość = ostatnio zamknięta data), nowy dzień z nowym ukończonym treningiem
+  // pokazuje go znowu. localStorage niedostępny => działa bez zapamiętania.
+  const COMPLETED_DISMISS_KEY = 'fittracker_completed_dismissed_v1';
+  const [completedDismissedDate, setCompletedDismissedDate] = useState<string | null>(() => {
+    try { return localStorage.getItem(COMPLETED_DISMISS_KEY); } catch { return null; }
+  });
+  const completedBannerDismissed = completedDismissedDate === formatLocalDate(today);
+  const dismissCompletedBanner = () => {
+    const key = formatLocalDate(today);
+    setCompletedDismissedDate(key);
+    try { localStorage.setItem(COMPLETED_DISMISS_KEY, key); } catch { /* nieistotne */ }
+  };
+
   // Z49: żywy draft = trening w toku. Decyzja wspólna z auto-resume (workout-resume.ts).
   const draftResume = useMemo(
     () => shouldResumeWorkoutDraft(localDraft, formatLocalDate(today), Date.now()),
@@ -348,6 +366,19 @@ const Dashboard = () => {
       return { type: 'rest' as const, next: null };
     }
     const todayKey = formatLocalDate(today);
+
+    // T3 (feedback 2026-08-20) + WP-B (X28): plan startuje w przyszłości — jawna
+    // karta pre-start z datą startu i pierwszym treningiem. Guard STOI PRZED
+    // branchem completed: dzisiejszy ukończony trening przy przyszłym planie to
+    // sesja ad-hoc/stary plan i nie ma prawa pokazać "next session" sprzed startu
+    // (zgłoszenie: "NEXT SESSION · AUG 24" przy starcie 7 września).
+    if (planStartDate && today < parseLocalDate(planStartDate)) {
+      const dayBeforeStart = parseLocalDate(planStartDate);
+      dayBeforeStart.setDate(dayBeforeStart.getDate() - 1);
+      const firstEntry = getNextScheduledTraining(trainingPlan, dayBeforeStart, { overrides: scheduleOverrides, startDateISO: planStartDate });
+      return { type: 'preStart' as const, startDateISO: planStartDate, firstEntry };
+    }
+
     const completedToday = findWorkoutForRoute(workouts, {
       date: todayKey,
       allowDateFallback: true,
@@ -360,25 +391,14 @@ const Dashboard = () => {
         dateStr: todayKey,
         // Naprawa r1 (2026-08-21): pełny wpis (day + dateKey) — hero najbliższej
         // sesji potrzebuje daty do otwarcia podglądu i przełożenia.
-        next: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides }),
+        next: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides, startDateISO: planStartDate }),
       };
     }
 
-    // T3 (feedback 2026-08-20): plan startuje w przyszłości — jawna karta pre-start
-    // z datą startu i pierwszym treningiem. Szukamy OD dnia startu (dzień przed
-    // startem + offset 1 w getNextScheduledTraining obejmuje sam dzień startu),
-    // co naprawia też stary bug: nextDay liczony od DZIŚ wskazywał dzień sprzed startu.
-    if (planStartDate && today < parseLocalDate(planStartDate)) {
-      const dayBeforeStart = parseLocalDate(planStartDate);
-      dayBeforeStart.setDate(dayBeforeStart.getDate() - 1);
-      const firstEntry = getNextScheduledTraining(trainingPlan, dayBeforeStart, { overrides: scheduleOverrides });
-      return { type: 'preStart' as const, startDateISO: planStartDate, firstEntry };
-    }
-
-    const todayEntry = getScheduledTrainingForDate(trainingPlan, today, scheduleOverrides);
+    const todayEntry = getScheduledTrainingForDate(trainingPlan, today, scheduleOverrides, planStartDate);
 
     if (!todayEntry) {
-      const nextEntry = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides });
+      const nextEntry = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides, startDateISO: planStartDate });
       return { type: 'rest' as const, next: nextEntry };
     }
 
@@ -398,7 +418,7 @@ const Dashboard = () => {
         day,
         workout: todayWorkout,
         dateStr: todayEntry.dateKey,
-        next: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides }),
+        next: getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides, startDateISO: planStartDate }),
       };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
@@ -587,16 +607,16 @@ const Dashboard = () => {
     // overrides i dzień źródłowy znika z resolvera, a otwarty Radix Sheet nie
     // może być odmontowany w stanie open (wiszący scroll-lock, regresja b.92).
     setRescheduleFrom(null);
-    const result = await moveScheduledDay(fromDateISO, toDateISO, { completedDates: completedWorkoutDates });
+    const result = await moveScheduledDay(fromDateISO, toDateISO, { completedDates: completedWorkoutDates, planStartDateISO: planStartDate });
     toast(result.success
       ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
-      : { title: t(result.reason ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
+      : { title: t(isCompletedMoveReason(result.reason) ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
   };
   const handleMissedDoToday = async (fromDateISO: string) => {
-    const result = await moveScheduledDay(fromDateISO, todayISO, { completedDates: completedWorkoutDates });
+    const result = await moveScheduledDay(fromDateISO, todayISO, { completedDates: completedWorkoutDates, planStartDateISO: planStartDate });
     toast(result.success
       ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
-      : { title: t(result.reason ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
+      : { title: t(isCompletedMoveReason(result.reason) ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
   };
 
   // Z174: JEDNA prawda o aktywnej sesji. Gdy karta dnia pokazuje CTA kontynuacji,
@@ -961,7 +981,10 @@ const Dashboard = () => {
       {todayTraining.type === 'completed' && (
         <>
         {/* WP-A (X27, A4): baner kompaktowy — jeden wiersz z nazwą dnia inline,
-            tło statusowe z przezroczystością (zasada /10), "Zobacz" po prawej. */}
+            tło statusowe z przezroczystością (zasada /10), "Zobacz" po prawej.
+            WP-B (X28): X zamyka baner do końca dnia; hero NEXT SESSION niżej
+            renderuje się niezależnie od dismissu. */}
+        {!completedBannerDismissed && (
         <div
           data-testid="today-completed-card"
           className={cn(
@@ -975,15 +998,26 @@ const Dashboard = () => {
               {t('dash.workoutCompleted')} · {localizeDayName(todayTraining.day.dayName, lang)}
             </span>
           </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="shrink-0"
-            onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}
-          >
-            {t('dash.view')}
-          </Button>
+          <div className="flex shrink-0 items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0"
+              onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}
+            >
+              {t('dash.view')}
+            </Button>
+            <button
+              type="button"
+              aria-label={t('dash.dismissCompleted')}
+              className="-my-1.5 -mr-2.5 flex h-11 w-11 shrink-0 items-center justify-center text-fitness-success/70 transition-colors hover:text-fitness-success"
+              onClick={dismissCompletedBanner}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+        )}
         {/* Naprawa r1 (2026-08-21, sędzia struktury): mockup dashboard-simplified
             pokazuje hero NEXT SESSION także po zrobionym treningu — karta
             najbliższej sesji z CTA podglądu i przełożeniem. */}

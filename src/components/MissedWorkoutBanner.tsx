@@ -58,8 +58,9 @@ export const MissedWorkoutBanner = ({
     [planDays, overrides, workouts, todayISO, planStartDate, dismissed, skippedDates],
   );
   const todayFree = useMemo(
-    () => resolvePlannedDay(todayISO, planDays, overrides) === null,
-    [todayISO, planDays, overrides],
+    // WP-B (X28): start planu w resolverze — spójnie z findMissedWorkout.
+    () => resolvePlannedDay(todayISO, planDays, overrides, planStartDate) === null,
+    [todayISO, planDays, overrides, planStartDate],
   );
 
   if (!missed) return null;

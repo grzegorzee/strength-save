@@ -98,7 +98,7 @@ export const getScheduledTrainingForDate = (
   const localDate = startOfLocalDay(date);
   if (startDateISO && formatLocalDate(localDate) < startDateISO) return null;
   const day = overrides
-    ? resolvePlannedDay(formatLocalDate(localDate), planDays, overrides)
+    ? resolvePlannedDay(formatLocalDate(localDate), planDays, overrides, startDateISO)
     : getTrainingDayForDate(planDays, date);
   if (!day) return null;
 
@@ -113,6 +113,8 @@ export const getScheduledTrainingWeek = (
   planDays: TrainingDay[],
   referenceDate: Date,
   overrides?: ScheduleOverrides,
+  // WP-B (X28): start planu — dni tygodnia sprzed startu nie istnieją.
+  startDateISO?: string | null,
 ): ScheduledTrainingDay[] => {
   const weekStart = getStartOfPlanWeek(referenceDate);
 
@@ -124,7 +126,7 @@ export const getScheduledTrainingWeek = (
     for (let offset = 0; offset < 7; offset += 1) {
       const date = startOfLocalDay(weekStart);
       date.setDate(weekStart.getDate() + offset);
-      const scheduled = getScheduledTrainingForDate(planDays, date, overrides);
+      const scheduled = getScheduledTrainingForDate(planDays, date, overrides, startDateISO);
       if (scheduled) week.push(scheduled);
     }
     return week;
@@ -139,7 +141,8 @@ export const getScheduledTrainingWeek = (
         date,
         dateKey: formatLocalDate(date),
       };
-    });
+    })
+    .filter((entry) => !startDateISO || entry.dateKey >= startDateISO);
 };
 
 export const getNextScheduledTraining = (
@@ -203,9 +206,12 @@ export const countRemainingWorkouts = (params: {
   if (from > end) return 0;
   const cursor = from < planStart ? planStart : from;
   const skipped = new Set(params.skippedDates ?? []);
+  // WP-B (X28): start jawnie w resolverze (spójność z resztą biblioteki);
+  // kursor i tak zaczyna od startu planu, to domknięcie przed override'ami.
+  const startISO = formatLocalDate(planStart);
   let total = 0;
   for (const day = new Date(cursor); day <= end; day.setDate(day.getDate() + 1)) {
-    const scheduled = getScheduledTrainingForDate(params.planDays, day, params.overrides);
+    const scheduled = getScheduledTrainingForDate(params.planDays, day, params.overrides, startISO);
     if (!scheduled) continue;
     if (params.completedDates.has(scheduled.dateKey)) continue;
     if (skipped.has(scheduled.dateKey)) continue;

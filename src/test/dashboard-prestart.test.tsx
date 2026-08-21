@@ -198,7 +198,9 @@ describe('karta pre-start (T3)', () => {
     expect(screen.queryByTestId('prestart-card')).toBeNull();
   });
 
-  it('trening ad-hoc ukończony dziś + start w przyszłości = karta "ukończony" wygrywa', async () => {
+  it('X28 WP-B: trening ad-hoc ukończony dziś + start w przyszłości = pre-start wygrywa (zero sesji sprzed startu)', async () => {
+    // Odwrócenie starego niezmiennika (bug builda 114): branch completed liczył
+    // "next" czystą regułą weekday i pokazywał sesję SPRZED startu planu.
     planFixture.plan = [dayOn(5, 'day-1', 'Push')];
     planFixture.planStartDate = dateKey(addDays(5));
     workoutsFixture.workouts = [{
@@ -212,8 +214,9 @@ describe('karta pre-start (T3)', () => {
     }];
 
     renderDashboard();
-    await waitFor(() => expect(screen.getByTestId('today-completed-card')).toBeTruthy());
-    expect(screen.queryByTestId('prestart-card')).toBeNull();
+    await waitFor(() => expect(screen.getByTestId('prestart-card')).toBeTruthy());
+    expect(screen.queryByTestId('today-completed-card')).toBeNull();
+    expect(screen.queryByTestId('next-session-hero')).toBeNull();
   });
 
   it('pierwszy trening liczony OD daty startu, nie od dziś (środa PO starcie w poniedziałek)', async () => {

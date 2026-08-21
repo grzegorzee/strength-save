@@ -331,8 +331,10 @@ export const useTrainingPlan = (userId: string) => {
     toDateISO: string,
     // WP-A (X27): daty z ukończoną sesją — guard silnika (buildScheduleMove)
     // niezależny od disabled w UI; reason wraca do wołającego pod toast.
-    opts?: { completedDates?: ReadonlySet<string> },
-  ): Promise<{ success: boolean; swapped?: boolean; reason?: 'completed-source' | 'completed-target' }> => {
+    // WP-B (X28): opcjonalne planStartDateISO — cel przed startem planu odpada
+    // w silniku (before-start), bo override sprzed startu jest martwy w resolverze.
+    opts?: { completedDates?: ReadonlySet<string>; planStartDateISO?: string | null },
+  ): Promise<{ success: boolean; swapped?: boolean; reason?: 'completed-source' | 'completed-target' | 'before-start' }> => {
     if (!userId || !isLoaded) return { success: false };
     const move = buildScheduleMove({
       overrides: scheduleOverrides,
@@ -341,6 +343,7 @@ export const useTrainingPlan = (userId: string) => {
       toISO: toDateISO,
       todayISO: formatLocalDate(new Date()),
       completedDates: opts?.completedDates,
+      planStartDateISO: opts?.planStartDateISO,
     });
     if (!move.ok) return { success: false, reason: move.reason };
     if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {

@@ -36,7 +36,8 @@ export const findMissedWorkout = (params: {
     const dateISO = formatLocalDate(date);
     if (planStartDate && dateISO < planStartDate) break;
     if (dismissed.includes(dateISO) || skippedDates.includes(dateISO) || completedDates.has(dateISO)) continue;
-    const day = resolvePlannedDay(dateISO, planDays, overrides);
+    // WP-B (X28): start planu też w resolverze (domknięcie, pętla i tak breakuje).
+    const day = resolvePlannedDay(dateISO, planDays, overrides, planStartDate);
     if (day) return { day, dateISO };
   }
 

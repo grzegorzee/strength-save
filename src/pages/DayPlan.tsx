@@ -26,7 +26,7 @@ const DayPlan = () => {
   const { t, lang } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
   const { getTodaysWorkout, isLoaded } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
-  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, scheduleOverrides, planStartDate } = useTrainingPlan(uid);
   // Z214: ekran dnia pokazuje wyłącznie dzisiejsze aktywności — okno od dziś.
   const { activities: stravaActivities, connection: stravaConnection } = useStrava(uid, canUseStrava, formatLocalDate(new Date()));
 
@@ -36,9 +36,11 @@ const DayPlan = () => {
   const trainingRules = getTrainingRules(lang);
 
   // Determine today's training from dynamic plan
+  // WP-B (X28): overrides + start planu jak w Dashboardzie — dzień sprzed
+  // startu nie ma treningu planowego, przełożenia obowiązują też tutaj.
   const today = new Date();
-  const todaysTraining = getScheduledTrainingForDate(trainingPlan, today)?.day ?? null;
-  const nextScheduledTraining = getNextScheduledTraining(trainingPlan, today);
+  const todaysTraining = getScheduledTrainingForDate(trainingPlan, today, scheduleOverrides, planStartDate)?.day ?? null;
+  const nextScheduledTraining = getNextScheduledTraining(trainingPlan, today, { overrides: scheduleOverrides, startDateISO: planStartDate });
   const dayName = today.toLocaleDateString(dateLocale(lang), { weekday: 'long' });
   const dateStr = today.toLocaleDateString(dateLocale(lang), {
     day: 'numeric',

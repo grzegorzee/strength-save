@@ -5,6 +5,9 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { getNextScheduledTraining, resolvePlannedDay } from '@/lib/plan-schedule';
+import { buildScheduleMove } from '@/lib/schedule-overrides';
+import { buildCanonicalState } from '@/test/canonical-states';
+import { parseLocalDate } from '@/lib/utils';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 
 // WP-PLANS-2 (X27, Task O2): wybrana data startu planu jest RESPEKTOWANA w całej
@@ -47,14 +50,19 @@ vi.mock('@/contexts/UserContext', () => ({
 }));
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({
-    workouts: [],
+    workouts: workoutsFixture.workouts,
     getTotalWeight: () => 0,
     getCompletedWorkoutsCount: () => 0,
     getLatestMeasurement: () => null,
+    getTodaysWorkout: () => null,
     isLoaded: true,
     error: null,
     backfillHistoricalWorkouts: vi.fn(),
   }),
+}));
+// (7) DayPlan: Strava poza zakresem testu — stale odlaczone.
+vi.mock('@/hooks/useStrava', () => ({
+  useStrava: () => ({ activities: [], connection: { connected: false } }),
 }));
 vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({
@@ -79,7 +87,7 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
     currentWeek: 0,
     isPlanExpired: false,
     weeksRemaining: 12,
-    planStarted: false,
+    planStarted: planFixture.planStarted,
     planError: false,
     savePlan: vi.fn(),
     saveDeloadDecision: vi.fn(),
@@ -116,9 +124,12 @@ vi.mock('@/lib/workout-sync-queue', () => ({
 const planFixture = vi.hoisted(() => ({
   plan: [] as unknown[],
   planStartDate: null as string | null,
+  planStarted: false,
 }));
+const workoutsFixture = vi.hoisted(() => ({ workouts: [] as unknown[] }));
 
 import Dashboard from '@/pages/Dashboard';
+import DayPlan from '@/pages/DayPlan';
 
 const day = (id: string, weekday: TrainingDay['weekday'], dayName: string): TrainingDay => ({
   id,
@@ -138,6 +149,8 @@ beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
   planFixture.plan = [];
   planFixture.planStartDate = null;
+  planFixture.planStarted = false;
+  workoutsFixture.workouts = [];
 });
 
 describe('(1) resolvePlannedDay respektuje startDate planu', () => {
@@ -229,5 +242,129 @@ describe('(4) RescheduleSheet nie pokazuje occupantów przed startem planu', () 
     const after = buttons.find((b) => b.textContent?.includes('2 wrz'));
     expect(after).toBeTruthy();
     expect(after!.textContent).toContain('Środa siłowa');
+  });
+});
+
+// X28 WP-B: luka testu X27 — pre-start sprawdzany był BEZ ukończonego dziś
+// treningu. Branch completed (przed guardem pre-start) łapał dzisiejszą sesję
+// i liczył "next" czystą regułą weekday => "NEXT SESSION" sprzed startu.
+describe('(5) X28 WP-B: przyszły start + ukończony DZIŚ trening (scenariusz buga 1:1)', () => {
+  const renderDashboard = () =>
+    render(
+      <MemoryRouter>
+        <LanguageProvider>
+          <UnitProvider>
+            <Dashboard />
+          </UnitProvider>
+        </LanguageProvider>
+      </MemoryRouter>,
+    );
+
+  it('hero = preStart z datą startu; ŻADNEGO "next session" ani banera completed', async () => {
+    const state = buildCanonicalState('plan-future-start-done-today-wpb');
+    planFixture.plan = state.plan!.days;
+    planFixture.planStartDate = state.plan!.startDate;
+    planFixture.planStarted = false;
+    workoutsFixture.workouts = state.workouts;
+
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getByTestId('prestart-card')).toBeTruthy());
+    const startLabel = parseLocalDate(state.plan!.startDate)
+      .toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
+    expect(screen.getByTestId('prestart-card').textContent).toContain(startLabel);
+    expect(screen.queryByTestId('today-completed-card')).toBeNull();
+    expect(screen.queryByTestId('next-session-hero')).toBeNull();
+  });
+
+  it('niezmiennik (Edge 2): plan WYSTARTOWANY + ukończony dziś = branch completed jak dotąd', async () => {
+    const state = buildCanonicalState('plan-active-done-today-wpb');
+    planFixture.plan = state.plan!.days;
+    planFixture.planStartDate = state.plan!.startDate;
+    planFixture.planStarted = true;
+    workoutsFixture.workouts = state.workouts;
+
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getByTestId('today-completed-card')).toBeTruthy());
+    expect(screen.queryByTestId('prestart-card')).toBeNull();
+    // Hero najbliższej sesji dalej się renderuje (dni planu co 2 dni => next istnieje).
+    expect(screen.getByTestId('next-session-hero')).toBeTruthy();
+  });
+});
+
+describe('(6) buildScheduleMove respektuje start planu (Edge 4)', () => {
+  it('cel przed startem => ok:false z reason before-start, mapa nietknięta', () => {
+    const result = buildScheduleMove({
+      overrides: {},
+      planDays: PLAN,
+      fromISO: START,
+      toISO: '2026-08-27',
+      todayISO: TODAY,
+      planStartDateISO: START,
+    });
+    expect(result.ok).toBe(false);
+    expect(!result.ok && result.reason).toBe('before-start');
+  });
+
+  it('źródło sprzed startu nie istnieje w resolverze => ok:false', () => {
+    const result = buildScheduleMove({
+      overrides: {},
+      planDays: PLAN,
+      fromISO: '2026-08-26',
+      toISO: '2026-09-03',
+      todayISO: TODAY,
+      planStartDateISO: START,
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('cel na dzień startu i później działa jak dotąd', () => {
+    const result = buildScheduleMove({
+      overrides: {},
+      planDays: PLAN,
+      fromISO: START,
+      toISO: '2026-09-01',
+      todayISO: TODAY,
+      planStartDateISO: START,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('niezmiennik: bez planStartDateISO zachowanie jak dotąd', () => {
+    const result = buildScheduleMove({
+      overrides: {},
+      planDays: PLAN,
+      fromISO: '2026-08-24',
+      toISO: '2026-08-25',
+      todayISO: TODAY,
+    });
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('(7) DayPlan respektuje start planu (Edge 5)', () => {
+  it('dzień sprzed startu nie pokazuje treningu planowego (widok wolny)', async () => {
+    // Dzisiejszy weekday JEST w planie, ale start planu dopiero za tydzień.
+    const now = new Date();
+    const weekdayNames: TrainingDay['weekday'][] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const futureStart = new Date(now);
+    futureStart.setDate(now.getDate() + 7);
+    const futureISO = `${futureStart.getFullYear()}-${String(futureStart.getMonth() + 1).padStart(2, '0')}-${String(futureStart.getDate()).padStart(2, '0')}`;
+    planFixture.plan = [day('day-t', weekdayNames[now.getDay()], 'Dzień testowy')];
+    planFixture.planStartDate = futureISO;
+
+    render(
+      <MemoryRouter>
+        <LanguageProvider>
+          <UnitProvider>
+            <DayPlan />
+          </UnitProvider>
+        </LanguageProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByText('Dzisiaj wolne!')).toBeTruthy());
+    expect(screen.queryByText('Rozpocznij trening')).toBeNull();
   });
 });

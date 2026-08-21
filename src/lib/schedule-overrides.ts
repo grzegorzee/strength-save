@@ -50,7 +50,7 @@ export const pruneScheduleOverrides = (
 
 export type ScheduleMoveResult =
   | { ok: true; swapped: boolean; overrides: ScheduleOverrides }
-  | { ok: false; reason?: 'completed-source' | 'completed-target' };
+  | { ok: false; reason?: 'completed-source' | 'completed-target' | 'before-start' };
 
 /**
  * Przeniesienie treningu z daty fromISO na toISO jako JEDNA nowa mapa (para
@@ -61,6 +61,10 @@ export type ScheduleMoveResult =
  * WP-A (X27): opcjonalny zbiór completedDates (daty sesji `completed === true`)
  * blokuje przełożenie Z daty z ukończonym treningiem (completed-source) oraz
  * NA taką datę (completed-target) — swap przestawiłby ukończony dzień.
+ *
+ * WP-B (X28): opcjonalne planStartDateISO blokuje cel PRZED startem planu
+ * (before-start) — override na dacie sprzed startu jest martwy w resolverze
+ * (reguła 0), więc "przeniesiony" trening po prostu by zniknął.
  */
 export const buildScheduleMove = (params: {
   overrides: ScheduleOverrides;
@@ -69,14 +73,16 @@ export const buildScheduleMove = (params: {
   toISO: string;
   todayISO: string;
   completedDates?: ReadonlySet<string>;
+  planStartDateISO?: string | null;
 }): ScheduleMoveResult => {
-  const { overrides, planDays, fromISO, toISO, todayISO, completedDates } = params;
+  const { overrides, planDays, fromISO, toISO, todayISO, completedDates, planStartDateISO } = params;
   if (fromISO === toISO) return { ok: false };
   if (completedDates?.has(fromISO)) return { ok: false, reason: 'completed-source' };
   if (completedDates?.has(toISO)) return { ok: false, reason: 'completed-target' };
-  const fromDay = resolvePlannedDay(fromISO, planDays, overrides);
+  if (planStartDateISO && toISO < planStartDateISO) return { ok: false, reason: 'before-start' };
+  const fromDay = resolvePlannedDay(fromISO, planDays, overrides, planStartDateISO);
   if (!fromDay) return { ok: false };
-  const toDay = resolvePlannedDay(toISO, planDays, overrides);
+  const toDay = resolvePlannedDay(toISO, planDays, overrides, planStartDateISO);
   return {
     ok: true,
     swapped: toDay !== null,
