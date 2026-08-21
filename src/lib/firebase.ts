@@ -61,6 +61,32 @@ export const auth = Capacitor.isNativePlatform()
     });
 export const functions = getFunctions(app, "us-central1");
 
+// App Check dla WEBA (reCAPTCHA Enterprise): rejestracja nowych kont wymaga
+// tokenu App Check z atestowanej aplikacji (canCreateUserProfile w functions).
+// Native ma własny App Check (App Attest/Play Integrity, native-callable.ts) —
+// tu inicjalizujemy wyłącznie przeglądarkowy provider. Init nie może blokować
+// startu: offline/e2e/brak klucza = apka działa jak dotąd (token po prostu
+// nie zostanie dołączony, a callable odpowie jak dla braku atestacji).
+const appCheckSiteKey = import.meta.env.VITE_APPCHECK_RECAPTCHA_SITE_KEY;
+if (
+  !Capacitor.isNativePlatform()
+  && import.meta.env.VITE_E2E_MODE !== "true"
+  && import.meta.env.VITE_USE_EMULATORS !== "true"
+  && typeof window !== "undefined"
+  && appCheckSiteKey
+) {
+  import("firebase/app-check")
+    .then(({ initializeAppCheck, ReCaptchaEnterpriseProvider }) => {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    })
+    .catch(() => {
+      // Brak sieci / zablokowany skrypt reCAPTCHA: świadomie cicho — patrz komentarz wyżej.
+    });
+}
+
 // e2e:emulator — podłącz SDK do lokalnych emulatorów zamiast produkcji.
 // Porty zgodne z firebase.json (firestore na 8081, bo 8080 zajmuje vite dev server).
 const runtimeHostname = typeof window === "undefined" ? "" : window.location.hostname;

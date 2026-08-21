@@ -23,15 +23,20 @@ export const ADMIN_DELETE_BATCH_SIZE = 450;
 export const STRAVA_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 export const STRAVA_OAUTH_STATE_BYTES = 32;
 
-// Publiczne Firebase App ID natywnych aplikacji (pliki konfiguracyjne Firebase).
+// Publiczne Firebase App ID atestowanych aplikacji (pliki konfiguracyjne Firebase).
 // To nie sa sekrety. Bez invite nowy profil wolno utworzyc tylko wtedy, gdy
 // callable zweryfikowal token App Check wystawiony dokladnie dla jednej z nich.
+// Web dolaczyl 2026-08-21: App Check przez reCAPTCHA Enterprise (init w
+// src/lib/firebase.ts), zgodnie z pierwotnym planem otwarcia rejestracji
+// dopiero po wdrozeniu wymuszanej atestacji.
 export const STRENGTH_SAVE_IOS_APP_CHECK_ID = "1:283539506094:ios:b7bb014c82f1e82666be3f";
 export const STRENGTH_SAVE_ANDROID_APP_CHECK_ID = "1:283539506094:android:d247e84bda5834fe66be3f";
+export const STRENGTH_SAVE_WEB_APP_CHECK_ID = "1:283539506094:web:fcb9e5af60d71fd566be3f";
 
 const STRENGTH_SAVE_NATIVE_APP_CHECK_IDS = new Set([
   STRENGTH_SAVE_IOS_APP_CHECK_ID,
   STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
+  STRENGTH_SAVE_WEB_APP_CHECK_ID,
 ]);
 
 // UWAGA: kolekcja `consents` jest CELOWO poza listami kasowania — wpisy logu

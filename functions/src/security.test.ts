@@ -6,6 +6,7 @@ import {
   GDPR_USER_ID_COLLECTIONS,
   STRENGTH_SAVE_ANDROID_APP_CHECK_ID,
   STRENGTH_SAVE_IOS_APP_CHECK_ID,
+  STRENGTH_SAVE_WEB_APP_CHECK_ID,
   canUseApiExport,
   canUseStravaIntegration,
   canCreateUserProfile,
@@ -68,7 +69,15 @@ describe("canCreateUserProfile", () => {
     })).toBe(true);
   });
 
-  it("keeps web, missing and foreign App Check identities invite-only", () => {
+  it("allows the attested Strength Save web app without an invite", () => {
+    expect(canCreateUserProfile({
+      registrationOpen: true,
+      inviteValid: false,
+      appCheckAppId: STRENGTH_SAVE_WEB_APP_CHECK_ID,
+    })).toBe(true);
+  });
+
+  it("keeps missing and foreign App Check identities invite-only", () => {
     expect(canCreateUserProfile({
       registrationOpen: true,
       inviteValid: false,
