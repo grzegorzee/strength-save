@@ -109,8 +109,16 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
                     data-testid={`strip-bar-${d.date}`}
                   >
                     {/* Naprawa r2 (2026-08-21): cardio przez token --fitness-cyan
-                        (jeden odcień semantyczny cardio w całej apce, nie legacy hex). */}
-                    <div className="w-full bg-fitness-cyan/85" style={{ height: cardioH }} />
+                        (jeden odcień semantyczny cardio w całej apce, nie legacy hex).
+                        Naprawa r3 (sędzia akcentu): cardio rozróżnione DRUGIM kanałem
+                        (obrys + rozjaśnione wypełnienie), nie samym odcieniem — przy
+                        akcencie sky primary i cyan różnią się o ~15 stopni hue i pełne
+                        wypełnienia były nierozróżnialne. Obrys przez inset shadow
+                        (nie border), żeby nie zjadał wysokości 1-3 px słupków. */}
+                    <div
+                      className="w-full bg-fitness-cyan/25 shadow-[inset_0_0_0_1.5px_hsl(var(--fitness-cyan))]"
+                      style={{ height: cardioH }}
+                    />
                     <div className="w-full bg-primary" style={{ height: strengthH }} />
                   </div>
                   <span className="text-[9px] font-bold uppercase text-muted-foreground/60">{label}</span>
@@ -129,7 +137,8 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
               {t('hybrid.strength')}
             </span>
             <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase text-muted-foreground/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-fitness-cyan/85" />
+              {/* Naprawa r3: kropka legendy jak słupek — obrys, nie pełne wypełnienie. */}
+              <span className="h-1.5 w-1.5 rounded-full bg-fitness-cyan/25 shadow-[inset_0_0_0_1px_hsl(var(--fitness-cyan))]" />
               {t('hybrid.cardio')}
             </span>
           </div>
