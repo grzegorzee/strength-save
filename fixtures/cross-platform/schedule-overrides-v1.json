@@ -1,7 +1,7 @@
 {
   "contract": "strength-save-schedule-overrides",
   "contractVersion": 1,
-  "description": "Kanoniczne przypadki resolvera resolvePlannedDay(dateISO, planDays, scheduleOverrides). Ta sama tabela przechodzi przez resolver webowy (src/lib/plan-schedule.ts) i funkcyjny (functions/src/garmin-day.ts); wyniki muszą być identyczne (parity web<->functions).",
+  "description": "Kanoniczne przypadki resolvera resolvePlannedDay(dateISO, planDays, scheduleOverrides, planStartDate?). Ta sama tabela przechodzi przez resolver webowy (src/lib/plan-schedule.ts) i funkcyjny (functions/src/garmin-day.ts); wyniki muszą być identyczne (parity web<->functions). Opcjonalne pole startDate w case = start planu (WP-PLANS-2, X27): dzień planowy istnieje dopiero od tej daty.",
   "planDays": [
     { "id": "day-1", "dayName": "Poniedziałek", "weekday": "monday", "focus": "Klatka", "exercises": [] },
     { "id": "day-2", "dayName": "Środa", "weekday": "wednesday", "focus": "Plecy", "exercises": [] },
@@ -91,6 +91,34 @@
       "date": "2026-08-15",
       "overrides": {},
       "expected": null
+    },
+    {
+      "name": "start planu w przyszlosci: dzien treningowy przed startem = null",
+      "date": "2026-08-10",
+      "overrides": {},
+      "startDate": "2026-08-17",
+      "expected": null
+    },
+    {
+      "name": "start planu w przyszlosci: override przed startem tez null",
+      "date": "2026-08-11",
+      "overrides": { "2026-08-11": "day-1" },
+      "startDate": "2026-08-17",
+      "expected": null
+    },
+    {
+      "name": "dzien startu planu: normalna regula weekday",
+      "date": "2026-08-17",
+      "overrides": {},
+      "startDate": "2026-08-17",
+      "expected": "day-1"
+    },
+    {
+      "name": "po starcie planu: regula weekday jak dotad",
+      "date": "2026-08-19",
+      "overrides": {},
+      "startDate": "2026-08-17",
+      "expected": "day-2"
     }
   ]
 }

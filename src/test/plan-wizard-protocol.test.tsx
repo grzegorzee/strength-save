@@ -1,16 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 
 // PlanBuilder ciągnie firebase (custom exercises); tryb "own" nie jest tu testowany.
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
+// WP-PLANS-1 dodał do PlanWizard PlanDurationPicker (PlanDaysEditor → ExercisePicker
+// → lib/firebase) — realny init Auth wywala jsdom (pułapka transitive importu).
+vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
 
 import { PlanWizard } from '@/components/PlanWizard';
 
-// T1+T2 (feedback 2026-08-20): krok "Zatwierdź protokół" — nagłówek mówi wprost
-// o dniach TRENINGOWYCH, notatka uspokaja, że plan można później dostosować,
-// a chipy daty startu pokazują dzień tygodnia (śr., czw., ...).
+// T1 (feedback 2026-08-20): krok "Zatwierdź protokół" pyta o dni TRENINGOWE,
+// notatka uspokaja, że plan można później dostosować. WP-PLANS-2 (X27): data
+// startu przeniesiona z kroku 4 do kroku 5 (wybór z najbliższych poniedziałków)
+// + edytowalna nazwa planu i kontrola tygodni w kroku 5.
 
 const withProviders = (node: React.ReactNode) => (
   <LanguageProvider>
@@ -31,49 +35,86 @@ beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
 });
 
-// Oczekiwane etykiety liczone TYM SAMYM algorytmem co komponent (Intl na żywej
-// dacie) — bez fake timers, żeby nie kolidować z waitFor.
-const plusDays = (n: number) => {
+
+// WP-PLANS-2 (X27, Task O3): data startu przeniesiona z kroku 4 do kroku 5;
+// krok 5 zawiera też edytowalną nazwę planu i kontrolę liczby tygodni.
+const goToStep5 = () => {
+  goToProtocolStep();
+  fireEvent.click(screen.getByRole('button', { name: /Dalej|Continue/ }));
+};
+
+const mondayOfWeek = (weeksAhead: number) => {
   const d = new Date();
-  d.setDate(d.getDate() + n);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1) + weeksAhead * 7);
   return d;
 };
 
-describe('chipy daty startu z dniem tygodnia (T2)', () => {
-  it('PL: chip dzisiejszy = Dziś, jutrzejszy = dzień tygodnia z pl-PL, miesiąc w mini-linii', () => {
+const isoOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+describe('krok 4 bez daty startu (WP-PLANS-2)', () => {
+  it('sekcja "Data startu" zniknęła z kroku protokołu, dni treningowe zostały', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToProtocolStep();
-    expect(screen.getByText('Dziś')).toBeInTheDocument();
-    const tomorrowWd = plusDays(1).toLocaleDateString('pl-PL', { weekday: 'short' });
-    expect(screen.getByText(tomorrowWd)).toBeInTheDocument();
-    // Miesiąc nie ginie: mini-linia miesiąca w chipach (dziś ma go zawsze).
-    const monthShort = plusDays(0).toLocaleDateString('pl-PL', { month: 'short' });
-    expect(screen.getAllByText(monthShort).length).toBeGreaterThan(0);
+    expect(screen.getByText('Ile dni treningowych w tygodniu?')).toBeInTheDocument();
+    expect(screen.queryByText('Data startu')).toBeNull();
+    expect(screen.queryByText('Wybierz konkretną datę')).toBeNull();
   });
+});
 
-  it('PL: linia podglądu startu zawiera dzień tygodnia wybranej daty', () => {
+describe('krok 5: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2)', () => {
+  it('pole nazwy ma default z rekomendacji, a wybór startu to 8 najbliższych poniedziałków', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToProtocolStep();
-    const selectedTxt = plusDays(0).toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' });
-    expect(screen.getByText((txt) => txt.includes(`Wybrano ${selectedTxt}`))).toBeInTheDocument();
+    goToStep5();
+
+    const nameInput = screen.getByTestId('ob-plan-name') as HTMLInputElement;
+    expect(nameInput.value.length).toBeGreaterThan(0);
+
+    const chips = within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button');
+    expect(chips).toHaveLength(8);
+    // Default = poniedziałek bieżącego tygodnia (stary flow bez zmian, Edge 8).
+    expect(chips[0]).toHaveAttribute('aria-pressed', 'true');
+    expect(chips[0].textContent).toContain(String(mondayOfWeek(0).getDate()));
   });
 
-  it('NIEZMIENNIK (zasada #5): klik chipa nadal zmienia datę startu (podgląd podąża)', () => {
-    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToProtocolStep();
-    const tomorrow = plusDays(1);
-    fireEvent.click(screen.getByText(tomorrow.toLocaleDateString('pl-PL', { weekday: 'short' })));
-    const selectedTxt = tomorrow.toLocaleDateString('pl-PL', { weekday: 'short', day: 'numeric', month: 'short' });
-    expect(screen.getByText((txt) => txt.includes(`Wybrano ${selectedTxt}`))).toBeInTheDocument();
+  it('zmiany nazwy, startu i tygodni trafiają do onConfirm (choice)', () => {
+    const onConfirm = vi.fn();
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    goToStep5();
+
+    fireEvent.change(screen.getByTestId('ob-plan-name'), { target: { value: '  Mój blok  ' } });
+    const chips = within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button');
+    fireEvent.click(chips[2]);
+    fireEvent.click(screen.getByRole('button', { name: '16 tyg.' }));
+    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      planName: 'Mój blok',
+      startDate: isoOf(mondayOfWeek(2)),
+      durationWeeks: 16,
+    }));
   });
 
-  it('EN: dzień tygodnia w chipie podąża za językiem apki (en-US), nie systemem', () => {
+  it('pusta nazwa spada do nazwy rekomendowanego planu (Edge 4)', () => {
+    const onConfirm = vi.fn();
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
+    goToStep5();
+
+    const nameInput = screen.getByTestId('ob-plan-name') as HTMLInputElement;
+    const defaultName = nameInput.value;
+    fireEvent.change(nameInput, { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ planName: defaultName }));
+  });
+
+  it('EN: etykiety sekcji startu i nazwy w języku apki', () => {
     localStorage.setItem('app-language', 'en');
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToProtocolStep();
-    expect(screen.getByText('Today')).toBeInTheDocument();
-    const tomorrowWd = plusDays(1).toLocaleDateString('en-US', { weekday: 'short' });
-    expect(screen.getByText(tomorrowWd)).toBeInTheDocument();
+    goToStep5();
+    expect(screen.getByText('Plan start')).toBeInTheDocument();
+    expect(screen.getByTestId('ob-start-week-chips')).toBeInTheDocument();
   });
 });
 

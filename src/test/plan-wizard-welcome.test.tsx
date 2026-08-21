@@ -5,6 +5,9 @@ import { UnitProvider } from '@/contexts/UnitContext';
 
 // PlanBuilder ciągnie firebase (custom exercises); tryb "own" nie jest tu testowany.
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
+// WP-PLANS-1 dodał do PlanWizard PlanDurationPicker (PlanDaysEditor → ExercisePicker
+// → lib/firebase) — realny init Auth wywala jsdom (pułapka transitive importu).
+vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
 
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 import { ACCENTS } from '@/lib/accent-theme';

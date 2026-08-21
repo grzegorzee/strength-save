@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Loader2, RefreshCw, Trophy, Dumbbell, Flame, Percent, ChevronLeft, Medal } from 'lucide-react';
+import { Loader2, RefreshCw, Trophy, Dumbbell, Flame, Percent, ChevronLeft, Medal, Clock, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -18,6 +18,8 @@ import type { PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
+import { CycleShareDialog, computeCycleTimeAtGymSec, type CycleShareData } from '@/components/CycleShareCard';
+import { formatDurationHM } from '@/lib/monthly-stats';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { medalForCompletionRate, type SeasonMedal } from '@/lib/season-medals';
@@ -64,7 +66,7 @@ const NewPlan = () => {
   const { t, lang } = useTranslation();
   const { fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
-  const { plan: currentPlan, planDurationWeeks, planStartDate, savePlan } = useTrainingPlan(uid);
+  const { plan: currentPlan, planDurationWeeks, planStartDate, planName, savePlan } = useTrainingPlan(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { archiveCurrentPlan, createActiveCycle, getCycleById } = usePlanCycles(uid);
 
@@ -132,6 +134,13 @@ const NewPlan = () => {
     ? (sourceCycle.stats ?? buildActiveCyclePreview(sourceCycle, workouts)?.stats ?? null)
     : null;
   const closeoutMedal = closeoutStats ? medalForCompletionRate(closeoutStats.completionRate) : null;
+  // WP-PLANS-2 (X27, Task O4): łączny czas na siłowni z workoutów cyklu (te same
+  // dane co pozostałe kafle; sesje bez czasu liczą się jako 0).
+  const closeoutTimeSec = useMemo(
+    () => (sourceCycle ? computeCycleTimeAtGymSec(workouts, sourceCycle) : 0),
+    [sourceCycle, workouts],
+  );
+  const [shareOpen, setShareOpen] = useState(false);
 
   const onWizardConfirm = (c: PlanWizardChoice) => { setChosen(c); setReviewDays(c.days); setPhase('preview'); };
 
@@ -148,6 +157,10 @@ const NewPlan = () => {
         planDurationWeeks,
         workouts,
         startDate: chosen.startDate,
+        // WP-PLANS-2 (X27): wizard daje poniedziałek — walidowany kontrakt ma
+        // pierwszeństwo (stare szkice z surową datą spadają na snap startDate).
+        startDateISO: chosen.startDate,
+        planName: chosen.planName,
         archiveCurrentPlan,
         savePlan,
         createActiveCycle,
@@ -199,12 +212,24 @@ const NewPlan = () => {
 
   // ── Closeout (podsumowanie zakończonego cyklu) ──
   if (phase === 'closeout' && closeoutStats) {
-    const stats = [
+    const stats: Array<{ icon: typeof Dumbbell; label: string; value: string; wide?: boolean }> = [
       { icon: Dumbbell, label: t('newplan.closeout.workouts'), value: `${closeoutStats.totalWorkouts}/${closeoutStats.expectedWorkouts || closeoutStats.totalWorkouts}` },
       { icon: Flame, label: t('newplan.closeout.tonnage'), value: fmtTonnage(closeoutStats.totalTonnage) },
       { icon: Percent, label: t('newplan.closeout.attendance'), value: `${closeoutStats.completionRate}%` },
       { icon: Trophy, label: t('newplan.closeout.prs'), value: `${closeoutStats.prs.length}` },
+      // WP-PLANS-2 (X27, Task O4): 5. metryka — łączny czas na siłowni.
+      { icon: Clock, label: t('cycles.timeAtGym'), value: formatDurationHM(closeoutTimeSec), wide: true },
     ];
+    const shareData: CycleShareData = {
+      planName,
+      startDate: sourceCycle?.startDate ?? '',
+      endDate: sourceCycle?.endDate ?? '',
+      workoutsLabel: `${closeoutStats.totalWorkouts}/${closeoutStats.expectedWorkouts || closeoutStats.totalWorkouts}`,
+      tonnageLabel: fmtTonnage(closeoutStats.totalTonnage),
+      attendanceLabel: `${closeoutStats.completionRate}%`,
+      prCount: closeoutStats.prs.length,
+      timeLabel: formatDurationHM(closeoutTimeSec),
+    };
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <div className="flex-1 max-w-lg w-full mx-auto px-6 pt-10 pb-6 flex flex-col">
@@ -226,19 +251,24 @@ const NewPlan = () => {
           </div>
           <div className="flex-1 grid grid-cols-2 gap-3 content-start">
             {stats.map((s, i) => (
-              <div key={i} className="rounded-2xl bg-surface-low p-4">
+              <div key={i} className={`rounded-2xl bg-surface-low p-4 ${s.wide ? 'col-span-2' : ''}`}>
                 <s.icon className="h-5 w-5 text-primary mb-2" />
                 <p className="font-heading font-bold text-2xl tabular-nums leading-none">{s.value}</p>
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground mt-1.5">{s.label}</p>
               </div>
             ))}
           </div>
-          <div className="pt-5">
+          <div className="pt-5 space-y-2.5">
+            {/* WP-PLANS-2 (X27, Task O4): udostępnienie karty podsumowania cyklu. */}
+            <button onClick={() => setShareOpen(true)} className="w-full rounded-2xl py-3 font-medium text-sm bg-surface-high flex items-center justify-center gap-2">
+              <Share2 className="h-4 w-4 text-primary" /> {t('cycles.shareSummary')}
+            </button>
             <button onClick={() => setPhase('wizard')} className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary flex items-center justify-center gap-2">
               {t('newplan.closeout.choose')} <RefreshCw className="h-4 w-4" />
             </button>
           </div>
         </div>
+        <CycleShareDialog data={shareData} open={shareOpen} onOpenChange={setShareOpen} />
       </div>
     );
   }

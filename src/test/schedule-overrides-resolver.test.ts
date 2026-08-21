@@ -10,8 +10,11 @@ import type { TrainingDay } from '@/data/trainingPlan';
 const planDays = fixture.planDays as TrainingDay[];
 
 describe('resolvePlannedDay: wspólny fixture (parity web<->functions)', () => {
-  it.each(fixture.cases)('$name', ({ date, overrides, expected }) => {
-    const resolved = resolvePlannedDay(date, planDays, overrides as ScheduleOverrides);
+  it.each(fixture.cases)('$name', (testCase) => {
+    const { date, overrides, expected } = testCase;
+    // WP-PLANS-2 (X27): opcjonalny start planu w case — dzień istnieje od startDate.
+    const startDate = (testCase as { startDate?: string }).startDate ?? null;
+    const resolved = resolvePlannedDay(date, planDays, overrides as ScheduleOverrides, startDate);
     expect(resolved?.id ?? null).toBe(expected);
   });
 });

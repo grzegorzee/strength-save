@@ -66,6 +66,8 @@ export type ScheduleOverrides = Record<string, string | null>;
  * Kanoniczny resolver data -> dzień planu (kontrakt między serwisami; lustrzana
  * kopia w functions/src/garmin-day.ts, parity pilnowane wspólnym fixture
  * fixtures/cross-platform/schedule-overrides-v1.json):
+ * 0. (WP-PLANS-2, X27) dzień planowy istnieje dopiero od startu planu — data
+ *    przed planStartDateISO = null, override też nie wskrzesza dnia;
  * 1. wpis w scheduleOverrides[dateISO]: null = dzień wolny; dayId spoza planu
  *    (osierocony po zmianie planu) = wpis ignorowany, spada do reguły 2;
  * 2. brak wpisu: dotychczasowa reguła po weekday.
@@ -74,7 +76,9 @@ export const resolvePlannedDay = (
   dateISO: string,
   planDays: TrainingDay[],
   scheduleOverrides?: ScheduleOverrides | null,
+  planStartDateISO?: string | null,
 ): TrainingDay | null => {
+  if (planStartDateISO && dateISO < planStartDateISO) return null;
   if (scheduleOverrides && Object.prototype.hasOwnProperty.call(scheduleOverrides, dateISO)) {
     const overrideDayId = scheduleOverrides[dateISO];
     if (overrideDayId === null) return null;
@@ -88,8 +92,11 @@ export const getScheduledTrainingForDate = (
   planDays: TrainingDay[],
   date: Date,
   overrides?: ScheduleOverrides,
+  // WP-PLANS-2 (X27): start planu — daty przed nim nie mają dnia planowego.
+  startDateISO?: string | null,
 ): ScheduledTrainingDay | null => {
   const localDate = startOfLocalDay(date);
+  if (startDateISO && formatLocalDate(localDate) < startDateISO) return null;
   const day = overrides
     ? resolvePlannedDay(formatLocalDate(localDate), planDays, overrides)
     : getTrainingDayForDate(planDays, date);
@@ -138,15 +145,15 @@ export const getScheduledTrainingWeek = (
 export const getNextScheduledTraining = (
   planDays: TrainingDay[],
   fromDate: Date,
-  options: { includeSameDay?: boolean; searchDays?: number; overrides?: ScheduleOverrides } = {}
+  options: { includeSameDay?: boolean; searchDays?: number; overrides?: ScheduleOverrides; startDateISO?: string | null } = {}
 ): ScheduledTrainingDay | null => {
-  const { includeSameDay = false, searchDays = 14, overrides } = options;
+  const { includeSameDay = false, searchDays = 14, overrides, startDateISO } = options;
   const start = startOfLocalDay(fromDate);
 
   for (let offset = includeSameDay ? 0 : 1; offset <= searchDays; offset += 1) {
     const date = startOfLocalDay(start);
     date.setDate(start.getDate() + offset);
-    const scheduled = getScheduledTrainingForDate(planDays, date, overrides);
+    const scheduled = getScheduledTrainingForDate(planDays, date, overrides, startDateISO);
     if (scheduled) {
       return scheduled;
     }

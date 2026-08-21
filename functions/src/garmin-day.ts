@@ -170,6 +170,8 @@ export type GarminScheduleOverrides = Record<string, string | null>;
  * LUSTRZANA kopia kanonicznego resolvera webowego resolvePlannedDay
  * (src/lib/plan-schedule.ts) — parity pilnuje wspólny fixture
  * fixtures/cross-platform/schedule-overrides-v1.json:
+ * 0. (WP-PLANS-2, X27) dzień planowy istnieje dopiero od startu planu — data
+ *    przed planStartDate = null, override też nie wskrzesza dnia;
  * 1. wpis w scheduleOverrides[date]: null = dzień wolny; dayId spoza planu
  *    (osierocony po zmianie planu) lub wartość spoza kontraktu = wpis
  *    ignorowany, spada do reguły 2;
@@ -179,7 +181,9 @@ export const resolvePlannedGarminDay = (
   date: string,
   planDays: GarminPlanDay[],
   scheduleOverrides?: GarminScheduleOverrides | null,
+  planStartDate?: string | null,
 ): GarminPlanDay | null => {
+  if (planStartDate && date < planStartDate) return null;
   if (scheduleOverrides && Object.prototype.hasOwnProperty.call(scheduleOverrides, date)) {
     const overrideDayId = scheduleOverrides[date];
     if (overrideDayId === null) return null;
@@ -301,8 +305,9 @@ export function buildGarminDayContext(
   pinnedNotesByName: Record<string, string>,
   trackingByName: Record<string, GarminTrackingType> = {},
   scheduleOverrides?: GarminScheduleOverrides | null,
+  planStartDate?: string | null,
 ): GarminDayContext | null {
-  const day = resolvePlannedGarminDay(date, planDays, scheduleOverrides);
+  const day = resolvePlannedGarminDay(date, planDays, scheduleOverrides, planStartDate);
   if (!day) return null;
 
   return {

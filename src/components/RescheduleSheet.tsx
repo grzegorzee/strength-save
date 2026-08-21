@@ -26,6 +26,11 @@ interface RescheduleSheetProps {
    * zostają na liście, ale są disabled z dopiskiem — nie znikają.
    */
   completedDates?: ReadonlySet<string>;
+  /**
+   * WP-PLANS-2 (X27): start planu — dzień planowy istnieje dopiero od tej daty,
+   * więc occupanci sprzed startu nie są pokazywani (guard siedzi w resolverze).
+   */
+  planStartDateISO?: string | null;
 }
 
 /**
@@ -43,6 +48,7 @@ export const RescheduleSheet = ({
   onSelect,
   todayISO,
   completedDates,
+  planStartDateISO,
 }: RescheduleSheetProps) => {
   const { t, lang } = useTranslation();
   const today = todayISO ?? formatLocalDate(new Date());
@@ -56,7 +62,7 @@ export const RescheduleSheet = ({
   // dobry stan i Radix domyka się kontrolowanie.
   const frozenRef = useRef<{ fromDateISO: string; fromDay: TrainingDay; overrides: ScheduleOverrides } | null>(null);
   if (fromDateISO) {
-    const resolvedFromDay = resolvePlannedDay(fromDateISO, planDays, overrides);
+    const resolvedFromDay = resolvePlannedDay(fromDateISO, planDays, overrides, planStartDateISO);
     if (resolvedFromDay) frozenRef.current = { fromDateISO, fromDay: resolvedFromDay, overrides };
   }
   const frozen = frozenRef.current;
@@ -73,7 +79,7 @@ export const RescheduleSheet = ({
     options.push({
       dateISO,
       label: date.toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'short' }),
-      occupant: resolvePlannedDay(dateISO, planDays, frozen.overrides),
+      occupant: resolvePlannedDay(dateISO, planDays, frozen.overrides, planStartDateISO),
       completed: completedDates?.has(dateISO) ?? false,
     });
   }
