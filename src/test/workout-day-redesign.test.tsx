@@ -131,10 +131,10 @@ describe('mono meta linia nagłówka (fala 2)', () => {
       best1RM: 117, best1RMWeight: 100, best1RMReps: 5, maxWeight: 100,
     } as ExerciseBest;
     const { card } = renderCard({ savedSets: [workingSet()], historicalBest: best });
-    const meta = within(card).getByText(/Szac\. 1RM/);
-    // Naprawa r3 (2026-08-21): jednostka wagi RAZ — przy pierwszej wartości
-    // (1RM); źródło i Max gołymi liczbami, żeby linia mieściła się w jednej
-    // linii mono na 390 px.
+    const meta = within(card).getByText(/1RM/);
+    // Naprawa r3 (2026-08-21): etykieta "1RM" (bez "Szac.") i jednostka wagi RAZ —
+    // przy pierwszej wartości; źródło i Max gołymi liczbami, żeby cała meta
+    // mieściła się w JEDNEJ linii mono na 390 px (sugestia sędziego struktury).
     expect(meta.textContent).toContain('117 kg');
     // Źródło estymacji (100×5) jest częścią linii — nie sama liczba.
     expect(meta.textContent).toContain('100×5');

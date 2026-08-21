@@ -1749,7 +1749,7 @@ export const pl = {
   'exercises.type.bodyweight': 'Masa ciała',
   'exercises.type.compound': 'Wielostawowe',
   'exercises.type.isolation': 'Izolacja',
-  'card.est1rm': 'Szac. 1RM',
+  'card.est1rm': '1RM',
   'card.maxLift': 'Max',
   'card.maxLiftTitle': 'Najcięższa podniesiona seria robocza',
   'pr.est1rmValue': 'Szac. 1RM: {value}',
