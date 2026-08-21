@@ -7,6 +7,8 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
+      // Zywe worktree agentow (osobne branche) lintuja sie u siebie, nie z main.
+      ".claude/worktrees/**",
       "build/**",
       "dist/**",
       "coverage/**",
