@@ -46,16 +46,21 @@ test.describe('Wyślij do trenera (H-T1)', () => {
     await expect(page.getByTestId('email-range-week')).toHaveCount(0);
   });
 
-  test('historia: button otwiera dialog z dwiema opcjami zakresu (bez opcji wszystko)', async ({ page }) => {
+  // WP-H (X28): wysyłka historii żyje w Export sheet (wiersz "Wyślij do
+  // trenera"); sheet zamyka się PRZED otwarciem dialogu (kontrakt Radix).
+  test('historia: Export sheet → do trenera otwiera dialog z dwiema opcjami zakresu (bez opcji wszystko)', async ({ page }) => {
     await setE2EWorkouts(page, [workout('w-current', SESSION_DATE)]);
     await navigateAndWait(page, '/history');
     await expectPageRendered(page);
 
+    await page.getByTestId('history-export').click();
+    await expect(page.getByTestId('history-export-sheet')).toBeVisible();
     const button = page.getByTestId('history-email');
     await expect(button).toBeVisible();
     await expect(button).toContainText('Wyślij do trenera');
 
     await button.click();
+    await expect(page.getByTestId('history-export-sheet')).not.toBeVisible();
     await expect(page.getByTestId('email-workout-dialog')).toBeVisible();
     await expect(page.getByTestId('email-range-week')).toBeVisible();
     await expect(page.getByTestId('email-range-last30')).toBeVisible();

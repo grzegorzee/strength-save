@@ -1,0 +1,372 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { LanguageProvider } from '@/contexts/LanguageContext';
+import { UnitProvider } from '@/contexts/UnitContext';
+import type { WorkoutSession } from '@/types';
+
+// WP-H (X28): Historia v2 "tiles" — poziom 1 (kafle cykli + PERIOD + Export +
+// LATEST), poziom 2 (?cycle= — nagłówek, chipsy, tygodnie), Export sheet (2c).
+// Fixtury WYŁĄCZNIE z canonical-states (stan history-multi-cycle, zasada 11).
+
+const navigateSpy = vi.hoisted(() => vi.fn());
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => navigateSpy };
+});
+
+const fixtures = vi.hoisted(() => ({
+  workouts: [] as unknown[],
+  cycles: [] as unknown[],
+  hasMore: false,
+  loadMore: vi.fn(),
+  exportFetchResult: [] as unknown[],
+}));
+
+vi.mock('@/contexts/UserContext', () => ({
+  useCurrentUser: () => ({
+    uid: 'u1',
+    profile: { displayName: 'QA', preferences: { trainerEmail: 'coach@example.com' } },
+    isAdmin: false,
+  }),
+}));
+vi.mock('@/hooks/useWorkoutHistoryPage', () => ({
+  useWorkoutHistoryPage: () => ({
+    workouts: fixtures.workouts,
+    isLoaded: true,
+    isLoadingMore: false,
+    hasMore: fixtures.hasMore,
+    loadMore: fixtures.loadMore,
+  }),
+}));
+vi.mock('@/hooks/useTrainingPlan', () => ({
+  useTrainingPlan: () => ({ plan: [] }),
+}));
+vi.mock('@/hooks/usePlanCycles', () => ({
+  usePlanCycles: () => ({ cycles: fixtures.cycles }),
+}));
+vi.mock('@/hooks/useWorkoutAggregate', () => ({
+  useWorkoutAggregate: () => null,
+}));
+vi.mock('@/lib/workout-read-store', () => ({
+  fetchWorkoutRange: vi.fn(async () => []),
+}));
+vi.mock('@/lib/workout-delete', () => ({
+  deleteWorkoutEverywhere: vi.fn(async () => ({ success: true })),
+}));
+vi.mock('@/components/EmailWorkoutDialog', () => ({
+  EmailWorkoutDialog: ({ mode, open }: { mode: string; open: boolean }) => (
+    <div data-testid="email-dialog-stub" data-mode={mode} data-open={String(open)} />
+  ),
+}));
+// H3: formaty eksportu delegują do ISTNIEJĄCYCH mechanizmów — mockujemy je
+// i asertujemy wywołania z właściwym zbiorem sesji / zakresem.
+vi.mock('@/lib/workout-csv-download', () => ({
+  fetchWorkoutsForBounds: vi.fn(async () => fixtures.exportFetchResult),
+  downloadWorkoutsCsvFile: vi.fn(),
+}));
+vi.mock('@/lib/pdf-report', () => ({
+  buildTrainingReportModel: vi.fn(() => ({
+    monthly: [],
+    totals: { workoutCount: 0, workoutsWithDuration: 0, totalDurationSec: 0, totalTonnageKg: 0 },
+  })),
+  generateTrainingReportPdf: vi.fn(async () => new Blob(['pdf'], { type: 'application/pdf' })),
+}));
+
+import WorkoutHistory from '@/pages/WorkoutHistory';
+import { buildCanonicalState } from '@/test/canonical-states';
+import { weekNoFor } from '@/lib/history-cycles';
+import { fetchWorkoutsForBounds, downloadWorkoutsCsvFile } from '@/lib/workout-csv-download';
+import { buildTrainingReportModel, generateTrainingReportPdf } from '@/lib/pdf-report';
+
+// Dzień pinowany fake timerami: czwartek — sesje -1/-2/-3 lądują w bieżącym
+// tygodniu cyklu niezależnie od realnego dnia uruchomienia testów.
+const TODAY = new Date(2026, 7, 20, 12, 0, 0);
+const TODAY_ISO = '2026-08-20';
+
+const state = () => buildCanonicalState('history-multi-cycle', TODAY_ISO);
+
+const renderPage = (entry = '/history') => render(
+  <MemoryRouter initialEntries={[entry]}>
+    <LanguageProvider>
+      <UnitProvider>
+        <WorkoutHistory />
+      </UnitProvider>
+    </LanguageProvider>
+  </MemoryRouter>,
+);
+
+const openRowMenu = async (row: HTMLElement) => {
+  const trigger = within(row).getByTestId('history-row-menu');
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+  fireEvent.click(trigger);
+  return await screen.findByRole('menu');
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(TODAY);
+  window.localStorage.clear();
+  window.localStorage.setItem('app-language', 'pl');
+  global.URL.createObjectURL = vi.fn(() => 'blob:test');
+  global.URL.revokeObjectURL = vi.fn();
+  const s = state();
+  fixtures.workouts = s.workouts;
+  fixtures.cycles = s.cycles;
+  fixtures.hasMore = false;
+  fixtures.exportFetchResult = s.workouts.filter((w) => (w as WorkoutSession).completed);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+const activeCycleOf = () => state().cycles.find((c) => c.status === 'active')!;
+
+describe('WP-H H1 — poziom 1: kafle cykli', () => {
+  it('renderuje kafel aktywnego (tag Aktywny, zakres z "teraz"), przeszłego i "Poza cyklami"', () => {
+    renderPage();
+    const tiles = screen.getAllByTestId('cycle-tile');
+    expect(tiles).toHaveLength(3);
+
+    // Aktywny cykl (Cykl 2 — numeracja od najstarszego).
+    const activeTile = tiles.find((tile) => within(tile).queryByText('Cykl 2'))!;
+    expect(activeTile).toBeDefined();
+    expect(within(activeTile).getByText(/Aktywny · tydz\. \d+/i)).toBeInTheDocument();
+    // Regresja E-8UE4S: endDate '' => zakres z "teraz", nie crash.
+    expect(within(activeTile).getByText(/teraz/)).toBeInTheDocument();
+
+    // Przeszły cykl z zakresem dat i tagiem liczby tygodni.
+    const pastTile = tiles.find((tile) => within(tile).queryByText('Cykl 1'))!;
+    expect(pastTile).toBeDefined();
+    expect(within(pastTile).getByText('8 tyg.')).toBeInTheDocument();
+    expect(within(pastTile).queryByText(/teraz/)).not.toBeInTheDocument();
+
+    // Sesja bez cyklu => kafel "Poza cyklami" (niezmiennik: każda sesja osiągalna).
+    const outsideTile = tiles.find((tile) => within(tile).queryByText('Poza cyklami'))!;
+    expect(outsideTile).toBeDefined();
+  });
+
+  it('licznik nagłówka = realna liczba sesji; przyciski PERIOD i Export obecne', () => {
+    renderPage();
+    expect(screen.getByText(/5 sesji/i)).toBeInTheDocument();
+    expect(screen.getByTestId('history-period')).toBeInTheDocument();
+    expect(screen.getByTestId('history-export')).toBeInTheDocument();
+    // Poziom 1 bez lupy (design 2a) — wyszukiwarka żyje w pełnej liście.
+    expect(screen.queryByPlaceholderText(/Szukaj po dacie/)).not.toBeInTheDocument();
+  });
+
+  it('LATEST SESSIONS: 3 najnowsze sesje z kompletem akcji w menu ⋯', async () => {
+    renderPage();
+    const latest = screen.getByTestId('history-latest');
+    const rows = within(latest).getAllByTestId('history-session-row');
+    expect(rows).toHaveLength(3);
+    // Draft w LATEST ma badge.
+    expect(within(latest).getAllByText('draft')).toHaveLength(1);
+
+    // Niezmiennik: komplet akcji wiersza także na poziomie 1.
+    const menu = await openRowMenu(rows[0]);
+    expect(within(menu).getByRole('menuitem', { name: /Otwórz trening/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: 'Szczegóły' })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: /Porównaj/ })).toBeInTheDocument();
+    expect(within(menu).getByTestId('history-row-email')).toHaveTextContent('Wyślij do trenera');
+    expect(within(menu).getByTestId('history-delete')).toHaveTextContent('Usuń');
+  });
+
+  it('link "Wszystkie sesje" prowadzi do pełnej listy z wyszukiwarką i wszystkimi wierszami', () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('history-all-sessions-link'));
+    expect(screen.getByPlaceholderText(/Szukaj po dacie/)).toBeInTheDocument();
+    // Kompletność: WSZYSTKIE sesje (5) w pełnej liście.
+    expect(screen.getAllByTestId('history-session-row')).toHaveLength(5);
+  });
+
+  it('tap w kafel otwiera widok cyklu; przycisk PERIOD otwiera kalendarz zakresu', async () => {
+    renderPage();
+    const tiles = screen.getAllByTestId('cycle-tile');
+    const activeTile = tiles.find((tile) => within(tile).queryByText('Cykl 2'))!;
+    fireEvent.click(activeTile);
+    expect(await screen.findByTestId('cycle-detail')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Cykl 2' })).toBeInTheDocument();
+
+    // Powrót i PERIOD.
+    fireEvent.click(screen.getByTestId('cycle-back'));
+    fireEvent.click(await screen.findByTestId('history-period'));
+    expect(await screen.findByTestId('history-period-calendar')).toBeInTheDocument();
+    expect(screen.getByTestId('history-period-clear')).toBeInTheDocument();
+  });
+
+  it('0 cykli z sesjami ad-hoc: grid pokazuje tylko kafel "Poza cyklami"', () => {
+    fixtures.cycles = [];
+    renderPage();
+    const tiles = screen.getAllByTestId('cycle-tile');
+    expect(tiles).toHaveLength(1);
+    expect(within(tiles[0]).getByText('Poza cyklami')).toBeInTheDocument();
+  });
+});
+
+describe('WP-H H2 — poziom 2: widok cyklu (?cycle=)', () => {
+  it('nagłówek: nazwa, pill Aktywny, zakres z "teraz" (E-8UE4S), 4 staty', () => {
+    const active = activeCycleOf();
+    renderPage(`/history?cycle=${active.id}`);
+    const detail = screen.getByTestId('cycle-detail');
+    expect(within(detail).getByRole('heading', { name: 'Cykl 2' })).toBeInTheDocument();
+    expect(within(detail).getByText('Aktywny')).toBeInTheDocument();
+    expect(within(detail).getByText(/teraz/)).toBeInTheDocument();
+    expect(within(detail).getByText('Sesje')).toBeInTheDocument();
+    expect(within(detail).getByText('Tonaż')).toBeInTheDocument();
+    expect(within(detail).getByText('PR')).toBeInTheDocument();
+    expect(within(detail).getByText('Frekwencja')).toBeInTheDocument();
+    // Staty liczone LIVE: 2 ukończone sesje w cyklu.
+    const sessionsLabel = within(detail).getByText('Sesje');
+    expect(sessionsLabel.previousElementSibling).toHaveTextContent('2');
+    // PR-y w akcencie.
+    const prLabel = within(detail).getByText('PR');
+    expect(prLabel.previousElementSibling?.className).toContain('text-primary');
+  });
+
+  it('sesje grupowane tygodniami, bieżący tydzień w akcencie; wiersz ma komplet akcji', async () => {
+    const active = activeCycleOf();
+    renderPage(`/history?cycle=${active.id}`);
+    const detail = screen.getByTestId('cycle-detail');
+    const currentWeek = weekNoFor(TODAY_ISO, active);
+    const header = within(detail).getByText(`Tydzień ${currentWeek} · bieżący`);
+    expect(header.className).toContain('text-primary');
+    expect(within(detail).getAllByTestId('history-session-row')).toHaveLength(3);
+
+    const menu = await openRowMenu(within(detail).getAllByTestId('history-session-row')[0]);
+    expect(within(menu).getByRole('menuitem', { name: /Otwórz trening/ })).toBeInTheDocument();
+    expect(within(menu).getByTestId('history-row-email')).toBeInTheDocument();
+    expect(within(menu).getByTestId('history-delete')).toBeInTheDocument();
+  });
+
+  it('chipsy filtrów: Drafty zawężają, Najdłuższe najpierw sortuje (bez czasu na końcu)', () => {
+    const active = activeCycleOf();
+    renderPage(`/history?cycle=${active.id}`);
+    const detail = screen.getByTestId('cycle-detail');
+
+    expect(within(detail).getByTestId('cycle-chip-all')).toHaveTextContent('Wszystkie 3');
+    fireEvent.click(within(detail).getByTestId('cycle-chip-drafts'));
+    expect(within(detail).getAllByTestId('history-session-row')).toHaveLength(1);
+    expect(within(detail).getAllByText('draft')).toHaveLength(1);
+
+    fireEvent.click(within(detail).getByTestId('cycle-chip-all'));
+    fireEvent.click(within(detail).getByTestId('cycle-chip-longest'));
+    const rows = within(detail).getAllByTestId('history-session-row');
+    expect(rows).toHaveLength(3);
+    // Draft bez durationSec ląduje na końcu.
+    expect(within(rows[rows.length - 1]).getByText('draft')).toBeInTheDocument();
+  });
+
+  it('menu ⋯ cyklu: Porównaj włącza tryb, Wyślij do trenera otwiera dialog historii', async () => {
+    const active = activeCycleOf();
+    renderPage(`/history?cycle=${active.id}`);
+    fireEvent.pointerDown(screen.getByTestId('cycle-menu'), { button: 0, ctrlKey: false, pointerType: 'mouse' });
+    fireEvent.click(screen.getByTestId('cycle-menu'));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitem', { name: /Porównaj/ })).toBeInTheDocument();
+    fireEvent.click(within(menu).getByTestId('cycle-menu-email'));
+    await waitFor(() => {
+      const historyDialog = screen.getAllByTestId('email-dialog-stub')
+        .find((el) => el.dataset.mode === 'history');
+      expect(historyDialog?.dataset.open).toBe('true');
+    });
+  });
+
+  it('back wraca do kafli; nieznany ?cycle= renderuje poziom 1', () => {
+    const active = activeCycleOf();
+    renderPage(`/history?cycle=${active.id}`);
+    fireEvent.click(screen.getByTestId('cycle-back'));
+    expect(screen.getByTestId('history-period')).toBeInTheDocument();
+    expect(screen.queryByTestId('cycle-detail')).not.toBeInTheDocument();
+  });
+
+  it('nieznany ?cycle= pokazuje kafle (fallback bez crasha)', () => {
+    renderPage('/history?cycle=nie-ma-takiego');
+    expect(screen.getByTestId('history-period')).toBeInTheDocument();
+    expect(screen.queryByTestId('cycle-detail')).not.toBeInTheDocument();
+  });
+
+  it('?cycle=outside: sesje poza cyklami zgrupowane miesiącami', () => {
+    renderPage('/history?cycle=outside');
+    const detail = screen.getByTestId('cycle-detail');
+    expect(within(detail).getByRole('heading', { name: 'Poza cyklami' })).toBeInTheDocument();
+    expect(within(detail).getAllByTestId('history-session-row')).toHaveLength(1);
+    expect(within(detail).getByText(/Marzec 2026/i)).toBeInTheDocument();
+  });
+});
+
+describe('WP-H H3 — Export sheet', () => {
+  const openSheet = async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('history-export'));
+    return await screen.findByTestId('history-export-sheet');
+  };
+
+  it('Export otwiera sheet; domyślny zakres = Aktywny cykl; Ten okres disabled bez PERIOD', async () => {
+    const sheet = await openSheet();
+    expect(within(sheet).getByTestId('export-scope-cycle')).toHaveAttribute('aria-checked', 'true');
+    expect(within(sheet).getByTestId('export-scope-period')).toBeDisabled();
+    expect(within(sheet).getByTestId('export-format-pdf')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('export-format-csv')).toBeInTheDocument();
+    // Wiersz "do trenera" z zapamiętanym adresem.
+    expect(within(sheet).getByTestId('history-email')).toHaveTextContent('coach@example.com');
+  });
+
+  it('CSV: pobiera sesje zakresu aktywnego cyklu i woła istniejącą ścieżkę CSV', async () => {
+    const active = activeCycleOf();
+    const sheet = await openSheet();
+    fireEvent.click(within(sheet).getByTestId('export-format-csv'));
+    await waitFor(() => {
+      expect(fetchWorkoutsForBounds).toHaveBeenCalledWith('u1', {
+        mode: 'dates',
+        fromDate: active.startDate,
+        toDate: TODAY_ISO,
+      });
+      expect(downloadWorkoutsCsvFile).toHaveBeenCalledWith(fixtures.exportFetchResult);
+    });
+    await waitFor(() => expect(screen.queryByTestId('history-export-sheet')).not.toBeInTheDocument());
+  });
+
+  it('zakres Cała historia: bounds od 1970 do dziś', async () => {
+    const sheet = await openSheet();
+    fireEvent.click(within(sheet).getByTestId('export-scope-all'));
+    expect(within(sheet).getByTestId('export-scope-all')).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(within(sheet).getByTestId('export-format-csv'));
+    await waitFor(() => {
+      expect(fetchWorkoutsForBounds).toHaveBeenCalledWith('u1', {
+        mode: 'dates',
+        fromDate: '1970-01-01',
+        toDate: TODAY_ISO,
+      });
+    });
+  });
+
+  it('PDF: buduje model z pobranych sesji i generuje raport istniejącym mechanizmem', async () => {
+    const sheet = await openSheet();
+    fireEvent.click(within(sheet).getByTestId('export-format-pdf'));
+    await waitFor(() => {
+      expect(buildTrainingReportModel).toHaveBeenCalledWith(fixtures.exportFetchResult, expect.any(Date));
+      expect(generateTrainingReportPdf).toHaveBeenCalled();
+    });
+    await waitFor(() => expect(screen.queryByTestId('history-export-sheet')).not.toBeInTheDocument());
+  });
+
+  it('Wyślij do trenera: zamyka sheet i otwiera dialog historii', async () => {
+    const sheet = await openSheet();
+    fireEvent.click(within(sheet).getByTestId('history-email'));
+    await waitFor(() => {
+      const historyDialog = screen.getAllByTestId('email-dialog-stub')
+        .find((el) => el.dataset.mode === 'history');
+      expect(historyDialog?.dataset.open).toBe('true');
+    });
+    await waitFor(() => expect(screen.queryByTestId('history-export-sheet')).not.toBeInTheDocument());
+  });
+
+  it('Anuluj zamyka sheet (wyjście ze stanu, zasada 6)', async () => {
+    const sheet = await openSheet();
+    fireEvent.click(within(sheet).getByTestId('export-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('history-export-sheet')).not.toBeInTheDocument());
+  });
+});

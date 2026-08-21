@@ -25,7 +25,8 @@ export type CanonicalStateId =
   | 'plan-ended'
   | 'empty-history'
   | 'history-outside-cycles'
-  | 'draft-open';
+  | 'draft-open'
+  | 'history-multi-cycle';
 
 export const CANONICAL_STATE_IDS: CanonicalStateId[] = [
   'fresh-user',
@@ -34,6 +35,7 @@ export const CANONICAL_STATE_IDS: CanonicalStateId[] = [
   'empty-history',
   'history-outside-cycles',
   'draft-open',
+  'history-multi-cycle',
 ];
 
 /** Dokument training_plans/{uid} w polach, ktore konsumuje useTrainingPlan
@@ -300,6 +302,34 @@ export const buildCanonicalState = (
           buildWorkout('in', addCalendarDays(pastStart, 2), days[0], { cycleId: cycle.id }),
           buildWorkout('out-a', addCalendarDays(pastStart, -30), days[0]),
           buildWorkout('out-b', addCalendarDays(todayISO, -2), days[1]),
+        ],
+      };
+    }
+
+    case 'history-multi-cycle': {
+      // WP-H (X28): aktywny cykl w polowie + zamkniety cykl przeszly + sesja
+      // poza cyklami + draft. Stan pod Historie v2 (kafle cykli, poziom cyklu,
+      // pelna lista) — te same buildery co pozostale stany.
+      const days = buildPlanDays(todayISO);
+      const active = buildActiveCycle(days, durationWeeks, activeStart);
+      const pastStart = formatLocalDate(getStartOfPlanWeek(parseLocalDate(addCalendarDays(todayISO, -140))));
+      const pastEnd = addCalendarDays(pastStart, durationWeeks * 7);
+      const past = buildCompletedCycle(days, durationWeeks, pastStart, pastEnd);
+      return {
+        ...base,
+        plan: { days, durationWeeks, startDate: activeStart, status: 'active', name: 'Mój plan siłowy' },
+        cycles: [active, past],
+        workouts: [
+          buildWorkout('a', addCalendarDays(todayISO, -1), days[0], { cycleId: active.id }),
+          buildWorkout('draft', addCalendarDays(todayISO, -2), days[0], {
+            cycleId: active.id,
+            completed: false,
+            durationSec: undefined,
+            completedAt: undefined,
+          }),
+          buildWorkout('b', addCalendarDays(todayISO, -3), days[1], { cycleId: active.id }),
+          buildWorkout('p1', addCalendarDays(pastStart, 2), days[0], { cycleId: past.id }),
+          buildWorkout('out', addCalendarDays(pastStart, -20), days[1]),
         ],
       };
     }

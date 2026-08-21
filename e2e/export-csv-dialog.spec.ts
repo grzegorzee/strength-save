@@ -40,7 +40,9 @@ test.describe('Eksport CSV z wyborem zakresu (J-T5)', () => {
     });
   });
 
-  test('Historia: dialog, wybór Ostatnie 10, eksport tworzy blob text/csv', async ({ page }) => {
+  // WP-H (X28): w Historii jeden Export (bottom sheet 2c) zamiast dialogu CSV;
+  // format CSV idzie tą samą ścieżką generacji (workout-csv-download).
+  test('Historia: Export sheet, zakres Cała historia, CSV tworzy blob text/csv', async ({ page }) => {
     await setE2EWorkouts(page, [
       workout('w-1', localDaysAgo(1)),
       workout('w-2', localDaysAgo(40)),
@@ -48,22 +50,18 @@ test.describe('Eksport CSV z wyborem zakresu (J-T5)', () => {
     await navigateAndWait(page, '/history');
     await expectPageRendered(page);
 
-    const button = page.getByTestId('history-export-csv');
+    const button = page.getByTestId('history-export');
     await expect(button).toBeVisible();
-    await expect(button).toContainText('Eksport CSV');
+    await expect(button).toContainText('Eksport');
     await button.click();
 
-    const dialog = page.getByTestId('export-workouts-dialog');
-    await expect(dialog).toBeVisible();
-    // Domyślnie ostatni tydzień: stary trening (40 dni) poza zakresem.
-    await expect(page.getByTestId('export-range-week')).toHaveAttribute('aria-checked', 'true');
-    await expect(page.getByTestId('export-preview')).toContainText('1');
+    const sheet = page.getByTestId('history-export-sheet');
+    await expect(sheet).toBeVisible();
+    // Bez PERIOD i bez aktywnego cyklu domyślny zakres = Cała historia.
+    await expect(page.getByTestId('export-scope-all')).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('export-scope-period')).toBeDisabled();
 
-    // Ostatnie 10 treningów: wchodzą oba.
-    await page.getByTestId('export-range-last10').click();
-    await expect(page.getByTestId('export-preview')).toContainText('2');
-
-    await page.getByTestId('export-submit').click();
+    await page.getByTestId('export-format-csv').click();
     await expect
       .poll(async () => page.evaluate(() =>
         (window as unknown as { __csvBlobs: Blob[] }).__csvBlobs
@@ -75,7 +73,7 @@ test.describe('Eksport CSV z wyborem zakresu (J-T5)', () => {
     });
     expect(csvText).toContain('date,day,focus,exercise');
     expect(csvText).toContain('Wyciskanie hantli (Lekki skos)');
-    await expect(dialog).not.toBeVisible();
+    await expect(sheet).not.toBeVisible();
   });
 
   test('Ustawienia → Dane: przycisk otwiera ten sam dialog', async ({ page }) => {
