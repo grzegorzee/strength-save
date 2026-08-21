@@ -797,11 +797,14 @@ const Dashboard = () => {
       />
       <AllTimeStatsSheet open={statsOpen} onOpenChange={setStatsOpen} workouts={workouts} uid={uid} />
       {/* Greeting (fala 2): ikona pory dnia w akcencie (warning był ozdobny,
-          nie semantyczny — reguła "jeden akcent") + chip streaka przy dacie. */}
+          nie semantyczny — reguła "jeden akcent") + chip streaka przy dacie.
+          Naprawa r2 (2026-08-21): bez italica (Space Grotesk nie ma kroju italic,
+          tokens.md ryzyko 4 — silnik syntezował faux oblique); "!" w spanie
+          imienia, bo gap-2 flexa robił szczelinę przed wykrzyknikiem. */}
       <div data-testid="dash-greeting">
-        <h1 className="text-2xl font-heading font-bold uppercase italic flex items-center gap-2 tracking-tight">
+        <h1 className="text-2xl font-heading font-bold uppercase flex items-center gap-2 tracking-tight">
           <GreetingIcon className="h-6 w-6 text-primary" />
-          {greetingText}, <span className="text-primary">{displayName}</span>!
+          {greetingText}, <span className="text-primary">{displayName}!</span>
         </h1>
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <p className="text-muted-foreground text-sm capitalize">{formattedDate}</p>
