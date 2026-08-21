@@ -132,7 +132,9 @@ export const ExercisePicker = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] max-h-[88vh] flex flex-col gap-0 p-0 overflow-hidden">
+      {/* X28 WP-A: bez max-h w className — tailwind-merge nadpisywał keyboard-aware
+          max-h z ui/dialog i góra dialogu wyjeżdżała poza ekran przy klawiaturze. */}
+      <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] flex flex-col gap-0 p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3">
           <DialogTitle className="font-heading font-bold uppercase tracking-tight">
             {title ?? t('picker.title')}
@@ -171,9 +173,8 @@ export const ExercisePicker = ({
               </button>
             ))}
           </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2">
+          {/* X28 WP-A: przycisk NAD scrollowaną listą — widoczny bez scrollowania
+              niezależnie od długości listy (wcześniej ginął nad ~200 pozycjami). */}
           {onCreateCustomExercise && !customForm && (
             <Button
               variant="outline"
@@ -190,7 +191,9 @@ export const ExercisePicker = ({
               {t('custom.addButton')}
             </Button>
           )}
+        </div>
 
+        <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2">
           {customForm && (
             <div className="rounded-xl border border-border p-3 space-y-3">
               <Input

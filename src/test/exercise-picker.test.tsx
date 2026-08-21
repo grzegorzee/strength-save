@@ -73,4 +73,32 @@ describe('ExercisePicker (Z69)', () => {
     expect(onPick).not.toHaveBeenCalled();
     expect(screen.getByText('footer-Wyciskanie sztangi na ławce płaskiej')).toBeTruthy();
   });
+
+  // X28 WP-A: przy klawiaturze iOS max-h-[88vh] nadpisywało (tailwind-merge)
+  // keyboard-aware max-h z ui/dialog i góra dialogu wyjeżdżała poza ekran.
+  it('DialogContent bez nadpisania max-h — dziedziczy keyboard-aware z ui/dialog', () => {
+    renderPicker();
+    const content = screen.getByRole('dialog');
+    expect(content.className).not.toContain('max-h-[88vh]');
+    expect(content.className).toContain('max-h-[calc(100dvh_-_var(--keyboard-inset');
+  });
+
+  // X28 WP-A: przycisk "Dodaj własne" NAD scrollowaną listą ~200 pozycji —
+  // widoczny bez scrollowania niezależnie od długości listy.
+  it('przycisk "Dodaj własne ćwiczenie" renderuje się POZA scrollowanym kontenerem listy', () => {
+    renderPicker({ onCreateCustomExercise: vi.fn() });
+    const button = screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' });
+    const scroll = screen.getByText('Wyciskanie sztangi na ławce płaskiej').closest('.overflow-y-auto');
+    expect(scroll).toBeTruthy();
+    expect(scroll!.contains(button)).toBe(false);
+  });
+
+  // 30 s: klik wymusza re-render pełnej biblioteki (jak test chipa kategorii wyżej);
+  // pod pełnym biegiem suite'u domyślne 15 s potrafi nie wystarczyć.
+  it('tapnięcie "Dodaj własne ćwiczenie" otwiera formularz inline (flow pickera bez zmian)', () => {
+    renderPicker({ onCreateCustomExercise: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' }));
+    expect(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Zapisz i wybierz' })).toBeTruthy();
+  }, 30000);
 });

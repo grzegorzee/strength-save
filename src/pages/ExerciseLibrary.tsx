@@ -9,7 +9,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeExerciseName, localizeCategory } from '@/data/exercise-i18n';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useCustomExercises, type CustomExercise } from '@/hooks/useCustomExercises';
-import { ExercisePicker } from '@/components/ExercisePicker';
+import { CreateCustomExerciseDialog } from '@/components/CreateCustomExerciseDialog';
 import { GroupTile } from '@/components/exercises/GroupTile';
 import { GroupHeader } from '@/components/exercises/GroupHeader';
 import { ExerciseListRow } from '@/components/exercises/ExerciseListRow';
@@ -330,12 +330,11 @@ const ExerciseLibrary = () => {
         </>
       )}
 
-      <ExercisePicker
+      {/* X28 WP-A: kompaktowy dialog-formularz zamiast pickera z listą biblioteki */}
+      <CreateCustomExerciseDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title={t('exercises.newCustom')}
-        customExercises={customExercises}
-        onCreateCustomExercise={addCustomExercise}
+        onCreate={addCustomExercise}
       />
     </div>
   );

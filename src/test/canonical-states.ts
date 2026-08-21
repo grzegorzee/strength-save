@@ -25,7 +25,13 @@ export type CanonicalStateId =
   | 'plan-ended'
   | 'empty-history'
   | 'history-outside-cycles'
-  | 'draft-open';
+  | 'draft-open'
+  | 'plan-future-start-wpc'
+  | 'plan-midweek-done-wpc'
+  | 'plan-future-start-done-today-wpb'
+  | 'plan-active-done-today-wpb'
+  | 'photos-before-after'
+  | 'active-plan-rpe';
 
 export const CANONICAL_STATE_IDS: CanonicalStateId[] = [
   'fresh-user',
@@ -34,6 +40,12 @@ export const CANONICAL_STATE_IDS: CanonicalStateId[] = [
   'empty-history',
   'history-outside-cycles',
   'draft-open',
+  'plan-future-start-wpc',
+  'plan-midweek-done-wpc',
+  'plan-future-start-done-today-wpb',
+  'plan-active-done-today-wpb',
+  'photos-before-after',
+  'active-plan-rpe',
 ];
 
 /** Dokument training_plans/{uid} w polach, ktore konsumuje useTrainingPlan
@@ -184,6 +196,17 @@ const buildPhotoOnlyMeasurement = (dateISO: string): BodyMeasurement => ({
   photoUrl: 'https://firebasestorage.googleapis.com/v0/b/app/o/body-photos%2Fcanonical.jpg?alt=media',
 } as BodyMeasurement);
 
+/** WP-E (X28): pomiar z waga i zdjeciem — ksztalt zapisu addMeasurement po
+ *  udanym uploadzie foto (photoUrl + photoPath jak w Measurements.tsx). */
+const buildPhotoWeightMeasurement = (dateISO: string, weightKg: number): BodyMeasurement => ({
+  id: `measurement-photo-weight-${dateISO}`,
+  userId: CANONICAL_UID,
+  date: dateISO,
+  weight: weightKg,
+  photoUrl: `https://firebasestorage.googleapis.com/v0/b/app/o/body-photos%2F${CANONICAL_UID}%2F${dateISO}.jpg?alt=media`,
+  photoPath: `body-photos/${CANONICAL_UID}/${dateISO}.jpg`,
+});
+
 /** Otwarty draft sesji: ksztalt workout-draft-db.ActiveWorkoutDraft. */
 const buildDraft = (todayISO: string, day: TrainingDay, cycleId: string | null): ActiveWorkoutDraft => {
   const startedAt = parseLocalDate(todayISO).getTime() + 17 * 3_600_000;
@@ -323,6 +346,119 @@ export const buildCanonicalState = (
           buildWorkout('done', addCalendarDays(todayISO, -2), days[1], { cycleId: cycle.id }),
         ],
         draft: buildDraft(todayISO, days[0], cycle.id),
+      };
+    }
+
+    case 'plan-future-start-wpc': {
+      // WP-C (X28): plan z data startu w PRZYSZLOSCI (replan z data startu,
+      // WP-PLANS-2 X27) — planStarted=false, zero sesji, cykl aktywny czeka.
+      // Start = poniedzialek dwa tygodnie w przod (ksztalt jak zapis startu).
+      const days = buildPlanDays(todayISO);
+      const futureStart = formatLocalDate(getStartOfPlanWeek(parseLocalDate(addCalendarDays(todayISO, 14))));
+      const cycle = buildActiveCycle(days, durationWeeks, futureStart);
+      return {
+        ...base,
+        plan: { days, durationWeeks, startDate: futureStart, status: 'active', name: 'Mój plan siłowy' },
+        cycles: [cycle],
+      };
+    }
+
+    case 'plan-midweek-done-wpc': {
+      // WP-C (X28): biezacy tydzien planu w CALOSCI ukonczony (dni planu
+      // wypadaja przed dzisiaj) — "nastepny" trening musi wskoczyc do
+      // kolejnego tygodnia. Wlasciwosc "tydzien zrobiony" wymaga todayISO
+      // środa-niedziela (dni to wczoraj i przedwczoraj).
+      const days: TrainingDay[] = [
+        planDay('day-a', weekdayOf(addCalendarDays(todayISO, -2)), 'Dzień A', 'Push'),
+        planDay('day-b', weekdayOf(addCalendarDays(todayISO, -1)), 'Dzień B', 'Pull'),
+      ];
+      const midStart = formatLocalDate(getStartOfPlanWeek(parseLocalDate(addCalendarDays(todayISO, -7))));
+      const cycle = buildActiveCycle(days, durationWeeks, midStart);
+      return {
+        ...base,
+        plan: { days, durationWeeks, startDate: midStart, status: 'active', name: 'Mój plan siłowy' },
+        cycles: [cycle],
+        workouts: [
+          buildWorkout('w1a', addCalendarDays(todayISO, -9), days[0], { cycleId: cycle.id }),
+          buildWorkout('w1b', addCalendarDays(todayISO, -8), days[1], { cycleId: cycle.id }),
+          buildWorkout('w2a', addCalendarDays(todayISO, -2), days[0], { cycleId: cycle.id }),
+          buildWorkout('w2b', addCalendarDays(todayISO, -1), days[1], { cycleId: cycle.id }),
+        ],
+      };
+    }
+
+    case 'plan-future-start-done-today-wpb': {
+      // WP-B (X28): plan ze startem w PRZYSZLOSCI (poniedzialek >=2 tygodnie
+      // naprzod) + DZISIEJSZY ukonczony trening (ad-hoc/stary plan). Scenariusz
+      // buga "NEXT SESSION sprzed startu": hero MUSI byc preStart, nigdy
+      // completed z next liczonym czysta regula weekday sprzed startu.
+      const days = buildPlanDays(todayISO);
+      const futureStart = formatLocalDate(getStartOfPlanWeek(parseLocalDate(addCalendarDays(todayISO, 21))));
+      const cycle = buildActiveCycle(days, durationWeeks, futureStart);
+      return {
+        ...base,
+        plan: { days, durationWeeks, startDate: futureStart, status: 'active', name: 'Mój plan siłowy' },
+        cycles: [cycle],
+        workouts: [buildWorkout('today', todayISO, days[0], { cycleId: cycle.id })],
+      };
+    }
+
+    case 'plan-active-done-today-wpb': {
+      // WP-B (X28): plan wystartowany + DZISIEJSZA ukonczona sesja — baner
+      // "Trening ukonczony" z zamykaniem (dismiss per data).
+      const days = buildPlanDays(todayISO);
+      const cycle = buildActiveCycle(days, durationWeeks, activeStart);
+      return {
+        ...base,
+        plan: { days, durationWeeks, startDate: activeStart, status: 'active', name: 'Mój plan siłowy' },
+        cycles: [cycle],
+        workouts: [buildWorkout('today', todayISO, days[0], { cycleId: cycle.id })],
+      };
+    }
+
+    case 'photos-before-after': {
+      // WP-E (X28): dwa zdjecia sylwetki z wagami (przed/po) + pomiar liczbowy
+      // w srodku — stan eksportu porownania before/after (BodyPhotoCompare).
+      const days = buildPlanDays(todayISO);
+      const cycle = buildActiveCycle(days, durationWeeks, activeStart);
+      return {
+        ...base,
+        plan: { days, durationWeeks, startDate: activeStart, status: 'active', name: 'Mój plan siłowy' },
+        cycles: [cycle],
+        measurements: [
+          buildPhotoWeightMeasurement(addCalendarDays(todayISO, -60), 84),
+          buildMeasurement(addCalendarDays(todayISO, -30)),
+          buildPhotoWeightMeasurement(addCalendarDays(todayISO, -1), 80.5),
+        ],
+      };
+    }
+
+    case 'active-plan-rpe': {
+      // WP-D (X28): wariant active-plan z autoregulacja (rpe/pain/quality per
+      // cwiczenie — optionalFinite w sanitizeWorkoutDoc) i progresem ciezaru
+      // DZIS vs tydzien temu. Fixtura dla RzaMetricsCard (menu wykresow) i
+      // chipow PR w restyle'u tygodni (PR w biezacym tygodniu).
+      const days = buildPlanDays(todayISO);
+      const cycle = buildActiveCycle(days, durationWeeks, activeStart);
+      const withMetrics = (workout: WorkoutSession, weightDelta: number): WorkoutSession => ({
+        ...workout,
+        exercises: workout.exercises.map((exercise) => ({
+          ...exercise,
+          rpe: 8,
+          pain: 1,
+          quality: 4,
+          sets: exercise.sets.map((set) => ({ ...set, weight: set.weight + weightDelta })),
+        })),
+      });
+      return {
+        ...base,
+        plan: { days, durationWeeks, startDate: activeStart, status: 'active', name: 'Mój plan siłowy' },
+        cycles: [cycle],
+        workouts: [
+          withMetrics(buildWorkout('rpe-now', todayISO, days[0], { cycleId: cycle.id }), 10),
+          withMetrics(buildWorkout('rpe-prev', addCalendarDays(todayISO, -7), days[0], { cycleId: cycle.id }), 0),
+        ],
+        measurements: [buildMeasurement(addCalendarDays(todayISO, -2))],
       };
     }
   }

@@ -2,7 +2,7 @@
 // Poziom 1: siatka kafli grup mięśniowych (zdjęcie + licznik), search globalny,
 // wiersz "Nowe własne ćwiczenie". Poziom 2 (?group=<id>): hero + filtry + lista.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { getGroupImageUrl, slugifyExercise } from '@/lib/exercise-media';
@@ -128,13 +128,31 @@ describe('E2: poziom 1 — siatka grup', () => {
     expect(screen.getAllByTestId('exercise-group-tile')).toHaveLength(CATEGORIES.length);
   });
 
-  it('wiersz "Nowe własne ćwiczenie" otwiera istniejący dialog tworzenia (ExercisePicker)', () => {
+  it('wiersz "Nowe własne ćwiczenie" otwiera kompaktowy dialog-formularz (X28 WP-A, bez listy pickera)', async () => {
     renderPage();
 
     fireEvent.click(screen.getByTestId('new-custom-exercise'));
-    // Dialog pickera z przyciskiem dodania własnego ćwiczenia (ten sam co w ExercisePicker).
+    // Dialog to formularz od razu: pola widoczne, ZERO listy istniejących ćwiczeń.
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Dodaj własne ćwiczenie')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)')).toBeInTheDocument();
+    expect(screen.getByTestId('custom-exercise-category')).toBeInTheDocument();
+    expect(screen.getByTestId('custom-exercise-type')).toBeInTheDocument();
+    expect(screen.getByTestId('custom-exercise-tracking')).toBeInTheDocument();
+    expect(screen.queryByText('Wyciskanie sztangi na ławce płaskiej')).toBeNull();
+    expect(screen.queryByText('Dodaj własne ćwiczenie')).toBeNull();
+
+    // Zapis jednym tapem po wpisaniu nazwy — onCreate = addCustomExercise z hooka.
+    fireEvent.change(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)'), {
+      target: { value: 'Moje nowe ćwiczenie' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz' }));
+    await waitFor(() => expect(addCustomSpy).toHaveBeenCalledTimes(1));
+    expect(addCustomSpy).toHaveBeenCalledWith({
+      name: 'Moje nowe ćwiczenie',
+      category: 'chest',
+      isBodyweight: false,
+      type: 'compound',
+    });
   });
 });
 
