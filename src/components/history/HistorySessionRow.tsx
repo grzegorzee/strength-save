@@ -71,7 +71,11 @@ export const HistorySessionRow = ({
 
   const stop = (event: MouseEvent) => event.stopPropagation();
 
+  // Naprawa r2 (2026-08-21, plan history-tab poz. 19/22): meta wiersza to
+  // "{ćw} ćw. · {serie} serii · {czas}" — liczba ćwiczeń była jawną statystyką
+  // wiersza sprzed redesignu i nie może zniknąć.
   const metaSegments = [
+    `${workout.exercises.length} ${t('history.exercisesUnit')}`,
     `${totalSets} ${t(setWordKey(totalSets))}`,
     ...(meta?.durationLabel ? [meta.durationLabel] : []),
   ];

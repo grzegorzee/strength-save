@@ -572,6 +572,7 @@ export const en: Record<keyof typeof pl, string> = {
   'history.setOne': 'set',
   'history.setFew': 'sets',
   'history.setMany': 'sets',
+  'history.exercisesUnit': 'ex.',
   'history.loadingCycle': 'Loading cycle sessions…',
   'history.loadCycleFailed': 'Could not load cycle sessions.',
   'history.retryLoad': 'Try again',

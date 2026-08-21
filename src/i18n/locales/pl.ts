@@ -578,6 +578,7 @@ export const pl = {
   'history.setOne': 'seria',
   'history.setFew': 'serie',
   'history.setMany': 'serii',
+  'history.exercisesUnit': 'ćw.',
   'history.loadingCycle': 'Wczytywanie sesji cyklu…',
   'history.loadCycleFailed': 'Nie udało się wczytać sesji cyklu.',
   'history.retryLoad': 'Spróbuj ponownie',
