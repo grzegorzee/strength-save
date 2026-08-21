@@ -2,6 +2,7 @@ import { parseLocalDate } from '@/lib/utils';
 import { translate, dateLocale, type LanguageCode } from '@/i18n';
 import { formatTonnage, type UnitSystem } from '@/lib/units';
 import { getCurrentAccent } from '@/lib/accent-theme';
+import { escapeHtml } from '@/lib/share-html';
 import appIcon from '@/assets/app-icon.png';
 
 export interface ShareData {
@@ -76,12 +77,6 @@ function renderFooter(withTopBorder: boolean): string {
           <span style="font-size:13px;color:#94a3b8;">Strength Save</span>
         </div>
       </div>`;
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
 }
 
 export function buildShareHtml(

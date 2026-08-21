@@ -1,16 +1,25 @@
 import { useMemo, useState } from 'react';
-import { Images } from 'lucide-react';
+import { Images, Loader2, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BodyMeasurement } from '@/types';
 import { formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
+import { useToast } from '@/hooks/use-toast';
 import { dateLocale } from '@/i18n';
+import {
+  BodyCompareShareDialog,
+  preparePhotoDataUrl,
+  type BodyCompareEntry,
+} from '@/components/BodyCompareShareDialog';
 
 // T13b: porównanie sylwetki przed/po. Domyślnie najstarsze zdjęcie (przed)
 // vs najnowsze (po); selecty nad kolumnami pozwalają porównać dowolne dwa.
 // Przy jednym zdjęciu: zachęta, żeby wrócić po cyklu po zdjęcie "po".
+// WP-E (X28): przycisk "Pobierz / udostępnij" — rodzic przygotowuje dataURL-e
+// (fetch → fallback SDK → downscale) PRZED otwarciem dialogu eksportu.
 
 interface BodyPhotoCompareProps {
   measurements: BodyMeasurement[];
@@ -21,8 +30,12 @@ type PhotoEntry = BodyMeasurement & { photoUrl: string };
 export const BodyPhotoCompare = ({ measurements }: BodyPhotoCompareProps) => {
   const { t, lang } = useTranslation();
   const { fmt } = useUnit();
+  const { toast } = useToast();
   const [beforeId, setBeforeId] = useState<string | null>(null);
   const [afterId, setAfterId] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [sharePreparing, setSharePreparing] = useState(false);
+  const [shareEntries, setShareEntries] = useState<{ before: BodyCompareEntry; after: BodyCompareEntry } | null>(null);
 
   const withPhotos = useMemo(
     () => measurements
@@ -70,6 +83,28 @@ export const BodyPhotoCompare = ({ measurements }: BodyPhotoCompareProps) => {
     { key: 'after' as const, labelKey: 'measurements.photo.after' as const, entry: after, onChange: setAfterId },
   ];
 
+  // WP-E: dataURL-e gotowe PRZED otwarciem dialogu (spinner na przycisku),
+  // dialog dostaje gotowe dane — zero async fetchy w dialogu.
+  const handleOpenShare = async () => {
+    if (sharePreparing) return;
+    setSharePreparing(true);
+    try {
+      // Sekwencyjnie, nie Promise.all: jedno zdjecie 12 MP w locie naraz
+      // (pamiec WKWebView, lekcja Z179).
+      const beforeUrl = await preparePhotoDataUrl(before.photoUrl, before.photoPath);
+      const afterUrl = await preparePhotoDataUrl(after.photoUrl, after.photoPath);
+      setShareEntries({
+        before: { dataUrl: beforeUrl, date: before.date, weightKg: before.weight },
+        after: { dataUrl: afterUrl, date: after.date, weightKg: after.weight },
+      });
+      setShareOpen(true);
+    } catch {
+      toast({ title: t('measurements.sharePrepareError'), variant: 'destructive' });
+    } finally {
+      setSharePreparing(false);
+    }
+  };
+
   return (
     <Card data-testid="body-photo-compare">
       <CardHeader>
@@ -116,7 +151,31 @@ export const BodyPhotoCompare = ({ measurements }: BodyPhotoCompareProps) => {
             </span>
           </p>
         )}
+        <Button
+          variant="outline"
+          className="w-full"
+          data-testid="body-photo-share"
+          disabled={sharePreparing}
+          onClick={handleOpenShare}
+        >
+          {sharePreparing ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Share2 className="h-4 w-4 mr-2 text-primary" />
+          )}
+          {t('measurements.sharePhoto')}
+        </Button>
       </CardContent>
+      {/* Radix: dialog NIGDY nie jest unmountowany w stanie open — entries
+          zostają po zamknięciu, znikają dopiero z całą kartą. */}
+      {shareEntries && (
+        <BodyCompareShareDialog
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          before={shareEntries.before}
+          after={shareEntries.after}
+        />
+      )}
     </Card>
   );
 };

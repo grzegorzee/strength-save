@@ -12,6 +12,7 @@ import { Capacitor } from '@capacitor/core';
 import { hapticSuccess } from '@/lib/haptics';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { getCurrentAccent } from '@/lib/accent-theme';
+import { escapeHtml } from '@/lib/share-html';
 import { formatLocalDateLabel } from '@/lib/utils';
 import { workoutDurationSec } from '@/lib/monthly-stats';
 import { translate, dateLocale, type LanguageCode } from '@/i18n';
@@ -57,12 +58,6 @@ export interface CycleShareData {
   prCount: number;
   timeLabel: string;
 }
-
-const escapeHtml = (text: string): string => {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-};
 
 export function buildCycleShareHtml(
   data: CycleShareData,
