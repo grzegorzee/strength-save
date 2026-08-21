@@ -82,6 +82,14 @@ describe('functions security helpers', () => {
       'ai_usage',
       'api_audit_logs',
       'notification_logs',
+      // WP-B (X27): luki purge domknięte — kolekcje per-user z polem userId
+      // z firestore.rules, wcześniej nieobjęte kasowaniem konta.
+      'plan_cycle_operations',
+      'user_events',
+      'client_errors',
+      'exercise_notes',
+      'workout_day_notes',
+      'manual_activities',
     ]));
     expect(GDPR_UID_FIELD_COLLECTIONS).toContain('email_verification_codes');
     expect(GDPR_DIRECT_DOC_COLLECTIONS).toEqual(expect.arrayContaining([

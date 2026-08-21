@@ -1308,7 +1308,9 @@ export async function processDeletionOperation(uid: string, deps: DeletionOperat
     } catch (error) {
       if (errorCodeOf(error) !== "auth/user-not-found") throw error;
     }
-    await db.collection(USERS_COLLECTION).doc(uid).delete();
+    // WP-B (X27): recursiveDelete zamiast płaskiego delete() — dokument usera ma
+    // subkolekcje (users/{uid}/aggregates/*), które płaskie kasowanie zostawiało.
+    await db.recursiveDelete(db.collection(USERS_COLLECTION).doc(uid));
     await operationRef.set({ state: "completed", completedAt: nowIso(), updatedAt: nowIso(), deletedCounts }, { merge: true });
     return deletedCounts;
   } catch (error) {
@@ -1511,7 +1513,7 @@ export const deleteOwnAccount = onCall({ secrets: [resendApiKey] }, async (reque
   // Powiadomienie operatora — best-effort, nie blokuje usunięcia konta.
   try {
     await sendEmail({
-      to: "kontakt@gjasionowicz.pl",
+      to: "contact@strengthsave.app",
       subject: selfDeletionNoticeSubject(email),
       html: selfDeletionNoticeHtml(email, uid, purgeAfter),
       type: "self_deletion_notice",

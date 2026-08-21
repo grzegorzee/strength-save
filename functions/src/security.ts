@@ -54,6 +54,14 @@ export const GDPR_USER_ID_COLLECTIONS = [
   "notification_logs",
   "app_telemetry_daily",
   "custom_exercises",
+  // WP-B (X27): luki purge domknięte — kolekcje per-user z polem userId
+  // z firestore.rules, wcześniej nieobjęte kasowaniem konta.
+  "plan_cycle_operations",
+  "user_events",
+  "client_errors",
+  "exercise_notes",
+  "workout_day_notes",
+  "manual_activities",
 ] as const;
 
 export const GDPR_UID_FIELD_COLLECTIONS = [
