@@ -158,32 +158,74 @@ export async function generateBodyCompareImage(input: BodyCompareShareInput): Pr
   }
 }
 
+/** Twardy limit czasu na KAZDY krok przygotowania zdjecia. Zgloszenie iOS
+ *  build 115: fetch w WKWebView potrafi wisiec do systemowego timeoutu, a
+ *  getBlob SDK retry'uje network error az do maxOperationRetryTime (2 min,
+ *  retry-limit-exceeded) — bez wlasnego limitu spinner wisial minutami. */
+const PREPARE_STEP_TIMEOUT_MS = 8_000;
+
+async function withStepTimeout<T>(run: () => Promise<T>, label: string): Promise<T> {
+  let timer: number | undefined;
+  try {
+    return await Promise.race([
+      run(),
+      new Promise<never>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(`${label}-timeout`)), PREPARE_STEP_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) window.clearTimeout(timer);
+  }
+}
+
+const fetchPhotoBlob = async (photoUrl: string): Promise<Blob> => {
+  // fetch NIE rzuca na 4xx/5xx — !res.ok musi jawnie isc do fallbacku.
+  const res = await fetch(photoUrl);
+  if (!res.ok) throw new Error(`photo-fetch-${res.status}`);
+  return res.blob();
+};
+
+const sdkPhotoBlob = async (photoPath: string): Promise<Blob> => {
+  // Importy firebase dynamiczne — modul nie ciagnie @/lib/firebase w testach
+  // komponentow, dopoki ten krok realnie nie biezy.
+  const [{ getBlob, ref }, { storage }] = await Promise.all([
+    import('firebase/storage'),
+    import('@/lib/firebase'),
+  ]);
+  return getBlob(ref(storage, photoPath));
+};
+
 /**
- * Zdjecie Storage → JPEG dataURL bezpieczny dla html2canvas (edge case 3):
- * fetch(photoUrl) → Blob; gdy padnie (offline/CORS — bucket bez jawnej
- * konfiguracji CORS), OBOWIAZKOWY fallback SDK getBlob(ref(storage, photoPath)).
- * Importy firebase dynamiczne — modul nie ciagnie @/lib/firebase w testach
- * komponentow, dopoki fallback realnie nie bieży.
+ * Zdjecie Storage → JPEG dataURL bezpieczny dla html2canvas (edge case 3).
+ * Kolejnosc kanalow per platforma: na natywnym iOS pierwszy jest SDK getBlob —
+ * to jedyny kanal UDOWODNIONY na urzadzeniu (tym samym XHR uploadBytes wgral te
+ * zdjecia), a fetch z originu capacitor://localhost bywa ubijany przez warstwe
+ * sieciowa WKWebView (zgloszenie iOS build 115). Web zostaje przy fetch-first.
+ * Kazda porazka konczy sie odrzuceniem z opisem krokow (telemetria u rodzica).
  */
 export async function preparePhotoDataUrl(photoUrl: string, photoPath?: string): Promise<string> {
+  const fetchStep = { label: 'fetch', run: () => fetchPhotoBlob(photoUrl) };
+  const sdkStep = photoPath ? { label: 'getBlob', run: () => sdkPhotoBlob(photoPath) } : null;
+  const steps = Capacitor.isNativePlatform() && sdkStep
+    ? [sdkStep, fetchStep]
+    : sdkStep ? [fetchStep, sdkStep] : [fetchStep];
+
+  const failures: string[] = [];
   let blob: Blob | null = null;
-  try {
-    const res = await fetch(photoUrl);
-    if (!res.ok) throw new Error(`photo-fetch-${res.status}`);
-    blob = await res.blob();
-  } catch {
-    blob = null;
+  for (const step of steps) {
+    try {
+      blob = await withStepTimeout(step.run, step.label);
+      break;
+    } catch (err) {
+      failures.push(`${step.label}=${err instanceof Error ? err.message : String(err)}`);
+    }
   }
-  if (!blob) {
-    if (!photoPath) throw new Error('photo-fetch-failed');
-    const [{ getBlob, ref }, { storage }] = await Promise.all([
-      import('firebase/storage'),
-      import('@/lib/firebase'),
-    ]);
-    blob = await getBlob(ref(storage, photoPath));
-  }
+  if (!blob) throw new Error(`photo-load-failed ${failures.join(' ')}`.trim());
+
+  const loaded = blob;
   // Z179: downscale chroni pamiec WKWebView (12 MP → ≤1080x1920 dataURL).
-  return downscalePhoto(blob);
+  // Ten sam twardy limit: zepsute dekodowanie nie moze zawiesic spinnera.
+  return withStepTimeout(() => downscalePhoto(loaded), 'downscale');
 }
 
 interface BodyCompareShareDialogProps {

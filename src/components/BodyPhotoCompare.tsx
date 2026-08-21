@@ -8,6 +8,7 @@ import { formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { useToast } from '@/hooks/use-toast';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { dateLocale } from '@/i18n';
 import {
   BodyCompareShareDialog,
@@ -98,7 +99,14 @@ export const BodyPhotoCompare = ({ measurements }: BodyPhotoCompareProps) => {
         after: { dataUrl: afterUrl, date: after.date, weightKg: after.weight },
       });
       setShareOpen(true);
-    } catch {
+    } catch (err) {
+      // Telemetria best-effort: ktory krok padl (fetch/getBlob/downscale) —
+      // diagnoza nastepnej awarii z danych, nie ze zgadywania (iOS build 115).
+      reportClientErrorWithCurrentUid({
+        code: 'body-compare-export-load',
+        phase: 'other',
+        detail: err instanceof Error ? err.message : String(err),
+      });
       toast({ title: t('measurements.sharePrepareError'), variant: 'destructive' });
     } finally {
       setSharePreparing(false);

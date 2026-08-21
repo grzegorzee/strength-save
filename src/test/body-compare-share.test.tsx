@@ -4,7 +4,7 @@
 // x 2 formaty). E3: przycisk w BodyPhotoCompare + dialog eksportu (fetch →
 // fallback SDK getBlob → downscale → podglad → Pobierz/Udostepnij).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import appIcon from '@/assets/app-icon.png';
 import { escapeHtml } from '@/lib/share-html';
 import { formatLocalDateLabel } from '@/lib/utils';
@@ -25,12 +25,16 @@ import { BodyPhotoCompare } from '@/components/BodyPhotoCompare';
 const html2canvasMock = vi.hoisted(() => vi.fn());
 const downscaleMock = vi.hoisted(() => vi.fn(async () => 'data:image/jpeg;base64,MOCKPHOTO'));
 const toastMock = vi.hoisted(() => vi.fn());
+// Zgloszenie iOS build 115: kanal natywny (SDK-first) + telemetria porazek.
+const nativePlatformMock = vi.hoisted(() => ({ value: false }));
+const reportErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock('html2canvas-pro', () => ({ default: html2canvasMock }));
 vi.mock('@/lib/share-utils', () => ({ downscalePhoto: downscaleMock }));
-vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false } }));
+vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => nativePlatformMock.value } }));
 vi.mock('@/lib/haptics', () => ({ hapticSuccess: vi.fn(async () => undefined) }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
+vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: reportErrorMock }));
 vi.mock('firebase/storage', () => ({
   getBlob: vi.fn(async () => new Blob(['sdk'], { type: 'image/jpeg' })),
   ref: vi.fn(() => ({})),
@@ -169,7 +173,12 @@ beforeEach(() => {
   shareMock.mockReset();
   shareMock.mockResolvedValue(undefined);
   toastMock.mockClear();
-  downscaleMock.mockClear();
+  // mockReset zamiast mockClear: testy wiszacego downscale podmieniaja
+  // implementacje na never-resolving i musi ona wrocic do domyslnej.
+  downscaleMock.mockReset();
+  downscaleMock.mockResolvedValue('data:image/jpeg;base64,MOCKPHOTO');
+  nativePlatformMock.value = false;
+  reportErrorMock.mockClear();
   vi.mocked(getBlob).mockClear();
   vi.mocked(getBlob).mockResolvedValue(new Blob(['sdk'], { type: 'image/jpeg' }));
   html2canvasMock.mockReset();
@@ -277,7 +286,7 @@ describe('BodyPhotoCompare: eksport before/after (E3)', () => {
     expect(toastMock).not.toHaveBeenCalled();
   });
 
-  it('fetch i fallback SDK padaja → toast bledu, dialog sie nie otwiera', async () => {
+  it('fetch i fallback SDK padaja → toast bledu, dialog sie nie otwiera, spinner reset', async () => {
     fetchMock.mockRejectedValue(new TypeError('offline'));
     vi.mocked(getBlob).mockRejectedValue(new Error('storage/retry-limit-exceeded'));
     renderCompare(canonicalMeasurements);
@@ -286,5 +295,109 @@ describe('BodyPhotoCompare: eksport before/after (E3)', () => {
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
     expect(screen.queryByText('Udostępnij porównanie')).toBeNull();
     expect(html2canvasMock).not.toHaveBeenCalled();
+    // Zasada 6 CLAUDE.md: stan bledu ma wyjscie — przycisk znow klikalny.
+    expect((screen.getByTestId('body-photo-share') as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Zgloszenie iOS build 115 (WKWebView): spinner "Pobierz / udostepnij" wisial
+// minutami bez toastu. Root cause: brak twardego limitu czasu na przygotowanie
+// zdjecia — fetch w WKWebView potrafi wisiec do systemowego timeoutu, a getBlob
+// SDK retry'uje network error az do maxOperationRetryTime (2 min). Fix: kanal
+// SDK-first na natywnym + timeout per krok + telemetria + toast w kilkanascie s.
+// ---------------------------------------------------------------------------
+
+describe('BodyPhotoCompare: twarde limity czasu i kanal natywny (fix iOS 115)', () => {
+  it('fetch zwraca ok=false (fetch NIE rzuca na 4xx/5xx) → fallback SDK getBlob i eksport dziala', async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 403, blob: async () => new Blob([''], { type: 'text/plain' }) });
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    expect(vi.mocked(getBlob)).toHaveBeenCalledTimes(2);
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
+  it('fetch pada, getBlob wisi (jak retry SDK 2 min) → timeout, toast w kilkanascie sekund, spinner reset, dialog zamkniety', async () => {
+    vi.useFakeTimers();
+    try {
+      fetchMock.mockRejectedValue(new TypeError('Load failed'));
+      vi.mocked(getBlob).mockImplementation(() => new Promise(() => {}));
+      renderCompare(canonicalMeasurements);
+
+      fireEvent.click(screen.getByTestId('body-photo-share'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+
+      expect(toastMock).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('Udostępnij porównanie')).toBeNull();
+      expect((screen.getByTestId('body-photo-share') as HTMLButtonElement).disabled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('downscale wisi (uszkodzone dekodowanie) → timeout, toast, spinner reset, dialog zamkniety', async () => {
+    vi.useFakeTimers();
+    try {
+      downscaleMock.mockImplementation(() => new Promise(() => {}));
+      renderCompare(canonicalMeasurements);
+
+      fireEvent.click(screen.getByTestId('body-photo-share'));
+      await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+
+      expect(toastMock).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText('Udostępnij porównanie')).toBeNull();
+      expect((screen.getByTestId('body-photo-share') as HTMLButtonElement).disabled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('natywna platforma: SDK getBlob jest PIERWSZYM kanalem, fetch w ogole nie startuje', async () => {
+    nativePlatformMock.value = true;
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    expect(vi.mocked(getBlob)).toHaveBeenCalledTimes(2);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('natywna platforma: getBlob pada → fetch przejmuje i eksport dziala', async () => {
+    nativePlatformMock.value = true;
+    vi.mocked(getBlob).mockRejectedValue(new Error('storage/object-not-found'));
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
+  it('natywna platforma: wpis bez photoPath nie traci eksportu — idzie przez fetch (niezmiennik reguly 5)', async () => {
+    nativePlatformMock.value = true;
+    const withoutPath = canonicalMeasurements.map((m) => {
+      const { photoPath: _photoPath, ...rest } = m;
+      return rest as BodyMeasurement;
+    });
+    renderCompare(withoutPath);
+    await openShareDialog();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(getBlob)).not.toHaveBeenCalled();
+  });
+
+  it('porazka przygotowania → telemetria body-compare-export-load z krokiem, ktory padl', async () => {
+    fetchMock.mockRejectedValue(new TypeError('offline'));
+    vi.mocked(getBlob).mockRejectedValue(new Error('storage/retry-limit-exceeded'));
+    renderCompare(canonicalMeasurements);
+
+    fireEvent.click(screen.getByTestId('body-photo-share'));
+    await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
+
+    expect(reportErrorMock).toHaveBeenCalledTimes(1);
+    expect(reportErrorMock).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'body-compare-export-load',
+      phase: 'other',
+      detail: expect.stringContaining('getBlob'),
+    }));
   });
 });
