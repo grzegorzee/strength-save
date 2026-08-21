@@ -73,11 +73,11 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
               data-testid="header-avatar"
               className="h-9 w-9 shrink-0 overflow-hidden rounded-full ring-1 ring-border transition-transform active:scale-95"
             >
+              {/* Naprawa r2 (2026-08-21): inicjał na tincie akcentu 20% + litera
+                  w akcencie (artboardy; ten sam wariant co avatar na Profilu). */}
               {profile?.photoURL ? (
                 <img src={profile.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
               ) : (
-                {/* Naprawa r2 (2026-08-21): tint akcentu 20% + litera w akcencie
-                    (artboardy; ten sam wariant co avatar na ekranie Profil). */}
                 <span className="flex h-full w-full items-center justify-center bg-primary/20 text-xs font-bold text-primary">
                   {initials}
                 </span>
