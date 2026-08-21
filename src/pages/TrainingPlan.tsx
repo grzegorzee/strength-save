@@ -403,11 +403,13 @@ const TrainingPlan = () => {
     () => buildDayLoadMap(workouts, selectedWeekStartISO, selectedWeekEndISO),
     [workouts, selectedWeekStartISO, selectedWeekEndISO],
   );
+  // WP-C (X28): NASTĘPNY liczony GLOBALNIE z pełnego harmonogramu planu (nie
+  // z widocznego tygodnia) — dokładnie jedna data w całym planie ma badge;
+  // wcześniej każdy przyszły tydzień pokazywał "następny" na pierwszym dniu.
   const nextPlannedDate = useMemo(() => {
-    const scheduleDates = selectedWeekTrainingDates.map((s) => formatLocalDate(s.date));
-    const completed = new Set(workouts.filter((w) => w.completed).map((w) => w.date));
-    return findNextPlannedDate(scheduleDates, completed, skippedDates, todayISOForVacation);
-  }, [selectedWeekTrainingDates, workouts, skippedDates, todayISOForVacation]);
+    const scheduleDates = schedule.map((s) => formatLocalDate(s.date));
+    return findNextPlannedDate(scheduleDates, completedDateKeys, skippedDates, todayISOForVacation);
+  }, [schedule, completedDateKeys, skippedDates, todayISOForVacation]);
 
   // Fala 2: linia statystyk banera decyzji — WYŁĄCZNIE realne dane aktywnego
   // cyklu (mockup "96% attendance · 24 PRs"); brak cyklu = brak linii.
@@ -528,13 +530,21 @@ const TrainingPlan = () => {
           <span className="font-mono text-[11.5px] tracking-[0.1em] text-foreground/80 whitespace-nowrap">
             {selectedWeekStart.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' })} - {selectedWeekEnd.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' })}
           </span>
-          {displayWeek !== actualCurrentWeek && (
+          {/* WP-C (X28): link powrotu TYLKO gdy plan wystartował i user ogląda
+              inny tydzień (przy niewystartowanym actualCurrentWeek=0 dawał
+              link na KAŻDYM tygodniu); styl jawnego linku, nie znacznika. */}
+          {planStarted && displayWeek !== actualCurrentWeek && (
             <button
               onClick={() => setSelectedDate(new Date())}
-              className="text-[11px] text-primary hover:underline font-medium whitespace-nowrap"
+              className="text-[11px] text-primary underline underline-offset-2 font-medium whitespace-nowrap"
             >
               {t('trainingplan.currentWeek')}
             </button>
+          )}
+          {!planStarted && displayWeek === 1 && planStartDate && (
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+              {t('trainingplan.startsOn', { date: formatLocalDateLabel(planStartDate, dateLocale(lang), { day: 'numeric', month: 'long' }) })}
+            </span>
           )}
         </div>
         <div className="flex gap-2">
@@ -631,9 +641,18 @@ const TrainingPlan = () => {
                         pływały bez informacji, którego dnia dotyczą), kolor /70
                         zamiast /40 (wyglądały jak wyłączone) i tap-target 44px. */}
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                      {/* WP-C (X28): dzisiejszy dzień wyróżniony w liście
+                          (text-primary + label "Dziś"); reszta bez zmian. */}
+                      <span
+                        data-testid={`plan-day-header-${dateStr}`}
+                        className={cn(
+                          'text-[11px] font-bold uppercase tracking-wider',
+                          dateStr === todayISOForVacation ? 'text-primary' : 'text-muted-foreground/70',
+                        )}
+                      >
                         <span className="capitalize sm:hidden">{dayName.short}</span>
                         <span className="capitalize hidden sm:inline">{dayName.long}</span>, {dateLabel}
+                        {dateStr === todayISOForVacation && <> · {t('trainingplan.today')}</>}
                       </span>
                       <div className="flex items-center gap-2">
                         {/* Z112: wpis cardio na wybranym dniu (także wstecz) */}
