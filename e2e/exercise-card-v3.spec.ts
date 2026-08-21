@@ -31,8 +31,10 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     const nameText = await exerciseName.textContent();
     expect(nameText?.length).toBeGreaterThan(0);
 
-    // Human-readable set count visible
-    await expect(firstCard.getByText(/\d+ (seria|serie|serii)/)).toBeVisible();
+    // Human-readable set count visible. Meta linia karty zamienia spacje w członach
+    // na NBSP (fala 2, łamanie tylko na separatorach), a Playwright NIE normalizuje
+    // białych znaków przy regexach — stąd [\s ].
+    await expect(firstCard.getByText(/\d+[\s ](seria|serie|serii)/)).toBeVisible();
   });
 
   test('no expand/collapse chevron buttons exist', async ({ page }) => {

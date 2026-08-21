@@ -387,7 +387,12 @@ test.describe('Bodyweight Exercises', () => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
     await expect(page.getByRole('heading', { name: 'Ćwiczenia' }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Brzuch', exact: true })).toBeVisible();
+    // X27: chipy kategorii zastąpione kaflami grup; wejście w grupę pokazuje
+    // filtr "Masa ciała" (ćwiczenia bodyweight są w bibliotece).
+    const tile = page.getByTestId('exercise-group-tile').filter({ hasText: 'Brzuch' });
+    await expect(tile).toBeVisible();
+    await tile.click();
+    await expect(page.getByRole('button', { name: 'Masa ciała', exact: true })).toBeVisible();
   });
 });
 
