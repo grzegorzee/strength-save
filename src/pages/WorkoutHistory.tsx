@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { DateRangeField } from '@/components/DateRangeField';
 import { Chip } from '@/components/kinetic/Chip';
+import { HeaderActions } from '@/components/HeaderActions';
 import { HistorySessionRow } from '@/components/history/HistorySessionRow';
 import { CycleCard } from '@/components/history/CycleCard';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -319,15 +320,15 @@ const WorkoutHistory = () => {
 
   return (
     <div className="space-y-6">
-      {/* Naprawa r1 (2026-08-21, sędzia struktury): tytuł raz — niesie go
-          AppHeader (artboard 1a: jeden wiersz, bez italica; Space Grotesk nie ma
-          italica, tokens.md ryzyko 4). Tu zostaje rząd lupy i filtrów. */}
-      <div className="flex items-center justify-end gap-2">
+      {/* Naprawa r2 (2026-08-21, sędzia struktury): kafle lupy i filtrów wracają
+          do RZĘDU HEADERA (artboard 1a: avatar + HISTORY + lupa + filtr w jednej
+          linii) — osobny rząd zostawiał pusty pas pod headerem. */}
+      <HeaderActions>
         <button
           type="button"
           aria-label={t('history.search')}
           onClick={() => setSearchOpen((prev) => !prev)}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-highest text-muted-foreground"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-container text-foreground/80"
         >
           <Search className="h-4 w-4" />
         </button>
@@ -335,11 +336,11 @@ const WorkoutHistory = () => {
           type="button"
           aria-label={t('history.filters')}
           onClick={() => setFiltersOpen((prev) => !prev)}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-highest text-muted-foreground"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-container text-foreground/80"
         >
           <SlidersHorizontal className="h-4 w-4" />
         </button>
-      </div>
+      </HeaderActions>
 
       <div className="space-y-2">
         {(searchOpen || searchQuery !== '') && (

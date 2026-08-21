@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, WifiOff } from 'lucide-react';
 import { AllTimeStatsSheet } from '@/components/AllTimeStatsSheet';
+import { HeaderActionsOutlet } from '@/components/HeaderActions';
 import { NotificationBell } from '@/components/NotificationBell';
 import { consumeCelebration } from '@/lib/workout-celebration';
 import { Button } from '@/components/ui/button';
@@ -84,6 +85,9 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* Naprawa r2 (2026-08-21): slot na kontekstowe akcje ekranu
+              (artboard 1a: History ma tu kafle lupy i filtrów). */}
+          <HeaderActionsOutlet />
           {uid && <NotificationBell uid={uid} />}
           {!isOnline && (
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-fitness-warning/10 text-fitness-warning text-xs font-medium">

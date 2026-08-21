@@ -1,5 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppHeader } from './AppHeader';
+import { HeaderActionsProvider } from './HeaderActions';
 import { AppNavigation } from './AppNavigation';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
@@ -59,20 +60,24 @@ export const Layout = () => {
     <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-hidden md:overflow-hidden">
       <AppNavigation hideMobileNav={isFocusedFlow} />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden md:h-[100dvh] md:overflow-hidden">
-        {!isFocusedFlow && (
-          <AppHeader
-            title={title}
-            onBack={isRootPage ? undefined : handleBack}
-          />
-        )}
+      {/* Naprawa r2 (2026-08-21): provider slotu akcji headera — ekrany portalują
+          swoje przyciski (History: lupa + filtry) do rzędu headera jak w artboardach. */}
+      <HeaderActionsProvider>
+        <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden md:h-[100dvh] md:overflow-hidden">
+          {!isFocusedFlow && (
+            <AppHeader
+              title={title}
+              onBack={isRootPage ? undefined : handleBack}
+            />
+          )}
 
-        <main className="flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:p-6 overflow-x-hidden md:overflow-y-auto">
-          <div className="max-w-4xl mx-auto">
-            <Outlet />
-          </div>
-        </main>
-      </div>
+          <main className="flex-1 p-5 pb-[calc(7.5rem+env(safe-area-inset-bottom))] md:p-6 overflow-x-hidden md:overflow-y-auto">
+            <div className="max-w-4xl mx-auto">
+              <Outlet />
+            </div>
+          </main>
+        </div>
+      </HeaderActionsProvider>
     </div>
   );
 };
