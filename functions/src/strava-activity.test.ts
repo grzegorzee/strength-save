@@ -119,21 +119,27 @@ describe("diffRefreshableFields", () => {
   });
 });
 
-describe("manualSyncRetryAfterSeconds (T7)", () => {
+describe("manualSyncRetryAfterSeconds (T7, X27/WP-C: cooldown 24 h)", () => {
   const NOW = Date.parse("2026-08-20T12:00:00.000Z");
+  const HOUR_MS = 60 * 60 * 1000;
 
   it("pierwszy sync przechodzi (lastSync null/undefined)", () => {
     expect(manualSyncRetryAfterSeconds(null, NOW)).toBeNull();
     expect(manualSyncRetryAfterSeconds(undefined, NOW)).toBeNull();
   });
 
-  it("sync 60 s po poprzednim odbija sie z ~240 s odmowy", () => {
+  it("sync 60 s po poprzednim odbija sie z odmowa niemal na cala dobe", () => {
     const lastSync = new Date(NOW - 60_000).toISOString();
-    expect(manualSyncRetryAfterSeconds(lastSync, NOW)).toBe(240);
+    expect(manualSyncRetryAfterSeconds(lastSync, NOW)).toBe(24 * 3600 - 60);
   });
 
-  it("sync 6 min po poprzednim przechodzi", () => {
-    const lastSync = new Date(NOW - 6 * 60_000).toISOString();
+  it("sync 23 h po poprzednim wciaz odbity (zostala godzina)", () => {
+    const lastSync = new Date(NOW - 23 * HOUR_MS).toISOString();
+    expect(manualSyncRetryAfterSeconds(lastSync, NOW)).toBe(3600);
+  });
+
+  it("sync 25 h po poprzednim przechodzi", () => {
+    const lastSync = new Date(NOW - 25 * HOUR_MS).toISOString();
     expect(manualSyncRetryAfterSeconds(lastSync, NOW)).toBeNull();
   });
 

@@ -1,5 +1,27 @@
 import { describe, it, expect, vi } from "vitest";
-import { runWeeklyDigest, type WeeklyDigestDeps, type DigestUser } from "./weekly-digest";
+import { runWeeklyDigest, buildStravaSummary, type WeeklyDigestDeps, type DigestUser } from "./weekly-digest";
+
+// X27/WP-C: digest liczy biegi semantyką run-like (Run || sportType zawiera "Run"),
+// spójnie z src/lib/strava-utils.isRunLike — TrailRun/VirtualRun nie ginie,
+// a spacer nie wchodzi do kilometrów biegowych.
+describe("buildStravaSummary (X27/WP-C: run-like)", () => {
+  it("TrailRun po sportType liczy się do biegów, spacer nie", () => {
+    const summary = buildStravaSummary([
+      { date: "2026-06-23", type: "TrailRun", sportType: "TrailRun", name: "Trail", distance: 8000, averageSpeed: 3.0 },
+      { date: "2026-06-24", type: "Walk", sportType: "Walk", name: "Spacer", distance: 20000, averageSpeed: 1.4 },
+    ]);
+
+    expect(summary?.runCount).toBe(1);
+    expect(summary?.totalRunKm).toBe(8);
+    expect(summary?.longestRun?.name).toBe("Trail");
+  });
+
+  it("same spacery → brak sekcji biegowej (null)", () => {
+    expect(buildStravaSummary([
+      { date: "2026-06-23", type: "Walk", name: "Spacer", distance: 5000 },
+    ])).toBeNull();
+  });
+});
 
 const workout = (userId: string, date = "2026-06-23") => ({
   userId,

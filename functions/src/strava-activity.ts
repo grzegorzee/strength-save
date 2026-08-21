@@ -76,8 +76,10 @@ export const REFRESHABLE_ACTIVITY_FIELDS = [
 
 export type RefreshableField = (typeof REFRESHABLE_ACTIVITY_FIELDS)[number];
 
-/** T7: minimalny odstęp między RĘCZNYMI syncami (scheduled/callback bez limitu). */
-export const MANUAL_SYNC_MIN_INTERVAL_MS = 5 * 60 * 1000;
+/** T7: minimalny odstęp między RĘCZNYMI syncami (scheduled/callback bez limitu).
+ *  X27/WP-C: podniesiony z 5 min do 24 h — manual to maks. drugi sync dziennie
+ *  obok crona; łączny koszt API Stravy pozostaje ograniczony. */
+export const MANUAL_SYNC_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * T7: serwerowy rate-limit ręcznego syncu po users/{uid}.stravaLastSync.

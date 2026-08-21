@@ -37,6 +37,7 @@ import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useSearchParams } from 'react-router-dom';
 import { formatLocalDate } from '@/lib/utils';
+import { formatNextSyncTime } from '@/lib/strava-utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
@@ -46,7 +47,7 @@ const Settings = () => {
   const { workouts, isLoaded: workoutsLoaded, exportData, importData, cleanupEmptyWorkouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid);
   const { plan, isCustom, planDurationWeeks, planStartDate } = useTrainingPlan(uid);
   const { cycles, mergeContinuousCycles } = usePlanCycles(uid);
-  const { connection, isSyncing, error, connectStrava, syncActivities, saveMaxHR, disconnectStrava } = useStrava(uid, canUseStrava);
+  const { connection, isSyncing, error, connectStrava, syncActivities, saveMaxHR, disconnectStrava, nextSyncAvailableAt } = useStrava(uid, canUseStrava);
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const syncEntries = useSyncCenterEntries(uid);
@@ -358,7 +359,9 @@ const Settings = () => {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSync} disabled={isSyncing}>
+                {/* X27/WP-C: ręczny sync maks. raz na dobę — disabled do końca cooldownu,
+                    z podpisem KIEDY będzie dostępny (serwer i tak egzekwuje limit). */}
+                <Button variant="outline" onClick={handleSync} disabled={isSyncing || nextSyncAvailableAt !== null}>
                   {isSyncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
                   {t('settings.strava.sync')}
                 </Button>
@@ -367,6 +370,11 @@ const Settings = () => {
                   {t('settings.strava.disconnect')}
                 </Button>
               </div>
+              {nextSyncAvailableAt && (
+                <p className="text-xs text-muted-foreground">
+                  {t('strava.syncAvailableAt', { time: formatNextSyncTime(nextSyncAvailableAt, lang) })}
+                </p>
+              )}
 
               {/* Max HR setting */}
               <div className="border-t pt-4">

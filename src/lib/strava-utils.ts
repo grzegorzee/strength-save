@@ -2,7 +2,8 @@ import { startOfWeek, format, parseISO } from 'date-fns';
 import { pl as plDateFns, enUS } from 'date-fns/locale';
 import type { StravaActivity } from '@/types/strava';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { translate, type LanguageCode } from '@/i18n';
+import { translate, dateLocale, type LanguageCode } from '@/i18n';
+import { baseActivityType, displayActivityType } from '@/lib/activity-icons';
 
 // ========================
 // Types
@@ -14,9 +15,12 @@ export interface MonthlySummary {
   key: string;        // "2026-03"
   label: string;      // "Marzec 2026"
   totalKm: number;
+  /** X27/WP-C: rozbicie dystansu — biegi (run-like) osobno od spacerów. */
+  runKm: number;
+  walkKm: number;
   activityCount: number;
   totalTime: number;  // seconds
-  avgPace: number | null; // seconds per km (only pace activities)
+  avgPace: number | null; // seconds per km (X27: only run-like activities)
   totalElevation: number;
   totalCalories: number;
   activities: StravaActivity[];
@@ -126,13 +130,76 @@ export const isPaceActivity = (activity: StravaActivity): boolean =>
   activity.type === 'Run' || activity.type === 'Walk' || activity.type === 'Hike';
 
 /**
- * T6: bieg sensu stricto (Run/TrailRun/VirtualRun). Rekordy biegowe i predykcje
- * wyścigów liczą TYLKO z biegów — spacer/wędrówka nie generuje "best 5K".
- * Wzorzec filtra jak w functions/weekly-digest.ts. isPaceActivity zostaje do
- * FORMATOWANIA tempa (min/km także dla marszu).
+ * X27/WP-C: jawne predykaty klasyfikacji. isRunLike = bieg sensu stricto
+ * (Run/TrailRun/VirtualRun) — pace avg/trend, rekordy i predykcje liczą TYLKO
+ * z biegów; isWalkLike = Walk/Hike (po type lub sportType). Aktywność bez obu
+ * pól nie jest ani biegiem, ani spacerem (traktowana jak "Other").
+ * isPaceActivity zostaje do FORMATOWANIA tempa (min/km także dla marszu).
  */
-export const isRunActivity = (activity: StravaActivity): boolean =>
+export const isRunLike = (activity: StravaActivity): boolean =>
   activity.type === 'Run' || (activity.sportType?.includes('Run') ?? false);
+
+export const isWalkLike = (activity: StravaActivity): boolean =>
+  activity.type === 'Walk' || activity.type === 'Hike'
+  || activity.sportType === 'Walk' || activity.sportType === 'Hike';
+
+/** T6: alias historyczny — semantyka przeniesiona do isRunLike (X27/WP-C). */
+export const isRunActivity = isRunLike;
+
+/** X27/WP-C: filtr typu w widoku Strava (chipsy Wszystko/Biegi/Spacery/Rower/Inne). */
+export type ActivityTypeFilter = 'all' | 'runs' | 'walks' | 'rides' | 'other';
+
+const isRideLike = (activity: StravaActivity): boolean =>
+  baseActivityType(displayActivityType(activity)) === 'Ride';
+
+export const matchesActivityTypeFilter = (
+  activity: StravaActivity,
+  filter: ActivityTypeFilter,
+): boolean => {
+  switch (filter) {
+    case 'all': return true;
+    case 'runs': return isRunLike(activity);
+    case 'walks': return isWalkLike(activity);
+    case 'rides': return isRideLike(activity);
+    case 'other': return !isRunLike(activity) && !isWalkLike(activity) && !isRideLike(activity);
+  }
+};
+
+// ========================
+// Manual sync cooldown (X27/WP-C: 24 h, lustro serwerowego limitu)
+// ========================
+
+/** Musi się zgadzać z MANUAL_SYNC_MIN_INTERVAL_MS w functions/src/strava-activity.ts
+ *  (functions nie współdzielą kodu z src/). */
+export const MANUAL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/** Kiedy ręczny sync będzie znów dostępny; null = dostępny teraz.
+ *  Brak/nieparsowalny lastSync przepuszcza (ta sama semantyka co serwer). */
+export const computeNextSyncAvailableAt = (
+  lastSyncIso: string | null | undefined,
+  nowMs: number,
+): Date | null => {
+  if (!lastSyncIso) return null;
+  const lastMs = new Date(lastSyncIso).getTime();
+  if (!Number.isFinite(lastMs)) return null;
+  const nextMs = lastMs + MANUAL_SYNC_INTERVAL_MS;
+  return nextMs > nowMs ? new Date(nextMs) : null;
+};
+
+/** Godzina odblokowania wg języka; inna doba niż dziś → także dzień. */
+export const formatNextSyncTime = (
+  date: Date,
+  lang: LanguageCode,
+  now: Date = new Date(),
+): string => {
+  const locale = dateLocale(lang);
+  const time = date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  const sameDay = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+  if (sameDay) return time;
+  return `${date.toLocaleDateString(locale, { day: 'numeric', month: 'short' })}, ${time}`;
+};
 
 export const formatPaceFromSeconds = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
@@ -165,10 +232,10 @@ export const computeSummaryStats = (
   const totalElevation = activities.reduce((sum, a) => sum + (a.totalElevationGain || 0), 0);
 
   // T8: średnie tempo WAŻONE dystansem (suma czasu / suma km), nie średnia
-  // arytmetyczna pace'ów per aktywność — krótki wolny spacer nie może ważyć
-  // tyle samo co długi bieg.
+  // arytmetyczna pace'ów per aktywność. X27/WP-C: liczone TYLKO z run-like —
+  // spacer (Walk/Hike) w ogóle nie wchodzi do średniego tempa biegowego.
   const paceActivities = activities.filter(
-    (a) => isPaceActivity(a) && a.movingTime && a.distance,
+    (a) => isRunLike(a) && a.movingTime && a.distance,
   );
   const paceKm = paceActivities.reduce((sum, a) => sum + a.distance! / 1000, 0);
   const paceTime = paceActivities.reduce((sum, a) => sum + (a.movingTime || 0), 0);
@@ -224,6 +291,16 @@ export const computeWeeklyKm = (
   return weeks;
 };
 
+/** X27/WP-C: kilometry TYLKO biegowe (run-like) per tydzień; computeWeeklyKm
+ *  zostaje z łącznym dystansem (niezmiennik istniejących konsumentów). */
+export const computeWeeklyRunKm = (
+  activities: StravaActivity[],
+  numWeeks: number = 12,
+  referenceDate?: Date,
+  lang: LanguageCode = 'pl',
+): WeeklyDataPoint[] =>
+  computeWeeklyKm(activities.filter(isRunLike), numWeeks, referenceDate, lang);
+
 // ========================
 // Feature 2: Pace trend
 // ========================
@@ -251,7 +328,8 @@ export const computePaceTrendData = (
       (a) =>
         a.date >= startStr &&
         a.date <= endStr &&
-        isPaceActivity(a) &&
+        // X27/WP-C: trend tempa tylko z biegów (spacer z wózkiem nie psuje trendu).
+        isRunLike(a) &&
         a.movingTime &&
         a.distance,
     );
@@ -301,6 +379,15 @@ export const computeMonthlySummaries = (
       Math.round(
         (acts.reduce((s, a) => s + (a.distance || 0), 0) / 1000) * 10,
       ) / 10;
+    // X27/WP-C: rozbicie dystansu bieg/spacer obok totalKm.
+    const runKm =
+      Math.round(
+        (acts.filter(isRunLike).reduce((s, a) => s + (a.distance || 0), 0) / 1000) * 10,
+      ) / 10;
+    const walkKm =
+      Math.round(
+        (acts.filter(isWalkLike).reduce((s, a) => s + (a.distance || 0), 0) / 1000) * 10,
+      ) / 10;
     const totalTime = acts.reduce((s, a) => s + (a.movingTime || 0), 0);
     const totalElevation = acts.reduce(
       (s, a) => s + (a.totalElevationGain || 0),
@@ -309,8 +396,9 @@ export const computeMonthlySummaries = (
     const totalCalories = acts.reduce((s, a) => s + (a.calories || 0), 0);
 
     // T8: tempo miesiąca ważone dystansem (spójne z computeSummaryStats).
+    // X27/WP-C: tylko run-like — spacer nie wchodzi do tempa miesiąca.
     const paceActs = acts.filter(
-      (a) => isPaceActivity(a) && a.movingTime && a.distance,
+      (a) => isRunLike(a) && a.movingTime && a.distance,
     );
     const paceKm = paceActs.reduce((s, a) => s + a.distance! / 1000, 0);
     const avgPace = paceKm > 0
@@ -321,6 +409,8 @@ export const computeMonthlySummaries = (
       key,
       label,
       totalKm,
+      runKm,
+      walkKm,
       activityCount: acts.length,
       totalTime,
       avgPace,
@@ -452,8 +542,10 @@ export const detectCardioPRs = (
     });
   }
 
-  // Longest run
-  const distanceActivities = activities.filter((a) => a.distance && a.distance > 0);
+  // Longest run — X27/WP-C: tylko biegi (długi spacer nie wygrywa "longest run")
+  const distanceActivities = activities.filter(
+    (a) => isRunLike(a) && a.distance && a.distance > 0,
+  );
   if (distanceActivities.length > 0) {
     const longest = distanceActivities.reduce((best, a) =>
       a.distance! > best.distance! ? a : best,

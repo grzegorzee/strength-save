@@ -6,6 +6,8 @@ import {
   getAvailableYears,
   isPaceActivity,
   isRunActivity,
+  isRunLike,
+  isWalkLike,
   formatPaceFromSeconds,
   formatDurationShort,
   computeSummaryStats,
@@ -13,6 +15,11 @@ import {
   computeMonthlySummaries,
   computeWeeklyElevation,
   computeWeeklyCalories,
+  computeWeeklyKm,
+  computeWeeklyRunKm,
+  computeNextSyncAvailableAt,
+  formatNextSyncTime,
+  matchesActivityTypeFilter,
   detectCardioPRs,
 } from '@/lib/strava-utils';
 
@@ -158,6 +165,137 @@ describe('isRunActivity', () => {
 });
 
 // ========================
+// isRunLike / isWalkLike (X27/WP-C)
+// ========================
+
+describe('isRunLike / isWalkLike (X27/WP-C)', () => {
+  it('isRunLike: Run oraz sportType z "Run" (TrailRun/VirtualRun) tak; Walk/Hike/Ride nie', () => {
+    expect(isRunLike(makeActivity({ type: 'Run' }))).toBe(true);
+    expect(isRunLike(makeActivity({ type: 'TrailRun', sportType: 'TrailRun' }))).toBe(true);
+    expect(isRunLike(makeActivity({ type: 'Workout', sportType: 'VirtualRun' }))).toBe(true);
+    expect(isRunLike(makeActivity({ type: 'Walk', sportType: 'Walk' }))).toBe(false);
+    expect(isRunLike(makeActivity({ type: 'Hike', sportType: 'Hike' }))).toBe(false);
+    expect(isRunLike(makeActivity({ type: 'Ride' }))).toBe(false);
+  });
+
+  it('isWalkLike: Walk/Hike tak (po type lub sportType); Run/Ride nie', () => {
+    expect(isWalkLike(makeActivity({ type: 'Walk' }))).toBe(true);
+    expect(isWalkLike(makeActivity({ type: 'Hike' }))).toBe(true);
+    expect(isWalkLike(makeActivity({ type: 'Workout', sportType: 'Walk' }))).toBe(true);
+    expect(isWalkLike(makeActivity({ type: 'Workout', sportType: 'Hike' }))).toBe(true);
+    expect(isWalkLike(makeActivity({ type: 'Run' }))).toBe(false);
+    expect(isWalkLike(makeActivity({ type: 'Ride' }))).toBe(false);
+  });
+
+  it('brak type i sportType → ani bieg, ani spacer (traktuj jak Other)', () => {
+    const bare = makeActivity({ type: undefined as unknown as string, sportType: undefined });
+    expect(isRunLike(bare)).toBe(false);
+    expect(isWalkLike(bare)).toBe(false);
+  });
+});
+
+// ========================
+// computeNextSyncAvailableAt / formatNextSyncTime (X27: cooldown 24 h w UI)
+// ========================
+
+describe('computeNextSyncAvailableAt (X27: cooldown 24 h w UI)', () => {
+  const NOW = Date.parse('2026-08-20T12:00:00.000Z');
+
+  it('brak lastSync / nieparsowalny → null (sync dostępny)', () => {
+    expect(computeNextSyncAvailableAt(undefined, NOW)).toBeNull();
+    expect(computeNextSyncAvailableAt(null, NOW)).toBeNull();
+    expect(computeNextSyncAvailableAt('not-a-date', NOW)).toBeNull();
+  });
+
+  it('lastSync 2 h temu → odblokowanie dokładnie 24 h po lastSync', () => {
+    const last = new Date(NOW - 2 * 3600_000).toISOString();
+    const next = computeNextSyncAvailableAt(last, NOW);
+    expect(next?.getTime()).toBe(NOW + 22 * 3600_000);
+  });
+
+  it('lastSync 25 h temu → null (cooldown minął)', () => {
+    const last = new Date(NOW - 25 * 3600_000).toISOString();
+    expect(computeNextSyncAvailableAt(last, NOW)).toBeNull();
+  });
+});
+
+describe('formatNextSyncTime (X27)', () => {
+  it('ten sam dzień → sama godzina', () => {
+    const now = new Date(2026, 7, 20, 10, 0);
+    const date = new Date(2026, 7, 20, 18, 30);
+    expect(formatNextSyncTime(date, 'pl', now)).toMatch(/^\d{2}:\d{2}$/);
+  });
+
+  it('jutro → dzień + godzina', () => {
+    const now = new Date(2026, 7, 20, 23, 0);
+    const date = new Date(2026, 7, 21, 9, 15);
+    const label = formatNextSyncTime(date, 'en', now);
+    expect(label).toMatch(/9:15/);
+    expect(label).toMatch(/21/);
+  });
+});
+
+// ========================
+// matchesActivityTypeFilter (X27: chipsy filtra typu)
+// ========================
+
+describe('matchesActivityTypeFilter (X27: chipsy filtra typu)', () => {
+  const run = makeActivity({ type: 'Run' });
+  const trail = makeActivity({ type: 'TrailRun', sportType: 'TrailRun' });
+  const walk = makeActivity({ type: 'Walk' });
+  const hike = makeActivity({ type: 'Hike', sportType: 'Hike' });
+  const ride = makeActivity({ type: 'Ride' });
+  const gravel = makeActivity({ type: 'Ride', sportType: 'GravelRide' });
+  const swim = makeActivity({ type: 'Swim' });
+
+  it('all przepuszcza wszystko', () => {
+    expect(matchesActivityTypeFilter(run, 'all')).toBe(true);
+    expect(matchesActivityTypeFilter(swim, 'all')).toBe(true);
+  });
+
+  it('runs = run-like (z TrailRun), bez spacerów', () => {
+    expect(matchesActivityTypeFilter(run, 'runs')).toBe(true);
+    expect(matchesActivityTypeFilter(trail, 'runs')).toBe(true);
+    expect(matchesActivityTypeFilter(walk, 'runs')).toBe(false);
+  });
+
+  it('walks = Walk/Hike', () => {
+    expect(matchesActivityTypeFilter(walk, 'walks')).toBe(true);
+    expect(matchesActivityTypeFilter(hike, 'walks')).toBe(true);
+    expect(matchesActivityTypeFilter(run, 'walks')).toBe(false);
+  });
+
+  it('rides = Ride z wariantami sportType', () => {
+    expect(matchesActivityTypeFilter(ride, 'rides')).toBe(true);
+    expect(matchesActivityTypeFilter(gravel, 'rides')).toBe(true);
+    expect(matchesActivityTypeFilter(swim, 'rides')).toBe(false);
+  });
+
+  it('other = reszta (nie bieg, nie spacer, nie rower)', () => {
+    expect(matchesActivityTypeFilter(swim, 'other')).toBe(true);
+    expect(matchesActivityTypeFilter(run, 'other')).toBe(false);
+    expect(matchesActivityTypeFilter(walk, 'other')).toBe(false);
+    expect(matchesActivityTypeFilter(ride, 'other')).toBe(false);
+  });
+});
+
+// ========================
+// computeWeeklyKm / computeWeeklyRunKm (X27)
+// ========================
+
+describe('computeWeeklyRunKm (X27)', () => {
+  it('pomija spacery; computeWeeklyKm dalej liczy całość (niezmiennik konsumentów)', () => {
+    const today = formatLocalDate(new Date());
+    const acts = [
+      makeActivity({ id: 'r', type: 'Run', date: today, distance: 10000 }),
+      makeActivity({ id: 'w', type: 'Walk', date: today, distance: 4000 }),
+    ];
+    expect(computeWeeklyRunKm(acts, 1)[0].km).toBe(10);
+    expect(computeWeeklyKm(acts, 1)[0].km).toBe(14);
+  });
+});
+
+// ========================
 // computeSummaryStats
 // ========================
 
@@ -200,6 +338,19 @@ describe('computeSummaryStats', () => {
     const stats = computeSummaryStats(acts)!;
     expect(Math.round(stats.avgPace!)).toBe(260);
   });
+
+  // X27/WP-C: spacer nie wchodzi do średniego tempa — bieg 5:00/km + spacer
+  // 12:00/km ma dawać 5:00/km, nie mieszankę. Dystans/czas/kalorie dalej z całości.
+  it('X27: avg pace liczone TYLKO z biegów (spacer 12:00/km nie psuje 5:00/km)', () => {
+    const acts = [
+      makeActivity({ id: 'r', type: 'Run', distance: 5000, movingTime: 1500 }),
+      makeActivity({ id: 'w', type: 'Walk', distance: 5000, movingTime: 3600 }),
+    ];
+    const stats = computeSummaryStats(acts)!;
+    expect(stats.avgPace).toBe(300);
+    expect(stats.totalDistance).toBe(10);
+    expect(stats.totalTime).toBe(5100);
+  });
 });
 
 // ========================
@@ -239,6 +390,18 @@ describe('computePaceTrendData', () => {
     ];
     const result = computePaceTrendData(acts, 1);
     expect(result[0].paceSeconds).toBeNull();
+  });
+
+  // X27/WP-C: spacer z wózkiem nie psuje trendu tempa — tydzień z biegiem
+  // 5:00/km i spacerem 12:00/km pokazuje 5:00/km.
+  it('X27: trend tempa liczy tylko run-like, spacer pomijany', () => {
+    const today = formatLocalDate(new Date());
+    const acts = [
+      makeActivity({ id: 'r', date: today, type: 'Run', distance: 5000, movingTime: 1500 }),
+      makeActivity({ id: 'w', date: today, type: 'Walk', distance: 5000, movingTime: 3600 }),
+    ];
+    const result = computePaceTrendData(acts, 1);
+    expect(result[0].paceSeconds).toBe(300);
   });
 });
 
@@ -293,6 +456,20 @@ describe('computeMonthlySummaries', () => {
 
   it('returns empty for no activities', () => {
     expect(computeMonthlySummaries([])).toEqual([]);
+  });
+
+  // X27/WP-C: rozbicie dystansu bieg/spacer obok totalKm; avgPace tylko biegowe.
+  it('X27: runKm/walkKm obok totalKm, avgPace tylko z biegów', () => {
+    const acts = [
+      makeActivity({ id: 'r', date: '2026-03-01', type: 'Run', distance: 5000, movingTime: 1500 }),
+      makeActivity({ id: 'w', date: '2026-03-02', type: 'Walk', distance: 4000, movingTime: 2880 }),
+      makeActivity({ id: 'b', date: '2026-03-03', type: 'Ride', distance: 20000, movingTime: 2400 }),
+    ];
+    const [month] = computeMonthlySummaries(acts);
+    expect(month.totalKm).toBe(29);
+    expect(month.runKm).toBe(5);
+    expect(month.walkKm).toBe(4);
+    expect(month.avgPace).toBe(300);
   });
 
   it('has capitalized Polish month label', () => {
@@ -473,6 +650,17 @@ describe('detectCardioPRs', () => {
     const runPrs = detectCardioPRs(withRun);
     expect(runPrs.find((p) => p.category === 'fastest_pace')).toBeDefined();
     expect(runPrs.find((p) => p.category === 'best_5k')?.value).toBe('25:00');
+  });
+
+  // X27/WP-C: "longest run" tylko z biegów — długi spacer nie wygrywa rekordu.
+  it('X27: spacer 20 km NIE wygrywa "longest run" z biegiem 10 km', () => {
+    const acts = [
+      makeActivity({ id: 'w', type: 'Walk', sportType: 'Walk', distance: 20000 }),
+      makeActivity({ id: 'r', type: 'Run', distance: 10000 }),
+    ];
+    const prs = detectCardioPRs(acts);
+    const longest = prs.find((p) => p.category === 'longest_run');
+    expect(longest?.value).toBe('10.0 km');
   });
 
   it('T6: sportType TrailRun liczy się do rekordów biegowych', () => {

@@ -20,6 +20,8 @@ const DIGEST_CONCURRENCY = 10;
 interface StravaDoc {
   date: string;
   type: string;
+  /** X27/WP-C: warianty biegowe (TrailRun/VirtualRun) siedzą w sportType. */
+  sportType?: string;
   distance?: number;
   movingTime?: number;
   name: string;
@@ -82,8 +84,14 @@ const userLang = (user: DigestUser): Lang =>
 const userUnit = (user: DigestUser): UnitSystem =>
   user.preferences?.unit === "lbs" ? "lbs" : "kg";
 
-const buildStravaSummary = (activities: StravaDoc[]): DigestStrava | null => {
-  const runs = activities.filter((a) => a.type === "Run");
+// X27/WP-C: run-like jak w src/lib/strava-utils.isRunLike (functions nie
+// importują z src/, stąd lokalna kopia semantyki: Run || sportType z "Run").
+const isRunLikeDoc = (a: StravaDoc): boolean =>
+  a.type === "Run" || (a.sportType?.includes("Run") ?? false);
+
+// Export dla testów jednostkowych (X27/WP-C) — produkcyjnie woła go tylko digest.
+export const buildStravaSummary = (activities: StravaDoc[]): DigestStrava | null => {
+  const runs = activities.filter(isRunLikeDoc);
   if (runs.length === 0) return null;
   const totalRunKm = Math.round(runs.reduce((sum, a) => sum + ((a.distance || 0) / 1000), 0) * 10) / 10;
   const best = runs

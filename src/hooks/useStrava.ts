@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   collection,
   query,
@@ -13,6 +13,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '@/lib/firebase';
 import type { StravaActivity, StravaConnection } from '@/types/strava';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { computeNextSyncAvailableAt, formatNextSyncTime } from '@/lib/strava-utils';
 
 const STRAVA_ACTIVITIES_COLLECTION = 'strava_activities';
 const STRAVA_ACTIVITY_LISTENER_LIMIT = 500;
@@ -26,7 +27,7 @@ const noop = async () => ({ ok: false as const, message: 'Strava disabled' });
 // limit (widoki historii/analityki). Wyniki UI identyczne: filtry kart są
 // zawsze ostrzejsze lub równe oknu.
 export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: string) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [activities, setActivities] = useState<StravaActivity[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [connection, setConnection] = useState<StravaConnection>({ connected: false });
@@ -98,6 +99,14 @@ export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: s
     return () => unsubscribe();
   }, [userId, enabled]);
 
+  // X27/WP-C: lustro serwerowego cooldownu 24 h (users/{uid}.stravaLastSync).
+  // null = ręczny sync dostępny. Liczone z danych profilu, więc offline/cache
+  // też pokazuje stan; ostateczna decyzja zawsze po stronie serwera.
+  const nextSyncAvailableAt = useMemo(
+    () => computeNextSyncAvailableAt(connection.lastSync, Date.now()),
+    [connection.lastSync],
+  );
+
   const connectStrava = useCallback(async () => {
     setError(null);
     console.log('[Strava] Requesting auth URL...');
@@ -136,17 +145,28 @@ export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: s
       return { ok: true, ...data };
     } catch (err) {
       // T7: serwerowy rate-limit (resource-exhausted) dostaje czytelny komunikat.
+      // X27/WP-C: serwer zwraca "Retry in {n}s" — jeśli da się sparsować,
+      // dokładamy godzinę odblokowania (edge: stary stravaLastSync w cache
+      // pokazał aktywny przycisk, a serwer i tak odrzucił).
       const code = (err as { code?: string }).code ?? '';
-      const message = code.includes('resource-exhausted')
-        ? t('strava.err.rateLimited')
-        : err instanceof Error ? err.message : t('strava.err.sync');
+      let message: string;
+      if (code.includes('resource-exhausted')) {
+        const retrySec = err instanceof Error ? Number(/(\d+)s/.exec(err.message)?.[1]) : NaN;
+        message = Number.isFinite(retrySec)
+          ? `${t('strava.err.rateLimited')} ${t('strava.syncAvailableAt', {
+              time: formatNextSyncTime(new Date(Date.now() + retrySec * 1000), lang),
+            })}`
+          : t('strava.err.rateLimited');
+      } else {
+        message = err instanceof Error ? err.message : t('strava.err.sync');
+      }
       console.error('[Strava] Sync failed:', message);
       setError(message);
       return { ok: false, message };
     } finally {
       setIsSyncing(false);
     }
-  }, [t]);
+  }, [t, lang]);
 
   // Z59: zapis bezpośredni przez rules (whitelist users z widełkami 100-230)
   // zamiast callable saveMaxHR — o jeden kontener serverless mniej.
@@ -206,6 +226,7 @@ export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: s
       syncActivities: noop as () => ReturnType<typeof syncActivities>,
       saveMaxHR: noop as (value: number) => ReturnType<typeof saveMaxHR>,
       disconnectStrava: noop,
+      nextSyncAvailableAt: null as Date | null,
     };
   }
 
@@ -219,5 +240,6 @@ export const useStrava = (userId: string, enabled: boolean = true, sinceDate?: s
     syncActivities,
     saveMaxHR,
     disconnectStrava,
+    nextSyncAvailableAt,
   };
 };

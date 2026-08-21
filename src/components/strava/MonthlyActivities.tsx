@@ -50,6 +50,12 @@ export const MonthlyActivities = ({ activities, estimatedMaxHR }: MonthlyActivit
                 </div>
               </AccordionTrigger>
               <AccordionContent>
+                {/* X27/WP-C: spacery odróżnialne od biegów tam, gdzie była jedna liczba */}
+                {month.walkKm > 0 && (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {t('strava.runsWalksSplit', { run: month.runKm, walk: month.walkKm })}
+                  </p>
+                )}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                   <div className="text-center p-2 bg-muted/30 rounded-lg">
                     <p className="text-sm font-bold">{month.totalKm} km</p>

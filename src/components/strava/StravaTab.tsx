@@ -18,7 +18,13 @@ import { useManualActivities } from '@/hooks/useManualActivities';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { mergeActivities } from '@/lib/manual-activity';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { filterByMonthYear, getAvailableYears } from '@/lib/strava-utils';
+import {
+  filterByMonthYear,
+  getAvailableYears,
+  matchesActivityTypeFilter,
+  type ActivityTypeFilter,
+} from '@/lib/strava-utils';
+import { Chip } from '@/components/kinetic/Chip';
 import { SeasonFilter } from './SeasonFilter';
 import { StravaSummaryStats } from './StravaSummaryStats';
 import { WeeklyKmChart } from './WeeklyKmChart';
@@ -31,6 +37,15 @@ import { RacePredictor } from './RacePredictor';
 import { TrainingLoadChart } from './TrainingLoadChart';
 import { MonthlyActivities } from './MonthlyActivities';
 
+// X27/WP-C: chipsy filtra typu nad listą aktywności.
+const TYPE_FILTERS: Array<{ id: ActivityTypeFilter; labelKey: 'strava.filter.all' | 'strava.filter.runs' | 'strava.filter.walks' | 'strava.filter.rides' | 'strava.filter.other' }> = [
+  { id: 'all', labelKey: 'strava.filter.all' },
+  { id: 'runs', labelKey: 'strava.filter.runs' },
+  { id: 'walks', labelKey: 'strava.filter.walks' },
+  { id: 'rides', labelKey: 'strava.filter.rides' },
+  { id: 'other', labelKey: 'strava.filter.other' },
+];
+
 export const StravaTab = () => {
   const { t } = useTranslation();
   const { uid, canUseStrava } = useCurrentUser();
@@ -42,6 +57,7 @@ export const StravaTab = () => {
   const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number | 'all'>(new Date().getMonth() + 1);
+  const [typeFilter, setTypeFilter] = useState<ActivityTypeFilter>('all');
   const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
 
   const nonStrengthActivities = useMemo(
@@ -64,6 +80,19 @@ export const StravaTab = () => {
   const yearActivities = useMemo(
     () => filterByMonthYear(nonStrengthActivities, selectedYear, 'all'),
     [nonStrengthActivities, selectedYear],
+  );
+
+  // X27/WP-C: filtr typu (przed filtrem miesiąca) dotyczy TYLKO listy aktywności;
+  // statystyki i wykresy wyżej zostają liczone z całości (świadoma decyzja planu).
+  const listActivities = useMemo(
+    () => filterByMonthYear(
+      typeFilter === 'all'
+        ? nonStrengthActivities
+        : nonStrengthActivities.filter((a) => matchesActivityTypeFilter(a, typeFilter)),
+      selectedYear,
+      selectedMonth,
+    ),
+    [nonStrengthActivities, typeFilter, selectedYear, selectedMonth],
   );
 
   // Z113: Training Load na strumieniu zunifikowanym (Strava + ręczne cardio).
@@ -162,9 +191,23 @@ export const StravaTab = () => {
         estimatedMaxHR={connection.estimatedMaxHR}
       />
 
+      {/* X27/WP-C: filtr typu listy — wzorzec chipsów jak w Historii */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1">
+        {TYPE_FILTERS.map((f) => (
+          <Chip
+            key={f.id}
+            className="shrink-0"
+            active={typeFilter === f.id}
+            onClick={() => setTypeFilter(f.id)}
+          >
+            {t(f.labelKey)}
+          </Chip>
+        ))}
+      </div>
+
       {/* Monthly activities */}
       <MonthlyActivities
-        activities={filteredActivities}
+        activities={listActivities}
         estimatedMaxHR={connection.estimatedMaxHR}
       />
 
