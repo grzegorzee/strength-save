@@ -185,7 +185,7 @@ fittracker-workouts (project)
 ├── training_plans/              # Plany treningowe (per-user)
 │   └── {userId}/
 │       ├── days: TrainingDay[]
-│       ├── durationWeeks: number (8-16)
+│       ├── durationWeeks: number (2-36)
 │       ├── startDate: string (YYYY-MM-DD)
 │       └── updatedAt: string (ISO)
 │
@@ -354,7 +354,7 @@ nazw/struktury historycznego treningu przez **aktualny** `trainingPlan`.
 - Plan treningowy 2-5 dni/tydzień (dynamiczne weekdays)
 - AI generowanie planu na podstawie onboarding quiz (OpenAI)
 - Review planu z możliwością zamiany ćwiczeń (ExerciseSwapDialog)
-- Czas trwania planu (8-16 tygodni) z auto-expiration
+- Czas trwania planu (2-36 tygodni, także własna liczba) z auto-zakończeniem po terminie
 - **Cykle treningowe** — archiwizacja planów, historia z PRami i statystykami, generowanie nowego planu z kontekstem starego
 - **Przypomnienie przed końcem planu** — żółty banner gdy <= 2 tygodnie do końca
 - Banner "Plan się skończył" → generowanie nowego planu

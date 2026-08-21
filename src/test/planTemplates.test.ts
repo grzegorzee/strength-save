@@ -53,6 +53,27 @@ describe('planTemplates', () => {
     }
   });
 
+  // WP-PLANS-1 (X27, Task P6): klasyczny FBW w "Browse plans".
+  it('szablon "Full Body Workout (FBW)" istnieje: 3 dni, komplet ćwiczeń z biblioteki', () => {
+    const fbw = planTemplates.find((t) => t.name === 'Full Body Workout (FBW)');
+    expect(fbw).toBeTruthy();
+    expect(fbw!.daysPerWeek).toBe(3);
+    expect(fbw!.days).toHaveLength(3);
+    expect(fbw!.durationWeeks).toBe(12);
+    for (const d of fbw!.days) {
+      expect(d.exercises.length).toBeGreaterThanOrEqual(5);
+      for (const e of d.exercises) {
+        expect(libraryNames.has(e.name), `${d.id} → ${e.name}`).toBe(true);
+      }
+    }
+  });
+
+  // Niezmiennik (reguła 5 CLAUDE.md): nowy szablon nie podmienia rekomendacji
+  // istniejącego przepływu (remis score rozstrzyga pozycja w tablicy).
+  it('FBW nie zmienia rekomendacji: build_muscle/intermediate/3 dni nadal daje Balanced Builder', () => {
+    expect(getRecommendedPlan('build_muscle', 'intermediate', 3).id).toBe('tpl-fullbody-3');
+  });
+
   it('getPlanTemplateById resolves known ids and returns undefined otherwise', () => {
     expect(getPlanTemplateById(planTemplates[0].id)?.id).toBe(planTemplates[0].id);
     expect(getPlanTemplateById('nope')).toBeUndefined();

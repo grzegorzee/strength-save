@@ -78,6 +78,8 @@ interface PlanText { pl: string; en: string }
 const PLAN_NAME: Record<string, PlanText> = {
   'tpl-fullbody-2': { pl: 'Żelazny Fundament', en: 'Iron Foundation' },
   'tpl-fullbody-3': { pl: 'Zrównoważony Rozwój', en: 'Balanced Builder' },
+  // WP-PLANS-1 (X27): nazwa FBW celowo identyczna w obu językach (żądanie usera).
+  'tpl-fbw-3': { pl: 'Full Body Workout (FBW)', en: 'Full Body Workout (FBW)' },
   'tpl-ppl-3': { pl: 'Pchanie / Ciągnięcie / Nogi', en: 'Push Pull Legs Engine' },
   'tpl-ppl-6': { pl: 'Push Pull Legs ×2', en: 'Push Pull Legs ×2' },
   'tpl-upper-lower-4': { pl: 'Góra / Dół', en: 'Upper / Lower Forge' },
@@ -110,6 +112,10 @@ const PLAN_DESC: Record<string, PlanText> = {
   'tpl-fullbody-3': {
     pl: 'Full Body 3 razy w tygodniu (A/B/C), każdy trening na całe ciało, na zmianę z dniem przerwy. Świetny stosunek efektów do czasu.',
     en: 'Full body 3× a week (A/B/C), each session full body, alternating with a rest day. Great results-to-time ratio.',
+  },
+  'tpl-fbw-3': {
+    pl: 'Klasyczny FBW A/B/C: przysiad, wyciskanie i wiosłowanie na każdym treningu w innych wariantach. Całe ciało 3 razy w tygodniu, proste ciężkie boje plus akcesoria.',
+    en: 'Classic FBW A/B/C: squat, press and row in every session in different variants. Full body 3× a week, simple heavy lifts plus accessories.',
   },
   'tpl-ppl-3': {
     pl: 'Klasyczny podział na pchanie, ciągnięcie i nogi. Najpopularniejszy plan na budowę masy przy 3 treningach.',

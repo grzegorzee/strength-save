@@ -15,6 +15,7 @@ import { localizeExerciseName } from '@/data/exercise-i18n';
 import { localizeWeekdayShort } from '@/lib/plan-i18n';
 import { WEEKDAYS } from '@/lib/plan-cycle-utils';
 import { addPlanDay, removePlanDay, duplicatePlanDay, setPlanDayWeekday, setPlanDayFocus, MAX_PLAN_DAYS } from '@/lib/plan-day-edit';
+import { MAX_PLAN_WEEKS, MIN_PLAN_WEEKS } from '@/lib/training-plan-save';
 import { ArrowUp, ArrowDown, Copy, Trash2, Replace, Plus, Minus, Pencil, Check, X } from 'lucide-react';
 
 // FIX-C: edycja serii bez wpisywania "×" z klawiatury — format "N × reps"
@@ -40,6 +41,79 @@ export interface PlanDaysEditorProps {
 }
 
 const DURATIONS = [8, 10, 12, 16];
+
+/**
+ * WP-PLANS-1 (X27, Task P5): chipsy [8,10,12,16] + własna liczba tygodni 2-36.
+ * Wartość spoza zakresu = komunikat walidacji i BRAK zapisu (clamp dopiero na
+ * save w training-plan-save). Wspólny dla PlanDaysEditor i kroku potwierdzenia
+ * szablonu w PlanWizard.
+ */
+export const PlanDurationPicker = ({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (weeks: number) => void;
+}) => {
+  const { t } = useTranslation();
+  const [customText, setCustomText] = useState('');
+  const [customError, setCustomError] = useState(false);
+
+  const handleCustomChange = (raw: string) => {
+    setCustomText(raw);
+    if (raw.trim() === '') {
+      setCustomError(false);
+      return;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed >= MIN_PLAN_WEEKS && parsed <= MAX_PLAN_WEEKS) {
+      setCustomError(false);
+      onChange(parsed);
+    } else {
+      setCustomError(true);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {DURATIONS.map(n => (
+          <ChipButton
+            key={n}
+            variant={value === n ? 'default' : 'outline'}
+            pressed={value === n}
+            onClick={() => {
+              setCustomText('');
+              setCustomError(false);
+              onChange(n);
+            }}
+          >
+            {t('planbuilder.weeksShort', { n })}
+          </ChipButton>
+        ))}
+      </div>
+      <div className="space-y-1.5">
+        <label htmlFor="plan-duration-custom" className="block text-xs font-medium text-muted-foreground">
+          {t('planbuilder.customWeeks')}
+        </label>
+        <Input
+          id="plan-duration-custom"
+          data-testid="duration-custom-input"
+          inputMode="numeric"
+          value={customText}
+          placeholder={String(value)}
+          onChange={(e) => handleCustomChange(e.target.value)}
+          className="w-28"
+        />
+        {customError && (
+          <p data-testid="duration-custom-error" className="text-sm text-destructive">
+            {t('planbuilder.customWeeksError')}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // Jeden edytor dni planu dla buildera, edytora planu i admina (Z70):
 // zarządzanie dniami (add/remove/duplicate/weekday/focus) + ćwiczeniami (add/swap/remove/reorder/serie).
@@ -283,18 +357,7 @@ export const PlanDaysEditor = ({
           <CardTitle className="text-base">{t('planbuilder.planDuration')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
-            {DURATIONS.map(n => (
-              <ChipButton
-                key={n}
-                variant={durationWeeks === n ? 'default' : 'outline'}
-                pressed={durationWeeks === n}
-                onClick={() => onDurationWeeksChange(n)}
-              >
-                {t('planbuilder.weeksShort', { n })}
-              </ChipButton>
-            ))}
-          </div>
+          <PlanDurationPicker value={durationWeeks} onChange={onDurationWeeksChange} />
         </CardContent>
       </Card>
 

@@ -34,6 +34,8 @@ interface BuildPlanNextStepParams {
   today?: Date;
   lang?: LanguageCode;
   hasPendingFinalSync?: boolean;
+  /** WP-PLANS-1 (X27): cykl życia planu z useTrainingPlan; 'ended' wymusza kartę końca. */
+  planStatus?: 'active' | 'ended' | 'none';
 }
 
 export const buildPlanNextStep = ({
@@ -47,8 +49,25 @@ export const buildPlanNextStep = ({
   today = new Date(),
   lang = 'pl',
   hasPendingFinalSync = false,
+  planStatus,
 }: BuildPlanNextStepParams): PlanNextStepAction | null => {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(lang, key, params);
+
+  // WP-PLANS-1 (X27): plan jawnie zakończony (ręcznie lub auto-endem) — karta
+  // końca niezależnie od tego, że dni wciąż siedzą w dokumencie.
+  if (planStatus === 'ended') {
+    return {
+      state: 'ended',
+      title: tr('plannext.ended.title'),
+      description: tr('plannext.ended.desc'),
+      badges: [tr('plannext.badge.planDone')],
+      primaryLabel: tr('plannext.btn.newPlan'),
+      primaryPath: '/new-plan',
+      secondaryLabel: tr('plannext.btn.viewCycles'),
+      secondaryPath: '/cycles',
+      tone: 'primary',
+    };
+  }
 
   if (!hasPlan) {
     return {

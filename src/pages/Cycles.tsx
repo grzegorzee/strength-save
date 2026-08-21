@@ -24,12 +24,11 @@ import type { PlanCycle } from '@/types/cycles';
 import { buildActiveCyclePreview, buildCycleComparison, buildCycleRecommendation, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { PlanNextStepCard } from '@/components/PlanNextStepCard';
-import { repeatPlanSource, runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
+import { endPlan, repeatPlanSource, runCycleAutoRepair, startCycleWithPlan } from '@/lib/cycle-actions';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
-import { formatLocalDate } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { isCycleVisible, isCycleVisibleWithData } from '@/lib/cycle-visibility';
@@ -45,7 +44,7 @@ const Cycles = () => {
   const { cycles, isLoaded, createActiveCycle, deleteCycle, archiveCurrentPlan } = usePlanCycles(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { toast } = useToast();
-  const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, planStatus, setPlanStatus } = useTrainingPlan(uid);
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);
   const [isRepeating, setIsRepeating] = useState(false);
   const [endPlanOpen, setEndPlanOpen] = useState(false);
@@ -64,6 +63,7 @@ const Cycles = () => {
     const res = await startCycleWithPlan(source.days, source.durationWeeks, {
       lang,
       uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+      ...(planStatus !== 'none' ? { planStatus } : {}),
       archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
       emitPlanEvent: buildPlanEventEmitter(uid),
     });
@@ -76,30 +76,37 @@ const Cycles = () => {
     }
   };
 
-  const handleEndPlan = async () => {
-    if (!planStartDate || trainingPlan.length === 0) return;
+  // WP-PLANS-1 (X27, Edge 4): aktywny draft dnia planowego blokuje zakończenie
+  // planu — komunikat zamiast operacji (draft nie może zniknąć).
+  const openEndPlanDialog = async () => {
+    const draft = await workoutDraftDb.loadActiveDraft(uid);
+    if (draft && !draft.completedLocally && trainingPlan.some((day) => day.id === draft.dayId)) {
+      toast({ title: t('cycles.endPlanDraftBlocked'), variant: 'destructive' });
+      return;
+    }
+    setEndPlanOpen(true);
+  };
+
+  // WP-PLANS-1 (X27, Task P2): jedna ścieżka końca planu (archive + backfill +
+  // status 'ended'); chooseNew steruje wyłącznie nawigacją po sukcesie.
+  const handleEndPlan = async (chooseNew: boolean) => {
+    // Radix (lekcja b.92): dialog zamykamy PRZED mutacją danych, z których liczy widok.
+    setEndPlanOpen(false);
     setIsEndingPlan(true);
-    const archivedId = await archiveCurrentPlan(trainingPlan, planDurationWeeks, planStartDate, workouts);
-    if (archivedId) {
-      const archivedCycle = cycles.find(cycle => cycle.id === archivedId) ?? {
-        id: archivedId,
-        userId: uid,
-        days: trainingPlan,
-        durationWeeks: planDurationWeeks,
-        startDate: planStartDate,
-        endDate: formatLocalDate(new Date()),
-        status: 'completed' as const,
-        createdAt: new Date().toISOString(),
-        stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
-      };
-      await backfillHistoricalWorkouts([archivedCycle]);
+    const result = await endPlan({ chooseNew }, {
+      uid, lang, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+      archiveCurrentPlan, backfillHistoricalWorkouts, setPlanStatus,
+      emitPlanEvent: buildPlanEventEmitter(uid),
+    });
+    setIsEndingPlan(false);
+    if (result.success) {
       toast({ title: t('cycles.endPlanDone') });
-      navigate(`/new-plan?fromCycle=${archivedId}`);
+      if (chooseNew && result.archivedCycleId) {
+        navigate(`/new-plan?fromCycle=${result.archivedCycleId}`);
+      }
     } else {
       toast({ title: t('cycles.endPlanFailed'), variant: 'destructive' });
     }
-    setIsEndingPlan(false);
-    setEndPlanOpen(false);
   };
 
   // Auto-repair: dotwórz dokument cyklu, jeśli aktywny plan istnieje bez niego.
@@ -114,6 +121,8 @@ const Cycles = () => {
   // (aktywny lub już zarchiwizowany), (2) trwały guard per-plan w localStorage
   // zamiast ref — przeżywa remount/odświeżenie w oknie asynchronicznym.
   useEffect(() => {
+    // WP-PLANS-1 (X27): plan zakończony nie dostaje odtworzonego aktywnego cyklu.
+    if (planStatus === 'ended') return;
     if (!isLoaded || activeCycle || !planStartDate || trainingPlan.length === 0 || isPlanExpired) return;
     // Plan ma już swój cykl (np. zarchiwizowany po wygaśnięciu) — nie dubluj.
     if (cycles.some(c => c.startDate === planStartDate)) return;
@@ -143,7 +152,7 @@ const Cycles = () => {
       guard,
       create: () => createActiveCycle(trainingPlan, planDurationWeeks, planStartDate),
     });
-  }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle, cycles, uid]);
+  }, [isLoaded, activeCycle, planStartDate, trainingPlan, isPlanExpired, planDurationWeeks, createActiveCycle, cycles, uid, planStatus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -175,6 +184,7 @@ const Cycles = () => {
     previousCompletedCycle,
     lang,
     hasPendingFinalSync,
+    planStatus,
   });
   const showDecisionCard = !!planNextStep
     && ['closeout', 'ended', 'ending-decide'].includes(planNextStep.state);
@@ -230,7 +240,22 @@ const Cycles = () => {
         </div>
       )}
 
-      {liveActiveCycle && recommendation && (
+      {/* WP-PLANS-1 (X27, Task P2): "Zakończ plan" nad kartą aktywnego cyklu,
+          bez gate'u !isPlanExpired (plan po terminie tym bardziej można zamknąć). */}
+      {trainingPlan.length > 0 && planStartDate && planStatus !== 'ended' && (
+        <Button
+          variant="outline"
+          className="w-full"
+          data-testid="cycles-end-plan"
+          onClick={() => { void openEndPlanDialog(); }}
+        >
+          <CalendarX2 className="h-4 w-4 mr-2" />
+          {t('cycles.endPlan')}
+        </Button>
+      )}
+
+      {/* WP-PLANS-1 (X27): baner rekomendacji znika po zakończeniu planu. */}
+      {liveActiveCycle && recommendation && planStatus !== 'ended' && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-5 space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -315,7 +340,7 @@ const Cycles = () => {
       )}
 
       {/* Current active plan summary */}
-      {!isPlanExpired && trainingPlan.length > 0 && (
+      {!isPlanExpired && trainingPlan.length > 0 && planStatus !== 'ended' && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
@@ -340,16 +365,12 @@ const Cycles = () => {
                 </span>
               ))}
             </div>
-            {activeCycle && (
-              <Button variant="outline" className="w-full" onClick={() => setEndPlanOpen(true)}>
-                <CalendarX2 className="h-4 w-4 mr-2" />
-                {t('cycles.endPlan')}
-              </Button>
-            )}
           </CardContent>
         </Card>
       )}
 
+      {/* WP-PLANS-1 (X27, Task P2): trzy opcje — zakończ i wybierz nowy /
+          zakończ bez nowego / anuluj. Zamknięcie zawsze przez open=false. */}
       <AlertDialog open={endPlanOpen} onOpenChange={setEndPlanOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -358,7 +379,20 @@ const Cycles = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isEndingPlan}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={(event) => { event.preventDefault(); void handleEndPlan(); }} disabled={isEndingPlan}>
+            <Button
+              variant="outline"
+              data-testid="end-plan-only"
+              disabled={isEndingPlan}
+              onClick={() => { void handleEndPlan(false); }}
+            >
+              <CalendarX2 className="h-4 w-4 mr-2" />
+              {t('cycles.endPlanOnly')}
+            </Button>
+            <AlertDialogAction
+              data-testid="end-plan-choose-new"
+              onClick={(event) => { event.preventDefault(); void handleEndPlan(true); }}
+              disabled={isEndingPlan}
+            >
               {isEndingPlan ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarX2 className="h-4 w-4 mr-2" />}
               {t('cycles.endPlanConfirmAction')}
             </AlertDialogAction>

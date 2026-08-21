@@ -2,7 +2,7 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import { translate, type LanguageCode } from '@/i18n';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
-import { formatLocalDate } from '@/lib/utils';
+import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { assignCycleDayIds, getCycleStartPreview } from '@/lib/plan-cycle-utils';
 import { DEFAULT_PROGRESSION, type ProgressionConfig } from '@/lib/progression-engine';
@@ -14,10 +14,21 @@ export interface StartCycleDeps {
   currentPlan: TrainingDay[];
   planStartDate: string | null;
   planDurationWeeks: number;
+  /** WP-PLANS-1 (X27): status planu PRZED startem — rollback przywraca go 1:1. */
+  planStatus?: 'active' | 'ended';
   workouts: WorkoutSession[];
   startDate?: string;
+  /**
+   * WP-PLANS-2 (X27): jawny start planu wybrany przez usera — poniedziałek,
+   * walidowany (>= poniedziałek bieżącego tygodnia, <= +8 tygodni). Ma
+   * pierwszeństwo przed `startDate`; wartość spoza kontraktu = ignorowana
+   * (fallback do dotychczasowego snapu, zero pułapek bez wyjścia).
+   */
+  startDateISO?: string;
+  /** WP-PLANS-2 (X27): nazwa planu zapisywana na training_plans (trim, max 60). */
+  planName?: string;
   archiveCurrentPlan: (days: TrainingDay[], weeks: number, start: string, workouts: WorkoutSession[]) => Promise<string | null>;
-  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig }) => Promise<{ success: boolean; error?: string }>;
+  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; status?: 'active' | 'ended'; name?: string }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
   /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
@@ -25,7 +36,7 @@ export interface StartCycleDeps {
 }
 
 export type PlanEventEmitter = (
-  action: 'started' | 'changed',
+  action: 'started' | 'changed' | 'ended',
   info: { days: number; weeks: number; startDate: string },
 ) => void;
 
@@ -36,11 +47,13 @@ export interface CompleteOnboardingChoice {
   level: string;
   objective: string;
   daysPerWeek: number;
+  /** WP-PLANS-2 (X27): nazwa planu z kroku 5 onboardingu (trim, max 60). */
+  planName?: string;
 }
 
 export interface CompleteOnboardingDeps {
   lang?: LanguageCode;
-  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig }) => Promise<{ success: boolean; error?: string }>;
+  savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; name?: string }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   markOnboardingComplete: (choice: CompleteOnboardingChoice, days: TrainingDay[], startDate: string) => Promise<void>;
   /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
@@ -77,17 +90,49 @@ export const repeatPlanSource = (
  * Wagi są kontynuowane automatycznie — pre-fill ćwiczeń bierze ostatnie treningi z historii,
  * która zostaje nienaruszona (te same exerciseId).
  */
+/**
+ * WP-PLANS-2 (X27): czy iso to poniedziałek w oknie [bieżący tydzień, +8 tygodni].
+ * Reuse getStartOfPlanWeek — poniedziałek to data równa startowi własnego tygodnia.
+ */
+export const isValidPlanStartMonday = (iso: string | undefined, now = new Date()): iso is string => {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
+  if (formatLocalDate(getStartOfPlanWeek(parseLocalDate(iso))) !== iso) return false;
+  const currentMonday = getStartOfPlanWeek(now);
+  const maxMonday = new Date(currentMonday);
+  maxMonday.setDate(maxMonday.getDate() + 8 * 7);
+  return iso >= formatLocalDate(currentMonday) && iso <= formatLocalDate(maxMonday);
+};
+
+/** Nazwa planu do zapisu: trim + max 60; pusta = undefined (pole nie powstaje). */
+const sanitizePlanNameInput = (raw: string | undefined): string | undefined => {
+  const trimmed = raw?.trim().slice(0, 60);
+  return trimmed ? trimmed : undefined;
+};
+
 export async function startCycleWithPlan(
   days: TrainingDay[],
   durationWeeks: number,
   deps: StartCycleDeps,
 ): Promise<{ success: boolean; error?: string }> {
-  const newStart = deps.startDate
-    ? getCycleStartPreview(deps.startDate).cycleStartDate
-    : formatLocalDate(getStartOfPlanWeek(new Date()));
+  // WP-PLANS-2: jawny poniedziałek startu (walidowany) ma pierwszeństwo; wartość
+  // spoza kontraktu spada do dotychczasowego snapu (bug usera: wybrana data
+  // startu MUSI być respektowana, nie przyciągana do bieżącego tygodnia).
+  const newStart = isValidPlanStartMonday(deps.startDateISO)
+    ? deps.startDateISO
+    : deps.startDate
+      ? getCycleStartPreview(deps.startDate).cycleStartDate
+      : formatLocalDate(getStartOfPlanWeek(new Date()));
+  const planName = sanitizePlanNameInput(deps.planName);
 
   const uniqueDays = assignCycleDayIds(days, newStart);
-  const result = await deps.savePlan(uniqueDays, { durationWeeks, startDate: newStart, syncActiveCycle: false });
+  // WP-PLANS-1 (X27): start nowego planu reaktywuje dokument po 'ended'.
+  const result = await deps.savePlan(uniqueDays, {
+    durationWeeks,
+    startDate: newStart,
+    syncActiveCycle: false,
+    status: 'active',
+    ...(planName !== undefined ? { name: planName } : {}),
+  });
   if (!result.success) return result;
 
   const activeCycleId = await deps.createActiveCycle(uniqueDays, durationWeeks, newStart);
@@ -97,6 +142,9 @@ export async function startCycleWithPlan(
         durationWeeks: deps.planDurationWeeks,
         startDate: deps.planStartDate,
         syncActiveCycle: false,
+        // Rollback przywraca też status sprzed startu (bez tego plan 'ended'
+        // zostałby zombie-aktywowany przez pierwszy zapis powyżej).
+        ...(deps.planStatus !== undefined ? { status: deps.planStatus } : {}),
       });
     }
     return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.errActiveNotCreated') };
@@ -141,6 +189,7 @@ export async function completeOnboardingPlan(
     const activeCycleId = await deps.createActiveCycle(days, choice.durationWeeks, planStartDate);
     if (!activeCycleId) return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.errActiveNotCreated') };
 
+    const planName = choice.planName?.trim().slice(0, 60);
     const result = await deps.savePlan(days, {
       durationWeeks: choice.durationWeeks,
       startDate: planStartDate,
@@ -148,6 +197,8 @@ export async function completeOnboardingPlan(
       syncActiveCycle: true,
       // Z119: nowe plany z kreatora startują z włączoną progresją programową.
       progression: DEFAULT_PROGRESSION,
+      // WP-PLANS-2 (X27): nazwa planu z kroku 5 (pusta = pole nie powstaje).
+      ...(planName ? { name: planName } : {}),
     });
     if (!result.success) return result;
 
@@ -162,6 +213,85 @@ export async function completeOnboardingPlan(
     return { success: false, error: err instanceof Error ? err.message : translate(deps.lang ?? 'pl', 'ob.errCompleteFailed') };
   }
 }
+
+// ── WP-PLANS-1 (X27): zakończenie planu bez wybierania nowego ──
+
+export interface EndPlanDeps {
+  uid: string;
+  /** Język komunikatów błędów (default PL). */
+  lang?: LanguageCode;
+  currentPlan: TrainingDay[];
+  planStartDate: string | null;
+  planDurationWeeks: number;
+  workouts: WorkoutSession[];
+  archiveCurrentPlan: (days: TrainingDay[], weeks: number, start: string, workouts: WorkoutSession[]) => Promise<string | null>;
+  backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
+  /** Punktowy zapis statusu na training_plans/{uid} (wstrzykiwany — moduł nie dotyka Firebase). */
+  setPlanStatus: (status: 'active' | 'ended') => Promise<{ success: boolean }>;
+  emitPlanEvent?: PlanEventEmitter;
+}
+
+/**
+ * Kończy plan w trakcie lub po terminie: archiwizuje aktywny cykl (completed),
+ * dotagowuje historię i DOPIERO potem ustawia status 'ended' na dokumencie planu
+ * (kolejność chroni historię — pułapka z planu X27). NIE tworzy nowego cyklu;
+ * przy `chooseNew` nawigację do /new-plan wykonuje caller.
+ */
+export async function endPlan(
+  _opts: { chooseNew: boolean },
+  deps: EndPlanDeps,
+): Promise<{ success: boolean; archivedCycleId?: string; error?: string }> {
+  if (!deps.planStartDate || deps.currentPlan.length === 0) {
+    return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.endPlanFailed') };
+  }
+
+  const archivedId = await deps.archiveCurrentPlan(
+    deps.currentPlan, deps.planDurationWeeks, deps.planStartDate, deps.workouts,
+  );
+  if (!archivedId) {
+    return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.endPlanFailed') };
+  }
+
+  const archived: PlanCycle = {
+    id: archivedId, userId: deps.uid, days: deps.currentPlan, durationWeeks: deps.planDurationWeeks,
+    startDate: deps.planStartDate, endDate: formatLocalDate(new Date()), status: 'completed',
+    createdAt: new Date().toISOString(),
+    stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+  };
+  await deps.backfillHistoricalWorkouts([archived]);
+
+  const statusResult = await deps.setPlanStatus('ended');
+  if (!statusResult.success) {
+    return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.endPlanFailed') };
+  }
+
+  deps.emitPlanEvent?.('ended', {
+    days: deps.currentPlan.length, weeks: deps.planDurationWeeks, startDate: deps.planStartDate,
+  });
+
+  return { success: true, archivedCycleId: archivedId };
+}
+
+/**
+ * WP-PLANS-1 (X27, Task P4): warunki auto-końca planu. Czysta funkcja — efekt
+ * (endPlan bez nawigacji) wykonuje Dashboard przez runCycleAutoRepair z flagą
+ * sesyjną. Idempotentne: po sukcesie planStatus='ended' i warunek pada.
+ */
+export const shouldAutoEndPlan = (opts: {
+  planLoaded: boolean;
+  cyclesLoaded: boolean;
+  planStatus: 'active' | 'ended' | 'none';
+  isPlanExpired: boolean;
+  hasActiveCycle: boolean;
+  /** Aktywna sesja treningowa (draft continuable) — poczekaj do następnego wejścia. */
+  hasBlockingDraft: boolean;
+}): boolean =>
+  opts.planLoaded
+  && opts.cyclesLoaded
+  && opts.planStatus === 'active'
+  && opts.isPlanExpired
+  && opts.hasActiveCycle
+  && !opts.hasBlockingDraft;
 
 // Auto-repair cyklu (R2-27): guard trwały ustawiany PRZED create (chroni okno async
 // przed remountem), ale czyszczony przy porażce (offline) — naprawa ponowi się,

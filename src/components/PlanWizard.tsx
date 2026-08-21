@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Calendar, Check, Pencil, ListChecks, SlidersHorizontal } from 'lucide-react';
+import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
 import { localizeFocus, localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
 import { PlanBuilder } from '@/components/PlanBuilder';
+import { PlanDurationPicker } from '@/components/PlanDaysEditor';
 import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
-import { cn, formatLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
-import { LocalizedDateInput } from '@/components/LocalizedDateInput';
 import { ACCENTS, applyAccent, getAccentById, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
 import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
 import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, planDaysMismatch, WEEKDAYS } from '@/lib/plan-cycle-utils';
@@ -33,6 +34,8 @@ export interface PlanWizardChoice {
   daysPerWeek: number;
   templateId?: string;      // undefined = plan własny (PlanBuilder)
   name?: string;            // imię z kroku Welcome (tylko onboarding, askName)
+  /** WP-PLANS-2 (X27): nazwa planu z kroku 5 (default = nazwa szablonu). */
+  planName?: string;
 }
 
 const DEFAULT_DAYS: Record<number, Weekday[]> = {
@@ -215,16 +218,38 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
 
   const recommended = useMemo(() => getRecommendedPlan(objective, level, daysPerWeek), [objective, level, daysPerWeek]);
   const chosen = picked ?? recommended;
+  // WP-PLANS-1 (X27, Task P5): kontrola długości w kroku potwierdzenia szablonu;
+  // null = default z szablonu (zmiana szablonu resetuje wybór).
+  const [templateWeeks, setTemplateWeeks] = useState<number | null>(null);
+  const effectiveWeeks = templateWeeks ?? chosen.durationWeeks;
   const weekdaySelectionValid = hasExactWeekdaySelection(trainingDays, daysPerWeek);
-  const startPreview = getCycleStartPreview(startDate);
+
+  // WP-PLANS-2 (X27, Task O3): nazwa planu edytowalna w kroku 5; null = default
+  // z aktualnego szablonu/rekomendacji (zmiana szablonu wraca do defaultu).
+  const [planNameInput, setPlanNameInput] = useState<string | null>(resume?.planName ?? null);
+  const defaultPlanName = localizePlanName(chosen.id, chosen.name, lang);
+  // Start planu = wybór z 8 najbliższych poniedziałków (Edge 3); selekcja liczona
+  // z poniedziałku tygodnia startDate, więc resume ze starą (surową) datą działa.
+  const startMondays = useMemo(() => Array.from({ length: 8 }, (_, weekAhead) => {
+    const monday = getStartOfPlanWeek(new Date());
+    monday.setDate(monday.getDate() + weekAhead * 7);
+    return formatLocalDate(monday);
+  }), []);
+  const selectedMonday = getCycleStartPreview(startDate).cycleStartDate;
 
   const setDays = (n: number) => { setDaysPerWeek(n); setTrainingDays(DEFAULT_DAYS[n] ?? DEFAULT_DAYS[4]); };
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
 
-  const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string) =>
-    onConfirm({ days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId, name: userName.trim() || undefined });
+  const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string, planName?: string) =>
+    onConfirm({ days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId, name: userName.trim() || undefined, planName });
 
-  const confirmTemplate = () => fire(applyWeekdaysToPlanDays(chosen.days, trainingDays), chosen.durationWeeks, chosen.id);
+  // Edge 4: pusta nazwa spada do nazwy szablonu (fallback, nie pusty string).
+  const confirmTemplate = () => fire(
+    applyWeekdaysToPlanDays(chosen.days, trainingDays),
+    effectiveWeeks,
+    chosen.id,
+    planNameInput?.trim() || defaultPlanName,
+  );
 
   // ── Tryb: ułóż własny plan ──
   if (mode === 'own') {
@@ -385,42 +410,10 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-2">{t('ob.protocol.daysHint', { picked: trainingDays.length, target: daysPerWeek })}</p>
               </div>
-              <div className="rounded-2xl bg-surface-low p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{t('ob.protocol.startDate')}</p>
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-primary">{t('ob.protocol.phase')}</span>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {Array.from({ length: 7 }).map((_, i) => {
-                    const d = new Date(); d.setDate(d.getDate() + i);
-                    const ds = formatLocalDate(d);
-                    const on = ds === startDate;
-                    return (
-                      <button key={ds} onClick={() => setStartDate(ds)} className={cn('shrink-0 w-16 rounded-full py-2 flex flex-col items-center transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}>
-                        {/* T2 (feedback 2026-08-20): góra = dzień tygodnia (śr., czw.), dół = miesiąc. */}
-                        <span className="text-[10px] font-medium uppercase">{i === 0 ? t('ob.today') : d.toLocaleDateString(dateLocale(lang), { weekday: 'short' })}</span>
-                        <span className="font-heading font-bold text-lg leading-none mt-0.5">{d.getDate()}</span>
-                        <span className="text-[9px] uppercase opacity-70 mt-0.5">{d.toLocaleDateString(dateLocale(lang), { month: 'short' })}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {/* Z233: kalendarz jako pełnowymiarowa kontrolka, nie podpis — natywny date picker po tapnięciu.
-                    T2: LocalizedDateInput zamiast gołego inputa — etykieta w języku apki, nie systemu. */}
-                <label className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-surface-highest px-4 py-3 cursor-pointer">
-                  <Calendar className="h-4 w-4 text-primary shrink-0" />
-                  <span className="flex-1 text-[13px] font-medium">{t('ob.protocol.specificDate')}</span>
-                  <LocalizedDateInput value={startDate} min={formatLocalDate(new Date())} onChange={e => setStartDate(e.target.value)} className="w-36 shrink-0" />
-                </label>
-                <p className="text-[11px] text-muted-foreground mt-2">
-                  {t('ob.protocol.startPreview', {
-                    selected: new Date(`${startPreview.selectedDate}T00:00:00`).toLocaleDateString(dateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' }),
-                    start: new Date(`${startPreview.cycleStartDate}T00:00:00`).toLocaleDateString(dateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' }),
-                  })}
-                </p>
-              </div>
             </div>
-            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setReachedViaSteps(true); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
+            {/* WP-PLANS-2 (X27, Edge 7): data startu przeniesiona do kroku 5 —
+                krok protokołu zostaje z dniami treningowymi. */}
+            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setTemplateWeeks(null); setPlanNameInput(null); setReachedViaSteps(true); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
         )}
 
@@ -440,9 +433,18 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             </div>
             <div className="flex-1 space-y-2.5">
               <div className="rounded-2xl bg-surface-low p-4">
-                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</p>
+                {/* WP-PLANS-2 (X27, Task O3): nazwa planu edytowalna (default z szablonu). */}
+                <label htmlFor="ob-plan-name" className="block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</label>
                 <div className="flex items-center justify-between gap-2 mt-0.5">
-                  <h2 className="font-heading font-bold text-xl text-primary leading-tight">{localizePlanName(chosen.id, chosen.name, lang)}</h2>
+                  <input
+                    id="ob-plan-name"
+                    data-testid="ob-plan-name"
+                    type="text"
+                    maxLength={60}
+                    value={planNameInput ?? defaultPlanName}
+                    onChange={e => setPlanNameInput(e.target.value)}
+                    className="min-w-0 flex-1 bg-transparent font-heading font-bold text-xl text-primary leading-tight outline-none border-b border-transparent focus:border-primary/40"
+                  />
                   <div className="flex flex-wrap gap-1.5 justify-end">
                     {OBJECTIVE_TAGS[chosen.objective].map(tag => (
                       <span key={tag} className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-surface-highest text-muted-foreground">{t(tag)}</span>
@@ -453,7 +455,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-2xl bg-surface-low p-3">
                   <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.duration')}</p>
-                  <p className="font-heading font-bold text-lg mt-0.5"><span className="text-primary">{chosen.durationWeeks}</span> <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.weeks')}</span></p>
+                  <p className="font-heading font-bold text-lg mt-0.5"><span className="text-primary">{effectiveWeeks}</span> <span className="text-[11px] text-muted-foreground font-sans font-medium">{t('ob.precision.weeks')}</span></p>
                 </div>
                 <div className="rounded-2xl bg-surface-low p-3">
                   <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.frequency')}</p>
@@ -471,6 +473,36 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                     <span className="text-muted-foreground">{localizeFocus(d.focus, lang)} · {d.exercises.length} {t('ob.precision.exercises')}</span>
                   </div>
                 ))}
+              </div>
+              {/* WP-PLANS-1 (X27, Task P5): długość planu nadpisywalna także dla
+                  szablonów (default z szablonu, zakres 2-36 + własna liczba). */}
+              <div className="rounded-2xl bg-surface-low p-3" data-testid="template-duration-picker">
+                <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('planbuilder.planDuration')}</p>
+                <PlanDurationPicker value={effectiveWeeks} onChange={setTemplateWeeks} />
+              </div>
+              {/* WP-PLANS-2 (X27, Task O3): start planu = wybór z 8 najbliższych
+                  poniedziałków (przeniesione z kroku 4; default bieżący tydzień). */}
+              <div className="rounded-2xl bg-surface-low p-3">
+                <p className="mb-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.startWeek')}</p>
+                <div className="flex gap-2 overflow-x-auto pb-1" data-testid="ob-start-week-chips">
+                  {startMondays.map((iso) => {
+                    const monday = parseLocalDate(iso);
+                    const on = iso === selectedMonday;
+                    return (
+                      <button
+                        key={iso}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setStartDate(iso)}
+                        className={cn('shrink-0 w-16 rounded-full py-2 flex flex-col items-center transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest')}
+                      >
+                        <span className="text-[10px] font-medium uppercase">{monday.toLocaleDateString(dateLocale(lang), { weekday: 'short' })}</span>
+                        <span className="font-heading font-bold text-lg leading-none mt-0.5">{monday.getDate()}</span>
+                        <span className="text-[9px] uppercase opacity-70 mt-0.5">{monday.toLocaleDateString(dateLocale(lang), { month: 'short' })}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               {(() => {
                 // Z72: user widzi prawdę zamiast cichej degradacji (slice w applyWeekdaysToPlanDays).
@@ -505,7 +537,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto">
               {planTemplates.map(tpl => (
-                <button key={tpl.id} onClick={() => { setPicked(tpl); setDays(tpl.daysPerWeek); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container p-4 transition-colors">
+                <button key={tpl.id} onClick={() => { setPicked(tpl); setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container p-4 transition-colors">
                   <div className="flex items-center justify-between">
                     <h3 className="font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
                     <span className="text-[11px] text-muted-foreground tabular-nums">{tpl.daysPerWeek}× · {tpl.durationWeeks}{t('ob.browse.wk')}</span>

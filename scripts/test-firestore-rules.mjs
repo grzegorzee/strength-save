@@ -57,6 +57,14 @@ add('update training_plans z reducedMode nadmiarowym kluczem zablokowane', false
 // Tryb urlopu (Runna p.1, spec C4): zamknieta mapa.
 add('update training_plans z vacation (zamknieta mapa)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { vacation: { startDate: '2026-08-17', endDate: '2026-08-23', activity: 'none', extendedWeeks: 1 } }, { merge: true })));
 add('update training_plans z vacation zla aktywnoscia zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { vacation: { startDate: '2026-08-17', endDate: '2026-08-23', activity: 'party', extendedWeeks: 1 } }, { merge: true })));
+// Cykl zycia planu (WP-PLANS-1, X27): status opcjonalny, tylko active|ended.
+add('update training_plans ze status=ended', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { status: 'ended', updatedAt: 'z' }, { merge: true })));
+add('update training_plans ze status=active', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { status: 'active', updatedAt: 'z' }, { merge: true })));
+add('update training_plans ze status spoza kontraktu zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { status: 'paused' }, { merge: true })));
+// Nazwa planu (WP-PLANS-2, X27): opcjonalny string do 60 znakow.
+add('update training_plans z name (string <=60)', true, await ok(() => setDoc(doc(db, 'training_plans', UID), { name: 'Mój blok FBW', updatedAt: 'n' }, { merge: true })));
+add('update training_plans z name za dlugim zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { name: 'x'.repeat(61) }, { merge: true })));
+add('update training_plans z name zlego typu zablokowane', false, await ok(() => setDoc(doc(db, 'training_plans', UID), { name: 42 }, { merge: true })));
 
 // cross-user + admin na tych samych danych
 await seedUser(undefined, 'active', OTHER_UID);

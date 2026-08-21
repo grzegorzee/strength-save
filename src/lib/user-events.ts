@@ -90,7 +90,7 @@ export const emitUserEvent = async (userId: string, input: EmitUserEventInput): 
 /** Producent zdarzeń planu do wstrzyknięcia w cycle-actions (deps-injection,
  *  żeby cycle-actions nie importował Firebase — pułapka transitive import). */
 export const buildPlanEventEmitter = (userId: string) =>
-  (action: 'started' | 'changed', info: { days: number; weeks: number; startDate: string }): void => {
+  (action: 'started' | 'changed' | 'ended', info: { days: number; weeks: number; startDate: string }): void => {
     void emitUserEvent(userId, {
       type: 'plan',
       key: planEventKey(action, info.startDate),

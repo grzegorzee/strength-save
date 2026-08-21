@@ -169,6 +169,21 @@ export const sanitizeTrainingPlanDays = (data: unknown): TrainingDay[] | null =>
   return days;
 };
 
+// WP-PLANS-1 (X27): cykl życia planu na training_plans/{uid}. Brak pola /
+// śmieci = 'active' (kompatybilność wsteczna — stare dokumenty bez pola).
+export type TrainingPlanStatus = 'active' | 'ended';
+
+export const sanitizeTrainingPlanStatus = (value: unknown): TrainingPlanStatus =>
+  value === 'ended' ? 'ended' : 'active';
+
+// WP-PLANS-2 (X27): nazwa planu na training_plans/{uid} — string trim + max 60,
+// wszystko inne (śmieci, pusty) = null (UI pokazuje wtedy fallback).
+export const sanitizeTrainingPlanName = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().slice(0, 60);
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const CYCLE_STATUSES = new Set(['active', 'completed']);
 
 export const sanitizePlanCycleDoc = (id: string, data: unknown): PlanCycle | null => {

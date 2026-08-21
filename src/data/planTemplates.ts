@@ -170,6 +170,43 @@ export const planTemplates: PlanTemplate[] = [
     ],
   },
   {
+    // WP-PLANS-1 (X27, Task P6): klasyczny FBW A/B/C — wielostawy na start
+    // (przysiad / martwy ciąg / hip thrust), potem push+pull, akcesoria na koniec.
+    // Level intermediate + pozycja ZA tpl-fullbody-3: remis score w
+    // getRecommendedPlan rozstrzyga pozycja, więc rekomendacje bez zmian.
+    id: 'tpl-fbw-3',
+    name: 'Full Body Workout (FBW)',
+    description: 'Klasyczny FBW A/B/C: przysiad, wyciskanie i wiosłowanie na każdym treningu w innych wariantach. Całe ciało 3 razy w tygodniu, proste ciężkie boje plus akcesoria.',
+    goal: 'muscle',
+    objective: 'build_muscle',
+    level: 'intermediate',
+    daysPerWeek: 3,
+    durationWeeks: 12,
+    days: [
+      day('day-1', 'Poniedziałek', 'monday', 'FBW A', [
+        ex('Przysiad ze sztangą (High Bar)', '4 x 5-6'),
+        ex('Wyciskanie sztangi na ławce płaskiej', '4 x 5-6'),
+        ex('Wiosłowanie sztangą', '4 x 6-8'),
+        ex('Uginanie sztangi stojąc', '3 x 10-12'),
+        ex('Plank', '3 x MAX'),
+      ]),
+      day('day-2', 'Środa', 'wednesday', 'FBW B', [
+        ex('Martwy ciąg klasyczny', '3 x 5'),
+        ex('Wyciskanie sztangi nad głowę (OHP)', '4 x 6-8'),
+        ex('Podciąganie na drążku', '3 x 6-10'),
+        ex('Wyprosty na lince (Pushdown)', '3 x 10-12'),
+        ex('Brzuszki klasyczne (Crunch)', '3 x 12-15'),
+      ]),
+      day('day-3', 'Piątek', 'friday', 'FBW C', [
+        ex('Hip Thrust ze sztangą', '4 x 8-10'),
+        ex('Dips (pompki na poręczach)', '3 x 8-12'),
+        ex('Ściąganie drążka (Szeroki nachwyt)', '3 x 8-12'),
+        ex('Wykroki chodzone', '3 x 10/noga'),
+        ex('Wznosy bokiem (Lateral Raise)', '3 x 12-15'),
+      ]),
+    ],
+  },
+  {
     id: 'tpl-ppl-3',
     name: 'Push Pull Legs Engine',
     description: 'Klasyczny podział na pchanie, ciągnięcie i nogi. Najpopularniejszy plan na budowę masy przy 3 treningach.',

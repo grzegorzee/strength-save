@@ -159,7 +159,7 @@ const TrainingPlan = () => {
   const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
-  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision, planStatus, planName } = useTrainingPlan(uid);
   const { toast } = useToast();
   // C-T1: wejście w tryb urlopu z ekranu Planu (dotąd dialog istniał tylko na
   // Dashboardzie i to wyłącznie jako badge JUŻ aktywnego urlopu).
@@ -219,7 +219,8 @@ const TrainingPlan = () => {
     activeCycle: liveActiveCycle,
     previousCompletedCycle,
     lang,
-  }), [trainingPlan.length, isPlanExpired, weeksRemaining, hookCurrentWeek, planDurationWeeks, liveActiveCycle, previousCompletedCycle, lang]);
+    planStatus,
+  }), [trainingPlan.length, isPlanExpired, weeksRemaining, hookCurrentWeek, planDurationWeeks, liveActiveCycle, previousCompletedCycle, lang, planStatus]);
   const [isRepeating, setIsRepeating] = useState(false);
   const handleRepeatPlan = async () => {
     const source = repeatPlanSource(trainingPlan, planDurationWeeks, activeCycleRaw);
@@ -228,6 +229,7 @@ const TrainingPlan = () => {
     const res = await startCycleWithPlan(source.days, source.durationWeeks, {
       lang,
       uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+      ...(planStatus !== 'none' ? { planStatus } : {}),
       archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
       emitPlanEvent: buildPlanEventEmitter(uid),
     });
@@ -413,6 +415,27 @@ const TrainingPlan = () => {
     ? t('trainingplan.decideStats', { attendance: liveActiveCycle.stats.completionRate, prs: liveActiveCycle.stats.prs.length })
     : undefined;
 
+  // WP-PLANS-1 (X27): plan zakończony — pusty stan z CTA zamiast timeline
+  // z martwego planu (dashboard/plan/day nie planują po 'ended').
+  if (planStatus === 'ended') {
+    return (
+      <div className="space-y-5" data-testid="plan-ended-empty">
+        <h1 className="text-2xl font-heading font-bold tracking-tight leading-tight">{t('trainingplan.title')}</h1>
+        {planNextStep && (
+          <PlanNextStepCard
+            step={planNextStep}
+            uid={uid}
+            planStartDate={planStartDate}
+            canRepeat={trainingPlan.length > 0}
+            isRepeating={isRepeating}
+            onRepeat={handleRepeatPlan}
+            testId="plan-next-step"
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       {/* ── S1: blok tytułu (fala 2, mockup 1b: display + mono chip + pasek + meta) ── */}
@@ -420,11 +443,15 @@ const TrainingPlan = () => {
         {/* T16: na wąskich ekranach kontrolki schodzą w osobny rząd pod tytuł
             (flex-wrap łamał badge pod przyciski); jedna rodzina stylów h-9. */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex items-baseline gap-2.5 min-w-0">
-            <h1 className="text-2xl font-heading font-bold tracking-tight leading-tight">{t('trainingplan.title')}</h1>
-            <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-primary whitespace-nowrap shrink-0">
-              {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
-            </span>
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2.5 min-w-0">
+              <h1 className="text-2xl font-heading font-bold tracking-tight leading-tight">{t('trainingplan.title')}</h1>
+              <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-primary whitespace-nowrap shrink-0">
+                {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
+              </span>
+            </div>
+            {/* WP-PLANS-2 (X27): nazwa planu usera pod tytułem (jeśli nadana). */}
+            {planName && <p className="mt-0.5 truncate text-sm text-muted-foreground">{planName}</p>}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {/* FIX-B T5: stałe wejście do Cykli (na mobile żyło tylko na
@@ -876,6 +903,7 @@ const TrainingPlan = () => {
         onSelect={handleRescheduleSelect}
         todayISO={formatLocalDate(new Date())}
         completedDates={completedDateKeys}
+        planStartDateISO={planStartDate}
       />
 
       {/* C-T3: tryb "nie na 100%" dostępny z Planu (kolizja z urlopem jak na Dashboardzie) */}

@@ -387,13 +387,22 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
 
   const db = getDb();
   const planSnap = await db.collection("training_plans").doc(auth.uid).get();
-  const planDays = (planSnap.exists ? planSnap.data()?.days : null) as GarminPlanDay[] | null;
+  // WP-PLANS-1 (X27, Edge 8): plan zakończony (status 'ended') nie jest serwowany
+  // na zegarek — traktujemy jak brak planu (rest), historia/recents zostają.
+  const planEnded = planSnap.exists && planSnap.data()?.status === "ended";
+  const planDays = (planSnap.exists && !planEnded ? planSnap.data()?.days : null) as GarminPlanDay[] | null;
   // Przełożenia treningów (spec 2026-08-11): resolver ignoruje wpisy spoza
   // kontraktu, więc wystarczy odsiać nie-mapę.
   const rawOverrides = planSnap.exists ? planSnap.data()?.scheduleOverrides : null;
   const scheduleOverrides = (rawOverrides && typeof rawOverrides === "object" && !Array.isArray(rawOverrides)
     ? rawOverrides
     : null) as GarminScheduleOverrides | null;
+  // WP-PLANS-2 (X27, Task O2): dzień planowy istnieje dopiero od startu planu —
+  // parytet z resolverem webowym (zegarek nie serwuje sesji sprzed startDate).
+  const rawPlanStart = planSnap.exists ? planSnap.data()?.startDate : null;
+  const planStartDate = typeof rawPlanStart === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawPlanStart)
+    ? rawPlanStart
+    : null;
 
   // Historia do pre-fill/celów: ostatnie 60 dni (1 kwerenda na start treningu, bez pollingu).
   // Pobierana też w dni wolne — z niej budujemy listę ostatnich ćwiczeń (r) dla
@@ -435,7 +444,7 @@ export const garminDay = onRequest({ secrets: [garminPepper] }, async (req, res)
     }
   }
 
-  const context = buildGarminDayContext(planDays, workouts, date, notes, trackingByName, scheduleOverrides);
+  const context = buildGarminDayContext(planDays, workouts, date, notes, trackingByName, scheduleOverrides, planStartDate);
   if (!context) {
     sendGarminDayPayload(res, { v: 1, d: date, rest: true, z: auth.entitlement, ...recentsField });
     return;

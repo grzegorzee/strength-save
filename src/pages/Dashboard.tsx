@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { useToday } from '@/hooks/useToday';
 import { useToast } from '@/hooks/use-toast';
-import { repeatPlanSource, startCycleWithPlan } from '@/lib/cycle-actions';
+import { endPlan, repeatPlanSource, runCycleAutoRepair, shouldAutoEndPlan, startCycleWithPlan } from '@/lib/cycle-actions';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { type TrainingDay } from '@/data/trainingPlan';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
@@ -107,7 +107,10 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode, vacation, setVacation } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode, vacation, setVacation, planStatus, setPlanStatus } = useTrainingPlan(uid);
+  // WP-PLANS-1 (X27): jawny stan "plan zakończony" z dokumentu — Dashboard nie
+  // planuje niczego z martwego planu.
+  const planEndedByStatus = planStatus === 'ended';
   useEffect(() => {
     if (isLoaded && planIsLoaded) markStartup('dashboard-interactive');
   }, [isLoaded, planIsLoaded]);
@@ -156,6 +159,7 @@ const Dashboard = () => {
     const res = await startCycleWithPlan(source.days, source.durationWeeks, {
       lang,
       uid, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+      ...(planStatus !== 'none' ? { planStatus } : {}),
       archiveCurrentPlan, savePlan, createActiveCycle, backfillHistoricalWorkouts,
       emitPlanEvent: buildPlanEventEmitter(uid),
     });
@@ -239,7 +243,8 @@ const Dashboard = () => {
     // Z86: czekaj na ZAŁADOWANY plan i cykle. Oferta liczona na stale stanie
     // (iOS po wybudzeniu z tła) potrafiła wystartować cykl ze starymi danymi.
     if (!isLoaded || !planIsLoaded || !cyclesLoaded) return null;
-    if (trainingPlan.length === 0 || !planStartDate || !uid || currentPlanArchived) return null;
+    // WP-PLANS-1 (X27): plan zakończony (status ended) nie dostaje oferty przedłużenia.
+    if (trainingPlan.length === 0 || !planStartDate || !uid || currentPlanArchived || planEndedByStatus) return null;
     const plannedEnd = parseLocalDate(planStartDate).getTime() + planDurationWeeks * 7 * 86_400_000;
     const daysSinceEnd = Math.floor((Date.now() - plannedEnd) / 86_400_000);
     if (daysSinceEnd < 7) return null;
@@ -250,7 +255,7 @@ const Dashboard = () => {
       return null;
     }
     return { daysSinceEnd, guardKey };
-  }, [isLoaded, planIsLoaded, cyclesLoaded, trainingPlan.length, planStartDate, uid, currentPlanArchived, planDurationWeeks]);
+  }, [isLoaded, planIsLoaded, cyclesLoaded, trainingPlan.length, planStartDate, uid, currentPlanArchived, planEndedByStatus, planDurationWeeks]);
 
   const handleExtendPlan = async () => {
     if (!extendOffer) return;
@@ -278,6 +283,7 @@ const Dashboard = () => {
     lang,
     hasPendingFinalSync: !!localDraft?.finalSyncPending
       || pendingSyncCount > 0,
+    planStatus,
   }), [
     currentPlanArchived,
     currentWeek,
@@ -287,6 +293,7 @@ const Dashboard = () => {
     localDraft?.finalSyncPending,
     pendingSyncCount,
     planDurationWeeks,
+    planStatus,
     previousCompletedCycle,
     today,
     trainingPlan.length,
@@ -335,6 +342,11 @@ const Dashboard = () => {
   }), [trainingPlan, today, scheduleOverrides, workouts, currentWeek, planDurationWeeks, planStarted, skippedDates]);
 
   const todayTraining = useMemo(() => {
+    // WP-PLANS-1 (X27): plan zakończony — żadnego planowania z martwego planu
+    // (hero NEXT SESSION znika, watch preview dostaje noWorkout przez type rest).
+    if (planEndedByStatus) {
+      return { type: 'rest' as const, next: null };
+    }
     const todayKey = formatLocalDate(today);
     const completedToday = findWorkoutForRoute(workouts, {
       date: todayKey,
@@ -390,7 +402,7 @@ const Dashboard = () => {
       };
     }
     return { type: 'training' as const, day, dayId: day.id, dateStr: todayEntry.dateKey };
-  }, [trainingPlan, today, workouts, planStartDate, workoutToDay, scheduleOverrides]);
+  }, [trainingPlan, today, workouts, planStartDate, workoutToDay, scheduleOverrides, planEndedByStatus]);
 
   // Przełożenie treningu (spec 2026-08-11): stan sheeta + handlery. Blokada
   // żywego draftu dnia źródłowego — komunikat zamiast otwarcia (spec, brzeg 2).
@@ -473,7 +485,7 @@ const Dashboard = () => {
     }
   });
   const lapse = useMemo(() => {
-    if (!planStarted || !isLoaded || !planIsLoaded || localDraft) return null;
+    if (!planStarted || !isLoaded || !planIsLoaded || localDraft || planEndedByStatus) return null;
     return detectLapse({
       planDays: trainingPlan,
       overrides: scheduleOverrides,
@@ -485,7 +497,7 @@ const Dashboard = () => {
       reducedMode,
       vacation,
     });
-  }, [planStarted, isLoaded, planIsLoaded, localDraft, trainingPlan, scheduleOverrides, workouts, todayISO, skippedDates, planStartDate, lapseDismissed, reducedMode, vacation]);
+  }, [planStarted, isLoaded, planIsLoaded, localDraft, planEndedByStatus, trainingPlan, scheduleOverrides, workouts, todayISO, skippedDates, planStartDate, lapseDismissed, reducedMode, vacation]);
   const [lapseOpen, setLapseOpen] = useState(false);
   const rememberLapseDismiss = (key: string) => {
     const next = [...lapseDismissed, key].slice(-50);
@@ -654,6 +666,46 @@ const Dashboard = () => {
       window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleFocus);
     };
   }, [uid]);
+
+  // WP-PLANS-1 (X27, Task P4): auto-koniec planu po upływie durationWeeks — TA SAMA
+  // ścieżka co ręczne "Zakończ plan" (archive + backfill + status 'ended'), bez
+  // nawigacji; po sukcesie user widzi closeout/CTA ze stanu 'ended'. Idempotentne:
+  // status 'ended' blokuje warunek, flaga sesyjna chroni okno async (wzorzec R2-27).
+  // Aktywna sesja (draft) wstrzymuje auto-end do następnego wejścia.
+  useEffect(() => {
+    if (!uid || !planStartDate) return;
+    if (!shouldAutoEndPlan({
+      planLoaded: isLoaded && planIsLoaded,
+      cyclesLoaded,
+      planStatus,
+      isPlanExpired,
+      hasActiveCycle: !!activeCycle,
+      hasBlockingDraft: !!localDraft && !localDraft.completedLocally && !localDraft.finalSyncPending,
+    })) return;
+    const guardKey = `plan-auto-end:${uid}:${planStartDate}`;
+    const guard = {
+      get: () => {
+        try { return !!sessionStorage.getItem(guardKey); } catch { return false; }
+      },
+      set: () => {
+        try { sessionStorage.setItem(guardKey, '1'); } catch { /* noop */ }
+      },
+      clear: () => {
+        try { sessionStorage.removeItem(guardKey); } catch { /* noop */ }
+      },
+    };
+    void runCycleAutoRepair({
+      guard,
+      create: async () => {
+        const res = await endPlan({ chooseNew: false }, {
+          uid, lang, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
+          archiveCurrentPlan, backfillHistoricalWorkouts, setPlanStatus,
+          emitPlanEvent: buildPlanEventEmitter(uid),
+        });
+        return res.success ? (res.archivedCycleId ?? 'ended') : null;
+      },
+    });
+  }, [uid, planStartDate, isLoaded, planIsLoaded, cyclesLoaded, planStatus, isPlanExpired, activeCycle, localDraft, lang, trainingPlan, planDurationWeeks, workouts, archiveCurrentPlan, backfillHistoricalWorkouts, setPlanStatus]);
 
   // Day focus descriptions
 
@@ -991,7 +1043,7 @@ const Dashboard = () => {
       <DashboardStatusSlot entries={statusEntries} />
 
       {/* D-T2: kontekstowe banery AKCJI (samo-ukrywające) zaraz pod slotem statusu. */}
-      {planStarted && (
+      {planStarted && !planEndedByStatus && (
         <MissedWorkoutBanner
           planDays={trainingPlan}
           overrides={scheduleOverrides}
@@ -1005,14 +1057,17 @@ const Dashboard = () => {
       )}
 
       {/* Karta tygodnia (Runna p.1, spec B1): checkmarki dni + pasek sesji + tonaż.
-          Spec C4: przerwa urlopowa pełni rolę deloadu (nie dubluje się). */}
-      <WeekCard
-        model={weekCardModel}
-        isDeloadWeek={progression ? resolveDeloadWeek(currentWeek, progression, vacation, planStartDate) : false}
-        todayDoneDayName={todayTraining.type === 'completed'
-          ? localizeDayName(todayTraining.day.dayName, lang)
-          : undefined}
-      />
+          Spec C4: przerwa urlopowa pełni rolę deloadu (nie dubluje się).
+          WP-PLANS-1 (X27): martwy plan nie renderuje planu tygodnia. */}
+      {!planEndedByStatus && (
+        <WeekCard
+          model={weekCardModel}
+          isDeloadWeek={progression ? resolveDeloadWeek(currentWeek, progression, vacation, planStartDate) : false}
+          todayDoneDayName={todayTraining.type === 'completed'
+            ? localizeDayName(todayTraining.day.dayName, lang)
+            : undefined}
+        />
+      )}
 
       {/* T5: cardio bieżącego tygodnia (Strava + manual) POZA warunkiem
           planStarted — biegi widać także zanim cykl wystartuje. */}
@@ -1076,7 +1131,7 @@ const Dashboard = () => {
       <ProUpsellBanner />
 
       {/* D-T2: dokładnie JEDEN insight — raport tygodnia (target vs actual). */}
-      {planStarted && (
+      {planStarted && !planEndedByStatus && (
         <WeekReportCard
           planDays={trainingPlan}
           workouts={workouts}
@@ -1104,6 +1159,7 @@ const Dashboard = () => {
         onSelect={handleRescheduleSelect}
         todayISO={todayISO}
         completedDates={completedWorkoutDates}
+        planStartDateISO={planStartDate}
       />
 
       {/* Tray zaległości (Runna p.1, spec C2) */}

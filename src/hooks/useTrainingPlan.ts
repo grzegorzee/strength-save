@@ -22,12 +22,12 @@ import {
 } from '@/lib/schedule-overrides';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
-import { resolvePlanDaysForSave, saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
+import { clampPlanDurationWeeks, resolvePlanDaysForSave, saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
 import { sanitizeProgressionConfig, type ProgressionConfig, type DeloadDecision } from '@/lib/progression-engine';
 import { pruneSkippedDates, sanitizeSkippedDates } from '@/lib/skipped-days';
 import { sanitizeReducedMode, type ReducedMode } from '@/lib/reduced-mode';
 import { sanitizeVacationMode, type VacationMode } from '@/lib/vacation-mode';
-import { sanitizeTrainingPlanDays } from '@/lib/firestore-doc-guards';
+import { sanitizeTrainingPlanDays, sanitizeTrainingPlanName, sanitizeTrainingPlanStatus, type TrainingPlanStatus } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
 import { classifyWorkoutSyncError } from '@/lib/workout-sync-conflict';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
@@ -55,6 +55,11 @@ export const useTrainingPlan = (userId: string) => {
   const [reducedMode, setReducedModeState] = useState<ReducedMode | null>(null);
   // Runna p.1 (spec C4): urlop deklarowany z góry; null = brak.
   const [vacation, setVacationState] = useState<VacationMode | null>(null);
+  // WP-PLANS-1 (X27): cykl życia planu na dokumencie; brak pola = 'active'
+  // (kompatybilność wsteczna). 'none' liczone przy ekspozycji (brak doca/dni).
+  const [planDocStatus, setPlanDocStatus] = useState<TrainingPlanStatus>('active');
+  // WP-PLANS-2 (X27): nazwa planu z dokumentu; null = brak (UI pokazuje fallback).
+  const [planName, setPlanName] = useState<string | null>(null);
 
   // Subscribe to plan document using userId as doc ID
   useEffect(() => {
@@ -72,14 +77,16 @@ export const useTrainingPlan = (userId: string) => {
       try {
         const raw = window.localStorage.getItem('fittracker_e2e_plan');
         if (raw) {
-          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number; scheduleOverrides?: unknown; skippedDates?: unknown; reducedMode?: unknown };
+          const data = JSON.parse(raw) as { startDate?: string; progression?: unknown; days?: unknown; durationWeeks?: number; scheduleOverrides?: unknown; skippedDates?: unknown; reducedMode?: unknown; status?: unknown };
           if (data.startDate) setPlanStartDate(data.startDate);
           setProgression(sanitizeProgressionConfig(data.progression));
-          if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
+          if (data.durationWeeks) setPlanDurationWeeks(clampPlanDurationWeeks(data.durationWeeks));
           setScheduleOverrides(sanitizeScheduleOverrides(data.scheduleOverrides));
           setSkippedDates(sanitizeSkippedDates(data.skippedDates));
           setReducedModeState(sanitizeReducedMode(data.reducedMode));
           setVacationState(sanitizeVacationMode((data as { vacation?: unknown }).vacation));
+          setPlanDocStatus(sanitizeTrainingPlanStatus(data.status));
+          setPlanName(sanitizeTrainingPlanName((data as { name?: unknown }).name));
           const days = data.days !== undefined ? sanitizeTrainingPlanDays(data.days) : null;
           if (days) {
             setPlan(days);
@@ -108,13 +115,15 @@ export const useTrainingPlan = (userId: string) => {
               void reportClientError(userId, { code: 'invalid-doc', phase: 'other', detail: `training_plans/${userId}:days` });
             }
           }
-          if (data.durationWeeks) setPlanDurationWeeks(data.durationWeeks);
+          if (data.durationWeeks) setPlanDurationWeeks(clampPlanDurationWeeks(data.durationWeeks));
           if (data.startDate) setPlanStartDate(data.startDate);
           setProgression(sanitizeProgressionConfig(data.progression));
           setScheduleOverrides(sanitizeScheduleOverrides(data.scheduleOverrides));
           setSkippedDates(sanitizeSkippedDates(data.skippedDates));
           setReducedModeState(sanitizeReducedMode(data.reducedMode));
           setVacationState(sanitizeVacationMode(data.vacation));
+          setPlanDocStatus(sanitizeTrainingPlanStatus(data.status));
+          setPlanName(sanitizeTrainingPlanName(data.name));
           setPlanRevision(typeof data.revision === 'number' ? Math.max(0, Math.floor(data.revision)) : 0);
         } else {
           // No custom plan, use default
@@ -125,6 +134,8 @@ export const useTrainingPlan = (userId: string) => {
           setSkippedDates([]);
           setReducedModeState(null);
           setVacationState(null);
+          setPlanDocStatus('active');
+          setPlanName(null);
         }
         setPlanError(false);
         setIsLoaded(true);
@@ -201,7 +212,7 @@ export const useTrainingPlan = (userId: string) => {
 
   const savePlan = useCallback(async (
     newPlan: TrainingDay[],
-    options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig },
+    options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; status?: 'active' | 'ended'; name?: string },
   ): Promise<{ success: boolean; error?: string }> => {
     if (!userId) return { success: false, error: t('err.noUserId') };
     // Zapis przed załadowaniem snapshotu nadpisałby istniejący plan domyślnym stanem
@@ -213,6 +224,11 @@ export const useTrainingPlan = (userId: string) => {
       const nextDurationWeeks = options?.durationWeeks ?? planDurationWeeks;
       const nextStartDate = options?.startDate !== undefined ? options.startDate : planStartDate;
       const nextProgression = options?.progression !== undefined ? options.progression : progression;
+      // WP-PLANS-1 (X27): mirror e2e przenosi status jak prod (pominięcie pola
+      // w mirrorze = zielone unit testy i czerwone e2e — pułapka z planu).
+      const nextStatus = options?.status ?? planDocStatus;
+      // WP-PLANS-2 (X27): mirror przenosi też nazwę planu.
+      const nextName = options?.name !== undefined ? sanitizeTrainingPlanName(options.name) : planName;
       // Z151: ta gałąź omija saveTrainingPlanWithRevision, więc niezmiennik id dni
       // aktywnego cyklu egzekwujemy tu tak samo — cykle z seamu e2e.
       let alignedPlan = newPlan;
@@ -233,6 +249,8 @@ export const useTrainingPlan = (userId: string) => {
           ...(nextStartDate ? { startDate: nextStartDate } : {}),
           ...(nextProgression ? { progression: nextProgression } : {}),
           ...(Object.keys(nextOverrides).length > 0 ? { scheduleOverrides: nextOverrides } : {}),
+          ...(nextStatus === 'ended' ? { status: 'ended' } : {}),
+          ...(nextName ? { name: nextName } : {}),
         }));
       } catch { /* noop */ }
       setPlan(alignedPlan);
@@ -241,6 +259,8 @@ export const useTrainingPlan = (userId: string) => {
       setPlanStartDate(nextStartDate);
       setProgression(nextProgression ?? null);
       setScheduleOverrides(nextOverrides);
+      setPlanDocStatus(nextStatus);
+      setPlanName(nextName);
       return { success: true };
     }
     try {
@@ -253,6 +273,8 @@ export const useTrainingPlan = (userId: string) => {
         startDate: options?.startDate !== undefined ? options.startDate : planStartDate,
         syncActiveCycle: options?.syncActiveCycle,
         ...(options?.progression !== undefined ? { progression: options.progression } : {}),
+        ...(options?.status !== undefined ? { status: options.status } : {}),
+        ...(options?.name !== undefined ? { name: options.name } : {}),
       });
 
       trackTelemetryEvent(userId, 'action_plan_edited');
@@ -267,7 +289,35 @@ export const useTrainingPlan = (userId: string) => {
       const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
       return { success: false, error: errorMessage };
     }
-  }, [userId, isLoaded, plan, scheduleOverrides, planDurationWeeks, planStartDate, planRevision, progression, t]);
+  }, [userId, isLoaded, plan, scheduleOverrides, planDurationWeeks, planStartDate, planRevision, progression, planDocStatus, planName, t]);
+
+  /**
+   * WP-PLANS-1 (X27): punktowy zapis cyklu życia planu (ended/reaktywacja) —
+   * wzorzec moveScheduledDay: setDoc merge, offline-first, bez podbijania rewizji.
+   */
+  const setPlanStatus = useCallback(async (status: TrainingPlanStatus): Promise<{ success: boolean }> => {
+    if (!userId || !isLoaded) return { success: false };
+    if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
+      try {
+        const raw = window.localStorage.getItem('fittracker_e2e_plan');
+        const data = raw ? JSON.parse(raw) : {};
+        if (status === 'ended') data.status = 'ended';
+        else delete data.status;
+        window.localStorage.setItem('fittracker_e2e_plan', JSON.stringify(data));
+      } catch { /* noop */ }
+      setPlanDocStatus(status);
+      return { success: true };
+    }
+    setDoc(doc(db, PLAN_COLLECTION, userId), {
+      status,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((err) => {
+      console.error('Error saving plan status:', err);
+      void reportClientError(userId, { code: 'plan-status-save', phase: 'other', detail: String(err) });
+    });
+    setPlanDocStatus(status);
+    return { success: true };
+  }, [userId, isLoaded]);
 
   /**
    * Przełożenie treningu z daty na datę (spec 2026-08-11): jedna nowa mapa
@@ -563,11 +613,18 @@ export const useTrainingPlan = (userId: string) => {
     }
   }, [userId, progression]);
 
+  // WP-PLANS-1 (X27, Interfaces): 'none' = brak doca/dni (konto na defaultPlan),
+  // inaczej status dokumentu (brak pola = 'active' w sanitizerze).
+  const planStatus: 'active' | 'ended' | 'none' = isCustom ? planDocStatus : 'none';
+
   return {
     plan,
     isLoaded,
     planError,
     isCustom,
+    planStatus,
+    setPlanStatus,
+    planName,
     scheduleOverrides,
     moveScheduledDay,
     skippedDates,

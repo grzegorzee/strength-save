@@ -15,6 +15,17 @@ import { shouldClearOverridesOnPlanSave } from './schedule-overrides';
 const PLAN_COLLECTION = 'training_plans';
 const CYCLES_COLLECTION = 'plan_cycles';
 
+// WP-PLANS-1 (X27): jedno źródło zakresu długości planu — UI (PlanDaysEditor,
+// PlanWizard) i sanitizery importują stąd.
+export const MIN_PLAN_WEEKS = 2;
+export const MAX_PLAN_WEEKS = 36;
+
+/** Clamp durationWeeks do 2-36 (zapisy + stare dane z Firestore). NaN → 12. */
+export const clampPlanDurationWeeks = (weeks: number): number => {
+  if (!Number.isFinite(weeks)) return 12;
+  return Math.min(MAX_PLAN_WEEKS, Math.max(MIN_PLAN_WEEKS, Math.round(weeks)));
+};
+
 export interface SaveTrainingPlanWithRevisionParams {
   userId: string;
   newPlan: TrainingDay[];
@@ -24,6 +35,10 @@ export interface SaveTrainingPlanWithRevisionParams {
   syncActiveCycle?: boolean;
   /** Progresja programowa (Z119): undefined = nie ruszaj pola, null = brak zmiany też. */
   progression?: ProgressionConfig;
+  /** WP-PLANS-1 (X27): cykl życia planu; undefined = nie ruszaj pola (merge zostawia stare). */
+  status?: 'active' | 'ended';
+  /** WP-PLANS-2 (X27): nazwa planu (trim/limit robi caller); undefined = nie ruszaj pola. */
+  name?: string;
 }
 
 /**
@@ -90,10 +105,12 @@ export const saveTrainingPlanWithRevision = async (
     transaction.set(planRef, {
       days: alignedPlan,
       updatedAt: new Date().toISOString(),
-      durationWeeks: params.durationWeeks,
+      durationWeeks: clampPlanDurationWeeks(params.durationWeeks),
       revision: currentRevision + 1,
       ...(params.startDate ? { startDate: params.startDate } : {}),
       ...(params.progression !== undefined ? { progression: params.progression } : {}),
+      ...(params.status !== undefined ? { status: params.status } : {}),
+      ...(params.name !== undefined ? { name: params.name } : {}),
       ...(shouldClearOverridesOnPlanSave(currentDays, alignedPlan) ? { scheduleOverrides: {} } : {}),
     }, { merge: true });
 
