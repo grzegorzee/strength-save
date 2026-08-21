@@ -206,7 +206,8 @@ const ExerciseLibrary = () => {
         <GroupHeader
           title={title}
           countLabel={t('exercises.groupCount', { n: groupAll.length })}
-          imageUrl={isCustomGroup ? null : getGroupImageUrl(activeGroup)}
+          // WP-F (X28): grupa Własne dostała własną grafikę — hero jak inne grupy.
+          imageUrl={getGroupImageUrl(activeGroup)}
           onBack={() => setSearchParams({})}
           backLabel={t('common.back')}
         />
@@ -310,7 +311,9 @@ const ExerciseLibrary = () => {
               <GroupTile
                 label={t('exercises.customGroup')}
                 count={customOutsideTaxonomy.length}
-                imageUrl={null}
+                // WP-F (X28): dedykowana grafika grupy Własne (public/exercise-groups/
+                // custom.webp); błąd pliku = dotychczasowy gradient (kontrakt GroupTile).
+                imageUrl={getGroupImageUrl(CUSTOM_GROUP_ID)}
                 onClick={() => setSearchParams({ group: CUSTOM_GROUP_ID })}
               />
             )}

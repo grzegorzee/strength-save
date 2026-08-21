@@ -25,6 +25,8 @@ import {
   type ActivityTypeFilter,
 } from '@/lib/strava-utils';
 import { Chip } from '@/components/kinetic/Chip';
+import { EmptyStateIllustration } from '@/components/EmptyState';
+import { getEmptyStateImageUrl } from '@/lib/exercise-media';
 import { SeasonFilter } from './SeasonFilter';
 import { StravaSummaryStats } from './StravaSummaryStats';
 import { WeeklyKmChart } from './WeeklyKmChart';
@@ -116,6 +118,9 @@ export const StravaTab = () => {
     return (
       <Card>
         <CardContent className="py-12">
+          {/* WP-F (X28): ilustracja pro-look nad zachętą; dekoracyjna — błąd
+              pliku = ekran jak dotąd (tytuł i CTA bez zmian). */}
+          <EmptyStateIllustration src={getEmptyStateImageUrl('strava')} />
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center"><Footprints className="h-6 w-6 text-orange-500" /></div>
             <p className="font-medium text-sm">{t('strava.connectTitle')}</p>

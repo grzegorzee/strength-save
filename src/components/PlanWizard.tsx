@@ -7,6 +7,7 @@ import { localizeFocus, localizeWeekdayShort, localizePlanName, localizePlanDesc
 import { PlanBuilder } from '@/components/PlanBuilder';
 import { PlanDurationPicker } from '@/components/PlanDaysEditor';
 import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
+import { getPlanTemplateImageUrl } from '@/lib/exercise-media';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
@@ -99,6 +100,23 @@ const StepHeader = ({ step, total, onBack }: { step: number; total: number; onBa
         </span>
       </div>
     </div>
+  );
+};
+
+/** WP-F (X28): hero karty szablonu w Browse plans (pro-look dark-gym-v1).
+ *  Obraz dekoracyjny: alt="" + lazy; brak/błąd pliku = karta jak dotąd. */
+const TemplateHero = ({ templateId }: { templateId: string }) => {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img
+      src={getPlanTemplateImageUrl(templateId)}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      className="h-20 w-full object-cover"
+      onError={() => setFailed(true)}
+    />
   );
 };
 
@@ -537,12 +555,16 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto">
               {planTemplates.map(tpl => (
-                <button key={tpl.id} onClick={() => { setPicked(tpl); setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container p-4 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
-                    <span className="text-[11px] text-muted-foreground tabular-nums">{tpl.daysPerWeek}× · {tpl.durationWeeks}{t('ob.browse.wk')}</span>
+                <button key={tpl.id} onClick={() => { setPicked(tpl); setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
+                  {/* WP-F (X28): hero na górze karty (rounded-t przez overflow-hidden rodzica) */}
+                  <TemplateHero templateId={tpl.id} />
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
+                      <span className="text-[11px] text-muted-foreground tabular-nums">{tpl.daysPerWeek}× · {tpl.durationWeeks}{t('ob.browse.wk')}</span>
+                    </div>
+                    <p className="text-[13px] text-muted-foreground mt-1 leading-snug">{localizePlanDescription(tpl.id, tpl.description, lang)}</p>
                   </div>
-                  <p className="text-[13px] text-muted-foreground mt-1 leading-snug">{localizePlanDescription(tpl.id, tpl.description, lang)}</p>
                 </button>
               ))}
             </div>

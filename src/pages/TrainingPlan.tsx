@@ -25,6 +25,8 @@ import { buildVacationMode, isVacationActive, type VacationActivity } from '@/li
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { PlanNextStepCard } from '@/components/PlanNextStepCard';
+import { EmptyStateIllustration } from '@/components/EmptyState';
+import { getEmptyStateImageUrl } from '@/lib/exercise-media';
 import { HybridWeekStrip } from '@/components/HybridWeekStrip';
 import { DeloadBanner } from '@/components/DeloadBanner';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
@@ -246,10 +248,14 @@ const TrainingPlan = () => {
     const fromDateISO = rescheduleFrom;
     if (!fromDateISO) return;
     setRescheduleFrom(null);
-    const result = await moveScheduledDay(fromDateISO, toDateISO, { completedDates: completedDateKeys });
+    // WP-B (X28, domknięcie w batchu 2): planStartDateISO idzie do silnika —
+    // cel przed startem planu odpada w buildScheduleMove (before-start), a
+    // toast "ukończony trening" pokazuje się TYLKO dla powodów completed-*.
+    const result = await moveScheduledDay(fromDateISO, toDateISO, { completedDates: completedDateKeys, planStartDateISO: planStartDate });
+    const completedBlocked = result.reason === 'completed-source' || result.reason === 'completed-target';
     toast(result.success
       ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
-      : { title: t(result.reason ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
+      : { title: t(completedBlocked ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
   };
   const handleToggleSkip = async (dateISO: string) => {
     const skipped = skippedDates.includes(dateISO);
@@ -423,6 +429,9 @@ const TrainingPlan = () => {
     return (
       <div className="space-y-5" data-testid="plan-ended-empty">
         <h1 className="text-2xl font-heading font-bold tracking-tight leading-tight">{t('trainingplan.title')}</h1>
+        {/* WP-F (X28): ilustracja pustego stanu "brak aktywnego planu" (pro-look);
+            dekoracyjna — błąd pliku = ekran jak dotąd (karta decyzji zostaje). */}
+        <EmptyStateIllustration src={getEmptyStateImageUrl('no-plan')} />
         {planNextStep && (
           <PlanNextStepCard
             step={planNextStep}

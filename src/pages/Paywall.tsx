@@ -21,6 +21,7 @@ import {
 } from '@/lib/purchases';
 import { useToast } from '@/hooks/use-toast';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
+import { getPaywallHeroUrl } from '@/lib/exercise-media';
 import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 
 // Paywall PRO. Wymogi App Review 3.1.2: widoczna cena i okres, długość trialu,
@@ -57,6 +58,9 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
   const [selected, setSelected] = useState<PlanKey>('yearly');
   const [busy, setBusy] = useState(false);
   const [teaserDismissed, setTeaserDismissed] = useState(false);
+  // WP-F (X28): hero pro-look nad cennikiem — czysto dekoracyjny (tekst NIGDY
+  // na obrazie); błąd pliku chowa blok i paywall wygląda jak dotąd.
+  const [heroFailed, setHeroFailed] = useState(false);
 
   const loadOfferings = useCallback(async () => {
     if (!isNative) return;
@@ -295,6 +299,18 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-2xl bg-muted/60" aria-label={t('workout.close')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
+        )}
+
+        {/* WP-F (X28): hero u góry ekranu, pod nim dotychczasowa treść. */}
+        {!heroFailed && (
+          <img
+            src={getPaywallHeroUrl()}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            className="mt-4 h-44 w-full rounded-2xl object-cover"
+            onError={() => setHeroFailed(true)}
+          />
         )}
 
         <div className="mt-4 flex items-center gap-3">

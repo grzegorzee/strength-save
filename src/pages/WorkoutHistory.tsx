@@ -27,6 +27,7 @@ import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-ins
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { formatTonnage } from '@/lib/units';
 import { EmptyState } from '@/components/EmptyState';
+import { getEmptyStateImageUrl } from '@/lib/exercise-media';
 import { formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
@@ -577,6 +578,7 @@ const WorkoutHistory = () => {
             // Z82: zero sesji w ogóle = zaproszenie do pierwszego treningu, nie komunikat o filtrach.
             <EmptyState
               icon={History}
+              imageUrl={getEmptyStateImageUrl('history')}
               title={t('history.emptyNoWorkouts')}
               ctaLabel={t('empty.startFirstWorkout')}
               onCta={() => navigate('/')}

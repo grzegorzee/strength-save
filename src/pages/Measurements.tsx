@@ -16,6 +16,7 @@ import { BodyPhotoCompare } from '@/components/BodyPhotoCompare';
 import { PhotoCropDialog } from '@/components/PhotoCropDialog';
 import { TrendingUp, TrendingDown, Minus, Camera, ChevronRight, Database, Ruler } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
+import { getEmptyStateImageUrl } from '@/lib/exercise-media';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -158,6 +159,7 @@ const Measurements = () => {
       {measurements.length === 0 && (
         <EmptyState
           icon={Ruler}
+          imageUrl={getEmptyStateImageUrl('measurements')}
           title={t('measurements.emptyTitle')}
           hint={t('measurements.emptyHint')}
           ctaLabel={t('measurements.emptyCta')}

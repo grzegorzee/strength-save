@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
@@ -55,6 +55,7 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
     getCompletedWorkoutsCount: () => 0,
     getLatestMeasurement: () => null,
     getTodaysWorkout: () => null,
+    getLatestWorkout: () => null,
     isLoaded: true,
     error: null,
     backfillHistoricalWorkouts: vi.fn(),
@@ -76,7 +77,7 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
     planStartDate: planFixture.planStartDate,
     progression: null,
     scheduleOverrides: {},
-    moveScheduledDay: vi.fn(async () => ({ success: true })),
+    moveScheduledDay: moveScheduledDaySpy,
     skippedDates: [],
     setDaySkipped: vi.fn(async () => ({ success: true })),
     skipPastDates: vi.fn(async () => ({ success: true })),
@@ -127,9 +128,14 @@ const planFixture = vi.hoisted(() => ({
   planStarted: false,
 }));
 const workoutsFixture = vi.hoisted(() => ({ workouts: [] as unknown[] }));
+// (8) Domknięcie WP-B w batchu 2: call-site moveScheduledDay w TrainingPlan.tsx
+// też przekazuje planStartDateISO — spy hoisted, żeby dało się asertować argumenty.
+const moveScheduledDaySpy = vi.hoisted(() =>
+  vi.fn(async (..._args: unknown[]) => ({ success: true })));
 
 import Dashboard from '@/pages/Dashboard';
 import DayPlan from '@/pages/DayPlan';
+import TrainingPlanPage from '@/pages/TrainingPlan';
 
 const day = (id: string, weekday: TrainingDay['weekday'], dayName: string): TrainingDay => ({
   id,
@@ -151,6 +157,7 @@ beforeEach(() => {
   planFixture.planStartDate = null;
   planFixture.planStarted = false;
   workoutsFixture.workouts = [];
+  moveScheduledDaySpy.mockClear();
 });
 
 describe('(1) resolvePlannedDay respektuje startDate planu', () => {
@@ -366,5 +373,37 @@ describe('(7) DayPlan respektuje start planu (Edge 5)', () => {
 
     await waitFor(() => expect(screen.getByText('Dzisiaj wolne!')).toBeTruthy());
     expect(screen.queryByText('Rozpocznij trening')).toBeNull();
+  });
+});
+
+// (8) Domknięcie WP-B w batchu 2 (X28): call-site moveScheduledDay w
+// TrainingPlan.tsx też przekazuje planStartDateISO do silnika przełożeń.
+// Dashboard dostał parametr w batchu 1; /plan zostawał bez niego (parametr
+// opcjonalny, zero regresji) — teraz oba call-site'y są spójne.
+describe('(8) TrainingPlan przekazuje planStartDateISO do moveScheduledDay', () => {
+  it('wybór daty w sheecie woła moveScheduledDay z planStartDateISO planu', async () => {
+    const weekdays: TrainingDay['weekday'][] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const now = new Date();
+    planFixture.plan = [day('day-t', weekdays[now.getDay()], 'Dzień testowy')];
+    planFixture.planStartDate = '2026-08-03';
+    planFixture.planStarted = true;
+
+    render(
+      <MemoryRouter>
+        <LanguageProvider>
+          <UnitProvider>
+            <TrainingPlanPage />
+          </UnitProvider>
+        </LanguageProvider>
+      </MemoryRouter>,
+    );
+
+    // Dzisiejsza karta dnia ma akcję przełożenia; klik otwiera sheet z datami.
+    fireEvent.click(screen.getAllByLabelText('Przełóż trening')[0]);
+    // Pierwszy wolny dzień horyzontu = handleRescheduleSelect(toDateISO).
+    fireEvent.click(screen.getAllByText('wolne')[0].closest('button')!);
+
+    await waitFor(() => expect(moveScheduledDaySpy).toHaveBeenCalledTimes(1));
+    expect(moveScheduledDaySpy.mock.calls[0][2]).toMatchObject({ planStartDateISO: '2026-08-03' });
   });
 });

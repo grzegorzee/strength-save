@@ -152,6 +152,20 @@ export const getExerciseAnimationUrl = (name?: string): string | null => {
 export const getGroupImageUrl = (categoryId: string): string =>
   `${import.meta.env.BASE_URL ?? '/'}exercise-groups/${categoryId}.webp`;
 
+/** X28 WP-F: hero szablonu planu (Browse plans). Pliki w public/plan-templates/
+ *  nazwane 1:1 id szablonu (tpl-*.webp); brak/błąd pliku obsługuje UI
+ *  (onError → karta jak dotąd), test kompletności pilnuje pełnej listy. */
+export const getPlanTemplateImageUrl = (templateId: string): string =>
+  `${import.meta.env.BASE_URL ?? '/'}plan-templates/${templateId}.webp`;
+
+/** X28 WP-F: ilustracje pustych stanów (pro-look dark-gym-v1) w public/empty-states/. */
+export const getEmptyStateImageUrl = (name: 'history' | 'measurements' | 'no-plan' | 'strava'): string =>
+  `${import.meta.env.BASE_URL ?? '/'}empty-states/${name}.webp`;
+
+/** X28 WP-F: hero ekranu paywalla PRO (public/paywall/hero.webp). */
+export const getPaywallHeroUrl = (): string =>
+  `${import.meta.env.BASE_URL ?? '/'}paywall/hero.webp`;
+
 /** Z195: poster JPEG miniatury (ta sama nazwa co mp4). WebKit przy
  *  preload=metadata nie maluje żadnej klatki wideo — kafelek renderuje <img>. */
 export const getExercisePosterUrl = (name?: string): string | null => {
