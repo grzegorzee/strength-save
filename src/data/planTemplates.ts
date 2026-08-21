@@ -412,7 +412,7 @@ export const planTemplates: PlanTemplate[] = [
       ]),
       day('day-2', 'Wtorek', 'tuesday', 'Pull', [
         imp('Otwieranie klatki hantlami', '2 x 45s', { superset: 'A', rest: 'brak', note: 'Rozciągaj 45s, bez przerwy przejdź do 1b. Wykonaj obwód 2×.' }),
-        imp('Rotacje ramienia z gumą frontem', '2 x 15', { superset: 'A', tempo: '2020', rest: '60s', note: 'Superseria z poprzednim ćwiczeniem — bez przerwy między 1a i 1b.' }),
+        imp('Rotacje ramienia z gumą frontem', '2 x 15', { superset: 'A', tempo: '2020', rest: '60s', note: 'Superseria z poprzednim ćwiczeniem, bez przerwy między 1a i 1b.' }),
         imp('Martwy ciąg ze sztangą', '3 x 8', { rir: '2', tempo: '3010', rest: '120s' }),
         imp('Pull Through', '2 x 15', { rir: '2', tempo: '2011', rest: '90s' }),
         imp('Podciąganie na drążku podchwytem', '3 x 8', { rir: '1-0', tempo: '3010', rest: '120s' }),
@@ -702,7 +702,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-gzclp-3',
     name: 'Three Tier Strength',
-    description: 'GZCLP: trzy poziomy pracy — ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Idealny krok po programie 5×5.',
+    description: 'GZCLP: trzy poziomy pracy. Ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Idealny krok po programie 5×5.',
     goal: 'strength',
     objective: 'peak_strength',
     level: 'beginner',
@@ -1057,7 +1057,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-nsuns-5',
     name: 'Volume Max LP',
-    description: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Najcięższy plan w aplikacji — wymaga nadwyżki kalorycznej i snu.',
+    description: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Najcięższy plan w aplikacji. Wymaga nadwyżki kalorycznej i snu.',
     goal: 'strength',
     objective: 'peak_strength',
     level: 'advanced',
@@ -1099,7 +1099,7 @@ export const planTemplates: PlanTemplate[] = [
   {
     id: 'tpl-arnold-6',
     name: 'Golden Era Split',
-    description: 'Arnold Split w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi — każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
+    description: 'Arnold Split w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi. Każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
     goal: 'muscle',
     objective: 'build_muscle',
     level: 'advanced',

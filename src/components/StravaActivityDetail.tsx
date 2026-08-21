@@ -17,13 +17,13 @@ import { dateLocale } from '@/i18n';
 import { parseLocalDate } from '@/lib/utils';
 
 const formatDistance = (meters?: number): string => {
-  if (!meters) return '—';
+  if (!meters) return '-';
   if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
   return `${Math.round(meters)} m`;
 };
 
 const formatDuration = (seconds?: number): string => {
-  if (!seconds) return '—';
+  if (!seconds) return '-';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
@@ -32,7 +32,7 @@ const formatDuration = (seconds?: number): string => {
 };
 
 const formatPace = (speedMs?: number, type?: string): string => {
-  if (!speedMs || speedMs === 0) return '—';
+  if (!speedMs || speedMs === 0) return '-';
   if (type === 'Run' || type === 'Walk' || type === 'Hike') {
     const paceSeconds = 1000 / speedMs;
     const mins = Math.floor(paceSeconds / 60);
@@ -101,12 +101,12 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
     { label: t('strava.detail.movingTime'), value: formatDuration(activity.movingTime) },
     { label: t('strava.detail.paceSpeed'), value: formatPace(activity.averageSpeed, baseActivityType(displayType)) },
     { label: t('strava.detail.elapsedTime'), value: formatDuration(activity.elapsedTime) },
-    { label: t('strava.detail.avgHR'), value: activity.averageHeartrate ? `${Math.round(activity.averageHeartrate)} bpm` : '—' },
-    { label: t('strava.detail.maxHR'), value: activity.maxHeartrate ? `${Math.round(activity.maxHeartrate)} bpm` : '—' },
-    { label: t('strava.detail.cadence'), value: activity.averageCadence ? `${Math.round(activity.averageCadence)} spm` : '—' },
-    { label: t('strava.detail.elevation'), value: activity.totalElevationGain ? `${Math.round(activity.totalElevationGain)} m` : '—' },
-    { label: t('strava.detail.calories'), value: activity.calories ? `${activity.calories} kcal` : '—' },
-    { label: t('strava.detail.kudos'), value: activity.kudosCount != null ? `${activity.kudosCount}` : '—' },
+    { label: t('strava.detail.avgHR'), value: activity.averageHeartrate ? `${Math.round(activity.averageHeartrate)} bpm` : '-' },
+    { label: t('strava.detail.maxHR'), value: activity.maxHeartrate ? `${Math.round(activity.maxHeartrate)} bpm` : '-' },
+    { label: t('strava.detail.cadence'), value: activity.averageCadence ? `${Math.round(activity.averageCadence)} spm` : '-' },
+    { label: t('strava.detail.elevation'), value: activity.totalElevationGain ? `${Math.round(activity.totalElevationGain)} m` : '-' },
+    { label: t('strava.detail.calories'), value: activity.calories ? `${activity.calories} kcal` : '-' },
+    { label: t('strava.detail.kudos'), value: activity.kudosCount != null ? `${activity.kudosCount}` : '-' },
   ];
 
   return (
@@ -120,7 +120,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
             <div className="flex-1 min-w-0">
               <SheetTitle className="truncate">{activity.name}</SheetTitle>
               <SheetDescription>
-                {sportLabel} {activity.trainer && `(${t('strava.detail.indoor')})`} — {fullDate}{time && `, ${time}`}
+                {sportLabel} {activity.trainer && `(${t('strava.detail.indoor')})`} · {fullDate}{time && `, ${time}`}
               </SheetDescription>
             </div>
           </div>
@@ -155,7 +155,7 @@ export const StravaActivityDetail = ({ activity, open, onOpenChange, maxHR }: St
                 ))}
               </div>
               <p className="text-sm">
-                {t('strava.detail.dominantZone')} <span className="font-semibold">Z{zone} — {t(zoneConfig.nameKey)}</span>{' '}
+                {t('strava.detail.dominantZone')} <span className="font-semibold">Z{zone} · {t(zoneConfig.nameKey)}</span>{' '}
                 <span className="text-muted-foreground">({percent}% max HR)</span>
               </p>
             </div>

@@ -121,7 +121,7 @@ export const trainingPlan: TrainingDay[] = [
         instructions: [
           {
             title: "📐 Rozstaw stóp",
-            content: "Podskocz i wyląduj – tak ustaw stopy."
+            content: "Podskocz i wyląduj, tak ustaw stopy."
           },
           {
             title: "🦵 Tip dla długich ud",
@@ -159,7 +159,7 @@ export const trainingPlan: TrainingDay[] = [
           },
           {
             title: "💡 Tip Pro",
-            content: "Podczas ruchu pochyl tułów do przodu (w stronę kolan) – to mocniej rozciąga mięsień."
+            content: "Podczas ruchu pochyl tułów do przodu (w stronę kolan), to mocniej rozciąga mięsień."
           },
           {
             title: "⏱️ Przerwa",

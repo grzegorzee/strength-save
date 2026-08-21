@@ -269,7 +269,7 @@ export const WorkoutCompletionSequence = ({
         <div className="flex flex-wrap items-end gap-x-5 gap-y-3">
           <div className="flex flex-col gap-1">
             <span className="font-heading text-[17px] font-bold tabular-nums leading-none">
-              {durationSec != null ? fmtDuration(durationSec) : '—'}
+              {durationSec != null ? fmtDuration(durationSec) : '-'}
             </span>
             <span className="eyebrow-mono whitespace-nowrap text-muted-foreground">{t('workout.statTime')}</span>
           </div>

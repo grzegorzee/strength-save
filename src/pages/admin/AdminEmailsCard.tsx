@@ -27,7 +27,7 @@ const EMAIL_LOG_LIMIT = 100;
 // T22b: chipy filtra statusu (klucze etykiet = istniejące admin.emails.status*).
 const STATUS_FILTERS = ['all', 'sent', 'delivered', 'opened', 'bounced', 'complaint', 'failed'] as const;
 
-const pctLabel = (value: number | null): string => (value === null ? '—' : `${value}%`);
+const pctLabel = (value: number | null): string => (value === null ? '-' : `${value}%`);
 
 export const AdminEmailsCard = () => {
   const { t } = useTranslation();

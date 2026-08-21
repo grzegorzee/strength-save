@@ -339,7 +339,7 @@ const SummaryTab = () => {
                 <div>
                   <p className="font-medium text-sm">{t('dash.lastPR')}</p>
                   <p className="text-xs text-muted-foreground">
-                    {localizeExerciseName(latestPR.exerciseName, lang)} — <span className="font-heading font-semibold text-foreground">{fmt(latestPR.value)}</span>
+                    {localizeExerciseName(latestPR.exerciseName, lang)} · <span className="font-heading font-semibold text-foreground">{fmt(latestPR.value)}</span>
                     {' '}
                     <span className="text-muted-foreground">({formatPRDate(latestPR.date)})</span>
                   </p>

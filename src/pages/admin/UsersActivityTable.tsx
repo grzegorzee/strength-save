@@ -121,9 +121,9 @@ export const UsersActivityTable = ({
                   <span className={cn('rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', BADGE_STYLES[badge])}>
                     {t(BADGE_LABEL_KEY[badge])}
                   </span>
-                  <span>{lastActive || '—'}</span>
-                  <span>{t('admin.activity.days', { d7: summary?.activeDays7 ?? '—', d30: summary?.activeDays30 ?? '—' })}</span>
-                  <span>{t('admin.activity.workouts', { w7: summary?.workouts7 ?? '—', w30: summary?.workouts30 ?? '—' })}</span>
+                  <span>{lastActive || '-'}</span>
+                  <span>{t('admin.activity.days', { d7: summary?.activeDays7 ?? '-', d30: summary?.activeDays30 ?? '-' })}</span>
+                  <span>{t('admin.activity.workouts', { w7: summary?.workouts7 ?? '-', w30: summary?.workouts30 ?? '-' })}</span>
                 </p>
               </div>
               {isExpanded

@@ -26,7 +26,7 @@ const formatDateRange = (startDate: string, endDate: string, durationWeeks: numb
   };
   const effectiveEnd = endDate || plannedEndDate(startDate, durationWeeks);
   if (startDate.slice(0, 7) === effectiveEnd.slice(0, 7)) return fmt(startDate);
-  return `${fmt(startDate)} — ${fmt(effectiveEnd)}`;
+  return `${fmt(startDate)} - ${fmt(effectiveEnd)}`;
 };
 
 export const CycleCard = ({ cycle, onClick }: Props) => {

@@ -461,7 +461,7 @@ const Achievements = () => {
                         {medal ? t(medalLabelKey[medal]) : t('achievements.seasons.none')}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
-                        {formatShortDate(cycle.startDate)} – {formatShortDate(cycle.endDate)}
+                        {formatShortDate(cycle.startDate)} - {formatShortDate(cycle.endDate)}
                         {' · '}{t('achievements.seasons.workouts', { n: cycle.stats.totalWorkouts })}
                       </p>
                     </div>

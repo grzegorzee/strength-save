@@ -23,7 +23,7 @@ export const AdminUserLogs = ({ uid }: { uid: string }) => {
     return () => { cancelled = true; };
   }, [uid]);
 
-  const fmt = (iso?: string) => iso ? new Date(iso).toLocaleString(dateLocale(lang), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+  const fmt = (iso?: string) => iso ? new Date(iso).toLocaleString(dateLocale(lang), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-';
 
   return (
     <div className="rounded-lg bg-surface-lowest p-3 space-y-2">
@@ -43,7 +43,7 @@ export const AdminUserLogs = ({ uid }: { uid: string }) => {
           <div className="space-y-1 max-h-56 overflow-y-auto">
             {notifications.map((n) => (
               <div key={n.id} className="text-xs flex items-center justify-between gap-2 py-1.5 border-b border-surface-high/40 last:border-0">
-                <span className="font-medium truncate">{String(n.type ?? '—')}</span>
+                <span className="font-medium truncate">{String(n.type ?? '-')}</span>
                 <span className={cn('shrink-0', n.error ? 'text-destructive' : 'text-fitness-success')}>{n.error ? t('admin.logsError') : t('admin.logsOk')}</span>
                 <span className="shrink-0 text-muted-foreground tabular-nums">{fmt(n.createdAt)}</span>
               </div>
@@ -55,7 +55,7 @@ export const AdminUserLogs = ({ uid }: { uid: string }) => {
           <div className="space-y-1 max-h-56 overflow-y-auto">
             {authLogs.map((l) => (
               <div key={l.id} className="text-xs flex items-center justify-between gap-2 py-1.5 border-b border-surface-high/40 last:border-0">
-                <span className="font-medium truncate">{String(l.eventType ?? '—')}</span>
+                <span className="font-medium truncate">{String(l.eventType ?? '-')}</span>
                 <span className="shrink-0 text-muted-foreground tabular-nums">{fmt(l.createdAt)}</span>
               </div>
             ))}

@@ -25,7 +25,7 @@ import {
 } from "@/lib/admin-api";
 
 function formatDateTime(value: string | null, locale: string): string {
-  if (!value) return "—";
+  if (!value) return "-";
   return new Date(value).toLocaleString(locale);
 }
 

@@ -161,7 +161,7 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
                         'aspect-square rounded-[2px] sm:rounded-sm min-w-[6px]',
                         day ? LEVEL_COLORS[day.level] : 'bg-transparent',
                       )}
-                      title={day ? `${parseLocalDate(day.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}${day.hasWorkout ? ` — ${(day.strengthTonnage / 1000).toFixed(1)}t` : ''}${day.hasCardio ? ` — ${day.cardioKm}km` : ''}` : ''}
+                      title={day ? `${parseLocalDate(day.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}${day.hasWorkout ? ` · ${(day.strengthTonnage / 1000).toFixed(1)}t` : ''}${day.hasCardio ? ` · ${day.cardioKm}km` : ''}` : ''}
                     />
                   );
                 })}

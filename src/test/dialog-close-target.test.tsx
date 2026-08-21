@@ -8,6 +8,7 @@ import { act, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { AlertDialog, AlertDialogContent, AlertDialogTitle, AlertDialogDescription } from '@/components/ui/alert-dialog';
 
 beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
@@ -31,6 +32,24 @@ const renderDialog = () => render(
 describe('Z192: tap target przycisku zamknięcia', () => {
   it('X w DialogContent ma pole dotyku 44 px (h-11 w-11 + centrowanie glifu)', () => {
     renderDialog();
+    const close = screen.getByRole('button', { name: 'Zamknij okno' });
+    expect(close.className).toContain('h-11');
+    expect(close.className).toContain('w-11');
+    expect(close.className).toContain('items-center');
+    expect(close.className).toContain('justify-center');
+  });
+
+  it('X w AlertDialogContent ma pole dotyku 44 px (WP-F Task F1)', () => {
+    render(
+      <LanguageProvider>
+        <AlertDialog open>
+          <AlertDialogContent>
+            <AlertDialogTitle>Tytuł</AlertDialogTitle>
+            <AlertDialogDescription>Opis</AlertDialogDescription>
+          </AlertDialogContent>
+        </AlertDialog>
+      </LanguageProvider>,
+    );
     const close = screen.getByRole('button', { name: 'Zamknij okno' });
     expect(close.className).toContain('h-11');
     expect(close.className).toContain('w-11');

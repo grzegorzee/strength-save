@@ -58,7 +58,7 @@ export const AdminAuditLog = ({ userEmailByUid }: { userEmailByUid: Record<strin
             <div className="flex items-center justify-between gap-3">
               <p className="font-medium">{row.action}</p>
               <span className="text-xs text-muted-foreground">
-                {row.createdAt ? new Date(row.createdAt).toLocaleString(dateLocale(lang)) : '—'}
+                {row.createdAt ? new Date(row.createdAt).toLocaleString(dateLocale(lang)) : '-'}
               </span>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">

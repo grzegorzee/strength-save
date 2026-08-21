@@ -20,6 +20,8 @@ import { lbsToKg } from '@/lib/units';
 import { parseDecimalInput } from '@/lib/decimal-input';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 
 interface PlateCalculatorSheetProps {
   open: boolean;
@@ -209,7 +211,7 @@ export const PlateCalculatorSheet = ({ open, onOpenChange, targetKg, exerciseId,
               <strong>
                 {result.perSide.length > 0
                   ? result.perSide.map((p) => `${p.count}×${round3(toDisplay(p.weightKg))}`).join(' + ')
-                  : '—'}
+                  : '-'}
               </strong>
             </p>
 
@@ -328,12 +330,23 @@ export const PlateInventorySettings = () => {
 
   const label = (kg: number) => formatPlateNominal(kg, inventoryUnit);
 
+  // WP-F Task F3 (X27): długa sekcja przytłaczała Ustawienia — domyślnie zwinięta,
+  // trigger wzorem karty "Narzędzia naprawcze" w Settings.tsx (tytuł + chevron).
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{t('plates.settingsTitle')}</CardTitle>
-        <CardDescription>{t('plates.settingsDesc')}</CardDescription>
-      </CardHeader>
+      <Collapsible>
+        <CollapsibleTrigger asChild>
+          <button type="button" className="w-full text-left">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center justify-between gap-2">
+                <span>{t('plates.settingsTitle')}</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </CardTitle>
+              <CardDescription>{t('plates.settingsDesc')}</CardDescription>
+            </CardHeader>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
       <CardContent className="space-y-5">
         {/* Gryf: presety + własny */}
         <div className="space-y-2">
@@ -443,6 +456,8 @@ export const PlateInventorySettings = () => {
           </button>
         </div>
       </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 };

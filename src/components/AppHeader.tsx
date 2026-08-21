@@ -57,8 +57,10 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
     return () => clearTimeout(id);
   }, [isLoaded, isDashboard, completedCount]);
 
+  // WP-F (X27): wspólna tafla .kinetic-glass zamiast ad-hoc bg/blur — spójność
+  // z bottom navem; header jest edge-to-edge, więc bez bocznych i górnej krawędzi.
   return (
-    <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
+    <header className="kinetic-glass sticky top-0 z-40 border-x-0 border-t-0 pt-[env(safe-area-inset-top)]">
       <div className="flex items-center justify-between h-16 px-5 md:px-6 max-w-4xl mx-auto">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           {onBack ? (

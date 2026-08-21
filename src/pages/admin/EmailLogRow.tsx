@@ -92,7 +92,7 @@ export const EmailLogRowItem = ({ row, onPreview }: {
         <span className="text-xs uppercase tracking-wide text-muted-foreground">
           {typeKey ? t(typeKey) : row.type}
         </span>
-        <span className="text-xs text-muted-foreground">{row.transport ?? '—'}</span>
+        <span className="text-xs text-muted-foreground">{row.transport ?? '-'}</span>
         {typeof row.openCount === 'number' && row.openCount > 0 && (
           <span className="text-xs text-muted-foreground">
             {t('admin.emails.opens', { n: row.openCount })}
@@ -140,7 +140,7 @@ export const EmailPreviewDialog = ({ preview, onClose }: {
           <div className="space-y-2">
             <p className="break-words text-sm font-medium">{preview.row.subject}</p>
             <p className="break-words text-xs text-muted-foreground">
-              {preview.row.to} · {fmtDate(preview.row.sentAt) ?? '—'}
+              {preview.row.to} · {fmtDate(preview.row.sentAt) ?? '-'}
             </p>
             {preview.html === 'loading' && (
               <div className="flex h-24 items-center justify-center">

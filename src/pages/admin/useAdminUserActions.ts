@@ -31,7 +31,7 @@ export const useAdminUserActions = (opts: {
       opts.onPatched(uid, { feature: { key: feature, enabled } });
       void logAdminAction(adminUid, { action: `feature:${feature}:${enabled ? 'on' : 'off'}`, targetUid: uid });
       const userName = opts.getUserMeta(uid)?.displayName || uid;
-      toast({ title: enabled ? t('admin.toggleEnabled') : t('admin.toggleDisabled'), description: `${feature} — ${userName}` });
+      toast({ title: enabled ? t('admin.toggleEnabled') : t('admin.toggleDisabled'), description: `${feature} · ${userName}` });
     } catch {
       toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
     }

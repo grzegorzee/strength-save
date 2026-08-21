@@ -45,8 +45,8 @@ export const RzaMetricsCard = ({ workouts }: { workouts: WorkoutSession[] }) => 
         {/* Podsumowanie 4 tygodni (Z75): objętość, śr. RPE, śr. technika — quality przestaje być zbierane na darmo */}
         <div className="grid grid-cols-3 gap-3">
           <SummaryTile label={t('analytics.rza.volume4w')} value={<VolumeValue volume={recentVolume} />} />
-          <SummaryTile label={t('analytics.rza.rpe4w')} value={recentRpe ?? '—'} />
-          <SummaryTile label={t('analytics.rza.quality4w')} value={avgQuality ?? '—'} />
+          <SummaryTile label={t('analytics.rza.rpe4w')} value={recentRpe ?? '-'} />
+          <SummaryTile label={t('analytics.rza.quality4w')} value={avgQuality ?? '-'} />
         </div>
 
         <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-3 gap-y-1.5 text-sm">
@@ -123,8 +123,8 @@ const FragmentRow = ({ weekStart, volume, rpe, pain, ok }: {
     <>
       <span className="tabular-nums text-muted-foreground">{weekStart.slice(5)}</span>
       <span className="tabular-nums text-right font-medium">{Math.round(toDisplay(volume)).toLocaleString(dateLocale(lang))} {unit}</span>
-      <span className="tabular-nums text-right font-bold">{rpe ?? '—'}</span>
-      <span className={`tabular-nums text-right ${painClass}`}>{pain ?? '—'}</span>
+      <span className="tabular-nums text-right font-bold">{rpe ?? '-'}</span>
+      <span className={`tabular-nums text-right ${painClass}`}>{pain ?? '-'}</span>
       <span className="tabular-nums text-right text-fitness-success font-bold">{ok}</span>
     </>
   );

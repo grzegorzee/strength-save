@@ -235,7 +235,7 @@ const AdminUserDetail = () => {
       if (dryRun) {
         setDryRunResults((prev) => ({ ...prev, [action]: data.operations ?? [] }));
       } else {
-        toastRepair(t('admin.repair.applied', { n: data.applied ?? 0, backupId: data.backupId ?? '—' }));
+        toastRepair(t('admin.repair.applied', { n: data.applied ?? 0, backupId: data.backupId ?? '-' }));
         setDryRunResults((prev) => ({ ...prev, [action]: [] }));
         void callRepair(action, true);
       }
@@ -320,13 +320,13 @@ const AdminUserDetail = () => {
                 </BarChart>
               </ResponsiveContainer>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div><p className="text-xl font-bold tabular-nums">{summary?.activeDays7 ?? '—'}</p><p className="text-xs text-muted-foreground">{t('admin.detail.days7')}</p></div>
-                <div><p className="text-xl font-bold tabular-nums">{summary?.activeDays30 ?? '—'}</p><p className="text-xs text-muted-foreground">{t('admin.detail.days30')}</p></div>
-                <div><p className="text-xl font-bold tabular-nums">{summary?.workouts7 ?? '—'}</p><p className="text-xs text-muted-foreground">{t('admin.detail.workouts7')}</p></div>
-                <div><p className="text-xl font-bold tabular-nums">{summary?.workouts30 ?? '—'}</p><p className="text-xs text-muted-foreground">{t('admin.detail.workouts30')}</p></div>
+                <div><p className="text-xl font-bold tabular-nums">{summary?.activeDays7 ?? '-'}</p><p className="text-xs text-muted-foreground">{t('admin.detail.days7')}</p></div>
+                <div><p className="text-xl font-bold tabular-nums">{summary?.activeDays30 ?? '-'}</p><p className="text-xs text-muted-foreground">{t('admin.detail.days30')}</p></div>
+                <div><p className="text-xl font-bold tabular-nums">{summary?.workouts7 ?? '-'}</p><p className="text-xs text-muted-foreground">{t('admin.detail.workouts7')}</p></div>
+                <div><p className="text-xl font-bold tabular-nums">{summary?.workouts30 ?? '-'}</p><p className="text-xs text-muted-foreground">{t('admin.detail.workouts30')}</p></div>
               </div>
               <p className="text-xs text-muted-foreground">
-                {t('admin.detail.lastActive', { date: summary?.lastActiveAt || '—' })} · {t(`admin.activity.${badge}` as TranslationKey)}
+                {t('admin.detail.lastActive', { date: summary?.lastActiveAt || '-' })} · {t(`admin.activity.${badge}` as TranslationKey)}
               </p>
             </>
           )}
@@ -355,7 +355,7 @@ const AdminUserDetail = () => {
                       <span className="font-bold tabular-nums">{entry.count}</span>
                     </div>
                   ))}
-                  {topScreens.length === 0 && <p className="text-xs text-muted-foreground">—</p>}
+                  {topScreens.length === 0 && <p className="text-xs text-muted-foreground">-</p>}
                 </div>
               </div>
               <div>
@@ -367,7 +367,7 @@ const AdminUserDetail = () => {
                       <span className="font-bold tabular-nums">{entry.count}</span>
                     </div>
                   ))}
-                  {topActions.length === 0 && <p className="text-xs text-muted-foreground">—</p>}
+                  {topActions.length === 0 && <p className="text-xs text-muted-foreground">-</p>}
                 </div>
               </div>
             </div>
@@ -540,11 +540,11 @@ const AdminUserDetail = () => {
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium">{row.code} · {row.phase}</p>
                 <span className="text-xs text-muted-foreground">
-                  {row.createdAt ? new Date(row.createdAt).toLocaleString(dateLocale(lang)) : '—'}
+                  {row.createdAt ? new Date(row.createdAt).toLocaleString(dateLocale(lang)) : '-'}
                 </span>
               </div>
               {row.detail && <p className="mt-1 break-all text-xs text-muted-foreground">{row.detail}</p>}
-              <p className="mt-0.5 text-xs text-muted-foreground">{row.platform ?? '—'} · v{row.appVersion ?? '—'}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{row.platform ?? '-'} · v{row.appVersion ?? '-'}</p>
             </div>
           ))}
           {(errors ?? []).length === 0 && (

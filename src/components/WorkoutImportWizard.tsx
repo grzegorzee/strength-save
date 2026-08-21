@@ -226,7 +226,7 @@ export const WorkoutImportWizard = () => {
             <div className="space-y-4">
               <div className="rounded-lg bg-surface-lowest p-3 text-sm" data-testid="import-summary">
                 <p><strong>{stats.workouts}</strong> {t('import.summaryWorkouts')} · <strong>{stats.sets}</strong> {t('import.summarySets')}</p>
-                <p className="text-muted-foreground">{stats.dateFrom} — {stats.dateTo} · {parsed.format === 'strong' ? 'Strong' : 'Hevy'}</p>
+                <p className="text-muted-foreground">{stats.dateFrom} - {stats.dateTo} · {parsed.format === 'strong' ? 'Strong' : 'Hevy'}</p>
                 {parsed.skippedRows > 0 && (
                   <p className="text-fitness-warning">{t('import.skippedRows', { n: parsed.skippedRows })}</p>
                 )}

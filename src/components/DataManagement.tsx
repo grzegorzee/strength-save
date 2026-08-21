@@ -338,7 +338,7 @@ export const DataManagement = ({
                 workouts: pendingImport.workouts,
                 measurements: pendingImport.measurements,
                 cycles: pendingImport.cycles,
-                plan: pendingImport.hasPlan ? 'OK' : '—',
+                plan: pendingImport.hasPlan ? 'OK' : '-',
                 overwrites: pendingImport.overwrites,
               })}
             </AlertDialogDescription>

@@ -17,10 +17,10 @@ export const StravaSummaryStats = ({ activities }: StravaSummaryStatsProps) => {
   const items = [
     { label: t('strava.totalDistance'), value: `${stats.totalDistance.toFixed(1)} km` },
     { label: t('strava.totalTime'), value: `${(stats.totalTime / 3600).toFixed(1)} h` },
-    { label: t('strava.avgPace'), value: stats.avgPace ? `${formatPaceFromSeconds(stats.avgPace)} /km` : '—' },
-    { label: t('strava.calories'), value: stats.totalCalories > 0 ? `${Math.round(stats.totalCalories)} kcal` : '—' },
-    { label: t('strava.elevation'), value: stats.totalElevation > 0 ? `${Math.round(stats.totalElevation)} m` : '—' },
-    { label: t('strava.avgHR'), value: stats.avgHR ? `${stats.avgHR} bpm` : '—' },
+    { label: t('strava.avgPace'), value: stats.avgPace ? `${formatPaceFromSeconds(stats.avgPace)} /km` : '-' },
+    { label: t('strava.calories'), value: stats.totalCalories > 0 ? `${Math.round(stats.totalCalories)} kcal` : '-' },
+    { label: t('strava.elevation'), value: stats.totalElevation > 0 ? `${Math.round(stats.totalElevation)} m` : '-' },
+    { label: t('strava.avgHR'), value: stats.avgHR ? `${stats.avgHR} bpm` : '-' },
   ];
 
   return (

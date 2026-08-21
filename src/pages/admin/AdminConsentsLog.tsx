@@ -85,7 +85,7 @@ export const AdminConsentsLog = ({ userEmailByUid }: { userEmailByUid: Record<st
             {rows.map((row) => (
               <div key={row.id} className="text-xs flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-b border-border/50 pb-1.5">
                 <span className="text-muted-foreground tabular-nums">
-                  {row.createdAt ? row.createdAt.toLocaleString(dateLocale(lang)) : '—'}
+                  {row.createdAt ? row.createdAt.toLocaleString(dateLocale(lang)) : '-'}
                 </span>
                 <span className="font-medium">{userEmailByUid[row.uid] ?? row.uid}</span>
                 <span className="uppercase tracking-wide">{row.type}</span>

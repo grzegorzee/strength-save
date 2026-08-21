@@ -526,7 +526,7 @@ const TrainingPlan = () => {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <span className="font-mono text-[11.5px] tracking-[0.1em] text-foreground/80 whitespace-nowrap">
-            {selectedWeekStart.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' })} – {selectedWeekEnd.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            {selectedWeekStart.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' })} - {selectedWeekEnd.toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit', year: 'numeric' })}
           </span>
           {displayWeek !== actualCurrentWeek && (
             <button

@@ -167,8 +167,8 @@ const PLAN_DESC: Record<string, PlanText> = {
     en: 'The same six lifts every session (Built With Science style): full body 3× a week, a simple start and fast technique learning. Progress by adding reps.',
   },
   'tpl-gzclp-3': {
-    pl: 'GZCLP: trzy poziomy pracy — ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Idealny krok po programie 5×5.',
-    en: 'GZCLP: three tiers of work — a heavy main lift (T1: 5×3, last set MAX), a medium secondary lift (T2: 3×10) and light isolation (T3: 3×15). The perfect step after a 5×5 program.',
+    pl: 'GZCLP: trzy poziomy pracy. Ciężki bój główny (T1: 5×3, ostatnia seria MAX), średni bój dodatkowy (T2: 3×10) i lekka izolacja (T3: 3×15). Idealny krok po programie 5×5.',
+    en: 'GZCLP: three tiers of work. A heavy main lift (T1: 5×3, last set MAX), a medium secondary lift (T2: 3×10) and light isolation (T3: 3×15). The perfect step after a 5×5 program.',
   },
   'tpl-calisthenics-3': {
     pl: 'Kalistenika w duchu Recommended Routine (r/bodyweightfitness): pary ćwiczeń z masą ciała + core. Wystarczy drążek i poręcze (albo stół i dwa krzesła). Progres przez trudniejsze warianty.',
@@ -199,12 +199,12 @@ const PLAN_DESC: Record<string, PlanText> = {
     en: 'An Upper/Lower + Push/Pull/Legs hybrid: two heavier strength days (4-8 reps) and three volume days (8-20). Every muscle 2× a week, with isolation where it matters.',
   },
   'tpl-nsuns-5': {
-    pl: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Najcięższy plan w aplikacji — wymaga nadwyżki kalorycznej i snu.',
-    en: 'nSuns 531LP: 9 sets of the main lift with waving Training Max percentages (65-95%, MAX sets drive progression) + 8 sets of a related lift. The heaviest plan in the app — requires a calorie surplus and sleep.',
+    pl: 'nSuns 531LP: 9 serii boju głównego z falującymi procentami Training Max (65-95%, serie MAX sterują progresją) + 8 serii boju pokrewnego. Najcięższy plan w aplikacji. Wymaga nadwyżki kalorycznej i snu.',
+    en: 'nSuns 531LP: 9 sets of the main lift with waving Training Max percentages (65-95%, MAX sets drive progression) + 8 sets of a related lift. The heaviest plan in the app. It requires a calorie surplus and sleep.',
   },
   'tpl-arnold-6': {
-    pl: 'Arnold Split w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi — każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
-    en: 'The Arnold Split at modern volume: Chest+Back, Shoulders+Arms, Legs — each session 2× a week, antagonist supersets (chest with back, biceps with triceps). For advanced lifters.',
+    pl: 'Arnold Split w nowoczesnej objętości: Klatka+Plecy, Barki+Ramiona, Nogi. Każda sesja 2× w tygodniu, superserie antagonistyczne (klatka z plecami, biceps z tricepsem). Dla zaawansowanych.',
+    en: 'The Arnold Split at modern volume: Chest+Back, Shoulders+Arms, Legs. Each session 2× a week, antagonist supersets (chest with back, biceps with triceps). For advanced lifters.',
   },
 };
 

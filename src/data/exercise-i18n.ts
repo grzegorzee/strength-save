@@ -357,7 +357,7 @@ export const EXERCISE_INSTRUCTION_EN: Record<string, string> = {
   "Wyciskanie nad głowę na maszynie": "Back supported. Press the handles overhead without locking out the elbows. Control the lowering phase.",
   "Wznosy bokiem na maszynie": "Arms against the pads. Raise to shoulder level, pause, return slowly. Constant tension on the side delt.",
   "Wznosy bokiem na wyciągu": "Low cable, single-arm. Raise your arm out to the side to shoulder level. Constant tension through the full range.",
-  "Wznosy bokiem na lince (zza pleców)": "Cable behind your back. Drive the elbow up and out. Light weight, full control — maximal stretch on the side delt.",
+  "Wznosy bokiem na lince (zza pleców)": "Cable behind your back. Drive the elbow up and out. Light weight, full control, maximal stretch on the side delt.",
   "Rotacje ramienia z gumą frontem": "Elbow at your side bent to 90°. Rotate your forearm outward against the band. Shoulder and rotator cuff health.",
   "Aniołki i demony": "Shoulder mobility lying chest-down: arms up overhead (angel) and down along the body (demon). Slow and controlled.",
   "Wall Angel": "Back and arms against the wall. Slide your hands up and down while keeping contact with the wall. Mobility and posture.",

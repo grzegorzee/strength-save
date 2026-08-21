@@ -250,15 +250,42 @@ All colors MUST be HSL.
     text-transform: uppercase;
   }
 
-  /* Z240: liquid glass — realny blur na iOS wymaga -webkit-backdrop-filter;
-     saturate podbija kolory prześwitujące pod taflą, border-top daje krawędź
-     światła jak w natywnych materiałach systemowych. */
+  /* Z240 + WP-F (X27): liquid glass 2.0 — realny blur na iOS wymaga
+     -webkit-backdrop-filter; saturate podbija kolory prześwitujące pod taflą,
+     border-top + inner highlight dają krawędź światła jak w natywnych
+     materiałach systemowych. Wariant jasny pod :root, ciemny pod .dark
+     (Edge 3: nie zakładaj tylko dark). Bez will-change (koszt WKWebView). */
   .kinetic-glass {
-    background: linear-gradient(180deg, rgba(56, 56, 56, 0.52) 0%, rgba(28, 28, 28, 0.66) 100%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
-    backdrop-filter: blur(24px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(244, 244, 244, 0.75) 100%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(20, 20, 20, 0.08);
+    border-top-color: rgba(255, 255, 255, 0.75);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .dark .kinetic-glass {
+    background: linear-gradient(180deg, rgba(30, 30, 30, 0.55) 0%, rgba(16, 16, 16, 0.72) 100%);
+    border-color: rgba(255, 255, 255, 0.08);
     border-top-color: rgba(255, 255, 255, 0.16);
+  }
+
+  /* WP-F: wariant dla bottom sheetów — mniejszy blur, mocniejsze (bardziej
+     kryjące) tło dla czytelności długich treści na tafli. */
+  .kinetic-glass-sheet {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(246, 246, 246, 0.94) 100%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(20, 20, 20, 0.08);
+    border-top-color: rgba(255, 255, 255, 0.75);
+  }
+
+  .dark .kinetic-glass-sheet {
+    background: linear-gradient(180deg, rgba(24, 24, 24, 0.9) 0%, rgba(12, 12, 12, 0.94) 100%);
+    border-color: rgba(255, 255, 255, 0.08);
+    border-top-color: rgba(255, 255, 255, 0.14);
   }
 
   /* Fala 2 (2026-08-20): wspólne wzorce mockupów redesignu. Wartości TYLKO z tokenów.

@@ -13,13 +13,20 @@ beforeEach(() => {
   savePlateInventory(20, DEFAULT_PLATE_INVENTORY);
 });
 
-const renderSettings = () => render(
+const renderCollapsed = () => render(
   <LanguageProvider>
     <UnitProvider>
       <PlateInventorySettings />
     </UnitProvider>
   </LanguageProvider>,
 );
+
+// WP-F Task F3: sekcja jest domyślnie zwinięta — testy treści najpierw ją rozwijają.
+const renderSettings = () => {
+  const result = renderCollapsed();
+  fireEvent.click(screen.getByRole('button', { name: /Kalkulator talerzy/i }));
+  return result;
+};
 
 // Dopasowanie DOKŁADNE: `Sztuk .*25` łapałoby też „Sztuk 1.25".
 const countInput = (weightKg: number) => screen.getByLabelText(`Sztuk ${weightKg}`) as HTMLInputElement;
@@ -126,5 +133,22 @@ describe('jednostka inwentarza w UI', () => {
     // 55 lb ≈ 24.948 kg — kanonicznie kg, wpis w jednostce inwentarza.
     expect(loadPlateInventory().plates.some((p) => Math.abs(p.weightKg - 24.948) < 0.01)).toBe(true);
     expect(screen.getByText('55 lbs')).toBeInTheDocument();
+  });
+});
+
+// WP-F Task F3 (X27): długa sekcja inwentarza przytłaczała Ustawienia — domyślnie
+// zwinięta karta (nagłówek + chevron jak "Narzędzia naprawcze"), klik rozwija.
+describe('WP-F: sekcja plate inventory zwijana', () => {
+  it('domyślnie ZWINIĘTA: nagłówek widoczny, treść nie', () => {
+    renderCollapsed();
+    expect(screen.getByText('Kalkulator talerzy')).toBeTruthy();
+    expect(screen.queryByLabelText('Sztuk 25')).toBeNull();
+    expect(screen.queryByLabelText(/Własny gryf/i)).toBeNull();
+  });
+
+  it('klik nagłówka rozwija treść', () => {
+    renderCollapsed();
+    fireEvent.click(screen.getByRole('button', { name: /Kalkulator talerzy/i }));
+    expect(screen.getByLabelText('Sztuk 25')).toBeTruthy();
   });
 });

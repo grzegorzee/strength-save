@@ -1,8 +1,10 @@
 import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
+import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { useTranslation } from "@/contexts/LanguageContext";
 import { useExclusiveOverlayState } from "@/hooks/useExclusiveOverlay";
 
 const AlertDialog = ({ open: controlledOpen, defaultOpen, onOpenChange, ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) => {
@@ -32,10 +34,18 @@ const AlertDialogOverlay = React.forwardRef<
 ));
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 
+interface AlertDialogContentProps
+  extends React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content> {
+  /** WP-F Edge 2: dialogi wymuszające wybór (bez bezpiecznej ucieczki) mogą schować X. */
+  hideClose?: boolean;
+}
+
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => (
+  AlertDialogContentProps
+>(({ className, children, hideClose, ...props }, ref) => {
+  const { t } = useTranslation();
+  return (
   <AlertDialogPortal>
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
@@ -46,9 +56,20 @@ const AlertDialogContent = React.forwardRef<
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+      {/* WP-F Task F1: X = bezpieczne zamknięcie (Radix Cancel), NIGDY akcja
+          potwierdzająca. Pole dotyku 44 px jak w dialog.tsx (kontrakt Z192). */}
+      {!hideClose && (
+        <AlertDialogPrimitive.Cancel className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-lg opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">{t("a11y.close")}</span>
+        </AlertDialogPrimitive.Cancel>
+      )}
+    </AlertDialogPrimitive.Content>
   </AlertDialogPortal>
-));
+  );
+});
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
 
 const AlertDialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
@@ -65,7 +86,8 @@ const AlertDialogTitle = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Title ref={ref} className={cn("text-lg font-semibold", className)} {...props} />
+  // WP-F: pr-8 — tytuł nie wjeżdża pod 44-pikselowy X (wzorem dialog.tsx).
+  <AlertDialogPrimitive.Title ref={ref} className={cn("pr-8 text-lg font-semibold", className)} {...props} />
 ));
 AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName;
 

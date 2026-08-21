@@ -45,7 +45,7 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
         <div>
           <h1 className="text-xl font-bold">{t('cycles.detailTitle')}</h1>
           <p className="text-sm text-muted-foreground">
-            {formatDate(cycle.startDate)} — {formatDate(displayedEndDate)}
+            {formatDate(cycle.startDate)} - {formatDate(displayedEndDate)}
           </p>
         </div>
         <Badge variant={isActive ? 'default' : 'secondary'} className="ml-auto">

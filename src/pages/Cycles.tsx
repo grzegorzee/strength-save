@@ -361,7 +361,7 @@ const Cycles = () => {
             <div className="flex flex-wrap gap-2">
               {trainingPlan.map((day) => (
                 <span key={day.id} className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                  {localizeDayName(day.dayName, lang)} — {localizeFocus(day.focus, lang)}
+                  {localizeDayName(day.dayName, lang)} · {localizeFocus(day.focus, lang)}
                 </span>
               ))}
             </div>

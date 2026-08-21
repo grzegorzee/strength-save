@@ -199,7 +199,7 @@ export default function Paywall({ onLogout }: { onLogout: () => Promise<void> })
           </div>
           <div className="text-right">
             <div className="font-heading text-lg font-bold">
-              {pkg ? pkg.product.priceString : '—'}
+              {pkg ? pkg.product.priceString : '-'}
             </div>
             <div className="text-[11px] text-muted-foreground">
               {t(plan === 'yearly' ? 'paywall.perYear' : 'paywall.perMonth')}

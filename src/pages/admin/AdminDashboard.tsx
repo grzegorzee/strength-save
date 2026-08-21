@@ -258,7 +258,7 @@ const AdminDashboard = () => {
       ));
       void logAdminAction(adminUid, { action: `feature:${feature}:${enabled ? 'on' : 'off'}`, targetUid: uid });
       const userName = users.find(u => u.uid === uid)?.displayName || uid;
-      toast({ title: enabled ? t('admin.toggleEnabled') : t('admin.toggleDisabled'), description: `${feature} — ${userName}` });
+      toast({ title: enabled ? t('admin.toggleEnabled') : t('admin.toggleDisabled'), description: `${feature} · ${userName}` });
     } catch {
       toast({ title: t('admin.error'), description: t('admin.saveFailed'), variant: 'destructive' });
     }
@@ -618,8 +618,8 @@ const AdminDashboard = () => {
             const stats: { label: string; value: string | number }[] = [
               { label: t('admin.pulseUsers'), value: users.length },
               { label: t('admin.pulseActive7'), value: activeLast7 },
-              { label: t('admin.pulseWorkouts'), value: counts ? counts.workouts : '—' },
-              { label: t('admin.pulseActiveCycles'), value: counts ? counts.activeCycles : '—' },
+              { label: t('admin.pulseWorkouts'), value: counts ? counts.workouts : '-' },
+              { label: t('admin.pulseActiveCycles'), value: counts ? counts.activeCycles : '-' },
               { label: t('admin.pulseSuspended'), value: suspended },
               { label: t('admin.pulseNoAccess'), value: noAccess },
               { label: t('admin.pulseUnverified'), value: unverified },

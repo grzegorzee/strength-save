@@ -504,7 +504,7 @@ const ExerciseCardInner = ({
   // Docelowe powtórzenia z planu (np. "3 x 8-12" → placeholder "8-12").
   const repsPlaceholder = useMemo(() => {
     const range = parseRepRange(exercise.sets);
-    if (!range) return '—';
+    if (!range) return '-';
     const { min, max } = range;
     return min === max ? String(min) : `${min}-${max}`;
   }, [exercise.sets]);
@@ -673,7 +673,7 @@ const ExerciseCardInner = ({
             informacja "pierwszy raz" idzie raz, nad tabelą. */}
         {tracking !== 'weight_distance_duration' && (
           <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
-            {isWarmupRow ? '—' : (prevHint || '—')}
+            {isWarmupRow ? '-' : (prevHint || '-')}
           </span>
         )}
 
@@ -722,7 +722,7 @@ const ExerciseCardInner = ({
             min={0}
             value={set.reps || ''}
             onChange={(e) => handleSetChange(globalIndex, 'reps', parseInt(e.target.value) || 0)}
-            placeholder={isWarmupRow ? '—' : repsPlaceholder}
+            placeholder={isWarmupRow ? '-' : repsPlaceholder}
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
             className={cn('exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
@@ -812,7 +812,7 @@ const ExerciseCardInner = ({
             (ucinane "pierws..." per wiersz wyglądało jak błąd renderowania);
             komunikat "pierwszy raz" z Z130 przenosi się raz, nad tabelę. */}
         <span className="truncate text-center text-xs tabular-nums text-muted-foreground">
-          {isWarmupRow ? '—' : (prevHint || '—')}
+          {isWarmupRow ? '-' : (prevHint || '-')}
         </span>
 
         {/* KG (non-bodyweight) */}
@@ -839,7 +839,7 @@ const ExerciseCardInner = ({
           min={0}
           value={set.reps || ''}
           onChange={(e) => handleSetChange(globalIndex, 'reps', parseInt(e.target.value) || 0)}
-          placeholder={isWarmupRow ? '—' : repsPlaceholder}
+          placeholder={isWarmupRow ? '-' : repsPlaceholder}
           disabled={!isEditable}
           aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
           className={cn(
