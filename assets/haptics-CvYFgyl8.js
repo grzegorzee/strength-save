@@ -1,7 +1,0 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/index-BAWm8C6m.css"])))=>i.map(i=>d[i]);
-import{c as n}from"./index-BGInrQ0j.js";import{r as s,_ as o,C as r}from"./firebase-CGXcQQ5j.js";/**
- * @license lucide-react v0.462.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */const u=n("Share2",[["circle",{cx:"18",cy:"5",r:"3",key:"gq8acd"}],["circle",{cx:"6",cy:"12",r:"3",key:"w7nqdw"}],["circle",{cx:"18",cy:"19",r:"3",key:"1xt0gg"}],["line",{x1:"8.59",x2:"15.42",y1:"13.51",y2:"17.49",key:"47mynk"}],["line",{x1:"15.41",x2:"8.59",y1:"6.51",y2:"10.49",key:"1n3mei"}]]);function f(t){const a=document.createElement("div");return a.textContent=t,a.innerHTML}var e;(function(t){t.Heavy="HEAVY",t.Medium="MEDIUM",t.Light="LIGHT"})(e||(e={}));var i;(function(t){t.Success="SUCCESS",t.Warning="WARNING",t.Error="ERROR"})(i||(i={}));const c=s("Haptics",{web:()=>o(()=>import("./web-Ber9qd2l.js"),__vite__mapDeps([0])).then(t=>new t.HapticsWeb)}),p=async()=>{if(r.isNativePlatform())try{await c.impact({style:e.Light})}catch{}},v=async()=>{if(r.isNativePlatform())try{await c.notification({type:i.Success})}catch{}},l=async()=>{if(!r.isNativePlatform()){typeof navigator<"u"&&navigator.vibrate&&navigator.vibrate([200,100,200,100,300]);return}try{await c.notification({type:i.Warning});for(let t=0;t<3;t+=1)await new Promise(a=>setTimeout(a,180)),await c.impact({style:e.Heavy})}catch{}};export{c as H,e as I,i as N,u as S,p as a,l as b,f as e,v as h};

@@ -1,0 +1,29 @@
+import{_ as T}from"./firebase-CGXcQQ5j.js";import{bE as C,aY as _,ba as E,bD as S,bb as L}from"./AuthenticatedApp-41OnvpJ4.js";import{aN as W,E as $,w as z,y as O}from"./index-DOu_2XEt.js";import{r as c}from"./react-vendor-Cbk7Ekcs.js";const N=(e,r)=>{const o=C(e,12,r),i=o.reduce((s,t)=>({workoutCount:s.workoutCount+t.workoutCount,workoutsWithDuration:s.workoutsWithDuration+t.workoutsWithDuration,totalDurationSec:s.totalDurationSec+t.totalDurationSec,totalTonnageKg:s.totalTonnageKg+t.totalTonnageKg}),{workoutCount:0,workoutsWithDuration:0,totalDurationSec:0,totalTonnageKg:0});return{monthly:o,totals:i}},d=e=>e.replace(/[&<>"']/g,r=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[r]),R=(e,r)=>{const o=z(`${e}-01`).toLocaleDateString($(r),{month:"long",year:"numeric"});return o.charAt(0).toUpperCase()+o.slice(1)},M=(e,r,o,i,s)=>{const t=(n,a)=>O(r,n,a),p=e.monthly.map(n=>{const a=n.workoutCount-n.workoutsWithDuration;return`
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;">${d(R(n.monthKey,r))}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;text-align:right;">${n.workoutCount}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;text-align:right;">${_(n.totalDurationSec)}${a>0?`<div style="font-size:9px;color:#777;">${d(t("analytics.months.noTime",{n:a}))}</div>`:""}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #e5e5e5;text-align:right;">${d(E(n.totalTonnageKg,o))}</td>
+      </tr>`}).join("");return`
+  <div style="width:794px;background:#ffffff;color:#111111;font-family:'Inter',-apple-system,sans-serif;padding:48px;box-sizing:border-box;">
+    <div style="border-left:6px solid ${W().hex};padding-left:16px;margin-bottom:8px;">
+      <div style="font-size:26px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">${d(t("report.title"))}</div>
+      <div style="font-size:12px;color:#555;">Strength Save · ${d(i)} · ${d(s.toLocaleDateString($(r)))}</div>
+    </div>
+    <div style="display:flex;gap:24px;margin:24px 0;">
+      <div><div style="font-size:22px;font-weight:700;">${e.totals.workoutCount}</div><div style="font-size:11px;color:#555;">${d(t("report.totalWorkouts"))}</div></div>
+      <div><div style="font-size:22px;font-weight:700;">${_(e.totals.totalDurationSec)}</div><div style="font-size:11px;color:#555;">${d(t("report.totalTime"))}</div></div>
+      <div><div style="font-size:22px;font-weight:700;">${d(E(e.totals.totalTonnageKg,o))}</div><div style="font-size:11px;color:#555;">${d(t("report.totalTonnage"))}</div></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="text-align:left;">
+          <th style="padding:8px 12px;border-bottom:2px solid #111;">${d(t("analytics.months.title"))}</th>
+          <th style="padding:8px 12px;border-bottom:2px solid #111;text-align:right;">${d(t("report.colWorkouts"))}</th>
+          <th style="padding:8px 12px;border-bottom:2px solid #111;text-align:right;">${d(t("report.colTime"))}</th>
+          <th style="padding:8px 12px;border-bottom:2px solid #111;text-align:right;">${d(t("report.colTonnage"))}</th>
+        </tr>
+      </thead>
+      <tbody>${p}</tbody>
+    </table>
+  </div>`},I=async(e,r,o,i,s)=>{const[{default:t},{jsPDF:p}]=await Promise.all([T(()=>import("./html2canvas.esm-CBrSDip1.js"),[]),T(()=>import("./jspdf.es.min-BuWfX7-v.js").then(a=>a.j),[])]),n=document.createElement("div");n.style.cssText="position:fixed;left:-9999px;top:0;",n.innerHTML=M(e,r,o,i,s),document.body.appendChild(n);try{const a=await t(n.firstElementChild,{scale:2,useCORS:!0,backgroundColor:"#ffffff"}),u=new p({unit:"pt",format:"a4"}),f=u.internal.pageSize.getWidth(),m=u.internal.pageSize.getHeight(),y=Math.floor(a.width/f*m);let h=0,b=0;for(;h<a.height;){const l=Math.min(y,a.height-h),v=document.createElement("canvas");v.width=a.width,v.height=l;const w=v.getContext("2d");w.fillStyle="#ffffff",w.fillRect(0,0,v.width,v.height),w.drawImage(a,0,h,a.width,l,0,0,a.width,l),b>0&&u.addPage(),u.addImage(v.toDataURL("image/png"),"PNG",0,0,f,l/a.width*f),h+=l,b+=1}return u.output("blob")}finally{document.body.removeChild(n)}},U=(e,r)=>{const o=r.fromDate,i=r.toDate,s=r.completed,t=r.pageSize,[p,n]=c.useState([]),[a,u]=c.useState(null),[f,m]=c.useState(!1),[y,h]=c.useState(!1),[b,l]=c.useState(null),v=c.useMemo(()=>JSON.stringify({userId:e,fromDate:o??"",toDate:i??"",completed:s,pageSize:t}),[s,o,t,i,e]);c.useEffect(()=>{let g=!1,D=!1,k=!1;return m(!1),l(null),n([]),u(null),S(e,{fromDate:o,toDate:i,completed:s,pageSize:t,source:"cache"}).then(x=>{g||D||x.cacheMiss||(k=!0,n(x.workouts),u(x.nextCursor),m(!0))}).catch(()=>{}),S(e,{fromDate:o,toDate:i,completed:s,pageSize:t}).then(x=>{g||(D=!0,n(x.workouts),u(x.nextCursor),m(!0))}).catch(x=>{g||(D=!0,k||l(x instanceof Error?x.message:"WORKOUT_HISTORY_LOAD_FAILED"),m(!0))}),()=>{g=!0}},[s,o,v,t,i,e]);const w=c.useCallback(async()=>{if(!(!a||y)){h(!0);try{const g=await S(e,{fromDate:o,toDate:i,completed:s,pageSize:t,cursor:a});n(D=>[...D,...g.workouts]),u(g.nextCursor)}catch(g){l(g instanceof Error?g.message:"WORKOUT_HISTORY_LOAD_MORE_FAILED")}finally{h(!1)}}},[s,o,y,a,t,i,e]);return{workouts:p,isLoaded:f,isLoadingMore:y,hasMore:a!==null,loadMore:w,error:b}},F=(e,r)=>{const o=r.fromDate,i=r.toDate,s=r.completed,t=r.pageSize,p=r.maxPages,[n,a]=c.useState([]),[u,f]=c.useState(!1),[m,y]=c.useState(null),h=c.useMemo(()=>JSON.stringify({userId:e,fromDate:o,toDate:i,completed:s,pageSize:t,maxPages:p}),[s,o,p,t,i,e]);return c.useEffect(()=>{let b=!1;return f(!1),y(null),L(e,{fromDate:o,toDate:i,completed:s,pageSize:t,maxPages:p}).then(l=>{b||(a(l),f(!0))}).catch(l=>{b||(y(l instanceof Error?l.message:"WORKOUT_RANGE_LOAD_FAILED"),f(!0))}),()=>{b=!0}},[s,o,h,p,t,i,e]),{workouts:n,isLoaded:u,error:m}};export{F as a,N as b,I as g,U as u};
