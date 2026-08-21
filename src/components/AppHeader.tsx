@@ -21,9 +21,11 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
   const { uid, profile } = useCurrentUser();
   const navigate = useNavigate();
-  // Naprawa r1 (2026-08-21): sufiks mono "ŁĄCZNIE" tylko na Dashboardzie
-  // (mockupy pod-tabów nie mają licznika w headerze; kompaktowa pigułka
-  // liczba+ikona zostaje wszędzie, żeby wejście w statystyki nie znikało).
+  // Naprawa r2 (2026-08-21, sędzia struktury): dzwonek i licznik treningów
+  // wyłącznie na Dashboardzie — artboardy Plan/History/Profile mają w headerze
+  // akcje kontekstowe ekranu (slot HeaderActions), nie dashboardowy zestaw.
+  // Wejście w statystyki nie znika: pigułka na Dashboardzie + kafel "Twoje
+  // liczby" w gridzie szybkich akcji.
   const isDashboard = useLocation().pathname === '/';
   const displayName = profile?.displayName || '';
   const initials = displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'SS';
@@ -45,13 +47,15 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   // treningu nie ma go w drzewie. Gratulację odczytujemy z trwałego stanu po
   // powrocie na Dashboard, zamiast liczyć na zamontowany komponent.
   useEffect(() => {
-    if (!isLoaded) return;
+    // Naprawa r2: konsumpcja tylko tam, gdzie licznik jest widoczny — inaczej
+    // "+1" przepadałoby po cichu na pod-tabach bez pigułki.
+    if (!isLoaded || !isDashboard) return;
     const delta = consumeCelebration(completedCount);
     if (delta <= 0) return;
     setCelebration(delta);
     const id = setTimeout(() => setCelebration(0), 1800);
     return () => clearTimeout(id);
-  }, [isLoaded, completedCount]);
+  }, [isLoaded, isDashboard, completedCount]);
 
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
@@ -88,7 +92,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
           {/* Naprawa r2 (2026-08-21): slot na kontekstowe akcje ekranu
               (artboard 1a: History ma tu kafle lupy i filtrów). */}
           <HeaderActionsOutlet />
-          {uid && <NotificationBell uid={uid} />}
+          {isDashboard && uid && <NotificationBell uid={uid} />}
           {!isOnline && (
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-fitness-warning/10 text-fitness-warning text-xs font-medium">
               <WifiOff className="h-3.5 w-3.5" />
@@ -96,7 +100,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
               {pendingOps > 0 && <span className="ml-0.5">({pendingOps})</span>}
             </div>
           )}
-          {isLoaded && (
+          {isDashboard && isLoaded && (
             <button
               type="button"
               onClick={() => setStatsOpen(true)}
@@ -107,12 +111,11 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
             >
               <Dumbbell className="h-4 w-4" />
               <span className="tabular-nums">{completedCount}</span>
-              {/* Fala 2 (2026-08-20): sufiks mono jak "82 TOTAL" z mockupu. */}
-              {isDashboard && (
-                <span className="font-mono text-[9px] uppercase tracking-[0.1em] opacity-75">
-                  {t('comp.header.totalSuffix')}
-                </span>
-              )}
+              {/* Fala 2 (2026-08-20): sufiks mono jak "82 TOTAL" z mockupu
+                  (pigułka renderuje się już tylko na Dashboardzie). */}
+              <span className="font-mono text-[9px] uppercase tracking-[0.1em] opacity-75">
+                {t('comp.header.totalSuffix')}
+              </span>
 
               {/* Z140.1: „+1" unosi się i gaśnie. Keyframes inline jak w ConfettiBurst
                   — w projekcie nie ma (i nie ma być) framer-motion. */}
