@@ -280,12 +280,14 @@ const WorkoutHistory = () => {
 
   const renderSessionRow = (workout: WorkoutSession, surface: 'low' | 'container', options?: { highlight?: boolean }) => {
     const dayLabel = resolver.resolveDayLabel(workout);
-    const title = `${localizeDayName(dayLabel.dayName, lang)} · ${localizeFocus(dayLabel.focus, lang) || t('history.noFocus')}`;
+    const focusLabel = localizeFocus(dayLabel.focus, lang);
+    const title = `${localizeDayName(dayLabel.dayName, lang)} · ${focusLabel || t('history.noFocus')}`;
     return (
       <HistorySessionRow
         key={workout.id}
         workout={workout}
         title={title}
+        focusLabel={focusLabel || undefined}
         meta={rowMeta.get(workout.id)}
         tonnage={calculateTonnage([workout])}
         totalSets={countWorkoutCompletedWorkingSets(workout)}

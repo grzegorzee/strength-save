@@ -20,6 +20,9 @@ interface HistorySessionRowProps {
   workout: WorkoutSession;
   /** Zlokalizowana etykieta wiersza: "Nazwa dnia · focus". */
   title: string;
+  /** Naprawa r2 (2026-08-21, plan §6.7): focus dnia powtórzony w rozwinięciu —
+      przy 390px tytuł bywa ucięty i focus byłby nieosiągalny. */
+  focusLabel?: string;
   meta: HistoryRowMeta | undefined;
   /** Tonaż sesji w kg (konwersja jednostek wewnątrz). */
   tonnage: number;
@@ -47,7 +50,7 @@ const setWordKey = (n: number) =>
       : 'history.setMany';
 
 export const HistorySessionRow = ({
-  workout, title, meta, tonnage, totalSets, isSelected, isExpanded, compareMode,
+  workout, title, focusLabel, meta, tonnage, totalSets, isSelected, isExpanded, compareMode,
   surface, highlight, resolveExerciseName, onOpen, onToggleCompare, onToggleExpanded, onEmail, onDelete,
 }: HistorySessionRowProps) => {
   const { t, lang } = useTranslation();
@@ -170,6 +173,10 @@ export const HistorySessionRow = ({
       {/* Rozwinięcie (Z74+Z80): serie per ćwiczenie, metryki RPE/ból/technika, notatki — 1:1 jak przed redesignem. */}
       {isExpanded && (
         <div className="mt-2 space-y-3 rounded-xl bg-surface-lowest p-3">
+          {/* Focus sesji jako eyebrow — czytelny nawet gdy tytuł wiersza ucięty. */}
+          {focusLabel && (
+            <p className="eyebrow-mono text-primary">{focusLabel}</p>
+          )}
           {workout.exercises.map((e) => {
             const workingSets = e.sets.filter((s) => !s.isWarmup);
             const hasMetrics = e.rpe !== undefined || e.pain !== undefined || e.quality !== undefined;
