@@ -912,7 +912,9 @@ const ExerciseCardInner = ({
                 }
               }}
               // Fala 2 (2026-08-20, mockup 2a): zwarta miniatura 46px z centralnym play.
-              className="relative h-[46px] w-[46px] rounded-xl overflow-hidden shrink-0 bg-background/70"
+              // Naprawa r2 (2026-08-21): rounded-lg (12px) — rounded-xl to w tej skali
+              // 24px, co przy 46px robiło kolo zamiast kwadratu z mockupu (tokens.md 2.6).
+              className="relative h-[46px] w-[46px] rounded-lg overflow-hidden shrink-0 bg-background/70"
               aria-label={t('card.showAnimation', { name: localizedName })}
             >
               {/* Z195: miniatura = poster JPEG z CDN, NIE <video> — WebKit przy
