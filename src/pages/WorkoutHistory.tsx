@@ -357,12 +357,14 @@ const WorkoutHistory = () => {
           </div>
         )}
 
-        {/* Status — chipy */}
-        <div className="flex flex-wrap gap-2">
-          <Chip active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
-          <Chip active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
-          <Chip active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
-          <Chip active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
+        {/* Status — chipy. Naprawa r3 (sędzia struktury): jeden zwarty rząd
+            przewijany poziomo jak rząd dni (artboard 1a) zamiast zawijania
+            "Tylko z PR" do drugiej linii na 390 px. */}
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <Chip className="shrink-0" active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
+          <Chip className="shrink-0" active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
+          <Chip className="shrink-0" active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
+          <Chip className="shrink-0" active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
         </div>
 
         {/* Dzień planu — chipy (scroll wewnątrz kontenera, strona bez h-scrolla) */}
@@ -389,29 +391,28 @@ const WorkoutHistory = () => {
           />
         )}
 
-        {/* Rząd akcji: tryb porównania + wysyłka historii; eksport CSV w drugiej linii
-            (oba pille naraz nie mieszczą się przy 390px obok chipa). */}
-        <div className="flex items-center gap-2 pt-1">
-          <Chip active={compareMode} onClick={() => setCompareMode((prev) => !prev)}>
+        {/* Rząd akcji: tryb porównania + wysyłka historii + eksport CSV.
+            Naprawa r3 (sędzia struktury): jeden rząd pigułek JEDNEJ wysokości
+            w stylu chip-mono (artboard 1a) z przewijaniem poziomym — zamiast
+            dwóch wierszy pigułek o różnej wielkości. */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1">
+          <Chip className="shrink-0" active={compareMode} onClick={() => setCompareMode((prev) => !prev)}>
             {t('history.compare')}
           </Chip>
-          <div className="flex-1" />
           <Button
             variant="outline"
             size="sm"
-            className="rounded-full"
+            className="h-8 shrink-0 rounded-full border-0 bg-surface-highest px-4 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground"
             onClick={() => setShowEmailDialog(true)}
             data-testid="history-email"
           >
             <Mail className="mr-1.5 h-3.5 w-3.5" />
             {t('email.sendToCoach')}
           </Button>
-        </div>
-        <div className="flex justify-end">
           <Button
             variant="outline"
             size="sm"
-            className="rounded-full"
+            className="h-8 shrink-0 rounded-full border-0 bg-surface-highest px-4 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground"
             onClick={() => setShowExportDialog(true)}
             data-testid="history-export-csv"
           >
