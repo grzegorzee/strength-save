@@ -11,6 +11,64 @@
 
 ## DECYZJE
 
+### 2026-08-21: Fala 2, runda naprawcza r2 (werdykty 3 sędziów rundy 2)
+
+**Co (4 majory + 8 minorów, commit per naprawa):**
+1. **Aktywna seria (MAJOR):** obrys akcentowy przenosi się z CAŁEGO wiersza
+   (`ring-2 ring-primary`) na INPUTY KG/POWT. (`.accent-ring`, 1.5px inset,
+   obie ścieżki renderu + duration/dystans/asysta); wiersz tylko tint
+   `bg-primary/[0.08]` — zgodnie z mockupem exercise-card-full i tokens.md §2.4.
+   Test `exercise-card-layout` zaktualizowany pod nowy kontrakt.
+2. **Historia, header (MAJOR):** kafle lupy i filtrów wracają do RZĘDU headera
+   (artboard 1a: avatar + HISTORIA + lupa + filtr) przez NOWY slot
+   `HeaderActions` (context + portal; provider w Layout, outlet w AppHeader;
+   poza Layoutem dzieci renderują się inline — unit testy stron bez zmian).
+   Pusty pas ~100px pod headerem usunięty.
+3. **Konfetti (MAJOR, jeden akcent):** hardkodowany cyjan `#00e3fd` usunięty
+   z palety ConfettiBurst — celebracje sypią wyłącznie odcieniami akcentu + bielą.
+4. **Historia, meta wiersza (MAJOR, funkcje):** liczba ćwiczeń wraca do linii
+   meta ("{ćw} ćw. · {serie} serii · {czas}", klucz `history.exercisesUnit`),
+   zgodnie z inwentarzem history-tab poz. 19/22.
+5. **Cyjan cardio przez token (minor):** HybridWeekStrip `bg-fitness-cyan/85`
+   i HybridLoadCard `fill="hsl(var(--fitness-cyan))"` zamiast dwóch różnych
+   `#00e3fd`; wpis HybridWeekStrip usunięty z allowlisty design-token-guard
+   (strażnik znów domyka arbitrary hex).
+6. **Headery pod-tabów (minor):** dzwonek + licznik treningów TYLKO na
+   Dashboardzie (artboardy pod-tabów mają akcje kontekstowe); wejście w
+   statystyki nie znika (pigułka na Dashboardzie + kafel "Twoje liczby");
+   konsumpcja celebracji "+1" tylko na Dashboardzie (nie przepada po cichu).
+7. **Avatar-inicjał (minor):** `bg-primary/20 text-primary` we wszystkich
+   headerach (wariant z Profilu; było neutralne surface-highest).
+8. **Powitanie (minor):** bez `italic` (SG nie ma kroju, tokens.md ryzyko 4);
+   "!" w spanie imienia (gap-2 flexa robił szczelinę "E2E !").
+9. **CTA hero Dashboardu (minor):** "Rozpocznij trening"/"Otwórz sesję"
+   w `.kinetic-primary-button` h-14 — jeden język z FINISH WORKOUT i BACK TO
+   DASHBOARD (rozstrzygnięcie konfliktu planów na rzecz tokens.md §2.8).
+10. **Miniatura ćwiczenia (minor):** `rounded-lg` (12px) zamiast `rounded-xl`
+    (24px w skali override), które przy 46px robiło koło zamiast kwadratu.
+11. **Nagłówek kolumny SET (minor):** PL `card.colSet` = "Ser." (kolumna 26px);
+    aria-labels pól zostają "Set 1, kg" przez NOWY klucz `card.setAria`
+    (kontrakt kilkudziesięciu asercji e2e); asercje nagłówka w unit + 2 e2e
+    zaktualizowane w tym samym commicie.
+12. **Focus w rozwinięciu Historii (minor):** focus sesji powtórzony jako
+    eyebrow w panelu rozwinięcia (plan §6.7: przy uciętym tytule na 390px
+    informacja była nieosiągalna).
+
+**Świadomie pominięte (do decyzji właściciela):** chronologia listy dni Planu
+(porządek "najbliższy pierwszy" to decyzja T9 z testem plan-timeline-order —
+konflikt z mockupem wymaga rozstrzygnięcia, nie cichej zmiany); przeniesienie
+ikon przełóż/pomiń karty NASTĘPNY do menu ⋯ (łamie kontrakty e2e
+reschedule-flow + testy reschedule-ui/plan-tab-order — nie jest tanie);
+kolizja sky vs cyjan cardio (złagodzona tokenem --fitness-cyan, głębsza zmiana
+= decyzja designowa); limonkowy tint --foreground (jawnie odroczony, tokens.md
+ryzyko 5).
+
+**Weryfikacja:** test 2086/2086 (po naprawie błędu składni JSX w AppHeader,
+którego vitest nie łapał — typecheck tak), typecheck, lint (0 błędów, 2 zastane
+warningi admina), strażniki zielone; pętla wizualna 2 iteracje
+(fix-r2-iter1 → finalny `screens/fix-r2`: 4 trasy × 4 akcenty; home--lime
+w iter1 złapał splash — flake harnessa, w finalnym przebiegu czysty).
+
 ### 2026-08-21: Fala 2, runda naprawcza r1 (werdykty 3 sędziów: struktura, jeden akcent, funkcje)
 
 **Co (7 napraw critical/major + 5 minorów, commit per naprawa):**
