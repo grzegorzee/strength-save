@@ -212,7 +212,9 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       needsEmailVerification,
       isSuspended,
       canUseStrava: hasAppAccess && (currentProfile?.features?.strava ?? currentProfile?.role === 'admin'),
-      canUseBodyPhotos: hasAppAccess && (currentProfile?.features?.bodyPhotos ?? currentProfile?.role === 'admin'),
+      // WP-D D1: zdjęcia sylwetki domyślnie dla każdego z dostępem; admin może
+      // jawnie wyłączyć per user (features.bodyPhotos === false).
+      canUseBodyPhotos: hasAppAccess && (currentProfile?.features?.bodyPhotos ?? true),
       isNewUser,
       profileLoaded,
       profileLoadError,

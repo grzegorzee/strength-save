@@ -11,6 +11,7 @@ import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import { validateMeasurement } from '@/lib/measurement-validation';
 import { parseDecimalInput } from '@/lib/decimal-input';
+import { PhotoCropDialog } from '@/components/PhotoCropDialog';
 
 interface MeasurementsFormProps {
   latestMeasurement?: BodyMeasurement;
@@ -41,6 +42,9 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
   // sheet Aparat/Biblioteka, bez pluginu Capacitor). Upload robi rodzic.
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  // WP-D D3: wybrany plik idzie najpierw do kadrowania; photoFile ustawia
+  // dopiero potwierdzony kadr. Anulowanie = powrót bez zdjęcia.
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -80,7 +84,9 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
       calfLeft: parseField(formData.calfLeft, fromInputLength),
       calfRight: parseField(formData.calfRight, fromInputLength),
     };
-    if (!validateMeasurement(measurement).valid) {
+    // WP-D D2: zdjęcie jest pełnoprawną treścią wpisu — zapis bez pól
+    // liczbowych przechodzi, gdy jest fotka (wpis tylko-zdjęcie).
+    if (!validateMeasurement(measurement, { hasPhoto: photoFile !== null }).valid) {
       setValidationError(true);
       return;
     }
@@ -157,7 +163,8 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
                 onChange={(e) => {
                   const file = e.target.files?.[0] ?? null;
                   e.target.value = '';
-                  if (file) setPhotoFile(file);
+                  // WP-D D3: najpierw kadrowanie, photoFile ustawia dopiero kadr.
+                  if (file) setCropFile(file);
                 }}
               />
               {photoFile ? (
@@ -188,6 +195,16 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
             {t('measurements.saveButton')}
           </Button>
         </form>
+        {/* WP-D D3: kadrowanie przed uploadem — zawsze zamontowany, sterowany open. */}
+        <PhotoCropDialog
+          open={cropFile !== null}
+          file={cropFile}
+          onCancel={() => setCropFile(null)}
+          onCropped={(blob) => {
+            setPhotoFile(new File([blob], 'sylwetka.jpg', { type: 'image/jpeg' }));
+            setCropFile(null);
+          }}
+        />
       </CardContent>
     </Card>
   );

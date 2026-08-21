@@ -139,6 +139,10 @@ export const pl = {
   'exercises.title': 'Ćwiczenia',
   'exercises.noResults': 'Brak wyników',
   'exercises.noResultsFor': 'Brak wyników dla „{query}”',
+  'exercises.inLibrary': '{n} w bibliotece',
+  'exercises.groupCount': '{n} ćwiczeń',
+  'exercises.newCustom': 'Nowe własne ćwiczenie',
+  'exercises.customGroup': 'Własne',
 
   // szczegóły ćwiczenia
   'detail.instructions': 'Instrukcje',
@@ -484,7 +488,7 @@ export const pl = {
   'cycles.photoAfterCta': 'Zdjęcie po cyklu',
   'cycles.endPlan': 'Zakończ plan',
   'cycles.endPlanConfirmTitle': 'Zakończyć obecny plan?',
-  'cycles.endPlanConfirmDesc': 'Zapiszemy obecny blok jako zakończony dzisiaj, zachowamy historię treningów w cyklach i przejdziemy do wyboru nowego planu bez pełnego onboardingu.',
+  'cycles.endPlanConfirmDesc': 'Zapiszemy obecny blok jako zakończony dzisiaj i zachowamy pełną historię treningów w cyklach. Możesz od razu wybrać nowy plan albo zostać bez aktywnego planu.',
   'cycles.endPlanConfirmAction': 'Zakończ i wybierz nowy',
   'cycles.endPlanDone': 'Plan zakończony. Wybierz kolejny blok.',
   'cycles.endPlanFailed': 'Nie udało się zakończyć planu',
@@ -526,6 +530,12 @@ export const pl = {
   'cycles.est1RM': '(est. 1RM: {value} {unit})',
   'cycles.trainingPlan': 'Plan treningowy',
   'cycles.generateFromCycle': 'Wygeneruj nowy plan na bazie tego cyklu',
+  // WP-PLANS-1 (X27): dialog końca planu (3 opcje) + guard draftu.
+  'cycles.endPlanOnly': 'Zakończ plan',
+  'cycles.endPlanDraftBlocked': 'Dokończ lub odrzuć trwający trening, zanim zakończysz plan.',
+  // WP-PLANS-2 (X27): closeout — łączny czas + udostępnianie podsumowania.
+  'cycles.timeAtGym': 'Czas na siłowni',
+  'cycles.shareSummary': 'Udostępnij podsumowanie',
   'history.title': 'Historia treningów',
   'history.subtitle': 'Filtruj, przeglądaj i porównuj wcześniejsze sesje.',
   'history.filters': 'Filtry',
@@ -828,6 +838,9 @@ export const pl = {
   'planbuilder.startScratchDesc': 'Pusty plan: sam dodajesz dni i ćwiczenia.',
   'planbuilder.startTemplate': 'Zacznij od szablonu',
   'planbuilder.startTemplateDesc': 'Skopiuj gotowy plan i dostosuj go do siebie.',
+  // WP-PLANS-1 (X27): długość planu 2-36 tygodni + własna liczba.
+  'planbuilder.customWeeks': 'Własna liczba tygodni (2-36)',
+  'planbuilder.customWeeksError': 'Podaj liczbę tygodni od 2 do 36.',
 
   // wspólny picker ćwiczeń (Z69)
   // notatki (Z74)
@@ -1257,6 +1270,11 @@ export const pl = {
   'measurements.weightShort': 'Waga',
   'measurements.chestShort': 'Klatka',
   'measurements.waistShort': 'Talia',
+  'measurements.photo.cropTitle': 'Kadruj zdjęcie',
+  'measurements.photo.cropHint': 'Przesuwaj i przybliżaj, aby ustawić kadr sylwetki.',
+  'measurements.photo.cropConfirm': 'Użyj zdjęcia',
+  'measurements.compareEmpty': 'Dodaj pierwsze zdjęcie sylwetki, żeby zobaczyć porównanie przed i po.',
+  'measurements.compareOne': 'Masz jedno zdjęcie. Dodaj drugie, aby zobaczyć porównanie.',
   'strava.activeDraft': 'Aktywny szkic',
   'strava.activities': 'Aktywności',
   'strava.activitiesAbbr': '{n} akt.',
@@ -2398,6 +2416,8 @@ export const pl = {
   'cycles.deleted': 'Cykl usunięty',
   'cycles.deleteFailed': 'Nie udało się usunąć cyklu',
   'ob.precision.change': 'Zmień ustawienia',
+  // WP-PLANS-2 (X27): start planu wybierany w kroku 5 (najbliższe poniedziałki).
+  'ob.startWeek': 'Start planu',
   'newplan.toReview': 'Podgląd planu',
   'newplan.draft.resumeTitle': 'Masz przerwany szkic planu',
   'newplan.draft.resume': 'Kontynuuj',

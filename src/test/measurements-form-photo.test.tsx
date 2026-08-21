@@ -7,6 +7,22 @@ import { MeasurementsForm } from '@/components/MeasurementsForm';
 // T13a: opcjonalne zdjecie sylwetki w formularzu pomiarow.
 // NIEZMIENNIK (zasada 5 CLAUDE.md): bez photosEnabled formularz zachowuje sie
 // bajt w bajt jak dzis — zero sekcji zdjecia, identyczny payload w onSave.
+// WP-D D3: wybor pliku przechodzi przez PhotoCropDialog (tu zamockowany:
+// auto-potwierdza kadr oryginalem; interakcje croppera = photo-crop.test.tsx).
+
+vi.mock('@/components/PhotoCropDialog', () => ({
+  PhotoCropDialog: ({ open, file, onCropped }: {
+    open: boolean;
+    file: File | null;
+    onCropped: (blob: Blob) => void;
+  }) => (
+    open && file ? (
+      <button type="button" data-testid="mock-crop-confirm" onClick={() => onCropped(file)}>
+        crop
+      </button>
+    ) : null
+  ),
+}));
 
 const renderForm = (onSave = vi.fn(), photosEnabled?: boolean) => {
   render(
@@ -43,17 +59,33 @@ describe('MeasurementsForm — zdjecie sylwetki (T13a)', () => {
     expect(photoFile).toBeUndefined();
   });
 
-  it('z photosEnabled wybor pliku przekazuje File jako drugi argument onSave', () => {
+  it('z photosEnabled wybor pliku (po kadrze) przekazuje File jako drugi argument onSave', () => {
     const onSave = renderForm(vi.fn(), true);
     const file = new File(['fake-image'], 'sylwetka.jpg', { type: 'image/jpeg' });
 
     fireEvent.change(screen.getByTestId('measurement-photo-input'), { target: { files: [file] } });
+    fireEvent.click(screen.getByTestId('mock-crop-confirm'));
     fireEvent.change(screen.getByLabelText(/Waga/i), { target: { value: '80' } });
     fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0].weight).toBe(80);
-    expect(onSave.mock.calls[0][1]).toBe(file);
+    expect(onSave.mock.calls[0][1]).toBeInstanceOf(File);
+    expect((onSave.mock.calls[0][1] as File).type).toBe('image/jpeg');
+  });
+
+  it('anulowanie kadrowania = powrot do formularza bez zdjecia (WP-D D3)', () => {
+    const onSave = renderForm(vi.fn(), true);
+    const file = new File(['fake-image'], 'sylwetka.jpg', { type: 'image/jpeg' });
+
+    fireEvent.change(screen.getByTestId('measurement-photo-input'), { target: { files: [file] } });
+    // Mock renderuje przycisk tylko przy open=true; brak potwierdzenia kadru
+    // i zapis => zdjecie nie trafia do onSave.
+    fireEvent.change(screen.getByLabelText(/Waga/i), { target: { value: '80' } });
+    fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][1]).toBeUndefined();
   });
 
   it('z photosEnabled zapis bez zdjecia nadal dziala (zdjecie tylko DOKLADA)', () => {
@@ -72,6 +104,7 @@ describe('MeasurementsForm — zdjecie sylwetki (T13a)', () => {
     const file = new File(['fake-image'], 'sylwetka.jpg', { type: 'image/jpeg' });
 
     fireEvent.change(screen.getByTestId('measurement-photo-input'), { target: { files: [file] } });
+    fireEvent.click(screen.getByTestId('mock-crop-confirm'));
     fireEvent.click(screen.getByRole('button', { name: /Usuń zdjęcie/i }));
     fireEvent.change(screen.getByLabelText(/Waga/i), { target: { value: '80' } });
     fireEvent.click(screen.getByRole('button', { name: /Zapisz/i }));

@@ -89,6 +89,8 @@ export {
 // Codzienne poranne przypomnienie o treningu (tylko w dni treningowe).
 export { dailyTrainingReminder } from "./daily-reminder";
 export { reducedModeEndingPush, vacationEndingPush } from "./reduced-mode-push";
+// WP-D D4: po miesiącu treningu jednorazowe "dodaj fotkę sylwetki" (push + dzwonek).
+export { photoReminder } from "./photo-reminder";
 export { activityRollup } from "./activity-rollup";
 export { adminUserRepair } from "./repairs/admin-user-repair";
 // Webhook RevenueCat → users/{uid}.subscription (entitlement PRO).

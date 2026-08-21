@@ -32,3 +32,28 @@ export const compressImage = async (file: File): Promise<Blob> => {
     throw new Error('IMAGE_TOO_LARGE');
   }
 };
+
+// WP-D D3: normalizacja pliku (w tym HEIC z iPhone'a) do JPEG dataURL pod
+// cropper — nie zakładamy, że <img>/cropper poradzi sobie z HEIC w WKWebView.
+// Downscale do 1600 px (zapas na kadrowanie 3/4; finalny kadr i tak przechodzi
+// przez compressImage do ≤1280 px). Lekcja Z179: pełne 12 MP jako base64 w
+// pamięci WKWebView = crash, dlatego zawsze skalujemy.
+const NORMALIZE_MAX_DIMENSION = 1600;
+
+export const normalizeToJpegDataUrl = async (file: File): Promise<string> => {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, NORMALIZE_MAX_DIMENSION / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('no-2d-context');
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    return canvas.toDataURL('image/jpeg', 0.9);
+  } finally {
+    bitmap.close();
+  }
+};

@@ -187,8 +187,22 @@ service cloud.firestore {
     function validTrainingPlanShape() {
       return request.resource.data.keys().hasOnly([
         'days', 'durationWeeks', 'startDate', 'updatedAt', 'revision', 'progression', 'scheduleOverrides',
-        'skippedDates', 'reducedMode', 'vacation'
+        'skippedDates', 'reducedMode', 'vacation', 'status', 'name'
       ])
+      // Cykl życia planu (WP-PLANS-1, X27): pole opcjonalne (stare dokumenty bez
+      // pola = 'active' w sanitizerze klienta).
+      && (
+        !('status' in request.resource.data)
+        || request.resource.data.status in ['active', 'ended']
+      )
+      // Nazwa planu (WP-PLANS-2, X27): opcjonalny string do 60 znakow.
+      && (
+        !('name' in request.resource.data)
+        || (
+          request.resource.data.name is string
+          && request.resource.data.name.size() <= 60
+        )
+      )
       // Tryb urlopu (Runna p.1, spec C4): zamknieta mapa okresu + aktywnosci.
       && (
         !('vacation' in request.resource.data)

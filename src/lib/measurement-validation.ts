@@ -14,7 +14,12 @@ export interface MeasurementValidationInput {
   [field: string]: unknown;
 }
 
-export const validateMeasurement = (input: MeasurementValidationInput): { valid: true } | { valid: false; field: string } => {
+export const validateMeasurement = (
+  input: MeasurementValidationInput,
+  // WP-D D2: formularz zna zdjęcie tylko jako File (upload PO walidacji),
+  // więc deklaruje je flagą; zapisany wpis niesie photoUrl w danych.
+  options?: { hasPhoto?: boolean },
+): { valid: true } | { valid: false; field: string } => {
   try {
     parseLocalDate(input.date);
   } catch {
@@ -30,5 +35,8 @@ export const validateMeasurement = (input: MeasurementValidationInput): { valid:
       return { valid: false, field };
     }
   }
-  return values > 0 ? { valid: true } : { valid: false, field: 'measurement' };
+  // WP-D D2: wpis tylko-zdjęcie jest pełnoprawny — zdjęcie liczy się jak pole.
+  const hasPhoto = options?.hasPhoto === true
+    || (typeof input.photoUrl === 'string' && input.photoUrl.length > 0);
+  return values > 0 || hasPhoto ? { valid: true } : { valid: false, field: 'measurement' };
 };

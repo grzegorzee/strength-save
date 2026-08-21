@@ -135,6 +135,10 @@ export const en: Record<keyof typeof pl, string> = {
   'exercises.title': 'Exercises',
   'exercises.noResults': 'No results',
   'exercises.noResultsFor': 'No results for "{query}"',
+  'exercises.inLibrary': '{n} in library',
+  'exercises.groupCount': '{n} exercises',
+  'exercises.newCustom': 'New custom exercise',
+  'exercises.customGroup': 'Custom',
 
   'detail.instructions': 'Instructions',
   'detail.proTip': 'Pro Tip',
@@ -478,7 +482,7 @@ export const en: Record<keyof typeof pl, string> = {
   'cycles.photoAfterCta': 'Post-cycle photo',
   'cycles.endPlan': 'End plan',
   'cycles.endPlanConfirmTitle': 'End the current plan?',
-  'cycles.endPlanConfirmDesc': 'We will save the current block as ended today, keep workout history in cycles and move you to new-plan selection without the full onboarding.',
+  'cycles.endPlanConfirmDesc': 'We will save the current block as ended today and keep your full workout history in cycles. You can pick a new plan right away or stay without an active plan.',
   'cycles.endPlanConfirmAction': 'End and choose new',
   'cycles.endPlanDone': 'Plan ended. Choose the next block.',
   'cycles.endPlanFailed': 'Could not end the plan',
@@ -520,6 +524,12 @@ export const en: Record<keyof typeof pl, string> = {
   'cycles.est1RM': '(est. 1RM: {value} {unit})',
   'cycles.trainingPlan': 'Training plan',
   'cycles.generateFromCycle': 'Generate a new plan based on this cycle',
+  // WP-PLANS-1 (X27): dialog końca planu (3 opcje) + guard draftu.
+  'cycles.endPlanOnly': 'End plan',
+  'cycles.endPlanDraftBlocked': 'Finish or discard the workout in progress before ending the plan.',
+  // WP-PLANS-2 (X27): closeout — łączny czas + udostępnianie podsumowania.
+  'cycles.timeAtGym': 'Time at gym',
+  'cycles.shareSummary': 'Share summary',
   'history.title': 'Workout history',
   'history.subtitle': 'Filter, browse and compare your past sessions.',
   'history.filters': 'Filters',
@@ -821,6 +831,9 @@ export const en: Record<keyof typeof pl, string> = {
   'planbuilder.startScratchDesc': 'Empty plan: you add days and exercises yourself.',
   'planbuilder.startTemplate': 'Start from a template',
   'planbuilder.startTemplateDesc': 'Copy a ready-made plan and make it yours.',
+  // WP-PLANS-1 (X27): długość planu 2-36 tygodni + własna liczba.
+  'planbuilder.customWeeks': 'Custom weeks (2-36)',
+  'planbuilder.customWeeksError': 'Enter a number of weeks between 2 and 36.',
 
   'notes.yourNotes': 'Your notes',
   'notes.lastNote': 'Last time: "{note}"',
@@ -1235,6 +1248,11 @@ export const en: Record<keyof typeof pl, string> = {
   'measurements.weightShort': 'Weight',
   'measurements.chestShort': 'Chest',
   'measurements.waistShort': 'Waist',
+  'measurements.photo.cropTitle': 'Crop photo',
+  'measurements.photo.cropHint': 'Move and zoom to frame your body.',
+  'measurements.photo.cropConfirm': 'Use photo',
+  'measurements.compareEmpty': 'Add your first progress photo to see a before and after comparison.',
+  'measurements.compareOne': 'You have one photo. Add a second one to see the comparison.',
   'strava.activeDraft': 'Active draft',
   'strava.activities': 'Activities',
   'strava.activitiesAbbr': '{n} act.',
@@ -2373,6 +2391,8 @@ export const en: Record<keyof typeof pl, string> = {
   'cycles.deleted': 'Cycle deleted',
   'cycles.deleteFailed': 'Could not delete the cycle',
   'ob.precision.change': 'Change settings',
+  // WP-PLANS-2 (X27): start planu wybierany w kroku 5 (najbliższe poniedziałki).
+  'ob.startWeek': 'Plan start',
   'newplan.toReview': 'Review plan',
   'newplan.draft.resumeTitle': 'You have an unfinished plan draft',
   'newplan.draft.resume': 'Continue',

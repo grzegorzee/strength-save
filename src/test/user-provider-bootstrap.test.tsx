@@ -105,6 +105,7 @@ const Probe = () => {
       <span data-testid="loaded">{String(current.profileLoaded)}</span>
       <span data-testid="status">{current.profile?.status ?? 'none'}</span>
       <span data-testid="access">{String(current.hasAppAccess)}</span>
+      <span data-testid="photos">{String(current.canUseBodyPhotos)}</span>
       <span data-testid="error">{current.profileLoadError ?? 'none'}</span>
     </div>
   );
@@ -216,6 +217,29 @@ describe('UserProvider cache-first profile bootstrap', () => {
     await emit('user-2', profile('user-2', 'suspended'), true);
     expect(screen.getByTestId('status')).toHaveTextContent('suspended');
     expect(screen.getByTestId('access')).toHaveTextContent('false');
+  });
+
+  // WP-D D1: zdjęcia sylwetki dla KAŻDEGO usera z dostępem (flaga domyślnie ON).
+  it('canUseBodyPhotos: zwykły active user bez features.bodyPhotos ma dostęp do zdjęć', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', profile('user-1'), true);
+
+    expect(screen.getByTestId('access')).toHaveTextContent('true');
+    expect(screen.getByTestId('photos')).toHaveTextContent('true');
+  });
+
+  it('canUseBodyPhotos: jawne features.bodyPhotos === false wyłącza zdjęcia (admin toggle)', async () => {
+    mocks.syncUserProfile.mockReturnValue(new Promise(() => undefined));
+    render(<UserProvider><Probe /></UserProvider>);
+
+    await waitFor(() => expect(mocks.listeners.has('users/user-1')).toBe(true));
+    await emit('user-1', { ...profile('user-1'), features: { bodyPhotos: false } }, true);
+
+    expect(screen.getByTestId('access')).toHaveTextContent('true');
+    expect(screen.getByTestId('photos')).toHaveTextContent('false');
   });
 
   it('po reconnect ponawia sync, a serwerowa revokacja zastępuje cached active', async () => {

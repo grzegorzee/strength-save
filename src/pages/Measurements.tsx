@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
@@ -13,9 +13,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { compressImage } from '@/lib/image-compress';
 import { BodyPhotoCompare } from '@/components/BodyPhotoCompare';
-import { TrendingUp, TrendingDown, Minus, ChevronRight, Database, Ruler } from 'lucide-react';
+import { PhotoCropDialog } from '@/components/PhotoCropDialog';
+import { TrendingUp, TrendingDown, Minus, Camera, ChevronRight, Database, Ruler } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { HealthWeightSuggestion } from '@/components/HealthWeightSuggestion';
@@ -47,6 +48,11 @@ const Measurements = () => {
   // T13a: pełny podgląd zdjęcia z historii (Dialog kontrolowany — zamykanie
   // wyłącznie przez open=false, lekcja builda 92).
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  // WP-D D5: niezależny przycisk "Dodaj zdjęcie" — bezpośrednia ścieżka
+  // picker → crop → zapis wpisu tylko-zdjęcie z dzisiejszą datą.
+  const photoOnlyInputRef = useRef<HTMLInputElement>(null);
+  const [photoOnlyCropFile, setPhotoOnlyCropFile] = useState<File | null>(null);
+  const photoCount = measurements.filter((m) => typeof m.photoUrl === 'string' && m.photoUrl.length > 0).length;
 
   const handleSave = async (measurement: Parameters<typeof addMeasurement>[0], photoFile?: File | null) => {
     // T13a: NIEZMIENNIK — pomiar nigdy nie przepada przez zdjęcie. Upload jest
@@ -62,6 +68,10 @@ const Measurements = () => {
         photoFields = { photoUrl, photoPath };
       } catch {
         toast({ title: t('measurements.saveErrorTitle'), description: t('measurements.photo.uploadFailed'), variant: 'destructive' });
+        // WP-D D2: wpis TYLKO-zdjęcie bez udanego uploadu nie ma treści —
+        // koniec (toast wyżej mówi co się stało), user ponawia dodanie.
+        const hasNumericContent = Object.values(measurement).some((value) => typeof value === 'number');
+        if (!hasNumericContent) return;
       }
     }
     const result = await addMeasurement(photoFields ? { ...measurement, ...photoFields } : measurement);
@@ -70,6 +80,13 @@ const Measurements = () => {
       return;
     }
     toast({ title: t('measurements.saveSuccessTitle'), description: t('measurements.saveSuccessDesc', { date: measurement.date }) });
+  };
+
+  // WP-D D5: zapis wpisu tylko-zdjęcie (bez otwierania formularza pomiarów).
+  const handlePhotoOnlySave = async (blob: Blob) => {
+    setPhotoOnlyCropFile(null);
+    const file = new File([blob], 'sylwetka.jpg', { type: 'image/jpeg' });
+    await handleSave({ date: formatLocalDate(new Date()) }, file);
   };
 
   const getWeightTrend = () => {
@@ -154,6 +171,39 @@ const Measurements = () => {
         </Suspense>
       )}
 
+      {/* WP-D D5: niezależne dodanie zdjęcia sylwetki + zachęty do porównania. */}
+      {healthConsent && canUseBodyPhotos && (
+        <div className="space-y-2">
+          <input
+            ref={photoOnlyInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            data-testid="measurements-add-photo-input"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null;
+              e.target.value = '';
+              if (file) setPhotoOnlyCropFile(file);
+            }}
+          />
+          <Button
+            variant="outline"
+            className="w-full"
+            data-testid="measurements-add-photo"
+            onClick={() => photoOnlyInputRef.current?.click()}
+          >
+            <Camera className="h-4 w-4 mr-2 text-primary" />
+            {t('measurements.photo.addButton')}
+          </Button>
+          {photoCount === 0 && (
+            <p className="text-sm text-muted-foreground">{t('measurements.compareEmpty')}</p>
+          )}
+          {photoCount === 1 && (
+            <p className="text-sm text-muted-foreground">{t('measurements.compareOne')}</p>
+          )}
+        </div>
+      )}
+
       {/* T13b: porównanie sylwetki przed/po — tylko przy włączonym feature bodyPhotos */}
       {canUseBodyPhotos && measurements.length > 0 && (
         <BodyPhotoCompare measurements={measurements} />
@@ -222,6 +272,14 @@ const Measurements = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* WP-D D5: kadrowanie bezpośredniej ścieżki — zawsze zamontowany, open=false zamyka. */}
+      <PhotoCropDialog
+        open={photoOnlyCropFile !== null}
+        file={photoOnlyCropFile}
+        onCancel={() => setPhotoOnlyCropFile(null)}
+        onCropped={(blob) => void handlePhotoOnlySave(blob)}
+      />
 
       {/* T13a: pełny podgląd zdjęcia — Dialog zawsze zamontowany, zamykanie przez open=false */}
       <Dialog open={photoPreview !== null} onOpenChange={(open) => { if (!open) setPhotoPreview(null); }}>
