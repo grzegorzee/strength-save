@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { getCurrentAccent } from '@/lib/accent-theme';
 
 // Lekki confetti bez zależności (CSS animacja). F-T2: kolory z akcentu usera.
+// Naprawa r2 (2026-08-21, sędzia "jeden akcent"): bez hardkodowanego cyjanu —
+// celebracja sypie wyłącznie odcieniami akcentu + bielą (brief: zakaz mieszania
+// kolorów ozdobnych; przy amber/indigo cyjan łamał zasadę jednego akcentu).
 const COLORS = () => {
   const accent = getCurrentAccent();
-  return [accent.hex, '#00e3fd', '#ffffff', accent.lightHex];
+  return [accent.hex, '#ffffff', accent.lightHex];
 };
 
 interface ConfettiBurstProps {
