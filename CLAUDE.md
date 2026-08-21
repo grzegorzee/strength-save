@@ -78,7 +78,10 @@ statusowe zawsze z modyfikatorem (`/10`), tekst w pełnym kolorze. Wzorzec:
 ## Checklist przed KAŻDYM wdrożeniem
 
 - [ ] `npm run test` (wszystkie zielone), `npm run typecheck`, `npm run lint`
+- [ ] Route render sweep zielony (`route-smoke.test.tsx`) — każda trasa na kanonicznych stanach danych (zasada 11); zmieniałeś komponent czytający dokumenty Firestore? → test z kanonicznym stanem aktywnym (puste pola opcjonalne, `endDate: ''`) i pustym
 - [ ] `npm run build` przechodzi
+- [ ] **Przejście po koncie QA** (zasada 11): wdrożony web + build iOS, wszystkie zakładki, zero ekranów błędu; dopiero potem dystrybucja do testerów
+- [ ] Po wydaniu: przegląd `client_errors` w ciągu 24 h (nowy kod błędu = hotfix przed dalszą dystrybucją)
 - [ ] Zmiany dotykają timerów / autozapisu / scrolla / cyklu życia apki? → scenariusz **background/resume**: zgaś ekran, odczekaj, wróć (realne urządzenie)
 - [ ] Zmiany dotykają listy ćwiczeń / draftu / sesji? → scenariusz **przerwania**: start treningu z planu → wyjście → szybki trening → powrót do planu (wszystkie ćwiczenia na miejscu?) → zakończenie → sync
 - [ ] Commit + push na `main`
@@ -114,6 +117,38 @@ Osobno: przy bocznym przełączniku ciszy powiadomienia systemowe są nieme
 niezależnie od pliku. W foregroundzie da się to obejść kategorią sesji audio
 `.playback` w `AppDelegate` (`AVFoundation`), w tle — tylko przez Critical
 Alerts, które wymagają zgody Apple.
+
+### 11. Fixtury = produkcyjne kształty danych; etykieta nie może zabić route'a
+
+Wdrożone 2026-08-21 po crashu Historii E-8UE4S na produkcji (build 113): redesign
+Historii formatował `cycle.endDate` bez guarda, a aktywny cykl w produkcji MA
+`endDate: ''` aż do archiwizacji. Testy były zielone, bo fixture miał ręcznie
+wpisany, nierealny `endDate`; sędziowie wizualni oceniali ekrany na tych samych
+złych mockach. Obie warstwy weryfikacji dzieliły jedno ślepe pole: dane.
+
+- **Fixtury dokumentów Firestore buduj przez kanoniczne stany**
+  (`src/test/canonical-states.ts`), generowane tą samą logiką co produkcyjny
+  zapis, a nie ręcznie klepane obiekty. Ręczny fixture dokumentu = podejrzany
+  w review. Stany obowiązkowe do pokrycia: świeży user bez planu, aktywny plan
+  + cykl z `endDate: ''`, plan zakończony, historia pusta, sesje poza cyklem.
+- **Route render sweep** (`src/test/route-smoke.test.tsx`): każda trasa musi
+  się wyrenderować bez ErrorBoundary na każdym kanonicznym stanie. Nowa trasa
+  lub nowy stan danych = dopisz do sweepa.
+- **Formatowanie etykiet nie rzuca.** `parseLocalDate` (throwing) jest dla
+  logiki z walidacją; w renderze etykiet używaj wariantu safe (degradacja do
+  placeholdera), bo jeden zły string nie ma prawa położyć całego route'a.
+- **Po każdym wydaniu sprawdź telemetrię**: `client_errors` w ciągu doby po
+  deployu (nowy unikalny kod błędu = alarm). Crash ma znaleźć system, nie user
+  na siłowni.
+- **Konto QA na produkcji** (dane logowania: `~/FIRMA/_secrets/strength-save-qa.md`,
+  NIE commitować adresu ani hasła — repo publiczne). Konto ma dane zbudowane
+  PRZEZ REALNE FLOW apki (aktywny plan w połowie cyklu, historia sesji, sesje
+  poza cyklem, zakończony cykl, pomiary ze zdjęciem, własne ćwiczenie), więc ma
+  produkcyjne kształty dokumentów z natury. Przed KAŻDĄ dystrybucją: przejście
+  po wszystkich zakładkach na tym koncie na wdrożonym webie + na buildzie
+  iOS (symulator/TestFlight) — zero ekranów błędu. Testy na koncie QA są
+  nieniszczące dla jego stanu bazowego (nie kończ planu, nie kasuj konta;
+  scenariusze destrukcyjne = konto jednorazowe zakładane ad hoc).
 
 ## Pułapki specyficzne dla projektu (skrót)
 
