@@ -11,6 +11,60 @@
 
 ## DECYZJE
 
+### 2026-08-21: Fala 2, runda naprawcza r1 (werdykty 3 sędziów: struktura, jeden akcent, funkcje)
+
+**Co (7 napraw critical/major + 5 minorów, commit per naprawa):**
+1. **Kontrast ciemnych akcentów (CRITICAL, systemowe):** `applyAccent` dla
+   akcentów o luminancji < 0.28 (indigo, slate, ciemny custom) ustawia
+   `--primary-light` PRZYCIEMNIONY (gradient forged CTA: primary → -8 p.p.;
+   biały tekst na lewym krańcu miał 1.5-2.2:1) oraz NOWY token `--primary-text`
+   (jasność podbijana pętlą aż do >= 4.5:1 na tincie bg-primary/15 nad
+   surface-low). Tailwind: utilities `text-primary` czytają `--primary-text`
+   (fallback `var(--primary)` w index.css — jasne akcenty piksel w piksel bez
+   zmian); `bg/border/ring-primary` i `text-primary-foreground` nietknięte.
+   Pomiar po fixie (indigo, piksele zrzutu): CTA 4.55:1 na obu krańcach,
+   Zdecyduj 4.75:1, chip serii 5.25:1, eyebrow 5.11:1 (przed: 1.5-4.4:1).
+2. **Dashboard: hero NASTĘPNA SESJA w stanach rest/completed (MAJOR):**
+   `todayTraining` niesie pełny wpis następnej sesji (day+dateKey);
+   `renderNextSessionHero` = eyebrow akcentowy z dniem tygodnia + tytuł + meta
+   + CTA "Otwórz sesję" (podgląd `/workout/:id?date=`) + tekstowe "Przełóż
+   trening" (guard draftu bez zmian). Rest: hero NAD kartą regeneracji;
+   completed: hero POD kartą ukończenia. Nowe klucze `dash.hero.next/openSession`.
+3. **Headery pod-tabów (2x MAJOR):** AppHeader 15.5px/ls .14em nowrap+truncate;
+   etykiety zakładek skrócone (`layout.title.plan/history` = "Plan"/"Historia");
+   sufiks "ŁĄCZNIE" pigułki licznika tylko na Dashboardzie (kompaktowa pigułka
+   liczba+ikona zostaje wszędzie — wejście w statystyki nie znika). Historia:
+   page-h1 usunięty (tytuł raz, w headerze), italic zdjęty też z grup miesięcy
+   (SG nie ma italica; italic zostaje tylko w powitaniu Dashboardu). e2e
+   critical/full-app zaktualizowane w tych samych commitach.
+4. **Karta ćwiczenia (MAJOR + minor):** placeholder zakresu POWT.
+   `placeholder:text-[13px]` + `appearance: textfield` i ukryte webkit spin
+   buttony w `.exercise-card-input` (spinner Chromium rezerwował prawą krawędź
+   i klipował "6-8" → "6-"; iOS WebView spinnerów nie rysuje). POPRZ. bez
+   historii = "—" per komórka, komunikat "pierwszy raz" RAZ nad tabelą (tylko
+   przy pełnym braku historii).
+5. **Plan, rząd akcji dnia (MAJOR):** etykieta dnia wraca ZAWSZE (rzędy
+   "Cardio/Edytuj" pływały bez właściciela), kolor /70 zamiast /40, przyciski
+   min-h-11 (44px).
+6. **Plan, karta NASTĘPNY (minory):** play WEWNĄTRZ badge (samodzielny glif
+   afordował nieistniejącą akcję), tor paska obciążenia zawsze (wspólna
+   anatomia kart dnia).
+7. **Historia, sparkline (minor):** słupki rounded-[2px] jak artboard
+   (rounded-sm = 8px przez override skali robił pastylki).
+
+**Świadomie pominięte (minory, do decyzji właściciela):** kolizja sky vs cyjan
+cardio na wykresie obciążenia (sędzia dopuszcza akceptację jak dla akcentu
+gray); chłodny tint `--ec-set-number` numerów nieaktywnych serii (zamrożony
+kontrakt --ec-* z tokens.md §17 — kolejne audyty nie powinny zgłaszać).
+
+**Weryfikacja:** test 2086/2086, typecheck, lint (0 błędów; 2 zastane warningi
+admina), strażniki limonki + design-token-guard zielone; pętla wizualna
+3 iteracje (fix-r1-iter1, fix-r1-iter2 + zrzuty stanu REST z własnym seedem
+planu bez dzisiejszego dnia, finalny katalog `screens/fix-r1`: 5 tras × 4
+akcenty + home-rest lime/indigo). Skan pikselowy: zero limonki na obcych
+akcentach (trafienia heurystyki = złoto rozgrzewki --ec-warmup-gold i swatch
+limonki w pickerze akcentów Profilu — legalne).
+
 ### 2026-08-20: Redesign podsumowania treningu (fala 2, artboard workout-summary 1a)
 
 **Co:** Nowa prezentacja COMPLETED VIEW (WorkoutDay + WorkoutCompletionSequence
