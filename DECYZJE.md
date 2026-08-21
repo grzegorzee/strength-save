@@ -5,11 +5,26 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-20 (wydanie: kolor w onboardingu + paleta 11 + social-first login; web ChIQ6bbR, iOS 112, AAB v27)
+**Ostatnia aktualizacja:** 2026-08-21 (wydanie: fala naprawcza T1-T24 + redesign single accent + authDomain; web Crtcx1EU, iOS 113, AAB v28)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-21: MEGA-WYDANIE — authDomain, fala naprawcza T1-T24, redesign "single accent" (iOS 113 / AAB v28)
+
+**Co (3 strumienie jednej sesji):**
+1. **authDomain przełączony** na `auth.strengthsave.app` (cert + redirect URI Google potwierdzone monitorem, domena była w authorized domains; secrets env zmienione, web wdrożony; właściciel potwierdził działanie logowania).
+2. **Fala naprawcza T1-T24** (feedback pierwszego realnego użytkownika, `docs/FEEDBACK-UZYTKOWNIK-2026-08-20.md`): 11 obszarów wdrożonych przez workflow agentów (plany per obszar w `docs/plany-feedback-2026-08-20/`, wyniki w `WYNIKI-FALA1.md`). Skróty: onboarding (dni treningowe + notatka, chipy dat z dniem tygodnia, popup pomiarów po starcie), dashboard (karta pre-startu cyklu, tokeny akcentu, strażnik limonki, rozdzielenie success od akcentu), Strava (karta cardio tygodnia przed startem planu, mapowanie typów Walk/Run, redirect po połączeniu + sync ręczny tylko w Ustawieniach + rate-limit serwerowy, fix średniego tempa), Plan (fix procentu postępu z treningów, treningi na górze, notatki do przyszłego dnia + rules, design nagłówka), Analytics (fix overflow przycisków, CSV przez ExportWorkoutsDialog), pomiary (zdjęcia before/after: Storage+rules+kompresja+porównanie, admin toggle `bodyPhotos` pod Stravą), daty i18n (LocalizedDateInput + dateLocale + strażnik skanujący), kalendarz zakresów booking-style (RangeCalendar/DateRangeField w urlopie/eksporcie/historii), admin (treść maili w email_log + podgląd po kliknięciu + wszystkie typy maili + karta maili usera + filtry + spójność), powiadomienia (ogłoszenia push mirror do dzwonka + przełącznik w adminie), sweep UX (5 drobnych). Pominięte świadomie: T19 (mail pojedynczego treningu — decyzja właściciela), T23-6 (dedup tytułów — czeka na OK), etykieta totalDistance i mapowanie kalorii Strava (do osobnej decyzji).
+3. **Redesign "single accent"** wg projektu Claude Design właściciela (`docs/design-2026-08-20/`, źródła artboardów w `dc/`): fundament tokenów (zakaz color-mix — iOS 15 WKWebView; tinty `hsl(var(--primary)/0.1x)`; 5 klas pomocniczych; strażnik design-token-guard), 6 ekranów (Dashboard, Plan, Historia z cyklami jako poziomem nadrzędnym, Profil 1a, Sesja treningowa z ustawieniami timera pod tapem w pasek REST, Summary z BACK TO DASHBOARD h-14 = FINISH), pętla 3 rund sędziów (struktura/jeden akcent/funkcje; 7→4→4 zgłoszeń, wszystkie naprawione) + sędzia kontrolny: werdykt GOTOWE (pomiary pikselowe kontrastu, zero limonki na obcych akcentach, indigo z jasnym tekstem). Inwentarze funkcji (44+34+62+33+37+40 pozycji) odhaczone — nic nie zniknęło.
+
+**Artefakty:** web LIVE `index-Crtcx1EU.js` (app.strengthsave.app); backend fali 1 wdrożony (57 functions, firestore rules+indexes, storage rules; fala 2 bez zmian backendu); iOS 1.0.0(113) upload SUCCEEDED, VALID, whatsNew 200, grupa zewnętrzna 204, Beta App Review zgłoszony; AAB versionCode 28 `jar verified` SHA-256 `70d4a9a6a3f8c11d930ead90a8d7cf5cbf172d77f42b316fa2af9e98560d22d0`.
+
+**Bramki:** vitest 2087/2087 (268→279 plików w trakcie), rules 244/244, functions 327, e2e chromium 36/36, typecheck/lint/build/dist-smoke/bundle-budget/no-emoji zielone.
+
+**Czeka na właściciela:** (1) test TestFlight 113 na urządzeniu, w tym scenariusze background/resume i sekwencja przerwania — agenci nie mają urządzenia; (2) upload AAB v28 do Play Console; (3) akceptacja nowej zieleni success `#22c55e` (T24b, wdrożona wg planu bez potwierdzenia wizualnego właściciela); (4) test "Kontynuuj z Apple" na webie po zmianie authDomain (return URL Services ID); (5) decyzje odłożone: T23-6, etykieta totalDistance, kalorie Strava.
+
+**Root cause bugów z feedbacku (najciekawsze):** procent planu liczony z numeru tygodnia zamiast ukończonych treningów; spacery jako biegi przez zbyt wąskie mapowanie typów Strava; daty PL w EN przez `toLocaleDateString` bez `dateLocale(lang)`; mieszanie kolorów przez hardcode limonki i użycie `fitness-success` w roli akcentu.
 
 ### 2026-08-21: Fala 2, runda naprawcza r2 (werdykty 3 sędziów rundy 2)
 
