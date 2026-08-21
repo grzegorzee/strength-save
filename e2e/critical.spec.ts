@@ -104,7 +104,13 @@ test.describe('Critical Interactions', () => {
     // Naprawa r1 (2026-08-21): tytuł Historii niesie wyłącznie AppHeader (poza
     // main); etykieta zakładki jest krótka, żeby mieściła się w jednej linii.
     await expect(page.getByRole('heading', { name: 'Historia', exact: true })).toBeVisible();
-    // Fala 2: karta "Filtry" zastąpiona chipami statusu + ikoną filtrów (aria-label).
+    // WP-H (X28): poziom 1 = PERIOD + jeden Export; chipy statusu i ikona
+    // filtrów żyją w pełnej liście (?list=all).
+    await expect(page.getByTestId('history-period')).toBeVisible();
+    await expect(page.getByTestId('history-export')).toBeVisible();
+
+    await navigateAndWait(page, '/history?list=all');
+    await expectPageRendered(page);
     await expect(page.getByRole('button', { name: /^wszystkie$/i })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Filtry' })).toBeVisible();
   });

@@ -1,16 +1,22 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRightLeft, Download, History, Loader2, Mail, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ArrowRightLeft, CalendarRange, ChevronDown, ChevronRight, Download, History,
+  Loader2, Search, SlidersHorizontal, Trash2,
+} from 'lucide-react';
 import { EmailWorkoutDialog } from '@/components/EmailWorkoutDialog';
-import { ExportWorkoutsDialog } from '@/components/ExportWorkoutsDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { RangeCalendar } from '@/components/ui/range-calendar';
 import { DateRangeField } from '@/components/DateRangeField';
 import { Chip } from '@/components/kinetic/Chip';
 import { HeaderActions } from '@/components/HeaderActions';
 import { HistorySessionRow } from '@/components/history/HistorySessionRow';
-import { CycleCard } from '@/components/history/CycleCard';
+import { CycleTile } from '@/components/history/CycleTile';
+import { CycleDetailView, type CycleDetailStats } from '@/components/history/CycleDetailView';
+import { HistoryExportSheet } from '@/components/history/HistoryExportSheet';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useWorkoutHistoryPage } from '@/hooks/useWorkoutHistoryPage';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -21,7 +27,7 @@ import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildHistoryRowMeta } from '@/lib/history-stats';
 import { calculateTonnage, countWorkoutCompletedWorkingSets } from '@/lib/summary-utils';
 import {
-  assignWorkoutsToCycles, buildCycleSparkline, groupCycleWorkoutsByWeek, weekNoFor, windowCoversCycleStart,
+  assignWorkoutsToCycles, buildCycleSparkline, weekNoFor, windowCoversCycleStart,
 } from '@/lib/history-cycles';
 import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
@@ -42,8 +48,17 @@ import { useUnit } from '@/contexts/UnitContext';
 import type { PlanCycle } from '@/types/cycles';
 import type { WorkoutSession } from '@/types';
 
+// WP-H (X28), design-history-tiles.md: Historia v2 "tiles".
+// Poziom 1 (bez paramów): kafle cykli (sparkline, tag, PR) + PERIOD + jeden
+// Export + LATEST SESSIONS. Poziom 2 (?cycle=<id>|outside): CycleDetailView.
+// Pełna płaska lista (?list=all): wyszukiwarka + dotychczasowe filtry +
+// grupowanie miesiącami + paginacja. Dialogi (mail, delete, export sheet)
+// zamontowane ZAWSZE na poziomie strony — Radix zamyka się tylko przez
+// open=false, widoki przełączają się pod spodem.
+
 const WorkoutHistory = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
   const { uid, profile } = useCurrentUser();
@@ -51,8 +66,8 @@ const WorkoutHistory = () => {
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   // J-T2: wysyłka POJEDYNCZEGO treningu z wiersza Historii (mode='workout').
   const [emailWorkoutId, setEmailWorkoutId] = useState<string | null>(null);
-  // J-T5: eksport CSV z wyborem zakresu (ten sam dialog co w Ustawieniach).
-  const [showExportDialog, setShowExportDialog] = useState(false);
+  // WP-H: jeden Export (bottom sheet 2c) zamiast osobnych przycisków CSV/mail.
+  const [showExportSheet, setShowExportSheet] = useState(false);
   const { plan: trainingPlan } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const aggregate = useWorkoutAggregate(uid);
@@ -67,8 +82,6 @@ const WorkoutHistory = () => {
   const [pendingDelete, setPendingDelete] = useState<WorkoutSession | null>(null);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
-  // Fala 2: zwijane pola szukania/zakresu dat + tryb porównania (tap w wiersz = zaznacz).
-  const [searchOpen, setSearchOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
   const { toast } = useToast();
@@ -189,14 +202,7 @@ const WorkoutHistory = () => {
         ? 'history.sessionFew'
         : 'history.sessionMany');
 
-  const cycleWord = (n: number) =>
-    t(n === 1
-      ? 'history.cycleOne'
-      : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20))
-        ? 'history.cycleFew'
-        : 'history.cycleMany');
-
-  // ── Fala 2: cykle jako poziom nadrzędny listy ────────────────────────────────
+  // ── Cykle jako poziom nadrzędny (Fala 2) — w v2 jako kafle ────────────────
   const visibleCycles = useMemo(() => cycles.filter(isCycleVisibleWithData), [cycles]);
   const activeCycle = useMemo(
     () => visibleCycles.find((cycle) => cycle.status === 'active') ?? null,
@@ -214,7 +220,7 @@ const WorkoutHistory = () => {
     return new Map(sorted.map((cycle, index) => [cycle.id, index + 1]));
   }, [visibleCycles]);
 
-  // Przypisanie sesji do cykli: wiersze z listy PRZEFILTROWANEJ, staty/sparkline z pełnej.
+  // Przypisanie sesji do cykli: liczniki z listy PRZEFILTROWANEJ, sparkline z pełnej.
   const filteredAssignment = useMemo(
     () => assignWorkoutsToCycles(filteredWorkouts, visibleCycles),
     [filteredWorkouts, visibleCycles],
@@ -244,34 +250,19 @@ const WorkoutHistory = () => {
 
   const cycleFilteredSessions = (cycleId: string) => filteredAssignment.perCycle.get(cycleId) ?? [];
   const cycleLiveSessions = (cycleId: string) => liveAssignment.perCycle.get(cycleId) ?? [];
-  // Cykl z 0 sesji po filtrach: karta widoczna tylko bez aktywnych filtrów (mniej szumu).
-  const isCycleCardVisible = (cycleId: string) =>
+  // Kafel cyklu z 0 sesji po filtrach: widoczny tylko bez aktywnych filtrów.
+  const isCycleTileVisible = (cycleId: string) =>
     !filtersActive || cycleFilteredSessions(cycleId).length > 0;
-
-  const outsideByMonth = useMemo(() => {
-    const groups: { key: string; label: string; workouts: WorkoutSession[]; tonnage: number }[] = [];
-    const indexByKey = new Map<string, number>();
-    filteredAssignment.outside.forEach(workout => {
-      const key = workout.date.slice(0, 7);
-      let gi = indexByKey.get(key);
-      if (gi === undefined) {
-        const label = formatLocalDateLabel(workout.date, dateLocale(lang), { month: 'long', year: 'numeric' });
-        groups.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1), workouts: [], tonnage: 0 });
-        gi = groups.length - 1;
-        indexByKey.set(key, gi);
-      }
-      groups[gi].workouts.push(workout);
-      groups[gi].tonnage += calculateTonnage([workout]);
-    });
-    return groups;
-  }, [filteredAssignment.outside, lang]);
 
   const formatShortDate = (date: string) =>
     formatLocalDateLabel(date, dateLocale(lang), { day: 'numeric', month: 'short' }).replace('.', '');
 
-  // Aktywny cykl ma endDate '' aż do archiwizacji (usePlanCycles) — jak w CycleDetail.
+  // Aktywny cykl ma endDate '' aż do archiwizacji (usePlanCycles) — guard E-8UE4S:
+  // zakres kończy się na "teraz", formatery safe, zero crasha.
+  const cycleRangeOnly = (cycle: PlanCycle) =>
+    `${formatShortDate(cycle.startDate)} - ${cycle.endDate ? formatShortDate(cycle.endDate) : t('cycles.now')}`;
   const cycleRangeLabel = (cycle: PlanCycle) =>
-    `${formatShortDate(cycle.startDate)} - ${cycle.endDate ? formatShortDate(cycle.endDate) : t('cycles.now')} · ${t('history.weeksShort', { n: cycle.durationWeeks })}`;
+    `${cycleRangeOnly(cycle)} · ${t('history.weeksShort', { n: cycle.durationWeeks })}`;
 
   // Tonaż w linii licznika: bez filtrów agregat all-time (backend), inaczej suma
   // z załadowanej przefiltrowanej listy. Nigdy dane zmyślone.
@@ -279,6 +270,45 @@ const WorkoutHistory = () => {
     if (!filtersActive && aggregate) return aggregate.totals.totalTonnageKg;
     return calculateTonnage(filteredWorkouts);
   }, [aggregate, filteredWorkouts, filtersActive]);
+
+  // Licznik nagłówka = realna liczba sesji: bez filtrów agregat all-time,
+  // z filtrami długość przefiltrowanej listy.
+  const headerSessionCount = !filtersActive && aggregate
+    ? aggregate.totals.workoutCount
+    : filteredWorkouts.length;
+
+  // ── Widoki: kafle (default) / ?cycle= / ?list=all ─────────────────────────
+  const rawCycleParam = searchParams.get('cycle');
+  const detailCycle = rawCycleParam && rawCycleParam !== 'outside'
+    ? visibleCycles.find((cycle) => cycle.id === rawCycleParam) ?? null
+    : null;
+  const outsideSessions = useMemo(
+    () => [...liveAssignment.outside].sort((a, b) => b.date.localeCompare(a.date)),
+    [liveAssignment.outside],
+  );
+  // Nieznany ?cycle= => poziom 1 (edge 3).
+  const view: 'cycle' | 'outside' | 'list' | 'tiles' = detailCycle
+    ? 'cycle'
+    : rawCycleParam === 'outside'
+      ? 'outside'
+      : searchParams.get('list') === 'all' ? 'list' : 'tiles';
+
+  // Wejście/wyjście z poziomu 2 resetuje scroll (wzorzec /exercises).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [view, rawCycleParam]);
+
+  // Edge 4: wejście w przeszły cykl dociąga jego sesje (istniejący mechanizm).
+  useEffect(() => {
+    if (!detailCycle || detailCycle.status !== 'completed') return;
+    if (!windowCoversCycleStart(oldestLoadedDate, detailCycle, hasMore)) {
+      loadCycleSessions(detailCycle);
+    }
+  }, [detailCycle, oldestLoadedDate, hasMore, loadCycleSessions]);
+
+  const openTilesView = () => setSearchParams({});
+  const openListView = () => setSearchParams({ list: 'all' });
+  const openCycleView = (cycleId: string) => setSearchParams({ cycle: cycleId });
 
   const renderSessionRow = (workout: WorkoutSession, surface: 'low' | 'container', options?: { highlight?: boolean }) => {
     const dayLabel = resolver.resolveDayLabel(workout);
@@ -308,6 +338,25 @@ const WorkoutHistory = () => {
     );
   };
 
+  // Grupowanie pełnej listy miesiącami (dotychczasowy widok miesięczny).
+  const listByMonth = useMemo(() => {
+    const groups: { key: string; label: string; workouts: WorkoutSession[]; tonnage: number }[] = [];
+    const indexByKey = new Map<string, number>();
+    filteredWorkouts.forEach(workout => {
+      const key = workout.date.slice(0, 7);
+      let gi = indexByKey.get(key);
+      if (gi === undefined) {
+        const label = formatLocalDateLabel(workout.date, dateLocale(lang), { month: 'long', year: 'numeric' });
+        groups.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1), workouts: [], tonnage: 0 });
+        gi = groups.length - 1;
+        indexByKey.set(key, gi);
+      }
+      groups[gi].workouts.push(workout);
+      groups[gi].tonnage += calculateTonnage([workout]);
+    });
+    return groups;
+  }, [filteredWorkouts, lang]);
+
   if (!isLoaded) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -319,142 +368,475 @@ const WorkoutHistory = () => {
   const activeCoversStart = activeCycle
     ? windowCoversCycleStart(oldestLoadedDate, activeCycle, hasMore)
     : false;
-  const hasCycleCards = (activeCycle !== null && isCycleCardVisible(activeCycle.id))
-    || pastCycles.some((cycle) => isCycleCardVisible(cycle.id));
+  const currentWeekNo = activeCycle && todayStr >= activeCycle.startDate
+    ? weekNoFor(todayStr, activeCycle)
+    : null;
+
+  // Sparkline = kształt CAŁEGO cyklu (edge 2): tylko gdy okno danych pokrywa
+  // cykl, a PERIOD/status nie wycinają sesji z fetchu — inaczej wykres kłamie.
+  const periodCoversRange = (startDate: string, endDate: string) =>
+    (!fromDate || fromDate <= startDate) && (!toDate || toDate >= endDate);
+  const activeSparkline = activeCycle && activeCoversStart && selectedStatus === 'all'
+    && periodCoversRange(activeCycle.startDate, todayStr)
+    ? buildCycleSparkline(activeCycle, cycleLiveSessions(activeCycle.id))
+    : null;
+  const pastSparkline = (cycle: PlanCycle) => {
+    const covered = windowCoversCycleStart(oldestLoadedDate, cycle, hasMore)
+      || cycleSessionEntries[cycle.id]?.status === 'loaded';
+    if (!covered || selectedStatus !== 'all' || !periodCoversRange(cycle.startDate, cycle.endDate)) return null;
+    return buildCycleSparkline(cycle, cycleLiveSessions(cycle.id));
+  };
+
+  // Liczniki kafla: bez filtrów staty all-time cyklu, z filtrami (PERIOD itd.)
+  // uczciwa suma z przefiltrowanej załadowanej listy.
+  const tileStats = (cycleId: string, allTime: { sessions: number; tonnageKg: number; prs: number }) => {
+    if (!filtersActive) return allTime;
+    const sessions = cycleFilteredSessions(cycleId);
+    return {
+      sessions: sessions.length,
+      tonnageKg: calculateTonnage(sessions),
+      prs: sessions.reduce((acc, workout) => acc + (rowMeta.get(workout.id)?.prCount ?? 0), 0),
+    };
+  };
+  const tileMetaLabel = (stats: { sessions: number; tonnageKg: number }) =>
+    `${stats.sessions} · ${formatTonnage(stats.tonnageKg, unit)}`;
+
+  const pastAllTimeStats = (cycle: PlanCycle) => {
+    const covered = windowCoversCycleStart(oldestLoadedDate, cycle, hasMore)
+      || cycleSessionEntries[cycle.id]?.status === 'loaded';
+    const stats = covered ? withLiveCompletedStats(cycle, liveSessions).stats : cycle.stats;
+    return { sessions: stats.totalWorkouts, tonnageKg: stats.totalTonnage, prs: stats.prs.length };
+  };
+
+  const outsideFiltered = filteredAssignment.outside;
+  const outsideStats = {
+    sessions: outsideFiltered.length,
+    tonnageKg: calculateTonnage(outsideFiltered),
+    prs: outsideFiltered.reduce((acc, workout) => acc + (rowMeta.get(workout.id)?.prCount ?? 0), 0),
+  };
+
+  const latestSessions = filteredWorkouts.slice(0, 3);
+
+  const periodSet = fromDate !== '' || toDate !== '';
+  const periodLabel = periodSet
+    ? `${fromDate ? formatShortDate(fromDate) : '…'} - ${toDate ? formatShortDate(toDate) : t('cycles.now')}`
+    : t('history.scopeAll');
+
+  // ── Widok cyklu (poziom 2): dane dla CycleDetailView ──────────────────────
+  const detailSessions = view === 'cycle' && detailCycle
+    ? [...cycleLiveSessions(detailCycle.id)].sort((a, b) => b.date.localeCompare(a.date))
+    : outsideSessions;
+  const detailStats: CycleDetailStats = (() => {
+    if (view === 'cycle' && detailCycle) {
+      if (detailCycle.status === 'active' && liveActiveCycle) {
+        return {
+          sessions: liveActiveCycle.stats.totalWorkouts,
+          tonnageKg: liveActiveCycle.stats.totalTonnage,
+          prs: liveActiveCycle.stats.prs.length,
+          attendance: liveActiveCycle.stats.completionRate,
+        };
+      }
+      const covered = windowCoversCycleStart(oldestLoadedDate, detailCycle, hasMore)
+        || cycleSessionEntries[detailCycle.id]?.status === 'loaded';
+      const stats = covered ? withLiveCompletedStats(detailCycle, liveSessions).stats : detailCycle.stats;
+      return {
+        sessions: stats.totalWorkouts,
+        tonnageKg: stats.totalTonnage,
+        prs: stats.prs.length,
+        attendance: stats.completionRate,
+      };
+    }
+    return {
+      sessions: outsideSessions.length,
+      tonnageKg: calculateTonnage(outsideSessions),
+      prs: outsideSessions.reduce((acc, workout) => acc + (rowMeta.get(workout.id)?.prCount ?? 0), 0),
+      attendance: null,
+    };
+  })();
+
+  const comparisonCard = comparison && (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <ArrowRightLeft className="h-4 w-4 text-primary" />
+          {t('history.compareTwo')}
+        </CardTitle>
+        <CardDescription>
+          {comparison.first.date} vs {comparison.second.date}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-lg bg-background/70 p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.tonnage')}</p>
+          <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.tonnageDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(toDisplay(comparison.tonnageDelta))).toLocaleString(dateLocale(lang))} {unit}</p>
+        </div>
+        <div className="rounded-lg bg-background/70 p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.completedSets')}</p>
+          <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.setDelta >= 0 ? '+' : ''}{comparison.setDelta}</p>
+        </div>
+        <div className="rounded-lg bg-background/70 p-3">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.exercises')}</p>
+          <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.exerciseDelta >= 0 ? '+' : ''}{comparison.exerciseDelta}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const hasAnyTile = (activeCycle !== null && isCycleTileVisible(activeCycle.id))
+    || pastCycles.some((cycle) => isCycleTileVisible(cycle.id))
+    || outsideStats.sessions > 0;
 
   return (
     <div className="space-y-6">
-      {/* Naprawa r2 (2026-08-21, sędzia struktury): kafle lupy i filtrów wracają
-          do RZĘDU HEADERA (artboard 1a: avatar + HISTORY + lupa + filtr w jednej
-          linii) — osobny rząd zostawiał pusty pas pod headerem. */}
-      <HeaderActions>
-        <button
-          type="button"
-          aria-label={t('history.search')}
-          onClick={() => setSearchOpen((prev) => !prev)}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-container text-foreground/80"
-        >
-          <Search className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          aria-label={t('history.filters')}
-          onClick={() => setFiltersOpen((prev) => !prev)}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-container text-foreground/80"
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-        </button>
-      </HeaderActions>
-
-      <div className="space-y-2">
-        {(searchOpen || searchQuery !== '') && (
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={t('history.searchPlaceholder')}
-              className="pl-9"
-            />
-          </div>
-        )}
-
-        {/* Status — chipy. Naprawa r3 (sędzia struktury): jeden zwarty rząd
-            przewijany poziomo jak rząd dni (artboard 1a) zamiast zawijania
-            "Tylko z PR" do drugiej linii na 390 px. */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <Chip className="shrink-0" active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
-          <Chip className="shrink-0" active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
-          <Chip className="shrink-0" active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
-          <Chip className="shrink-0" active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
-        </div>
-
-        {/* Dzień planu — chipy (scroll wewnątrz kontenera, strona bez h-scrolla) */}
-        {trainingPlan.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            <Chip className="shrink-0" active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
-            {trainingPlan.map(day => (
-              <Chip key={day.id} className="shrink-0" active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
-                {localizeDayName(day.dayName, lang)}
-              </Chip>
-            ))}
-          </div>
-        )}
-
-        {/* Zakres dat — T20.5: kalendarz booking-style; zwijany pod ikoną filtrów */}
-        {(filtersOpen || fromDate !== '' || toDate !== '') && (
-          <DateRangeField
-            value={{ from: fromDate || null, to: toDate || null }}
-            onChange={(next) => {
-              setFromDate(next.from ?? '');
-              setToDate(next.to ?? '');
-            }}
-            testId="history-date-range"
-          />
-        )}
-
-        {/* Rząd akcji: tryb porównania + wysyłka historii + eksport CSV.
-            Naprawa r3 (sędzia struktury): jeden rząd pigułek JEDNEJ wysokości
-            w stylu chip-mono (artboard 1a) z przewijaniem poziomym — zamiast
-            dwóch wierszy pigułek o różnej wielkości. */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1">
-          <Chip className="shrink-0" active={compareMode} onClick={() => setCompareMode((prev) => !prev)}>
-            {t('history.compare')}
-          </Chip>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 rounded-full border-0 bg-surface-highest px-4 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground"
-            onClick={() => setShowEmailDialog(true)}
-            data-testid="history-email"
+      {/* Header (design 2a): na poziomie 1 licznik sesji zamiast lupy; lupa i
+          filtry żyją w pełnej liście (?list=all). */}
+      {view === 'tiles' && (
+        <HeaderActions>
+          <span className="eyebrow-mono text-muted-foreground">
+            {headerSessionCount} {sessionWord(headerSessionCount)}
+          </span>
+        </HeaderActions>
+      )}
+      {view === 'list' && (
+        <HeaderActions>
+          <button
+            type="button"
+            aria-label={t('history.filters')}
+            onClick={() => setFiltersOpen((prev) => !prev)}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-surface-container text-foreground/80"
           >
-            <Mail className="mr-1.5 h-3.5 w-3.5" />
-            {t('email.sendToCoach')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 rounded-full border-0 bg-surface-highest px-4 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground"
-            onClick={() => setShowExportDialog(true)}
-            data-testid="history-export-csv"
-          >
-            <Download className="mr-1.5 h-3.5 w-3.5" />
-            {t('exportCsv.historyButton')}
-          </Button>
-        </div>
-        {(compareMode || compareIds.length > 0) && (
-          <p className="text-xs text-muted-foreground">{t('history.compareHint')}</p>
-        )}
-      </div>
-
-      {comparison && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4 text-primary" />
-              {t('history.compareTwo')}
-            </CardTitle>
-            <CardDescription>
-              {comparison.first.date} vs {comparison.second.date}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-lg bg-background/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.tonnage')}</p>
-              <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.tonnageDelta >= 0 ? '+' : '−'}{Math.abs(Math.round(toDisplay(comparison.tonnageDelta))).toLocaleString(dateLocale(lang))} {unit}</p>
-            </div>
-            <div className="rounded-lg bg-background/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.completedSets')}</p>
-              <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.setDelta >= 0 ? '+' : ''}{comparison.setDelta}</p>
-            </div>
-            <div className="rounded-lg bg-background/70 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{t('history.exercises')}</p>
-              <p className="mt-1 text-xl font-heading font-bold tabular-nums">{comparison.exerciseDelta >= 0 ? '+' : ''}{comparison.exerciseDelta}</p>
-            </div>
-          </CardContent>
-        </Card>
+            <SlidersHorizontal className="h-4 w-4" />
+          </button>
+        </HeaderActions>
       )}
 
+      {/* ═══ POZIOM 1: kafle cykli ═══ */}
+      {view === 'tiles' && (
+        <>
+          <div className="flex gap-2">
+            {/* PERIOD: zakres dat poziomu 1 (filtruje liczniki kafli i LATEST). */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  data-testid="history-period"
+                  className="flex h-[46px] min-w-0 flex-1 items-center gap-2.5 rounded-[14px] bg-surface-high px-3 text-left"
+                >
+                  <CalendarRange className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                      {t('history.period')}
+                    </span>
+                    <span className="block truncate text-[13px]">{periodLabel}</span>
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground/60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3" align="start">
+                <RangeCalendar
+                  value={{ from: fromDate || null, to: toDate || null }}
+                  onChange={(next) => {
+                    setFromDate(next.from ?? '');
+                    setToDate(next.to ?? '');
+                  }}
+                  testId="history-period-calendar"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  data-testid="history-period-clear"
+                  className="mt-1 w-full"
+                  onClick={() => {
+                    setFromDate('');
+                    setToDate('');
+                  }}
+                >
+                  {t('range.clear')}
+                </Button>
+              </PopoverContent>
+            </Popover>
+            {/* Jeden Export: bottom sheet 2c (PDF / CSV / do trenera). */}
+            <button
+              type="button"
+              data-testid="history-export"
+              onClick={() => setShowExportSheet(true)}
+              className="flex h-[46px] shrink-0 items-center gap-2 rounded-[14px] bg-primary/15 px-4 text-[13px] font-semibold text-primary"
+            >
+              <Download className="h-4 w-4" />
+              {t('history.export')}
+            </button>
+          </div>
+
+          {comparisonCard}
+
+          {hasAnyTile && (
+            <div className="grid grid-cols-2 gap-2.5">
+              {activeCycle && liveActiveCycle && isCycleTileVisible(activeCycle.id) && (
+                <CycleTile
+                  name={t('history.cycleN', { n: cycleNumberById.get(activeCycle.id) ?? 1 })}
+                  tag={currentWeekNo !== null
+                    ? t('history.tileActiveTag', { n: currentWeekNo })
+                    : t('history.activeBadge')}
+                  tagAccent
+                  prCount={tileStats(activeCycle.id, {
+                    sessions: liveActiveCycle.stats.totalWorkouts,
+                    tonnageKg: liveActiveCycle.stats.totalTonnage,
+                    prs: liveActiveCycle.stats.prs.length,
+                  }).prs}
+                  prLabel={t('history.tilePRs', {
+                    n: tileStats(activeCycle.id, {
+                      sessions: liveActiveCycle.stats.totalWorkouts,
+                      tonnageKg: liveActiveCycle.stats.totalTonnage,
+                      prs: liveActiveCycle.stats.prs.length,
+                    }).prs,
+                  })}
+                  sparkline={activeSparkline}
+                  currentWeekNo={currentWeekNo}
+                  metaLabel={tileMetaLabel(tileStats(activeCycle.id, {
+                    sessions: liveActiveCycle.stats.totalWorkouts,
+                    tonnageKg: liveActiveCycle.stats.totalTonnage,
+                    prs: liveActiveCycle.stats.prs.length,
+                  }))}
+                  rangeLabel={cycleRangeOnly(activeCycle)}
+                  variant="active"
+                  onOpen={() => openCycleView(activeCycle.id)}
+                />
+              )}
+              {pastCycles.filter((cycle) => isCycleTileVisible(cycle.id)).map((cycle) => {
+                const stats = tileStats(cycle.id, pastAllTimeStats(cycle));
+                return (
+                  <CycleTile
+                    key={cycle.id}
+                    name={t('history.cycleN', { n: cycleNumberById.get(cycle.id) ?? 1 })}
+                    tag={t('history.weeksShort', { n: cycle.durationWeeks })}
+                    prCount={stats.prs}
+                    prLabel={t('history.tilePRs', { n: stats.prs })}
+                    sparkline={pastSparkline(cycle)}
+                    metaLabel={tileMetaLabel(stats)}
+                    rangeLabel={cycleRangeOnly(cycle)}
+                    variant="past"
+                    onOpen={() => openCycleView(cycle.id)}
+                  />
+                );
+              })}
+              {/* Niezmiennik: KAŻDA sesja osiągalna — sesje bez cyklu mają kafel. */}
+              {outsideStats.sessions > 0 && (
+                <CycleTile
+                  name={t('history.outsideCycles')}
+                  tag={null}
+                  prCount={outsideStats.prs}
+                  prLabel={t('history.tilePRs', { n: outsideStats.prs })}
+                  sparkline={null}
+                  metaLabel={tileMetaLabel(outsideStats)}
+                  rangeLabel={null}
+                  variant="outside"
+                  onOpen={() => openCycleView('outside')}
+                />
+              )}
+            </div>
+          )}
+
+          {/* LATEST SESSIONS: 3 najnowsze + wejście do pełnej listy. */}
+          {latestSessions.length > 0 && (
+            <div className="space-y-2" data-testid="history-latest">
+              <p className="eyebrow-mono text-muted-foreground">{t('history.latestSessions')}</p>
+              <div className="space-y-2 rounded-[20px] bg-surface-low p-3">
+                {latestSessions.map((workout) => renderSessionRow(workout, 'container'))}
+                <button
+                  type="button"
+                  data-testid="history-all-sessions-link"
+                  onClick={openListView}
+                  className="flex w-full items-center justify-center gap-1 py-2 text-[12.5px] font-semibold text-primary"
+                >
+                  {t('history.allSessionsNewest', { n: headerSessionCount })}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {filteredWorkouts.length === 0 && (
+            workouts.length === 0 && visibleCycles.length === 0 ? (
+              // Z82: zero sesji w ogóle = zaproszenie do pierwszego treningu.
+              <EmptyState
+                icon={History}
+                imageUrl={getEmptyStateImageUrl('history')}
+                title={t('history.emptyNoWorkouts')}
+                ctaLabel={t('empty.startFirstWorkout')}
+                onCta={() => navigate('/')}
+              />
+            ) : workouts.length === 0 ? null : (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  {t('history.empty')}
+                </CardContent>
+              </Card>
+            )
+          )}
+        </>
+      )}
+
+      {/* ═══ POZIOM 2: widok cyklu / poza cyklami ═══ */}
+      {(view === 'cycle' || view === 'outside') && (
+        <>
+          {comparisonCard}
+          {(compareMode || compareIds.length > 0) && (
+            <p className="text-xs text-muted-foreground">{t('history.compareHint')}</p>
+          )}
+          <CycleDetailView
+            title={view === 'cycle' && detailCycle
+              ? t('history.cycleN', { n: cycleNumberById.get(detailCycle.id) ?? 1 })
+              : t('history.outsideCycles')}
+            isActive={view === 'cycle' && detailCycle?.status === 'active'}
+            rangeLabel={view === 'cycle' && detailCycle ? cycleRangeLabel(detailCycle) : ''}
+            stats={detailStats}
+            cycle={view === 'cycle' ? detailCycle : null}
+            sessions={detailSessions}
+            todayStr={todayStr}
+            prCountOf={(id) => rowMeta.get(id)?.prCount ?? 0}
+            compareMode={compareMode}
+            lazyStatus={view === 'cycle' && detailCycle
+              ? cycleSessionEntries[detailCycle.id]?.status ?? 'idle'
+              : 'idle'}
+            canLoadOlder={view === 'cycle' && detailCycle?.status === 'active' && hasMore && !activeCoversStart}
+            isLoadingMore={isLoadingMore}
+            onLoadOlder={loadMore}
+            onRetryLazy={() => { if (detailCycle) loadCycleSessions(detailCycle, { force: true }); }}
+            onBack={openTilesView}
+            onToggleCompareMode={() => setCompareMode((prev) => !prev)}
+            onEmailHistory={() => setShowEmailDialog(true)}
+            onAllSessions={openListView}
+            renderRow={(workout, options) => renderSessionRow(workout, 'low', options)}
+          />
+        </>
+      )}
+
+      {/* ═══ Pełna płaska lista (?list=all): wyszukiwarka + filtry + miesiące ═══ */}
+      {view === 'list' && (
+        <>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              aria-label={t('history.backToHistory')}
+              data-testid="history-list-back"
+              onClick={openTilesView}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-surface-high text-foreground/80"
+            >
+              <ChevronRight className="h-4 w-4 rotate-180" />
+            </button>
+            <h2 className="font-heading text-lg font-bold uppercase tracking-tight">
+              {t('history.allSessionsTitle')}
+            </h2>
+          </div>
+
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={t('history.searchPlaceholder')}
+                className="pl-9"
+              />
+            </div>
+
+            {/* Status — chipy w jednym przewijanym rzędzie. */}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <Chip className="shrink-0" active={selectedStatus === 'all'} onClick={() => setSelectedStatus('all')}>{t('history.allShort')}</Chip>
+              <Chip className="shrink-0" active={selectedStatus === 'completed'} onClick={() => setSelectedStatus('completed')}>{t('history.completed')}</Chip>
+              <Chip className="shrink-0" active={selectedStatus === 'draft'} onClick={() => setSelectedStatus('draft')}>{t('history.drafts')}</Chip>
+              <Chip className="shrink-0" active={onlyPRs} onClick={() => setOnlyPRs((prev) => !prev)}>{t('history.onlyPRs')}</Chip>
+              <Chip className="shrink-0" active={compareMode} onClick={() => setCompareMode((prev) => !prev)}>
+                {t('history.compare')}
+              </Chip>
+            </div>
+
+            {/* Dzień planu — chipy (scroll wewnątrz kontenera, strona bez h-scrolla) */}
+            {trainingPlan.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <Chip className="shrink-0" active={selectedDay === 'all'} onClick={() => setSelectedDay('all')}>{t('history.allDays')}</Chip>
+                {trainingPlan.map(day => (
+                  <Chip key={day.id} className="shrink-0" active={selectedDay === day.id} onClick={() => setSelectedDay(day.id)}>
+                    {localizeDayName(day.dayName, lang)}
+                  </Chip>
+                ))}
+              </div>
+            )}
+
+            {/* Zakres dat — T20.5: kalendarz booking-style; zwijany pod ikoną filtrów */}
+            {(filtersOpen || fromDate !== '' || toDate !== '') && (
+              <DateRangeField
+                value={{ from: fromDate || null, to: toDate || null }}
+                onChange={(next) => {
+                  setFromDate(next.from ?? '');
+                  setToDate(next.to ?? '');
+                }}
+                testId="history-date-range"
+              />
+            )}
+
+            {(compareMode || compareIds.length > 0) && (
+              <p className="text-xs text-muted-foreground">{t('history.compareHint')}</p>
+            )}
+          </div>
+
+          {comparisonCard}
+
+          {/* Linia licznika: sesje + tonaż (bez filtrów = agregat backendowy). */}
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="eyebrow-mono text-muted-foreground">
+              {headerSessionCount} {sessionWord(headerSessionCount)}
+            </span>
+            <span className="eyebrow-mono text-muted-foreground">
+              {/* Tonaż małymi literami ("13.7 t"), wersaliki tylko w etykiecie. */}
+              {t('history.tonnage')} <span className="normal-case">{formatTonnage(summaryTonnageKg, unit)}</span>
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {listByMonth.map((group) => (
+              <div key={group.key} className="space-y-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h2 className="font-heading font-bold uppercase tracking-tight">{group.label}</h2>
+                  <span className="eyebrow-mono text-muted-foreground">
+                    {group.workouts.length} {sessionWord(group.workouts.length)} ·{' '}
+                    <span className="normal-case">{formatTonnage(group.tonnage, unit)}</span>
+                  </span>
+                </div>
+                {group.workouts.map((workout) => renderSessionRow(workout, 'low'))}
+              </div>
+            ))}
+
+            {hasMore && (
+              <div className="flex justify-center">
+                <Button variant="outline" className="rounded-full" onClick={loadMore} disabled={isLoadingMore}>
+                  {isLoadingMore ? t('common.loading') : t('common.loadMore')}
+                </Button>
+              </div>
+            )}
+
+            {filteredWorkouts.length === 0 && (
+              workouts.length === 0 ? (
+                <EmptyState
+                  icon={History}
+                  imageUrl={getEmptyStateImageUrl('history')}
+                  title={t('history.emptyNoWorkouts')}
+                  ctaLabel={t('empty.startFirstWorkout')}
+                  onCta={() => navigate('/')}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    {t('history.empty')}
+                  </CardContent>
+                </Card>
+              )
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ═══ Dialogi i sheet — zamontowane ZAWSZE (Radix: open=false) ═══ */}
       <EmailWorkoutDialog
         open={showEmailDialog}
         onOpenChange={setShowEmailDialog}
@@ -472,126 +854,20 @@ const WorkoutHistory = () => {
         workoutId={emailWorkoutId ?? undefined}
         initialEmail={profile?.preferences?.trainerEmail}
       />
-      {/* J-T5: eksport CSV z wyborem zakresu. */}
-      <ExportWorkoutsDialog
-        open={showExportDialog}
-        onOpenChange={setShowExportDialog}
+      <HistoryExportSheet
+        open={showExportSheet}
+        onOpenChange={setShowExportSheet}
         uid={uid}
-        cycles={cycles}
+        displayName={profile?.displayName || ''}
+        period={periodSet ? { from: fromDate, to: toDate } : null}
+        periodLabel={periodSet ? periodLabel : null}
+        activeCycleRange={activeCycle
+          ? { fromDate: activeCycle.startDate, toDate: activeCycle.endDate || todayStr }
+          : null}
+        activeCycleLabel={activeCycle ? cycleRangeOnly(activeCycle) : null}
+        trainerEmail={profile?.preferences?.trainerEmail}
+        onSendToCoach={() => setShowEmailDialog(true)}
       />
-
-      {/* Linia licznika: cykle · sesje + tonaż */}
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="eyebrow-mono text-muted-foreground">
-          {visibleCycles.length > 0 && `${visibleCycles.length} ${cycleWord(visibleCycles.length)} · `}
-          {filteredWorkouts.length} {sessionWord(filteredWorkouts.length)}
-        </span>
-        <span className="eyebrow-mono text-muted-foreground">
-          {/* Tonaż małymi literami ("13.7 t"), wersaliki tylko w etykiecie — lekcja Dashboardu. */}
-          {t('history.tonnage')} <span className="normal-case">{formatTonnage(summaryTonnageKg, unit)}</span>
-        </span>
-      </div>
-
-      <div className="space-y-4">
-        {/* Karta AKTYWNEGO cyklu */}
-        {activeCycle && liveActiveCycle && isCycleCardVisible(activeCycle.id) && (
-          <CycleCard
-            title={t('history.cycleN', { n: cycleNumberById.get(activeCycle.id) ?? 1 })}
-            rangeLabel={cycleRangeLabel(activeCycle)}
-            variant="active"
-            stats={{
-              sessions: liveActiveCycle.stats.totalWorkouts,
-              tonnageKg: liveActiveCycle.stats.totalTonnage,
-              prs: liveActiveCycle.stats.prs.length,
-              attendance: liveActiveCycle.stats.completionRate,
-            }}
-            sparkline={activeCoversStart
-              ? buildCycleSparkline(activeCycle, cycleLiveSessions(activeCycle.id))
-              : null}
-            currentWeekNo={todayStr >= activeCycle.startDate ? weekNoFor(todayStr, activeCycle) : null}
-            weeks={groupCycleWorkoutsByWeek(activeCycle, cycleFilteredSessions(activeCycle.id), todayStr)}
-            totalSessions={cycleLiveSessions(activeCycle.id).length}
-            renderRow={(workout, options) => renderSessionRow(workout, 'low', options)}
-            canLoadOlder={hasMore && !activeCoversStart}
-            onLoadOlder={loadMore}
-          />
-        )}
-
-        {/* Karty PRZESZŁYCH cykli (zwinięte; rozwinięcie dociąga sesje spoza okna) */}
-        {pastCycles.filter((cycle) => isCycleCardVisible(cycle.id)).map((cycle) => {
-          const covered = windowCoversCycleStart(oldestLoadedDate, cycle, hasMore)
-            || cycleSessionEntries[cycle.id]?.status === 'loaded';
-          const stats = covered ? withLiveCompletedStats(cycle, liveSessions).stats : cycle.stats;
-          return (
-            <CycleCard
-              key={cycle.id}
-              title={t('history.cycleN', { n: cycleNumberById.get(cycle.id) ?? 1 })}
-              rangeLabel={cycleRangeLabel(cycle)}
-              variant="past"
-              stats={{
-                sessions: stats.totalWorkouts,
-                tonnageKg: stats.totalTonnage,
-                prs: stats.prs.length,
-                attendance: stats.completionRate,
-              }}
-              sparkline={null}
-              currentWeekNo={null}
-              weeks={groupCycleWorkoutsByWeek(cycle, cycleFilteredSessions(cycle.id), todayStr)}
-              totalSessions={cycleLiveSessions(cycle.id).length}
-              renderRow={(workout, options) => renderSessionRow(workout, 'container', options)}
-              lazyStatus={cycleSessionEntries[cycle.id]?.status ?? 'idle'}
-              onExpand={() => {
-                if (!windowCoversCycleStart(oldestLoadedDate, cycle, hasMore)) loadCycleSessions(cycle);
-              }}
-              onRetryLazy={() => loadCycleSessions(cycle, { force: true })}
-            />
-          );
-        })}
-
-        {/* Sesje poza cyklami: grupowanie miesięczne (fallback = cała lista bez cykli) */}
-        {outsideByMonth.length > 0 && hasCycleCards && (
-          <p className="eyebrow-mono pt-2 text-muted-foreground">{t('history.outsideCycles')}</p>
-        )}
-        {outsideByMonth.map((group) => (
-          <div key={group.key} className="space-y-2">
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-heading font-bold uppercase tracking-tight">{group.label}</h2>
-              <span className="eyebrow-mono text-muted-foreground">
-                {group.workouts.length} {sessionWord(group.workouts.length)} ·{' '}
-                <span className="normal-case">{formatTonnage(group.tonnage, unit)}</span>
-              </span>
-            </div>
-            {group.workouts.map((workout) => renderSessionRow(workout, 'low'))}
-          </div>
-        ))}
-
-        {hasMore && (
-          <div className="flex justify-center">
-            <Button variant="outline" className="rounded-full" onClick={loadMore} disabled={isLoadingMore}>
-              {isLoadingMore ? t('common.loading') : t('common.loadMore')}
-            </Button>
-          </div>
-        )}
-
-        {filteredWorkouts.length === 0 && (
-          workouts.length === 0 ? (
-            // Z82: zero sesji w ogóle = zaproszenie do pierwszego treningu, nie komunikat o filtrach.
-            <EmptyState
-              icon={History}
-              imageUrl={getEmptyStateImageUrl('history')}
-              title={t('history.emptyNoWorkouts')}
-              ctaLabel={t('empty.startFirstWorkout')}
-              onCta={() => navigate('/')}
-            />
-          ) : (
-            <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">
-                {t('history.empty')}
-              </CardContent>
-            </Card>
-          )
-        )}
-      </div>
 
       <AlertDialog open={pendingDelete !== null} onOpenChange={(open) => { if (!open) setPendingDelete(null); }}>
         <AlertDialogContent data-testid="history-delete-dialog">

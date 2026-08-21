@@ -166,6 +166,8 @@ const ROUTES: SmokeRoute[] = [
   { name: '/', entry: '/', pattern: '/', Component: Dashboard as () => JSX.Element },
   { name: '/plan', entry: '/plan', pattern: '/plan', Component: TrainingPlanPage as () => JSX.Element },
   { name: '/history', entry: '/history', pattern: '/history', Component: WorkoutHistory as () => JSX.Element },
+  // WP-H (X28): pełna płaska lista Historii jako osobna powierzchnia.
+  { name: '/history?list=all', entry: '/history?list=all', pattern: '/history', Component: WorkoutHistory as () => JSX.Element },
   { name: '/achievements', entry: '/achievements', pattern: '/achievements', Component: Achievements as () => JSX.Element },
   { name: '/exercises', entry: '/exercises', pattern: '/exercises', Component: ExerciseLibrary as () => JSX.Element },
   { name: '/exercises?group=chest', entry: '/exercises?group=chest', pattern: '/exercises', Component: ExerciseLibrary as () => JSX.Element },

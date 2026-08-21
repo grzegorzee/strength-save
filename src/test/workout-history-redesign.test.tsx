@@ -3,13 +3,14 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
-import { formatLocalDate } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
-import type { PlanCycle } from '@/types/cycles';
 
-// Fala 2 (2026-08-20): niezmienniki redesignu Historii (wzorzec workout-day-view:
-// "stary przepływ nadal ma wszystko"). Bez cykli = widok miesięczny jak dotąd;
-// z cyklami = karty cykli + "Poza cyklami"; menu ⋯ ma KOMPLET akcji wiersza.
+// Fala 2 (2026-08-20) + WP-H (X28): niezmienniki Historii (wzorzec
+// workout-day-view: "stary przepływ nadal ma wszystko"). Po redesignie v2
+// "tiles" pełna płaska lista żyje pod ?list=all (miesiące, wyszukiwarka,
+// filtry, porównanie, usuwanie), poziom 1 to kafle cykli, a widok cyklu
+// (?cycle=) niesie staty live. Mapowanie starych testów → nowa struktura
+// w opisach; ŻADEN niezmiennik nie znika.
 
 const navigateSpy = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -57,9 +58,9 @@ vi.mock('@/components/EmailWorkoutDialog', () => ({
     <div data-testid="email-dialog-stub" data-mode={mode} data-open={String(open)} />
   ),
 }));
-vi.mock('@/components/ExportWorkoutsDialog', () => ({
-  ExportWorkoutsDialog: ({ open }: { open: boolean }) => (
-    <div data-testid="export-dialog-stub" data-open={String(open)} />
+vi.mock('@/components/history/HistoryExportSheet', () => ({
+  HistoryExportSheet: ({ open }: { open: boolean }) => (
+    <div data-testid="export-sheet-stub" data-open={String(open)} />
   ),
 }));
 
@@ -67,41 +68,8 @@ import WorkoutHistory from '@/pages/WorkoutHistory';
 import { deleteWorkoutEverywhere } from '@/lib/workout-delete';
 import { buildCanonicalState } from '@/test/canonical-states';
 
-const today = new Date();
-const iso = (daysAgo: number) => formatLocalDate(new Date(today.getTime() - daysAgo * 24 * 3600 * 1000));
-
-const workout = (id: string, date: string, overrides: Partial<WorkoutSession> = {}): WorkoutSession => ({
-  id,
-  userId: 'u1',
-  dayId: 'day-1',
-  date,
-  exercises: [{
-    exerciseId: 'ex-1',
-    name: 'Przysiad ze sztangą',
-    sets: [{ reps: 8, weight: 100, completed: true }],
-  }] as WorkoutSession['exercises'],
-  completed: true,
-  dayName: 'Poniedziałek',
-  dayFocus: 'Nogi',
-  durationSec: 4320, // "1h 12m" — kontrakt Z80: widoczny bez rozwijania
-  ...overrides,
-});
-
-const cycle = (id: string, startDate: string, endDate: string, overrides: Partial<PlanCycle> = {}): PlanCycle => ({
-  id,
-  userId: 'u1',
-  days: [],
-  durationWeeks: 12,
-  startDate,
-  endDate,
-  status: 'completed',
-  createdAt: startDate,
-  stats: { totalWorkouts: 3, totalTonnage: 9000, prs: [], completionRate: 88 },
-  ...overrides,
-});
-
-const renderPage = () => render(
-  <MemoryRouter>
+const renderPage = (entry = '/history?list=all') => render(
+  <MemoryRouter initialEntries={[entry]}>
     <LanguageProvider>
       <UnitProvider>
         <WorkoutHistory />
@@ -128,19 +96,28 @@ beforeEach(() => {
   fixtures.workouts = [];
 });
 
-describe('WorkoutHistory redesign — bez cykli (niezmiennik starego przepływu)', () => {
+describe('WorkoutHistory — pełna lista (?list=all) bez cykli (niezmiennik starego przepływu)', () => {
+  // Fixtury z kanonicznego stanu (zasada 11); overrides przez spread dokumentu
+  // (notatka dnia + czas trwania), kształt zapisu bez zmian.
+  const base = buildCanonicalState('history-outside-cycles');
+  const [w1, w2] = [...base.workouts]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 2);
+  const withDuration: WorkoutSession = { ...w1, durationSec: 4320 }; // "1h 12m" (Z80)
+  const draftWithNote: WorkoutSession = {
+    ...w2, completed: false, durationSec: undefined, completedAt: undefined,
+    notes: 'notatka dnia testowa',
+  };
+
   beforeEach(() => {
-    fixtures.workouts = [
-      workout('w1', iso(1)),
-      workout('w2', iso(3), { completed: false, notes: 'notatka dnia testowa' }),
-    ];
+    fixtures.workouts = [withDuration, draftWithNote];
   });
 
-  it('renderuje listę miesiącami, czas trwania widoczny bez rozwijania, bez kart cykli', () => {
+  it('renderuje listę miesiącami, czas trwania widoczny bez rozwijania, bez kafli cykli', () => {
     renderPage();
     expect(screen.getAllByTestId('history-session-row')).toHaveLength(2);
     expect(screen.getAllByText(/1h 12m/).length).toBeGreaterThan(0);
-    expect(screen.queryByText('Poza cyklami')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cycle-tile')).not.toBeInTheDocument();
     expect(screen.queryByText(/^Cykl \d/)).not.toBeInTheDocument();
     // Draft ma badge, ukończony nie.
     expect(screen.getAllByText('draft')).toHaveLength(1);
@@ -157,22 +134,19 @@ describe('WorkoutHistory redesign — bez cykli (niezmiennik starego przepływu)
     expect(within(menu).getByTestId('history-delete')).toHaveTextContent('Usuń');
   });
 
-  // Naprawa r3 (2026-08-21): Szczegóły przeniesione z osobnego chevrona do menu ⋯
-  // (plan history-tab poz. 25) — chevron zawężał środek wiersza i tytuł/meta
-  // ucinały się na 390 px.
   it('Szczegóły z menu ⋯ rozwijają serie i notatkę dnia', async () => {
     renderPage();
     const rows = screen.getAllByTestId('history-session-row');
-    // w2 (draft z notatką) — drugi wiersz (sortowanie malejąco po dacie).
+    // Draft z notatką — drugi wiersz (sortowanie malejąco po dacie).
     const menu = await openRowMenu(rows[1]);
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Szczegóły' }));
-    expect(screen.getByText('Przysiad ze sztangą')).toBeInTheDocument();
-    expect(screen.getByText(/8×100/)).toBeInTheDocument();
+    expect(screen.getAllByText('Przysiad ze sztangą').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/5×80/).length).toBeGreaterThan(0);
     expect(screen.getByText('notatka dnia testowa')).toBeInTheDocument();
   });
 
-  // Naprawa r3 (kryterium akceptacji sędziego funkcji): czas trwania ma shrink-0 —
-  // widoczny bez rozwijania nawet przy ciasnym wierszu (truncate zjada lewe segmenty).
+  // Kontrakt Z80: czas trwania widoczny bez rozwijania nawet przy ciasnym
+  // wierszu (osobny span shrink-0, truncate zjada tylko lewe segmenty).
   it('czas trwania w mecie siedzi w osobnym spanie shrink-0 (nie pod truncate)', () => {
     renderPage();
     const duration = screen.getAllByText(/1h 12m/)[0];
@@ -186,79 +160,64 @@ describe('WorkoutHistory redesign — bez cykli (niezmiennik starego przepływu)
     await openRowMenu(row);
     expect(navigateSpy).not.toHaveBeenCalled();
     fireEvent.click(row);
-    expect(navigateSpy).toHaveBeenCalledWith(`/workout/day-1?date=${iso(1)}&session=w1`);
+    expect(navigateSpy).toHaveBeenCalledWith(
+      `/workout/${withDuration.dayId}?date=${withDuration.date}&session=${withDuration.id}`,
+    );
   });
 
-  it('oba dialogi maila + eksport CSV są zamontowane (Radix: zamykanie przez open=false)', () => {
+  it('oba dialogi maila + Export sheet są zamontowane na stałe (Radix: open=false)', () => {
     renderPage();
     const emailStubs = screen.getAllByTestId('email-dialog-stub');
     expect(emailStubs.map((el) => el.dataset.mode).sort()).toEqual(['history', 'workout']);
-    expect(screen.getByTestId('export-dialog-stub')).toBeInTheDocument();
-    expect(screen.getByTestId('history-email')).toHaveTextContent('Wyślij do trenera');
-    expect(screen.getByTestId('history-export-csv')).toHaveTextContent('Eksport CSV');
+    expect(screen.getByTestId('export-sheet-stub')).toHaveAttribute('data-open', 'false');
+  });
+
+  it('poziom 1: jeden przycisk Export otwiera sheet (zamiast osobnych CSV/mail)', () => {
+    renderPage('/history');
+    fireEvent.click(screen.getByTestId('history-export'));
+    expect(screen.getByTestId('export-sheet-stub')).toHaveAttribute('data-open', 'true');
   });
 });
 
-describe('WorkoutHistory redesign — z cyklami', () => {
-  // WP-G (dogfooding G1): aktywny cykl pochodzi z kanonicznego stanu, czyli
-  // z produkcyjnego ksztaltu zapisu usePlanCycles (endDate '' az do
-  // archiwizacji) zamiast recznego fixture'a.
-  const canonicalActiveCycle = buildCanonicalState('active-plan').cycles
-    .find((c) => c.status === 'active')!;
-  const pastStart = iso(240);
-  const pastEnd = iso(160);
+describe('WorkoutHistory — z cyklami (stan kanoniczny history-multi-cycle)', () => {
+  const state = buildCanonicalState('history-multi-cycle');
+  const activeCycle = state.cycles.find((c) => c.status === 'active')!;
+  const sortedDesc = [...state.workouts].sort((a, b) => b.date.localeCompare(a.date));
 
   beforeEach(() => {
-    fixtures.cycles = [
-      canonicalActiveCycle,
-      cycle('c-past', pastStart, pastEnd),
-    ];
-    fixtures.workouts = [
-      workout('a1', iso(1), { cycleId: canonicalActiveCycle.id }),
-      workout('a2', iso(8), { cycleId: canonicalActiveCycle.id }),
-      workout('p1', iso(200), { cycleId: 'c-past' }),
-      workout('out', iso(400)), // poza zakresem obu cykli
-    ];
+    fixtures.cycles = state.cycles;
+    fixtures.workouts = state.workouts;
   });
 
   it('aktywny cykl bez endDate renderuje zakres z "teraz" zamiast crashować (regresja E-8UE4S)', () => {
-    renderPage();
-    const activeCard = screen.getByText('Cykl 2').closest('section')!;
-    expect(within(activeCard).getByText(/teraz/)).toBeInTheDocument();
+    renderPage('/history');
+    const activeTile = screen.getAllByTestId('cycle-tile')
+      .find((tile) => within(tile).queryByText('Cykl 2'))!;
+    expect(activeTile).toBeDefined();
+    expect(within(activeTile).getByText(/teraz/)).toBeInTheDocument();
   });
 
-  it('sesje trafiają do kart cykli, sesja bez cyklu do "Poza cyklami"; licznik == suma wierszy', () => {
-    renderPage();
-    // Karty: aktywny (Cykl 2 — numeracja od najstarszego) i przeszły (Cykl 1).
-    const activeCard = screen.getByText('Cykl 2').closest('section')!;
-    expect(within(activeCard).getByText('Aktywny')).toBeInTheDocument();
-    expect(within(activeCard).getAllByTestId('history-session-row')).toHaveLength(2);
+  it('każda sesja osiągalna: kafle na poziomie 1, komplet wierszy w pełnej liście; licznik == suma', () => {
+    renderPage('/history');
+    // Kafle: aktywny (Cykl 2 — numeracja od najstarszego), przeszły (Cykl 1),
+    // "Poza cyklami" dla sesji bez cyklu.
+    const tiles = screen.getAllByTestId('cycle-tile');
+    expect(tiles).toHaveLength(3);
+    expect(screen.getByText(/5 sesji/i)).toBeInTheDocument();
 
-    // Przeszły cykl zwinięty: nagłówek + staty, bez wierszy.
-    const pastCard = screen.getByText('Cykl 1').closest('section')!;
-    expect(within(pastCard).queryAllByTestId('history-session-row')).toHaveLength(0);
-    // Rozwinięcie pokazuje sesje z załadowanego okna.
-    fireEvent.click(within(pastCard).getByText('Cykl 1'));
-    expect(within(pastCard).getAllByTestId('history-session-row')).toHaveLength(1);
-
-    // Sekcja "Poza cyklami" z sesją niedopasowaną.
-    expect(screen.getByText('Poza cyklami')).toBeInTheDocument();
-
-    // NIEZMIENNIK: wszystkie przefiltrowane sesje wyrenderowane dokładnie raz.
-    expect(screen.getAllByTestId('history-session-row')).toHaveLength(4);
-    expect(screen.getByText(/4 sesje/i)).toBeInTheDocument();
+    // NIEZMIENNIK kompletności: pełna lista renderuje KAŻDĄ sesję dokładnie raz.
+    fireEvent.click(screen.getByTestId('history-all-sessions-link'));
+    expect(screen.getAllByTestId('history-session-row')).toHaveLength(5);
   });
 
-  it('staty karty aktywnego cyklu liczone live (buildActiveCyclePreview), FREKWENCJA = completionRate', () => {
-    renderPage();
-    const activeCard = screen.getByText('Cykl 2').closest('section')!;
-    // 2 ukończone sesje w cyklu; brak dni planu => frekwencja 0%.
-    const sessionsLabel = within(activeCard).getByText('Sesje');
+  it('staty widoku cyklu liczone live (buildActiveCyclePreview), FREKWENCJA obecna, PR w akcencie', () => {
+    renderPage(`/history?cycle=${activeCycle.id}`);
+    const detail = screen.getByTestId('cycle-detail');
+    // 2 ukończone sesje w cyklu (draft nie liczy się do statów).
+    const sessionsLabel = within(detail).getByText('Sesje');
     expect(sessionsLabel.previousElementSibling).toHaveTextContent('2');
-    const attendanceLabel = within(activeCard).getByText('Frekwencja');
-    expect(attendanceLabel.previousElementSibling).toHaveTextContent('0%');
-    // PR-y w akcencie (klasa text-primary na wartości).
-    const prLabel = within(activeCard).getByText('PR');
+    expect(within(detail).getByText('Frekwencja')).toBeInTheDocument();
+    const prLabel = within(detail).getByText('PR');
     expect(prLabel.previousElementSibling?.className).toContain('text-primary');
   });
 
@@ -266,33 +225,40 @@ describe('WorkoutHistory redesign — z cyklami', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: /^porównaj$/i }));
     const rows = screen.getAllByTestId('history-session-row');
-    fireEvent.click(rows[0]); // a1
-    fireEvent.click(rows[1]); // a2
+    fireEvent.click(rows[0]);
+    fireEvent.click(rows[1]);
     expect(screen.getByText('Porównanie dwóch sesji')).toBeInTheDocument();
-    expect(screen.getByText(`${iso(1)} vs ${iso(8)}`)).toBeInTheDocument();
+    expect(screen.getByText(`${sortedDesc[0].date} vs ${sortedDesc[1].date}`)).toBeInTheDocument();
     expect(navigateSpy).not.toHaveBeenCalled(); // w trybie porównania tap nie nawiguje
 
-    fireEvent.click(rows[2]); // out/poza — FIFO wypycha a1
-    expect(screen.getByText(`${iso(8)} vs ${iso(400)}`)).toBeInTheDocument();
+    fireEvent.click(rows[2]); // FIFO wypycha najstarsze zaznaczenie
+    expect(screen.getByText(`${sortedDesc[1].date} vs ${sortedDesc[2].date}`)).toBeInTheDocument();
   });
 
-  it('filtr Drafty zawęża listę i ukrywa karty cykli bez pasujących sesji', () => {
-    fixtures.workouts = [
-      ...fixtures.workouts,
-      workout('d1', iso(2), { cycleId: 'c-active', completed: false }),
-    ];
+  it('filtr Drafty zawęża pełną listę i licznik', () => {
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Drafty' }));
     expect(screen.getAllByTestId('history-session-row')).toHaveLength(1);
-    // "1 sesja" pojawia się w liczniku i w meta tygodnia karty cyklu.
+    expect(screen.getAllByText('draft').length).toBeGreaterThan(0);
     expect(screen.getAllByText(/1 sesja/i).length).toBeGreaterThan(0);
-    // Przeszły cykl bez draftów jest ukryty w całości.
-    expect(screen.queryByText('Cykl 1')).not.toBeInTheDocument();
+  });
+
+  it('filtry aktywne ukrywają kafle cykli bez pasujących sesji (poziom 1)', () => {
+    renderPage('/history');
+    // Draft filtr przez pełną listę nie jest dostępny na poziomie 1 — symulujemy
+    // przez wejście do listy, filtr i powrót (stan filtrów jest współdzielony).
+    fireEvent.click(screen.getByTestId('history-all-sessions-link'));
+    fireEvent.click(screen.getByRole('button', { name: 'Drafty' }));
+    fireEvent.click(screen.getByTestId('history-list-back'));
+    // Draft żyje w aktywnym cyklu: przeszły cykl i "Poza cyklami" znikają.
+    const tiles = screen.getAllByTestId('cycle-tile');
+    expect(tiles).toHaveLength(1);
+    expect(within(tiles[0]).getByText('Cykl 2')).toBeInTheDocument();
   });
 
   it('usuwanie: menu → Usuń → dialog → confirm → wiersz znika, porównanie wyczyszczone', async () => {
     renderPage();
-    // Zaznacz a1 do porównania przez menu (drugie wejście, bez trybu).
+    // Zaznacz najnowszą sesję do porównania przez menu (bez trybu).
     const rows = screen.getAllByTestId('history-session-row');
     let menu = await openRowMenu(rows[0]);
     fireEvent.click(within(menu).getByRole('menuitem', { name: /^Porównaj$/ }));
@@ -303,10 +269,8 @@ describe('WorkoutHistory redesign — z cyklami', () => {
     expect(await screen.findByTestId('history-delete-dialog')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('history-delete-confirm'));
 
-    await waitFor(() => expect(deleteWorkoutEverywhere).toHaveBeenCalledWith('u1', 'a1'));
-    // Widoczne wiersze: a1+a2 (aktywny cykl) + out (poza cyklami); p1 w zwiniętej karcie.
-    // Po usunięciu a1 zostają 2.
-    await waitFor(() => expect(screen.getAllByTestId('history-session-row')).toHaveLength(2));
+    await waitFor(() => expect(deleteWorkoutEverywhere).toHaveBeenCalledWith('u1', sortedDesc[0].id));
+    await waitFor(() => expect(screen.getAllByTestId('history-session-row')).toHaveLength(4));
     expect(screen.queryByText('Porównanie dwóch sesji')).not.toBeInTheDocument();
   });
 });

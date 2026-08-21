@@ -67,7 +67,8 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     const LIME = 'rgb(206, 252, 34)';
     await page.addInitScript(() => localStorage.setItem('ss-accent-color', '#1e90ff'));
 
-    await navigateAndWait(page, '/history');
+    // WP-H (X28): chipy statusu Historii żyją w pełnej liście (?list=all).
+    await navigateAndWait(page, '/history?list=all');
     await expectPageRendered(page);
     // --accent podąża za --primary (chipy Kinetic, badge secondary).
     const tokens = await page.evaluate(() => {
