@@ -13,8 +13,12 @@ import type { WorkoutSession } from '@/types';
 
 // Fala 2 (2026-08-20): jednoliniowy wiersz sesji Historii (artboard 1a).
 // Tap w wiersz = otwórz trening (w trybie porównania: zaznacz/odznacz);
-// chevron = Szczegóły (aria-label utrzymuje kontrakt e2e full-app);
-// menu ⋯ = komplet akcji (Otwórz / Porównaj / Wyślij do trenera / Usuń).
+// menu ⋯ = komplet akcji (Otwórz / Szczegóły / Porównaj / Wyślij do trenera / Usuń).
+// Naprawa r3 (2026-08-21, sędziowie struktury i funkcji): osobny chevron Szczegóły
+// zabierał środkowi ~36 px i tytuł/meta ucinały się na 390 px — akcja przenosi się
+// do menu ⋯ (plan history-tab poz. 25), data w formacie numerycznym "17.08" (w-9),
+// a czas trwania w mecie ma shrink-0, więc jest widoczny bez rozwijania (Z80)
+// nawet gdy truncate zjada segmenty ćwiczeń/serii.
 
 interface HistorySessionRowProps {
   workout: WorkoutSession;
@@ -57,8 +61,7 @@ export const HistorySessionRow = ({
   const { unit, toDisplay } = useUnit();
 
   const dateShort = parseLocalDate(workout.date)
-    .toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })
-    .replace('.', '');
+    .toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' });
 
   const handleRowActivate = () => {
     if (compareMode) onToggleCompare();
@@ -76,12 +79,13 @@ export const HistorySessionRow = ({
 
   // Naprawa r2 (2026-08-21, plan history-tab poz. 19/22): meta wiersza to
   // "{ćw} ćw. · {serie} serii · {czas}" — liczba ćwiczeń była jawną statystyką
-  // wiersza sprzed redesignu i nie może zniknąć.
-  const metaSegments = [
+  // wiersza sprzed redesignu i nie może zniknąć. Czas trwania renderuje się
+  // OSOBNYM spanem z shrink-0 (naprawa r3): kontrakt Z80 wymaga go widocznego
+  // bez rozwijania, więc truncate może zjadać tylko segmenty po lewej.
+  const metaLead = [
     `${workout.exercises.length} ${t('history.exercisesUnit')}`,
     `${totalSets} ${t(setWordKey(totalSets))}`,
-    ...(meta?.durationLabel ? [meta.durationLabel] : []),
-  ];
+  ].join(' · ');
 
   return (
     <div>
@@ -103,7 +107,7 @@ export const HistorySessionRow = ({
           isSelected && 'ring-2 ring-inset ring-primary/50',
         )}
       >
-        <span className="w-10 shrink-0 font-mono text-[10px] uppercase tracking-[0.04em] text-muted-foreground tabular-nums">
+        <span className="w-9 shrink-0 font-mono text-[10px] tracking-[0.04em] text-muted-foreground tabular-nums">
           {dateShort}
         </span>
         <div className="min-w-0 flex-1">
@@ -113,26 +117,21 @@ export const HistorySessionRow = ({
               <span className="chip-mono shrink-0 px-2 py-0.5">{t('history.badgeDraft')}</span>
             )}
           </div>
-          <p className="truncate font-mono text-[10px] text-muted-foreground tabular-nums">
-            {metaSegments.join(' · ')}
+          <p className="flex min-w-0 font-mono text-[10px] text-muted-foreground tabular-nums">
+            <span className="truncate">{metaLead}</span>
+            {meta?.durationLabel && (
+              <span className="shrink-0 whitespace-pre">{` · ${meta.durationLabel}`}</span>
+            )}
           </p>
         </div>
         {(meta?.prCount ?? 0) > 0 && (
-          <span className="chip-mono shrink-0 bg-primary/15 px-1.5 py-1 text-primary">
+          <span className="chip-mono shrink-0 bg-primary/15 px-1.5 py-0.5 text-primary">
             {meta?.prCount} PR
           </span>
         )}
         <span className="shrink-0 text-right font-mono text-xs font-semibold tabular-nums">
           {Math.round(toDisplay(tonnage)).toLocaleString(dateLocale(lang))}
         </span>
-        <button
-          type="button"
-          aria-label={t('history.details')}
-          onClick={(event) => { stop(event); onToggleExpanded(); }}
-          className="grid h-11 w-7 shrink-0 place-items-center text-muted-foreground/50"
-        >
-          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -149,6 +148,10 @@ export const HistorySessionRow = ({
             <DropdownMenuItem onSelect={onOpen}>
               <ExternalLink className="mr-2 h-4 w-4" />
               {t('history.openWorkout')}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onToggleExpanded}>
+              {isExpanded ? <ChevronUp className="mr-2 h-4 w-4" /> : <ChevronDown className="mr-2 h-4 w-4" />}
+              {t('history.details')}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onToggleCompare}>
               <ArrowRightLeft className="mr-2 h-4 w-4" />

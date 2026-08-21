@@ -742,7 +742,8 @@ test.describe('Notatki (Z74)', () => {
     // Wiersz: czas trwania widoczny od razu (Z80).
     await expect(page.getByText('1h 12m')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Szczegóły' }).first().click();
+    await page.getByTestId('history-row-menu').first().click();
+    await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
     await expect(page.getByText('ciężki dzień, mało snu')).toBeVisible();
     await expect(page.getByText('pas za luźny')).toBeVisible();
     await expect(page.getByText(/RPE:/)).toBeVisible();
@@ -866,7 +867,8 @@ test.describe('Szybki trening (Z104)', () => {
 
     await navigateAndWait(page, '/history');
     await expect(page.getByText('Szybki trening').first()).toBeVisible();
-    await page.getByRole('button', { name: 'Szczegóły' }).first().click();
+    await page.getByTestId('history-row-menu').first().click();
+    await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
     await expect(page.getByText('Wyciskanie sztangi na ławce płaskiej')).toBeVisible();
   });
 
@@ -995,7 +997,8 @@ test.describe('Typy serii (Z105)', () => {
     }]);
 
     await navigateAndWait(page, '/history');
-    await page.getByRole('button', { name: 'Szczegóły' }).first().click();
+    await page.getByTestId('history-row-menu').first().click();
+    await page.getByRole('menuitem', { name: 'Szczegóły' }).click();
     await expect(page.getByText('1:30', { exact: true })).toBeVisible();
     await expect(page.getByText('24 kg · 40 m · 1:00')).toBeVisible();
     await expect(page.getByText('8×-25 kg')).toBeVisible();

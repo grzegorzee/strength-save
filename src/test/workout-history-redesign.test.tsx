@@ -145,24 +145,38 @@ describe('WorkoutHistory redesign — bez cykli (niezmiennik starego przepływu)
     expect(screen.getAllByText('draft')).toHaveLength(1);
   });
 
-  it('menu ⋯ wiersza ma KOMPLET akcji: Otwórz / Porównaj / Wyślij do trenera / Usuń', async () => {
+  it('menu ⋯ wiersza ma KOMPLET akcji: Otwórz / Szczegóły / Porównaj / Wyślij do trenera / Usuń', async () => {
     renderPage();
     const row = screen.getAllByTestId('history-session-row')[0];
     const menu = await openRowMenu(row);
     expect(within(menu).getByRole('menuitem', { name: /Otwórz trening/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: 'Szczegóły' })).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: /Porównaj/ })).toBeInTheDocument();
     expect(within(menu).getByTestId('history-row-email')).toHaveTextContent('Wyślij do trenera');
     expect(within(menu).getByTestId('history-delete')).toHaveTextContent('Usuń');
   });
 
-  it('chevron Szczegóły rozwija serie i notatkę dnia', () => {
+  // Naprawa r3 (2026-08-21): Szczegóły przeniesione z osobnego chevrona do menu ⋯
+  // (plan history-tab poz. 25) — chevron zawężał środek wiersza i tytuł/meta
+  // ucinały się na 390 px.
+  it('Szczegóły z menu ⋯ rozwijają serie i notatkę dnia', async () => {
     renderPage();
     const rows = screen.getAllByTestId('history-session-row');
     // w2 (draft z notatką) — drugi wiersz (sortowanie malejąco po dacie).
-    fireEvent.click(within(rows[1]).getByRole('button', { name: 'Szczegóły' }));
+    const menu = await openRowMenu(rows[1]);
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Szczegóły' }));
     expect(screen.getByText('Przysiad ze sztangą')).toBeInTheDocument();
     expect(screen.getByText(/8×100/)).toBeInTheDocument();
     expect(screen.getByText('notatka dnia testowa')).toBeInTheDocument();
+  });
+
+  // Naprawa r3 (kryterium akceptacji sędziego funkcji): czas trwania ma shrink-0 —
+  // widoczny bez rozwijania nawet przy ciasnym wierszu (truncate zjada lewe segmenty).
+  it('czas trwania w mecie siedzi w osobnym spanie shrink-0 (nie pod truncate)', () => {
+    renderPage();
+    const duration = screen.getAllByText(/1h 12m/)[0];
+    expect(duration.className).toContain('shrink-0');
+    expect(duration.className).not.toContain('truncate');
   });
 
   it('tap w wiersz otwiera trening; ⋯ nie nawiguje', async () => {
