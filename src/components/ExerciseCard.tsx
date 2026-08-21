@@ -962,13 +962,17 @@ const ExerciseCardInner = ({
             <h3 className="font-heading text-lg font-bold leading-tight line-clamp-2">{localizedName}</h3>
             {/* Fala 2 (2026-08-20, mockup 2a): jedna mono linia metadanych.
                 B-T2 bez zmian: estymacja zawsze z widocznym źródłem (formatEst1RMBadge). */}
-            <p className="mt-1 font-mono text-[10px] uppercase leading-snug tracking-[0.08em] text-muted-foreground" title={t('card.maxLiftTitle')}>
+            <p className="mt-1 font-mono text-[9px] uppercase leading-snug tracking-[0.06em] text-muted-foreground" title={t('card.maxLiftTitle')}>
               {(() => {
                 const badges = buildRecordBadges(historicalBest);
                 // Naprawa r3 (2026-08-21, sędzia struktury): jednostka wagi RAZ,
-                // przy pierwszej wartości ("SZAC. 1RM 79 KG · 63×8 · MAX 63") —
+                // przy pierwszej wartości ("3 SERII · 1RM 79 KG · 63×8 · MAX 63") —
                 // powtarzana przy każdej liczbie łamała mono linię na dwie
                 // z zawinięciem w środku członu ("63 / KG×8") na 390 px.
+                // Iteracja 3 pętli wizualnej: stopień 9px (skala mono mockupu
+                // 8.5-11px) mieści standardowy przypadek w JEDNEJ linii, a NBSP
+                // wewnątrz członów gwarantuje, że dłuższe dane łamią się wyłącznie
+                // na separatorach między członami, nigdy w środku członu.
                 // B-T2 bez zmian: źródło estymacji nadal widoczne (formatEst1RMBadge).
                 let unitShown = false;
                 const fmtWeight = (kg: number) => {
@@ -981,7 +985,9 @@ const ExerciseCardInner = ({
                   t('card.setsCount', { n: workingSets.length }),
                   badges.est1RM ? formatEst1RMBadge(badges.est1RM, t('card.est1rm'), fmtWeight) : null,
                   badges.maxLift ? formatMaxLiftBadge(badges.maxLift, t('card.maxLift'), fmtWeight) : null,
-                ].filter(Boolean).join(' · ');
+                ].filter((segment): segment is string => Boolean(segment))
+                  .map((segment) => segment.replace(/ /g, '\u00A0'))
+                  .join(' · ');
               })()}
             </p>
             {(livePRWeight != null || (FEATURE_FLAGS.intervalTimers && intervalSpec)) && (

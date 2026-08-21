@@ -135,11 +135,13 @@ describe('mono meta linia nagłówka (fala 2)', () => {
     // Naprawa r3 (2026-08-21): etykieta "1RM" (bez "Szac.") i jednostka wagi RAZ —
     // przy pierwszej wartości; źródło i Max gołymi liczbami, żeby cała meta
     // mieściła się w JEDNEJ linii mono na 390 px (sugestia sędziego struktury).
-    expect(meta.textContent).toContain('117 kg');
+    // Spacje wewnątrz członów to NBSP (łamanie tylko na separatorach) — normalizujemy.
+    const metaText = meta.textContent?.replace(/\u00A0/g, ' ') ?? '';
+    expect(metaText).toContain('117 kg');
     // Źródło estymacji (100×5) jest częścią linii — nie sama liczba.
-    expect(meta.textContent).toContain('100×5');
-    expect(meta.textContent).toContain('Max 100');
-    expect(meta.textContent?.match(/kg/g)).toHaveLength(1);
+    expect(metaText).toContain('100×5');
+    expect(metaText).toContain('Max 100');
+    expect(metaText.match(/kg/g)).toHaveLength(1);
   });
 });
 
