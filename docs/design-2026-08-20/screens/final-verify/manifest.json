@@ -1,0 +1,15 @@
+{
+  "timestamp": "2026-08-21T05-04-05",
+  "routes": [
+    "/",
+    "/plan",
+    "/history",
+    "/profile",
+    "/workout/day-1"
+  ],
+  "accents": [
+    "lime",
+    "indigo"
+  ],
+  "baseUrl": "http://localhost:8080/"
+}
