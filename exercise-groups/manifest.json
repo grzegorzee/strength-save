@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-08-21",
+  "style": "dark-gym-v1",
+  "images": {
+    "arms": "arms.webp",
+    "back": "back.webp",
+    "calves": "calves.webp",
+    "chest": "chest.webp",
+    "core": "core.webp",
+    "glutes": "glutes.webp",
+    "legs": "legs.webp",
+    "shoulders": "shoulders.webp"
+  }
+}
