@@ -5,11 +5,32 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-21 (wydanie: fala naprawcza T1-T24 + redesign single accent + authDomain; web Crtcx1EU, iOS 113, AAB v28)
+**Ostatnia aktualizacja:** 2026-08-21 (fala X27; web index-B-rd2KNm, iOS 114 APPROVED, AAB v29 SHA 5444ee04)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-21 (2): FALA X27 — hotfix Historii, 8 pakietów funkcyjnych, hardening procesu, wydanie (iOS 114 / AAB v29)
+
+**Root cause hotfixu (P0, E-8UE4S):** redesign Historii (c753cdba, build 113) formatował `cycle.endDate` bez guarda, a aktywny cykl ma w produkcji `endDate: ''` do archiwizacji; `parseLocalDate('')` = RangeError = cały route na ErrorBoundary. Testy CI zielone, bo fixture miał nierealny wypełniony endDate; sędziowie wizualni oceniali te same złe mocki. Fix e4b6afc0 (label "teraz" + test na produkcyjnym kształcie danych).
+
+**Pakiety (workflow 12 agentów, 3 batche + WP-G; bramki: vitest 2288/0, functions 350/0, rules 250/250, e2e zielone):**
+1. WP-A: blokada reschedule ukończonych treningów (guard w silniku + sheet + wejścia Dashboardu), kompaktowy jednowierszowy baner ukończenia z odstępem, data przy NEXT SESSION gdy dalej niż jutro.
+2. WP-B: adres contact@strengthsave.app (4 miejsca), copy nieodwracalności w dialogu usunięcia konta, purge rozszerzony o 6 kolekcji (plan_cycle_operations, user_events, client_errors, exercise_notes, workout_day_notes, manual_activities) + recursiveDelete users/{uid} (subkolekcja aggregates).
+3. WP-C: ręczny sync Strava raz na dobę (24h server-side + stan przycisku), predykaty isRunLike/isWalkLike, pace/PR-y/longest run tylko z biegów, filtr typów aktywności, digest ujednolicony.
+4. WP-D: zdjęcia sylwetki dla wszystkich (flaga default ON), wpis tylko-zdjęcie, kadrowanie (react-easy-crop, PhotoCropDialog), przycisk "Dodaj zdjęcie", photoReminder (push+dzwonek po 30 dniach treningu bez zdjęcia, codziennie 10:00).
+5. WP-E: redesign /exercises: kafle 8 grup ze zdjęciami + widok grupy (?group=, hero, filtry compound/isolation/bodyweight), search globalny, wiersz nowego własnego ćwiczenia; BEST/PR w wierszach pominięte (brak taniego agregatu, świadomie).
+6. WP-PLANS-1: pole status active/ended na training_plans (rules+guards), endPlan z 3 opcjami (zakończ+wybierz / zakończ / anuluj), auto-koniec po upływie tygodni, stan "brak planu" w całej apce, długość 2-36 tyg. + custom (też szablony), szablon "Full Body Workout (FBW)".
+7. WP-PLANS-2: krok 5 onboardingu z nazwą planu + datą startu (poniedziałki) + tygodniami; replan z datą startu; guard resolvera na daty przed startem + mirror Garmin (bug: sesje przed wybranym startem); closeout z czasem na siłowni + udostępnianie (CycleShareCard).
+8. WP-F: X w każdym AlertDialogu (Radix Cancel 44px, opt-out hideClose), liquid glass 2.0 (kinetic-glass header+nav, kinetic-glass-sheet dla bottom sheetów, wariant light), zwijany kalkulator talerzy w Ustawieniach, sweep ~145 pauz em/en-dash + guard.
+9. WP-IMG: 8 zdjęć grup dark-gym-v1 (GPT Image 2 via Higgsfield po wyczerpaniu kredytów OpenAI; 1568x608 webp, 484 KB) + manifest.
+
+**Hardening procesu (zasada 11 w CLAUDE.md, po incydencie E-8UE4S):** kanoniczne stany danych (roundtrip przez sanitizery), route sweep 9 tras x 6 stanów (sanity: cofnięty fix = czerwony sweep z tym samym kodem błędu), parseLocalDateSafe w ~50 etykietach + guard plikowy, dailyErrorDigest 06:20 (nowy kod w client_errors → mail operatora), konto QA na produkcji jako bramka wydania (procedura docs/plans/x27/QA-KONTO.md).
+
+**Wydanie:** rules + functions deployed PRZED webem (pola status/name, guard Garmina — bez tego PERMISSION_DENIED i zegarek z sesjami sprzed startu), web LIVE index-B-rd2KNm.js (+ zdjęcia grup), iOS 114 upload + obie grupy + Beta App Review APPROVED, AAB v29 (SHA 5444ee04). E2e: 2 nieaktualne specy naprawione (NBSP w meta karty; kafle grup zamiast chipów).
+
+**Otwarte:** skrzynka contact@strengthsave.app do założenia; konto QA do założenia po podłączeniu rozszerzenia Chrome; pierwszy bieg dailyErrorDigest wyśle zbiorczy backlog; assety "pro look" w media-staging/pro-look/ (integracja = następny drop, web + iOS 115); kredyty OpenAI (OPENAI_API_KEY_IMAGE) wyczerpane; Play upload v29 = krok właściciela.
 
 ### 2026-08-21: MEGA-WYDANIE — authDomain, fala naprawcza T1-T24, redesign "single accent" (iOS 113 / AAB v28)
 
