@@ -15,9 +15,13 @@ const Switch = React.forwardRef<
     {...props}
     ref={ref}
   >
+    {/* Naprawa r3 (2026-08-21, tokens.md par. 2.5): kciuk to element na bg-primary,
+        wiec kolor z --primary-foreground, nie bg-background — na ciemnych akcentach
+        (indigo/slate/custom) czarny kciuk zlewal sie z torem i stan ON byl nieczytelny.
+        Na lime/amber/sky wynik identyczny (primary-foreground = ciemny). */}
     <SwitchPrimitives.Thumb
       className={cn(
-        "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0",
+        "pointer-events-none block h-5 w-5 rounded-full bg-primary-foreground shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0",
       )}
     />
   </SwitchPrimitives.Root>
