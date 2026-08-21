@@ -20,7 +20,7 @@ import type { StravaActivity, UnifiedActivity } from '@/types/strava';
 import type { WorkoutSession } from '@/types';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 
 interface Props {
   activities: StravaActivity[];
@@ -47,7 +47,7 @@ export const TrainingLoadChart = ({ activities, estimatedMaxHR, workouts }: Prop
   if ((hrActivities.length < 7 && !hasStrength) || data.length === 0) return null;
 
   const chartData = data.map(d => ({
-    date: parseLocalDate(d.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'numeric' }),
+    date: formatLocalDateLabel(d.date, dateLocale(lang), { day: 'numeric', month: 'numeric' }),
     fitness: d.ctl,
     fatigue: d.atl,
     form: d.tsb,

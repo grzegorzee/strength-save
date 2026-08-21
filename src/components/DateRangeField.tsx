@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { RangeCalendar } from '@/components/ui/range-calendar';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 import type { DateRangeValue } from '@/lib/date-range-select';
 
 // T20.2 (feedback 2026-08-20): pole zakresu dat dla miejsc bez miejsca na
@@ -25,7 +25,7 @@ export const DateRangeField = ({
 }: DateRangeFieldProps) => {
   const { t, lang } = useTranslation();
   const fmt = (iso: string) =>
-    parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' });
+    formatLocalDateLabel(iso, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' });
   const label = value.from && value.to
     ? `${fmt(value.from)} → ${fmt(value.to)}`
     : value.from

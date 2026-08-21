@@ -6,7 +6,7 @@ import { dateLocale } from '@/i18n';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { resolvePlannedDay, type ScheduleOverrides } from '@/lib/plan-schedule';
 import { localizeDayName } from '@/lib/plan-i18n';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 
 /** Horyzont wyboru nowej daty (spec 2026-08-11: tylko dziś i do przodu, 14 dni). */
 export const RESCHEDULE_HORIZON_DAYS = 14;
@@ -92,7 +92,7 @@ export const RescheduleSheet = ({
           <SheetDescription>
             {t('reschedule.sheetDesc', {
               name: localizeDayName(fromDay.dayName, lang),
-              date: parseLocalDate(fromISO).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+              date: formatLocalDateLabel(fromISO, dateLocale(lang), { day: 'numeric', month: 'short' }),
             })}
           </SheetDescription>
         </SheetHeader>

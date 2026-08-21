@@ -5,7 +5,7 @@ import { Ruler } from 'lucide-react';
 import type { BodyMeasurement } from '@/types';
 import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { tooltipStyle, axisProps } from '@/lib/chart-config';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -34,7 +34,7 @@ const MeasurementTrendChart = ({ measurements }: { measurements: BodyMeasurement
   const isWeight = activeField === 'weight';
   const fieldUnit = isWeight ? unit : lengthUnit;
   const chartData = series.map((p) => ({
-    date: parseLocalDate(p.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+    date: formatLocalDateLabel(p.date, dateLocale(lang), { day: 'numeric', month: 'short' }),
     value: Math.round((isWeight ? toDisplay(p.value) : toDisplayLength(p.value)) * 10) / 10,
   }));
 

@@ -39,7 +39,7 @@ import { useUnit } from '@/contexts/UnitContext';
 import { calculateStreakDetails, calculateTonnage, getWeekBounds } from '@/lib/summary-utils';
 import { RescheduleSheet } from '@/components/RescheduleSheet';
 import { MissedWorkoutBanner } from '@/components/MissedWorkoutBanner';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { getNextScheduledTraining, getScheduledTrainingForDate, getScheduledTrainingWeek, getStartOfPlanWeek, weekdayOfDate, type ScheduledTrainingDay } from '@/lib/plan-schedule';
 import { workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
@@ -434,8 +434,8 @@ const Dashboard = () => {
     return (
     <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5" data-testid="next-session-hero">
       <span className="eyebrow-mono text-primary">
-        {t('dash.hero.next')} · {parseLocalDate(entry.dateKey).toLocaleDateString(dateLocale(lang), { weekday: 'long' })}
-        {showDate && ` · ${parseLocalDate(entry.dateKey).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}`}
+        {t('dash.hero.next')} · {formatLocalDateLabel(entry.dateKey, dateLocale(lang), { weekday: 'long' })}
+        {showDate && ` · ${formatLocalDateLabel(entry.dateKey, dateLocale(lang), { day: 'numeric', month: 'short' })}`}
       </span>
       <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
         {localizeDayName(entry.day.dayName, lang)}
@@ -547,7 +547,7 @@ const Dashboard = () => {
     void (async () => {
       const result = await setReducedMode(mode);
       if (result.success) {
-        const endLabel = parseLocalDate(mode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        const endLabel = formatLocalDateLabel(mode.endDate, dateLocale(lang), { day: 'numeric', month: 'long' });
         toast({ title: t('rmode.toastOn', { date: endLabel }) });
       }
     })();
@@ -568,7 +568,7 @@ const Dashboard = () => {
     void (async () => {
       const result = await setVacation(mode);
       if (result.success) {
-        const fmtDate = (iso: string) => parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        const fmtDate = (iso: string) => formatLocalDateLabel(iso, dateLocale(lang), { day: 'numeric', month: 'long' });
         toast({ title: t('vac.toastOn', { from: fmtDate(mode.startDate), to: fmtDate(mode.endDate), weeks: mode.extendedWeeks }) });
       }
     })();
@@ -797,7 +797,7 @@ const Dashboard = () => {
         >
           <span>
             {t('vac.badge', {
-              date: parseLocalDate(vacation.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }),
+              date: formatLocalDateLabel(vacation.endDate, dateLocale(lang), { day: 'numeric', month: 'long' }),
             })}
           </span>
           <span className="text-xs font-normal underline underline-offset-2">{t('vac.cancel')}</span>
@@ -816,7 +816,7 @@ const Dashboard = () => {
         >
           <span>
             {t('rmode.badge', {
-              date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }),
+              date: formatLocalDateLabel(reducedMode.endDate, dateLocale(lang), { day: 'numeric', month: 'long' }),
             })}
           </span>
           <span className="text-xs font-normal underline underline-offset-2">{t('rmode.disable')}</span>
@@ -998,7 +998,7 @@ const Dashboard = () => {
           <span className="eyebrow-mono text-primary">{t('dash.hero.planStarts')}</span>
           <p className="min-w-0 font-heading text-xl font-bold leading-tight tracking-tight">
             {t('dash.preStart.title', {
-              date: parseLocalDate(todayTraining.startDateISO).toLocaleDateString(dateLocale(lang), {
+              date: formatLocalDateLabel(todayTraining.startDateISO, dateLocale(lang), {
                 weekday: 'long', day: 'numeric', month: 'long',
               }),
             })}
@@ -1006,7 +1006,7 @@ const Dashboard = () => {
           {todayTraining.firstEntry && (
             <p className="text-sm text-muted-foreground">
               {t('dash.preStart.firstWorkout', {
-                day: `${localizeDayName(todayTraining.firstEntry.day.dayName, lang)} (${localizeFocus(todayTraining.firstEntry.day.focus, lang)}) · ${parseLocalDate(todayTraining.firstEntry.dateKey).toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}`,
+                day: `${localizeDayName(todayTraining.firstEntry.day.dayName, lang)} (${localizeFocus(todayTraining.firstEntry.day.focus, lang)}) · ${formatLocalDateLabel(todayTraining.firstEntry.dateKey, dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}`,
               })}
             </p>
           )}

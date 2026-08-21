@@ -14,7 +14,7 @@ import { baseActivityType, displayActivityType, getActivityIcon } from '@/lib/ac
 import { getHRZone, getHRZoneConfig, getHRPercent } from '@/lib/hr-zones';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { parseLocalDateSafe } from '@/lib/utils';
 
 const formatDistance = (meters?: number): string => {
   if (!meters) return '-';
@@ -43,7 +43,7 @@ const formatPace = (speedMs?: number, type?: string): string => {
 };
 
 const parseActivityDate = (value: string): Date =>
-  /^\d{4}-\d{2}-\d{2}$/.test(value) ? parseLocalDate(value) : new Date(value);
+  parseLocalDateSafe(value) ?? new Date(value);
 
 const formatFullDate = (activity: StravaActivity, locale: string): string => {
   const dateSource = activity.startDateLocal || activity.date;

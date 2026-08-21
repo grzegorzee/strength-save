@@ -39,7 +39,7 @@ const TonnageTrendChart = lazyWithRetry(() => import('@/components/achievements/
 const AnalyticsEmbedded = lazyWithRetry(() => import('@/pages/Analytics'), 'lazy-retry:analytics-embedded');
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 
 const milestoneIcon = (category: Milestone['category']) => {
   if (category === 'workouts') return Trophy;
@@ -141,7 +141,7 @@ const Achievements = () => {
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
   const formatShortDate = (date: string) =>
-    parseLocalDate(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
+    formatLocalDateLabel(date, dateLocale(lang), { day: 'numeric', month: 'short' });
 
   // Rekordy budujemy z SAMYCH treningów (nie z aktualnego planu), żeby ćwiczenia ze starych
   // planów nie znikały po zmianie planu. Nazwy resolwuje resolver (snapshot → cykl → plan).
@@ -643,7 +643,7 @@ const Achievements = () => {
                 {getGroupedHistory(selectedExercise.history).map(([date, sets]) => (
                   <div key={date} className="p-3 rounded-lg bg-surface-low">
                     <p className="text-sm font-medium mb-2">
-                      {parseLocalDate(date).toLocaleDateString(dateLocale(lang), {
+                      {formatLocalDateLabel(date, dateLocale(lang), {
                         weekday: 'long',
                         day: 'numeric',
                         month: 'long'

@@ -5,7 +5,7 @@ import { Calendar } from 'lucide-react';
 import { generateHeatmapData } from '@/lib/heatmap-utils';
 import type { WorkoutSession } from '@/types';
 import type { StravaActivity } from '@/types/strava';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 
@@ -161,7 +161,7 @@ export const TrainingHeatmap = ({ workouts, stravaActivities }: Props) => {
                         'aspect-square rounded-[2px] sm:rounded-sm min-w-[6px]',
                         day ? LEVEL_COLORS[day.level] : 'bg-transparent',
                       )}
-                      title={day ? `${parseLocalDate(day.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}${day.hasWorkout ? ` · ${(day.strengthTonnage / 1000).toFixed(1)}t` : ''}${day.hasCardio ? ` · ${day.cardioKm}km` : ''}` : ''}
+                      title={day ? `${formatLocalDateLabel(day.date, dateLocale(lang), { day: 'numeric', month: 'short' })}${day.hasWorkout ? ` · ${(day.strengthTonnage / 1000).toFixed(1)}t` : ''}${day.hasCardio ? ` · ${day.cardioKm}km` : ''}` : ''}
                     />
                   );
                 })}

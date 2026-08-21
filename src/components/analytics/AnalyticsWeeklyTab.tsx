@@ -9,7 +9,7 @@ import { useActivities } from '@/hooks/useActivities';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { buildLocalWeeklySummaries } from '@/lib/weekly-summary';
 import { dateLocale } from '@/i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 import { Dumbbell, Flame, Route, Trophy } from 'lucide-react';
 
 // Tygodnie liczone lokalnie (Z78) — koniec czytania zamrożonej kolekcji weekly_summaries
@@ -45,7 +45,7 @@ const AnalyticsWeeklyTab = () => {
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
               <Badge variant="outline" className="text-xs">
-                {parseLocalDate(s.weekStart).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })} - {parseLocalDate(s.weekEnd).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
+                {formatLocalDateLabel(s.weekStart, dateLocale(lang), { day: 'numeric', month: 'short' })} - {formatLocalDateLabel(s.weekEnd, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
               </Badge>
             </div>
 

@@ -4,7 +4,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatHistorySetLabel } from '@/lib/set-tracking';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -60,8 +60,7 @@ export const HistorySessionRow = ({
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
 
-  const dateShort = parseLocalDate(workout.date)
-    .toLocaleDateString(dateLocale(lang), { day: '2-digit', month: '2-digit' });
+  const dateShort = formatLocalDateLabel(workout.date, dateLocale(lang), { day: '2-digit', month: '2-digit' });
 
   const handleRowActivate = () => {
     if (compareMode) onToggleCompare();

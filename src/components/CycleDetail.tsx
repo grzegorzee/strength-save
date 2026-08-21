@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { localizeExerciseName } from '@/data/exercise-i18n';
@@ -33,7 +33,7 @@ export const CycleDetail = ({ cycle, onBack, onDelete }: Props) => {
     return formatLocalDate(date);
   };
   const formatDate = (d: string) =>
-    d ? parseLocalDate(d).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' }) : t('cycles.now');
+    d ? formatLocalDateLabel(d, dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' }) : t('cycles.now');
   const displayedEndDate = cycle.endDate || plannedEndDate(cycle.startDate, cycle.durationWeeks);
 
   return (

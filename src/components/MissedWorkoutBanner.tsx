@@ -7,7 +7,7 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import { resolvePlannedDay, type ScheduleOverrides } from '@/lib/plan-schedule';
 import { findMissedWorkout } from '@/lib/missed-workout';
 import { localizeDayName } from '@/lib/plan-i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 
 const DISMISS_KEY = 'fittracker_missed_dismissed';
 
@@ -79,7 +79,7 @@ export const MissedWorkoutBanner = ({
         <p className="flex-1 min-w-0 text-sm font-medium pt-1">
           {t('reschedule.missedTitle', {
             name: localizeDayName(missed.day.dayName, lang),
-            date: parseLocalDate(missed.dateISO).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+            date: formatLocalDateLabel(missed.dateISO, dateLocale(lang), { day: 'numeric', month: 'short' }),
           })}
         </p>
         <button

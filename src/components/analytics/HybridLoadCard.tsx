@@ -19,7 +19,7 @@ import { computeDailyLoads, computeWeeklyBalance, detectInterference } from '@/l
 import { tooltipStyle } from '@/lib/chart-config';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 
 const WEEKS_SHOWN = 12;
 
@@ -57,7 +57,7 @@ export const HybridLoadCard = () => {
   const labelCardio = t('hybrid.cardio');
   const labelTotal = t('hybrid.total');
   const chartData = weekly.map((w) => ({
-    week: parseLocalDate(w.weekStart).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'numeric' }),
+    week: formatLocalDateLabel(w.weekStart, dateLocale(lang), { day: 'numeric', month: 'numeric' }),
     [labelStrength]: w.strengthLoad,
     [labelCardio]: w.cardioLoad,
     [labelTotal]: w.strengthLoad + w.cardioLoad,

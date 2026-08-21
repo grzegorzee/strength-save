@@ -12,7 +12,7 @@ import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Zap, Timer, Plane } from 'lucide-react';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
@@ -171,7 +171,7 @@ const TrainingPlan = () => {
     void (async () => {
       const result = await setVacation(mode);
       if (result.success) {
-        const fmtDate = (iso: string) => parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        const fmtDate = (iso: string) => formatLocalDateLabel(iso, dateLocale(lang), { day: 'numeric', month: 'long' });
         toast({ title: t('vac.toastOn', { from: fmtDate(mode.startDate), to: fmtDate(mode.endDate), weeks: mode.extendedWeeks }) });
       }
     })();
@@ -191,7 +191,7 @@ const TrainingPlan = () => {
     void (async () => {
       const result = await setReducedMode(mode);
       if (result.success) {
-        const endLabel = parseLocalDate(mode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        const endLabel = formatLocalDateLabel(mode.endDate, dateLocale(lang), { day: 'numeric', month: 'long' });
         toast({ title: t('rmode.toastOn', { date: endLabel }) });
       }
     })();
@@ -841,7 +841,7 @@ const TrainingPlan = () => {
           <HeartPulse className={cn('h-4 w-4 shrink-0', !(reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)) && 'text-muted-foreground')} aria-hidden />
           <span className="truncate">
             {reducedMode && isReducedModeActive(reducedMode, todayISOForVacation)
-              ? t('rmode.badge', { date: parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
+              ? t('rmode.badge', { date: formatLocalDateLabel(reducedMode.endDate, dateLocale(lang), { day: 'numeric', month: 'long' }) })
               : t('rmode.title')}
           </span>
         </button>
@@ -859,7 +859,7 @@ const TrainingPlan = () => {
           <Plane className={cn('h-4 w-4 shrink-0', !(vacation && isVacationActive(vacation, todayISOForVacation)) && 'text-muted-foreground')} aria-hidden />
           <span className="truncate">
             {vacation && isVacationActive(vacation, todayISOForVacation)
-              ? t('vac.badge', { date: parseLocalDate(vacation.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' }) })
+              ? t('vac.badge', { date: formatLocalDateLabel(vacation.endDate, dateLocale(lang), { day: 'numeric', month: 'long' }) })
               : t('vac.title')}
           </span>
         </button>

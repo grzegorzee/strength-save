@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { localizeDayName } from '@/lib/plan-i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 import type { Lapse } from '@/lib/lapse-detection';
 
 // Tray zaległości (Runna pakiet 1, spec C2): bottom sheet z wyjściem jednym
@@ -35,7 +35,7 @@ export const LapseTray = ({ open, onOpenChange, lapse, onSkip, onMove, onContinu
   const view = lapse ?? lastLapseRef.current;
   if (!view) return null;
 
-  const dateLabel = parseLocalDate(view.dateISO).toLocaleDateString(dateLocale(lang), {
+  const dateLabel = formatLocalDateLabel(view.dateISO, dateLocale(lang), {
     weekday: 'long', day: 'numeric', month: 'long',
   });
 

@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ConfettiBurst } from '@/components/ConfettiBurst';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { SESSION_RATING_REASONS } from '@/lib/workout-session-rating';
 import type { CompletionSummary } from '@/lib/workout-completion-summary';
 import { formatPRDelta, formatPRValue, type PRComparison } from '@/lib/pr-utils';
@@ -195,7 +195,7 @@ export const WorkoutCompletionSequence = ({
   const tonnageValue = tonnageSpace > 0 ? tonnageText.slice(0, tonnageSpace) : tonnageText;
   const tonnageUnit = tonnageSpace > 0 ? tonnageText.slice(tonnageSpace + 1) : '';
   const prevDateLabel = summary.prevDate
-    ? parseLocalDate(summary.prevDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })
+    ? formatLocalDateLabel(summary.prevDate, dateLocale(lang), { day: 'numeric', month: 'short' })
     : null;
   const compareMaxKg = summary.prevVolumeKg !== null
     ? Math.max(summary.volumeKg, summary.prevVolumeKg)

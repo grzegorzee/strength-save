@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
 
@@ -19,7 +19,7 @@ export const LocalizedDateInput = ({ className, value, ...props }: LocalizedDate
   const { t, lang } = useTranslation();
   const iso = typeof value === 'string' && ISO_DATE_RE.test(value) ? value : '';
   const label = iso
-    ? parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })
+    ? formatLocalDateLabel(iso, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })
     : t('dateInput.pick');
 
   return (

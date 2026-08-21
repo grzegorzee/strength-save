@@ -3,7 +3,7 @@ import { Images } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BodyMeasurement } from '@/types';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -34,7 +34,7 @@ export const BodyPhotoCompare = ({ measurements }: BodyPhotoCompareProps) => {
   if (withPhotos.length === 0) return null;
 
   const formatDate = (date: string) =>
-    parseLocalDate(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' });
+    formatLocalDateLabel(date, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' });
 
   if (withPhotos.length === 1) {
     const only = withPhotos[0];

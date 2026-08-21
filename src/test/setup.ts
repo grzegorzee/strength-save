@@ -39,3 +39,19 @@ if (!window.HTMLElement.prototype.hasPointerCapture) {
 if (!window.HTMLElement.prototype.scrollIntoView) {
   window.HTMLElement.prototype.scrollIntoView = () => {};
 }
+
+// WP-G (route sweep): jsdom nie implementuje ResizeObserver (recharts
+// ResponsiveContainer) ani window.scrollTo (scroll na wejsciu w widok grupy
+// /exercises). Polyfill, nie obejście asercji — na realnej przegladarce oba
+// API istnieja.
+if (typeof window.ResizeObserver === "undefined") {
+  class ResizeObserverPolyfill {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  window.ResizeObserver = ResizeObserverPolyfill as unknown as typeof ResizeObserver;
+}
+
+// jsdom rzuca "Not implemented: window.scrollTo" do console.error.
+window.scrollTo = () => {};

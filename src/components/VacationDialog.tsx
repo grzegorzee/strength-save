@@ -5,7 +5,7 @@ import { RangeCalendar } from '@/components/ui/range-calendar';
 import type { DateRangeValue } from '@/lib/date-range-select';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { cn, addCalendarDays, parseLocalDate } from '@/lib/utils';
+import { cn, addCalendarDays, formatLocalDateLabel } from '@/lib/utils';
 import {
   VACATION_MAX_DAYS,
   VACATION_MIN_DAYS,
@@ -61,7 +61,7 @@ export const VacationDialog = ({
   const rangeValid = rangeDays !== null && rangeError === null;
 
   const fmt = (iso: string) =>
-    parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+    formatLocalDateLabel(iso, dateLocale(lang), { day: 'numeric', month: 'long' });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

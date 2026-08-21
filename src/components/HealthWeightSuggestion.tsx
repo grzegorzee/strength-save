@@ -6,7 +6,7 @@ import { getHealthBridge, loadHealthSettings } from '@/lib/health-bridge';
 import { newerHealthWeight, type HealthWeightSample } from '@/lib/health-sync';
 import type { BodyMeasurement } from '@/types';
 import { dateLocale } from '@/i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 
 interface HealthWeightSuggestionProps {
   measurements: BodyMeasurement[];
@@ -49,7 +49,7 @@ export const HealthWeightSuggestion = ({ measurements, onAccept }: HealthWeightS
         <HeartPulse className="h-4 w-4 shrink-0 text-primary" />
         {t('health.weightSuggestion', {
           kg: Math.round(sample.kg * 10) / 10,
-          date: parseLocalDate(sample.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+          date: formatLocalDateLabel(sample.date, dateLocale(lang), { day: 'numeric', month: 'short' }),
         })}
       </span>
       <Button size="sm" variant="outline" className="shrink-0 gap-1.5" disabled={saving} onClick={() => void handleAccept()}>

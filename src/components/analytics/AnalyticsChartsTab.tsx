@@ -33,7 +33,7 @@ import {
 } from '@/lib/summary-utils';
 import { calculate1RM } from '@/lib/pr-utils';
 import type { WorkoutSession } from '@/types';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { tooltipStyle, axisProps } from '@/lib/chart-config';
 import { getCurrentAccent } from '@/lib/accent-theme';
@@ -96,7 +96,7 @@ const getWeekLabel = (weekIndex: number, totalWeeks: number, t: (key: Translatio
 };
 
 const formatDateShort = (date: string, lang: LanguageCode): string =>
-  parseLocalDate(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
+  formatLocalDateLabel(date, dateLocale(lang), { day: 'numeric', month: 'short' });
 
 const AnalyticsChartsTab = () => {
   const { uid } = useCurrentUser();
@@ -238,7 +238,7 @@ const AnalyticsChartsTab = () => {
         };
 
         entry.chartData.push({
-          date: parseLocalDate(w.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+          date: formatLocalDateLabel(w.date, dateLocale(lang), { day: 'numeric', month: 'short' }),
           value: weightedSets.length > 0 ? Math.round(toDisplay(value)) : value,
         });
         byExercise.set(ex.exerciseId, entry);

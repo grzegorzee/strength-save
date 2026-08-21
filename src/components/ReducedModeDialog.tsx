@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { isReducedModeActive, type ReducedMode, type ReducedModeLevel } from '@/lib/reduced-mode';
 
 // Dialog trybu "nie na 100%" (Runna pakiet 1, spec C3). Dwa stany: konfiguracja
@@ -36,7 +36,7 @@ export const ReducedModeDialog = ({ open, onOpenChange, mode, todayISO, onEnable
 
   const active = isReducedModeActive(mode, todayISO);
   const endLabel = mode
-    ? parseLocalDate(mode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })
+    ? formatLocalDateLabel(mode.endDate, dateLocale(lang), { day: 'numeric', month: 'long' })
     : '';
 
   return (

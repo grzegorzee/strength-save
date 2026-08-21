@@ -50,7 +50,7 @@ import { dateLocale } from '@/i18n';
 import type { SetData, ExerciseMetrics, WorkoutSessionRating, WorkoutSessionRatingReason } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
 import { formatPRValue, getExerciseBest1RM } from '@/lib/pr-utils';
 import { badgeEventKey, emitUserEvent, prEventKey } from '@/lib/user-events';
 import { db } from '@/lib/firebase';
@@ -2539,8 +2539,7 @@ const WorkoutDay = () => {
         resolveVolumeCategory,
       )
       : [];
-    const summaryDateLabel = parseLocalDate(targetDate)
-      .toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' });
+    const summaryDateLabel = formatLocalDateLabel(targetDate, dateLocale(lang), { day: 'numeric', month: 'short' });
     const summarySubtitle = [localizeFocus(day.focus, lang), summaryDateLabel]
       .filter(Boolean).join(' · ');
     return (

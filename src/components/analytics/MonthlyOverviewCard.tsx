@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarRange } from 'lucide-react';
 import { aggregateMonthlyStats, formatDurationHM } from '@/lib/monthly-stats';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -21,8 +21,7 @@ export const MonthlyOverviewCard = ({ workouts }: { workouts: WorkoutSession[] }
   if (stats.length === 0) return null;
 
   const monthLabel = (monthKey: string): string => {
-    const label = parseLocalDate(`${monthKey}-01`)
-      .toLocaleDateString(dateLocale(lang), { month: 'long', year: 'numeric' });
+    const label = formatLocalDateLabel(`${monthKey}-01`, dateLocale(lang), { month: 'long', year: 'numeric' });
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
 

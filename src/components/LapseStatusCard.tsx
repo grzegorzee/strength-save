@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { localizeDayName } from '@/lib/plan-i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 import type { Lapse } from '@/lib/lapse-detection';
 
 export const LapseStatusCard = ({
@@ -17,7 +17,7 @@ export const LapseStatusCard = ({
   onDismiss: () => void;
 }) => {
   const { t, lang } = useTranslation();
-  const dateLabel = parseLocalDate(lapse.dateISO).toLocaleDateString(dateLocale(lang), {
+  const dateLabel = formatLocalDateLabel(lapse.dateISO, dateLocale(lang), {
     weekday: 'long', day: 'numeric', month: 'long',
   });
   const description = lapse.kind === 'stale-session' && lapse.day

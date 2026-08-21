@@ -12,7 +12,7 @@ import { Capacitor } from '@capacitor/core';
 import { hapticSuccess } from '@/lib/haptics';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { getCurrentAccent } from '@/lib/accent-theme';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 import { workoutDurationSec } from '@/lib/monthly-stats';
 import { translate, dateLocale, type LanguageCode } from '@/i18n';
 import type { WorkoutSession } from '@/types';
@@ -70,7 +70,7 @@ export function buildCycleShareHtml(
   accentHex: string,
 ): string {
   const fmtDate = (iso: string) =>
-    parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' });
+    formatLocalDateLabel(iso, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' });
   const range = `${fmtDate(data.startDate)} · ${fmtDate(data.endDate)}`;
 
   const statCell = (value: string, label: string): string => `

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { formatLocalDate, parseLocalDate, cn } from '@/lib/utils';
+import { formatLocalDate, formatLocalDateLabel, parseLocalDate, cn } from '@/lib/utils';
 import { computeDailyLoads, detectInterference, type InterferenceHit } from '@/lib/hybrid-load';
 import type { WorkoutSession } from '@/types';
 import type { UnifiedActivity } from '@/types/strava';
@@ -96,7 +96,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
                 if (d.strengthLoad >= d.cardioLoad) strengthH = MIN_STACK_PX - cardioH;
                 else cardioH = MIN_STACK_PX - strengthH;
               }
-              const label = parseLocalDate(d.date).toLocaleDateString(dateLocale(lang), { weekday: 'short' });
+              const label = formatLocalDateLabel(d.date, dateLocale(lang), { weekday: 'short' });
               const isPlanned = plannedWeekdays?.includes(WEEKDAY_NAMES[parseLocalDate(d.date).getDay()]) ?? false;
               return (
                 <div
@@ -153,7 +153,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
         >
           <span>
             {t('hybrid.interferenceBanner', {
-              date: parseLocalDate(hit.cardioDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+              date: formatLocalDateLabel(hit.cardioDate, dateLocale(lang), { day: 'numeric', month: 'short' }),
             })}
           </span>
           <button

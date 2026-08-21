@@ -16,7 +16,7 @@ import { BodyPhotoCompare } from '@/components/BodyPhotoCompare';
 import { PhotoCropDialog } from '@/components/PhotoCropDialog';
 import { TrendingUp, TrendingDown, Minus, Camera, ChevronRight, Database, Ruler } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { HealthWeightSuggestion } from '@/components/HealthWeightSuggestion';
@@ -229,7 +229,7 @@ const Measurements = () => {
               {recentMeasurements.map((m) => (
                 <div key={m.id} className="rounded-lg bg-muted/50 p-3 space-y-2">
                   <span className="text-sm font-medium">
-                    {parseLocalDate(m.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {formatLocalDateLabel(m.date, dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
                     {/* FIX-B T7: godzina wykonania (pomiary sprzed recordedAt jej nie mają) */}
                     {m.recordedAt && (
                       <span className="ml-1 text-xs text-muted-foreground tabular-nums">

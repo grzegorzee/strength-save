@@ -99,6 +99,8 @@ export { revenuecatWebhook } from "./revenuecat";
 export { onWorkoutWrittenAggregate, rebuildWorkoutAggregate } from "./workout-aggregate";
 // Z222: dzienny raport kosztów chmury (Monitoring API -> admin_cost_daily).
 export { dailyCostDigest } from "./cost-digest";
+// WP-G (X27): dzienny alert telemetrii client_errors (nowy kod / spike -> mail).
+export { dailyErrorDigest } from "./error-digest";
 // Pakiet prawny v2: log zgód z IP i timestampem serwerowym (rozliczalność RODO).
 export { recordConsent } from "./consents";
 

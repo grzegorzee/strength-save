@@ -20,7 +20,7 @@ import {
   filterWorkoutsByPeriod,
 } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { trainingPlan as defaultPlanData } from '@/data/trainingPlan';
 import { localizeExerciseName } from '@/data/exercise-i18n';
 import { countScheduledTrainingsInRange } from '@/lib/plan-schedule';
@@ -388,7 +388,7 @@ const SummaryTab = () => {
                   <div>
                     <p className="font-medium text-sm">{localizeDayName(dayLabel.dayName, lang)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {parseLocalDate(w.date).toLocaleDateString(dateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' })}
+                      {formatLocalDateLabel(w.date, dateLocale(lang), { weekday: 'short', day: 'numeric', month: 'short' })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

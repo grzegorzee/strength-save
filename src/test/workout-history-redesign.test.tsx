@@ -65,6 +65,7 @@ vi.mock('@/components/ExportWorkoutsDialog', () => ({
 
 import WorkoutHistory from '@/pages/WorkoutHistory';
 import { deleteWorkoutEverywhere } from '@/lib/workout-delete';
+import { buildCanonicalState } from '@/test/canonical-states';
 
 const today = new Date();
 const iso = (daysAgo: number) => formatLocalDate(new Date(today.getTime() - daysAgo * 24 * 3600 * 1000));
@@ -199,19 +200,22 @@ describe('WorkoutHistory redesign — bez cykli (niezmiennik starego przepływu)
 });
 
 describe('WorkoutHistory redesign — z cyklami', () => {
-  const activeStart = iso(28);
+  // WP-G (dogfooding G1): aktywny cykl pochodzi z kanonicznego stanu, czyli
+  // z produkcyjnego ksztaltu zapisu usePlanCycles (endDate '' az do
+  // archiwizacji) zamiast recznego fixture'a.
+  const canonicalActiveCycle = buildCanonicalState('active-plan').cycles
+    .find((c) => c.status === 'active')!;
   const pastStart = iso(240);
   const pastEnd = iso(160);
 
   beforeEach(() => {
     fixtures.cycles = [
-      // Produkcyjny kontrakt: aktywny cykl ma endDate '' aż do archiwizacji (usePlanCycles).
-      cycle('c-active', activeStart, '', { status: 'active', stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 } }),
+      canonicalActiveCycle,
       cycle('c-past', pastStart, pastEnd),
     ];
     fixtures.workouts = [
-      workout('a1', iso(1), { cycleId: 'c-active' }),
-      workout('a2', iso(8), { cycleId: 'c-active' }),
+      workout('a1', iso(1), { cycleId: canonicalActiveCycle.id }),
+      workout('a2', iso(8), { cycleId: canonicalActiveCycle.id }),
       workout('p1', iso(200), { cycleId: 'c-past' }),
       workout('out', iso(400)), // poza zakresem obu cykli
     ];

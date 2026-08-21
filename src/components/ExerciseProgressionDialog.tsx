@@ -28,7 +28,7 @@ import { getExerciseHistory, detectPlateau, getProgressionSummary, getTrackedExe
 import { getExerciseNoteHistory } from '@/lib/exercise-notes';
 import { getExerciseMetricHistory } from '@/lib/rza-metrics';
 import { tooltipStyle } from '@/lib/chart-config';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -88,12 +88,12 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   const chartData = useMemo(() =>
     isBodyweight
       ? history.map(h => ({
-          date: parseLocalDate(h.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+          date: formatLocalDateLabel(h.date, dateLocale(lang), { day: 'numeric', month: 'short' }),
           [labelMaxReps]: h.bestReps,
           [labelTotalReps]: h.totalVolume,
         }))
       : history.map(h => ({
-          date: parseLocalDate(h.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+          date: formatLocalDateLabel(h.date, dateLocale(lang), { day: 'numeric', month: 'short' }),
           '1RM': Math.round(toDisplay(h.estimated1RM)),
           [labelMaxKg]: Math.round(toDisplay(h.maxWeight)),
         })),
@@ -119,7 +119,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
   // Z106: dedykowany widok dla nowych typów — jedna linia wartości + ostatnie sesje.
   if (isTracked && trackedHistory.length > 0) {
     const trackedChart = trackedHistory.map((p) => ({
-      date: parseLocalDate(p.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }),
+      date: formatLocalDateLabel(p.date, dateLocale(lang), { day: 'numeric', month: 'short' }),
       [trackedLabel]: tracking === 'duration' ? p.value : Math.round(p.value * 10) / 10,
     }));
     return (
@@ -154,7 +154,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
             {trackedHistory.slice(-5).reverse().map((p) => (
               <div key={p.date} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30">
                 <span className="text-sm">
-                  {parseLocalDate(p.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}
+                  {formatLocalDateLabel(p.date, dateLocale(lang), { day: 'numeric', month: 'short' })}
                 </span>
                 <Badge variant="secondary" className="text-xs">{formatTrackedValue(p.value)}</Badge>
               </div>
@@ -167,7 +167,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
               {noteHistory.map((n, i) => (
                 <div key={`${n.date}-${i}`} className="p-2.5 rounded-lg bg-muted/30">
                   <p className="text-[11px] text-muted-foreground">
-                    {parseLocalDate(n.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {formatLocalDateLabel(n.date, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                   <p className="text-sm mt-0.5">{n.note}</p>
                 </div>
@@ -281,7 +281,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
           {recentSessions.map(s => (
             <div key={s.date} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30">
               <span className="text-sm">
-                {parseLocalDate(s.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}
+                {formatLocalDateLabel(s.date, dateLocale(lang), { day: 'numeric', month: 'short' })}
               </span>
               <div className="flex items-center gap-2">
                 {isBodyweight ? (
@@ -308,7 +308,7 @@ export const ExerciseProgressionDialog = ({ exerciseId, exerciseName, open, onOp
             {noteHistory.map((n, i) => (
               <div key={`${n.date}-${i}`} className="p-2.5 rounded-lg bg-muted/30">
                 <p className="text-[11px] text-muted-foreground">
-                  {parseLocalDate(n.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
+                  {formatLocalDateLabel(n.date, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
                 <p className="text-sm mt-0.5">{n.note}</p>
               </div>

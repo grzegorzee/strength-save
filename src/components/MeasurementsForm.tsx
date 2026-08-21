@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { BodyMeasurement } from '@/types';
 import { Camera, Save, User, X } from 'lucide-react';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
@@ -118,7 +118,7 @@ export const MeasurementsForm = ({ latestMeasurement, onSave, photosEnabled = fa
             <CardTitle>{t('nav.measurements')}</CardTitle>
             <CardDescription>
               {latestMeasurement ? (
-                <>{t('measurements.lastMeasurement', { date: parseLocalDate(latestMeasurement.date).toLocaleDateString(dateLocale(lang), {
+                <>{t('measurements.lastMeasurement', { date: formatLocalDateLabel(latestMeasurement.date, dateLocale(lang), {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'

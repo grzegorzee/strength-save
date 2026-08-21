@@ -1,9 +1,17 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { version } from "./package.json";
 
 export default defineConfig({
   plugins: [react()],
+  // WP-G: parytet z vite.config — bez tego define strony z etykietą wersji
+  // (Profile, AppNavigation) padają w jsdom na ReferenceError, choc kazdy
+  // build Vite ma stala podstawiona. Route sweep ma testowac dane, nie
+  // dziure srodowiska testowego.
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   test: {
     environment: "jsdom",
     globals: true,

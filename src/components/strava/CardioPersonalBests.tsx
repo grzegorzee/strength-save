@@ -5,7 +5,7 @@ import { detectCardioPRs, type CardioPR } from '@/lib/strava-utils';
 import type { StravaActivity } from '@/types/strava';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { parseLocalDate } from '@/lib/utils';
+import { formatLocalDateLabel } from '@/lib/utils';
 
 interface CardioPersonalBestsProps {
   activities: StravaActivity[];
@@ -49,7 +49,7 @@ export const CardioPersonalBests = ({ activities }: CardioPersonalBestsProps) =>
               </div>
               <p className="text-lg font-bold">{pr.value}</p>
               <p className="text-[10px] text-muted-foreground truncate">
-                {parseLocalDate(pr.date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
+                {formatLocalDateLabel(pr.date, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
                 {' · '}
                 {pr.activityName}
               </p>

@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PlanCycle } from '@/types/cycles';
 import type { LanguageCode } from '@/i18n';
-import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
@@ -20,10 +20,8 @@ const formatDateRange = (startDate: string, endDate: string, durationWeeks: numb
     return formatLocalDate(date);
   };
 
-  const fmt = (d: string) => {
-    const date = parseLocalDate(d);
-    return date.toLocaleDateString(dateLocale(lang), { month: 'short', year: 'numeric' });
-  };
+  const fmt = (d: string) =>
+    formatLocalDateLabel(d, dateLocale(lang), { month: 'short', year: 'numeric' });
   const effectiveEnd = endDate || plannedEndDate(startDate, durationWeeks);
   if (startDate.slice(0, 7) === effectiveEnd.slice(0, 7)) return fmt(startDate);
   return `${fmt(startDate)} - ${fmt(effectiveEnd)}`;

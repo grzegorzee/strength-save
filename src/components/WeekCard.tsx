@@ -2,7 +2,7 @@ import { Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
-import { cn, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { dateLocale } from '@/i18n';
 import type { WeekCardModel } from '@/lib/week-card';
 
@@ -53,7 +53,7 @@ export const WeekCard = ({ model, isDeloadWeek, todayDoneDayName }: WeekCardProp
 
         <div className="mt-3 flex gap-1.5">
           {model.days.map((day) => {
-            const label = parseLocalDate(day.date).toLocaleDateString(dateLocale(lang), {
+            const label = formatLocalDateLabel(day.date, dateLocale(lang), {
               weekday: 'long', day: 'numeric', month: 'long',
             });
             return (

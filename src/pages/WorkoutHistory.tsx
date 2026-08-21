@@ -27,7 +27,7 @@ import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-ins
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { formatTonnage } from '@/lib/units';
 import { EmptyState } from '@/components/EmptyState';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -254,7 +254,7 @@ const WorkoutHistory = () => {
       const key = workout.date.slice(0, 7);
       let gi = indexByKey.get(key);
       if (gi === undefined) {
-        const label = parseLocalDate(workout.date).toLocaleDateString(dateLocale(lang), { month: 'long', year: 'numeric' });
+        const label = formatLocalDateLabel(workout.date, dateLocale(lang), { month: 'long', year: 'numeric' });
         groups.push({ key, label: label.charAt(0).toUpperCase() + label.slice(1), workouts: [], tonnage: 0 });
         gi = groups.length - 1;
         indexByKey.set(key, gi);
@@ -266,7 +266,7 @@ const WorkoutHistory = () => {
   }, [filteredAssignment.outside, lang]);
 
   const formatShortDate = (date: string) =>
-    parseLocalDate(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }).replace('.', '');
+    formatLocalDateLabel(date, dateLocale(lang), { day: 'numeric', month: 'short' }).replace('.', '');
 
   // Aktywny cykl ma endDate '' aż do archiwizacji (usePlanCycles) — jak w CycleDetail.
   const cycleRangeLabel = (cycle: PlanCycle) =>

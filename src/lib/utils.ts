@@ -22,6 +22,34 @@ export const parseLocalDate = (value: string): Date => {
   return parsed;
 };
 
+/**
+ * WP-G (zasada 11): wariant bezpieczny do RENDEROWANIA ETYKIET. Nigdy nie
+ * rzuca; '' / undefined / zly format daja null. Logika (sortowanie,
+ * porownania, silniki harmonogramu) zostaje na rzucajacym parseLocalDate,
+ * bo tam cichy null maskowalby bledy danych.
+ */
+export const parseLocalDateSafe = (value: unknown): Date | null => {
+  if (typeof value !== 'string') return null;
+  try {
+    return parseLocalDate(value);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Etykieta daty do UI: degradacja do placeholdera '-' zamiast crasha route'a
+ * (klasa E-8UE4S: parseLocalDate('') w renderze polozyl cala Historie).
+ */
+export const formatLocalDateLabel = (
+  value: unknown,
+  locale: string,
+  options?: Intl.DateTimeFormatOptions,
+): string => {
+  const parsed = parseLocalDateSafe(value);
+  return parsed ? parsed.toLocaleDateString(locale, options) : '-';
+};
+
 /** Difference between date-only values, independent of local daylight-saving offsets. */
 export const calendarDayDiff = (from: string, to: string): number => {
   const fromDate = parseLocalDate(from);

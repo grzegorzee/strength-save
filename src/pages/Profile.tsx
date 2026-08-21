@@ -51,7 +51,7 @@ import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/
 import { VacationDialog } from '@/components/VacationDialog';
 import { buildVacationMode, isVacationActive, type VacationActivity } from '@/lib/vacation-mode';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
 
 import { REST_TIMER_KEY, SOUND_KEY, REST_OPTIONS } from '@/lib/workout-preferences';
 
@@ -275,7 +275,7 @@ const Profile = () => {
   const todayISO = formatLocalDate(new Date());
   const rmodeActive = isReducedModeActive(reducedMode, todayISO);
   const rmodeEndLabel = reducedMode
-    ? parseLocalDate(reducedMode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' })
+    ? formatLocalDateLabel(reducedMode.endDate, dateLocale(lang), { day: 'numeric', month: 'long' })
     : '';
   const handleRmodeEnable = (level: ReducedModeLevel, days: number) => {
     setRmodeOpen(false);
@@ -283,7 +283,7 @@ const Profile = () => {
     void (async () => {
       const result = await setReducedMode(mode);
       if (result.success) {
-        const endLabel = parseLocalDate(mode.endDate).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+        const endLabel = formatLocalDateLabel(mode.endDate, dateLocale(lang), { day: 'numeric', month: 'long' });
         toast({ title: t('rmode.toastOn', { date: endLabel }) });
       }
     })();
@@ -299,7 +299,7 @@ const Profile = () => {
   // Tryb urlopu (Runna p.1, spec C4).
   const [vacOpen, setVacOpen] = useState(false);
   const fmtVacDate = (iso: string) =>
-    parseLocalDate(iso).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'long' });
+    formatLocalDateLabel(iso, dateLocale(lang), { day: 'numeric', month: 'long' });
   const handleVacEnable = (startISO: string, days: number, activity: VacationActivity) => {
     setVacOpen(false);
     const mode = buildVacationMode(startISO, days, activity);
