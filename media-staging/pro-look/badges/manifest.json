@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-08-21",
+  "style": "dark-gym-v1",
+  "model": "gpt_image_2 (Higgsfield, quality high)",
+  "size": "512x512 webp q90",
+  "note": "jedyny zestaw z akcentem #cefc22 na obrazie",
+  "promptBase": "Premium metallic achievement badge medal centered on a pure dark background #0e0e0e, circular dark gunmetal steel medal, thin glowing lime green #cefc22 accent ring, brushed metal texture, subtle cool rim light, dark moody premium fitness app style, high detail 3D render, centered symmetrical composition, no text, no letters, no numbers, no logos",
+  "files": {
+    "pr.webp": "embossed LONG horizontal olympic barbell icon: long thin bar with large round plates only at both far ends, clearly a barbell not a dumbbell, lime glow on the bar (v2, retry po hantli w v1)",
+    "streak-4.webp": "small embossed single flame icon, subtle lime glow tracing the flame",
+    "streak-12.webp": "large fierce roaring flame icon filling the center, bold lime ring, strong lime glow inside the flame, ornate double rim",
+    "tonnage-100t.webp": "embossed stack of heavy weight plates icon, subtle lime glow on the plates",
+    "first-workout.webp": "embossed bright energy spark icon, subtle lime glow radiating from the spark",
+    "season-gold.webp": "polished golden laurel wreath wrapping the rim and golden star emblem in the center, dark gunmetal base, very subtle thin lime accent ring"
+  }
+}

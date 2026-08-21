@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-08-21",
+  "style": "dark-gym-v1",
+  "model": "gpt_image_2 (Higgsfield, quality high)",
+  "size": "1568x608 webp q90 (generated 21:9 2k, center-cropped)",
+  "promptPrefix": "Moody dark gym photography, ultra wide cinematic shot of ",
+  "promptSuffix": ", background fades into pure near-black #0e0e0e, cool desaturated color grading, subtle cold blue rim light, deep shadows, low-key professional fitness photography, lots of negative dark space, no people, no text, no logos",
+  "files": {
+    "tpl-531-bbb-4.webp": {
+      "promptCore": "four large iron weight plates leaning in a row against a power rack upright, a bowl of white lifting chalk on the floor beside them"
+    },
+    "tpl-arnold-6.webp": {
+      "promptCore": "a vintage golden era gym corner in darkness with old round-head iron dumbbells and an antique barbell near a raw brick wall"
+    },
+    "tpl-athletic-4.webp": {
+      "promptCore": "a wooden plyometric jump box with a medicine ball resting on top in a dark performance gym, explosive athletic training scene"
+    },
+    "tpl-calisthenics-3.webp": {
+      "promptCore": "a pull-up bar and parallel dip bars in a dark gym with gymnastic rings hanging from above, bodyweight training corner"
+    },
+    "tpl-fbw-3.webp": {
+      "promptCore": "a classic loaded barbell standing on the floor of a dark warehouse gym in front of a power rack, timeless old-school strength scene"
+    },
+    "tpl-fullbody-2.webp": {
+      "promptCore": "a single barbell with iron plates resting on a lifting platform in a vast dark empty gym, simple and foundational"
+    },
+    "tpl-fullbody-3.webp": {
+      "promptCore": "a flat bench with a pair of dumbbells on the floor beside a dumbbell rack in a dark gym, balanced calm composition"
+    },
+    "tpl-glutes-3.webp": {
+      "promptCore": "a barbell with a thick black foam pad resting across a flat bench set up for hip thrusts, a fabric resistance band lying beside it"
+    },
+    "tpl-gzclp-3.webp": {
+      "promptCore": "three barbells resting on low stands loaded with three different plate sizes, heavy medium and light, arranged in a row like three tiers"
+    },
+    "tpl-hybrid-5.webp": {
+      "promptCore": "a cable crossover machine with two handles hanging from its towers and a barbell lying on the floor between them"
+    },
+    "tpl-lean-engine-4.webp": {
+      "promptCore": "a kettlebell, a jump rope and an air bike in a dark gym corner, dust drifting through a cold beam of light, circuit training energy"
+    },
+    "tpl-meso-4.webp": {
+      "promptCore": "a barbell on a rack loaded with a precise series of small fractional plates from large to tiny, laboratory-like precision, scientific minimalism"
+    },
+    "tpl-minimalist-2.webp": {
+      "promptCore": "one single dumbbell lying alone in the center of a vast empty dark gym floor, extreme minimalism, tiny subject in huge darkness"
+    },
+    "tpl-nsuns-5.webp": {
+      "promptCore": "a barbell loaded to the absolute maximum with many thick bumper plates on a dark platform, bar slightly bending, the heaviest lift of the gym"
+    },
+    "tpl-phat-5.webp": {
+      "promptCore": "a massive hack squat machine and a leg press sled looming side by side in a dark gym, heavy steel machinery half swallowed by shadow"
+    },
+    "tpl-phul-4.webp": {
+      "promptCore": "a loaded barbell on the floor in the foreground and a rack of dumbbells behind it deeper in shadow, two depths of training"
+    },
+    "tpl-powerbuilding-4.webp": {
+      "promptCore": "a loaded barbell racked in a power rack with a pair of heavy dumbbells on the floor beside it, strength and size in one frame"
+    },
+    "tpl-ppl-3.webp": {
+      "promptCore": "three training stations side by side in a dark gym: a rack of dumbbells, a pull-up bar and a squat rack, three separate pools of cold light"
+    },
+    "tpl-ppl-6.webp": {
+      "promptCore": "twin identical squat racks standing side by side in a dark gym with a pull-up bar between them, symmetrical mirrored composition"
+    },
+    "tpl-push-pull-4.webp": {
+      "promptCore": "a kettlebell, neatly folded resistance bands and a chrome barbell arranged with precision on dark rubber flooring, minimal controlled setup"
+    },
+    "tpl-rza-3.webp": {
+      "promptCore": "a cable lat pulldown machine with a wide bar hanging on steel cables in a dark gym, cables catching cold light, tall V-shaped composition"
+    },
+    "tpl-six-lifts-3.webp": {
+      "promptCore": "an adjustable incline bench with one pair of dumbbells laid neatly in front of it, clean simple training setup, order and repetition"
+    },
+    "tpl-split-5.webp": {
+      "promptCore": "a long row of dumbbells on a rack stretching into darkness, strong perspective vanishing into black"
+    },
+    "tpl-strength-5x5.webp": {
+      "promptCore": "a heavily loaded powerlifting barbell with large iron plates on a wooden lifting platform, chalk dust in the air, power rack looming behind"
+    },
+    "tpl-upper-lower-4.webp": {
+      "promptCore": "a dark gym split into two zones, a bench press station in the foreground and a squat rack deeper in the frame, two separate pools of cold light"
+    }
+  }
+}

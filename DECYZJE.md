@@ -5,11 +5,30 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-21 (fala X27; web index-B-rd2KNm, iOS 114 APPROVED, AAB v29 SHA 5444ee04)
+**Ostatnia aktualizacja:** 2026-08-21 (fala X28 + Historia v2; web index-BGInrQ0j, iOS 115 APPROVED, AAB v30 SHA 38586726)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-21 (3): FALA X28 + HISTORIA v2 — feedback builda 114, pro-look, redesign Historii (iOS 115 / AAB v30)
+
+**Bugi z realnego testu builda 114 (root cause z rozpoznania):**
+1. "NEXT SESSION · AUG 24" przy starcie planu 7 września: guard startu w resolverze był OPT-IN (4. argument), Dashboard nie podawał go w 4 wywołaniach, a branch `completed` w todayTraining wygrywał z guardem pre-start (dzisiejszy ukończony trening ad-hoc omijał sprawdzenie). Fix: guard pre-start PRZED completed + startDateISO we wszystkich konsumentach (Dashboard, DayPlan, MissedWorkoutBanner, missed-workout, buildScheduleMove) + wewnętrzna spójność plan-schedule. Test X27 nie łapał, bo sprawdzał pre-start bez ukończonego dziś treningu — luka domknięta testem 1:1 ze zgłoszeniem.
+2. "current week" na każdym tygodniu Planu: (a) link powrotu renderował się zawsze przy `planStarted=false` (actualCurrentWeek=0), (b) badge NASTĘPNY liczony z dat tylko wyświetlanego tygodnia. Fix: link tylko po starcie planu (+ "Start planu: {data}" przed startem), badge liczony globalnie z całego harmonogramu.
+
+**Pakiety X28 (workflow 8 agentów, 2 batche; bramki końcowe po merge: vitest 2482/0, e2e 218/218, typecheck, lint 0 err):**
+- WP-A: kompaktowy CreateCustomExerciseDialog (Selecty zamiast poziomych chipów, bez listy biblioteki, keyboard-aware wysokość — usunięte nadpisanie max-h-[88vh], które wypychało górę dialogu poza ekran); w pickerze przycisk "Dodaj własne" nad listą.
+- WP-B: fix daty startu (wyżej) + zamykany baner "Workout completed" (X, dismiss per data w localStorage, wraca następnego dnia).
+- WP-C: fixy Planu (wyżej) + wyróżnienie "Dziś" w liście dni.
+- WP-D: Postępy kafelkowo — poziom 1: staty + Life PRs + heatmapa + 4 kafle (Rekordy / Odznaki i sezony / Analityka / Tygodnie, medaliony webp), sekcje pod ?section=; wykresy jako kafle-menu z deep-linkiem ?chart= (jeden na raz); weekly w zwartym stylu listy.
+- WP-E: eksport before/after — BodyCompareShareDialog: 3 szablony (classic/accent/photo), formaty 1:1 i 9:16, logo, daty, wagi, delta, kolor akcentu usera; zdjęcia Storage przez fetch→downscale do dataURL (zero tainted canvas), fallback getBlob SDK; wspólny escapeHtml w lib/share-html.
+- WP-F: integracja pro-look — ilustracje pustych stanów (Historia/Pomiary/brak planu/Strava), hero 25 szablonów planów w wizardzie (test kompletności per id), hero paywalla, kafel grupy "Własne"; +~1,8 MB webp w public/.
+- WP-H (osobny agent w git worktree, merge po workflow): **Historia v2 "tiles"** wg designu 2a/2b/2c — poziom 1: kafle cykli ze sparkline tonażu + PERIOD + jeden Export; poziom 2 (?cycle=): staty w nagłówku, chipsy, sesje po tygodniach; pełna lista ?list=all (wyszukiwarka, paginacja); Export sheet (zakres × PDF/CSV/do trenera); Porównaj w menu ⋯. Wszystkie niezmienniki przeniesione z mapowaniem (E-8UE4S, komplet akcji wiersza, każda sesja osiągalna). Merge: konflikty canonical-states (unia) i WorkoutHistory (strona WP-H + graft ilustracji empty state z WP-F).
+
+**Wydanie:** web LIVE index-BGInrQ0j.js (+ assety pro-look 200 OK), iOS 115 upload + obie grupy + Beta App Review APPROVED, AAB v30 (SHA 38586726, 19,2 MB — wzrost przez grafiki). Functions/rules bez zmian w tej fali (deploy z X27 aktualny).
+
+**Otwarte:** Play upload v30 = krok właściciela; konto QA nadal czeka na rozszerzenie Chrome; skrzynka contact@strengthsave.app; testy urządzeniowe wg deviceTestNotes pakietów (m.in. Selecty Radix w WKWebView, fetch zdjęć Storage przy eksporcie, PERIOD/kalendarz, glass na light theme).
 
 ### 2026-08-21 (2): FALA X27 — hotfix Historii, 8 pakietów funkcyjnych, hardening procesu, wydanie (iOS 114 / AAB v29)
 
