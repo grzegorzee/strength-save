@@ -22,14 +22,13 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { RangeCalendar } from '@/components/ui/range-calendar';
-import { buildWorkoutsCsv } from '@/lib/workout-csv';
 import {
-  exportFileName,
   exportRangeBounds,
   type ExportRangeKind,
 } from '@/lib/workout-export-range';
-import { buildHistoryRowMeta } from '@/lib/history-stats';
-import { fetchWorkoutHistoryPage, type WorkoutHistoryCursor } from '@/lib/workout-read-store';
+// WP-H (X28): fetch stron zakresu + budowa/pobranie CSV wydzielone do lib —
+// ta sama ścieżka co Export sheet Historii.
+import { downloadWorkoutsCsvFile, fetchWorkoutsForBounds } from '@/lib/workout-csv-download';
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { toast } from '@/hooks/use-toast';
@@ -43,33 +42,6 @@ interface ExportWorkoutsDialogProps {
   uid: string;
   cycles: PlanCycle[];
 }
-
-/** Zakres dat: dociągamy strony aż do końca (limit bezpieczeństwa). */
-const MAX_RANGE_PAGES = 20;
-
-const fetchForBounds = async (
-  uid: string,
-  bounds: NonNullable<ReturnType<typeof exportRangeBounds>>,
-): Promise<WorkoutSession[]> => {
-  if (bounds.mode === 'lastN') {
-    const page = await fetchWorkoutHistoryPage(uid, { completed: true, pageSize: bounds.limit });
-    return page.workouts.slice(0, bounds.limit);
-  }
-  const all: WorkoutSession[] = [];
-  let cursor: WorkoutHistoryCursor | null = null;
-  for (let i = 0; i < MAX_RANGE_PAGES; i += 1) {
-    const page = await fetchWorkoutHistoryPage(uid, {
-      fromDate: bounds.fromDate,
-      toDate: bounds.toDate,
-      completed: true,
-      cursor,
-    });
-    all.push(...page.workouts);
-    cursor = page.nextCursor;
-    if (!cursor) break;
-  }
-  return all;
-};
 
 export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: ExportWorkoutsDialogProps) => {
   const { t } = useTranslation();
@@ -99,7 +71,7 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
     }
     let cancelled = false;
     setIsLoading(true);
-    fetchForBounds(uid, bounds)
+    fetchWorkoutsForBounds(uid, bounds)
       .then((items) => {
         if (cancelled) return;
         setWorkouts(items);
@@ -119,19 +91,7 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
 
   const handleExport = () => {
     if (workouts.length === 0) return;
-    // Liczba PR per sesja z tej samej logiki co wiersze Historii.
-    const meta = buildHistoryRowMeta(workouts);
-    const prCounts = Object.fromEntries([...meta].map(([id, m]) => [id, m.prCount]));
-    const csv = buildWorkoutsCsv(workouts, prCounts);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = exportFileName(workouts);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadWorkoutsCsvFile(workouts);
     toast({ title: t('data.export.done'), description: t('data.exportCsv.doneDesc') });
     onOpenChange(false);
   };
