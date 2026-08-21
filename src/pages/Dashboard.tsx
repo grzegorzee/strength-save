@@ -417,9 +417,10 @@ const Dashboard = () => {
       <p className="text-sm text-muted-foreground">
         {localizeFocus(entry.day.focus, lang)} · {t('dash.exercisesCount', { n: entry.day.exercises.length })}
       </p>
+      {/* Naprawa r2 (2026-08-21): ten sam jezyk kinetic co CTA dnia treningowego. */}
       <Button
         size="lg"
-        className="mt-0.5 h-14 w-full gap-1.5 rounded-2xl text-base font-semibold"
+        className="kinetic-primary-button mt-0.5 h-14 w-full gap-1.5 text-base hover:brightness-105"
         onClick={() => navigate(`/workout/${entry.day.id}?date=${entry.dateKey}`)}
       >
         <Play className="h-4 w-4" />
@@ -858,9 +859,11 @@ const Dashboard = () => {
               ? t('dash.today.continueSets', { n: continueDraft.completedSets })
               : `${localizeFocus(todayTraining.day.focus, lang)} · ${t('dash.exercisesCount', { n: todayTraining.day.exercises.length })}`}
           </p>
+          {/* Naprawa r2 (2026-08-21): CTA hero w klasie kinetic jak FINISH WORKOUT
+              i BACK TO DASHBOARD (tokens.md par. 2.8: jeden jezyk dla CTA hero). */}
           <Button
             size="lg"
-            className="mt-0.5 h-14 w-full gap-1.5 rounded-2xl text-base font-semibold"
+            className="kinetic-primary-button mt-0.5 h-14 w-full gap-1.5 text-base hover:brightness-105"
             onClick={() => navigate(continueDraft
               ? continueDraft.target
               : `/workout/${todayTraining.dayId}?date=${todayTraining.dateStr}&autostart=true`)}
