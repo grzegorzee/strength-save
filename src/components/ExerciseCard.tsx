@@ -601,15 +601,18 @@ const ExerciseCardInner = ({
   // 26.7 px wnętrza przy px-3; "125" potrzebuje ~29.5 px, "122.5" ~44 px). Kolumny
   // liczbowe wagi/asysty/dystansu dostają więcej przestrzeni kosztem POWT. (3 cyfry
   // maks). Nagłówek używa tego samego gridCols — synchronizacja automatyczna.
+  // Naprawa r3 (2026-08-21, sędzia struktury): POWT. z 0.85fr na 1fr (kosztem KG
+  // 1.25fr→1.1fr, wnętrze KG dalej mieści "122.5" przy px-1) — placeholder zakresu
+  // z planu ("10-12", "12-15", 5 znaków) był obcinany do "10-1" na 390 px.
   const gridCols = tracking === 'duration'
     ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_44px]'
     : tracking === 'weight_distance_duration'
       ? 'grid-cols-[26px_1.1fr_1.1fr_0.8fr_40px_44px]'
       : tracking === 'assisted_bodyweight'
-        ? 'grid-cols-[26px_minmax(0,0.9fr)_1.25fr_0.85fr_40px_44px]'
+        ? 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_40px_44px]'
         : isBodyweight
           ? 'grid-cols-[26px_minmax(0,1fr)_1fr_40px_44px]'
-          : 'grid-cols-[26px_minmax(0,0.9fr)_1.25fr_0.85fr_40px_44px]';
+          : 'grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_40px_44px]';
 
   // Hint POPRZ. dla nowych typów (Z105): czas dla duration, powt.×(-asysta) dla assisted.
   const getTrackedPreviousHint = (workingIndex: number): string | null => {

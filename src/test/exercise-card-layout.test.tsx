@@ -279,10 +279,11 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       expect(weightInput.className).toContain('px-1');
       expect(repsInput.className).toContain('px-1');
 
-      // Kolumny weight_reps: PREV 0.9fr | KG 1.25fr | POWT 0.85fr; nagłówek używa
+      // Kolumny weight_reps: PREV 0.9fr | KG 1.1fr | POWT 1fr (naprawa r3: POWT.
+      // musi mieścić 5-znakowy placeholder zakresu "10-12"); nagłówek używa
       // tego samego szablonu gridCols, więc wystarczy sprawdzić wszystkie gridy wierszy.
       const grids = Array.from(card.querySelectorAll('div.grid'));
-      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[26px_minmax(0,0.9fr)_1.25fr_0.85fr_40px_44px]'));
+      const withTemplate = grids.filter((g) => g.className.includes('grid-cols-[26px_minmax(0,0.9fr)_1.1fr_1fr_40px_44px]'));
       // Nagłówek + wiersz serii — minimum 2 gridy z nowym szablonem.
       expect(withTemplate.length).toBeGreaterThanOrEqual(2);
     });
