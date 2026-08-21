@@ -268,8 +268,9 @@ const WorkoutHistory = () => {
   const formatShortDate = (date: string) =>
     parseLocalDate(date).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' }).replace('.', '');
 
+  // Aktywny cykl ma endDate '' aż do archiwizacji (usePlanCycles) — jak w CycleDetail.
   const cycleRangeLabel = (cycle: PlanCycle) =>
-    `${formatShortDate(cycle.startDate)} – ${formatShortDate(cycle.endDate)} · ${t('history.weeksShort', { n: cycle.durationWeeks })}`;
+    `${formatShortDate(cycle.startDate)} – ${cycle.endDate ? formatShortDate(cycle.endDate) : t('cycles.now')} · ${t('history.weeksShort', { n: cycle.durationWeeks })}`;
 
   // Tonaż w linii licznika: bez filtrów agregat all-time (backend), inaczej suma
   // z załadowanej przefiltrowanej listy. Nigdy dane zmyślone.

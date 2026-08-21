@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
-import { addCalendarDays, formatLocalDate } from '@/lib/utils';
+import { formatLocalDate } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
 
@@ -200,13 +200,13 @@ describe('WorkoutHistory redesign — bez cykli (niezmiennik starego przepływu)
 
 describe('WorkoutHistory redesign — z cyklami', () => {
   const activeStart = iso(28);
-  const activeEnd = addCalendarDays(activeStart, 12 * 7 - 1);
   const pastStart = iso(240);
   const pastEnd = iso(160);
 
   beforeEach(() => {
     fixtures.cycles = [
-      cycle('c-active', activeStart, activeEnd, { status: 'active', stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 } }),
+      // Produkcyjny kontrakt: aktywny cykl ma endDate '' aż do archiwizacji (usePlanCycles).
+      cycle('c-active', activeStart, '', { status: 'active', stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 } }),
       cycle('c-past', pastStart, pastEnd),
     ];
     fixtures.workouts = [
@@ -215,6 +215,12 @@ describe('WorkoutHistory redesign — z cyklami', () => {
       workout('p1', iso(200), { cycleId: 'c-past' }),
       workout('out', iso(400)), // poza zakresem obu cykli
     ];
+  });
+
+  it('aktywny cykl bez endDate renderuje zakres z "teraz" zamiast crashować (regresja E-8UE4S)', () => {
+    renderPage();
+    const activeCard = screen.getByText('Cykl 2').closest('section')!;
+    expect(within(activeCard).getByText(/teraz/)).toBeInTheDocument();
   });
 
   it('sesje trafiają do kart cykli, sesja bez cyklu do "Poza cyklami"; licznik == suma wierszy', () => {
