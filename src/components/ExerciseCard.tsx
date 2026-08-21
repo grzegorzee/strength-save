@@ -965,7 +965,18 @@ const ExerciseCardInner = ({
             <p className="mt-1 font-mono text-[10px] uppercase leading-snug tracking-[0.08em] text-muted-foreground" title={t('card.maxLiftTitle')}>
               {(() => {
                 const badges = buildRecordBadges(historicalBest);
-                const fmtWeight = (kg: number) => `${Math.round(toDisplay(kg))} ${unit}`;
+                // Naprawa r3 (2026-08-21, sędzia struktury): jednostka wagi RAZ,
+                // przy pierwszej wartości ("SZAC. 1RM 79 KG · 63×8 · MAX 63") —
+                // powtarzana przy każdej liczbie łamała mono linię na dwie
+                // z zawinięciem w środku członu ("63 / KG×8") na 390 px.
+                // B-T2 bez zmian: źródło estymacji nadal widoczne (formatEst1RMBadge).
+                let unitShown = false;
+                const fmtWeight = (kg: number) => {
+                  const value = Math.round(toDisplay(kg));
+                  if (unitShown) return String(value);
+                  unitShown = true;
+                  return `${value} ${unit}`;
+                };
                 return [
                   t('card.setsCount', { n: workingSets.length }),
                   badges.est1RM ? formatEst1RMBadge(badges.est1RM, t('card.est1rm'), fmtWeight) : null,
