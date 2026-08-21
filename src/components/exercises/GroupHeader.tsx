@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface GroupHeaderProps {
   title: string;
@@ -10,6 +11,9 @@ interface GroupHeaderProps {
   onBack: () => void;
   /** Zlokalizowany aria-label przycisku wstecz. */
   backLabel: string;
+  /** X28 WP-D: 'contain' dla medalionow webp — hero na ciemnym gradiencie,
+   *  medalion object-contain po prawej; domyslnie 'cover' (bez zmian /exercises). */
+  imageFit?: 'cover' | 'contain';
 }
 
 /**
@@ -17,19 +21,25 @@ interface GroupHeaderProps {
  * grupy, glass-przycisk wstecz i tytul grupy (design-exercises-tab.md, ekran 2).
  * Hero bez loading=lazy (LCP widoku grupy); blad pliku → gradient (edge case 5).
  * Full-bleed przez -mx-5 -mt-5 (wzorzec ExerciseDetail).
+ * X28 WP-D: reuzywany przez sekcje Postepow (imageFit="contain").
  */
-export const GroupHeader = ({ title, countLabel, imageUrl, onBack, backLabel }: GroupHeaderProps) => {
+export const GroupHeader = ({ title, countLabel, imageUrl, onBack, backLabel, imageFit = 'cover' }: GroupHeaderProps) => {
   const [imgFailed, setImgFailed] = useState(false);
   const showImage = Boolean(imageUrl) && !imgFailed;
 
   return (
     <div className="-mx-5 -mt-5" data-testid="group-hero">
-      <div className="relative h-[150px] w-full overflow-hidden bg-surface-low">
+      <div className={cn(
+        'relative h-[150px] w-full overflow-hidden',
+        // Ciemny gradient tokenami (guard: zero hexow mockupu; #131313 = surface-low).
+        imageFit === 'contain' ? 'bg-gradient-to-br from-surface-low to-surface-lowest' : 'bg-surface-low',
+      )}
+      >
         {showImage ? (
           <img
             src={imageUrl ?? undefined}
             alt=""
-            className="h-full w-full object-cover"
+            className={imageFit === 'contain' ? 'ml-auto h-full object-contain p-3' : 'h-full w-full object-cover'}
             onError={() => setImgFailed(true)}
           />
         ) : (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -38,7 +38,8 @@ import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { tooltipStyle, axisProps } from '@/lib/chart-config';
 import { getCurrentAccent } from '@/lib/accent-theme';
 import { getTrainingDayForDate, startOfLocalDay } from '@/lib/plan-schedule';
-import { ChevronRight, Dumbbell, Flame, Scale, Timer, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Dumbbell, Flame, Scale, Timer, TrendingUp, Trophy, type LucideIcon } from 'lucide-react';
+import { GroupTile } from '@/components/exercises/GroupTile';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getDurationTrend, getSkippedStats } from '@/lib/workout-time-stats';
@@ -48,6 +49,16 @@ import type { LanguageCode, TranslationKey } from '@/i18n';
 
 type ChartsSubTab = 'workouts' | 'tonnage' | 'weight' | 'streak' | 'progression';
 type WeightMode = 'max' | '1rm';
+
+// X28 WP-D: rejestr kafli menu wykresów (jeden wykres na raz, deep-link ?chart=).
+// Bez grafik w tym pakiecie — kafle na fallbacku gradient + ikona.
+const CHART_MENU: { id: ChartsSubTab; labelKey: TranslationKey; descKey: TranslationKey; icon: LucideIcon }[] = [
+  { id: 'workouts', labelKey: 'analytics.subtab.workouts', descKey: 'analytics.chart.desc.workouts', icon: Dumbbell },
+  { id: 'tonnage', labelKey: 'analytics.subtab.tonnage', descKey: 'analytics.chart.desc.tonnage', icon: Trophy },
+  { id: 'weight', labelKey: 'analytics.subtab.weight', descKey: 'analytics.chart.desc.weight', icon: Scale },
+  { id: 'streak', labelKey: 'analytics.subtab.streak', descKey: 'analytics.chart.desc.streak', icon: Flame },
+  { id: 'progression', labelKey: 'analytics.subtab.progression', descKey: 'analytics.chart.desc.progression', icon: TrendingUp },
+];
 
 const StatSummary = ({ items }: { items: { label: string; value: string | number }[] }) => (
   <div className="grid grid-cols-3 gap-3 mt-4">
@@ -110,11 +121,32 @@ const AnalyticsChartsTab = () => {
   // Z76: czas trwania / gęstość i najczęściej pomijane ćwiczenia.
   const durationTrend = useMemo(() => getDurationTrend(workouts), [workouts]);
   const skippedStats = useMemo(() => getSkippedStats(workouts, resolver), [workouts, resolver]);
-  const [subTab, setSubTab] = useState<ChartsSubTab>('workouts');
+  // X28 WP-D: wybrany wykres w searchParams (?chart=), nie w lokalnym stanie —
+  // deep-linki działają, powrót z wykresu zachowuje ?tab=charts (edge case 4).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawChart = searchParams.get('chart');
+  const activeChart: ChartsSubTab | null = CHART_MENU.some((item) => item.id === rawChart)
+    ? (rawChart as ChartsSubTab)
+    : null;
+  const openChart = (id: ChartsSubTab) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('chart', id);
+      return next;
+    });
+  };
+  const backToMenu = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('chart');
+      return next;
+    });
+  };
   const [selectedDay, setSelectedDay] = useState<string>('all');
   const [weightMode, setWeightMode] = useState<WeightMode>('max');
-  // Zakres wykresu tonażu: przy setkach treningów oś X od początku konta robi się nieczytelna.
-  const [tonnageRange, setTonnageRange] = useState<'8w' | '12w' | 'all'>('12w');
+  // Zakres wykresu tonażu: przy setkach treningów oś X od początku konta robi się
+  // nieczytelna. 6M zastępuje usunięty z Postępów TonnageTrendChart (X28 WP-D).
+  const [tonnageRange, setTonnageRange] = useState<'8w' | '12w' | '6m' | 'all'>('12w');
 
   const workoutsData = useMemo(() => {
     const completed = workouts.filter(w => w.completed);
@@ -137,6 +169,10 @@ const AnalyticsChartsTab = () => {
     const rangeCutoff = (() => {
       if (tonnageRange === 'all') return null;
       const d = new Date();
+      if (tonnageRange === '6m') {
+        d.setMonth(d.getMonth() - 6);
+        return d;
+      }
       d.setDate(d.getDate() - (tonnageRange === '8w' ? 8 : 12) * 7);
       return d;
     })();
@@ -260,30 +296,45 @@ const AnalyticsChartsTab = () => {
     return <div className="flex items-center justify-center h-64"><div className="animate-pulse text-muted-foreground">{t('common.loading')}</div></div>;
   }
 
+  // X28 WP-D: bez ?chart — menu kafli (Rza tylko tutaj), z ?chart — jeden wykres.
+  if (activeChart === null) {
+    return (
+      <div className="space-y-4">
+        <RzaMetricsCard workouts={workouts} />
+
+        <div className="grid grid-cols-2 gap-2.5">
+          {CHART_MENU.map((item) => (
+            <GroupTile
+              key={item.id}
+              label={t(item.labelKey)}
+              count=""
+              imageUrl={null}
+              icon={item.icon}
+              description={t(item.descKey)}
+              onClick={() => openChart(item.id)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex gap-1.5 flex-wrap">
-        {([
-          { id: 'workouts', label: t('analytics.subtab.workouts') },
-          { id: 'tonnage', label: t('analytics.subtab.tonnage') },
-          { id: 'weight', label: t('analytics.subtab.weight') },
-          { id: 'streak', label: t('analytics.subtab.streak') },
-          { id: 'progression', label: t('analytics.subtab.progression') },
-        ] as const).map(item => (
-          <ChipButton
-            key={item.id}
-            variant={subTab === item.id ? 'default' : 'outline'}
-            pressed={subTab === item.id}
-            onClick={() => setSubTab(item.id)}
-          >
-            {item.label}
-          </ChipButton>
-        ))}
+      {/* Powrót do menu wykresów — glass wzorem GroupHeader */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={backToMenu}
+          aria-label={t('common.back')}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <span className="eyebrow-mono font-bold text-primary">{t('analytics.tab.charts')}</span>
       </div>
 
-      <RzaMetricsCard workouts={workouts} />
-
-      {subTab === 'workouts' && (
+      {activeChart === 'workouts' && (
         <Card>
           <CardContent className="pt-6">
             <ChartHeader icon={Dumbbell} title={t('analytics.subtab.workouts')} />
@@ -342,12 +393,12 @@ const AnalyticsChartsTab = () => {
         </Card>
       )}
 
-      {subTab === 'tonnage' && (
+      {activeChart === 'tonnage' && (
         <Card>
           <CardContent className="pt-6">
             <ChartHeader icon={Trophy} title={t('analytics.subtab.tonnage')} />
             <div className="mb-3 flex gap-1.5">
-              {(['8w', '12w', 'all'] as const).map((range) => (
+              {(['8w', '12w', '6m', 'all'] as const).map((range) => (
                 <ChipButton
                   key={range}
                   variant={tonnageRange === range ? 'default' : 'outline'}
@@ -355,7 +406,11 @@ const AnalyticsChartsTab = () => {
                   className="text-xs"
                   onClick={() => setTonnageRange(range)}
                 >
-                  {range === 'all' ? t('analytics.range.all') : t('analytics.range.weeks', { n: range === '8w' ? 8 : 12 })}
+                  {range === 'all'
+                    ? t('analytics.range.all')
+                    : range === '6m'
+                      ? t('analytics.range.sixMonths')
+                      : t('analytics.range.weeks', { n: range === '8w' ? 8 : 12 })}
                 </ChipButton>
               ))}
             </div>
@@ -382,7 +437,7 @@ const AnalyticsChartsTab = () => {
         </Card>
       )}
 
-      {subTab === 'weight' && (
+      {activeChart === 'weight' && (
         weightData.chartData.length === 0 ? (
           <Card><CardContent className="py-12"><p className="text-center text-muted-foreground">{t('analytics.noWeightData')}</p></CardContent></Card>
         ) : (
@@ -409,7 +464,7 @@ const AnalyticsChartsTab = () => {
         )
       )}
 
-      {subTab === 'streak' && (
+      {activeChart === 'streak' && (
         <Card>
           <CardContent className="pt-6">
             <ChartHeader icon={Flame} title={t('analytics.subtab.streak')} />
@@ -449,7 +504,7 @@ const AnalyticsChartsTab = () => {
         </Card>
       )}
 
-      {subTab === 'progression' && (
+      {activeChart === 'progression' && (
         <div className="space-y-4">
           <Card>
             <CardHeader>
@@ -519,6 +574,21 @@ const AnalyticsChartsTab = () => {
           </Button>
         </div>
       )}
+
+      {/* X28 WP-D: szybkie przełączenie na pozostałe wykresy — NA DOLE (po
+          przescrollowaniu wykresu nie trzeba wracać na górę do menu). */}
+      <div className="flex gap-1.5 flex-wrap">
+        {CHART_MENU.filter((item) => item.id !== activeChart).map((item) => (
+          <ChipButton
+            key={item.id}
+            variant="outline"
+            pressed={false}
+            onClick={() => openChart(item.id)}
+          >
+            {t(item.labelKey)}
+          </ChipButton>
+        ))}
+      </div>
     </div>
   );
 };

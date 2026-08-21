@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '@/components/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,7 +18,6 @@ import { getExerciseBest1RM } from '@/lib/pr-utils';
 import {
   buildExerciseRecords,
   getExercise1RMProgress,
-  getMonthlyTonnage,
   detectPlateaus,
   computeMilestones,
   computeSpecialBadges,
@@ -27,6 +26,9 @@ import {
   type Milestone,
   type SpecialBadgeId,
 } from '@/lib/achievements-utils';
+import { GroupTile } from '@/components/exercises/GroupTile';
+import { GroupHeader } from '@/components/exercises/GroupHeader';
+import { getProgressTileImageUrl } from '@/lib/progress-media';
 import { medalForCompletionRate } from '@/lib/season-medals';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { withLiveCompletedStats } from '@/lib/cycle-insights';
@@ -35,7 +37,6 @@ import { isBodyweightExercise } from '@/lib/exercise-utils';
 import { lazyWithRetry } from '@/lib/lazy-with-retry';
 import { useTranslation } from '@/contexts/LanguageContext';
 
-const TonnageTrendChart = lazyWithRetry(() => import('@/components/achievements/TonnageTrendChart'), 'lazy-retry:tonnage-trend');
 const AnalyticsEmbedded = lazyWithRetry(() => import('@/pages/Analytics'), 'lazy-retry:analytics-embedded');
 import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale, type TranslationKey } from '@/i18n';
@@ -120,10 +121,22 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
   );
 };
 
+// X28 WP-D: sekcje poziomu 2 (?section=records|badges); ?view=analytics ma
+// pierwszeństwo (edge case 1), nieznany param = poziom 1.
+type ProgressSection = 'records' | 'badges';
+
 const Achievements = () => {
   // D-T4: ?view=analytics renderuje osadzoną Analitykę pod wspólnym nagłówkiem.
-  const [achSearchParams] = useSearchParams();
+  const [achSearchParams, setAchSearchParams] = useSearchParams();
   const progressView = achSearchParams.get('view') === 'analytics' ? 'analytics' : 'records';
+  const rawSection = achSearchParams.get('section');
+  const activeSection: ProgressSection | null =
+    rawSection === 'records' || rawSection === 'badges' ? rawSection : null;
+
+  // Wejście/wyjście z sekcji zaczyna od góry (wzorzec ExerciseLibrary).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [activeSection]);
 
   const { t, lang } = useTranslation();
   const navigate = useNavigate();
@@ -202,16 +215,6 @@ const Achievements = () => {
 
   const plateaus = useMemo(() => detectPlateaus(workouts, exerciseNames).slice(0, 3), [workouts, exerciseNames]);
 
-  const monthlyTonnage = useMemo(() => getMonthlyTonnage(workouts, 6, new Date()), [workouts]);
-  const trendData = useMemo(() => monthlyTonnage.map(m => {
-    const [y, mo] = m.month.split('-').map(Number);
-    return {
-      label: new Date(y, mo - 1, 1).toLocaleDateString(dateLocale(lang), { month: 'short' }),
-      tonnes: Number((toDisplay(m.tonnage) / 1000).toFixed(1)),
-    };
-  }), [monthlyTonnage, lang, toDisplay]);
-  const hasTrendData = monthlyTonnage.some(m => m.tonnage > 0);
-
   const milestones = useMemo(
     () => computeMilestones({ completedWorkouts, totalTonnage: totalWeight, exercisesWithRecord: exerciseRecords.length }),
     [completedWorkouts, totalWeight, exerciseRecords.length],
@@ -232,6 +235,13 @@ const Achievements = () => {
       .map(c => ({ cycle: c, medal: medalForCompletionRate(c.stats.completionRate) })),
     [cycles, workouts],
   );
+
+  // X28 WP-D: licznik kafla "Odznaki i sezony" = zdobyte/(milestones+special+sezony);
+  // każdy sezon na półce jest zdobyty z definicji (ukończony cykl).
+  const earnedBadges = milestones.filter(m => m.achieved).length
+    + specialBadges.filter(b => b.achieved).length
+    + seasonShelf.length;
+  const totalBadges = milestones.length + specialBadges.length + seasonShelf.length;
 
   const milestoneLabel = (m: Milestone) => {
     if (m.category === 'tonnage') return t('achievements.ms.tonnage', { n: Number((toDisplay(m.threshold) / 1000).toFixed(1)), unit: unit === 'lbs' ? ' k lbs' : 't' });
@@ -293,6 +303,8 @@ const Achievements = () => {
 
   return (
     <div className="space-y-6">
+      {/* X28 WP-D: poziom 1 — rzut oka (staty, Life PRs, heatmapa) + kafle sekcji. */}
+      {activeSection === null && <>
       <ProgressHeader view="records" />
 
       {/* Main Stats */}
@@ -353,29 +365,54 @@ const Achievements = () => {
         </Card>
       )}
 
-      {/* 6-month tonnage trend */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            {t('achievements.trend6mo')}
-          </CardTitle>
-          <CardDescription>{t('achievements.trend6moDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {hasTrendData ? (
-            <Suspense fallback={<div className="h-[220px]" />}>
-              <TonnageTrendChart data={trendData} />
-            </Suspense>
-          ) : (
-            <p className="text-center text-muted-foreground py-8">{t('achievements.trendEmpty')}</p>
-          )}
-        </CardContent>
-      </Card>
-
       {/* PRO-D T4: heatmapa konsekwencji (komponent ma własny Card + tytuł + wybór roku).
-          Strava poza zakresem tego ekranu — heatmapa liczy treningi siłowe. */}
+          Strava poza zakresem tego ekranu — heatmapa liczy treningi siłowe.
+          X28 WP-D: trend 6-mies. tonażu przeniesiony do wykresów analityki (zakres 6M). */}
       <TrainingHeatmap workouts={workouts} stravaActivities={[]} />
+
+      {/* X28 WP-D: kafle sekcji — medaliony webp object-contain (bez croppa coverem) */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <GroupTile
+          label={t('progress.tile.records')}
+          count={exerciseRecords.length}
+          imageUrl={getProgressTileImageUrl('records')}
+          imageFit="contain"
+          onClick={() => setAchSearchParams({ section: 'records' })}
+        />
+        <GroupTile
+          label={t('progress.tile.badges')}
+          count={`${earnedBadges}/${totalBadges}`}
+          imageUrl={getProgressTileImageUrl('badges')}
+          imageFit="contain"
+          onClick={() => setAchSearchParams({ section: 'badges' })}
+        />
+        <GroupTile
+          label={t('progress.tile.analytics')}
+          count=""
+          imageUrl={getProgressTileImageUrl('analytics')}
+          imageFit="contain"
+          onClick={() => setAchSearchParams({ view: 'analytics' })}
+        />
+        <GroupTile
+          label={t('progress.tile.weeks')}
+          count=""
+          imageUrl={getProgressTileImageUrl('weeks')}
+          imageFit="contain"
+          onClick={() => setAchSearchParams({ view: 'analytics', tab: 'weekly' })}
+        />
+      </div>
+      </>}
+
+      {/* X28 WP-D: poziom 2 — Odznaki i sezony (sekcje przeniesione żywcem) */}
+      {activeSection === 'badges' && <>
+      <GroupHeader
+        title={t('progress.tile.badges')}
+        countLabel={t('progress.badges.count', { earned: earnedBadges, total: totalBadges })}
+        imageUrl={getProgressTileImageUrl('badges')}
+        imageFit="contain"
+        onBack={() => setAchSearchParams({})}
+        backLabel={t('common.back')}
+      />
 
       {/* Milestones grid */}
       <Card>
@@ -475,6 +512,18 @@ const Achievements = () => {
           </CardContent>
         </Card>
       )}
+      </>}
+
+      {/* X28 WP-D: poziom 2 — Rekordy (plateau + wszystkie rekordy + 1RM) */}
+      {activeSection === 'records' && <>
+      <GroupHeader
+        title={t('progress.tile.records')}
+        countLabel={t('progress.records.count', { n: exerciseRecords.length })}
+        imageUrl={getProgressTileImageUrl('records')}
+        imageFit="contain"
+        onBack={() => setAchSearchParams({})}
+        backLabel={t('common.back')}
+      />
 
       {/* Plateau alert */}
       {plateaus.length > 0 && (
@@ -603,7 +652,10 @@ const Achievements = () => {
           )}
         </CardContent>
       </Card>
+      </>}
 
+      {/* Dialogi wspólne dla poziomów — zawsze w drzewie strony: powrót z sekcji
+          nie unmountuje Radixa w stanie open (pułapka builda 92). */}
       {/* Exercise Progression Dialog */}
       {progressionExercise && (
         <ExerciseProgressionDialog

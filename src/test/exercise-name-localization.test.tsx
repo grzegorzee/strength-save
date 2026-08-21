@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { formatLocalDate } from '@/lib/utils';
@@ -63,13 +63,20 @@ describe('exercise name localization sequence (Z156)', () => {
   });
 
   it('AnalyticsWeeklyTab: PL pokazuje nazwę kanoniczną, po przełączeniu na EN nazwę EN', () => {
+    // X28 WP-D: chipy PR pokazują się po rozwinięciu wiersza tygodnia (restyle).
+    const expandCurrentWeek = (view: ReturnType<typeof render>) => {
+      fireEvent.click(within(view.getAllByTestId('weekly-row')[0]).getByRole('button'));
+    };
+
     localStorage.setItem('app-language', 'pl');
     const pl = render(withProviders(<AnalyticsWeeklyTab />));
+    expandCurrentWeek(pl);
     expect(pl.getAllByText(/Przysiad ze sztangą/).length).toBeGreaterThan(0);
     pl.unmount();
 
     localStorage.setItem('app-language', 'en');
     const en = render(withProviders(<AnalyticsWeeklyTab />));
+    expandCurrentWeek(en);
     expect(en.getAllByText(/Barbell Squat/).length).toBeGreaterThan(0);
     expect(en.queryByText(/Przysiad ze sztangą/)).toBeNull();
   });

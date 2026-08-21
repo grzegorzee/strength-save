@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/contexts/UserContext';
@@ -8,12 +8,16 @@ import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useActivities } from '@/hooks/useActivities';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { buildLocalWeeklySummaries } from '@/lib/weekly-summary';
+import { getWeekBounds } from '@/lib/summary-utils';
 import { dateLocale } from '@/i18n';
-import { formatLocalDateLabel } from '@/lib/utils';
-import { Dumbbell, Flame, Route, Trophy } from 'lucide-react';
+import { cn, formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
 
 // Tygodnie liczone lokalnie (Z78) — koniec czytania zamrożonej kolekcji weekly_summaries
 // (generator usunięty w R2; kolekcja pokazywała wyłącznie stare dane).
+// X28 WP-D: restyle — zamiast 12 dużych Cardów zwarta lista wierszy w jednym
+// kontenerze (wzorem listy grupy w /exercises): zakres dat (mono eyebrow) +
+// 4 wartości inline; chipy PR dopiero po rozwinięciu wiersza (prosty stan, bez
+// Radixa). Bieżący tydzień wyróżniony accent-ring.
 const AnalyticsWeeklyTab = () => {
   const { uid, canUseStrava } = useCurrentUser();
   const { t, lang } = useTranslation();
@@ -22,11 +26,17 @@ const AnalyticsWeeklyTab = () => {
   // Z113: podsumowanie tygodnia liczy Strava + ręczne cardio (unified).
   const { activities: stravaActivities } = useActivities(uid, canUseStrava);
   const { plan: trainingPlan } = useTrainingPlan(uid);
+  const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
 
   const summaries = useMemo(
     () => buildLocalWeeklySummaries(workouts, stravaActivities, trainingPlan, new Date(), 12, lang),
     [workouts, stravaActivities, trainingPlan, lang],
   );
+
+  const currentWeekStart = formatLocalDate(getWeekBounds(new Date()).start);
+
+  const formatShort = (date: string) =>
+    formatLocalDateLabel(date, dateLocale(lang), { day: 'numeric', month: 'short' });
 
   return (
     <div className="space-y-4">
@@ -40,58 +50,50 @@ const AnalyticsWeeklyTab = () => {
         </Card>
       )}
 
-      {summaries.map(s => (
-        <Card key={s.weekStart} className="hover:border-primary/30 transition-all duration-200">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <Badge variant="outline" className="text-xs">
-                {formatLocalDateLabel(s.weekStart, dateLocale(lang), { day: 'numeric', month: 'short' })} - {formatLocalDateLabel(s.weekEnd, dateLocale(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-              <div className="text-center p-2 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <Dumbbell className="h-3 w-3 text-primary" />
+      {summaries.length > 0 && (
+        <div data-testid="weekly-list" className="overflow-hidden rounded-[20px] bg-surface-low">
+          <div className="divide-y divide-surface-high">
+            {summaries.map(s => {
+              const expanded = expandedWeek === s.weekStart;
+              return (
+                <div
+                  key={s.weekStart}
+                  data-testid="weekly-row"
+                  className={cn(s.weekStart === currentWeekStart && 'accent-ring')}
+                >
+                  <button
+                    type="button"
+                    aria-expanded={expanded}
+                    onClick={() => setExpandedWeek(prev => (prev === s.weekStart ? null : s.weekStart))}
+                    className="w-full px-4 py-3 text-left"
+                  >
+                    <p className="eyebrow-mono font-bold text-muted-foreground">
+                      {formatShort(s.weekStart)} - {formatShort(s.weekEnd)}
+                    </p>
+                    {/* 4 wartości inline; etykieta treningów z istniejącego klucza
+                        (wzorem karty miesięcy), km i PR jak dotąd literałami. */}
+                    <p className="mt-1 text-sm">
+                      <span className="font-bold">{t('analytics.months.workouts', { n: s.stats.workoutCount })}</span>
+                      {' · '}<span className="font-bold">{fmtTonnage(s.stats.tonnageKg)}</span>
+                      {' · '}<span className="font-bold">{s.stats.runKm}</span> km
+                      {' · '}<span className="font-bold">{s.stats.prs.length}</span> PR
+                    </p>
+                  </button>
+                  {expanded && s.stats.prs.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+                      {s.stats.prs.map((pr, i) => (
+                        <Badge key={i} className="text-xs bg-fitness-warning/10 text-fitness-warning border-fitness-warning/30">
+                          {pr.exerciseName} - {fmt(pr.newValue)}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p className="text-sm font-bold">{s.stats.workoutCount}</p>
-                <p className="text-xs text-muted-foreground">{t('analytics.subtab.workouts')}</p>
-              </div>
-              <div className="text-center p-2 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <Trophy className="h-3 w-3 text-primary" />
-                </div>
-                <p className="text-sm font-bold">{fmtTonnage(s.stats.tonnageKg)}</p>
-                <p className="text-xs text-muted-foreground">{t('analytics.stat.tonnage')}</p>
-              </div>
-              <div className="text-center p-2 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <Route className="h-3 w-3 text-orange-500" />
-                </div>
-                <p className="text-sm font-bold">{s.stats.runKm} km</p>
-                <p className="text-xs text-muted-foreground">{t('analytics.stat.run')}</p>
-              </div>
-              <div className="text-center p-2 bg-muted/30 rounded-lg">
-                <div className="flex items-center justify-center gap-1 mb-1">
-                  <Flame className="h-3 w-3 text-primary" />
-                </div>
-                <p className="text-sm font-bold">{s.stats.prs.length}</p>
-                <p className="text-xs text-muted-foreground">{t('analytics.stat.prs')}</p>
-              </div>
-            </div>
-
-            {s.stats.prs.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {s.stats.prs.map((pr, i) => (
-                  <Badge key={i} className="text-xs bg-fitness-warning/10 text-fitness-warning border-fitness-warning/30">
-                    {pr.exerciseName} - {fmt(pr.newValue)}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

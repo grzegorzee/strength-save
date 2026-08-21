@@ -313,12 +313,15 @@ test.describe('Analytics Tabs', () => {
     await expect(chartsTab).toBeVisible();
     await chartsTab.click();
 
-    // Try sub-tabs
-    const subTabs = ['Treningi', 'Tonaż', 'Waga', 'Seria', 'Progresja'];
-    for (const label of subTabs) {
-      const subTab = page.getByText(label, { exact: true }).first();
-      await expect(subTab).toBeVisible();
-      await subTab.click();
+    // X28 WP-D: zakładka Wykresy = menu kafli (jeden wykres na raz, ?chart=).
+    // Wejście w wykres przez kafel, powrót do menu glass-backiem "Wstecz".
+    const charts = ['Treningi', 'Tonaż', 'Waga', 'Seria', 'Progresja'];
+    for (const label of charts) {
+      const tile = page.getByText(label, { exact: true }).first();
+      await expect(tile).toBeVisible();
+      await tile.click();
+      await expectPageRendered(page);
+      await page.getByRole('button', { name: 'Wstecz' }).click();
       await expectPageRendered(page);
     }
   });
