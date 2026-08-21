@@ -5,11 +5,23 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-21 (fala X28 + Historia v2; web index-BGInrQ0j, iOS 115 APPROVED, AAB v30 SHA 38586726)
+**Ostatnia aktualizacja:** 2026-08-21 (hotfix po 115; web index-DOu_2XEt, iOS 116 APPROVED, AAB v31 SHA b8fbe9db)
 
 ---
 
 ## DECYZJE
+
+### 2026-08-21 (4): HOTFIX po buildzie 115 — eksport before/after + kafle Postępów (iOS 116 / AAB v31)
+
+**Zgłoszenia usera z 115 (minuty po instalacji):** (1) "Pobierz / udostępnij" w porównaniu sylwetki: spinner ponad minutę, toast błędu dopiero po długim czasie; (2) kafle Postępów z medalionami webp wyglądały źle (czarne kwadraty, ucięte "BADGES AND...").
+
+**Root cause eksportu (z dowodami w kodzie i SDK):** żaden krok przygotowania zdjęcia nie miał limitu czasu; na natywnym iOS `fetch(photoUrl)` z originu capacitor://localhost pada w warstwie sieciowej WKWebView (wisi do ~60 s; CORS serwera wykluczony — bucket zwraca `access-control-allow-origin: *`), a fallback `getBlob` traktował błąd sieciowy jako retryowalny i mielił go do `maxOperationRetryTime` = 2 min (stała SDK Storage). Kolejność kanałów była odwrotna do wiarygodności: kanał SDK (jedyny udowodniony na urządzeniu — tym samym wgrano zdjęcia) był fallbackiem.
+
+**Fix:** na natywnej platformie `getBlob` (SDK) jako PIERWSZY kanał, fetch fallbackiem (web bez zmian); twardy timeout 8 s per krok (fetch/getBlob/downscale) → toast w kilkanaście sekund zamiast 2+ min; porażka logowana do `client_errors` kodem `body-compare-export-load` z krokiem i komunikatem (diagnoza z danych następnym razem). `share-utils.downscalePhoto` świadomie nietknięty (współdzielony; obie ścieżki dekodowania rejectują poprawnie). Testy: 4 czerwone przed fixem potwierdzały mechanizm.
+
+**Kafle Postępów:** lokalny `SectionTile` (ikona lucide w akcencie na `bg-primary/10`) zamiast `GroupTile`+webp; Trophy/Medal/BarChart3/CalendarRange; etykieta `progress.tile.badges` skrócona do "Odznaki"/"Badges". `public/badges/` zostaje (hero sekcji poziomu 2 nadal używa).
+
+**Wydanie:** web LIVE index-DOu_2XEt.js, iOS 116 Beta App Review APPROVED (obie grupy), AAB v31 SHA b8fbe9db. Bramki: vitest 2486/0, e2e 218/218, typecheck, lint 0 err. AAB v30 NIE wgrywać do Play — obowiązuje v31.
 
 ### 2026-08-21 (3): FALA X28 + HISTORIA v2 — feedback builda 114, pro-look, redesign Historii (iOS 115 / AAB v30)
 
