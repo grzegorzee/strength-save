@@ -21,6 +21,11 @@ interface RescheduleSheetProps {
   onSelect: (toDateISO: string) => void;
   /** Stabilne "dziś" dla testów; domyślnie bieżąca data lokalna. */
   todayISO?: string;
+  /**
+   * WP-A (X27): daty z ukończoną sesją (`completed === true`). Takie targety
+   * zostają na liście, ale są disabled z dopiskiem — nie znikają.
+   */
+  completedDates?: ReadonlySet<string>;
 }
 
 /**
@@ -37,6 +42,7 @@ export const RescheduleSheet = ({
   overrides,
   onSelect,
   todayISO,
+  completedDates,
 }: RescheduleSheetProps) => {
   const { t, lang } = useTranslation();
   const today = todayISO ?? formatLocalDate(new Date());
@@ -57,7 +63,7 @@ export const RescheduleSheet = ({
   if (!frozen) return null;
   const { fromDateISO: fromISO, fromDay } = frozen;
 
-  const options: Array<{ dateISO: string; label: string; occupant: TrainingDay | null }> = [];
+  const options: Array<{ dateISO: string; label: string; occupant: TrainingDay | null; completed: boolean }> = [];
   const start = parseLocalDate(today);
   for (let offset = 0; offset < RESCHEDULE_HORIZON_DAYS; offset += 1) {
     const date = new Date(start);
@@ -68,6 +74,7 @@ export const RescheduleSheet = ({
       dateISO,
       label: date.toLocaleDateString(dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'short' }),
       occupant: resolvePlannedDay(dateISO, planDays, frozen.overrides),
+      completed: completedDates?.has(dateISO) ?? false,
     });
   }
 
@@ -84,15 +91,17 @@ export const RescheduleSheet = ({
           </SheetDescription>
         </SheetHeader>
         <div className="mt-3 grid gap-2 pb-4">
-          {options.map(({ dateISO, label, occupant }) => (
+          {options.map(({ dateISO, label, occupant, completed }) => (
             <button
               key={dateISO}
               type="button"
+              disabled={completed}
+              aria-disabled={completed || undefined}
               className={cn(
                 'w-full rounded-xl border-0 bg-surface-low p-3 text-left transition-colors',
-                'hover:bg-primary/[0.06] active:bg-primary/10',
+                completed ? 'opacity-50' : 'hover:bg-primary/[0.06] active:bg-primary/10',
               )}
-              onClick={() => onSelect(dateISO)}
+              onClick={() => { if (!completed) onSelect(dateISO); }}
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-medium capitalize">
@@ -103,7 +112,9 @@ export const RescheduleSheet = ({
                     </span>
                   )}
                 </span>
-                {occupant ? (
+                {completed ? (
+                  <span className="text-xs text-muted-foreground">{t('reschedule.completedDay')}</span>
+                ) : occupant ? (
                   <span className="flex items-center gap-1.5 text-xs text-fitness-warning">
                     <ArrowRightLeft className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">

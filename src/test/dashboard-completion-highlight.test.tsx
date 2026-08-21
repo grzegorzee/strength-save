@@ -165,7 +165,7 @@ beforeEach(() => {
 describe('powrót z completion na Dashboard', () => {
   it('celebrate=1: karta ukończonego dnia podświetlona i z następnym treningiem', async () => {
     renderDashboard('/?celebrate=1');
-    await waitFor(() => expect(screen.getAllByText('Trening ukończony!').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/Trening ukończony!/).length).toBeGreaterThan(0));
     const card = screen.getByTestId('today-completed-card');
     expect(card.className).toContain('ring-2');
     // Naprawa r1 (2026-08-21): następny trening prezentuje hero najbliższej
@@ -177,8 +177,57 @@ describe('powrót z completion na Dashboard', () => {
 
   it('zwykłe wejście: karta bez podświetlenia (niezmiennik)', async () => {
     renderDashboard('/');
-    await waitFor(() => expect(screen.getAllByText('Trening ukończony!').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/Trening ukończony!/).length).toBeGreaterThan(0));
     const card = screen.getByTestId('today-completed-card');
     expect(card.className).not.toContain('ring-2');
+  });
+
+  // WP-A (X27, Task A4): baner "Trening ukończony!" kompaktowy — jeden wiersz
+  // z nazwą dnia inline (bez nagłówka text-[27px]), wrapper hero z odstępem
+  // między banerem a kartą NEXT SESSION.
+  it('baner kompaktowy: nazwa dnia inline, bez nagłówka h2, wrapper z odstępem', async () => {
+    renderDashboard('/');
+    await waitFor(() => expect(screen.getAllByText(/Trening ukończony!/).length).toBeGreaterThan(0));
+    const card = screen.getByTestId('today-completed-card');
+    expect(card.querySelector('h2')).toBeNull();
+    expect(card.className).not.toContain('p-5');
+    expect(card.textContent).toContain('Trening ukończony!');
+    expect(card.textContent).toContain('Dzień A');
+    expect(screen.getByTestId('dash-hero').className).toContain('space-y-3');
+  });
+});
+
+// WP-A (X27, Task A4b): po starcie planu z odległą sesją hero pokazywało sam
+// dzień tygodnia — user myślał, że "poniedziałek" to jutro. Data w eyebrow,
+// gdy najbliższa sesja jest dalej niż jutro.
+describe('data w hero NEXT SESSION', () => {
+  it('sesja dalej niż jutro: eyebrow zawiera sformatowaną datę', async () => {
+    const inThreeDays = new Date();
+    inThreeDays.setDate(inThreeDays.getDate() + 3);
+    planFixture.plan = [
+      planDays()[0],
+      {
+        id: 'day-3',
+        dayName: 'Dzień C',
+        weekday: WEEKDAYS[inThreeDays.getDay()] as TrainingDay['weekday'],
+        focus: 'Nogi',
+        exercises: [{ id: 'ex-c', name: 'Przysiad', sets: '3 x 5', instructions: [] }],
+      },
+    ];
+    renderDashboard('/');
+    await waitFor(() => expect(screen.getByTestId('next-session-hero')).toBeTruthy());
+    const hero = screen.getByTestId('next-session-hero');
+    const expected = inThreeDays.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+    expect(hero.textContent).toContain(`· ${expected}`);
+  });
+
+  it('sesja jutro: eyebrow jak dotąd, bez daty (niezmiennik)', async () => {
+    renderDashboard('/');
+    await waitFor(() => expect(screen.getByTestId('next-session-hero')).toBeTruthy());
+    const hero = screen.getByTestId('next-session-hero');
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const notExpected = tomorrow.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' });
+    expect(hero.textContent).not.toContain(`· ${notExpected}`);
   });
 });

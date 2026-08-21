@@ -69,6 +69,34 @@ describe('RescheduleSheet', () => {
     const rows = screen.getAllByRole('button').map((b) => b.textContent ?? '');
     expect(rows.filter((textContent) => /piątek, 14/.test(textContent))).toEqual([]);
   });
+
+  // WP-A (X27): data z ukończonym treningiem zostaje na liście (user rozumie,
+  // czemu nie może wybrać), ale jest disabled z dopiskiem i nie woła onSelect.
+  it('data z ukończonym treningiem: wiersz disabled z dopiskiem, klik nie woła onSelect', () => {
+    const onSelect = vi.fn();
+    wrap(
+      <RescheduleSheet
+        open
+        onOpenChange={() => {}}
+        fromDateISO="2026-08-14"
+        planDays={planDays}
+        overrides={{}}
+        onSelect={onSelect}
+        todayISO={TODAY}
+        completedDates={new Set(['2026-08-15'])}
+      />,
+    );
+    // 2026-08-15 = pierwsza sobota horyzontu.
+    const row = screen.getAllByText(/sobota/i)[0].closest('button')!;
+    expect(row.hasAttribute('disabled')).toBe(true);
+    expect(row.getAttribute('aria-disabled')).toBe('true');
+    expect(row.textContent).toContain('trening ukończony');
+    fireEvent.click(row);
+    expect(onSelect).not.toHaveBeenCalled();
+    // Pozostałe daty klikalne jak dotąd.
+    fireEvent.click(screen.getAllByText(/niedziela/i)[0].closest('button')!);
+    expect(onSelect).toHaveBeenCalledWith('2026-08-16');
+  });
 });
 
 describe('MissedWorkoutBanner', () => {

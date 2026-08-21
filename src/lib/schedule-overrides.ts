@@ -50,13 +50,17 @@ export const pruneScheduleOverrides = (
 
 export type ScheduleMoveResult =
   | { ok: true; swapped: boolean; overrides: ScheduleOverrides }
-  | { ok: false };
+  | { ok: false; reason?: 'completed-source' | 'completed-target' };
 
 /**
  * Przeniesienie treningu z daty fromISO na toISO jako JEDNA nowa mapa (para
  * wpisów w pojedynczym zapisie pola = atomowość; pole nadpisywane w całości =
  * LWW między urządzeniami). Cel zajęty => SWAP (symetryczny, odwracalny).
  * Pruning starych wpisów przy każdej budowie.
+ *
+ * WP-A (X27): opcjonalny zbiór completedDates (daty sesji `completed === true`)
+ * blokuje przełożenie Z daty z ukończonym treningiem (completed-source) oraz
+ * NA taką datę (completed-target) — swap przestawiłby ukończony dzień.
  */
 export const buildScheduleMove = (params: {
   overrides: ScheduleOverrides;
@@ -64,9 +68,12 @@ export const buildScheduleMove = (params: {
   fromISO: string;
   toISO: string;
   todayISO: string;
+  completedDates?: ReadonlySet<string>;
 }): ScheduleMoveResult => {
-  const { overrides, planDays, fromISO, toISO, todayISO } = params;
+  const { overrides, planDays, fromISO, toISO, todayISO, completedDates } = params;
   if (fromISO === toISO) return { ok: false };
+  if (completedDates?.has(fromISO)) return { ok: false, reason: 'completed-source' };
+  if (completedDates?.has(toISO)) return { ok: false, reason: 'completed-target' };
   const fromDay = resolvePlannedDay(fromISO, planDays, overrides);
   if (!fromDay) return { ok: false };
   const toDay = resolvePlannedDay(toISO, planDays, overrides);

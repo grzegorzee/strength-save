@@ -126,6 +126,45 @@ describe('sekwencja przełożenia (scenariusz 8 ze specu)', () => {
   });
 });
 
+// WP-A (X27, 2026-08-21): ukończonego treningu nie da się przełożyć ani nie
+// można przełożyć innego treningu NA datę z ukończoną sesją (bug TestFlight 113:
+// po ukończeniu dzisiejszej sesji swap Z/NA dziś rozjeżdżał historię).
+describe('blokada ukończonych treningów (WP-A)', () => {
+  it('completed-source: data źródłowa z ukończonym treningiem => ok:false, overrides nietknięte', () => {
+    const overrides = {};
+    const move = buildScheduleMove({
+      overrides, planDays, fromISO: '2026-08-12', toISO: TODAY, todayISO: TODAY,
+      completedDates: new Set(['2026-08-12']),
+    });
+    expect(move).toEqual({ ok: false, reason: 'completed-source' });
+    expect(overrides).toEqual({});
+  });
+
+  it('completed-target (dzień wolny): ukończona sesja dziś blokuje dziś jako cel (scenariusz buga usera)', () => {
+    const move = buildScheduleMove({
+      overrides: {}, planDays, fromISO: '2026-08-12', toISO: TODAY, todayISO: TODAY,
+      completedDates: new Set([TODAY]),
+    });
+    expect(move).toEqual({ ok: false, reason: 'completed-target' });
+  });
+
+  it('completed-target (swap): cel zajęty przez inny dzień planu z ukończonym treningiem => blokada', () => {
+    const move = buildScheduleMove({
+      overrides: {}, planDays, fromISO: '2026-08-12', toISO: '2026-08-14', todayISO: TODAY,
+      completedDates: new Set(['2026-08-14']),
+    });
+    expect(move).toEqual({ ok: false, reason: 'completed-target' });
+  });
+
+  it('pusty zbiór completedDates nie blokuje niczego (draft/nieukończone sesje jak dotąd)', () => {
+    const move = buildScheduleMove({
+      overrides: {}, planDays, fromISO: '2026-08-12', toISO: TODAY, todayISO: TODAY,
+      completedDates: new Set(),
+    });
+    expect(move.ok).toBe(true);
+  });
+});
+
 describe('granica tygodnia (przypadek 5 ze specu)', () => {
   it('przeniesienie na następny tydzień: id dnia bez zmian, kolejne tygodnie regularne', () => {
     const planSnapshot = JSON.stringify(planDays);

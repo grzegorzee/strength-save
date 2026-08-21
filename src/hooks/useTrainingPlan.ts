@@ -279,7 +279,10 @@ export const useTrainingPlan = (userId: string) => {
   const moveScheduledDay = useCallback(async (
     fromDateISO: string,
     toDateISO: string,
-  ): Promise<{ success: boolean; swapped?: boolean }> => {
+    // WP-A (X27): daty z ukończoną sesją — guard silnika (buildScheduleMove)
+    // niezależny od disabled w UI; reason wraca do wołającego pod toast.
+    opts?: { completedDates?: ReadonlySet<string> },
+  ): Promise<{ success: boolean; swapped?: boolean; reason?: 'completed-source' | 'completed-target' }> => {
     if (!userId || !isLoaded) return { success: false };
     const move = buildScheduleMove({
       overrides: scheduleOverrides,
@@ -287,8 +290,9 @@ export const useTrainingPlan = (userId: string) => {
       fromISO: fromDateISO,
       toISO: toDateISO,
       todayISO: formatLocalDate(new Date()),
+      completedDates: opts?.completedDates,
     });
-    if (!move.ok) return { success: false };
+    if (!move.ok) return { success: false, reason: move.reason };
     if (import.meta.env.VITE_E2E_MODE === 'true' && import.meta.env.VITE_USE_EMULATORS !== 'true') {
       try {
         const raw = window.localStorage.getItem('fittracker_e2e_plan');

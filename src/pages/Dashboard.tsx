@@ -396,6 +396,12 @@ const Dashboard = () => {
   // żywego draftu dnia źródłowego — komunikat zamiast otwarcia (spec, brzeg 2).
   const [rescheduleFrom, setRescheduleFrom] = useState<string | null>(null);
   const todayISO = formatLocalDate(today);
+  // WP-A (X27): daty z ukończoną sesją (TYLKO completed === true) — guard
+  // przełożeń na obu poziomach: disabled targety w sheecie + silnik mutacji.
+  const completedWorkoutDates = useMemo(
+    () => new Set(workouts.filter((w) => w.completed).map((w) => w.date)),
+    [workouts],
+  );
   const openReschedule = (fromDateISO: string, dayId: string) => {
     if (isDraftContinuableToday(localDraft, fromDateISO) && localDraft.dayId === dayId) {
       toast({ title: t('reschedule.draftBlocked'), variant: 'destructive' });
@@ -406,10 +412,18 @@ const Dashboard = () => {
   // Naprawa r1 (2026-08-21, sędzia struktury): hero najbliższej sesji dla stanów
   // rest/completed — mockup dashboard-simplified pokazuje kartę NEXT SESSION
   // z CTA i przełożeniem także, gdy dziś nie ma treningu do zrobienia.
-  const renderNextSessionHero = (entry: ScheduledTrainingDay) => (
+  const renderNextSessionHero = (entry: ScheduledTrainingDay) => {
+    // WP-A (X27, A4b): sesja dalej niż jutro dostaje datę w eyebrow — sam dzień
+    // tygodnia sugerował "najbliższy poniedziałek", mylące przy starcie planu
+    // z przyszłą datą. Dziś/jutro bez zmian (dzień tygodnia wystarcza).
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const showDate = entry.dateKey > formatLocalDate(tomorrow);
+    return (
     <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5" data-testid="next-session-hero">
       <span className="eyebrow-mono text-primary">
         {t('dash.hero.next')} · {parseLocalDate(entry.dateKey).toLocaleDateString(dateLocale(lang), { weekday: 'long' })}
+        {showDate && ` · ${parseLocalDate(entry.dateKey).toLocaleDateString(dateLocale(lang), { day: 'numeric', month: 'short' })}`}
       </span>
       <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
         {localizeDayName(entry.day.dayName, lang)}
@@ -436,7 +450,8 @@ const Dashboard = () => {
         </button>
       </div>
     </div>
-  );
+    );
+  };
 
   // Runna p.1 (spec C1): jawne Pomiń/Przywróć — odwracalne, ton neutralny.
   const handleToggleSkip = async (dateISO: string) => {
@@ -560,16 +575,16 @@ const Dashboard = () => {
     // overrides i dzień źródłowy znika z resolvera, a otwarty Radix Sheet nie
     // może być odmontowany w stanie open (wiszący scroll-lock, regresja b.92).
     setRescheduleFrom(null);
-    const result = await moveScheduledDay(fromDateISO, toDateISO);
+    const result = await moveScheduledDay(fromDateISO, toDateISO, { completedDates: completedWorkoutDates });
     toast(result.success
       ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
-      : { title: t('reschedule.failed'), variant: 'destructive' });
+      : { title: t(result.reason ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
   };
   const handleMissedDoToday = async (fromDateISO: string) => {
-    const result = await moveScheduledDay(fromDateISO, todayISO);
+    const result = await moveScheduledDay(fromDateISO, todayISO, { completedDates: completedWorkoutDates });
     toast(result.success
       ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
-      : { title: t('reschedule.failed'), variant: 'destructive' });
+      : { title: t(result.reason ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
   };
 
   // Z174: JEDNA prawda o aktywnej sesji. Gdy karta dnia pokazuje CTA kontynuacji,
@@ -839,7 +854,7 @@ const Dashboard = () => {
 
       {/* Today's training card (PRO-E T3: hero zaraz pod powitaniem; typ zawsze
           jednym z training/completed/rest/preStart, więc wrapper nigdy nie jest pusty) */}
-      <div data-testid="dash-hero">
+      <div data-testid="dash-hero" className="space-y-3">
       {todayTraining.type === 'training' && (() => {
         // Z88: KAŻDY nieukończony dzisiejszy szkic = "Kontynuuj trening", także w pełni
         // zsynchronizowany (dirty=false). Auto-nawigacja (Z49) celowo zostaje ostrzejsza.
@@ -893,24 +908,25 @@ const Dashboard = () => {
 
       {todayTraining.type === 'completed' && (
         <>
+        {/* WP-A (X27, A4): baner kompaktowy — jeden wiersz z nazwą dnia inline,
+            tło statusowe z przezroczystością (zasada /10), "Zobacz" po prawej. */}
         <div
           data-testid="today-completed-card"
           className={cn(
-            'flex flex-col gap-2 rounded-xl border border-fitness-success/40 bg-fitness-success/10 p-5',
+            'flex items-center justify-between gap-3 rounded-xl border border-fitness-success/40 bg-fitness-success/10 px-4 py-2.5',
             completionHighlight && 'ring-2 ring-fitness-success/50',
           )}
         >
-          <div className="flex items-center gap-2 text-fitness-success">
-            <CheckCircle className="h-5 w-5 shrink-0" />
-            <p className="text-sm font-semibold">{t('dash.workoutCompleted')}</p>
-          </div>
-          <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
-            {localizeDayName(todayTraining.day.dayName, lang)}
-          </h2>
+          <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fitness-success">
+            <CheckCircle className="h-4 w-4 shrink-0" />
+            <span className="truncate">
+              {t('dash.workoutCompleted')} · {localizeDayName(todayTraining.day.dayName, lang)}
+            </span>
+          </p>
           <Button
             variant="ghost"
             size="sm"
-            className="self-start"
+            className="shrink-0"
             onClick={() => navigate(buildWorkoutRoute(todayTraining.workout, todayTraining.day.id))}
           >
             {t('dash.view')}
@@ -1087,6 +1103,7 @@ const Dashboard = () => {
         overrides={scheduleOverrides}
         onSelect={handleRescheduleSelect}
         todayISO={todayISO}
+        completedDates={completedWorkoutDates}
       />
 
       {/* Tray zaległości (Runna p.1, spec C2) */}

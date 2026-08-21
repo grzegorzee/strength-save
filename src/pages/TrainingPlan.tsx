@@ -244,10 +244,10 @@ const TrainingPlan = () => {
     const fromDateISO = rescheduleFrom;
     if (!fromDateISO) return;
     setRescheduleFrom(null);
-    const result = await moveScheduledDay(fromDateISO, toDateISO);
+    const result = await moveScheduledDay(fromDateISO, toDateISO, { completedDates: completedDateKeys });
     toast(result.success
       ? { title: t(result.swapped ? 'reschedule.swapped' : 'reschedule.moved') }
-      : { title: t('reschedule.failed'), variant: 'destructive' });
+      : { title: t(result.reason ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
   };
   const handleToggleSkip = async (dateISO: string) => {
     const skipped = skippedDates.includes(dateISO);
@@ -275,6 +275,13 @@ const TrainingPlan = () => {
   const completedDates = workouts
     .filter(w => w.completed)
     .map(w => parseLocalDate(w.date));
+
+  // WP-A (X27): te same daty jako zbiór ISO — guard przełożeń (disabled targety
+  // w sheecie + silnik mutacji); gate na ikonie karty (:648) zostaje bez zmian.
+  const completedDateKeys = useMemo(
+    () => new Set(workouts.filter(w => w.completed).map(w => w.date)),
+    [workouts],
+  );
 
   const stravaDates = useMemo(() =>
     visibleActivities.map(a => parseLocalDate(a.date)),
@@ -868,6 +875,7 @@ const TrainingPlan = () => {
         overrides={scheduleOverrides}
         onSelect={handleRescheduleSelect}
         todayISO={formatLocalDate(new Date())}
+        completedDates={completedDateKeys}
       />
 
       {/* C-T3: tryb "nie na 100%" dostępny z Planu (kolizja z urlopem jak na Dashboardzie) */}

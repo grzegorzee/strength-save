@@ -49,7 +49,7 @@ vi.mock('@/contexts/UserContext', () => ({
 }));
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
   useFirebaseWorkouts: () => ({
-    workouts: [],
+    workouts: workoutsFixture.workouts,
     getTotalWeight: () => 0,
     getCompletedWorkoutsCount: () => 0,
     getLatestMeasurement: () => null,
@@ -111,6 +111,7 @@ vi.mock('@/lib/workout-sync-queue', () => ({
 }));
 
 const planFixture = vi.hoisted(() => ({ plan: [] as unknown[] }));
+const workoutsFixture = vi.hoisted(() => ({ workouts: [] as unknown[] }));
 
 import Dashboard from '@/pages/Dashboard';
 
@@ -126,6 +127,23 @@ const dayToday = (): TrainingDay => ({
   weekday: WEEKDAYS[new Date().getDay()] as TrainingDay['weekday'],
   focus: 'Push',
   exercises: [{ id: 'ex-1', name: 'Wyciskanie', sets: '3 x 5', instructions: [] }],
+});
+
+const dayTomorrow = (): TrainingDay => ({
+  id: 'day-2',
+  dayName: 'Dzień B',
+  weekday: WEEKDAYS[(new Date().getDay() + 1) % 7] as TrainingDay['weekday'],
+  focus: 'Pull',
+  exercises: [{ id: 'ex-2', name: 'Wiosłowanie', sets: '3 x 5', instructions: [] }],
+});
+
+const completedTodayWorkout = () => ({
+  id: 'w1',
+  userId: 'u1',
+  dayId: 'day-1',
+  date: todayStr(),
+  completed: true,
+  exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 5, weight: 100, completed: true }] }],
 });
 
 const liveDraft = (dayId: string) => ({
@@ -162,6 +180,7 @@ beforeEach(() => {
   toastSpy.mockClear();
   planFixture.plan = [dayToday()];
   draftFixture.draft = null;
+  workoutsFixture.workouts = [];
 });
 
 describe('link "Przełóż trening" w hero (fala 2)', () => {
@@ -186,6 +205,26 @@ describe('link "Przełóż trening" w hero (fala 2)', () => {
       variant: 'destructive',
     }));
     expect(screen.queryByRole('heading', { name: 'Przełóż trening' })).toBeNull();
+  });
+
+  // WP-A (X27): ukończony dzisiejszy trening — reschedule z hero NEXT SESSION
+  // otwiera sheet, ale dzisiejsza data jest disabled (dokładny scenariusz buga
+  // TestFlight 113: swap Z/NA dziś po zrobionej sesji).
+  it('ukończony trening dziś: sheet z hero NEXT SESSION ma dziś disabled z dopiskiem', async () => {
+    planFixture.plan = [dayToday(), dayTomorrow()];
+    workoutsFixture.workouts = [completedTodayWorkout()];
+    renderDashboard();
+    await waitFor(() => expect(screen.getByTestId('next-session-hero')).toBeTruthy());
+
+    fireEvent.click(within(screen.getByTestId('next-session-hero')).getByText('Przełóż trening'));
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Przełóż trening' })).toBeTruthy());
+
+    const sheet = screen.getByRole('dialog');
+    const todayRow = within(sheet).getByText('dziś').closest('button')!;
+    expect(todayRow.hasAttribute('disabled')).toBe(true);
+    expect(todayRow.getAttribute('aria-disabled')).toBe('true');
+    expect(todayRow.textContent).toContain('trening ukończony');
   });
 
   it('link "Szczegóły" nawiguje do widoku dnia (niezmiennik)', async () => {
