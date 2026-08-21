@@ -628,7 +628,10 @@ const ExerciseCardInner = ({
   const renderTrackedSetRow = (set: SetData, globalIndex: number, label: React.ReactNode, isWarmupRow: boolean, workingIndex = -1) => {
     const isActive = !isWarmupRow && globalIndex === activeSetIndex;
     // Z128.1: złoto rozgrzewki było tylko na starej ścieżce — teraz na obu.
+    // Naprawa r2 (2026-08-21, sędzia struktury): obrys akcentowy aktywnej serii
+    // siedzi na INPUTACH (mockup exercise-card-full), nie na całym wierszu.
     const warmupInputClass = isWarmupRow ? '!border-[hsl(var(--ec-warmup-gold-border))]' : undefined;
+    const activeInputClass = isActive ? 'accent-ring' : undefined;
     const setLabel = isWarmupRow ? `${t('comp.warmup.title')} ${label}` : `${t('card.colSet')} ${label}`;
     const prevHint = !isWarmupRow ? getTrackedPreviousHint(workingIndex) : null;
     const displayWeight = set.weight
@@ -645,8 +648,9 @@ const ExerciseCardInner = ({
           'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
           gridCols,
           // Z128.1: ukończona seria = wypełnione tło (widoczne z odległości ręki),
-          // aktywna = obrys. Wykluczają się: aktywna to pierwsza NIEukończona.
-          set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.04] ring-2 ring-primary',
+          // aktywna = tint tła + obrys na inputach. Wykluczają się: aktywna to
+          // pierwsza NIEukończona.
+          set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.08]',
         )}
       >
         <span className={cn(
@@ -676,7 +680,7 @@ const ExerciseCardInner = ({
             placeholder={unit}
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${unit}`}
-            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
           />
         )}
 
@@ -690,7 +694,7 @@ const ExerciseCardInner = ({
             placeholder="m"
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colDistance')}`}
-            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
           />
         )}
 
@@ -702,7 +706,7 @@ const ExerciseCardInner = ({
             placeholder={`-${unit}`}
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colAssist')}`}
-            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
           />
         )}
 
@@ -716,7 +720,7 @@ const ExerciseCardInner = ({
             placeholder={isWarmupRow ? '—' : repsPlaceholder}
             disabled={!isEditable}
             aria-label={`${localizedName}, ${setLabel}, ${t('card.colReps')}`}
-            className={cn('exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass)}
+            className={cn('exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
           />
         )}
 
@@ -726,7 +730,7 @@ const ExerciseCardInner = ({
             onCommit={(sec) => handleSetChange(globalIndex, 'durationSec', sec)}
             disabled={!isEditable}
             ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDuration')}`}
-            className={warmupInputClass}
+            className={cn(warmupInputClass, activeInputClass)}
           />
         )}
 
@@ -770,6 +774,8 @@ const ExerciseCardInner = ({
     if (isNewTrackingUi) return renderTrackedSetRow(set, globalIndex, label, isWarmupRow, workingIndex);
     const prevHint = !isWarmupRow ? getPreviousHint(workingIndex) : null;
     const isActive = !isWarmupRow && globalIndex === activeSetIndex;
+    // Naprawa r2 (2026-08-21): obrys akcentowy na inputach KG/POWT., nie na wierszu.
+    const activeInputClass = isActive ? 'accent-ring' : undefined;
     const displayWeight = set.weight
       ? (unit === 'lbs' ? Number(toDisplay(set.weight).toFixed(1)) : set.weight)
       : '';
@@ -782,7 +788,7 @@ const ExerciseCardInner = ({
           'grid items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
           gridCols,
           // Z128.1: patrz renderTrackedSetRow — ta sama reguła tła na obu ścieżkach.
-          set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.04] ring-2 ring-primary',
+          set.completed ? 'bg-primary/[0.06]' : isActive && 'bg-primary/[0.08]',
         )}
       >
         {/* SET */}
@@ -814,6 +820,7 @@ const ExerciseCardInner = ({
             className={cn(
               'exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0',
               isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
+              activeInputClass,
             )}
           />
         )}
@@ -833,6 +840,7 @@ const ExerciseCardInner = ({
             // stopniem — 16px bold klipowało górny kres na 390px.
             'exercise-card-input h-12 px-1 text-base font-bold placeholder:text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0',
             isWarmupRow && '!border-[hsl(var(--ec-warmup-gold-border))]',
+            activeInputClass,
           )}
         />
 
