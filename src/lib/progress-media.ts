@@ -1,8 +1,11 @@
 /**
- * X28 WP-D: obrazy kafli zakładki Postępy (poziom 1) — medaliony webp z pakietu
- * pro-look (512x512, na czerni). Statyczne assety w public/badges/ (kopie z
- * media-staging/pro-look/badges/); brak/błąd pliku obsługuje UI fallbackiem
- * GroupTile (onError → gradient). BASE_URL jak w exercise-media.getGroupImageUrl.
+ * X28 WP-D: medaliony webp z pakietu pro-look (512x512, na czerni) dla zakładki
+ * Postępy. Statyczne assety w public/badges/ (kopie z media-staging/pro-look/
+ * badges/); brak/błąd pliku obsługuje UI fallbackiem (onError → gradient).
+ * BASE_URL jak w exercise-media.getGroupImageUrl.
+ * Fix 2026-08-21: kafle poziomu 1 przeszły na ikony lucide (medaliony odcinały
+ * się od tła) — helper żyje dalej w hero sekcji poziomu 2 (GroupHeader,
+ * ?section=records|badges), a 'analytics'/'weeks' zostają dla kompletu typu.
  */
 
 export type ProgressTileId = 'records' | 'badges' | 'analytics' | 'weeks';

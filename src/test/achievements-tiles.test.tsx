@@ -1,7 +1,11 @@
 // X28 WP-D: zakładka Postępy kafelkowo — poziom 1 = staty + Life PRs + heatmapa
-// + 4 kafle (Rekordy / Odznaki i sezony / Analityka / Tygodnie), poziom 2
+// + 4 kafle (Rekordy / Odznaki / Analityka / Tygodnie), poziom 2
 // (?section=records|badges) = przeniesione sekcje. Scaffolding mocków wzorem
 // achievements-heatmap.test.tsx, fixtury dokumentów przez canonical-states.
+// Fix 2026-08-21 (zgłoszenie TestFlight): kafle poziomu 1 renderują ikony lucide
+// zamiast medalionów webp (czarne kwadraty odcinały się od tła kafla); etykieta
+// kafla odznak skrócona do "Odznaki". Medaliony webp zostają w hero sekcji
+// poziomu 2 (GroupHeader), stąd helper progress-media nadal żyje.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -57,7 +61,7 @@ const renderPage = (initialEntry = '/achievements') => render(
   </MemoryRouter>,
 );
 
-const tiles = () => screen.getAllByTestId('exercise-group-tile');
+const tiles = () => screen.getAllByTestId('progress-section-tile');
 const tileByLabel = (label: string) => tiles().find((tile) => within(tile).queryByText(label));
 
 beforeEach(() => {
@@ -66,7 +70,7 @@ beforeEach(() => {
   fixtures.state = buildCanonicalState('active-plan', TODAY);
 });
 
-describe('D1: helper obrazów kafli postępów', () => {
+describe('D1: helper obrazów sekcji postępów (hero poziomu 2)', () => {
   it('getProgressTileImageUrl mapuje sekcję na medalion webp w /badges/', () => {
     expect(getProgressTileImageUrl('records')).toBe('/badges/pr.webp');
     expect(getProgressTileImageUrl('badges')).toBe('/badges/season-gold.webp');
@@ -84,10 +88,18 @@ describe('D2: poziom 1 — kafle sekcji', () => {
     expect(recordsTile, 'kafel Rekordy').toBeTruthy();
     // active-plan: 2 dni x 2 ćwiczenia = 4 exerciseId z rekordem.
     expect(within(recordsTile!).getByText('4')).toBeInTheDocument();
-    expect(tileByLabel('Odznaki i sezony'), 'kafel Odznaki i sezony').toBeTruthy();
-    expect(within(tileByLabel('Odznaki i sezony')!).getByText(/^\d+\/\d+$/)).toBeInTheDocument();
+    expect(tileByLabel('Odznaki'), 'kafel Odznaki').toBeTruthy();
+    expect(within(tileByLabel('Odznaki')!).getByText(/^\d+\/\d+$/)).toBeInTheDocument();
     expect(tileByLabel('Analityka'), 'kafel Analityka').toBeTruthy();
     expect(tileByLabel('Tygodnie'), 'kafel Tygodnie').toBeTruthy();
+
+    // Fix 2026-08-21: kafel = ikona lucide (svg), zero <img> z medalionem webp.
+    tiles().forEach((tile) => {
+      expect(tile.querySelector('svg'), 'ikona lucide w kaflu').toBeTruthy();
+      expect(tile.querySelector('img'), 'kafel bez obrazka webp').toBeNull();
+    });
+    // Stara długa etykieta nie występuje.
+    expect(screen.queryByText('Odznaki i sezony')).toBeNull();
 
     // Sekcje poziomu 2 NIE renderują się na poziomie 1.
     expect(screen.queryByText('Rekordy wszystkich ćwiczeń')).toBeNull();
@@ -108,7 +120,7 @@ describe('D2: poziom 1 — kafle sekcji', () => {
     expect(screen.getByText('Rekordy wszystkich ćwiczeń')).toBeInTheDocument();
     expect(screen.getByText('Rekordy osobiste (szacowane 1RM)')).toBeInTheDocument();
     expect(screen.queryByText('Mapa treningowa')).toBeNull();
-    expect(screen.queryAllByTestId('exercise-group-tile')).toHaveLength(0);
+    expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
   });
 
   it('back z sekcji wraca na poziom 1 (kafle + heatmapa)', () => {
@@ -124,10 +136,11 @@ describe('D2: poziom 1 — kafle sekcji', () => {
   it('?section=badges pokazuje kamienie milowe, odznaki specjalne i półkę sezonów', () => {
     renderPage('/achievements?section=badges');
 
-    expect(screen.getByText('Odznaki')).toBeInTheDocument();
+    // Tytuł sekcji w hero (h1); "Odznaki" występuje też jako CardTitle (h3).
+    expect(screen.getByRole('heading', { level: 1, name: 'Odznaki' })).toBeInTheDocument();
     expect(screen.getByText('Odznaki specjalne')).toBeInTheDocument();
     expect(screen.queryByText('Mapa treningowa')).toBeNull();
-    expect(screen.queryAllByTestId('exercise-group-tile')).toHaveLength(0);
+    expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
   });
 
   it('nieznany ?section= renderuje poziom 1 (edge case 1)', () => {
@@ -161,7 +174,7 @@ describe('D2: poziom 1 — kafle sekcji', () => {
     fixtures.state = buildCanonicalState('empty-history', TODAY);
     renderPage();
 
-    expect(screen.queryAllByTestId('exercise-group-tile')).toHaveLength(0);
+    expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
     expect(screen.getByText('Rekordy pojawią się po pierwszych treningach.')).toBeInTheDocument();
   });
 });

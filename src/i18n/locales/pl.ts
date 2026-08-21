@@ -604,7 +604,7 @@ export const pl = {
   'progress.viewRecords': 'Rekordy i odznaki',
   'progress.viewAnalytics': 'Analityka',
   'progress.tile.records': 'Rekordy',
-  'progress.tile.badges': 'Odznaki i sezony',
+  'progress.tile.badges': 'Odznaki',
   'progress.tile.analytics': 'Analityka',
   'progress.tile.weeks': 'Tygodnie',
   'progress.records.count': '{n} rekordów',

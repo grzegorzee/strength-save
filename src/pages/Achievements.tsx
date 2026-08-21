@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { StatsCard } from '@/components/StatsCard';
 import { useFirebaseWorkouts } from '@/hooks/useFirebaseWorkouts';
 import { useCurrentUser } from '@/contexts/UserContext';
-import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal } from 'lucide-react';
+import { Trophy, Dumbbell, Target, TrendingUp, TrendingDown, ChevronRight, Zap, Sunrise, RotateCcw, Swords, CalendarCheck, Medal, BarChart3, CalendarRange, type LucideIcon } from 'lucide-react';
 import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
 import { TrainingHeatmap } from '@/components/TrainingHeatmap';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -26,7 +26,6 @@ import {
   type Milestone,
   type SpecialBadgeId,
 } from '@/lib/achievements-utils';
-import { GroupTile } from '@/components/exercises/GroupTile';
 import { GroupHeader } from '@/components/exercises/GroupHeader';
 import { getProgressTileImageUrl } from '@/lib/progress-media';
 import { medalForCompletionRate } from '@/lib/season-medals';
@@ -120,6 +119,36 @@ const ProgressHeader = ({ view }: { view: 'records' | 'analytics' }) => {
     </div>
   );
 };
+
+// Fix 2026-08-21 (zgłoszenie TestFlight): kafel sekcji poziomu 1 z ikoną lucide
+// w akcencie zamiast medalionu webp (czarne kwadraty 512x512 odcinały się od tła
+// kafla). Kontener i strefa nagłówka jak w GroupTile (rounded-[20px], surface,
+// strefa 78 px); medaliony webp zostają w hero sekcji poziomu 2 (GroupHeader).
+const SectionTile = ({ label, count, icon: Icon, onClick }: {
+  label: string;
+  count: number | string;
+  icon: LucideIcon;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    data-testid="progress-section-tile"
+    onClick={onClick}
+    className="overflow-hidden rounded-[20px] bg-surface-low text-left transition-colors hover:bg-surface-high"
+  >
+    <span aria-hidden="true" className="flex h-[78px] w-full items-center justify-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+        <Icon className="h-7 w-7 text-primary" />
+      </span>
+    </span>
+    <span className="flex items-center justify-between gap-2 px-3 pb-2.5 pt-2">
+      <span className="truncate font-heading text-[15px] font-bold uppercase leading-tight tracking-tight">
+        {label}
+      </span>
+      <span className="eyebrow-mono shrink-0 font-bold text-primary">{count}</span>
+    </span>
+  </button>
+);
 
 // X28 WP-D: sekcje poziomu 2 (?section=records|badges); ?view=analytics ma
 // pierwszeństwo (edge case 1), nieznany param = poziom 1.
@@ -370,34 +399,30 @@ const Achievements = () => {
           X28 WP-D: trend 6-mies. tonażu przeniesiony do wykresów analityki (zakres 6M). */}
       <TrainingHeatmap workouts={workouts} stravaActivities={[]} />
 
-      {/* X28 WP-D: kafle sekcji — medaliony webp object-contain (bez croppa coverem) */}
+      {/* Fix 2026-08-21: kafle sekcji — standardowe ikony lucide zamiast webp */}
       <div className="grid grid-cols-2 gap-2.5">
-        <GroupTile
+        <SectionTile
           label={t('progress.tile.records')}
           count={exerciseRecords.length}
-          imageUrl={getProgressTileImageUrl('records')}
-          imageFit="contain"
+          icon={Trophy}
           onClick={() => setAchSearchParams({ section: 'records' })}
         />
-        <GroupTile
+        <SectionTile
           label={t('progress.tile.badges')}
           count={`${earnedBadges}/${totalBadges}`}
-          imageUrl={getProgressTileImageUrl('badges')}
-          imageFit="contain"
+          icon={Medal}
           onClick={() => setAchSearchParams({ section: 'badges' })}
         />
-        <GroupTile
+        <SectionTile
           label={t('progress.tile.analytics')}
           count=""
-          imageUrl={getProgressTileImageUrl('analytics')}
-          imageFit="contain"
+          icon={BarChart3}
           onClick={() => setAchSearchParams({ view: 'analytics' })}
         />
-        <GroupTile
+        <SectionTile
           label={t('progress.tile.weeks')}
           count=""
-          imageUrl={getProgressTileImageUrl('weeks')}
-          imageFit="contain"
+          icon={CalendarRange}
           onClick={() => setAchSearchParams({ view: 'analytics', tab: 'weekly' })}
         />
       </div>

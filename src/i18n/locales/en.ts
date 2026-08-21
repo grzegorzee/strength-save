@@ -598,7 +598,7 @@ export const en: Record<keyof typeof pl, string> = {
   'progress.viewRecords': 'Records & badges',
   'progress.viewAnalytics': 'Analytics',
   'progress.tile.records': 'Records',
-  'progress.tile.badges': 'Badges and seasons',
+  'progress.tile.badges': 'Badges',
   'progress.tile.analytics': 'Analytics',
   'progress.tile.weeks': 'Weeks',
   'progress.records.count': '{n} records',
