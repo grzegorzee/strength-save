@@ -17,7 +17,6 @@ const ARBITRARY_HEX_ALLOWLIST = new Set([
   'src/pages/StravaCallback.tsx',              // #FC4C02 = kolor marki Strava (brand guidelines)
   'src/pages/Settings.tsx',                    // #FC4C02 = przycisk "Connect with Strava"
   'src/components/StravaActivityDetail.tsx',   // #FC4C02/#e04400 = branding Strava
-  'src/components/HybridWeekStrip.tsx',        // #00e3fd = legacy cyjan cardio; kandydat na --fitness-cyan w planie Dashboardu
 ]);
 
 const COLOR_MIX = /color-mix\(/;

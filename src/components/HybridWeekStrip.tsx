@@ -108,7 +108,9 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
                     className="flex h-11 w-full max-w-[26px] flex-col justify-end overflow-hidden rounded-sm"
                     data-testid={`strip-bar-${d.date}`}
                   >
-                    <div className="w-full bg-[#00e3fd]/85" style={{ height: cardioH }} />
+                    {/* Naprawa r2 (2026-08-21): cardio przez token --fitness-cyan
+                        (jeden odcień semantyczny cardio w całej apce, nie legacy hex). */}
+                    <div className="w-full bg-fitness-cyan/85" style={{ height: cardioH }} />
                     <div className="w-full bg-primary" style={{ height: strengthH }} />
                   </div>
                   <span className="text-[9px] font-bold uppercase text-muted-foreground/60">{label}</span>
@@ -127,7 +129,7 @@ export const HybridWeekStrip = ({ workouts, activities, weekStart, maxHR, planne
               {t('hybrid.strength')}
             </span>
             <span className="flex items-center gap-1.5 text-[9px] font-semibold uppercase text-muted-foreground/70">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#00e3fd]/85" />
+              <span className="h-1.5 w-1.5 rounded-full bg-fitness-cyan/85" />
               {t('hybrid.cardio')}
             </span>
           </div>

@@ -82,7 +82,9 @@ export const HybridLoadCard = () => {
             <Tooltip contentStyle={tooltipStyle} />
             <Legend wrapperStyle={{ fontSize: '11px' }} />
             <Bar dataKey={labelStrength} stackId="load" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
-            <Bar dataKey={labelCardio} stackId="load" fill="#00e3fd" fillOpacity={0.85} radius={[3, 3, 0, 0]} />
+            {/* Naprawa r2 (2026-08-21): cardio z tokenu --fitness-cyan (wzorzec
+                fill Bara siły: var() w fill działa, w przeciwieństwie do stop-color). */}
+            <Bar dataKey={labelCardio} stackId="load" fill="hsl(var(--fitness-cyan))" fillOpacity={0.85} radius={[3, 3, 0, 0]} />
             <Line type="monotone" dataKey={labelTotal} stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
           </ComposedChart>
         </ResponsiveContainer>
