@@ -1499,7 +1499,7 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     const backCard = planCards.first();
     await expect(backCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
 
-    const setHeader = await backCard.getByText('Set', { exact: true }).first().boundingBox();
+    const setHeader = await backCard.getByText('Ser.', { exact: true }).first().boundingBox();
     const warmupLabel = await backCard.getByText('W', { exact: true }).first().boundingBox();
     const addSet = await backCard.getByRole('button', { name: /Dodaj serię/i }).boundingBox();
     expect(setHeader!.y).toBeLessThan(warmupLabel!.y);

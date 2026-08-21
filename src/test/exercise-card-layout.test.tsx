@@ -161,7 +161,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
       const { card } = renderCard({ savedSets: [workingSet({ weight: 60, reps: 8 })] });
       const header = card.querySelector('.exercise-card-header') as HTMLElement;
       expect(header).toBeTruthy();
-      expect(domIndex(card, header)).toBeLessThan(domIndex(card, columnHeader(card, 'Set')));
+      expect(domIndex(card, header)).toBeLessThan(domIndex(card, columnHeader(card, 'Ser.')));
     });
 
     it('przycisk "Dodaj serię" istnieje w trybie edycji i znika bez edycji', () => {
@@ -180,7 +180,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
         workingSet({ weight: 60, reps: 8 }),
       ];
       const { card } = renderCard({ savedSets: sets });
-      expect(domIndex(card, columnHeader(card, 'Set'))).toBeLessThan(domIndex(card, warmupRowLabel(card)));
+      expect(domIndex(card, columnHeader(card, 'Ser.'))).toBeLessThan(domIndex(card, warmupRowLabel(card)));
     });
 
     it('rozgrzewka jest w tej samej tabeli co serie robocze, bez osobnego nagłówka sekcji', () => {
@@ -211,9 +211,12 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
 
       expect(doneRow.className).toContain('bg-primary/[0.06]');
       expect(pendingRow.className).not.toContain('bg-primary/[0.06]');
-      // Aktywna (pierwsza nieukończona) zachowuje obrys, ukończona go nie ma.
-      expect(pendingRow.className).toContain('ring-2');
-      expect(doneRow.className).not.toContain('ring-2');
+      // Naprawa r2 (2026-08-21): aktywna (pierwsza nieukończona) = tint wiersza
+      // + obrys akcentowy na INPUTACH (mockup exercise-card-full), nie na wierszu.
+      expect(pendingRow.className).toContain('bg-primary/[0.08]');
+      expect(doneRow.className).not.toContain('bg-primary/[0.08]');
+      expect(repsInputs[2].className).toContain('accent-ring');
+      expect(repsInputs[1].className).not.toContain('accent-ring');
     });
 
     it('ukończona seria ma tło także na ścieżce renderTrackedSetRow (duration)', () => {
@@ -495,7 +498,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
         pinnedNote: { note: 'Siodełko na 4, uchwyt wąski', updatedAt: 0 } as never,
       });
       const note = within(card).getByTestId('pinned-note-slot');
-      const colSet = within(card).getByText('Set');
+      const colSet = within(card).getByText('Ser.');
       const addSet = within(card).getByText('Dodaj serię');
       expect(domIndex(card, note)).toBeLessThan(domIndex(card, colSet));
       expect(domIndex(card, note)).toBeLessThan(domIndex(card, addSet));
@@ -511,7 +514,7 @@ describe('ExerciseCard — układ karty (charakteryzacja przed X17A)', () => {
         pinnedNote: { note: 'Uchwyt szeroki', updatedAt: 0 } as never,
       });
       const note = within(card).getByTestId('pinned-note-slot');
-      const colSet = within(card).getByText('Set');
+      const colSet = within(card).getByText('Ser.');
       expect(domIndex(card, note)).toBeLessThan(domIndex(card, colSet));
       // Edycja notatki nie jest zdublowana w treści karty — żyje w menu ⋯.
       expect(within(card).queryAllByText('Uchwyt szeroki')).toHaveLength(1);

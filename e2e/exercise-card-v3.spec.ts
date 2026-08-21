@@ -105,7 +105,7 @@ test.describe('ExerciseCard — Kinetic Precision', () => {
     await expect(warmupLabel).toBeVisible();
 
     // Nagłówek kolumny SET jest nad wierszem rozgrzewkowym.
-    const setHeaderBox = await firstCard.getByText('Set', { exact: true }).first().boundingBox();
+    const setHeaderBox = await firstCard.getByText('Ser.', { exact: true }).first().boundingBox();
     const warmupBox = await warmupLabel.boundingBox();
     expect(setHeaderBox!.y).toBeLessThan(warmupBox!.y);
   });

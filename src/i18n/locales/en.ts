@@ -1456,6 +1456,7 @@ export const en: Record<keyof typeof pl, string> = {
   'card.repsValue': '{n} reps',
   'card.setsCount': '{n} sets',
   'card.colSet': 'Set',
+  'card.setAria': 'Set',
   'card.colPrevious': 'Prev.',
   'card.colReps': 'Reps',
   'card.colDuration': 'Time',

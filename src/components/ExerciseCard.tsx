@@ -632,7 +632,9 @@ const ExerciseCardInner = ({
     // siedzi na INPUTACH (mockup exercise-card-full), nie na całym wierszu.
     const warmupInputClass = isWarmupRow ? '!border-[hsl(var(--ec-warmup-gold-border))]' : undefined;
     const activeInputClass = isActive ? 'accent-ring' : undefined;
-    const setLabel = isWarmupRow ? `${t('comp.warmup.title')} ${label}` : `${t('card.colSet')} ${label}`;
+    // setAria (nie colSet): aria-labels "Set 1, kg" to kontrakt e2e, a widoczny
+    // nagłówek kolumny jest po polsku ("Ser.") — naprawa r2 (2026-08-21).
+    const setLabel = isWarmupRow ? `${t('comp.warmup.title')} ${label}` : `${t('card.setAria')} ${label}`;
     const prevHint = !isWarmupRow ? getTrackedPreviousHint(workingIndex) : null;
     const displayWeight = set.weight
       ? (unit === 'lbs' ? Number(toDisplay(set.weight).toFixed(1)) : set.weight)
@@ -779,7 +781,9 @@ const ExerciseCardInner = ({
     const displayWeight = set.weight
       ? (unit === 'lbs' ? Number(toDisplay(set.weight).toFixed(1)) : set.weight)
       : '';
-    const setLabel = isWarmupRow ? `${t('comp.warmup.title')} ${label}` : `${t('card.colSet')} ${label}`;
+    // setAria (nie colSet): aria-labels "Set 1, kg" to kontrakt e2e, a widoczny
+    // nagłówek kolumny jest po polsku ("Ser.") — naprawa r2 (2026-08-21).
+    const setLabel = isWarmupRow ? `${t('comp.warmup.title')} ${label}` : `${t('card.setAria')} ${label}`;
 
     return (
       <div

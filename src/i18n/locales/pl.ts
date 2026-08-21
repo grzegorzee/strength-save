@@ -1477,7 +1477,11 @@ export const pl = {
   'devices.integration.unavailable': 'niedostępne',
   'card.repsValue': '{n} powt.',
   'card.setsCount': '{n} serii',
-  'card.colSet': 'Set',
+  // Naprawa r2 (2026-08-21): nagłówek kolumny po polsku (kolumna ma 26px, stąd
+  // skrót); setAria zostaje "Set" — aria-labels pól serii to kontrakt e2e
+  // ("Set 1, kg" w kilkudziesięciu asercjach), zmiana rozjechałaby testy.
+  'card.colSet': 'Ser.',
+  'card.setAria': 'Set',
   'card.colPrevious': 'Poprz.',
   'card.colReps': 'Powt.',
   'card.colDuration': 'Czas',
