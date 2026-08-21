@@ -145,6 +145,13 @@ export const getExerciseAnimationUrl = (name?: string): string | null => {
   return file ? `${CDN_BASE}/${file}` : null;
 };
 
+/** X27 WP-E: zdjęcie grupy mięśniowej dla kafla/hero zakładki Ćwiczenia.
+ *  Statyczne assety w public/exercise-groups/ (dostarcza WP-IMG); brak pliku
+ *  obsługuje UI fallbackiem (onError → gradient), więc helper nie zna manifestu.
+ *  BASE_URL jak przy dźwiękach przerwy (rest-sound.ts) — respektuje podkatalog. */
+export const getGroupImageUrl = (categoryId: string): string =>
+  `${import.meta.env.BASE_URL ?? '/'}exercise-groups/${categoryId}.webp`;
+
 /** Z195: poster JPEG miniatury (ta sama nazwa co mp4). WebKit przy
  *  preload=metadata nie maluje żadnej klatki wideo — kafelek renderuje <img>. */
 export const getExercisePosterUrl = (name?: string): string | null => {

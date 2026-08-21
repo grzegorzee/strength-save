@@ -81,9 +81,10 @@ test.describe('Kolor przewodni aplikacji (F-T2)', () => {
     await expect(historyChip).toBeVisible();
     expect(await historyChip.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(LIME);
 
-    await navigateAndWait(page, '/exercises');
+    // X27 WP-E: chip "Wszystkie" żyje w widoku grupy (poziom 2) i nosi licznik.
+    await navigateAndWait(page, '/exercises?group=chest');
     await expectPageRendered(page);
-    const exercisesChip = page.getByRole('button', { name: /^wszystkie$/i }).first();
+    const exercisesChip = page.getByRole('button', { name: /^wszystkie \d+$/i }).first();
     await expect(exercisesChip).toBeVisible();
     expect(await exercisesChip.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(LIME);
   });

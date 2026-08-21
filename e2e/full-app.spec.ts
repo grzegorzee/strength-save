@@ -25,7 +25,8 @@ test.describe('Page Load Smoke Tests', () => {
   test('Exercise Library (/exercises) loads', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Ćwiczenia' })).toBeVisible();
+    // X27 WP-E: poziom 1 to siatka kafli grup mięśniowych (tytuł strony niesie AppHeader).
+    await expect(page.getByTestId('exercise-group-tile').first()).toBeVisible();
   });
 
   test('Workout History (/history) loads', async ({ page }) => {
@@ -266,12 +267,16 @@ test.describe('Exercise Library', () => {
   test('shows exercise categories', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
+    // X27 WP-E: kategorie to kafle grup mięśniowych na poziomie 1.
     await expect(page.getByRole('heading', { name: 'Ćwiczenia' }).first()).toBeVisible();
+    await expect(page.getByTestId('exercise-group-tile').first()).toBeVisible();
   });
 
   test('exercises are clickable/expandable', async ({ page }) => {
     await navigateAndWait(page, '/exercises');
-    const firstExercise = page.getByRole('button', { name: /Wyciskanie|Pompki|Przysiad/ }).first();
+    // X27 WP-E: lista ćwiczeń żyje w widoku grupy — najpierw kafel, potem wiersz.
+    await page.getByTestId('exercise-group-tile').first().click();
+    const firstExercise = page.getByTestId('group-exercise-row').first();
     await expect(firstExercise).toBeVisible();
     await firstExercise.click();
     await expectPageRendered(page);

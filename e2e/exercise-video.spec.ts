@@ -53,6 +53,10 @@ test.describe('Wideo ćwiczeń (Z176)', () => {
     await navigateAndWait(page, '/exercises');
     await expectPageRendered(page);
 
+    // X27 WP-E: poziom 1 to siatka grup — wiersze z podglądem wideo żyją w wynikach
+    // wyszukiwania. Fraza wybrana tak, by oba pierwsze wyniki miały animację CDN.
+    await page.getByTestId('exercise-search').fill('Przysiad ze sztangą');
+
     // Przed tapnięciem: miniatury bez grającego wideo (ikona play).
     const rows = page.locator('[data-testid="exercise-preview-thumb"]');
     await expect(rows.first()).toBeVisible();
