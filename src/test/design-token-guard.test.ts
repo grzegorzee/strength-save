@@ -12,6 +12,10 @@ import { join } from 'node:path';
 
 const SKIPPED_DIRS = new Set(['src/test']);
 
+// X29 (WP-F): natywne API (StatusBar) nie widzi tokenow CSS — hex #0e0e0e jest
+// tam KONIECZNY i celowo rowny --background dark (jednolity start apki).
+const MOCKUP_HEX_ALLOWLIST = new Set(['src/lib/native-setup.ts']);
+
 // Zastane wyjatki dla arbitrary hex utilities (przed fala 2, poza jej zakresem):
 const ARBITRARY_HEX_ALLOWLIST = new Set([
   'src/pages/StravaCallback.tsx',              // #FC4C02 = kolor marki Strava (brand guidelines)
@@ -56,7 +60,8 @@ describe('straznik tokenow redesignu: zero color-mix i hexow mockupu w zrodlach 
   });
 
   it('zero hexow mockupu — powierzchnie i tinty wylacznie przez tokeny surface/primary', () => {
-    expect(offendersIn(files, MOCKUP_HEX)).toEqual([]);
+    const scanned = files.filter((p) => !MOCKUP_HEX_ALLOWLIST.has(p));
+    expect(offendersIn(scanned, MOCKUP_HEX)).toEqual([]);
   });
 
   it('zero arbitrary hex utilities (bg-[#...]) poza allowlista brandow', () => {
