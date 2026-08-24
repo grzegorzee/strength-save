@@ -1,8 +1,9 @@
 // WP-E (X28): eksport before/after z porownania sylwetki.
 // E1: wspolny escapeHtml w src/lib/share-html.ts (trzeci modul share = koniec
 // duplikacji share-utils/CycleShareCard). E2: czysty builder HTML (3 szablony
-// x 2 formaty). E3: przycisk w BodyPhotoCompare + dialog eksportu (fetch →
-// fallback SDK getBlob → downscale → podglad → Pobierz/Udostepnij).
+// x 2 formaty). E3: przycisk w BodyPhotoCompare + dialog eksportu (na native:
+// nativeHttp → getBlob → fetch; na web: fetch → getBlob; potem downscale →
+// podglad → Pobierz/Udostepnij).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import appIcon from '@/assets/app-icon.png';
@@ -23,15 +24,25 @@ import {
 import { BodyPhotoCompare } from '@/components/BodyPhotoCompare';
 
 const html2canvasMock = vi.hoisted(() => vi.fn());
-const downscaleMock = vi.hoisted(() => vi.fn(async () => 'data:image/jpeg;base64,MOCKPHOTO'));
+const downscaleMock = vi.hoisted(() => vi.fn(async (_blob: Blob) => 'data:image/jpeg;base64,MOCKPHOTO'));
 const toastMock = vi.hoisted(() => vi.fn());
-// Zgloszenie iOS build 115: kanal natywny (SDK-first) + telemetria porazek.
+// Zgloszenie iOS build 115: kanal natywny + telemetria porazek. X29: po
+// telemetrii 2026-08-22 (build 116) pierwszym kanalem na native jest
+// CapacitorHttp (natywny stos HTTP, poza siecia WKWebView).
 const nativePlatformMock = vi.hoisted(() => ({ value: false }));
 const reportErrorMock = vi.hoisted(() => vi.fn());
+const capacitorHttpGetMock = vi.hoisted(() =>
+  vi.fn<(options: { url: string; responseType: string }) => Promise<{
+    status: number; data: unknown; headers: Record<string, string>; url: string;
+  }>>(),
+);
 
 vi.mock('html2canvas-pro', () => ({ default: html2canvasMock }));
 vi.mock('@/lib/share-utils', () => ({ downscalePhoto: downscaleMock }));
-vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => nativePlatformMock.value } }));
+vi.mock('@capacitor/core', () => ({
+  Capacitor: { isNativePlatform: () => nativePlatformMock.value },
+  CapacitorHttp: { get: capacitorHttpGetMock },
+}));
 vi.mock('@/lib/haptics', () => ({ hapticSuccess: vi.fn(async () => undefined) }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: reportErrorMock }));
@@ -179,6 +190,13 @@ beforeEach(() => {
   downscaleMock.mockResolvedValue('data:image/jpeg;base64,MOCKPHOTO');
   nativePlatformMock.value = false;
   reportErrorMock.mockClear();
+  capacitorHttpGetMock.mockReset();
+  capacitorHttpGetMock.mockResolvedValue({
+    status: 200,
+    data: btoa('native'),
+    headers: { 'Content-Type': 'image/jpeg' },
+    url: '',
+  });
   vi.mocked(getBlob).mockClear();
   vi.mocked(getBlob).mockResolvedValue(new Blob(['sdk'], { type: 'image/jpeg' }));
   html2canvasMock.mockReset();
@@ -226,6 +244,8 @@ describe('BodyPhotoCompare: eksport before/after (E3)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(downscaleMock).toHaveBeenCalledTimes(2);
     expect(vi.mocked(getBlob)).not.toHaveBeenCalled();
+    // Web bez zmian po X29: kanal natywny (CapacitorHttp) nie startuje.
+    expect(capacitorHttpGetMock).not.toHaveBeenCalled();
     // Do buildera weszly dataURL-e, nie surowe photoUrl (tainted canvas).
     const element = html2canvasMock.mock.calls.at(-1)?.[0] as HTMLElement;
     expect(element.outerHTML).toContain('data:image/jpeg;base64,MOCKPHOTO');
@@ -304,11 +324,16 @@ describe('BodyPhotoCompare: eksport before/after (E3)', () => {
 // Zgloszenie iOS build 115 (WKWebView): spinner "Pobierz / udostepnij" wisial
 // minutami bez toastu. Root cause: brak twardego limitu czasu na przygotowanie
 // zdjecia — fetch w WKWebView potrafi wisiec do systemowego timeoutu, a getBlob
-// SDK retry'uje network error az do maxOperationRetryTime (2 min). Fix: kanal
-// SDK-first na natywnym + timeout per krok + telemetria + toast w kilkanascie s.
+// SDK retry'uje network error az do maxOperationRetryTime (2 min). Fix 116:
+// kanal SDK-first na natywnym + timeout per krok + telemetria + toast.
+// X29: telemetria produkcyjna 2026-08-22 (build 116) pokazala, ze getBlob TEZ
+// pada w WKWebView ("photo-load-failed getBlob=getBlob-timeout fetch=Load
+// failed") — oba kanaly JS ida przez warstwe sieciowa WKWebView z originu
+// capacitor://localhost. Dlatego pierwszym kanalem na native jest nativeHttp
+// (CapacitorHttp, natywny stos HTTP): [nativeHttp, getBlob, fetch].
 // ---------------------------------------------------------------------------
 
-describe('BodyPhotoCompare: twarde limity czasu i kanal natywny (fix iOS 115)', () => {
+describe('BodyPhotoCompare: twarde limity czasu i kanal natywny (fix iOS 115 + X29 nativeHttp)', () => {
   it('fetch zwraca ok=false (fetch NIE rzuca na 4xx/5xx) → fallback SDK getBlob i eksport dziala', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 403, blob: async () => new Blob([''], { type: 'text/plain' }) });
     renderCompare(canonicalMeasurements);
@@ -353,26 +378,47 @@ describe('BodyPhotoCompare: twarde limity czasu i kanal natywny (fix iOS 115)', 
     }
   });
 
-  it('natywna platforma: SDK getBlob jest PIERWSZYM kanalem, fetch w ogole nie startuje', async () => {
+  // X29: hotfix 116 asertowal tu kolejnosc [getBlob, fetch]. Telemetria
+  // 2026-08-22 udowodnila, ze getBlob tez pada w WKWebView (getBlob-timeout),
+  // wiec nowa kolejnosc na native to [nativeHttp, getBlob, fetch].
+  it('natywna platforma: nativeHttp (CapacitorHttp) jest PIERWSZYM kanalem — getBlob i fetch nie startuja', async () => {
     nativePlatformMock.value = true;
     renderCompare(canonicalMeasurements);
     await openShareDialog();
 
-    expect(vi.mocked(getBlob)).toHaveBeenCalledTimes(2);
+    expect(capacitorHttpGetMock).toHaveBeenCalledTimes(2);
+    expect(capacitorHttpGetMock.mock.calls[0][0]).toMatchObject({ responseType: 'blob' });
+    expect(vi.mocked(getBlob)).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
+    // base64 z natywnej odpowiedzi zdekodowany do Blobu przed downscale.
+    expect(downscaleMock.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
   });
 
-  it('natywna platforma: getBlob pada → fetch przejmuje i eksport dziala', async () => {
+  it('natywna platforma: nativeHttp pada → SDK getBlob przejmuje i eksport dziala', async () => {
     nativePlatformMock.value = true;
+    capacitorHttpGetMock.mockRejectedValue(new Error('native-http-500'));
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    expect(capacitorHttpGetMock).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(getBlob)).toHaveBeenCalledTimes(2);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(toastMock).not.toHaveBeenCalled();
+  });
+
+  it('natywna platforma: nativeHttp i getBlob padaja → fetch przejmuje i eksport dziala', async () => {
+    nativePlatformMock.value = true;
+    capacitorHttpGetMock.mockRejectedValue(new Error('native-http-empty'));
     vi.mocked(getBlob).mockRejectedValue(new Error('storage/object-not-found'));
     renderCompare(canonicalMeasurements);
     await openShareDialog();
 
+    expect(capacitorHttpGetMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(toastMock).not.toHaveBeenCalled();
   });
 
-  it('natywna platforma: wpis bez photoPath nie traci eksportu — idzie przez fetch (niezmiennik reguly 5)', async () => {
+  it('natywna platforma: wpis bez photoPath tez ma kanal natywny — nativeHttp z photoUrl, getBlob pominiety', async () => {
     nativePlatformMock.value = true;
     const withoutPath = canonicalMeasurements.map((m) => {
       const { photoPath: _photoPath, ...rest } = m;
@@ -381,8 +427,26 @@ describe('BodyPhotoCompare: twarde limity czasu i kanal natywny (fix iOS 115)', 
     renderCompare(withoutPath);
     await openShareDialog();
 
+    expect(capacitorHttpGetMock).toHaveBeenCalledTimes(2);
+    expect(String(capacitorHttpGetMock.mock.calls[0][0].url)).toContain('firebasestorage');
+    expect(vi.mocked(getBlob)).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('natywna platforma: bez photoPath i nativeHttp pada → fetch przejmuje (niezmiennik reguly 5)', async () => {
+    nativePlatformMock.value = true;
+    capacitorHttpGetMock.mockRejectedValue(new Error('native-http-403'));
+    const withoutPath = canonicalMeasurements.map((m) => {
+      const { photoPath: _photoPath, ...rest } = m;
+      return rest as BodyMeasurement;
+    });
+    renderCompare(withoutPath);
+    await openShareDialog();
+
+    expect(capacitorHttpGetMock).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(vi.mocked(getBlob)).not.toHaveBeenCalled();
+    expect(toastMock).not.toHaveBeenCalled();
   });
 
   it('porazka przygotowania → telemetria body-compare-export-load z krokiem, ktory padl', async () => {
@@ -399,5 +463,89 @@ describe('BodyPhotoCompare: twarde limity czasu i kanal natywny (fix iOS 115)', 
       phase: 'other',
       detail: expect.stringContaining('getBlob'),
     }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// X29 WP-E: telemetria brakujacych faz. Dotad client_errors widzialo tylko
+// faze load — porazka html2canvas/toBlob/navigator.share konczyla sie samym
+// setError w dialogu, bez sladu w telemetrii. Nowe kody:
+// body-compare-export-generate (render html2canvas) i body-compare-export-share
+// (serializacja toBlob + systemowy share). Po udanym share error jest czyszczony.
+// ---------------------------------------------------------------------------
+
+describe('BodyCompareShareDialog: telemetria generate/share i czyszczenie bledu (X29)', () => {
+  it('html2canvas pada → body-compare-export-generate + komunikat w dialogu', async () => {
+    html2canvasMock.mockRejectedValue(new Error('canvas boom'));
+    renderCompare(canonicalMeasurements);
+
+    fireEvent.click(screen.getByTestId('body-photo-share'));
+    await screen.findByText('Udostępnij porównanie');
+
+    await waitFor(() => expect(reportErrorMock).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'body-compare-export-generate',
+      phase: 'other',
+      detail: expect.stringContaining('canvas boom'),
+    })));
+    // setError zostaje (UX) — telemetria jest dodatkiem, nie podmiana.
+    expect(screen.getByText('Nie udało się wygenerować obrazu')).toBeTruthy();
+  });
+
+  it('toBlob zwraca null → body-compare-export-share (faza serializacji pliku, plan X29)', async () => {
+    html2canvasMock.mockImplementation(async () => ({
+      toBlob: (cb: (blob: Blob | null) => void) => cb(null),
+    }));
+    renderCompare(canonicalMeasurements);
+
+    fireEvent.click(screen.getByTestId('body-photo-share'));
+    await screen.findByText('Udostępnij porównanie');
+
+    await waitFor(() => expect(reportErrorMock).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'body-compare-export-share',
+      phase: 'other',
+    })));
+  });
+
+  it('navigator.share pada (nie-Abort) → body-compare-export-share + komunikat', async () => {
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    shareMock.mockRejectedValueOnce(new Error('share broke'));
+    fireEvent.click(screen.getByRole('button', { name: /Udostępnij$/ }));
+
+    await waitFor(() => expect(reportErrorMock).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'body-compare-export-share',
+      phase: 'other',
+      detail: expect.stringContaining('share broke'),
+    })));
+    expect(screen.getByText('Nie udało się wygenerować obrazu')).toBeTruthy();
+  });
+
+  it('AbortError (user zamknal share sheet) → zero telemetrii i zero komunikatu', async () => {
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    const abort = new Error('Share canceled');
+    abort.name = 'AbortError';
+    shareMock.mockRejectedValueOnce(abort);
+    fireEvent.click(screen.getByRole('button', { name: /Udostępnij$/ }));
+
+    await waitFor(() => expect(shareMock).toHaveBeenCalledTimes(1));
+    expect(reportErrorMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Nie udało się wygenerować obrazu')).toBeNull();
+  });
+
+  it('po udanym share wczesniejszy komunikat bledu znika (markSaved czysci error)', async () => {
+    renderCompare(canonicalMeasurements);
+    await openShareDialog();
+
+    shareMock.mockRejectedValueOnce(new Error('share broke'));
+    fireEvent.click(screen.getByRole('button', { name: /Udostępnij$/ }));
+    await screen.findByText('Nie udało się wygenerować obrazu');
+
+    shareMock.mockResolvedValueOnce(undefined);
+    fireEvent.click(screen.getByRole('button', { name: /Udostępnij$/ }));
+    await waitFor(() => expect(screen.queryByText('Nie udało się wygenerować obrazu')).toBeNull());
+    expect(screen.getByText('Zapisano')).toBeTruthy();
   });
 });
