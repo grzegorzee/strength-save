@@ -91,7 +91,7 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
 
   const handleExport = () => {
     if (workouts.length === 0) return;
-    downloadWorkoutsCsvFile(workouts);
+    void downloadWorkoutsCsvFile(workouts);
     toast({ title: t('data.export.done'), description: t('data.exportCsv.doneDesc') });
     onOpenChange(false);
   };

@@ -24,6 +24,7 @@ import {
 } from '@/lib/workout-sync-conflict';
 import { syncWorkoutSession, type WorkoutSyncDeps } from '@/lib/workout-sync-engine';
 import { reportClientError } from '@/lib/error-telemetry';
+import { shareOrDownloadFile } from '@/lib/share-export';
 
 interface SyncCenterCardProps {
   uid: string;
@@ -352,13 +353,12 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
       source: 'strength-save-sync-center',
       draft: fullDraft,
     }, null, 2);
-    const blob = new Blob([payload], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `strength-save-draft-${fullDraft.date}-${fullDraft.sessionId}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    // WP-L (X29): na native <a download> jest martwe (Z179) — plik idzie
+    // w share sheet przez wspólny helper.
+    const file = new File([payload], `strength-save-draft-${fullDraft.date}-${fullDraft.sessionId}.json`, {
+      type: 'application/json',
+    });
+    await shareOrDownloadFile(file);
   };
 
   return (

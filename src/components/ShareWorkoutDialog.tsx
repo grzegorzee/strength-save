@@ -8,8 +8,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, Share2, Camera, Check, X } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
 import { downscalePhoto, generateWorkoutImage, type ShareData, type ShareHero, type ShareTemplate } from '@/lib/share-utils';
+import { shareOrDownloadFile } from '@/lib/share-export';
 import { hapticSuccess } from '@/lib/haptics';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -127,23 +127,6 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
   const shareFile = (): File | null =>
     blob ? new File([blob], `trening-${data.date}.jpg`, { type: 'image/jpeg' }) : null;
 
-  // Z198: true = share przeszedł (system pokazał sheet i user coś wybrał),
-  // false = AbortError (zamknięty sheet) albo błąd — ZERO fałszywego sukcesu.
-  const systemShare = async (file: File): Promise<boolean> => {
-    try {
-      await navigator.share({
-        title: t('comp.share.shareTitle', { dayName: data.dayName }),
-        files: [file],
-      });
-      return true;
-    } catch (err) {
-      // Zamknięcie sheeta (AbortError) to nie błąd — wzorzec Analytics.tsx.
-      if (err instanceof Error && err.name === 'AbortError') return false;
-      setError(t('comp.share.generateError'));
-      return false;
-    }
-  };
-
   // Z198: widoczny sukces — "Zapisano ✓" + haptyka na ~1.8 s (wzorzec ApiKeysCard).
   const markSaved = (action: 'download' | 'share') => {
     setSavedAction(action);
@@ -151,30 +134,27 @@ export const ShareWorkoutDialog = ({ data, open, onOpenChange }: Props) => {
     window.setTimeout(() => setSavedAction(null), 1800);
   };
 
+  // WP-L (X29): wspólna ścieżka share/download w lib/share-export (Z179+Z198:
+  // natywnie "Pobierz" idzie przez share sheet, AbortError bez fałszywego sukcesu).
+  const runShareExport = async (action: 'download' | 'share') => {
+    const file = shareFile();
+    if (!file) return;
+    const result = await shareOrDownloadFile(file, {
+      title: t('comp.share.shareTitle', { dayName: data.dayName }),
+      preferShare: action === 'share',
+    });
+    if (result === 'failed') setError(t('comp.share.generateError'));
+    if (result === 'downloaded') markSaved('download');
+    if (result === 'shared') markSaved(action);
+  };
+
   const handleDownload = async () => {
     if (!imageUrl) return;
-    const file = shareFile();
-    // Z179: WKWebView ignoruje <a download> — natywnie "Pobierz" idzie przez
-    // share sheet (iOS ma tam "Zapisz obraz"), bez nowych pluginów.
-    if (Capacitor.isNativePlatform() && file && navigator.canShare?.({ files: [file] })) {
-      if (await systemShare(file)) markSaved('download');
-      return;
-    }
-    const a = document.createElement('a');
-    a.href = imageUrl;
-    a.download = `trening-${data.date}.jpg`;
-    a.click();
-    markSaved('download');
+    await runShareExport('download');
   };
 
   const handleShare = async () => {
-    const file = shareFile();
-    if (!file) return;
-    if (navigator.canShare?.({ files: [file] })) {
-      if (await systemShare(file)) markSaved('share');
-    } else {
-      await handleDownload();
-    }
+    await runShareExport('share');
   };
 
   const templates: Array<{ id: ShareTemplate; label: string }> = [

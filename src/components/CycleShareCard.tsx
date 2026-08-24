@@ -8,8 +8,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, Share2, Check } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
 import { hapticSuccess } from '@/lib/haptics';
+import { shareOrDownloadFile } from '@/lib/share-export';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { getCurrentAccent } from '@/lib/accent-theme';
 import { escapeHtml } from '@/lib/share-html';
@@ -174,47 +174,33 @@ export const CycleShareDialog = ({ data, open, onOpenChange }: CycleShareDialogP
   const shareFile = (): File | null =>
     blob ? new File([blob], `cykl-${data.startDate}.jpg`, { type: 'image/jpeg' }) : null;
 
-  // Wzorzec Z198 (ShareWorkoutDialog): AbortError to nie błąd, zero fałszywego sukcesu.
-  const systemShare = async (file: File): Promise<boolean> => {
-    try {
-      await navigator.share({ title: t('cycles.shareSummary'), files: [file] });
-      return true;
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return false;
-      setError(t('comp.share.generateError'));
-      return false;
-    }
-  };
-
   const markSaved = (action: 'download' | 'share') => {
     setSavedAction(action);
     void hapticSuccess();
     window.setTimeout(() => setSavedAction(null), 1800);
   };
 
+  // WP-L (X29): wspólna ścieżka share/download w lib/share-export (Z179+Z198:
+  // natywnie "Pobierz" idzie przez share sheet, AbortError bez fałszywego sukcesu).
+  const runShareExport = async (action: 'download' | 'share') => {
+    const file = shareFile();
+    if (!file) return;
+    const result = await shareOrDownloadFile(file, {
+      title: t('cycles.shareSummary'),
+      preferShare: action === 'share',
+    });
+    if (result === 'failed') setError(t('comp.share.generateError'));
+    if (result === 'downloaded') markSaved('download');
+    if (result === 'shared') markSaved(action);
+  };
+
   const handleDownload = async () => {
     if (!imageUrl) return;
-    const file = shareFile();
-    // Z179: WKWebView ignoruje <a download> — natywnie przez share sheet.
-    if (Capacitor.isNativePlatform() && file && navigator.canShare?.({ files: [file] })) {
-      if (await systemShare(file)) markSaved('download');
-      return;
-    }
-    const a = document.createElement('a');
-    a.href = imageUrl;
-    a.download = `cykl-${data.startDate}.jpg`;
-    a.click();
-    markSaved('download');
+    await runShareExport('download');
   };
 
   const handleShare = async () => {
-    const file = shareFile();
-    if (!file) return;
-    if (navigator.canShare?.({ files: [file] })) {
-      if (await systemShare(file)) markSaved('share');
-    } else {
-      await handleDownload();
-    }
+    await runShareExport('share');
   };
 
   return (
