@@ -59,13 +59,18 @@ test.describe('Navigation', () => {
     }
   });
 
-  test('mobile workout keeps focused mode free of bottom navigation', async ({ page }) => {
+  // X29 WP-D: decyzja produktowa odwrocona — bottom nav jest widoczny TAKZE w
+  // sesji (wyjscie do Dashboardu/Planu bez szukania strzalki wstecz); header
+  // pozostaje ukryty (fokus), a paski sesji dokuja NAD navem
+  // (e2e/mobile-nav-reachability.spec.ts pilnuje geometrii bbox).
+  test('mobile workout keeps bottom navigation visible with hidden header', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/#/workout/day-1');
     await page.waitForLoadState('domcontentloaded');
     await expectPageRendered(page);
 
-    await expect(page.getByRole('navigation', { name: 'Nawigacja mobilna' })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Nawigacja mobilna' })).toBeVisible();
+    await expect(page.getByTestId('header-avatar')).toHaveCount(0);
     await expect(page.locator('.exercise-card').first()).toBeVisible();
     await expect(page.getByRole('button', { name: /Rozpocznij trening|Start workout/i })).toBeVisible();
   });
