@@ -1,4 +1,9 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Dziura srodowiskowa (nie regresja): graf importow dialogu share ciagnie
+// @/lib/firebase, a initializeAuth pada w jsdom. Ten sam mock co w
+// body-compare-share.test.tsx; potwierdzone, ze plik padal juz na baseline 116.
+vi.mock('@/lib/firebase', () => ({ db: {}, storage: {}, auth: {} }));
 import { render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
