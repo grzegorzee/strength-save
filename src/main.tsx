@@ -6,7 +6,6 @@ import { configurePurchases } from "./lib/purchases";
 import { initKeyboardInset } from "./lib/keyboard-inset";
 import { installFirestoreCrashGuard } from "./lib/firestore-crash-guard";
 import { installResumeRepaint } from "./lib/resume-repaint";
-import { hideNativeSplashWhenReady } from "./lib/native-splash";
 import { markStartup } from "./lib/startup-performance";
 import { applyStoredAccent } from "./lib/accent-theme";
 
@@ -20,4 +19,6 @@ void configurePurchases();
 
 createRoot(document.getElementById("root")!).render(<App />);
 requestAnimationFrame(() => markStartup('root-painted'));
-hideNativeSplashWhenReady();
+// X29 WP-F: hide splasha przeniesiony do useEffect w App.tsx — render() w React 18
+// jest asynchroniczny, więc wywołanie tutaj mogło zgasić splash przed pierwszą
+// klatką Reacta (czarna szczelina na starcie).

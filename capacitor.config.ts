@@ -23,13 +23,19 @@ const config: CapacitorConfig = {
   // Apka ma zachowywać się jak apka, nie jak strona: bez pinch-zoomu, który
   // rozjeżdżał layout i ucinał treść po bokach (incydent 2026-07-20).
   zoomEnabled: false,
+  // X29 WP-F: jeden kolor startu na WSZYSTKICH warstwach — storyboard
+  // (LaunchScreen #0E0E0E) = SplashScreen plugin = tło WKWebView = theme-color
+  // (index.html) = --background dark (index.css). Top-level backgroundColor
+  // maluje webview PRZED pierwszym paintem — bez czarnej szczeliny
+  // UIColor.systemBackground po hide splasha.
+  backgroundColor: '#0e0e0e',
   plugins: {
     SplashScreen: {
       // Zgłoszenie 2026-08-13: splash znikał po ~0.5 s i user oglądał czarną
       // szczelinę do wstania weba. Splash z logo zostaje aż React wstanie —
       // chowa go hideNativeSplashWhenReady() (src/lib/native-splash.ts).
       launchAutoHide: false,
-      backgroundColor: '#0a0a1a',
+      backgroundColor: '#0e0e0e',
       showSpinner: false,
     },
     FirebaseAuthentication: {
