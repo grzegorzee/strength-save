@@ -1276,11 +1276,18 @@ const sendWorkoutEmail = async (to: string, subject: string, html: string): Prom
 };
 
 const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
-  getWorkout: async (workoutId) => {
+  getWorkout: async (workoutId, uid) => {
     try {
       const snap = await db.collection(WORKOUTS_COLLECTION).doc(workoutId).get();
       if (!snap.exists) return null;
-      return { id: snap.id, ...(snap.data() as Omit<EmailWorkout, "id">) };
+      const data = snap.data() as Omit<EmailWorkout, "id">;
+      // WP-I: ownership w ADAPTERZE — cudzy dokument nie opuszcza tej funkcji,
+      // więc żadna logika wyżej nie może go ominąć ani wyrenderować.
+      if (data.userId !== uid) {
+        logger.warn("[EmailWorkout] getWorkout ownership mismatch", { workoutId, uid });
+        return null;
+      }
+      return { id: snap.id, ...data };
     } catch (error) {
       // J-T1: bez logu błąd odczytu ginął jako generyczny 'internal' u klienta
       // ("Sending failed"). Log z detalami = diagnoza w minutę. Rethrow bez zmian.
@@ -1315,9 +1322,12 @@ const buildEmailWorkoutDeps = (): EmailWorkoutDeps => ({
   getUserContext: async (uid) => {
     const snap = await getUserRef(uid).get();
     const data = snap.data() ?? {};
+    const unit = (data.preferences as { unit?: unknown } | undefined)?.unit;
     return {
       ...(typeof data.language === "string" ? { language: data.language } : {}),
       ...(typeof data.displayName === "string" ? { displayName: data.displayName } : {}),
+      // WP-I: jednostka maila wg ustawień usera (jak weekly-digest).
+      ...(typeof unit === "string" ? { unit } : {}),
     };
   },
   consumeQuota: async (uid, today) => {
@@ -1353,11 +1363,13 @@ const emailErrorToHttps = (code: string): never => {
 export const emailWorkoutSummary = onCall({ secrets: EMAIL_SECRETS }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "login-required");
-  const { workoutId, to, lang } = (request.data ?? {}) as { workoutId?: string; to?: string; lang?: string };
+  const { workoutId, to, lang, trainerName } = (request.data ?? {}) as { workoutId?: string; to?: string; lang?: string; trainerName?: unknown };
   if (typeof workoutId !== "string" || !workoutId) throw new HttpsError("invalid-argument", "workoutId-required");
   const today = new Date().toISOString().slice(0, 10);
   const result = await runEmailWorkout(buildEmailWorkoutDeps(), {
     uid, workoutId, to, lang: lang === "en" ? "en" : "pl", today,
+    // WP-I: imię odbiorcy do powitania (walidacja w czystej logice).
+    trainerName,
   });
   if (!result.ok) emailErrorToHttps(result.code);
   return { ok: true };
@@ -1366,12 +1378,14 @@ export const emailWorkoutSummary = onCall({ secrets: EMAIL_SECRETS }, async (req
 export const emailWorkoutHistory = onCall({ secrets: EMAIL_SECRETS }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "login-required");
-  const { to, lang, range } = (request.data ?? {}) as { to?: string; lang?: string; range?: string };
+  const { to, lang, range, trainerName } = (request.data ?? {}) as { to?: string; lang?: string; range?: string; trainerName?: unknown };
   const today = new Date().toISOString().slice(0, 10);
   const result = await runEmailHistory(buildEmailWorkoutDeps(), {
     uid, to, lang: lang === "en" ? "en" : "pl", today,
     // H-T2: brak parametru = 'week'; nieznana wartość odpada w czystej logice.
     range: (range ?? "week") as HistoryEmailRange,
+    // WP-I: imię odbiorcy do powitania (walidacja w czystej logice).
+    trainerName,
   });
   if (!result.ok) emailErrorToHttps(result.code);
   return { ok: true };

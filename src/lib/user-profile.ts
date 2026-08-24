@@ -83,6 +83,8 @@ export interface UserProfile {
     accentColor?: string;
     /** F-T3: zapamiętany adres odbiorcy maili z podsumowaniem (np. trener). */
     trainerEmail?: string;
+    /** WP-I (X29): imię trenera/odbiorcy — do powitania w mailu i podglądu w Profilu. */
+    trainerName?: string;
   };
   /** Mirror zgód z users/{uid}.consents; bramka re-consent czyta go z profilu. */
   consents?: ConsentMirror;

@@ -2812,6 +2812,8 @@ const WorkoutDay = () => {
             uid={uid}
             workoutId={sessionId}
             initialEmail={profile?.preferences?.trainerEmail}
+            savedTrainerEmail={profile?.preferences?.trainerEmail}
+            savedTrainerName={profile?.preferences?.trainerName}
           />
         )}
       </div>

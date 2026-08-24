@@ -32,12 +32,14 @@ interface HistoryExportSheetProps {
   activeCycleRange: { fromDate: string; toDate: string } | null;
   activeCycleLabel: string | null;
   trainerEmail?: string;
+  /** WP-I: imię trenera — w opisie wiersza zamiast surowego adresu. */
+  trainerName?: string;
   onSendToCoach: () => void;
 }
 
 export const HistoryExportSheet = ({
   open, onOpenChange, uid, displayName, period, periodLabel,
-  activeCycleRange, activeCycleLabel, trainerEmail, onSendToCoach,
+  activeCycleRange, activeCycleLabel, trainerEmail, trainerName, onSendToCoach,
 }: HistoryExportSheetProps) => {
   const { t, lang } = useTranslation();
   const { unit } = useUnit();
@@ -151,7 +153,8 @@ export const HistoryExportSheet = ({
       testId: 'history-email',
       icon: <Mail className="h-4 w-4 text-primary" />,
       label: t('email.sendToCoach'),
-      desc: trainerEmail || t('history.formatCoachDesc'),
+      // WP-I: imię przed adresem (surowy email w opisie tylko gdy brak imienia).
+      desc: trainerName || trainerEmail || t('history.formatCoachDesc'),
       onClick: handleCoach,
       busy: false,
     },

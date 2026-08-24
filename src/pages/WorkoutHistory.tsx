@@ -843,6 +843,8 @@ const WorkoutHistory = () => {
         mode="history"
         uid={uid}
         initialEmail={profile?.preferences?.trainerEmail}
+        savedTrainerEmail={profile?.preferences?.trainerEmail}
+        savedTrainerName={profile?.preferences?.trainerName}
       />
       {/* J-T2: dialog pojedynczego treningu — zawsze zamontowany, zamykanie
           wyłącznie przez open=false (pułapka Radix: nie unmountować w open). */}
@@ -853,6 +855,8 @@ const WorkoutHistory = () => {
         uid={uid}
         workoutId={emailWorkoutId ?? undefined}
         initialEmail={profile?.preferences?.trainerEmail}
+        savedTrainerEmail={profile?.preferences?.trainerEmail}
+        savedTrainerName={profile?.preferences?.trainerName}
       />
       <HistoryExportSheet
         open={showExportSheet}
@@ -866,6 +870,7 @@ const WorkoutHistory = () => {
           : null}
         activeCycleLabel={activeCycle ? cycleRangeOnly(activeCycle) : null}
         trainerEmail={profile?.preferences?.trainerEmail}
+        trainerName={profile?.preferences?.trainerName}
         onSendToCoach={() => setShowEmailDialog(true)}
       />
 

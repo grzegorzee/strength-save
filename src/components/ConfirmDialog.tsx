@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,11 +22,13 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   destructive?: boolean;
   onConfirm: () => void;
+  /** WP-I: opcjonalna treść między opisem a przyciskami (np. input imienia). */
+  children?: ReactNode;
 }
 
 // Wspólny dialog potwierdzenia dla akcji destrukcyjnych (kasowanie, reset, merge).
 // Jeden wzorzec zamiast trzech różnych (AlertDialog inline / brak potwierdzenia).
-export const ConfirmDialog = ({ open, onOpenChange, title, description, confirmLabel, cancelLabel, destructive, onConfirm }: ConfirmDialogProps) => {
+export const ConfirmDialog = ({ open, onOpenChange, title, description, confirmLabel, cancelLabel, destructive, onConfirm, children }: ConfirmDialogProps) => {
   const { t } = useTranslation();
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -34,6 +37,7 @@ export const ConfirmDialog = ({ open, onOpenChange, title, description, confirmL
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {children}
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelLabel ?? t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction
