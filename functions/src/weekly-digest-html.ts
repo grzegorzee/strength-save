@@ -8,9 +8,6 @@ import type { DigestPR, WeekComparison, WeekStats } from "./weekly-digest-stats"
 
 export type UnitSystem = "kg" | "lbs";
 
-const APP_DEEP_LINK = "strengthsave://open";
-const WEB_URL = "https://app.strengthsave.app/";
-
 const KG_TO_LBS = 2.2046226218;
 
 // Port formatTonnage (src/lib/units.ts): kg → "12.3 t", lbs → "27.1 k lbs".
@@ -68,8 +65,6 @@ const texts = (lang: Lang) => lang === "en"
     runs: "runs",
     bestRun: "Fastest run",
     longestRun: "Longest run",
-    cta: "Open Strength Save",
-    ctaWeb: "or open in browser",
     footer: "You can turn this email off in the app: Settings → Notifications.",
     subject: (n: number, tonnage: string, range: string) =>
       `💪 ${n} ${n === 1 ? "workout" : "workouts"}, ${tonnage} — your week ${range}`,
@@ -92,8 +87,6 @@ const texts = (lang: Lang) => lang === "en"
     runs: "biegi",
     bestRun: "Najszybszy bieg",
     longestRun: "Najdłuższy dystans",
-    cta: "Otwórz Strength Save",
-    ctaWeb: "albo otwórz w przeglądarce",
     footer: "Wyłączysz w aplikacji: Ustawienia → Powiadomienia.",
     subject: (n: number, tonnage: string, range: string) =>
       `💪 ${n} ${n === 1 ? "trening" : "treningów"}, ${tonnage} — Twój tydzień ${range}`,
@@ -188,11 +181,7 @@ ${strava.longestRun ? listRow(`${t.longestRun}: ${esc(strava.longestRun.name)}`,
         ${prsSection}
         ${topSection}
         ${stravaSection}
-        <tr><td style="padding:28px 24px 8px;text-align:center;">
-          <a href="${APP_DEEP_LINK}" style="display:inline-block;padding:13px 28px;background:#0f172a;color:#ffffff;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;">${t.cta}</a>
-          <div style="margin-top:10px;font-size:12px;"><a href="${WEB_URL}" style="color:#64748b;">${t.ctaWeb}</a></div>
-        </td></tr>
-        <tr><td style="padding:16px 24px 24px;text-align:center;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f0;">${t.footer}</td></tr>
+        <tr><td style="padding:24px 24px 24px;text-align:center;font-size:12px;color:#94a3b8;border-top:1px solid #e2e8f0;">${t.footer}</td></tr>
       </table>
     </td></tr>
   </table>

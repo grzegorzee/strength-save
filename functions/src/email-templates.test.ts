@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inviteEmailHtml } from "./email-templates";
+import { inviteEmailHtml, welcomeEmailHtml } from "./email-templates";
 
 // Z167: mail zaproszenia per język. Default (bez lang) zostaje polski 1:1 —
 // dziś wysyłki są PL, parametr jest przyszłościowy.
@@ -24,5 +24,17 @@ describe("inviteEmailHtml (Z167)", () => {
   it("notatka admina trafia do maila w obu językach", () => {
     expect(inviteEmailHtml("A", "u", "Zapraszam", "pl")).toContain("Zapraszam");
     expect(inviteEmailHtml("A", "u", "See you", "en")).toContain("See you");
+  });
+});
+
+// X29 WP-J: deep link z custom URL scheme jest martwy w webmailach (Gmail/Outlook
+// go nie otworzą). Przycisk powitalny prowadzi na https.
+describe("welcomeEmailHtml (X29 WP-J)", () => {
+  it("CTA prowadzi na https zamiast martwego deep linku (PL i EN)", () => {
+    for (const lang of ["pl", "en"] as const) {
+      const html = welcomeEmailHtml("Grzegorz", lang);
+      expect(html).toContain("https://app.strengthsave.app/");
+      expect(html).not.toContain("strengthsave://");
+    }
   });
 });
