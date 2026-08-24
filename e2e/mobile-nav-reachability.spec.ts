@@ -71,6 +71,33 @@ test.describe('Osiągalność tras mobile bez drawera (Z90)', () => {
     await expectHashRoute(page, '/cycles');
   });
 
+  test('WP-D: nav widoczny w sesji treningowej, nie koliduje z paskiem startu, sekwencja wyjście-powrót', async ({ page }) => {
+    // Wejście do sesji: nav ma być widoczny (WP-D — koniec ukrywania w focused flow).
+    await navigateAndWait(page, '/workout/day-1');
+    await expectPageRendered(page);
+    const bottomNav = page.locator('nav[aria-label="Nawigacja mobilna"]');
+    await expect(bottomNav).toBeVisible();
+
+    // Pasek startu wisi NAD navem: nie zasłania nav, nav nie zasłania przycisku.
+    const startButton = page.getByRole('button', { name: 'Rozpocznij trening' });
+    await expect(startButton).toBeEnabled();
+    const startBar = startButton.locator('xpath=ancestor::div[contains(@class,"fixed")][1]');
+    const barBox = await startBar.boundingBox();
+    const navBox = await bottomNav.boundingBox();
+    expect(barBox).not.toBeNull();
+    expect(navBox).not.toBeNull();
+    expect(barBox!.y + barBox!.height).toBeLessThanOrEqual(navBox!.y + 1);
+
+    // Sekwencja (zasada 5): wyjście przez nav do Planu i powrót — treść sesji na miejscu.
+    await bottomNav.getByRole('link', { name: 'Plan' }).click();
+    await expectHashRoute(page, '/plan');
+    await page.goBack();
+    await expectHashRoute(page, '/workout/day-1');
+    await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Rozpocznij trening' })).toBeVisible();
+    await expect(bottomNav).toBeVisible();
+  });
+
   test('header bez hamburgera na mobile (Z90.3)', async ({ page }) => {
     await navigateAndWait(page, '/');
     await expectPageRendered(page);

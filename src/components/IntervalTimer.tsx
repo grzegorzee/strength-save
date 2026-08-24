@@ -89,7 +89,10 @@ export const IntervalTimer = ({ spec, exerciseLabel, onClose }: IntervalTimerPro
     // Kompaktowy pasek dokowany nad dolnym paskiem akcji. Cienki i waski — NIE zasłania pól serii
     // (KG/powt), więc można logować serie w trakcie interwału (E4MOM = seria co rundę). z-[60] > pasek akcji.
     <div className={cn(
-      'fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-md',
+      // WP-D (X29): na mobile RestBar wisi nad bottom navem (bottom 6rem, ~3.5rem
+      // wysokości) — interwał dokuje NAD nim. Na md RestBar wraca do krawędzi,
+      // więc zostaje dotychczasowe 6rem.
+      'fixed bottom-[calc(9.75rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-1.5rem)] max-w-md md:bottom-[calc(6rem+env(safe-area-inset-bottom))]',
       'bg-card/95 backdrop-blur-md border rounded-2xl shadow-2xl px-3.5 py-2.5 transition-colors',
       isFinished && 'border-fitness-success ring-2 ring-fitness-success/40',
     )}>
