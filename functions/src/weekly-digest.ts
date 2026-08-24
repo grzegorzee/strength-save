@@ -181,7 +181,8 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
             tonnageKg: Math.round(stats.tonnageKg),
             prs: prs.length,
           },
-          deepLink: "/analytics",
+          // X29: lista tygodni, nie tab summary.
+          deepLink: "/analytics?tab=weekly",
         });
       }
 

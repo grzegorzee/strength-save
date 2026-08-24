@@ -87,7 +87,9 @@ export const NotificationBell = ({ uid }: { uid: string }) => {
                 const openLink = () => {
                   if (!event.deepLink) return;
                   setOpen(false);
-                  navigate(event.deepLink);
+                  // X29: legacy eventy week sprzed X29 mają deepLink "/analytics"
+                  // (tab summary) — raport tygodnia zawsze prowadzi na listę tygodni.
+                  navigate(event.type === 'week' ? '/analytics?tab=weekly' : event.deepLink);
                 };
                 return (
                   <div
