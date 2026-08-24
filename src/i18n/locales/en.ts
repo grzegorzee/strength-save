@@ -789,6 +789,8 @@ export const en: Record<keyof typeof pl, string> = {
   'reschedule.swapped': 'Workouts swapped',
   'reschedule.failed': 'Could not reschedule the workout',
   'reschedule.draftBlocked': 'Finish or discard the workout in progress first',
+  // WP-A (X29): sheet fallback when the resolver cannot see the tapped date.
+  'reschedule.unavailable': "This day can't be rescheduled.",
   'reschedule.missedTitle': 'Workout {name} from {date} not done',
   'reschedule.doToday': 'Do it today',
   'reschedule.dismiss': 'Dismiss',

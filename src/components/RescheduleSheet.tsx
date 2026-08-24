@@ -61,12 +61,42 @@ export const RescheduleSheet = ({
   // widoku ZAMRAŻAMY, dopóki jest kompletny; przy zamykaniu renderujemy ostatni
   // dobry stan i Radix domyka się kontrolowanie.
   const frozenRef = useRef<{ fromDateISO: string; fromDay: TrainingDay; overrides: ScheduleOverrides } | null>(null);
+  // WP-A (X29): świeże otwarcie (open false -> true) zeruje zamrożony kontekst,
+  // żeby fallback poniżej nie odgrzewał danych z POPRZEDNIEGO cyklu otwarcia.
+  const prevOpenRef = useRef(false);
+  if (open && !prevOpenRef.current) frozenRef.current = null;
+  prevOpenRef.current = open;
   if (fromDateISO) {
     const resolvedFromDay = resolvePlannedDay(fromDateISO, planDays, overrides, planStartDateISO);
     if (resolvedFromDay) frozenRef.current = { fromDateISO, fromDay: resolvedFromDay, overrides };
   }
   const frozen = frozenRef.current;
-  if (!frozen) return null;
+  if (!frozen) {
+    // WP-A (X29): resolver nie widzi klikniętej daty (override null / data przed
+    // startem planu) — dotychczasowy `return null` przy open=true dawał martwy
+    // klik bez żadnej reakcji (zasada 6: każdy stan musi mieć wyjście). Sheet
+    // zostaje ZAMONTOWANY i sterowany `open` (lekcja builda 92), a treść to
+    // komunikat z przyciskiem zamknięcia.
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="text-left">
+            <SheetTitle>{t('reschedule.sheetTitle')}</SheetTitle>
+            <SheetDescription>{t('reschedule.unavailable')}</SheetDescription>
+          </SheetHeader>
+          <div className="mt-3 pb-4">
+            <button
+              type="button"
+              className="w-full rounded-xl border-0 bg-surface-low p-3 text-center text-sm font-medium transition-colors hover:bg-primary/[0.06] active:bg-primary/10"
+              onClick={() => onOpenChange(false)}
+            >
+              {t('common.close')}
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
   const { fromDateISO: fromISO, fromDay } = frozen;
 
   const options: Array<{ dateISO: string; label: string; occupant: TrainingDay | null; completed: boolean }> = [];

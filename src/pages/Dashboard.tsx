@@ -451,14 +451,21 @@ const Dashboard = () => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const showDate = entry.dateKey > formatLocalDate(tomorrow);
+    // WP-A (X29): nagłówek = dzień tygodnia REALNEJ daty sesji (przełożenie
+    // widoczne od progu), eyebrow = nazwa dnia PLANU; gdy nazwa dnia planu
+    // pokrywa się z weekday nagłówka (case-insensitive), wypada z eyebrow.
+    const weekdayLabel = formatLocalDateLabel(entry.dateKey, dateLocale(lang), { weekday: 'long' });
+    const planDayName = localizeDayName(entry.day.dayName, lang);
+    const showPlanDayName = planDayName.toLocaleLowerCase(dateLocale(lang)) !== weekdayLabel.toLocaleLowerCase(dateLocale(lang));
     return (
     <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5" data-testid="next-session-hero">
       <span className="eyebrow-mono text-primary">
-        {t('dash.hero.next')} · {formatLocalDateLabel(entry.dateKey, dateLocale(lang), { weekday: 'long' })}
+        {t('dash.hero.next')}
+        {showPlanDayName && ` · ${planDayName}`}
         {showDate && ` · ${formatLocalDateLabel(entry.dateKey, dateLocale(lang), { day: 'numeric', month: 'short' })}`}
       </span>
-      <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
-        {localizeDayName(entry.day.dayName, lang)}
+      <h2 className="min-w-0 font-heading text-[27px] font-bold capitalize leading-none tracking-tight">
+        {weekdayLabel}
       </h2>
       <p className="text-sm text-muted-foreground">
         {localizeFocus(entry.day.focus, lang)} · {t('dash.exercisesCount', { n: entry.day.exercises.length })}
@@ -933,13 +940,19 @@ const Dashboard = () => {
         // Z174: decyzja i licznik we wspólnym memo (todayContinueDraft) — koniec
         // rozjazdu banera, karty dnia i ekranu treningu.
         const continueDraft = todayContinueDraft;
+        // WP-A (X29): analogicznie do hero NEXT SESSION — nagłówek = weekday
+        // dzisiejszej daty, eyebrow = nazwa dnia planu (bez duplikacji).
+        const todayWeekdayLabel = today.toLocaleDateString(dateLocale(lang), { weekday: 'long' });
+        const todayPlanDayName = localizeDayName(todayTraining.day.dayName, lang);
+        const showTodayPlanDayName = todayPlanDayName.toLocaleLowerCase(dateLocale(lang)) !== todayWeekdayLabel.toLocaleLowerCase(dateLocale(lang));
         return (
         <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5">
           <span className="eyebrow-mono text-primary">
-            {t('dash.hero.today')} · {today.toLocaleDateString(dateLocale(lang), { weekday: 'long' })}
+            {t('dash.hero.today')}
+            {showTodayPlanDayName && ` · ${todayPlanDayName}`}
           </span>
-          <h2 className="min-w-0 font-heading text-[27px] font-bold leading-none tracking-tight">
-            {localizeDayName(todayTraining.day.dayName, lang)}
+          <h2 className="min-w-0 font-heading text-[27px] font-bold capitalize leading-none tracking-tight">
+            {todayWeekdayLabel}
           </h2>
           <p className="text-sm text-muted-foreground">
             {continueDraft

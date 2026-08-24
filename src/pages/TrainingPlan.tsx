@@ -301,9 +301,15 @@ const TrainingPlan = () => {
     () => getStartOfPlanWeek(planStartDate ? parseLocalDate(planStartDate) : today),
     [planStartDate, today],
   );
+  // WP-A (X29): overrides + start planu idą do harmonogramu — timeline, badge
+  // NASTĘPNY i kropki kalendarza pokazują przełożenia tak samo jak Dashboard
+  // (jeden kanoniczny resolver, koniec rozjazdu widoków z builda 116).
   const schedule = useMemo(
-    () => buildTrainingSchedule(trainingPlan, startDate, planDurationWeeks),
-    [trainingPlan, startDate, planDurationWeeks],
+    () => buildTrainingSchedule(trainingPlan, startDate, planDurationWeeks, {
+      overrides: scheduleOverrides,
+      planStartDateISO: planStartDate,
+    }),
+    [trainingPlan, startDate, planDurationWeeks, scheduleOverrides, planStartDate],
   );
   const trainingDates = useMemo(() => schedule.map(s => s.date), [schedule]);
 
@@ -707,7 +713,11 @@ const TrainingPlan = () => {
                           day={dayPlan}
                           latestWorkout={workoutForDate}
                           trainingDate={trainingItem.scheduleItem.date}
-                          onReschedule={!workoutForDate?.completed && trainingDateStr >= formatLocalDate(new Date())
+                          onReschedule={!workoutForDate?.completed
+                            && trainingDateStr >= formatLocalDate(new Date())
+                            // WP-A (X29): data przed startem planu nie istnieje
+                            // w resolverze — ikona dawałaby dead-click.
+                            && trainingDateStr >= (planStartDate ?? '')
                             ? () => setRescheduleFrom(trainingDateStr)
                             : undefined}
                           skipped={skippedDates.includes(trainingDateStr)}

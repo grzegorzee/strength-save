@@ -4,7 +4,7 @@
 // przejścia open=false. Scroll-lock/pointer-events zostawały na <body>, więc
 // żaden tap nie działał, a tydzień nie przerysowywał się pod blokadą
 // ("przełożyłem i nic się nie zmieniło" + "coś się zawiesza").
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -99,6 +99,57 @@ describe('RescheduleSheet: zamknięcie po wyborze daty (regresja builda 92)', ()
 
     rerender(view({ '2026-08-14': null, '2026-08-15': 'day-4' }));
     expect(screen.getByText('Przełóż trening')).toBeInTheDocument();
+  });
+
+  // WP-A (X29): dead-click builda 116 — klik ikony kalendarza na dacie, której
+  // resolver nie widzi (override null / data przed startem planu), otwierał
+  // "nic": frozen był pusty, komponent robił return null przy open=true.
+  // Zasada 6 CLAUDE.md: każdy stan bez kontekstu musi mieć wyjście dla usera.
+  it('data nierozwiązywalna przy open=true: sheet z komunikatem i zamknięciem zamiast return null', () => {
+    const onOpenChange = vi.fn();
+    render(
+      <LanguageProvider>
+        <RescheduleSheet
+          open
+          onOpenChange={onOpenChange}
+          fromDateISO="2026-08-13"
+          planDays={planDays}
+          overrides={{ '2026-08-13': null }}
+          onSelect={() => {}}
+          todayISO={TODAY}
+        />
+      </LanguageProvider>,
+    );
+
+    expect(screen.getByText('Tego dnia nie da się przełożyć.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Zamknij' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('ponowne otwarcie resetuje zamrożony kontekst (bez stale danych z poprzedniego cyklu)', () => {
+    const view = (open: boolean, fromDateISO: string | null) => (
+      <LanguageProvider>
+        <RescheduleSheet
+          open={open}
+          onOpenChange={() => {}}
+          fromDateISO={fromDateISO}
+          planDays={planDays}
+          overrides={{ '2026-08-13': null }}
+          onSelect={() => {}}
+          todayISO={TODAY}
+        />
+      </LanguageProvider>
+    );
+    // Cykl 1: piątek 2026-08-14 rozwiązywalny — kontekst zamrożony.
+    const { rerender } = render(view(true, '2026-08-14'));
+    expect(screen.getByText(/Piątek z/)).toBeInTheDocument();
+
+    // Zamknięcie i ponowne otwarcie na dacie nierozwiązywalnej: fallback,
+    // NIE odgrzany kontekst piątku z poprzedniego otwarcia.
+    rerender(view(false, null));
+    rerender(view(true, '2026-08-13'));
+    expect(screen.getByText('Tego dnia nie da się przełożyć.')).toBeInTheDocument();
+    expect(screen.queryByText(/Piątek z/)).toBeNull();
   });
 
   it('zamknięcie krzyżykiem/gestem też zdejmuje blokadę', async () => {
