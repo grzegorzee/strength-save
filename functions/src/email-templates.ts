@@ -4,9 +4,9 @@
 
 export type Lang = "pl" | "en";
 
-// Deep link do natywnej aplikacji (custom URL scheme zarejestrowany w iOS Info.plist
-// i Android AndroidManifest.xml). Otwiera Strength Save na telefonie.
-const APP_DEEP_LINK = "strengthsave://open";
+// Adres webowy aplikacji. X29 WP-J: wcześniej deep link z custom URL scheme,
+// ale taki link jest martwy w webmailach (Gmail/Outlook go nie otworzą).
+const APP_WEB_URL = "https://app.strengthsave.app/";
 
 // Escape HTML dla wartości interpolowanych do maili (email, displayName, note, body
 // mogą zawierać znaki sterujące z OAuth/inputu admina). Zapobiega HTML injection.
@@ -82,7 +82,7 @@ export function welcomeEmailHtml(displayName: string, lang: Lang): string {
     <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #e2e8f0;">
       <h1 style="margin:0 0 12px;font-size:24px;">${t.title}</h1>
       <p style="margin:0 0 24px;color:#475569;">${t.body}</p>
-      <a href="${APP_DEEP_LINK}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">${t.cta}</a>
+      <a href="${APP_WEB_URL}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;">${t.cta}</a>
     </div>
   </div>`;
 }

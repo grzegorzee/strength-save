@@ -84,6 +84,18 @@ describe("buildWeeklyDigest (Z160)", () => {
     expect(html).not.toContain("Rekordy tygodnia");
     expect(html).not.toContain("vs poprzedni tydzień");
   });
+
+  it("mail raportowy bez przycisku CTA: zero deep linku i zero linków <a> (PL i EN)", () => {
+    for (const lang of ["pl", "en"] as const) {
+      const { html } = buildWeeklyDigest(baseInput({ lang }));
+      expect(html).not.toContain("strengthsave://");
+      expect(html).not.toContain("<a ");
+      expect(html).not.toContain("Otwórz Strength Save");
+      expect(html).not.toContain("Open Strength Save");
+      expect(html).not.toContain("albo otwórz w przeglądarce");
+      expect(html).not.toContain("or open in browser");
+    }
+  });
 });
 
 describe("formatTonnage (port units.ts)", () => {
