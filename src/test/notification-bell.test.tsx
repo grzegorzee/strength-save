@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@/components/NotificationBell';
 import { markAllUserEventsRead, subscribeUserEvents, type UserEvent } from '@/lib/user-events';
 
@@ -43,9 +43,15 @@ const emitEvents = (events: UserEvent[]) => {
   act(() => subscriber?.(events));
 };
 
+const LocationProbe = () => {
+  const loc = useLocation();
+  return <div data-testid="location">{loc.pathname + loc.search}</div>;
+};
+
 const renderBell = () => render(
   <MemoryRouter>
     <NotificationBell uid="u1" />
+    <LocationProbe />
   </MemoryRouter>,
 );
 
@@ -106,6 +112,38 @@ describe('NotificationBell (B-T6: serwerowe user_events)', () => {
     fireEvent.click(screen.getByLabelText('inbox.open'));
     expect(screen.getByText('Nowość: eksport CSV')).toBeTruthy();
     expect(screen.getByText('Eksportuj historię treningów z Analityki.')).toBeTruthy();
+  });
+
+  // X29: legacy eventy week w produkcji mają deepLink "/analytics" (tab summary);
+  // klik ma prowadzić na listę tygodni niezależnie od zapisanego linku.
+  it('klik w event week z legacy deepLink /analytics nawiguje na /analytics?tab=weekly', () => {
+    renderBell();
+    emitEvents([
+      event({
+        type: 'week',
+        key: 'week-2026-08-10',
+        payload: { weekStart: '2026-08-10', workouts: 3, tonnageKg: 4200 },
+        deepLink: '/analytics',
+      }),
+    ]);
+    fireEvent.click(screen.getByLabelText('inbox.open'));
+    fireEvent.click(screen.getByText('inbox.week.title'));
+    expect(screen.getByTestId('location').textContent).toBe('/analytics?tab=weekly');
+  });
+
+  it('klik w event innego typu nadal nawiguje na jego deepLink (zasada 5)', () => {
+    renderBell();
+    emitEvents([
+      event({
+        type: 'announcement',
+        key: 'announcement-1755640000000',
+        payload: { title: 'Nowość: eksport CSV', body: 'Opis.' },
+        deepLink: '/profile',
+      }),
+    ]);
+    fireEvent.click(screen.getByLabelText('inbox.open'));
+    fireEvent.click(screen.getByText('Nowość: eksport CSV'));
+    expect(screen.getByTestId('location').textContent).toBe('/profile');
   });
 
   it('announcement bez deepLink nie jest klikalny (brak role=button)', () => {

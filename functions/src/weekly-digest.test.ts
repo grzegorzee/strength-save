@@ -245,7 +245,8 @@ describe("B-T6: producent zdarzenia inboxa (user_events)", () => {
     expect(event.type).toBe("week");
     expect(event.payload.weekStart).toBe("2026-06-22");
     expect(typeof event.payload.workouts).toBe("number");
-    expect(event.deepLink).toBe("/analytics");
+    // X29: deep link ma prowadzić do listy tygodni, nie do taba summary.
+    expect(event.deepLink).toBe("/analytics?tab=weekly");
   });
 
   it("dwa biegi tego samego tygodnia produkują ten sam klucz (idempotencja po stronie create)", async () => {
