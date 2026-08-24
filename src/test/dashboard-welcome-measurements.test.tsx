@@ -107,6 +107,14 @@ const planFixture = vi.hoisted(() => ({ plan: [] as unknown[] }));
 const measurementFixture = vi.hoisted(() => ({ latest: null as unknown }));
 
 import Dashboard from '@/pages/Dashboard';
+import { buildCanonicalState } from '@/test/canonical-states';
+
+// WP-K (X29), zasada 11: kształty pomiarów z kanonicznych stanów (jak zapis
+// addMeasurement), nie ręcznie klepane obiekty. Stan 'active-plan' ma oba
+// produkcyjne warianty: liczbowy (waga+obwody) i tylko-zdjęcie (photoUrl).
+const canonicalMeasurements = buildCanonicalState('active-plan').measurements;
+const numericMeasurement = canonicalMeasurements.find((m) => m.weight != null);
+const photoOnlyMeasurement = canonicalMeasurements.find((m) => m.weight == null && m.photoUrl);
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const planDays = (): TrainingDay[] => [
@@ -160,8 +168,17 @@ describe('popup pomiarów po onboardingu (T4)', () => {
     expect(screen.queryByText('Dodać pomiary ciała?')).toBeNull();
   });
 
-  it('welcome=1, ale user ma już pomiar: dialogu NIE ma', async () => {
-    measurementFixture.latest = { id: 'm1', date: '2026-08-19', weight: 80 };
+  it('welcome=1, ale user ma już pomiar (kanoniczny kształt liczbowy): dialogu NIE ma', async () => {
+    expect(numericMeasurement).toBeTruthy();
+    measurementFixture.latest = numericMeasurement;
+    renderDashboard('/?welcome=1');
+    await waitFor(() => expect(screen.getByTestId('dash-greeting')).toBeInTheDocument());
+    expect(screen.queryByText('Dodać pomiary ciała?')).toBeNull();
+  });
+
+  it('welcome=1, user ma pomiar tylko-zdjęcie (photoUrl bez liczb): dialogu NIE ma', async () => {
+    expect(photoOnlyMeasurement).toBeTruthy();
+    measurementFixture.latest = photoOnlyMeasurement;
     renderDashboard('/?welcome=1');
     await waitFor(() => expect(screen.getByTestId('dash-greeting')).toBeInTheDocument());
     expect(screen.queryByText('Dodać pomiary ciała?')).toBeNull();
