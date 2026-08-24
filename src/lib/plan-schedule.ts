@@ -244,10 +244,16 @@ export const computePlanProgressPercent = (params: {
   return Math.round((params.completedCount / total) * 100);
 };
 
+// WP-A (X29): opcjonalne opts — timeline zakładki Plan i badge NASTĘPNY liczą
+// każdą datę kanonicznym resolverem (getScheduledTrainingWeek deleguje do
+// getScheduledTrainingForDate/resolvePlannedDay), zamiast czystej reguły
+// weekday, która ignorowała przełożenia. Wywołanie bez opts zachowuje się
+// dokładnie jak dotąd (niezmiennik zasady #5).
 export const buildTrainingSchedule = (
   planDays: TrainingDay[],
   startDate: Date,
-  weeks: number
+  weeks: number,
+  opts?: { overrides?: ScheduleOverrides; planStartDateISO?: string | null },
 ): Array<{ date: Date; dayId: string }> => {
   const normalizedStart = getStartOfPlanWeek(startDate);
   const schedule: Array<{ date: Date; dayId: string }> = [];
@@ -256,7 +262,7 @@ export const buildTrainingSchedule = (
     const weekStart = startOfLocalDay(normalizedStart);
     weekStart.setDate(normalizedStart.getDate() + (week * 7));
 
-    for (const item of getScheduledTrainingWeek(planDays, weekStart)) {
+    for (const item of getScheduledTrainingWeek(planDays, weekStart, opts?.overrides, opts?.planStartDateISO)) {
       schedule.push({ date: item.date, dayId: item.day.id });
     }
   }

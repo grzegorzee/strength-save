@@ -234,3 +234,54 @@ describe('link "Przełóż trening" w hero (fala 2)', () => {
     expect(navigateSpy).toHaveBeenLastCalledWith('/day');
   });
 });
+
+// WP-A (X29): nowy podział ról w hero — duży nagłówek pokazuje dzień tygodnia
+// REALNEJ daty sesji (przełożenia widoczne od progu), a eyebrow nazwę dnia
+// PLANU; duplikat (nazwa dnia planu == weekday nagłówka, case-insensitive)
+// wypada z eyebrow.
+describe('hero: weekday realnej daty w nagłówku, dzień planu w eyebrow (WP-A X29)', () => {
+  const plWeekday = (date: Date) => date.toLocaleDateString('pl-PL', { weekday: 'long' });
+
+  it('NEXT SESSION: h2 = weekday daty sesji, eyebrow z nazwą dnia planu', async () => {
+    planFixture.plan = [dayToday(), dayTomorrow()];
+    workoutsFixture.workouts = [completedTodayWorkout()];
+    renderDashboard();
+    await waitFor(() => expect(screen.getByTestId('next-session-hero')).toBeTruthy());
+
+    const hero = screen.getByTestId('next-session-hero');
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    expect(hero.querySelector('h2')!.textContent).toBe(plWeekday(tomorrow));
+    const eyebrow = within(hero).getByText(/Następna sesja/);
+    expect(eyebrow.textContent).toContain('Dzień B');
+  });
+
+  it('NEXT SESSION: nazwa dnia planu równa weekday nagłówka wypada z eyebrow (bez duplikacji)', async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const weekday = plWeekday(tomorrow);
+    const duplicateDay = {
+      ...dayTomorrow(),
+      dayName: weekday.charAt(0).toUpperCase() + weekday.slice(1),
+    };
+    planFixture.plan = [dayToday(), duplicateDay];
+    workoutsFixture.workouts = [completedTodayWorkout()];
+    renderDashboard();
+    await waitFor(() => expect(screen.getByTestId('next-session-hero')).toBeTruthy());
+
+    const hero = screen.getByTestId('next-session-hero');
+    expect(hero.querySelector('h2')!.textContent).toBe(weekday);
+    const eyebrow = within(hero).getByText(/Następna sesja/);
+    expect(eyebrow.textContent).toBe('Następna sesja');
+  });
+
+  it('karta dzisiejsza: h2 = weekday dzisiejszej daty, eyebrow z nazwą dnia planu', async () => {
+    renderDashboard();
+    await waitFor(() => expect(screen.getByText('Rozpocznij trening')).toBeTruthy());
+
+    const hero = screen.getByTestId('dash-hero');
+    expect(hero.querySelector('h2')!.textContent).toBe(plWeekday(new Date()));
+    const eyebrow = within(hero).getByText(/Dzisiejsza sesja/);
+    expect(eyebrow.textContent).toContain('Dzień A');
+  });
+});

@@ -796,6 +796,8 @@ export const pl = {
   'reschedule.swapped': 'Treningi zamienione miejscami',
   'reschedule.failed': 'Nie udało się przełożyć treningu',
   'reschedule.draftBlocked': 'Najpierw dokończ albo odrzuć rozpoczęty trening',
+  // WP-A (X29): fallback sheeta, gdy resolver nie widzi klikniętej daty.
+  'reschedule.unavailable': 'Tego dnia nie da się przełożyć.',
   'reschedule.missedTitle': 'Trening {name} z {date} niezrobiony',
   'reschedule.doToday': 'Zrób dziś',
   'reschedule.dismiss': 'Odrzuć',

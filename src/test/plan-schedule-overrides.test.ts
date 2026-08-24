@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { parseLocalDate } from '@/lib/utils';
 import {
+  buildTrainingSchedule,
   getNextScheduledTraining,
   getScheduledTrainingForDate,
   getScheduledTrainingWeek,
@@ -71,5 +72,56 @@ describe('funkcje harmonogramu z overrides', () => {
     expect(getNextScheduledTraining(planDays, MONDAY, { overrides: moved })?.dateKey).toBe('2026-08-11');
     expect(getNextScheduledTraining(planDays, MONDAY, { includeSameDay: true, overrides: moved })?.dateKey)
       .toBe('2026-08-11');
+  });
+});
+
+// WP-A (X29): buildTrainingSchedule (timeline zakładki Plan + badge NASTĘPNY)
+// dostaje opcjonalne opts { overrides, planStartDateISO } i liczy każdą datę
+// kanonicznym resolverem; bez opts zachowanie identyczne jak dotąd (zasada 5).
+describe('buildTrainingSchedule z opts (WP-A X29)', () => {
+  const asKeys = (schedule: Array<{ date: Date; dayId: string }>) =>
+    schedule.map((s) => [
+      `${s.date.getFullYear()}-${String(s.date.getMonth() + 1).padStart(2, '0')}-${String(s.date.getDate()).padStart(2, '0')}`,
+      s.dayId,
+    ]);
+
+  it('niezmiennik: bez opts wynik jak dotąd (czysta reguła weekday)', () => {
+    expect(asKeys(buildTrainingSchedule(planDays, MONDAY, 2))).toEqual([
+      ['2026-08-10', 'day-1'],
+      ['2026-08-12', 'day-2'],
+      ['2026-08-14', 'day-3'],
+      ['2026-08-17', 'day-1'],
+      ['2026-08-19', 'day-2'],
+      ['2026-08-21', 'day-3'],
+    ]);
+  });
+
+  it('niezmiennik: puste opts / pusta mapa overrides = wynik identyczny z brakiem opts', () => {
+    expect(buildTrainingSchedule(planDays, MONDAY, 2, {}))
+      .toEqual(buildTrainingSchedule(planDays, MONDAY, 2));
+    expect(buildTrainingSchedule(planDays, MONDAY, 2, { overrides: {} }))
+      .toEqual(buildTrainingSchedule(planDays, MONDAY, 2));
+  });
+
+  it('overrides: przeniesienie pon -> wt widoczne w harmonogramie, reszta nietknięta', () => {
+    const moved = { '2026-08-10': null, '2026-08-11': 'day-1' };
+    expect(asKeys(buildTrainingSchedule(planDays, MONDAY, 2, { overrides: moved }))).toEqual([
+      ['2026-08-11', 'day-1'],
+      ['2026-08-12', 'day-2'],
+      ['2026-08-14', 'day-3'],
+      ['2026-08-17', 'day-1'],
+      ['2026-08-19', 'day-2'],
+      ['2026-08-21', 'day-3'],
+    ]);
+  });
+
+  it('planStartDateISO: daty przed startem planu wypadają z harmonogramu', () => {
+    expect(asKeys(buildTrainingSchedule(planDays, MONDAY, 1, {
+      overrides: {},
+      planStartDateISO: '2026-08-12',
+    }))).toEqual([
+      ['2026-08-12', 'day-2'],
+      ['2026-08-14', 'day-3'],
+    ]);
   });
 });
