@@ -151,6 +151,17 @@ export const readStoredAccentId = (): string => {
   }
 };
 
+// X29 WP-H: automat akcentu z avatara musi odróżnić "brak wpisu" od "user
+// świadomie zapisał limonkę" — readStoredAccentId zwraca default w obu
+// przypadkach. Błąd storage = false (mirror w profilu i tak pilnuje wyboru).
+export const hasStoredAccent = (): boolean => {
+  try {
+    return localStorage.getItem(STORAGE_KEY) !== null;
+  } catch {
+    return false;
+  }
+};
+
 export const storeAccentId = (id: string): void => {
   try {
     localStorage.setItem(STORAGE_KEY, id);

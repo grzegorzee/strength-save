@@ -152,6 +152,7 @@ const Onboarding = () => {
       onLegalConsent={handleLegalConsent}
       askName
       initialName={(profile?.displayName ?? '').split(' ')[0] || ''}
+      avatarPhotoURL={profile?.photoURL || undefined}
       resume={choice ?? undefined}
       resumeStep={choice ? 5 : undefined}
       builderDraftKey={`ss-plan-builder-draft_${uid}`}
