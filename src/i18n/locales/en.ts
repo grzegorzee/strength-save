@@ -1789,6 +1789,7 @@ export const en: Record<keyof typeof pl, string> = {
   'profile.toast.linkFailed': 'Could not send the link.',
   'profile.toast.error': 'Error',
   'profile.aria.changeAvatar': 'Change profile photo',
+  'profile.emailToggle': 'Show or hide email address',
   'profile.about.title': 'Strength Save',
   'profile.about.desc': 'An app for tracking strength workouts.',
   'profile.about.version': 'Version {version}',

@@ -39,8 +39,9 @@ import {
   User, Lock, ShieldCheck, Bell, Globe,
   HelpCircle, Mail, Info, LogOut, Plus, SlidersHorizontal, Loader2,
   ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
-  Dumbbell, ChevronRight, Download, Link2, Watch, Heart,
+  Dumbbell, ChevronRight, Download, Link2, Watch, Heart, Eye, EyeOff,
 } from 'lucide-react';
+import { maskEmail, readEmailVisible, storeEmailVisible } from '@/lib/mask-email';
 import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
 import { computeMilestones, tierForIndex } from '@/lib/achievements-utils';
 import { calculateTonnage, calculateStreakDetails, countWorkoutCompletedWorkingSets, streakDetailsFromDates } from '@/lib/summary-utils';
@@ -181,6 +182,15 @@ const Profile = () => {
   // Krok 5 (spec 2026-08-11): reset hasła za potwierdzeniem — jedno tapnięcie
   // w wiersz nie wysyła już maila od razu.
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  // WP-G (X29): email domyślnie zamaskowany; wybór usera trwały (localStorage),
+  // czytany też przez sidebar desktop (AppNavigation).
+  const [emailVisible, setEmailVisible] = useState(readEmailVisible);
+  const toggleEmailVisible = () => {
+    setEmailVisible((prev) => {
+      storeEmailVisible(!prev);
+      return !prev;
+    });
+  };
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -421,7 +431,22 @@ const Profile = () => {
           >
             {profile?.displayName || t('profile.title')}
           </button>
-          {profile?.email && <p className="truncate text-xs text-muted-foreground">{profile.email}</p>}
+          {profile?.email && (
+            <div className="flex min-w-0 items-center gap-0.5">
+              <p className="min-w-0 truncate text-xs text-muted-foreground">
+                {emailVisible ? profile.email : maskEmail(profile.email)}
+              </p>
+              {/* Tap target 44px (h-11 w-11), ujemne marginesy trzymają zwartość wiersza. */}
+              <button
+                type="button"
+                onClick={toggleEmailVisible}
+                className="-my-3 flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                aria-label={t('profile.emailToggle')}
+              >
+                {emailVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          )}
           <div className="mt-0.5 flex flex-wrap items-center gap-2">
             <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} tierLabel={tier.label} className="justify-start" />
             <span className="font-mono text-[9.5px] uppercase tracking-[0.06em] text-muted-foreground">
