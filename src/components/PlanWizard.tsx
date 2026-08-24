@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, SlidersHorizontal } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
@@ -12,7 +12,8 @@ import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { ConsentCheckboxes } from '@/components/ConsentCheckboxes';
-import { ACCENTS, applyAccent, getAccentById, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
+import { ACCENTS, applyAccent, getAccentById, hasStoredAccent, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
+import { deriveAccentFromAvatar } from '@/lib/avatar-accent';
 import { EMPTY_CONSENT_SELECTION, hasRequiredConsents, type ConsentSelection } from '@/lib/consent-selection';
 import { applyWeekdaysToPlanDays, getCycleStartPreview, hasExactWeekdaySelection, planDaysMismatch, WEEKDAYS } from '@/lib/plan-cycle-utils';
 
@@ -166,6 +167,11 @@ interface PlanWizardProps {
   /** Pole imienia na Welcome (tylko onboarding); wynik trafia do PlanWizardChoice.name. */
   askName?: boolean;
   initialName?: string;
+  /**
+   * X29 WP-H: avatar konta (photoURL) do auto-doboru akcentu na Welcome.
+   * Preselekcja odpala się TYLKO bez zapisanego wyboru (hasStoredAccent).
+   */
+  avatarPhotoURL?: string;
   initial?: { level?: WizardLevel; objective?: PlanObjective; daysPerWeek?: number };
   /** Poprzedni wybór (powrót z preview) — przywraca selekcje, datę startu i własny plan zamiast zaczynać od zera. */
   resume?: PlanWizardChoice | null;
@@ -181,7 +187,7 @@ interface PlanWizardProps {
   onExitBack?: () => void;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, onLegalConsent, askName, initialName, initial, resume, resumeStep, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, onLegalConsent, askName, initialName, avatarPhotoURL, initial, resume, resumeStep, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
 
@@ -209,6 +215,25 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     storeAccentId(id);
     setAccentId(id);
   };
+  // X29 WP-H: preselekcja akcentu z avatara na Welcome — user od razu widzi
+  // "swój" kolor zaznaczony i może zmienić. Odpala się TYLKO bez zapisanego
+  // wyboru (zasada 5); każdy problem = cichy fail, zostaje limonka.
+  useEffect(() => {
+    if (!askName || !avatarPhotoURL || hasStoredAccent()) return;
+    let cancelled = false;
+    deriveAccentFromAvatar(avatarPhotoURL)
+      .then((derived) => {
+        // Re-check: user mógł kliknąć swatch, zanim avatar się pobrał.
+        if (!derived || cancelled || hasStoredAccent()) return;
+        applyAccent(derived);
+        storeAccentId(derived);
+        setAccentId(derived);
+      })
+      .catch(() => {
+        // Cichy fail — zostaje limonka.
+      });
+    return () => { cancelled = true; };
+  }, [askName, avatarPhotoURL]);
   // Powrót z podglądu (resume) = zgody były już zaznaczone (i zapisane) przy pierwszym przejściu kroku 1.
   const [consents, setConsents] = useState<ConsentSelection>(
     resume ? { terms: true, privacy: true, health: true, marketing: false } : EMPTY_CONSENT_SELECTION,

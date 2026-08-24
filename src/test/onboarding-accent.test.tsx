@@ -17,13 +17,18 @@ vi.mock('@/components/PlanPreview', () => ({
 const updateDoc = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc }));
 vi.mock('@/lib/firebase', () => ({ db: {}, functions: {} }));
-vi.mock('@/contexts/UserContext', () => ({
-  useCurrentUser: () => ({
-    uid: 'u1',
-    // Marketing już odpowiedziany — krok marketingowy nie wchodzi w drogę.
-    profile: { displayName: 'Grzegorz', consents: { marketingGranted: false, marketingVersion: '1.0' } },
-  }),
+// X29 WP-H: photoURL mutowalne per test (preselekcja akcentu z avatara).
+const mockProfile = vi.hoisted(() => ({
+  current: {} as Record<string, unknown>,
 }));
+vi.mock('@/contexts/UserContext', () => ({
+  useCurrentUser: () => ({ uid: 'u1', profile: mockProfile.current }),
+}));
+const deriveAccentFromAvatar = vi.hoisted(() => vi.fn(async (): Promise<string | null> => null));
+vi.mock('@/lib/avatar-accent', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/avatar-accent')>();
+  return { ...actual, deriveAccentFromAvatar };
+});
 vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({ savePlan: vi.fn(async () => ({ success: true })) }),
 }));
@@ -73,6 +78,13 @@ beforeEach(() => {
   localStorage.setItem('app-language', 'pl');
   document.documentElement.style.cssText = '';
   delete document.documentElement.dataset.accent;
+  // Marketing już odpowiedziany — krok marketingowy nie wchodzi w drogę.
+  // Bez photoURL (konta email/Apple zwykle go nie mają) — automat śpi.
+  mockProfile.current = {
+    displayName: 'Grzegorz',
+    photoURL: '',
+    consents: { marketingGranted: false, marketingVersion: '1.0' },
+  };
 });
 
 describe('Onboarding: zapis koloru aplikacji do profilu (plan I)', () => {
@@ -93,5 +105,44 @@ describe('Onboarding: zapis koloru aplikacji do profilu (plan I)', () => {
       onboardingCompleted: true,
       'preferences.accentColor': 'lime',
     }));
+  });
+});
+
+// X29 WP-H: konto Google z avatarem — swatch "swojego" koloru już zaznaczony
+// na Welcome; user widzi wynik i może zmienić. Cichy fail = zostaje limonka.
+describe('Onboarding: preselekcja akcentu z avatara (X29 WP-H)', () => {
+  it('photoURL + brak zapisanego wyboru: wyliczony sky zaznaczony i zaaplikowany', async () => {
+    mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
+    deriveAccentFromAvatar.mockResolvedValueOnce('sky');
+    render(withProviders(<Onboarding />));
+    await waitFor(() => expect(screen.getByTestId('ob-accent-sky')).toHaveAttribute('aria-checked', 'true'));
+    expect(deriveAccentFromAvatar).toHaveBeenCalledWith('https://lh3.example/a.jpg');
+    expect(document.documentElement.dataset.accent).toBe('sky');
+    expect(localStorage.getItem('ss-accent-color')).toBe('sky');
+  });
+
+  it('wpis w localStorage (wcześniejszy wybór): automat NIE odpala się', async () => {
+    mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
+    localStorage.setItem('ss-accent-color', 'indigo');
+    render(withProviders(<Onboarding />));
+    expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
+    await Promise.resolve();
+    expect(deriveAccentFromAvatar).not.toHaveBeenCalled();
+  });
+
+  it('derive daje null (szary avatar): limonka zostaje zaznaczona', async () => {
+    mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
+    deriveAccentFromAvatar.mockResolvedValueOnce(null);
+    render(withProviders(<Onboarding />));
+    await waitFor(() => expect(deriveAccentFromAvatar).toHaveBeenCalled());
+    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
+    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+  });
+
+  it('brak photoURL: automat NIE odpala się', async () => {
+    render(withProviders(<Onboarding />));
+    await Promise.resolve();
+    expect(deriveAccentFromAvatar).not.toHaveBeenCalled();
+    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
   });
 });

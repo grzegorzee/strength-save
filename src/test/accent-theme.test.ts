@@ -10,6 +10,7 @@ import {
   applyStoredAccent,
   getAccentById,
   getCurrentAccent,
+  hasStoredAccent,
   readStoredAccentId,
   storeAccentId,
 } from '@/lib/accent-theme';
@@ -225,5 +226,18 @@ describe('accent-theme (F-T2 + plan I)', () => {
     expect(root.style.getPropertyValue('--fitness-success')).toBe('');
     expect(root.style.getPropertyValue('--fitness-warning')).toBe('');
     expect(root.style.getPropertyValue('--destructive')).toBe('');
+  });
+
+  // X29 WP-H: automat akcentu z avatara potrzebuje odróżnić "brak wpisu"
+  // od "user świadomie zapisał limonkę" — readStoredAccentId zwraca default
+  // w obu przypadkach, hasStoredAccent mówi prawdę o samym wpisie.
+  it('hasStoredAccent: false bez wpisu, true po storeAccentId (też dla default)', () => {
+    expect(hasStoredAccent()).toBe(false);
+    expect(readStoredAccentId()).toBe(DEFAULT_ACCENT_ID);
+    storeAccentId(DEFAULT_ACCENT_ID);
+    expect(hasStoredAccent()).toBe(true);
+    localStorage.clear();
+    storeAccentId('rose');
+    expect(hasStoredAccent()).toBe(true);
   });
 });
