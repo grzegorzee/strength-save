@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Download, Share2, Check } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { hapticSuccess } from '@/lib/haptics';
+import { nativeHttpBlob } from '@/lib/native-photo-fetch';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { getCurrentAccent } from '@/lib/accent-theme';
@@ -197,17 +199,21 @@ const sdkPhotoBlob = async (photoPath: string): Promise<Blob> => {
 
 /**
  * Zdjecie Storage → JPEG dataURL bezpieczny dla html2canvas (edge case 3).
- * Kolejnosc kanalow per platforma: na natywnym iOS pierwszy jest SDK getBlob —
- * to jedyny kanal UDOWODNIONY na urzadzeniu (tym samym XHR uploadBytes wgral te
- * zdjecia), a fetch z originu capacitor://localhost bywa ubijany przez warstwe
- * sieciowa WKWebView (zgloszenie iOS build 115). Web zostaje przy fetch-first.
+ * Kolejnosc kanalow per platforma: na natywnym iOS pierwszy jest nativeHttp
+ * (CapacitorHttp) — telemetria produkcyjna 2026-08-22 (build 116) pokazala
+ * "photo-load-failed getBlob=getBlob-timeout fetch=Load failed": OBA kanaly JS
+ * (SDK getBlob i fetch) padaja na urzadzeniu, bo oba ida przez warstwe
+ * sieciowa WKWebView z originu capacitor://localhost. Natywny stos HTTP nie
+ * podlega WKWebView; getBlob i fetch zostaja jako fallbacki. nativeHttp dziala
+ * tez dla wpisow bez photoPath (uzywa photoUrl). Web zostaje przy fetch-first.
  * Kazda porazka konczy sie odrzuceniem z opisem krokow (telemetria u rodzica).
  */
 export async function preparePhotoDataUrl(photoUrl: string, photoPath?: string): Promise<string> {
   const fetchStep = { label: 'fetch', run: () => fetchPhotoBlob(photoUrl) };
   const sdkStep = photoPath ? { label: 'getBlob', run: () => sdkPhotoBlob(photoPath) } : null;
-  const steps = Capacitor.isNativePlatform() && sdkStep
-    ? [sdkStep, fetchStep]
+  const nativeHttpStep = { label: 'nativeHttp', run: () => nativeHttpBlob(photoUrl) };
+  const steps = Capacitor.isNativePlatform()
+    ? [nativeHttpStep, ...(sdkStep ? [sdkStep] : []), fetchStep]
     : sdkStep ? [fetchStep, sdkStep] : [fetchStep];
 
   const failures: string[] = [];
@@ -272,7 +278,21 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
         setBlob(result);
         setImageUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(result); });
       })
-      .catch(() => { if (!cancelled) setError(t('comp.share.generateError')); })
+      .catch((err) => {
+        if (cancelled) return;
+        // X29: telemetria brakujacych faz — dotad client_errors widzialo tylko
+        // faze load (u rodzica). Podzial wg planu X29: render html2canvas =
+        // generate; serializacja canvas.toBlob do pliku = share.
+        const detail = err instanceof Error ? err.message : String(err);
+        reportClientErrorWithCurrentUid({
+          code: detail === 'Failed to create blob'
+            ? 'body-compare-export-share'
+            : 'body-compare-export-generate',
+          phase: 'other',
+          detail,
+        });
+        setError(t('comp.share.generateError'));
+      })
       .finally(() => { if (!cancelled) setIsGenerating(false); });
     return () => { cancelled = true; };
   }, [open, template, format]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -287,12 +307,20 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
       return true;
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return false;
+      // X29: porazka systemowego share laduje w telemetrii (faza share).
+      reportClientErrorWithCurrentUid({
+        code: 'body-compare-export-share',
+        phase: 'other',
+        detail: err instanceof Error ? err.message : String(err),
+      });
       setError(t('comp.share.generateError'));
       return false;
     }
   };
 
   const markSaved = (action: 'download' | 'share') => {
+    // X29: udany zapis/share kasuje wczesniejszy komunikat bledu.
+    setError(null);
     setSavedAction(action);
     void hapticSuccess();
     window.setTimeout(() => setSavedAction(null), 1800);

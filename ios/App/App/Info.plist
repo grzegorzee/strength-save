@@ -71,7 +71,9 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Strength Save zapisuje ukończone treningi siłowe i cardio do Apple Health, aby liczyły się do Twoich pierścieni aktywności i historii zdrowia.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Wybór zdjęcia do obrazu podsumowania treningu.</string>
+	<string>Wybór zdjęcia z Twojej biblioteki: zdjęcie sylwetki do pomiarów oraz zdjęcie do obrazu podsumowania treningu.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Zapisywanie wygenerowanych obrazów (porównanie sylwetki, podsumowanie treningu) do Twojej biblioteki zdjęć.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Zrobienie zdjęcia do obrazu podsumowania treningu.</string>
 </dict>
