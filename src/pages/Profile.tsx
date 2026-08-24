@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { doc, updateDoc } from 'firebase/firestore';
+import { deleteField, doc, updateDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { ACCENTS, applyAccent, isCustomAccentHex, readStoredAccentId, storeAccentId } from '@/lib/accent-theme';
@@ -277,6 +277,27 @@ const Profile = () => {
   const handleLanguage = (v: string) => {
     setLang(v as LanguageCode);
     toast({ title: t('profile.langSaved') });
+  };
+
+  // WP-I (X29): sekcja Trener — zapisany odbiorca maili z podsumowaniem.
+  // Imię edytowane inline; usunięcie czyści oba pola (odwracalne: następna
+  // wysyłka znów zaproponuje zapis, więc bez dialogu potwierdzenia).
+  const trainerEmail = profile?.preferences?.trainerEmail;
+  const trainerName = profile?.preferences?.trainerName;
+  const [trainerNameEditing, setTrainerNameEditing] = useState(false);
+  const [trainerNameInput, setTrainerNameInput] = useState('');
+  const saveTrainerName = () => {
+    const name = trainerNameInput.trim();
+    updateDoc(doc(db, 'users', uid), { 'preferences.trainerName': name || deleteField() })
+      .catch(() => { /* offline — snapshot profilu dogoni po powrocie sieci */ });
+    setTrainerNameEditing(false);
+  };
+  const removeTrainer = () => {
+    setTrainerNameEditing(false);
+    updateDoc(doc(db, 'users', uid), {
+      'preferences.trainerEmail': deleteField(),
+      'preferences.trainerName': deleteField(),
+    }).catch(() => { /* jw. */ });
   };
 
   // Tryby C3/C4 (Runna p.1): wejście z sekcji TRENING; jeden tryb naraz.
@@ -688,6 +709,41 @@ const Profile = () => {
           )}
           {isNative && <SettingRow compact icon={Watch} label="Garmin" onClick={() => navigate('/settings?section=connections')} />}
           {isNative && <SettingRow compact icon={Heart} label={t('profile.connections.health')} onClick={() => navigate('/settings?section=connections')} />}
+        </ProfileGroup>
+      )}
+
+      {/* WP-I: TRENER — podgląd zapisanego odbiorcy maili (adres zamaskowany
+          jak email konta w identity); sekcja tylko gdy adres jest zapisany. */}
+      {trainerEmail && (
+        <ProfileGroup label={t('profile.trainer.title')}>
+          <SettingRow
+            compact
+            icon={Mail}
+            label={trainerName || maskEmail(trainerEmail)}
+            value={trainerName ? maskEmail(trainerEmail) : undefined}
+          />
+          {trainerNameEditing ? (
+            <div className="flex items-center gap-2 py-2">
+              <Input
+                value={trainerNameInput}
+                onChange={(e) => setTrainerNameInput(e.target.value)}
+                maxLength={80}
+                aria-label={t('profile.trainer.nameLabel')}
+                placeholder={t('profile.trainer.nameLabel')}
+                className="h-10 flex-1 rounded-lg border-0 bg-surface-highest"
+              />
+              <Button onClick={saveTrainerName} className="h-10 rounded-lg px-4">
+                {t('common.save')}
+              </Button>
+            </div>
+          ) : (
+            <SettingRow
+              compact
+              label={t('profile.trainer.changeName')}
+              onClick={() => { setTrainerNameInput(trainerName ?? ''); setTrainerNameEditing(true); }}
+            />
+          )}
+          <SettingRow compact danger label={t('profile.trainer.remove')} onClick={removeTrainer} />
         </ProfileGroup>
       )}
 

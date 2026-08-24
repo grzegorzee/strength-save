@@ -8,6 +8,7 @@ import {
   historyEmailSubject,
   runEmailHistory,
   runEmailWorkout,
+  sanitizeTrainerName,
   workoutEmailSubject,
   HISTORY_EMAIL_MAX_WORKOUTS,
   type EmailWorkout,
@@ -563,5 +564,116 @@ describe("J-T4: last30 czytelnie — tabela-przegląd (bez załączników, decyz
     expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20", range: "last30" })).toEqual({ ok: true });
     expect(sentHtml(d)).not.toContain("100 kg × 5");
     expect(sentHtml(d)).toContain("Tonaż");
+  });
+});
+
+// WP-I (plan X29): imię trenera w nagłówku, jednostki wg preferences.unit,
+// ownership egzekwowany w ADAPTERZE (getWorkout dostaje uid i filtruje).
+describe("WP-I: imię trenera w powitaniu maila", () => {
+  const params = { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" } as const;
+
+  it("trainerName w PL: powitanie 'Cześć Marek,'", async () => {
+    const d = deps();
+    expect(await runEmailWorkout(d, { ...params, trainerName: "Marek" })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("Cześć Marek,");
+  });
+
+  it("trainerName w EN: powitanie 'Hi Marek,'", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({ language: "en" })) });
+    expect(await runEmailWorkout(d, { ...params, trainerName: "Marek" })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("Hi Marek,");
+  });
+
+  it("bez trainerName: zero powitania (mail jak dotąd)", async () => {
+    const d = deps();
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    expect(sentHtml(d)).not.toContain("Cześć");
+    expect(sentHtml(d)).not.toContain("Hi ");
+  });
+
+  it("historia też dostaje powitanie", async () => {
+    const d = deps();
+    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20", trainerName: "Ania" })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("Cześć Ania,");
+  });
+
+  it("imię escapowane w HTML (treść od klienta)", async () => {
+    const d = deps();
+    expect(await runEmailWorkout(d, { ...params, trainerName: "<b>Marek</b>" })).toEqual({ ok: true });
+    expect(sentHtml(d)).not.toContain("<b>Marek</b>");
+  });
+
+  it("śmieciowy trainerName nie blokuje wysyłki (mail bez powitania)", async () => {
+    const d = deps();
+    expect(await runEmailWorkout(d, { ...params, trainerName: 42 as never })).toEqual({ ok: true });
+    expect(sentHtml(d)).not.toContain("Cześć");
+  });
+
+  it("sanitizeTrainerName: trim, nie-string odpada, przycięcie do 80", () => {
+    expect(sanitizeTrainerName("  Marek ")).toBe("Marek");
+    expect(sanitizeTrainerName(42)).toBeUndefined();
+    expect(sanitizeTrainerName("   ")).toBeUndefined();
+    expect(sanitizeTrainerName(undefined)).toBeUndefined();
+    expect(sanitizeTrainerName("x".repeat(100))).toHaveLength(80);
+  });
+});
+
+describe("WP-I: jednostki maila wg preferences.unit", () => {
+  const params = { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" } as const;
+
+  it("unit=lbs: serie w lb (kg*2.20462 do 0.5 lb) i tonaż w k lb", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({ unit: "lbs" })) });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).toContain("220.5 lb × 5"); // 100 kg
+    expect(html).not.toContain("100 kg × 5");
+    expect(html).toContain("1.1 k lb"); // tonaż 500 kg
+    expect(html).not.toContain("0.5 t");
+  });
+
+  it("unit=kg (i brak pola): kg jak dotąd", async () => {
+    const d = deps({ getUserContext: vi.fn(async () => ({ unit: "kg" })) });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    expect(sentHtml(d)).toContain("100 kg × 5");
+    expect(sentHtml(d)).toContain("0.5 t");
+  });
+
+  it("buildWorkoutEmailHtml: PR-y też w lb przy unit=lbs", () => {
+    const html = buildWorkoutEmailHtml(workout(), "pl", {
+      unit: "lbs",
+      prs: [{ exerciseId: "ex-1", exerciseName: "Wyciskanie sztangi", type: "weight", newValue: 105, oldValue: 100 }],
+    });
+    expect(html).toContain("231.5 lb"); // 105 kg
+    expect(html).toContain("220.5 lb"); // 100 kg
+    expect(html).not.toContain("105 kg");
+  });
+
+  it("historia z unit=lbs: sumy i tabela przeglądu w lb", async () => {
+    const d = deps({
+      getUserContext: vi.fn(async () => ({ unit: "lbs" })),
+      listWorkoutsInRange: vi.fn(async (_uid: string, opts: { beforeDate?: string }) =>
+        (opts.beforeDate ? [] : [workout(), workout({ id: "w2", date: "2026-08-18" })])),
+    });
+    expect(await runEmailHistory(d, { uid: "u1", to: "trener@example.com", today: "2026-08-20" })).toEqual({ ok: true });
+    const html = sentHtml(d);
+    expect(html).toContain("2.2 k lb"); // suma tonażu 1000 kg
+    expect(html).not.toContain("1.0 t");
+  });
+});
+
+describe("WP-I: ownership w adapterze getWorkout", () => {
+  const params = { uid: "u1", workoutId: "w1", to: "trener@example.com", today: "2026-08-20" } as const;
+
+  it("getWorkout dostaje uid żądającego (kontrakt adaptera)", async () => {
+    const d = deps();
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: true });
+    expect(d.getWorkout).toHaveBeenCalledWith("w1", "u1");
+  });
+
+  it("adapter nie widzi cudzego treningu (null) = not-found, bez wysyłki", async () => {
+    const d = deps({ getWorkout: vi.fn(async () => null) });
+    expect(await runEmailWorkout(d, { ...params })).toEqual({ ok: false, code: "not-found" });
+    expect(d.sendEmail).not.toHaveBeenCalled();
+    expect(d.consumeQuota).not.toHaveBeenCalled();
   });
 });

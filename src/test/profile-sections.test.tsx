@@ -13,10 +13,12 @@ vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
 
 const firestoreFixture = vi.hoisted(() => ({
   updateDoc: vi.fn(async () => {}),
+  DELETE_SENTINEL: '__DELETE_FIELD__',
 }));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
   updateDoc: firestoreFixture.updateDoc,
+  deleteField: vi.fn(() => firestoreFixture.DELETE_SENTINEL),
 }));
 vi.mock('firebase/storage', () => ({
   ref: vi.fn(() => ({})),
@@ -34,10 +36,14 @@ vi.mock('@/hooks/useTrainingPlan', () => ({
     setVacation: vi.fn(async () => ({ success: true })),
   }),
 }));
+// WP-I: profil sterowalny per test (sekcja Trener widoczna tylko z trainerEmail).
+const userFixture = vi.hoisted(() => ({
+  profile: { displayName: 'Tester', email: 'tester@example.com', photoURL: null } as Record<string, unknown>,
+}));
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({
     uid: 'u1',
-    profile: { displayName: 'Tester', email: 'tester@example.com', photoURL: null },
+    profile: userFixture.profile,
     isAdmin: true,
   }),
 }));
@@ -95,6 +101,7 @@ beforeEach(() => {
   pushFixture.permission = 'granted';
   authFixture.resetPassword.mockClear();
   firestoreFixture.updateDoc.mockClear();
+  userFixture.profile = { displayName: 'Tester', email: 'tester@example.com', photoURL: null };
 });
 
 const renderSheet = () =>
@@ -238,6 +245,76 @@ describe('WP-G: maskowanie emaila w Profilu', () => {
     localStorage.setItem('ss-email-visible', 'true');
     const { getByText } = renderProfile();
     expect(getByText('tester@example.com')).toBeTruthy();
+  });
+});
+
+// WP-I (plan X29): sekcja Trener — podgląd zapisanego odbiorcy maili
+// (imię + zamaskowany adres), zmiana imienia inline, usunięcie obu pól.
+describe('WP-I: sekcja Trener w Profilu', () => {
+  const withTrainer = (name?: string) => {
+    userFixture.profile = {
+      displayName: 'Tester', email: 'tester@example.com', photoURL: null,
+      preferences: { trainerEmail: 'coach@example.com', ...(name ? { trainerName: name } : {}) },
+    };
+  };
+
+  it('bez trainerEmail: sekcji nie ma', () => {
+    const { container } = renderProfile();
+    expect(Array.from(container.querySelectorAll('h2')).map((h) => h.textContent)).not.toContain('Trener');
+  });
+
+  it('z trainerEmail + imieniem: imię widoczne, adres ZAMASKOWANY', () => {
+    withTrainer('Marek');
+    const { container, getByText, queryByText } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    expect(within(sekcja).getByText('Marek')).toBeTruthy();
+    expect(getByText('c••••@e••••••.com')).toBeTruthy();
+    expect(queryByText('coach@example.com')).toBeNull();
+  });
+
+  it('bez imienia: w wierszu zamaskowany adres', () => {
+    withTrainer();
+    const { container } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    expect(within(sekcja).getByText('c••••@e••••••.com')).toBeTruthy();
+  });
+
+  it('Zmień imię: inline input + zapis preferences.trainerName', async () => {
+    withTrainer('Marek');
+    const { container } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    fireEvent.click(within(sekcja).getByText('Zmień imię'));
+    const input = within(sekcja).getByLabelText('Imię trenera') as HTMLInputElement;
+    expect(input.value).toBe('Marek');
+    fireEvent.change(input, { target: { value: ' Ania ' } });
+    fireEvent.click(within(sekcja).getByText('Zapisz'));
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), { 'preferences.trainerName': 'Ania' },
+    ));
+  });
+
+  it('Zmień imię na puste = wyczyszczenie pola (deleteField)', async () => {
+    withTrainer('Marek');
+    const { container } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    fireEvent.click(within(sekcja).getByText('Zmień imię'));
+    fireEvent.change(within(sekcja).getByLabelText('Imię trenera'), { target: { value: '  ' } });
+    fireEvent.click(within(sekcja).getByText('Zapisz'));
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), { 'preferences.trainerName': firestoreFixture.DELETE_SENTINEL },
+    ));
+  });
+
+  it('Usuń: czyści oba pola deleteField (akcja odwracalna, bez dialogu)', async () => {
+    withTrainer('Marek');
+    const { container } = renderProfile();
+    fireEvent.click(within(sectionByLabel(container, 'Trener')).getByText('Usuń adres trenera'));
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), {
+        'preferences.trainerEmail': firestoreFixture.DELETE_SENTINEL,
+        'preferences.trainerName': firestoreFixture.DELETE_SENTINEL,
+      },
+    ));
   });
 });
 
