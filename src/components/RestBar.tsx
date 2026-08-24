@@ -159,7 +159,10 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   return (
     <>
       <div
-        className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-surface-low px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+        // WP-D (X29): na mobile pasek pływa NAD bottom navem (nav widoczny też
+        // w sesji): inset-x-3 + pełne zaokrąglenie jak nav, safe-area zbędna
+        // (nie dotyka krawędzi). Na md wraca do krawędzi ekranu jak dotąd.
+        className="fixed inset-x-3 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-50 rounded-2xl bg-surface-low px-4 pt-3 pb-3 md:inset-x-0 md:bottom-0 md:rounded-b-none md:rounded-t-2xl md:pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         data-testid="rest-bar"
       >
         <div className="flex items-center gap-3">

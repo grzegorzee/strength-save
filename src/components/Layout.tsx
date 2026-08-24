@@ -58,7 +58,11 @@ export const Layout = () => {
 
   return (
     <div className="min-h-screen md:h-[100dvh] flex w-full bg-background overflow-x-hidden md:overflow-hidden">
-      <AppNavigation hideMobileNav={isFocusedFlow} />
+      {/* WP-D (X29): bottom nav widoczny na WSZYSTKICH trasach w Layout, także
+          w focused flow (/workout/*, /exercise/*) — user ma zawsze wyjście do
+          Dashboardu/Planu/Profilu. Paski sesji (start/RestBar) pozycjonują się
+          NAD navem. Header w focused flow pozostaje ukryty (własny wstecz). */}
+      <AppNavigation />
 
       {/* Naprawa r2 (2026-08-21): provider slotu akcji headera — ekrany portalują
           swoje przyciski (History: lupa + filtry) do rzędu headera jak w artboardach. */}

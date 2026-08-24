@@ -2886,6 +2886,10 @@ const WorkoutDay = () => {
   // ACTIVE WORKOUT VIEW
   // Padding dolny: miejsce na sticky REST (aktywna przerwa) i fixed CTA startu
   // (pre-start) + safe-area — FINISH w przepływie nie może chować się pod paskiem.
+  // WP-D (X29): paski wiszą teraz NAD bottom navem (bottom 6rem), więc rezerwa
+  // musi sięgać do topu najwyższego z nich: CTA startu top ≈ 6rem + 5.5rem
+  // wysokości = 11.5rem. Razem z pb-7.5rem maina Layoutu tutejsze 7rem daje
+  // 14.5rem — ostatni element listy wychodzi nad pasek z zapasem.
   return (
     <div className="space-y-6 pb-[calc(7rem+env(safe-area-inset-bottom))]">
       {/* Fala 2 (2026-08-20, mockup exercise-card 2a): header wstecz · tytuł ·
@@ -3165,8 +3169,12 @@ const WorkoutDay = () => {
         )
       )}
 
+      {/* WP-D (X29): pasek startu ląduje NAD bottom navem (nav widoczny też
+          w sesji) — offset = 0.75rem odstęp nav od dołu + ~4.85rem wysokości
+          nav + luz. Safe-area padding wewnątrz tylko na md (tam pasek nadal
+          dotyka krawędzi ekranu). */}
       {!isWorkoutStarted && !isViewingPastWorkout && !isCompleted && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/85 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] backdrop-blur-xl">
+        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] left-0 right-0 z-50 bg-background/85 p-4 backdrop-blur-xl md:bottom-0 md:pb-[calc(1rem+env(safe-area-inset-bottom))]">
           {/* Z244: przycisk nie może wyglądać na martwy — dopóki źródła startu się
               ładują, pokazujemy to wprost; po 8 s dajemy wyjście (odśwież). */}
           {!startSourcesReady && startSourcesTimedOut && (
