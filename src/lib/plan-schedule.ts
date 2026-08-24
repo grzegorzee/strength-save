@@ -237,7 +237,14 @@ export const computePlanProgressPercent = (params: {
   completedCount: number;
   remainingCount: number;
   planStarted: boolean;
+  /** WP-B (X29): data startu planu, jeśli wywołujący ją zna. */
+  planStartDate?: string | null;
 }): number => {
+  // WP-B (X29) obrona w głębi: gate ładowania w TrainingPlan jest pierwszą
+  // linią; jawnie przekazany brak daty startu (pierwszy frame przed
+  // snapshotem planu) = 0, nie 100. Wywołania bez tego pola zachowują się
+  // dokładnie jak dotąd (zasada #5).
+  if ('planStartDate' in params && params.planStartDate == null) return 0;
   if (!params.planStarted) return 0;
   const total = params.completedCount + params.remainingCount;
   if (total <= 0) return 0;

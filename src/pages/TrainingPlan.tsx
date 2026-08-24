@@ -161,7 +161,7 @@ const TrainingPlan = () => {
   const trainingRules = getTrainingRules(lang);
   const { uid, canUseStrava } = useCurrentUser();
   const { getLatestWorkout, workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
-  const { plan: trainingPlan, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision, planStatus, planName } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, planStartDate, currentWeek: hookCurrentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, reducedMode, setReducedMode, vacation, setVacation, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, progression, saveDeloadDecision, planStatus, planName } = useTrainingPlan(uid);
   const { toast } = useToast();
   // C-T1: wejście w tryb urlopu z ekranu Planu (dotąd dialog istniał tylko na
   // Dashboardzie i to wyłącznie jako badge JUŻ aktywnego urlopu).
@@ -206,7 +206,7 @@ const TrainingPlan = () => {
     })();
   };
 
-  const { cycles, createActiveCycle, archiveCurrentPlan } = usePlanCycles(uid);
+  const { cycles, isLoaded: cyclesLoaded, createActiveCycle, archiveCurrentPlan } = usePlanCycles(uid);
 
   // C-T4: jedna karta decyzyjna końca planu — to samo źródło co Dashboard/Cykle.
   const activeCycleRaw = cycles.find((cycle) => cycle.status === 'active') || null;
@@ -405,6 +405,8 @@ const TrainingPlan = () => {
     completedCount: completedInPlan,
     remainingCount: remainingWorkouts,
     planStarted,
+    // WP-B (X29): obrona w głębi — brak daty startu = 0%, nie 100%.
+    planStartDate,
   });
 
   // Fala 2: pasek obciążenia dnia (tonaż względem max tygodnia, tylko ukończone
@@ -428,6 +430,20 @@ const TrainingPlan = () => {
   const decideStats = liveActiveCycle?.stats
     ? t('trainingplan.decideStats', { attendance: liveActiveCycle.stats.completionRate, prs: liveActiveCycle.stats.prs.length })
     : undefined;
+
+  // WP-B (X29): gate ładowania — koniec flasha "100% -> 0%". Workouts są
+  // dostępne od pierwszego frame'a (modułowy store), a plan dopiero po
+  // snapshotcie; przy planStartDate=null completedInPlan łapał wszystkie
+  // ukończone sesje i remainingWorkouts=0 dawało 100%. Wzorzec i klasy 1:1
+  // z Dashboard.tsx. Spinner nie zawiśnie: oba isLoaded są ustawiane też w
+  // error-handlerach hooków (useTrainingPlan/usePlanCycles).
+  if (!planIsLoaded || !cyclesLoaded) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-pulse text-muted-foreground">{t('common.loading')}</div>
+      </div>
+    );
+  }
 
   // WP-PLANS-1 (X27): plan zakończony — pusty stan z CTA zamiast timeline
   // z martwego planu (dashboard/plan/day nie planują po 'ended').
