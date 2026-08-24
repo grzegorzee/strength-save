@@ -1814,6 +1814,7 @@ export const pl = {
   'profile.toast.linkFailed': 'Nie udało się wysłać linku.',
   'profile.toast.error': 'Błąd',
   'profile.aria.changeAvatar': 'Zmień zdjęcie profilowe',
+  'profile.emailToggle': 'Pokaż lub ukryj adres email',
   'profile.about.title': 'Strength Save',
   'profile.about.desc': 'Aplikacja do śledzenia treningów siłowych.',
   'profile.about.version': 'Wersja {version}',

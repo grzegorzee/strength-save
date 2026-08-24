@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { maskEmail, readEmailVisible } from '@/lib/mask-email';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -182,7 +183,11 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                   <div className="px-2 py-1.5 border-b mb-1">
                     <p className="text-sm font-medium">{displayName}</p>
                     {profile?.email && (
-                      <p className="text-xs text-muted-foreground truncate">{profile.email}</p>
+                      // WP-G (X29): ta sama maska co w Profilu; toggle żyje tylko
+                      // w Profilu, bez title z pełnym adresem (to obejście maski).
+                      <p className="text-xs text-muted-foreground truncate">
+                        {readEmailVisible() ? profile.email : maskEmail(profile.email)}
+                      </p>
                     )}
                     <p className="text-[10px] text-muted-foreground mt-0.5">v{__APP_VERSION__}</p>
                   </div>

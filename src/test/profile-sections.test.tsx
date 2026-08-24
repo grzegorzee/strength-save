@@ -172,9 +172,12 @@ describe('krok 3 + fala 2: sekcje Profilu wg artboardu 1a', () => {
 
   it('niezmiennik (zasada #5): wszystkie dotychczasowe wiersze i akcje obecne po redesignie', () => {
     const { container, getByText, getByTestId, getByLabelText } = renderProfile();
-    // IDENTITY: imię (dialog), avatar (upload), email, chip poziomu.
+    // IDENTITY: imię (dialog), avatar (upload), email (WP-G: domyślnie
+    // zamaskowany, pełny po odsłonięciu toggle), chip poziomu.
     expect(getByTestId('profile-name-edit')).toBeTruthy();
     expect(getByLabelText('Zmień zdjęcie profilowe')).toBeTruthy();
+    expect(getByText('t•••••@e••••••.com')).toBeTruthy();
+    fireEvent.click(getByLabelText('Pokaż lub ukryj adres email'));
     expect(getByText('tester@example.com')).toBeTruthy();
     expect(getByTestId('chip-tier')).toBeTruthy();
     // KAFLE DUMY (fala 2): 4 realne statystyki, renderowane zawsze.
@@ -202,6 +205,39 @@ describe('krok 3 + fala 2: sekcje Profilu wg artboardu 1a', () => {
     expect(getByText('Wyloguj')).toBeTruthy();
     expect(getByText('Usuń konto i wszystkie dane')).toBeTruthy();
     expect(getByText('Strength Save 0.0.0-test')).toBeTruthy();
+  });
+});
+
+// WP-G (plan X29): email w bloku identity domyślnie zamaskowany; toggle oka
+// odsłania i zapamiętuje wybór w localStorage `ss-email-visible`.
+describe('WP-G: maskowanie emaila w Profilu', () => {
+  it('domyślnie maska, pełny adres niewidoczny', () => {
+    const { getByText, queryByText } = renderProfile();
+    expect(getByText('t•••••@e••••••.com')).toBeTruthy();
+    expect(queryByText('tester@example.com')).toBeNull();
+  });
+
+  it('klik toggle odsłania adres i zapisuje ss-email-visible=true', () => {
+    const { getByText, getByLabelText, queryByText } = renderProfile();
+    fireEvent.click(getByLabelText('Pokaż lub ukryj adres email'));
+    expect(getByText('tester@example.com')).toBeTruthy();
+    expect(queryByText('t•••••@e••••••.com')).toBeNull();
+    expect(localStorage.getItem('ss-email-visible')).toBe('true');
+  });
+
+  it('ponowny klik maskuje z powrotem i zapisuje false', () => {
+    const { getByText, getByLabelText } = renderProfile();
+    const toggle = getByLabelText('Pokaż lub ukryj adres email');
+    fireEvent.click(toggle);
+    fireEvent.click(toggle);
+    expect(getByText('t•••••@e••••••.com')).toBeTruthy();
+    expect(localStorage.getItem('ss-email-visible')).toBe('false');
+  });
+
+  it('persist: ss-email-visible=true w localStorage → pełny adres od pierwszego renderu', () => {
+    localStorage.setItem('ss-email-visible', 'true');
+    const { getByText } = renderProfile();
+    expect(getByText('tester@example.com')).toBeTruthy();
   });
 });
 
