@@ -78,7 +78,7 @@ export const HistoryExportSheet = ({
         return;
       }
       if (format === 'csv') {
-        downloadWorkoutsCsvFile(workouts);
+        await downloadWorkoutsCsvFile(workouts);
         toast({ title: t('data.export.done'), description: t('data.exportCsv.doneDesc') });
       } else {
         const now = new Date();

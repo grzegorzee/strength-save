@@ -14,6 +14,7 @@ import {
 import { Download, Upload, Trash2, Loader2, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatLocalDate } from '@/lib/utils';
+import { shareOrDownloadFile } from '@/lib/share-export';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
@@ -201,17 +202,15 @@ export const DataManagement = ({
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
   const [isImporting, setIsImporting] = useState(false);
 
-  const handleExport = () => {
+  // WP-L (X29): na native <a download> jest martwe (Z179) — backup idzie
+  // w share sheet; toast sukcesu tylko gdy plik realnie wyszedł (wzorzec Z198).
+  const handleExport = async () => {
     const data = onExport();
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `fittracker-backup-${formatLocalDate(new Date())}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const file = new File([data], `fittracker-backup-${formatLocalDate(new Date())}.json`, {
+      type: 'application/json',
+    });
+    const result = await shareOrDownloadFile(file);
+    if (result === 'aborted' || result === 'failed') return;
 
     toast({
       title: t('data.export.done'),

@@ -3,6 +3,7 @@
 // zakresu + buildWorkoutsCsv + Blob flow działający też w natywnym WKWebView).
 
 import { buildWorkoutsCsv } from '@/lib/workout-csv';
+import { shareOrDownloadFile } from '@/lib/share-export';
 import { buildHistoryRowMeta } from '@/lib/history-stats';
 import { exportFileName, type ExportRangeBounds } from '@/lib/workout-export-range';
 import { fetchWorkoutHistoryPage, type WorkoutHistoryCursor } from '@/lib/workout-read-store';
@@ -35,18 +36,13 @@ export const fetchWorkoutsForBounds = async (
   return all;
 };
 
-/** Zbudowanie CSV (PR-y z tej samej logiki co wiersze Historii) + pobranie pliku. */
-export const downloadWorkoutsCsvFile = (workouts: WorkoutSession[]): void => {
+/** Zbudowanie CSV (PR-y z tej samej logiki co wiersze Historii) + pobranie pliku.
+ * WP-L (X29): przez shareOrDownloadFile — na native <a download> jest martwe
+ * (Z179), plik idzie w systemowy share sheet; web pobiera jak dotąd. */
+export const downloadWorkoutsCsvFile = async (workouts: WorkoutSession[]): Promise<void> => {
   const meta = buildHistoryRowMeta(workouts);
   const prCounts = Object.fromEntries([...meta].map(([id, m]) => [id, m.prCount]));
   const csv = buildWorkoutsCsv(workouts, prCounts);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = exportFileName(workouts);
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const file = new File([csv], exportFileName(workouts), { type: 'text/csv;charset=utf-8' });
+  await shareOrDownloadFile(file);
 };

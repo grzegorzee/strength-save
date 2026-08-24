@@ -16,6 +16,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { getCurrentAccent } from '@/lib/accent-theme';
 import { escapeHtml } from '@/lib/share-html';
+import { shareOrDownloadFile } from '@/lib/share-export';
 import { downscalePhoto } from '@/lib/share-utils';
 import { cn, formatLocalDateLabel } from '@/lib/utils';
 import { translate, dateLocale, type LanguageCode } from '@/i18n';
@@ -300,24 +301,6 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
   const shareFile = (): File | null =>
     blob ? new File([blob], `sylwetka-${before.date}-${after.date}.jpg`, { type: 'image/jpeg' }) : null;
 
-  // Wzorzec Z198: AbortError to nie blad, zero falszywego sukcesu.
-  const systemShare = async (file: File): Promise<boolean> => {
-    try {
-      await navigator.share({ title: t('measurements.shareTitle'), files: [file] });
-      return true;
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return false;
-      // X29: porazka systemowego share laduje w telemetrii (faza share).
-      reportClientErrorWithCurrentUid({
-        code: 'body-compare-export-share',
-        phase: 'other',
-        detail: err instanceof Error ? err.message : String(err),
-      });
-      setError(t('comp.share.generateError'));
-      return false;
-    }
-  };
-
   const markSaved = (action: 'download' | 'share') => {
     // X29: udany zapis/share kasuje wczesniejszy komunikat bledu.
     setError(null);
@@ -326,29 +309,33 @@ export const BodyCompareShareDialog = ({ open, onOpenChange, before, after }: Bo
     window.setTimeout(() => setSavedAction(null), 1800);
   };
 
+  // WP-L (X29): wspólna ścieżka share/download w lib/share-export (Z179+Z198:
+  // natywnie "Pobierz" idzie przez share sheet, AbortError bez fałszywego sukcesu).
+  const runShareExport = async (action: 'download' | 'share') => {
+    const file = shareFile();
+    if (!file) return;
+    const result = await shareOrDownloadFile(file, {
+      title: t('measurements.shareTitle'),
+      preferShare: action === 'share',
+      // X29 (WP-E): porazka systemowego share laduje w telemetrii (faza share).
+      onShareError: (err) => reportClientErrorWithCurrentUid({
+        code: 'body-compare-export-share',
+        phase: 'other',
+        detail: err instanceof Error ? err.message : String(err),
+      }),
+    });
+    if (result === 'failed') setError(t('comp.share.generateError'));
+    if (result === 'downloaded') markSaved('download');
+    if (result === 'shared') markSaved(action);
+  };
+
   const handleDownload = async () => {
     if (!imageUrl) return;
-    const file = shareFile();
-    // Z179: WKWebView ignoruje <a download> — natywnie przez share sheet.
-    if (Capacitor.isNativePlatform() && file && navigator.canShare?.({ files: [file] })) {
-      if (await systemShare(file)) markSaved('download');
-      return;
-    }
-    const a = document.createElement('a');
-    a.href = imageUrl;
-    a.download = `sylwetka-${before.date}-${after.date}.jpg`;
-    a.click();
-    markSaved('download');
+    await runShareExport('download');
   };
 
   const handleShare = async () => {
-    const file = shareFile();
-    if (!file) return;
-    if (navigator.canShare?.({ files: [file] })) {
-      if (await systemShare(file)) markSaved('share');
-    } else {
-      await handleDownload();
-    }
+    await runShareExport('share');
   };
 
   const formats: Array<{ id: BodyCompareFormat; label: string }> = [
