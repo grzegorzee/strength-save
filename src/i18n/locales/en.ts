@@ -2403,6 +2403,8 @@ export const en: Record<keyof typeof pl, string> = {
   'ob.welcome.nameQ': "What's your name?",
   'ob.welcome.namePlaceholder': 'Your name (optional)',
   'ob.welcome.colorQ': 'App color',
+  'ob.welcome.hello': 'Hi, {name}',
+  'ob.welcome.fromPhoto': 'From your photo',
   'ob.welcome.legalIntro': 'First, the formalities.',
   // Dedykowany krok marketingowy onboardingu (spec 2026-08-11).
   'obMarketing.title1': 'Be the first',
