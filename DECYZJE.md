@@ -21,7 +21,9 @@
 
 **Bramki po merge:** vitest **2988/2988** (355 plików), typecheck, lint 0 err, no-emoji, build web+mobile, dist-smoke, bundle 1 386 766 B, e2e 102/102 ×2.
 
-**Wydanie (potok nohup):** web LIVE `index-BvVh_gQc.js`; iOS **121** upload + obie grupy + Beta App Review **APPROVED**; AAB **v36** SHA `f2e3c069` (`~/Desktop/strength-save-v36.aab`, jar verified); rules i functions bez zmian. **Następny iOS = 122, versionCode = 37.**
+**Wydanie (potok nohup):** web LIVE `index-BvVh_gQc.js`; iOS **121** upload + obie grupy + Beta App Review **APPROVED**; AAB **v36** SHA `f2e3c069` (`~/Desktop/strength-save-v36.aab`, jar verified); rules i functions bez zmian.
+
+**X34b (uwagi właściciela po 121, ten sam wieczór):** (1) ekran 6/6 w nowej kolejności: **data pierwszego treningu** (chipy kolejnych DNI TRENINGOWYCH wg kroku 4, od dziś, "Dziś" gdy dotyczy) → czas trwania (polecane domyślnie) → nazwa → CTA wg celu; model planu nadal zakotwiczony w poniedziałku (`startDate` = poniedziałek tygodnia wybranej daty), a dni treningowe tygodnia startu sprzed wybranej daty idą do `training_plans.skippedDates` (czysta funkcja `buildFirstWorkoutSchedule`); kontrakty `choice`/`onboardingAnswers`/rules bez zmian; (2) zakładka Plan bez karty zasad "Ciężar… / Przerwy…" (`getTrainingRules` zostaje w DayPlan); (3) Dashboard przed startem cyklu: "Zobacz plan" jako CTA w akcencie (`kinetic-primary-button`, pełna szerokość) zamiast wyszarzonego outline. Wydanie X34b: patrz niżej.
 
 ### 2026-08-25 (3): X32 + X33 — kreator po cyklu od kroku 2, krok 5 jako wybór dwóch planów, "Zaczynam" bez podglądu, odpowiedzi z kreatora na cyklu, sekcja Cykle w adminie, avatar w kroku 1 (iOS 120 / AAB v35)
 
