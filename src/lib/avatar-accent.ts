@@ -7,10 +7,18 @@ import { Capacitor } from '@capacitor/core';
 import { ACCENTS } from '@/lib/accent-theme';
 import { nativeHttpBlob } from '@/lib/native-photo-fetch';
 
-interface Rgb { r: number; g: number; b: number }
+export interface Rgb { r: number; g: number; b: number }
 
 /** Poniżej tej saturacji avatar uznajemy za szary/neutralny — brak koloru. */
 const MIN_SATURATION = 0.18;
+// X33 WP-8: skupiska odcienia. HSL daje niemal czarnym/białym pikselom wysoką
+// "saturację" (szum cieni, prześwietlenia) — to nie są kolory do zaproponowania.
+const MIN_LIGHTNESS = 0.1;
+const MAX_LIGHTNESS = 0.9;
+/** Koło barw podzielone na 12 sektorów po 30 stopni. */
+const HUE_SECTORS = 12;
+/** Maksymalna liczba kandydatów ze zdjęcia (kropki "Z Twojego zdjęcia"). */
+const MAX_CANDIDATES = 3;
 /** Downsample avatara do 24x24 — wystarcza na dominantę, tanie w getImageData. */
 const SAMPLE_SIZE = 24;
 /** Twardy limit na cały pipeline (sieć + dekodowanie) — avatar to bonus, nie blokada. */
@@ -64,6 +72,29 @@ export const dominantColorFromImageData = (
 };
 
 /**
+ * X33 WP-8: do 3 kandydatów koloru ze zdjęcia. Piksele nasycone (s >= progu,
+ * jasność w paśmie kolorów, alpha >= 128) trafiają do 12 sektorów koła barw;
+ * waga sektora = liczba pikseli, kolor = średnia RGB pikseli sektora.
+ * Zwraca 3 najliczniejsze skupiska malejąco po wadze; szary avatar = [].
+ */
+export const accentCandidatesFromImageData = (data: Uint8ClampedArray): Rgb[] => {
+  const sectors = Array.from({ length: HUE_SECTORS }, () => ({ r: 0, g: 0, b: 0, count: 0 }));
+  for (let i = 0; i + 3 < data.length; i += 4) {
+    if (data[i + 3] < 128) continue;
+    const px = { r: data[i], g: data[i + 1], b: data[i + 2] };
+    const { h, s, l } = rgbToHsl(px);
+    if (s < MIN_SATURATION || l < MIN_LIGHTNESS || l > MAX_LIGHTNESS) continue;
+    const sector = sectors[Math.floor((h % 360) / (360 / HUE_SECTORS))];
+    sector.r += px.r; sector.g += px.g; sector.b += px.b; sector.count += 1;
+  }
+  return sectors
+    .filter((s) => s.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, MAX_CANDIDATES)
+    .map((s) => ({ r: Math.round(s.r / s.count), g: Math.round(s.g / s.count), b: Math.round(s.b / s.count) }));
+};
+
+/**
  * Najbliższy akcent palety (bez neutralnych slate/gray) w przestrzeni HSL:
  * różnica hue (circular, waga 2) + różnica saturacji + różnica jasności.
  */
@@ -103,12 +134,26 @@ const loadAvatarBlob = async (photoURL: string): Promise<Blob> => {
 };
 
 /**
- * photoURL -> id akcentu z palety albo null (cichy fail). Pipeline: blob ->
- * createImageBitmap -> canvas 24x24 -> getImageData -> dominanta -> najbliższy
- * akcent. Twardy timeout 5 s przez Promise.race — nigdy nie blokuje startu.
+ * X33 WP-8: skupiska -> id akcentów (nearestAccentId nigdy nie daje slate/gray),
+ * bez duplikatów, w kolejności wagi skupiska. Czysta funkcja (bez canvasu).
  */
-export const deriveAccentFromAvatar = async (photoURL: string): Promise<string | null> => {
-  const attempt = (async (): Promise<string | null> => {
+export const accentIdsFromImageData = (data: Uint8ClampedArray): string[] => {
+  const ids: string[] = [];
+  for (const rgb of accentCandidatesFromImageData(data)) {
+    const id = nearestAccentId(rgb);
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids;
+};
+
+/**
+ * X33 WP-8: photoURL -> do 3 id akcentów ze zdjęcia albo [] (cichy fail).
+ * Pipeline: blob -> createImageBitmap -> canvas 24x24 -> getImageData ->
+ * skupiska odcienia -> najbliższe akcenty. Twardy timeout 5 s przez
+ * Promise.race — nigdy nie blokuje startu.
+ */
+export const deriveAccentCandidatesFromAvatar = async (photoURL: string): Promise<string[]> => {
+  const attempt = (async (): Promise<string[]> => {
     const blob = await loadAvatarBlob(photoURL);
     const bitmap = await createImageBitmap(blob);
     try {
@@ -116,17 +161,23 @@ export const deriveAccentFromAvatar = async (photoURL: string): Promise<string |
       canvas.width = SAMPLE_SIZE;
       canvas.height = SAMPLE_SIZE;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) return null;
+      if (!ctx) return [];
       ctx.drawImage(bitmap, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
       const { data } = ctx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
-      const dominant = dominantColorFromImageData(data);
-      return dominant ? nearestAccentId(dominant) : null;
+      return accentIdsFromImageData(data);
     } finally {
       bitmap.close?.();
     }
-  })().catch(() => null);
-  const timeout = new Promise<null>((resolve) => {
-    setTimeout(() => resolve(null), DERIVE_TIMEOUT_MS);
+  })().catch(() => []);
+  const timeout = new Promise<string[]>((resolve) => {
+    setTimeout(() => resolve([]), DERIVE_TIMEOUT_MS);
   });
   return Promise.race([attempt, timeout]);
 };
+
+/**
+ * photoURL -> id akcentu z palety albo null (cichy fail). Kontrakt X29 bez
+ * zmian; od X33 = pierwszy (najliczniejszy) kandydat ze zdjęcia.
+ */
+export const deriveAccentFromAvatar = async (photoURL: string): Promise<string | null> =>
+  (await deriveAccentCandidatesFromAvatar(photoURL))[0] ?? null;
