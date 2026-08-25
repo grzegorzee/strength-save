@@ -1509,8 +1509,10 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
 
     // 3. Powrót do treningu z planu — TU przepadały ćwiczenia w incydencie 2026-07-20.
     await navigateAndWait(page, '/workout/day-1');
-    await expect(planCards.first()).toBeVisible();
-    expect(await planCards.count()).toBe(planExerciseCount);
+    // Retryowane toHaveCount: zmiana parametru trasy (adhoc -> day-1) w tym samym
+    // komponencie przechodzi przez chwilowe 0 kart; jednorazowy count() na webkit
+    // trafiał w ten stan (fałszywy fail).
+    await expect(planCards).toHaveCount(planExerciseCount);
 
     // Zalogowana seria PRZEŻYWA przerwanie w szkicu (to jest gwarancja po incydencie
     // 2026-07-20). Dane sprawdzamy u ŹRÓDŁA, nie po widoku.
