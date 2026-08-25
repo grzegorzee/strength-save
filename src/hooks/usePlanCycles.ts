@@ -16,7 +16,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { PlanCycle, PlanCycleStats } from '@/types/cycles';
+import type { PlanCycle, PlanCycleChoice, PlanCycleStats } from '@/types/cycles';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { calendarDayDiff, formatLocalDate } from '@/lib/utils';
@@ -243,6 +243,10 @@ export const usePlanCycles = (userId: string) => {
     planDays: TrainingDay[],
     durationWeeks: number,
     startDate: string,
+    // WP-6 (X33): odpowiedzi z kreatora zapisywane NA cyklu od razu w dokumencie
+    // (brak osobnego update). Bez opts (auto-repair Dashboard/Cycles) pole nie
+    // powstaje. Reuse aktywnego cyklu (retry) nie nadpisuje istniejącego choice.
+    opts?: { choice?: PlanCycleChoice },
   ): Promise<string | null> => {
     if (!userId) return null;
 
@@ -256,6 +260,7 @@ export const usePlanCycles = (userId: string) => {
         status: 'active',
         createdAt: new Date().toISOString(),
         stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+        ...(opts?.choice ? { choice: opts.choice } : {}),
       };
 
       // The start date is the operation key. Retrying after a lost response must

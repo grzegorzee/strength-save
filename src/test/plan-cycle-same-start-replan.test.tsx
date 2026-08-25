@@ -66,6 +66,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { startCycleWithPlan } from '@/lib/cycle-actions';
+import { buildCycleChoice } from '@/test/canonical-states';
 
 const wrapper = ({ children }: { children: ReactNode }) => <LanguageProvider>{children}</LanguageProvider>;
 
@@ -177,6 +178,52 @@ describe('H1 bug B: createActiveCycle przy zajetym deterministycznym id', () => 
 
     expect(id).toBe(BASE_ID);
     expect(fake.store.get(`plan_cycles/${BASE_ID}`)?.status).toBe('active');
+  });
+});
+
+// WP-6 (X33): odpowiedzi z kreatora zapisywane NA cyklu przy jego tworzeniu.
+describe('WP-6 (X33): createActiveCycle z opts.choice', () => {
+  const choiceA = buildCycleChoice('onboarding', '2026-08-25T10:00:00.000Z');
+  const choiceB = buildCycleChoice('replan', '2026-08-25T10:30:00.000Z');
+
+  it('nowy dokument powstaje OD RAZU z polem choice (bez osobnego update)', async () => {
+    const { result } = renderHook(() => usePlanCycles(UID));
+
+    const id = await result.current.createActiveCycle(newDays, 12, START, { choice: choiceA });
+
+    expect(id).toBe(BASE_ID);
+    expect(fake.store.get(`plan_cycles/${BASE_ID}`)?.choice).toEqual(choiceA);
+  });
+
+  it('NIEZMIENNIK (auto-repair Dashboard, bez opts): pole choice NIE powstaje', async () => {
+    const { result } = renderHook(() => usePlanCycles(UID));
+
+    const id = await result.current.createActiveCycle(newDays, 12, START);
+
+    expect(fake.store.get(`plan_cycles/${id}`)).not.toHaveProperty('choice');
+  });
+
+  it('reuse aktywnego cyklu (retry po zgubionej odpowiedzi) NIE nadpisuje istniejacego choice', async () => {
+    fake.store.set(`plan_cycles/${BASE_ID}`, cycleDoc(newDays, { choice: choiceA }));
+    const { result } = renderHook(() => usePlanCycles(UID));
+
+    const id = await result.current.createActiveCycle(newDays, 12, START, { choice: choiceB });
+
+    expect(id).toBe(BASE_ID);
+    expect(storeCycles()).toHaveLength(1);
+    expect(fake.store.get(`plan_cycles/${BASE_ID}`)?.choice).toEqual(choiceA);
+  });
+
+  it('id zajete przez zamkniety cykl z choice -> nowy dokument ma WLASNE choice, stary nietkniety', async () => {
+    const completed = cycleDoc(oldDays, { status: 'completed', endDate: '2026-08-25', durationWeeks: 1, choice: choiceA });
+    fake.store.set(`plan_cycles/${BASE_ID}`, completed);
+    const { result } = renderHook(() => usePlanCycles(UID));
+
+    const id = await result.current.createActiveCycle(newDays, 12, START, { choice: choiceB });
+
+    expect(id).not.toBe(BASE_ID);
+    expect(fake.store.get(`plan_cycles/${id}`)?.choice).toEqual(choiceB);
+    expect(fake.store.get(`plan_cycles/${BASE_ID}`)).toEqual(completed);
   });
 });
 
