@@ -66,12 +66,10 @@ const ALLOWED_LOGIC_CALLS: Record<string, number> = {
   'src/pages/WorkoutHistory.tsx': 2,
   // logika, nie etykieta: okna aktywnosci, granice planu, prestart, autokoniec
   'src/pages/Dashboard.tsx': 5,
-  // logika, nie etykieta: sortowania pomiarow po dacie
-  'src/pages/Measurements.tsx': 4,
   // logika, nie etykieta: zakresy dat, poprzednia sesja, klucze miesiecy
   'src/pages/Analytics.tsx': 8,
   // logika, nie etykieta: markery kalendarza, start tygodnia, daty treningow
-  'src/pages/TrainingPlan.tsx': 8,
+  'src/pages/TrainingPlan.tsx': 6,
 };
 
 const collectSourceFiles = (dir: string): string[] => {

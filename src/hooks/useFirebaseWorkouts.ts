@@ -32,7 +32,6 @@ import {
 import { useTranslation } from '@/contexts/LanguageContext';
 import { saveWorkoutBatchWithRevision } from '@/lib/workout-save';
 import { clampSet } from '@/lib/workout-sanitizers';
-import { sanitizePlanCycleDoc } from '@/lib/firestore-doc-guards';
 import { getWorkoutReadSnapshot, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier, type WorkoutTier } from '@/lib/workout-read-store';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };

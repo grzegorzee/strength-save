@@ -11,6 +11,7 @@ import type { WorkoutSession } from '@/types';
 const getDocMock = vi.hoisted(() => vi.fn());
 const getDocsMock = vi.hoisted(() => vi.fn());
 const updateDocMock = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined));
+const runTransactionMock = vi.hoisted(() => vi.fn());
 const reportClientErrorMock = vi.hoisted(() => vi.fn(async () => undefined));
 
 vi.mock('@/lib/firebase', () => ({ db: {} }));
@@ -26,7 +27,7 @@ vi.mock('firebase/firestore', () => ({
   getDocFromServer: vi.fn(),
   getDocs: getDocsMock,
   getDocsFromCache: vi.fn(),
-  runTransaction: vi.fn(),
+  runTransaction: runTransactionMock,
   setDoc: vi.fn(),
   updateDoc: updateDocMock,
   deleteDoc: vi.fn(),
@@ -125,6 +126,14 @@ describe('bug 15 — backfillHistoricalWorkouts: fallback getDocs odfiltrowuje u
         sets: [{ reps: 5, weight: 100, completed: true }],
       }],
     };
+    // Bug 43 (X30): backfill pisze w transakcji z precondycją rewizji — mock
+    // odwzorowuje dokument o tej samej rewizji co snapshot klienta (0).
+    const txUpdate = vi.fn();
+    runTransactionMock.mockImplementation(async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        get: async () => ({ exists: () => true, data: () => ({ ...orphan, revision: 0 }) }),
+        update: txUpdate,
+      }));
     const { result } = renderHook(() =>
       useFirebaseWorkoutActions('u1', { workouts: [orphan], measurements: [] }));
 
@@ -132,8 +141,9 @@ describe('bug 15 — backfillHistoricalWorkouts: fallback getDocs odfiltrowuje u
 
     expect(outcome.error).toBeUndefined();
     expect(outcome.updated).toBe(1);
-    expect(updateDocMock).toHaveBeenCalledTimes(1);
-    const [ref, update] = updateDocMock.mock.calls[0] as [
+    expect(updateDocMock).not.toHaveBeenCalled();
+    expect(txUpdate).toHaveBeenCalledTimes(1);
+    const [ref, update] = txUpdate.mock.calls[0] as [
       { col: string; id: string },
       { cycleId?: string },
     ];
