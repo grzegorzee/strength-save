@@ -72,7 +72,8 @@ const renderAndConfirm = async () => {
       </LanguageProvider>
     </MemoryRouter>,
   );
-  fireEvent.click(screen.getByText('WIZARD-CONFIRM'));
+  // X31 H2: kreator montuje sie dopiero po odczycie trainingProfile (getDoc).
+  fireEvent.click(await screen.findByText('WIZARD-CONFIRM'));
   fireEvent.click(await screen.findByText('PREVIEW-CONFIRM'));
   await waitFor(() => expect(startCycleWithPlan).toHaveBeenCalledTimes(1));
 };

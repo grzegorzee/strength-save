@@ -79,7 +79,12 @@ const NewPlan = () => {
     }
   }, [requiresPaywall, phase, navigate]);
   const [sourceCycle, setSourceCycle] = useState<PlanCycle | null>(null);
-  const [profileHint, setProfileHint] = useState<ProfileHint | undefined>();
+  // X31 H2: undefined = profil jeszcze nie wczytany, null = brak profilu / awaria
+  // odczytu. PlanWizard czyta `initial` TYLKO przy montowaniu (inicjalizatory
+  // useState), wiec kreator nie ma prawa wystartowac przed odpowiedzia getDoc:
+  // inaczej krok 5 liczy rekomendacje z domyslnych beginner/build_muscle/4 dni
+  // zamiast z odpowiedzi usera (incydent na realnym koncie, replan bez fromCycle).
+  const [profileHint, setProfileHint] = useState<ProfileHint | null | undefined>();
   const [chosen, setChosen] = useState<PlanWizardChoice | null>(null);
   const [reviewDays, setReviewDays] = useState<TrainingDay[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -112,11 +117,14 @@ const NewPlan = () => {
 
   // Pre-fill wizarda z zapisanego profilu treningowego (level/cel/dni z onboardingu).
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) { setProfileHint(null); return; }
     getDoc(doc(db, 'users', uid)).then((snap) => {
       const tp = snap.exists() ? (snap.data() as { trainingProfile?: ProfileHint }).trainingProfile : null;
-      if (tp && tp.level && tp.objective) setProfileHint({ level: tp.level, objective: tp.objective, daysPerWeek: tp.daysPerWeek || 4 });
-    }).catch(() => { /* brak profilu — wizard użyje domyślnych */ });
+      setProfileHint(tp && tp.level && tp.objective ? { level: tp.level, objective: tp.objective, daysPerWeek: tp.daysPerWeek || 4 } : null);
+    }).catch(() => {
+      // brak profilu / offline — wizard użyje domyślnych, nie czeka w nieskończoność
+      setProfileHint(null);
+    });
   }, [uid]);
 
   // Wczytaj zakończony cykl (fromCycle) do ekranu closeout.
@@ -188,8 +196,8 @@ const NewPlan = () => {
     }
   };
 
-  // ── Loading ──
-  if (phase === 'loading') {
+  // ── Loading (cykl do closeout albo profil treningowy do pre-fill kreatora) ──
+  if (phase === 'loading' || (phase === 'wizard' && profileHint === undefined)) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
@@ -209,7 +217,7 @@ const NewPlan = () => {
           </div>
         )}
         <PlanWizard
-          initial={profileHint}
+          initial={profileHint ?? undefined}
           resume={chosen}
           builderDraftKey={builderDraftKey(uid)}
           startAtPrecision
