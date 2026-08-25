@@ -180,13 +180,23 @@ const buildWorkout = (
   };
 };
 
-/** Pomiar liczbowy: ksztalt zapisu addMeasurement (kg/cm kanoniczne). */
-const buildMeasurement = (dateISO: string): BodyMeasurement => ({
+/** Pomiar liczbowy: ksztalt zapisu addMeasurement sprzed 2026-08-13 (legacy,
+ *  bez recordedAt — takie wpisy wciaz zyja w produkcji). Eksport: WP-M testy
+ *  edycji buduja fixtury tymi samymi builderami co stany kanoniczne. */
+export const buildMeasurement = (dateISO: string): BodyMeasurement => ({
   id: `measurement-${dateISO}`,
   userId: CANONICAL_UID,
   date: dateISO,
   weight: 83.5,
   waist: 88,
+});
+
+/** WP-M: pomiar z godzina wykonania — ksztalt zapisu addMeasurement od
+ *  2026-08-13 (recordedAt epoch ms w obrebie dnia `date`). */
+export const buildRecordedMeasurement = (dateISO: string, hour: number): BodyMeasurement => ({
+  ...buildMeasurement(dateISO),
+  id: `measurement-recorded-${dateISO}`,
+  recordedAt: parseLocalDate(dateISO).getTime() + hour * 3_600_000,
 });
 
 /** Wpis pomiaru TYLKO-zdjecie (WP-D, X27): photoUrl bez zadnego pola liczbowego
@@ -200,7 +210,7 @@ const buildPhotoOnlyMeasurement = (dateISO: string): BodyMeasurement => ({
 
 /** WP-E (X28): pomiar z waga i zdjeciem — ksztalt zapisu addMeasurement po
  *  udanym uploadzie foto (photoUrl + photoPath jak w Measurements.tsx). */
-const buildPhotoWeightMeasurement = (dateISO: string, weightKg: number): BodyMeasurement => ({
+export const buildPhotoWeightMeasurement = (dateISO: string, weightKg: number): BodyMeasurement => ({
   id: `measurement-photo-weight-${dateISO}`,
   userId: CANONICAL_UID,
   date: dateISO,
@@ -581,6 +591,9 @@ export const buildUseFirebaseWorkoutsResult = (state: CanonicalState) => {
       state.workouts.find((w) => w.dayId === dayId && w.date === state.todayISO) ?? null,
     getLatestWorkout: () => completed[0] ?? null,
     addMeasurement: async () => ({ measurement: null }),
+    // WP-M: edycja/usuwanie wpisu pomiaru (Measurements.tsx destrukturyzuje oba).
+    updateMeasurement: async () => ({ measurement: null }),
+    deleteMeasurement: async () => ({ ok: true }),
     getLatestMeasurement: () => latestFirst[0] ?? null,
     getTotalWeight: () =>
       completed.reduce(

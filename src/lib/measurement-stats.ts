@@ -41,11 +41,20 @@ export const MEASUREMENT_FIELD_LABEL_KEYS: Record<MeasurementField, TranslationK
 };
 
 export interface MeasurementSeriesPoint {
+  /** WP-M: id wpisu — klucz delty musi rozróżniać dwa wpisy tego samego dnia. */
+  id: string;
   date: string;
   value: number;
   /** Zmiana vs poprzedni pomiar tego pola; null dla pierwszego punktu. */
   delta: number | null;
 }
+
+/** WP-M: porządek chronologiczny wpisów — date, potem recordedAt (fallback id),
+ *  bo po edycji godziny dwa wpisy tego samego dnia muszą mieć stabilną kolejność. */
+export const compareMeasurementsAsc = (a: BodyMeasurement, b: BodyMeasurement): number =>
+  a.date.localeCompare(b.date)
+  || (a.recordedAt ?? 0) - (b.recordedAt ?? 0)
+  || a.id.localeCompare(b.id);
 
 export const buildMeasurementSeries = (
   measurements: BodyMeasurement[],
@@ -53,12 +62,13 @@ export const buildMeasurementSeries = (
 ): MeasurementSeriesPoint[] => {
   const points = measurements
     .filter((m) => typeof m[field] === 'number')
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort(compareMeasurementsAsc);
 
   return points.map((m, index) => {
     const value = m[field] as number;
     const prev = index > 0 ? (points[index - 1][field] as number) : null;
     return {
+      id: m.id,
       date: m.date,
       value,
       delta: prev === null ? null : Math.round((value - prev) * 10) / 10,

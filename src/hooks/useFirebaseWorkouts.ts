@@ -15,7 +15,8 @@ import {
   increment,
   type UpdateData,
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref as storageRef, deleteObject } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement } from '@/types';
 import { MEASUREMENT_LIMITS, validateMeasurement } from '@/lib/measurement-validation';
 import { calculateTonnage } from '@/lib/summary-utils';
@@ -36,6 +37,34 @@ export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
 
 const WORKOUTS_COLLECTION = 'workouts';
 const MEASUREMENTS_COLLECTION = 'measurements';
+
+// WP-M: wspólny sanitizer zapisu pomiaru (add + update) — usuwa undefined
+// (Firebase ich nie przyjmuje) i pilnuje identyfikatorów. recordedAt przychodzi
+// z zewnątrz: add daje Date.now(), edycja wartość z formularza/oryginału
+// (twardy zegar w środku nadpisywałby godzinę wykonania przy edycji).
+const sanitizeMeasurementWrite = (
+  userId: string,
+  id: string,
+  measurement: Omit<BodyMeasurement, 'id' | 'userId'>,
+): Record<string, string | number> => {
+  const sanitized: Record<string, string | number> = { id, userId, date: measurement.date };
+  for (const [key, value] of Object.entries(measurement)) {
+    if (value !== undefined && key !== 'id' && key !== 'userId') {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+};
+
+// WP-M: best-effort sprzątnięcie zdjęcia ze Storage — błąd Storage nigdy nie
+// blokuje operacji na dokumencie (wpis bez pliku > plik-sierota bez wpisu).
+const deleteBodyPhotoBestEffort = async (photoPath: string): Promise<void> => {
+  try {
+    await deleteObject(storageRef(storage, photoPath));
+  } catch (err) {
+    console.error('Error deleting body photo (best-effort):', err);
+  }
+};
 
 // Metryki autoregulacji (RPE/ból/jakość) — opcjonalne. Zwraca tylko zdefiniowane,
 // poprawne liczby w zakresie (Firebase nie przyjmuje undefined, więc pomijamy puste).
@@ -192,14 +221,11 @@ export const useFirebaseWorkoutActions = (
     const id = `measurement-${Date.now()}`;
     if (!validateMeasurement(measurement).valid) return { measurement: null, error: 'INVALID_MEASUREMENT' };
 
-    // Sanitize: remove undefined values (Firebase doesn't accept them)
     // FIX-B T7: recordedAt = godzina wykonania pomiaru (rules dopuszczają number).
-    const sanitized: Record<string, string | number> = { id, userId, date: measurement.date, recordedAt: Date.now() };
-    for (const [key, value] of Object.entries(measurement)) {
-      if (value !== undefined && key !== 'id' && key !== 'userId') {
-        sanitized[key] = value;
-      }
-    }
+    const sanitized = sanitizeMeasurementWrite(userId, id, {
+      ...measurement,
+      recordedAt: measurement.recordedAt ?? Date.now(),
+    });
 
     try {
       await setDoc(doc(db, MEASUREMENTS_COLLECTION, id), sanitized);
@@ -210,6 +236,49 @@ export const useFirebaseWorkoutActions = (
       return { measurement: null, error: errorMessage };
     }
   }, [userId, t]);
+
+  // WP-M: edycja istniejącego wpisu — PEŁNY setDoc (bez merge), więc pole
+  // wyczyszczone w formularzu znika z dokumentu (rules: zamknięta lista pól,
+  // update dozwolony). recordedAt bierzemy z inputu (formularz/oryginał), nie
+  // z zegara. Podmiana albo usunięcie zdjęcia = best-effort deleteObject
+  // starego pliku PO udanym zapisie dokumentu.
+  const updateMeasurement = useCallback(async (
+    id: string,
+    measurement: Omit<BodyMeasurement, 'id' | 'userId'>,
+  ): Promise<{ measurement: BodyMeasurement | null; error?: string }> => {
+    const existing = measurements.find((m) => m.id === id);
+    if (!existing) return { measurement: null, error: 'MEASUREMENT_NOT_FOUND' };
+    if (!validateMeasurement(measurement).valid) return { measurement: null, error: 'INVALID_MEASUREMENT' };
+
+    const sanitized = sanitizeMeasurementWrite(userId, id, measurement);
+    try {
+      await setDoc(doc(db, MEASUREMENTS_COLLECTION, id), sanitized);
+    } catch (err) {
+      console.error('Error updating measurement:', err);
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
+      return { measurement: null, error: errorMessage };
+    }
+    if (existing.photoPath && existing.photoPath !== measurement.photoPath) {
+      await deleteBodyPhotoBestEffort(existing.photoPath);
+    }
+    return { measurement: { ...sanitized } as unknown as BodyMeasurement };
+  }, [userId, measurements, t]);
+
+  // WP-M: usunięcie wpisu + best-effort sprzątnięcie jego zdjęcia ze Storage.
+  const deleteMeasurement = useCallback(async (id: string): Promise<{ ok: boolean; error?: string }> => {
+    const existing = measurements.find((m) => m.id === id);
+    try {
+      await deleteDoc(doc(db, MEASUREMENTS_COLLECTION, id));
+    } catch (err) {
+      console.error('Error deleting measurement:', err);
+      const errorMessage = err instanceof Error ? err.message : t('common.unknownError');
+      return { ok: false, error: errorMessage };
+    }
+    if (existing?.photoPath) {
+      await deleteBodyPhotoBestEffort(existing.photoPath);
+    }
+    return { ok: true };
+  }, [measurements, t]);
 
   // Z213: jedna implementacja selekcji (pełna lista i sonda 'latest' dają ten sam wynik).
   const getLatestMeasurement = useCallback(() => selectLatestMeasurement(measurements), [measurements]);
@@ -585,6 +654,8 @@ export const useFirebaseWorkoutActions = (
     getTodaysWorkout,
     getLatestWorkout,
     addMeasurement,
+    updateMeasurement,
+    deleteMeasurement,
     getLatestMeasurement,
     getTotalWeight,
     getCompletedWorkoutsCount,
