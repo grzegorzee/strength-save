@@ -13,10 +13,13 @@ interface FakeQuery { col?: { collection?: string }; constraints?: Array<{ type?
 const mocks = vi.hoisted(() => ({
   getDoc: vi.fn(),
   getDocs: vi.fn(),
-  setDoc: vi.fn(async () => undefined),
-  updateDoc: vi.fn(async () => undefined),
-  deleteDoc: vi.fn(async () => undefined),
-  onSnapshot: vi.fn(() => () => undefined),
+  setDoc: vi.fn(async (..._args: unknown[]) => undefined),
+  updateDoc: vi.fn(async (..._args: unknown[]) => undefined),
+  deleteDoc: vi.fn(async (..._args: unknown[]) => undefined),
+  onSnapshot: vi.fn(
+    (_q: unknown, _next: (snap: { forEach: (cb: (d: { id: string; data: () => Record<string, unknown> }) => void) => void }) => void) =>
+      () => undefined,
+  ),
   batchUpdates: [] as Array<[{ col: string; id: string }, Record<string, unknown>]>,
   batchDeletes: [] as Array<{ col: string; id: string }>,
 }));

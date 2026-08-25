@@ -10,7 +10,7 @@ import type { WorkoutSession } from '@/types';
 
 const getDocMock = vi.hoisted(() => vi.fn());
 const getDocsMock = vi.hoisted(() => vi.fn());
-const updateDocMock = vi.hoisted(() => vi.fn(async () => undefined));
+const updateDocMock = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined));
 const reportClientErrorMock = vi.hoisted(() => vi.fn(async () => undefined));
 
 vi.mock('@/lib/firebase', () => ({ db: {} }));
