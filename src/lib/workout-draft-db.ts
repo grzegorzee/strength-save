@@ -945,6 +945,20 @@ export const workoutDraftDb = {
     const previous = writeChains.get(key) ?? Promise.resolve();
     const write = previous.then(async () => {
       if (normalized.version < (latestWriteVersions.get(key) ?? normalized.version)) return;
+      // Bug 38 (X30): tombstone promocji może powstać JUŻ PO synchronicznym
+      // sprawdzeniu wyżej — zapis zakolejkowany za łańcuchem markPromotedToRemote
+      // wykonuje się dopiero po commicie runPromote (stary klucz usunięty).
+      // Ponowny odczyt w closure kieruje taki zapis pod klucz remote, zamiast
+      // wskrzeszać osierocony draft provisional. Bez chainowania na klucz remote:
+      // jesteśmy w środku łańcucha klucza provisional, a transakcja IDB w
+      // redirectDraftSave sama serializuje rekord remote (merge z guardem wersji).
+      if (normalized.sessionOrigin === 'provisional' || isProvisionalWorkoutSessionId(normalized.sessionId)) {
+        const tombstone = readPromotionTombstone(normalized.userId, normalized.sessionId);
+        if (tombstone && tombstone.remoteId !== normalized.sessionId) {
+          await redirectDraftSave(normalized, tombstone.remoteId).catch(() => undefined);
+          return;
+        }
+      }
       try {
         await runWrite(normalized, normalized.userId, undefined, { skipIfNewerExists: true });
       } catch {

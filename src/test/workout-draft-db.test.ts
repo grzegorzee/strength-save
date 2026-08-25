@@ -552,6 +552,40 @@ describe('workoutDraftDb', () => {
     expect(merged?.lastActivityAt).toBe(4_200_000);
   });
 
+  it('bug 38: autosave startujący w oknie promocji (tombstone jeszcze nie zapisany) nie wskrzesza draftu pod kluczem provisional', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+
+    // Wyścig: autosave rusza PO rejestracji łańcucha promocji w writeChains
+    // (synchronicznej), ale PRZED zapisem tombstone'a — synchroniczny odczyt
+    // tombstone'a w saveActiveDraft widzi jeszcze null, a odroczony zapis
+    // wykonuje się już PO commicie runPromote (stary klucz usunięty).
+    const promote = workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId, { revision: 0, updatedAt: 500 });
+    const racingSave = workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 4,
+      dayNotes: 'zapis wyscigowy w oknie promocji',
+    });
+    await Promise.all([promote, racingSave]);
+
+    const drafts = await workoutDraftDb.listDrafts('user-1');
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].sessionId).toBe(remoteId);
+    expect(drafts[0].dayNotes).toBe('zapis wyscigowy w oknie promocji');
+    const orphan = await workoutDraftDb.loadDraft('user-1', provisionalId);
+    expect(orphan).toBeNull();
+  });
+
   it('markPromotedToRemote nie cofa treści, gdy draft remote ma nowszą version (R2-04)', async () => {
     const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
     const remoteId = 'workout-user-1-day-1-2026-04-03';
