@@ -19,6 +19,8 @@ export interface E2EAuthState {
   subscription?: { tier: string; status: string; expiresAt: string | null } | null;
   /** Czy user ma ukończone treningi (sprawdzane przez hard paywall guard). */
   hasWorkouts?: boolean;
+  /** WP-G (X35a): profil treningowy w profilu E2E (cel steruje tonem delty wagi). */
+  trainingProfile?: { level?: string; objective?: string; daysPerWeek?: number };
 }
 
 export const readE2EAuthState = (): E2EAuthState => {
@@ -44,6 +46,7 @@ export const readE2EAuthState = (): E2EAuthState => {
       simulateNative: parsed.simulateNative === true,
       subscription: parsed.subscription && typeof parsed.subscription === 'object' ? parsed.subscription : null,
       hasWorkouts: parsed.hasWorkouts === true,
+      trainingProfile: parsed.trainingProfile && typeof parsed.trainingProfile === 'object' ? parsed.trainingProfile : undefined,
     };
   } catch {
     return { scenario: 'active-admin' };

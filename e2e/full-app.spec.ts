@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, waitForMatchingToFinish } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, waitForMatchingToFinish } from './helpers';
 
 // X30 WP-L: /workout/day-N bez ?date= renderuje się na dziś, a domyślna nazwa
 // dnia planu podąża za datą (nagłówek "Wtorek" we wtorek, nie "Poniedziałek").
@@ -1823,5 +1823,128 @@ test.describe('LocalStorage', () => {
     await clearWorkoutDraftDb(page, 'test-user');
     const cleared = await readWorkoutDraftDb(page, 'test-user');
     expect(cleared).toBeNull();
+  });
+});
+
+// =====================================================
+// 13. POMIARY (WP-G, X35a)
+// =====================================================
+test.describe('Pomiary (WP-G X35a)', () => {
+  const e2eMeasurements = (earlierKg: number, laterKg: number) => [
+    { id: 'm-earlier', userId: 'e2e-user', date: localDaysAgo(14), weight: earlierKg, waist: 90, recordedAt: Date.now() - 14 * 86_400_000 },
+    { id: 'm-later', userId: 'e2e-user', date: localDaysAgo(7), weight: laterKg, waist: 88, recordedAt: Date.now() - 7 * 86_400_000 },
+  ];
+
+  test.beforeEach(async ({ page }) => {
+    await blockFirebase(page);
+  });
+
+  // p.4: popup "Zrób pomiary" po onboardingu. W mocku E2E zapis onboardingu nie
+  // dochodzi do Dashboardu (Firestore zablokowany), więc e2e startuje od redirectu
+  // /?welcome=1; pełną sekwencję od kroku 1 pokrywa vitest
+  // (onboarding-measure-prompt-sequence.test.tsx).
+  test('popup pomiarów po onboardingu: /?welcome=1 bez pomiarów -> "Tak, dodaj pomiary" -> /measurements', async ({ page }) => {
+    await page.goto('./#/?welcome=1');
+    await page.waitForLoadState('domcontentloaded');
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Dodać pomiary ciała?')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Tak, dodaj pomiary' }).click();
+    await expect(page).toHaveURL(/#\/measurements$/);
+    await expectPageRendered(page);
+  });
+
+  test('popup pomiarów: "Nie teraz" zamyka bez nawigacji; user z pomiarem popupu nie widzi', async ({ page }) => {
+    await page.goto('./#/?welcome=1');
+    await page.waitForLoadState('domcontentloaded');
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Nie teraz' }).click();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/#\/measurements/);
+
+    await setE2EMeasurements(page, e2eMeasurements(84, 83));
+    await page.goto('./#/?welcome=1');
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByTestId('dash-greeting')).toBeVisible();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  });
+
+  // p.3: ton delty wagi wg celu usera (fat_loss: spadek = success; build_muscle:
+  // spadek = destructive); talia zawsze wg celu pola (spadek = success).
+  test('delty wagi wg celu: fat_loss spadek wagi = success (wiersz + badge trendu), talia w dół = success', async ({ page }) => {
+    await setE2EAuthScenario(page, 'active-user', { trainingProfile: { objective: 'fat_loss' } });
+    await setE2EMeasurements(page, e2eMeasurements(84, 83));
+    await navigateAndWait(page, '/measurements');
+    const row = page.getByTestId('measurement-row-m-later');
+    await expect(row.getByTestId('measurement-delta-weight')).toHaveAttribute('data-tone', 'success');
+    await expect(row.getByTestId('measurement-delta-weight')).toHaveText(/-1/);
+    await expect(row.getByTestId('measurement-delta-waist')).toHaveAttribute('data-tone', 'success');
+    await expect(page.getByTestId('measurement-weight-trend')).toHaveAttribute('data-tone', 'success');
+  });
+
+  // Osobne testy per wariant: store mock czyta seed raz na dokument (goto na ten
+  // sam URL z inną tylko częścią hash nie przeładowuje strony).
+  test('delty wagi wg celu: build_muscle spadek wagi = destructive (talia w dół nadal success)', async ({ page }) => {
+    await setE2EAuthScenario(page, 'active-user', { trainingProfile: { objective: 'build_muscle' } });
+    await setE2EMeasurements(page, e2eMeasurements(84, 83));
+    await navigateAndWait(page, '/measurements');
+    const row = page.getByTestId('measurement-row-m-later');
+    await expect(row.getByTestId('measurement-delta-weight')).toHaveAttribute('data-tone', 'destructive');
+    await expect(row.getByTestId('measurement-delta-waist')).toHaveAttribute('data-tone', 'success');
+    await expect(page.getByTestId('measurement-weight-trend')).toHaveAttribute('data-tone', 'destructive');
+  });
+
+  test('delty wagi wg celu: build_muscle wzrost wagi = success', async ({ page }) => {
+    await setE2EAuthScenario(page, 'active-user', { trainingProfile: { objective: 'build_muscle' } });
+    await setE2EMeasurements(page, e2eMeasurements(83, 84.5));
+    await navigateAndWait(page, '/measurements');
+    const row = page.getByTestId('measurement-row-m-later');
+    await expect(row.getByTestId('measurement-delta-weight')).toHaveAttribute('data-tone', 'success');
+    await expect(row.getByTestId('measurement-delta-weight')).toHaveText(/\+1\.5/);
+    await expect(page.getByTestId('measurement-weight-trend')).toHaveAttribute('data-tone', 'success');
+  });
+
+  test('delty wagi wg celu: bez celu w profilu = neutral (wiersz i badge)', async ({ page }) => {
+    await setE2EAuthScenario(page, 'active-user');
+    await setE2EMeasurements(page, e2eMeasurements(84, 83));
+    await navigateAndWait(page, '/measurements');
+    const row = page.getByTestId('measurement-row-m-later');
+    await expect(row.getByTestId('measurement-delta-weight')).toHaveAttribute('data-tone', 'neutral');
+    await expect(page.getByTestId('measurement-weight-trend')).toHaveAttribute('data-tone', 'neutral');
+  });
+
+  // p.1-2: arkusz edycji od dołu bez poziomego overflow, focus na polu wagi (nie na dacie).
+  test('edycja pomiaru: arkusz od dołu bez poziomego przewijania, focus na wadze, data i godzina w osobnych wierszach', async ({ page }) => {
+    await setE2EMeasurements(page, e2eMeasurements(84, 83));
+    await navigateAndWait(page, '/measurements');
+    await page.getByTestId('measurement-row-m-later').click();
+    const sheet = page.getByTestId('measurement-edit-sheet');
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId('measurement-edit-weight')).toHaveValue('83');
+
+    const focused = await page.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset?.testid ?? null);
+    expect(focused).toBe('measurement-edit-weight');
+
+    const overflow = await sheet.evaluate((el) => ({
+      sheet: el.scrollWidth - el.clientWidth,
+      doc: document.documentElement.scrollWidth - window.innerWidth,
+    }));
+    expect(overflow.sheet).toBeLessThanOrEqual(0);
+    expect(overflow.doc).toBeLessThanOrEqual(0);
+
+    // Data i godzina jedna pod drugą (osobne wiersze), na całą szerokość arkusza.
+    const rows = await page.evaluate(() => {
+      const box = (id: string) => document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect();
+      const sheetBox = document.querySelector('[data-testid="measurement-edit-sheet"]')!.getBoundingClientRect();
+      const d = box('measurement-edit-date-row');
+      const t = box('measurement-edit-time-row');
+      return { dateTop: d.top, timeTop: t.top, dateWidth: d.width, timeWidth: t.width, sheetWidth: sheetBox.width };
+    });
+    expect(rows.timeTop).toBeGreaterThan(rows.dateTop);
+    expect(rows.dateWidth).toBeGreaterThan(rows.sheetWidth * 0.8);
+    expect(rows.timeWidth).toBeGreaterThan(rows.sheetWidth * 0.8);
+
+    // Kontrakty WP-M bez zmian: przyciski Usuń wpis + Zapisz obecne.
+    await expect(sheet.getByTestId('measurement-edit-delete')).toBeVisible();
+    await expect(sheet.getByTestId('measurement-edit-save')).toBeVisible();
   });
 });
