@@ -1,6 +1,13 @@
-import type { TrainingDay, Exercise } from '@/data/trainingPlan';
+import type { TrainingDay, Exercise, Weekday } from '@/data/trainingPlan';
+import type { PlanObjective } from '@/data/planTemplates';
 import type { BodyMeasurement, WorkoutSession, SetData, ExerciseProgress } from '@/types';
-import type { PlanCycle } from '@/types/cycles';
+import type {
+  PlanCycle,
+  PlanCycleChoice,
+  PlanCycleChoiceEntry,
+  PlanCycleChoiceLevel,
+  PlanCycleChoiceSource,
+} from '@/types/cycles';
 import { sanitizeSessionRatingReasons } from '@/lib/workout-session-rating';
 
 // P0: walidacja dokumentów przy hydracji z Firestore. Uszkodzony DOKUMENT jest
@@ -200,6 +207,59 @@ export const sanitizeTrainingPlanName = (value: unknown): string | null => {
 
 const CYCLE_STATUSES = new Set(['active', 'completed']);
 
+// WP-6 (X33): dozwolone wartości pól `choice`. `satisfies Record<Union, true>`
+// pilnuje, że rozszerzenie unii w typach nie zostawi sanitizera w tyle.
+const CHOICE_LEVELS = { beginner: true, intermediate: true, advanced: true } satisfies Record<PlanCycleChoiceLevel, true>;
+const CHOICE_OBJECTIVES = { build_muscle: true, peak_strength: true, fat_loss: true, athletic: true } satisfies Record<PlanObjective, true>;
+const CHOICE_SOURCES = { recommended: true, browsed: true, custom: true } satisfies Record<PlanCycleChoiceSource, true>;
+const CHOICE_ENTRIES = { onboarding: true, replan: true } satisfies Record<PlanCycleChoiceEntry, true>;
+const WEEKDAYS = {
+  monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true, sunday: true,
+} satisfies Record<Weekday, true>;
+
+const isKeyOf = <T extends Record<string, true>>(table: T, value: unknown): value is keyof T & string =>
+  typeof value === 'string' && Object.prototype.hasOwnProperty.call(table, value);
+
+/** String trim + max `max`; pusty/nie-string = null (pole nie powstaje). */
+const trimmedString = (value: unknown, max: number): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().slice(0, max);
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+/**
+ * WP-6 (X33): odpowiedzi z kreatora na cyklu. Uszkodzona mapa = null (caller
+ * pomija pole po cichu — cykl bez `choice` jest poprawny). Nieznane klucze są
+ * wycinane (hasOnly w rules), nieznane dni tygodnia odfiltrowane, stringi obcięte.
+ */
+export const sanitizePlanCycleChoice = (raw: unknown): PlanCycleChoice | null => {
+  if (!isRecord(raw)) return null;
+  if (typeof raw.version !== 'number' || !Number.isInteger(raw.version)) return null;
+  const chosenAt = trimmedString(raw.chosenAt, 40);
+  const daysPerWeek = asFiniteNumber(raw.daysPerWeek);
+  if (chosenAt === null || daysPerWeek === null || !Array.isArray(raw.trainingDays)) return null;
+  if (!isKeyOf(CHOICE_LEVELS, raw.level) || !isKeyOf(CHOICE_OBJECTIVES, raw.objective)) return null;
+  if (!isKeyOf(CHOICE_SOURCES, raw.planSource) || !isKeyOf(CHOICE_ENTRIES, raw.entry)) return null;
+
+  const choice: PlanCycleChoice = {
+    version: raw.version,
+    chosenAt,
+    level: raw.level,
+    objective: raw.objective,
+    daysPerWeek,
+    trainingDays: raw.trainingDays.filter((day): day is Weekday => isKeyOf(WEEKDAYS, day)),
+    planSource: raw.planSource,
+    entry: raw.entry,
+  };
+  const templateId = trimmedString(raw.templateId, 100);
+  if (templateId !== null) choice.templateId = templateId;
+  const recommendedTemplateId = trimmedString(raw.recommendedTemplateId, 100);
+  if (recommendedTemplateId !== null) choice.recommendedTemplateId = recommendedTemplateId;
+  const planName = trimmedString(raw.planName, 60);
+  if (planName !== null) choice.planName = planName;
+  return choice;
+};
+
 export const sanitizePlanCycleDoc = (id: string, data: unknown): PlanCycle | null => {
   if (!isRecord(data)) return null;
   const userId = asString(data.userId);
@@ -232,5 +292,8 @@ export const sanitizePlanCycleDoc = (id: string, data: unknown): PlanCycle | nul
         : {}),
     },
   };
+  // WP-6 (X33): choice przechodzi tylko jako poprawna mapa; uszkodzony = brak pola.
+  const choice = sanitizePlanCycleChoice(data.choice);
+  if (choice !== null) cycle.choice = choice;
   return cycle;
 };

@@ -197,4 +197,81 @@ describe('sanitizePlanCycleDoc (P0)', () => {
     expect(sanitizePlanCycleDoc('c1', { ...cycle(), userId: null })).toBeNull();
     expect(sanitizePlanCycleDoc('c1', { ...cycle(), days: 'zepsute' })).toBeNull();
   });
+
+  // WP-6 (X33): odpowiedzi z kreatora na cyklu. Poprawna mapa przechodzi 1:1,
+  // uszkodzona znika PO CICHU (cykl bez choice jest poprawny — stare cykle go nie mają).
+  describe('choice (WP-6, X33)', () => {
+    const choice = () => ({
+      version: 1,
+      chosenAt: '2026-08-25T10:30:00.000Z',
+      level: 'intermediate',
+      objective: 'build_muscle',
+      daysPerWeek: 3,
+      trainingDays: ['monday', 'wednesday', 'friday'],
+      planSource: 'recommended',
+      templateId: 'tpl-fullbody-3',
+      recommendedTemplateId: 'tpl-fullbody-3',
+      planName: 'Mój plan',
+      entry: 'onboarding',
+    });
+
+    it('cykl bez choice: pole nie powstaje', () => {
+      expect(sanitizePlanCycleDoc('c1', cycle())).not.toHaveProperty('choice');
+    });
+
+    it('pełny choice przechodzi bez zmian', () => {
+      expect(sanitizePlanCycleDoc('c1', { ...cycle(), choice: choice() })?.choice).toEqual(choice());
+    });
+
+    it('choice bez pól opcjonalnych: pola nie powstają, entry replan / planSource custom', () => {
+      const { templateId: _t, recommendedTemplateId: _r, planName: _p, ...minimal } = choice();
+      const out = sanitizePlanCycleDoc('c1', { ...cycle(), choice: { ...minimal, planSource: 'custom', entry: 'replan' } })?.choice;
+      expect(out).toEqual({ ...minimal, planSource: 'custom', entry: 'replan' });
+      expect(out).not.toHaveProperty('templateId');
+      expect(out).not.toHaveProperty('planName');
+    });
+
+    it('uszkodzony choice znika po cichu, cykl zostaje', () => {
+      const broken: unknown[] = [
+        'tekst',
+        42,
+        null,
+        [],
+        { ...choice(), version: 1.5 },
+        { ...choice(), version: '1' },
+        { ...choice(), level: 'pro' },
+        { ...choice(), objective: 'cardio' },
+        { ...choice(), planSource: 'magic' },
+        { ...choice(), entry: 'admin' },
+        { ...choice(), daysPerWeek: 'trzy' },
+        { ...choice(), trainingDays: 'monday' },
+        { ...choice(), chosenAt: 12345 },
+      ];
+      for (const bad of broken) {
+        const out = sanitizePlanCycleDoc('c1', { ...cycle(), choice: bad });
+        expect(out, JSON.stringify(bad)).not.toBeNull();
+        expect(out, JSON.stringify(bad)).not.toHaveProperty('choice');
+      }
+    });
+
+    it('nieznane dni tygodnia są odfiltrowane, stringi obcięte (planName 60, id 100)', () => {
+      const out = sanitizePlanCycleDoc('c1', {
+        ...cycle(),
+        choice: {
+          ...choice(),
+          trainingDays: ['monday', 'someday', 7, 'friday'],
+          planName: `  ${'x'.repeat(80)}  `,
+          templateId: 'y'.repeat(150),
+        },
+      })?.choice;
+      expect(out?.trainingDays).toEqual(['monday', 'friday']);
+      expect(out?.planName).toBe('x'.repeat(60));
+      expect(out?.templateId).toBe('y'.repeat(100));
+    });
+
+    it('nieznane klucze w choice są wycinane (hasOnly w rules)', () => {
+      const out = sanitizePlanCycleDoc('c1', { ...cycle(), choice: { ...choice(), extra: 'x' } })?.choice;
+      expect(out).toEqual(choice());
+    });
+  });
 });
