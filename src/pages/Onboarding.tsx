@@ -6,7 +6,7 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
-import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
+import { PlanWizard, type PlanWizardChoice, type PlanWizardConfirmOptions } from '@/components/PlanWizard';
 import { PlanPreview } from '@/components/PlanPreview';
 import { OnboardingMarketingStep } from '@/components/OnboardingMarketingStep';
 import {
@@ -45,13 +45,22 @@ const Onboarding = () => {
   const [marketingSaving, setMarketingSaving] = useState(false);
   const [marketingError, setMarketingError] = useState(false);
   const [marketingAnswered, setMarketingAnswered] = useState(false);
+  // X33 WP-4: "Zaczynam ten plan" = zapis bez ekranu PlanPreview (krok
+  // marketingowy bez zmian, wchodzi PRZED zapisem); "Podgląd planu" = jak dotąd.
+  const [skipPreview, setSkipPreview] = useState(false);
 
-  const handleWizardConfirm = (c: PlanWizardChoice) => {
+  const handleWizardConfirm = (c: PlanWizardChoice, opts?: PlanWizardConfirmOptions) => {
+    const skip = opts?.skipPreview === true;
     setChoice(c);
     setReviewDays(c.days);
+    setSkipPreview(skip);
     setError(null);
     if (!marketingAnswered && shouldShowMarketingStep(profile)) {
       setMarketingPrompt(true);
+      return;
+    }
+    if (skip) {
+      void finishOnboarding(c);
       return;
     }
     setShowPreview(true);
@@ -67,6 +76,10 @@ const Onboarding = () => {
       await recordConsents([buildMarketingStepSubmission(t, granted)], lang, 'onboarding-marketing-step');
       setMarketingAnswered(true);
       setMarketingPrompt(false);
+      if (skipPreview && choice) {
+        void finishOnboarding({ ...choice, days: reviewDays });
+        return;
+      }
       setShowPreview(true);
     } catch {
       setMarketingError(true);
@@ -82,11 +95,11 @@ const Onboarding = () => {
     await recordConsents(buildConsentSubmissions(t, selection), lang);
   };
 
-  const handleConfirm = async () => {
-    if (!choice) return;
+  // Jeden zapis dla obu ścieżek (podgląd -> Zatwierdź oraz "Zaczynam ten plan"):
+  // ten sam completeOnboardingPlan, ten sam payload.
+  const finishOnboarding = async (confirmed: PlanWizardChoice) => {
     setIsSaving(true);
     setError(null);
-    const confirmed: PlanWizardChoice = { ...choice, days: reviewDays };
     const result = await completeOnboardingPlan(confirmed, {
       lang,
       savePlan,
@@ -147,7 +160,7 @@ const Onboarding = () => {
         days={reviewDays}
         onDaysChange={setReviewDays}
         onBack={() => setShowPreview(false)}
-        onConfirm={handleConfirm}
+        onConfirm={() => { void finishOnboarding({ ...choice, days: reviewDays }); }}
         confirmLabel={t('ob.precision.confirm')}
         isSaving={isSaving}
         error={error}
