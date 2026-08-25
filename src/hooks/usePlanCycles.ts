@@ -225,13 +225,20 @@ export const usePlanCycles = (userId: string) => {
     try {
       const snap = await getDoc(doc(db, CYCLES_COLLECTION, cycleId));
       if (snap.exists()) {
-        return { id: snap.id, ...snap.data() } as PlanCycle;
+        // Bug 15: ten sam P0-guard co listener — surowy dokument (legacy/import
+        // backupu) bez stats/days craszował closeout NewPlan (TypeError na days).
+        const cycle = sanitizePlanCycleDoc(snap.id, snap.data());
+        if (cycle === null) {
+          void reportClientError(userId, { code: 'invalid-doc', phase: 'other', detail: `plan_cycles/${snap.id}` });
+          return null;
+        }
+        return cycle;
       }
     } catch (err) {
       console.error('[usePlanCycles] getCycleById error:', err);
     }
     return null;
-  }, [cycles]);
+  }, [cycles, userId]);
 
   const runMergeOperation = useCallback(async (
     operationId: string,

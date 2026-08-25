@@ -30,6 +30,7 @@ import {
 import { useTranslation } from '@/contexts/LanguageContext';
 import { saveWorkoutBatchWithRevision } from '@/lib/workout-save';
 import { clampSet } from '@/lib/workout-sanitizers';
+import { sanitizePlanCycleDoc } from '@/lib/firestore-doc-guards';
 import { getWorkoutReadSnapshot, subscribeWorkoutReads, selectLatestMeasurement, type MeasurementTier, type WorkoutTier } from '@/lib/workout-read-store';
 
 export type { SetData, ExerciseProgress, WorkoutSession, BodyMeasurement };
@@ -486,7 +487,11 @@ export const useFirebaseWorkoutActions = (
             collection(db, 'plan_cycles'),
             where('userId', '==', userId),
           ));
-          return snap.docs.map(cycleDoc => ({ id: cycleDoc.id, ...cycleDoc.data() } as PlanCycle));
+          // Bug 15: fallback przez ten sam P0-guard co listener cykli — surowy
+          // dokument dawał ciche błędne dopasowanie cycleId przy "napraw historię".
+          return snap.docs
+            .map(cycleDoc => sanitizePlanCycleDoc(cycleDoc.id, cycleDoc.data()))
+            .filter((cycle): cycle is PlanCycle => cycle !== null);
         })();
       const resolver = buildWorkoutResolver([], cyclesForRepair);
       let updated = 0;
