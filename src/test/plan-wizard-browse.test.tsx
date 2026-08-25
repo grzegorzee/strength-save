@@ -27,8 +27,10 @@ beforeEach(() => {
 });
 
 // Bez showWelcome wizard startuje na kroku 2 (poziom). Wybieramy fat_loss + 3 dni:
-// jedyny szablon fat_loss to 4-dniowy Lean Engine, więc sortowanie po score
-// widać gołym okiem (bez sortowania pierwszy byłby katalogowy tpl-fullbody-2).
+// sortowanie po score widać gołym okiem (bez sortowania pierwszy byłby
+// katalogowy tpl-fullbody-2). X31 H2: liczba dni to twardy priorytet, więc
+// na górze ląduje 3-dniowy szablon (poziom domyślny beginner → tpl-strength-5x5),
+// a nie 4-dniowy Lean Engine (fat_loss).
 const goToBrowseAsFatLoss3Days = () => {
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ })); // krok 2 -> 3
   fireEvent.click(screen.getByText('Redukcja'));
@@ -44,9 +46,19 @@ describe('Browse plans: sortowanie wg dopasowania + badge Polecany (WP-O)', () =
     goToBrowseAsFatLoss3Days();
 
     const headings = screen.getAllByRole('heading', { level: 3 });
-    expect(headings[0].textContent).toBe('Rzeźba i Kondycja'); // tpl-lean-engine-4 (PL)
+    expect(headings[0].textContent).toBe('Siła Fundamentalna'); // tpl-strength-5x5 (PL): 3 dni, beginner
     expect(screen.getAllByTestId('browse-recommended-badge')).toHaveLength(1);
     expect(screen.getByTestId('browse-recommended-badge').textContent).toBe('Polecany');
+  });
+
+  it('X31 H2: badge Polecany siedzi na szablonie z liczbą dni == wybór usera (3), nie na 4-dniowym Lean Engine', () => {
+    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
+    goToBrowseAsFatLoss3Days();
+
+    const badge = screen.getByTestId('browse-recommended-badge');
+    const card = badge.closest('button')!;
+    expect(card.textContent).toContain('3×');
+    expect(card.textContent).not.toContain('Rzeźba i Kondycja');
   });
 
   it('niezmiennik: lista nadal pokazuje WSZYSTKIE szablony (sortowanie niczego nie chowa)', () => {

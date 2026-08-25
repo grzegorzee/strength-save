@@ -2528,6 +2528,8 @@ export const pl = {
   'cycles.deleted': 'Cykl usunięty',
   'cycles.deleteFailed': 'Nie udało się usunąć cyklu',
   'ob.precision.change': 'Zmień ustawienia',
+  // X31 H2: podsumowanie odpowiedzi z kroków 2-4 pod rekomendacją (user widzi, że wybory zostały uwzględnione).
+  'ob.precision.answers': '{days} dni w tygodniu · {objective} · {level}',
   // WP-PLANS-2 (X27): start planu wybierany w kroku 5 (najbliższe poniedziałki).
   'ob.startWeek': 'Start planu',
   'newplan.toReview': 'Podgląd planu',
