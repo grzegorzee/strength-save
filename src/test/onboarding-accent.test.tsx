@@ -68,7 +68,9 @@ const walkWizardToConfirm = async () => {
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
-  fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+  // X34: 5A "Wybierz start planu" -> 6/6 "Podgląd planu".
+  fireEvent.click(await screen.findByTestId('ob-match-next'));
+  fireEvent.click(await screen.findByTestId('ob-start-preview'));
   await screen.findByTestId('plan-preview');
   fireEvent.click(screen.getByText('PREVIEW-CONFIRM'));
   await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));

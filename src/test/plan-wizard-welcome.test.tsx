@@ -105,8 +105,9 @@ describe('PlanWizard Welcome (Z231 + pakiet prawny v2)', () => {
     await screen.findByRole('button', { name: /Następny krok/ });
     fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));   // -> krok 3
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));           // -> krok 4
-    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));           // -> krok 5
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));           // -> krok 5A
+    fireEvent.click(screen.getByTestId('ob-match-next'));                     // -> 6/6 (X34)
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onConfirm.mock.calls[0][0].name).toBe('Grzesiek');
   });
@@ -324,9 +325,10 @@ describe('PlanWizard resumeStep (Z232)', () => {
     render(withProviders(
       <PlanWizard showWelcome legalConsent askName resume={resume} resumeStep={5} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
     ));
-    // Krok 5, nie Welcome: widać kartę planu i CTA podglądu.
+    // Krok 5A, nie Welcome: widać kartę planu i CTA "Wybierz start planu" (X34).
     expect(screen.queryByRole('heading', { name: /Witaj w Strength Save/ })).toBeNull();
-    expect(screen.getByRole('button', { name: /Podgląd planu/ })).toBeInTheDocument();
+    expect(screen.getByTestId('plan-choice-recommended')).toBeInTheDocument();
+    expect(screen.getByTestId('ob-match-next')).toBeInTheDocument();
   });
 
   it('bez resumeStep showWelcome nadal startuje od kroku 1 (stary przepływ nietknięty)', () => {

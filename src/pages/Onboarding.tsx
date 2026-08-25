@@ -48,6 +48,9 @@ const Onboarding = () => {
   // X33 WP-4: "Zaczynam ten plan" = zapis bez ekranu PlanPreview (krok
   // marketingowy bez zmian, wchodzi PRZED zapisem); "Podgląd planu" = jak dotąd.
   const [skipPreview, setSkipPreview] = useState(false);
+  // X34: krok, na który wraca kreator po remoncie: 6 = ekran 6/6 (wstecz z podglądu /
+  // kroku marketingowego), 5 = 5A po "Wybierz inny plan" (stan kreatora z `choice`).
+  const [wizardResumeStep, setWizardResumeStep] = useState<5 | 6>(6);
 
   const handleWizardConfirm = (c: PlanWizardChoice, opts?: PlanWizardConfirmOptions) => {
     const skip = opts?.skipPreview === true;
@@ -147,7 +150,7 @@ const Onboarding = () => {
       <OnboardingMarketingStep
         onAccept={() => handleMarketingAnswer(true)}
         onDecline={() => handleMarketingAnswer(false)}
-        onBack={() => { setMarketingPrompt(false); setMarketingError(false); }}
+        onBack={() => { setWizardResumeStep(6); setMarketingPrompt(false); setMarketingError(false); }}
         isSaving={marketingSaving}
         error={marketingError}
       />
@@ -159,7 +162,8 @@ const Onboarding = () => {
       <PlanPreview
         days={reviewDays}
         onDaysChange={setReviewDays}
-        onBack={() => setShowPreview(false)}
+        onBack={() => { setWizardResumeStep(6); setShowPreview(false); }}
+        onChooseOther={() => { setWizardResumeStep(5); setShowPreview(false); }}
         onConfirm={() => { void finishOnboarding({ ...choice, days: reviewDays }); }}
         confirmLabel={t('ob.precision.confirm')}
         isSaving={isSaving}
@@ -180,7 +184,8 @@ const Onboarding = () => {
       avatarPhotoURL={profile?.photoURL || undefined}
       accountEmail={profile?.email || undefined}
       resume={choice ?? undefined}
-      resumeStep={choice ? 5 : undefined}
+      // X34: powrót z podglądu / kroku marketingowego = ekran 6/6; "Wybierz inny plan" = 5A.
+      resumeStep={choice ? wizardResumeStep : undefined}
       builderDraftKey={`ss-plan-builder-draft_${uid}`}
       confirmLabelKey="newplan.toReview"
       onConfirm={handleWizardConfirm}

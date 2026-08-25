@@ -88,7 +88,8 @@ const renderNewPlan = (entry = '/new-plan') => render(
 );
 
 const isSelected = (label: string) => screen.getByText(label).closest('button')!.getAttribute('aria-pressed');
-const stepIndicator = (step: number) => screen.getByText(`0${step} / 05`);
+// X34: licznik kroków 1..6 (ekran 6/6 "Start planu").
+const stepIndicator = (step: number) => screen.getByText(`0${step} / 06`);
 // X33 WP-2: rekomendacja = karta "Polecany" (zamiast linii "polecamy plan").
 const recommendedLine = () => screen.getByTestId('plan-choice-recommended').textContent ?? '';
 
@@ -123,7 +124,11 @@ describe('NewPlan: kreator startuje od kroku 2 z profilem treningowym (X32)', ()
     const expected = getRecommendedPlan('fat_loss', 'intermediate', 3);
     expect(expected.daysPerWeek).toBe(3);
     expect(recommendedLine()).toContain(localizePlanName(expected.id, expected.name, 'pl'));
-    expect(screen.getByTestId('ob-precision-answers').textContent).toBe('3 dni w tygodniu · Redukcja · Średnio zaawansowany');
+    // X34: bez linii odpowiedzi; liczba dni z kroku 4 w nagłówku, cel w CTA ekranu 6/6.
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Plany na 3 dni w tygodniu');
+    fireEvent.click(screen.getByTestId('ob-match-next'));
+    stepIndicator(6);
+    expect(screen.getByTestId('ob-start-cta').textContent).toContain('Zacznij redukcję');
   });
 
   it('z fromCycle po closeout: "Wybierz nowy plan" prowadzi na krok 2 z profilem; wstecz wraca do closeout', async () => {
@@ -152,7 +157,7 @@ describe('NewPlan: kreator startuje od kroku 2 z profilem treningowym (X32)', ()
     expect(isSelected('Początkujący')).toBe('true');
   });
 
-  it('resume szkicu ma pierwszenstwo: Kontynuuj -> podglad -> wstecz = krok 5 z zapisanym planem, nie krok 2', async () => {
+  it('resume szkicu ma pierwszenstwo: Kontynuuj -> podglad -> wstecz = ekran 6/6 z zapisanym planem (nazwa 1:1), wstecz = 5A z zaznaczona karta, nie krok 2', async () => {
     const template = planTemplates.find((t) => t.id === 'tpl-fullbody-3')!;
     const chosen: PlanWizardChoice = {
       days: template.days,
@@ -171,13 +176,16 @@ describe('NewPlan: kreator startuje od kroku 2 z profilem treningowym (X32)', ()
     fireEvent.click(await screen.findByRole('button', { name: 'Kontynuuj' }));
     fireEvent.click(await screen.findByText('PREVIEW-BACK:3'));
 
-    await waitFor(() => stepIndicator(5));
-    // X33 WP-3: nazwa w zwiniętej linii ustawień; po "Zmień" w polu.
-    expect(screen.getByTestId('ob-plan-settings-summary').textContent).toContain('Mój szkic');
-    fireEvent.click(screen.getByRole('button', { name: 'Zmień' }));
+    // X34: powrót z podglądu = ekran 6/6 z nazwą i długością szkicu 1:1.
+    await waitFor(() => stepIndicator(6));
     expect((screen.getByTestId('ob-plan-name') as HTMLInputElement).value).toBe('Mój szkic');
-    // X33 WP-2: zapisany szablon jest zaznaczoną kartą (nie linią "Twój wybrany plan").
-    const selected = screen.getAllByTestId(/^plan-choice-(recommended|second)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
+    expect(screen.getByRole('button', { name: /^10 tyg\./ }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByTestId('ob-matching')).toBeNull();
+    // Wstecz z 6/6 = 5A: zapisany szablon jest zaznaczoną kartą (X33 WP-2), bez przerywnika.
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
+    stepIndicator(5);
+    expect(screen.queryByTestId('ob-matching')).toBeNull();
+    const selected = screen.getAllByTestId(/^plan-choice-(recommended|alternative)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
     expect(selected.textContent).toContain(localizePlanName(template.id, template.name, 'pl'));
   });
 });

@@ -3,7 +3,7 @@
 // kliknięcia. Niezmiennik (zasada #5): bieg bez dotknięcia kolorów = limonka
 // i onboarding działa jak dotąd.
 import { test, expect } from '@playwright/test';
-import { blockFirebase, expectPageRendered, navigateAndWait, setE2EAuthScenario } from './helpers';
+import { advanceWizardToStep6, blockFirebase, expectPageRendered, navigateAndWait, setE2EAuthScenario } from './helpers';
 
 // UWAGA: ekran onboardingu (PlanWizard) nie renderuje <main> — helper
 // expectPageRendered tu nie działa (wzorzec jak test onboardingu w full-app:
@@ -38,10 +38,10 @@ test.describe('Onboarding: kolor aplikacji na Welcome (plan I)', () => {
     await page.getByTestId('consent-privacy').click();
     await page.getByTestId('consent-health').click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await page.getByRole('button', { name: 'Następny krok' }).click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await page.getByRole('button', { name: 'Podgląd planu' }).click();
+    // X34: 5A (wybór) -> 6/6 (Start planu) -> "Podgląd planu".
+    await advanceWizardToStep6(page);
+    expect(await primaryVar(page)).toBe('235 86% 65%');
+    await page.getByTestId('ob-start-preview').click();
     await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
     expect(await primaryVar(page)).toBe('235 86% 65%');
   });

@@ -1,9 +1,9 @@
-// X33 WP-4 (sekcja 2 planu): "Zaczynam ten plan" w kroku 5A zapisuje plan BEZ
-// ekranu PlanPreview: kreator -> (krok marketingowy bez zmian) -> ten sam
-// completeOnboardingPlan co po "Podglad planu -> Zatwierdz". Test SEKWENCJI od
-// kroku 1: oba przebiegi daja IDENTYCZNY payload (wybor kreatora, deps.choice
-// cyklu, updateDoc z onboardingAnswers), a sciezka z podgladem dziala 1:1.
-// Harness wg onboarding-answers-save.test.tsx.
+// X33 WP-4 (sekcja 2 planu) + X34: glowny CTA ekranu 6/6 ("Zacznij budowac mase"
+// dla build_muscle) zapisuje plan BEZ ekranu PlanPreview: kreator -> (krok
+// marketingowy bez zmian) -> ten sam completeOnboardingPlan co po "Podglad planu
+// -> Zatwierdz". Test SEKWENCJI od kroku 1: oba przebiegi daja IDENTYCZNY payload
+// (wybor kreatora, deps.choice cyklu, updateDoc z onboardingAnswers), a sciezka
+// z podgladem dziala 1:1. Harness wg onboarding-answers-save.test.tsx.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -63,8 +63,8 @@ const withProviders = (node: React.ReactNode) => (
   </MemoryRouter>
 );
 
-// Krok 1 (zgody) -> 2 -> 3 -> 4 -> 5A.
-const walkToStep5 = async () => {
+// Krok 1 (zgody) -> 2 -> 3 -> 4 -> 5A -> 6/6.
+const walkToStep6 = async () => {
   fireEvent.click(screen.getByTestId('consent-terms'));
   fireEvent.click(screen.getByTestId('consent-privacy'));
   fireEvent.click(screen.getByTestId('consent-health'));
@@ -73,8 +73,10 @@ const walkToStep5 = async () => {
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
-  await screen.findByRole('button', { name: /Zaczynam ten plan/ });
+  fireEvent.click(await screen.findByTestId('ob-match-next'));
+  await screen.findByTestId('ob-start-cta');
 };
+const startCta = () => screen.getByRole('button', { name: /Zacznij budować masę/ });
 
 type Snapshot = { wizard: PlanWizardChoice; cycleChoice: Omit<PlanCycleChoice, 'chosenAt'> | undefined; update: Record<string, unknown> };
 const stripTimestamps = (): Snapshot => {
@@ -90,8 +92,8 @@ const stripTimestamps = (): Snapshot => {
 
 const runStartNow = async (): Promise<Snapshot> => {
   render(withProviders(<Onboarding />));
-  await walkToStep5();
-  fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+  await walkToStep6();
+  fireEvent.click(startCta());
   await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));
   await waitFor(() => expect(navigate).toHaveBeenCalledWith('/?welcome=1', { replace: true }));
   return stripTimestamps();
@@ -99,8 +101,8 @@ const runStartNow = async (): Promise<Snapshot> => {
 
 const runViaPreview = async (): Promise<Snapshot> => {
   render(withProviders(<Onboarding />));
-  await walkToStep5();
-  fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+  await walkToStep6();
+  fireEvent.click(screen.getByTestId('ob-start-preview'));
   await screen.findByTestId('plan-preview');
   fireEvent.click(screen.getByText('PREVIEW-CONFIRM'));
   await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));
@@ -144,8 +146,8 @@ describe('Onboarding: "Zaczynam ten plan" bez podgladu (X33 WP-4)', () => {
   it('krok marketingowy nadal wchodzi PRZED zapisem; po odpowiedzi zapis bez podgladu', async () => {
     profileFixture.current = { displayName: 'Grzegorz', photoURL: '' };
     render(withProviders(<Onboarding />));
-    await walkToStep5();
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+    await walkToStep6();
+    fireEvent.click(startCta());
 
     await screen.findByTestId('marketing-accept');
     expect(completeOnboardingPlan).not.toHaveBeenCalled();
@@ -155,18 +157,18 @@ describe('Onboarding: "Zaczynam ten plan" bez podgladu (X33 WP-4)', () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/?welcome=1', { replace: true }));
   });
 
-  it('zasada 6: awaria zapisu przy "Zaczynam" = komunikat w kroku 5A i ponowny klik dziala', async () => {
+  it('zasada 6: awaria zapisu przy "Zaczynam" = komunikat na ekranie 6/6 i ponowny klik dziala', async () => {
     saveResult.current = { success: false, error: 'boom' };
     render(withProviders(<Onboarding />));
-    await walkToStep5();
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+    await walkToStep6();
+    fireEvent.click(startCta());
 
     await screen.findByText('boom');
     expect(navigate).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: /Zaczynam ten plan/ })).toBeEnabled();
+    expect(startCta()).toBeEnabled();
 
     saveResult.current = { success: true };
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+    fireEvent.click(startCta());
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/?welcome=1', { replace: true }));
     expect(completeOnboardingPlan).toHaveBeenCalledTimes(2);
   });

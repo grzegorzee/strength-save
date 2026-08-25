@@ -57,7 +57,9 @@ const walkWizardToMarketing = async () => {
   fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
-  fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+  // X34: 5A "Wybierz start planu" -> 6/6 "Podgląd planu".
+  fireEvent.click(await screen.findByTestId('ob-match-next'));
+  fireEvent.click(await screen.findByTestId('ob-start-preview'));
   await screen.findByTestId('marketing-accept');
 };
 
@@ -144,11 +146,13 @@ describe('Onboarding: flow kroku marketingowego', () => {
     await walkWizardToMarketing();
 
     fireEvent.click(screen.getByLabelText('Wstecz'));
-    await screen.findByRole('button', { name: /Podgląd planu/ });
+    // X34: powrót ląduje na ekranie 6/6, z którego user wyszedł (nie na 5A, bez przerywnika).
+    await screen.findByTestId('ob-start-preview');
+    expect(screen.queryByTestId('ob-matching')).toBeNull();
     expect(recordConsents.mock.calls.filter(([, , channel]) => channel === 'onboarding-marketing-step')).toEqual([]);
 
     // Przejście w przód znowu pokazuje krok — odpowiedź nie została zapisana.
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
     await screen.findByTestId('marketing-accept');
   });
 

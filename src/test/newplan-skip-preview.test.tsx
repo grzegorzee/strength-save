@@ -1,5 +1,5 @@
-// X33 WP-4 (sekcja 2 planu): replan /new-plan od kroku 2 (profil {fat_loss,
-// intermediate, 3}) -> 5A z dwoma kartami 3-dniowymi -> "Zaczynam ten plan" =
+// X33 WP-4 (sekcja 2 planu) + X34: replan /new-plan od kroku 2 (profil {fat_loss,
+// intermediate, 3}) -> 5A z dwoma kartami 3-dniowymi -> 6/6 -> "Zacznij redukcje" =
 // startCycleWithPlan od razu (choice entry 'replan'), bez fazy preview, redirect
 // jak dotad. Rownosc payloadu z sciezka "Podglad -> Zatwierdz".
 // Harness wg newplan-profile-hint.test.tsx (kreator prawdziwy, podglad atrapa).
@@ -66,7 +66,7 @@ const renderNewPlan = () => render(
   </MemoryRouter>,
 );
 
-const cards = () => screen.getAllByTestId(/^plan-choice-(recommended|second)$/);
+const cards = () => screen.getAllByTestId(/^plan-choice-(recommended|alternative)$/);
 const cardName = (card: HTMLElement) => within(card).getByTestId('plan-choice-name').textContent ?? '';
 const templateByName = (name: string) => planTemplates.find((t) => localizePlanName(t.id, t.name, 'pl') === name)!;
 
@@ -75,8 +75,15 @@ const walkToStep5 = async () => {
   fireEvent.click(await screen.findByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
-  await screen.findByRole('button', { name: /Zaczynam ten plan/ });
+  await screen.findByTestId('ob-match-next');
 };
+// 5A -> 6/6 (CTA celu fat_loss = "Zacznij redukcje").
+const walkToStep6 = async () => {
+  await walkToStep5();
+  fireEvent.click(screen.getByTestId('ob-match-next'));
+  await screen.findByTestId('ob-start-cta');
+};
+const startCta = () => screen.getByRole('button', { name: /Zacznij redukcję/ });
 
 type Snapshot = { days: TrainingDay[]; weeks: number; deps: Omit<Deps, 'choice'> & { choice?: Omit<PlanCycleChoice, 'chosenAt'> }; profile: Record<string, unknown> };
 const snapshot = (): Snapshot => {
@@ -98,7 +105,7 @@ beforeEach(() => {
 });
 
 describe('NewPlan: replan przez "Zaczynam ten plan" (X33 WP-4)', () => {
-  it('SEKWENCJA: krok 2 -> 5A (dwie rozne karty 3-dniowe) -> Zaczynam = startCycleWithPlan z choice entry replan, bez podgladu, redirect', async () => {
+  it('SEKWENCJA: krok 2 -> 5A (dwie rozne karty 3-dniowe) -> 6/6 -> Zacznij redukcje = startCycleWithPlan z choice entry replan, bez podgladu, redirect', async () => {
     renderNewPlan();
     await walkToStep5();
 
@@ -107,9 +114,11 @@ describe('NewPlan: replan przez "Zaczynam ten plan" (X33 WP-4)', () => {
     const names = list.map(cardName);
     expect(new Set(names).size).toBe(2);
     for (const name of names) expect(templateByName(name).daysPerWeek).toBe(3);
-    expect(screen.getByTestId('ob-precision-answers').textContent).toBe('3 dni w tygodniu · Redukcja · Średnio zaawansowany');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Plany na 3 dni w tygodniu');
 
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+    fireEvent.click(screen.getByTestId('ob-match-next'));
+    await screen.findByTestId('ob-start-cta');
+    fireEvent.click(startCta());
     await waitFor(() => expect(startCycleWithPlan).toHaveBeenCalledTimes(1));
     expect(previewRenders.count).toBe(0);
     const snap = snapshot();
@@ -127,8 +136,8 @@ describe('NewPlan: replan przez "Zaczynam ten plan" (X33 WP-4)', () => {
 
   it('ROWNOSC PAYLOADU: "Zaczynam" i "Podglad -> Zatwierdz" wolaja startCycleWithPlan identycznie', async () => {
     renderNewPlan();
-    await walkToStep5();
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+    await walkToStep6();
+    fireEvent.click(startCta());
     await waitFor(() => expect(startCycleWithPlan).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     const direct = snapshot();
@@ -137,8 +146,8 @@ describe('NewPlan: replan przez "Zaczynam ten plan" (X33 WP-4)', () => {
     vi.clearAllMocks();
     previewRenders.count = 0;
     renderNewPlan();
-    await walkToStep5();
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    await walkToStep6();
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
     fireEvent.click(await screen.findByText('PREVIEW-CONFIRM:3'));
     await waitFor(() => expect(startCycleWithPlan).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
@@ -152,12 +161,12 @@ describe('NewPlan: replan przez "Zaczynam ten plan" (X33 WP-4)', () => {
   it('zasada 6: awaria zapisu przy "Zaczynam" = komunikat w kreatorze (NewPlan przekazuje error), bez redirectu', async () => {
     saveResult.current = { success: false, error: 'boom' };
     renderNewPlan();
-    await walkToStep5();
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+    await walkToStep6();
+    fireEvent.click(startCta());
 
     await screen.findByText('boom');
     expect(navigate).not.toHaveBeenCalled();
     expect(previewRenders.count).toBe(0);
-    expect(screen.getByRole('button', { name: /Zaczynam ten plan/ })).toBeEnabled();
+    expect(startCta()).toBeEnabled();
   });
 });

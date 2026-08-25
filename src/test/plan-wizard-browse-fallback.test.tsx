@@ -65,10 +65,12 @@ describe('Browse plans: pusta pula dla wybranej liczby dni (X32)', () => {
     fireEvent.click(fourDay);
 
     // X33 WP-2: kafel Czestotliwosc zniknal; spojnosc = zaznaczona karta ma 4 dni i brak ostrzezenia.
-    const selected = screen.getAllByTestId(/^plan-choice-(recommended|second)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
+    const selected = screen.getAllByTestId(/^plan-choice-(recommended|alternative)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
     expect(selected.querySelector('[data-testid="plan-choice-meta"]')!.textContent).toContain('· 4 dni ·');
     expect(screen.queryByText(/Ten plan ma \d+ dni treningowych/)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    // X34: zatwierdzenie z podgladem = 5A "Wybierz start planu" -> 6/6 "Podglad planu".
+    fireEvent.click(screen.getByTestId('ob-match-next'));
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
     const choice = onConfirm.mock.calls[0][0];
     expect(choice.daysPerWeek).toBe(4);
     expect(choice.days).toHaveLength(4);

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, SlidersHorizontal, User } from 'lucide-react';
+import { Loader2, ArrowRight, ArrowLeft, ArrowUpRight, Dumbbell, Weight, Flame, Zap, Link2, Check, Pencil, ListChecks, User } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
 import { localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
 import { PlanBuilder } from '@/components/PlanBuilder';
 import { PlanChoiceCard, PlanTemplateHero, type PlanChoiceBadge } from '@/components/PlanChoiceCard';
-import { PlanSettingsRow } from '@/components/PlanSettingsRow';
+import { PlanStartStep } from '@/components/PlanStartStep';
 import { planTemplates, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
 import { scoreTemplates, selectTemplatesForDays } from '@/lib/plan-recommendation';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
@@ -84,8 +84,12 @@ const BROWSE_CHIPS: { value: PlanObjective | 'all'; labelKey: TranslationKey }[]
   { value: 'athletic', labelKey: 'ob.browse.chipAthletic' },
 ];
 
-// X33 WP-1: czas przerywnika "Dobieram plany" po Dalej w kroku 4.
-export const MATCHING_INTERSTITIAL_MS = 900;
+// X33 WP-1 / X34: przerywnik "Dobieram plany" po Dalej w kroku 4 trwa 3,5 s
+// (ma wyglądać na realne dobieranie); trzy wiersze Poziom / Cel / Częstotliwość
+// pojawiają się kolejno co 0,7 s, pasek wypełnia się przez cały czas.
+export const MATCHING_INTERSTITIAL_MS = 3500;
+export const MATCHING_ROW_STEP_MS = 700;
+const MATCHING_ROWS = 3;
 
 const StepHeader = ({ step, total, onBack }: { step: number; total: number; onBack?: () => void }) => {
   const { t } = useTranslation();
@@ -136,10 +140,11 @@ const OptionCard = ({ icon: Icon, title, desc, selected, onClick }: { icon: type
   </button>
 );
 
-const PrimaryButton = ({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) => (
+const PrimaryButton = ({ onClick, disabled, testId, children }: { onClick: () => void; disabled?: boolean; testId?: string; children: React.ReactNode }) => (
   <button
     onClick={onClick}
     disabled={disabled}
+    data-testid={testId}
     className="w-full rounded-2xl py-4 font-heading font-bold uppercase tracking-wide text-primary-foreground bg-gradient-to-br from-primary-light to-primary disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
   >
     {children}
@@ -175,7 +180,7 @@ interface PlanWizardProps {
   resumeStep?: number;
   /** Klucz localStorage dla szkicu PlanBuildera (tryb "własny plan"). */
   builderDraftKey?: string;
-  /** Etykieta drugorzędnego CTA kroku 5 (ścieżka z podglądem: "Podgląd planu"). */
+  /** Etykieta drugorzędnego CTA ekranu 6/6 (ścieżka z podglądem: "Podgląd planu"). */
   confirmLabelKey: TranslationKey;
   onConfirm: (choice: PlanWizardChoice, opts?: PlanWizardConfirmOptions) => void;
   isSaving?: boolean;
@@ -205,7 +210,14 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     return fromResume && fromResume.length ? fromResume : (DEFAULT_DAYS[initialDays] ?? DEFAULT_DAYS[4]);
   });
   const [startDate, setStartDate] = useState(() => resume?.startDate ?? formatLocalDate(new Date()));
-  const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>(resumedCustomPlan ? 'own' : 'recommend');
+  // X34: wznowienie na konkretnym kroku (6/6 albo 5A po "Wybierz inny plan")
+  // ląduje w trybie wyboru; bez resumeStep własny plan otwiera się w builderze jak dotąd.
+  const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>(resumedCustomPlan && resumeStep === undefined ? 'own' : 'recommend');
+  // X34: własny plan z PlanBuildera czeka na ekran 6/6 (nazwa / długość / start)
+  // zamiast trafiać od razu do hosta; null = ścieżka szablonu (karty 5A).
+  const [customPlan, setCustomPlan] = useState<{ days: TrainingDay[]; durationWeeks: number } | null>(
+    resumedCustomPlan ? { days: resumedCustomPlan.days, durationWeeks: resumedCustomPlan.durationWeeks } : null,
+  );
   const [picked, setPicked] = useState<PlanTemplate | null>(() =>
     resume?.templateId ? planTemplates.find((p) => p.id === resume.templateId) ?? null : null);
   // WP-O (X30): rekomendacja vs wybór z Browse plans (do planSource w snapshocie
@@ -319,10 +331,15 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // przez "Zmień ustawienia"/strzałkę i wznowienie szkicu go pomijają).
   const [matching, setMatching] = useState(false);
   const [matchingShown, setMatchingShown] = useState(Boolean(resume));
+  // X34: liczba widocznych wierszy przerywnika (0..3), kolejne co MATCHING_ROW_STEP_MS.
+  const [matchingRows, setMatchingRows] = useState(0);
   useEffect(() => {
     if (!matching) return;
-    const id = window.setTimeout(() => setMatching(false), MATCHING_INTERSTITIAL_MS);
-    return () => window.clearTimeout(id);
+    setMatchingRows(0);
+    const rowIds = Array.from({ length: MATCHING_ROWS }, (_, i) =>
+      window.setTimeout(() => setMatchingRows(i + 1), (i + 1) * MATCHING_ROW_STEP_MS));
+    const endId = window.setTimeout(() => setMatching(false), MATCHING_INTERSTITIAL_MS);
+    return () => { rowIds.forEach((id) => window.clearTimeout(id)); window.clearTimeout(endId); };
   }, [matching]);
   // X33 WP-5: zmiana kroku/trybu = scroll na górę (zgłoszenie właściciela:
   // krok 5 otwierał się przewinięty w dół po długim kroku 4).
@@ -333,16 +350,17 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   const browseTemplates = browseObjective === 'all'
     ? scoredTemplates
     : scoredTemplates.filter((s) => s.template.objective === browseObjective);
-  // WP-PLANS-1 (X27, Task P5): kontrola długości w kroku potwierdzenia szablonu;
-  // null = default z szablonu (zmiana szablonu resetuje wybór).
-  const [templateWeeks, setTemplateWeeks] = useState<number | null>(null);
-  const effectiveWeeks = templateWeeks ?? chosen.durationWeeks;
+  // WP-PLANS-1 (X27, Task P5): kontrola długości na ekranie 6/6; null = default
+  // z szablonu / buildera (zmiana szablonu resetuje wybór). X34: wznowienie
+  // szablonu wraca 1:1 z zapisaną długością (nie z domyślną szablonu).
+  const [templateWeeks, setTemplateWeeks] = useState<number | null>(resume?.templateId ? resume.durationWeeks : null);
+  const effectiveWeeks = templateWeeks ?? customPlan?.durationWeeks ?? chosen.durationWeeks;
   const weekdaySelectionValid = hasExactWeekdaySelection(trainingDays, daysPerWeek);
 
-  // WP-PLANS-2 (X27, Task O3): nazwa planu edytowalna w kroku 5; null = default
-  // z aktualnego szablonu/rekomendacji (zmiana szablonu wraca do defaultu).
+  // WP-PLANS-2 (X27, Task O3): nazwa planu edytowalna na ekranie 6/6; null = default
+  // z aktualnego szablonu / "Własny plan" (zmiana szablonu wraca do defaultu).
   const [planNameInput, setPlanNameInput] = useState<string | null>(resume?.planName ?? null);
-  const defaultPlanName = localizePlanName(chosen.id, chosen.name, lang);
+  const defaultPlanName = customPlan ? t('newplan.customPlan') : localizePlanName(chosen.id, chosen.name, lang);
   // Start planu = wybór z 8 najbliższych poniedziałków (Edge 3); selekcja liczona
   // z poniedziałku tygodnia startDate, więc resume ze starą (surową) datą działa.
   const startMondays = useMemo(() => Array.from({ length: 8 }, (_, weekAhead) => {
@@ -365,14 +383,13 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
       planSource: templateId === undefined ? 'custom' : pickedViaBrowse ? 'browsed' : 'recommended',
     }, opts);
 
-  // Edge 4: pusta nazwa spada do nazwy szablonu (fallback, nie pusty string).
-  const confirmTemplate = (opts?: PlanWizardConfirmOptions) => fire(
-    applyWeekdaysToPlanDays(chosen.days, trainingDays),
-    effectiveWeeks,
-    chosen.id,
-    planNameInput?.trim() || defaultPlanName,
-    opts,
-  );
+  // X34: zatwierdzenie z ekranu 6/6 (główny CTA = skipPreview, "Podgląd planu" = false).
+  // Edge 4: pusta nazwa spada do nazwy szablonu / "Własny plan" (fallback, nie pusty string).
+  const confirmPlan = (opts: PlanWizardConfirmOptions) => {
+    const planName = planNameInput?.trim() || defaultPlanName;
+    if (customPlan) fire(customPlan.days, effectiveWeeks, undefined, planName, opts);
+    else fire(applyWeekdaysToPlanDays(chosen.days, trainingDays), effectiveWeeks, chosen.id, planName, opts);
+  };
 
   // X33 WP-2: zaznaczenie karty / wybór z biblioteki = nowy szablon, więc nazwa
   // i długość wracają do defaultów szablonu (jak dotąd przy wyborze z Browse).
@@ -384,6 +401,17 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     setTemplateWeeks(null);
     setPlanNameInput(null);
   };
+
+  // X34: 5A "Wybierz start planu" = ścieżka szablonu (zaznaczona karta); własny
+  // plan z poprzedniego przejścia zostaje tylko jako szkic buildera.
+  const goToStartStep = () => {
+    if (customPlan) {
+      setCustomPlan(null);
+      setTemplateWeeks(null);
+      setPlanNameInput(null);
+    }
+    setStep(6);
+  };
   const whyFor = (tpl: PlanTemplate) =>
     t('ob.match.why', { objective: t(OBJECTIVE_LABEL_KEY[tpl.objective]), level: t(LEVEL_LABEL_KEY[tpl.level]) });
 
@@ -392,11 +420,20 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     return (
       <div className="min-h-screen bg-background p-6">
         <div className="max-w-lg mx-auto">
+          {/* X34: submit buildera nie zapisuje; własny plan idzie na ekran 6/6
+              (nazwa / długość / start) jak szablon. Powrót do buildera z 6/6
+              (wstecz -> 5A -> Ułóż własny) dostaje dni z poprzedniego przejścia. */}
           <PlanBuilder
-            initialDays={resumedCustomPlan?.days}
-            initialDurationWeeks={resumedCustomPlan?.durationWeeks ?? 12}
+            initialDays={customPlan?.days}
+            initialDurationWeeks={customPlan?.durationWeeks ?? 12}
             draftStorageKey={builderDraftKey}
-            onSubmit={(days, weeks) => fire(days, weeks, undefined)}
+            onSubmit={(days, weeks) => {
+              setCustomPlan({ days, durationWeeks: weeks });
+              setTemplateWeeks(null);
+              setPlanNameInput(null);
+              setMode('recommend');
+              setStep(6);
+            }}
             onCancel={() => setMode('recommend')}
           />
           {error && <p className="text-sm text-destructive text-center mt-3">{error}</p>}
@@ -410,7 +447,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
       <div className="flex-1 max-w-lg w-full mx-auto px-6 pt-10 pb-6 flex flex-col">
         {step === 1 && (
           <>
-            <StepHeader step={1} total={5} onBack={onExitBack} />
+            <StepHeader step={1} total={6} onBack={onExitBack} />
             <div className="flex-1 flex flex-col justify-center py-6">
               {/* X33 WP-8: kółko avatara (zdjęcie / inicjał / ikona na tle akcentu)
                   obok "Cześć, {imię}"; bez imienia zostaje dotychczasowy tytuł.
@@ -513,7 +550,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
 
         {step === 2 && (
           <>
-            <StepHeader step={2} total={5} onBack={() => (showWelcome ? setStep(1) : onExitBack?.())} />
+            <StepHeader step={2} total={6} onBack={() => (showWelcome ? setStep(1) : onExitBack?.())} />
             <div className="mt-7 mb-5">
               <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">
                 {t('ob.baseline.title1')} <span className="text-primary italic">{t('ob.baseline.title2')}</span>
@@ -531,7 +568,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
 
         {step === 3 && (
           <>
-            <StepHeader step={3} total={5} onBack={() => setStep(2)} />
+            <StepHeader step={3} total={6} onBack={() => setStep(2)} />
             <div className="mt-7 mb-5">
               <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight">
                 {t('ob.obj.title1')} <span className="text-primary">{t('ob.obj.title2')}</span>
@@ -549,7 +586,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
 
         {step === 4 && (
           <>
-            <StepHeader step={4} total={5} onBack={() => setStep(3)} />
+            <StepHeader step={4} total={6} onBack={() => setStep(3)} />
             <div className="mt-7 mb-5">
               <h1 className="font-heading font-bold text-4xl leading-tight tracking-tight italic">
                 {t('ob.protocol.title1')} <span className="text-primary">{t('ob.protocol.title2')}</span>
@@ -591,38 +628,44 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
 
         {step === 5 && mode === 'recommend' && (
           <>
-            <StepHeader step={5} total={5} onBack={() => setStep(4)} />
-            {/* X33 WP-1: przerywnik "Dobieram plany" (ok. 900 ms) jako nakładka nad
-                gotowym ekranem 5A; pasek = istniejąca animacja boot-progress. */}
+            <StepHeader step={5} total={6} onBack={() => setStep(4)} />
+            {/* X33 WP-1 / X34: przerywnik "Dobieram plany" (3,5 s) jako nakładka nad
+                gotowym ekranem 5A; wiersze wchodzą kolejno, pasek wypełnia się
+                przez cały czas (ss-match-fill w index.css). Zasada 7: nic tu nie
+                jest zaznaczalne. */}
             {matching && (
               <div data-testid="ob-matching" role="status" aria-live="polite" className="fixed inset-0 z-50 flex select-none items-center justify-center bg-background px-6">
                 <div className="w-full max-w-sm rounded-2xl bg-surface-low p-6">
                   <p className="font-heading text-2xl font-bold">{t('ob.matching.title')}</p>
-                  <dl className="mt-4 space-y-2 text-[14px]">
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.matching.level')}</dt><dd className="font-medium">{t(LEVEL_LABEL_KEY[level])}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.matching.objective')}</dt><dd className="font-medium">{t(OBJECTIVE_LABEL_KEY[objective])}</dd></div>
-                    <div className="flex justify-between gap-3"><dt className="text-muted-foreground">{t('ob.precision.frequency')}</dt><dd className="font-medium">{daysPerWeek} {t('ob.precision.daysWk')}</dd></div>
+                  <dl className="mt-4 min-h-[5.5rem] space-y-2 text-[14px]">
+                    {([
+                      [t('ob.matching.level'), t(LEVEL_LABEL_KEY[level])],
+                      [t('ob.matching.objective'), t(OBJECTIVE_LABEL_KEY[objective])],
+                      [t('ob.precision.frequency'), `${daysPerWeek} ${t('ob.precision.daysWk')}`],
+                    ] as const).slice(0, matchingRows).map(([label, value]) => (
+                      <div key={label} data-testid="ob-matching-row" className="flex justify-between gap-3 animate-in fade-in slide-in-from-bottom-1 duration-300">
+                        <dt className="text-muted-foreground">{label}</dt>
+                        <dd className="font-medium">{value}</dd>
+                      </div>
+                    ))}
                   </dl>
                   <div className="mt-5 h-1 overflow-hidden rounded-full bg-surface-highest">
-                    <span className="boot-progress-indicator block h-full w-1/3 rounded-full bg-primary" />
+                    <span
+                      data-testid="ob-matching-bar"
+                      className="ss-match-fill block h-full rounded-full bg-primary"
+                      style={{ animationDuration: `${MATCHING_INTERSTITIAL_MS}ms` }}
+                    />
                   </div>
                 </div>
               </div>
             )}
+            {/* X34: 5A to wyłącznie WYBÓR (nagłówek + dwie karty + Ułóż własny +
+                biblioteka). Podsumowanie odpowiedzi, "Zmień ustawienia" (wstecz =
+                strzałka) i ustawienia planu zniknęły; nazwa / długość / start żyją
+                na ekranie 6/6. */}
             <div className="mt-5 mb-4">
               <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1.5">{t('ob.precision.kicker')}</p>
               <h1 className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.match.title', { days: daysPerWeek })}</h1>
-              {/* X31 H2: podsumowanie odpowiedzi z kroków 2-4 — user widzi, że
-                  liczba dni, cel i poziom zostały uwzględnione w rekomendacji. */}
-              <p data-testid="ob-precision-answers" className="text-[12px] text-muted-foreground mt-1.5">
-                {t('ob.precision.answers', { days: daysPerWeek, objective: t(OBJECTIVE_LABEL_KEY[objective]), level: t(LEVEL_LABEL_KEY[level]) })}
-              </p>
-              <p data-testid="ob-precision-days" className="text-[12px] text-muted-foreground">
-                {WEEKDAYS.filter((w) => trainingDays.includes(w.value)).map((w) => localizeWeekdayShort(w.short, lang)).join(' · ')}
-              </p>
-              <button onClick={() => setStep(2)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-primary font-medium">
-                <SlidersHorizontal className="h-3.5 w-3.5" />{t('ob.precision.change')}
-              </button>
             </div>
             <div className="flex-1 space-y-2.5">
               {/* X33 WP-2: dwie karty (Polecany / Alternatywa albo Wybrany z biblioteki);
@@ -638,7 +681,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 />
                 {secondCard && (
                   <PlanChoiceCard
-                    testId="plan-choice-second"
+                    testId="plan-choice-alternative"
                     template={secondCard.template}
                     badge={secondCard.badge}
                     why={whyFor(secondCard.template)}
@@ -649,17 +692,6 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               </div>
               <button onClick={() => setMode('own')} className="w-full touch-manipulation rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
               <button onClick={() => setMode('browse')} className="w-full touch-manipulation py-1 text-[13px] text-primary font-medium inline-flex items-center justify-center gap-1.5"><ListChecks className="h-4 w-4" />{t('ob.match.library', { n: scoredTemplates.length, days: daysPerWeek })}</button>
-              {/* X33 WP-3: nazwa, długość i start zwinięte do jednej linii. */}
-              <PlanSettingsRow
-                name={planNameInput ?? defaultPlanName}
-                onNameChange={setPlanNameInput}
-                weeks={effectiveWeeks}
-                templateWeeks={chosen.durationWeeks}
-                onWeeksChange={setTemplateWeeks}
-                startDate={selectedMonday}
-                startMondays={startMondays}
-                onStartDateChange={setStartDate}
-              />
               {(() => {
                 // Z72: user widzi prawdę zamiast cichej degradacji (slice w applyWeekdaysToPlanDays).
                 const mismatch = planDaysMismatch(chosen, daysPerWeek);
@@ -670,28 +702,42 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 ) : null;
               })()}
             </div>
-            {/* X33 WP-4: główny CTA zapisuje plan od razu (skipPreview), drugorzędny = dotychczasowy podgląd. */}
-            <div className="pt-4 space-y-2">
-              <PrimaryButton onClick={() => confirmTemplate({ skipPreview: true })} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                {t('ob.match.start')}
+            {/* X34: jedno CTA prowadzi do ekranu 6/6 "Start planu". */}
+            <div className="pt-4">
+              <PrimaryButton testId="ob-match-next" onClick={goToStartStep}>
+                {t('ob.match.next')} <ArrowRight className="h-4 w-4" />
               </PrimaryButton>
-              <button
-                type="button"
-                onClick={() => confirmTemplate({ skipPreview: false })}
-                disabled={isSaving}
-                className="w-full touch-manipulation rounded-2xl py-3 bg-surface-high text-sm font-medium disabled:opacity-50"
-              >
-                {t(confirmLabelKey)}
-              </button>
-              {error && <p className="text-sm text-destructive text-center mt-3">{error}</p>}
             </div>
+          </>
+        )}
+
+        {step === 6 && (
+          <>
+            {/* X34: ekran 6/6 "Start planu": nazwa, długość, start, główny CTA celu
+                (zapis od razu, skipPreview) i "Podgląd planu". Wstecz = 5A. */}
+            <StepHeader step={6} total={6} onBack={() => setStep(5)} />
+            <PlanStartStep
+              name={planNameInput ?? defaultPlanName}
+              onNameChange={setPlanNameInput}
+              weeks={effectiveWeeks}
+              templateWeeks={customPlan ? undefined : chosen.durationWeeks}
+              onWeeksChange={setTemplateWeeks}
+              startDate={selectedMonday}
+              startMondays={startMondays}
+              onStartDateChange={setStartDate}
+              objective={objective}
+              previewLabel={t(confirmLabelKey)}
+              onStart={() => confirmPlan({ skipPreview: true })}
+              onPreview={() => confirmPlan({ skipPreview: false })}
+              isSaving={isSaving}
+              error={error}
+            />
           </>
         )}
 
         {step === 5 && mode === 'browse' && (
           <>
-            <StepHeader step={5} total={5} onBack={() => setMode('recommend')} />
+            <StepHeader step={5} total={6} onBack={() => setMode('recommend')} />
             <div className="mt-7 mb-4">
               {/* X32: nagłówek z liczbą dni z kroku 4 + licznik puli; pula zastępcza
                   (+-1 dnia) jest jawnie oznaczona zamiast cichej podmiany. */}

@@ -2527,21 +2527,30 @@ export const pl = {
   'ob.matching.level': 'Poziom',
   'ob.matching.objective': 'Cel',
   // X33 WP-2: krok 5A "Dopasowane do Ciebie" = dwie karty planów (Polecany / Alternatywa / Wybrany).
-  'ob.match.title': 'Dwa plany na {days} dni w tygodniu',
+  'ob.match.title': 'Plany na {days} dni w tygodniu',
   'ob.match.badgeRecommended': 'Polecany',
   'ob.match.badgeAlternative': 'Alternatywa',
   'ob.match.badgeChosen': 'Wybrany',
   'ob.match.why': '{objective} · {level}',
   'ob.match.meta': '{weeks} tyg. · {days} dni · {exercises} ćw./trening',
-  'ob.match.firstWorkout': 'Pierwszy trening: {day}: {exercises}',
   'ob.match.library': 'Biblioteka planów na {days} dni ({n})',
-  'ob.match.start': 'Zaczynam ten plan',
-  // X33 WP-3: zwinięta linia ustawień planu (nazwa · długość · start) + rozwinięcie.
-  'ob.settings.summary': '{name} · {weeks} tyg. · start {day} {date}',
-  'ob.settings.change': 'Zmień',
-  'ob.settings.collapse': 'Zwiń',
-  'ob.settings.recommendedWeeks': 'polecane',
-  'ob.settings.otherWeeks': 'Inna',
+  // X34: jedyne CTA kroku 5A prowadzi do ekranu 6/6 "Start planu".
+  'ob.match.next': 'Wybierz start planu',
+  // X34: ekran 6/6 "Start planu" (nazwa, długość jako kafle, start jako chipy poniedziałków,
+  // główny CTA spersonalizowany celem, drugorzędny "Podgląd planu").
+  'ob.start.kicker': 'Ostatni krok',
+  'ob.start.title': 'Start planu',
+  'ob.start.desc': 'Nazwa, długość i pierwszy tydzień planu.',
+  'ob.start.week': 'Pierwszy tydzień',
+  'ob.start.recommendedWeeks': 'polecane',
+  'ob.start.otherWeeks': 'Inna',
+  'ob.start.cta.build_muscle': 'Zacznij budować masę',
+  'ob.start.cta.peak_strength': 'Zacznij budować siłę',
+  'ob.start.cta.fat_loss': 'Zacznij redukcję',
+  'ob.start.cta.athletic': 'Zacznij trening atletyczny',
+  'ob.start.cta.default': 'Rozpocznij plan',
+  // X34: drugi przycisk na dole podglądu planu (powrót do 5A z zachowanym stanem kreatora).
+  'ob.preview.chooseOther': 'Wybierz inny plan',
   // X32: Browse pokazuje tylko szablony o liczbie dni z kroku 4; pula zastępcza (+-1 dnia) jawnie oznaczona.
   'ob.browse.titleDays': 'Plany na {days} dni w tygodniu ({count})',
   'ob.browse.nearestTitle': 'Najbliższe plany ({count})',
@@ -2561,11 +2570,6 @@ export const pl = {
   'cycles.deleteConfirm': 'Usunąć ten cykl? Treningi pozostaną, ale zniknie podsumowanie cyklu. Tej operacji nie cofniesz.',
   'cycles.deleted': 'Cykl usunięty',
   'cycles.deleteFailed': 'Nie udało się usunąć cyklu',
-  'ob.precision.change': 'Zmień ustawienia',
-  // X31 H2: podsumowanie odpowiedzi z kroków 2-4 pod rekomendacją (user widzi, że wybory zostały uwzględnione).
-  'ob.precision.answers': '{days} dni w tygodniu · {objective} · {level}',
-  // WP-PLANS-2 (X27): start planu wybierany w kroku 5 (najbliższe poniedziałki).
-  'ob.startWeek': 'Start planu',
   'newplan.toReview': 'Podgląd planu',
   'newplan.draft.resumeTitle': 'Masz przerwany szkic planu',
   'newplan.draft.resume': 'Kontynuuj',

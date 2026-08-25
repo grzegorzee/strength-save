@@ -63,16 +63,15 @@ describe('krok 4 bez daty startu (WP-PLANS-2)', () => {
   });
 });
 
-// X33 WP-3: nazwa / długość / start siedzą w zwiniętej linii ustawień; pola
-// pojawiają się po "Zmień" (testid-y ob-plan-name, ob-start-week-chips,
-// template-duration-picker zachowane).
-const expandSettings = () => fireEvent.click(screen.getByRole('button', { name: 'Zmień' }));
+// X34: nazwa / długość / start żyją na ekranie 6/6 "Start planu" (po CTA
+// "Wybierz start planu" w 5A); testid-y ob-plan-name, ob-start-week-chips,
+// ob-duration-tiles.
+const goToStep6 = () => { goToStep5(); fireEvent.click(screen.getByTestId('ob-match-next')); };
 
-describe('krok 5: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2)', () => {
+describe('ekran 6/6: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2, X34)', () => {
   it('pole nazwy ma default z rekomendacji, a wybór startu to 8 najbliższych poniedziałków', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToStep5();
-    expandSettings();
+    goToStep6();
 
     const nameInput = screen.getByTestId('ob-plan-name') as HTMLInputElement;
     expect(nameInput.value.length).toBeGreaterThan(0);
@@ -87,15 +86,14 @@ describe('krok 5: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2)', 
   it('zmiany nazwy, startu i tygodni trafiają do onConfirm (choice)', () => {
     const onConfirm = vi.fn();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
-    goToStep5();
-    expandSettings();
+    goToStep6();
 
     fireEvent.change(screen.getByTestId('ob-plan-name'), { target: { value: '  Mój blok  ' } });
     const chips = within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button');
     fireEvent.click(chips[2]);
     // X33 WP-3: kafel długości "16 tyg." (bez otwierania pickera "Inna").
     fireEvent.click(screen.getByRole('button', { name: /^16 tyg\./ }));
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
 
     // X33 WP-4: drugi argument = { skipPreview: false } (ścieżka z podglądem).
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({
@@ -108,13 +106,12 @@ describe('krok 5: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2)', 
   it('pusta nazwa spada do nazwy rekomendowanego planu (Edge 4)', () => {
     const onConfirm = vi.fn();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
-    goToStep5();
-    expandSettings();
+    goToStep6();
 
     const nameInput = screen.getByTestId('ob-plan-name') as HTMLInputElement;
     const defaultName = nameInput.value;
     fireEvent.change(nameInput, { target: { value: '   ' } });
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
 
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ planName: defaultName }), { skipPreview: false });
   });
@@ -123,43 +120,40 @@ describe('krok 5: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2)', 
     localStorage.setItem('app-language', 'en');
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5();
-    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
-    expect(screen.getByText('Plan start')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Choose plan start' }));
+    expect(screen.getByText('First week')).toBeInTheDocument();
+    expect(screen.getByText('Plan name')).toBeInTheDocument();
     expect(screen.getByTestId('ob-start-week-chips')).toBeInTheDocument();
   });
 });
 
 // X32 (zgłoszenie właściciela: "najpierw nazwa planu, dopiero potem 'przeglądaj
-// plany' — dziwna kolejność") + X33 (sekcja 1 planu): krok 5A = nagłówek +
-// odpowiedzi + "Zmień ustawienia", potem DWIE KARTY planów, "Ułóż własny plan",
-// link biblioteki, zwinięta linia ustawień (po rozwinięciu: nazwa, długość,
-// tydzień startu), na końcu główny CTA "Zaczynam ten plan" i drugorzędny podgląd.
-describe('krok 5: kolejność bloków (X32 + X33)', () => {
+// plany' — dziwna kolejność") + X33 + X34: krok 5A = nagłówek, DWIE KARTY planów,
+// "Ułóż własny plan", link biblioteki, jedno CTA "Wybierz start planu"; ekran 6/6 =
+// nazwa, długość, tydzień startu, CTA celu, "Podgląd planu".
+describe('krok 5A i ekran 6/6: kolejność bloków (X32 + X33 + X34)', () => {
   const precedes = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
-  it('odpowiedzi -> karty -> Ułóż własny -> biblioteka -> ustawienia (nazwa, długość, start) -> Zaczynam -> Podgląd', () => {
+  it('5A: karty -> Ułóż własny -> biblioteka -> Wybierz start planu; 6/6: nazwa -> długość -> start -> CTA -> Podgląd', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5();
-    // Linia ustawień zwinięta domyślnie: bez pól do czasu "Zmień".
+    // 5A bez pól ustawień.
     expect(screen.queryByTestId('ob-plan-name')).toBeNull();
-    expandSettings();
 
-    const answers = screen.getByTestId('ob-precision-answers');
-    const change = screen.getByRole('button', { name: /Zmień ustawienia/ });
     const cards = screen.getByTestId('ob-plan-choices');
     const own = screen.getByRole('button', { name: /Ułóż własny/ });
     const library = screen.getByRole('button', { name: /Biblioteka planów/ });
-    const name = screen.getByTestId('ob-plan-name');
-    const duration = screen.getByTestId('template-duration-picker');
-    const startWeek = screen.getByTestId('ob-start-week-chips');
-    const start = screen.getByRole('button', { name: /Zaczynam ten plan/ });
-    const preview = screen.getByRole('button', { name: /Podgląd planu/ });
-
-    expect(precedes(answers, change)).toBe(true);
-    expect(precedes(change, cards)).toBe(true);
+    const next = screen.getByTestId('ob-match-next');
     expect(precedes(cards, own)).toBe(true);
     expect(precedes(own, library)).toBe(true);
-    expect(precedes(library, name)).toBe(true);
+    expect(precedes(library, next)).toBe(true);
+
+    fireEvent.click(next);
+    const name = screen.getByTestId('ob-plan-name');
+    const duration = screen.getByTestId('ob-duration-tiles');
+    const startWeek = screen.getByTestId('ob-start-week-chips');
+    const start = screen.getByTestId('ob-start-cta');
+    const preview = screen.getByTestId('ob-start-preview');
     expect(precedes(name, duration)).toBe(true);
     expect(precedes(duration, startWeek)).toBe(true);
     expect(precedes(startWeek, start)).toBe(true);
@@ -186,7 +180,8 @@ describe('krok protokołu: nagłówek dni treningowych + notatka o elastycznośc
     const next = screen.getByRole('button', { name: /Dalej/ });
     expect(next).not.toBeDisabled();
     fireEvent.click(next);
-    // Krok 5: karta rekomendowanego planu.
-    expect(screen.getByRole('button', { name: /Podgląd planu/ })).toBeInTheDocument();
+    // Krok 5A: karta rekomendowanego planu + CTA do ekranu 6/6.
+    expect(screen.getByTestId('plan-choice-recommended')).toBeInTheDocument();
+    expect(screen.getByTestId('ob-match-next')).toBeInTheDocument();
   });
 });
