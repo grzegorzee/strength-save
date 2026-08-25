@@ -784,6 +784,14 @@ const redirectDraftSave = async (incoming: ActiveWorkoutDraft, remoteSessionId: 
         ...(incoming.dayName !== undefined && { dayName: incoming.dayName }),
         ...(incoming.dayFocus !== undefined && { dayFocus: incoming.dayFocus }),
         skippedExercises: incoming.skippedExercises,
+        // Bug 20 (X30): pola pomocnicze sesji też jadą z incoming — redirect był
+        // jedyną ścieżką merge, która je gubiła (resolveFresherFallback i
+        // mergePromotedDraft przenoszą je od zawsze). Najgroźniejszy był swap
+        // "tylko dziś": utrata utrwalała się do końca sesji przez activeDraftRef.
+        ...(incoming.warmupChecked !== undefined && { warmupChecked: incoming.warmupChecked }),
+        ...(incoming.sessionSwaps !== undefined && { sessionSwaps: incoming.sessionSwaps }),
+        ...(incoming.lastTouchedExerciseId !== undefined && { lastTouchedExerciseId: incoming.lastTouchedExerciseId }),
+        ...(incoming.lastActivityAt !== undefined && { lastActivityAt: incoming.lastActivityAt }),
         completedLocally: incoming.completedLocally || existing.completedLocally,
         finalSyncPending: incoming.finalSyncPending || existing.finalSyncPending,
         ...(incoming.finalizedAt !== undefined && { finalizedAt: incoming.finalizedAt }),

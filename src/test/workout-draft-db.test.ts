@@ -519,6 +519,39 @@ describe('workoutDraftDb', () => {
     expect(drafts[0].cloudUpdatedAt).toBe(500);
   });
 
+  it('bug 20: redirect po promocji przenosi warmupChecked, sessionSwaps, lastTouchedExerciseId i lastActivityAt', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId, { revision: 0, updatedAt: 500 });
+
+    // Edycja w oknie promocji: swap "tylko dziś" + odhaczenie rozgrzewki idą jeszcze
+    // pod stary klucz provisional (WorkoutDay ma stary sessionId do końca syncu).
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 5,
+      warmupChecked: ['warmup.jumpingJacks'],
+      sessionSwaps: { 'ex-1': { id: 'ex-1-swap', name: 'Swap', sets: '3 x 8' } },
+      lastTouchedExerciseId: 'ex-1-swap',
+      lastActivityAt: 4_200_000,
+    });
+
+    const merged = await workoutDraftDb.loadDraft('user-1', remoteId);
+    expect(merged?.warmupChecked).toEqual(['warmup.jumpingJacks']);
+    expect(merged?.sessionSwaps).toEqual({ 'ex-1': { id: 'ex-1-swap', name: 'Swap', sets: '3 x 8' } });
+    expect(merged?.lastTouchedExerciseId).toBe('ex-1-swap');
+    expect(merged?.lastActivityAt).toBe(4_200_000);
+  });
+
   it('markPromotedToRemote nie cofa treści, gdy draft remote ma nowszą version (R2-04)', async () => {
     const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
     const remoteId = 'workout-user-1-day-1-2026-04-03';
