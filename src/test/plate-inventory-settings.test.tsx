@@ -134,6 +134,36 @@ describe('jednostka inwentarza w UI', () => {
     expect(loadPlateInventory().plates.some((p) => Math.abs(p.weightKg - 24.948) < 0.01)).toBe(true);
     expect(screen.getByText('55 lbs')).toBeInTheDocument();
   });
+
+  // Bug 19 (X30): pole własnego gryfa parsowało wpis ZAWSZE jako kg (bez konwersji
+  // jak w addPlate), a limit 0..100 działał przed konwersją — legalne wartości
+  // funtowe >100 lb były cicho odrzucane. User imperialny wpisujący "45" dostawał
+  // gryf 45 kg (~99 lb) zamiast 20.41 kg.
+  it('własny gryf przy inwentarzu lbs jest interpretowany w funtach', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: /lbs/i }));
+
+    fireEvent.change(screen.getByLabelText(/Własny gryf/i), { target: { value: '45' } });
+    // 45 lb ≈ 20.412 kg — kanonicznie kg, wpis w jednostce inwentarza.
+    expect(loadPlateInventory().barKg).toBeCloseTo(20.412, 2);
+  });
+
+  it('własny gryf 110 lb przechodzi limit PO konwersji na kg', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: /lbs/i }));
+
+    fireEvent.change(screen.getByLabelText(/Własny gryf/i), { target: { value: '110' } });
+    // 110 lb ≈ 49.895 kg — w granicach 0..100 kg, nie może być cicho odrzucone.
+    expect(loadPlateInventory().barKg).toBeCloseTo(49.895, 2);
+  });
+
+  it('pole własnego gryfa pokazuje jednostkę inwentarza', () => {
+    renderSettings();
+    expect(screen.getByLabelText('Własny gryf (kg)')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /lbs/i }));
+    expect(screen.getByLabelText('Własny gryf (lbs)')).toBeInTheDocument();
+  });
 });
 
 // WP-F Task F3 (X27): długa sekcja inwentarza przytłaczała Ustawienia — domyślnie

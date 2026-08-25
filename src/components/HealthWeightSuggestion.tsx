@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { HeartPulse, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useUnit } from '@/contexts/UnitContext';
 import { getHealthBridge, loadHealthSettings } from '@/lib/health-bridge';
 import { newerHealthWeight, type HealthWeightSample } from '@/lib/health-sync';
 import type { BodyMeasurement } from '@/types';
@@ -19,6 +20,9 @@ interface HealthWeightSuggestionProps {
  */
 export const HealthWeightSuggestion = ({ measurements, onAccept }: HealthWeightSuggestionProps) => {
   const { t, lang } = useTranslation();
+  // Bug 42 (X30): waga w jednostce usera (lbs/kg) — Health oddaje kg kanoniczne,
+  // zapis w onAccept zostaje w kg, konwersja wyłącznie do wyświetlenia.
+  const { toDisplay, unit } = useUnit();
   const [sample, setSample] = useState<HealthWeightSample | null>(null);
   const [saving, setSaving] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -48,7 +52,8 @@ export const HealthWeightSuggestion = ({ measurements, onAccept }: HealthWeightS
       <span className="flex items-center gap-2 text-sm">
         <HeartPulse className="h-4 w-4 shrink-0 text-primary" />
         {t('health.weightSuggestion', {
-          kg: Math.round(sample.kg * 10) / 10,
+          weight: Math.round(toDisplay(sample.kg) * 10) / 10,
+          unit,
           date: formatLocalDateLabel(sample.date, dateLocale(lang), { day: 'numeric', month: 'short' }),
         })}
       </span>

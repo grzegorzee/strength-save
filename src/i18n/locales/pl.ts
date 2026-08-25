@@ -889,7 +889,7 @@ export const pl = {
   'health.suggestWeight': 'Proponuj wagę ze Zdrowia',
   'health.suggestWeightDesc': 'Gdy Zdrowie ma nowszą wagę (np. z Fitatu), zaproponujemy dodanie jej do pomiarów.',
   'health.lastSync': 'Ostatni zapis: {date}',
-  'health.weightSuggestion': 'Dodaj {kg} kg ze Zdrowia ({date})',
+  'health.weightSuggestion': 'Dodaj {weight} {unit} ze Zdrowia ({date})',
   'health.weightAdded': 'Waga dodana do pomiarów.',
   // obciążenie hybrydowe (Z114-Z115)
   'hybrid.cardTitle': 'Obciążenie hybrydowe',
@@ -1085,7 +1085,7 @@ export const pl = {
   'plates.countLabel': 'Sztuk {weight}',
   'plates.customPlate': 'Własny talerz',
   'plates.addPlate': 'Dodaj talerz',
-  'plates.customBar': 'Własny gryf',
+  'plates.customBar': 'Własny gryf ({unit})',
   'plates.removePlate': 'Usuń',
   'plates.unitPreset': 'Jednostka inwentarza',
   'plates.countHint': 'Podaj ŁĄCZNĄ liczbę sztuk. Na jedną stronę gryfu wchodzi połowa.',

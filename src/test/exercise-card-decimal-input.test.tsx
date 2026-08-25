@@ -109,3 +109,41 @@ describe('Z178: przecinek dziesiętny w polach karty', () => {
     expect(onMetricsChange).toHaveBeenCalledWith('ex-1', { rpe: 8.5 });
   });
 });
+
+// Bug 6 (X30): pole dystansu (weight_distance_duration) zostało na type="number"
+// + parseFloat||0 — "20,5" sanitizowane przez WebKit do "" robiło cichy zapis
+// distanceM=0 (normalizatory dropują <=0, historia traci komponent dystansu).
+// Ta sama klasa błędu co waga w Z178; fix = ten sam DecimalInput.
+describe('bug 6 (X30): przecinek dziesiętny w polu dystansu', () => {
+  const renderDistanceCard = () => {
+    const onSetsChange = vi.fn();
+    const { card } = renderCard({
+      savedSets: [workingSet()],
+      onSetsChange,
+      trackingType: 'weight_distance_duration',
+    });
+    const distanceInput = within(card).getAllByLabelText(/Dystans$/).at(-1) as HTMLInputElement;
+    return { onSetsChange, distanceInput };
+  };
+
+  it('dystans "20,5" commituje 20.5 m (nie 0, nie 20)', () => {
+    const { onSetsChange, distanceInput } = renderDistanceCard();
+    fireEvent.change(distanceInput, { target: { value: '20,5' } });
+    expect(lastSets(onSetsChange)[0].distanceM).toBe(20.5);
+  });
+
+  it('stan pośredni "20," NIE zeruje dystansu', () => {
+    const { onSetsChange, distanceInput } = renderDistanceCard();
+    fireEvent.change(distanceInput, { target: { value: '20' } });
+    expect(lastSets(onSetsChange)[0].distanceM).toBe(20);
+    fireEvent.change(distanceInput, { target: { value: '20,' } });
+    expect(lastSets(onSetsChange)[0].distanceM).toBe(20);
+  });
+
+  it('puste pole = jawne wyczyszczenie (distanceM 0)', () => {
+    const { onSetsChange, distanceInput } = renderDistanceCard();
+    fireEvent.change(distanceInput, { target: { value: '15' } });
+    fireEvent.change(distanceInput, { target: { value: '' } });
+    expect(lastSets(onSetsChange)[0].distanceM).toBe(0);
+  });
+});
