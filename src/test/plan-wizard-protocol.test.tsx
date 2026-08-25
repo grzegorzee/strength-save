@@ -43,15 +43,17 @@ const goToStep5 = () => {
   fireEvent.click(screen.getByRole('button', { name: /Dalej|Continue/ }));
 };
 
-const mondayOfWeek = (weeksAhead: number) => {
-  const d = new Date();
-  const dow = d.getDay();
-  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1) + weeksAhead * 7);
-  return d;
-};
-
 const isoOf = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+// X34b: poniedzialek tygodnia daty ISO (plan zakotwiczony w poniedzialku).
+const mondayOf = (iso: string) => {
+  const [y, m, day] = iso.split('-').map(Number);
+  const d = new Date(y, m - 1, day);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return isoOf(d);
+};
+const chips = () => within(screen.getByTestId('ob-first-workout-chips')).getAllByRole('button');
 
 describe('krok 4 bez daty startu (WP-PLANS-2)', () => {
   it('sekcja "Data startu" zniknęła z kroku protokołu, dni treningowe zostały', () => {
@@ -63,34 +65,34 @@ describe('krok 4 bez daty startu (WP-PLANS-2)', () => {
   });
 });
 
-// X34: nazwa / długość / start żyją na ekranie 6/6 "Start planu" (po CTA
-// "Wybierz start planu" w 5A); testid-y ob-plan-name, ob-start-week-chips,
-// ob-duration-tiles.
+// X34 / X34b: data pierwszego treningu / długość / nazwa żyją na ekranie 6/6
+// "Start planu" (po CTA "Wybierz start planu" w 5A); testid-y
+// ob-first-workout-chips, ob-duration-tiles, ob-plan-name.
 const goToStep6 = () => { goToStep5(); fireEvent.click(screen.getByTestId('ob-match-next')); };
 
-describe('ekran 6/6: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2, X34)', () => {
-  it('pole nazwy ma default z rekomendacji, a wybór startu to 8 najbliższych poniedziałków', () => {
+describe('ekran 6/6: data pierwszego treningu + tygodnie + nazwa planu (WP-PLANS-2, X34, X34b)', () => {
+  it('pole nazwy ma default z rekomendacji, a wybór startu to 8 najbliższych dni treningowych (pierwszy zaznaczony)', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep6();
 
     const nameInput = screen.getByTestId('ob-plan-name') as HTMLInputElement;
     expect(nameInput.value.length).toBeGreaterThan(0);
 
-    const chips = within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button');
-    expect(chips).toHaveLength(8);
-    // Default = poniedziałek bieżącego tygodnia (stary flow bez zmian, Edge 8).
-    expect(chips[0]).toHaveAttribute('aria-pressed', 'true');
-    expect(chips[0].textContent).toContain(String(mondayOfWeek(0).getDate()));
+    expect(chips()).toHaveLength(8);
+    expect(chips()[0]).toHaveAttribute('aria-pressed', 'true');
+    const first = chips()[0].getAttribute('data-date')!;
+    expect(first >= isoOf(new Date())).toBe(true);
+    expect(chips()[0].textContent).toContain(String(Number(first.slice(8, 10))));
   });
 
-  it('zmiany nazwy, startu i tygodni trafiają do onConfirm (choice)', () => {
+  it('zmiany nazwy, daty pierwszego treningu i tygodni trafiają do onConfirm (choice); startDate = poniedziałek tygodnia wyboru', () => {
     const onConfirm = vi.fn();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep6();
 
     fireEvent.change(screen.getByTestId('ob-plan-name'), { target: { value: '  Mój blok  ' } });
-    const chips = within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button');
-    fireEvent.click(chips[2]);
+    fireEvent.click(chips()[2]);
+    const picked = chips()[2].getAttribute('data-date')!;
     // X33 WP-3: kafel długości "16 tyg." (bez otwierania pickera "Inna").
     fireEvent.click(screen.getByRole('button', { name: /^16 tyg\./ }));
     fireEvent.click(screen.getByTestId('ob-start-preview'));
@@ -98,7 +100,8 @@ describe('ekran 6/6: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2,
     // X33 WP-4: drugi argument = { skipPreview: false } (ścieżka z podglądem).
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({
       planName: 'Mój blok',
-      startDate: isoOf(mondayOfWeek(2)),
+      firstWorkoutDate: picked,
+      startDate: mondayOf(picked),
       durationWeeks: 16,
     }), { skipPreview: false });
   });
@@ -121,20 +124,20 @@ describe('ekran 6/6: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2,
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5();
     fireEvent.click(screen.getByRole('button', { name: 'Choose plan start' }));
-    expect(screen.getByText('First week')).toBeInTheDocument();
+    expect(screen.getByText('First workout date')).toBeInTheDocument();
     expect(screen.getByText('Plan name')).toBeInTheDocument();
-    expect(screen.getByTestId('ob-start-week-chips')).toBeInTheDocument();
+    expect(screen.getByTestId('ob-first-workout-chips')).toBeInTheDocument();
   });
 });
 
 // X32 (zgłoszenie właściciela: "najpierw nazwa planu, dopiero potem 'przeglądaj
-// plany' — dziwna kolejność") + X33 + X34: krok 5A = nagłówek, DWIE KARTY planów,
-// "Ułóż własny plan", link biblioteki, jedno CTA "Wybierz start planu"; ekran 6/6 =
-// nazwa, długość, tydzień startu, CTA celu, "Podgląd planu".
-describe('krok 5A i ekran 6/6: kolejność bloków (X32 + X33 + X34)', () => {
+// plany' — dziwna kolejność") + X33 + X34 + X34b: krok 5A = nagłówek, DWIE KARTY
+// planów, "Ułóż własny plan", link biblioteki, jedno CTA "Wybierz start planu";
+// ekran 6/6 = data pierwszego treningu, długość, nazwa, CTA celu, "Podgląd planu".
+describe('krok 5A i ekran 6/6: kolejność bloków (X32 + X33 + X34 + X34b)', () => {
   const precedes = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
-  it('5A: karty -> Ułóż własny -> biblioteka -> Wybierz start planu; 6/6: nazwa -> długość -> start -> CTA -> Podgląd', () => {
+  it('5A: karty -> Ułóż własny -> biblioteka -> Wybierz start planu; 6/6: pierwszy trening -> długość -> nazwa -> CTA -> Podgląd', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5();
     // 5A bez pól ustawień.
@@ -151,12 +154,12 @@ describe('krok 5A i ekran 6/6: kolejność bloków (X32 + X33 + X34)', () => {
     fireEvent.click(next);
     const name = screen.getByTestId('ob-plan-name');
     const duration = screen.getByTestId('ob-duration-tiles');
-    const startWeek = screen.getByTestId('ob-start-week-chips');
+    const firstWorkout = screen.getByTestId('ob-first-workout-chips');
     const start = screen.getByTestId('ob-start-cta');
     const preview = screen.getByTestId('ob-start-preview');
-    expect(precedes(name, duration)).toBe(true);
-    expect(precedes(duration, startWeek)).toBe(true);
-    expect(precedes(startWeek, start)).toBe(true);
+    expect(precedes(firstWorkout, duration)).toBe(true);
+    expect(precedes(duration, name)).toBe(true);
+    expect(precedes(name, start)).toBe(true);
     expect(precedes(start, preview)).toBe(true);
   });
 });

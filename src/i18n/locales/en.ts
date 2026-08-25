@@ -2515,8 +2515,10 @@ export const en: Record<keyof typeof pl, string> = {
   // główny CTA spersonalizowany celem, drugorzędny "Podgląd planu").
   'ob.start.kicker': 'Last step',
   'ob.start.title': 'Plan start',
-  'ob.start.desc': 'Name, length and first week of the plan.',
-  'ob.start.week': 'First week',
+  'ob.start.desc': 'First workout, length and name of the plan.',
+  'ob.start.firstWorkout': 'First workout date',
+  'ob.start.firstWorkoutHint': 'The plan starts counting from this day.',
+  'ob.start.today': 'Today',
   'ob.start.recommendedWeeks': 'recommended',
   'ob.start.otherWeeks': 'Other',
   'ob.start.cta.build_muscle': 'Start building muscle',

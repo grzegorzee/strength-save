@@ -2540,8 +2540,10 @@ export const pl = {
   // główny CTA spersonalizowany celem, drugorzędny "Podgląd planu").
   'ob.start.kicker': 'Ostatni krok',
   'ob.start.title': 'Start planu',
-  'ob.start.desc': 'Nazwa, długość i pierwszy tydzień planu.',
-  'ob.start.week': 'Pierwszy tydzień',
+  'ob.start.desc': 'Pierwszy trening, długość i nazwa planu.',
+  'ob.start.firstWorkout': 'Data pierwszego treningu',
+  'ob.start.firstWorkoutHint': 'Od tego dnia liczymy plan.',
+  'ob.start.today': 'Dziś',
   'ob.start.recommendedWeeks': 'polecane',
   'ob.start.otherWeeks': 'Inna',
   'ob.start.cta.build_muscle': 'Zacznij budować masę',
