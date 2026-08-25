@@ -226,7 +226,13 @@ const ensureMeasurementListener = (userId: string, entry: StoreEntry): void => {
       });
     },
     (err) => {
+      // Bug 40: sam console.error = cicha degradacja (puste Pomiary/Analityka
+      // bez informacji i bez śladu w telemetrii). Symetrycznie do treningów:
+      // error do snapshotu + client_errors. isLoaded zostaje przy listenerze
+      // treningów (otwiera go jego sukces LUB błąd) — tu go nie ruszamy.
       console.error('Error fetching measurements:', err);
+      emit(entry, { error: err.message });
+      void reportClientError(userId, { code: 'listener-error', phase: 'other', detail: `measurements-listener: ${err.message}` });
     },
   );
 };
@@ -263,6 +269,8 @@ const ensureWorkoutListener = (userId: string, entry: StoreEntry): void => {
     (err) => {
       console.error('Error fetching workouts:', err);
       emit(entry, { isLoaded: true, error: err.message });
+      // Bug 40: błąd listenera był niewidoczny dla client_errors (tylko konsola).
+      void reportClientError(userId, { code: 'listener-error', phase: 'other', detail: `workouts-listener: ${err.message}` });
     },
   );
 };

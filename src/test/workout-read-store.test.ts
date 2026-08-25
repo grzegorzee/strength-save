@@ -1,21 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getWorkoutReadSnapshot, subscribeWorkoutReads } from '@/lib/workout-read-store';
+import { reportClientError } from '@/lib/error-telemetry';
 
 type SnapshotHandler = (snapshot: {
   docs: { id: string; data: () => Record<string, unknown> }[];
   metadata: { fromCache: boolean };
 }) => void;
 
+type ErrorHandler = (err: Error) => void;
+
 const snapshotHandlers: SnapshotHandler[] = [];
+// Kolejność rejestracji jak w startStore: [0] = workouts, [1] = measurements.
+const errorHandlers: ErrorHandler[] = [];
 
 vi.mock('@/lib/firebase', () => ({ db: {} }));
+vi.mock('@/lib/error-telemetry', () => ({ reportClientError: vi.fn(async () => undefined) }));
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => 'collection'),
   documentId: vi.fn(() => '__name__'),
   getDocs: vi.fn(async () => ({ docs: [] })),
   limit: vi.fn(() => 'limit'),
-  onSnapshot: vi.fn((query: unknown, onNext: SnapshotHandler) => {
+  onSnapshot: vi.fn((query: unknown, onNext: SnapshotHandler, onError: ErrorHandler) => {
     snapshotHandlers.push(onNext);
+    errorHandlers.push(onError);
     return () => undefined;
   }),
   orderBy: vi.fn(() => 'orderBy'),
@@ -35,6 +42,7 @@ const emitWorkoutsSnapshot = (fromCache: boolean) => {
 describe('workout read store cache provenance', () => {
   beforeEach(() => {
     snapshotHandlers.length = 0;
+    errorHandlers.length = 0;
     vi.clearAllMocks();
   });
 
@@ -76,6 +84,52 @@ describe('workout read store cache provenance', () => {
 
     const snapshot = getWorkoutReadSnapshot('user-1');
     expect(snapshot.workouts.map(w => w.id)).toEqual(['w-ok']);
+    unsubscribe();
+  });
+});
+
+// Bug 40: błąd listenera pomiarów kończył się na console.error — snapshot bez
+// error (cicha degradacja: puste Pomiary/Analityka bez informacji), a żaden
+// z listenerów nie zostawiał śladu w client_errors. Fix symetryczny: emit(error)
+// dla pomiarów + reportClientError w OBU callbackach błędu.
+describe('błędy listenerów: snapshot.error + telemetria (bug 40)', () => {
+  beforeEach(() => {
+    snapshotHandlers.length = 0;
+    errorHandlers.length = 0;
+    vi.clearAllMocks();
+  });
+
+  // Osobne userId per test: assertion throw przed unsubscribe zostawiłby store
+  // 'user-1' z aktywnym listenerem i kolejny subscribe nic by nie rejestrował.
+  it('błąd listenera pomiarów emituje error do snapshotu i raportuje telemetrię', () => {
+    const unsubscribe = subscribeWorkoutReads('user-err-m', () => undefined);
+    errorHandlers[1](new Error('permission-denied'));
+
+    const snapshot = getWorkoutReadSnapshot('user-err-m');
+    expect(snapshot.error).toBe('permission-denied');
+    // isLoaded otwiera wyłącznie listener treningów (sukces LUB jego błąd) —
+    // błąd pomiarów nie może udawać "dane gotowe".
+    expect(snapshot.isLoaded).toBe(false);
+    expect(reportClientError).toHaveBeenCalledWith('user-err-m', expect.objectContaining({
+      code: 'listener-error',
+      phase: 'other',
+      detail: expect.stringContaining('measurements-listener'),
+    }));
+    unsubscribe();
+  });
+
+  it('błąd listenera treningów: isLoaded+error jak dotąd, dodatkowo telemetria', () => {
+    const unsubscribe = subscribeWorkoutReads('user-err-w', () => undefined);
+    errorHandlers[0](new Error('backend-down'));
+
+    const snapshot = getWorkoutReadSnapshot('user-err-w');
+    expect(snapshot.isLoaded).toBe(true);
+    expect(snapshot.error).toBe('backend-down');
+    expect(reportClientError).toHaveBeenCalledWith('user-err-w', expect.objectContaining({
+      code: 'listener-error',
+      phase: 'other',
+      detail: expect.stringContaining('workouts-listener'),
+    }));
     unsubscribe();
   });
 });
