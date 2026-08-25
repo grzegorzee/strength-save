@@ -1232,7 +1232,7 @@ test.describe('Import CSV (Z110)', () => {
     expect(workoutsAfterUndo).toBe(0);
   });
 
-  test('zaimportowane treningi zasilają rekordy i heatmapę (snapshot+resolver)', async ({ page }) => {
+  test('zaimportowane treningi zasilają rekordy (snapshot+resolver)', async ({ page }) => {
     // Seed przez mechanizm E2E — kształt identyczny jak buildImportedSessions.
     await setE2EWorkouts(page, [{
       id: 'imported-testbatch-1',

@@ -1,7 +1,8 @@
-// X28 WP-D: zakładka Postępy kafelkowo — poziom 1 = staty + Life PRs + heatmapa
+// X28 WP-D: zakładka Postępy kafelkowo — poziom 1 = staty + Life PRs
 // + 4 kafle (Rekordy / Odznaki / Analityka / Tygodnie), poziom 2
-// (?section=records|badges) = przeniesione sekcje. Scaffolding mocków wzorem
-// achievements-heatmap.test.tsx, fixtury dokumentów przez canonical-states.
+// (?section=records|badges) = przeniesione sekcje. Fixtury dokumentów przez
+// canonical-states. X35a W1: roczna heatmapa ("Mapa treningowa") usunięta
+// decyzją właściciela, nie ma prawa wrócić na żaden poziom.
 // Fix 2026-08-21 (zgłoszenie TestFlight): kafle poziomu 1 renderują ikony lucide
 // zamiast medalionów webp (czarne kwadraty odcinały się od tła kafla); etykieta
 // kafla odznak skrócona do "Odznaki". Medaliony webp zostają w hero sekcji
@@ -80,7 +81,7 @@ describe('D1: helper obrazów sekcji postępów (hero poziomu 2)', () => {
 });
 
 describe('D2: poziom 1 — kafle sekcji', () => {
-  it('renderuje 4 kafle z licznikami, bez listy rekordów i siatki odznak; heatmapa zostaje', () => {
+  it('renderuje 4 kafle z licznikami, bez listy rekordów, siatki odznak i rocznej heatmapy', () => {
     renderPage();
 
     expect(tiles()).toHaveLength(4);
@@ -107,11 +108,11 @@ describe('D2: poziom 1 — kafle sekcji', () => {
     expect(screen.queryByText('Odznaki specjalne')).toBeNull();
     // Trend 6 miesięcy przeniesiony do wykresów analityki (Edge 6).
     expect(screen.queryByText('Trend 6 miesięcy')).toBeNull();
-    // Heatmapa konsekwencji zostaje na poziomie 1.
-    expect(screen.getByText('Mapa treningowa')).toBeInTheDocument();
+    // X35a W1: roczna heatmapa usunięta (przewijanie w bok, nieczytelna na telefonie).
+    expect(screen.queryByText('Mapa treningowa')).toBeNull();
   });
 
-  it('klik "Rekordy" wchodzi w ?section=records: sekcje rekordów widoczne, heatmapa nie', () => {
+  it('klik "Rekordy" wchodzi w ?section=records: sekcje rekordów widoczne, kafle nie', () => {
     renderPage();
 
     fireEvent.click(tileByLabel('Rekordy')!);
@@ -123,14 +124,14 @@ describe('D2: poziom 1 — kafle sekcji', () => {
     expect(screen.queryAllByTestId('progress-section-tile')).toHaveLength(0);
   });
 
-  it('back z sekcji wraca na poziom 1 (kafle + heatmapa)', () => {
+  it('back z sekcji wraca na poziom 1 (kafle)', () => {
     renderPage('/achievements?section=records');
 
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
 
     expect(screen.getByTestId('loc').textContent).not.toContain('section=');
     expect(tiles()).toHaveLength(4);
-    expect(screen.getByText('Mapa treningowa')).toBeInTheDocument();
+    expect(screen.queryByText('Mapa treningowa')).toBeNull();
   });
 
   it('?section=badges pokazuje kamienie milowe, odznaki specjalne i półkę sezonów', () => {
@@ -147,7 +148,7 @@ describe('D2: poziom 1 — kafle sekcji', () => {
     renderPage('/achievements?section=nie-ma-takiej');
 
     expect(tiles()).toHaveLength(4);
-    expect(screen.getByText('Mapa treningowa')).toBeInTheDocument();
+    expect(screen.queryByText('Mapa treningowa')).toBeNull();
   });
 
   it('kafel "Analityka" ustawia ?view=analytics (istniejący embed)', async () => {
