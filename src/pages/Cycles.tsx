@@ -1,18 +1,11 @@
 import { useState, useEffect } from 'react';
-import { History, Dumbbell, Sparkles, TriangleAlert, RefreshCw, Loader2, CalendarX2, Camera } from 'lucide-react';
+import { History, Dumbbell, Sparkles, TriangleAlert, RefreshCw, Loader2, CalendarX2, Camera, RotateCcw } from 'lucide-react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { usePlanCycles } from '@/hooks/usePlanCycles';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
@@ -32,6 +25,7 @@ import { useUnit } from '@/contexts/UnitContext';
 import { dateLocale } from '@/i18n';
 import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { isCycleVisible, isCycleVisibleWithData } from '@/lib/cycle-visibility';
+import { formatLocalDate } from '@/lib/utils';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
 import { workoutSyncQueue } from '@/lib/workout-sync-queue';
 import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
@@ -47,8 +41,11 @@ const Cycles = () => {
   const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, planStatus, setPlanStatus, scheduleOverrides } = useTrainingPlan(uid);
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);
   const [isRepeating, setIsRepeating] = useState(false);
-  const [endPlanOpen, setEndPlanOpen] = useState(false);
+  // X35b (decyzja właściciela pkt 4): trzy akcje na planie, każda z własnym
+  // potwierdzeniem; jeden stan = najwyżej jeden otwarty dialog.
+  const [planAction, setPlanAction] = useState<'end' | 'end-new' | 'reset' | null>(null);
   const [isEndingPlan, setIsEndingPlan] = useState(false);
+  const [isResettingOnboarding, setIsResettingOnboarding] = useState(false);
   const visibleCycles = cycles
     .map(cycle => cycle.status === 'completed' ? withLiveCompletedStats(cycle, workouts, { scheduleOverrides }) : cycle)
     .filter(isCycleVisible);
@@ -77,21 +74,22 @@ const Cycles = () => {
   };
 
   // WP-PLANS-1 (X27, Edge 4): aktywny draft dnia planowego blokuje zakończenie
-  // planu — komunikat zamiast operacji (draft nie może zniknąć).
-  const openEndPlanDialog = async () => {
+  // planu — komunikat zamiast operacji (draft nie może zniknąć). X35b: ten sam
+  // guard dla wszystkich trzech akcji (reset też zamyka aktywny cykl).
+  const openPlanAction = async (kind: 'end' | 'end-new' | 'reset') => {
     const draft = await workoutDraftDb.loadActiveDraft(uid);
     if (draft && !draft.completedLocally && trainingPlan.some((day) => day.id === draft.dayId)) {
       toast({ title: t('cycles.endPlanDraftBlocked'), variant: 'destructive' });
       return;
     }
-    setEndPlanOpen(true);
+    setPlanAction(kind);
   };
 
   // WP-PLANS-1 (X27, Task P2): jedna ścieżka końca planu (archive + backfill +
   // status 'ended'); chooseNew steruje wyłącznie nawigacją po sukcesie.
+  // Radix (lekcja b.92): ConfirmDialog zamyka się PRZED wywołaniem onConfirm,
+  // czyli przed mutacją danych, z których liczy widok.
   const handleEndPlan = async (chooseNew: boolean) => {
-    // Radix (lekcja b.92): dialog zamykamy PRZED mutacją danych, z których liczy widok.
-    setEndPlanOpen(false);
     setIsEndingPlan(true);
     const result = await endPlan({ chooseNew }, {
       uid, lang, currentPlan: trainingPlan, planStartDate, planDurationWeeks, workouts,
@@ -106,6 +104,43 @@ const Cycles = () => {
       }
     } else {
       toast({ title: t('cycles.endPlanFailed'), variant: 'destructive' });
+    }
+  };
+
+  // Z242 → X35b: reset onboardingu (dawniej /settings) — zamyka aktywne cykle,
+  // zachowuje treningi i pomiary, kreator startuje od nowa z wyborem daty startu.
+  const handleResetOnboarding = async () => {
+    setIsResettingOnboarding(true);
+    try {
+      const today = formatLocalDate(new Date());
+      await Promise.all(
+        cycles
+          .filter(cycle => cycle.status === 'active')
+          .map(cycle => updateDoc(doc(db, 'plan_cycles', cycle.id), {
+            status: 'completed',
+            endDate: today,
+          })),
+      );
+      await updateDoc(doc(db, 'users', uid), {
+        onboardingCompleted: false,
+        onboarding: {
+          state: 'in_progress',
+          version: 2,
+          resetAt: new Date().toISOString(),
+        },
+      });
+      toast({
+        title: t('settings.reset.done'),
+        description: t('settings.reset.doneDesc'),
+      });
+    } catch (err) {
+      toast({
+        title: t('settings.reset.error'),
+        description: err instanceof Error ? err.message : t('settings.toast.tryAgain'),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResettingOnboarding(false);
     }
   };
 
@@ -242,19 +277,52 @@ const Cycles = () => {
         </div>
       )}
 
-      {/* WP-PLANS-1 (X27, Task P2): "Zakończ plan" nad kartą aktywnego cyklu,
-          bez gate'u !isPlanExpired (plan po terminie tym bardziej można zamknąć). */}
-      {trainingPlan.length > 0 && planStartDate && planStatus !== 'ended' && (
-        <Button
-          variant="outline"
-          className="w-full"
-          data-testid="cycles-end-plan"
-          onClick={() => { void openEndPlanDialog(); }}
-        >
-          <CalendarX2 className="h-4 w-4 mr-2" />
-          {t('cycles.endPlan')}
-        </Button>
-      )}
+      {/* WP-PLANS-1 (X27, Task P2) + X35b: sekcja Plan nad kartą aktywnego cyklu.
+          Trzy akcje z osobnym potwierdzeniem: zakończ / zakończ i ułóż nowy
+          (tylko przy aktywnym planie, bez gate'u !isPlanExpired) / onboarding od
+          nowa (zawsze, dawniej "Reset planu" w /settings). */}
+      <Card data-testid="cycles-plan-section">
+        <CardContent className="p-5 space-y-3">
+          <div className="space-y-1">
+            <p className="font-semibold text-sm">{t('cycles.planSection')}</p>
+            <p className="text-xs text-muted-foreground">{t('cycles.planSectionHint')}</p>
+          </div>
+          {trainingPlan.length > 0 && planStartDate && planStatus !== 'ended' && (
+            <>
+              <Button
+                variant="outline"
+                className="w-full"
+                data-testid="cycles-end-plan"
+                disabled={isEndingPlan}
+                onClick={() => { void openPlanAction('end'); }}
+              >
+                {isEndingPlan ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarX2 className="h-4 w-4 mr-2" />}
+                {t('cycles.endPlan')}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                data-testid="cycles-end-plan-new"
+                disabled={isEndingPlan}
+                onClick={() => { void openPlanAction('end-new'); }}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {t('cycles.endPlanAndNew')}
+              </Button>
+            </>
+          )}
+          <Button
+            variant="outline"
+            className="w-full border-fitness-warning text-fitness-warning hover:bg-fitness-warning/10"
+            data-testid="cycles-reset-onboarding"
+            disabled={isResettingOnboarding}
+            onClick={() => { void openPlanAction('reset'); }}
+          >
+            {isResettingOnboarding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+            {t('cycles.resetOnboarding')}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* WP-PLANS-1 (X27): baner rekomendacji znika po zakończeniu planu. */}
       {liveActiveCycle && recommendation && planStatus !== 'ended' && (
@@ -371,36 +439,33 @@ const Cycles = () => {
         </Card>
       )}
 
-      {/* WP-PLANS-1 (X27, Task P2): trzy opcje — zakończ i wybierz nowy /
-          zakończ bez nowego / anuluj. Zamknięcie zawsze przez open=false. */}
-      <AlertDialog open={endPlanOpen} onOpenChange={setEndPlanOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('cycles.endPlanConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('cycles.endPlanConfirmDesc')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isEndingPlan}>{t('common.cancel')}</AlertDialogCancel>
-            <Button
-              variant="outline"
-              data-testid="end-plan-only"
-              disabled={isEndingPlan}
-              onClick={() => { void handleEndPlan(false); }}
-            >
-              <CalendarX2 className="h-4 w-4 mr-2" />
-              {t('cycles.endPlanOnly')}
-            </Button>
-            <AlertDialogAction
-              data-testid="end-plan-choose-new"
-              onClick={(event) => { event.preventDefault(); void handleEndPlan(true); }}
-              disabled={isEndingPlan}
-            >
-              {isEndingPlan ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarX2 className="h-4 w-4 mr-2" />}
-              {t('cycles.endPlanConfirmAction')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* X35b: trzy potwierdzenia, zawsze zamontowane, zamykane wyłącznie przez
+          open=false (pułapka Radix b.92); onConfirm leci po zamknięciu. */}
+      <ConfirmDialog
+        open={planAction === 'end'}
+        onOpenChange={(open) => { if (!open) setPlanAction(null); }}
+        title={t('cycles.endPlanConfirmTitle')}
+        description={t('cycles.endPlanConfirmDesc')}
+        confirmLabel={t('cycles.endPlan')}
+        onConfirm={() => { void handleEndPlan(false); }}
+      />
+      <ConfirmDialog
+        open={planAction === 'end-new'}
+        onOpenChange={(open) => { if (!open) setPlanAction(null); }}
+        title={t('cycles.endPlanConfirmTitle')}
+        description={t('cycles.endPlanNewConfirmDesc')}
+        confirmLabel={t('cycles.endPlanConfirmAction')}
+        onConfirm={() => { void handleEndPlan(true); }}
+      />
+      <ConfirmDialog
+        open={planAction === 'reset'}
+        onOpenChange={(open) => { if (!open) setPlanAction(null); }}
+        title={t('cycles.resetOnboardingConfirmTitle')}
+        description={t('settings.reset.confirm')}
+        confirmLabel={t('cycles.resetOnboarding')}
+        destructive
+        onConfirm={() => { void handleResetOnboarding(); }}
+      />
 
       {listedCycles.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
