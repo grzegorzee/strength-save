@@ -44,13 +44,13 @@ const Cycles = () => {
   const { cycles, isLoaded, createActiveCycle, deleteCycle, archiveCurrentPlan } = usePlanCycles(uid);
   const { workouts, backfillHistoricalWorkouts } = useFirebaseWorkouts(uid, { measurements: 'none' });
   const { toast } = useToast();
-  const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, planStatus, setPlanStatus } = useTrainingPlan(uid);
+  const { plan: trainingPlan, planStartDate, currentWeek, planDurationWeeks, weeksRemaining, isPlanExpired, savePlan, planStatus, setPlanStatus, scheduleOverrides } = useTrainingPlan(uid);
   const [selectedCycle, setSelectedCycle] = useState<PlanCycle | null>(null);
   const [isRepeating, setIsRepeating] = useState(false);
   const [endPlanOpen, setEndPlanOpen] = useState(false);
   const [isEndingPlan, setIsEndingPlan] = useState(false);
   const visibleCycles = cycles
-    .map(cycle => cycle.status === 'completed' ? withLiveCompletedStats(cycle, workouts) : cycle)
+    .map(cycle => cycle.status === 'completed' ? withLiveCompletedStats(cycle, workouts, { scheduleOverrides }) : cycle)
     .filter(isCycleVisible);
   const activeCycle = visibleCycles.find(cycle => cycle.status === 'active') || null;
   const [hasPendingFinalSync, setHasPendingFinalSync] = useState(false);
@@ -169,7 +169,7 @@ const Cycles = () => {
       window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, loadSyncState);
     };
   }, [uid]);
-  const liveActiveCycle = buildActiveCyclePreview(activeCycle, workouts);
+  const liveActiveCycle = buildActiveCyclePreview(activeCycle, workouts, undefined, { scheduleOverrides });
   const visibleStoredCycles = visibleCycles.filter(isCycleVisibleWithData);
   const previousCompletedCycle = visibleStoredCycles.find(cycle => cycle.status === 'completed') || null;
   const comparison = liveActiveCycle ? buildCycleComparison(liveActiveCycle, previousCompletedCycle) : null;

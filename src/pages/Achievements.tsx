@@ -172,7 +172,7 @@ const Achievements = () => {
   const { unit, fmt, toDisplay, fmtTonnage } = useUnit();
   const { uid } = useCurrentUser();
   const { workouts, getTotalWeight, getCompletedWorkoutsCount, isLoaded } = useFirebaseWorkouts(uid, { measurements: 'none' });
-  const { plan: trainingPlan } = useTrainingPlan(uid);
+  const { plan: trainingPlan, scheduleOverrides } = useTrainingPlan(uid);
   const { cycles } = usePlanCycles(uid);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseRecord | null>(null);
   const [progressionExercise, setProgressionExercise] = useState<{ id: string; name: string } | null>(null);
@@ -258,11 +258,11 @@ const Achievements = () => {
   const seasonShelf = useMemo(
     () => cycles
       .filter(c => c.status === 'completed')
-      .map(c => withLiveCompletedStats(c, workouts))
+      .map(c => withLiveCompletedStats(c, workouts, { scheduleOverrides }))
       .filter(isCycleVisibleWithData)
       .sort((a, b) => b.endDate.localeCompare(a.endDate))
       .map(c => ({ cycle: c, medal: medalForCompletionRate(c.stats.completionRate) })),
-    [cycles, workouts],
+    [cycles, workouts, scheduleOverrides],
   );
 
   // X28 WP-D: licznik kafla "Odznaki i sezony" = zdobyte/(milestones+special+sezony);

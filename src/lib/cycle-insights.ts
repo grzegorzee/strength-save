@@ -3,6 +3,7 @@ import { trainingPlan as defaultPlan } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle, PlanCycleStats } from '@/types/cycles';
 import { calculate1RM, detectNewPRs } from '@/lib/pr-utils';
+import { resolvePlannedDay, type ScheduleOverrides } from '@/lib/plan-schedule';
 import { addCalendarDays, calendarDayDiff, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { translate, type LanguageCode } from '@/i18n';
 
@@ -42,18 +43,35 @@ const buildExpectedPlanSessions = (
   startDate: string,
   endDate: string,
   durationWeeks: number,
+  scheduleOverrides?: ScheduleOverrides | null,
 ): ExpectedPlanSession[] => {
   if (planDays.length === 0 || durationWeeks <= 0 || startDate > endDate) return [];
 
   const expected: ExpectedPlanSession[] = [];
-  const scheduledDays = planDays
-    .map(day => ({ dayId: day.id, offset: weekdayOffset[day.weekday] }))
-    .filter((entry) => Number.isInteger(entry.offset))
-    .sort((left, right) => left.offset - right.offset);
   const start = parseLocalDate(startDate);
   const dayOfWeek = start.getDay();
   const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   const firstWeekMonday = addCalendarDays(startDate, -daysSinceMonday);
+
+  // Bug 2 (X30): przełożenia treningów. Każda data okna cyklu przechodzi przez
+  // kanoniczny resolver (ten sam wzorzec co X29 WP-A w getScheduledTrainingWeek),
+  // więc slot oczekiwany WĘDRUJE razem z wpisem scheduleOverrides na datę
+  // docelową i przełożona sesja liczy się do frekwencji. Bez overrides stara
+  // ścieżka zostaje bez zmian (niezmiennik zasady #5).
+  if (scheduleOverrides && Object.keys(scheduleOverrides).length > 0) {
+    for (let offset = 0; offset < durationWeeks * 7; offset += 1) {
+      const sessionDate = addCalendarDays(firstWeekMonday, offset);
+      if (sessionDate < startDate || sessionDate > endDate) continue;
+      const day = resolvePlannedDay(sessionDate, planDays, scheduleOverrides, startDate);
+      if (day) expected.push({ date: sessionDate, dayId: day.id });
+    }
+    return expected;
+  }
+
+  const scheduledDays = planDays
+    .map(day => ({ dayId: day.id, offset: weekdayOffset[day.weekday] }))
+    .filter((entry) => Number.isInteger(entry.offset))
+    .sort((left, right) => left.offset - right.offset);
 
   for (let week = 0; week < durationWeeks; week += 1) {
     const weekStart = addCalendarDays(firstWeekMonday, week * 7);
@@ -75,10 +93,13 @@ export const computeCycleStats = (
   endDate: string,
   durationWeeks: number,
   cycleId?: string | null,
+  // Bug 2 (X30): przełożenia z dokumentu planu — sloty oczekiwane liczone
+  // kanonicznym resolverem zamiast czystej reguły weekday.
+  opts?: { scheduleOverrides?: ScheduleOverrides | null },
 ): PlanCycleStats => {
   const todayStr = formatLocalDate(new Date());
   const effectiveEndStr = (endDate && endDate < todayStr) ? endDate : todayStr;
-  const expectedSessions = buildExpectedPlanSessions(planDays, startDate, effectiveEndStr, durationWeeks);
+  const expectedSessions = buildExpectedPlanSessions(planDays, startDate, effectiveEndStr, durationWeeks, opts?.scheduleOverrides);
   const expectedSlotKeys = new Set(
     expectedSessions.map((session) => `${session.date}:${session.dayId}`),
   );
@@ -311,6 +332,10 @@ export const buildCycleRecommendation = (
 export const withLiveCompletedStats = (
   cycle: PlanCycle,
   workouts: WorkoutSession[],
+  // Bug 2 (X30): overrides bieżącego planu — mają wpisy tylko dla dat, których
+  // dotyczyły (zmiana planu je czyści, retencja 28 dni), więc dla starych cykli
+  // to no-op, a świeżo zamknięty cykl dostaje poprawną frekwencję przełożeń.
+  opts?: { scheduleOverrides?: ScheduleOverrides | null },
 ): PlanCycle => ({
   ...cycle,
   stats: computeCycleStats(
@@ -320,6 +345,7 @@ export const withLiveCompletedStats = (
     cycle.endDate,
     cycle.durationWeeks,
     cycle.id,
+    opts,
   ),
 });
 
@@ -327,6 +353,8 @@ export const buildActiveCyclePreview = (
   activeCycle: PlanCycle | null,
   workouts: WorkoutSession[],
   today = new Date(),
+  // Bug 2 (X30): przełożenia aktywnego planu do statów frekwencji.
+  opts?: { scheduleOverrides?: ScheduleOverrides | null },
 ): PlanCycle | null => {
   if (!activeCycle) return null;
 
@@ -341,6 +369,7 @@ export const buildActiveCyclePreview = (
       endDate,
       activeCycle.durationWeeks,
       activeCycle.id,
+      opts,
     ),
   };
 };

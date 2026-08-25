@@ -210,7 +210,7 @@ const TrainingPlan = () => {
 
   // C-T4: jedna karta decyzyjna końca planu — to samo źródło co Dashboard/Cykle.
   const activeCycleRaw = cycles.find((cycle) => cycle.status === 'active') || null;
-  const liveActiveCycle = buildActiveCyclePreview(activeCycleRaw, workouts);
+  const liveActiveCycle = buildActiveCyclePreview(activeCycleRaw, workouts, undefined, { scheduleOverrides });
   const previousCompletedCycle = cycles.find((cycle) => cycle.status === 'completed') || null;
   const planNextStep = useMemo(() => buildPlanNextStep({
     hasPlan: trainingPlan.length > 0,

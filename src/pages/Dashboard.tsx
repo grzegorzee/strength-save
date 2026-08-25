@@ -210,8 +210,8 @@ const Dashboard = () => {
   const streak = streakDetails.streak;
   // Tarcza uratowała poprzedni tydzień — pokaż to userowi, żeby wiedział, że seria wisi na włosku.
   const visibleCycles = useMemo(() => cycles
-    .map(c => c.status === 'completed' ? withLiveCompletedStats(c, workouts) : c)
-    .filter(isCycleVisibleWithData), [cycles, workouts]);
+    .map(c => c.status === 'completed' ? withLiveCompletedStats(c, workouts, { scheduleOverrides }) : c)
+    .filter(isCycleVisibleWithData), [cycles, workouts, scheduleOverrides]);
   const activeCycle = useMemo(() => visibleCycles.find(cycle => cycle.status === 'active') ?? null, [visibleCycles]);
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
   const workoutToDay = useMemo(() => (workout: typeof workouts[number]): TrainingDay => {
@@ -274,7 +274,10 @@ const Dashboard = () => {
     }
     setExtendOfferDismissed(true);
   };
-  const liveActiveCycle = useMemo(() => buildActiveCyclePreview(activeCycle, workouts, today), [activeCycle, today, workouts]);
+  const liveActiveCycle = useMemo(
+    () => buildActiveCyclePreview(activeCycle, workouts, today, { scheduleOverrides }),
+    [activeCycle, today, workouts, scheduleOverrides],
+  );
   const planNextStep = useMemo(() => buildPlanNextStep({
     hasPlan: trainingPlan.length > 0,
     isPlanExpired: isPlanExpired || currentPlanArchived,
