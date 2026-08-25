@@ -42,8 +42,29 @@ describe('needsConsentRefresh', () => {
     expect(needsConsentRefresh(profileWith({ ...currentConsents, termsVersion: '1.0' }))).toBe(true);
   });
 
-  it('wycofana zgoda zdrowotna = true (bez niej brak podstawy art. 9)', () => {
-    expect(needsConsentRefresh(profileWith({ ...currentConsents, healthGranted: false }))).toBe(true);
+  // Bug 1 (X30): świadome wycofanie zgody zdrowotnej (healthGranted=false przy
+  // AKTUALNEJ healthVersion) to pełnoprawna decyzja usera — bramka NIE wstaje.
+  // Ograniczenia (pomiary, RPE, ból) realizuje useHealthConsent w
+  // WorkoutDay/Measurements, zgodnie z DECYZJE.md 2026-08-11 i treścią dialogu
+  // wycofania ("Konto i dziennik treningowy zostają").
+  it('świadomie wycofana zgoda zdrowotna (aktualna wersja) = false, bez pętli bramki', () => {
+    expect(needsConsentRefresh(profileWith({ ...currentConsents, healthGranted: false }))).toBe(false);
+  });
+
+  it('brak decyzji zdrowotnej (bez healthGranted/healthVersion) = true', () => {
+    expect(needsConsentRefresh(profileWith({
+      ...currentConsents,
+      healthGranted: undefined,
+      healthVersion: undefined,
+    }))).toBe(true);
+  });
+
+  it('decyzja zdrowotna na starej wersji dokumentu = true (re-consent po bumpie)', () => {
+    expect(needsConsentRefresh(profileWith({
+      ...currentConsents,
+      healthGranted: false,
+      healthVersion: '0.9',
+    }))).toBe(true);
   });
 });
 
