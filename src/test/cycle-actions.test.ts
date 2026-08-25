@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { completeOnboardingPlan, endPlan, repeatPlanSource, runCycleAutoRepair, shouldAutoEndPlan, startCycleWithPlan } from '@/lib/cycle-actions';
+import { buildPlanCycleChoice } from '@/lib/plan-cycle-choice';
 
 const days: TrainingDay[] = [{
   id: 'day-1',
@@ -123,6 +124,71 @@ describe('cycle lifecycle actions', () => {
     expect(createActiveCycle).toHaveBeenCalledTimes(2);
     expect(createActiveCycle).toHaveBeenNthCalledWith(1, expect.any(Array), 8, '2026-06-08');
     expect(markOnboardingComplete).toHaveBeenCalledTimes(1);
+  });
+});
+
+// WP-6 (X33): odpowiedzi z kreatora ida do createActiveCycle jako opts.choice.
+describe('WP-6 (X33): choice przekazywane do createActiveCycle', () => {
+  const choice = buildPlanCycleChoice(
+    { level: 'beginner', objective: 'build_muscle', daysPerWeek: 3, trainingDays: ['monday', 'wednesday', 'friday'], templateId: 'tpl-x' },
+    'replan',
+    new Date('2026-08-25T10:30:00.000Z'),
+  );
+
+  it('startCycleWithPlan: deps.choice -> createActiveCycle(days, weeks, start, { choice })', async () => {
+    const createActiveCycle = vi.fn().mockResolvedValue('new-cycle-id');
+    const result = await startCycleWithPlan(days, 8, {
+      uid: 'u1',
+      currentPlan: [],
+      planStartDate: null,
+      planDurationWeeks: 8,
+      workouts: [],
+      startDate: '2026-06-10',
+      choice,
+      archiveCurrentPlan: vi.fn(),
+      savePlan: vi.fn().mockResolvedValue({ success: true }),
+      createActiveCycle,
+      backfillHistoricalWorkouts: vi.fn(),
+    });
+
+    expect(result.success).toBe(true);
+    expect(createActiveCycle).toHaveBeenCalledWith(expect.any(Array), 8, '2026-06-08', { choice });
+  });
+
+  it('NIEZMIENNIK: startCycleWithPlan bez choice (Powtorz plan, przedluzenie) wola createActiveCycle bez opts', async () => {
+    const createActiveCycle = vi.fn().mockResolvedValue('new-cycle-id');
+    await startCycleWithPlan(days, 8, {
+      uid: 'u1',
+      currentPlan: [],
+      planStartDate: null,
+      planDurationWeeks: 8,
+      workouts: [],
+      startDate: '2026-06-10',
+      archiveCurrentPlan: vi.fn(),
+      savePlan: vi.fn().mockResolvedValue({ success: true }),
+      createActiveCycle,
+      backfillHistoricalWorkouts: vi.fn(),
+    });
+
+    expect(createActiveCycle).toHaveBeenCalledWith(expect.any(Array), 8, '2026-06-08');
+    expect(createActiveCycle.mock.calls[0]).toHaveLength(3);
+  });
+
+  it('completeOnboardingPlan: deps.choice -> createActiveCycle(days, weeks, start, { choice })', async () => {
+    const createActiveCycle = vi.fn().mockResolvedValue('cycle-u1-2026-06-08');
+    const onboardingChoice = { ...choice, entry: 'onboarding' as const };
+    const result = await completeOnboardingPlan(
+      { days, durationWeeks: 8, startDate: '2026-06-10', level: 'beginner', objective: 'build_muscle', daysPerWeek: 3 },
+      {
+        savePlan: vi.fn().mockResolvedValue({ success: true }),
+        createActiveCycle,
+        markOnboardingComplete: vi.fn().mockResolvedValue(undefined),
+        choice: onboardingChoice,
+      },
+    );
+
+    expect(result.success).toBe(true);
+    expect(createActiveCycle).toHaveBeenCalledWith(expect.any(Array), 8, '2026-06-08', { choice: onboardingChoice });
   });
 });
 

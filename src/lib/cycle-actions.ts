@@ -1,7 +1,7 @@
 import type { TrainingDay } from '@/data/trainingPlan';
 import { translate, type LanguageCode } from '@/i18n';
 import type { WorkoutSession } from '@/types';
-import type { PlanCycle } from '@/types/cycles';
+import type { PlanCycle, PlanCycleChoice } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { assignCycleDayIds, getCycleStartPreview } from '@/lib/plan-cycle-utils';
@@ -27,6 +27,11 @@ export interface StartCycleDeps {
   startDateISO?: string;
   /** WP-PLANS-2 (X27): nazwa planu zapisywana na training_plans (trim, max 60). */
   planName?: string;
+  /**
+   * WP-6 (X33): odpowiedzi z kreatora zapisywane NA nowym cyklu (buildPlanCycleChoice,
+   * entry 'replan'). Brak = cykl bez pola (Powtórz plan, przedłużenie, auto-repair).
+   */
+  choice?: PlanCycleChoice;
   /** H1 bug B (X31): `excludeCycleId` = świeżo utworzony cykl, którego archiwizacja nie ma prawa zamknąć. */
   archiveCurrentPlan: (
     days: TrainingDay[],
@@ -36,11 +41,23 @@ export interface StartCycleDeps {
     opts?: { excludeCycleId?: string },
   ) => Promise<string | null>;
   savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; status?: 'active' | 'ended'; name?: string }) => Promise<{ success: boolean; error?: string }>;
-  createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
+  createActiveCycle: CreateActiveCycleFn;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
   /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
   emitPlanEvent?: PlanEventEmitter;
 }
+
+/** WP-6 (X33): kontrakt usePlanCycles.createActiveCycle (opts.choice opcjonalne). */
+export type CreateActiveCycleFn = (
+  days: TrainingDay[],
+  weeks: number,
+  start: string,
+  opts?: { choice?: PlanCycleChoice },
+) => Promise<string | null>;
+
+/** Bez choice wołamy createActiveCycle jak dotąd (3 argumenty) — stare mocki i auto-repair bez zmian. */
+const createCycleOpts = (choice: PlanCycleChoice | undefined): [] | [{ choice: PlanCycleChoice }] =>
+  choice ? [{ choice }] : [];
 
 export type PlanEventEmitter = (
   action: 'started' | 'changed' | 'ended',
@@ -61,8 +78,10 @@ export interface CompleteOnboardingChoice {
 export interface CompleteOnboardingDeps {
   lang?: LanguageCode;
   savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; name?: string }) => Promise<{ success: boolean; error?: string }>;
-  createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
+  createActiveCycle: CreateActiveCycleFn;
   markOnboardingComplete: (choice: CompleteOnboardingChoice, days: TrainingDay[], startDate: string) => Promise<void>;
+  /** WP-6 (X33): odpowiedzi z kreatora na pierwszym cyklu (buildPlanCycleChoice, entry 'onboarding'). */
+  choice?: PlanCycleChoice;
   /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
   emitPlanEvent?: PlanEventEmitter;
 }
@@ -142,7 +161,7 @@ export async function startCycleWithPlan(
   });
   if (!result.success) return result;
 
-  const activeCycleId = await deps.createActiveCycle(uniqueDays, durationWeeks, newStart);
+  const activeCycleId = await deps.createActiveCycle(uniqueDays, durationWeeks, newStart, ...createCycleOpts(deps.choice));
   if (!activeCycleId) {
     if (deps.planStartDate && deps.currentPlan.length > 0) {
       await deps.savePlan(deps.currentPlan, {
@@ -196,7 +215,7 @@ export async function completeOnboardingPlan(
     const days = assignCycleDayIds(choice.days, planStartDate);
     // The deterministic cycle is the workflow anchor. If the plan write loses a
     // response, a retry observes this same cycle instead of creating a duplicate.
-    const activeCycleId = await deps.createActiveCycle(days, choice.durationWeeks, planStartDate);
+    const activeCycleId = await deps.createActiveCycle(days, choice.durationWeeks, planStartDate, ...createCycleOpts(deps.choice));
     if (!activeCycleId) return { success: false, error: translate(deps.lang ?? 'pl', 'cycles.errActiveNotCreated') };
 
     const planName = choice.planName?.trim().slice(0, 60);

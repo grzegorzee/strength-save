@@ -19,6 +19,7 @@ import { recordConsents } from '@/lib/consents-api';
 import { readStoredAccentId } from '@/lib/accent-theme';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
 import { buildOnboardingAnswers } from '@/lib/onboarding-answers';
+import { buildPlanCycleChoice } from '@/lib/plan-cycle-choice';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
 import type { TrainingDay } from '@/data/trainingPlan';
@@ -90,6 +91,8 @@ const Onboarding = () => {
       lang,
       savePlan,
       createActiveCycle,
+      // WP-6 (X33): te same odpowiedzi trafiają NA pierwszy cykl (entry onboarding).
+      choice: buildPlanCycleChoice(confirmed, 'onboarding'),
       emitPlanEvent: buildPlanEventEmitter(uid),
       markOnboardingComplete: async (_choice, _days, planStartDate) => {
         // Plan I: kolor wybrany na Welcome (albo domyślna limonka) do mirroru

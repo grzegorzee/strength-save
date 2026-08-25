@@ -10,6 +10,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { PlanWizardChoice } from '@/components/PlanWizard';
 import type { TrainingDay } from '@/data/trainingPlan';
+import type { PlanCycleChoice } from '@/types/cycles';
 
 const updateDoc = vi.hoisted(() => vi.fn<(ref: unknown, data: Record<string, unknown>) => Promise<void>>(async () => {}));
 vi.mock('firebase/firestore', () => ({
@@ -33,7 +34,7 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
 vi.mock('@/hooks/usePlanCycles', () => ({
   usePlanCycles: () => ({ archiveCurrentPlan: vi.fn(), createActiveCycle: vi.fn(), getCycleById: vi.fn() }),
 }));
-const startCycleWithPlan = vi.hoisted(() => vi.fn<() => Promise<{ success: boolean; error?: string }>>(async () => ({ success: true })));
+const startCycleWithPlan = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<{ success: boolean; error?: string }>>(async () => ({ success: true })));
 vi.mock('@/lib/cycle-actions', () => ({ startCycleWithPlan }));
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -93,6 +94,24 @@ describe('NewPlan: replan aktualizuje trainingProfile (WP-O)', () => {
     expect(payload).toEqual({ trainingProfile: { level: 'advanced', objective: 'peak_strength', daysPerWeek: 2 } });
     expect(payload).not.toHaveProperty('onboardingAnswers');
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/'));
+  });
+
+  // WP-6 (X33): replan zapisuje odpowiedzi NA nowym cyklu (deps.choice, entry replan).
+  it('deps.choice dla nowego cyklu = odpowiedzi kreatora z entry replan (WP-6)', async () => {
+    await renderAndConfirm();
+
+    const deps = startCycleWithPlan.mock.calls[0][2] as unknown as { choice?: PlanCycleChoice };
+    expect(deps.choice).toEqual({
+      version: 1,
+      chosenAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      level: 'advanced',
+      objective: 'peak_strength',
+      daysPerWeek: 2,
+      trainingDays: [],
+      planSource: 'browsed',
+      templateId: 'tpl-fullbody-2',
+      entry: 'replan',
+    });
   });
 
   it('nieudany start planu: profil bez zmian', async () => {

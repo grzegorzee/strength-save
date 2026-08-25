@@ -11,8 +11,9 @@
 
 import { trainingPlan as defaultPlanDays, type TrainingDay, type Weekday } from '@/data/trainingPlan';
 import type { BodyMeasurement, WorkoutSession } from '@/types';
-import type { PlanCycle } from '@/types/cycles';
+import type { PlanCycle, PlanCycleChoice, PlanCycleChoiceEntry } from '@/types/cycles';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
+import { buildPlanCycleChoice } from '@/lib/plan-cycle-choice';
 import { addCalendarDays, calendarDayDiff, formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { clampSet } from '@/lib/workout-sanitizers';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
@@ -122,9 +123,29 @@ const buildPlanDays = (todayISO: string): TrainingDay[] => [
   planDay('day-b', weekdayOf(addCalendarDays(todayISO, 2)), 'Dzień B', 'Pull'),
 ];
 
+/** WP-6 (X33): odpowiedzi z kreatora na cyklu — TA SAMA logika co produkcyjny
+ *  zapis (buildPlanCycleChoice z Onboarding/NewPlan), nie reczny obiekt.
+ *  Domyslne odpowiedzi odpowiadaja dwudniowemu planowi kanonicznemu. */
+export const buildCycleChoice = (
+  entry: PlanCycleChoiceEntry,
+  chosenAtISO: string,
+  overrides: Partial<Parameters<typeof buildPlanCycleChoice>[0]> = {},
+): PlanCycleChoice => buildPlanCycleChoice({
+  level: 'intermediate',
+  objective: 'build_muscle',
+  daysPerWeek: 2,
+  trainingDays: ['monday', 'wednesday'],
+  planSource: 'recommended',
+  templateId: 'tpl-fullbody-2',
+  recommendedTemplateId: 'tpl-fullbody-2',
+  planName: 'Mój plan siłowy',
+  ...overrides,
+}, entry, new Date(chosenAtISO));
+
 /** Aktywny cykl 1:1 z usePlanCycles.createActiveCycle: endDate '' az do
- *  archiwizacji, id operacyjne cycle-{uid}-{startDate}, stats wyzerowane. */
-const buildActiveCycle = (days: TrainingDay[], durationWeeks: number, startDate: string): PlanCycle => ({
+ *  archiwizacji, id operacyjne cycle-{uid}-{startDate}, stats wyzerowane.
+ *  `choice` (WP-6) tylko gdy podane — cykle sprzed X33 pola nie maja. */
+const buildActiveCycle = (days: TrainingDay[], durationWeeks: number, startDate: string, choice?: PlanCycleChoice): PlanCycle => ({
   id: `cycle-${CANONICAL_UID}-${startDate}`,
   userId: CANONICAL_UID,
   days,
@@ -134,6 +155,7 @@ const buildActiveCycle = (days: TrainingDay[], durationWeeks: number, startDate:
   status: 'active',
   createdAt: `${startDate}T06:00:00.000Z`,
   stats: { totalWorkouts: 0, totalTonnage: 0, prs: [], completionRate: 0 },
+  ...(choice ? { choice } : {}),
 });
 
 /** Cykl zarchiwizowany (archiveCurrentPlan): endDate ustawione, status completed,
@@ -381,8 +403,12 @@ export const buildCanonicalState = (
       // WP-H (X28): aktywny cykl w polowie + zamkniety cykl przeszly + sesja
       // poza cyklami + draft. Stan pod Historie v2 (kafle cykli, poziom cyklu,
       // pelna lista) — te same buildery co pozostale stany.
+      // WP-6 (X33): aktywny cykl powstal z kreatora po cyklu (replan) i niesie
+      // odpowiedzi; zamkniety cykl jest sprzed zapisu odpowiedzi (bez pola).
       const days = buildPlanDays(todayISO);
-      const active = buildActiveCycle(days, durationWeeks, activeStart);
+      const active = buildActiveCycle(days, durationWeeks, activeStart, buildCycleChoice('replan', `${activeStart}T06:00:00.000Z`, {
+        trainingDays: days.map((day) => day.weekday),
+      }));
       const pastStart = formatLocalDate(getStartOfPlanWeek(parseLocalDate(addCalendarDays(todayISO, -140))));
       const pastEnd = addCalendarDays(pastStart, durationWeeks * 7);
       const past = buildCompletedCycle(days, durationWeeks, pastStart, pastEnd);
