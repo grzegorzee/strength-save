@@ -147,7 +147,7 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
               <SelectContent>
                 {cycles.map((cycle) => (
                   <SelectItem key={cycle.id} value={cycle.id}>
-                    {cycle.startDate} → {cycle.endDate}
+                    {cycle.startDate} → {cycle.endDate || t('exportCsv.cycleOngoing')}
                   </SelectItem>
                 ))}
               </SelectContent>
