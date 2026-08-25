@@ -22,6 +22,7 @@ import { calculateTonnage } from '@/lib/summary-utils';
 import type { PlanCycle } from '@/types/cycles';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
+import { sanitizePlanCycleDoc } from '@/lib/firestore-doc-guards';
 import {
   buildWorkoutSessionId,
   createProvisionalWorkoutSession,
@@ -316,7 +317,15 @@ export const useFirebaseWorkoutActions = (
       if (data.planCycles && Array.isArray(data.planCycles)) {
         for (const cycle of data.planCycles as Array<Record<string, unknown>>) {
           if (!cycle || typeof cycle.id !== 'string' || !cycle.id) continue;
-          ops.push({ collection: 'plan_cycles', id: cycle.id.slice(0, 100), data: { ...cycle, userId } });
+          // Bug 14 (X30): eksport niesie pole `id` (sanitizePlanCycleDoc), a
+          // validPlanCycleShape w rules NIE ma go na hasOnly — surowy zapis
+          // dawał PERMISSION_DENIED na całym batchu cykli przy każdym imporcie.
+          // Ten sam guard co hydracja: sanityzacja + zapis BEZ `id` (id jest
+          // tylko identyfikatorem dokumentu); nieczytelny cykl = pomijamy wpis.
+          const sanitized = sanitizePlanCycleDoc(cycle.id.slice(0, 100), cycle);
+          if (!sanitized) continue;
+          const { id: cycleDocId, ...cycleData } = sanitized;
+          ops.push({ collection: 'plan_cycles', id: cycleDocId, data: { ...cycleData, userId } });
         }
       }
 
