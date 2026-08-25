@@ -21,6 +21,7 @@ import {
   shouldClearOverridesOnPlanSave,
 } from '@/lib/schedule-overrides';
 import { useTranslation } from '@/contexts/LanguageContext';
+import { useToday } from '@/hooks/useToday';
 import { swapExerciseIdentity } from '@/lib/exercise-swap';
 import { clampPlanDurationWeeks, resolvePlanDaysForSave, saveTrainingPlanWithRevision } from '@/lib/training-plan-save';
 import { sanitizeProgressionConfig, type ProgressionConfig, type DeloadDecision } from '@/lib/progression-engine';
@@ -194,21 +195,25 @@ export const useTrainingPlan = (userId: string) => {
     repair();
   }, [isLoaded, isCustom, planStartDate, userId]);
 
+  // Bug 39 (X30): "dzisiaj" z useToday (wzorzec Z173), nie z new Date() w memo.
+  // WKWebView zyje dniami: surowe new Date() zamrazalo currentWeek do remountu
+  // trasy, wiec po nocy nd->pn Dashboard pokazywal zeszly tydzien i deload.
+  const today = useToday();
   const currentWeek = useMemo(() => {
     if (!planStartDate) return 1;
     // Bug 12 (X30): rachunek kalendarzowy (planWeekNumberForDate) zamiast
     // dzielenia milisekund, ktore od wiosennej do jesiennej zmiany czasu
     // zanizalo numer tygodnia o 1 (tydzien zmiany ma lokalnie 23h).
-    const week = planWeekNumberForDate(parseLocalDate(planStartDate), new Date());
+    const week = planWeekNumberForDate(parseLocalDate(planStartDate), today);
     // Plan startujący w przyszłości: tydzień 0 (jeszcze nie ruszył) — nie liczy postępu.
     return week < 1 ? 0 : week;
-  }, [planStartDate]);
+  }, [planStartDate, today]);
 
   const isPlanExpired = currentWeek > planDurationWeeks;
   const weeksRemaining = Math.max(0, planDurationWeeks - currentWeek);
   // False when the plan's start date is still in the future (plan hasn't begun yet).
   const planStarted = !planStartDate
-    || getStartOfPlanWeek(new Date()).getTime() >= getStartOfPlanWeek(parseLocalDate(planStartDate)).getTime();
+    || getStartOfPlanWeek(today).getTime() >= getStartOfPlanWeek(parseLocalDate(planStartDate)).getTime();
 
   const savePlan = useCallback(async (
     newPlan: TrainingDay[],
