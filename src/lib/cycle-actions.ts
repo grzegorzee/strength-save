@@ -7,6 +7,31 @@ import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { assignCycleDayIds, getCycleStartPreview } from '@/lib/plan-cycle-utils';
 import { DEFAULT_PROGRESSION, type ProgressionConfig } from '@/lib/progression-engine';
 import { sanitizeSkippedDates } from '@/lib/skipped-days';
+import { restSettingsAfterCycleStart } from '@/lib/rest-defaults';
+import type { RestSettings } from '@/lib/rest-timer';
+
+/**
+ * X35b: przerwy wg celu planu. Po UDANYM starcie cyklu z kreatora (jest
+ * `choice.objective`) zapisujemy polecane czasy, chyba że user ustawił własne
+ * (`current.custom === true`). Wstrzykiwane (moduł nie dotyka Firebase); brak
+ * = pole nietknięte (Powtórz plan, przedłużenie, auto-repair, stare testy).
+ */
+export interface RestDefaultsDeps {
+  current: RestSettings | undefined;
+  save: (rest: RestSettings) => Promise<void>;
+}
+
+/** Best-effort: cykl już wystartował, awaria zapisu przerw nie ma prawa go cofnąć. */
+const applyRestDefaults = async (deps: RestDefaultsDeps | undefined, objective: string | undefined): Promise<void> => {
+  if (!deps || !objective) return;
+  const next = restSettingsAfterCycleStart(deps.current, objective);
+  if (!next) return;
+  try {
+    await deps.save(next);
+  } catch {
+    // offline / uprawnienia — RestSettingsCard i tak pokaże "polecane", user może przywrócić ręcznie
+  }
+};
 
 /** X34b: opcje savePlan wspólne dla startu cyklu i onboardingu (skippedDates razem z planem). */
 type SavePlanOptions = {
@@ -63,6 +88,8 @@ export interface StartCycleDeps {
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
   /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
   emitPlanEvent?: PlanEventEmitter;
+  /** X35b: przerwy wg celu (`choice.objective`) po udanym starcie; brak = nietknięte. */
+  restDefaults?: RestDefaultsDeps;
 }
 
 /** WP-6 (X33): kontrakt usePlanCycles.createActiveCycle (opts.choice opcjonalne). */
@@ -104,6 +131,8 @@ export interface CompleteOnboardingDeps {
   choice?: PlanCycleChoice;
   /** B-T6: producent zdarzenia inboxa (wstrzykiwany — moduł nie dotyka Firebase). */
   emitPlanEvent?: PlanEventEmitter;
+  /** X35b: przerwy wg celu onboardingu po udanym starcie; brak = nietknięte. */
+  restDefaults?: RestDefaultsDeps;
 }
 
 // Z86: źródłem dni dla "Powtórz plan"/przedłużenia jest ZAWSZE bieżący plan
@@ -225,6 +254,9 @@ export async function startCycleWithPlan(
     { days: uniqueDays.length, weeks: durationWeeks, startDate: newStart },
   );
 
+  // X35b: przerwy wg celu nowego planu (tylko z kreatora: choice.objective).
+  await applyRestDefaults(deps.restDefaults, deps.choice?.objective);
+
   return { success: true };
 }
 
@@ -261,6 +293,8 @@ export async function completeOnboardingPlan(
       weeks: choice.durationWeeks,
       startDate: planStartDate,
     });
+    // X35b: przerwy wg celu z onboardingu (choice cyklu ma pierwszeństwo, fallback kreator).
+    await applyRestDefaults(deps.restDefaults, deps.choice?.objective ?? choice.objective);
     return { success: true };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : translate(deps.lang ?? 'pl', 'ob.errCompleteFailed') };
