@@ -875,7 +875,7 @@ export const en: Record<keyof typeof pl, string> = {
   'health.suggestWeight': 'Suggest weight from Health',
   'health.suggestWeightDesc': 'When Health has a newer weight (e.g. from a diet app), we suggest adding it to measurements.',
   'health.lastSync': 'Last sync: {date}',
-  'health.weightSuggestion': 'Add {kg} kg from Health ({date})',
+  'health.weightSuggestion': 'Add {weight} {unit} from Health ({date})',
   'health.weightAdded': 'Weight added to measurements.',
   'hybrid.cardTitle': 'Hybrid load',
   'hybrid.cardDesc': 'Strength and cardio as one weekly load (estimated: strength by time x RPE, cardio by HR or intensity).',
