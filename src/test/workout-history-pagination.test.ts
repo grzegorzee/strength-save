@@ -15,6 +15,10 @@ const brokenDoc = (id: string): FakeDoc => ({
   id,
   data: () => ({ userId: 'u1' }), // brak date/dayId — sanitizer odrzuca
 });
+const brokenDocWithDate = (id: string, date: string): FakeDoc => ({
+  id,
+  data: () => ({ userId: 'u1', date }), // stringowa data, ale brak dayId/exercises — sanitizer odrzuca
+});
 
 const pages: FakeDoc[][] = [];
 const getDocsMock = vi.hoisted(() => vi.fn());
@@ -75,6 +79,40 @@ describe('Z218 — fetchWorkoutHistoryPage: kursor bez duplikatów i luk', () =>
     const ids = new Set([...first.workouts, ...second.workouts].map(w => w.id));
     expect(ids.size).toBe(first.workouts.length + second.workouts.length); // brak duplikatów
     expect(second.nextCursor).toBeNull(); // niepełna strona kończy paginację
+  });
+
+  it('bug 41: strona w 100% odrzucona (surowe daty poprawne) nie zatrzymuje paginacji', async () => {
+    // Kursor z ostatniego SUROWEGO dokumentu — paginacja idzie dalej mimo tego,
+    // że po filtracji workouts jest puste (legacy batch skorumpowanych dokumentów).
+    pages.push(Array.from({ length: WORKOUT_HISTORY_PAGE_SIZE }, (_, i) =>
+      brokenDocWithDate(`bad-${i}`, '2026-05-01')));
+    pages.push([validDoc('v-1', '2026-04-30')]);
+
+    const first = await fetchWorkoutHistoryPage('u1', {});
+    expect(first.workouts).toEqual([]);
+    expect(first.nextCursor).toEqual({ date: '2026-05-01', id: `bad-${WORKOUT_HISTORY_PAGE_SIZE - 1}` });
+
+    const second = await fetchWorkoutHistoryPage('u1', { cursor: first.nextCursor });
+    expect(startAfterCalls.at(-1)).toEqual(['2026-05-01', `bad-${WORKOUT_HISTORY_PAGE_SIZE - 1}`]);
+    expect(second.workouts.map(w => w.id)).toEqual(['v-1']);
+  });
+
+  it('bug 41: uszkodzony dokument na końcu strony — kursor mija go (bez ponownego odczytu ogona)', async () => {
+    pages.push([
+      ...Array.from({ length: WORKOUT_HISTORY_PAGE_SIZE - 1 }, (_, i) =>
+        validDoc(`v-${i}`, '2026-08-01')),
+      brokenDocWithDate('bad-tail', '2026-07-30'),
+    ]);
+    const page = await fetchWorkoutHistoryPage('u1', {});
+    expect(page.workouts).toHaveLength(WORKOUT_HISTORY_PAGE_SIZE - 1);
+    expect(page.nextCursor).toEqual({ date: '2026-07-30', id: 'bad-tail' });
+  });
+
+  it('bug 41: strona odrzucona bez stringowej daty — kursor null (startAfter nie ma porównywalnej wartości)', async () => {
+    pages.push(Array.from({ length: WORKOUT_HISTORY_PAGE_SIZE }, (_, i) => brokenDoc(`nodate-${i}`)));
+    const page = await fetchWorkoutHistoryPage('u1', {});
+    expect(page.workouts).toEqual([]);
+    expect(page.nextCursor).toBeNull();
   });
 
   it('pusta historia: brak kursora, brak wyników, brak wyjątku', async () => {

@@ -387,13 +387,29 @@ export const fetchWorkoutHistoryPage = async (
   const workouts = snapshot.docs
     .map(workoutDoc => toWorkout(userId, workoutDoc.id, workoutDoc.data()))
     .filter((workout): workout is WorkoutSession => workout !== null);
-  const last = workouts.at(-1);
-  return {
-    workouts,
-    // Pełność strony po SUROWYM snapshotcie: odfiltrowany uszkodzony dokument
-    // nie może przerwać paginacji w środku historii (P0).
-    nextCursor: snapshot.docs.length === pageSize && last ? { date: last.date, id: last.id } : null,
-  };
+  // Pełność strony po SUROWYM snapshotcie: odfiltrowany uszkodzony dokument
+  // nie może przerwać paginacji w środku historii (P0). Bug 41: kursor też
+  // z SUROWEGO ogona — strona zakończona odrzuconymi dokumentami (w skrajności
+  // odrzucona w całości) szła po ostatnim POPRAWNYM dokumencie, więc ogon wracał
+  // na następnej stronie, a pełna odrzucona strona zatrzymywała paginację
+  // (nextCursor=null zjadał też fetchWorkoutRange i Load More w Historii).
+  let nextCursor: WorkoutHistoryCursor | null = null;
+  if (snapshot.docs.length === pageSize) {
+    const rawLast = snapshot.docs.at(-1);
+    const rawLastDate = rawLast ? (rawLast.data() as { date?: unknown }).date : undefined;
+    const last = workouts.at(-1);
+    if (rawLast && typeof rawLastDate === 'string') {
+      nextCursor = { date: rawLastDate, id: rawLast.id };
+    } else if (last) {
+      // Surowa data nie jest stringiem (startAfter wymaga wartości porównywalnej
+      // z polem date) — fallback na ostatni poprawny dokument: ogon strony wróci
+      // przy kolejnym odczycie, ale paginacja idzie dalej.
+      nextCursor = { date: last.date, id: last.id };
+    }
+    // Brak obu: strona w całości odrzucona i bez porównywalnych dat — stop;
+    // każdy odrzut zaraportowany invalid-doc (toWorkout), przypadek widoczny w client_errors.
+  }
+  return { workouts, nextCursor };
 };
 
 export const fetchWorkoutRange = async (
