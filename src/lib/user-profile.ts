@@ -1,6 +1,7 @@
 import type { AppUserProfile } from '@/lib/registration-api';
 import { sanitizePRBackfill, type PRBackfill } from '@/lib/pr-backfill';
 import type { ConsentMirror } from '@/lib/legal-versions';
+import type { OnboardingAnswers, TrainingProfileSnapshot } from '@/lib/onboarding-answers';
 import type { LanguageCode } from '@/i18n';
 
 export type SubscriptionTier = 'monthly' | 'yearly' | 'trial' | 'comp' | 'none';
@@ -90,6 +91,10 @@ export interface UserProfile {
   consents?: ConsentMirror;
   /** Rekordy sprzed instalacji (Runna p.1, spec A5) — baseline detekcji PR. */
   prBackfill?: PRBackfill;
+  /** WP-O (X30): profil treningowy (onboarding + replan): poziom/cel/dni w tygodniu. */
+  trainingProfile?: TrainingProfileSnapshot;
+  /** WP-O (X30): snapshot odpowiedzi onboardingu (v2), pisany raz przy zakończeniu. */
+  onboardingAnswers?: OnboardingAnswers;
 }
 
 interface AuthProfileSeed {
@@ -137,6 +142,9 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   consents: data.consents || undefined,
   // Lekcja builda 88: mapper pole-po-polu — nowe pole bez wpisu tutaj znika.
   prBackfill: sanitizePRBackfill(data.prBackfill),
+  // WP-O (X30): passthrough jak consents — karta admina (p12) i kreator czytają z profilu.
+  trainingProfile: data.trainingProfile || undefined,
+  onboardingAnswers: data.onboardingAnswers || undefined,
 });
 
 export const resolveProfileLoadFailure = (lastKnownProfile: UserProfile | null): UserProfile | null =>

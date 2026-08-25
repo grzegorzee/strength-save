@@ -8,6 +8,7 @@ import {
 import type { AppUserProfile } from '@/lib/registration-api';
 import { getConsentMirror } from '@/lib/consent-selection';
 import { hasCurrentRequiredConsents } from '@/lib/legal-versions';
+import { buildOnboardingAnswers } from '@/lib/onboarding-answers';
 
 const seed = {
   userId: 'user-1',
@@ -88,5 +89,48 @@ describe('user profile loading', () => {
 
     expect(getConsentMirror(profile)).toEqual(consents);
     expect(hasCurrentRequiredConsents(getConsentMirror(profile))).toBe(true);
+  });
+
+  // WP-O (X30): nowe pola users/{uid} musza przejsc przez mapper pole-po-polu
+  // (lekcja builda 88). Fixture snapshotu z tej samej logiki co produkcyjny zapis.
+  it('przenosi trainingProfile i onboardingAnswers (kontrakt v2) do profilu', () => {
+    const onboardingAnswers = buildOnboardingAnswers({
+      level: 'intermediate',
+      objective: 'fat_loss',
+      daysPerWeek: 4,
+      durationWeeks: 8,
+      trainingDays: ['monday', 'tuesday', 'thursday', 'friday'],
+      planSource: 'recommended',
+      templateId: 'tpl-lean-engine-4',
+      recommendedTemplateId: 'tpl-lean-engine-4',
+    }, { accentColor: 'lime', startDate: '2026-08-31', now: new Date('2026-08-25T10:00:00.000Z') });
+    const trainingProfile = { level: 'advanced', objective: 'peak_strength', daysPerWeek: 3 };
+    const data = {
+      uid: 'user-1',
+      email: 'profile@example.com',
+      displayName: 'Profile Name',
+      photoURL: '',
+      role: 'user',
+      status: 'active',
+      trainingProfile,
+      onboardingAnswers,
+    } as AppUserProfile;
+
+    const profile = mapAppUserProfile('user-1', data, seed);
+
+    expect(profile.trainingProfile).toEqual(trainingProfile);
+    expect(profile.onboardingAnswers).toEqual(onboardingAnswers);
+    expect(profile.onboardingAnswers?.version).toBe(2);
+  });
+
+  it('brak trainingProfile/onboardingAnswers w dokumencie: pola nie powstaja (stare konta)', () => {
+    const data = {
+      uid: 'user-1', email: 'profile@example.com', displayName: 'Profile Name', photoURL: '', role: 'user', status: 'active',
+    } as AppUserProfile;
+
+    const profile = mapAppUserProfile('user-1', data, seed);
+
+    expect(profile.trainingProfile).toBeUndefined();
+    expect(profile.onboardingAnswers).toBeUndefined();
   });
 });
