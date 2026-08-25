@@ -30,8 +30,14 @@ export const weekNoFor = (date: string, cycle: Pick<PlanCycle, 'startDate' | 'du
   return Math.min(Math.max(raw, 1), maxWeek);
 };
 
-const isInCycleRange = (workout: WorkoutSession, cycle: PlanCycle): boolean =>
-  workout.date >= cycle.startDate && workout.date <= cycle.endDate;
+// Bug 17: aktywny cykl ma endDate '' aż do archiwizacji (createActiveCycle,
+// sanitizePlanCycleDoc) — traktujemy go jako zakres OTWARTY, inaczej sesje bez
+// cycleId (import CSV, ad-hoc) nigdy nie wpadają do aktywnego cyklu po dacie.
+const isInCycleRange = (workout: WorkoutSession, cycle: PlanCycle): boolean => {
+  if (workout.date < cycle.startDate) return false;
+  if (cycle.status === 'active' && !cycle.endDate) return true;
+  return workout.date <= cycle.endDate;
+};
 
 /**
  * Przypisanie sesji do WIDOCZNYCH cykli:

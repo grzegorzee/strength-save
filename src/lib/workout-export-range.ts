@@ -37,7 +37,9 @@ export const exportRangeBounds = (range: ExportRangeInput, today: string): Expor
       return { mode: 'lastN', limit: 30 };
     case 'cycle':
       if (!range.cycle) return null;
-      return { mode: 'dates', fromDate: range.cycle.startDate, toDate: range.cycle.endDate };
+      // Bug 45: aktywny cykl ma endDate '' aż do archiwizacji — bez fallbacku
+      // zapytanie szło bez górnej granicy (spójność z WorkoutHistory: endDate || dziś).
+      return { mode: 'dates', fromDate: range.cycle.startDate, toDate: range.cycle.endDate || today };
     case 'custom': {
       const fromDate = range.from || '1970-01-01';
       const toDate = range.to || today;

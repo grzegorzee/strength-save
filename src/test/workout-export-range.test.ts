@@ -3,6 +3,7 @@
 // wybór = null (przycisk Eksportuj disabled).
 import { describe, expect, it } from 'vitest';
 import { exportFileName, exportRangeBounds } from '@/lib/workout-export-range';
+import { buildCanonicalState } from '@/test/canonical-states';
 
 const TODAY = '2026-08-20';
 
@@ -26,6 +27,17 @@ describe('exportRangeBounds', () => {
     expect(exportRangeBounds({ kind: 'cycle', cycle: { startDate: '2026-05-01', endDate: '2026-06-30' } }, TODAY))
       .toEqual({ mode: 'dates', fromDate: '2026-05-01', toDate: '2026-06-30' });
     expect(exportRangeBounds({ kind: 'cycle' }, TODAY)).toBeNull();
+  });
+
+  it('bug 45: aktywny cykl (kanoniczny endDate "") domyka zakres na dziś', () => {
+    // Produkcja: createActiveCycle zapisuje endDate '' aż do archiwizacji.
+    // Bez fallbacku zapytanie leci bez górnej granicy (workout-read-store
+    // pomija toDate przy pustym stringu) — inaczej niż ścieżka z Historii
+    // (WorkoutHistory: endDate || todayStr).
+    const active = buildCanonicalState('active-plan', TODAY).cycles[0];
+    expect(active.endDate).toBe('');
+    expect(exportRangeBounds({ kind: 'cycle', cycle: { startDate: active.startDate, endDate: active.endDate } }, TODAY))
+      .toEqual({ mode: 'dates', fromDate: active.startDate, toDate: TODAY });
   });
 
   it('własny zakres: puste od = od początku, puste do = dziś; od > do = null', () => {

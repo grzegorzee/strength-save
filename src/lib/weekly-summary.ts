@@ -5,7 +5,7 @@ import type { LanguageCode } from '@/i18n';
 import { getWeekBounds, calculateTonnage, filterWorkoutsByPeriod } from '@/lib/summary-utils';
 import { detectNewPRs } from '@/lib/pr-utils';
 import { localizeExerciseName } from '@/data/exercise-i18n';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, parseLocalDateSafe } from '@/lib/utils';
 
 // --- Types ---
 
@@ -80,7 +80,13 @@ export function prepareWeeklyData(
   weekWorkouts.forEach(w => w.exercises.forEach(ex => {
     if (ex.name && !allNames.has(ex.exerciseId)) allNames.set(ex.exerciseId, ex.name);
   }));
-  const historicalWorkouts = workouts.filter(w => w.completed && parseLocalDate(w.date) < bounds.start);
+  // Bug 51: safe parse — rekord z nienaparsowalną datą wypada z porównania
+  // zamiast rzucać RangeError w useMemo zakładki Tygodnie.
+  const historicalWorkouts = workouts.filter(w => {
+    if (!w.completed) return false;
+    const d = parseLocalDateSafe(w.date);
+    return d !== null && d < bounds.start;
+  });
   const prs: WeeklySummaryStats['prs'] = [];
   weekWorkouts.forEach(w => {
     const detected = detectNewPRs(w, historicalWorkouts, allNames);

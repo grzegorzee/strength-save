@@ -1,5 +1,5 @@
 import type { WorkoutSession } from '@/types';
-import { formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { formatLocalDate, parseLocalDate, parseLocalDateSafe } from '@/lib/utils';
 
 export const getWeekBounds = (date: Date = new Date()): { start: Date; end: Date } => {
   const d = new Date(date);
@@ -203,7 +203,11 @@ export const filterWorkoutsByPeriod = (
   bounds: { start: Date; end: Date },
 ): WorkoutSession[] => {
   return workouts.filter(w => {
-    const d = parseLocalDate(w.date);
-    return d >= bounds.start && d <= bounds.end && w.completed;
+    if (!w.completed) return false;
+    // Bug 51 (zasada 11): data o poprawnym kształcie, ale semantycznie niemożliwa
+    // ('2026-02-30' przechodzi regex sanitizeWorkoutDoc) nie może rzucać w agregacji
+    // — rekord nienaparsowalny jest pomijany zamiast kłaść całą zakładkę.
+    const d = parseLocalDateSafe(w.date);
+    return d !== null && d >= bounds.start && d <= bounds.end;
   });
 };

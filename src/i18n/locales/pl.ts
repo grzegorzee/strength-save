@@ -352,6 +352,7 @@ export const pl = {
   'exportCsv.rangeCycle': 'Cykl treningowy',
   'exportCsv.rangeCustom': 'Własny zakres dat',
   'exportCsv.cyclePlaceholder': 'Wybierz cykl',
+  'exportCsv.cycleOngoing': 'w toku',
   'exportCsv.noCycles': 'Brak cykli treningowych',
   'exportCsv.preview': 'Treningi w zakresie: {count}',
   'exportCsv.loading': 'Liczenie treningów...',

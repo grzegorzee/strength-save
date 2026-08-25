@@ -48,6 +48,24 @@ describe('buildLocalWeeklySummaries (Z78)', () => {
     expect(buildLocalWeeklySummaries([], [], [], now)).toEqual([]);
   });
 
+  // Bug 51 (zasada 11): rekord z datą o poprawnym KSZTAŁCIE, ale semantycznie
+  // niemożliwą ('2026-02-30' — przechodzi regex sanitizeWorkoutDoc, np. import CSV
+  // z ręcznie edytowanym plikiem) nie ma prawa położyć całej zakładki Tygodnie
+  // (throwing parseLocalDate w filterWorkoutsByPeriod i filtrze historii PR).
+  it('bug 51: data semantycznie niemożliwa nie rzuca — rekord jest pomijany', () => {
+    const workouts = [
+      session('bad', '2026-02-30', 999),
+      session('w1', '2026-06-23', 60),
+    ];
+
+    expect(() => buildLocalWeeklySummaries(workouts, [], [], now)).not.toThrow();
+    const summaries = buildLocalWeeklySummaries(workouts, [], [], now);
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].weekStart).toBe('2026-06-22');
+    expect(summaries[0].stats.workoutCount).toBe(1);
+    expect(summaries[0].stats.tonnageKg).toBe(600);
+  });
+
   // Z156: PR-y w trybie EN dostają nazwę EN (snapshoty w treningach są kanoniczne PL).
   it('lang=en lokalizuje nazwy ćwiczeń w PR-ach', () => {
     const workouts = [session('w1', '2026-06-23', 60), session('w2', '2026-06-30', 80)];

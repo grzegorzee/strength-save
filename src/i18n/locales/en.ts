@@ -346,6 +346,7 @@ export const en: Record<keyof typeof pl, string> = {
   'exportCsv.rangeCycle': 'Training cycle',
   'exportCsv.rangeCustom': 'Custom date range',
   'exportCsv.cyclePlaceholder': 'Select a cycle',
+  'exportCsv.cycleOngoing': 'ongoing',
   'exportCsv.noCycles': 'No training cycles',
   'exportCsv.preview': 'Workouts in range: {count}',
   'exportCsv.loading': 'Counting workouts...',
