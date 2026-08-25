@@ -7,6 +7,8 @@
 //          daty ISO albo "30 Jun 2025, 19:56"; set_type normal/warmup/dropset/failure albo 1/2/3/4;
 //          starszy wariant ma weight_lbs/distance_miles zamiast _kg/_km.
 
+import { parseLocalDateSafe } from '@/lib/utils';
+
 export type ImportFormat = 'strong' | 'hevy';
 
 export interface ImportedSet {
@@ -97,19 +99,25 @@ const MONTHS: Record<string, string> = {
   jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
 };
 
+/** Bug 51: kształt YYYY-MM-DD to za mało — '2026-02-30' przechodzi regex,
+ *  a rzucający parseLocalDate kładzie potem agregacje (zakładka Tygodnie).
+ *  Walidacja semantyczna domyka jedyną produktową drogę powstania złej daty. */
+const asSemanticDate = (value: string): string | null =>
+  parseLocalDateSafe(value) ? value : null;
+
 /** Data YYYY-MM-DD z formatów Strong/Hevy; null gdy nieparsowalna. */
 export const parseImportDate = (raw: string): string | null => {
   const trimmed = raw.trim();
   // "2026-05-04 17:31:12" / ISO "2026-05-06T18:02:44Z"
   const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})[T ]/);
-  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  if (isoMatch) return asSemanticDate(`${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return asSemanticDate(trimmed);
   // "4 May 2026, 17:31"
   const humanMatch = trimmed.match(/^(\d{1,2}) ([A-Za-z]{3})[a-z]* (\d{4})/);
   if (humanMatch) {
     const month = MONTHS[humanMatch[2].toLowerCase()];
     if (!month) return null;
-    return `${humanMatch[3]}-${month}-${humanMatch[1].padStart(2, '0')}`;
+    return asSemanticDate(`${humanMatch[3]}-${month}-${humanMatch[1].padStart(2, '0')}`);
   }
   return null;
 };

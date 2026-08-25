@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { detectFormat, parseWorkoutCsv } from '@/lib/workout-import/parser';
+import { detectFormat, parseImportDate, parseWorkoutCsv } from '@/lib/workout-import/parser';
 
 const strongCsv = readFileSync(join(__dirname, 'fixtures/strong-sample.csv'), 'utf8');
 const hevyCsv = readFileSync(join(__dirname, 'fixtures/hevy-sample.csv'), 'utf8');
@@ -88,5 +88,22 @@ describe('parseWorkoutCsv — Hevy (Z109)', () => {
 
   it('pusty plik => zero treningów, zero błędów', () => {
     expect(parseWorkoutCsv('')).toEqual({ workouts: [], skippedRows: 0, format: null });
+  });
+});
+
+// Bug 51: kształt daty to za mało — '2026-02-30' przechodził regex i tworzył
+// rekord, na którym rzucający parseLocalDate kładł zakładkę Tygodnie.
+describe('parseImportDate — walidacja semantyczna (bug 51)', () => {
+  it('odrzuca daty o poprawnym kształcie, ale niemożliwe semantycznie', () => {
+    expect(parseImportDate('2026-02-30')).toBeNull();
+    expect(parseImportDate('2026-13-05 10:00:00')).toBeNull();
+    expect(parseImportDate('31 Feb 2026, 10:00')).toBeNull();
+  });
+
+  it('poprawne daty przechodzą bez zmian', () => {
+    expect(parseImportDate('2026-05-04 17:31:12')).toBe('2026-05-04');
+    expect(parseImportDate('2026-05-06T18:02:44Z')).toBe('2026-05-06');
+    expect(parseImportDate('2026-05-04')).toBe('2026-05-04');
+    expect(parseImportDate('4 May 2026, 17:31')).toBe('2026-05-04');
   });
 });

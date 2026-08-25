@@ -12,7 +12,7 @@ import { TrainingDayCard } from '@/components/TrainingDayCard';
 import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Zap, Timer, Plane } from 'lucide-react';
-import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
+import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate, parseLocalDateSafe } from '@/lib/utils';
 import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
@@ -280,9 +280,12 @@ const TrainingPlan = () => {
   );
   const resolver = useMemo(() => buildWorkoutResolver(trainingPlan, cycles, lang), [trainingPlan, cycles, lang]);
 
+  // Bug 51: safe parse nad surowymi rekordami — jedna semantycznie niemożliwa
+  // data ('2026-02-30' przechodzi regex guardu) nie może położyć route'a planu.
   const completedDates = workouts
     .filter(w => w.completed)
-    .map(w => parseLocalDate(w.date));
+    .map(w => parseLocalDateSafe(w.date))
+    .filter((d): d is Date => d !== null);
 
   // WP-A (X27): te same daty jako zbiór ISO — guard przełożeń (disabled targety
   // w sheecie + silnik mutacji); gate na ikonie karty (:648) zostaje bez zmian.
@@ -292,7 +295,9 @@ const TrainingPlan = () => {
   );
 
   const stravaDates = useMemo(() =>
-    visibleActivities.map(a => parseLocalDate(a.date)),
+    // Bug 51: dokumenty Strava idą bez guarda odczytu (useStrava mapuje 1:1) —
+    // safe parse zamiast RangeError na złej dacie.
+    visibleActivities.map(a => parseLocalDateSafe(a.date)).filter((d): d is Date => d !== null),
     [visibleActivities]
   );
 
