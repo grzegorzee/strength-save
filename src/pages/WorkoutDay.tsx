@@ -268,13 +268,15 @@ const WorkoutDay = () => {
 
   // Z143: jeden timer przerwy na sesję — stan u właściciela (tu), tykanie w RestBar.
   // Z188: kontroler niesie deadline + persystencję localStorage (kill nie gubi przerwy).
+  // Bug 52 (X30): scope dayId:date — przerwa z sesji A nie wraca w sesji B
+  // (dayId+date zamiast sessionId, bo promocja provisional->remote zmienia id).
   const {
     restState,
     startRest: startRestTimer,
     adjustRest: adjustRestTimer,
     stopRest: stopRestTimer,
     resumeFromStorage: resumeRestFromStorage,
-  } = useRestTimerController();
+  } = useRestTimerController(dayId ? `${dayId}:${targetDate}` : null);
   // Fala 2 (2026-08-20): ustawienia timera z tapnięcia w sticky pasek REST.
   // Stan i sheet żyją TUTAJ, niezależnie od restState — koniec przerwy przy
   // otwartym sheecie nie może go unmountować (lekcja Radix b.92).
@@ -849,7 +851,26 @@ const WorkoutDay = () => {
 
     setAutoSaveStatus('syncing');
 
-    const outcome = await syncWorkoutSession(uid, sessionId, mode, workoutSyncDeps);
+    let outcome = await syncWorkoutSession(uid, sessionId, mode, workoutSyncDeps);
+
+    // Bug 3 (X30): AutoSync mógł wypromować sesję provisional za plecami ekranu
+    // (powrót sieci w tle) — silnik nie znajduje draftu pod starym id
+    // (missingDraft). Rozwiąż tombstone promocji, przejmij tożsamość remote
+    // i ponów sync, zamiast kończyć cichym no-opem (zasada 6: każdy stan
+    // błędu ma wyjście).
+    if (outcome.skipped && outcome.missingDraft) {
+      const promotedRemoteId = workoutDraftDb.resolvePromotedSessionId(uid, sessionId);
+      if (promotedRemoteId && promotedRemoteId !== sessionId) {
+        const externallyPromotedDraft = await workoutDraftDb.loadDraft(uid, promotedRemoteId);
+        if (externallyPromotedDraft) {
+          activeDraftRef.current = externallyPromotedDraft;
+          setActiveDraft(externallyPromotedDraft);
+        }
+        setSessionId(promotedRemoteId);
+        setQueuedDraft(prev => prev?.sessionId === sessionId ? null : prev);
+        outcome = await syncWorkoutSession(uid, promotedRemoteId, mode, workoutSyncDeps);
+      }
+    }
 
     // Promocja provisional -> remote: odśwież tożsamość sesji w UI.
     if (outcome.promotedSessionId) {
@@ -1046,9 +1067,18 @@ const WorkoutDay = () => {
     setIsDraftLoaded(false);
 
     const loadDraft = async () => {
-      const draft = routeSessionId
-        ? await workoutDraftDb.loadDraft(uid, routeSessionId)
-        : await workoutDraftDb.loadActiveDraft(uid);
+      let draft: ActiveWorkoutDraft | null;
+      if (routeSessionId) {
+        draft = await workoutDraftDb.loadDraft(uid, routeSessionId);
+      } else {
+        // Bug 4 (X30): bez ?session najpierw draft TEJ strony (dayId+date) —
+        // globalny pick mógł wskazać nowszy porzucony adhoc i przysłonić żywą
+        // sesję planu (autostart robił wtedy pełny prefill nad stanem chmury).
+        draft = dayId ? await workoutDraftDb.loadDraftForDay(uid, dayId, targetDate) : null;
+        // Niezmiennik: strona bez własnego draftu zachowuje dotychczasowy
+        // globalny pick (pozostali konsumenci activeDraft bez zmian).
+        if (!draft) draft = await workoutDraftDb.loadActiveDraft(uid);
+      }
       const resolvedDraft = draft ?? await workoutDraftDb.migrateFromLocalStorage(uid);
       if (!cancelled) {
         setActiveDraft(resolvedDraft);
@@ -1061,7 +1091,7 @@ const WorkoutDay = () => {
     return () => {
       cancelled = true;
     };
-  }, [uid, routeSessionId]);
+  }, [uid, routeSessionId, dayId, targetDate]);
 
   useEffect(() => {
     if (!uid || !dayId) {
@@ -2087,7 +2117,15 @@ const WorkoutDay = () => {
     if (result.skipped) {
       // Kontrakt Z23: skipped przychodzi z success:true (nic do zrobienia / inny
       // sync w toku) — to nie błąd; user może ponowić (R2-32).
+      // Bug 3 (X30): primary CTA nie ma prawa być niemy — powiedz userowi, co się
+      // stało (przypadek missingDraft z tombstone'em rozwiązuje syncDraftToFirebase,
+      // więc tu zostaje realne "brak zmian").
       setIsExplicitSaving(false);
+      setShowCompleteConfirm(false);
+      toast({
+        title: t('workout.toast.nothingToSyncTitle'),
+        description: t('workout.toast.nothingToSyncDesc'),
+      });
       return;
     }
 

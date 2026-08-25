@@ -204,6 +204,47 @@ describe('useRestTimerController — deadline i persystencja (Z188)', () => {
     expect(localStorage.getItem(KEY)).toBeNull();
   });
 
+  it('bug 52: przerwa z INNEJ sesji (inny dayId+date) nie jest przywracana — wpis czyszczony', async () => {
+    // Sesja A (plan): start przerwy, wyjście z ekranu (persist zostaje — Z188).
+    const a = renderHook(() => useRestTimerController('day-a:2026-08-25'));
+    act(() => a.result.current.startRest('ex-a', 120));
+    a.unmount();
+    expect(localStorage.getItem(KEY)).not.toBeNull();
+
+    // Sesja B (szybki trening) montuje się w oknie przerwy: obca przerwa nie wraca.
+    const b = renderHook(() => useRestTimerController('adhoc-1:2026-08-25'));
+    act(() => b.result.current.resumeFromStorage());
+    await flushNotificationChain();
+
+    expect(b.result.current.restState).toBeNull();
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('bug 52 niezmiennik: ta sama strona (dayId+date) przywraca przerwę po kill — Z188 działa dalej', () => {
+    const a = renderHook(() => useRestTimerController('day-a:2026-08-25'));
+    act(() => a.result.current.startRest('ex-a', 120));
+    a.unmount();
+
+    const b = renderHook(() => useRestTimerController('day-a:2026-08-25'));
+    act(() => b.result.current.resumeFromStorage());
+
+    expect(b.result.current.restState).toMatchObject({ exerciseId: 'ex-a', totalSeconds: 120 });
+  });
+
+  it('bug 52: wpis w starym formacie (bez scope) nie wraca w sesji ze scope', async () => {
+    localStorage.setItem(KEY, JSON.stringify({
+      exerciseId: 'ex-a',
+      deadlineAt: Date.now() + 42_000,
+      totalSeconds: 90,
+    }));
+    const { result } = renderHook(() => useRestTimerController('day-a:2026-08-25'));
+    act(() => result.current.resumeFromStorage());
+    await flushNotificationChain();
+
+    expect(result.current.restState).toBeNull();
+    expect(localStorage.getItem(KEY)).toBeNull();
+  });
+
   it('Z189: watchdog gasi wiszący stan po >3 s od deadline (RestBar odmontowany przez błąd)', () => {
     vi.useFakeTimers();
     try {

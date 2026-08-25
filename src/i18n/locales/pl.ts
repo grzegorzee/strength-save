@@ -1680,6 +1680,8 @@ export const pl = {
   'workout.toast.watchSetLoggedDesc': 'Zapisano serię zalogowaną na Apple Watch.',
   'workout.toast.emptyWorkoutTitle': 'Pusty trening',
   'workout.toast.emptyWorkoutDesc': 'Odhacz przynajmniej jedną serię, zanim zakończysz trening.',
+  'workout.toast.nothingToSyncTitle': 'Brak zmian do zapisania',
+  'workout.toast.nothingToSyncDesc': 'Sesja nie ma niezapisanych zmian. Jeśli trening powinien być już zakończony, wyjdź z ekranu i wejdź w niego ponownie.',
   'workout.toast.watchFinishedTitle': 'Zegarek: trening ukończony',
   'workout.toast.watchFinishedDesc': 'Zapisuję i zamykam trening.',
   'workout.toast.continueDesc': 'Wczytano istniejący trening.',

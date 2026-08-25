@@ -20,7 +20,7 @@ vi.mock('@/lib/watch-bridge', async (importOriginal) => {
 });
 
 vi.mock('@/lib/workout-draft-db', () => ({
-  workoutDraftDb: { loadActiveDraft: vi.fn(async () => null) },
+  workoutDraftDb: { loadActiveDraft: vi.fn(async () => null), loadDraftForDay: vi.fn(async () => null) },
 }));
 
 vi.mock('@/lib/garmin-api', () => ({

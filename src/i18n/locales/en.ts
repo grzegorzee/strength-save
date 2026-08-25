@@ -1655,6 +1655,8 @@ export const en: Record<keyof typeof pl, string> = {
   'workout.toast.watchSetLoggedDesc': 'Saved a set logged on Apple Watch.',
   'workout.toast.emptyWorkoutTitle': 'Empty workout',
   'workout.toast.emptyWorkoutDesc': 'Log at least one set before finishing the workout.',
+  'workout.toast.nothingToSyncTitle': 'Nothing to save',
+  'workout.toast.nothingToSyncDesc': 'This session has no unsaved changes. If the workout should already be finished, leave the screen and open it again.',
   'workout.toast.watchFinishedTitle': 'Watch: workout finished',
   'workout.toast.watchFinishedDesc': 'Saving and closing the workout.',
   'workout.toast.continueDesc': 'Loaded an existing workout.',

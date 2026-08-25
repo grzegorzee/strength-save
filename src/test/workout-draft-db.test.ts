@@ -519,6 +519,133 @@ describe('workoutDraftDb', () => {
     expect(drafts[0].cloudUpdatedAt).toBe(500);
   });
 
+  it('bug 20: redirect po promocji przenosi warmupChecked, sessionSwaps, lastTouchedExerciseId i lastActivityAt', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId, { revision: 0, updatedAt: 500 });
+
+    // Edycja w oknie promocji: swap "tylko dziś" + odhaczenie rozgrzewki idą jeszcze
+    // pod stary klucz provisional (WorkoutDay ma stary sessionId do końca syncu).
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 5,
+      warmupChecked: ['warmup.jumpingJacks'],
+      sessionSwaps: { 'ex-1': { id: 'ex-1-swap', name: 'Swap', sets: '3 x 8' } },
+      lastTouchedExerciseId: 'ex-1-swap',
+      lastActivityAt: 4_200_000,
+    });
+
+    const merged = await workoutDraftDb.loadDraft('user-1', remoteId);
+    expect(merged?.warmupChecked).toEqual(['warmup.jumpingJacks']);
+    expect(merged?.sessionSwaps).toEqual({ 'ex-1': { id: 'ex-1-swap', name: 'Swap', sets: '3 x 8' } });
+    expect(merged?.lastTouchedExerciseId).toBe('ex-1-swap');
+    expect(merged?.lastActivityAt).toBe(4_200_000);
+  });
+
+  it('bug 38: autosave startujący w oknie promocji (tombstone jeszcze nie zapisany) nie wskrzesza draftu pod kluczem provisional', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 3,
+    });
+
+    // Wyścig: autosave rusza PO rejestracji łańcucha promocji w writeChains
+    // (synchronicznej), ale PRZED zapisem tombstone'a — synchroniczny odczyt
+    // tombstone'a w saveActiveDraft widzi jeszcze null, a odroczony zapis
+    // wykonuje się już PO commicie runPromote (stary klucz usunięty).
+    const promote = workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId, { revision: 0, updatedAt: 500 });
+    const racingSave = workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+      version: 4,
+      dayNotes: 'zapis wyscigowy w oknie promocji',
+    });
+    await Promise.all([promote, racingSave]);
+
+    const drafts = await workoutDraftDb.listDrafts('user-1');
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].sessionId).toBe(remoteId);
+    expect(drafts[0].dayNotes).toBe('zapis wyscigowy w oknie promocji');
+    const orphan = await workoutDraftDb.loadDraft('user-1', provisionalId);
+    expect(orphan).toBeNull();
+  });
+
+  it('bug 3: resolvePromotedSessionId zwraca remote id z tombstone\'a promocji, null gdy brak', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    expect(workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBeNull();
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+    });
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+
+    // WorkoutDay po skipped/missingDraft własnej sesji provisional odzyskuje
+    // tożsamość remote i może ponowić sync zamiast cichego no-opa.
+    expect(workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBe(remoteId);
+    expect(workoutDraftDb.resolvePromotedSessionId('user-1', 'local-workout-inny')).toBeNull();
+  });
+
+  it('bug 4 sekwencja: niedokończony adhoc nie przysłania sesji planu — loadDraftForDay wybiera draft strony', async () => {
+    // 1) Sesja planu: 2 odhaczone ćwiczenia, po checkpoincie (dirty=false, remote).
+    const planDraft: ActiveWorkoutDraft = {
+      ...baseDraft,
+      sessionId: 'workout-plan-1',
+      remoteSessionId: 'workout-plan-1',
+      dayId: 'day-1',
+      date: '2026-04-03',
+      dirty: false,
+      updatedAt: 200,
+      version: 6,
+    };
+    // 2) Porzucony szybki trening — nowszy i dirty, wygrywa globalny pick.
+    const adhocDraft: ActiveWorkoutDraft = {
+      ...baseDraft,
+      sessionId: 'workout-adhoc-1',
+      remoteSessionId: 'workout-adhoc-1',
+      dayId: 'adhoc-123',
+      date: '2026-04-03',
+      dirty: true,
+      updatedAt: 900,
+      version: 2,
+      exerciseSets: { 'adhoc-ex': [{ reps: 5, weight: 60, completed: true }] },
+    };
+    await workoutDraftDb.saveActiveDraft(planDraft);
+    await workoutDraftDb.saveActiveDraft(adhocDraft);
+
+    // Globalny pick (dzisiejsze zachowanie loadActiveDraft): adhoc — niezmiennik.
+    const globalPick = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(globalPick?.sessionId).toBe('workout-adhoc-1');
+
+    // 3) Powrót na stronę planu bez ?session: draft TEJ strony, nie globalny pick.
+    const pageDraft = await workoutDraftDb.loadDraftForDay('user-1', 'day-1', '2026-04-03');
+    expect(pageDraft?.sessionId).toBe('workout-plan-1');
+    expect(pageDraft?.exerciseSets['ex-1'].filter((s) => s.completed)).toHaveLength(2);
+
+    // Strona bez własnego draftu → null (WorkoutDay wraca do globalnego picku).
+    expect(await workoutDraftDb.loadDraftForDay('user-1', 'day-2', '2026-04-03')).toBeNull();
+    expect(await workoutDraftDb.loadDraftForDay('user-1', 'day-1', '2026-04-04')).toBeNull();
+  });
+
   it('markPromotedToRemote nie cofa treści, gdy draft remote ma nowszą version (R2-04)', async () => {
     const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
     const remoteId = 'workout-user-1-day-1-2026-04-03';
@@ -772,6 +899,67 @@ describe('workoutDraftDb', () => {
     expect(loaded?.cloudRevision).toBe(5);
     expect(loaded?.cloudUpdatedAt).toBe(1730000000000);
     expect(loaded?.version).toBe(7);
+  });
+
+  it('bug 13: fallback localStorage niesie exerciseMetrics, exerciseNames i pendingWriteId/pendingWriteVersion', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      exerciseMetrics: { 'ex-1': { rpe: 8, pain: 1, quality: 5 } },
+      exerciseNames: { 'ex-1': 'Przysiad ze sztangą' },
+      pendingWriteId: 'write-abc',
+      pendingWriteVersion: 1,
+    });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(loaded?.exerciseMetrics).toEqual({ 'ex-1': { rpe: 8, pain: 1, quality: 5 } });
+    expect(loaded?.exerciseNames).toEqual({ 'ex-1': 'Przysiad ze sztangą' });
+    // Kontrakt R2-01: retry checkpointu po lost-ack idzie ze STARYM writeId
+    // (draftWriteId reuse'uje pendingWriteId przy zgodnej wersji) — bez
+    // round-tripu przez fallback retry kończył się fałszywym konfliktem.
+    expect(loaded?.pendingWriteId).toBe('write-abc');
+    expect(loaded?.pendingWriteVersion).toBe(1);
+  });
+
+  it('bug 13: metryki wpisane po awarii IDB przeżywają restart — merge per ćwiczenie, fallback wygrywa per klucz', async () => {
+    // IDB umarło w trakcie sesji: rekord IDB ma metryki sprzed awarii...
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      version: 2,
+      exerciseMetrics: { 'ex-1': { rpe: 7 } },
+      exerciseNames: { 'ex-1': 'Przysiad' },
+    });
+    // ...a wszystko po awarii (nowe RPE dla ex-1, świeże ex-2, pendingWrite)
+    // żyje wyłącznie w fallbacku localStorage.
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: { 'ex-1': [{ reps: 6, weight: 85, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      savedAt: baseDraft.updatedAt + 100,
+      version: 9,
+      exerciseMetrics: { 'ex-1': { rpe: 9 }, 'ex-2': { pain: 2 } },
+      exerciseNames: { 'ex-2': 'Wykroki' },
+      pendingWriteId: 'write-po-awarii',
+      pendingWriteVersion: 9,
+    }, 'user-1');
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(loaded?.version).toBe(9);
+    // Fallback wygrywa per klucz; klucze, których fallback nie zna, zostają z IDB.
+    expect(loaded?.exerciseMetrics).toEqual({ 'ex-1': { rpe: 9 }, 'ex-2': { pain: 2 } });
+    expect(loaded?.exerciseNames).toEqual({ 'ex-1': 'Przysiad', 'ex-2': 'Wykroki' });
+    expect(loaded?.pendingWriteId).toBe('write-po-awarii');
+    expect(loaded?.pendingWriteVersion).toBe(9);
   });
 
   it('Z185: sessionSwaps przeżywa roundtrip przez IDB i fallback localStorage', async () => {

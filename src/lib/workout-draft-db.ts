@@ -320,6 +320,11 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     date: draft.date,
     exerciseSets: draft.exerciseSets,
     exerciseNotes: draft.exerciseNotes,
+    // Bug 13 (X30): metryki, snapshoty nazw i klucz idempotencji zapisu też
+    // przeżywają round-trip przez fallback (asymetria vs normalizeDraft była
+    // przeoczeniem — wzorzec Z162/Z185/incydent 180 s).
+    exerciseMetrics: draft.exerciseMetrics,
+    ...(draft.exerciseNames !== undefined && { exerciseNames: draft.exerciseNames }),
     dayNotes: draft.dayNotes,
     skippedExercises: draft.skippedExercises,
     ...(draft.warmupChecked !== undefined && { warmupChecked: draft.warmupChecked }),
@@ -332,6 +337,9 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     ...(draft.startedAt !== undefined && { startedAt: draft.startedAt }),
     ...(draft.lastActivityAt !== undefined && { lastActivityAt: draft.lastActivityAt }),
     ...(draft.finalizedAt !== undefined && { finalizedAt: draft.finalizedAt }),
+    // Kontrakt R2-01 (bug 13, X30): pendingWrite* przeżywają flush przez fallback.
+    ...(draft.pendingWriteId != null && { pendingWriteId: draft.pendingWriteId }),
+    ...(draft.pendingWriteVersion != null && { pendingWriteVersion: draft.pendingWriteVersion }),
   }, draft.userId);
   if (!saved) {
     throw new Error('LOCAL_STORAGE_SAVE_FAILED');
@@ -784,6 +792,14 @@ const redirectDraftSave = async (incoming: ActiveWorkoutDraft, remoteSessionId: 
         ...(incoming.dayName !== undefined && { dayName: incoming.dayName }),
         ...(incoming.dayFocus !== undefined && { dayFocus: incoming.dayFocus }),
         skippedExercises: incoming.skippedExercises,
+        // Bug 20 (X30): pola pomocnicze sesji też jadą z incoming — redirect był
+        // jedyną ścieżką merge, która je gubiła (resolveFresherFallback i
+        // mergePromotedDraft przenoszą je od zawsze). Najgroźniejszy był swap
+        // "tylko dziś": utrata utrwalała się do końca sesji przez activeDraftRef.
+        ...(incoming.warmupChecked !== undefined && { warmupChecked: incoming.warmupChecked }),
+        ...(incoming.sessionSwaps !== undefined && { sessionSwaps: incoming.sessionSwaps }),
+        ...(incoming.lastTouchedExerciseId !== undefined && { lastTouchedExerciseId: incoming.lastTouchedExerciseId }),
+        ...(incoming.lastActivityAt !== undefined && { lastActivityAt: incoming.lastActivityAt }),
         completedLocally: incoming.completedLocally || existing.completedLocally,
         finalSyncPending: incoming.finalSyncPending || existing.finalSyncPending,
         ...(incoming.finalizedAt !== undefined && { finalizedAt: incoming.finalizedAt }),
@@ -819,6 +835,13 @@ const resolveFresherFallback = (
     ...idbRecord,
     exerciseSets: fallback.exerciseSets,
     exerciseNotes: fallback.exerciseNotes,
+    // Bug 13 (X30): metryki i nazwy mergowane PER KLUCZ ćwiczenia — wpisy ze
+    // świeższego fallbacku wygrywają, klucze znane tylko staremu rekordowi IDB
+    // zostają (fallback w starym formacie = pusta mapa, nic nie nadpisze).
+    exerciseMetrics: { ...idbRecord.exerciseMetrics, ...fallback.exerciseMetrics },
+    ...((idbRecord.exerciseNames !== undefined || fallback.exerciseNames !== undefined) && {
+      exerciseNames: { ...(idbRecord.exerciseNames ?? {}), ...(fallback.exerciseNames ?? {}) },
+    }),
     dayNotes: fallback.dayNotes,
     skippedExercises: fallback.skippedExercises,
     ...(fallback.warmupChecked !== undefined && { warmupChecked: fallback.warmupChecked }),
@@ -831,6 +854,10 @@ const resolveFresherFallback = (
     // fałszowałyby go przez savedAt).
     ...(fallback.lastActivityAt !== undefined && { lastActivityAt: fallback.lastActivityAt }),
     ...(fallback.finalizedAt !== undefined && { finalizedAt: fallback.finalizedAt }),
+    // Kontrakt R2-01 (bug 13, X30): klucz idempotencji z NOWSZEGO snapshotu —
+    // retry checkpointu po lost-ack idzie ze starym writeId, nie z nowym.
+    ...(fallback.pendingWriteId !== undefined && { pendingWriteId: fallback.pendingWriteId }),
+    ...(fallback.pendingWriteVersion !== undefined && { pendingWriteVersion: fallback.pendingWriteVersion }),
     updatedAt: fallback.updatedAt,
     dirty: true,
     version: fallback.version,
@@ -895,6 +922,22 @@ export const workoutDraftDb = {
     }
   },
 
+  // Bug 4 (X30): wybór draftu PER STRONA treningu (dayId+date) zamiast globalnego
+  // picku. Niezmiennik z incydentu 2026-07-20: żywa sesja planu jest bazą — nowszy
+  // porzucony adhoc nie ma prawa jej przysłonić przy wejściu bez ?session.
+  // Brak draftu strony => null (caller decyduje o fallbacku na globalny pick).
+  async loadDraftForDay(userId: string, dayId: string, date: string): Promise<ActiveWorkoutDraft | null> {
+    const drafts = await this.listDrafts(userId);
+    const picked = pickActiveDraft(drafts.filter(draft => draft.dayId === dayId && draft.date === date));
+    if (!picked) return null;
+    const fresher = resolveFresherFallback(picked, userId);
+    if (fresher) {
+      await this.saveActiveDraft(fresher).catch(() => undefined);
+      return fresher;
+    }
+    return picked;
+  },
+
   async listDrafts(userId: string): Promise<ActiveWorkoutDraft[]> {
     if (!this.isSupported()) {
       const fallback = withFallbackLoad(userId);
@@ -937,6 +980,20 @@ export const workoutDraftDb = {
     const previous = writeChains.get(key) ?? Promise.resolve();
     const write = previous.then(async () => {
       if (normalized.version < (latestWriteVersions.get(key) ?? normalized.version)) return;
+      // Bug 38 (X30): tombstone promocji może powstać JUŻ PO synchronicznym
+      // sprawdzeniu wyżej — zapis zakolejkowany za łańcuchem markPromotedToRemote
+      // wykonuje się dopiero po commicie runPromote (stary klucz usunięty).
+      // Ponowny odczyt w closure kieruje taki zapis pod klucz remote, zamiast
+      // wskrzeszać osierocony draft provisional. Bez chainowania na klucz remote:
+      // jesteśmy w środku łańcucha klucza provisional, a transakcja IDB w
+      // redirectDraftSave sama serializuje rekord remote (merge z guardem wersji).
+      if (normalized.sessionOrigin === 'provisional' || isProvisionalWorkoutSessionId(normalized.sessionId)) {
+        const tombstone = readPromotionTombstone(normalized.userId, normalized.sessionId);
+        if (tombstone && tombstone.remoteId !== normalized.sessionId) {
+          await redirectDraftSave(normalized, tombstone.remoteId).catch(() => undefined);
+          return;
+        }
+      }
       try {
         await runWrite(normalized, normalized.userId, undefined, { skipIfNewerExists: true });
       } catch {
@@ -1040,6 +1097,14 @@ export const workoutDraftDb = {
 
   async clearActiveDraft(userId: string, sessionId?: string): Promise<void> {
     await runWrite(null, userId, sessionId);
+  },
+
+  // Bug 3 (X30): publiczny odczyt tombstone'a promocji. WorkoutDay po
+  // skipped/missingDraft własnej sesji provisional (promocja zewnętrzna przez
+  // AutoSync) rozwiązuje nową tożsamość remote i ponawia sync zamiast kończyć
+  // cichym no-opem "Zakończ trening".
+  resolvePromotedSessionId(userId: string, provisionalSessionId: string): string | null {
+    return readPromotionTombstone(userId, provisionalSessionId)?.remoteId ?? null;
   },
 
   // Warunkowe czyszczenie po finalnym syncu: draft z NOWSZĄ wersją (seria odhaczona

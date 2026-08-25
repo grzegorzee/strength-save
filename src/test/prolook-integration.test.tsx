@@ -75,6 +75,7 @@ vi.mock('@/lib/workout-draft-db', () => ({
   workoutDraftDb: {
     loadActiveDraft: vi.fn(async () => null),
     listDrafts: vi.fn(async () => []),
+    loadDraftForDay: vi.fn(async () => null),
   },
 }));
 vi.mock('@/lib/workout-sync-queue', () => ({
