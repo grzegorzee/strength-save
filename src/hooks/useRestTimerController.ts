@@ -22,12 +22,17 @@ export interface RestRunState {
 
 export const REST_STATE_STORAGE_KEY = 'fittracker_rest_state_v1';
 
-const persistRestState = (state: RestRunState): void => {
+// Bug 52 (X30): wpis niesie tożsamość sesji jako scope (dayId:date — stabilne
+// przez promocję provisional->remote, w przeciwieństwie do sessionId; pułapka
+// znana z klucza scrolla, CLAUDE.md zasada 1). resumeFromStorage przywraca
+// przerwę tylko we WŁASNEJ sesji; obcy/stary wpis jest czyszczony.
+const persistRestState = (state: RestRunState, scope: string | null): void => {
   try {
     localStorage.setItem(REST_STATE_STORAGE_KEY, JSON.stringify({
       exerciseId: state.exerciseId,
       deadlineAt: state.deadlineAt,
       totalSeconds: state.totalSeconds,
+      ...(scope !== null && { scope }),
     }));
   } catch { /* localStorage niedostępne — przerwa po prostu nie przeżyje killa */ }
 };
@@ -38,11 +43,14 @@ const clearPersistedRestState = (): void => {
   } catch { /* jak wyżej */ }
 };
 
-export const useRestTimerController = () => {
+export const useRestTimerController = (scopeKey?: string | null) => {
   const [restState, setRestState] = useState<RestRunState | null>(null);
   // Monotoniczny licznik w ref: runId NIGDY nie wraca do starej wartości, więc
   // RestBar zamontowany w tej samej karcie zawsze dostaje zmianę i restartuje.
   const runIdRef = useRef(0);
+  // Bug 52 (X30): tożsamość sesji dla persystencji (dayId:date w WorkoutDay).
+  const scopeRef = useRef<string | null>(scopeKey ?? null);
+  scopeRef.current = scopeKey ?? null;
 
   const startRest = useCallback((exerciseId: string, seconds: number) => {
     runIdRef.current += 1;
@@ -53,7 +61,7 @@ export const useRestTimerController = () => {
       runId: runIdRef.current,
     };
     setRestState(next);
-    persistRestState(next);
+    persistRestState(next, scopeRef.current);
   }, []);
 
   // Korekta ±15 s: deadline nie schodzi poniżej "teraz" (nigdy ujemny czas),
@@ -67,7 +75,7 @@ export const useRestTimerController = () => {
         deadlineAt: Math.max(Date.now(), current.deadlineAt + deltaSeconds * 1000),
         totalSeconds: Math.max(1, current.totalSeconds + deltaSeconds),
       };
-      persistRestState(next);
+      persistRestState(next, scopeRef.current);
       return next;
     });
   }, []);
@@ -84,12 +92,21 @@ export const useRestTimerController = () => {
     try {
       const raw = localStorage.getItem(REST_STATE_STORAGE_KEY);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<RestRunState> | null;
+      const parsed = JSON.parse(raw) as (Partial<RestRunState> & { scope?: unknown }) | null;
       if (!parsed
         || typeof parsed.exerciseId !== 'string' || parsed.exerciseId.length === 0
         || typeof parsed.deadlineAt !== 'number' || !Number.isFinite(parsed.deadlineAt)
         || typeof parsed.totalSeconds !== 'number' || !Number.isFinite(parsed.totalSeconds)) {
         clearPersistedRestState();
+        return;
+      }
+      // Bug 52 (X30): wpis innej sesji (albo w starym formacie bez scope) nie
+      // jest przywracany w obcym treningu — czyścimy go razem z wiszącą
+      // notyfikacją, zamiast pokazywać pasek z pustą etykietą.
+      const storedScope = typeof parsed.scope === 'string' ? parsed.scope : null;
+      if (storedScope !== scopeRef.current) {
+        clearPersistedRestState();
+        void cancelRestEndNotification();
         return;
       }
       if (parsed.deadlineAt <= Date.now()) {

@@ -268,13 +268,15 @@ const WorkoutDay = () => {
 
   // Z143: jeden timer przerwy na sesję — stan u właściciela (tu), tykanie w RestBar.
   // Z188: kontroler niesie deadline + persystencję localStorage (kill nie gubi przerwy).
+  // Bug 52 (X30): scope dayId:date — przerwa z sesji A nie wraca w sesji B
+  // (dayId+date zamiast sessionId, bo promocja provisional->remote zmienia id).
   const {
     restState,
     startRest: startRestTimer,
     adjustRest: adjustRestTimer,
     stopRest: stopRestTimer,
     resumeFromStorage: resumeRestFromStorage,
-  } = useRestTimerController();
+  } = useRestTimerController(dayId ? `${dayId}:${targetDate}` : null);
   // Fala 2 (2026-08-20): ustawienia timera z tapnięcia w sticky pasek REST.
   // Stan i sheet żyją TUTAJ, niezależnie od restState — koniec przerwy przy
   // otwartym sheecie nie może go unmountować (lekcja Radix b.92).
