@@ -5,6 +5,13 @@ const requestPermissions = vi.fn();
 const schedule = vi.fn(async (_options: unknown) => undefined);
 const cancel = vi.fn(async (_options: unknown) => undefined);
 const removeDelivered = vi.fn(async (_options: unknown) => undefined);
+const listenerRemove = vi.fn(async () => undefined);
+type ActionListener = (event: { actionId: string; notification: { id: number } }) => void;
+const listeners = vi.hoisted(() => ({ action: null as ActionListener | null }));
+const addListener = vi.fn(async (_name: string, cb: ActionListener) => {
+  listeners.action = cb;
+  return { remove: listenerRemove };
+});
 
 // Bug 8 (X30): moduł słucha appStateChange przez app-lifecycle — test steruje
 // przejściami tło/foreground przez przechwycony callback.
@@ -22,6 +29,7 @@ vi.mock('@capacitor/local-notifications', () => ({
     schedule: (options: unknown) => schedule(options),
     cancel: (options: unknown) => cancel(options),
     removeDeliveredNotifications: (options: unknown) => removeDelivered(options),
+    addListener: (name: string, cb: ActionListener) => addListener(name, cb),
   },
 }));
 vi.mock('@/lib/app-lifecycle', () => ({
@@ -130,6 +138,37 @@ describe('rest-notification: uzbrajanie i planowanie w tle (bug 8, X30)', () => 
     expect(cancel).toHaveBeenCalledWith({ notifications: [{ id: 90001 }] });
     const payload = removeDelivered.mock.calls[0][0] as { notifications: Array<{ id: number }> };
     expect(payload.notifications[0].id).toBe(90001);
+  });
+});
+
+describe('rest-notification: tap w powiadomienie końca przerwy (bug 53, X30)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    listeners.action = null;
+  });
+
+  it('tap w notyfikację id 90001 woła onTap; inne id są ignorowane', async () => {
+    const { addRestNotificationTapListener } = await import('@/lib/rest-notification');
+    const onTap = vi.fn();
+
+    addRestNotificationTapListener(onTap);
+    await flushChain();
+    expect(addListener).toHaveBeenCalledWith('localNotificationActionPerformed', expect.any(Function));
+
+    listeners.action?.({ actionId: 'tap', notification: { id: 12345 } });
+    expect(onTap).not.toHaveBeenCalled();
+    listeners.action?.({ actionId: 'tap', notification: { id: 90001 } });
+    expect(onTap).toHaveBeenCalledTimes(1);
+  });
+
+  it('funkcja zwrotna zdejmuje listener pluginu', async () => {
+    const { addRestNotificationTapListener } = await import('@/lib/rest-notification');
+
+    const remove = addRestNotificationTapListener(() => {});
+    await flushChain();
+    remove();
+    expect(listenerRemove).toHaveBeenCalledTimes(1);
   });
 });
 

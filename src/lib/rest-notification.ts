@@ -143,6 +143,37 @@ const handleAppActiveChange = (isActive: boolean): void => {
 };
 
 /**
+ * Bug 53 (X30): tap w powiadomienie "Koniec przerwy". Plugin sam nie nawiguje,
+ * a auto-resume (dirty || provisional) odmawia po checkpoincie online — bez
+ * listenera cold start lądował na Dashboardzie. Zdarzenie jest retencjonowane
+ * przez plugin do pierwszego listenera (retainUntilConsumed), więc rejestracja
+ * po starcie apki łapie też tap, który ją uruchomił.
+ */
+export const addRestNotificationTapListener = (onTap: () => void): (() => void) => {
+  if (!Capacitor.isNativePlatform()) return () => {};
+  let removed = false;
+  let removeNative: (() => void) | null = null;
+  LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
+    if (Number(event.notification?.id) !== REST_NOTIFICATION_ID) return;
+    onTap();
+  })
+    .then((handle) => {
+      if (removed) {
+        void handle.remove();
+        return;
+      }
+      removeNative = () => { void handle.remove(); };
+    })
+    .catch(() => {
+      // Brak pluginu (build bez cap sync) — tap w powiadomienie otwiera samą apkę.
+    });
+  return () => {
+    removed = true;
+    removeNative?.();
+  };
+};
+
+/**
  * Uzbrój systemowy sygnał końca przerwy: zapamiętaj deadline i treść, zaplanuj
  * DOPIERO gdy apka zejdzie w tło (appStateChange/visibilitychange). W foregroundzie
  * koniec sygnalizuje wyłącznie apka (gong + haptyka w RestBar).
