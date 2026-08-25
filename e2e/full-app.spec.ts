@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5 } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, waitForMatchingToFinish } from './helpers';
 
 // X30 WP-L: /workout/day-N bez ?date= renderuje się na dziś, a domyślna nazwa
 // dnia planu podąża za datą (nagłówek "Wtorek" we wtorek, nie "Poniedziałek").
@@ -502,17 +502,110 @@ test.describe('Onboarding z podglądem (Z73)', () => {
     await expect(page.getByRole('button', { name: 'Dalej', exact: true })).toBeDisabled();
     await page.getByTestId('consent-health').click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await page.getByRole('button', { name: 'Następny krok' }).click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
-
-    // Krok 5: zatwierdzenie prowadzi do PODGLĄDU planu, nie od razu do zapisu.
-    await page.getByRole('button', { name: 'Podgląd planu' }).click();
+    // X34: krok 5A (wybór) -> 6/6 (Start planu) -> "Podgląd planu".
+    await advanceWizardToStep6(page);
+    await page.getByTestId('ob-start-preview').click();
     await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
 
     // Swap w podglądzie otwiera picker.
     await page.getByRole('button', { name: 'Zamień', exact: true }).first().click();
     await expect(page.getByRole('dialog')).toBeVisible();
+  });
+
+  // X34 (a): onboarding 1 -> 6 z celem Redukcja; przerywnik faktycznie widoczny;
+  // 5A bez podsumowania / "Zmień ustawienia"; 6/6 z CTA "Zacznij redukcję", który
+  // zapisuje BEZ podglądu (w mock E2E Firestore jest zablokowany, więc sam zapis
+  // nie kończy się Dashboardem; pełną ścieżkę do Dashboardu pokrywa spec
+  // emulatorowy e2e/emulator/plan-lifecycle.spec.ts).
+  test('X34 (a): onboarding 1-6, przerywnik 3,5 s, 5A odchudzone, "Zacznij redukcję" bez podglądu', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await passOnboardingWelcome(page);
+    await expect(page.getByText('02 / 06')).toBeVisible();
+    await page.getByRole('button', { name: 'Następny krok' }).click();
+    await page.getByRole('button', { name: 'Redukcja', exact: false }).click();
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+    await page.getByRole('button', { name: '3', exact: true }).click();
+    const shownAt = Date.now();
+    await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+
+    // Przerywnik: nakładka z tytułem, wiersze wchodzą kolejno, pasek; >= 3 s na ekranie.
+    const overlay = page.getByTestId('ob-matching');
+    await expect(overlay).toBeVisible();
+    await expect(overlay.getByText('Dobieram plany')).toBeVisible();
+    await expect(overlay.getByTestId('ob-matching-row')).toHaveCount(3, { timeout: 4000 });
+    await expect(overlay.getByTestId('ob-matching-row').nth(2)).toContainText('3 dni/tydz');
+    await waitForMatchingToFinish(page);
+    expect(Date.now() - shownAt).toBeGreaterThanOrEqual(3000);
+
+    // 5A: tylko wybór.
+    await expect(page.getByText('05 / 06')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Plany na 3 dni w tygodniu' })).toBeVisible();
+    await expect(page.getByTestId('plan-choice-recommended')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('plan-choice-alternative')).toBeVisible();
+    await expect(page.getByText('Zmień ustawienia')).toHaveCount(0);
+    await expect(page.getByText(/Pierwszy trening/)).toHaveCount(0);
+    await expect(page.getByTestId('ob-plan-name')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Zaczynam ten plan' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Podgląd planu' })).toHaveCount(0);
+
+    // 6/6: nazwa, kafle, chipy, CTA celu.
+    await page.getByTestId('ob-match-next').click();
+    await expect(page.getByTestId('ob-start-step')).toBeVisible();
+    await expect(page.getByText('06 / 06')).toBeVisible();
+    await expect(page.getByTestId('ob-plan-name')).not.toHaveValue('');
+    await expect(page.getByTestId('ob-duration-tiles').getByRole('button', { pressed: true })).toHaveCount(1);
+    await expect(page.getByTestId('ob-start-week-chips').getByRole('button')).toHaveCount(8);
+    await expect(page.getByTestId('ob-start-week-chips').getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');
+    const cta = page.getByTestId('ob-start-cta');
+    await expect(cta).toHaveText(/Zacznij redukcję/);
+    await expect(cta).toBeEnabled();
+
+    // Główny CTA = zapis od razu: żadnego podglądu, kreator zostaje na 6/6 w stanie zapisu.
+    await cta.click();
+    await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toHaveCount(0);
+    await expect(page.getByTestId('ob-start-step')).toBeVisible();
+  });
+
+  // X34 (b): 6/6 -> Podgląd -> "Wybierz inny plan" -> 5A (karta zaznaczona, bez
+  // przerywnika) -> karta 2 -> 6/6 (defaulty karty 2) -> Podgląd -> "Zatwierdź i zacznij".
+  test('X34 (b): podgląd -> Wybierz inny plan -> 5A -> karta 2 -> 6/6 -> podgląd -> Zatwierdź i zacznij', async ({ page }) => {
+    await navigateAndWait(page, '/');
+    await passOnboardingWelcome(page);
+    await advanceWizardToStep6(page);
+    await page.getByTestId('ob-plan-name').fill('Moja nazwa');
+    await page.getByTestId('ob-start-week-chips').getByRole('button').nth(1).click();
+    await page.getByTestId('ob-start-preview').click();
+    await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
+    await expect(page.getByTestId('plan-preview-confirm')).toHaveText(/Zatwierdź i zacznij/);
+
+    await page.getByTestId('plan-preview-choose-other').click();
+    await expect(page.getByText('05 / 06')).toBeVisible();
+    await expect(page.getByTestId('ob-matching')).toHaveCount(0);
+    await expect(page.getByTestId('plan-choice-recommended')).toHaveAttribute('aria-pressed', 'true');
+
+    // Bez zmiany karty ustawienia z 6/6 wracają 1:1.
+    await page.getByTestId('ob-match-next').click();
+    await expect(page.getByTestId('ob-plan-name')).toHaveValue('Moja nazwa');
+    await expect(page.getByTestId('ob-start-week-chips').getByRole('button').nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await page.getByRole('button', { name: 'Wstecz' }).click();
+
+    // Karta 2 -> 6/6 z nazwą szablonu karty 2.
+    const second = page.getByTestId('plan-choice-alternative');
+    const secondName = (await second.getByTestId('plan-choice-name').textContent())?.trim() ?? '';
+    await second.click();
+    await expect(second).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('ob-match-next').click();
+    await expect(page.getByTestId('ob-plan-name')).toHaveValue(secondName);
+    await expect(page.getByTestId('ob-start-week-chips').getByRole('button').nth(1)).toHaveAttribute('aria-pressed', 'true');
+
+    await page.getByTestId('ob-start-preview').click();
+    await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
+    const confirm = page.getByTestId('plan-preview-confirm');
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
+    // Zatwierdzenie = zapis (w mock E2E bez Dashboardu, patrz komentarz w (a)); kreator nie wraca.
+    await expect(page.getByTestId('ob-start-step')).toHaveCount(0);
+    await expect(page.getByTestId('plan-choice-recommended')).toHaveCount(0);
   });
 });
 

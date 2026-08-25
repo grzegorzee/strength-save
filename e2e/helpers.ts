@@ -211,14 +211,38 @@ export const plWeekdayName = (dateISO: string): string => {
   return PL_WEEKDAY_NAMES[new Date(y, m - 1, d).getDay()];
 };
 
+// X34: przerywnik "Dobieram plany" po kroku 4 trwa 3,5 s (nakładka fixed nad
+// 5A). Kliki i tak czekają na zdjęcie nakładki (Playwright auto-wait), ale
+// jawna asercja daje czytelny błąd zamiast timeoutu akcji.
+export const waitForMatchingToFinish = async (page: Page) => {
+  await expect(page.getByTestId('ob-matching')).toBeHidden({ timeout: 6000 });
+};
+
 // X32: /new-plan z profilem startuje od kroku 2 (poziom); krok 5A "Dopasowane
-// do Ciebie" (X33) jest po trzech przejściach. Przerywnik "Dobieram plany"
-// (~900 ms) mija sam; kolejne kliki czekają na zdjęcie nakładki.
+// do Ciebie" (X33) jest po trzech przejściach (poziom -> cel -> dni -> 5A).
 export const advanceWizardToStep5 = async (page: Page) => {
   await page.getByRole('button', { name: 'Następny krok' }).click();
   await page.getByRole('button', { name: 'Dalej', exact: true }).click();
   await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+  await waitForMatchingToFinish(page);
   await expect(page.getByTestId('plan-choice-recommended')).toBeVisible();
+};
+
+// X34: 5A "Wybierz start planu" -> ekran 6/6 "Start planu" (nazwa, długość, start,
+// CTA celu, "Podgląd planu").
+export const advanceWizardToStep6 = async (page: Page) => {
+  await advanceWizardToStep5(page);
+  await page.getByTestId('ob-match-next').click();
+  await expect(page.getByTestId('ob-start-step')).toBeVisible();
+};
+
+// Onboarding (scenariusz new-user): krok 1 = 3 obowiązkowe zgody + Dalej.
+export const passOnboardingWelcome = async (page: Page) => {
+  await page.getByTestId('consent-terms').click();
+  await page.getByTestId('consent-privacy').click();
+  await page.getByTestId('consent-health').click();
+  await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Następny krok' })).toBeVisible();
 };
 
 // Wstrzykuje metadane planu (startDate + progression, od 2026-08-11 też days,

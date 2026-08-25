@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setE2EAuthScenario, setE2ECycles, blockFirebase } from './helpers';
+import { setE2EAuthScenario, setE2ECycles, blockFirebase, advanceWizardToStep5, advanceWizardToStep6 } from './helpers';
 
 // Pełnoekranowy replan (/new-plan) + ekran podsumowania zakończonego cyklu (closeout).
 
@@ -32,19 +32,69 @@ test.describe('Replan', () => {
     await page.goto('./#/new-plan');
     await page.waitForLoadState('domcontentloaded');
     // Poczekaj na content wizarda (po lazy-load / Suspense). X32: replan startuje
-    // od kroku 2 (poziom); X33: krok 5A z dwiema kartami, "Zaczynam ten plan"
-    // i linkiem biblioteki po potwierdzeniu profilu (przerywnik ~900 ms mija sam).
+    // od kroku 2 (poziom); X33/X34: krok 5A z dwiema kartami, linkiem biblioteki
+    // i jednym CTA "Wybierz start planu" (przerywnik 3,5 s mija sam).
     await expect(page.getByRole('button', { name: /Next step|Następny krok/ })).toBeVisible();
-    await page.getByRole('button', { name: /Next step|Następny krok/ }).click();
-    await page.getByRole('button', { name: /Continue|Dalej/ }).click();
-    await page.getByRole('button', { name: /Continue|Dalej/ }).click();
-    await expect(page.getByRole('button', { name: /Start this plan|Zaczynam ten plan/ })).toBeVisible();
+    await expect(page.getByText('02 / 06')).toBeVisible();
+    await advanceWizardToStep5(page);
+    await expect(page.getByTestId('ob-match-next')).toHaveText(/Choose plan start|Wybierz start planu/);
     await expect(page.getByRole('button', { name: /Plan library|Biblioteka planów/ })).toBeVisible();
     await expect(page.getByTestId('plan-choice-recommended')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Start this plan|Zaczynam ten plan/ })).toHaveCount(0);
     // Pełny ekran = brak AppHeader (banner) aplikacji.
     await expect(page.getByRole('banner')).toHaveCount(0);
     expect(await page.locator('text=Coś poszło nie tak').count()).toBe(0);
     await page.screenshot({ path: '/tmp/replan-fullscreen.png' });
+  });
+
+  // X34 (c): replan 2 -> 6 -> podgląd -> zatwierdź (zapis; w mock E2E Firestore
+  // zablokowany, więc asercja kończy się na kliknięciu i zniknięciu kreatora).
+  test('X34 (c): replan 2-6 -> podgląd -> Zatwierdź i zacznij', async ({ page }) => {
+    await page.goto('./#/new-plan');
+    await page.waitForLoadState('domcontentloaded');
+    await advanceWizardToStep6(page);
+    await expect(page.getByText('06 / 06')).toBeVisible();
+    await expect(page.getByTestId('ob-start-cta')).toHaveText(/Zacznij/);
+    await page.getByTestId('ob-start-preview').click();
+    await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
+    await expect(page.getByTestId('plan-preview-choose-other')).toHaveText('Wybierz inny plan');
+    const confirm = page.getByTestId('plan-preview-confirm');
+    await expect(confirm).toHaveText(/Zatwierdź i zacznij/);
+    await confirm.click();
+    await expect(page.getByTestId('ob-start-step')).toHaveCount(0);
+    await expect(page.getByRole('banner')).toHaveCount(0);
+  });
+
+  // X34 (d): biblioteka -> wybór szablonu spoza kart -> 5A z kartą "Wybrany" -> 6/6
+  // z nazwą wybranego szablonu.
+  test('X34 (d): biblioteka -> wybór -> 6/6 z nazwą wybranego planu', async ({ page }) => {
+    await page.goto('./#/new-plan');
+    await page.waitForLoadState('domcontentloaded');
+    await advanceWizardToStep5(page);
+    const shown = [
+      (await page.getByTestId('plan-choice-recommended').getByTestId('plan-choice-name').textContent())?.trim(),
+      (await page.getByTestId('plan-choice-alternative').getByTestId('plan-choice-name').textContent())?.trim(),
+    ];
+    await page.getByRole('button', { name: /Biblioteka planów/ }).click();
+    await expect(page.getByTestId('browse-objective-chips')).toBeVisible();
+    const headings = page.getByRole('heading', { level: 3 });
+    const count = await headings.count();
+    let pickedName = '';
+    for (let i = 0; i < count; i += 1) {
+      const name = (await headings.nth(i).textContent())?.trim() ?? '';
+      if (!shown.includes(name)) { pickedName = name; break; }
+    }
+    expect(pickedName).not.toBe('');
+    await page.getByRole('heading', { level: 3, name: pickedName }).click();
+
+    const second = page.getByTestId('plan-choice-alternative');
+    await expect(second.getByTestId('plan-choice-badge')).toHaveText('Wybrany');
+    await expect(second).toHaveAttribute('aria-pressed', 'true');
+    await expect(second.getByTestId('plan-choice-name')).toHaveText(pickedName);
+    await page.getByTestId('ob-match-next').click();
+    await expect(page.getByTestId('ob-start-step')).toBeVisible();
+    await expect(page.getByTestId('ob-plan-name')).toHaveValue(pickedName);
+    await expect(page.getByTestId('ob-duration-tiles').getByTestId('ob-weeks-recommended')).toHaveCount(1);
   });
 
   test('closeout pokazuje podsumowanie zakończonego cyklu', async ({ page }) => {
