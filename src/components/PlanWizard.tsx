@@ -514,6 +514,14 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               </button>
             </div>
             <div className="flex-1 space-y-2.5">
+              {/* X32: wybór źródła planu (Browse / własny) od razu pod
+                  podsumowaniem odpowiedzi, PRZED nazwą i szczegółami
+                  (zgłoszenie właściciela: nazwa przed "Przeglądaj plany"
+                  = dziwna kolejność). */}
+              <div className="flex gap-2">
+                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-primary" />{t('ob.precision.browse')}<span className="text-muted-foreground tabular-nums">({scoredTemplates.length})</span></button>
+                <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
+              </div>
               <div className="rounded-2xl bg-surface-low p-4">
                 {/* WP-PLANS-2 (X27, Task O3): nazwa planu edytowalna (default z szablonu). */}
                 <label htmlFor="ob-plan-name" className="block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">{t('ob.precision.planName')}</label>
@@ -595,10 +603,6 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                   </p>
                 ) : null;
               })()}
-              <div className="flex gap-2">
-                <button onClick={() => setMode('browse')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><ListChecks className="h-4 w-4 text-primary" />{t('ob.precision.browse')}<span className="text-muted-foreground tabular-nums">({scoredTemplates.length})</span></button>
-                <button onClick={() => setMode('own')} className="flex-1 rounded-2xl py-2.5 bg-surface-high text-sm font-medium flex items-center justify-center gap-2"><Pencil className="h-4 w-4 text-primary" />{t('ob.precision.own')}</button>
-              </div>
             </div>
             <div className="pt-4">
               <PrimaryButton onClick={confirmTemplate} disabled={isSaving}>
