@@ -1,4 +1,20 @@
-import type { TrainingDay } from '@/data/trainingPlan';
+import type { TrainingDay, Weekday } from '@/data/trainingPlan';
+import type { PlanObjective } from '@/data/planTemplates';
+
+// X33 (WP-6/WP-7): odpowiedzi z kreatora zapisane na cyklu
+export interface PlanCycleChoice {
+  version: 1;
+  chosenAt: string;
+  level: 'beginner' | 'intermediate' | 'advanced';
+  objective: PlanObjective;
+  daysPerWeek: number;
+  trainingDays: Weekday[];
+  planSource: 'recommended' | 'browsed' | 'custom';
+  templateId?: string;
+  recommendedTemplateId?: string;
+  planName?: string;
+  entry: 'onboarding' | 'replan';
+}
 
 export interface PlanCycleStats {
   totalWorkouts: number;
@@ -25,4 +41,5 @@ export interface PlanCycle {
   stats: PlanCycleStats;
   technical?: boolean;
   hiddenFromInsights?: boolean;
+  choice?: PlanCycleChoice;
 }
