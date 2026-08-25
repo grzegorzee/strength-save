@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { ExercisePicker } from '@/components/ExercisePicker';
 import type { LibraryExercise } from '@/data/exerciseLibrary';
+
+const toastMock = vi.hoisted(() => vi.fn());
+vi.mock('@/hooks/use-toast', () => ({ toast: toastMock, useToast: () => ({ toast: toastMock }) }));
+const reportErrorMock = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: reportErrorMock }));
 
 // Kanoniczne nazwy ćwiczeń są PL — testujemy z językiem UI PL (jsdom domyślnie wykrywa EN).
 beforeEach(() => {
@@ -100,5 +105,38 @@ describe('ExercisePicker (Z69)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' }));
     expect(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Zapisz i wybierz' })).toBeTruthy();
+  }, 30000);
+
+  // Bug 54 (X30): błąd zapisu własnego ćwiczenia był ŁYKANY po cichu (pusty
+  // catch): spinner znikał, zero komunikatu, zero śladu w client_errors —
+  // naruszenie zasady 6 (stan błędu bez informującego wyjścia). Konwencja
+  // jak CreateCustomExerciseDialog: destructive toast + telemetria.
+  it('błąd zapisu własnego ćwiczenia: destructive toast + telemetria, formularz zostaje', async () => {
+    toastMock.mockClear();
+    reportErrorMock.mockClear();
+    const onCreate = vi.fn(async () => { throw new Error('permission-denied'); });
+    renderPicker({ onCreateCustomExercise: onCreate });
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' }));
+    fireEvent.change(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)'), { target: { value: 'Moje ćwiczenie' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz i wybierz' }));
+
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
+    expect(reportErrorMock).toHaveBeenCalledWith(expect.objectContaining({ code: 'custom-exercise-save' }));
+    // Wyjście dla usera: formularz z danymi zostaje (ponów/anuluj), przycisk odblokowany.
+    expect((screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)') as HTMLInputElement).value).toBe('Moje ćwiczenie');
+    expect((screen.getByRole('button', { name: 'Zapisz i wybierz' }) as HTMLButtonElement).disabled).toBe(false);
+  }, 30000);
+
+  it('udany zapis własnego ćwiczenia: bez toastu błędu, picker wybiera ćwiczenie (stary przepływ)', async () => {
+    toastMock.mockClear();
+    const created = { id: 'c1', name: 'Moje ćwiczenie', category: 'chest', type: 'compound', isBodyweight: false };
+    const onCreate = vi.fn(async () => created);
+    const { onPick } = renderPicker({ onCreateCustomExercise: onCreate as never });
+    fireEvent.click(screen.getByRole('button', { name: 'Dodaj własne ćwiczenie' }));
+    fireEvent.change(screen.getByPlaceholderText('Nazwa ćwiczenia (min 2 znaki)'), { target: { value: 'Moje ćwiczenie' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Zapisz i wybierz' }));
+
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith(created));
+    expect(toastMock).not.toHaveBeenCalled();
   }, 30000);
 });
