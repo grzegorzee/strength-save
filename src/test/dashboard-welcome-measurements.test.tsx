@@ -97,7 +97,7 @@ vi.mock('@/hooks/usePlanCycles', () => ({
 vi.mock('@/hooks/useWatchPlanPreview', () => ({ useWatchPlanPreview: () => {} }));
 vi.mock('@/components/ProUpsellBanner', () => ({ ProUpsellBanner: () => null }));
 vi.mock('@/lib/workout-draft-db', () => ({
-  workoutDraftDb: { loadActiveDraft: vi.fn(async () => null) },
+  workoutDraftDb: { loadActiveDraft: vi.fn(async () => null), loadDraftForDay: vi.fn(async () => null) },
 }));
 vi.mock('@/lib/workout-sync-queue', () => ({
   workoutSyncQueue: { pendingCount: () => 0 },

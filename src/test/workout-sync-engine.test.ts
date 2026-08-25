@@ -84,6 +84,29 @@ const makeDeps = (options: FakeDepsOptions = {}) => {
 };
 
 describe('syncWorkoutSession', () => {
+  it('bug 3: skipped z powodu braku draftu jest odróżnialne (missingDraft) — WorkoutDay może rozwiązać promocję zewnętrzną', async () => {
+    // AutoSync promuje sesję provisional za plecami ekranu: draft znika spod
+    // starego id. Gołe skipped robiło z "Zakończ trening" cichy no-op.
+    const deps = makeDeps({ draft: null });
+
+    const outcome = await syncWorkoutSession('u1', 's-provisional', 'final', deps);
+
+    expect(outcome.success).toBe(true);
+    expect(outcome.skipped).toBe(true);
+    expect(outcome.missingDraft).toBe(true);
+    expect(deps.queue.remove).toHaveBeenCalledWith('u1', 's-provisional');
+  });
+
+  it('bug 3 niezmiennik: udany checkpoint nie niesie missingDraft', async () => {
+    const deps = makeDeps();
+
+    const outcome = await syncWorkoutSession('u1', 's1', 'checkpoint', deps);
+
+    expect(outcome.success).toBe(true);
+    expect(outcome.skipped).toBeUndefined();
+    expect(outcome.missingDraft).toBeUndefined();
+  });
+
   it('dwa równoległe synci tej samej sesji wykonują JEDEN zapis', async () => {
     const deps = makeDeps({ saveDelayMs: 20 });
 

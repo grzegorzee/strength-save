@@ -82,6 +82,12 @@ vi.mock('@/lib/workout-draft-db', () => ({
   workoutDraftDb: {
     loadActiveDraft: vi.fn(async () => smoke.state.draft),
     listDrafts: vi.fn(async () => (smoke.state.draft ? [smoke.state.draft] : [])),
+    // Bug 4 (X30): wybór draftu per strona (dayId+date) — mock odwzorowuje filtr.
+    loadDraftForDay: vi.fn(async (_uid: string, dayId: string, date: string) => (
+      smoke.state.draft && smoke.state.draft.dayId === dayId && smoke.state.draft.date === date
+        ? smoke.state.draft
+        : null
+    )),
   },
 }));
 vi.mock('@/lib/workout-sync-queue', () => ({
