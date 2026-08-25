@@ -11,7 +11,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { RestBar } from '@/components/RestBar';
 import { WorkoutSettingsSheet } from '@/components/WorkoutSettingsSheet';
-import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
+import { armRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
 import { playTimerSound } from '@/lib/timer-sound';
 import { hapticRestEnd } from '@/lib/haptics';
 
@@ -22,7 +22,7 @@ vi.mock('@/lib/timer-sound', () => ({ playTimerSound: vi.fn(), unlockTimerSound:
 // web path hapticRestEnd używa navigator.vibrate, którego jsdom nie ma).
 vi.mock('@/lib/haptics', () => ({ hapticRestEnd: vi.fn() }));
 vi.mock('@/lib/rest-notification', () => ({
-  scheduleRestEndNotification: vi.fn().mockResolvedValue(undefined),
+  armRestEndNotification: vi.fn(),
   cancelRestEndNotification: vi.fn().mockResolvedValue(undefined),
 }));
 // Z189: raport wyjątku sygnału — moduł ciągnie Firestore, więc mock.
@@ -91,7 +91,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-07-20T10:00:00.000Z'));
   localStorage.setItem('app-language', 'pl');
-  vi.mocked(scheduleRestEndNotification).mockClear();
+  vi.mocked(armRestEndNotification).mockClear();
   vi.mocked(cancelRestEndNotification).mockClear();
   vi.mocked(playTimerSound).mockClear();
   vi.mocked(hapticRestEnd).mockClear();
@@ -128,11 +128,11 @@ describe('RestBar (Z136)', () => {
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('Następne: 100 kg × 8');
   });
 
-  it('start PLANUJE powiadomienie systemowe na deadline', () => {
+  it('bug 8 (X30): start UZBRAJA notyfikację na deadline (schedule dopiero przy przejściu w tło)', () => {
     renderBar({ seconds: 90 });
-    expect(scheduleRestEndNotification).toHaveBeenCalled();
-    const [seconds] = vi.mocked(scheduleRestEndNotification).mock.calls[0];
-    expect(seconds).toBeGreaterThanOrEqual(90);
+    expect(armRestEndNotification).toHaveBeenCalled();
+    const [deadlineAt] = vi.mocked(armRestEndNotification).mock.calls[0];
+    expect(deadlineAt).toBeGreaterThanOrEqual(Date.now() + 90_000);
   });
 
   it('pominięcie ANULUJE zaplanowane powiadomienie (inaczej sygnał przyjdzie do nieistniejącej przerwy)', () => {
@@ -142,14 +142,14 @@ describe('RestBar (Z136)', () => {
     expect(cancelRestEndNotification).toHaveBeenCalled();
   });
 
-  it('zmiana czasu PRZEPLANOWUJE powiadomienie na nowy deadline', () => {
+  it('zmiana czasu PRZEZBRAJA notyfikację na nowy deadline', () => {
     renderBar({ seconds: 60 });
-    vi.mocked(scheduleRestEndNotification).mockClear();
+    vi.mocked(armRestEndNotification).mockClear();
     fireEvent.click(screen.getByTestId('rest-bar-expand'));
     fireEvent.click(screen.getByRole('button', { name: '+15' }));
-    expect(scheduleRestEndNotification).toHaveBeenCalled();
-    const [seconds] = vi.mocked(scheduleRestEndNotification).mock.calls.at(-1)!;
-    expect(seconds).toBeGreaterThanOrEqual(75);
+    expect(armRestEndNotification).toHaveBeenCalled();
+    const [deadlineAt] = vi.mocked(armRestEndNotification).mock.calls.at(-1)!;
+    expect(deadlineAt).toBeGreaterThanOrEqual(Date.now() + 75_000);
   });
 
   it('powrót z tła po dłuższej nieobecności pokazuje koniec, nie zamrożony czas', () => {
@@ -192,7 +192,7 @@ describe('RestBar (Z136)', () => {
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:30');
   });
 
-  it('Z188: zmiana exerciseLabel NIE restartuje przerwy ani nie przeplanowuje notyfikacji', () => {
+  it('Z188: zmiana exerciseLabel NIE restartuje przerwy ani nie przezbraja notyfikacji', () => {
     const props = {
       deadlineAt: Date.now() + 90_000,
       totalSeconds: 90,
@@ -208,7 +208,7 @@ describe('RestBar (Z136)', () => {
     );
     act(() => { vi.advanceTimersByTime(30_000); });
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:00');
-    vi.mocked(scheduleRestEndNotification).mockClear();
+    vi.mocked(armRestEndNotification).mockClear();
 
     rerender(
       <LanguageProvider>
@@ -217,7 +217,7 @@ describe('RestBar (Z136)', () => {
     );
     // Ten sam runId i deadline: czas biegnie dalej, zero nowych notyfikacji.
     expect(screen.getByTestId('rest-bar')).toHaveTextContent('1:00');
-    expect(scheduleRestEndNotification).not.toHaveBeenCalled();
+    expect(armRestEndNotification).not.toHaveBeenCalled();
   });
 
   it('tap na pasek rozwija widok pełnoekranowy', () => {

@@ -52,6 +52,19 @@ vi.mock('@capacitor/local-notifications', () => ({
     cancel: vi.fn(async ({ notifications }: { notifications: Array<{ id: number }> }) => {
       notifications.forEach((n) => pendingNotifications.delete(n.id));
     }),
+    removeDeliveredNotifications: vi.fn(async () => undefined),
+  },
+}));
+
+// Bug 8 (X30): rest-notification słucha appStateChange (app-lifecycle) i planuje
+// notyfikację DOPIERO przy zejściu w tło. Test steruje przejściami callbackiem.
+const appState = vi.hoisted(() => ({
+  callback: null as ((isActive: boolean) => void) | null,
+}));
+vi.mock('@/lib/app-lifecycle', () => ({
+  addAppStateListener: (cb: (isActive: boolean) => void) => {
+    appState.callback = cb;
+    return () => { appState.callback = null; };
   },
 }));
 
@@ -66,6 +79,18 @@ const flushNotificationChain = async () => {
     await Promise.resolve();
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+};
+
+// Bug 8 (X30): w foregroundzie nic nie jest zaplanowane. Helper materializuje
+// uzbrojoną notyfikację: zejście w tło → odczyt zaplanowanych wpisów → powrót
+// na pierwszy plan (który anuluje pending, przerwa zostaje uzbrojona).
+const scheduledInBackground = async () => {
+  await act(async () => { appState.callback?.(false); });
+  await flushNotificationChain();
+  const snapshot = Array.from(pendingNotifications.values());
+  await act(async () => { appState.callback?.(true); });
+  await flushNotificationChain();
+  return snapshot;
 };
 
 // Fala 2 (2026-08-20): pasek renderuje WLASCICIEL stanu (jak WorkoutDay) — sticky,
@@ -306,18 +331,22 @@ describe('Z190: sekwencja timera w jednym przebiegu', () => {
     expect(view.getByTestId('rest-bar')).toHaveTextContent('2:30');
     expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-b');
     expect(runId()).toBe(3);
-    expect(pendingNotifications.size).toBe(1);
-    expect(Array.from(pendingNotifications.values())[0].body).toContain('Wyciskanie sztangi');
+    // Bug 8 (X30): foreground nie planuje; dopiero tło planuje JEDNĄ notyfikację z czasem B.
+    expect(pendingNotifications.size).toBe(0);
+    const scheduled = await scheduledInBackground();
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0].body).toContain('Wyciskanie sztangi');
     // Persystencja Z188: localStorage niesie biegnącą przerwę.
     expect(JSON.parse(localStorage.getItem('fittracker_rest_state_v1') ?? 'null')?.exerciseId).toBe('ex-b');
 
     // 4. OSTATNIA seria treningu (druga robocza w A) → stan null, zero pasków,
-    //    zero notyfikacji, localStorage wyczyszczony.
+    //    zero notyfikacji (także po zejściu w tło), localStorage wyczyszczony.
     fireEvent.click(within(cardA).getAllByRole('button', { name: 'Zaznacz serię jako zrobioną' })[0]);
     await flushNotificationChain();
     expect(view.queryByTestId('rest-bar')).toBeNull();
     expect(runId()).toBe(0);
     expect(pendingNotifications.size).toBe(0);
+    expect(await scheduledInBackground()).toHaveLength(0);
     expect(localStorage.getItem('fittracker_rest_state_v1')).toBeNull();
   });
 
@@ -442,7 +471,8 @@ describe('jeden RestBar na sesję (Z143)', () => {
     await flushNotificationChain();
     expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
     expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-a');
-    expect(pendingNotifications.size).toBe(1);
+    // Bug 8 (X30): w foregroundzie nic nie jest zaplanowane (koniec sygnalizuje apka).
+    expect(pendingNotifications.size).toBe(0);
 
     checkFirstOpenSet(cardB);
     await flushNotificationChain();
@@ -451,10 +481,10 @@ describe('jeden RestBar na sesję (Z143)', () => {
     expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
     expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-b');
 
-    // Dokładnie JEDNA zaplanowana notyfikacja — dla ćwiczenia B.
-    expect(pendingNotifications.size).toBe(1);
-    const [pending] = Array.from(pendingNotifications.values());
-    expect(pending.body).toContain('Wyciskanie sztangi');
+    // Dokładnie JEDNA notyfikacja (dla ćwiczenia B) — zaplanowana przy zejściu w tło.
+    const scheduled = await scheduledInBackground();
+    expect(scheduled).toHaveLength(1);
+    expect(scheduled[0].body).toContain('Wyciskanie sztangi');
   });
 
   it('sekwencja Z144: przedostatnia seria startuje timer, ostatnia seria treningu gasi wszystko', async () => {
@@ -513,14 +543,16 @@ describe('jeden RestBar na sesję (Z143)', () => {
     await flushNotificationChain();
     expect(view.getAllByTestId('rest-bar')).toHaveLength(1);
     expect(view.getByTestId('rest-exercise')).toHaveTextContent('ex-b');
-    expect(pendingNotifications.size).toBe(1);
+    // Bug 8 (X30): notyfikacja materializuje się dopiero w tle.
+    expect(await scheduledInBackground()).toHaveLength(1);
 
     // B: OSTATNIA seria ostatniego ćwiczenia → zero pasków, biegnąca przerwa
-    // anulowana, zero zaplanowanych notyfikacji.
+    // anulowana, zero zaplanowanych notyfikacji (także po zejściu w tło).
     checkFirstOpenSet(cardB);
     await flushNotificationChain();
     expect(view.queryByTestId('rest-bar')).toBeNull();
     expect(pendingNotifications.size).toBe(0);
+    expect(await scheduledInBackground()).toHaveLength(0);
   });
 
   it('Z145: ukończona karta z aktywną przerwą NIE jest przygaszona; bez przerwy — jest', () => {
@@ -557,29 +589,32 @@ describe('jeden RestBar na sesję (Z143)', () => {
     expect(cardIdle.className).toContain('opacity-50');
   });
 
-  it('niezmienniki starych przepływów: odhaczenie startuje timer, ±15 przeplanowuje, Pomiń anuluje', async () => {
+  it('niezmienniki starych przepływów: odhaczenie startuje timer, ±15 przezbraja, Pomiń anuluje', async () => {
     const view = render(<TwoCardsHarness />);
     const cardA = view.getByTestId('card-a');
 
-    // Odhaczenie serii → timer startuje jak dotąd (sticky pasek u właściciela).
+    // Odhaczenie serii → timer startuje jak dotąd (sticky pasek u właściciela);
+    // notyfikacja materializuje się przy zejściu w tło (bug 8, X30).
     checkFirstOpenSet(cardA);
     await flushNotificationChain();
     expect(view.getByTestId('rest-bar')).toBeTruthy();
-    expect(pendingNotifications.size).toBe(1);
-    const before = Array.from(pendingNotifications.values())[0].at.getTime();
+    const first = await scheduledInBackground();
+    expect(first).toHaveLength(1);
+    const before = first[0].at.getTime();
 
-    // +15 przeplanowuje notyfikację na późniejszy moment (korekty w fullscreen).
+    // +15 przezbraja — tło planuje na późniejszy moment (korekty w fullscreen).
     fireEvent.click(view.getByTestId('rest-bar-expand'));
     fireEvent.click(within(view.getByTestId('rest-fullscreen')).getByRole('button', { name: '+15' }));
     await flushNotificationChain();
-    expect(pendingNotifications.size).toBe(1);
-    const after = Array.from(pendingNotifications.values())[0].at.getTime();
-    expect(after).toBeGreaterThan(before);
+    const adjusted = await scheduledInBackground();
+    expect(adjusted).toHaveLength(1);
+    expect(adjusted[0].at.getTime()).toBeGreaterThan(before);
 
-    // Pomiń (w fullscreen) → pasek znika, zero zaplanowanych notyfikacji.
+    // Pomiń (w fullscreen) → pasek znika, rozbrojenie: tło niczego nie planuje.
     fireEvent.click(within(view.getByTestId('rest-fullscreen')).getByRole('button', { name: 'Pomiń' }));
     await flushNotificationChain();
     expect(view.queryByTestId('rest-bar')).toBeNull();
     expect(pendingNotifications.size).toBe(0);
+    expect(await scheduledInBackground()).toHaveLength(0);
   });
 });

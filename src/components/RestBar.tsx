@@ -8,7 +8,7 @@ import {
   restProgress,
   type RestTimerState,
 } from '@/lib/rest-timer';
-import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
+import { armRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { hapticRestEnd } from '@/lib/haptics';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
@@ -77,14 +77,17 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   useEffect(() => { tRef.current = t; }, [t]);
   useEffect(() => { exerciseLabelRef.current = exerciseLabel; }, [exerciseLabel]);
 
-  // Notyfikacja systemowa na deadline: przy starcie (nowy runId) i przy każdej
+  // Uzbrojenie notyfikacji systemowej: przy starcie (nowy runId) i przy każdej
   // KOREKCIE deadline (±15 z kontrolera). deadlineAt zmienia się wyłącznie w tych
   // dwóch momentach — nigdy od tykania.
+  // Bug 8 (X30): w foregroundzie NIE planujemy — koniec sygnalizuje apka sama,
+  // a schedule leci dopiero przy przejściu w tło (rest-notification słucha
+  // appStateChange). Natychmiastowy schedule dawał podwójny dźwięk + banner
+  // nad UI sesji przy każdej przerwie odliczonej do zera przy włączonym ekranie.
   useEffect(() => {
     finishedRef.current = false;
     unlockTimerSound();
-    const left = Math.max(1, Math.round((deadlineAt - Date.now()) / 1000) + 1);
-    void scheduleRestEndNotification(left, tRef.current('rest.bar.done'), exerciseLabelRef.current);
+    armRestEndNotification(deadlineAt, tRef.current('rest.bar.done'), exerciseLabelRef.current);
   }, [runId, deadlineAt]);
 
   // Odświeżanie widoku. Nie liczy czasu — tylko wymusza przeliczenie z deadline.
