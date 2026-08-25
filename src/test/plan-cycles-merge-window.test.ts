@@ -16,8 +16,9 @@ const mocks = vi.hoisted(() => ({
   setDoc: vi.fn(async (..._args: unknown[]) => undefined),
   updateDoc: vi.fn(async (..._args: unknown[]) => undefined),
   deleteDoc: vi.fn(async (..._args: unknown[]) => undefined),
+  // H1 (X31): listener cykli woła onSnapshot(q, { includeMetadataChanges }, next, err).
   onSnapshot: vi.fn(
-    (_q: unknown, _next: (snap: { forEach: (cb: (d: { id: string; data: () => Record<string, unknown> }) => void) => void }) => void) =>
+    (_q: unknown, _opts: unknown, _next: (snap: { forEach: (cb: (d: { id: string; data: () => Record<string, unknown> }) => void) => void }) => void) =>
       () => undefined,
   ),
   batchUpdates: [] as Array<[{ col: string; id: string }, Record<string, unknown>]>,
@@ -117,6 +118,8 @@ const cyclesSnapshot = {
     cb({ id: 'c1', data: () => rawC1 });
     cb({ id: 'c2', data: () => rawC2 });
   },
+  // H1 (X31): listener czyta metadata.fromCache (snapshot z serwera).
+  metadata: { fromCache: false, hasPendingWrites: false },
 };
 
 const routeGetDocs = () => {
@@ -144,7 +147,7 @@ beforeEach(() => {
   mocks.deleteDoc.mockClear();
   mocks.batchUpdates.length = 0;
   mocks.batchDeletes.length = 0;
-  mocks.onSnapshot.mockImplementation((_q: unknown, next: (snap: typeof cyclesSnapshot) => void) => {
+  mocks.onSnapshot.mockImplementation((_q: unknown, _opts: unknown, next: (snap: typeof cyclesSnapshot) => void) => {
     next(cyclesSnapshot);
     return () => undefined;
   });

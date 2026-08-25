@@ -336,8 +336,23 @@ describe('endPlan (WP-PLANS-1)', () => {
     expect(deps.backfillHistoricalWorkouts).toHaveBeenCalledWith([
       expect.objectContaining({ id: 'archived-cycle-id', days, status: 'completed' }),
     ]);
-    expect(deps.setPlanStatus).toHaveBeenCalledWith('ended');
+    // H1 (X31): status 'ended' z precondycja startDate konczonego planu.
+    expect(deps.setPlanStatus).toHaveBeenCalledWith('ended', { expectedStartDate: '2026-05-04' });
     expect(deps.emitPlanEvent).toHaveBeenCalledWith('ended', { days: 1, weeks: 8, startDate: '2026-05-04' });
+  });
+
+  it('H1 (X31): stale precondycja statusu (dokument to juz inny plan) -> brak eventu, reason stale', async () => {
+    const deps = makeDeps();
+    deps.setPlanStatus.mockResolvedValue({ success: false, reason: 'stale' });
+
+    const result = await endPlan({ chooseNew: false }, deps);
+
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('stale');
+    // Archiwizacja starego cyklu byla poprawna (cykl wygasl), ale plan
+    // usera (nowy startDate) nie dostaje 'ended' ani eventu 'ended'.
+    expect(deps.archiveCurrentPlan).toHaveBeenCalledTimes(1);
+    expect(deps.emitPlanEvent).not.toHaveBeenCalled();
   });
 
   it('kolejność: archive + backfill PRZED mutacją planu (bezpieczeństwo historii)', async () => {
@@ -379,6 +394,8 @@ describe('shouldAutoEndPlan (WP-PLANS-1)', () => {
   const base = {
     planLoaded: true,
     cyclesLoaded: true,
+    planFromServer: true,
+    cyclesFromServer: true,
     planStatus: 'active' as const,
     isPlanExpired: true,
     hasActiveCycle: true,
@@ -387,6 +404,11 @@ describe('shouldAutoEndPlan (WP-PLANS-1)', () => {
 
   it('elapsed >= duration + cykl active + brak draftu → auto-end', () => {
     expect(shouldAutoEndPlan(base)).toBe(true);
+  });
+
+  it('H1 (X31): snapshot wylacznie z cache (plan lub cykle) → nic; offline = brak auto-endu', () => {
+    expect(shouldAutoEndPlan({ ...base, planFromServer: false })).toBe(false);
+    expect(shouldAutoEndPlan({ ...base, cyclesFromServer: false })).toBe(false);
   });
 
   it('idempotencja: plan już ended → nic (drugi load nie robi nic)', () => {

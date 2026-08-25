@@ -83,17 +83,25 @@ const readE2ECycles = (): PlanCycle[] => {
 export const usePlanCycles = (userId: string) => {
   const [cycles, setCycles] = useState<PlanCycle[]>(readE2ECycles);
   const [isLoaded, setIsLoaded] = useState(false);
+  // H1 (X31): true dopiero po snapshocie z serwera (metadata.fromCache false
+  // przynajmniej raz). Automatyczne mutacje na cyklach (auto-end planu,
+  // auto-repair brakującego cyklu) nie mają prawa ruszyć na samym cache.
+  const [hasServerSnapshot, setHasServerSnapshot] = useState(false);
 
   useEffect(() => {
     // Brak userId (np. odświeżanie tokena): nie ma czego ładować → "puste, ale gotowe".
     // Inaczej isLoaded zostaje false i gate startu treningu wisi w spinnerze (#6).
     if (!userId) {
       setIsLoaded(true);
+      setHasServerSnapshot(true);
       return;
     }
 
+    setHasServerSnapshot(false);
+
     if (import.meta.env.VITE_E2E_MODE === 'true') {
       setIsLoaded(true);
+      setHasServerSnapshot(true);
       return;
     }
 
@@ -106,8 +114,11 @@ export const usePlanCycles = (userId: string) => {
       limit(CYCLES_LISTENER_LIMIT),
     );
 
-    const unsubscribe = onSnapshot(q,
+    // H1: includeMetadataChanges — snapshot z serwera o tej samej treści co
+    // cache inaczej nie jest dostarczany (flaga serwera nigdy by nie wstała).
+    const unsubscribe = onSnapshot(q, { includeMetadataChanges: true },
       (snapshot) => {
+        if (!snapshot.metadata.fromCache) setHasServerSnapshot(true);
         const data: PlanCycle[] = [];
         snapshot.forEach((doc) => {
           // P0: uszkodzony cykl odpada z hydracji i jest raportowany zamiast
@@ -154,7 +165,15 @@ export const usePlanCycles = (userId: string) => {
 
     try {
       const endDate = formatLocalDate(new Date());
-      const activeCycle = getActiveCycle();
+      // H1 (X31): archiwizujemy cykl KOŃCZONEGO planu. Po replanie na przyszły
+      // poniedziałek bywają dwa aktywne cykle naraz (stary do wygaśnięcia + nowy
+      // czekający); "pierwszy aktywny" (orderBy startDate desc) wskazywałby
+      // NOWY cykl. Preferencja: aktywny cykl o startDate kończonego planu,
+      // fallback jak dotąd (legacy konta bez wyrównanych dat).
+      const activeCandidates = cycles.filter(cycle => cycle.status === 'active');
+      const activeCycle = activeCandidates.find(cycle => cycle.startDate === startDate)
+        ?? activeCandidates[0]
+        ?? null;
       const completedCycle = !activeCycle
         ? cycles.find(cycle => cycle.status === 'completed' && cycle.startDate === startDate)
         : null;
@@ -198,7 +217,7 @@ export const usePlanCycles = (userId: string) => {
       console.error('[usePlanCycles] Archive error:', err);
       return null;
     }
-  }, [userId, computeStats, getActiveCycle, cycles]);
+  }, [userId, computeStats, cycles]);
 
   const createActiveCycle = useCallback(async (
     planDays: TrainingDay[],
@@ -423,6 +442,7 @@ export const usePlanCycles = (userId: string) => {
   return {
     cycles,
     isLoaded,
+    hasServerSnapshot,
     getActiveCycle,
     archiveCurrentPlan,
     createActiveCycle,

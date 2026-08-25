@@ -172,7 +172,7 @@ describe('WP-PLANS-1: dialog końca planu (3 opcje)', () => {
 
     fireEvent.click(screen.getByTestId('end-plan-only'));
 
-    await waitFor(() => expect(setPlanStatusSpy).toHaveBeenCalledWith('ended'));
+    await waitFor(() => expect(setPlanStatusSpy).toHaveBeenCalledWith('ended', expect.objectContaining({ expectedStartDate: expect.any(String) })));
     expect(archiveSpy).toHaveBeenCalled();
     expect(backfillSpy).toHaveBeenCalled();
     expect(navigateSpy).not.toHaveBeenCalledWith(expect.stringContaining('/new-plan'));
@@ -184,7 +184,7 @@ describe('WP-PLANS-1: dialog końca planu (3 opcje)', () => {
 
     fireEvent.click(screen.getByTestId('end-plan-choose-new'));
 
-    await waitFor(() => expect(setPlanStatusSpy).toHaveBeenCalledWith('ended'));
+    await waitFor(() => expect(setPlanStatusSpy).toHaveBeenCalledWith('ended', expect.objectContaining({ expectedStartDate: expect.any(String) })));
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/new-plan?fromCycle=archived-1'));
   });
 

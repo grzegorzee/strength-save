@@ -111,7 +111,7 @@ const Dashboard = () => {
     error,
     backfillHistoricalWorkouts
   } = useFirebaseWorkouts(uid, { measurements: 'latest', workouts: 'recent' });
-  const { plan: trainingPlan, isLoaded: planIsLoaded, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode, vacation, setVacation, planStatus, setPlanStatus } = useTrainingPlan(uid);
+  const { plan: trainingPlan, isLoaded: planIsLoaded, hasServerSnapshot: planFromServer, isPlanExpired, currentWeek, planDurationWeeks, weeksRemaining, planStartDate, planStarted, savePlan, progression, saveDeloadDecision, scheduleOverrides, moveScheduledDay, skippedDates, setDaySkipped, skipPastDates, reducedMode, setReducedMode, vacation, setVacation, planStatus, setPlanStatus } = useTrainingPlan(uid);
   // WP-PLANS-1 (X27): jawny stan "plan zakończony" z dokumentu — Dashboard nie
   // planuje niczego z martwego planu.
   const planEndedByStatus = planStatus === 'ended';
@@ -149,7 +149,7 @@ const Dashboard = () => {
     updateActivity,
     deleteActivity,
   } = useActivities(uid, canUseStrava, activityWindowStart);
-  const { cycles, isLoaded: cyclesLoaded, archiveCurrentPlan, createActiveCycle } = usePlanCycles(uid);
+  const { cycles, isLoaded: cyclesLoaded, hasServerSnapshot: cyclesFromServer, archiveCurrentPlan, createActiveCycle } = usePlanCycles(uid);
   const { toast } = useToast();
   const [isRepeating, setIsRepeating] = useState(false);
   const [cardioDialog, setCardioDialog] = useState<{ open: boolean; edit: ManualActivity | null }>({ open: false, edit: null });
@@ -742,11 +742,15 @@ const Dashboard = () => {
   // nawigacji; po sukcesie user widzi closeout/CTA ze stanu 'ended'. Idempotentne:
   // status 'ended' blokuje warunek, flaga sesyjna chroni okno async (wzorzec R2-27).
   // Aktywna sesja (draft) wstrzymuje auto-end do następnego wejścia.
+  // H1 (X31): wyłącznie na danych Z SERWERA (incydent 2026-08-24: cache'owy
+  // snapshot starego planu zakończył plan, który na serwerze był już nowy).
   useEffect(() => {
     if (!uid || !planStartDate) return;
     if (!shouldAutoEndPlan({
       planLoaded: isLoaded && planIsLoaded,
       cyclesLoaded,
+      planFromServer,
+      cyclesFromServer,
       planStatus,
       isPlanExpired,
       hasActiveCycle: !!activeCycle,
@@ -775,7 +779,7 @@ const Dashboard = () => {
         return res.success ? (res.archivedCycleId ?? 'ended') : null;
       },
     });
-  }, [uid, planStartDate, isLoaded, planIsLoaded, cyclesLoaded, planStatus, isPlanExpired, activeCycle, localDraft, lang, trainingPlan, planDurationWeeks, workouts, archiveCurrentPlan, backfillHistoricalWorkouts, setPlanStatus]);
+  }, [uid, planStartDate, isLoaded, planIsLoaded, cyclesLoaded, planFromServer, cyclesFromServer, planStatus, isPlanExpired, activeCycle, localDraft, lang, trainingPlan, planDurationWeeks, workouts, archiveCurrentPlan, backfillHistoricalWorkouts, setPlanStatus]);
 
   // Day focus descriptions
 
