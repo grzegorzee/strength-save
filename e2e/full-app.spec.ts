@@ -83,7 +83,8 @@ test.describe('Page Load Smoke Tests', () => {
 
   test('New Plan (/new-plan) loads', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await expect(page.getByRole('heading', { name: /Witaj w Strength Save|Twój spersonalizowany plan treningowy/ })).toBeVisible();
+    // X32: replan startuje od kroku 2 ("Określ swój poziom"); X33: krok 5A = "Dwa plany na N dni w tygodniu".
+    await expect(page.getByRole('heading', { name: /Witaj w Strength Save|Określ swój poziom|Dwa plany na \d dni w tygodniu/ })).toBeVisible();
   });
 
   test('404 page for unknown route', async ({ page }) => {
@@ -545,8 +546,11 @@ test.describe('Wybór 6 dni (Z72)', () => {
     await page.getByRole('button', { name: '6', exact: true }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
 
-    await expect(page.getByText('Push Pull Legs ×2').first()).toBeVisible();
-    await expect(page.getByText('Legs B', { exact: false })).toBeVisible();
+    // X33: rekomendacja = karta "Polecany" (nazwa + meta "{weeks} tyg. · 6 dni · ..."),
+    // lista dni szablonu ("Legs B") zniknęła z kroku 5.
+    const recommendedCard = page.getByTestId('plan-choice-recommended');
+    await expect(recommendedCard.getByText('Push Pull Legs ×2')).toBeVisible();
+    await expect(recommendedCard.getByTestId('plan-choice-meta')).toContainText('6 dni');
     await expect(page.getByText(/Ten plan ma \d+ dni treningowych/)).toBeHidden();
   });
 

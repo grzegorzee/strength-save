@@ -32,12 +32,15 @@ test.describe('Replan', () => {
     await page.goto('./#/new-plan');
     await page.waitForLoadState('domcontentloaded');
     // Poczekaj na content wizarda (po lazy-load / Suspense). X32: replan startuje
-    // od kroku 2 (poziom), krok 5 z "Przeglądaj plany" po potwierdzeniu profilu.
+    // od kroku 2 (poziom); X33: krok 5A z dwiema kartami, "Zaczynam ten plan"
+    // i linkiem biblioteki po potwierdzeniu profilu (przerywnik ~900 ms mija sam).
     await expect(page.getByRole('button', { name: /Next step|Następny krok/ })).toBeVisible();
     await page.getByRole('button', { name: /Next step|Następny krok/ }).click();
     await page.getByRole('button', { name: /Continue|Dalej/ }).click();
     await page.getByRole('button', { name: /Continue|Dalej/ }).click();
-    await expect(page.getByRole('button', { name: /Browse plans|Przeglądaj plany/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Start this plan|Zaczynam ten plan/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Plan library|Biblioteka planów/ })).toBeVisible();
+    await expect(page.getByTestId('plan-choice-recommended')).toBeVisible();
     // Pełny ekran = brak AppHeader (banner) aplikacji.
     await expect(page.getByRole('banner')).toHaveCount(0);
     expect(await page.locator('text=Coś poszło nie tak').count()).toBe(0);
