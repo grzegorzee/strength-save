@@ -548,14 +548,22 @@ test.describe('Onboarding z podglądem (Z73)', () => {
     await expect(page.getByRole('button', { name: 'Zaczynam ten plan' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Podgląd planu' })).toHaveCount(0);
 
-    // 6/6: nazwa, kafle, chipy, CTA celu.
+    // 6/6 (X34b): chipy dni treningowych na gorze, kafle, nazwa na dole, CTA celu.
     await page.getByTestId('ob-match-next').click();
     await expect(page.getByTestId('ob-start-step')).toBeVisible();
     await expect(page.getByText('06 / 06')).toBeVisible();
     await expect(page.getByTestId('ob-plan-name')).not.toHaveValue('');
     await expect(page.getByTestId('ob-duration-tiles').getByRole('button', { pressed: true })).toHaveCount(1);
-    await expect(page.getByTestId('ob-start-week-chips').getByRole('button')).toHaveCount(8);
-    await expect(page.getByTestId('ob-start-week-chips').getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');
+    const chips = page.getByTestId('ob-first-workout-chips').getByRole('button');
+    await expect(chips).toHaveCount(8);
+    await expect(chips.first()).toHaveAttribute('aria-pressed', 'true');
+    // Kolejnosc sekcji: pierwszy trening -> dlugosc -> nazwa.
+    const order = await page.evaluate(() => {
+      const top = (id: string) => document.querySelector(`[data-testid="${id}"]`)?.getBoundingClientRect().top ?? -1;
+      return [top('ob-first-workout-chips'), top('ob-duration-tiles'), top('ob-plan-name')];
+    });
+    expect(order[0]).toBeLessThan(order[1]);
+    expect(order[1]).toBeLessThan(order[2]);
     const cta = page.getByTestId('ob-start-cta');
     await expect(cta).toHaveText(/Zacznij redukcję/);
     await expect(cta).toBeEnabled();
@@ -573,7 +581,7 @@ test.describe('Onboarding z podglądem (Z73)', () => {
     await passOnboardingWelcome(page);
     await advanceWizardToStep6(page);
     await page.getByTestId('ob-plan-name').fill('Moja nazwa');
-    await page.getByTestId('ob-start-week-chips').getByRole('button').nth(1).click();
+    await page.getByTestId('ob-first-workout-chips').getByRole('button').nth(1).click();
     await page.getByTestId('ob-start-preview').click();
     await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
     await expect(page.getByTestId('plan-preview-confirm')).toHaveText(/Zatwierdź i zacznij/);
@@ -586,7 +594,7 @@ test.describe('Onboarding z podglądem (Z73)', () => {
     // Bez zmiany karty ustawienia z 6/6 wracają 1:1.
     await page.getByTestId('ob-match-next').click();
     await expect(page.getByTestId('ob-plan-name')).toHaveValue('Moja nazwa');
-    await expect(page.getByTestId('ob-start-week-chips').getByRole('button').nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('ob-first-workout-chips').getByRole('button').nth(1)).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('button', { name: 'Wstecz' }).click();
 
     // Karta 2 -> 6/6 z nazwą szablonu karty 2.
@@ -596,7 +604,7 @@ test.describe('Onboarding z podglądem (Z73)', () => {
     await expect(second).toHaveAttribute('aria-pressed', 'true');
     await page.getByTestId('ob-match-next').click();
     await expect(page.getByTestId('ob-plan-name')).toHaveValue(secondName);
-    await expect(page.getByTestId('ob-start-week-chips').getByRole('button').nth(1)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('ob-first-workout-chips').getByRole('button').nth(1)).toHaveAttribute('aria-pressed', 'true');
 
     await page.getByTestId('ob-start-preview').click();
     await expect(page.getByRole('heading', { name: 'Podgląd planu' })).toBeVisible();
