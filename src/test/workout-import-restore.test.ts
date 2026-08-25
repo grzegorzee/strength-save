@@ -67,7 +67,7 @@ beforeEach(() => {
 describe('importData — planCycles przez sanitizer (bug 14)', () => {
   const RULES_PLAN_CYCLE_WHITELIST = [
     'userId', 'days', 'durationWeeks', 'startDate', 'endDate', 'status',
-    'createdAt', 'stats', 'technical', 'hiddenFromInsights',
+    'createdAt', 'stats', 'technical', 'hiddenFromInsights', 'choice',
   ];
 
   it('legalny eksport: zapis bez pola id, pola tylko z whitelisty rules, userId konta', async () => {
@@ -133,6 +133,41 @@ describe('importData — planCycles przez sanitizer (bug 14)', () => {
     const workoutSets = (batchSetMock.mock.calls as Array<[FirestoreRefToken]>)
       .filter(([ref]) => ref.__coll === 'workouts');
     expect(workoutSets).toHaveLength(1);
+  });
+
+  // WP-6 (X33): eksport -> import zachowuje odpowiedzi z kreatora na cyklu.
+  it('round-trip eksport/import: choice przechodzi przez sanitizer 1:1, cykl bez choice bez pola', async () => {
+    const state = buildCanonicalState('history-multi-cycle');
+    const withChoice = state.cycles.find((cycle) => cycle.choice !== undefined)!;
+    const withoutChoice = state.cycles.find((cycle) => cycle.choice === undefined)!;
+    const { result } = renderActions();
+
+    const exported = JSON.parse(result.current.exportData({ planCycles: state.cycles })) as { planCycles: Array<{ id: string; choice?: unknown }> };
+    expect(exported.planCycles.find((cycle) => cycle.id === withChoice.id)?.choice).toEqual(withChoice.choice);
+
+    await act(async () => {
+      await result.current.importData(JSON.stringify(exported));
+    });
+
+    const payloads = new Map(planCycleSetCalls().map(([ref, payload]) => [ref.__id, payload]));
+    expect(payloads.size).toBe(2);
+    expect(payloads.get(withChoice.id)?.choice).toEqual(withChoice.choice);
+    expect(payloads.get(withoutChoice.id)).not.toHaveProperty('choice');
+    payloads.forEach((payload) => Object.keys(payload).forEach((key) => expect(RULES_PLAN_CYCLE_WHITELIST).toContain(key)));
+  });
+
+  it('uszkodzony choice w backupie znika po cichu, cykl wchodzi', async () => {
+    const state = buildCanonicalState('active-plan');
+    const doctored = { ...state.cycles[0], choice: { version: 'one', entry: 'admin' } };
+    const { result } = renderActions();
+
+    await act(async () => {
+      await result.current.importData(JSON.stringify({ planCycles: [doctored] }));
+    });
+
+    const [, payload] = planCycleSetCalls()[0];
+    expect(payload).not.toHaveProperty('choice');
+    expect(payload.startDate).toBe(state.cycles[0].startDate);
   });
 });
 
