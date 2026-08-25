@@ -13,7 +13,7 @@ import { StravaActivityCard } from '@/components/StravaActivityCard';
 import { useState, useMemo, useCallback } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Dumbbell, Pencil, CheckCircle, HeartPulse, RefreshCw, Zap, Timer, Plane } from 'lucide-react';
 import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
-import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, startOfLocalDay } from '@/lib/plan-schedule';
+import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkouts, getStartOfPlanWeek, orderTimelineDayKeys, planWeekNumberForDate, startOfLocalDay } from '@/lib/plan-schedule';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -337,7 +337,8 @@ const TrainingPlan = () => {
   );
   const actualCurrentWeek = planStarted ? Math.max(1, Math.min(planDurationWeeks, hookCurrentWeek)) : 0;
   const selectedOrToday = selectedDate || today;
-  const selectedWeekNumber = Math.floor((startOfLocalDay(selectedOrToday).getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  // Bug 12 (X30): rachunek kalendarzowy zamiast ms (DST zanizalo numer o 1).
+  const selectedWeekNumber = planWeekNumberForDate(startDate, selectedOrToday);
   const isHistoricalWeek = selectedWeekNumber < 1;
   const displayWeek = isHistoricalWeek ? 0 : Math.max(1, Math.min(planDurationWeeks, selectedWeekNumber));
 

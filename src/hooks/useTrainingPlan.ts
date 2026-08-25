@@ -14,7 +14,7 @@ import {
 import { db } from '@/lib/firebase';
 import { trainingPlan as defaultPlan, type TrainingDay, type Exercise } from '@/data/trainingPlan';
 import { formatLocalDate, parseLocalDate } from '@/lib/utils';
-import { getStartOfPlanWeek, type ScheduleOverrides } from '@/lib/plan-schedule';
+import { getStartOfPlanWeek, planWeekNumberForDate, type ScheduleOverrides } from '@/lib/plan-schedule';
 import {
   buildScheduleMove,
   sanitizeScheduleOverrides,
@@ -196,12 +196,12 @@ export const useTrainingPlan = (userId: string) => {
 
   const currentWeek = useMemo(() => {
     if (!planStartDate) return 1;
-    const start = getStartOfPlanWeek(parseLocalDate(planStartDate));
-    const nowWeekStart = getStartOfPlanWeek(new Date());
+    // Bug 12 (X30): rachunek kalendarzowy (planWeekNumberForDate) zamiast
+    // dzielenia milisekund, ktore od wiosennej do jesiennej zmiany czasu
+    // zanizalo numer tygodnia o 1 (tydzien zmiany ma lokalnie 23h).
+    const week = planWeekNumberForDate(parseLocalDate(planStartDate), new Date());
     // Plan startujący w przyszłości: tydzień 0 (jeszcze nie ruszył) — nie liczy postępu.
-    if (nowWeekStart.getTime() < start.getTime()) return 0;
-    const diffMs = nowWeekStart.getTime() - start.getTime();
-    return Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
+    return week < 1 ? 0 : week;
   }, [planStartDate]);
 
   const isPlanExpired = currentWeek > planDurationWeeks;
