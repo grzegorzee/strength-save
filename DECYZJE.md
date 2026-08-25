@@ -5,7 +5,7 @@
 ---
 
 **Data utworzenia:** 2026-01-28
-**Ostatnia aktualizacja:** 2026-08-25 (fala X30 WYDANA: web index-BOgk902c LIVE, functions+rules deploy, iOS 118 Beta App Review APPROVED, AAB v33 SHA 533fcd8f)
+**Ostatnia aktualizacja:** 2026-08-25 (hotfix X31 WYDANY: web index-X5Z5vJOY LIVE, iOS 119 Beta App Review APPROVED, AAB v34 SHA da7bc4f1; wcześniej tego dnia fala X30 + functions + rules)
 
 ---
 
@@ -26,6 +26,8 @@
 **Root cause C (rekomendacja 4 dni):** X30 WP-O zmieniło wagi na dni 100 / cel 150 / poziom 10, więc jedyny szablon `fat_loss` (4 dni) wygrywał z wyborem 3 dni. **Fix:** dni 1000 / cel 100 / poziom 10 (porządek leksykograficzny: dokładna liczba dni ZAWSZE pierwsza), test własności dla wszystkich kombinacji cel × poziom × 2..6 dni, przywrócone oczekiwania `planTemplates.test.ts`. **Root cause D (drugi mechanizm "kroki 2-4 nie działają w kroku 5"):** `/new-plan` bez `fromCycle` montował `PlanWizard` zanim `getDoc(trainingProfile)` odpowiedział, a kreator czyta `initial` tylko w inicjalizatorach `useState` → krok 5 liczony z domyślnych beginner / masa / 4 dni. **Fix:** spinner do czasu profilu (null = kreator z domyślnymi, bez wiecznego czekania) + podsumowanie odpowiedzi z kroków 2-4 pod rekomendacją (`ob.precision.answers`, pl+en) + test sekwencji `newplan-profile-hint.test.tsx`.
 
 **Naprawa danych właściciela (za zgodą, backup w scratchpadzie sesji):** `plan_cycles/cycle-{uid}-2026-09-07` przywrócony na `active`, `endDate ''`, 12 tyg., days z dokumentu planu; historia (cykl 1.06 → 24.08, 47 treningów, 96%) nietknięta. Skrypt ogólny: `scripts/repair-plan-cycle-2026-08-25.mjs` (dry-run, `--apply`). Hipoteza duplikatu archiwum `cycle-{uid}-2026-06-01` sprawdzona: nie istnieje.
+
+**Bramki po merge:** vitest 2873/2873 (345 plików), typecheck, lint 0 err, build web+mobile, dist-smoke, bundle-budget. **Wydanie (jeden potok nohup, bo web/iOS/Android współdzielą `dist/`):** web LIVE `index-X5Z5vJOY.js`; iOS **119** upload + Beta App Review **APPROVED**; AAB **v34** SHA `da7bc4f1` (`~/Desktop/strength-save-v34.aab`, jar verified). Cron X30 potwierdzony: Cloud Scheduler `0 * * * *` UTC ENABLED, przebieg 07:00:01Z start→done bez błędów. **Następny iOS = 120, versionCode = 35.**
 
 **Lekcje:** (1) każda automatyczna mutacja (auto-end, auto-repair) musi być bramkowana danymi Z SERWERA, a zapis statusu musi mieć precondycję tożsamości dokumentu; (2) deterministyczne id jako kotwica idempotencji łamie się przy powtórzeniu klucza w innym stanie: sprawdzaj stan istniejącego dokumentu, nie sam fakt istnienia; (3) zmiana wag w scoringu to zmiana produktowa: jawna decyzja usera (liczba dni) nigdy nie może przegrać z heurystyką; (4) `initial` czytane tylko w `useState` = wyścig z asynchronicznym profilem, testuj sekwencję "dane przychodzą PO pierwszym renderze".
 
