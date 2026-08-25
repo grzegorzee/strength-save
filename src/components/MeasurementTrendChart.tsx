@@ -47,12 +47,15 @@ const MeasurementTrendChart = ({ measurements }: { measurements: BodyMeasurement
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+        {/* X35a WP-A: pola pomiaru zawijane (2-3 wiersze), bez przewijania w bok. */}
+        <div className="flex flex-wrap gap-1.5">
           {availableFields.map((f) => (
             <button
               key={f}
+              type="button"
+              aria-pressed={activeField === f}
               onClick={() => setField(f)}
-              className={cn('shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
+              className={cn('touch-manipulation select-none rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors',
                 activeField === f ? 'bg-primary text-background' : 'bg-surface-highest text-muted-foreground')}
             >
               {t(MEASUREMENT_FIELD_LABEL_KEYS[f])}

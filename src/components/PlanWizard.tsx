@@ -772,8 +772,9 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                 <p data-testid="browse-nearest-note" className="mt-1 text-[13px] text-fitness-warning">{t('ob.browse.nearestNote', { days: daysPerWeek })}</p>
               )}
               <p className="text-muted-foreground mt-1">{t('ob.browse.desc')}</p>
-              {/* X33 WP-2: chipy celu (filtr w obrębie puli dni; "Wszystkie" domyślnie). */}
-              <div className="mt-3 flex gap-2 overflow-x-auto pb-1" data-testid="browse-objective-chips">
+              {/* X33 WP-2: chipy celu (filtr w obrębie puli dni; "Wszystkie" domyślnie).
+                  X35a WP-A: zawijane, bez przewijania w bok. */}
+              <div className="mt-3 flex flex-wrap gap-2" data-testid="browse-objective-chips">
                 {BROWSE_CHIPS.map((chip) => {
                   const on = browseObjective === chip.value;
                   return (
@@ -782,7 +783,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
                       type="button"
                       aria-pressed={on}
                       onClick={() => setBrowseObjective(chip.value)}
-                      className={cn('shrink-0 touch-manipulation select-none rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}
+                      className={cn('touch-manipulation select-none rounded-full px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors', on ? 'bg-primary text-primary-foreground' : 'bg-surface-highest text-muted-foreground')}
                     >
                       {t(chip.labelKey)}
                     </button>
