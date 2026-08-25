@@ -956,7 +956,8 @@ test.describe('Typy serii (Z105)', () => {
     const farmerCard = page.locator('.exercise-card').nth(1);
     await expect(farmerCard.getByText('Dystans', { exact: true })).toBeVisible();
     await farmerCard.getByRole('textbox', { name: /Set 1, kg/ }).fill('24');
-    await farmerCard.getByRole('spinbutton', { name: /Set 1, Dystans/ }).fill('40');
+    // Bug 6 (X30): dystans to DecimalInput (type="text") — textbox, nie spinbutton.
+    await farmerCard.getByRole('textbox', { name: /Set 1, Dystans/ }).fill('40');
 
     // Podciąganie wspomagane: asysta + powtórzenia.
     await page.getByTestId('adhoc-add-exercise').click();

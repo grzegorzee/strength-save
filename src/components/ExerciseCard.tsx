@@ -689,16 +689,17 @@ const ExerciseCardInner = ({
           />
         )}
 
+        {/* Bug 6 (X30): dystans przez DecimalInput jak waga wyżej — type="number"
+            + parseFloat||0 robiło z "20,5" cichy zapis 0 m (ta sama klasa co Z178).
+            Dystans kanonicznie w metrach — commit bez fromInput. */}
         {tracking === 'weight_distance_duration' && (
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={0}
+          <DecimalInput
             value={set.distanceM || ''}
-            onChange={(e) => handleSetChange(globalIndex, 'distanceM', parseFloat(e.target.value) || 0)}
+            onCommit={(n) => handleSetChange(globalIndex, 'distanceM', n)}
+            onClear={() => handleSetChange(globalIndex, 'distanceM', 0)}
             placeholder="m"
             disabled={!isEditable}
-            aria-label={`${localizedName}, ${setLabel}, ${t('card.colDistance')}`}
+            ariaLabel={`${localizedName}, ${setLabel}, ${t('card.colDistance')}`}
             className={cn('exercise-card-input h-12 px-1 text-base font-bold focus-visible:ring-0 focus-visible:ring-offset-0', warmupInputClass, activeInputClass)}
           />
         )}
