@@ -69,7 +69,14 @@ const renderNewPlan = () => render(
   </MemoryRouter>,
 );
 
-const recommendedLine = () => screen.findByText(/polecamy plan/);
+// X32: kreator startuje od kroku 2 z zaznaczonym profilem; user potwierdza
+// poziom/cel/dni (Dalej x3) i dopiero krok 5 liczy rekomendacje z tych odpowiedzi.
+const recommendedLine = async () => {
+  fireEvent.click(await screen.findByRole('button', { name: /Następny krok/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+  return screen.findByText(/polecamy plan/);
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -79,7 +86,7 @@ beforeEach(() => {
   profileDoc.reject = false;
 });
 
-describe('NewPlan: krok 5 startuje z profilu treningowego (X31 H2)', () => {
+describe('NewPlan: krok 5 liczy rekomendacje z profilu treningowego (X31 H2)', () => {
   it('REGRESJA (realne konto): profil {fat_loss, intermediate, 3} -> krok 5 rekomenduje plan 3-dniowy i zapisuje ten profil', async () => {
     profileDoc.current = { trainingProfile: { level: 'intermediate', objective: 'fat_loss', daysPerWeek: 3 } };
     renderNewPlan();

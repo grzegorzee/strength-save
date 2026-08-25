@@ -332,8 +332,12 @@ describe('F2: kontekst Strava niepołączona', () => {
 // ── F3: hero kart szablonów w Browse plans ─────────────────────────────────
 
 describe('F3: karty szablonów z hero (PlanWizard, Browse plans)', () => {
+  // X32: kreator bez Welcome startuje od kroku 2 (startAtPrecision usuniete).
   const openBrowse = () => {
-    renderPage(<PlanWizard startAtPrecision confirmLabelKey="newplan.toReview" onConfirm={() => {}} />);
+    renderPage(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
     fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
   };
 

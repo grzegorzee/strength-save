@@ -139,6 +139,7 @@ const TemplateHero = ({ templateId }: { templateId: string }) => {
 const OptionCard = ({ icon: Icon, title, desc, selected, onClick }: { icon: typeof Dumbbell; title: string; desc: string; selected: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
+    aria-pressed={selected}
     className={cn(
       'w-full text-left rounded-2xl p-4 transition-all flex items-start gap-3',
       selected ? 'bg-surface-high ring-2 ring-primary' : 'bg-surface-low hover:bg-surface-container',
@@ -194,7 +195,6 @@ interface PlanWizardProps {
   resumeStep?: number;
   /** Klucz localStorage dla szkicu PlanBuildera (tryb "własny plan"). */
   builderDraftKey?: string;
-  startAtPrecision?: boolean;
   confirmLabelKey: TranslationKey;
   onConfirm: (choice: PlanWizardChoice) => void;
   isSaving?: boolean;
@@ -202,13 +202,16 @@ interface PlanWizardProps {
   onExitBack?: () => void;
 }
 
-export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, onLegalConsent, askName, initialName, avatarPhotoURL, initial, resume, resumeStep, builderDraftKey, startAtPrecision, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
+export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent, onLegalConsent, askName, initialName, avatarPhotoURL, initial, resume, resumeStep, builderDraftKey, confirmLabelKey, onConfirm, isSaving, error, onExitBack }: PlanWizardProps) => {
   const { t, lang } = useTranslation();
   const { unit, toDisplay } = useUnit();
 
   const initialDays = resume?.daysPerWeek ?? initial?.daysPerWeek ?? 4;
   const resumedCustomPlan = resume && !resume.templateId ? resume : null;
-  const [step, setStep] = useState(resumeStep ?? (showWelcome ? 1 : startAtPrecision ? 5 : 2));
+  // X32: bez Welcome kreator ZAWSZE startuje od kroku 2 (poziom) z wartosciami
+  // z `initial` wstepnie zaznaczonymi; replan nie skacze juz na krok 5
+  // (startAtPrecision usuniete), user potwierdza poziom/cel/dni klikajac Dalej.
+  const [step, setStep] = useState(resumeStep ?? (showWelcome ? 1 : 2));
   const [level, setLevel] = useState<WizardLevel>(sanitizeWizardLevel(resume?.level ?? initial?.level) ?? 'beginner');
   const [objective, setObjective] = useState<PlanObjective>(resume?.objective ?? initial?.objective ?? 'build_muscle');
   const [daysPerWeek, setDaysPerWeek] = useState(initialDays);
@@ -225,7 +228,6 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   // z templateId = traktuj jak wybór z przeglądarki (nie da się odtworzyć).
   const [pickedViaBrowse, setPickedViaBrowse] = useState(() =>
     resume?.planSource ? resume.planSource === 'browsed' : Boolean(resume?.templateId));
-  const [reachedViaSteps, setReachedViaSteps] = useState(!startAtPrecision);
   const [userName, setUserName] = useState(resume?.name ?? initialName ?? '');
   // Plan I: wybór koloru aplikacji na Welcome (tylko askName = onboarding).
   // getAccentById normalizuje stare aliasy; live preview = applyAccent od razu.
@@ -486,13 +488,13 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             </div>
             {/* WP-PLANS-2 (X27, Edge 7): data startu przeniesiona do kroku 5 —
                 krok protokołu zostaje z dniami treningowymi. */}
-            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setPickedViaBrowse(false); setTemplateWeeks(null); setPlanNameInput(null); setReachedViaSteps(true); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
+            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setPickedViaBrowse(false); setTemplateWeeks(null); setPlanNameInput(null); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
         )}
 
         {step === 5 && mode === 'recommend' && (
           <>
-            <StepHeader step={5} total={5} onBack={() => (reachedViaSteps ? setStep(4) : onExitBack?.())} />
+            <StepHeader step={5} total={5} onBack={() => setStep(4)} />
             {/* Z234: kompaktowy układ — CTA "Podgląd planu" ma się mieścić bez scrolla na iPhone. */}
             <div className="mt-5 mb-4">
               <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1.5">{t('ob.precision.kicker')}</p>
@@ -503,11 +505,9 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               <p data-testid="ob-precision-answers" className="text-[12px] text-muted-foreground mt-1">
                 {t('ob.precision.answers', { days: daysPerWeek, objective: t(OBJECTIVE_LABEL_KEY[objective]), level: t(LEVEL_LABEL_KEY[level]) })}
               </p>
-              {startAtPrecision && (
-                <button onClick={() => setStep(2)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-primary font-medium">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />{t('ob.precision.change')}
-                </button>
-              )}
+              <button onClick={() => setStep(2)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-primary font-medium">
+                <SlidersHorizontal className="h-3.5 w-3.5" />{t('ob.precision.change')}
+              </button>
             </div>
             <div className="flex-1 space-y-2.5">
               <div className="rounded-2xl bg-surface-low p-4">

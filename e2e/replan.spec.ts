@@ -31,7 +31,12 @@ test.describe('Replan', () => {
   test('replan renderuje się pełnoekranowo (bez nagłówka appki)', async ({ page }) => {
     await page.goto('./#/new-plan');
     await page.waitForLoadState('domcontentloaded');
-    // Poczekaj na content wizarda (po lazy-load / Suspense).
+    // Poczekaj na content wizarda (po lazy-load / Suspense). X32: replan startuje
+    // od kroku 2 (poziom), krok 5 z "Przeglądaj plany" po potwierdzeniu profilu.
+    await expect(page.getByRole('button', { name: /Next step|Następny krok/ })).toBeVisible();
+    await page.getByRole('button', { name: /Next step|Następny krok/ }).click();
+    await page.getByRole('button', { name: /Continue|Dalej/ }).click();
+    await page.getByRole('button', { name: /Continue|Dalej/ }).click();
     await expect(page.getByRole('button', { name: /Browse plans|Przeglądaj plany/ })).toBeVisible();
     // Pełny ekran = brak AppHeader (banner) aplikacji.
     await expect(page.getByRole('banner')).toHaveCount(0);
