@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { buildConsentsCsv, csvField, type ConsentRow } from '@/lib/consents-csv';
+import { describe, expect, it, vi } from 'vitest';
+import { buildConsentsCsv, collectAllPages, csvField, type ConsentRow } from '@/lib/consents-csv';
 
 // Eksport CSV logu zgód (wymóg usera 2026-08-11: data+godzina UTC + IP).
 
@@ -47,5 +47,44 @@ describe('buildConsentsCsv', () => {
     const line = csv.split('\r\n')[1];
     expect(line.startsWith(',,u1,')).toBe(true);
     expect(line).toContain('"Zgoda, wyraźna, na zdrowie."');
+  });
+});
+
+// Bug 48 (X30): eksport nie może cicho obcinać się na limicie strony — pełna
+// strona oznacza możliwe dalsze wpisy i wymusza kolejne pobranie (startAfter).
+describe('collectAllPages (bug 48: eksport bez cichego sufitu)', () => {
+  const pagesFetcher = (pages: number[][]) => {
+    let call = 0;
+    return vi.fn(async (cursor: number | null) => {
+      const items = pages[call] ?? [];
+      call += 1;
+      // Kursor = ostatni element strony (odpowiednik snap.docs[len-1]).
+      void cursor;
+      return { items, nextCursor: items.length > 0 ? items[items.length - 1] : null };
+    });
+  };
+
+  it('niepełna pierwsza strona = jedno pobranie', async () => {
+    const fetchPage = pagesFetcher([[1, 2]]);
+    const all = await collectAllPages(3, fetchPage);
+    expect(all).toEqual([1, 2]);
+    expect(fetchPage).toHaveBeenCalledTimes(1);
+    expect(fetchPage).toHaveBeenCalledWith(null);
+  });
+
+  it('pełne strony dociągane aż do niepełnej, kolejność i kursory zachowane', async () => {
+    const fetchPage = pagesFetcher([[1, 2, 3], [4, 5, 6], [7]]);
+    const all = await collectAllPages(3, fetchPage);
+    expect(all).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(fetchPage).toHaveBeenCalledTimes(3);
+    expect(fetchPage).toHaveBeenNthCalledWith(2, 3);
+    expect(fetchPage).toHaveBeenNthCalledWith(3, 6);
+  });
+
+  it('liczba wpisów równa wielokrotności strony: ostatnie pobranie puste, bez pętli w nieskończoność', async () => {
+    const fetchPage = pagesFetcher([[1, 2, 3], []]);
+    const all = await collectAllPages(3, fetchPage);
+    expect(all).toEqual([1, 2, 3]);
+    expect(fetchPage).toHaveBeenCalledTimes(2);
   });
 });
