@@ -71,11 +71,12 @@ const renderNewPlan = () => render(
 
 // X32: kreator startuje od kroku 2 z zaznaczonym profilem; user potwierdza
 // poziom/cel/dni (Dalej x3) i dopiero krok 5 liczy rekomendacje z tych odpowiedzi.
+// X33 WP-2: rekomendacja = karta "Polecany" (zamiast linii "polecamy plan").
 const recommendedLine = async () => {
   fireEvent.click(await screen.findByRole('button', { name: /Następny krok/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
-  return screen.findByText(/polecamy plan/);
+  return screen.findByTestId('plan-choice-recommended');
 };
 
 beforeEach(() => {
@@ -121,6 +122,6 @@ describe('NewPlan: krok 5 liczy rekomendacje z profilu treningowego (X31 H2)', (
     profileDoc.reject = true;
     renderNewPlan();
 
-    expect((await recommendedLine()).textContent).toMatch(/polecamy plan/);
+    expect((await recommendedLine()).textContent).toContain('Polecany');
   });
 });

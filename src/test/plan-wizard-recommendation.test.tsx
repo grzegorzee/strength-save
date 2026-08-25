@@ -29,8 +29,11 @@ const planName = (objective: 'fat_loss', level: 'intermediate', days: number) =>
   return localizePlanName(tpl.id, tpl.name, 'pl');
 };
 
-const recommendedLine = () => screen.getByText(/polecamy plan/).textContent ?? '';
+// X33 WP-2: rekomendacja to karta "Polecany" (zamiast linii "polecamy plan").
+const recommendedLine = () => screen.getByTestId('plan-choice-recommended').textContent ?? '';
 const answersLine = () => screen.getByTestId('ob-precision-answers').textContent;
+const cardMetas = () => screen.getAllByTestId('plan-choice-meta').map((m) => m.textContent ?? '');
+const cardNames = () => screen.getAllByTestId('plan-choice-name').map((n) => n.textContent ?? '');
 
 // X32: krok 2 (poziom z initial) -> 3 (cel z initial) -> 4 (dni z initial) -> 5.
 const confirmProfileToStep5 = () => {
@@ -73,6 +76,10 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     // fat_loss/4 = jedyny szablon redukcyjny (Lean Engine, 4 dni).
     expect(recommendedLine()).toContain('Rzeźba i Kondycja');
     expect(answersLine()).toBe('4 dni w tygodniu · Redukcja · Średnio zaawansowany');
+    // X33 WP-2 (sekwencja c): po zmianie dni OBIE karty są przeliczone na 4 dni i różne.
+    expect(cardMetas()).toHaveLength(2);
+    for (const meta of cardMetas()) expect(meta).toContain('· 4 dni ·');
+    expect(new Set(cardNames()).size).toBe(2);
 
     // Po przejsciu przez kroki strzalka wstecz z kroku 5 wraca do kroku 4 (nie wychodzi z kreatora).
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
@@ -81,6 +88,8 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
     expect(recommendedLine()).toContain(planName('fat_loss', 'intermediate', 3));
     expect(answersLine()).toBe('3 dni w tygodniu · Redukcja · Średnio zaawansowany');
+    for (const meta of cardMetas()) expect(meta).toContain('· 3 dni ·');
+    expect(new Set(cardNames()).size).toBe(2);
 
     fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
     const choice = onConfirm.mock.calls[0][0];
@@ -99,13 +108,13 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     confirmProfileToStep5();
 
     const browseCards = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!.textContent ?? '');
-    fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
     expect(browseCards().length).toBe(planTemplates.filter((t) => t.daysPerWeek === 3).length);
     for (const card of browseCards()) expect(card).toContain('3×');
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' })); // Browse -> krok 5
 
     changeDaysViaSettings(4);
-    fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
     expect(browseCards().length).toBe(planTemplates.filter((t) => t.daysPerWeek === 4).length);
     for (const card of browseCards()) expect(card).toContain('4×');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Plany na 4 dni w tygodniu');
@@ -129,7 +138,7 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
 
     expect(screen.getByText('02 / 05')).toBeTruthy();
     expect(screen.getByText('Średnio zaawansowany').closest('button')!.getAttribute('aria-pressed')).toBe('true');
-    expect(screen.queryByText(/polecamy plan/)).toBeNull();
+    expect(screen.queryByTestId('plan-choice-recommended')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
     expect(onExitBack).toHaveBeenCalledTimes(1);

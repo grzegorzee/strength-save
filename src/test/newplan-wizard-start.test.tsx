@@ -89,7 +89,8 @@ const renderNewPlan = (entry = '/new-plan') => render(
 
 const isSelected = (label: string) => screen.getByText(label).closest('button')!.getAttribute('aria-pressed');
 const stepIndicator = (step: number) => screen.getByText(`0${step} / 05`);
-const recommendedLine = () => screen.getByText(/polecamy plan/).textContent ?? '';
+// X33 WP-2: rekomendacja = karta "Polecany" (zamiast linii "polecamy plan").
+const recommendedLine = () => screen.getByTestId('plan-choice-recommended').textContent ?? '';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -135,7 +136,7 @@ describe('NewPlan: kreator startuje od kroku 2 z profilem treningowym (X32)', ()
     await screen.findByText('Średnio zaawansowany');
     stepIndicator(2);
     expect(isSelected('Średnio zaawansowany')).toBe('true');
-    expect(screen.queryByText(/polecamy plan/)).toBeNull();
+    expect(screen.queryByTestId('plan-choice-recommended')).toBeNull();
 
     // Strzalka wstecz z kroku 2 = wyjscie z kreatora do closeout (onExitBack), nie do kroku 1.
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
@@ -171,7 +172,12 @@ describe('NewPlan: kreator startuje od kroku 2 z profilem treningowym (X32)', ()
     fireEvent.click(await screen.findByText('PREVIEW-BACK:3'));
 
     await waitFor(() => stepIndicator(5));
+    // X33 WP-3: nazwa w zwiniętej linii ustawień; po "Zmień" w polu.
+    expect(screen.getByTestId('ob-plan-settings-summary').textContent).toContain('Mój szkic');
+    fireEvent.click(screen.getByRole('button', { name: 'Zmień' }));
     expect((screen.getByTestId('ob-plan-name') as HTMLInputElement).value).toBe('Mój szkic');
-    expect(screen.getByText('Twój wybrany plan.')).toBeTruthy();
+    // X33 WP-2: zapisany szablon jest zaznaczoną kartą (nie linią "Twój wybrany plan").
+    const selected = screen.getAllByTestId(/^plan-choice-(recommended|second)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
+    expect(selected.textContent).toContain(localizePlanName(template.id, template.name, 'pl'));
   });
 });

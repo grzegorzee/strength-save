@@ -48,8 +48,6 @@ const ALLOWED_LOGIC_CALLS: Record<string, number> = {
   'src/components/ui/range-calendar.tsx': 1,
   // logika, nie etykieta: start zakresu kalendarza przelozen (today z formatLocalDate)
   'src/components/RescheduleSheet.tsx': 1,
-  // logika, nie etykieta: wyliczanie poniedzialku tygodnia startu planu
-  'src/components/PlanWizard.tsx': 1,
   // logika, nie etykieta: granice tygodnia raportu (planStartDate zwalidowane)
   'src/components/WeekReportCard.tsx': 1,
   // logika, nie etykieta: sortowanie zdjec po dacie

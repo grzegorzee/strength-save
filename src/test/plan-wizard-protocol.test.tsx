@@ -63,10 +63,16 @@ describe('krok 4 bez daty startu (WP-PLANS-2)', () => {
   });
 });
 
+// X33 WP-3: nazwa / długość / start siedzą w zwiniętej linii ustawień; pola
+// pojawiają się po "Zmień" (testid-y ob-plan-name, ob-start-week-chips,
+// template-duration-picker zachowane).
+const expandSettings = () => fireEvent.click(screen.getByRole('button', { name: 'Zmień' }));
+
 describe('krok 5: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2)', () => {
   it('pole nazwy ma default z rekomendacji, a wybór startu to 8 najbliższych poniedziałków', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5();
+    expandSettings();
 
     const nameInput = screen.getByTestId('ob-plan-name') as HTMLInputElement;
     expect(nameInput.value.length).toBeGreaterThan(0);
@@ -82,69 +88,82 @@ describe('krok 5: nazwa planu + start (poniedziałki) + tygodnie (WP-PLANS-2)', 
     const onConfirm = vi.fn();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5();
+    expandSettings();
 
     fireEvent.change(screen.getByTestId('ob-plan-name'), { target: { value: '  Mój blok  ' } });
     const chips = within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button');
     fireEvent.click(chips[2]);
-    fireEvent.click(screen.getByRole('button', { name: '16 tyg.' }));
+    // X33 WP-3: kafel długości "16 tyg." (bez otwierania pickera "Inna").
+    fireEvent.click(screen.getByRole('button', { name: /^16 tyg\./ }));
     fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
 
+    // X33 WP-4: drugi argument = { skipPreview: false } (ścieżka z podglądem).
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({
       planName: 'Mój blok',
       startDate: isoOf(mondayOfWeek(2)),
       durationWeeks: 16,
-    }));
+    }), { skipPreview: false });
   });
 
   it('pusta nazwa spada do nazwy rekomendowanego planu (Edge 4)', () => {
     const onConfirm = vi.fn();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5();
+    expandSettings();
 
     const nameInput = screen.getByTestId('ob-plan-name') as HTMLInputElement;
     const defaultName = nameInput.value;
     fireEvent.change(nameInput, { target: { value: '   ' } });
     fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
 
-    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ planName: defaultName }));
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ planName: defaultName }), { skipPreview: false });
   });
 
   it('EN: etykiety sekcji startu i nazwy w języku apki', () => {
     localStorage.setItem('app-language', 'en');
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5();
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
     expect(screen.getByText('Plan start')).toBeInTheDocument();
     expect(screen.getByTestId('ob-start-week-chips')).toBeInTheDocument();
   });
 });
 
 // X32 (zgłoszenie właściciela: "najpierw nazwa planu, dopiero potem 'przeglądaj
-// plany' — dziwna kolejność"): krok 5 = nagłówek + rekomendacja + odpowiedzi +
-// "Zmień ustawienia", OD RAZU pod tym "Przeglądaj plany" / "Ułóż własny",
-// dopiero potem nazwa, długość, tydzień startu, na końcu CTA.
-describe('krok 5: kolejność bloków (X32)', () => {
+// plany' — dziwna kolejność") + X33 (sekcja 1 planu): krok 5A = nagłówek +
+// odpowiedzi + "Zmień ustawienia", potem DWIE KARTY planów, "Ułóż własny plan",
+// link biblioteki, zwinięta linia ustawień (po rozwinięciu: nazwa, długość,
+// tydzień startu), na końcu główny CTA "Zaczynam ten plan" i drugorzędny podgląd.
+describe('krok 5: kolejność bloków (X32 + X33)', () => {
   const precedes = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 
-  it('Przeglądaj plany / Ułóż własny stoją pod podsumowaniem odpowiedzi, PRZED nazwą planu; CTA na końcu', () => {
+  it('odpowiedzi -> karty -> Ułóż własny -> biblioteka -> ustawienia (nazwa, długość, start) -> Zaczynam -> Podgląd', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5();
+    // Linia ustawień zwinięta domyślnie: bez pól do czasu "Zmień".
+    expect(screen.queryByTestId('ob-plan-name')).toBeNull();
+    expandSettings();
 
     const answers = screen.getByTestId('ob-precision-answers');
     const change = screen.getByRole('button', { name: /Zmień ustawienia/ });
-    const browse = screen.getByRole('button', { name: /Przeglądaj plany/ });
+    const cards = screen.getByTestId('ob-plan-choices');
     const own = screen.getByRole('button', { name: /Ułóż własny/ });
+    const library = screen.getByRole('button', { name: /Biblioteka planów/ });
     const name = screen.getByTestId('ob-plan-name');
     const duration = screen.getByTestId('template-duration-picker');
     const startWeek = screen.getByTestId('ob-start-week-chips');
-    const cta = screen.getByRole('button', { name: /Podgląd planu/ });
+    const start = screen.getByRole('button', { name: /Zaczynam ten plan/ });
+    const preview = screen.getByRole('button', { name: /Podgląd planu/ });
 
     expect(precedes(answers, change)).toBe(true);
-    expect(precedes(change, browse)).toBe(true);
-    expect(precedes(browse, own)).toBe(true);
-    expect(precedes(own, name)).toBe(true);
+    expect(precedes(change, cards)).toBe(true);
+    expect(precedes(cards, own)).toBe(true);
+    expect(precedes(own, library)).toBe(true);
+    expect(precedes(library, name)).toBe(true);
     expect(precedes(name, duration)).toBe(true);
     expect(precedes(duration, startWeek)).toBe(true);
-    expect(precedes(startWeek, cta)).toBe(true);
+    expect(precedes(startWeek, start)).toBe(true);
+    expect(precedes(start, preview)).toBe(true);
   });
 });
 

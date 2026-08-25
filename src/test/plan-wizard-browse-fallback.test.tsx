@@ -46,7 +46,8 @@ describe('Browse plans: pusta pula dla wybranej liczby dni (X32)', () => {
     expect(screen.getByText(/Ten plan ma \d+ dni treningowych, wybrałeś 3/)).toBeTruthy();
 
     const expectedCount = planTemplates.filter((t) => t.daysPerWeek === 2 || t.daysPerWeek === 4).length;
-    fireEvent.click(screen.getByRole('button', { name: `Przeglądaj plany (${expectedCount})` }));
+    // X33 WP-2: link biblioteki z licznikiem puli (zastępczej) zamiast "Przeglądaj plany (n)".
+    fireEvent.click(screen.getByRole('button', { name: `Biblioteka planów na 3 dni (${expectedCount})` }));
     expect(screen.getByTestId('browse-nearest-note').textContent).toBe('Brak planu na 3 dni w tygodniu, pokazujemy najbliższe.');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Najbliższe plany (${expectedCount})`);
     const cards = screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!);
@@ -59,11 +60,13 @@ describe('Browse plans: pusta pula dla wybranej liczby dni (X32)', () => {
     const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5With3Days();
-    fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
     const fourDay = screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!).find((c) => c.textContent?.includes('4×'))!;
     fireEvent.click(fourDay);
 
-    expect(screen.getByText('Częstotliwość').nextElementSibling!.textContent).toBe('4 dni/tydz');
+    // X33 WP-2: kafel Czestotliwosc zniknal; spojnosc = zaznaczona karta ma 4 dni i brak ostrzezenia.
+    const selected = screen.getAllByTestId(/^plan-choice-(recommended|second)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
+    expect(selected.querySelector('[data-testid="plan-choice-meta"]')!.textContent).toContain('· 4 dni ·');
     expect(screen.queryByText(/Ten plan ma \d+ dni treningowych/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
     const choice = onConfirm.mock.calls[0][0];

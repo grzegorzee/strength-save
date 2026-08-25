@@ -340,7 +340,8 @@ describe('F3: karty szablonów z hero (PlanWizard, Browse plans)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Przeglądaj plany/ }));
+    // X33 WP-2: wejście do biblioteki przez link "Biblioteka planów na {days} dni ({n})".
+    fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
   };
 
   it('każda karta szablonu renderuje hero z public/plan-templates/<id>.webp', () => {
