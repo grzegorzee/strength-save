@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 
@@ -8,6 +8,12 @@ vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
 // WP-PLANS-1 dodał do PlanWizard PlanDurationPicker (PlanDaysEditor → ExercisePicker
 // → lib/firebase) — realny init Auth wywala jsdom (pułapka transitive importu).
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
+// X33 WP-8: kandydaci kolorow ze zdjecia mutowalni per test (bez canvasu w jsdom).
+const deriveAccentCandidatesFromAvatar = vi.hoisted(() => vi.fn(async (): Promise<string[]> => []));
+vi.mock('@/lib/avatar-accent', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/avatar-accent')>();
+  return { ...actual, deriveAccentCandidatesFromAvatar };
+});
 
 import { PlanWizard, type PlanWizardChoice } from '@/components/PlanWizard';
 import { ACCENTS } from '@/lib/accent-theme';
@@ -171,6 +177,130 @@ describe('PlanWizard Welcome: wybór koloru (plan I)', () => {
     ));
     expect(screen.queryByTestId('ob-accent-lime')).toBeNull();
     expect(screen.queryAllByRole('radio')).toEqual([]);
+  });
+});
+
+// X33 WP-8: krok 1 z avatarem, "Czesc, {imie}" i kolorami ze zdjecia.
+// Apple Sign-In nie daje zdjecia (photoURL ''), wiec wariant z inicjalami jest
+// rownorzedny. Brak kandydatow (Apple, szare zdjecie, blad) = dzisiejszy widok.
+describe('PlanWizard Welcome: avatar, imie i kolory ze zdjecia (X33 WP-8)', () => {
+  const photoURL = 'https://lh3.example/avatar.jpg';
+  const radioOrder = () => screen.getAllByRole('radio').map((el) => el.getAttribute('data-testid'));
+  // Kandydaci przychodza asynchronicznie; testy synchroniczne domykaja obietnice w act().
+  const flushCandidates = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    deriveAccentCandidatesFromAvatar.mockResolvedValue([]);
+    localStorage.clear();
+    localStorage.setItem('app-language', 'pl');
+    document.documentElement.style.cssText = '';
+    delete document.documentElement.dataset.accent;
+  });
+
+  it('konto Google: zdjecie w kolku (alt pusty, nieprzeciagalne) obok "Czesc, Grzegorz"', async () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    await flushCandidates();
+    const img = screen.getByTestId('ob-avatar-img');
+    expect(img).toHaveAttribute('src', photoURL);
+    expect(img).toHaveAttribute('alt', '');
+    expect(img).toHaveAttribute('draggable', 'false');
+    expect(screen.getByRole('heading', { name: 'Cześć, Grzegorz' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Witaj w Strength Save/ })).toBeNull();
+    // Pole imienia i zgody nietkniete.
+    expect(screen.getByTestId('ob-name-input')).toHaveValue('Grzegorz');
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+  });
+
+  it('konto Apple (bez zdjecia): inicjaly z imienia na tle akcentu, "Czesc, Anna"', () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName initialName="Anna" confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    expect(screen.queryByTestId('ob-avatar-img')).toBeNull();
+    expect(screen.getByTestId('ob-avatar-initials')).toHaveTextContent('A');
+    expect(screen.getByRole('heading', { name: 'Cześć, Anna' })).toBeInTheDocument();
+    expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
+  });
+
+  it('blad ladowania zdjecia -> inicjaly', async () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    await flushCandidates();
+    fireEvent.error(screen.getByTestId('ob-avatar-img'));
+    expect(screen.queryByTestId('ob-avatar-img')).toBeNull();
+    expect(screen.getByTestId('ob-avatar-initials')).toHaveTextContent('G');
+  });
+
+  it('bez imienia: dotychczasowy tytul; litera z e-maila w kolku; wpisanie imienia daje powitanie', () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName accountEmail="kasia@example.com" confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    expect(screen.getByRole('heading', { name: /Witaj w Strength Save/ })).toBeInTheDocument();
+    expect(screen.getByTestId('ob-avatar-initials')).toHaveTextContent('K');
+    fireEvent.change(screen.getByTestId('ob-name-input'), { target: { value: 'Kasia' } });
+    expect(screen.getByRole('heading', { name: 'Cześć, Kasia' })).toBeInTheDocument();
+    expect(screen.getByTestId('ob-avatar-initials')).toHaveTextContent('K');
+  });
+
+  it('bez imienia i e-maila: ikona w kolku, tytul bez zmian', () => {
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    expect(screen.getByTestId('ob-avatar-icon')).toBeInTheDocument();
+    expect(screen.queryByTestId('ob-avatar-initials')).toBeNull();
+    expect(screen.getByRole('heading', { name: /Witaj w Strength Save/ })).toBeInTheDocument();
+  });
+
+  it('kandydaci ze zdjecia jako PIERWSZE kropki z etykieta, reszta palety bez duplikatow, pierwszy preselekcjonowany', async () => {
+    deriveAccentCandidatesFromAvatar.mockResolvedValue(['rose', 'sky']);
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
+    expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalledWith(photoURL);
+    const expected = ['ob-accent-rose', 'ob-accent-sky', ...ACCENTS.filter((a) => a.id !== 'rose' && a.id !== 'sky').map((a) => `ob-accent-${a.id}`)];
+    expect(radioOrder()).toEqual(expected);
+    expect(screen.getAllByRole('radio')).toHaveLength(ACCENTS.length);
+    // Auto-preselekcja jak w X29: pierwszy kandydat zaznaczony i zaaplikowany.
+    expect(screen.getByTestId('ob-accent-rose')).toHaveAttribute('aria-checked', 'true');
+    expect(document.documentElement.dataset.accent).toBe('rose');
+    expect(localStorage.getItem('ss-accent-color')).toBe('rose');
+  });
+
+  it('wczesniejszy wybor (localStorage): kandydaci widoczni, ale automat NIE nadpisuje wyboru', async () => {
+    localStorage.setItem('ss-accent-color', 'indigo');
+    deriveAccentCandidatesFromAvatar.mockResolvedValue(['rose']);
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
+    expect(radioOrder()[0]).toBe('ob-accent-rose');
+    expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
+    expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
+  });
+
+  it('brak kandydatow (szare zdjecie / blad): dokladnie dzisiejsza kolejnosc palety, bez etykiety, limonka', async () => {
+    deriveAccentCandidatesFromAvatar.mockResolvedValue([]);
+    render(withProviders(
+      <PlanWizard showWelcome legalConsent askName initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    await waitFor(() => expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalled());
+    expect(screen.queryByTestId('ob-accent-from-photo')).toBeNull();
+    expect(radioOrder()).toEqual(ACCENTS.map((a) => `ob-accent-${a.id}`));
+    expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
+    expect(localStorage.getItem('ss-accent-color')).toBeNull();
+  });
+
+  it('bez askName (replan) ani avatara, ani powitania nie ma', () => {
+    render(withProviders(
+      <PlanWizard showWelcome initialName="Grzegorz" avatarPhotoURL={photoURL} confirmLabelKey="newplan.toReview" onConfirm={noop} />,
+    ));
+    expect(screen.queryByTestId('ob-avatar')).toBeNull();
+    expect(screen.getByRole('heading', { name: /Witaj w Strength Save/ })).toBeInTheDocument();
+    expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
   });
 });
 

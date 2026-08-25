@@ -24,10 +24,12 @@ const mockProfile = vi.hoisted(() => ({
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({ uid: 'u1', profile: mockProfile.current }),
 }));
-const deriveAccentFromAvatar = vi.hoisted(() => vi.fn(async (): Promise<string | null> => null));
+// X33 WP-8: Welcome liczy kandydatów (kropki "Z Twojego zdjęcia"); preselekcja
+// = pierwszy z nich (ten sam kontrakt co deriveAccentFromAvatar w X29).
+const deriveAccentCandidatesFromAvatar = vi.hoisted(() => vi.fn(async (): Promise<string[]> => []));
 vi.mock('@/lib/avatar-accent', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/avatar-accent')>();
-  return { ...actual, deriveAccentFromAvatar };
+  return { ...actual, deriveAccentCandidatesFromAvatar };
 });
 vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({ savePlan: vi.fn(async () => ({ success: true })) }),
@@ -113,28 +115,31 @@ describe('Onboarding: zapis koloru aplikacji do profilu (plan I)', () => {
 describe('Onboarding: preselekcja akcentu z avatara (X29 WP-H)', () => {
   it('photoURL + brak zapisanego wyboru: wyliczony sky zaznaczony i zaaplikowany', async () => {
     mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
-    deriveAccentFromAvatar.mockResolvedValueOnce('sky');
+    deriveAccentCandidatesFromAvatar.mockResolvedValueOnce(['sky']);
     render(withProviders(<Onboarding />));
     await waitFor(() => expect(screen.getByTestId('ob-accent-sky')).toHaveAttribute('aria-checked', 'true'));
-    expect(deriveAccentFromAvatar).toHaveBeenCalledWith('https://lh3.example/a.jpg');
+    expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalledWith('https://lh3.example/a.jpg');
     expect(document.documentElement.dataset.accent).toBe('sky');
     expect(localStorage.getItem('ss-accent-color')).toBe('sky');
   });
 
-  it('wpis w localStorage (wcześniejszy wybór): automat NIE odpala się', async () => {
+  it('wpis w localStorage (wcześniejszy wybór): automat NIE nadpisuje wyboru (kropki ze zdjęcia mogą się pokazać)', async () => {
     mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
+    deriveAccentCandidatesFromAvatar.mockResolvedValueOnce(['sky']);
     localStorage.setItem('ss-accent-color', 'indigo');
     render(withProviders(<Onboarding />));
     expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
-    await Promise.resolve();
-    expect(deriveAccentFromAvatar).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByTestId('ob-accent-from-photo')).toBeInTheDocument());
+    expect(screen.getByTestId('ob-accent-indigo')).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByTestId('ob-accent-sky')).toHaveAttribute('aria-checked', 'false');
+    expect(localStorage.getItem('ss-accent-color')).toBe('indigo');
   });
 
-  it('derive daje null (szary avatar): limonka zostaje zaznaczona', async () => {
+  it('derive daje pustą listę (szary avatar): limonka zostaje zaznaczona', async () => {
     mockProfile.current = { ...mockProfile.current, photoURL: 'https://lh3.example/a.jpg' };
-    deriveAccentFromAvatar.mockResolvedValueOnce(null);
+    deriveAccentCandidatesFromAvatar.mockResolvedValueOnce([]);
     render(withProviders(<Onboarding />));
-    await waitFor(() => expect(deriveAccentFromAvatar).toHaveBeenCalled());
+    await waitFor(() => expect(deriveAccentCandidatesFromAvatar).toHaveBeenCalled());
     expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
     expect(localStorage.getItem('ss-accent-color')).toBeNull();
   });
@@ -142,7 +147,7 @@ describe('Onboarding: preselekcja akcentu z avatara (X29 WP-H)', () => {
   it('brak photoURL: automat NIE odpala się', async () => {
     render(withProviders(<Onboarding />));
     await Promise.resolve();
-    expect(deriveAccentFromAvatar).not.toHaveBeenCalled();
+    expect(deriveAccentCandidatesFromAvatar).not.toHaveBeenCalled();
     expect(screen.getByTestId('ob-accent-lime')).toHaveAttribute('aria-checked', 'true');
   });
 });

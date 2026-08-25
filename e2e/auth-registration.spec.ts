@@ -82,7 +82,8 @@ test.describe('Auth and registration flows', () => {
     await setE2EAuthScenario(page, 'new-invited-user', { displayName: 'Invite Tester' });
     await navigateAndWait(page, '/');
 
-    await expect(page.getByRole('heading', { name: 'Witaj w Strength Save' })).toBeVisible();
+    // X33 WP-8: konto z imieniem wita po imieniu (bez imienia: "Witaj w Strength Save").
+    await expect(page.getByRole('heading', { name: 'Cześć, Invite' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Dalej' })).toBeVisible();
   });
 
