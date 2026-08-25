@@ -32,6 +32,7 @@ import {
   buildRevokedSubscription,
   resolveGrantStartedAt,
   canCreateUserProfile,
+  resolveUpdatedAccessStatus,
 } from "./security";
 import { writeEmailLog } from "./email-log";
 import { buildAnnouncementEvents } from "./announcement-events";
@@ -973,7 +974,10 @@ export const updateUserAccess = onCall({ secrets: [resendApiKey] }, async (reque
   if (!userSnap.exists) throw new HttpsError("not-found", "User not found");
   const userData = userSnap.data() as UserProfileDoc;
 
-  const nextStatus: UserStatus = suspended ? "suspended" : (userData.verification?.emailVerifiedAt ? "active" : "pending_verification");
+  // Bug 46: restore konta legacy bez verification.emailVerifiedAt nie może
+  // degradować statusu do pending_verification (blokada zapisów + bramka
+  // weryfikacji mimo "dostęp przywrócony") — logika w security.ts.
+  const nextStatus: UserStatus = resolveUpdatedAccessStatus(suspended, userData);
   const timestamp = nowIso();
   await userRef.set({
     access: { enabled: accessEnabled && !suspended },

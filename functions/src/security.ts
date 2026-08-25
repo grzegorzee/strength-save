@@ -116,6 +116,25 @@ export function canCreateUserProfile(input: {
     ));
 }
 
+// Bug 46 (X30): status po updateUserAccess (suspend/restore/toggle dostępu).
+// Restore konta legacy bez verification.emailVerifiedAt (konta sprzed
+// registration flow, np. v4.0.0 z 2026-03) NIE może ustawiać jawnego
+// pending_verification: rules hasSelfAccess tolerują tylko BRAK pola status,
+// więc taki restore blokował wszystkie zapisy i stawiał EmailVerificationGate
+// mimo maila "dostęp przywrócony". pending zostaje wyłącznie dla kont, które
+// JAWNIE czekały na weryfikację (status pending_verification).
+export function resolveUpdatedAccessStatus(
+  suspended: boolean,
+  userData: {
+    status?: unknown;
+    verification?: { emailVerifiedAt?: unknown } | null;
+  } | null | undefined,
+): "suspended" | "active" | "pending_verification" {
+  if (suspended) return "suspended";
+  if (userData?.verification?.emailVerifiedAt) return "active";
+  return userData?.status === "pending_verification" ? "pending_verification" : "active";
+}
+
 export function hasCallableAppAccess(profile: AccessProfile | undefined): boolean {
   // Brak dokumentu profilu = brak dostępu (jak get() nieistniejącego doca w regułach).
   if (!profile) return false;
