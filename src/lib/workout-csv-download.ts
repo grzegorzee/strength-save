@@ -5,7 +5,7 @@
 import { buildWorkoutsCsv } from '@/lib/workout-csv';
 import { shareOrDownloadFile, type ShareExportResult, type ShareOrDownloadOptions } from '@/lib/share-export';
 import { buildHistoryRowMeta } from '@/lib/history-stats';
-import { exportFileName, type ExportRangeBounds } from '@/lib/workout-export-range';
+import { exportFileName, workoutBelongsToExportCycle, type ExportRangeBounds } from '@/lib/workout-export-range';
 import { fetchWorkoutHistoryPage, type WorkoutHistoryCursor } from '@/lib/workout-read-store';
 import type { WorkoutSession } from '@/types';
 
@@ -32,6 +32,11 @@ export const fetchWorkoutsForBounds = async (
     all.push(...page.workouts);
     cursor = page.nextCursor;
     if (!cursor) break;
+  }
+  // WP-D (X35a): tryb cyklu = zapytanie po datach (bez nowego indeksu Firestore)
+  // + filtr po cycleId po stronie klienta; ścieżka 'dates' bez zmian.
+  if (bounds.mode === 'cycle') {
+    return all.filter((workout) => workoutBelongsToExportCycle(workout, bounds.cycleId));
   }
   return all;
 };

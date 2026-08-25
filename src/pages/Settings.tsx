@@ -226,6 +226,7 @@ const Settings = () => {
         onOpenChange={setShowExportDialog}
         uid={uid}
         cycles={cycles}
+        workouts={workouts}
       />
       </div>
 

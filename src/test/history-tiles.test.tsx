@@ -317,13 +317,14 @@ describe('WP-H H3 — Export sheet', () => {
     expect(within(sheet).getByTestId('history-email')).toHaveTextContent('coach@example.com');
   });
 
-  it('CSV: pobiera sesje zakresu aktywnego cyklu i woła istniejącą ścieżkę CSV', async () => {
+  it('CSV: pobiera sesje aktywnego cyklu (WP-D: tryb cycleId) i woła istniejącą ścieżkę CSV', async () => {
     const active = activeCycleOf();
     const sheet = await openSheet();
     fireEvent.click(within(sheet).getByTestId('export-format-csv'));
     await waitFor(() => {
       expect(fetchWorkoutsForBounds).toHaveBeenCalledWith('u1', {
-        mode: 'dates',
+        mode: 'cycle',
+        cycleId: active.id,
         fromDate: active.startDate,
         toDate: TODAY_ISO,
       });
@@ -375,5 +376,79 @@ describe('WP-H H3 — Export sheet', () => {
     const sheet = await openSheet();
     fireEvent.click(within(sheet).getByTestId('export-cancel'));
     await waitFor(() => expect(screen.queryByTestId('history-export-sheet')).not.toBeInTheDocument());
+  });
+});
+
+// WP-D (X35a): zamiast jednego "Aktywny cykl" lista cykli (widoczne z danymi),
+// domyślnie aktywny; zakres liczony po cycleId (tryb 'cycle' w bounds).
+describe('WP-D (X35a) — lista cykli w Export sheecie', () => {
+  const openSheet = async () => {
+    renderPage();
+    fireEvent.click(screen.getByTestId('history-export'));
+    return await screen.findByTestId('history-export-sheet');
+  };
+
+  it('chip Cykl rozwija wiersze cykli: aktywny (Cykl 2) domyślnie zaznaczony, licznik z sesji, przeszły ze stats', async () => {
+    const sheet = await openSheet();
+    const active = activeCycleOf();
+    const past = state().cycles.find((c) => c.status === 'completed')!;
+    const list = within(sheet).getByTestId('export-cycle-list');
+    const rows = within(list).getAllByRole('radio');
+    expect(rows).toHaveLength(2);
+    // Najnowszy pierwszy; numeracja od najstarszego (jak kafle).
+    expect(rows[0]).toHaveAttribute('data-testid', `export-cycle-${active.id}`);
+    expect(rows[0]).toHaveAttribute('aria-checked', 'true');
+    expect(rows[0].textContent).toMatch(/Cykl 2 · Mój plan siłowy/);
+    // Aktywny: 2 ukończone sesje z cycleId (draft nie liczy się), "w toku" zamiast daty końca.
+    expect(rows[0].textContent).toMatch(/2 treningi/);
+    expect(rows[0].textContent).toMatch(/w toku/);
+    // Przeszły (sprzed zapisu odpowiedzi: bez nazwy planu): stats.totalWorkouts = 8.
+    expect(rows[1]).toHaveAttribute('data-testid', `export-cycle-${past.id}`);
+    expect(rows[1].textContent).toMatch(/Cykl 1/);
+    expect(rows[1].textContent).toMatch(/8 treningów/);
+    // Tytuł sheeta = numer wybranego cyklu.
+    expect(within(sheet).getByText('Cykl 2')).toBeInTheDocument();
+  });
+
+  it('wybór przeszłego cyklu: CSV idzie z bounds cycleId TEGO cyklu (daty cyklu, nie aktywnego)', async () => {
+    const sheet = await openSheet();
+    const past = state().cycles.find((c) => c.status === 'completed')!;
+    fireEvent.click(within(sheet).getByTestId(`export-cycle-${past.id}`));
+    expect(within(sheet).getByTestId(`export-cycle-${past.id}`)).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(within(sheet).getByTestId('export-format-csv'));
+    await waitFor(() => {
+      expect(fetchWorkoutsForBounds).toHaveBeenCalledWith('u1', {
+        mode: 'cycle',
+        cycleId: past.id,
+        fromDate: past.startDate,
+        toDate: past.endDate,
+      });
+    });
+  });
+
+  it('lista cykli ukryta poza zakresem Cykl; niezmiennik: Cała historia bez zmian (tryb dates)', async () => {
+    const sheet = await openSheet();
+    fireEvent.click(within(sheet).getByTestId('export-scope-all'));
+    expect(within(sheet).queryByTestId('export-cycle-list')).not.toBeInTheDocument();
+    fireEvent.click(within(sheet).getByTestId('export-format-csv'));
+    await waitFor(() => {
+      expect(fetchWorkoutsForBounds).toHaveBeenCalledWith('u1', {
+        mode: 'dates',
+        fromDate: '1970-01-01',
+        toDate: TODAY_ISO,
+      });
+    });
+  });
+
+  it('bez widocznych cykli z danymi: chip Cykl disabled, domyślnie Cała historia', async () => {
+    // Cykl techniczny i pusty completed (stats 0) nie są "widoczne z danymi".
+    const s = state();
+    fixtures.cycles = s.cycles.map((c) => (c.status === 'active'
+      ? { ...c, technical: true }
+      : { ...c, stats: { ...c.stats, totalWorkouts: 0 } }));
+    const sheet = await openSheet();
+    expect(within(sheet).getByTestId('export-scope-cycle')).toBeDisabled();
+    expect(within(sheet).getByTestId('export-scope-all')).toHaveAttribute('aria-checked', 'true');
+    expect(within(sheet).queryByTestId('export-cycle-list')).not.toBeInTheDocument();
   });
 });

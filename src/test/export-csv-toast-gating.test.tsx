@@ -52,7 +52,7 @@ describe('ExportWorkoutsDialog — toast bramkowany wynikiem share', () => {
   const renderDialog = () =>
     render(
       <LanguageProvider>
-        <ExportWorkoutsDialog open onOpenChange={onOpenChange} uid="u1" cycles={[]} />
+        <ExportWorkoutsDialog open onOpenChange={onOpenChange} uid="u1" cycles={[]} workouts={[]} />
       </LanguageProvider>,
     );
 
@@ -108,8 +108,8 @@ describe('HistoryExportSheet — galaz CSV bramkowana wynikiem share', () => {
             displayName="QA"
             period={null}
             periodLabel={null}
-            activeCycleRange={null}
-            activeCycleLabel={null}
+            cycles={[]}
+            workouts={[]}
             onSendToCoach={vi.fn()}
           />
         </UnitProvider>
