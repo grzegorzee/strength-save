@@ -39,6 +39,12 @@ export interface PlanWizardChoice {
   name?: string;            // imię z kroku Welcome (tylko onboarding, askName)
   /** WP-PLANS-2 (X27): nazwa planu z kroku 5 (default = nazwa szablonu). */
   planName?: string;
+  /** WP-O (X30): dni tygodnia wybrane w kroku 4 (jawna odpowiedź onboardingu). */
+  trainingDays?: Weekday[];
+  /** WP-O (X30): co rekomendował silnik w chwili zatwierdzenia. */
+  recommendedTemplateId?: string;
+  /** WP-O (X30): skąd wziął się plan — rekomendacja / Browse plans / własny. */
+  planSource?: 'recommended' | 'browsed' | 'custom';
 }
 
 const DEFAULT_DAYS: Record<number, Weekday[]> = {
@@ -206,6 +212,11 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   const [mode, setMode] = useState<'recommend' | 'browse' | 'own'>(resumedCustomPlan ? 'own' : 'recommend');
   const [picked, setPicked] = useState<PlanTemplate | null>(() =>
     resume?.templateId ? planTemplates.find((p) => p.id === resume.templateId) ?? null : null);
+  // WP-O (X30): rekomendacja vs wybór z Browse plans (do planSource w snapshocie
+  // odpowiedzi). Resume zachowuje oryginał; stary szkic bez planSource, ale
+  // z templateId = traktuj jak wybór z przeglądarki (nie da się odtworzyć).
+  const [pickedViaBrowse, setPickedViaBrowse] = useState(() =>
+    resume?.planSource ? resume.planSource === 'browsed' : Boolean(resume?.templateId));
   const [reachedViaSteps, setReachedViaSteps] = useState(!startAtPrecision);
   const [userName, setUserName] = useState(resume?.name ?? initialName ?? '');
   // Plan I: wybór koloru aplikacji na Welcome (tylko askName = onboarding).
@@ -288,7 +299,14 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
   const toggleDay = (d: Weekday) => setTrainingDays(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
 
   const fire = (days: TrainingDay[], durationWeeks: number, templateId?: string, planName?: string) =>
-    onConfirm({ days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId, name: userName.trim() || undefined, planName });
+    onConfirm({
+      days, durationWeeks, startDate, level, objective, daysPerWeek: days.length, templateId,
+      name: userName.trim() || undefined, planName,
+      // WP-O (X30): jawne odpowiedzi do snapshotu onboardingAnswers.
+      trainingDays,
+      recommendedTemplateId: recommended.id,
+      planSource: templateId === undefined ? 'custom' : pickedViaBrowse ? 'browsed' : 'recommended',
+    });
 
   // Edge 4: pusta nazwa spada do nazwy szablonu (fallback, nie pusty string).
   const confirmTemplate = () => fire(
@@ -460,7 +478,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
             </div>
             {/* WP-PLANS-2 (X27, Edge 7): data startu przeniesiona do kroku 5 —
                 krok protokołu zostaje z dniami treningowymi. */}
-            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setTemplateWeeks(null); setPlanNameInput(null); setReachedViaSteps(true); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
+            <div className="pt-5"><PrimaryButton disabled={!weekdaySelectionValid} onClick={() => { setPicked(null); setPickedViaBrowse(false); setTemplateWeeks(null); setPlanNameInput(null); setReachedViaSteps(true); setStep(5); }}>{t('ob.continue')} <ArrowRight className="h-4 w-4" /></PrimaryButton></div>
           </>
         )}
 
@@ -586,7 +604,7 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               {/* WP-O (X30): lista posortowana wg dopasowania (scoreTemplates);
                   najlepszy dostaje badge "Polecany". */}
               {scoredTemplates.map(({ template: tpl }, idx) => (
-                <button key={tpl.id} onClick={() => { setPicked(tpl); setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
+                <button key={tpl.id} onClick={() => { setPicked(tpl); setPickedViaBrowse(true); setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
                   {/* WP-F (X28): hero na górze karty (rounded-t przez overflow-hidden rodzica) */}
                   <TemplateHero templateId={tpl.id} />
                   <div className="p-4">
