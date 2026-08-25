@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5 } from './helpers';
+
+// X30 WP-L: /workout/day-N bez ?date= renderuje się na dziś, a domyślna nazwa
+// dnia planu podąża za datą (nagłówek "Wtorek" we wtorek, nie "Poniedziałek").
+const todayDayName = () => plWeekdayName(localToday());
 
 // =====================================================
 // 1. ALL PAGES LOAD WITHOUT CRASHES
@@ -73,7 +77,7 @@ test.describe('Page Load Smoke Tests', () => {
   test('Workout Day (/workout/day-1) loads', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
-    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: todayDayName() })).toBeVisible();
   });
 
   test('Plan Editor (/plan/edit) loads', async ({ page }) => {
@@ -199,22 +203,25 @@ test.describe('Workout Day', () => {
     await blockFirebase(page);
   });
 
+  // X30 WP-L: bez ?date= każdy dzień planu renderuje się na dziś, więc nagłówek
+  // to nazwa dzisiejszego dnia tygodnia (nie "Poniedziałek"/"Środa"/"Piątek").
   test('day-1 shows training day name and exercises', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
-    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: todayDayName() })).toBeVisible();
+    await expect(page.locator('.exercise-card').first()).toBeVisible();
   });
 
   test('day-2 loads without error', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-2');
     await expectPageRendered(page);
-    await expect(page.getByText('Środa', { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: todayDayName() })).toBeVisible();
   });
 
   test('day-3 loads without error', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-3');
     await expectPageRendered(page);
-    await expect(page.getByText('Piątek', { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: todayDayName() })).toBeVisible();
   });
 
   test('po hydracji draftu widok przewija do ostatnio dotykanego ćwiczenia (Z47)', async ({ page }) => {
@@ -424,7 +431,7 @@ test.describe('Mobile Responsiveness', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await navigateAndWait(page, '/workout/day-1');
     await expectPageRendered(page);
-    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: todayDayName() })).toBeVisible();
   });
 });
 
@@ -519,7 +526,9 @@ test.describe('Builder z szablonu (Z73)', () => {
 
   test('Zacznij od szablonu kopiuje dni szablonu do buildera', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    // X32: start od kroku 2; "Ułóż własny plan" jest w kroku 5A (X33).
+    await advanceWizardToStep5(page);
+    await page.getByRole('button', { name: 'Ułóż własny plan' }).click();
     await page.getByRole('button', { name: 'Zacznij od szablonu' }).click();
     await page.getByText('Żelazny Fundament').click();
 
@@ -540,7 +549,7 @@ test.describe('Wybór 6 dni (Z72)', () => {
 
   test('wizard z 6 dniami rekomenduje plan 6-dniowy bez ostrzeżenia', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Zmień ustawienia' }).click();
+    // X32: /new-plan startuje od kroku 2 (poziom), bez "Zmień ustawienia".
     await page.getByRole('button', { name: 'Następny krok' }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
     await page.getByRole('button', { name: '6', exact: true }).click();
@@ -556,7 +565,8 @@ test.describe('Wybór 6 dni (Z72)', () => {
 
   test('poziom elite nie istnieje w wizardzie', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Zmień ustawienia' }).click();
+    // X32: krok 2 (poziom) jest ekranem startowym /new-plan.
+    await expect(page.getByRole('heading', { name: 'Określ swój poziom' })).toBeVisible();
     await expect(page.getByText('Elita')).toBeHidden();
     await expect(page.getByText('Zaawansowany', { exact: false }).first()).toBeVisible();
   });
@@ -572,7 +582,8 @@ test.describe('Własne ćwiczenia (Z71)', () => {
 
   test('formularz w pickerze tworzy własne ćwiczenie i dodaje je do planu (builder)', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await advanceWizardToStep5(page);
+    await page.getByRole('button', { name: 'Ułóż własny plan' }).click();
     await page.getByRole('button', { name: 'Zacznij od zera' }).click();
     await page.getByRole('button', { name: /Dodaj dzień/ }).click();
     await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click();
@@ -611,7 +622,8 @@ test.describe('PlanDaysEditor (Z70)', () => {
 
   test('builder: dodaj dzień, zmień weekday, zduplikuj, usuń', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await advanceWizardToStep5(page);
+    await page.getByRole('button', { name: 'Ułóż własny plan' }).click();
     await expect(page.getByRole('heading', { name: 'Twój własny plan' })).toBeVisible();
     await page.getByRole('button', { name: 'Zacznij od zera' }).click();
 
@@ -664,7 +676,7 @@ test.describe('Linki krzyżowe (Z67)', () => {
 
   test('instrukcje z menu ⋯ prowadzą do szczegółów i wracają bez utraty treningu', async ({ page }) => {
     await navigateAndWait(page, '/workout/day-1');
-    await expect(page.getByText('Poniedziałek', { exact: false })).toBeVisible();
+    await expect(page.getByRole('heading', { name: todayDayName() })).toBeVisible();
 
     // X17A Z129.2: ikona Info zniknęła z nagłówka karty — instrukcje otwiera menu ⋯,
     // a dialog daje przejście do pełnych szczegółów ćwiczenia.
@@ -1341,7 +1353,7 @@ test.describe('Cele tygodnia (Z120)', () => {
   test('bez konfiguracji progresji brak badge celu tygodnia (silnik wyłączony)', async ({ page }) => {
     await setE2EWorkouts(page, [historyWorkout(localDaysAgo(7), 8)]);
     await navigateAndWait(page, '/workout/day-1');
-    await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: todayDayName() })).toBeVisible();
     await expect(page.getByText(/Cel tygodnia:/)).toHaveCount(0);
   });
 
@@ -1456,7 +1468,7 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
     });
 
     await navigateAndWait(page, '/workout/day-1');
-    await expect(page.getByRole('heading', { name: 'Poniedziałek' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: todayDayName() })).toBeVisible();
     // Przed fixem renderowała się DOKŁADNIE jedna karta ćwiczenia (reszta planu znikała).
     const cards = page.locator('.exercise-card');
     await expect(cards.first()).toBeVisible();
@@ -1497,13 +1509,13 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
 
     // 3. Powrót do treningu z planu — TU przepadały ćwiczenia w incydencie 2026-07-20.
     await navigateAndWait(page, '/workout/day-1');
-    await expect(planCards.first()).toBeVisible();
-    expect(await planCards.count()).toBe(planExerciseCount);
+    // Retryowane toHaveCount: zmiana parametru trasy (adhoc -> day-1) w tym samym
+    // komponencie przechodzi przez chwilowe 0 kart; jednorazowy count() na webkit
+    // trafiał w ten stan (fałszywy fail).
+    await expect(planCards).toHaveCount(planExerciseCount);
 
     // Zalogowana seria PRZEŻYWA przerwanie w szkicu (to jest gwarancja po incydencie
-    // 2026-07-20). Uwaga: ekran po powrocie pokazuje sesję jako niewznowioną, więc
-    // pola są puste do czasu wznowienia — osobne znalezisko, patrz ODŁOŻONE w
-    // docs/PLAN-X17A-2026-07-20.md. Dane sprawdzamy u ŹRÓDŁA, nie po widoku.
+    // 2026-07-20). Dane sprawdzamy u ŹRÓDŁA, nie po widoku.
     const draft = await readWorkoutDraftDb(page, 'e2e-test-user', `local-workout-e2e-test-user-day-1-${localToday()}`) as {
       exerciseSets?: Record<string, { reps: number; weight: number; completed?: boolean; isWarmup?: boolean }[]>;
     } | null;
@@ -1514,11 +1526,14 @@ test.describe('Ćwiczenia planu nie znikają przy częściowym szkicu (incydent 
 
     // 4. Nowy układ X17A na miejscu po powrocie: nagłówki kolumn nad rozgrzewką,
     // „Dodaj serię" pod seriami, menu ⋯ w nagłówku, trzy metryki sesji.
-    // Wznowienie sesji i dopiero potem asercje na układ w trybie edycji.
-    await page.getByRole('button', { name: /Rozpocznij trening|Kontynuuj|Start workout/i }).first().click();
-    await skipPreStartWarmupIfShown(page);
+    // X30 (bug 4, draft per strona treningu): powrót z szybkiego treningu HYDRUJE
+    // żywą sesję planu od razu — tryb edycji z zalogowaną serią w polach, bez
+    // ponownego "Kontynuuj" (dawne "pola puste do wznowienia" było znaleziskiem
+    // z docs/PLAN-X17A-2026-07-20.md, naprawionym w X30).
     const backCard = planCards.first();
     await expect(backCard.locator('input.exercise-card-input').first()).toBeEnabled({ timeout: 5000 });
+    await expect(backCard.getByLabel(/Set 1, (kg|lbs)/).first()).toHaveValue('62.5');
+    await expect(backCard.getByLabel(/Set 1, Powt\./).first()).toHaveValue('7');
 
     const setHeader = await backCard.getByText('Ser.', { exact: true }).first().boundingBox();
     const warmupLabel = await backCard.getByText('W', { exact: true }).first().boundingBox();

@@ -202,6 +202,25 @@ export const localDaysAgo = (days: number): string => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+// X30 WP-L: nagłówek sesji pokazuje nazwę dnia tygodnia DATY renderowania
+// (domyślna nazwa dnia planu podąża za datą; własna nazwa zostaje). Trasa
+// /workout/day-N bez ?date= = dziś, więc testy oczekują nazwy dzisiejszego dnia.
+const PL_WEEKDAY_NAMES = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'];
+export const plWeekdayName = (dateISO: string): string => {
+  const [y, m, d] = dateISO.split('-').map(Number);
+  return PL_WEEKDAY_NAMES[new Date(y, m - 1, d).getDay()];
+};
+
+// X32: /new-plan z profilem startuje od kroku 2 (poziom); krok 5A "Dopasowane
+// do Ciebie" (X33) jest po trzech przejściach. Przerywnik "Dobieram plany"
+// (~900 ms) mija sam; kolejne kliki czekają na zdjęcie nakładki.
+export const advanceWizardToStep5 = async (page: Page) => {
+  await page.getByRole('button', { name: 'Następny krok' }).click();
+  await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+  await page.getByRole('button', { name: 'Dalej', exact: true }).click();
+  await expect(page.getByTestId('plan-choice-recommended')).toBeVisible();
+};
+
 // Wstrzykuje metadane planu (startDate + progression, od 2026-08-11 też days,
 // durationWeeks i scheduleOverrides — przełożenia treningów) czytane przez
 // useTrainingPlan w mock E2E (Z120).
