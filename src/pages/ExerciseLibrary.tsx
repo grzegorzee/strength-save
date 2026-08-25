@@ -194,11 +194,12 @@ const ExerciseLibrary = () => {
 
     const title = isCustomGroup ? t('exercises.customGroup') : localizeCategory(activeGroup, lang);
 
-    const filterChips: { id: TypeFilter; label: string }[] = [
-      { id: 'all', label: `${t('exercises.all')} ${groupAll.length}` },
-      { id: 'compound', label: t('exercises.type.compound') },
-      { id: 'isolation', label: t('exercises.type.isolation') },
-      { id: 'bodyweight', label: t('exercises.type.bodyweight') },
+    // X35a WP-H: licznik przy KAZDYM filtrze (ile cwiczen grupy wpadnie po tapnieciu).
+    const filterChips: { id: TypeFilter; label: string; count: number }[] = [
+      { id: 'all', label: t('exercises.all'), count: groupAll.length },
+      { id: 'compound', label: t('exercises.type.compound'), count: groupAll.filter((ex) => ex.type === 'compound').length },
+      { id: 'isolation', label: t('exercises.type.isolation'), count: groupAll.filter((ex) => ex.type === 'isolation').length },
+      { id: 'bodyweight', label: t('exercises.type.bodyweight'), count: groupAll.filter((ex) => ex.isBodyweight === true).length },
     ];
 
     return (
@@ -212,16 +213,19 @@ const ExerciseLibrary = () => {
           backLabel={t('common.back')}
         />
 
-        {/* Filtry typu — rozlaczne, jeden aktywny naraz (edge case 3) */}
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Filtry typu — rozlaczne, jeden aktywny naraz (edge case 3).
+            X35a WP-A: zawijane (flex-wrap), wszystkie widoczne bez przewijania w bok. */}
+        <div className="flex flex-wrap gap-2">
           {filterChips.map((chip) => (
             <button
               key={chip.id}
               type="button"
+              aria-pressed={typeFilter === chip.id}
               onClick={() => setTypeFilter(chip.id)}
-              className={cn('chip-mono shrink-0', typeFilter === chip.id && 'bg-primary text-primary-foreground')}
+              className={cn('chip-mono touch-manipulation select-none', typeFilter === chip.id && 'bg-primary text-primary-foreground')}
             >
-              {chip.label}
+              {chip.label}{' '}
+              <span className={cn('tabular-nums', typeFilter === chip.id ? 'opacity-80' : 'text-foreground/70')}>{chip.count}</span>
             </button>
           ))}
         </div>
