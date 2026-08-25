@@ -47,8 +47,12 @@ service cloud.firestore {
                       'displayName', 'photoURL', 'language', 'preferences',
                       'notificationPrefs', 'onboardingCompleted', 'onboarding',
                       'trainingProfile', 'estimatedMaxHR', 'maxHRManualOverride',
-                      'prBackfill'
+                      'prBackfill', 'timeZone'
                     ])
+                    // Bug 11 (X30): strefa IANA urządzenia (TimeZoneSync) — backend liczy z niej
+                    // porę pusha/digestu; nieznana nazwa degraduje po stronie functions do Warszawy.
+                    && (!('timeZone' in request.resource.data)
+                        || (request.resource.data.timeZone is string && request.resource.data.timeZone.size() <= 64))
                     && (!('displayName' in request.resource.data)
                         || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 200))
                     && (!('photoURL' in request.resource.data)

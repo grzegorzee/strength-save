@@ -7,9 +7,10 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { workoutDraftDb } from '@/lib/workout-draft-db';
-import { shouldResumeOnForegroundPath, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
+import { continuableDraftTarget, isDraftContinuableToday, shouldResumeOnForegroundPath, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
 import { trackTelemetryEvent } from '@/lib/app-telemetry';
 import { addAppStateListener } from '@/lib/app-lifecycle';
+import { addRestNotificationTapListener } from '@/lib/rest-notification';
 import { formatLocalDate } from '@/lib/utils';
 
 export const ActiveWorkoutResume = () => {
@@ -40,6 +41,17 @@ export const ActiveWorkoutResume = () => {
       navigateRef.current(decision.target);
     };
 
+    // Bug 53 (X30): tap w powiadomienie "Koniec przerwy" = jawna intencja
+    // powrotu do treningu. Reguła ŁAGODNIEJSZA niż auto-resume (jak karta
+    // Dashboardu): każdy nieukończony dzisiejszy draft, także zsynchronizowany
+    // (po checkpoincie przy wyjściu w tło dirty=false, auto-resume odmawia).
+    const continueFromRestNotification = async () => {
+      const draft = await workoutDraftDb.loadActiveDraft(uid);
+      if (!isDraftContinuableToday(draft, formatLocalDate(new Date()))) return;
+      if (locationRef.current.pathname.startsWith('/workout/')) return;
+      navigateRef.current(continuableDraftTarget(draft));
+    };
+
     if (!mountResumeDone.current) {
       mountResumeDone.current = true;
       void tryResume();
@@ -56,7 +68,13 @@ export const ActiveWorkoutResume = () => {
       }
       wasActive = isActive;
     });
-    return removeListener;
+    const removeTapListener = addRestNotificationTapListener(() => {
+      void continueFromRestNotification();
+    });
+    return () => {
+      removeListener();
+      removeTapListener();
+    };
   }, [uid]);
 
   return null;

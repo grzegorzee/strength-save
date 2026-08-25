@@ -4,11 +4,18 @@ import type { Lang } from "./email-templates";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { forEachWithConcurrency } from "./bounded-concurrency";
+import { localDayParts } from "./local-time";
 
 // Codzienne poranne przypomnienie o treningu (push). Spersonalizowane: imię + dzisiejszy focus.
 // Wysyłamy TYLKO gdy: user ma token, nie wyłączył przypomnień, ma dostęp i dziś jest dzień treningowy.
+//
+// Bug 11 (X30): bieg CO GODZINĘ (UTC), a "dziś" i pora liczone PER USER z jego
+// strefy (users/{uid}.timeZone, brak = Warszawa). Wcześniej jeden bieg o 07:00
+// Warszawy z dniem z zegara serwera: zachód USA dostawał push o 22:00 z planem
+// JUTRZEJSZEGO dnia, wschód budził się o 01:00-02:00.
 
-const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+/** Lokalna godzina, o której user dostaje poranny push. */
+export const REMINDER_LOCAL_HOUR = 7;
 
 interface PlanDay { weekday?: string; focus?: string; dayName?: string }
 
@@ -36,6 +43,8 @@ export interface ReminderUser {
   displayName?: string;
   /** Z167: język UI usera — push idzie w jego języku (brak pola = PL). */
   language?: string;
+  /** Bug 11 (X30): strefa IANA z klienta; brak/nieznana = Europe/Warsaw. */
+  timeZone?: string;
   status?: string;
   access?: { enabled?: boolean };
   notificationPrefs?: { dailyReminder?: boolean };
@@ -51,9 +60,11 @@ export interface DailyReminderDeps {
     responses: DeliveryResponse[];
   }>;
   deleteRegistrations: (registrationIds: string[]) => Promise<void>;
-  /** Z146: dzisiejszy trening usera (1 query per KANDYDAT, nie per user) — null gdy brak. */
-  getTodayWorkout: (userId: string) => Promise<{ startedAt?: number; completed?: boolean } | null>;
-  today: string;
+  /** Z146: dzisiejszy trening usera (1 query per KANDYDAT, nie per user) — null gdy brak.
+   *  Bug 11: data lokalna usera (workouts.date klient pisze w swojej strefie). */
+  getTodayWorkout: (userId: string, todayDate: string) => Promise<{ startedAt?: number; completed?: boolean } | null>;
+  /** Chwila biegu; "dziś" i pora wychodzą z niej PER USER (strefa usera). */
+  now: Date;
 }
 
 export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
@@ -84,7 +95,8 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
     if (!user) return false;
     if (user.notificationPrefs?.dailyReminder === false) return false;
     if (user.access?.enabled === false || user.status === "suspended") return false;
-    return true;
+    // Bug 11: tylko userzy, u których lokalnie jest właśnie pora poranna.
+    return localDayParts(deps.now, user.timeZone).hour === REMINDER_LOCAL_HOUR;
   });
 
   const plans = await deps.getPlanDays(eligibleUserIds);
@@ -93,7 +105,8 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
     const user = users.get(uid);
     if (!user) return;
     const days = plans.get(uid) ?? [];
-    const todayDay = days.find((d) => d.weekday === deps.today);
+    const local = localDayParts(deps.now, user.timeZone);
+    const todayDay = days.find((d) => d.weekday === local.weekday);
     if (!todayDay) return; // dziś dzień wolny — nie przypominamy
 
     candidates += 1;
@@ -105,7 +118,7 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
     // Świadome ograniczenie: draft offline (IndexedDB) jest niewidoczny dla backendu,
     // więc trening rozpoczęty offline bez syncu nadal dostanie push — akceptowalne,
     // autosave syncuje przy pierwszym zapisie online.
-    const todayWorkout = await deps.getTodayWorkout(uid);
+    const todayWorkout = await deps.getTodayWorkout(uid, local.dateStr);
     if (todayWorkout) {
       skippedActive += 1;
       return;
@@ -152,17 +165,16 @@ export async function runDailyReminder(deps: DailyReminderDeps): Promise<{
 
 export const dailyTrainingReminder = onSchedule(
   {
-    schedule: "every day 07:00",
-    timeZone: "Europe/Warsaw",
+    // Bug 11 (X30): pełna godzina UTC, co godzinę — każda strefa ma swoje 07:00
+    // w innym biegu (runDailyReminder filtruje po lokalnej godzinie usera).
+    schedule: "0 * * * *",
+    timeZone: "UTC",
     timeoutSeconds: 300,
   },
   async () => {
     const db = admin.firestore();
-    // 07:00 Warsaw = 05:00/06:00 UTC, ten sam dzień kalendarzowy → getDay() w UTC daje poprawny dzień tygodnia.
-    const today = WEEKDAYS[new Date().getDay()];
-    // Z146: data dokumentu workouts (YYYY-MM-DD) — o 07:00 Warsaw dzień UTC = dzień lokalny.
-    const todayDate = new Date().toISOString().slice(0, 10);
-    logger.info(`[dailyReminder] start, dzień: ${today}`);
+    const now = new Date();
+    logger.info(`[dailyReminder] start, ${now.toISOString()}`);
 
     const chunkedGetAll = async (refs: admin.firestore.DocumentReference[]) => {
       const snapshots: admin.firestore.DocumentSnapshot[] = [];
@@ -206,7 +218,7 @@ export const dailyTrainingReminder = onSchedule(
           db.collection(FCM_TOKEN_REGISTRATIONS_COLLECTION).doc(id).delete()
         )));
       },
-      getTodayWorkout: async (userId) => {
+      getTodayWorkout: async (userId, todayDate) => {
         // Query z composite indexem userId+date (istnieje w firestore.indexes.json).
         const snap = await db.collection("workouts")
           .where("userId", "==", userId)
@@ -220,7 +232,7 @@ export const dailyTrainingReminder = onSchedule(
           ...(data.completed !== undefined && { completed: !!data.completed }),
         };
       },
-      today,
+      now,
     });
 
     logger.info("[dailyReminder] done", result);

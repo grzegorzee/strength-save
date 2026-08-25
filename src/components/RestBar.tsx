@@ -8,7 +8,7 @@ import {
   restProgress,
   type RestTimerState,
 } from '@/lib/rest-timer';
-import { scheduleRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
+import { armRestEndNotification, cancelRestEndNotification } from '@/lib/rest-notification';
 import { playTimerSound, unlockTimerSound } from '@/lib/timer-sound';
 import { hapticRestEnd } from '@/lib/haptics';
 import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
@@ -35,6 +35,12 @@ interface RestBarProps {
       unmountować (lekcja Radix b.92). */
   onOpenSettings: () => void;
 }
+
+// Bug 28 (X30): próg spójny z watchdogiem Z189 (useRestTimerController, 3 s).
+// Koniec przekroczony o więcej = JS był wstrzymany w tle, a sygnał o deadline
+// dostarczyła notyfikacja systemowa — po powrocie tylko sprzątamy, bez replayu
+// gongu i potrójnej ciężkiej haptyki wiele minut po fakcie.
+const FINISH_SIGNAL_GRACE_MS = 3000;
 
 const mmss = (total: number): string => {
   const m = Math.floor(total / 60);
@@ -71,14 +77,17 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
   useEffect(() => { tRef.current = t; }, [t]);
   useEffect(() => { exerciseLabelRef.current = exerciseLabel; }, [exerciseLabel]);
 
-  // Notyfikacja systemowa na deadline: przy starcie (nowy runId) i przy każdej
+  // Uzbrojenie notyfikacji systemowej: przy starcie (nowy runId) i przy każdej
   // KOREKCIE deadline (±15 z kontrolera). deadlineAt zmienia się wyłącznie w tych
   // dwóch momentach — nigdy od tykania.
+  // Bug 8 (X30): w foregroundzie NIE planujemy — koniec sygnalizuje apka sama,
+  // a schedule leci dopiero przy przejściu w tło (rest-notification słucha
+  // appStateChange). Natychmiastowy schedule dawał podwójny dźwięk + banner
+  // nad UI sesji przy każdej przerwie odliczonej do zera przy włączonym ekranie.
   useEffect(() => {
     finishedRef.current = false;
     unlockTimerSound();
-    const left = Math.max(1, Math.round((deadlineAt - Date.now()) / 1000) + 1);
-    void scheduleRestEndNotification(left, tRef.current('rest.bar.done'), exerciseLabelRef.current);
+    armRestEndNotification(deadlineAt, tRef.current('rest.bar.done'), exerciseLabelRef.current);
   }, [runId, deadlineAt]);
 
   // Odświeżanie widoku. Nie liczy czasu — tylko wymusza przeliczenie z deadline.
@@ -106,8 +115,10 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
     // Z143: właścicielem stanu jest rodzic — koniec przerwy zeruje stan (karta
     // może się przygasić, Z145; pasek znika zamiast wisieć jako „Koniec przerwy").
     onFinished?.();
+    void cancelRestEndNotification();
+    // Bug 28 (X30): ciepły resume po deadline — sprzątanie bez sygnałów.
+    if (Date.now() - deadlineAt > FINISH_SIGNAL_GRACE_MS) return;
     try {
-      void cancelRestEndNotification();
       playTimerSound('finish');
       // MOCNY sygnał, nie lekki impuls: user zgłosił po treningu „cicha wibracja,
       // nic więcej". Telefon leży obok ławki albo w kieszeni.
@@ -119,7 +130,7 @@ export const RestBar = ({ deadlineAt, totalSeconds, runId, exerciseLabel, nextSe
         detail: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [done, onFinished]);
+  }, [done, onFinished, deadlineAt]);
 
   const handleSkip = () => {
     void cancelRestEndNotification();

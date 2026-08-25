@@ -13,9 +13,12 @@ import {
 import { buildWeeklyDigest, type DigestStrava, type UnitSystem } from "./weekly-digest-html";
 import type { Lang } from "./email-templates";
 import { writeEmailLog, type EmailLogWrite } from "./email-log";
+import { localDayParts, shiftDateStr } from "./local-time";
 
 export const resendApiKey = defineSecret("RESEND_API_KEY");
 const DIGEST_CONCURRENCY = 10;
+/** Bug 11 (X30): digest wychodzi w poniedziałek o tej lokalnej godzinie ODBIORCY. */
+export const DIGEST_LOCAL_HOUR = 8;
 
 interface StravaDoc {
   date: string;
@@ -40,6 +43,8 @@ export interface DigestUser {
   language?: string;
   displayName?: string;
   preferences?: { unit?: string; language?: string };
+  /** Bug 11 (X30): strefa IANA z klienta; brak/nieznana = Europe/Warsaw. */
+  timeZone?: string;
 }
 
 export interface WeeklyDigestDeps {
@@ -63,9 +68,6 @@ export interface WeeklyDigestDeps {
   logEmail?: (entry: EmailLogWrite, html?: string) => Promise<void>;
   now?: () => Date;
 }
-
-const localDateStr = (d: Date): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const groupByUser = <T extends { userId?: string }>(docs: T[]): Map<string, T[]> => {
   const byUser = new Map<string, T[]>();
@@ -109,36 +111,42 @@ export const buildStravaSummary = (activities: StravaDoc[]): DigestStrava | null
 };
 
 export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ processed: number; sent: number; failed: number }> {
-  // Zakres: poprzedni poniedziałek-niedziela.
   const now = deps.now ? deps.now() : new Date();
-  const lastMonday = new Date(now);
-  const day = lastMonday.getDay();
-  const diff = day === 0 ? 6 : day - 1;
-  lastMonday.setDate(lastMonday.getDate() - diff - 7);
-  lastMonday.setHours(0, 0, 0, 0);
 
-  const lastSunday = new Date(lastMonday);
-  lastSunday.setDate(lastMonday.getDate() + 6);
-  lastSunday.setHours(23, 59, 59, 999);
+  const recipients = (await deps.listUsers()).filter((user) => {
+    if (!user.email) return false;
+    // Brak pola status (konta sprzed hardeningu) = aktywny; jawnie nieaktywni pomijani.
+    if (!(user.status === undefined || user.status === "active")) return false;
+    // Opt-out: brak pola = wysyłaj.
+    if (user.notificationPrefs?.weeklyDigest === false) return false;
+    // Bug 11 (X30): poniedziałek 08:00 W STREFIE ODBIORCY (bieg co godzinę).
+    // Wcześniej jeden bieg o 08:00 Warszawy = niedziela wieczór na zachodzie
+    // USA, digest wychodził przed końcem weekendu odbiorcy.
+    const local = localDayParts(now, user.timeZone);
+    return local.weekday === "monday" && local.hour === DIGEST_LOCAL_HOUR;
+  });
 
-  const startStr = localDateStr(lastMonday);
-  const endStr = localDateStr(lastSunday);
+  if (recipients.length === 0) {
+    // Kwerendy zbiorcze (cała historia workouts) tylko, gdy ktoś ma teraz poranek.
+    logger.info("[WeeklyDigest] Nobody at local Monday morning, skipping.");
+    return { processed: 0, sent: 0, failed: 0 };
+  }
+
+  // Zakres: poprzedni poniedziałek-niedziela W DACIE LOKALNEJ odbiorców. Wszyscy
+  // odbiorcy jednego biegu mają tę samą lokalną datę (poniedziałek 08:xx tej
+  // samej chwili), więc okno liczymy raz. workouts.date klient pisze lokalnie.
+  const mondayStr = localDayParts(now, recipients[0].timeZone).dateStr;
+  const startStr = shiftDateStr(mondayStr, -7);
+  const endStr = shiftDateStr(mondayStr, -1);
   // Poprzedni tydzień (do porównania WoW) wycinamy z kwerendy historii — bez
   // trzeciej kwerendy zbiorczej.
-  const prevMonday = new Date(lastMonday);
-  prevMonday.setDate(prevMonday.getDate() - 7);
-  const prevStartStr = localDateStr(prevMonday);
-  const prevEndStr = localDateStr(new Date(lastMonday.getTime() - 24 * 60 * 60 * 1000));
+  const prevStartStr = shiftDateStr(mondayStr, -14);
+  const prevEndStr = shiftDateStr(mondayStr, -8);
+  // Etykieta zakresu: daty w południe UTC + format w UTC, niezależnie od strefy serwera.
+  const lastMonday = new Date(`${startStr}T12:00:00Z`);
+  const lastSunday = new Date(`${endStr}T12:00:00Z`);
 
   logger.info(`[WeeklyDigest] Period: ${startStr} - ${endStr}`);
-
-  const recipients = (await deps.listUsers()).filter((user) => (
-    !!user.email
-    // Brak pola status (konta sprzed hardeningu) = aktywny; jawnie nieaktywni pomijani.
-    && (user.status === undefined || user.status === "active")
-    // Opt-out: brak pola = wysyłaj.
-    && user.notificationPrefs?.weeklyDigest !== false
-  ));
 
   const [weekWorkouts, historyWorkouts, allStrava] = await Promise.all([
     deps.queryCompletedWorkouts(startStr, endStr),
@@ -187,7 +195,7 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
       }
 
       const locale = lang === "en" ? "en-US" : "pl-PL";
-      const rangeLabel = `${lastMonday.toLocaleDateString(locale, { day: "numeric", month: "long" })} - ${lastSunday.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}`;
+      const rangeLabel = `${lastMonday.toLocaleDateString(locale, { day: "numeric", month: "long", timeZone: "UTC" })} - ${lastSunday.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}`;
 
       const { subject, html } = buildWeeklyDigest({
         stats,
@@ -246,8 +254,12 @@ export async function runWeeklyDigest(deps: WeeklyDigestDeps): Promise<{ process
 
 export const weeklyDigest = onSchedule(
   {
-    schedule: "every monday 08:00",
-    timeZone: "Europe/Warsaw",
+    // Bug 11 (X30): poniedziałek 08:00 lokalnie mieści się między niedzielą
+    // 18:00Z (UTC+14) a poniedziałkiem 18:00Z (UTC-10) — bieg co godzinę
+    // w te dwa dni, runWeeklyDigest filtruje odbiorców po ich strefie i bez
+    // odbiorców kończy przed kwerendami zbiorczymi.
+    schedule: "0 * * * 0,1",
+    timeZone: "UTC",
     timeoutSeconds: 300,
     secrets: [resendApiKey],
   },
@@ -278,7 +290,7 @@ export function buildWeeklyDigestDeps(db: FirebaseFirestore.Firestore, resend: R
       let last: FirebaseFirestore.QueryDocumentSnapshot | undefined;
       for (;;) {
         let query = db.collection("users")
-          .select("email", "status", "notificationPrefs", "language", "displayName", "preferences")
+          .select("email", "status", "notificationPrefs", "language", "displayName", "preferences", "timeZone")
           .orderBy("__name__")
           .limit(1000);
         if (last) query = query.startAfter(last);
