@@ -24,6 +24,16 @@ export const isDraftContinuableToday = (
 export const continuableDraftTarget = (draft: ActiveWorkoutDraft): string =>
   `/workout/${draft.dayId}?date=${draft.date}&session=${draft.sessionId}`;
 
+// Bug 27 (X30): listener background->active wraca do treningu TYLKO, gdy user
+// był na ekranie treningu w chwili zejścia do tła (iOS mógł potem przeładować
+// WebView i zresetować trasę — wtedy resume mountowy i tak zadziała na świeżym
+// mouncie). Świadome wyjście z treningu przed zgaszeniem ekranu (Z49: "nie
+// wracamy"; masowe po WP-D z widocznym bottom navem) nie jest już nadpisywane
+// auto-nawigacją przy każdym unlocku.
+export const shouldResumeOnForegroundPath = (lastPathBeforeBackground: string | null): boolean => (
+  !!lastPathBeforeBackground && lastPathBeforeBackground.startsWith('/workout/')
+);
+
 export const shouldResumeWorkoutDraft = (
   draft: ActiveWorkoutDraft | null,
   todayStr: string,

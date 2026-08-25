@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { continuableDraftTarget, isDraftContinuableToday, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
+import { continuableDraftTarget, isDraftContinuableToday, shouldResumeOnForegroundPath, shouldResumeWorkoutDraft } from '@/lib/workout-resume';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 
 const TODAY = '2026-07-03';
@@ -101,6 +101,19 @@ describe('shouldResumeWorkoutDraft (Z49)', () => {
     );
 
     expect(decision.resume).toBe(false);
+  });
+});
+
+describe('shouldResumeOnForegroundPath (bug 27)', () => {
+  it('powrót z tła wznawia tylko, gdy user był na ekranie treningu przy zejściu do tła', () => {
+    expect(shouldResumeOnForegroundPath('/workout/day-1')).toBe(true);
+  });
+  it('świadome wyjście przed zgaszeniem ekranu (inna trasa) nie wznawia', () => {
+    expect(shouldResumeOnForegroundPath('/settings')).toBe(false);
+    expect(shouldResumeOnForegroundPath('/')).toBe(false);
+  });
+  it('brak zapisanej trasy (świeży mount po przeładowaniu WebView w tle) nie wznawia listenerem — to robi resume mountowy', () => {
+    expect(shouldResumeOnForegroundPath(null)).toBe(false);
   });
 });
 
