@@ -526,7 +526,9 @@ test.describe('Builder z szablonu (Z73)', () => {
 
   test('Zacznij od szablonu kopiuje dni szablonu do buildera', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    // X32: start od kroku 2; "Ułóż własny plan" jest w kroku 5A (X33).
+    await advanceWizardToStep5(page);
+    await page.getByRole('button', { name: 'Ułóż własny plan' }).click();
     await page.getByRole('button', { name: 'Zacznij od szablonu' }).click();
     await page.getByText('Żelazny Fundament').click();
 
@@ -547,7 +549,7 @@ test.describe('Wybór 6 dni (Z72)', () => {
 
   test('wizard z 6 dniami rekomenduje plan 6-dniowy bez ostrzeżenia', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Zmień ustawienia' }).click();
+    // X32: /new-plan startuje od kroku 2 (poziom), bez "Zmień ustawienia".
     await page.getByRole('button', { name: 'Następny krok' }).click();
     await page.getByRole('button', { name: 'Dalej', exact: true }).click();
     await page.getByRole('button', { name: '6', exact: true }).click();
@@ -563,7 +565,8 @@ test.describe('Wybór 6 dni (Z72)', () => {
 
   test('poziom elite nie istnieje w wizardzie', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Zmień ustawienia' }).click();
+    // X32: krok 2 (poziom) jest ekranem startowym /new-plan.
+    await expect(page.getByRole('heading', { name: 'Określ swój poziom' })).toBeVisible();
     await expect(page.getByText('Elita')).toBeHidden();
     await expect(page.getByText('Zaawansowany', { exact: false }).first()).toBeVisible();
   });
@@ -579,7 +582,8 @@ test.describe('Własne ćwiczenia (Z71)', () => {
 
   test('formularz w pickerze tworzy własne ćwiczenie i dodaje je do planu (builder)', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await advanceWizardToStep5(page);
+    await page.getByRole('button', { name: 'Ułóż własny plan' }).click();
     await page.getByRole('button', { name: 'Zacznij od zera' }).click();
     await page.getByRole('button', { name: /Dodaj dzień/ }).click();
     await page.getByRole('button', { name: 'Dodaj ćwiczenie' }).click();
@@ -618,7 +622,8 @@ test.describe('PlanDaysEditor (Z70)', () => {
 
   test('builder: dodaj dzień, zmień weekday, zduplikuj, usuń', async ({ page }) => {
     await navigateAndWait(page, '/new-plan');
-    await page.getByRole('button', { name: 'Ułóż własny' }).click();
+    await advanceWizardToStep5(page);
+    await page.getByRole('button', { name: 'Ułóż własny plan' }).click();
     await expect(page.getByRole('heading', { name: 'Twój własny plan' })).toBeVisible();
     await page.getByRole('button', { name: 'Zacznij od zera' }).click();
 
