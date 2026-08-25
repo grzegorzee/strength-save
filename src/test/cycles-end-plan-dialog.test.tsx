@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { TrainingDay } from '@/data/trainingPlan';
 import type { PlanCycle } from '@/types/cycles';
 
-// WP-PLANS-1 (X27, Task P2): dialog końca planu ma TRZY akcje (zakończ i wybierz
-// nowy / zakończ plan / anuluj); wariant "bez nowego" nie nawiguje do /new-plan.
-// Edge 4: aktywny draft dnia planowego blokuje operację komunikatem.
+// WP-PLANS-1 (X27, Task P2) + X35b (decyzja właściciela pkt 4): sekcja Plan na
+// stronie Cykle ma TRZY przyciski, każdy z własnym potwierdzeniem:
+// "Zakończ plan" / "Zakończ plan i ułóż nowy" (nawiguje do /new-plan) /
+// "Onboarding od nowa" (dawny Reset planu z /settings). Edge 4: aktywny
+// draft dnia planowego blokuje każdą z akcji komunikatem.
 
 const navigateSpy = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -16,11 +18,12 @@ vi.mock('react-router-dom', async (importOriginal) => {
   return { ...actual, useNavigate: () => navigateSpy };
 });
 
+const updateDocSpy = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock('firebase/firestore', () => ({
-  doc: vi.fn(() => ({})),
+  doc: vi.fn((_db: unknown, col: string, id: string) => ({ col, id })),
   getDoc: vi.fn(),
   setDoc: vi.fn(async () => {}),
-  updateDoc: vi.fn(async () => {}),
+  updateDoc: updateDocSpy,
   deleteDoc: vi.fn(async () => {}),
   onSnapshot: vi.fn(() => () => {}),
   collection: vi.fn(),
@@ -140,9 +143,11 @@ const renderCycles = () =>
     </MemoryRouter>,
   );
 
-const openDialog = async () => {
-  fireEvent.click(screen.getByTestId('cycles-end-plan'));
-  await waitFor(() => expect(screen.getByText(/Zakończyć obecny plan\?/)).toBeTruthy());
+const openAndConfirm = async (testId: string, title: RegExp, confirmLabel: string) => {
+  fireEvent.click(screen.getByTestId(testId));
+  const dialog = await screen.findByRole('alertdialog');
+  expect(within(dialog).getByText(title)).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: confirmLabel }));
 };
 
 beforeEach(() => {
@@ -153,24 +158,24 @@ beforeEach(() => {
   setPlanStatusSpy.mockClear();
   archiveSpy.mockClear();
   backfillSpy.mockClear();
+  updateDocSpy.mockClear();
   draftFixture.draft = null;
 });
 
-describe('WP-PLANS-1: dialog końca planu (3 opcje)', () => {
-  it('dialog pokazuje trzy akcje: anuluj / zakończ plan / zakończ i wybierz nowy', async () => {
+describe('X35b: sekcja Plan na stronie Cykle (3 przyciski z potwierdzeniem)', () => {
+  it('sekcja pokazuje trzy akcje: zakończ / zakończ i ułóż nowy / onboarding od nowa', () => {
     renderCycles();
-    await openDialog();
-
-    expect(screen.getByText('Anuluj')).toBeTruthy();
-    expect(screen.getByTestId('end-plan-only')).toBeTruthy();
-    expect(screen.getByTestId('end-plan-choose-new')).toBeTruthy();
+    const section = screen.getByTestId('cycles-plan-section');
+    expect(within(section).getByTestId('cycles-end-plan').textContent).toContain('Zakończ plan');
+    expect(within(section).getByTestId('cycles-end-plan-new').textContent).toContain('Zakończ plan i ułóż nowy');
+    expect(within(section).getByTestId('cycles-reset-onboarding').textContent).toContain('Onboarding od nowa');
+    // Żaden przycisk nie działa bez potwierdzenia.
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
-  it('"Zakończ plan" (bez nowego) kończy plan i NIE nawiguje do /new-plan', async () => {
+  it('"Zakończ plan" → potwierdzenie → kończy plan i NIE nawiguje do /new-plan', async () => {
     renderCycles();
-    await openDialog();
-
-    fireEvent.click(screen.getByTestId('end-plan-only'));
+    await openAndConfirm('cycles-end-plan', /Zakończyć obecny plan\?/, 'Zakończ plan');
 
     await waitFor(() => expect(setPlanStatusSpy).toHaveBeenCalledWith('ended', expect.objectContaining({ expectedStartDate: expect.any(String) })));
     expect(archiveSpy).toHaveBeenCalled();
@@ -178,30 +183,58 @@ describe('WP-PLANS-1: dialog końca planu (3 opcje)', () => {
     expect(navigateSpy).not.toHaveBeenCalledWith(expect.stringContaining('/new-plan'));
   });
 
-  it('"Zakończ i wybierz nowy" kończy plan i nawiguję do /new-plan?fromCycle=…', async () => {
+  it('"Zakończ plan i ułóż nowy" → potwierdzenie → kończy plan i nawiguje do /new-plan?fromCycle=…', async () => {
     renderCycles();
-    await openDialog();
-
-    fireEvent.click(screen.getByTestId('end-plan-choose-new'));
+    await openAndConfirm('cycles-end-plan-new', /Zakończyć obecny plan\?/, 'Zakończ i wybierz nowy');
 
     await waitFor(() => expect(setPlanStatusSpy).toHaveBeenCalledWith('ended', expect.objectContaining({ expectedStartDate: expect.any(String) })));
     await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/new-plan?fromCycle=archived-1'));
   });
 
-  it('Edge 4: aktywny draft dnia planowego blokuje operację komunikatem', async () => {
+  it('"Onboarding od nowa" → potwierdzenie → zamyka aktywne cykle i resetuje onboarding (bez endPlan)', async () => {
+    renderCycles();
+    await openAndConfirm('cycles-reset-onboarding', /Zacząć onboarding od nowa\?/, 'Onboarding od nowa');
+
+    await waitFor(() => expect(updateDocSpy).toHaveBeenCalledWith(
+      { col: 'users', id: 'u1' },
+      expect.objectContaining({ onboardingCompleted: false, onboarding: expect.objectContaining({ state: 'in_progress', version: 2 }) }),
+    ));
+    expect(updateDocSpy).toHaveBeenCalledWith(
+      { col: 'plan_cycles', id: 'cycle-1' },
+      expect.objectContaining({ status: 'completed' }),
+    );
+    expect(archiveSpy).not.toHaveBeenCalled();
+    expect(setPlanStatusSpy).not.toHaveBeenCalled();
+    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ title: 'Onboarding zresetowany' })));
+  });
+
+  it('Anuluj w potwierdzeniu = zero mutacji', async () => {
+    renderCycles();
+    fireEvent.click(screen.getByTestId('cycles-reset-onboarding'));
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Anuluj' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(updateDocSpy).not.toHaveBeenCalled();
+    expect(archiveSpy).not.toHaveBeenCalled();
+  });
+
+  it('Edge 4: aktywny draft dnia planowego blokuje KAŻDĄ z trzech akcji komunikatem', async () => {
     draftFixture.draft = {
       dayId: 'day-1', date: '2026-08-21', completedLocally: false,
       finalSyncPending: false, dirty: true, sessionId: 's1', exerciseSets: {},
     };
     renderCycles();
 
-    fireEvent.click(screen.getByTestId('cycles-end-plan'));
-
-    await waitFor(() => expect(toastSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ variant: 'destructive' }),
-    ));
-    expect(screen.queryByText(/Zakończyć obecny plan\?/)).toBeNull();
+    for (const id of ['cycles-end-plan', 'cycles-end-plan-new', 'cycles-reset-onboarding']) {
+      toastSpy.mockClear();
+      fireEvent.click(screen.getByTestId(id));
+      await waitFor(() => expect(toastSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ variant: 'destructive' }),
+      ));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    }
     expect(archiveSpy).not.toHaveBeenCalled();
     expect(setPlanStatusSpy).not.toHaveBeenCalled();
+    expect(updateDocSpy).not.toHaveBeenCalled();
   });
 });

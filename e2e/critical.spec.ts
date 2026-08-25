@@ -89,10 +89,10 @@ test.describe('Critical Interactions', () => {
     }
   });
 
-  test('settings page is reachable from shell', async ({ page }) => {
+  test('legacy /settings redirects to Profile with backup section (X35b)', async ({ page }) => {
     await navigateAndWait(page, '/settings');
+    await expectHashRoute(page, '/profile');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Ustawienia' })).toBeVisible();
     await expect(page.getByText('Backup i przywracanie')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Eksportuj kopię' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Importuj kopię' })).toBeVisible();

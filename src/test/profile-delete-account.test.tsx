@@ -70,6 +70,18 @@ vi.mock('@/lib/push-notifications', () => ({
   getPushPermission: vi.fn(async () => 'granted'),
 }));
 
+// X35b: karty z dawnych Ustawień w Profilu — poza zakresem tego testu, wycięte.
+vi.mock('@/components/NotificationSettings', () => ({ NotificationSettings: () => null }));
+vi.mock('@/components/HealthSettings', () => ({ HealthSettings: () => null }));
+vi.mock('@/components/GarminSettings', () => ({ GarminSettings: () => null }));
+vi.mock('@/components/RestSettingsCard', () => ({ RestSettingsCard: () => null }));
+vi.mock('@/components/PlateCalculatorSheet', () => ({ PlateInventorySettings: () => null }));
+vi.mock('@/components/StravaConnectionCard', () => ({ StravaConnectionCard: () => null }));
+vi.mock('@/components/BackupSettings', () => ({ BackupSettings: () => null }));
+vi.mock('@/components/ConsentSettings', () => ({ ConsentSettings: () => null }));
+vi.mock('@/components/SyncCenterCard', () => ({ SyncCenterCard: () => null }));
+vi.mock('@/hooks/useSyncCenterEntries', () => ({ useSyncCenterEntries: () => ({ listedEntries: [] }) }));
+
 import Profile from '@/pages/Profile';
 
 const renderProfile = () =>

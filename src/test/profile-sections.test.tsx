@@ -4,9 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 
-// Krok 3 redesignu Profilu (spec 2026-08-11): reorganizacja sekcji.
-// Niezmiennik (zasada #5): żaden wiersz ani akcja Profilu nie znika — zmienia
-// się wyłącznie grupowanie, kolejność i etykiety.
+// Krok 3 redesignu Profilu (spec 2026-08-11) + X35b (WP-B, plan X35 sekcja B):
+// Profil w 11 sekcjach, /settings zniknęło. Niezmiennik (zasada #5): żaden
+// wiersz ani akcja nie znika — zmienia się grupowanie, kolejność i etykiety.
 
 // Vite define nie działa w vitest bez wpisu w configu — stub lokalny.
 vi.stubGlobal('__APP_VERSION__', '0.0.0-test');
@@ -27,26 +27,33 @@ vi.mock('firebase/storage', () => ({
   uploadBytes: vi.fn(async () => {}),
   getDownloadURL: vi.fn(async () => ''),
 }));
-vi.mock('@/lib/firebase', () => ({ db: {}, storage: {} }));
+vi.mock('@/lib/firebase', () => ({ db: {}, storage: {}, functions: {} }));
 // Krok 14 Runna p.1: Profil używa useTrainingPlan (tryb "nie na 100%") —
 // mock zamiast realnego hooka (częściowy mock firestore nie ma onSnapshot).
 vi.mock('@/hooks/useTrainingPlan', () => ({
   useTrainingPlan: () => ({
+    plan: [],
+    isCustom: false,
+    planDurationWeeks: 12,
+    planStartDate: null,
     reducedMode: null,
     setReducedMode: vi.fn(async () => ({ success: true })),
     vacation: null,
     setVacation: vi.fn(async () => ({ success: true })),
   }),
 }));
-// WP-I: profil sterowalny per test (sekcja Trener widoczna tylko z trainerEmail).
+// WP-I: profil sterowalny per test (sekcja Trener: pusty stan vs zapisany adres);
+// X35b: canUseStrava steruje panelem Strava w sekcji Połączenia.
 const userFixture = vi.hoisted(() => ({
   profile: { displayName: 'Tester', email: 'tester@example.com', photoURL: null } as Record<string, unknown>,
+  canUseStrava: false,
 }));
 vi.mock('@/contexts/UserContext', () => ({
   useCurrentUser: () => ({
     uid: 'u1',
     profile: userFixture.profile,
     isAdmin: true,
+    canUseStrava: userFixture.canUseStrava,
   }),
 }));
 const authFixture = vi.hoisted(() => ({
@@ -60,7 +67,9 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }));
 vi.mock('@/hooks/useFirebaseWorkouts', () => ({
-  useFirebaseWorkouts: () => ({ workouts: [] }),
+  useFirebaseWorkouts: () => ({
+    workouts: [], isLoaded: true, exportData: vi.fn(), importData: vi.fn(),
+  }),
 }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('@/lib/registration-api', () => ({ deleteOwnAccount: vi.fn() }));
@@ -74,6 +83,38 @@ vi.mock('@/hooks/useWorkoutAggregate', () => ({ useWorkoutAggregate: () => null 
 const pushFixture = vi.hoisted(() => ({ permission: 'granted' }));
 vi.mock('@/lib/push-notifications', () => ({
   getPushPermission: vi.fn(async () => pushFixture.permission),
+  registerPushForUser: vi.fn(async () => ({ status: 'registered' })),
+  requestPushPermission: vi.fn(async () => true),
+}));
+// X35b: karty z dawnych Ustawień renderują się NAPRAWDĘ (sekcje mają być
+// widoczne), tylko ich hooki sieciowe dostają mocki.
+vi.mock('@/hooks/usePlanCycles', () => ({
+  usePlanCycles: () => ({ cycles: [], isLoaded: true }),
+}));
+vi.mock('@/hooks/useCustomExercises', () => ({
+  useCustomExercises: () => ({ customExercises: [], addCustomExercise: vi.fn() }),
+}));
+vi.mock('@/hooks/useSyncCenterEntries', () => ({
+  useSyncCenterEntries: () => ({ listedEntries: [] }),
+}));
+vi.mock('@/lib/garmin-api', () => ({
+  listLinkedDevices: vi.fn(async () => []),
+  unlinkLinkedDevice: vi.fn(async () => ({ revoked: true })),
+  reportAppleWatchStatus: vi.fn(async () => ({ linked: false })),
+  startGarminPairing: vi.fn(async () => ({ code: '000000', expiresAt: 0 })),
+}));
+vi.mock('@/lib/watch-bridge', () => ({ getWatchAvailability: vi.fn(async () => null) }));
+vi.mock('@/hooks/useStrava', () => ({
+  useStrava: () => ({
+    connection: { connected: false },
+    isSyncing: false,
+    error: null,
+    connectStrava: vi.fn(),
+    syncActivities: vi.fn(),
+    saveMaxHR: vi.fn(),
+    disconnectStrava: vi.fn(),
+    nextSyncAvailableAt: null,
+  }),
 }));
 
 import Profile from '@/pages/Profile';
@@ -82,9 +123,9 @@ import { RestSettingsCard } from '@/components/RestSettingsCard';
 import { loadRestSettings, saveRestSettings } from '@/lib/rest-timer';
 import { readWorkoutTimersSetting } from '@/lib/workout-timers-setting';
 
-const renderProfile = () =>
+const renderProfile = (entry = '/profile') =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[entry]}>
       <LanguageProvider>
         <UnitProvider>
           <Profile />
@@ -99,6 +140,12 @@ const sectionByLabel = (container: HTMLElement, label: string): HTMLElement => {
   return h2.closest('section') as HTMLElement;
 };
 
+const PROFILE_SECTIONS = [
+  'Osiągnięcia', 'Kolor przewodni aplikacji', 'Powiadomienia', 'Urządzenia i dostęp', 'Trening',
+  'Przerwy między seriami', 'Kalkulator talerzy', 'Połączenia', 'Trener', 'Subskrypcja',
+  'Twoje dane', 'Konto i pomoc',
+];
+
 beforeEach(() => {
   localStorage.clear();
   localStorage.setItem('app-language', 'pl');
@@ -106,6 +153,7 @@ beforeEach(() => {
   authFixture.resetPassword.mockClear();
   firestoreFixture.updateDoc.mockClear();
   userFixture.profile = { displayName: 'Tester', email: 'tester@example.com', photoURL: null };
+  userFixture.canUseStrava = false;
 });
 
 const renderSheet = () =>
@@ -119,30 +167,70 @@ const renderSheet = () =>
     </MemoryRouter>,
   );
 
-describe('krok 3 + fala 2: sekcje Profilu wg artboardu 1a', () => {
-  it('sekcje w kolejności: Osiągnięcia → Trening → Kolor → Subskrypcja → Twoje dane → Aplikacja → Konto i pomoc', () => {
-    // Bez grupy Połączenia: web (nie natywnie) i brak canUseStrava w mocku.
+describe('X35b: sekcje Profilu wg planu X35 (B)', () => {
+  it('sekcje w kolejności specu: Tożsamość (odznaki, kolor) → Powiadomienia → Urządzenia → Trening → Przerwy → Talerze → Połączenia → Trener → Subskrypcja → Dane → Konto', () => {
     const { container } = renderProfile();
     const labels = Array.from(container.querySelectorAll('h2')).map((h) => h.textContent);
-    expect(labels).toEqual([
-      'Osiągnięcia', 'Trening', 'Kolor przewodni aplikacji', 'Subskrypcja',
-      'Twoje dane', 'Aplikacja', 'Konto i pomoc',
-    ]);
+    expect(labels).toEqual(PROFILE_SECTIONS);
   });
 
-  it('TRENING: timer przerwy (z selectem przerwy), dźwięk, jednostki, tryby — w tej kolejności', () => {
-    const { container, getByLabelText } = renderProfile();
+  it('każda sekcja ma kotwicę id="profile-<sekcja>" (deep linki ?section=)', () => {
+    const { container } = renderProfile();
+    ['identity', 'pride', 'accent', 'notifications', 'devices', 'training', 'rest', 'plates',
+      'connections', 'trainer', 'subscription', 'data', 'backup', 'consents', 'account']
+      .forEach((id) => expect(container.querySelector(`#profile-${id}`), id).toBeTruthy());
+  });
+
+  it('deep link ?section=notifications przewija do sekcji Powiadomienia', async () => {
+    // setup.ts stubuje scrollIntoView na HTMLElement.prototype — podmieniamy tam.
+    const scrollSpy = vi.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrollSpy;
+    renderProfile('/profile?section=notifications');
+    await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+    const target = scrollSpy.mock.instances[0] as HTMLElement;
+    expect(target.id).toBe('profile-notifications');
+  });
+
+  it('TRENING: przełącznik timera, dźwięk, jednostki, tryby — w tej kolejności; Select przerwy przeszedł do sekcji Przerwy', () => {
+    const { container, queryByLabelText } = renderProfile();
     const trening = sectionByLabel(container, 'Trening');
     const text = trening.textContent ?? '';
     const order = ['Timer przerwy', 'Dźwięk timera', 'Jednostki', 'Nie na 100%?', 'Urlop / wyjazd']
       .map((l) => text.indexOf(l));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
-    // Select domyślnej przerwy żyje w wierszu timera (aria-label bez zmian).
-    expect(getByLabelText('Domyślny czas odpoczynku')).toBeTruthy();
-    // Dźwięk wyprowadzony z Aplikacji, nie zdublowany.
-    const app = sectionByLabel(container, 'Aplikacja');
-    expect(app.textContent).not.toContain('Dźwięk timera');
+    // Stary Select "Domyślny czas odpoczynku" zniknął z Profilu (RestSettingsCard go zastępuje).
+    expect(queryByLabelText('Domyślny czas odpoczynku')).toBeNull();
+  });
+
+  it('PRZERWY: domyślnie zwinięte, nagłówek pokazuje bieżącą przerwę; rozwinięcie montuje RestSettingsCard', async () => {
+    const { container, getByTestId, findByLabelText, queryByLabelText } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Przerwy między seriami');
+    expect(within(sekcja).getByText('Między seriami: 90 s')).toBeTruthy();
+    expect(queryByLabelText('Przerwa między seriami')).toBeNull();
+    fireEvent.click(getByTestId('profile-rest-toggle'));
+    expect(await findByLabelText('Przerwa między seriami')).toBeTruthy();
+  });
+
+  it('POWIADOMIENIA i URZĄDZENIA: karty z dawnych Ustawień renderują się w Profilu', () => {
+    const { container, getByTestId } = renderProfile();
+    // Web: karta informuje, że push działa w apce mobilnej (przełączniki natywnie).
+    const notif = sectionByLabel(container, 'Powiadomienia');
+    expect(within(notif).getByText(/Powiadomienia push działają w aplikacji mobilnej/)).toBeTruthy();
+    expect(getByTestId('device-settings')).toBeTruthy();
+  });
+
+  it('POŁĄCZENIA: bez flagi Strava tylko skrót do urządzeń; z flagą pełny panel Strava', () => {
+    const first = renderProfile();
+    const polaczenia = sectionByLabel(first.container, 'Połączenia');
+    expect(within(polaczenia).getByText('Garmin i zegarek')).toBeTruthy();
+    expect(first.queryByTestId('strava-connection-card')).toBeNull();
+    first.unmount();
+
+    userFixture.canUseStrava = true;
+    const second = renderProfile();
+    const card = second.getByTestId('strava-connection-card');
+    expect(within(card).getByText('Połącz ze Stravą')).toBeTruthy();
   });
 
   it('F-T2: sekcja Wygląd — wybór akcentu ustawia tokeny CSS i mirror w profilu', async () => {
@@ -175,14 +263,15 @@ describe('krok 3 + fala 2: sekcje Profilu wg artboardu 1a', () => {
     ));
   });
 
-  it('F-T1: tap w imię pod zdjęciem otwiera dialog edycji imienia', async () => {
-    const { getByTestId, getByLabelText } = renderProfile();
+  it('F-T1: tap w imię pod zdjęciem otwiera dialog edycji imienia (jedyne wejście, bez duplikatu w Koncie)', async () => {
+    const { getByTestId, getByLabelText, queryByText } = renderProfile();
+    expect(queryByText('Imię i avatar')).toBeNull();
     fireEvent.click(getByTestId('profile-name-edit'));
     await waitFor(() => expect(getByLabelText('Imię')).toBeTruthy());
   });
 
-  it('niezmiennik (zasada #5): wszystkie dotychczasowe wiersze i akcje obecne po redesignie', () => {
-    const { container, getByText, getByTestId, getByLabelText } = renderProfile();
+  it('niezmiennik (zasada #5): wszystkie dotychczasowe wiersze i akcje obecne po przeprowadzce Ustawień', () => {
+    const { container, getByText, getByTestId, getByLabelText, queryByText } = renderProfile();
     // IDENTITY: imię (dialog), avatar (upload), email (WP-G: domyślnie
     // zamaskowany, pełny po odsłonięciu toggle), chip poziomu.
     expect(getByTestId('profile-name-edit')).toBeTruthy();
@@ -201,21 +290,27 @@ describe('krok 3 + fala 2: sekcje Profilu wg artboardu 1a', () => {
       .forEach((id) => expect(getByTestId(id)).toBeTruthy());
     // SUBSKRYPCJA (admin → "Pełny dostęp")
     expect(within(sectionByLabel(container, 'Subskrypcja')).getByText('Pełny dostęp')).toBeTruthy();
-    // TWOJE DANE
+    // TWOJE DANE: dojścia + Backup i przywracanie + Zgody (z dawnych Ustawień).
     const dane = sectionByLabel(container, 'Twoje dane');
-    ['Historia', 'Pomiary ciała', 'Postępy', 'Rekordy sprzed aplikacji', 'Kopia i import',
-      'Prywatność', 'Ustawienia zaawansowane', 'Admin']
+    ['Historia', 'Pomiary ciała', 'Postępy', 'Rekordy sprzed aplikacji', 'Admin',
+      'Backup i przywracanie', 'Eksportuj kopię', 'Importuj kopię', 'Zgody i prywatność']
       .forEach((l) => expect(within(dane).getByText(l)).toBeTruthy());
-    // APLIKACJA
-    ['Powiadomienia', 'Język'].forEach((l) => expect(getByText(l)).toBeTruthy());
-    // KONTO I POMOC
+    // "Ustawienia zaawansowane" nie istnieją — nie ma dokąd prowadzić.
+    expect(queryByText('Ustawienia zaawansowane')).toBeNull();
+    // KONTO I POMOC: język przeszedł tu z sekcji Aplikacja.
     const konto = sectionByLabel(container, 'Konto i pomoc');
-    ['Imię i avatar', 'Zmień hasło', 'Centrum pomocy', 'Kontakt', 'O aplikacji']
+    ['Język', 'Zmień hasło', 'Centrum pomocy', 'Kontakt', 'O aplikacji']
       .forEach((l) => expect(within(konto).getByText(l)).toBeTruthy());
     // Stopka akcji + wersja
     expect(getByText('Wyloguj')).toBeTruthy();
     expect(getByText('Usuń konto i wszystkie dane')).toBeTruthy();
     expect(getByText('Strength Save 0.0.0-test')).toBeTruthy();
+  });
+
+  it('narzędzia naprawcze NIE są w Profilu (przeniesione do /admin)', () => {
+    const { queryByText } = renderProfile();
+    expect(queryByText('Narzędzia naprawcze')).toBeNull();
+    expect(queryByText('Reset planu')).toBeNull();
   });
 });
 
@@ -252,9 +347,10 @@ describe('WP-G: maskowanie emaila w Profilu', () => {
   });
 });
 
-// WP-I (plan X29): sekcja Trener — podgląd zapisanego odbiorcy maili
-// (imię + zamaskowany adres), zmiana imienia inline, usunięcie obu pól.
-describe('WP-I: sekcja Trener w Profilu', () => {
+// WP-I (plan X29) + X35b: sekcja Trener ZAWSZE widoczna — pusty stan z
+// formularzem "Dodaj trenera" (imię + e-mail z walidacją), zapisany adres
+// jak dotąd (imię + zamaskowany adres, zmiana imienia inline, usunięcie).
+describe('WP-I + X35b: sekcja Trener w Profilu', () => {
   const withTrainer = (name?: string) => {
     userFixture.profile = {
       displayName: 'Tester', email: 'tester@example.com', photoURL: null,
@@ -262,18 +358,68 @@ describe('WP-I: sekcja Trener w Profilu', () => {
     };
   };
 
-  it('bez trainerEmail: sekcji nie ma', () => {
-    const { container } = renderProfile();
-    expect(Array.from(container.querySelectorAll('h2')).map((h) => h.textContent)).not.toContain('Trener');
+  it('bez trainerEmail: sekcja obecna w pustym stanie z akcją "Dodaj trenera"', () => {
+    const { container, getByTestId } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    expect(getByTestId('trainer-empty')).toBeTruthy();
+    expect(within(sekcja).getByText('Dodaj trenera')).toBeTruthy();
+    expect(within(sekcja).queryByText('Usuń adres trenera')).toBeNull();
   });
 
-  it('z trainerEmail + imieniem: imię widoczne, adres ZAMASKOWANY', () => {
+  it('Dodaj trenera: niepoprawny e-mail = błąd walidacji, zero zapisu', () => {
+    const { container, getByTestId } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    fireEvent.click(within(sekcja).getByText('Dodaj trenera'));
+    expect(getByTestId('trainer-add-form')).toBeTruthy();
+    fireEvent.change(within(sekcja).getByLabelText('E-mail trenera'), { target: { value: 'nie-mail' } });
+    fireEvent.click(within(sekcja).getByText('Zapisz'));
+    expect(within(sekcja).getByRole('alert').textContent).toContain('Podaj poprawny adres e-mail');
+    expect(firestoreFixture.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('Dodaj trenera: poprawny e-mail + imię → zapis preferences.trainerEmail (znormalizowany) i trainerName', async () => {
+    const { container } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    fireEvent.click(within(sekcja).getByText('Dodaj trenera'));
+    fireEvent.change(within(sekcja).getByLabelText('Imię trenera'), { target: { value: ' Marek ' } });
+    fireEvent.change(within(sekcja).getByLabelText('E-mail trenera'), { target: { value: ' Coach@Example.com ' } });
+    fireEvent.click(within(sekcja).getByText('Zapisz'));
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), { 'preferences.trainerEmail': 'coach@example.com', 'preferences.trainerName': 'Marek' },
+    ));
+    // Formularz zamknięty; do przyjścia snapshotu profilu widać pusty stan.
+    expect(within(sekcja).queryByTestId('trainer-add-form')).toBeNull();
+  });
+
+  it('Dodaj trenera bez imienia → trainerName czyszczony (deleteField), jak w dialogu maila', async () => {
+    const { container } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    fireEvent.click(within(sekcja).getByText('Dodaj trenera'));
+    fireEvent.change(within(sekcja).getByLabelText('E-mail trenera'), { target: { value: 'coach@example.com' } });
+    fireEvent.click(within(sekcja).getByText('Zapisz'));
+    await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
+      expect.anything(), { 'preferences.trainerEmail': 'coach@example.com', 'preferences.trainerName': firestoreFixture.DELETE_SENTINEL },
+    ));
+  });
+
+  it('Anuluj w formularzu wraca do pustego stanu bez zapisu', () => {
+    const { container, getByTestId, queryByTestId } = renderProfile();
+    const sekcja = sectionByLabel(container, 'Trener');
+    fireEvent.click(within(sekcja).getByText('Dodaj trenera'));
+    fireEvent.click(within(sekcja).getByText('Anuluj'));
+    expect(queryByTestId('trainer-add-form')).toBeNull();
+    expect(getByTestId('trainer-empty')).toBeTruthy();
+    expect(firestoreFixture.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('z trainerEmail + imieniem: imię widoczne, adres ZAMASKOWANY, bez pustego stanu', () => {
     withTrainer('Marek');
-    const { container, getByText, queryByText } = renderProfile();
+    const { container, getByText, queryByText, queryByTestId } = renderProfile();
     const sekcja = sectionByLabel(container, 'Trener');
     expect(within(sekcja).getByText('Marek')).toBeTruthy();
     expect(getByText('c••••@e••••••.com')).toBeTruthy();
     expect(queryByText('coach@example.com')).toBeNull();
+    expect(queryByTestId('trainer-empty')).toBeNull();
   });
 
   it('bez imienia: w wierszu zamaskowany adres', () => {
@@ -309,9 +455,9 @@ describe('WP-I: sekcja Trener w Profilu', () => {
     ));
   });
 
-  it('Usuń: czyści oba pola deleteField (akcja odwracalna, bez dialogu)', async () => {
+  it('Usuń: czyści oba pola deleteField, a po zniknięciu adresu z profilu wraca pusty stan', async () => {
     withTrainer('Marek');
-    const { container } = renderProfile();
+    const { container, rerender, getByTestId } = renderProfile();
     fireEvent.click(within(sectionByLabel(container, 'Trener')).getByText('Usuń adres trenera'));
     await waitFor(() => expect(firestoreFixture.updateDoc).toHaveBeenCalledWith(
       expect.anything(), {
@@ -319,20 +465,19 @@ describe('WP-I: sekcja Trener w Profilu', () => {
         'preferences.trainerName': firestoreFixture.DELETE_SENTINEL,
       },
     ));
-  });
-});
-
-describe('krok 4: stan w wierszu Powiadomienia (getPushPermission)', () => {
-  it('zgoda granted → "Włączone"', async () => {
-    pushFixture.permission = 'granted';
-    const { findByText } = renderProfile();
-    expect(await findByText('Włączone')).toBeTruthy();
-  });
-
-  it.each(['prompt', 'denied', 'unsupported'])('zgoda %s → "Wyłączone"', async (permission) => {
-    pushFixture.permission = permission;
-    const { findByText } = renderProfile();
-    expect(await findByText('Wyłączone')).toBeTruthy();
+    // Snapshot profilu bez adresu → sekcja zostaje, pokazuje pusty stan.
+    userFixture.profile = { displayName: 'Tester', email: 'tester@example.com', photoURL: null };
+    rerender(
+      <MemoryRouter>
+        <LanguageProvider>
+          <UnitProvider>
+            <Profile />
+          </UnitProvider>
+        </LanguageProvider>
+      </MemoryRouter>,
+    );
+    expect(getByTestId('trainer-empty')).toBeTruthy();
+    expect(sectionByLabel(container, 'Trener')).toBeTruthy();
   });
 });
 
@@ -359,11 +504,13 @@ describe('krok 5: potwierdzenie resetu hasła', () => {
 
 // Krok 6 (spec 2026-08-11): skrót w treningu pisze i czyta TE SAME klucze co
 // Profil (localStorage + preferences.* w Firestore) — test SEKWENCJI obu kierunków.
+// X35b: Select domyślnej przerwy zniknął z Profilu (RestSettingsCard; scalenie
+// magazynów przerw = WP-C), więc test sprawdza tylko zapis z arkusza.
 describe('krok 6: WorkoutSettingsSheet ↔ Profil (te same klucze zapisu)', () => {
   // X35b: jedno źródło prawdy o przerwach = preferences.rest (cache
   // fittracker_rest_settings_v1). Sheet i RestSettingsCard czytają loadRestSettings;
   // legacy preferences.restTimerSec nie jest już pisane.
-  it('zmiana domyślnej przerwy w sheet → cache RestSettings + preferences.rest (custom) + widoczna w RestSettingsCard', async () => {
+  it('zmiana domyślnej przerwy w sheet → cache RestSettings + preferences.rest (custom) + widoczna w RestSettingsCard i nagłówku Przerw w Profilu', async () => {
     const sheet = renderSheet();
     fireEvent.click(sheet.getByLabelText('Domyślny czas odpoczynku'));
     fireEvent.click(await sheet.findByText('120s'));
@@ -376,6 +523,11 @@ describe('krok 6: WorkoutSettingsSheet ↔ Profil (te same klucze zapisu)', () =
 
     const card = render(<LanguageProvider><RestSettingsCard /></LanguageProvider>);
     expect((card.getByLabelText(/Przerwa między seriami/i) as HTMLInputElement).value).toBe('120');
+    card.unmount();
+
+    // WP-B: zwinięty nagłówek sekcji Przerwy czyta ten sam cache.
+    const profil = renderProfile();
+    expect(profil.getByTestId('profile-rest-toggle').textContent).toContain('Między seriami: 120 s');
   });
 
   it('wartość spoza siatki (75 s z celu atletyka) jest widoczna w Select sheeta, nie znika', () => {

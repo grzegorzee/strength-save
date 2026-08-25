@@ -1,5 +1,5 @@
 // J-T5 (doprecyzowanie właściciela 2026-08-20): eksport CSV z wyborem zakresu.
-// Dwa punkty wejścia (Historia, Ustawienia → Dane) otwierają ten sam dialog;
+// Dwa punkty wejścia (Historia, Profil → Twoje dane) otwierają ten sam dialog;
 // eksport nie rzuca i tworzy blob URL text/csv (spy na URL.createObjectURL).
 import { test, expect } from '@playwright/test';
 import {
@@ -76,9 +76,9 @@ test.describe('Eksport CSV z wyborem zakresu (J-T5)', () => {
     await expect(sheet).not.toBeVisible();
   });
 
-  test('Ustawienia → Dane: przycisk otwiera ten sam dialog', async ({ page }) => {
+  test('Profil → Twoje dane: przycisk otwiera ten sam dialog', async ({ page }) => {
     await setE2EWorkouts(page, [workout('w-1', localDaysAgo(1))]);
-    await navigateAndWait(page, '/settings');
+    await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
     const button = page.getByTestId('data-export-csv');

@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { deleteField, doc, updateDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
@@ -29,17 +28,16 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { FEATURE_FLAGS } from '@/lib/feature-flags';
 import { TERMS_URL, PRIVACY_URL } from '@/lib/legal-links';
 import { setWorkoutTimersEnabled } from '@/lib/workout-timers-setting';
-import { getPushPermission } from '@/lib/push-notifications';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
 import {
-  User, Lock, ShieldCheck, Bell, Globe,
-  HelpCircle, Mail, Info, LogOut, Plus, SlidersHorizontal, Loader2,
+  Lock, Globe, HelpCircle, Mail, Info, LogOut, Plus, Loader2,
   ScrollText, Ruler, Trophy, Shield, Gem, CreditCard, Medal,
-  Dumbbell, ChevronRight, Download, Link2, Watch, Heart, Eye, EyeOff,
+  Dumbbell, ChevronRight, ChevronDown, Watch, Eye, EyeOff,
 } from 'lucide-react';
 import { maskEmail, readEmailVisible, storeEmailVisible } from '@/lib/mask-email';
 import { AchievementBadge } from '@/components/kinetic/AchievementBadge';
@@ -53,17 +51,40 @@ import { VacationDialog } from '@/components/VacationDialog';
 import { buildVacationMode, isVacationActive, type VacationActivity } from '@/lib/vacation-mode';
 import { useTrainingPlan } from '@/hooks/useTrainingPlan';
 import { formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
+import { NotificationSettings } from '@/components/NotificationSettings';
+import { HealthSettings } from '@/components/HealthSettings';
+import { GarminSettings } from '@/components/GarminSettings';
+import { RestSettingsCard } from '@/components/RestSettingsCard';
+import { PlateInventorySettings } from '@/components/PlateCalculatorSheet';
+import { StravaConnectionCard } from '@/components/StravaConnectionCard';
+import { BackupSettings } from '@/components/BackupSettings';
+import { ConsentSettings } from '@/components/ConsentSettings';
+import { SyncCenterCard } from '@/components/SyncCenterCard';
+import { useSyncCenterEntries } from '@/hooks/useSyncCenterEntries';
+import { loadRestSettings } from '@/lib/rest-timer';
 
-import { REST_TIMER_KEY, SOUND_KEY, REST_OPTIONS } from '@/lib/workout-preferences';
+import { SOUND_KEY } from '@/lib/workout-preferences';
 
 // Fala 2 (artboard 1a): grupa zwartych wierszy — mono label + kontener surface-low
 // (mockupowe #131313). Sekcja z h2 dla a11y i testów (sectionByLabel).
-const ProfileGroup = ({ label, children }: { label: string; children: ReactNode }) => (
-  <section className="space-y-2">
+// X35b: każda sekcja ma kotwicę id="profile-<sekcja>" dla deep linków ?section=.
+const ProfileGroup = ({ id, label, children }: { id: string; label: string; children: ReactNode }) => (
+  <section id={`profile-${id}`} className="scroll-mt-20 space-y-2">
     <h2 className="eyebrow-mono text-muted-foreground">{label}</h2>
     <div className="rounded-2xl bg-surface-low px-3.5 py-1">{children}</div>
   </section>
 );
+
+// X35b: sekcja na karty przeniesione z dawnych Ustawień (własne nagłówki kart,
+// eyebrow trzyma spójny rytm Profilu i daje kotwicę).
+const ProfileSection = ({ id, label, children }: { id: string; label: string; children: ReactNode }) => (
+  <section id={`profile-${id}`} className="scroll-mt-20 space-y-2">
+    <h2 className="eyebrow-mono text-muted-foreground">{label}</h2>
+    {children}
+  </section>
+);
+
+const TRAINER_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -73,6 +94,25 @@ const Profile = () => {
   const { workouts } = useFirebaseWorkouts(uid, { measurements: 'none', workouts: 'recent' });
   const { toast } = useToast();
   const { t, lang, setLang } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const syncEntries = useSyncCenterEntries(uid);
+
+  // X35b: deep linki ?section=<kotwica> (dawne /settings?section=, powiadomienia,
+  // karty Pomiarów). Sekcje wyżej dociągają dane asynchronicznie (agregat,
+  // subskrypcja) i przesuwają layout, więc przewinięcie powtarzamy.
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (!section) return;
+    const scroll = () => {
+      document.getElementById(`profile-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    scroll();
+    const timers = [300, 900].map((ms) => window.setTimeout(scroll, ms));
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, [searchParams]);
+  const scrollToSection = (section: string) => {
+    document.getElementById(`profile-${section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Z216/Z217: licznik all-time z agregatu; okno recent tylko fallbackiem.
   const aggregate = useWorkoutAggregate(uid);
@@ -119,9 +159,6 @@ const Profile = () => {
     { key: 'tonnage', value: formatTonnage(totalTonnage, unit), label: t('profile.pride.tile.tonnage'), accent: false },
     { key: 'sets', value: String(totalSets), label: t('profile.pride.tile.sets'), accent: false },
   ];
-  // Web bez natywnych integracji nie dostaje wierszy prowadzących w pustkę.
-  const isNative = Capacitor.isNativePlatform();
-
   const subscriptionInfo = useSubscription();
   const subSummary = summarizeSubscription({
     isAdmin,
@@ -141,9 +178,6 @@ const Profile = () => {
     subSummary.detailKey && t(subSummary.detailKey),
   ].filter(Boolean).join(' · ');
 
-  const [restTimer, setRestTimer] = useState(() => {
-    try { return localStorage.getItem(REST_TIMER_KEY) || '90'; } catch { return '90'; }
-  });
   const [sound, setSound] = useState(() => {
     try { return localStorage.getItem(SOUND_KEY) !== 'false'; } catch { return true; }
   });
@@ -155,17 +189,15 @@ const Profile = () => {
     setWorkoutTimersEnabled(value);
     setTimersOn(value);
   };
-  // Krok 4 (spec 2026-08-11): stan zgody push widoczny w wierszu Powiadomienia
-  // bez wchodzenia głębiej. Źródło prawdy: uprawnienie na urządzeniu, jak
-  // w NotificationSettings. null = jeszcze nie odczytano (bez tekstu).
-  const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void getPushPermission().then((permission) => {
-      if (!cancelled) setPushEnabled(permission === 'granted');
-    });
-    return () => { cancelled = true; };
-  }, []);
+  // X35b: sekcja przerw zwinięta; nagłówek pokazuje bieżącą przerwę między
+  // seriami. Wartość odczytywana na nowo przy każdym zwinięciu/rozwinięciu
+  // (RestSettingsCard zapisuje sama, bez callbacku — WP-C scala magazyny).
+  const [restOpen, setRestOpen] = useState(false);
+  const [restWorkingSeconds, setRestWorkingSeconds] = useState(() => loadRestSettings().workingSeconds);
+  const handleRestOpenChange = (open: boolean) => {
+    setRestOpen(open);
+    setRestWorkingSeconds(loadRestSettings().workingSeconds);
+  };
   const [editOpen, setEditOpen] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.displayName || '');
   const [savingName, setSavingName] = useState(false);
@@ -243,7 +275,7 @@ const Profile = () => {
     try { localStorage.setItem(key, value); } catch { /* ignore */ }
   };
 
-  // Timer i dźwięk lecą też do users/{uid}.preferences — spójne między web i iOS.
+  // Dźwięk leci też do users/{uid}.preferences — spójne między web i iOS.
   const persistPreference = (patch: Record<string, number | boolean | string>) => {
     updateDoc(doc(db, 'users', uid), patch).catch(() => { /* offline — localStorage wystarczy do następnej sesji */ });
   };
@@ -264,11 +296,6 @@ const Profile = () => {
     setAccentId(id);
     persistPreference({ 'preferences.accentColor': id });
   };
-  const handleRestChange = (v: string) => {
-    setRestTimer(v);
-    persist(REST_TIMER_KEY, v);
-    persistPreference({ 'preferences.restTimerSec': parseInt(v, 10) || 90 });
-  };
   const handleSound = (v: boolean) => {
     setSound(v);
     persist(SOUND_KEY, String(v));
@@ -282,10 +309,15 @@ const Profile = () => {
   // WP-I (X29): sekcja Trener — zapisany odbiorca maili z podsumowaniem.
   // Imię edytowane inline; usunięcie czyści oba pola (odwracalne: następna
   // wysyłka znów zaproponuje zapis, więc bez dialogu potwierdzenia).
+  // X35b: sekcja ZAWSZE widoczna; bez adresu pusty stan z formularzem
+  // "Dodaj trenera" (ten sam zapis co EmailWorkoutDialog.handleSaveTrainer).
   const trainerEmail = profile?.preferences?.trainerEmail;
   const trainerName = profile?.preferences?.trainerName;
   const [trainerNameEditing, setTrainerNameEditing] = useState(false);
   const [trainerNameInput, setTrainerNameInput] = useState('');
+  const [trainerAdding, setTrainerAdding] = useState(false);
+  const [trainerEmailInput, setTrainerEmailInput] = useState('');
+  const [trainerEmailError, setTrainerEmailError] = useState(false);
   const saveTrainerName = () => {
     const name = trainerNameInput.trim();
     updateDoc(doc(db, 'users', uid), { 'preferences.trainerName': name || deleteField() })
@@ -298,6 +330,26 @@ const Profile = () => {
       'preferences.trainerEmail': deleteField(),
       'preferences.trainerName': deleteField(),
     }).catch(() => { /* jw. */ });
+  };
+  const openTrainerForm = () => {
+    setTrainerNameInput('');
+    setTrainerEmailInput('');
+    setTrainerEmailError(false);
+    setTrainerAdding(true);
+  };
+  const saveNewTrainer = () => {
+    // Bug 49 (X30): adres znormalizowany, jak przy zapisie z dialogu maila.
+    const email = trainerEmailInput.trim().toLowerCase();
+    if (!TRAINER_EMAIL_RE.test(email)) {
+      setTrainerEmailError(true);
+      return;
+    }
+    const name = trainerNameInput.trim();
+    updateDoc(doc(db, 'users', uid), {
+      'preferences.trainerEmail': email,
+      'preferences.trainerName': name || deleteField(),
+    }).catch(() => { /* offline — snapshot profilu dogoni po powrocie sieci */ });
+    setTrainerAdding(false);
   };
 
   // Tryby C3/C4 (Runna p.1): wejście z sekcji TRENING; jeden tryb naraz.
@@ -423,74 +475,78 @@ const Profile = () => {
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
-      {/* Identity (fala 2, artboard 1a): poziomy rząd zamiast wycentrowanego hero. */}
-      <div className="flex items-center gap-3.5 pt-1">
-        <div className="relative shrink-0">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={profile?.photoURL || undefined} alt={profile?.displayName || ''} />
-            <AvatarFallback className="bg-primary/20 font-heading text-xl font-bold text-primary">{initials}</AvatarFallback>
-          </Avatar>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingAvatar}
-            className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
-            aria-label={t('profile.aria.changeAvatar')}
-          >
-            {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          {/* F-T1: imię edytowalne — tap otwiera istniejący dialog. */}
-          <button
-            type="button"
-            data-testid="profile-name-edit"
-            onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }}
-            className="w-fit max-w-full truncate text-left font-heading text-[22px] font-bold leading-tight tracking-tight"
-            aria-label={t('profile.account.edit')}
-          >
-            {profile?.displayName || t('profile.title')}
-          </button>
-          {profile?.email && (
-            <div className="flex min-w-0 items-center gap-0.5">
-              <p className="min-w-0 truncate text-xs text-muted-foreground">
-                {emailVisible ? profile.email : maskEmail(profile.email)}
-              </p>
-              {/* Tap target 44px (h-11 w-11), ujemne marginesy trzymają zwartość wiersza. */}
-              <button
-                type="button"
-                onClick={toggleEmailVisible}
-                className="-my-3 flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                aria-label={t('profile.emailToggle')}
-              >
-                {emailVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </button>
+      {/* 1. TOŻSAMOŚĆ (fala 2, artboard 1a): poziomy rząd zamiast wycentrowanego
+          hero. X35b: jedyne wejście do edycji imienia/avatara (wiersz "Imię i
+          avatar" z sekcji Konto usunięty jako duplikat). */}
+      <section id="profile-identity" className="scroll-mt-20 space-y-4">
+        <div className="flex items-center gap-3.5 pt-1">
+          <div className="relative shrink-0">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={profile?.photoURL || undefined} alt={profile?.displayName || ''} />
+              <AvatarFallback className="bg-primary/20 font-heading text-xl font-bold text-primary">{initials}</AvatarFallback>
+            </Avatar>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground disabled:opacity-60"
+              aria-label={t('profile.aria.changeAvatar')}
+            >
+              {uploadingAvatar ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            {/* F-T1: imię edytowalne — tap otwiera istniejący dialog. */}
+            <button
+              type="button"
+              data-testid="profile-name-edit"
+              onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }}
+              className="w-fit max-w-full truncate text-left font-heading text-[22px] font-bold leading-tight tracking-tight"
+              aria-label={t('profile.account.edit')}
+            >
+              {profile?.displayName || t('profile.title')}
+            </button>
+            {profile?.email && (
+              <div className="flex min-w-0 items-center gap-0.5">
+                <p className="min-w-0 truncate text-xs text-muted-foreground">
+                  {emailVisible ? profile.email : maskEmail(profile.email)}
+                </p>
+                {/* Tap target 44px (h-11 w-11), ujemne marginesy trzymają zwartość wiersza. */}
+                <button
+                  type="button"
+                  onClick={toggleEmailVisible}
+                  className="-my-3 flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={t('profile.emailToggle')}
+                >
+                  {emailVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            )}
+            <div className="mt-0.5 flex flex-wrap items-center gap-2">
+              <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} tierLabel={tier.label} className="justify-start" />
+              <span className="font-mono text-[9.5px] uppercase tracking-[0.06em] text-muted-foreground">
+                {t('profile.identity.workouts', { count: completedCount })}
+                {tier.next && tier.remaining != null ? ` · ${t('profile.identity.toNext', { n: tier.remaining, next: tier.next })}` : ''}
+              </span>
             </div>
-          )}
-          <div className="mt-0.5 flex flex-wrap items-center gap-2">
-            <ProfileHeaderChips showPro={hasProPlan(subSummary.planKey)} tierLabel={tier.label} className="justify-start" />
-            <span className="font-mono text-[9.5px] uppercase tracking-[0.06em] text-muted-foreground">
-              {t('profile.identity.workouts', { count: completedCount })}
-              {tier.next && tier.remaining != null ? ` · ${t('profile.identity.toNext', { n: tier.remaining, next: tier.next })}` : ''}
-            </span>
           </div>
         </div>
-      </div>
 
-      {/* PRO-D T3: postęp do następnego poziomu; elite (next=null) bez paska. */}
-      {tier.next && (
-        <div data-testid="tier-progress" className="h-1.5 w-full overflow-hidden rounded-full bg-surface-highest">
-          <div
-            className="h-full rounded-full bg-primary transition-[width]"
-            style={{ width: `${Math.round(tier.progress * 100)}%` }}
-          />
-        </div>
-      )}
+        {/* PRO-D T3: postęp do następnego poziomu; elite (next=null) bez paska. */}
+        {tier.next && (
+          <div data-testid="tier-progress" className="h-1.5 w-full overflow-hidden rounded-full bg-surface-highest">
+            <div
+              className="h-full rounded-full bg-primary transition-[width]"
+              style={{ width: `${Math.round(tier.progress * 100)}%` }}
+            />
+          </div>
+        )}
+      </section>
 
       {/* PRO-D T6 + fala 2: kafle statystyk all-time (zera są prawdziwe, więc
           renderują się zawsze); rząd odznak tylko przy zdobytych. */}
-      <section className="space-y-2.5">
+      <section id="profile-pride" className="scroll-mt-20 space-y-2.5">
         <div className="flex items-baseline justify-between">
           <h2 className="eyebrow-mono text-muted-foreground">{t('profile.pride.label')}</h2>
           <button
@@ -535,82 +591,9 @@ const Profile = () => {
         )}
       </section>
 
-      {/* TRENING (fala 2, mockup DURING A WORKOUT): to, co user rusza w trakcie
-          sesji, jako realne kontrolki w jednej karcie wysoko. */}
-      <section className="rounded-xl bg-surface-container px-4 py-4">
-        <h2 className="eyebrow-mono pb-2 text-muted-foreground">{t('profile.section.preferences')}</h2>
-        <SettingRow
-          compact
-          label={t('profile.restTimerToggle')}
-          right={(
-            <div className="flex items-center gap-2.5">
-              {FEATURE_FLAGS.workoutTimers && (
-                <Select value={restTimer} onValueChange={handleRestChange}>
-                  <SelectTrigger
-                    className="h-9 w-fit gap-1.5 rounded-lg border-0 bg-surface-highest px-2.5 font-mono text-[11px]"
-                    aria-label={t('profile.pref.restTimer')}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REST_OPTIONS.map((s) => <SelectItem key={s} value={s}>{s}s</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              )}
-              <Switch checked={timersOn} onCheckedChange={handleTimersToggle} aria-label={t('profile.restTimerToggle')} />
-            </div>
-          )}
-        />
-        {/* Z177 (reguła 6): wiersz Dźwięk ZAWSZE widoczny — schowany za przełącznikiem
-            „Timer przerwy" (Z157) robił pułapkę: wyłączony timer + wyłączony dźwięk
-            = brak drogi powrotu do ustawienia dźwięku. Dźwięk dotyczy też
-            zakończenia ćwiczenia, nie tylko timera przerwy. */}
-        <SettingRow compact label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
-        <SettingRow
-          compact
-          label={t('profile.pref.units')}
-          right={(
-            <div className="flex gap-1 rounded-lg bg-surface-highest p-1">
-              {(['kg', 'lbs'] as const).map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => setUnit(u)}
-                  aria-pressed={unit === u}
-                  aria-label={`${t('profile.pref.units')}: ${u}`}
-                  className={cn(
-                    'rounded-md px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.06em] transition-colors',
-                    unit === u ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
-                  )}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
-          )}
-        />
-        {/* Tryb "nie na 100%" (Runna p.1, spec C3) */}
-        <SettingRow
-          compact
-          label={t('rmode.title')}
-          value={rmodeActive ? t('rmode.activeUntil', { date: rmodeEndLabel }) : undefined}
-          onClick={() => setRmodeOpen(true)}
-        />
-        {/* Tryb urlopu (Runna p.1, spec C4) */}
-        <SettingRow
-          compact
-          label={t('vac.title')}
-          value={vacation
-            ? (isVacationActive(vacation, todayISO)
-              ? t('vac.badge', { date: fmtVacDate(vacation.endDate) })
-              : t('vac.range', { from: fmtVacDate(vacation.startDate), to: fmtVacDate(vacation.endDate) }))
-            : undefined}
-          onClick={() => setVacOpen(true)}
-        />
-      </section>
-
-      {/* WYGLĄD (F-T2 + fala 2): kolor przewodni — grid 12 swatchy (paleta 11 + custom) + hex. */}
-      <section className="rounded-xl bg-surface-container px-4 py-4">
+      {/* WYGLĄD (F-T2 + fala 2): kolor przewodni — grid 12 swatchy (paleta 11 + custom) + hex.
+          X35b: zostaje pod Tożsamością (personalizacja: avatar, imię, kolor). */}
+      <section id="profile-accent" className="scroll-mt-20 rounded-xl bg-surface-container px-4 py-4">
         <h2 className="eyebrow-mono pb-3 text-muted-foreground">{t('profile.appearance.accent')}</h2>
         <div className="grid grid-cols-6 gap-2" role="radiogroup" aria-label={t('profile.appearance.accent')} data-testid="accent-swatches">
           {ACCENTS.map((a) => (
@@ -676,8 +659,197 @@ const Profile = () => {
         </div>
       </section>
 
-      {/* SUBSKRYPCJA — tylko odczyt stanu; zarządzanie i zakup wyłącznie na platformie paywalla (natywny iOS) */}
-      <ProfileGroup label={t('subscription.section')}>
+      {/* 2. POWIADOMIENIA (X35b: karta z dawnych Ustawień; X35c dokłada przełączniki). */}
+      <ProfileSection id="notifications" label={t('profile.app.notifications')}>
+        <NotificationSettings />
+      </ProfileSection>
+
+      {/* 3. URZĄDZENIA I DOSTĘP + ZEGAREK (Z118 Zdrowie tylko natywnie, Z227 Garmin
+          + Apple Watch w jednym panelu). */}
+      <ProfileSection id="devices" label={t('profile.section.devices')}>
+        <HealthSettings />
+        <GarminSettings />
+      </ProfileSection>
+
+      {/* 4. TRENING (fala 2, mockup DURING A WORKOUT): to, co user rusza w trakcie
+          sesji, jako realne kontrolki w jednej karcie. X35b: długość przerwy
+          przeszła do sekcji Przerwy (RestSettingsCard), tu zostaje przełącznik. */}
+      <section id="profile-training" className="scroll-mt-20 rounded-xl bg-surface-container px-4 py-4">
+        <h2 className="eyebrow-mono pb-2 text-muted-foreground">{t('profile.section.preferences')}</h2>
+        <SettingRow
+          compact
+          label={t('profile.restTimerToggle')}
+          right={<Switch checked={timersOn} onCheckedChange={handleTimersToggle} aria-label={t('profile.restTimerToggle')} />}
+        />
+        {/* Z177 (reguła 6): wiersz Dźwięk ZAWSZE widoczny — schowany za przełącznikiem
+            „Timer przerwy" (Z157) robił pułapkę: wyłączony timer + wyłączony dźwięk
+            = brak drogi powrotu do ustawienia dźwięku. Dźwięk dotyczy też
+            zakończenia ćwiczenia, nie tylko timera przerwy. */}
+        <SettingRow compact label={t('profile.app.sound')} right={<Switch checked={sound} onCheckedChange={handleSound} aria-label={t('profile.app.sound')} />} />
+        <SettingRow
+          compact
+          label={t('profile.pref.units')}
+          right={(
+            <div className="flex gap-1 rounded-lg bg-surface-highest p-1">
+              {(['kg', 'lbs'] as const).map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setUnit(u)}
+                  aria-pressed={unit === u}
+                  aria-label={`${t('profile.pref.units')}: ${u}`}
+                  className={cn(
+                    'rounded-md px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.06em] transition-colors',
+                    unit === u ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
+                  )}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          )}
+        />
+        {/* Tryb "nie na 100%" (Runna p.1, spec C3) */}
+        <SettingRow
+          compact
+          label={t('rmode.title')}
+          value={rmodeActive ? t('rmode.activeUntil', { date: rmodeEndLabel }) : undefined}
+          onClick={() => setRmodeOpen(true)}
+        />
+        {/* Tryb urlopu (Runna p.1, spec C4): akcja żyje w Planie, tu skrót. */}
+        <SettingRow
+          compact
+          label={t('vac.title')}
+          value={vacation
+            ? (isVacationActive(vacation, todayISO)
+              ? t('vac.badge', { date: fmtVacDate(vacation.endDate) })
+              : t('vac.range', { from: fmtVacDate(vacation.startDate), to: fmtVacDate(vacation.endDate) }))
+            : undefined}
+          onClick={() => setVacOpen(true)}
+        />
+      </section>
+
+      {/* 5. PRZERWY MIĘDZY SERIAMI (X35b): zwijane, nagłówek z bieżącą wartością.
+          Wnętrze (RestSettingsCard) i domyślne wg celu planu to WP-C. */}
+      <section id="profile-rest" className="scroll-mt-20 space-y-2">
+        <h2 className="eyebrow-mono text-muted-foreground">{t('rest.settings.title')}</h2>
+        <Collapsible open={restOpen} onOpenChange={handleRestOpenChange}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              data-testid="profile-rest-toggle"
+              className="flex min-h-[46px] w-full items-center gap-3 rounded-2xl bg-surface-low px-3.5 py-2 text-left transition-colors hover:opacity-80"
+            >
+              <p className="min-w-0 flex-1 truncate text-[13.5px] leading-snug">
+                {t('profile.rest.current', { n: restWorkingSeconds })}
+              </p>
+              <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform', restOpen && 'rotate-180')} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <RestSettingsCard />
+          </CollapsibleContent>
+        </Collapsible>
+      </section>
+
+      {/* 6. KALKULATOR TALERZY (Z107): inwentarz per urządzenie. */}
+      <ProfileSection id="plates" label={t('plates.settingsTitle')}>
+        <PlateInventorySettings />
+      </ProfileSection>
+
+      {/* 7. POŁĄCZENIA (X35b): pełny panel Strava (flaga canUseStrava) + skrót do
+          urządzeń (Garmin / zegarek żyją w sekcji 3, bez dublowania kart). */}
+      <ProfileSection id="connections" label={t('profile.section.connections')}>
+        {canUseStrava && <StravaConnectionCard />}
+        <div className="rounded-2xl bg-surface-low px-3.5 py-1">
+          <SettingRow
+            compact
+            icon={Watch}
+            label={t('profile.connections.devicesShortcut')}
+            value={t('profile.section.devices')}
+            onClick={() => scrollToSection('devices')}
+          />
+        </div>
+      </ProfileSection>
+
+      {/* 8. TRENER (WP-I + X35b): zapisany odbiorca maili (adres zamaskowany jak
+          email konta); bez adresu pusty stan z formularzem "Dodaj trenera". */}
+      <ProfileGroup id="trainer" label={t('profile.trainer.title')}>
+        {trainerEmail ? (
+          <>
+            <SettingRow
+              compact
+              icon={Mail}
+              label={trainerName || maskEmail(trainerEmail)}
+              value={trainerName ? maskEmail(trainerEmail) : undefined}
+            />
+            {trainerNameEditing ? (
+              <div className="flex items-center gap-2 py-2">
+                <Input
+                  value={trainerNameInput}
+                  onChange={(e) => setTrainerNameInput(e.target.value)}
+                  maxLength={80}
+                  aria-label={t('profile.trainer.nameLabel')}
+                  placeholder={t('profile.trainer.nameLabel')}
+                  className="h-10 flex-1 rounded-lg border-0 bg-surface-highest"
+                />
+                <Button onClick={saveTrainerName} className="h-10 rounded-lg px-4">
+                  {t('common.save')}
+                </Button>
+              </div>
+            ) : (
+              <SettingRow
+                compact
+                label={t('profile.trainer.changeName')}
+                onClick={() => { setTrainerNameInput(trainerName ?? ''); setTrainerNameEditing(true); }}
+              />
+            )}
+            <SettingRow compact danger label={t('profile.trainer.remove')} onClick={removeTrainer} />
+          </>
+        ) : trainerAdding ? (
+          <div className="space-y-2 py-2" data-testid="trainer-add-form">
+            <Input
+              value={trainerNameInput}
+              onChange={(e) => setTrainerNameInput(e.target.value)}
+              maxLength={80}
+              aria-label={t('profile.trainer.nameLabel')}
+              placeholder={t('profile.trainer.nameLabel')}
+              className="h-10 rounded-lg border-0 bg-surface-highest"
+            />
+            <Input
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoComplete="email"
+              value={trainerEmailInput}
+              onChange={(e) => { setTrainerEmailInput(e.target.value); setTrainerEmailError(false); }}
+              aria-label={t('profile.trainer.emailLabel')}
+              aria-invalid={trainerEmailError || undefined}
+              placeholder={t('profile.trainer.emailLabel')}
+              className={cn('h-10 rounded-lg border-0 bg-surface-highest', trainerEmailError && 'ring-1 ring-destructive')}
+            />
+            {trainerEmailError && (
+              <p className="text-xs text-destructive" role="alert">{t('profile.trainer.emailInvalid')}</p>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setTrainerAdding(false)} className="h-10 flex-1 rounded-lg border-0 bg-surface-highest">
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={saveNewTrainer} className="h-10 flex-1 rounded-lg" disabled={!trainerEmailInput.trim()}>
+                {t('common.save')}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="pt-2.5 text-xs text-muted-foreground" data-testid="trainer-empty">{t('profile.trainer.emptyHint')}</p>
+            <SettingRow compact icon={Mail} label={t('profile.trainer.add')} onClick={openTrainerForm} />
+          </>
+        )}
+      </ProfileGroup>
+
+      {/* 9. SUBSKRYPCJA — tylko odczyt stanu; zarządzanie i zakup wyłącznie na platformie paywalla (natywny iOS) */}
+      <ProfileGroup id="subscription" label={t('subscription.section')}>
         <SettingRow compact icon={Gem} label={t(subSummary.planKey)} description={subDescription || undefined} />
         {isPaywallPlatform() && subSummary.hasStoreSubscription && (
           <SettingRow
@@ -692,88 +864,35 @@ const Profile = () => {
         )}
       </ProfileGroup>
 
-      {/* POŁĄCZENIA (fala 2): deep-linki do Ustawień; status tylko Strava (dana
-          już zmapowana w profilu — zero nowych odczytów). Garmin/Health tylko
-          natywnie, żeby web nie prowadził w pustkę. */}
-      {(canUseStrava || isNative) && (
-        <ProfileGroup label={t('profile.section.connections')}>
-          {canUseStrava && (
-            <SettingRow
-              compact
-              icon={Link2}
-              label="Strava"
-              value={profile?.stravaConnected ? t('settings.strava.connected') : t('profile.connections.notConnected')}
-              valueAccent={!!profile?.stravaConnected}
-              onClick={() => navigate('/settings?section=strava')}
-            />
-          )}
-          {isNative && <SettingRow compact icon={Watch} label="Garmin" onClick={() => navigate('/settings?section=connections')} />}
-          {isNative && <SettingRow compact icon={Heart} label={t('profile.connections.health')} onClick={() => navigate('/settings?section=connections')} />}
-        </ProfileGroup>
-      )}
-
-      {/* WP-I: TRENER — podgląd zapisanego odbiorcy maili (adres zamaskowany
-          jak email konta w identity); sekcja tylko gdy adres jest zapisany. */}
-      {trainerEmail && (
-        <ProfileGroup label={t('profile.trainer.title')}>
+      {/* 10. TWOJE DANE (Z90 + fala 2 + X35b): dojścia do danych, backup i
+          przywracanie, zgody, Sync Center przy zaległościach. */}
+      <ProfileSection id="data" label={t('profile.section.data')}>
+        <div className="rounded-2xl bg-surface-low px-3.5 py-1">
+          <SettingRow compact icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
+          <SettingRow compact icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
+          <SettingRow compact icon={Trophy} label={t('nav.progress')} onClick={() => navigate('/achievements')} />
           <SettingRow
             compact
-            icon={Mail}
-            label={trainerName || maskEmail(trainerEmail)}
-            value={trainerName ? maskEmail(trainerEmail) : undefined}
+            icon={Medal}
+            label={t('profile.backfill.title')}
+            value={profile?.prBackfill ? t('profile.backfill.set') : undefined}
+            onClick={openBackfill}
           />
-          {trainerNameEditing ? (
-            <div className="flex items-center gap-2 py-2">
-              <Input
-                value={trainerNameInput}
-                onChange={(e) => setTrainerNameInput(e.target.value)}
-                maxLength={80}
-                aria-label={t('profile.trainer.nameLabel')}
-                placeholder={t('profile.trainer.nameLabel')}
-                className="h-10 flex-1 rounded-lg border-0 bg-surface-highest"
-              />
-              <Button onClick={saveTrainerName} className="h-10 rounded-lg px-4">
-                {t('common.save')}
-              </Button>
-            </div>
-          ) : (
-            <SettingRow
-              compact
-              label={t('profile.trainer.changeName')}
-              onClick={() => { setTrainerNameInput(trainerName ?? ''); setTrainerNameEditing(true); }}
-            />
-          )}
-          <SettingRow compact danger label={t('profile.trainer.remove')} onClick={removeTrainer} />
-        </ProfileGroup>
-      )}
+          {isAdmin && <SettingRow compact icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
+        </div>
+        <div id="profile-backup" className="scroll-mt-20">
+          <BackupSettings />
+        </div>
+        {/* Zgody (pakiet prawny v2): marketing + dane zdrowotne, art. 7 ust. 3 RODO */}
+        <div id="profile-consents" className="scroll-mt-20">
+          <ConsentSettings />
+        </div>
+        {/* Sync Center — tylko przy zaległościach (Z52); zdrowy user nie widzi pustej karty. */}
+        {syncEntries.listedEntries.length > 0 && <SyncCenterCard uid={uid} />}
+      </ProfileSection>
 
-      {/* TWOJE DANE (Z90 + fala 2): dojścia do danych, backupu i systemu. */}
-      <ProfileGroup label={t('profile.section.data')}>
-        <SettingRow compact icon={ScrollText} label={t('nav.history')} onClick={() => navigate('/history')} />
-        <SettingRow compact icon={Ruler} label={t('nav.measurements')} onClick={() => navigate('/measurements')} />
-        <SettingRow compact icon={Trophy} label={t('nav.progress')} onClick={() => navigate('/achievements')} />
-        <SettingRow
-          compact
-          icon={Medal}
-          label={t('profile.backfill.title')}
-          value={profile?.prBackfill ? t('profile.backfill.set') : undefined}
-          onClick={openBackfill}
-        />
-        <SettingRow compact icon={Download} label={t('profile.data.backup')} onClick={() => navigate('/settings?section=data')} />
-        <SettingRow compact icon={ShieldCheck} label={t('profile.account.privacy')} onClick={() => navigate('/settings?section=data')} />
-        <SettingRow compact icon={SlidersHorizontal} label={t('profile.support.advanced')} onClick={() => navigate('/settings')} />
-        {isAdmin && <SettingRow compact icon={Shield} label={t('nav.admin')} onClick={() => navigate('/admin')} />}
-      </ProfileGroup>
-
-      {/* APLIKACJA */}
-      <ProfileGroup label={t('profile.section.app')}>
-        <SettingRow
-          compact
-          icon={Bell}
-          label={t('profile.app.notifications')}
-          value={pushEnabled == null ? undefined : t(pushEnabled ? 'profile.app.notificationsOn' : 'profile.app.notificationsOff')}
-          onClick={() => navigate('/settings?section=notifications')}
-        />
+      {/* 11. KONTO I POMOC (X35b: język przeszedł tu z dawnej sekcji Aplikacja). */}
+      <ProfileGroup id="account" label={t('profile.section.accountSupport')}>
         <SettingRow
           compact
           icon={Globe}
@@ -789,11 +908,6 @@ const Profile = () => {
             </Select>
           )}
         />
-      </ProfileGroup>
-
-      {/* KONTO I POMOC */}
-      <ProfileGroup label={t('profile.section.accountSupport')}>
-        <SettingRow compact icon={User} label={t('profile.account.nameAvatar')} onClick={() => { setNameInput(profile?.displayName || ''); setEditOpen(true); }} />
         <SettingRow compact icon={Lock} label={t('profile.account.password')} onClick={() => { if (profile?.email) setResetConfirmOpen(true); }} />
         {/* Z241: help prowadził do samej apki (app.strengthsave.app) — teraz landing z FAQ. */}
         <SettingRow compact icon={HelpCircle} label={t('profile.support.help')} onClick={() => window.open('https://strengthsave.app/', '_blank')} />

@@ -14,7 +14,6 @@ const pageTitleKeys: Record<string, TranslationKey> = {
   '/analytics': 'layout.title.analytics',
   '/achievements': 'layout.title.achievements',
   '/plan/edit': 'layout.title.planEdit',
-  '/settings': 'layout.title.settings',
   '/profile': 'layout.title.profile',
   '/measurements': 'layout.title.measurements',
   '/admin': 'layout.title.admin',

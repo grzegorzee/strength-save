@@ -19,7 +19,7 @@ const MOCKUP_HEX_ALLOWLIST = new Set(['src/lib/native-setup.ts']);
 // Zastane wyjatki dla arbitrary hex utilities (przed fala 2, poza jej zakresem):
 const ARBITRARY_HEX_ALLOWLIST = new Set([
   'src/pages/StravaCallback.tsx',              // #FC4C02 = kolor marki Strava (brand guidelines)
-  'src/pages/Settings.tsx',                    // #FC4C02 = przycisk "Connect with Strava"
+  'src/components/StravaConnectionCard.tsx',   // #FC4C02 = przycisk "Connect with Strava" (X35b: z /settings do Profilu)
   'src/components/StravaActivityDetail.tsx',   // #FC4C02/#e04400 = branding Strava
 ]);
 

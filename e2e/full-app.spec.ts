@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { blockFirebase, navigateAndWait, expectPageRendered, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, waitForMatchingToFinish } from './helpers';
+import { blockFirebase, navigateAndWait, expectPageRendered, expectHashRoute, clearWorkoutDraftDb, readWorkoutDraftDb, writeWorkoutDraftDb, setE2EWorkouts, setE2EMeasurements, setE2ECustomExercises, setE2EAuthScenario , localToday, localDaysAgo, setE2EPlanMeta, skipPreStartWarmupIfShown, plWeekdayName, advanceWizardToStep5, advanceWizardToStep6, passOnboardingWelcome, waitForMatchingToFinish } from './helpers';
 
 // X30 WP-L: /workout/day-N bez ?date= renderuje się na dziś, a domyślna nazwa
 // dnia planu podąża za datą (nagłówek "Wtorek" we wtorek, nie "Poniedziałek").
@@ -66,12 +66,19 @@ test.describe('Page Load Smoke Tests', () => {
     await expect(page.getByRole('heading', { name: '404' })).toBeVisible();
   });
 
-  test('Settings (/settings) loads', async ({ page }) => {
+  test('Settings (/settings) redirects to Profile with former sections (X35b)', async ({ page }) => {
     await navigateAndWait(page, '/settings');
+    await expectHashRoute(page, '/profile');
     await expectPageRendered(page);
     await expect(page.getByText('Backup i przywracanie')).toBeVisible();
     // Z118: sekcja Zdrowie tylko natywnie (web = no-op bridge, ukryta, zero crashy).
     await expect(page.getByTestId('health-settings')).toHaveCount(0);
+  });
+
+  test('/settings?section=notifications lands on the Profile notifications anchor (deep link z powiadomienia)', async ({ page }) => {
+    await navigateAndWait(page, '/settings?section=notifications');
+    await expect(page).toHaveURL(/\/#\/profile\?section=notifications$/);
+    await expect(page.locator('#profile-notifications')).toBeInViewport();
   });
 
   test('Workout Day (/workout/day-1) loads', async ({ page }) => {
@@ -168,23 +175,26 @@ test.describe('Dashboard Features', () => {
     await expect(page.getByTestId('dash-hero')).toBeVisible();
   });
 
-    test('narzedzia naprawcze widoczne tylko dla admina (Z90.4)', async ({ page }) => {
+    test('narzedzia naprawcze tylko na /admin; onboarding od nowa dla kazdego na /cycles (Z90.4 + X35b)', async ({ page }) => {
     await setE2EAuthScenario(page, 'active-user');
-    await navigateAndWait(page, '/settings');
+    await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
     await expect(page.getByText('Backup i przywracanie')).toBeVisible();
     await expect(page.getByText('Narzędzia naprawcze')).toHaveCount(0);
-    // Z242: reset onboardingu jest dostępny dla każdego usera (poza akordeonem admina).
-    await expect(page.getByText('Reset planu')).toBeVisible();
+    // Z242 → X35b: reset onboardingu dla każdego usera, na stronie Cykle (sekcja Plan).
+    await navigateAndWait(page, '/cycles');
+    await expect(page.getByTestId('cycles-reset-onboarding')).toBeVisible();
 
     await setE2EAuthScenario(page, 'active-admin');
-    // Zmiana samego hasha nie przeładowuje dokumentu — reload wykonuje initScript admina.
+    // Zmiana samego hasha nie przeładowuje dokumentu — reload wykonuje initScript admina,
+    // dopiero potem wejście na /admin (AdminRoute widzi już admina).
     await page.reload();
+    await navigateAndWait(page, '/admin');
     await expect(page.getByText('Narzędzia naprawcze')).toBeVisible();
   });
 
-test('settings allow self-service export for regular user flow', async ({ page }) => {
-    await navigateAndWait(page, '/settings');
+test('profile allows self-service export for regular user flow', async ({ page }) => {
+    await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
 
     const downloadPromise = page.waitForEvent('download');
@@ -374,15 +384,23 @@ test.describe('Cycles', () => {
 // =====================================================
 // 9. SETTINGS
 // =====================================================
-test.describe('Settings', () => {
+test.describe('Settings (X35b: sekcje w Profilu)', () => {
   test.beforeEach(async ({ page }) => {
     await blockFirebase(page);
   });
 
-  test('shows user info section', async ({ page }) => {
-    await navigateAndWait(page, '/settings');
+  test('Profil ma wszystkie 11 sekcji w kolejnosci specu', async ({ page }) => {
+    await navigateAndWait(page, '/profile');
     await expectPageRendered(page);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Ustawienia' })).toBeVisible();
+    const labels = await page.getByRole('main').locator('h2').allTextContents();
+    expect(labels).toEqual([
+      'Osiągnięcia', 'Kolor przewodni aplikacji', 'Powiadomienia', 'Urządzenia i dostęp', 'Trening',
+      'Przerwy między seriami', 'Kalkulator talerzy', 'Połączenia', 'Trener', 'Subskrypcja',
+      'Twoje dane', 'Konto i pomoc',
+    ]);
+    // Bez duplikatu wejscia do edycji imienia (tylko naglowek tozsamosci).
+    await expect(page.getByText('Imię i avatar')).toHaveCount(0);
+    await expect(page.getByText('Ustawienia zaawansowane')).toHaveCount(0);
   });
 });
 
@@ -1180,7 +1198,7 @@ test.describe('Import CSV (Z110)', () => {
   });
 
   test('pełny scenariusz: import fixture Strong, idempotencja 2x, historia, cofnięcie', async ({ page }) => {
-    await navigateAndWait(page, '/settings');
+    await navigateAndWait(page, '/profile');
 
     // Krok 1: wybór pliku
     await page.getByTestId('import-wizard-open').click();
@@ -1207,7 +1225,7 @@ test.describe('Import CSV (Z110)', () => {
     await expect(page.getByText('Środa — Dół')).toBeVisible();
 
     // Idempotencja: ten sam plik drugi raz => te same id, liczba treningów bez zmian.
-    await navigateAndWait(page, '/settings');
+    await navigateAndWait(page, '/profile');
     await page.getByTestId('import-wizard-open').click();
     await page.getByTestId('import-file-input').setInputFiles('src/test/fixtures/strong-sample.csv');
     await page.getByTestId('import-to-confirm').click();
@@ -1506,7 +1524,7 @@ test.describe('Parowanie Garmin (Z125)', () => {
     await blockFirebase(page);
   });
 
-  test('sekcja w Ustawieniach: kod parowania z odliczaniem, lista urządzeń i odłączanie', async ({ page }) => {
+  test('sekcja Urządzenia w Profilu: kod parowania z odliczaniem, lista urządzeń i odłączanie', async ({ page }) => {
     await page.addInitScript(({ key, data }) => {
       window.localStorage.setItem(key, JSON.stringify(data));
     }, {
@@ -1514,7 +1532,7 @@ test.describe('Parowanie Garmin (Z125)', () => {
       data: [{ deviceId: 'abc123def456', label: 'Fenix 8', createdAt: 1, lastUsedAt: 1752960000000 }],
     });
 
-    await navigateAndWait(page, '/settings');
+    await navigateAndWait(page, '/profile');
     // Z227: Garmin i Apple Watch są w jednym panelu urządzeń i entitlementu.
     const section = page.getByTestId('device-settings');
     await expect(section).toBeVisible();
