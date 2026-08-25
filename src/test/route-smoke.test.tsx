@@ -67,10 +67,18 @@ vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
 vi.mock('@/lib/push-notifications', () => ({
   getPushPermission: vi.fn(async () => 'granted'),
   requestPushPermission: vi.fn(async () => 'granted'),
-  registerPushForUser: vi.fn(async () => {}),
+  // X35b: NotificationSettings w Profilu czyta result.status po rejestracji.
+  registerPushForUser: vi.fn(async () => ({ status: 'registered' })),
   unregisterPushForUser: vi.fn(async () => {}),
   listenForegroundPush: vi.fn(() => () => {}),
   listenPushTokenRefresh: vi.fn(() => () => {}),
+}));
+// X35b: GarminSettings w Profilu — callable'e urzadzen bez sieci.
+vi.mock('@/lib/garmin-api', () => ({
+  listLinkedDevices: vi.fn(async () => []),
+  unlinkLinkedDevice: vi.fn(async () => ({ revoked: true })),
+  reportAppleWatchStatus: vi.fn(async () => ({ linked: false })),
+  startGarminPairing: vi.fn(async () => ({ code: '000000', expiresAt: 0 })),
 }));
 vi.mock('@/lib/workout-read-store', () => ({
   fetchWorkoutRange: vi.fn(async () => []),
