@@ -901,6 +901,67 @@ describe('workoutDraftDb', () => {
     expect(loaded?.version).toBe(7);
   });
 
+  it('bug 13: fallback localStorage niesie exerciseMetrics, exerciseNames i pendingWriteId/pendingWriteVersion', async () => {
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      exerciseMetrics: { 'ex-1': { rpe: 8, pain: 1, quality: 5 } },
+      exerciseNames: { 'ex-1': 'Przysiad ze sztangą' },
+      pendingWriteId: 'write-abc',
+      pendingWriteVersion: 1,
+    });
+    const loaded = await workoutDraftDb.loadActiveDraft('user-1');
+
+    expect(loaded?.exerciseMetrics).toEqual({ 'ex-1': { rpe: 8, pain: 1, quality: 5 } });
+    expect(loaded?.exerciseNames).toEqual({ 'ex-1': 'Przysiad ze sztangą' });
+    // Kontrakt R2-01: retry checkpointu po lost-ack idzie ze STARYM writeId
+    // (draftWriteId reuse'uje pendingWriteId przy zgodnej wersji) — bez
+    // round-tripu przez fallback retry kończył się fałszywym konfliktem.
+    expect(loaded?.pendingWriteId).toBe('write-abc');
+    expect(loaded?.pendingWriteVersion).toBe(1);
+  });
+
+  it('bug 13: metryki wpisane po awarii IDB przeżywają restart — merge per ćwiczenie, fallback wygrywa per klucz', async () => {
+    // IDB umarło w trakcie sesji: rekord IDB ma metryki sprzed awarii...
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      version: 2,
+      exerciseMetrics: { 'ex-1': { rpe: 7 } },
+      exerciseNames: { 'ex-1': 'Przysiad' },
+    });
+    // ...a wszystko po awarii (nowe RPE dla ex-1, świeże ex-2, pendingWrite)
+    // żyje wyłącznie w fallbacku localStorage.
+    workoutDraft.save({
+      sessionId: baseDraft.sessionId,
+      dayId: baseDraft.dayId,
+      date: baseDraft.date,
+      exerciseSets: { 'ex-1': [{ reps: 6, weight: 85, completed: true }] },
+      exerciseNotes: {},
+      dayNotes: '',
+      skippedExercises: [],
+      savedAt: baseDraft.updatedAt + 100,
+      version: 9,
+      exerciseMetrics: { 'ex-1': { rpe: 9 }, 'ex-2': { pain: 2 } },
+      exerciseNames: { 'ex-2': 'Wykroki' },
+      pendingWriteId: 'write-po-awarii',
+      pendingWriteVersion: 9,
+    }, 'user-1');
+
+    const loaded = await workoutDraftDb.loadDraft('user-1', baseDraft.sessionId);
+
+    expect(loaded?.version).toBe(9);
+    // Fallback wygrywa per klucz; klucze, których fallback nie zna, zostają z IDB.
+    expect(loaded?.exerciseMetrics).toEqual({ 'ex-1': { rpe: 9 }, 'ex-2': { pain: 2 } });
+    expect(loaded?.exerciseNames).toEqual({ 'ex-1': 'Przysiad', 'ex-2': 'Wykroki' });
+    expect(loaded?.pendingWriteId).toBe('write-po-awarii');
+    expect(loaded?.pendingWriteVersion).toBe(9);
+  });
+
   it('Z185: sessionSwaps przeżywa roundtrip przez IDB i fallback localStorage', async () => {
     const swaps = { 'ex-1': { id: 'ex-1__swap-wyciskanie', name: 'Wyciskanie', sets: '3 x 6-8' } };
     await workoutDraftDb.saveActiveDraft({ ...baseDraft, sessionSwaps: swaps });

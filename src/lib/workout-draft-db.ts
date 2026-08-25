@@ -320,6 +320,11 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     date: draft.date,
     exerciseSets: draft.exerciseSets,
     exerciseNotes: draft.exerciseNotes,
+    // Bug 13 (X30): metryki, snapshoty nazw i klucz idempotencji zapisu też
+    // przeżywają round-trip przez fallback (asymetria vs normalizeDraft była
+    // przeoczeniem — wzorzec Z162/Z185/incydent 180 s).
+    exerciseMetrics: draft.exerciseMetrics,
+    ...(draft.exerciseNames !== undefined && { exerciseNames: draft.exerciseNames }),
     dayNotes: draft.dayNotes,
     skippedExercises: draft.skippedExercises,
     ...(draft.warmupChecked !== undefined && { warmupChecked: draft.warmupChecked }),
@@ -332,6 +337,9 @@ const withFallbackSave = (draft: ActiveWorkoutDraft): void => {
     ...(draft.startedAt !== undefined && { startedAt: draft.startedAt }),
     ...(draft.lastActivityAt !== undefined && { lastActivityAt: draft.lastActivityAt }),
     ...(draft.finalizedAt !== undefined && { finalizedAt: draft.finalizedAt }),
+    // Kontrakt R2-01 (bug 13, X30): pendingWrite* przeżywają flush przez fallback.
+    ...(draft.pendingWriteId != null && { pendingWriteId: draft.pendingWriteId }),
+    ...(draft.pendingWriteVersion != null && { pendingWriteVersion: draft.pendingWriteVersion }),
   }, draft.userId);
   if (!saved) {
     throw new Error('LOCAL_STORAGE_SAVE_FAILED');
@@ -827,6 +835,13 @@ const resolveFresherFallback = (
     ...idbRecord,
     exerciseSets: fallback.exerciseSets,
     exerciseNotes: fallback.exerciseNotes,
+    // Bug 13 (X30): metryki i nazwy mergowane PER KLUCZ ćwiczenia — wpisy ze
+    // świeższego fallbacku wygrywają, klucze znane tylko staremu rekordowi IDB
+    // zostają (fallback w starym formacie = pusta mapa, nic nie nadpisze).
+    exerciseMetrics: { ...idbRecord.exerciseMetrics, ...fallback.exerciseMetrics },
+    ...((idbRecord.exerciseNames !== undefined || fallback.exerciseNames !== undefined) && {
+      exerciseNames: { ...(idbRecord.exerciseNames ?? {}), ...(fallback.exerciseNames ?? {}) },
+    }),
     dayNotes: fallback.dayNotes,
     skippedExercises: fallback.skippedExercises,
     ...(fallback.warmupChecked !== undefined && { warmupChecked: fallback.warmupChecked }),
@@ -839,6 +854,10 @@ const resolveFresherFallback = (
     // fałszowałyby go przez savedAt).
     ...(fallback.lastActivityAt !== undefined && { lastActivityAt: fallback.lastActivityAt }),
     ...(fallback.finalizedAt !== undefined && { finalizedAt: fallback.finalizedAt }),
+    // Kontrakt R2-01 (bug 13, X30): klucz idempotencji z NOWSZEGO snapshotu —
+    // retry checkpointu po lost-ack idzie ze starym writeId, nie z nowym.
+    ...(fallback.pendingWriteId !== undefined && { pendingWriteId: fallback.pendingWriteId }),
+    ...(fallback.pendingWriteVersion !== undefined && { pendingWriteVersion: fallback.pendingWriteVersion }),
     updatedAt: fallback.updatedAt,
     dirty: true,
     version: fallback.version,

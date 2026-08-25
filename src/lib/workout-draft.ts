@@ -1,4 +1,4 @@
-import type { SetData } from '@/types';
+import type { SetData, ExerciseMetrics } from '@/types';
 
 export const LOCAL_STORAGE_WORKOUT_DRAFT_KEY = 'fittracker_workout_draft';
 export const getScopedWorkoutDraftKey = (userId?: string) => (
@@ -11,6 +11,12 @@ export interface WorkoutDraft {
   date: string;
   exerciseSets: Record<string, SetData[]>;
   exerciseNotes: Record<string, string>;
+  // Metryki autoregulacji RPE/ból/jakość (bug 13, X30) — pole additive; bez niego
+  // wpisy dokonane po awarii IDB (sesja żyjąca na fallbacku) cicho przepadały.
+  exerciseMetrics?: Record<string, ExerciseMetrics>;
+  // Snapshoty nazw ćwiczeń (bug 13, X30) — historia odporna na zmiany planu także,
+  // gdy sesja żyje na fallbacku (dodane w locie / swapowane ćwiczenia).
+  exerciseNames?: Record<string, string>;
   dayNotes: string;
   skippedExercises: string[];
   // Odhaczenia rozgrzewki (Z162) — pole additive, przeżywa round-trip przez fallback.
@@ -29,6 +35,11 @@ export interface WorkoutDraft {
   startedAt?: number;
   lastActivityAt?: number;
   finalizedAt?: number;
+  // Klucz idempotencji trwającej próby zapisu (kontrakt R2-01, bug 13, X30):
+  // bez round-tripu przez fallback retry checkpointu po lost-ack szedł z NOWYM
+  // writeId i kończył się fałszywym WORKOUT_CONFLICT.
+  pendingWriteId?: string | null;
+  pendingWriteVersion?: number | null;
 }
 
 export const workoutDraft = {
