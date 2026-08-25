@@ -67,6 +67,12 @@ export interface RestSettings {
   betweenExercisesSeconds: number;
   /** Nadpisanie per ćwiczenie (klucz = kanoniczna nazwa). Wzorzec Strong. */
   perExercise: Record<string, number>;
+  /**
+   * X35b: `true` = user ustawił własne czasy (ręczna zmiana w RestSettingsCard /
+   * WorkoutSettingsSheet). Start cyklu NIE nadpisuje wtedy przerw domyślnymi
+   * z celu planu (`rest-defaults.ts`). Brak / `false` = wartości polecane.
+   */
+  custom?: boolean;
 }
 
 export const REST_SETTINGS_STORAGE_KEY = 'fittracker_rest_settings_v1';
@@ -83,6 +89,40 @@ export const DEFAULT_REST_SETTINGS: RestSettings = {
 const positiveOr = (value: unknown, fallback: number): number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
 
+/**
+ * X35b: jeden walidator dla obu magazynów (cache localStorage i
+ * users/{uid}.preferences.rest). Śmieci i brakujące pola spadają na domyślne;
+ * `custom` tylko gdy jawnie `true`.
+ */
+export const normalizeRestSettings = (raw: unknown): RestSettings => {
+  const parsed = (raw && typeof raw === 'object' ? raw : {}) as Partial<RestSettings>;
+  const perExercise = parsed.perExercise && typeof parsed.perExercise === 'object'
+    ? Object.fromEntries(
+      Object.entries(parsed.perExercise).filter(([, v]) => typeof v === 'number' && v > 0),
+    )
+    : {};
+  return {
+    workingSeconds: positiveOr(parsed.workingSeconds, DEFAULT_REST_SETTINGS.workingSeconds),
+    warmupSeconds: positiveOr(parsed.warmupSeconds, DEFAULT_REST_SETTINGS.warmupSeconds),
+    betweenExercisesSeconds: positiveOr(parsed.betweenExercisesSeconds, DEFAULT_REST_SETTINGS.betweenExercisesSeconds),
+    perExercise,
+    custom: parsed.custom === true,
+  };
+};
+
+/**
+ * X35b: czy na tym urządzeniu jest JAWNY zapis przerw (v1 albo stary pojedynczy
+ * czas). Migracja do preferences.rest zachodzi tylko wtedy, gdy jest co przenieść.
+ */
+export const hasStoredRestSettings = (): boolean => {
+  try {
+    return window.localStorage.getItem(REST_SETTINGS_STORAGE_KEY) !== null
+      || window.localStorage.getItem(LEGACY_DEFAULT_KEY) !== null;
+  } catch {
+    return false;
+  }
+};
+
 export const loadRestSettings = (): RestSettings => {
   try {
     const raw = window.localStorage.getItem(REST_SETTINGS_STORAGE_KEY);
@@ -94,18 +134,7 @@ export const loadRestSettings = (): RestSettings => {
         workingSeconds: positiveOr(legacy, DEFAULT_REST_SETTINGS.workingSeconds),
       };
     }
-    const parsed = JSON.parse(raw) as Partial<RestSettings>;
-    const perExercise = parsed.perExercise && typeof parsed.perExercise === 'object'
-      ? Object.fromEntries(
-        Object.entries(parsed.perExercise).filter(([, v]) => typeof v === 'number' && v > 0),
-      )
-      : {};
-    return {
-      workingSeconds: positiveOr(parsed.workingSeconds, DEFAULT_REST_SETTINGS.workingSeconds),
-      warmupSeconds: positiveOr(parsed.warmupSeconds, DEFAULT_REST_SETTINGS.warmupSeconds),
-      betweenExercisesSeconds: positiveOr(parsed.betweenExercisesSeconds, DEFAULT_REST_SETTINGS.betweenExercisesSeconds),
-      perExercise,
-    };
+    return normalizeRestSettings(JSON.parse(raw));
   } catch {
     return { ...DEFAULT_REST_SETTINGS, perExercise: {} };
   }
