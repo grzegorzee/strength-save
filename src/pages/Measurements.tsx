@@ -14,11 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { compressImage } from '@/lib/image-compress';
 import { BodyPhotoCompare } from '@/components/BodyPhotoCompare';
 import { PhotoCropDialog } from '@/components/PhotoCropDialog';
-import { TrendingUp, TrendingDown, Minus, Camera, ChevronRight, Database, Ruler } from 'lucide-react';
+import { EditMeasurementDialog, type MeasurementEditValues, type MeasurementPhotoChange } from '@/components/EditMeasurementDialog';
+import { TrendingUp, TrendingDown, Minus, Camera, ChevronRight, Database, Pencil, Ruler } from 'lucide-react';
 import { EmptyState } from '@/components/EmptyState';
 import { getEmptyStateImageUrl } from '@/lib/exercise-media';
-import { cn, formatLocalDate, formatLocalDateLabel, parseLocalDate } from '@/lib/utils';
-import { buildMeasurementSeries, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
+import type { BodyMeasurement } from '@/types';
+import { cn, formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
+import { buildMeasurementSeries, compareMeasurementsAsc, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { HealthWeightSuggestion } from '@/components/HealthWeightSuggestion';
 import { useUnit } from '@/contexts/UnitContext';
@@ -39,7 +41,8 @@ const deltaClass = (field: MeasurementField, delta: number): string => {
 const Measurements = () => {
   const { uid, canUseBodyPhotos } = useCurrentUser();
   const navigate = useNavigate();
-  const { measurements, addMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid);
+  // Tier pomiarów: domyślny 'full' (365) — lista "Pokaż wszystkie" czyta pełne okno.
+  const { measurements, addMeasurement, updateMeasurement, deleteMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid);
   const { toast } = useToast();
   const { t, lang } = useTranslation();
   const { fmt, fmtLength } = useUnit();
@@ -54,6 +57,12 @@ const Measurements = () => {
   const photoOnlyInputRef = useRef<HTMLInputElement>(null);
   const [photoOnlyCropFile, setPhotoOnlyCropFile] = useState<File | null>(null);
   const photoCount = measurements.filter((m) => typeof m.photoUrl === 'string' && m.photoUrl.length > 0).length;
+  // WP-M: edytowany wpis = zamrożony snapshot z chwili tapnięcia (dialog nie
+  // liczy widoku z listy, więc mutacja danych przy otwartym dialogu go nie
+  // wywraca); zamykanie wyłącznie przez open=false. Lista: "Pokaż wszystkie"
+  // zamiast twardego slice(0,5).
+  const [editMeasurement, setEditMeasurement] = useState<BodyMeasurement | null>(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   const handleSave = async (measurement: Parameters<typeof addMeasurement>[0], photoFile?: File | null) => {
     // T13a: NIEZMIENNIK — pomiar nigdy nie przepada przez zdjęcie. Upload jest
@@ -90,8 +99,54 @@ const Measurements = () => {
     await handleSave({ date: formatLocalDate(new Date()) }, file);
   };
 
+  // WP-M: edycja wpisu — upload nowego zdjęcia PRZED zapisem dokumentu; błąd
+  // uploadu = wpis nietknięty (komunikat wraca do dialogu). Stare zdjęcie
+  // sprząta updateMeasurement (best-effort) po udanym zapisie.
+  const handleUpdate = async (
+    id: string,
+    values: MeasurementEditValues,
+    photo: MeasurementPhotoChange,
+  ): Promise<{ ok: boolean; error?: string }> => {
+    const existing = measurements.find((m) => m.id === id);
+    let photoFields: { photoUrl?: string; photoPath?: string } = {};
+    if (photo.kind === 'keep' && existing?.photoUrl) {
+      photoFields = { photoUrl: existing.photoUrl, photoPath: existing.photoPath };
+    } else if (photo.kind === 'replace' && canUseBodyPhotos) {
+      try {
+        const blob = await compressImage(photo.file);
+        const photoPath = `body-photos/${uid}/${values.date}-${Date.now()}.jpg`;
+        const fileRef = storageRef(storage, photoPath);
+        await uploadBytes(fileRef, blob);
+        const photoUrl = await getDownloadURL(fileRef);
+        photoFields = { photoUrl, photoPath };
+      } catch {
+        return { ok: false, error: t('measurements.photo.updateUploadFailed') };
+      }
+    }
+    const result = await updateMeasurement(id, { ...values, ...photoFields });
+    if (result.error || !result.measurement) {
+      return { ok: false, error: result.error || t('measurements.saveErrorDesc') };
+    }
+    toast({ title: t('measurements.saveSuccessTitle'), description: t('measurements.saveSuccessDesc', { date: values.date }) });
+    return { ok: true };
+  };
+
+  const handleDelete = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+    const result = await deleteMeasurement(id);
+    if (!result.ok) return { ok: false, error: result.error || t('measurements.deleteErrorDesc') };
+    toast({ title: t('measurements.deleteSuccessTitle') });
+    return { ok: true };
+  };
+
+  // WP-M: porządek date + recordedAt (fallback id) — po edycji godziny dwa
+  // wpisy tego samego dnia mają stabilną kolejność; najnowszy na górze.
+  const sortedMeasurements = useMemo(
+    () => [...measurements].sort((a, b) => compareMeasurementsAsc(b, a)),
+    [measurements],
+  );
+
   const getWeightTrend = () => {
-    const sorted = [...measurements].filter((m) => m.weight).sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime());
+    const sorted = sortedMeasurements.filter((m) => m.weight);
     if (sorted.length < 2) return null;
     const diff = (sorted[0].weight || 0) - (sorted[1].weight || 0);
     if (diff > 0) return { direction: 'up' as const, value: diff };
@@ -100,16 +155,16 @@ const Measurements = () => {
   };
 
   const weightTrend = getWeightTrend();
-  const recentMeasurements = [...measurements]
-    .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
-    .slice(0, 5);
+  const HISTORY_PREVIEW_COUNT = 5;
+  const visibleMeasurements = showAllHistory ? sortedMeasurements : sortedMeasurements.slice(0, HISTORY_PREVIEW_COUNT);
 
-  // Delta per pole per data (Z77) — z serii, żeby "poprzedni" znaczyło poprzedni pomiar POLA.
-  const deltaByFieldDate = useMemo(() => {
+  // Delta per pole per WPIS (Z77 + WP-M: klucz po id, bo dwa wpisy mogą dzielić
+  // dzień) — z serii, żeby "poprzedni" znaczyło poprzedni pomiar POLA.
+  const deltaByFieldId = useMemo(() => {
     const map = new Map<string, number | null>();
     MEASUREMENT_FIELDS.forEach((field) => {
       buildMeasurementSeries(measurements, field).forEach((point) => {
-        map.set(`${field}:${point.date}`, point.delta);
+        map.set(`${field}:${point.id}`, point.delta);
       });
     });
     return map;
@@ -228,20 +283,34 @@ const Measurements = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentMeasurements.map((m) => (
-                <div key={m.id} className="rounded-lg bg-muted/50 p-3 space-y-2">
-                  <span className="text-sm font-medium">
-                    {formatLocalDateLabel(m.date, dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
-                    {/* FIX-B T7: godzina wykonania (pomiary sprzed recordedAt jej nie mają) */}
-                    {m.recordedAt && (
-                      <span className="ml-1 text-xs text-muted-foreground tabular-nums">
-                        {new Date(m.recordedAt).toLocaleTimeString(dateLocale(lang), { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
+              {visibleMeasurements.map((m) => (
+                // WP-M: wiersz otwiera edycję (za zgodą zdrowotną, jak dodawanie).
+                // Miniatura zdjęcia zatrzymuje propagację — nadal otwiera podgląd.
+                <div
+                  key={m.id}
+                  data-testid={`measurement-row-${m.id}`}
+                  role={healthConsent ? 'button' : undefined}
+                  tabIndex={healthConsent ? 0 : undefined}
+                  aria-label={healthConsent ? t('measurements.editEntry') : undefined}
+                  className={cn('rounded-lg bg-muted/50 p-3 space-y-2', healthConsent && 'cursor-pointer')}
+                  onClick={healthConsent ? () => setEditMeasurement(m) : undefined}
+                  onKeyDown={healthConsent ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditMeasurement(m); } } : undefined}
+                >
+                  <span className="flex items-center justify-between text-sm font-medium">
+                    <span>
+                      {formatLocalDateLabel(m.date, dateLocale(lang), { day: 'numeric', month: 'long', year: 'numeric' })}
+                      {/* FIX-B T7: godzina wykonania (pomiary sprzed recordedAt jej nie mają) */}
+                      {m.recordedAt && (
+                        <span className="ml-1 text-xs text-muted-foreground tabular-nums">
+                          {new Date(m.recordedAt).toLocaleTimeString(dateLocale(lang), { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </span>
+                    {healthConsent && <Pencil className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />}
                   </span>
                   {/* T13a: miniatura zdjęcia sylwetki (klik = pełny podgląd) */}
                   {m.photoUrl && (
-                    <button type="button" className="block" onClick={() => setPhotoPreview(m.photoUrl ?? null)}>
+                    <button type="button" className="block" onClick={(e) => { e.stopPropagation(); setPhotoPreview(m.photoUrl ?? null); }}>
                       <img
                         src={m.photoUrl}
                         alt={t('measurements.photo.preview')}
@@ -254,7 +323,7 @@ const Measurements = () => {
                   <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
                     {MEASUREMENT_FIELDS.filter((field) => typeof m[field] === 'number').map((field) => {
                       const value = m[field] as number;
-                      const delta = deltaByFieldDate.get(`${field}:${m.date}`) ?? null;
+                      const delta = deltaByFieldId.get(`${field}:${m.id}`) ?? null;
                       return (
                         <span key={field} className="whitespace-nowrap">
                           {t(MEASUREMENT_FIELD_LABEL_KEYS[field])}:{' '}
@@ -270,10 +339,29 @@ const Measurements = () => {
                   </div>
                 </div>
               ))}
+              {sortedMeasurements.length > HISTORY_PREVIEW_COUNT && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowAllHistory((prev) => !prev)}
+                >
+                  {showAllHistory ? t('measurements.showLess') : t('measurements.showAll', { n: sortedMeasurements.length })}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* WP-M: edycja/usuwanie wpisu — zawsze zamontowany, open=false zamyka. */}
+      <EditMeasurementDialog
+        open={editMeasurement !== null}
+        onOpenChange={(open) => { if (!open) setEditMeasurement(null); }}
+        measurement={editMeasurement}
+        photosEnabled={canUseBodyPhotos}
+        onUpdate={handleUpdate}
+        onDelete={handleDelete}
+      />
 
       {/* WP-D D5: kadrowanie bezpośredniej ścieżki — zawsze zamontowany, open=false zamyka. */}
       <PhotoCropDialog
