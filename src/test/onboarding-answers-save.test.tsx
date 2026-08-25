@@ -17,7 +17,7 @@ vi.mock('@/components/PlanPreview', () => ({
     <div data-testid="plan-preview"><button onClick={onConfirm}>PREVIEW-CONFIRM</button></div>
   ),
 }));
-const updateDoc = vi.hoisted(() => vi.fn(async () => {}));
+const updateDoc = vi.hoisted(() => vi.fn<(ref: unknown, data: Record<string, unknown>) => Promise<void>>(async () => {}));
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(() => ({})), updateDoc }));
 vi.mock('@/lib/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('@/contexts/UserContext', () => ({
@@ -75,7 +75,7 @@ const walkWizardToConfirm = async () => {
   await waitFor(() => expect(completeOnboardingPlan).toHaveBeenCalledTimes(1));
 };
 
-const lastUpdatePayload = () => updateDoc.mock.calls[updateDoc.mock.calls.length - 1][1] as Record<string, unknown>;
+const lastUpdatePayload = () => updateDoc.mock.calls[updateDoc.mock.calls.length - 1][1];
 
 beforeEach(() => {
   vi.clearAllMocks();

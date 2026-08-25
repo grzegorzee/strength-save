@@ -11,7 +11,7 @@ import { UnitProvider } from '@/contexts/UnitContext';
 import type { PlanWizardChoice } from '@/components/PlanWizard';
 import type { TrainingDay } from '@/data/trainingPlan';
 
-const updateDoc = vi.hoisted(() => vi.fn(async () => {}));
+const updateDoc = vi.hoisted(() => vi.fn<(ref: unknown, data: Record<string, unknown>) => Promise<void>>(async () => {}));
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn(() => ({})),
   getDoc: vi.fn(async () => ({ exists: () => false, data: () => null })),
@@ -33,7 +33,7 @@ vi.mock('@/hooks/useFirebaseWorkouts', () => ({
 vi.mock('@/hooks/usePlanCycles', () => ({
   usePlanCycles: () => ({ archiveCurrentPlan: vi.fn(), createActiveCycle: vi.fn(), getCycleById: vi.fn() }),
 }));
-const startCycleWithPlan = vi.hoisted(() => vi.fn(async () => ({ success: true })));
+const startCycleWithPlan = vi.hoisted(() => vi.fn<() => Promise<{ success: boolean; error?: string }>>(async () => ({ success: true })));
 vi.mock('@/lib/cycle-actions', () => ({ startCycleWithPlan }));
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -88,7 +88,7 @@ describe('NewPlan: replan aktualizuje trainingProfile (WP-O)', () => {
     await renderAndConfirm();
 
     await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
-    const payload = updateDoc.mock.calls[0][1] as Record<string, unknown>;
+    const payload = updateDoc.mock.calls[0][1];
     expect(payload).toEqual({ trainingProfile: { level: 'advanced', objective: 'peak_strength', daysPerWeek: 2 } });
     expect(payload).not.toHaveProperty('onboardingAnswers');
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/'));
