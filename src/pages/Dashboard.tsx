@@ -49,6 +49,8 @@ import { WORKOUT_SYNC_STATE_CHANGED_EVENT } from '@/lib/workout-sync-entries';
 import { buildActiveCyclePreview, withLiveCompletedStats } from '@/lib/cycle-insights';
 import { buildPlanNextStep } from '@/lib/plan-next-step';
 import { PlanNextStepCard } from '@/components/PlanNextStepCard';
+import { PreStartCard } from '@/components/PreStartCard';
+import { buildPreStartInfo } from '@/lib/plan-prestart';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { countCompletedWorkingSets } from '@/lib/workout-day-view';
 import { createAdhocDay } from '@/lib/adhoc-workout';
@@ -375,11 +377,10 @@ const Dashboard = () => {
     // branchem completed: dzisiejszy ukończony trening przy przyszłym planie to
     // sesja ad-hoc/stary plan i nie ma prawa pokazać "next session" sprzed startu
     // (zgłoszenie: "NEXT SESSION · AUG 24" przy starcie 7 września).
-    if (planStartDate && today < parseLocalDate(planStartDate)) {
-      const dayBeforeStart = parseLocalDate(planStartDate);
-      dayBeforeStart.setDate(dayBeforeStart.getDate() - 1);
-      const firstEntry = getNextScheduledTraining(trainingPlan, dayBeforeStart, { overrides: scheduleOverrides, startDateISO: planStartDate });
-      return { type: 'preStart' as const, startDateISO: planStartDate, firstEntry };
+    // WP-F (X35a): wyliczenie wspólne z zakładką Plan (lib/plan-prestart).
+    const preStart = buildPreStartInfo({ planDays: trainingPlan, planStartDate, today, scheduleOverrides });
+    if (preStart) {
+      return { type: 'preStart' as const, ...preStart };
     }
 
     const completedToday = findWorkoutForRoute(workouts, {
@@ -1089,28 +1090,12 @@ const Dashboard = () => {
       {/* T3 (feedback 2026-08-20): cykl jeszcze nie wystartował — karta z datą
           startu (z dniem tygodnia) i pierwszym treningiem zamiast pustej regeneracji. */}
       {todayTraining.type === 'preStart' && (
-        <div className="flex flex-col gap-2 rounded-xl bg-surface-container p-5" data-testid="prestart-card">
-          <span className="eyebrow-mono text-primary">{t('dash.hero.planStarts')}</span>
-          <p className="min-w-0 font-heading text-xl font-bold leading-tight tracking-tight">
-            {t('dash.preStart.title', {
-              date: formatLocalDateLabel(todayTraining.startDateISO, dateLocale(lang), {
-                weekday: 'long', day: 'numeric', month: 'long',
-              }),
-            })}
-          </p>
-          {todayTraining.firstEntry && (
-            <p className="text-sm text-muted-foreground">
-              {t('dash.preStart.firstWorkout', {
-                day: `${displayDayNameForDate(todayTraining.firstEntry.day.dayName, todayTraining.firstEntry.day.weekday, todayTraining.firstEntry.date, lang)} (${localizeFocus(todayTraining.firstEntry.day.focus, lang)}) · ${formatLocalDateLabel(todayTraining.firstEntry.dateKey, dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}`,
-              })}
-            </p>
-          )}
-          {/* Uwaga właściciela (121): przed startem cyklu "Zobacz plan" to główna
-              akcja dnia, więc CTA w akcencie jak hero, nie wyszarzony outline. */}
-          <Button className="kinetic-primary-button mt-2 h-12 w-full gap-1.5 text-base hover:brightness-105" onClick={() => navigate('/plan')}>
-            {t('dash.preStart.viewPlan')}
-          </Button>
-        </div>
+        // WP-F (X35a): wspólna karta z zakładką Plan (PreStartCard), CTA jak dotąd -> /plan.
+        <PreStartCard
+          info={todayTraining}
+          ctaLabel={t('dash.preStart.viewPlan')}
+          onCta={() => navigate('/plan')}
+        />
       )}
 
       {/* Runna p.1 (spec B2): dzień wolny to karta regeneracji z treścią,

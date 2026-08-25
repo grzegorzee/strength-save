@@ -62,8 +62,9 @@ const ALLOWED_LOGIC_CALLS: Record<string, number> = {
   'src/components/analytics/AnalyticsChartsTab.tsx': 8,
   // logika, nie etykieta: sortowanie sesji malejaco po dacie
   'src/pages/WorkoutHistory.tsx': 2,
-  // logika, nie etykieta: okna aktywnosci, granice planu, prestart, autokoniec
-  'src/pages/Dashboard.tsx': 5,
+  // logika, nie etykieta: okna aktywnosci, granice planu, autokoniec
+  // (WP-F X35a: prestart przeniesiony do lib/plan-prestart.ts)
+  'src/pages/Dashboard.tsx': 3,
   // logika, nie etykieta: zakresy dat, poprzednia sesja, klucze miesiecy
   'src/pages/Analytics.tsx': 8,
   // logika, nie etykieta: markery kalendarza, start tygodnia, daty treningow

@@ -3,7 +3,7 @@
 // + format z lib/workout-csv + Blob flow (ten sam wzorzec pobierania pliku co
 // eksport JSON w DataManagement, działa też w natywnym WKWebView).
 // Dwa punkty wejścia (Historia, Ustawienia → Dane) otwierają TEN SAM dialog.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import {
   Dialog,
@@ -29,6 +29,9 @@ import {
 // WP-H (X28): fetch stron zakresu + budowa/pobranie CSV wydzielone do lib —
 // ta sama ścieżka co Export sheet Historii.
 import { downloadWorkoutsCsvFile, fetchWorkoutsForBounds } from '@/lib/workout-csv-download';
+// WP-D (X35a): ta sama lista cykli (etykiety, filtr widoczności, domyślny
+// aktywny) co w Export sheecie Historii.
+import { buildExportCycleOptions, defaultExportCycleId } from '@/lib/export-cycle-options';
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { toast } from '@/hooks/use-toast';
@@ -42,10 +45,12 @@ interface ExportWorkoutsDialogProps {
   onOpenChange: (open: boolean) => void;
   uid: string;
   cycles: PlanCycle[];
+  /** WP-D: sesje usera do licznika treningów aktywnego cyklu w etykiecie. */
+  workouts: WorkoutSession[];
 }
 
-export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: ExportWorkoutsDialogProps) => {
-  const { t } = useTranslation();
+export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles, workouts: userWorkouts }: ExportWorkoutsDialogProps) => {
+  const { t, lang } = useTranslation();
   const [kind, setKind] = useState<ExportRangeKind>('week');
   const [cycleId, setCycleId] = useState<string>('');
   const [customFrom, setCustomFrom] = useState('');
@@ -53,11 +58,24 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
   const [workouts, setWorkouts] = useState<WorkoutSession[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const selectedCycle = cycles.find((c) => c.id === cycleId);
   const today = formatLocalDate(new Date());
+  const cycleOptions = useMemo(
+    () => buildExportCycleOptions({ cycles, workouts: userWorkouts, todayISO: today, lang, t }),
+    [cycles, userWorkouts, today, lang, t],
+  );
+  // Domyślny wybór = aktywny cykl (CTA nie startuje jako disabled); reset tylko
+  // gdy bieżący wybór nie istnieje na liście (deps prymitywne).
+  const defaultCycleId = defaultExportCycleId(cycleOptions);
+  useEffect(() => {
+    if (!open) return;
+    if (cycleOptions.some((option) => option.id === cycleId)) return;
+    setCycleId(defaultCycleId ?? '');
+  }, [open, cycleId, cycleOptions, defaultCycleId]);
+
+  const selectedCycle = cycleOptions.find((option) => option.id === cycleId)?.cycle;
   const bounds = exportRangeBounds({
     kind,
-    ...(selectedCycle ? { cycle: { startDate: selectedCycle.startDate, endDate: selectedCycle.endDate } } : {}),
+    ...(selectedCycle ? { cycle: { id: selectedCycle.id, startDate: selectedCycle.startDate, endDate: selectedCycle.endDate } } : {}),
     from: customFrom,
     to: customTo,
   }, today);
@@ -153,15 +171,15 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
           </div>
         </div>
         {kind === 'cycle' && (
-          cycles.length > 0 ? (
+          cycleOptions.length > 0 ? (
             <Select value={cycleId} onValueChange={setCycleId}>
               <SelectTrigger data-testid="export-cycle-select">
                 <SelectValue placeholder={t('exportCsv.cyclePlaceholder')} />
               </SelectTrigger>
               <SelectContent>
-                {cycles.map((cycle) => (
-                  <SelectItem key={cycle.id} value={cycle.id}>
-                    {cycle.startDate} → {cycle.endDate || t('exportCsv.cycleOngoing')}
+                {cycleOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id} data-testid={`export-cycle-option-${option.id}`}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>

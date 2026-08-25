@@ -865,10 +865,8 @@ const WorkoutHistory = () => {
         displayName={profile?.displayName || ''}
         period={periodSet ? { from: fromDate, to: toDate } : null}
         periodLabel={periodSet ? periodLabel : null}
-        activeCycleRange={activeCycle
-          ? { fromDate: activeCycle.startDate, toDate: activeCycle.endDate || todayStr }
-          : null}
-        activeCycleLabel={activeCycle ? cycleRangeOnly(activeCycle) : null}
+        cycles={visibleCycles}
+        workouts={liveSessions}
         trainerEmail={profile?.preferences?.trainerEmail}
         trainerName={profile?.preferences?.trainerName}
         onSendToCoach={() => setShowEmailDialog(true)}

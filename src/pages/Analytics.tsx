@@ -421,6 +421,7 @@ const SummaryTab = () => {
         onOpenChange={setShowExportDialog}
         uid={uid}
         cycles={cycles}
+        workouts={liveWorkouts}
       />
 
     </div>
