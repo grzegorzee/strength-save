@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, BarChart3, Bug, ClipboardList, Dumbbell, Loader2, Mail, MousePointerClick, Wrench } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bug, ClipboardList, Dumbbell, Loader2, Mail, MousePointerClick, Repeat, Wrench } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { EmptyState } from '@/components/EmptyState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -22,13 +22,17 @@ import { useAdminUserActions } from './useAdminUserActions';
 import { AVAILABLE_FEATURES } from './admin-user-types';
 import { AdminSubscriptionCard } from './AdminSubscriptionCard';
 import { AdminOnboardingCard, mapOnboardingAnswers, type AdminOnboardingAnswers } from './AdminOnboardingCard';
+import { AdminCyclesCard, parseCycleChoice } from './AdminCyclesCard';
+import { sanitizePlanCycleDoc } from '@/lib/firestore-doc-guards';
+import type { PlanCycle } from '@/types/cycles';
 import { mapSubscription, type ActivitySummary, type SubscriptionState } from '@/lib/user-profile';
 import type { EmailLogRow } from '@/lib/admin-email-stats';
 import { EmailLogRowItem, EmailPreviewDialog, useEmailPreview } from './EmailLogRow';
 
 // Z99: szczegół usera w panelu admina. Dane on-demand po wejściu:
 // users/{uid} (1 odczyt) + app_telemetry_daily 30 dni (query userId+date, <=31)
-// + training_plans/{uid} (1) + client_errors (10). Razem ~43 odczyty max.
+// + training_plans/{uid} (1) + client_errors (10) + plan_cycles (WP-7 X33,
+// query userId, <=50). Razem ~93 odczyty max.
 // Treningi WYŁĄCZNIE z liczników telemetrii (zero odczytów kolekcji workouts).
 
 interface DetailUser {
@@ -110,6 +114,8 @@ const AdminUserDetail = () => {
   const [errors, setErrors] = useState<ClientErrorRow[] | null>(null);
   // T22a: maile tego usera (email_log po uid) + podgląd treści.
   const [emails, setEmails] = useState<EmailLogRow[] | null>(null);
+  // WP-7 (X33): cykle usera z plan_cycles (+ odpowiedzi z kreatora `choice`).
+  const [cycles, setCycles] = useState<PlanCycle[]>([]);
   const { preview, openPreview, closePreview } = useEmailPreview();
   const [loading, setLoading] = useState(true);
   // Z102: naprawy z dry-run; Wykonaj aktywne dopiero po świeżym dry-run tej akcji.
@@ -138,7 +144,7 @@ const AdminUserDetail = () => {
         const floor = new Date();
         floor.setDate(floor.getDate() - 31);
         const floorKey = `${floor.getFullYear()}-${String(floor.getMonth() + 1).padStart(2, '0')}-${String(floor.getDate()).padStart(2, '0')}`;
-        const [userSnap, telemetrySnap, planSnap, errorsSnap, emailsSnap] = await Promise.all([
+        const [userSnap, telemetrySnap, planSnap, errorsSnap, emailsSnap, cyclesSnap] = await Promise.all([
           getDoc(doc(db, 'users', userId)),
           getDocs(query(
             collection(db, 'app_telemetry_daily'),
@@ -159,6 +165,12 @@ const AdminUserDetail = () => {
             where('uid', '==', userId),
             orderBy('sentAt', 'desc'),
             limit(20),
+          )).catch(() => null),
+          // WP-7 (X33): cykle usera; blad zapytania = pusta lista, nie wywala widoku.
+          getDocs(query(
+            collection(db, 'plan_cycles'),
+            where('userId', '==', userId),
+            limit(50),
           )).catch(() => null),
         ]);
         if (cancelled) return;
@@ -202,12 +214,24 @@ const AdminUserDetail = () => {
         setEmails(emailsSnap
           ? emailsSnap.docs.map((d) => ({ ...(d.data() as Omit<EmailLogRow, 'id'>), id: d.id }))
           : []);
+        // Dokument przez istniejacy guard; `choice` czytane tolerancyjnie z surowych
+        // danych (parseCycleChoice), sanitizer moze go jeszcze nie przenosic.
+        setCycles(cyclesSnap
+          ? cyclesSnap.docs.flatMap((d) => {
+            const raw = d.data() as Record<string, unknown> | undefined;
+            const cycle = sanitizePlanCycleDoc(d.id, raw);
+            if (!cycle) return [];
+            const choice = cycle.choice ?? parseCycleChoice(raw?.choice);
+            return [choice ? { ...cycle, choice } : cycle];
+          })
+          : []);
       } catch (error) {
         console.error('[AdminUserDetail] load failed', error);
         if (!cancelled) {
           setTelemetryDocs([]);
           setErrors([]);
           setEmails([]);
+          setCycles([]);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -433,6 +457,19 @@ const AdminUserDetail = () => {
               onboardingVersion: user.onboardingVersion,
             }}
           />
+        </CardContent>
+      </Card>
+
+      {/* CYKLE (WP-7 X33): plan_cycles usera + odpowiedzi z kreatora per cykl. */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+            <Repeat className="h-4 w-4 text-primary" />
+            {t('admin.cycles.title')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdminCyclesCard cycles={cycles} />
         </CardContent>
       </Card>
 

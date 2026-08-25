@@ -71,26 +71,26 @@ export const mapOnboardingAnswers = (raw: unknown): AdminOnboardingAnswers | nul
   };
 };
 
-const LEVEL_KEY: Record<string, TranslationKey> = {
+export const LEVEL_KEY: Record<string, TranslationKey> = {
   beginner: 'ob.level.beginner',
   intermediate: 'ob.level.intermediate',
   advanced: 'ob.level.advanced',
 };
 
-const OBJECTIVE_KEY: Record<string, TranslationKey> = {
+export const OBJECTIVE_KEY: Record<string, TranslationKey> = {
   build_muscle: 'ob.obj.muscle',
   peak_strength: 'ob.obj.strength',
   fat_loss: 'ob.obj.fatloss',
   athletic: 'ob.obj.athletic',
 };
 
-const SOURCE_KEY: Record<string, TranslationKey> = {
+export const SOURCE_KEY: Record<string, TranslationKey> = {
   recommended: 'admin.onb.source.recommended',
   browsed: 'admin.onb.source.browsed',
   custom: 'admin.onb.source.custom',
 };
 
-const weekdayShorts = (days: string[], lang: LanguageCode): string => {
+export const weekdayShorts = (days: string[], lang: LanguageCode): string => {
   const valid = days.filter((d): d is Weekday => WEEKDAYS.some((w) => w.value === d));
   return uniqueSortedWeekdays(valid)
     .map((d) => localizeWeekdayShort(WEEKDAYS.find((w) => w.value === d)?.short ?? d, lang))
@@ -98,7 +98,7 @@ const weekdayShorts = (days: string[], lang: LanguageCode): string => {
 };
 
 /** Nazwa szablonu w jezyku UI; nieznane id degraduje do samego id (etykieta nie rzuca). */
-const templateName = (id: string, lang: LanguageCode): string =>
+export const templateName = (id: string, lang: LanguageCode): string =>
   localizePlanName(id, planTemplates.find((p) => p.id === id)?.name ?? id, lang);
 
 const AccentValue = ({ accentId }: { accentId: string }) => {
