@@ -6,7 +6,8 @@ import { dateLocale, type TranslationKey } from '@/i18n';
 import { localizeFocus, localizeWeekdayShort, localizePlanName, localizePlanDescription } from '@/lib/plan-i18n';
 import { PlanBuilder } from '@/components/PlanBuilder';
 import { PlanDurationPicker } from '@/components/PlanDaysEditor';
-import { planTemplates, getRecommendedPlan, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
+import { planTemplates, type PlanTemplate, type PlanObjective } from '@/data/planTemplates';
+import { scoreTemplates } from '@/lib/plan-recommendation';
 import { getPlanTemplateImageUrl } from '@/lib/exercise-media';
 import type { TrainingDay, Weekday } from '@/data/trainingPlan';
 import { cn, formatLocalDate, parseLocalDate } from '@/lib/utils';
@@ -259,7 +260,10 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
     setStep(2);
   };
 
-  const recommended = useMemo(() => getRecommendedPlan(objective, level, daysPerWeek), [objective, level, daysPerWeek]);
+  // WP-O (X30): jeden scoring dla rekomendacji (element [0]) i sortowania Browse
+  // plans (ta sama lista, malejąco po dopasowaniu do odpowiedzi usera).
+  const scoredTemplates = useMemo(() => scoreTemplates({ objective, level, daysPerWeek }, planTemplates), [objective, level, daysPerWeek]);
+  const recommended = scoredTemplates[0].template;
   const chosen = picked ?? recommended;
   // WP-PLANS-1 (X27, Task P5): kontrola długości w kroku potwierdzenia szablonu;
   // null = default z szablonu (zmiana szablonu resetuje wybór).
@@ -579,14 +583,23 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               <p className="text-muted-foreground mt-1">{t('ob.browse.desc')}</p>
             </div>
             <div className="flex-1 space-y-3 overflow-y-auto">
-              {planTemplates.map(tpl => (
+              {/* WP-O (X30): lista posortowana wg dopasowania (scoreTemplates);
+                  najlepszy dostaje badge "Polecany". */}
+              {scoredTemplates.map(({ template: tpl }, idx) => (
                 <button key={tpl.id} onClick={() => { setPicked(tpl); setDays(tpl.daysPerWeek); setTemplateWeeks(null); setPlanNameInput(null); setMode('recommend'); }} className="w-full text-left rounded-2xl bg-surface-low hover:bg-surface-container overflow-hidden transition-colors">
                   {/* WP-F (X28): hero na górze karty (rounded-t przez overflow-hidden rodzica) */}
                   <TemplateHero templateId={tpl.id} />
                   <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
-                      <span className="text-[11px] text-muted-foreground tabular-nums">{tpl.daysPerWeek}× · {tpl.durationWeeks}{t('ob.browse.wk')}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <h3 className="truncate font-heading font-bold text-lg text-primary">{localizePlanName(tpl.id, tpl.name, lang)}</h3>
+                        {idx === 0 && (
+                          <span data-testid="browse-recommended-badge" className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                            {t('ob.browse.recommendedBadge')}
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">{tpl.daysPerWeek}× · {tpl.durationWeeks}{t('ob.browse.wk')}</span>
                     </div>
                     <p className="text-[13px] text-muted-foreground mt-1 leading-snug">{localizePlanDescription(tpl.id, tpl.description, lang)}</p>
                   </div>

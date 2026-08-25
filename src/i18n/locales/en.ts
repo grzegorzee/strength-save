@@ -2451,6 +2451,7 @@ export const en: Record<keyof typeof pl, string> = {
   'ob.browse.title': 'All plans',
   'ob.browse.desc': 'Pick any plan to preview the details.',
   'ob.browse.wk': 'w',
+  'ob.browse.recommendedBadge': 'Recommended',
   'cycles.tonnagePerWorkout': 'Tonnage/workout',
   'cycles.delete': 'Delete cycle',
   'cycles.deleteConfirm': 'Delete this cycle? Your workouts stay, but the cycle summary is removed. This cannot be undone.',
