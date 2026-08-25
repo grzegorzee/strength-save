@@ -27,7 +27,14 @@ export interface StartCycleDeps {
   startDateISO?: string;
   /** WP-PLANS-2 (X27): nazwa planu zapisywana na training_plans (trim, max 60). */
   planName?: string;
-  archiveCurrentPlan: (days: TrainingDay[], weeks: number, start: string, workouts: WorkoutSession[]) => Promise<string | null>;
+  /** H1 bug B (X31): `excludeCycleId` = świeżo utworzony cykl, którego archiwizacja nie ma prawa zamknąć. */
+  archiveCurrentPlan: (
+    days: TrainingDay[],
+    weeks: number,
+    start: string,
+    workouts: WorkoutSession[],
+    opts?: { excludeCycleId?: string },
+  ) => Promise<string | null>;
   savePlan: (days: TrainingDay[], options?: { durationWeeks?: number; startDate?: string; syncActiveCycle?: boolean; progression?: ProgressionConfig; status?: 'active' | 'ended'; name?: string }) => Promise<{ success: boolean; error?: string }>;
   createActiveCycle: (days: TrainingDay[], weeks: number, start: string) => Promise<string | null>;
   backfillHistoricalWorkouts: (cycles: PlanCycle[]) => Promise<unknown>;
@@ -152,9 +159,12 @@ export async function startCycleWithPlan(
 
   // Archiwizuj poprzedni plan dopiero po utworzeniu nowego aktywnego cyklu. Jeśli ten krok
   // zostanie ponowiony, archiveCurrentPlan ma zachować idempotencję po startDate.
+  // H1 bug B (X31): nowy cykl jest wykluczony z archiwizacji — przy tej samej
+  // dacie startu archiwum zamykało właśnie utworzony cykl (zero aktywnych).
   if (deps.planStartDate && deps.currentPlan.length > 0) {
     const archivedId = await deps.archiveCurrentPlan(
       deps.currentPlan, deps.planDurationWeeks, deps.planStartDate, deps.workouts,
+      { excludeCycleId: activeCycleId },
     );
     if (archivedId) {
       const archived: PlanCycle = {

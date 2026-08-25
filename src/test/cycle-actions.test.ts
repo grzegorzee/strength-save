@@ -40,7 +40,8 @@ describe('cycle lifecycle actions', () => {
 
     expect(result.success).toBe(true);
     // Stary plan trafia do archiwum (cykl completed), nie jest kasowany w ciszy.
-    expect(archiveCurrentPlan).toHaveBeenCalledWith(oldPlan, 6, '2026-05-04', []);
+    // H1 bug B (X31): swiezo utworzony cykl jest wykluczony z archiwizacji.
+    expect(archiveCurrentPlan).toHaveBeenCalledWith(oldPlan, 6, '2026-05-04', [], { excludeCycleId: 'new-cycle-id' });
     // Historia treningów dotagowana snapshotem zarchiwizowanego cyklu.
     expect(backfillHistoricalWorkouts).toHaveBeenCalledWith([
       expect.objectContaining({ id: 'archived-cycle-id', days: oldPlan, status: 'completed' }),

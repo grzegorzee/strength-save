@@ -21,7 +21,7 @@ import type { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { calendarDayDiff, formatLocalDate } from '@/lib/utils';
 import { computeCycleStats } from '@/lib/cycle-insights';
-import { chunkForFirestoreWrite, shouldMergeContinuousCycles } from '@/lib/plan-cycle-utils';
+import { chunkForFirestoreWrite, planTemplateHash, shouldMergeContinuousCycles } from '@/lib/plan-cycle-utils';
 import { isCycleVisible } from '@/lib/cycle-visibility';
 import { sanitizePlanCycleDoc } from '@/lib/firestore-doc-guards';
 import { reportClientError } from '@/lib/error-telemetry';
@@ -63,7 +63,9 @@ const fetchWorkoutIdsByCycleIds = async (userId: string, cycleIds: string[]): Pr
 };
 
 const archivedDurationWeeks = (startDate: string, endDate: string, plannedWeeks: number): number => {
-  const elapsedDays = calendarDayDiff(startDate, endDate) + 1;
+  // H1 bug B (X31): cykl, który nie ruszył (endDate < startDate), nie ma
+  // ujemnego zakresu — liczy się jak jednodniowy.
+  const elapsedDays = Math.max(0, calendarDayDiff(startDate, endDate)) + 1;
   const elapsedWeeks = Math.max(1, Math.ceil(elapsedDays / 7));
   return Math.max(1, Math.min(plannedWeeks, elapsedWeeks));
 };
@@ -160,17 +162,26 @@ export const usePlanCycles = (userId: string) => {
     durationWeeks: number,
     startDate: string,
     workouts: WorkoutSession[],
+    // H1 bug B (X31): startCycleWithPlan przekazuje id ŚWIEŻO utworzonego cyklu —
+    // przy replanie z tą samą datą startu archiwizacja nie ma prawa zamknąć
+    // cyklu, który właśnie powstał (incydent 2026-08-25: zero aktywnych cykli).
+    opts?: { excludeCycleId?: string },
   ): Promise<string | null> => {
     if (!userId) return null;
 
     try {
-      const endDate = formatLocalDate(new Date());
+      const today = formatLocalDate(new Date());
+      // H1 bug B: cykl, który nigdy nie ruszył (start w przyszłości), zamykamy
+      // z endDate = startDate — bez rekordu z endDate przed startem. UI (Cykle,
+      // Historia, Osiągnięcia) i tak ukrywa zamknięte cykle bez treningów.
+      const endDate = today < startDate ? startDate : today;
       // H1 (X31): archiwizujemy cykl KOŃCZONEGO planu. Po replanie na przyszły
       // poniedziałek bywają dwa aktywne cykle naraz (stary do wygaśnięcia + nowy
       // czekający); "pierwszy aktywny" (orderBy startDate desc) wskazywałby
       // NOWY cykl. Preferencja: aktywny cykl o startDate kończonego planu,
       // fallback jak dotąd (legacy konta bez wyrównanych dat).
-      const activeCandidates = cycles.filter(cycle => cycle.status === 'active');
+      const activeCandidates = cycles.filter(cycle =>
+        cycle.status === 'active' && cycle.id !== opts?.excludeCycleId);
       const activeCycle = activeCandidates.find(cycle => cycle.startDate === startDate)
         ?? activeCandidates[0]
         ?? null;
@@ -208,11 +219,20 @@ export const usePlanCycles = (userId: string) => {
 
       const cycleId = `cycle-${userId}-${startDate}`;
       const cycleRef = doc(db, CYCLES_COLLECTION, cycleId);
-      await runTransaction(db, async transaction => {
+      const archivedId = await runTransaction(db, async transaction => {
         const existing = await transaction.get(cycleRef);
-        if (!existing.exists()) transaction.set(cycleRef, cycle);
+        if (!existing.exists()) {
+          transaction.set(cycleRef, cycle);
+          return cycleId;
+        }
+        // H1 bug B: deterministyczne id zajęte przez ŻYWY cykl (np. właśnie
+        // utworzony pod tą samą datą startu, którego stale `cycles` jeszcze nie
+        // widzi) — to nie jest archiwum tego planu; nic nie zamykamy.
+        const existingStatus = (existing.data() as { status?: unknown }).status;
+        if (existingStatus === 'active' || cycleId === opts?.excludeCycleId) return null;
+        return cycleId;
       });
-      return cycleId;
+      return archivedId;
     } catch (err) {
       console.error('[usePlanCycles] Archive error:', err);
       return null;
@@ -240,11 +260,29 @@ export const usePlanCycles = (userId: string) => {
 
       // The start date is the operation key. Retrying after a lost response must
       // observe the same cycle rather than create another active one.
-      const cycleId = `cycle-${userId}-${startDate}`;
-      const cycleRef = doc(db, CYCLES_COLLECTION, cycleId);
-      await runTransaction(db, async transaction => {
-        const existing = await transaction.get(cycleRef);
-        if (!existing.exists()) transaction.set(cycleRef, cycle);
+      const baseId = `cycle-${userId}-${startDate}`;
+      const baseRef = doc(db, CYCLES_COLLECTION, baseId);
+      const cycleId = await runTransaction(db, async transaction => {
+        const existing = await transaction.get(baseRef);
+        if (!existing.exists()) {
+          transaction.set(baseRef, cycle);
+          return baseId;
+        }
+        // Retry tej samej operacji: aktywny cykl tego samego planu pod tym id → reuse.
+        const data = existing.data() as { status?: unknown; durationWeeks?: unknown; days?: unknown };
+        const sameActivePlan = data.status === 'active'
+          && data.durationWeeks === durationWeeks
+          && Array.isArray(data.days)
+          && planTemplateHash(data.days as TrainingDay[]) === planTemplateHash(planDays);
+        if (sameActivePlan) return baseId;
+        // H1 bug B (X31): id zajęte przez ZAMKNIĘTY cykl (albo aktywny z innym
+        // planem) — ponowny wybór planu z tą samą datą startu. Dotąd transakcja
+        // była no-op i zwracała "sukces" bez aktywnego cyklu (konto usera
+        // 2026-08-25: plan active, zero aktywnych cykli). Nowy dokument z
+        // sufiksem; stary zostaje nietknięty.
+        const freshId = `${baseId}-${Date.now()}`;
+        transaction.set(doc(db, CYCLES_COLLECTION, freshId), cycle);
+        return freshId;
       });
       return cycleId;
     } catch (err) {
