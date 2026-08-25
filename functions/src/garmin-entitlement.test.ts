@@ -36,6 +36,48 @@ describe("resolveGarminEntitlement (X25/Z226)", () => {
     }, NOW).active).toBe(false);
   });
 
+  // Bug 21 (X30): datowany grant comp (panel admina +30/+90/+365 dni) wygasa na
+  // zegarku tak samo jak u klienta (isSubscriptionActive) — koniec z dożywotnim a=1.
+  it("comp z przyszłą datą jest aktywny i deklaruje koniec (x) zegarkowi", () => {
+    const entitlement = resolveGarminEntitlement({
+      status: "active", subscription: { tier: "comp", status: "active", expiresAt: FUTURE },
+    }, NOW);
+    expect(entitlement).toMatchObject({ active: true, tier: "comp", expiresAt: Date.parse(FUTURE), reason: "active" });
+    expect(entitlement.snapshot).toEqual({ v: 1, a: 1, t: "comp", x: Date.parse(FUTURE) });
+  });
+
+  it("comp z przeszłą albo niepoprawną datą wygasa (fail closed)", () => {
+    expect(resolveGarminEntitlement({
+      status: "active", subscription: { tier: "comp", status: "active", expiresAt: PAST },
+    }, NOW)).toMatchObject({ active: false, tier: "comp", reason: "expired" });
+    expect(resolveGarminEntitlement({
+      status: "active", subscription: { tier: "comp", status: "active", expiresAt: "not-a-date" },
+    }, NOW)).toMatchObject({ active: false, tier: "comp", reason: "incomplete" });
+  });
+
+  // Bug 7 (X30): wygasły/odebrany grant comp nie kasuje opłaconego okresu — stan
+  // sklepowy zachowany w storeSubscription przejmuje entitlement na zegarku.
+  it("wygasły comp z opłaconym stanem w storeSubscription => PRO ze store", () => {
+    expect(resolveGarminEntitlement({
+      status: "active",
+      subscription: { tier: "comp", status: "active", expiresAt: PAST },
+      storeSubscription: { tier: "yearly", status: "active", expiresAt: FUTURE },
+    }, NOW)).toMatchObject({ active: true, tier: "yearly", expiresAt: Date.parse(FUTURE) });
+  });
+
+  it("aktywny comp wygrywa ze storeSubscription; wygasły store nie wskrzesza PRO", () => {
+    expect(resolveGarminEntitlement({
+      status: "active",
+      subscription: { tier: "comp", status: "active", expiresAt: null },
+      storeSubscription: { tier: "yearly", status: "active", expiresAt: FUTURE },
+    }, NOW)).toMatchObject({ active: true, tier: "comp" });
+    expect(resolveGarminEntitlement({
+      status: "active",
+      subscription: { tier: "comp", status: "active", expiresAt: PAST },
+      storeSubscription: { tier: "yearly", status: "active", expiresAt: PAST },
+    }, NOW)).toMatchObject({ active: false });
+  });
+
   it("emits a compact server-confirmed capability snapshot without store secrets", () => {
     const entitlement = resolveGarminEntitlement({
       status: "active",

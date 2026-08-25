@@ -25,6 +25,17 @@ const callRegistrationFunction = callProtectedFunction;
 
 export type AccountStatus = "pending_verification" | "active" | "suspended" | "deleted";
 
+/** Kształt dokumentowego pola subskrypcji (subscription i storeSubscription w users/{uid}). */
+export interface AppSubscriptionDoc {
+  tier?: string;
+  status?: string;
+  startedAt?: string | null;
+  expiresAt?: string | null;
+  productId?: string;
+  willRenew?: boolean;
+  updatedAt?: string;
+}
+
 export interface AppUserProfile {
   uid: string;
   email: string;
@@ -60,15 +71,9 @@ export interface AppUserProfile {
   cohorts?: string[];
   features?: Record<string, boolean>;
   // Subskrypcja PRO: pisane przez webhook RevenueCat (Cloud Function) albo admina (tier 'comp').
-  subscription?: {
-    tier?: string;
-    status?: string;
-    startedAt?: string | null;
-    expiresAt?: string | null;
-    productId?: string;
-    willRenew?: boolean;
-    updatedAt?: string;
-  };
+  subscription?: AppSubscriptionDoc;
+  /** Bug 7 (X30): stan sklepowy zachowany obok aktywnego grantu comp (webhook RC pisze tu, póki grant trwa). */
+  storeSubscription?: AppSubscriptionDoc;
   stravaConnected?: boolean;
   // Preferencje aplikacji synchronizowane między urządzeniami (web + iOS).
   preferences?: {

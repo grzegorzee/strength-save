@@ -45,6 +45,21 @@ export const isSubscriptionActive = (sub: SubscriptionState | null, now = Date.n
   return !!sub.expiresAt && new Date(sub.expiresAt).getTime() > now;
 };
 
+/**
+ * Bug 7 (X30): grant comp przykrywa stan sklepowy tylko póki trwa. Webhook RC pisze
+ * wtedy do users/{uid}.storeSubscription; po wygaśnięciu grantu obowiązuje zachowany
+ * stan sklepowy (opłacony okres nie znika z web/Garmin do następnego eventu sklepu).
+ */
+export const resolveEffectiveSubscription = (
+  sub: SubscriptionState | null,
+  storeSub: SubscriptionState | null,
+  now = Date.now(),
+): SubscriptionState | null => {
+  if (!sub || !storeSub) return sub ?? storeSub;
+  if (sub.tier === 'comp' && !isSubscriptionActive(sub, now)) return storeSub;
+  return sub;
+};
+
 // Z96: rollup aktywności pisany WYŁĄCZNIE przez scheduled function (Admin SDK);
 // klient tylko czyta (rules: activitySummary poza whitelistą update usera).
 export interface ActivitySummary {
@@ -130,7 +145,8 @@ export const mapAppUserProfile = (userId: string, data: AppUserProfile, seed: Au
   emailVerifiedAt: data.verification?.emailVerifiedAt || null,
   cohorts: data.cohorts || [],
   features: data.features || undefined,
-  subscription: mapSubscription(data.subscription),
+  // Bug 7 (X30): po wygaśnięciu grantu comp głos przejmuje zachowany stan sklepowy.
+  subscription: resolveEffectiveSubscription(mapSubscription(data.subscription), mapSubscription(data.storeSubscription)),
   preferences: data.preferences || undefined,
   // Incydent 2026-08-11 (build 87): bez przeniesienia mirrora zgód bramka
   // re-consent nie miała się jak zamknąć po udanym recordConsent.

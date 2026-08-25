@@ -17,6 +17,7 @@ import {
   buildGrantedSubscription,
   buildRevokedSubscription,
   resolveGrantStartedAt,
+  restoreRevokedSubscription,
 } from '../../functions/src/security';
 import { isSubscriptionActive } from '@/lib/user-profile';
 
@@ -174,6 +175,21 @@ describe('buildGrantedSubscription (Z169 / panel 2026-08-20)', () => {
     const revoked = buildRevokedSubscription();
     expect(revoked).toEqual({ tier: 'none', status: 'none', expiresAt: null });
     expect(isSubscriptionActive(revoked, NOW)).toBe(false);
+  });
+
+  // Bug 7 (X30): revoke grantu nadanego NA opłacony okres nie może odebrać PRO —
+  // przywraca stan sklepowy zachowany w storeSubscription (pełna mapa z dokumentu).
+  it('restoreRevokedSubscription: przywraca stan sklepowy, bez niego wraca none', () => {
+    const store = {
+      tier: 'yearly', status: 'active', startedAt: '2026-07-01T00:00:00.000Z',
+      expiresAt: '2027-07-01T00:00:00.000Z', productId: 'strengthsave_pro_yearly',
+      willRenew: true, updatedAt: '2026-07-01T00:00:00.000Z', eventId: 'e-1', eventTimestamp: 5_000,
+    };
+    const restored = restoreRevokedSubscription(store);
+    expect(restored).toEqual(store);
+    expect(isSubscriptionActive(restored as unknown as Parameters<typeof isSubscriptionActive>[0], NOW)).toBe(true);
+    expect(restoreRevokedSubscription(undefined)).toEqual({ tier: 'none', status: 'none', expiresAt: null });
+    expect(restoreRevokedSubscription(null)).toEqual({ tier: 'none', status: 'none', expiresAt: null });
   });
 
   // "Od kiedy" grantu (2026-08-20): przedłużenie aktywnego dostępu zachowuje startedAt.

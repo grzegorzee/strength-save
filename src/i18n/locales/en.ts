@@ -1471,6 +1471,7 @@ export const en: Record<keyof typeof pl, string> = {
   'paywall.terms': 'Terms',
   'paywall.privacy': 'Privacy',
   'paywall.purchaseError': 'Could not process the purchase. Please try again.',
+  'paywall.purchasePending': 'Purchase received. PRO will activate in a moment.',
   'paywall.loadError': 'Could not load plans. Check your connection.',
   'paywall.retry': 'Try again',
   'paywall.webNote': 'You can purchase the PRO subscription in the Strength Save mobile app on iOS or Android.',

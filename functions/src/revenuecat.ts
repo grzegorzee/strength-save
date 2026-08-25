@@ -27,6 +27,8 @@ interface RcEvent {
   store?: string;
   environment?: string;
   cancel_reason?: string;
+  /** Bug 22 (X30): koniec grace period przy BILLING_ISSUE (retry płatności w sklepie). */
+  grace_period_expiration_at_ms?: number;
 }
 
 // Timing-safe porównanie sekretu (wzorzec safeHashEquals z admin-api.ts);
@@ -56,7 +58,8 @@ export interface SubscriptionWrite {
   status: "active" | "expired" | "billing_issue" | "none";
   /** Początek bieżącego okresu (purchased_at_ms) — wyświetlany w apce jako "aktywna od". */
   startedAt: string | null;
-  expiresAt: string | null;
+  /** Klucz pominięty (BILLING_ISSUE bez dat) = zapis merge zachowuje dotychczasową wartość. */
+  expiresAt?: string | null;
   productId: string | null;
   willRenew: boolean;
   updatedAt: string;
@@ -97,8 +100,19 @@ export const mapEventToSubscription = (event: RcEvent, nowIso: string): Subscrip
     case "CANCELLATION":
       // Anulowanie odnowienia — dostęp zostaje do końca okresu.
       return { ...base, status: "active", willRenew: false };
-    case "BILLING_ISSUE":
-      return { ...base, status: "billing_issue", willRenew: true };
+    case "BILLING_ISSUE": {
+      // Bug 22 (X30): store daje grace period na naprawę płatności — dostęp trwa do
+      // max(expiration, grace_period_expiration). Event bez żadnej daty NIE zeruje
+      // expiresAt: klucz pominięty, żeby merge w webhooku zachował datę z dokumentu.
+      const graceEnds = [event.expiration_at_ms, event.grace_period_expiration_at_ms]
+        .filter((ms): ms is number => typeof ms === "number" && Number.isFinite(ms));
+      const billing = { ...base, status: "billing_issue" as const, willRenew: true };
+      if (graceEnds.length === 0) {
+        delete (billing as { expiresAt?: string | null }).expiresAt;
+        return billing;
+      }
+      return { ...billing, expiresAt: new Date(Math.max(...graceEnds)).toISOString() };
+    }
     case "EXPIRATION":
       return { ...base, tier: "none", status: "expired", willRenew: false };
     default:
@@ -117,6 +131,16 @@ export const isActiveCompGrant = (
   return !Number.isFinite(expires) || expires > now;
 };
 
+/**
+ * Bug 23 (X30): event niosący aktywny stan na nieistniejącym users/{uid} musi wrócić —
+ * 5xx każe RevenueCat ponowić dostarczenie, a retry dogoni utworzenie dokumentu przez
+ * syncUserProfile (wyścig przy świeżym koncie / chwilowa porażka syncu). EXPIRATION
+ * nie: brak dokumentu daje ten sam skutek (brak PRO), a trwale usunięte konto
+ * (deleteOwnAccount) nie ma kręcić retry do wyczerpania backoffu RC.
+ */
+export const shouldRetryMissingUser = (subscription: SubscriptionWrite): boolean =>
+  subscription.status === "active" || subscription.status === "billing_issue";
+
 /** Duplicate event IDs and events older than the committed state are harmless no-ops. */
 export const shouldApplySubscriptionEvent = (
   current: { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
@@ -129,6 +153,29 @@ export const shouldApplySubscriptionEvent = (
   if (next.eventId && current?.eventId === next.eventId) return false;
   const currentTimestamp = typeof current?.eventTimestamp === "number" ? current.eventTimestamp : 0;
   return next.eventTimestamp >= currentTimestamp;
+};
+
+export type SubscriptionEventTarget = "subscription" | "store" | "skip";
+
+/**
+ * Bug 7 (X30): aktywny grant comp nie blokuje już eventów RC — stan sklepowy ląduje
+ * w polu siostrzanym users/{uid}.storeSubscription (RENEWAL/BILLING_ISSUE podczas
+ * grantu nie przepada) i wraca po wygaśnięciu grantu (odczyt: klient
+ * resolveEffectiveSubscription, zegarek resolveGarminEntitlement) albo po
+ * adminRevokeSubscription. Poza grantem zapis idzie do subscription jak dotąd,
+ * a storeSubscription jest czyszczone (jedno źródło prawdy).
+ */
+export const resolveEventTarget = (
+  current: { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
+  currentStore: { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined,
+  next: SubscriptionWrite,
+  now: number,
+): SubscriptionEventTarget => {
+  if (isActiveCompGrant(current, now)) {
+    // storeSubscription nigdy nie trzyma comp, więc gating to czysty dedupe/stale.
+    return shouldApplySubscriptionEvent(currentStore, next, now) ? "store" : "skip";
+  }
+  return shouldApplySubscriptionEvent(current, next, now) ? "subscription" : "skip";
 };
 
 export const revenuecatWebhook = onRequest(
@@ -166,19 +213,36 @@ export const revenuecatWebhook = onRequest(
         const snap = await transaction.get(userRef);
         if (!snap.exists) return "no-user";
         const current = snap.data()?.subscription as { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined;
+        const currentStore = snap.data()?.storeSubscription as { tier?: unknown; expiresAt?: unknown; eventId?: unknown; eventTimestamp?: unknown } | undefined;
         const now = Date.now();
-        if (!shouldApplySubscriptionEvent(current, subscription, now)) {
-          return isActiveCompGrant(current, now) ? "comp" : "stale-or-duplicate";
+        const target = resolveEventTarget(current, currentStore, subscription, now);
+        if (target === "skip") return "stale-or-duplicate";
+        if (target === "store") {
+          // Bug 7 (X30): aktywny grant comp — stan sklepowy do pola siostrzanego.
+          transaction.set(userRef, { storeSubscription: subscription }, { merge: true });
+          return "applied-store";
         }
-        transaction.set(userRef, { subscription }, { merge: true });
+        transaction.set(userRef, {
+          subscription,
+          // Bug 7 (X30): subscription znów sklepowe — cień grantu do kasacji.
+          storeSubscription: admin.firestore.FieldValue.delete(),
+        }, { merge: true });
         return "applied";
       });
-      if (result !== "applied") {
+      if (result !== "applied" && result !== "applied-store") {
+        // Bug 23 (X30): 200 = doręczone na zawsze; zgubiony INITIAL_PURCHASE/RENEWAL
+        // zostawiał płacącego usera bez mirroru na web/Garmin do następnego eventu.
+        if (result === "no-user" && shouldRetryMissingUser(subscription)) {
+          logger.warn(`[revenuecat] Event ${event.type} dla nieistniejącego users/${uid} — 503, RC ponowi`);
+          res.status(503).json({ ok: false, retry: "no-user" });
+          return;
+        }
         logger.info(`[revenuecat] Event ${event.type} pominięty: ${result}`);
         res.status(200).json({ ok: true, skipped: result });
         return;
       }
-      logger.info(`[revenuecat] ${event.type} → users/${uid}: ${subscription.tier}/${subscription.status} do ${subscription.expiresAt}`);
+      const field = result === "applied-store" ? "storeSubscription (aktywny grant comp)" : "subscription";
+      logger.info(`[revenuecat] ${event.type} → users/${uid} ${field}: ${subscription.tier}/${subscription.status} do ${subscription.expiresAt ?? "(bez zmiany)"}`);
       res.status(200).json({ ok: true });
     } catch (error) {
       logger.error("[revenuecat] Zapis nieudany", error);

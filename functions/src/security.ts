@@ -208,6 +208,19 @@ export const buildRevokedSubscription = (): { tier: 'none'; status: 'none'; expi
   ({ tier: 'none', status: 'none', expiresAt: null });
 
 /**
+ * Bug 7 (X30): revoke grantu nadanego NA opłacony okres nie może odebrać PRO —
+ * przywraca stan sklepowy zachowany w users/{uid}.storeSubscription (pełna mapa
+ * z dokumentu: grant kopiuje ją przy nadaniu, webhook RC aktualizuje póki grant
+ * trwa). Bez zachowanego stanu wraca 'none' jak dotąd.
+ */
+export const restoreRevokedSubscription = (
+  storeSubscription: unknown,
+): Record<string, unknown> =>
+  storeSubscription && typeof storeSubscription === 'object' && !Array.isArray(storeSubscription)
+    ? { ...(storeSubscription as Record<string, unknown>) }
+    : { ...buildRevokedSubscription() };
+
+/**
  * "Od kiedy" dla grantu (2026-08-20, prośba właściciela): przedłużenie AKTYWNEGO
  * dostępu zachowuje pierwotny startedAt (też sklepowy), świeży grant startuje teraz.
  */
