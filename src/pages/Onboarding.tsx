@@ -18,6 +18,7 @@ import {
 import { recordConsents } from '@/lib/consents-api';
 import { readStoredAccentId } from '@/lib/accent-theme';
 import { completeOnboardingPlan } from '@/lib/cycle-actions';
+import { buildOnboardingAnswers } from '@/lib/onboarding-answers';
 import { buildPlanEventEmitter } from '@/lib/user-events';
 import { useRequiresPaywall } from '@/hooks/useSubscription';
 import type { TrainingDay } from '@/data/trainingPlan';
@@ -90,16 +91,24 @@ const Onboarding = () => {
       savePlan,
       createActiveCycle,
       emitPlanEvent: buildPlanEventEmitter(uid),
-      markOnboardingComplete: async () => updateDoc(doc(db, 'users', uid), {
-        onboardingCompleted: true,
-        // termsAcceptedAt: zgoda z kroku Welcome (checkbox blokuje Dalej, więc tu zawsze zaznaczona).
-        onboarding: { state: 'completed', version: 2, termsAcceptedAt: new Date().toISOString() },
-        trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
+      markOnboardingComplete: async (_choice, _days, planStartDate) => {
         // Plan I: kolor wybrany na Welcome (albo domyślna limonka) do mirroru
         // cross-device — zawsze jedno pole, czytane w momencie zapisu.
-        'preferences.accentColor': readStoredAccentId(),
-        ...(confirmed.name && confirmed.name !== profile?.displayName ? { displayName: confirmed.name } : {}),
-      }),
+        const accentColor = readStoredAccentId();
+        return updateDoc(doc(db, 'users', uid), {
+          onboardingCompleted: true,
+          // termsAcceptedAt: zgoda z kroku Welcome (checkbox blokuje Dalej, więc tu zawsze zaznaczona).
+          // WP-O (X30): dot-paths zamiast całej mapy, żeby nie kasować przyszłych podpól.
+          'onboarding.state': 'completed',
+          'onboarding.version': 2,
+          'onboarding.termsAcceptedAt': new Date().toISOString(),
+          trainingProfile: { level: confirmed.level, objective: confirmed.objective, daysPerWeek: confirmed.daysPerWeek },
+          'preferences.accentColor': accentColor,
+          // WP-O (X30): trwały snapshot odpowiedzi (v2), pisany RAZ; replan go nie rusza.
+          onboardingAnswers: buildOnboardingAnswers(confirmed, { accentColor, startDate: planStartDate }),
+          ...(confirmed.name && confirmed.name !== profile?.displayName ? { displayName: confirmed.name } : {}),
+        });
+      },
     });
     if (!result.success) {
       setError(result.error || t('onboarding.error.saveFailed'));

@@ -1,6 +1,7 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 import type { ConsentMirror } from "@/lib/legal-versions";
+import type { OnboardingAnswers, TrainingProfileSnapshot } from "@/lib/onboarding-answers";
 import { getPendingInviteCode } from "@/lib/pending-invite";
 import { detectLanguage, LANGUAGES, type LanguageCode } from "@/i18n";
 import { callProtectedFunction } from "@/lib/protected-callable";
@@ -57,6 +58,10 @@ export interface AppUserProfile {
   consents?: ConsentMirror;
   /** Rekordy sprzed instalacji (Runna p.1, spec A5): klient pisze z Profilu. */
   prBackfill?: { squat?: number; bench?: number; deadlift?: number };
+  /** WP-O (X30): profil treningowy (onboarding + replan): poziom/cel/dni w tygodniu. */
+  trainingProfile?: TrainingProfileSnapshot;
+  /** WP-O (X30): snapshot odpowiedzi onboardingu (v2), pisany raz przy zakończeniu. */
+  onboardingAnswers?: OnboardingAnswers;
   verification?: {
     emailVerifiedAt?: string | null;
     lastCodeSentAt?: string | null;

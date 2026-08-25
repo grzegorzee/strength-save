@@ -254,6 +254,18 @@ add('user update prBackfill (boje glowne) ALLOWED', true, await ok(() => updateD
 add('user update prBackfill z nieznanym kluczem DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { prBackfill: { curl: 50 } })));
 add('user update prBackfill ze zlym typem DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { prBackfill: { squat: 'duzo' } })));
 add('user update prBackfill poza limitem DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { prBackfill: { squat: 700 } })));
+// WP-O (X30): snapshot odpowiedzi onboardingu (zamknieta mapa v2) + mapa onboarding dot-pathami.
+const onboardingAnswersV2 = {
+  version: 2, completedAt: '2026-08-25T10:00:00.000Z', name: 'G', accentColor: 'lime',
+  level: 'beginner', objective: 'build_muscle', daysPerWeek: 3, trainingDays: ['monday', 'wednesday', 'friday'],
+  planSource: 'recommended', templateId: 'tpl-fullbody-3', recommendedTemplateId: 'tpl-fullbody-3',
+  durationWeeks: 8, startDate: '2026-08-31', planName: 'Moj plan',
+};
+add('user update onboardingAnswers (snapshot v2) ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { onboardingAnswers: onboardingAnswersV2 })));
+add('user update onboardingAnswers nie-mapa DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { onboardingAnswers: 'tak' })));
+add('user update onboardingAnswers z nieznanym kluczem DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { onboardingAnswers: { ...onboardingAnswersV2, extra: 1 } })));
+add('user update onboardingAnswers ze zla wersja DENIED', false, await ok(() => updateDoc(doc(db, 'users', UID), { onboardingAnswers: { ...onboardingAnswersV2, version: 'dwa' } })));
+add('user update onboarding dot-pathami (state/version/termsAcceptedAt) ALLOWED', true, await ok(() => updateDoc(doc(db, 'users', UID), { 'onboarding.state': 'completed', 'onboarding.version': 2, 'onboarding.termsAcceptedAt': '2026-08-25T10:00:00.000Z' })));
 add('zapis Max HR przez admin SDK (sciezka callable saveMaxHR)', true, await ok(() => env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(ctx.firestore(), 'users', UID), { estimatedMaxHR: 190, maxHRManualOverride: true }, { merge: true });
 })));

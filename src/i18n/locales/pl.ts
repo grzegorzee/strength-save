@@ -2502,6 +2502,7 @@ export const pl = {
   'ob.browse.title': 'Wszystkie plany',
   'ob.browse.desc': 'Wybierz dowolny plan, by zobaczyć szczegóły.',
   'ob.browse.wk': 't',
+  'ob.browse.recommendedBadge': 'Polecany',
   'cycles.tonnagePerWorkout': 'Tonaż/trening',
   'cycles.delete': 'Usuń cykl',
   'cycles.deleteConfirm': 'Usunąć ten cykl? Treningi pozostaną, ale zniknie podsumowanie cyklu. Tej operacji nie cofniesz.',

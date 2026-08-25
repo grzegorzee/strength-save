@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Loader2, RefreshCw, Trophy, Dumbbell, Flame, Percent, ChevronLeft, Medal, Clock, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -168,6 +168,17 @@ const NewPlan = () => {
         emitPlanEvent: buildPlanEventEmitter(uid),
       });
       if (!result.success) { setError(result.error || t('onboarding.error.saveFailed')); setIsSaving(false); return; }
+      // WP-O (X30): replan aktualizuje profil treningowy (poziom/cel/dni), żeby
+      // kolejny kreator nie podpowiadał wartości z pierwszego onboardingu.
+      // Snapshot onboardingAnswers zostaje nietknięty. Best-effort: plan już
+      // wystartował, awaria tego zapisu nie ma prawa go cofnąć.
+      try {
+        await updateDoc(doc(db, 'users', uid), {
+          trainingProfile: { level: chosen.level, objective: chosen.objective, daysPerWeek: chosen.daysPerWeek },
+        });
+      } catch {
+        // profil to tylko podpowiedź dla następnego kreatora
+      }
       trackTelemetryEvent(uid, 'action_replan_completed');
       clearPlanDrafts(uid);
       navigate('/');
