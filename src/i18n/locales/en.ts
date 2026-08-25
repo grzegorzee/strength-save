@@ -2503,6 +2503,8 @@ export const en: Record<keyof typeof pl, string> = {
   'cycles.deleted': 'Cycle deleted',
   'cycles.deleteFailed': 'Could not delete the cycle',
   'ob.precision.change': 'Change settings',
+  // X31 H2: podsumowanie odpowiedzi z kroków 2-4 pod rekomendacją (user widzi, że wybory zostały uwzględnione).
+  'ob.precision.answers': '{days} days a week · {objective} · {level}',
   // WP-PLANS-2 (X27): start planu wybierany w kroku 5 (najbliższe poniedziałki).
   'ob.startWeek': 'Plan start',
   'newplan.toReview': 'Review plan',

@@ -68,6 +68,14 @@ const OBJECTIVES: { value: PlanObjective; labelKey: TranslationKey; descKey: Tra
   { value: 'athletic', labelKey: 'ob.obj.athletic', descKey: 'ob.obj.athletic.desc', icon: Zap },
 ];
 
+// X31 H2: etykiety odpowiedzi z kroków 2-3 do podsumowania w kroku 5.
+const LEVEL_LABEL_KEY: Record<WizardLevel, TranslationKey> = {
+  beginner: 'ob.level.beginner', intermediate: 'ob.level.intermediate', advanced: 'ob.level.advanced',
+};
+const OBJECTIVE_LABEL_KEY: Record<PlanObjective, TranslationKey> = {
+  build_muscle: 'ob.obj.muscle', peak_strength: 'ob.obj.strength', fat_loss: 'ob.obj.fatloss', athletic: 'ob.obj.athletic',
+};
+
 const OBJECTIVE_TAGS: Record<PlanObjective, TranslationKey[]> = {
   build_muscle: ['ob.tag.hypertrophy'],
   peak_strength: ['ob.tag.strength', 'ob.tag.power'],
@@ -490,6 +498,11 @@ export const PlanWizard = ({ showWelcome, socialProof, trialNotice, legalConsent
               <p className="text-xs font-medium uppercase tracking-widest text-primary mb-1.5">{t('ob.precision.kicker')}</p>
               <h1 className="font-heading font-bold text-3xl leading-tight tracking-tight">{t('ob.precision.title')}</h1>
               <p className="text-muted-foreground text-[14px] mt-1.5">{picked ? t('ob.precision.chosen') : t('ob.precision.recommended', { name: localizePlanName(chosen.id, chosen.name, lang) })}</p>
+              {/* X31 H2: podsumowanie odpowiedzi z kroków 2-4 — user widzi, że
+                  liczba dni, cel i poziom zostały uwzględnione w rekomendacji. */}
+              <p data-testid="ob-precision-answers" className="text-[12px] text-muted-foreground mt-1">
+                {t('ob.precision.answers', { days: daysPerWeek, objective: t(OBJECTIVE_LABEL_KEY[objective]), level: t(LEVEL_LABEL_KEY[level]) })}
+              </p>
               {startAtPrecision && (
                 <button onClick={() => setStep(2)} className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-primary font-medium">
                   <SlidersHorizontal className="h-3.5 w-3.5" />{t('ob.precision.change')}
