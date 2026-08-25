@@ -24,6 +24,8 @@ import { buildVacationMode, isVacationActive, type VacationActivity } from '@/li
 import { buildReducedMode, isReducedModeActive, type ReducedModeLevel } from '@/lib/reduced-mode';
 import { ReducedModeDialog } from '@/components/ReducedModeDialog';
 import { PlanNextStepCard } from '@/components/PlanNextStepCard';
+import { PreStartCard } from '@/components/PreStartCard';
+import { buildPreStartInfo } from '@/lib/plan-prestart';
 import { EmptyStateIllustration } from '@/components/EmptyState';
 import { getEmptyStateImageUrl } from '@/lib/exercise-media';
 import { HybridWeekStrip } from '@/components/HybridWeekStrip';
@@ -318,6 +320,11 @@ const TrainingPlan = () => {
 
   // Plan not started yet (start date in the future) → week 0, no progress.
   const planStarted = getStartOfPlanWeek(today).getTime() >= startDate.getTime();
+  // WP-F (X35a): karta pre-start (to samo wyliczenie co Dashboard).
+  const preStart = useMemo(
+    () => buildPreStartInfo({ planDays: trainingPlan, planStartDate, today: startOfLocalDay(today), scheduleOverrides }),
+    [trainingPlan, planStartDate, today, scheduleOverrides],
+  );
 
   // T17: te same liczby co kafle Ukończone/Pozostało (hoisting bez zmiany
   // parametrów) napędzają też procent postępu.
@@ -484,7 +491,10 @@ const TrainingPlan = () => {
             <div className="flex items-baseline gap-2.5 min-w-0">
               <h1 className="text-2xl font-heading font-bold tracking-tight leading-tight">{t('trainingplan.title')}</h1>
               <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-primary whitespace-nowrap shrink-0">
-                {isHistoricalWeek ? t('trainingplan.history') : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
+                {/* WP-F (X35a): tydzień przed startem planu = "Przed startem", nie "Historia". */}
+                {isHistoricalWeek
+                  ? t(planStarted ? 'trainingplan.history' : 'trainingplan.preStart')
+                  : t('trainingplan.weekOf', { current: displayWeek, total: planDurationWeeks })}
               </span>
             </div>
             {/* WP-PLANS-2 (X27): nazwa planu usera pod tytułem (jeśli nadana). */}
@@ -556,6 +566,18 @@ const TrainingPlan = () => {
           currentWeek={hookCurrentWeek}
           progression={progression}
           onDecision={saveDeloadDecision}
+        />
+      )}
+
+      {/* WP-F (X35a): plan jeszcze nie ruszył, a user ogląda tydzień sprzed startu —
+          ta sama karta co na Dashboardzie, CTA skacze do tygodnia 1 (selectedDate
+          = poniedziałek startu, istniejący mechanizm pagera). */}
+      {!planStarted && isHistoricalWeek && preStart && (
+        <PreStartCard
+          info={preStart}
+          ctaLabel={t('trainingplan.seeFirstWeek')}
+          onCta={() => setSelectedDate(new Date(startDate))}
+          testId="plan-prestart-card"
         />
       )}
 
