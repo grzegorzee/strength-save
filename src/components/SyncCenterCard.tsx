@@ -358,7 +358,32 @@ export const SyncCenterCard = ({ uid }: SyncCenterCardProps) => {
     const file = new File([payload], `strength-save-draft-${fullDraft.date}-${fullDraft.sessionId}.json`, {
       type: 'application/json',
     });
-    await shareOrDownloadFile(file);
+    // Bug 50 (X30): wynik share konsumowany jak w DataManagement — 'failed'
+    // (share sheet padł) dostaje destructive toast + telemetrię, sukces toast
+    // potwierdzenia; cisza WYŁĄCZNIE dla 'aborted' (Z198, user zamknął sheet).
+    const result = await shareOrDownloadFile(file, {
+      onShareError: (err) => {
+        void reportClientError(uid, {
+          code: 'draft-export-share',
+          phase: 'other',
+          detail: err instanceof Error ? err.message : String(err),
+          sessionId: entry.sessionId,
+        });
+      },
+    });
+    if (result === 'aborted') return;
+    if (result === 'failed') {
+      toast({
+        title: t('data.export.failed'),
+        description: t('data.export.failedDesc'),
+        variant: 'destructive',
+      });
+      return;
+    }
+    toast({
+      title: t('data.export.done'),
+      description: t('data.export.doneDesc'),
+    });
   };
 
   return (

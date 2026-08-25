@@ -3,7 +3,7 @@
 // zakresu + buildWorkoutsCsv + Blob flow działający też w natywnym WKWebView).
 
 import { buildWorkoutsCsv } from '@/lib/workout-csv';
-import { shareOrDownloadFile } from '@/lib/share-export';
+import { shareOrDownloadFile, type ShareExportResult, type ShareOrDownloadOptions } from '@/lib/share-export';
 import { buildHistoryRowMeta } from '@/lib/history-stats';
 import { exportFileName, type ExportRangeBounds } from '@/lib/workout-export-range';
 import { fetchWorkoutHistoryPage, type WorkoutHistoryCursor } from '@/lib/workout-read-store';
@@ -38,11 +38,16 @@ export const fetchWorkoutsForBounds = async (
 
 /** Zbudowanie CSV (PR-y z tej samej logiki co wiersze Historii) + pobranie pliku.
  * WP-L (X29): przez shareOrDownloadFile — na native <a download> jest martwe
- * (Z179), plik idzie w systemowy share sheet; web pobiera jak dotąd. */
-export const downloadWorkoutsCsvFile = async (workouts: WorkoutSession[]): Promise<void> => {
+ * (Z179), plik idzie w systemowy share sheet; web pobiera jak dotąd.
+ * Bug 26 (X30): wynik share idzie w GORE (Z198: caller bramkuje toast sukcesu,
+ * cisza dla 'aborted', komunikat dla 'failed') + opcjonalny onShareError (WP-E). */
+export const downloadWorkoutsCsvFile = async (
+  workouts: WorkoutSession[],
+  options?: Pick<ShareOrDownloadOptions, 'onShareError'>,
+): Promise<ShareExportResult> => {
   const meta = buildHistoryRowMeta(workouts);
   const prCounts = Object.fromEntries([...meta].map(([id, m]) => [id, m.prCount]));
   const csv = buildWorkoutsCsv(workouts, prCounts);
   const file = new File([csv], exportFileName(workouts), { type: 'text/csv;charset=utf-8' });
-  await shareOrDownloadFile(file);
+  return shareOrDownloadFile(file, options);
 };

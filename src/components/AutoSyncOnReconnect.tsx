@@ -67,7 +67,9 @@ export const AutoSyncOnReconnect = () => {
           .filter((entry) => isRevisionConflictError(entry.lastError))
           .map((entry) => entry.sessionId),
       );
-      const entries = collectRetryableSyncEntries(activeDrafts, queueEntries)
+      // Bug 37 (X30): `now` wlacza backoff auto-retry (2^retryCount * 30s, max 1h)
+      // — reczne "Ponow" w Sync Center dalej idzie bez backoffu.
+      const entries = collectRetryableSyncEntries(activeDrafts, queueEntries, { now: Date.now() })
         .filter(({ entry }) => (entry.finalSyncPending || entry.sessionOrigin === 'provisional')
           && !conflictSessionIds.has(entry.sessionId));
       if (entries.length === 0) return;

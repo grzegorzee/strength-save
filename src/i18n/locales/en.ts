@@ -359,6 +359,8 @@ export const en: Record<keyof typeof pl, string> = {
   'data.error': 'Error!',
   'data.export.done': 'Export complete!',
   'data.export.doneDesc': 'JSON file has been downloaded.',
+  'data.export.failed': 'Export failed',
+  'data.export.failedDesc': 'The file could not be handed off. Try again.',
   'data.import.done': 'Import complete!',
   'data.import.error': 'Import error',
   'data.import.confirmTitle': 'Import this backup?',

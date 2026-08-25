@@ -45,6 +45,20 @@ const sanitizeSet = (raw: unknown): SetData | null => {
   if (reps === null || weight === null) return null;
   const set: SetData = { reps, weight, completed: Boolean(raw.completed) };
   if (raw.isWarmup === true) set.isWarmup = true;
+  // Bug 5 (X30): pelny ksztalt serii Z105 musi przezyc hydracje — clampSet
+  // (workout-sanitizers) zapisuje te pola, a ich obciecie tutaj zabijalo PR-y
+  // duration/wdd, progresje asysty i tonaz wdd po kazdym snapshotcie.
+  // Widelki 1:1 z clampSet.
+  const durationSec = asFiniteNumber(raw.durationSec);
+  if (durationSec !== null) set.durationSec = Math.max(0, Math.min(86400, Math.round(durationSec)));
+  const distanceM = asFiniteNumber(raw.distanceM);
+  if (distanceM !== null) set.distanceM = Math.max(0, Math.min(1000000, distanceM));
+  const assistWeight = asFiniteNumber(raw.assistWeight);
+  if (assistWeight !== null) set.assistWeight = Math.max(0, Math.min(999, assistWeight));
+  const updatedAt = asFiniteNumber(raw.updatedAt);
+  if (updatedAt !== null && updatedAt > 0) set.updatedAt = Math.floor(updatedAt);
+  const updatedEventId = asString(raw.updatedEventId);
+  if (updatedEventId !== null && updatedEventId.length > 0) set.updatedEventId = updatedEventId.slice(0, 120);
   return set;
 };
 

@@ -32,6 +32,7 @@ import { downloadWorkoutsCsvFile, fetchWorkoutsForBounds } from '@/lib/workout-c
 import { formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { toast } from '@/hooks/use-toast';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { cn } from '@/lib/utils';
 import type { WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
@@ -89,9 +90,22 @@ export const ExportWorkoutsDialog = ({ open, onOpenChange, uid, cycles }: Export
     // eslint-disable-next-line react-hooks/exhaustive-deps -- boundsKey reprezentuje bounds
   }, [open, uid, boundsKey]);
 
-  const handleExport = () => {
+  // Bug 26 (X30): toast sukcesu TYLKO gdy plik realnie wyszedl (Z198) — na
+  // native user zamykajacy share sheet dostawal falszywe 'Wyeksportowano'.
+  const handleExport = async () => {
     if (workouts.length === 0) return;
-    void downloadWorkoutsCsvFile(workouts);
+    const result = await downloadWorkoutsCsvFile(workouts, {
+      onShareError: (err) => reportClientErrorWithCurrentUid({
+        code: 'csv-export-share',
+        phase: 'other',
+        detail: err instanceof Error ? err.message : String(err),
+      }),
+    });
+    if (result === 'aborted') return;
+    if (result === 'failed') {
+      toast({ title: t('data.export.failed'), description: t('data.export.failedDesc'), variant: 'destructive' });
+      return;
+    }
     toast({ title: t('data.export.done'), description: t('data.exportCsv.doneDesc') });
     onOpenChange(false);
   };

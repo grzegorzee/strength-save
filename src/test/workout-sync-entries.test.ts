@@ -66,6 +66,52 @@ describe('permanent wpisy poza auto-retry (R2-17)', () => {
   });
 });
 
+// Bug 37 (X30): auto-retry bez backoffu melil trwale bledy (validation/unknown)
+// przy kazdym flapie sieci i kazdym onSnapshot — retryCount byl tylko Badge w UI.
+// Backoff dziala WYLACZNIE gdy caller poda `now` (AutoSyncOnReconnect); reczne
+// "Ponow" w Sync Center wola bez `now` i ma zawsze pelna pule.
+describe('backoff auto-retry z retryCount + lastErrorAt (bug 37)', () => {
+  const NOW = 1_700_000_000_000;
+
+  it('wpis tuz po porazce jest wstrzymany (2^1 * 30s = 60s)', () => {
+    const entry = queueEntry({ finalSyncPending: true, retryCount: 1, lastErrorAt: NOW - 30_000 });
+    expect(collectRetryableSyncEntries([], [entry], { now: NOW })).toEqual([]);
+  });
+
+  it('po uplywie okna backoffu wpis wraca do puli', () => {
+    const entry = queueEntry({ finalSyncPending: true, retryCount: 1, lastErrorAt: NOW - 61_000 });
+    expect(collectRetryableSyncEntries([], [entry], { now: NOW })).toHaveLength(1);
+  });
+
+  it('okno rosnie wykladniczo z retryCount (2^4 * 30s = 8 min)', () => {
+    const inWindow = queueEntry({ finalSyncPending: true, retryCount: 4, lastErrorAt: NOW - 5 * 60_000 });
+    expect(collectRetryableSyncEntries([], [inWindow], { now: NOW })).toEqual([]);
+    const pastWindow = queueEntry({ finalSyncPending: true, retryCount: 4, lastErrorAt: NOW - 9 * 60_000 });
+    expect(collectRetryableSyncEntries([], [pastWindow], { now: NOW })).toHaveLength(1);
+  });
+
+  it('sufit 1h: melacy wpis wraca najpozniej po godzinie', () => {
+    const inWindow = queueEntry({ finalSyncPending: true, retryCount: 20, lastErrorAt: NOW - 59 * 60_000 });
+    expect(collectRetryableSyncEntries([], [inWindow], { now: NOW })).toEqual([]);
+    const pastCap = queueEntry({ finalSyncPending: true, retryCount: 20, lastErrorAt: NOW - 61 * 60_000 });
+    expect(collectRetryableSyncEntries([], [pastCap], { now: NOW })).toHaveLength(1);
+  });
+
+  it('backoff wstrzymuje tez aktywny draft tej samej sesji (jak permanent)', () => {
+    const entry = queueEntry({ retryCount: 2, lastErrorAt: NOW - 10_000 });
+    expect(collectRetryableSyncEntries([draft()], [entry], { now: NOW })).toEqual([]);
+  });
+
+  it('swiezy wpis (retryCount 0) idzie od razu', () => {
+    expect(collectRetryableSyncEntries([], [queueEntry({ finalSyncPending: true })], { now: NOW })).toHaveLength(1);
+  });
+
+  it('niezmiennik recznego Ponow: bez `now` backoff nie filtruje (Sync Center)', () => {
+    const entry = queueEntry({ finalSyncPending: true, retryCount: 5, lastErrorAt: NOW - 1000 });
+    expect(collectRetryableSyncEntries([], [entry])).toHaveLength(1);
+  });
+});
+
 describe('recordWorkoutSyncFailure (R2-16)', () => {
   it('istniejacy wpis dostaje markRetry bez odczytu draftu', async () => {
     const queue = {

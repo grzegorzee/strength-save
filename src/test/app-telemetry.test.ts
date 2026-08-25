@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { doc, increment, setDoc } from 'firebase/firestore';
 import { flushTelemetryEvents, trackTelemetryEvent } from '@/lib/app-telemetry';
 
@@ -35,5 +35,30 @@ describe('app telemetry Firestore shape', () => {
     );
     const written = vi.mocked(setDoc).mock.calls[0][1] as Record<string, unknown>;
     expect(Object.keys(written)).not.toContain('counters.sync_failure');
+  });
+});
+
+// Bug 25 (X30): trackTelemetryEvent jest wolany synchronicznie w srodku
+// handlerow core flow (odhaczenie serii startuje timer przerwy ZA trackiem).
+// Rzucajacy localStorage.setItem (SecurityError w Safari z blokada danych
+// stron, QuotaExceededError) nie ma prawa urwac reszty handlera.
+describe('telemetria jest best-effort przy niedostepnym localStorage', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('trackTelemetryEvent nie rzuca, gdy setItem pada (QuotaExceededError)', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    expect(() => trackTelemetryEvent('user-1', 'action_set_checked')).not.toThrow();
+  });
+
+  it('flushTelemetryEvents nie rzuca, gdy setItem pada po udanym zapisie', async () => {
+    trackTelemetryEvent('user-1', 'sync_success');
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('security', 'SecurityError');
+    });
+    await expect(flushTelemetryEvents('user-1')).resolves.toBeUndefined();
   });
 });

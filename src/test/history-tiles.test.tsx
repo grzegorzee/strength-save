@@ -72,6 +72,9 @@ vi.mock('@/lib/pdf-report', () => ({
   })),
   generateTrainingReportPdf: vi.fn(async () => new Blob(['pdf'], { type: 'application/pdf' })),
 }));
+// Bug 26 (X30): HistoryExportSheet raportuje porazki share do client_errors —
+// modul ciagnie lib/firebase (transitive import, pulapka z CLAUDE.md), mock.
+vi.mock('@/lib/global-error-telemetry', () => ({ reportClientErrorWithCurrentUid: vi.fn() }));
 
 import WorkoutHistory from '@/pages/WorkoutHistory';
 import { buildCanonicalState } from '@/test/canonical-states';
@@ -324,7 +327,11 @@ describe('WP-H H3 — Export sheet', () => {
         fromDate: active.startDate,
         toDate: TODAY_ISO,
       });
-      expect(downloadWorkoutsCsvFile).toHaveBeenCalledWith(fixtures.exportFetchResult);
+      // Bug 26 (X30): drugi argument to opcje z onShareError (telemetria porazek share).
+      expect(downloadWorkoutsCsvFile).toHaveBeenCalledWith(
+        fixtures.exportFetchResult,
+        expect.objectContaining({ onShareError: expect.any(Function) }),
+      );
     });
     await waitFor(() => expect(screen.queryByTestId('history-export-sheet')).not.toBeInTheDocument());
   });

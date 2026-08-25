@@ -85,6 +85,18 @@ export const buildDayFromDraft = (
   };
 };
 
+/** Bug 5 (X30): seed stanu widoku z sesji Firestore. Kopiuje CALY ksztalt serii
+ *  (spread), bo enumeracja pol w WorkoutDay obcinala durationSec/distanceM/
+ *  assistWeight/updatedAt/updatedEventId — sesja po powrocie gubila typy Z105.
+ *  Defaulty reps/weight/completed zostaja dla legacy dokumentow bez tych pol. */
+export const seedSetsFromSession = (sets: SetData[]): SetData[] =>
+  sets.map((set) => ({
+    ...set,
+    reps: set.reps ?? 0,
+    weight: set.weight ?? 0,
+    completed: set.completed ?? false,
+  }));
+
 /** Czy trening ma cokolwiek do zapisania (>=1 odhaczona seria robocza lub rozgrzewkowa). */
 export const hasAnyCompletedSet = (exerciseSets: Record<string, SetData[]>): boolean =>
   Object.values(exerciseSets).some((sets) => sets.some((set) => set.completed));

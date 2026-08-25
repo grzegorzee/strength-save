@@ -111,6 +111,23 @@ describe('Z175: AutoSyncOnReconnect promuje provisional bez wchodzenia w trening
     expect((fixtures.syncSpy.mock.calls[0] as unknown[])[2]).toBe('final');
   });
 
+  it('bug 37 (X30): wpis w oknie backoffu (retryCount + swiezy lastErrorAt) nie jest auto-ponawiany', async () => {
+    const finalDraft = draft({ sessionOrigin: 'remote', finalSyncPending: true, completedLocally: true });
+    fixtures.drafts = [];
+    fixtures.queue = [{
+      ...finalDraft,
+      queueId: finalDraft.sessionId,
+      enqueuedAt: Date.now(),
+      retryCount: 3,
+      lastError: 'CLOUD_NOT_CONFIRMED: brak potwierdzenia',
+      lastErrorAt: Date.now() - 5_000,
+    }];
+    renderComponent();
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(fixtures.syncSpy).not.toHaveBeenCalled();
+  });
+
   it('offline kill → launch offline → reconnect synchronizuje final dokładnie raz mimo kopii w kolejce', async () => {
     const finalDraft = draft({
       sessionOrigin: 'remote',

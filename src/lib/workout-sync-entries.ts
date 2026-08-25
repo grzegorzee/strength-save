@@ -14,9 +14,29 @@ const isRetryable = (entry: ActiveWorkoutDraft | WorkoutSyncQueueEntry): boolean
   entry.dirty || entry.finalSyncPending || entry.sessionOrigin === 'provisional'
 );
 
+// Bug 37 (X30): wykladniczy backoff AUTO-retry — bez niego kazdy flap sieci
+// i kazdy onSnapshot melil trwale bledy (validation/unknown) bez granic,
+// palac siec/baterie w docelowym srodowisku apki (slaby zasieg na silowni)
+// i wysycajac limit client_errors (20/sesje), ktory maskowal nowe kody.
+// min(2^retryCount * 30s, 1h) liczone od lastErrorAt (markRetry ustawia oba).
+const RETRY_BACKOFF_BASE_MS = 30_000;
+const RETRY_BACKOFF_MAX_MS = 60 * 60 * 1000;
+
+export const workoutSyncRetryDelayMs = (retryCount: number): number =>
+  Math.min(RETRY_BACKOFF_BASE_MS * 2 ** Math.min(Math.max(retryCount, 0), 12), RETRY_BACKOFF_MAX_MS);
+
+const isInBackoff = (entry: WorkoutSyncQueueEntry, now: number): boolean => (
+  entry.retryCount > 0
+  && entry.lastErrorAt !== null
+  && now - entry.lastErrorAt < workoutSyncRetryDelayMs(entry.retryCount)
+);
+
 export const collectRetryableSyncEntries = (
   activeDrafts: ActiveWorkoutDraft[],
   queueEntries: WorkoutSyncQueueEntry[],
+  // `now` podaje WYLACZNIE auto-sync (AutoSyncOnReconnect). Reczne "Ponow"
+  // w Sync Center wola bez `now` — backoff nie zabiera niczego temu przeplywowi.
+  options: { now?: number } = {},
 ): WorkoutSyncEntryTarget[] => {
   const seen = new Set<string>();
   const targets: WorkoutSyncEntryTarget[] = [];
@@ -25,15 +45,19 @@ export const collectRetryableSyncEntries = (
   const permanentIds = new Set(
     queueEntries.filter(entry => entry.permanent).map(entry => entry.sessionId),
   );
+  const now = options.now;
+  const backoffIds = now === undefined
+    ? new Set<string>()
+    : new Set(queueEntries.filter(entry => isInBackoff(entry, now)).map(entry => entry.sessionId));
 
   for (const draft of activeDrafts) {
-    if (permanentIds.has(draft.sessionId) || !isRetryable(draft)) continue;
+    if (permanentIds.has(draft.sessionId) || backoffIds.has(draft.sessionId) || !isRetryable(draft)) continue;
     seen.add(draft.sessionId);
     targets.push({ entry: draft, source: 'active' });
   }
 
   for (const entry of queueEntries) {
-    if (seen.has(entry.sessionId) || entry.permanent || !isRetryable(entry)) continue;
+    if (seen.has(entry.sessionId) || entry.permanent || backoffIds.has(entry.sessionId) || !isRetryable(entry)) continue;
     targets.push({ entry, source: 'queue' });
   }
 

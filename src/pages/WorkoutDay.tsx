@@ -68,7 +68,7 @@ import { WorkoutDraftStatusNotice, WorkoutErrorNotice } from '@/components/Worko
 import { LivePRCelebration, type LivePRCelebrationData } from '@/components/LivePRCelebration';
 import { carrySetExtras, createEmptySets, createPrefilledSets, parseSetCount, isBodyweightExercise } from '@/lib/exercise-utils';
 import { computeWeeklyTargets } from '@/lib/progression-engine';
-import { buildDayFromDraft, hasAnyCompletedSet, sessionStats } from '@/lib/workout-day-view';
+import { buildDayFromDraft, hasAnyCompletedSet, seedSetsFromSession, sessionStats } from '@/lib/workout-day-view';
 import { buildSwappedExerciseId, resetSetsForExerciseSwap } from '@/lib/exercise-swap';
 import { DraftSaveTotalFailure, hasDraftContent, workoutDraftDb, type ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { setPwaUpdateBlocked } from '@/lib/pwa-update-guard';
@@ -1222,12 +1222,9 @@ const WorkoutDay = () => {
       const notes: Record<string, string> = {};
       const metrics: Record<string, ExerciseMetrics> = {};
       workoutForDate.exercises.forEach(ex => {
-        sets[ex.exerciseId] = ex.sets.map(s => ({
-          reps: s.reps ?? 0,
-          weight: s.weight ?? 0,
-          completed: s.completed ?? false,
-          ...(s.isWarmup && { isWarmup: true }),
-        }));
+        // Bug 5 (X30): pelny ksztalt serii Z105 (durationSec/distanceM/
+        // assistWeight/LWW) — enumeracja pol obcinala je przy seedzie widoku.
+        sets[ex.exerciseId] = seedSetsFromSession(ex.sets);
         if (ex.notes) {
           notes[ex.exerciseId] = ex.notes;
         }

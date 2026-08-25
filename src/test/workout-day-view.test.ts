@@ -143,3 +143,38 @@ describe('hasAnyCompletedSet — blokada zapisu pustego treningu (regresja 2026-
     expect(hasAnyCompletedSet({ a: [{ reps: 12, weight: 20, completed: true, isWarmup: true }] })).toBe(true);
   });
 });
+
+import { seedSetsFromSession } from '@/lib/workout-day-view';
+
+// Bug 5 (X30): mapper seedujacy stan widoku z sesji Firestore enumerowal tylko
+// reps/weight/completed/isWarmup — pola serii Z105 (durationSec, distanceM,
+// assistWeight, updatedAt, updatedEventId) ginely przy powrocie do sesji.
+describe('seedSetsFromSession — pelny ksztalt serii Z105 przezywa seed widoku', () => {
+  it('przenosi pola opcjonalne Z105 i LWW bez zmian', () => {
+    const seeded = seedSetsFromSession([{
+      reps: 1, weight: 0, completed: true,
+      durationSec: 60, distanceM: 50, assistWeight: 30,
+      updatedAt: 1700000000000, updatedEventId: 'evt-1',
+    }]);
+    expect(seeded).toEqual([{
+      reps: 1, weight: 0, completed: true,
+      durationSec: 60, distanceM: 50, assistWeight: 30,
+      updatedAt: 1700000000000, updatedEventId: 'evt-1',
+    }]);
+  });
+
+  it('niezmiennik starego przeplywu: braki reps/weight/completed dostaja defaulty', () => {
+    const seeded = seedSetsFromSession([
+      { completed: true } as unknown as SetData,
+      { reps: 5, weight: 80, completed: true, isWarmup: true },
+    ]);
+    expect(seeded[0]).toEqual({ reps: 0, weight: 0, completed: true });
+    expect(seeded[1]).toEqual({ reps: 5, weight: 80, completed: true, isWarmup: true });
+  });
+
+  it('zwraca nowe obiekty (mutacja stanu widoku nie dotyka danych sesji)', () => {
+    const source: SetData[] = [{ reps: 5, weight: 80, completed: false }];
+    const seeded = seedSetsFromSession(source);
+    expect(seeded[0]).not.toBe(source[0]);
+  });
+});

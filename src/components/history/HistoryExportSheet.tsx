@@ -10,6 +10,7 @@ import { cn, formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUnit } from '@/contexts/UnitContext';
 import { toast } from '@/hooks/use-toast';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 
 // WP-H (X28), design 2c: jeden Export Historii jako bottom sheet. Chipsy
 // zakresu (Ten okres / Aktywny cykl / Cała historia) + formaty delegujące do
@@ -80,7 +81,21 @@ export const HistoryExportSheet = ({
         return;
       }
       if (format === 'csv') {
-        await downloadWorkoutsCsvFile(workouts);
+        // Bug 26 (X30): toast sukcesu bramkowany wynikiem (Z198) — zamkniecie
+        // share sheeta ('aborted') milczy, 'failed' dostaje komunikat, sheet
+        // zostaje otwarty w obu przypadkach.
+        const result = await downloadWorkoutsCsvFile(workouts, {
+          onShareError: (err) => reportClientErrorWithCurrentUid({
+            code: 'csv-export-share',
+            phase: 'other',
+            detail: err instanceof Error ? err.message : String(err),
+          }),
+        });
+        if (result === 'aborted') return;
+        if (result === 'failed') {
+          toast({ title: t('history.exportFailed'), variant: 'destructive' });
+          return;
+        }
         toast({ title: t('data.export.done'), description: t('data.exportCsv.doneDesc') });
       } else {
         const now = new Date();
