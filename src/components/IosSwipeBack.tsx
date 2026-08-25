@@ -10,6 +10,13 @@ const EDGE_START_PX = 24;
 const TRIGGER_DX_PX = 70;
 const MAX_DY_PX = 50;
 
+// Bug 29 (X30): gest nad otwartym Radix Dialogiem/Sheetem/AlertDialogiem cofał
+// CAŁĄ trasę — twardy unmount otwartego portalu (klasa incydentu b.92: wiszący
+// scroll-lock na body w WKWebView). Otwarty overlay = gest zignorowany;
+// zamknięcie modala należy do jego własnych kontrolek.
+const hasOpenOverlay = (): boolean =>
+  document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]') !== null;
+
 export const IosSwipeBack = () => {
   const navigate = useNavigate();
 
@@ -21,6 +28,10 @@ export const IosSwipeBack = () => {
     let triggered = false;
 
     const onTouchStart = (event: TouchEvent) => {
+      if (hasOpenOverlay()) {
+        startX = -1;
+        return;
+      }
       const touch = event.touches[0];
       startX = touch.clientX <= EDGE_START_PX ? touch.clientX : -1;
       startY = touch.clientY;
@@ -35,6 +46,11 @@ export const IosSwipeBack = () => {
         return;
       }
       if (touch.clientX - startX > TRIGGER_DX_PX) {
+        // Overlay mógł się otworzyć już PO touchstart — decyzja w momencie triggera.
+        if (hasOpenOverlay()) {
+          startX = -1;
+          return;
+        }
         triggered = true;
         navigate(-1);
       }
