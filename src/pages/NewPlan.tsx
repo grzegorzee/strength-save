@@ -212,7 +212,7 @@ const NewPlan = () => {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
-  // ── Wizard (pre-fill z profilu, start od kroku 2; powrót z podglądu = krok 5) ──
+  // ── Wizard (pre-fill z profilu, start od kroku 2; powrót z podglądu = ekran 6/6) ──
   if (phase === 'wizard') {
     return (
       <>
@@ -230,7 +230,8 @@ const NewPlan = () => {
         <PlanWizard
           initial={profileHint ?? undefined}
           resume={chosen}
-          resumeStep={chosen ? 5 : undefined}
+          // X34: powrót z podglądu = ekran 6/6, z którego user wyszedł.
+          resumeStep={chosen ? 6 : undefined}
           builderDraftKey={builderDraftKey(uid)}
           confirmLabelKey="newplan.toReview"
           onConfirm={onWizardConfirm}

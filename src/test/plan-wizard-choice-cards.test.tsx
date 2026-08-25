@@ -6,10 +6,11 @@ import { getRecommendedPlan, planTemplates } from '@/data/planTemplates';
 import { localizePlanName } from '@/lib/plan-i18n';
 
 // X33 (plan docs/PLAN-X33-2026-08-25.md, sekcja 1): krok 5A "Dopasowane do Ciebie".
-// WP-1 przerywnik "Dobieram plany" (~900 ms, raz na przejscie kreatora),
+// WP-1 przerywnik "Dobieram plany" (raz na przejscie kreatora),
 // WP-2 dwie karty (Polecany / Alternatywa / Wybrany z biblioteki) + chipy celu,
-// WP-3 zwinieta linia ustawien (nazwa · tygodnie · start), WP-5 scroll na gore.
-// Harness wg plan-wizard-browse.test.tsx.
+// WP-5 scroll na gore. X34: 5A = tylko wybor (bez podsumowania, "Zmien ustawienia",
+// "Pierwszy trening" i ustawien); zatwierdzanie idzie przez ekran 6/6
+// (plan-start-step.test.tsx). Harness wg plan-wizard-browse.test.tsx.
 
 vi.mock('@/components/PlanBuilder', () => ({ PlanBuilder: () => null }));
 vi.mock('@/lib/firebase', () => ({ db: {}, auth: {}, storage: {}, functions: {} }));
@@ -32,12 +33,17 @@ const goToStep5 = (days = 4, objectiveLabel?: string) => {
   fireEvent.click(screen.getByRole('button', { name: String(days) }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
 };
+// X34: zatwierdzenie = 5A "Wybierz start planu" -> 6/6 glowny CTA.
+const startFromStep5 = () => {
+  fireEvent.click(screen.getByTestId('ob-match-next'));
+  fireEvent.click(screen.getByTestId('ob-start-cta'));
+  fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
+};
 
-const cards = () => screen.getAllByTestId(/^plan-choice-(recommended|second)$/);
+const cards = () => screen.getAllByTestId(/^plan-choice-(recommended|alternative)$/);
 const cardName = (card: HTMLElement) => within(card).getByTestId('plan-choice-name').textContent ?? '';
 const cardMeta = (card: HTMLElement) => within(card).getByTestId('plan-choice-meta').textContent ?? '';
 const cardBadge = (card: HTMLElement) => within(card).getByTestId('plan-choice-badge').textContent ?? '';
-const selectedCard = () => cards().find((c) => c.getAttribute('aria-pressed') === 'true')!;
 const templateByName = (name: string) => planTemplates.find((t) => localizePlanName(t.id, t.name, 'pl') === name)!;
 
 beforeEach(() => {
@@ -46,13 +52,12 @@ beforeEach(() => {
 });
 
 describe('WP-2: dwie karty planow w kroku 5A', () => {
-  it('naglowek "Dwa plany na {days} dni", karta 1 = rekomendacja (badge Polecany) zaznaczona domyslnie, karta 2 = Alternatywa', () => {
+  it('naglowek "Plany na {days} dni", karta 1 = rekomendacja (badge Polecany) zaznaczona domyslnie, karta 2 = Alternatywa', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5(4);
 
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Dwa plany na 4 dni w tygodniu');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Plany na 4 dni w tygodniu');
     expect(screen.getByText('Dopasowane do Ciebie')).toBeInTheDocument();
-    expect(screen.getByTestId('ob-precision-days').textContent).toBe('Pn · Wt · Cz · Pt');
 
     const [first, second] = cards();
     const expected = getRecommendedPlan('build_muscle', 'beginner', 4);
@@ -65,7 +70,7 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     expect(templateByName(cardName(second)).objective).not.toBe(expected.objective);
   });
 
-  it('karta pokazuje "dlaczego", meta "{weeks} tyg. · {days} dni · {n} cw./trening" i pierwszy trening z 3 cwiczeniami', () => {
+  it('karta pokazuje "dlaczego" i meta "{weeks} tyg. · {days} dni · {n} cw./trening"; BEZ wiersza "Pierwszy trening" (X34)', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5(4);
 
@@ -77,9 +82,8 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     const LEVEL_PL = { beginner: 'Początkujący', intermediate: 'Średnio zaawansowany', advanced: 'Zaawansowany' } as const;
     expect(tpl.objective).toBe('build_muscle');
     expect(within(first).getByText(`Budowa masy · ${LEVEL_PL[tpl.level]}`)).toBeInTheDocument();
-    const firstWorkout = within(first).getByTestId('plan-choice-first').textContent ?? '';
-    expect(firstWorkout.startsWith('Pierwszy trening: ')).toBe(true);
-    for (const ex of tpl.days[0].exercises.slice(0, 3)) expect(firstWorkout).toContain(ex.name);
+    expect(within(first).queryByTestId('plan-choice-first')).toBeNull();
+    expect(first.textContent).not.toContain('Pierwszy trening');
     // Hero webp z getPlanTemplateImageUrl; blad pliku = karta bez obrazka, tresc zostaje.
     const img = first.querySelector('img')!;
     expect(img.getAttribute('src')).toBe(`/plan-templates/${tpl.id}.webp`);
@@ -110,16 +114,16 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
     fireEvent.click(second);
     expect(second.getAttribute('aria-pressed')).toBe('true');
     expect(first.getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+    startFromStep5();
     let choice = onConfirm.mock.calls[0][0];
     expect(choice.templateId).toBe(templateByName(cardName(second)).id);
     expect(choice.planSource).toBe('browsed');
     expect(choice.recommendedTemplateId).toBe(templateByName(cardName(first)).id);
     expect(choice.days).toHaveLength(4);
 
-    fireEvent.click(first);
-    expect(first.getAttribute('aria-pressed')).toBe('true');
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
+    fireEvent.click(cards()[0]);
+    expect(cards()[0].getAttribute('aria-pressed')).toBe('true');
+    startFromStep5();
     choice = onConfirm.mock.calls[1][0];
     expect(choice.templateId).toBe(choice.recommendedTemplateId);
     expect(choice.planSource).toBe('recommended');
@@ -185,96 +189,30 @@ describe('WP-2: dwie karty planow w kroku 5A', () => {
   });
 });
 
-describe('WP-3: zwinieta linia ustawien planu', () => {
-  it('zwinieta: "{nazwa} · {n} tyg. · start {dzien} {d.MM}" + Zmien; rozwiniecie pokazuje nazwe, kafle i chipy startu', () => {
-    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToStep5(4);
-
-    const tpl = templateByName(cardName(cards()[0]));
-    const summary = screen.getByTestId('ob-plan-settings-summary').textContent ?? '';
-    expect(summary).toMatch(new RegExp(`^${localizePlanName(tpl.id, tpl.name, 'pl')} · ${tpl.durationWeeks} tyg\\. · start \\S+ \\d{1,2}\\.\\d{2}$`));
-    expect(screen.queryByTestId('ob-plan-name')).toBeNull();
-    expect(screen.queryByTestId('ob-start-week-chips')).toBeNull();
-
-    const change = screen.getByRole('button', { name: 'Zmień' });
-    expect(change.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(change);
-    expect(screen.getByRole('button', { name: 'Zwiń' }).getAttribute('aria-expanded')).toBe('true');
-    expect((screen.getByTestId('ob-plan-name') as HTMLInputElement).maxLength).toBe(60);
-    expect(within(screen.getByTestId('ob-start-week-chips')).getAllByRole('button')).toHaveLength(8);
-    const tiles = within(screen.getByTestId('template-duration-picker')).getAllByRole('button');
-    // Szablon 12-tygodniowy: kafle 8 / 12 / 16 + Inna; 12 z etykieta "polecane" i zaznaczony.
-    expect(tpl.durationWeeks).toBe(12);
-    expect(tiles.map((b) => b.textContent)).toEqual(['8 tyg.', '12 tyg.polecane', '16 tyg.', 'Inna']);
-    expect(tiles[1].getAttribute('aria-pressed')).toBe('true');
-    expect(screen.queryByTestId('duration-custom-input')).toBeNull();
-  });
-
-  it('dlugosc szablonu spoza 8/12/16 = czwarty kafel "polecane"; kafel zmienia durationWeeks, "Inna" otwiera picker', () => {
-    const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
-    render(withProviders(<PlanWizard initial={{ level: 'intermediate', objective: 'build_muscle', daysPerWeek: 3 }} confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
-    goToStep5(3);
-    const tpl = templateByName(cardName(cards()[0]));
-    expect(tpl.durationWeeks).toBe(10);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Zmień' }));
-    const picker = () => within(screen.getByTestId('template-duration-picker'));
-    expect(picker().getAllByRole('button').map((b) => b.textContent)).toEqual(['8 tyg.', '10 tyg.polecane', '12 tyg.', '16 tyg.', 'Inna']);
-
-    fireEvent.click(picker().getByRole('button', { name: /^16 tyg\./ }));
-    expect(screen.getByTestId('ob-plan-settings-summary').textContent).toContain('· 16 tyg. ·');
-
-    fireEvent.click(picker().getByRole('button', { name: 'Inna' }));
-    fireEvent.change(screen.getByTestId('duration-custom-input'), { target: { value: '20' } });
-    expect(screen.getByTestId('ob-plan-settings-summary').textContent).toContain('· 20 tyg. ·');
-    expect(picker().getByRole('button', { name: 'Inna' }).getAttribute('aria-pressed')).toBe('true');
-
-    fireEvent.click(screen.getByRole('button', { name: /Zaczynam ten plan/ }));
-    expect(onConfirm.mock.calls[0][0].durationWeeks).toBe(20);
-  });
-
-  it('zmiana szablonu (tap karty 2) wraca do nazwy i dlugosci nowego szablonu w linii ustawien', () => {
-    render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
-    goToStep5(4);
-    fireEvent.click(screen.getByRole('button', { name: 'Zmień' }));
-    fireEvent.change(screen.getByTestId('ob-plan-name'), { target: { value: 'Moja nazwa' } });
-    expect(screen.getByTestId('ob-plan-settings-summary').textContent).toContain('Moja nazwa');
-
-    const second = cards()[1];
-    fireEvent.click(second);
-    const tpl = templateByName(cardName(second));
-    expect(screen.getByTestId('ob-plan-settings-summary').textContent)
-      .toContain(`${localizePlanName(tpl.id, tpl.name, 'pl')} · ${tpl.durationWeeks} tyg.`);
-  });
-});
-
 describe('WP-1: przerywnik "Dobieram plany" po Dalej w kroku 4', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
-  it('pokazuje Poziom / Cel / Czestotliwosc przez ~900 ms, potem znika; powrot przez "Zmien ustawienia" go pomija', () => {
+  it('pokazuje Poziom / Cel / Czestotliwosc, potem znika; powrot strzalka do kroku 4 i Dalej go pomija', () => {
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5(3, 'Redukcja');
 
     const overlay = screen.getByTestId('ob-matching');
     expect(within(overlay).getByText('Dobieram plany')).toBeInTheDocument();
-    expect(within(overlay).getByText('Początkujący')).toBeInTheDocument();
-    expect(within(overlay).getByText('Redukcja')).toBeInTheDocument();
-    expect(within(overlay).getByText('3 dni/tydz')).toBeInTheDocument();
-
     act(() => { vi.advanceTimersByTime(MATCHING_INTERSTITIAL_MS - 1); });
-    expect(screen.getByTestId('ob-matching')).toBeInTheDocument();
+    expect(within(screen.getByTestId('ob-matching')).getByText('Początkujący')).toBeInTheDocument();
+    expect(within(screen.getByTestId('ob-matching')).getByText('Redukcja')).toBeInTheDocument();
+    expect(within(screen.getByTestId('ob-matching')).getByText('3 dni/tydz')).toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(1); });
     expect(screen.queryByTestId('ob-matching')).toBeNull();
     expect(cards()).toHaveLength(2);
 
-    fireEvent.click(screen.getByText('Zmień ustawienia'));
-    fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+    // X34: bez "Zmien ustawienia"; powrot = strzalka wstecz (krok 4), zmiana dni i Dalej.
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
     fireEvent.click(screen.getByRole('button', { name: '4' }));
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
     expect(screen.queryByTestId('ob-matching')).toBeNull();
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Dwa plany na 4 dni w tygodniu');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Plany na 4 dni w tygodniu');
   });
 
   it('wznowienie szkicu (resume + resumeStep 5) bez przerywnika', () => {
@@ -290,7 +228,7 @@ describe('WP-1: przerywnik "Dobieram plany" po Dalej w kroku 4', () => {
 });
 
 describe('WP-5: scroll na gore przy zmianie kroku / trybu', () => {
-  it('kazde przejscie kroku i wejscie/wyjscie z biblioteki wola window.scrollTo(0, 0)', () => {
+  it('kazde przejscie kroku (tez 5A <-> 6/6) i wejscie/wyjscie z biblioteki wola window.scrollTo(0, 0)', () => {
     const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     const calls = () => scrollTo.mock.calls.filter((c) => c[0] === 0 && c[1] === 0).length;
@@ -306,6 +244,10 @@ describe('WP-5: scroll na gore przy zmianie kroku / trybu', () => {
     expect(calls()).toBe(afterMount + 4);
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
     expect(calls()).toBe(afterMount + 5);
+    fireEvent.click(screen.getByTestId('ob-match-next'));
+    expect(calls()).toBe(afterMount + 6);
+    fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
+    expect(calls()).toBe(afterMount + 7);
     scrollTo.mockRestore();
   });
 });

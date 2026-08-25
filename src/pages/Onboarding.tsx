@@ -180,7 +180,8 @@ const Onboarding = () => {
       avatarPhotoURL={profile?.photoURL || undefined}
       accountEmail={profile?.email || undefined}
       resume={choice ?? undefined}
-      resumeStep={choice ? 5 : undefined}
+      // X34: powrót z podglądu / kroku marketingowego = ekran 6/6, z którego user wyszedł.
+      resumeStep={choice ? 6 : undefined}
       builderDraftKey={`ss-plan-builder-draft_${uid}`}
       confirmLabelKey="newplan.toReview"
       onConfirm={handleWizardConfirm}

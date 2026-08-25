@@ -34,6 +34,11 @@ const goToStep5 = () => {
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
 };
+// X34: zatwierdzenie z podglądem = 5A "Wybierz start planu" -> 6/6 "Podgląd planu".
+const previewFromStep5 = () => {
+  fireEvent.click(screen.getByTestId('ob-match-next'));
+  fireEvent.click(screen.getByTestId('ob-start-preview'));
+};
 
 const expectedRecommendedId = getRecommendedPlan('build_muscle', 'beginner', 4).id;
 
@@ -47,7 +52,7 @@ describe('PlanWizardChoice: planSource + odpowiedzi onboardingu (WP-O)', () => {
     const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5();
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    previewFromStep5();
 
     expect(onConfirm).toHaveBeenCalledTimes(1);
     const choice = onConfirm.mock.calls[0][0];
@@ -67,7 +72,7 @@ describe('PlanWizardChoice: planSource + odpowiedzi onboardingu (WP-O)', () => {
     // Ostatnia karta = najgorsze dopasowanie, na pewno inna niż rekomendacja.
     const headings = screen.getAllByRole('heading', { level: 3 });
     fireEvent.click(headings[headings.length - 1].closest('button')!);
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    previewFromStep5();
 
     const choice = onConfirm.mock.calls[0][0];
     expect(choice.planSource).toBe('browsed');
@@ -85,6 +90,8 @@ describe('PlanWizardChoice: planSource + odpowiedzi onboardingu (WP-O)', () => {
     goToStep5();
     fireEvent.click(screen.getByRole('button', { name: /Ułóż własny/ }));
     fireEvent.click(screen.getByText('BUILDER-SUBMIT'));
+    // X34: własny plan też przechodzi przez ekran 6/6 (nazwa / długość / start).
+    fireEvent.click(screen.getByTestId('ob-start-preview'));
 
     const choice = onConfirm.mock.calls[0][0];
     expect(choice.planSource).toBe('custom');
@@ -92,13 +99,14 @@ describe('PlanWizardChoice: planSource + odpowiedzi onboardingu (WP-O)', () => {
     expect(choice.recommendedTemplateId).toBe(expectedRecommendedId);
     expect(choice.days).toEqual([CUSTOM_DAY]);
     expect(choice.durationWeeks).toBe(8);
+    expect(choice.planName).toBe('Własny plan');
   });
 
   it('niezmiennik: stary kontrakt wyboru (days/durationWeeks/startDate/level/objective/daysPerWeek) bez zmian', () => {
     const onConfirm = vi.fn<(c: PlanWizardChoice) => void>();
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     goToStep5();
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    previewFromStep5();
 
     const choice = onConfirm.mock.calls[0][0];
     expect(choice.level).toBe('beginner');

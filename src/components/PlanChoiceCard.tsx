@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { useTranslation } from '@/contexts/LanguageContext';
 import type { TranslationKey } from '@/i18n';
-import { localizeExerciseName } from '@/data/exercise-i18n';
-import { localizeFocus, localizePlanName } from '@/lib/plan-i18n';
+import { localizePlanName } from '@/lib/plan-i18n';
 import { getPlanTemplateImageUrl } from '@/lib/exercise-media';
 import type { PlanTemplate } from '@/data/planTemplates';
 import { cn } from '@/lib/utils';
@@ -52,16 +51,11 @@ interface PlanChoiceCardProps {
 
 /**
  * X33 WP-2: karta planu w kroku 5A ("Dopasowane do Ciebie"). Tap = zaznaczenie
- * (aria-pressed, ramka w akcencie). Zasada 7: nic tu nie jest zaznaczalne,
- * touch-action: manipulation.
+ * (aria-pressed, ramka w akcencie). X34: bez wiersza "Pierwszy trening".
+ * Zasada 7: nic tu nie jest zaznaczalne, touch-action: manipulation.
  */
 export const PlanChoiceCard = ({ template, badge, why, selected, onSelect, testId }: PlanChoiceCardProps) => {
   const { t, lang } = useTranslation();
-  const first = template.days[0];
-  const firstExercises = first
-    ? first.exercises.slice(0, 3).map((e) => localizeExerciseName(e.name, lang)).join(', ')
-      + (first.exercises.length > 3 ? '…' : '')
-    : '';
   return (
     <button
       type="button"
@@ -96,11 +90,6 @@ export const PlanChoiceCard = ({ template, badge, why, selected, onSelect, testI
         <p data-testid="plan-choice-meta" className="mt-2 text-[12px] tabular-nums text-muted-foreground">
           {t('ob.match.meta', { weeks: template.durationWeeks, days: template.daysPerWeek, exercises: averageExercisesPerDay(template) })}
         </p>
-        {first && (
-          <p data-testid="plan-choice-first" className="mt-1 text-[12px] leading-snug">
-            {t('ob.match.firstWorkout', { day: localizeFocus(first.focus, lang), exercises: firstExercises })}
-          </p>
-        )}
       </div>
     </button>
   );

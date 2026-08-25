@@ -31,7 +31,8 @@ const planName = (objective: 'fat_loss', level: 'intermediate', days: number) =>
 
 // X33 WP-2: rekomendacja to karta "Polecany" (zamiast linii "polecamy plan").
 const recommendedLine = () => screen.getByTestId('plan-choice-recommended').textContent ?? '';
-const answersLine = () => screen.getByTestId('ob-precision-answers').textContent;
+// X34: linia odpowiedzi zniknela z 5A; liczba dni siedzi w naglowku.
+const headingLine = () => screen.getByRole('heading', { level: 1 }).textContent;
 const cardMetas = () => screen.getAllByTestId('plan-choice-meta').map((m) => m.textContent ?? '');
 const cardNames = () => screen.getAllByTestId('plan-choice-name').map((n) => n.textContent ?? '');
 
@@ -42,13 +43,16 @@ const confirmProfileToStep5 = () => {
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
 };
 
-// Krok 5 -> "Zmien ustawienia" -> krok 2 -> 3 -> 4 (wybor dni) -> Dalej -> krok 5.
-const changeDaysViaSettings = (days: number) => {
-  fireEvent.click(screen.getByText('Zmień ustawienia'));
-  fireEvent.click(screen.getByRole('button', { name: /Następny krok/ }));
-  fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+// X34: krok 5A -> strzalka wstecz -> krok 4 (wybor dni) -> Dalej -> krok 5A.
+const changeDaysViaBack = (days: number) => {
+  fireEvent.click(screen.getByRole('button', { name: 'Wstecz' }));
   fireEvent.click(screen.getByRole('button', { name: String(days) }));
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
+};
+// X34: zatwierdzenie z podgladem = 5A "Wybierz start planu" -> 6/6 "Podglad planu".
+const previewFromStep5 = () => {
+  fireEvent.click(screen.getByTestId('ob-match-next'));
+  fireEvent.click(screen.getByTestId('ob-start-preview'));
 };
 
 beforeEach(() => {
@@ -64,7 +68,7 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     expect(getRecommendedPlan('fat_loss', 'intermediate', 3).daysPerWeek).toBe(3);
     expect(recommendedLine()).toContain(planName('fat_loss', 'intermediate', 3));
     expect(recommendedLine()).not.toContain('Rzeźba i Kondycja');
-    expect(answersLine()).toBe('3 dni w tygodniu · Redukcja · Średnio zaawansowany');
+    expect(headingLine()).toBe('Plany na 3 dni w tygodniu');
   });
 
   it('SEKWENCJA: zmiana dni 3 -> 4 w kroku 4 przelicza rekomendacje, powrot strzalka do kroku 4 i 4 -> 3 znow', () => {
@@ -72,10 +76,10 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={onConfirm} />));
     confirmProfileToStep5();
 
-    changeDaysViaSettings(4);
+    changeDaysViaBack(4);
     // fat_loss/4 = jedyny szablon redukcyjny (Lean Engine, 4 dni).
     expect(recommendedLine()).toContain('Rzeźba i Kondycja');
-    expect(answersLine()).toBe('4 dni w tygodniu · Redukcja · Średnio zaawansowany');
+    expect(headingLine()).toBe('Plany na 4 dni w tygodniu');
     // X33 WP-2 (sekwencja c): po zmianie dni OBIE karty są przeliczone na 4 dni i różne.
     expect(cardMetas()).toHaveLength(2);
     for (const meta of cardMetas()) expect(meta).toContain('· 4 dni ·');
@@ -87,11 +91,11 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     fireEvent.click(screen.getByRole('button', { name: '3' }));
     fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
     expect(recommendedLine()).toContain(planName('fat_loss', 'intermediate', 3));
-    expect(answersLine()).toBe('3 dni w tygodniu · Redukcja · Średnio zaawansowany');
+    expect(headingLine()).toBe('Plany na 3 dni w tygodniu');
     for (const meta of cardMetas()) expect(meta).toContain('· 3 dni ·');
     expect(new Set(cardNames()).size).toBe(2);
 
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    previewFromStep5();
     const choice = onConfirm.mock.calls[0][0];
     expect(choice.level).toBe('intermediate');
     expect(choice.objective).toBe('fat_loss');
@@ -103,7 +107,7 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     expect(choice.planSource).toBe('recommended');
   });
 
-  it('X32 SEKWENCJA: zmiana dni przez "Zmien ustawienia" przelicza pule Browse (tylko szablony o nowej liczbie dni)', () => {
+  it('X32 SEKWENCJA: zmiana dni przez strzalke wstecz przelicza pule Browse (tylko szablony o nowej liczbie dni)', () => {
     render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} />));
     confirmProfileToStep5();
 
@@ -113,7 +117,7 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     for (const card of browseCards()) expect(card).toContain('3×');
     fireEvent.click(screen.getByRole('button', { name: 'Wstecz' })); // Browse -> krok 5
 
-    changeDaysViaSettings(4);
+    changeDaysViaBack(4);
     fireEvent.click(screen.getByRole('button', { name: /Biblioteka planów/ }));
     expect(browseCards().length).toBe(planTemplates.filter((t) => t.daysPerWeek === 4).length);
     for (const card of browseCards()) expect(card).toContain('4×');
@@ -129,14 +133,14 @@ describe('PlanWizard krok 5 przy replanie: dni z kroku 4 rzadza rekomendacja (X3
     const tpl = getRecommendedPlan('build_muscle', 'beginner', 4);
     expect(tpl.daysPerWeek).toBe(4);
     expect(recommendedLine()).toContain(localizePlanName(tpl.id, tpl.name, 'pl'));
-    expect(answersLine()).toBe('4 dni w tygodniu · Budowa masy · Początkujący');
+    expect(headingLine()).toBe('Plany na 4 dni w tygodniu');
   });
 
   it('X32: replan z initial startuje na kroku 2 z zaznaczonym profilem; strzalka wstecz z kroku 2 wychodzi z kreatora (onExitBack)', () => {
     const onExitBack = vi.fn();
     render(withProviders(<PlanWizard initial={PROFILE} confirmLabelKey="newplan.toReview" onConfirm={() => {}} onExitBack={onExitBack} />));
 
-    expect(screen.getByText('02 / 05')).toBeTruthy();
+    expect(screen.getByText('02 / 06')).toBeTruthy();
     expect(screen.getByText('Średnio zaawansowany').closest('button')!.getAttribute('aria-pressed')).toBe('true');
     expect(screen.queryByTestId('plan-choice-recommended')).toBeNull();
 

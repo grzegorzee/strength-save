@@ -78,6 +78,11 @@ const recommendedLine = async () => {
   fireEvent.click(screen.getByRole('button', { name: /Dalej/ }));
   return screen.findByTestId('plan-choice-recommended');
 };
+// X34: podgląd = 5A "Wybierz start planu" -> 6/6 "Podgląd planu".
+const previewFromStep5 = () => {
+  fireEvent.click(screen.getByTestId('ob-match-next'));
+  fireEvent.click(screen.getByTestId('ob-start-preview'));
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -99,7 +104,7 @@ describe('NewPlan: krok 5 liczy rekomendacje z profilu treningowego (X31 H2)', (
     expect(line.textContent).not.toContain('Rzeźba i Kondycja');
 
     // Podglad dostaje 3 dni; zatwierdzenie zapisuje profil z odpowiedzi usera, nie z domyslnych.
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    previewFromStep5();
     fireEvent.click(await screen.findByText('PREVIEW-CONFIRM:3'));
     await waitFor(() => expect(updateDoc).toHaveBeenCalledTimes(1));
     expect(updateDoc.mock.calls[0][1]).toEqual({
@@ -114,7 +119,7 @@ describe('NewPlan: krok 5 liczy rekomendacje z profilu treningowego (X31 H2)', (
     const expected = getRecommendedPlan('build_muscle', 'beginner', 4);
     const line = await recommendedLine();
     expect(line.textContent).toContain(localizePlanName(expected.id, expected.name, 'pl'));
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    previewFromStep5();
     expect(await screen.findByText('PREVIEW-CONFIRM:4')).toBeTruthy();
   });
 

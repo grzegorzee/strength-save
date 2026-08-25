@@ -42,12 +42,17 @@ const openBrowse = () => fireEvent.click(screen.getByRole('button', { name: /Bib
 const goToBrowseAsFatLoss3Days = () => { goToStep5AsFatLoss(3); openBrowse(); };
 
 const cards = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.closest('button')!);
-// X33 WP-2: kafel "Częstotliwość" zniknął; liczba dni z kroku 4 = linia odpowiedzi,
+// X33 WP-2: kafel "Częstotliwość" zniknął; liczba dni z kroku 4 = nagłówek 5A (X34),
 // a liczba dni szablonu = meta zaznaczonej karty ("{weeks} tyg. · {days} dni · ...").
-const answersLine = () => screen.getByTestId('ob-precision-answers').textContent ?? '';
+const headingLine = () => screen.getByRole('heading', { level: 1 }).textContent ?? '';
 const selectedCardMeta = () => {
-  const selected = screen.getAllByTestId(/^plan-choice-(recommended|second)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
+  const selected = screen.getAllByTestId(/^plan-choice-(recommended|alternative)$/).find((c) => c.getAttribute('aria-pressed') === 'true')!;
   return selected.querySelector('[data-testid="plan-choice-meta"]')!.textContent ?? '';
+};
+// X34: zatwierdzenie z podgladem = 5A "Wybierz start planu" -> 6/6 "Podglad planu".
+const previewFromStep5 = () => {
+  fireEvent.click(screen.getByTestId('ob-match-next'));
+  fireEvent.click(screen.getByTestId('ob-start-preview'));
 };
 const countFor = (days: number) => planTemplates.filter((t) => t.daysPerWeek === days).length;
 
@@ -78,7 +83,7 @@ describe('Browse plans + krok 5: tylko szablony o liczbie dni z kroku 4 (X32)', 
     render(withProviders(<PlanWizard confirmLabelKey="newplan.toReview" onConfirm={noop} />));
     goToStep5AsFatLoss(3);
 
-    expect(answersLine()).toContain('3 dni w tygodniu');
+    expect(headingLine()).toBe('Plany na 3 dni w tygodniu');
     expect(selectedCardMeta()).toContain('· 3 dni ·');
     expect(screen.getByRole('button', { name: `Biblioteka planów na 3 dni (${countFor(3)})` })).toBeTruthy();
     expect(screen.queryByText(/Ten plan ma \d+ dni treningowych/)).toBeNull();
@@ -125,7 +130,7 @@ describe('Browse plans + krok 5: tylko szablony o liczbie dni z kroku 4 (X32)', 
     const list = cards();
     fireEvent.click(list[list.length - 1]);
     expect(selectedCardMeta()).toContain('· 3 dni ·');
-    fireEvent.click(screen.getByRole('button', { name: /Podgląd planu/ }));
+    previewFromStep5();
 
     const choice = onConfirm.mock.calls[0][0];
     expect(choice.daysPerWeek).toBe(3);
