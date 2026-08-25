@@ -15,6 +15,7 @@ import { Download, Upload, Trash2, Loader2, Wrench } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { formatLocalDate } from '@/lib/utils';
 import { shareOrDownloadFile } from '@/lib/share-export';
+import { reportClientErrorWithCurrentUid } from '@/lib/global-error-telemetry';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
@@ -204,13 +205,29 @@ export const DataManagement = ({
 
   // WP-L (X29): na native <a download> jest martwe (Z179) — backup idzie
   // w share sheet; toast sukcesu tylko gdy plik realnie wyszedł (wzorzec Z198).
+  // Bug 24 (X30): 'failed' (share sheet padł) dostaje destructive toast +
+  // telemetrię; cisza zostaje WYŁĄCZNIE dla 'aborted' (user zamknął sheet).
   const handleExport = async () => {
     const data = onExport();
     const file = new File([data], `fittracker-backup-${formatLocalDate(new Date())}.json`, {
       type: 'application/json',
     });
-    const result = await shareOrDownloadFile(file);
-    if (result === 'aborted' || result === 'failed') return;
+    const result = await shareOrDownloadFile(file, {
+      onShareError: (err) => reportClientErrorWithCurrentUid({
+        code: 'data-export-share',
+        phase: 'other',
+        detail: err instanceof Error ? err.message : String(err),
+      }),
+    });
+    if (result === 'aborted') return;
+    if (result === 'failed') {
+      toast({
+        title: t('data.export.failed'),
+        description: t('data.export.failedDesc'),
+        variant: 'destructive',
+      });
+      return;
+    }
 
     toast({
       title: t('data.export.done'),

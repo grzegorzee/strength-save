@@ -364,6 +364,8 @@ export const pl = {
   'data.error': 'Błąd!',
   'data.export.done': 'Eksport zakończony!',
   'data.export.doneDesc': 'Plik JSON został pobrany.',
+  'data.export.failed': 'Eksport nie powiódł się',
+  'data.export.failedDesc': 'Nie udało się przekazać pliku. Spróbuj ponownie.',
   'data.import.done': 'Import zakończony!',
   'data.import.error': 'Błąd importu',
   'data.import.confirmTitle': 'Importować kopię zapasową?',
