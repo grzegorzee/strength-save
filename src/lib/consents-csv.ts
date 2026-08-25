@@ -52,3 +52,25 @@ export const buildConsentsCsv = (rows: ConsentRow[], emailByUid: Record<string, 
   ].map(csvField).join(','));
   return [header, ...lines].join('\r\n');
 };
+
+/**
+ * Bug 48 (X30): eksport logu zgód cicho obcinał się na limicie pojedynczego
+ * zapytania (10000 najnowszych; najstarsze dowody art. 7 RODO wypadały z pliku).
+ * Pełna strona = mogą istnieć kolejne wpisy, więc dociągamy następną stronę
+ * (caller podaje kursor stronicowania, u nas startAfter po ostatnim dokumencie);
+ * strona niepełna albo brak kursora kończy pętlę.
+ */
+export const collectAllPages = async <T, C>(
+  pageSize: number,
+  fetchPage: (cursor: C | null) => Promise<{ items: T[]; nextCursor: C | null }>,
+): Promise<T[]> => {
+  const all: T[] = [];
+  let cursor: C | null = null;
+  for (;;) {
+    const { items, nextCursor } = await fetchPage(cursor);
+    all.push(...items);
+    if (items.length < pageSize || nextCursor === null) break;
+    cursor = nextCursor;
+  }
+  return all;
+};

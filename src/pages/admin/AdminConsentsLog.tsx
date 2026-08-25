@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query, startAfter, type QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,15 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
 import { useToast } from '@/hooks/use-toast';
 import { formatLocalDate } from '@/lib/utils';
-import { buildConsentsCsv, toConsentRow, type ConsentRow } from '@/lib/consents-csv';
+import { buildConsentsCsv, collectAllPages, toConsentRow, type ConsentRow } from '@/lib/consents-csv';
 
 // Pakiet prawny v2: log zgód (kolekcja consents, pisze tylko recordConsent).
 // Widok ostatnich wpisów + eksport CSV całego logu z datą, godziną (UTC) i IP
 // (wymóg usera 2026-08-11: każda zgoda wyciągalna do CSV).
 
-const CSV_EXPORT_LIMIT = 10000;
+// Bug 48 (X30): to limit STRONY zapytania, nie sufit eksportu — collectAllPages
+// dociąga kolejne strony przez startAfter, dopóki strona wraca pełna.
+const CSV_EXPORT_PAGE_SIZE = 10000;
 const RECENT_LIMIT = 50;
 
 export const AdminConsentsLog = ({ userEmailByUid }: { userEmailByUid: Record<string, string> }) => {
@@ -42,12 +44,21 @@ export const AdminConsentsLog = ({ userEmailByUid }: { userEmailByUid: Record<st
   const exportCsv = async () => {
     setExporting(true);
     try {
-      const snap = await getDocs(query(
-        collection(db, 'consents'),
-        orderBy('createdAt', 'desc'),
-        limit(CSV_EXPORT_LIMIT),
-      ));
-      const all = snap.docs.map((docSnap) => toConsentRow(docSnap.id, docSnap.data()));
+      const all = await collectAllPages<ConsentRow, QueryDocumentSnapshot>(
+        CSV_EXPORT_PAGE_SIZE,
+        async (cursor) => {
+          const snap = await getDocs(query(
+            collection(db, 'consents'),
+            orderBy('createdAt', 'desc'),
+            ...(cursor ? [startAfter(cursor)] : []),
+            limit(CSV_EXPORT_PAGE_SIZE),
+          ));
+          return {
+            items: snap.docs.map((docSnap) => toConsentRow(docSnap.id, docSnap.data())),
+            nextCursor: snap.docs.length > 0 ? snap.docs[snap.docs.length - 1] : null,
+          };
+        },
+      );
       const csv = buildConsentsCsv(all, userEmailByUid);
       // BOM, żeby Excel poprawnie otwierał UTF-8 (polskie znaki w treści oświadczeń).
       const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });

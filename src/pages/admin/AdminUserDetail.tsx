@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, BarChart3, Bug, Dumbbell, Loader2, Mail, MousePointerClick, Wrench } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bug, ClipboardList, Dumbbell, Loader2, Mail, MousePointerClick, Wrench } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { EmptyState } from '@/components/EmptyState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -21,6 +21,7 @@ import { buildDailyActivitySeries, activityBadge } from '@/lib/admin-activity';
 import { useAdminUserActions } from './useAdminUserActions';
 import { AVAILABLE_FEATURES } from './admin-user-types';
 import { AdminSubscriptionCard } from './AdminSubscriptionCard';
+import { AdminOnboardingCard, mapOnboardingAnswers, type AdminOnboardingAnswers } from './AdminOnboardingCard';
 import { mapSubscription, type ActivitySummary, type SubscriptionState } from '@/lib/user-profile';
 import type { EmailLogRow } from '@/lib/admin-email-stats';
 import { EmailLogRowItem, EmailPreviewDialog, useEmailPreview } from './EmailLogRow';
@@ -40,6 +41,12 @@ interface DetailUser {
   features: Record<string, boolean>;
   activitySummary?: ActivitySummary;
   subscription?: SubscriptionState | null;
+  // WP-A (X30): odpowiedzi onboardingu + dane fallbacku dla starych kont.
+  onboardingAnswers: AdminOnboardingAnswers | null;
+  trainingProfile: { level?: string; objective?: string; daysPerWeek?: number } | null;
+  accentColor: string | null;
+  onboardingState: string | null;
+  onboardingVersion: number | null;
 }
 
 interface TelemetryDailyDoc {
@@ -167,6 +174,13 @@ const AdminUserDetail = () => {
           features: (u.features ?? {}) as Record<string, boolean>,
           activitySummary: u.activitySummary as ActivitySummary | undefined,
           subscription: mapSubscription(u.subscription),
+          onboardingAnswers: mapOnboardingAnswers(u.onboardingAnswers),
+          trainingProfile: u.trainingProfile && typeof u.trainingProfile === 'object'
+            ? u.trainingProfile as { level?: string; objective?: string; daysPerWeek?: number }
+            : null,
+          accentColor: typeof u.preferences?.accentColor === 'string' ? u.preferences.accentColor : null,
+          onboardingState: typeof u.onboarding?.state === 'string' ? u.onboarding.state : null,
+          onboardingVersion: typeof u.onboarding?.version === 'number' ? u.onboarding.version : null,
         } : null);
         setTelemetryDocs(telemetrySnap.docs.map((d) => d.data() as TelemetryDailyDoc));
         setPlan(planSnap.exists()
@@ -398,6 +412,27 @@ const AdminUserDetail = () => {
             <Dumbbell className="mr-1.5 h-4 w-4" />
             {t('admin.editPlan')}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* ONBOARDING (WP-A X30): odpowiedzi usera krok po kroku z users/{uid}. */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-heading font-bold uppercase italic tracking-tight">
+            <ClipboardList className="h-4 w-4 text-primary" />
+            {t('admin.onb.title')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdminOnboardingCard
+            answers={user.onboardingAnswers}
+            fallback={{
+              trainingProfile: user.trainingProfile,
+              accentColor: user.accentColor,
+              onboardingState: user.onboardingState,
+              onboardingVersion: user.onboardingVersion,
+            }}
+          />
         </CardContent>
       </Card>
 
