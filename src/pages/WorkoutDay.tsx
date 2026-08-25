@@ -1058,9 +1058,18 @@ const WorkoutDay = () => {
     setIsDraftLoaded(false);
 
     const loadDraft = async () => {
-      const draft = routeSessionId
-        ? await workoutDraftDb.loadDraft(uid, routeSessionId)
-        : await workoutDraftDb.loadActiveDraft(uid);
+      let draft: ActiveWorkoutDraft | null;
+      if (routeSessionId) {
+        draft = await workoutDraftDb.loadDraft(uid, routeSessionId);
+      } else {
+        // Bug 4 (X30): bez ?session najpierw draft TEJ strony (dayId+date) —
+        // globalny pick mógł wskazać nowszy porzucony adhoc i przysłonić żywą
+        // sesję planu (autostart robił wtedy pełny prefill nad stanem chmury).
+        draft = dayId ? await workoutDraftDb.loadDraftForDay(uid, dayId, targetDate) : null;
+        // Niezmiennik: strona bez własnego draftu zachowuje dotychczasowy
+        // globalny pick (pozostali konsumenci activeDraft bez zmian).
+        if (!draft) draft = await workoutDraftDb.loadActiveDraft(uid);
+      }
       const resolvedDraft = draft ?? await workoutDraftDb.migrateFromLocalStorage(uid);
       if (!cancelled) {
         setActiveDraft(resolvedDraft);
@@ -1073,7 +1082,7 @@ const WorkoutDay = () => {
     return () => {
       cancelled = true;
     };
-  }, [uid, routeSessionId]);
+  }, [uid, routeSessionId, dayId, targetDate]);
 
   useEffect(() => {
     if (!uid || !dayId) {

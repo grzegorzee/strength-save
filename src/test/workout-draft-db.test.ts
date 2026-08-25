@@ -586,6 +586,66 @@ describe('workoutDraftDb', () => {
     expect(orphan).toBeNull();
   });
 
+  it('bug 3: resolvePromotedSessionId zwraca remote id z tombstone\'a promocji, null gdy brak', async () => {
+    const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
+    const remoteId = 'workout-user-1-day-1-2026-04-03';
+    expect(workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBeNull();
+
+    await workoutDraftDb.saveActiveDraft({
+      ...baseDraft,
+      sessionId: provisionalId,
+      sessionOrigin: 'provisional',
+      remoteSessionId: null,
+    });
+    await workoutDraftDb.markPromotedToRemote('user-1', remoteId, provisionalId);
+
+    // WorkoutDay po skipped/missingDraft własnej sesji provisional odzyskuje
+    // tożsamość remote i może ponowić sync zamiast cichego no-opa.
+    expect(workoutDraftDb.resolvePromotedSessionId('user-1', provisionalId)).toBe(remoteId);
+    expect(workoutDraftDb.resolvePromotedSessionId('user-1', 'local-workout-inny')).toBeNull();
+  });
+
+  it('bug 4 sekwencja: niedokończony adhoc nie przysłania sesji planu — loadDraftForDay wybiera draft strony', async () => {
+    // 1) Sesja planu: 2 odhaczone ćwiczenia, po checkpoincie (dirty=false, remote).
+    const planDraft: ActiveWorkoutDraft = {
+      ...baseDraft,
+      sessionId: 'workout-plan-1',
+      remoteSessionId: 'workout-plan-1',
+      dayId: 'day-1',
+      date: '2026-04-03',
+      dirty: false,
+      updatedAt: 200,
+      version: 6,
+    };
+    // 2) Porzucony szybki trening — nowszy i dirty, wygrywa globalny pick.
+    const adhocDraft: ActiveWorkoutDraft = {
+      ...baseDraft,
+      sessionId: 'workout-adhoc-1',
+      remoteSessionId: 'workout-adhoc-1',
+      dayId: 'adhoc-123',
+      date: '2026-04-03',
+      dirty: true,
+      updatedAt: 900,
+      version: 2,
+      exerciseSets: { 'adhoc-ex': [{ reps: 5, weight: 60, completed: true }] },
+    };
+    await workoutDraftDb.saveActiveDraft(planDraft);
+    await workoutDraftDb.saveActiveDraft(adhocDraft);
+
+    // Globalny pick (dzisiejsze zachowanie loadActiveDraft): adhoc — niezmiennik.
+    const globalPick = await workoutDraftDb.loadActiveDraft('user-1');
+    expect(globalPick?.sessionId).toBe('workout-adhoc-1');
+
+    // 3) Powrót na stronę planu bez ?session: draft TEJ strony, nie globalny pick.
+    const pageDraft = await workoutDraftDb.loadDraftForDay('user-1', 'day-1', '2026-04-03');
+    expect(pageDraft?.sessionId).toBe('workout-plan-1');
+    expect(pageDraft?.exerciseSets['ex-1'].filter((s) => s.completed)).toHaveLength(2);
+
+    // Strona bez własnego draftu → null (WorkoutDay wraca do globalnego picku).
+    expect(await workoutDraftDb.loadDraftForDay('user-1', 'day-2', '2026-04-03')).toBeNull();
+    expect(await workoutDraftDb.loadDraftForDay('user-1', 'day-1', '2026-04-04')).toBeNull();
+  });
+
   it('markPromotedToRemote nie cofa treści, gdy draft remote ma nowszą version (R2-04)', async () => {
     const provisionalId = 'local-workout-user-1-day-1-2026-04-03';
     const remoteId = 'workout-user-1-day-1-2026-04-03';

@@ -39,6 +39,8 @@ vi.mock('@/lib/app-telemetry', () => ({ trackTelemetryEvent: vi.fn() }));
 
 const draftFixture = vi.hoisted(() => ({
   draft: null as unknown,
+  // Bug 4 (X30): drafty per strona (dayId:date) dla loadDraftForDay.
+  pageDrafts: {} as Record<string, unknown>,
 }));
 
 vi.mock('@/contexts/UserContext', () => ({
@@ -101,7 +103,12 @@ vi.mock('@/hooks/usePlanCycles', () => ({
 vi.mock('@/hooks/useWatchPlanPreview', () => ({ useWatchPlanPreview: () => {} }));
 vi.mock('@/components/ProUpsellBanner', () => ({ ProUpsellBanner: () => null }));
 vi.mock('@/lib/workout-draft-db', () => ({
-  workoutDraftDb: { loadActiveDraft: vi.fn(async () => draftFixture.draft) },
+  workoutDraftDb: {
+    loadActiveDraft: vi.fn(async () => draftFixture.draft),
+    loadDraftForDay: vi.fn(async (_uid: string, dayId: string, date: string) => (
+      draftFixture.pageDrafts[`${dayId}:${date}`] ?? null
+    )),
+  },
 }));
 vi.mock('@/lib/workout-sync-queue', () => ({
   workoutSyncQueue: { pendingCount: () => 0 },
@@ -168,6 +175,7 @@ beforeEach(() => {
   navigateSpy.mockClear();
   planFixture.plan = [dayForToday()];
   draftFixture.draft = null;
+  draftFixture.pageDrafts = {};
 });
 
 describe('Z174: jedna prawda o aktywnej sesji', () => {
@@ -201,6 +209,34 @@ describe('Z174: jedna prawda o aktywnej sesji', () => {
 
     fireEvent.click(screen.getAllByText('Kontynuuj trening')[0]);
     const { todayStr } = todayParts();
+    expect(navigateSpy).toHaveBeenLastCalledWith(`/workout/day-1?date=${todayStr}&session=s1`);
+  });
+
+  it('bug 4: porzucony szybki trening nie odbiera sesji planu ścieżki powrotu — hero linkuje z session= sesji planu', async () => {
+    const { todayStr } = todayParts();
+    // Globalny pick (nowszy, dirty) wskazuje adhoc — dokładnie stan po sekwencji
+    // "plan → wyjście → szybki trening → porzucenie → powrót na Dashboard".
+    draftFixture.draft = { ...provisionalDraft('adhoc-999'), sessionId: 's-adhoc' };
+    // Żywa sesja planu wciąż istnieje pod swoim dniem (draft per strona).
+    draftFixture.pageDrafts[`day-1:${todayStr}`] = { ...provisionalDraft('day-1'), sessionId: 's-plan' };
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getAllByText('Kontynuuj trening').length).toBeGreaterThan(0));
+    // Jedna prawda o sesji (Z174): CTA kontynuacji tylko na karcie dnia.
+    expect(screen.getAllByText('Kontynuuj trening')).toHaveLength(1);
+
+    fireEvent.click(screen.getByText('Kontynuuj trening'));
+    expect(navigateSpy).toHaveBeenLastCalledWith(`/workout/day-1?date=${todayStr}&session=s-plan`);
+  });
+
+  it('bug 4 niezmiennik: globalny pick zgodny z dniem planu ma pierwszeństwo jak dotąd', async () => {
+    const { todayStr } = todayParts();
+    draftFixture.draft = provisionalDraft('day-1');
+    draftFixture.pageDrafts[`day-1:${todayStr}`] = { ...provisionalDraft('day-1'), sessionId: 's-inny' };
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getAllByText('Kontynuuj trening').length).toBeGreaterThan(0));
+    fireEvent.click(screen.getAllByText('Kontynuuj trening')[0]);
     expect(navigateSpy).toHaveBeenLastCalledWith(`/workout/day-1?date=${todayStr}&session=s1`);
   });
 });

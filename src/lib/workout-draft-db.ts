@@ -903,6 +903,22 @@ export const workoutDraftDb = {
     }
   },
 
+  // Bug 4 (X30): wybór draftu PER STRONA treningu (dayId+date) zamiast globalnego
+  // picku. Niezmiennik z incydentu 2026-07-20: żywa sesja planu jest bazą — nowszy
+  // porzucony adhoc nie ma prawa jej przysłonić przy wejściu bez ?session.
+  // Brak draftu strony => null (caller decyduje o fallbacku na globalny pick).
+  async loadDraftForDay(userId: string, dayId: string, date: string): Promise<ActiveWorkoutDraft | null> {
+    const drafts = await this.listDrafts(userId);
+    const picked = pickActiveDraft(drafts.filter(draft => draft.dayId === dayId && draft.date === date));
+    if (!picked) return null;
+    const fresher = resolveFresherFallback(picked, userId);
+    if (fresher) {
+      await this.saveActiveDraft(fresher).catch(() => undefined);
+      return fresher;
+    }
+    return picked;
+  },
+
   async listDrafts(userId: string): Promise<ActiveWorkoutDraft[]> {
     if (!this.isSupported()) {
       const fallback = withFallbackLoad(userId);

@@ -626,19 +626,56 @@ const Dashboard = () => {
       : { title: t(isCompletedMoveReason(result.reason) ? 'reschedule.completedBlocked' : 'reschedule.failed'), variant: 'destructive' });
   };
 
+  // Bug 4 (X30): hero dnia szuka draftu WŁASNEGO dnia planu, nie tylko globalnego
+  // picku — porzucony szybki trening (nowszy, dirty) nie odbiera żywej sesji planu
+  // jedynej ścieżki powrotu z Dashboardu.
+  const [todayPlanDraft, setTodayPlanDraft] = useState<ActiveWorkoutDraft | null>(null);
+  useEffect(() => {
+    if (!uid || todayTraining.type !== 'training') {
+      setTodayPlanDraft(null);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      const draft = await workoutDraftDb.loadDraftForDay(uid, todayTraining.dayId, todayTraining.dateStr);
+      if (!cancelled) setTodayPlanDraft(draft);
+    };
+    void load();
+    const handleRefresh = () => { void load(); };
+    window.addEventListener('focus', handleRefresh);
+    window.addEventListener('online', handleRefresh);
+    window.addEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleRefresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', handleRefresh);
+      window.removeEventListener('online', handleRefresh);
+      window.removeEventListener(WORKOUT_SYNC_STATE_CHANGED_EVENT, handleRefresh);
+    };
+  }, [uid, todayTraining]);
+
   // Z174: JEDNA prawda o aktywnej sesji. Gdy karta dnia pokazuje CTA kontynuacji,
   // baner sync degraduje się do wiersza informacyjnego (bez drugiego przycisku).
   // Licznik serii wspólny z ekranem treningu (bez rozgrzewki).
-  const todayContinueDraft = useMemo(() => (
-    todayTraining.type === 'training'
-    && isDraftContinuableToday(localDraft, todayTraining.dateStr)
-    && localDraft.dayId === todayTraining.dayId
+  const todayContinueDraft = useMemo(() => {
+    if (todayTraining.type !== 'training') return null;
+    // Niezmiennik: globalny pick (localDraft) ma pierwszeństwo jak dotąd; draft
+    // dnia planu (bug 4, X30) jest fallbackiem, gdy globalny pick wskazuje inną
+    // sesję (np. porzucony szybki trening).
+    const candidate = isDraftContinuableToday(localDraft, todayTraining.dateStr)
+      && localDraft.dayId === todayTraining.dayId
+      ? localDraft
+      : todayPlanDraft
+          && todayPlanDraft.dayId === todayTraining.dayId
+          && isDraftContinuableToday(todayPlanDraft, todayTraining.dateStr)
+        ? todayPlanDraft
+        : null;
+    return candidate
       ? {
-        target: continuableDraftTarget(localDraft),
-        completedSets: countCompletedWorkingSets(localDraft.exerciseSets),
+        target: continuableDraftTarget(candidate),
+        completedSets: countCompletedWorkingSets(candidate.exerciseSets),
       }
-      : null
-  ), [todayTraining, localDraft]);
+      : null;
+  }, [todayTraining, localDraft, todayPlanDraft]);
 
   // Apple Watch: podgląd dzisiejszego planu na zegarku zanim sesja wystartuje.
   useWatchPlanPreview({
