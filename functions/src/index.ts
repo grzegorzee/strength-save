@@ -97,6 +97,8 @@ export { adminUserRepair } from "./repairs/admin-user-repair";
 export { revenuecatWebhook } from "./revenuecat";
 // Z217: agregat all-time treningów (kafle Dashboardu) + backfill na żądanie.
 export { onWorkoutWrittenAggregate, rebuildWorkoutAggregate } from "./workout-aggregate";
+// X35c (WP-E): push o nowym rekordzie na przejściu workouts.completed -> true.
+export { onWorkoutCompletedPrPush } from "./pr-push";
 // Z222: dzienny raport kosztów chmury (Monitoring API -> admin_cost_daily).
 export { dailyCostDigest } from "./cost-digest";
 // WP-G (X27): dzienny alert telemetrii client_errors (nowy kod / spike -> mail).

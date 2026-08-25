@@ -17,16 +17,23 @@ interface AppHeaderProps {
   onBack?: () => void;
 }
 
+// X35c (WP-E, pkt 3): zakładki główne (bottom nav + /analytics) dostają dzwonek
+// z licznikiem nieprzeczytanych. Zestaw = rootPaths Layoutu (trasy bez strzałki
+// wstecz); trzymany osobno, bo Layout nie eksportuje swojej listy.
+const BELL_PATHS = new Set(['/', '/plan', '/history', '/exercises', '/achievements', '/analytics']);
+
 export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
   const { t } = useTranslation();
   const { uid, profile } = useCurrentUser();
   const navigate = useNavigate();
-  // Naprawa r2 (2026-08-21, sędzia struktury): dzwonek i licznik treningów
-  // wyłącznie na Dashboardzie — artboardy Plan/History/Profile mają w headerze
-  // akcje kontekstowe ekranu (slot HeaderActions), nie dashboardowy zestaw.
+  const { pathname } = useLocation();
+  // Naprawa r2 (2026-08-21, sędzia struktury): licznik treningów wyłącznie na
+  // Dashboardzie — artboardy Plan/History/Profile mają w headerze akcje
+  // kontekstowe ekranu (slot HeaderActions), nie dashboardowy zestaw.
   // Wejście w statystyki nie znika: pigułka na Dashboardzie + kafel "Twoje
-  // liczby" w gridzie szybkich akcji.
-  const isDashboard = useLocation().pathname === '/';
+  // liczby" w gridzie szybkich akcji. Dzwonek od X35c na każdej zakładce głównej.
+  const isDashboard = pathname === '/';
+  const showBell = BELL_PATHS.has(pathname);
   const displayName = profile?.displayName || '';
   const initials = displayName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'SS';
   // Z216: nagłówek jest na każdym ekranie — nie może trzymać szerokiego
@@ -96,7 +103,7 @@ export const AppHeader = ({ title, onBack }: AppHeaderProps) => {
           {/* Naprawa r2 (2026-08-21): slot na kontekstowe akcje ekranu
               (artboard 1a: History ma tu kafle lupy i filtrów). */}
           <HeaderActionsOutlet />
-          {isDashboard && uid && <NotificationBell uid={uid} />}
+          {showBell && uid && <NotificationBell uid={uid} />}
           {!isOnline && (
             <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-fitness-warning/10 text-fitness-warning text-xs font-medium">
               <WifiOff className="h-3.5 w-3.5" />

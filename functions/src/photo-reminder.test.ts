@@ -98,7 +98,24 @@ describe("runPhotoReminder", () => {
     expect(deps.markReminderSent).toHaveBeenCalledWith("u1", TODAY);
   });
 
-  it("wyłączone dailyReminder = bez pusha, ale dzwonek in-app zostaje", async () => {
+  // X35c (WP-E): własny przełącznik photoReminder gate'uje OBA kanały
+  // (push + dzwonek) i nie zapisuje znacznika — włączenie później dostarcza
+  // przypomnienie następnego dnia, jeśli user nadal się kwalifikuje.
+  it("wyłączone photoReminder = bez pusha, bez dzwonka, bez znacznika", async () => {
+    const deps = baseDeps({
+      listCandidates: async () => [
+        { uid: "u1", user: { status: "active", notificationPrefs: { photoReminder: false } } },
+      ],
+    });
+    const result = await runPhotoReminder(deps);
+
+    expect(result.eligible).toBe(0);
+    expect(deps.sendMulticast).not.toHaveBeenCalled();
+    expect(deps.writeUserEvent).not.toHaveBeenCalled();
+    expect(deps.markReminderSent).not.toHaveBeenCalled();
+  });
+
+  it("wyłączone dailyReminder NIE blokuje już przypomnienia o zdjęciu (osobny przełącznik)", async () => {
     const deps = baseDeps({
       listCandidates: async () => [
         { uid: "u1", user: { status: "active", notificationPrefs: { dailyReminder: false } } },
@@ -106,8 +123,7 @@ describe("runPhotoReminder", () => {
     });
     const result = await runPhotoReminder(deps);
 
-    expect(result.sent).toBe(0);
-    expect(deps.sendMulticast).not.toHaveBeenCalled();
+    expect(result.sent).toBe(1);
     expect(deps.writeUserEvent).toHaveBeenCalledTimes(1);
     expect(deps.markReminderSent).toHaveBeenCalledTimes(1);
   });

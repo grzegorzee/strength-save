@@ -14,9 +14,9 @@ vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AdminCommsCard } from '@/components/admin/AdminCommsCard';
 
-const renderCard = () => render(
+const renderCard = (props: Partial<Parameters<typeof AdminCommsCard>[0]> = {}) => render(
   <LanguageProvider>
-    <AdminCommsCard cohorts={[]} />
+    <AdminCommsCard cohorts={[]} {...props} />
   </LanguageProvider>,
 );
 
@@ -56,6 +56,46 @@ describe('AdminCommsCard (T15: mirror push do dzwonka)', () => {
     fireEvent.click(screen.getByRole('switch'));
     await fillAndSendPush();
     expect(adminSendPushMock).toHaveBeenCalledWith({ target: 'all', title: 'Nowość', body: 'Opis', inbox: false });
+  });
+
+  // X35c (WP-E, pkt 4): szablony wypełniają tytuł i treść; "Wolny tekst" czyści.
+  it('szablon "Nowa wersja" wypełnia pola, "Wolny tekst" czyści', () => {
+    renderCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Nowa wersja' }));
+    const title = screen.getByPlaceholderText('Tytuł powiadomienia') as HTMLInputElement;
+    const body = screen.getByPlaceholderText('Treść powiadomienia') as HTMLTextAreaElement;
+    expect(title.value).toBe('Nowa wersja Strength Save');
+    expect(body.value).toContain('Zaktualizuj aplikację');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tydzień' }));
+    expect(title.value).toBe('Nowy tydzień treningowy');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Wolny tekst' }));
+    expect(title.value).toBe('');
+    expect(body.value).toBe('');
+  });
+
+  it('podgląd przed wysyłką: kanał, odbiorcy z liczbą, tytuł, treść', async () => {
+    renderCard({ cohorts: ['beta'], recipientCounts: { all: 42, beta: 7 } });
+    fireEvent.click(screen.getByRole('button', { name: 'beta' }));
+    fireEvent.change(screen.getByPlaceholderText('Tytuł powiadomienia'), { target: { value: 'Nowość' } });
+    fireEvent.change(screen.getByPlaceholderText('Treść powiadomienia'), { target: { value: 'Opis ogłoszenia' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Wyślij push' }));
+
+    const preview = await screen.findByTestId('admin-comms-preview');
+    expect(preview.textContent).toContain('Push');
+    expect(preview.textContent).toContain('beta');
+    expect(preview.textContent).toContain('7');
+    expect(preview.textContent).toContain('Nowość');
+    expect(preview.textContent).toContain('Opis ogłoszenia');
+    // Wysyłka nie poszła, dopóki admin nie potwierdzi.
+    expect(adminSendPushMock).not.toHaveBeenCalled();
+  });
+
+  it('podgląd bez recipientCounts: bez liczby, ale z targetem', async () => {
+    renderCard();
+    await fillAndSendPush();
+    expect(adminSendPushMock).toHaveBeenCalledTimes(1);
   });
 
   // Zasada 5: istniejący przepływ email działa identycznie, bez pola inbox.

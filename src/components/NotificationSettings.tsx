@@ -9,9 +9,41 @@ import { Bell, BellOff, Loader2 } from 'lucide-react';
 import { useCurrentUser } from '@/contexts/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from '@/contexts/LanguageContext';
+import type { TranslationKey } from '@/i18n';
 import { getPushPermission, registerPushForUser, requestPushPermission, type PushPermission } from '@/lib/push-notifications';
+import {
+  NOTIFICATION_PREF_CHANNELS,
+  NOTIFICATION_PREF_KEYS,
+  isNotificationPrefEnabled,
+  type NotificationChannel,
+  type NotificationPrefKey,
+  type NotificationPrefs,
+} from '@/lib/notification-prefs';
 
-// Ustawienia powiadomień: zgoda na push + przełącznik porannego przypomnienia o treningu.
+const CHANNEL_LABEL_KEYS: Record<NotificationChannel, TranslationKey> = {
+  push: 'settings.notif.channel.push',
+  email: 'settings.notif.channel.email',
+  inApp: 'settings.notif.channel.inApp',
+};
+
+const PREF_LABEL_KEYS: Record<NotificationPrefKey, { label: TranslationKey; desc: TranslationKey }> = {
+  dailyReminder: { label: 'settings.notif.daily', desc: 'settings.notif.dailyDesc' },
+  prPush: { label: 'settings.notif.prPush', desc: 'settings.notif.prPushDesc' },
+  photoReminder: { label: 'settings.notif.photoReminder', desc: 'settings.notif.photoReminderDesc' },
+  modeEnding: { label: 'settings.notif.modeEnding', desc: 'settings.notif.modeEndingDesc' },
+  announcements: { label: 'settings.notif.announcements', desc: 'settings.notif.announcementsDesc' },
+  weeklyDigest: { label: 'settings.notif.weeklyDigest', desc: 'settings.notif.weeklyDigestDesc' },
+};
+
+const initialPrefs = (prefs: NotificationPrefs | undefined): Record<NotificationPrefKey, boolean> =>
+  Object.fromEntries(
+    NOTIFICATION_PREF_KEYS.map((key) => [key, isNotificationPrefEnabled(prefs, key)]),
+  ) as Record<NotificationPrefKey, boolean>;
+
+// Ustawienia powiadomień: zgoda systemowa na push + przełącznik dla KAŻDEGO
+// typu powiadomienia (X35c / WP-E) z opisem kanału. Preferencje są per konto
+// (users/{uid}.notificationPrefs), więc przełączniki działają też na webie:
+// user ustawia z laptopa to, co dostanie na telefon.
 export const NotificationSettings = () => {
   const { uid, profile } = useCurrentUser();
   const { toast } = useToast();
@@ -20,9 +52,8 @@ export const NotificationSettings = () => {
   const [perm, setPerm] = useState<PushPermission>('prompt');
   const [requesting, setRequesting] = useState(false);
   const [registrationFailed, setRegistrationFailed] = useState(false);
-  const prefs = (profile as { notificationPrefs?: { dailyReminder?: boolean; weeklyDigest?: boolean } } | null)?.notificationPrefs;
-  const [dailyReminder, setDailyReminder] = useState(prefs?.dailyReminder ?? true);
-  const [weeklyDigest, setWeeklyDigest] = useState(prefs?.weeklyDigest ?? true);
+  const storedPrefs = (profile as { notificationPrefs?: NotificationPrefs } | null)?.notificationPrefs;
+  const [prefs, setPrefs] = useState(() => initialPrefs(storedPrefs));
 
   useEffect(() => {
     let cancelled = false;
@@ -50,22 +81,12 @@ export const NotificationSettings = () => {
         : { title: t('settings.notif.denied'), description: t('settings.notif.deniedDesc'), variant: 'destructive' });
   };
 
-  const toggleDaily = async (value: boolean) => {
-    setDailyReminder(value);
+  const togglePref = async (key: NotificationPrefKey, value: boolean) => {
+    setPrefs((prev) => ({ ...prev, [key]: value }));
     try {
-      await updateDoc(doc(db, 'users', uid), { 'notificationPrefs.dailyReminder': value });
+      await updateDoc(doc(db, 'users', uid), { [`notificationPrefs.${key}`]: value });
     } catch {
-      setDailyReminder(!value);
-      toast({ title: t('admin.error'), variant: 'destructive' });
-    }
-  };
-
-  const toggleWeeklyDigest = async (value: boolean) => {
-    setWeeklyDigest(value);
-    try {
-      await updateDoc(doc(db, 'users', uid), { 'notificationPrefs.weeklyDigest': value });
-    } catch {
-      setWeeklyDigest(!value);
+      setPrefs((prev) => ({ ...prev, [key]: !value }));
       toast({ title: t('admin.error'), variant: 'destructive' });
     }
   };
@@ -79,19 +100,14 @@ export const NotificationSettings = () => {
         <CardDescription>{t('settings.notif.desc')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Digest e-mail nie wymaga push: dostępny też na webie. */}
-        <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-low p-3">
-          <div>
-            <p className="text-sm font-medium">{t('settings.notif.weeklyDigest')}</p>
-            <p className="text-xs text-muted-foreground">{t('settings.notif.weeklyDigestDesc')}</p>
-          </div>
-          <Switch checked={weeklyDigest} onCheckedChange={toggleWeeklyDigest} aria-label={t('settings.notif.weeklyDigest')} />
-        </div>
-        {!isNative ? (
-          <p className="text-sm text-muted-foreground">{t('settings.notif.mobileOnly')}</p>
-        ) : perm === 'granted' ? (
-          <>
-            {registrationFailed ? (
+        <section className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('settings.notif.permTitle')}
+          </p>
+          {!isNative ? (
+            <p className="text-sm text-muted-foreground">{t('settings.notif.mobileOnly')}</p>
+          ) : perm === 'granted' ? (
+            registrationFailed ? (
               <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                 <p className="text-sm text-destructive">{t('settings.notif.registrationFailed')}</p>
                 <Button variant="outline" size="sm" onClick={enable} disabled={requesting}>
@@ -102,25 +118,54 @@ export const NotificationSettings = () => {
               <div className="flex items-center gap-2 text-sm text-fitness-success">
                 <Bell className="h-4 w-4" />{t('settings.notif.on')}
               </div>
-            )}
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-low p-3">
-              <div>
-                <p className="text-sm font-medium">{t('settings.notif.daily')}</p>
-                <p className="text-xs text-muted-foreground">{t('settings.notif.dailyDesc')}</p>
-              </div>
-              <Switch checked={dailyReminder} onCheckedChange={toggleDaily} aria-label={t('settings.notif.daily')} />
+            )
+          ) : perm === 'denied' ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <BellOff className="h-4 w-4" />{t('settings.notif.deniedSettings')}
             </div>
-          </>
-        ) : perm === 'denied' ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <BellOff className="h-4 w-4" />{t('settings.notif.deniedSettings')}
-          </div>
-        ) : (
-          <Button onClick={enable} disabled={requesting} className="w-full">
-            {requesting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Bell className="h-4 w-4 mr-2" />}
-            {t('settings.notif.enableBtn')}
-          </Button>
-        )}
+          ) : (
+            <Button onClick={enable} disabled={requesting} className="w-full">
+              {requesting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Bell className="h-4 w-4 mr-2" />}
+              {t('settings.notif.enableBtn')}
+            </Button>
+          )}
+        </section>
+
+        <section className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('settings.notif.typesTitle')}
+          </p>
+          {NOTIFICATION_PREF_KEYS.map((key) => {
+            const label = t(PREF_LABEL_KEYS[key].label);
+            return (
+              <div
+                key={key}
+                data-testid={`notif-pref-${key}`}
+                className="flex items-center justify-between gap-3 rounded-lg bg-surface-low p-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="text-xs text-muted-foreground">{t(PREF_LABEL_KEYS[key].desc)}</p>
+                  <p className="mt-1 flex flex-wrap gap-1">
+                    {NOTIFICATION_PREF_CHANNELS[key].map((channel) => (
+                      <span
+                        key={channel}
+                        className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+                      >
+                        {t(CHANNEL_LABEL_KEYS[channel])}
+                      </span>
+                    ))}
+                  </p>
+                </div>
+                <Switch
+                  checked={prefs[key]}
+                  onCheckedChange={(value) => void togglePref(key, value)}
+                  aria-label={label}
+                />
+              </div>
+            );
+          })}
+        </section>
       </CardContent>
     </Card>
   );

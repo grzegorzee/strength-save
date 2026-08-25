@@ -47,7 +47,15 @@ export interface ReminderUser {
   timeZone?: string;
   status?: string;
   access?: { enabled?: boolean };
-  notificationPrefs?: { dailyReminder?: boolean };
+  /** X35c (WP-E): osobny przełącznik per typ; brak pola = włączone. */
+  notificationPrefs?: {
+    dailyReminder?: boolean;
+    weeklyDigest?: boolean;
+    photoReminder?: boolean;
+    modeEnding?: boolean;
+    prPush?: boolean;
+    announcements?: boolean;
+  };
 }
 
 export interface DailyReminderDeps {
