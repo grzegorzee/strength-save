@@ -1,4 +1,8 @@
 import type { LanguageCode } from '@/i18n';
+import type { Weekday } from '@/data/trainingPlan';
+import { weekdayOfDate } from '@/lib/plan-schedule';
+import { weekdayLong } from '@/lib/plan-cycle-utils';
+import { parseLocalDateSafe } from '@/lib/utils';
 
 // Lokalizacja słownictwa planu (nazwy dni, focus) zapisanego po polsku w danych
 // planu/cyklu. PL pozostaje kanoniczne w Firestore; tłumaczymy tylko wyświetlanie.
@@ -52,6 +56,42 @@ const FOCUS_TOKEN_OVERLAYS: Partial<Record<LanguageCode, Record<string, string>>
 export const localizeDayName = (name: string, lang: LanguageCode): string => {
   if (!name) return name;
   return WEEKDAY_OVERLAYS[lang]?.[name] ?? name;
+};
+
+/**
+ * WP-L (X30): nazwa dnia podąża za datą przełożenia. Jeśli dayName to DOMYŚLNA
+ * nazwa weekday dnia planu (kanoniczna PL "Poniedziałek" albo EN "Monday"),
+ * a data renderowania wypada w INNY dzień tygodnia (scheduleOverrides zmienia
+ * datę, nie nazwę), zwracamy zlokalizowaną nazwę dnia tygodnia daty docelowej.
+ * Własna nazwa usera ("Push", "Klatka") zostaje nietknięta. Dotyczy WYŁĄCZNIE
+ * renderów zakotwiczonych w dacie; edytor planu i snapshoty historii używają
+ * nadal localizeDayName.
+ */
+export const displayDayNameForDate = (
+  dayName: string,
+  weekday: Weekday,
+  date: Date,
+  lang: LanguageCode,
+): string => {
+  const canonical = weekdayLong(weekday);
+  const isDefaultName = dayName === canonical || dayName === WEEKDAY_EN[canonical];
+  if (!isDefaultName) return localizeDayName(dayName, lang);
+  return localizeDayName(weekdayLong(weekdayOfDate(date)), lang);
+};
+
+/**
+ * Wariant displayDayNameForDate dla dat ISO (YYYY-MM-DD) w etykietach:
+ * zly string degraduje do dotychczasowej zlokalizowanej nazwy, bo etykieta
+ * nie ma prawa rzucic (zasada 11, guard date-label-guard).
+ */
+export const displayDayNameForDateISO = (
+  dayName: string,
+  weekday: Weekday,
+  dateISO: string,
+  lang: LanguageCode,
+): string => {
+  const date = parseLocalDateSafe(dateISO);
+  return date ? displayDayNameForDate(dayName, weekday, date, lang) : localizeDayName(dayName, lang);
 };
 
 /** Skrót dnia w języku UI (Pn -> Mon). */

@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Button } from '@/components/ui/button';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { dateLocale } from '@/i18n';
-import { localizeDayName } from '@/lib/plan-i18n';
+import { displayDayNameForDateISO } from '@/lib/plan-i18n';
 import { formatLocalDateLabel } from '@/lib/utils';
 import type { Lapse } from '@/lib/lapse-detection';
 
@@ -45,8 +45,9 @@ export const LapseTray = ({ open, onOpenChange, lapse, onSkip, onMove, onContinu
         <SheetHeader className="text-left">
           <SheetTitle>{t('lapse.title')}</SheetTitle>
           <SheetDescription>
+            {/* WP-L (X30): domyslna nazwa weekday podaza za date zaleglosci. */}
             {view.kind === 'stale-session' && view.day
-              ? t('lapse.staleDesc', { day: localizeDayName(view.day.dayName, lang), date: dateLabel })
+              ? t('lapse.staleDesc', { day: displayDayNameForDateISO(view.day.dayName, view.day.weekday, view.dateISO, lang), date: dateLabel })
               : t('lapse.weekDesc')}
           </SheetDescription>
         </SheetHeader>

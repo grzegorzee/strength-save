@@ -3,7 +3,7 @@ import { TrainingDay } from '@/data/trainingPlan';
 import type { WorkoutSession } from '@/types';
 import { cn, formatLocalDate } from '@/lib/utils';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { displayDayNameForDate, localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
 
 interface TrainingDayCardProps {
@@ -57,7 +57,12 @@ export const TrainingDayCard = ({ day, latestWorkout, trainingDate, onClick, onR
       <div className="flex items-center gap-2.5">
         {/* Info */}
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-          <p className="font-heading font-semibold text-base leading-tight truncate">{localizeDayName(day.dayName, lang)}</p>
+          {/* WP-L (X30): domyslna nazwa weekday podaza za data przelozenia. */}
+          <p className="font-heading font-semibold text-base leading-tight truncate">
+            {trainingDate
+              ? displayDayNameForDate(day.dayName, day.weekday, trainingDate, lang)
+              : localizeDayName(day.dayName, lang)}
+          </p>
           {/* Bez truncate/clamp: przy długich polskich nazwach focusu ucinanie
               gubiło liczbę ćwiczeń (utrata informacji vs stan sprzed redesignu);
               meta zawija się naturalnie, karta rośnie o linię. */}

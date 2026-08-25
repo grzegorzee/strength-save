@@ -53,7 +53,7 @@ import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { countCompletedWorkingSets } from '@/lib/workout-day-view';
 import { createAdhocDay } from '@/lib/adhoc-workout';
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
-import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { displayDayNameForDate, localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
 import { isCycleVisibleWithData } from '@/lib/cycle-visibility';
 import { useWorkoutAggregate } from '@/hooks/useWorkoutAggregate';
@@ -458,7 +458,10 @@ const Dashboard = () => {
     // widoczne od progu), eyebrow = nazwa dnia PLANU; gdy nazwa dnia planu
     // pokrywa się z weekday nagłówka (case-insensitive), wypada z eyebrow.
     const weekdayLabel = formatLocalDateLabel(entry.dateKey, dateLocale(lang), { weekday: 'long' });
-    const planDayName = localizeDayName(entry.day.dayName, lang);
+    // WP-L (X30): domyslna nazwa weekday podaza za realna data sesji (przy
+    // przelozeniu wypada z eyebrow, bo pokrywa sie z naglowkiem); wlasna
+    // nazwa usera zostaje.
+    const planDayName = displayDayNameForDate(entry.day.dayName, entry.day.weekday, entry.date, lang);
     const showPlanDayName = planDayName.toLocaleLowerCase(dateLocale(lang)) !== weekdayLabel.toLocaleLowerCase(dateLocale(lang));
     return (
     <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5" data-testid="next-session-hero">
@@ -946,7 +949,8 @@ const Dashboard = () => {
         // WP-A (X29): analogicznie do hero NEXT SESSION — nagłówek = weekday
         // dzisiejszej daty, eyebrow = nazwa dnia planu (bez duplikacji).
         const todayWeekdayLabel = today.toLocaleDateString(dateLocale(lang), { weekday: 'long' });
-        const todayPlanDayName = localizeDayName(todayTraining.day.dayName, lang);
+        // WP-L (X30): nazwa dnia podaza za dzisiejsza data (przelozenie).
+        const todayPlanDayName = displayDayNameForDate(todayTraining.day.dayName, todayTraining.day.weekday, today, lang);
         const showTodayPlanDayName = todayPlanDayName.toLocaleLowerCase(dateLocale(lang)) !== todayWeekdayLabel.toLocaleLowerCase(dateLocale(lang));
         return (
         <div className="flex flex-col gap-3 rounded-xl bg-surface-container p-5">
@@ -1011,7 +1015,7 @@ const Dashboard = () => {
           <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fitness-success">
             <CheckCircle className="h-4 w-4 shrink-0" />
             <span className="truncate">
-              {t('dash.workoutCompleted')} · {localizeDayName(todayTraining.day.dayName, lang)}
+              {t('dash.workoutCompleted')} · {displayDayNameForDate(todayTraining.day.dayName, todayTraining.day.weekday, today, lang)}
             </span>
           </p>
           <div className="flex shrink-0 items-center">
@@ -1056,7 +1060,7 @@ const Dashboard = () => {
           {todayTraining.firstEntry && (
             <p className="text-sm text-muted-foreground">
               {t('dash.preStart.firstWorkout', {
-                day: `${localizeDayName(todayTraining.firstEntry.day.dayName, lang)} (${localizeFocus(todayTraining.firstEntry.day.focus, lang)}) · ${formatLocalDateLabel(todayTraining.firstEntry.dateKey, dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}`,
+                day: `${displayDayNameForDate(todayTraining.firstEntry.day.dayName, todayTraining.firstEntry.day.weekday, todayTraining.firstEntry.date, lang)} (${localizeFocus(todayTraining.firstEntry.day.focus, lang)}) · ${formatLocalDateLabel(todayTraining.firstEntry.dateKey, dateLocale(lang), { weekday: 'long', day: 'numeric', month: 'long' })}`,
               })}
             </p>
           )}
@@ -1114,7 +1118,7 @@ const Dashboard = () => {
           model={weekCardModel}
           isDeloadWeek={progression ? resolveDeloadWeek(currentWeek, progression, vacation, planStartDate) : false}
           todayDoneDayName={todayTraining.type === 'completed'
-            ? localizeDayName(todayTraining.day.dayName, lang)
+            ? displayDayNameForDate(todayTraining.day.dayName, todayTraining.day.weekday, today, lang)
             : undefined}
         />
       )}

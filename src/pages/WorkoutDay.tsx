@@ -9,7 +9,7 @@ import { calculateStreak, calculateTonnage } from '@/lib/summary-utils';
 import { computeMilestones, diffMilestones } from '@/lib/achievements-utils';
 import { useUnit } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { displayDayNameForDateISO, localizeFocus } from '@/lib/plan-i18n';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ExerciseCard } from '@/components/ExerciseCard';
@@ -465,6 +465,13 @@ const WorkoutDay = () => {
       }),
     };
   }, [baseDay, draftForDaySnapshot, sessionSwaps, workoutForDate, isViewingPastWorkout, resolver, dayId]);
+
+  // WP-L (X30): naglowki sesji zakotwiczone w targetDate — domyslna nazwa
+  // weekday podaza za data przelozenia (pn->sr pokazuje Srode), wlasna nazwa
+  // usera zostaje. Zly string daty degraduje do dotychczasowej etykiety
+  // (etykieta nie rzuca, zasada 11).
+  const sessionDayName = (d: Pick<TrainingDay, 'dayName' | 'weekday'>): string =>
+    displayDayNameForDateISO(d.dayName, d.weekday, targetDate, lang);
 
   // C-T2: prompt pre-start + plan rozgrzewki pod pierwsze ćwiczenie dnia.
   const [preStartOpen, setPreStartOpen] = useState(false);
@@ -1667,10 +1674,10 @@ const WorkoutDay = () => {
           title: result.provisional ? t('workout.toast.startedOfflineTitle') : t('workout.toast.startedTitle'),
           description: result.provisional
             ? t('workout.toast.startedOfflineDesc', {
-              day: localizeDayName(startSnapshot.day.dayName, lang),
+              day: sessionDayName(startSnapshot.day),
               focus: localizeFocus(startSnapshot.day.focus, lang),
             })
-            : `${localizeDayName(startSnapshot.day.dayName, lang)} - ${localizeFocus(startSnapshot.day.focus, lang)}`,
+            : `${sessionDayName(startSnapshot.day)} - ${localizeFocus(startSnapshot.day.focus, lang)}`,
         });
       }
     } catch (err) {
@@ -2556,7 +2563,7 @@ const WorkoutDay = () => {
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-heading text-xl font-bold leading-tight">
-              {localizeDayName(day.dayName, lang)}
+              {sessionDayName(day)}
             </h1>
             <p className="truncate text-sm text-muted-foreground">{summarySubtitle}</p>
           </div>
@@ -2760,7 +2767,7 @@ const WorkoutDay = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>{t('history.deleteTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                {t('history.deleteDesc', { day: localizeDayName(day.dayName, lang), date: targetDate })}
+                {t('history.deleteDesc', { day: sessionDayName(day), date: targetDate })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -2829,7 +2836,7 @@ const WorkoutDay = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{localizeDayName(day.dayName, lang)}</h1>
+            <h1 className="text-2xl font-bold">{sessionDayName(day)}</h1>
             <p className="text-muted-foreground">{t('workout.editMode')}</p>
           </div>
         </div>
@@ -2899,7 +2906,7 @@ const WorkoutDay = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 text-center">
-          <h1 className="truncate font-heading text-sm font-bold uppercase tracking-[0.16em]">{localizeDayName(day.dayName, lang)}</h1>
+          <h1 className="truncate font-heading text-sm font-bold uppercase tracking-[0.16em]">{sessionDayName(day)}</h1>
           <p className="mt-0.5 truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{localizeFocus(day.focus, lang)}</p>
         </div>
         <div className="flex min-w-10 items-center justify-end gap-2">

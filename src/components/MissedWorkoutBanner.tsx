@@ -6,7 +6,7 @@ import { dateLocale } from '@/i18n';
 import type { TrainingDay } from '@/data/trainingPlan';
 import { resolvePlannedDay, type ScheduleOverrides } from '@/lib/plan-schedule';
 import { findMissedWorkout } from '@/lib/missed-workout';
-import { localizeDayName } from '@/lib/plan-i18n';
+import { displayDayNameForDateISO } from '@/lib/plan-i18n';
 import { formatLocalDateLabel } from '@/lib/utils';
 
 const DISMISS_KEY = 'fittracker_missed_dismissed';
@@ -78,8 +78,9 @@ export const MissedWorkoutBanner = ({
           <CalendarClock className="h-4 w-4 text-fitness-warning" />
         </div>
         <p className="flex-1 min-w-0 text-sm font-medium pt-1">
+          {/* WP-L (X30): domyslna nazwa weekday podaza za date zaleglosci. */}
           {t('reschedule.missedTitle', {
-            name: localizeDayName(missed.day.dayName, lang),
+            name: displayDayNameForDateISO(missed.day.dayName, missed.day.weekday, missed.dateISO, lang),
             date: formatLocalDateLabel(missed.dateISO, dateLocale(lang), { day: 'numeric', month: 'short' }),
           })}
         </p>

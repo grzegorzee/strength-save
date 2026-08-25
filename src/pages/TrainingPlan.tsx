@@ -17,7 +17,7 @@ import { buildTrainingSchedule, computePlanProgressPercent, countRemainingWorkou
 import { buildWorkoutResolver } from '@/lib/exercise-name-resolver';
 import { buildWorkoutRoute, findWorkoutForRoute } from '@/lib/workout-lookup';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { localizeDayName, localizeFocus } from '@/lib/plan-i18n';
+import { displayDayNameForDate, localizeDayName, localizeFocus } from '@/lib/plan-i18n';
 import { dateLocale } from '@/i18n';
 import { useToast } from '@/hooks/use-toast';
 import { VacationDialog } from '@/components/VacationDialog';
@@ -822,7 +822,8 @@ const TrainingPlan = () => {
 
                   {displayDay && (
                     <>
-                      <p className="text-sm text-muted-foreground">{localizeDayName(displayDay.dayName, lang)}: {localizeFocus(displayDay.focus, lang)}</p>
+                      {/* WP-L (X30): domyslna nazwa weekday podaza za wybrana date. */}
+                      <p className="text-sm text-muted-foreground">{displayDayNameForDate(displayDay.dayName, displayDay.weekday, selectedDate, lang)}: {localizeFocus(displayDay.focus, lang)}</p>
                       <div className="flex items-center gap-2">
                         {workoutForDate?.completed ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-0 bg-fitness-success/15 text-fitness-success">
