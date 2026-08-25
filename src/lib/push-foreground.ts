@@ -12,5 +12,9 @@ export const shouldShowForegroundPushToast = (input: {
   onWorkoutRoute: boolean;
 }): boolean => {
   if (input.type === 'daily-reminder' && input.onWorkoutRoute) return false;
+  // X35c: push o rekordzie (serwer) dociera chwilę po zakończeniu treningu na
+  // telefonie, gdy ekran treningu już pokazał toast PR — drugi toast to spam.
+  // Poza ekranem treningu (rekord z Watcha/Garmina) toast ma sens.
+  if (input.type === 'pr' && input.onWorkoutRoute) return false;
   return true;
 };

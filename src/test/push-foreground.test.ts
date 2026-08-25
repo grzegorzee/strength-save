@@ -13,6 +13,12 @@ describe('shouldShowForegroundPushToast (Z146)', () => {
     expect(shouldShowForegroundPushToast({ type: 'daily-reminder', onWorkoutRoute: false })).toBe(true);
   });
 
+  // X35c: push o rekordzie na ekranie treningu dubluje toast PR z WorkoutDay.
+  it('pr na ekranie treningu → BEZ toastu; poza treningiem (Watch/Garmin) → toast', () => {
+    expect(shouldShowForegroundPushToast({ type: 'pr', onWorkoutRoute: true })).toBe(false);
+    expect(shouldShowForegroundPushToast({ type: 'pr', onWorkoutRoute: false })).toBe(true);
+  });
+
   it('push innego typu → toast zawsze (bez regresji, np. push od admina)', () => {
     expect(shouldShowForegroundPushToast({ type: 'admin-message', onWorkoutRoute: true })).toBe(true);
     expect(shouldShowForegroundPushToast({ type: undefined, onWorkoutRoute: true })).toBe(true);
