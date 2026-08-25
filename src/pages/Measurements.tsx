@@ -195,7 +195,7 @@ const Measurements = () => {
       {!healthConsent && (
         <div className="rounded-2xl border border-fitness-warning bg-fitness-warning/10 p-4" data-testid="health-consent-banner">
           <p className="text-sm text-fitness-warning">{t('consent.healthBlockedBanner')}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/settings?section=consents')}>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/profile?section=consents')}>
             {t('consent.healthBlockedCta')}
           </Button>
         </div>
@@ -215,11 +215,11 @@ const Measurements = () => {
         </>
       )}
 
-      {/* Backup mieszka w Ustawieniach (Z81) — tu tylko drogowskaz, koniec zdublowanej sekcji. */}
+      {/* Backup mieszka w Profilu (Z81, X35b: sekcja Dane) — tu tylko drogowskaz, koniec zdublowanej sekcji. */}
       <Button
         variant="outline"
         className="w-full justify-between"
-        onClick={() => navigate('/settings?section=data')}
+        onClick={() => navigate('/profile?section=backup')}
       >
         <span className="flex items-center gap-2">
           <Database className="h-4 w-4 text-primary" />

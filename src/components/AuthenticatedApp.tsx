@@ -10,6 +10,8 @@ import { UserProvider, useCurrentUser } from '@/contexts/UserContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { WatchEventRouter } from '@/components/WatchEventRouter';
+// X35b (WP-B): /settings zniknęło — sekcje żyją w Profilu, stare ?section= mapowane na kotwice.
+import { SettingsRedirect } from '@/components/SettingsRedirect';
 import { ActiveWorkoutResume } from '@/components/ActiveWorkoutResume';
 import { TelemetryHeartbeat } from '@/components/TelemetryHeartbeat';
 import { ProductTelemetry } from '@/components/ProductTelemetry';
@@ -41,7 +43,6 @@ const AnalyticsRedirect = () => {
 };
 const Onboarding = lazyWithRetry(() => import('@/pages/Onboarding'), 'lazy-retry:onboarding');
 const ExerciseLibrary = lazyWithRetry(() => import('@/pages/ExerciseLibrary'), 'lazy-retry:exercise-library');
-const Settings = lazyWithRetry(() => import('@/pages/Settings'), 'lazy-retry:settings');
 const NewPlan = lazyWithRetry(() => import('@/pages/NewPlan'), 'lazy-retry:new-plan');
 const Cycles = lazyWithRetry(() => import('@/pages/Cycles'), 'lazy-retry:cycles');
 const WorkoutHistory = lazyWithRetry(() => import('@/pages/WorkoutHistory'), 'lazy-retry:history');
@@ -222,7 +223,7 @@ const AppRoutes = ({ onLogout }: { onLogout: () => Promise<void> }) => {
                   <Route path="/plan/edit" element={<PlanEditor />} />
                   <Route path="/analytics" element={<AnalyticsRedirect />} />
                   <Route path="/exercises" element={<ExerciseLibrary />} />
-                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/settings" element={<SettingsRedirect />} />
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/exercise/:slug" element={<ExerciseDetail />} />
                   <Route path="/measurements" element={<Measurements />} />

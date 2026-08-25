@@ -840,7 +840,7 @@ const Dashboard = () => {
             {todayContinueDraft && draftResume.resume ? null : (
               <Button
                 variant="outline"
-                onClick={() => navigate(draftResume.resume ? draftResume.target : '/settings')}
+                onClick={() => navigate(draftResume.resume ? draftResume.target : '/profile?section=data')}
               >
                 {draftResume.resume ? t('dash.today.continue') : t('dash.sync.openCenter')}
               </Button>

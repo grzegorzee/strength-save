@@ -191,9 +191,10 @@ export const AppNavigation = ({ hideMobileNav = false }: AppNavigationProps) => 
                     )}
                     <p className="text-[10px] text-muted-foreground mt-0.5">v{__APP_VERSION__}</p>
                   </div>
-                  <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer">
+                  {/* X35b: /settings zniknęło — wszystkie ustawienia żyją w Profilu. */}
+                  <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
                     <Settings className="h-4 w-4 mr-2" />
-                    {t('nav.settings')}
+                    {t('nav.profile')}
                   </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem onClick={() => navigate('/admin')} className="cursor-pointer">

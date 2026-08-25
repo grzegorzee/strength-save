@@ -96,7 +96,7 @@ const StravaCallback = () => {
                 <XCircle className="h-12 w-12 text-destructive" />
                 <p className="font-medium">{t('strava.callback.error')}</p>
                 <p className="text-sm text-muted-foreground">{errorMessage}</p>
-                <Button variant="outline" onClick={() => navigate('/settings')} className="mt-2">
+                <Button variant="outline" onClick={() => navigate('/profile?section=connections')} className="mt-2">
                   {t('strava.callback.backToSettings')}
                 </Button>
               </>
