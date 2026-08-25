@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,10 +41,16 @@ const emptyForm = (): FormValues =>
   Object.fromEntries(MEASUREMENT_FIELDS.map((field) => [field, ''])) as FormValues;
 
 /**
- * WP-M: edycja istniejącego wpisu pomiaru ciała (wzorzec AddCardioDialog).
+ * WP-M: edycja istniejącego wpisu pomiaru ciała.
  * Data + godzina (-> recordedAt), 10 pól w jednostkach UI, zdjęcie
  * (zachowaj / zmień / usuń), "Usuń wpis" za ConfirmDialog. Zawsze zamontowany,
  * zamykanie wyłącznie przez open=false (lekcja builda 92).
+ *
+ * WP-G (X35a): Sheet od dołu (wzorzec HistoryExportSheet) zamiast Dialogu, bo
+ * natywne date/time w dwóch kolumnach po 152 px rozpychały treść w poziomie
+ * ("dialog lata na boki"). Data i godzina w OSOBNYCH wierszach, overflow-x-hidden,
+ * min-w-0 na komórkach. Pierwszy focus na polu wagi (Radix brał pole daty i iOS
+ * od razu podnosił picker).
  */
 export const EditMeasurementDialog = ({ open, onOpenChange, measurement, photosEnabled = false, onUpdate, onDelete }: EditMeasurementDialogProps) => {
   const { t, lang } = useTranslation();
@@ -59,6 +65,16 @@ export const EditMeasurementDialog = ({ open, onOpenChange, measurement, photosE
   const [error, setError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const fieldRefs = useRef<Partial<Record<MeasurementField, HTMLInputElement | null>>>({});
+
+  // WP-G: focus na wadze; wpis bez wagi -> pierwsze wypełnione pole liczbowe;
+  // wpis bez liczb (tylko zdjęcie) -> waga. Nigdy pole daty.
+  const focusFirstNumericField = () => {
+    const target = measurement && typeof measurement.weight !== 'number'
+      ? MEASUREMENT_FIELDS.find((field) => typeof measurement[field] === 'number') ?? 'weight'
+      : 'weight';
+    fieldRefs.current[target]?.focus();
+  };
 
   // Hydracja formularza przy otwarciu (wartości kg/cm -> jednostki UI, jak MeasurementsForm).
   useEffect(() => {
@@ -152,47 +168,53 @@ export const EditMeasurementDialog = ({ open, onOpenChange, measurement, photosE
     t(`measurements.field.${field}` as Parameters<typeof t>[0], { unit: field === 'weight' ? unit : lengthUnit });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-heading uppercase tracking-tight">{t('measurements.editTitle')}</DialogTitle>
-          <DialogDescription>{t('measurements.editSubtitle')}</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="flex max-h-[92vh] flex-col gap-4 overflow-y-auto overflow-x-hidden rounded-t-2xl pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+        data-testid="measurement-edit-sheet"
+        onOpenAutoFocus={(e) => { e.preventDefault(); focusFirstNumericField(); }}
+      >
+        <SheetHeader className="text-left">
+          <SheetTitle className="font-heading uppercase tracking-tight">{t('measurements.editTitle')}</SheetTitle>
+          <SheetDescription>{t('measurements.editSubtitle')}</SheetDescription>
+        </SheetHeader>
 
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
-        {/* Data + godzina -> recordedAt */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('measurements.date')}</p>
-            <LocalizedDateInput value={date} onChange={(e) => setDate(e.target.value)} data-testid="measurement-edit-date" />
-          </div>
-          <div>
-            <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('measurements.time')}</p>
-            <Input
-              type="time"
-              lang={lang}
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              data-testid="measurement-edit-time"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 grid-cols-2 gap-3">
           {MEASUREMENT_FIELDS.map((field) => (
-            <div key={field} className="space-y-1">
-              <Label htmlFor={`measurement-edit-${field}`} className="text-xs font-medium">{fieldLabel(field)}</Label>
+            <div key={field} className="min-w-0 space-y-1">
+              <Label htmlFor={`measurement-edit-${field}`} className="block text-xs font-medium">{fieldLabel(field)}</Label>
               <Input
                 id={`measurement-edit-${field}`}
+                ref={(el) => { fieldRefs.current[field] = el; }}
                 type="text"
                 inputMode="decimal"
+                className="w-full min-w-0"
                 value={formData[field]}
                 onChange={(e) => handleChange(field, e.target.value)}
                 data-testid={`measurement-edit-${field}`}
               />
             </div>
           ))}
+        </div>
+
+        {/* Data + godzina -> recordedAt: osobne wiersze na pełną szerokość (WP-G). */}
+        <div className="w-full min-w-0" data-testid="measurement-edit-date-row">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('measurements.date')}</p>
+          <LocalizedDateInput className="w-full min-w-0" value={date} onChange={(e) => setDate(e.target.value)} data-testid="measurement-edit-date" />
+        </div>
+        <div className="w-full min-w-0" data-testid="measurement-edit-time-row">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t('measurements.time')}</p>
+          <Input
+            type="time"
+            lang={lang}
+            className="w-full min-w-0"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            data-testid="measurement-edit-time"
+          />
         </div>
 
         {photosEnabled && (
@@ -270,7 +292,7 @@ export const EditMeasurementDialog = ({ open, onOpenChange, measurement, photosE
             setCropFile(null);
           }}
         />
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 };

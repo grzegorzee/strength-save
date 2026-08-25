@@ -82,6 +82,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         emailVerifiedAt: status === 'active' ? new Date().toISOString() : null,
         cohorts: e2eState.scenario === 'active-admin' ? ['internal'] : [],
         subscription: mapSubscription(e2eState.subscription ?? undefined),
+        trainingProfile: e2eState.trainingProfile,
       });
       setProfileLoaded(true);
       setProfileLoadError(null);

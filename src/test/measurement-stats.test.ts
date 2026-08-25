@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BodyMeasurement } from '@/types';
-import { buildMeasurementSeries, compareMeasurementsAsc, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS } from '@/lib/measurement-stats';
+import { buildMeasurementSeries, compareMeasurementsAsc, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, weightDeltaTone } from '@/lib/measurement-stats';
 
 const m = (id: string, date: string, fields: Partial<BodyMeasurement>): BodyMeasurement => ({
   id,
@@ -69,5 +69,38 @@ describe('buildMeasurementSeries (Z77)', () => {
     expect(MEASUREMENT_FIELD_GOALS.weight).toBe('neutral');
     // Każde pole z listy ma zdefiniowany cel.
     MEASUREMENT_FIELDS.forEach((f) => expect(MEASUREMENT_FIELD_GOALS[f]).toBeDefined());
+  });
+});
+
+// WP-G (X35a): ton delty WAGI zależy od celu usera (profile.trainingProfile.objective),
+// jedna funkcja dla wiersza historii, badge'u trendu i wykresu.
+describe('weightDeltaTone (WP-G)', () => {
+  it.each([
+    ['fat_loss', -1.2, 'success'],
+    ['fat_loss', 0.8, 'destructive'],
+    ['build_muscle', 0.8, 'success'],
+    ['build_muscle', -1.2, 'destructive'],
+    ['peak_strength', 0.8, 'success'],
+    ['peak_strength', -1.2, 'destructive'],
+    ['athletic', 0.8, 'neutral'],
+    ['athletic', -1.2, 'neutral'],
+    [undefined, 0.8, 'neutral'],
+    [undefined, -1.2, 'neutral'],
+    ['nieznany-cel', 2, 'neutral'],
+  ] as const)('cel %s, delta %s -> %s', (objective, delta, tone) => {
+    expect(weightDeltaTone(delta, objective)).toBe(tone);
+  });
+
+  it('|delta| < 0.1 = neutral niezależnie od celu (szum wagi)', () => {
+    expect(weightDeltaTone(0.05, 'fat_loss')).toBe('neutral');
+    expect(weightDeltaTone(-0.09, 'build_muscle')).toBe('neutral');
+    expect(weightDeltaTone(0, 'fat_loss')).toBe('neutral');
+    expect(weightDeltaTone(0.1, 'fat_loss')).toBe('destructive');
+    expect(weightDeltaTone(-0.1, 'fat_loss')).toBe('success');
+  });
+
+  it('null / NaN delta = neutral', () => {
+    expect(weightDeltaTone(null, 'fat_loss')).toBe('neutral');
+    expect(weightDeltaTone(Number.NaN, 'fat_loss')).toBe('neutral');
   });
 });

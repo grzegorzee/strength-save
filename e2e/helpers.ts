@@ -157,6 +157,8 @@ export const setE2EAuthScenario = async (
     subscription?: { tier: string; status: string; expiresAt: string | null } | null;
     /** Czy user ma ukończone treningi (guard sprawdza przed redirectem na paywall). */
     hasWorkouts?: boolean;
+    /** WP-G (X35a): profil treningowy (cel steruje tonem delty wagi w Pomiarach). */
+    trainingProfile?: { level?: string; objective?: string; daysPerWeek?: number };
   },
 ) => {
   await page.addInitScript(({ storageKey, authState }) => {
@@ -179,6 +181,13 @@ export const setE2EWorkouts = async (page: Page, workouts: unknown[]) => {
   await page.addInitScript(({ key, data }) => {
     window.localStorage.setItem(key, JSON.stringify(data));
   }, { key: 'fittracker_e2e_workouts', data: workouts });
+};
+
+// WP-G (X35a): wstrzykuje pomiary ciała (czytane przez workout-read-store w trybie mock E2E).
+export const setE2EMeasurements = async (page: Page, measurements: unknown[]) => {
+  await page.addInitScript(({ key, data }) => {
+    window.localStorage.setItem(key, JSON.stringify(data));
+  }, { key: 'fittracker_e2e_measurements', data: measurements });
 };
 
 // Wstrzykuje własne ćwiczenia usera (czytane przez useCustomExercises w trybie mock E2E).

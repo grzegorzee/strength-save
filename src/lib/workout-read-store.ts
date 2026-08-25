@@ -99,6 +99,16 @@ const readE2EWorkouts = (): WorkoutSession[] => {
   }
 };
 
+// WP-G (X35a): pomiary ciała wstrzykiwane jak treningi (fittracker_e2e_measurements).
+const readE2EMeasurements = (): BodyMeasurement[] => {
+  try {
+    const raw = window.localStorage.getItem('fittracker_e2e_measurements');
+    return raw ? (JSON.parse(raw) as BodyMeasurement[]) : [];
+  } catch {
+    return [];
+  }
+};
+
 export interface WorkoutReadSnapshot {
   workouts: WorkoutSession[];
   measurements: BodyMeasurement[];
@@ -279,7 +289,7 @@ const startStore = (userId: string, entry: StoreEntry): void => {
   if (isBackendDisabledForMockE2E()) {
     if (!entry.snapshot.isLoaded) {
       // E2E mock: historia treningów wstrzykiwana z localStorage (wzorzec fittracker_e2e_cycles).
-      entry.snapshot = { workouts: readE2EWorkouts(), measurements: [], isLoaded: true, error: null, workoutsFromCache: false };
+      entry.snapshot = { workouts: readE2EWorkouts(), measurements: readE2EMeasurements(), isLoaded: true, error: null, workoutsFromCache: false };
     }
     return;
   }

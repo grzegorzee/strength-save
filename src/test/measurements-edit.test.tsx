@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { UnitProvider } from '@/contexts/UnitContext';
 import type { BodyMeasurement } from '@/types';
+import { MEASUREMENT_FIELDS } from '@/lib/measurement-stats';
 import {
   buildMeasurement,
   buildPhotoWeightMeasurement,
@@ -128,6 +129,81 @@ describe('EditMeasurementDialog — otwarcie i hydracja (WP-M)', () => {
     const dialog = openEdit(legacyEntry);
 
     expect(within(dialog).getByTestId('measurement-edit-time')).toHaveValue('');
+  });
+});
+
+// WP-G (X35a) p.1-2: dialog "latał na boki" (natywne date/time w dwóch kolumnach
+// po 152 px rozpychały DialogContent bez overflow-x-hidden), a Radix kładł
+// pierwszy focus na polu daty (iOS podnosił picker). Teraz: Sheet od dołu,
+// data i godzina w OSOBNYCH wierszach, min-w-0 na komórkach, focus na wadze.
+describe('EditMeasurementDialog — arkusz od dołu i focus (WP-G)', () => {
+  it('otwiera się jako Sheet od dołu z overflow-x-hidden i overflow-y-auto', () => {
+    renderPage();
+    const sheet = openEdit(recordedEntry);
+
+    expect(sheet).toHaveAttribute('data-testid', 'measurement-edit-sheet');
+    expect(sheet.className).toMatch(/\bbottom-0\b/);
+    expect(sheet.className).toMatch(/\boverflow-x-hidden\b/);
+    expect(sheet.className).toMatch(/\boverflow-y-auto\b/);
+  });
+
+  it('data i godzina w osobnych wierszach na pełną szerokość (żaden przodek w obrębie arkusza nie jest siatką 2-kolumnową)', () => {
+    renderPage();
+    const sheet = openEdit(recordedEntry);
+    const date = within(sheet).getByTestId('measurement-edit-date');
+    const time = within(sheet).getByTestId('measurement-edit-time');
+
+    const ancestorsUntilSheet = (el: HTMLElement): HTMLElement[] => {
+      const out: HTMLElement[] = [];
+      let node = el.parentElement;
+      while (node && node !== sheet) { out.push(node); node = node.parentElement; }
+      return out;
+    };
+    for (const input of [date, time]) {
+      const twoCol = ancestorsUntilSheet(input).filter((n) => /\bgrid-cols-2\b/.test(n.className));
+      expect(twoCol).toHaveLength(0);
+    }
+    // Osobne wiersze: wspólny rodzic daty i godziny nie jest ich BEZPOŚREDNIM rodzicem.
+    const dateRow = date.closest('[data-testid="measurement-edit-date-row"]');
+    const timeRow = time.closest('[data-testid="measurement-edit-time-row"]');
+    expect(dateRow).not.toBeNull();
+    expect(timeRow).not.toBeNull();
+    expect(dateRow).not.toBe(timeRow);
+    expect(dateRow!.className).toMatch(/\bw-full\b/);
+    expect(timeRow!.className).toMatch(/\bw-full\b/);
+  });
+
+  it('komórki siatki pól mają min-w-0 (etykieta nie rozpycha kolumny)', () => {
+    renderPage();
+    const sheet = openEdit(recordedEntry);
+    const cells = MEASUREMENT_FIELDS.map((field) => within(sheet).getByTestId(`measurement-edit-${field}`).parentElement!);
+    cells.forEach((cell) => expect(cell.className).toMatch(/\bmin-w-0\b/));
+    // Etykiety mogą się łamać (bez whitespace-nowrap), więc nie rozpychają komórki.
+    const labels = cells.map((cell) => cell.querySelector('label')!);
+    labels.forEach((label) => expect(label.className).not.toMatch(/whitespace-nowrap/));
+  });
+
+  it('po otwarciu focus ląduje na polu wagi, NIGDY na dacie', async () => {
+    renderPage();
+    const sheet = openEdit(recordedEntry);
+    await waitFor(() => expect(document.activeElement).toBe(within(sheet).getByTestId('measurement-edit-weight')));
+    expect(document.activeElement).not.toBe(within(sheet).getByTestId('measurement-edit-date'));
+  });
+
+  it('wpis bez wagi (tylko talia): focus na pierwszym wypełnionym polu liczbowym', async () => {
+    const waistOnly = { ...buildMeasurement('2026-08-03'), id: 'm-waist-only', weight: undefined, waist: 91 };
+    pageMocks.measurements = [waistOnly];
+    renderPage();
+    const sheet = openEdit(waistOnly as BodyMeasurement);
+    await waitFor(() => expect(document.activeElement).toBe(within(sheet).getByTestId('measurement-edit-waist')));
+  });
+
+  it('wpis tylko-zdjęcie (bez liczb): focus na polu wagi', async () => {
+    const photoOnly = { id: 'm-photo-only', userId: 'u1', date: '2026-08-04', photoUrl: 'https://example.test/p.jpg' } as BodyMeasurement;
+    pageMocks.measurements = [photoOnly];
+    renderPage();
+    const sheet = openEdit(photoOnly);
+    await waitFor(() => expect(document.activeElement).toBe(within(sheet).getByTestId('measurement-edit-weight')));
   });
 });
 
