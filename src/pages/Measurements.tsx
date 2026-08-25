@@ -20,7 +20,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { getEmptyStateImageUrl } from '@/lib/exercise-media';
 import type { BodyMeasurement } from '@/types';
 import { cn, formatLocalDate, formatLocalDateLabel } from '@/lib/utils';
-import { buildMeasurementSeries, compareMeasurementsAsc, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, type MeasurementField } from '@/lib/measurement-stats';
+import { buildMeasurementSeries, compareMeasurementsAsc, MEASUREMENT_FIELDS, MEASUREMENT_FIELD_GOALS, MEASUREMENT_FIELD_LABEL_KEYS, weightDeltaTone, type DeltaTone, type MeasurementField } from '@/lib/measurement-stats';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { HealthWeightSuggestion } from '@/components/HealthWeightSuggestion';
 import { useUnit } from '@/contexts/UnitContext';
@@ -29,17 +29,33 @@ import { lazyWithRetry } from '@/lib/lazy-with-retry';
 
 const MeasurementTrendChart = lazyWithRetry(() => import('@/components/MeasurementTrendChart'), 'lazy-retry:measurement-trend');
 
-// Kolor delty wg celu pola (Z77): talia w dół = zielona, ramię w górę = zielone, waga neutralna.
-const deltaClass = (field: MeasurementField, delta: number): string => {
+// Zasada 8 CLAUDE.md: tekst w pełnym kolorze, tło statusowe tylko z /10.
+const TONE_TEXT_CLASS: Record<DeltaTone, string> = {
+  success: 'text-fitness-success',
+  destructive: 'text-destructive',
+  neutral: 'text-muted-foreground',
+};
+const TONE_BADGE_CLASS: Record<DeltaTone, string> = {
+  success: 'border-fitness-success bg-fitness-success/10 text-fitness-success',
+  destructive: 'border-destructive bg-destructive/10 text-destructive',
+  neutral: 'text-muted-foreground',
+};
+
+// Ton delty (Z77 + WP-G X35a): obwody wg celu POLA (talia w dół = zielona, ramię
+// w górę = zielone); waga wg celu USERA (weightDeltaTone, ten sam w badge'u trendu).
+const deltaTone = (field: MeasurementField, delta: number, objective: string | undefined): DeltaTone => {
+  if (field === 'weight') return weightDeltaTone(delta, objective);
   const goal = MEASUREMENT_FIELD_GOALS[field];
-  if (goal === 'neutral' || delta === 0) return 'text-muted-foreground';
+  if (goal === 'neutral' || delta === 0) return 'neutral';
   const isGood = goal === 'up' ? delta > 0 : delta < 0;
-  return isGood ? 'text-fitness-success' : 'text-destructive';
+  return isGood ? 'success' : 'destructive';
 };
 
 // Osobny ekran „Pomiary ciała" (przeniesiony z zakładki w Analityce do menu).
 const Measurements = () => {
-  const { uid, canUseBodyPhotos } = useCurrentUser();
+  const { uid, canUseBodyPhotos, profile } = useCurrentUser();
+  // WP-G: cel usera steruje tonem delty wagi (brak celu = neutralnie).
+  const objective = profile?.trainingProfile?.objective;
   const navigate = useNavigate();
   // Tier pomiarów: domyślny 'full' (365) — lista "Pokaż wszystkie" czyta pełne okno.
   const { measurements, addMeasurement, updateMeasurement, deleteMeasurement, getLatestMeasurement } = useFirebaseWorkouts(uid);
@@ -149,9 +165,11 @@ const Measurements = () => {
     const sorted = sortedMeasurements.filter((m) => m.weight);
     if (sorted.length < 2) return null;
     const diff = (sorted[0].weight || 0) - (sorted[1].weight || 0);
-    if (diff > 0) return { direction: 'up' as const, value: diff };
-    if (diff < 0) return { direction: 'down' as const, value: Math.abs(diff) };
-    return { direction: 'same' as const, value: 0 };
+    // WP-G: ton wg celu usera (nie zaszyte "wzrost = źle").
+    const tone = weightDeltaTone(diff, objective);
+    if (diff > 0) return { direction: 'up' as const, value: diff, tone };
+    if (diff < 0) return { direction: 'down' as const, value: Math.abs(diff), tone };
+    return { direction: 'same' as const, value: 0, tone };
   };
 
   const weightTrend = getWeightTrend();
@@ -272,9 +290,14 @@ const Measurements = () => {
             <CardTitle className="flex items-center justify-between">
               {t('measurements.historyTitle')}
               {weightTrend && (
-                <Badge variant="outline" className="font-normal">
-                  {weightTrend.direction === 'up' && <TrendingUp className="mr-1 h-4 w-4 text-destructive" />}
-                  {weightTrend.direction === 'down' && <TrendingDown className="mr-1 h-4 w-4 text-fitness-success" />}
+                <Badge
+                  variant="outline"
+                  className={cn('font-normal', TONE_BADGE_CLASS[weightTrend.tone])}
+                  data-testid="measurement-weight-trend"
+                  data-tone={weightTrend.tone}
+                >
+                  {weightTrend.direction === 'up' && <TrendingUp className="mr-1 h-4 w-4" />}
+                  {weightTrend.direction === 'down' && <TrendingDown className="mr-1 h-4 w-4" />}
                   {weightTrend.direction === 'same' && <Minus className="mr-1 h-4 w-4" />}
                   {weightTrend.value > 0 && fmt(weightTrend.value, { decimals: 1 })}
                 </Badge>
@@ -329,7 +352,11 @@ const Measurements = () => {
                           {t(MEASUREMENT_FIELD_LABEL_KEYS[field])}:{' '}
                           <strong>{field === 'weight' ? fmt(value) : fmtLength(value)}</strong>
                           {delta !== null && delta !== 0 && (
-                            <span className={cn('ml-1 text-xs tabular-nums', deltaClass(field, delta))}>
+                            <span
+                              className={cn('ml-1 text-xs tabular-nums', TONE_TEXT_CLASS[deltaTone(field, delta, objective)])}
+                              data-testid={`measurement-delta-${field}`}
+                              data-tone={deltaTone(field, delta, objective)}
+                            >
                               {delta > 0 ? '+' : ''}{field === 'weight' ? fmt(delta, { decimals: 1 }) : fmtLength(delta, { decimals: 1 })}
                             </span>
                           )}
