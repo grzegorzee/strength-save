@@ -14,6 +14,7 @@ import type { BodyMeasurement, WorkoutSession } from '@/types';
 import type { PlanCycle } from '@/types/cycles';
 import type { ActiveWorkoutDraft } from '@/lib/workout-draft-db';
 import { addCalendarDays, calendarDayDiff, formatLocalDate, parseLocalDate } from '@/lib/utils';
+import { clampSet } from '@/lib/workout-sanitizers';
 import { getStartOfPlanWeek } from '@/lib/plan-schedule';
 import { mapAppUserProfile, type UserProfile } from '@/lib/user-profile';
 import type { AppUserProfile } from '@/lib/registration-api';
@@ -177,6 +178,43 @@ const buildWorkout = (
     startedAt,
     completedAt: startedAt + 3600 * 1000,
     ...overrides,
+  };
+};
+
+/** Bug 5 (X30): sesja z seriami typow Z105 (duration / assisted_bodyweight /
+ *  weight_distance_duration) budowana przez clampSet — TA SAMA logika co
+ *  produkcyjny zapis (workout-save). Roundtrip w canonical-states.test.ts
+ *  pilnuje, ze hydracja nie obcina durationSec/distanceM/assistWeight/LWW. */
+export const buildTypedSetsWorkout = (todayISO: string): WorkoutSession => {
+  const startedAt = parseLocalDate(todayISO).getTime() + 17 * 3_600_000;
+  return {
+    id: `${CANONICAL_UID}_day-typed_${todayISO}_typed`,
+    userId: CANONICAL_UID,
+    dayId: 'day-typed',
+    date: todayISO,
+    completed: true,
+    exercises: [
+      {
+        exerciseId: 'plank',
+        name: 'Plank',
+        sets: [clampSet({ reps: 1, weight: 0, completed: true, durationSec: 60, updatedAt: startedAt + 60_000, updatedEventId: 'evt-plank-1' })],
+      },
+      {
+        exerciseId: 'assisted-pullup',
+        name: 'Podciąganie wspomagane',
+        sets: [clampSet({ reps: 8, weight: 0, completed: true, assistWeight: 30, updatedAt: startedAt + 120_000, updatedEventId: 'evt-pull-1' })],
+      },
+      {
+        exerciseId: 'farmer-walk',
+        name: "Farmer's Walk",
+        sets: [clampSet({ reps: 0, weight: 40, completed: true, distanceM: 50, durationSec: 45, updatedAt: startedAt + 180_000, updatedEventId: 'evt-farmer-1' })],
+      },
+    ],
+    dayName: 'Dzień typów Z105',
+    dayFocus: 'Core',
+    durationSec: 1800,
+    startedAt,
+    completedAt: startedAt + 1800 * 1000,
   };
 };
 

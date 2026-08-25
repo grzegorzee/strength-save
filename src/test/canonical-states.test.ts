@@ -3,6 +3,7 @@ import {
   CANONICAL_STATE_IDS,
   CANONICAL_UID,
   buildCanonicalState,
+  buildTypedSetsWorkout,
 } from '@/test/canonical-states';
 import {
   sanitizeMeasurementDoc,
@@ -71,6 +72,14 @@ describe('WP-G — canonical states: roundtrip przez sanitizery hydracji', () =>
     const state = buildCanonicalState('history-outside-cycles', TODAY);
     const outside = state.workouts.filter((w) => !w.cycleId);
     expect(outside.length).toBeGreaterThan(0);
+  });
+
+  it('typed-sets: serie duration/assisted/wdd przechodza sanitizer bez obciecia pol Z105 (bug 5)', () => {
+    // clampSet (produkcyjny zapis) → sanitizeWorkoutDoc (hydracja) na poziomie
+    // SERII: durationSec/distanceM/assistWeight/updatedAt/updatedEventId musza
+    // przezyc roundtrip, inaczej PR-y i progresja typow Z105 sa martwe.
+    const workout = buildTypedSetsWorkout(TODAY);
+    expect(sanitizeWorkoutDoc(workout.id, stripId(workout))).toEqual(workout);
   });
 
   it('draft-open: draft wskazuje dzisiejsza sesje z planu', () => {

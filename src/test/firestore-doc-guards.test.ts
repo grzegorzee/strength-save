@@ -69,6 +69,56 @@ describe('sanitizeWorkoutDoc (P0)', () => {
     expect(doc!.completed).toBe(true);
     expect(doc!.exercises[0].sets[0]).toEqual({ reps: 8, weight: 102.5, completed: false });
   });
+  // Bug 5 (X30): clampSet zapisuje pelny ksztalt serii Z105, a sanitizeSet obcinal
+  // durationSec/distanceM/assistWeight/updatedAt/updatedEventId przy hydracji —
+  // PR-y duration/wdd i wykresy progresji byly martwe po kazdym snapshotcie.
+  it('serie: zachowuje pola Z105 (durationSec, distanceM, assistWeight, updatedAt, updatedEventId)', () => {
+    const doc = sanitizeWorkoutDoc('w1', {
+      ...validWorkout(),
+      exercises: [{
+        exerciseId: 'ex-1',
+        sets: [{
+          reps: 1, weight: 0, completed: true,
+          durationSec: 60, distanceM: 50, assistWeight: 30,
+          updatedAt: 1700000000000, updatedEventId: 'evt-1',
+        }],
+      }],
+    });
+    expect(doc!.exercises[0].sets[0]).toEqual({
+      reps: 1, weight: 0, completed: true,
+      durationSec: 60, distanceM: 50, assistWeight: 30,
+      updatedAt: 1700000000000, updatedEventId: 'evt-1',
+    });
+  });
+  it('serie: pola Z105 klamrowane do widelek clampSet, smieci znikaja', () => {
+    const doc = sanitizeWorkoutDoc('w1', {
+      ...validWorkout(),
+      exercises: [{
+        exerciseId: 'ex-1',
+        sets: [{
+          reps: 8, weight: 100, completed: true,
+          durationSec: 100000, // > 86400 → klamra
+          distanceM: -5, // < 0 → klamra do 0
+          assistWeight: Number.NaN, // nie-finite → znika
+          updatedAt: -1, // niedodatni → znika
+          updatedEventId: 'x'.repeat(200), // > 120 → obciete
+        }],
+      }],
+    });
+    const set = doc!.exercises[0].sets[0];
+    expect(set.durationSec).toBe(86400);
+    expect(set.distanceM).toBe(0);
+    expect(set.assistWeight).toBeUndefined();
+    expect(set.updatedAt).toBeUndefined();
+    expect(set.updatedEventId).toBe('x'.repeat(120));
+  });
+  it('serie: pusty updatedEventId znika (parytet z clampSet)', () => {
+    const doc = sanitizeWorkoutDoc('w1', {
+      ...validWorkout(),
+      exercises: [{ exerciseId: 'ex-1', sets: [{ reps: 8, weight: 100, completed: true, updatedEventId: '' }] }],
+    });
+    expect(doc!.exercises[0].sets[0].updatedEventId).toBeUndefined();
+  });
   it('zachowuje opcjonalne pola (durationSec, snapshoty nazw), odrzuca nie-finite', () => {
     const doc = sanitizeWorkoutDoc('w1', {
       ...validWorkout(),
